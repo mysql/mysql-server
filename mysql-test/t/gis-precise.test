@@ -137,6 +137,7 @@ geomfromtext('POLYGON((525298.67 183511.53,525296.57
 183491.55))'))) st_u;
 
 SET @a=0x0000000001030000000200000005000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000024400000000000000000000000000000000000000000000000000000F03F000000000000F03F0000000000000040000000000000F03F00000000000000400000000000000040000000000000F03F0000000000000040000000000000F03F000000000000F03F;
+--error ER_GIS_INVALID_DATA
 SELECT ASTEXT(TOUCHES(@a, GEOMFROMTEXT('point(0 0)'))) t;
 
 
@@ -145,9 +146,11 @@ SELECT ASTEXT(TOUCHES(@a, GEOMFROMTEXT('point(0 0)'))) t;
 --echo # Bug 18408919 - WL7220 : OVERLAPPING MEMCPY CRASH IN GEOMETRY::AS_WKB
 --echo # Bug 18408875 - WL7220 : ASSERTION FAILED: *P == 0 || *P == 1
 --echo #
+--error ER_GIS_INVALID_DATA
 select st_union((cast(linestring(point(6,-68), point(-22,-4)) as binary(13))),
                 st_intersection(point(6,8),multipoint(point(3,1),point(-4,-6),point(1,6),point(-3,-5),point(5,4))));
 
+--error ER_GIS_INVALID_DATA
 select st_difference((convert(st_polygonfromwkb(linestring(point(1,1))) using gb18030)),
                      st_geomcollfromwkb(point(1,1)));
 
@@ -266,7 +269,7 @@ select st_crosses(st_union(geomfromtext('point(1 1)'), geomfromtext('multipoint(
 --echo #
 --echo # Bug 18701114 - WL7220: ASSERTION FAILED: (PTR != 0 && NBYTES > 0) || (PTR == 0 && NBYTES == 0),
 --echo #
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_INVALID_DATA
 select
 st_within(
            multipoint(point(4,2),point(-6,-8)),
@@ -281,11 +284,17 @@ st_within(
 # Checking parsing WKT of empty geometry collection and nested geometry collections.
 SELECT AsText(GeomFromText('GeometryCollection()'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(,)'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(point(0 0),)'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(,point(0 0))'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection((point(0 0)))'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'));
@@ -310,7 +319,7 @@ SELECT AsText(st_symdifference(GeomFromText('GeometryCollection(GeometryCollecti
 --echo #
 --echo # Bug 18701114 - WL7220: ASSERTION FAILED: (PTR != 0 && NBYTES > 0) || (PTR == 0 && NBYTES == 0),
 --echo #
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_INVALID_DATA
 select
 st_within(
            multipoint(point(4,2),point(-6,-8)),
@@ -325,11 +334,17 @@ st_within(
 # Checking parsing WKT of empty geometry collection and nested geometry collections.
 SELECT AsText(GeomFromText('GeometryCollection()'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(,)'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(point(0 0),)'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(,point(0 0))'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection((point(0 0)))'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'));
@@ -361,6 +376,7 @@ SELECT ST_Equals(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('po
 
 
 select astext(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))))));
+--error ER_GIS_INVALID_DATA
 select area(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))))));
  select AsText(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'));
  select area(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'));
@@ -384,9 +400,12 @@ select AsText(GeometryFromWKB(AsWKB(GeometryCollection(POINT(0, 0),
 
 
 select astext(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))));
+--error ER_GIS_INVALID_DATA
 select area(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))))));
 select astext(envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
+--error ER_GIS_INVALID_DATA
 select astext(centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
+--error ER_GIS_INVALID_DATA
 select astext(convexhull(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
 
 
@@ -395,7 +414,9 @@ SELECT AsText(Centroid(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(
 SELECT AsText(Centroid(GeomFromText('linestring(0 0, 1 1, 2 2)')));
 SELECT AsText(Centroid(GeomFromText('multipoint(0 0, 1 1, 2 2)')));
 SELECT AsText(Centroid(GeomFromText('multilinestring((0 0, 1 1, 2 2), (3 3, 4 4, 5 5))')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(Centroid(GeomFromText('polygon((0 0, 1 1, 2 2), (3 3, 4 4, 5 5))')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(Centroid(GeomFromText('multipolygon(((0 0, 1 1, 2 2), (3 3, 4 4, 5 5)), ((0 0, 1 0, 1 1, 0 1, 0 0)))')));
 SELECT AsText(Centroid(GeomFromText('geometrycollection(polygon((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), polygon((0 0, 1 0, 1 1, 0 1, 0 0)))')));
 SELECT AsText(Centroid(GeomFromText('multipolygon(((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), ((0 0, 1 0, 1 1, 0 1, 0 0)))')));
@@ -408,7 +429,9 @@ SELECT AsText(Convexhull(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOIN
 SELECT AsText(Convexhull(GeomFromText('linestring(0 0, 1 1, 2 2)')));
 SELECT AsText(Convexhull(GeomFromText('multipoint(0 0, 1 1, 2 2)')));
 SELECT AsText(Convexhull(GeomFromText('multilinestring((0 0, 1 1, 2 2), (3 3, 4 4, 5 5))')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(Convexhull(GeomFromText('polygon((0 0, 1 1, 2 2), (3 3, 4 4, 5 5))')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(Convexhull(GeomFromText('multipolygon(((0 0, 1 1, 2 2), (3 3, 4 4, 5 5)), ((0 0, 1 0, 1 1, 0 1, 0 0)))')));
 SELECT AsText(Convexhull(GeomFromText('geometrycollection(polygon((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), polygon((0 0, 1 0, 1 1, 0 1, 0 0)))')));
 SELECT AsText(Convexhull(GeomFromText('multipolygon(((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), ((0 0, 1 0, 1 1, 0 1, 0 0)))')));
@@ -439,16 +462,18 @@ Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20, 1 1), (-1 
 
 # Bug #17606622 ISSUES WITH THE CENTROID() FOR THE POLYGONS AND MULTIPOLYGONS
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 10 20, 1 20, 1 1),(-1 -1, -10 -1, -10 -15, -1 -15, -1 -1)))'))) as Result;
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_INVALID_DATA
 Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20, 1 1), (5 5))'))) as Result;
 
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_INVALID_DATA
 Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20, 1 1), (1 1))'))) as Result;
 
 Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20, 1 1), (5 5, 6 5, 6 6, 5 6, 5 5))'))) as Result;
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Centroid(PolyFromText('POLYGON((1 0, 2 0, 3 0, 4 0, 5 0, 1 0))'))) as Result;
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Centroid(PolyFromText('POLYGON((1 0, 2 0, 3 0, 4 0, 5 0, 1 0), (2 0, 3 0, 2 0))'))) as Result;
 
 # Bug #17611279 CENTROID() RETURNING POINT(0 0) FOR VALID MULTIPOLYGONS
@@ -515,6 +540,7 @@ SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 
 --echo #
 --echo # BUG #18911119 ASSERTION FAILED: !NO_DATA(NBYTES)
 --echo #
+--error ER_GIS_INVALID_DATA
 select (aswkb(cast(st_union(multipoint(
                                        point(8,6), point(1,-17679),
                                        point(-9,-9)),

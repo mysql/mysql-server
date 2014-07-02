@@ -177,8 +177,8 @@ if (!$t5_part_diff)
 }
 
 ## Simple blob usage of t6
-select count(0) as row_count, min(id) as id_min, max(id) as id_max, sum(length(dat)) as data_length, sum(length(txt)) as text_length from t6;
-select count(0) from t6;
+select count(0) as row_count, min(abs(id)) as id_min, max(id) as id_max, sum(length(dat)) as data_length, sum(length(txt)) as text_length from t6;
+select count(0) from t6 where val = abs(id) and (id between -4991 and -4001 or id between -991 and 9991);
 let $count= `select count(0) from t6 where abs(id) <> val or (left(dat,if(val mod 1000 < 100, 2, 3)) div 25 <> (val mod 1000) div 25 and left(dat,3) <> 'old') or length(dat) <> length(txt)` ;
 if ($count)
 {

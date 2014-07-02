@@ -677,7 +677,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values ("qwerty");
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (pointfromtext('point(1,1)'));
-ERROR 23000: Column 'fl' cannot be null
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 drop table t1;
 select (asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))));
 (asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))))
@@ -729,10 +729,7 @@ within(b, b) IS NULL, contains(b, b) IS NULL, overlaps(b, b) IS NULL,
 equals(b, b) IS NULL, disjoint(b, b) IS NULL, touches(b, b) IS NULL,
 intersects(b, b) IS NULL, crosses(b, b) IS NULL
 from t1;
-within(b, b) IS NULL	contains(b, b) IS NULL	overlaps(b, b) IS NULL	equals(b, b) IS NULL	disjoint(b, b) IS NULL	touches(b, b) IS NULL	intersects(b, b) IS NULL	crosses(b, b) IS NULL
-1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1
-1	1	1	1	1	1	1	1
+ERROR 22023: Invalid GIS data provided to function mbrwithin.
 select
 point(b, b) IS NULL, linestring(b) IS NULL, polygon(b) IS NULL, multipoint(b) IS NULL,
 multilinestring(b) IS NULL, multipolygon(b) IS NULL,
@@ -749,8 +746,7 @@ DROP TABLE t1;
 CREATE TABLE `t1` ( `col9` set('a'), `col89` date);
 INSERT INTO `t1` VALUES ('','0000-00-00');
 select geomfromtext(col9,col89) as a from t1;
-a
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 DROP TABLE t1;
 CREATE TABLE t1 (
 geomdata polygon NOT NULL,
@@ -1048,8 +1044,10 @@ ERROR 22007: Illegal non geometric ''00000'' value found during parsing
 #
 SET @a=0x00000000030000000100000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
 SET @a=POLYFROMWKB(@a);
+ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
 SET @a=0x00000000030000000000000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
 SET @a=POLYFROMWKB(@a);
+ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
 create table t1(a polygon NOT NULL)engine=innodb;
 insert into t1 values (geomfromtext("point(0 1)"));
 insert into t1 values (geomfromtext("point(1 0)"));
@@ -1136,7 +1134,7 @@ CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255)));
 INSERT INTO g1 VALUES ('a'),('a');
 SELECT 1 FROM g1 WHERE a >= ANY
 (SELECT 1 FROM g1 WHERE a = geomfromtext('') OR a) ;
-1
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 DROP TABLE g1;
 End of 5.5 tests
 DROP DATABASE IF EXISTS gis_ogs;
@@ -1501,5 +1499,4 @@ DROP DATABASE gis_ogs;
 # Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE
 #
 SELECT ST_Union('', ''), md5(1);
-ST_Union('', '')	md5(1)
-NULL	c4ca4238a0b923820dcc509a6f75849b
+ERROR 22023: Invalid GIS data provided to function st_union.

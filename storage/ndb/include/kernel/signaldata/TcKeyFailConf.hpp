@@ -39,6 +39,8 @@ class TcKeyFailConf {
   friend class Ndb;
   friend class NdbTransaction;
 
+  friend class TransporterFacade;
+
 public:
   STATIC_CONST( SignalLength = 3 );
 private:

@@ -534,8 +534,7 @@ SELECT ST_Distance(GeomFromText('LINESTRING(4.5 4.5,5.5 5.4)'),GeomFromText('POL
 ST_Distance(GeomFromText('LINESTRING(4.5 4.5,5.5 5.4)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'))
 0.5
 SELECT ST_Distance(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-ST_Distance(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_distance.
 #-------------------------------------------------------------------------------------------
 # linestring,multipolygon
 SELECT ST_Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
@@ -557,8 +556,7 @@ SELECT ST_Distance(GeomFromText('LINESTRING(5 5,15 15)'),GeomFromText('MULTIPOLY
 ST_Distance(GeomFromText('LINESTRING(5 5,15 15)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'))
 0
 SELECT ST_Distance(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-ST_Distance(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_distance.
 #-------------------------------------------------------------------------------------------
 # linestring,geometrycollection
 SELECT ST_Distance(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
@@ -862,8 +860,7 @@ SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,
 ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('POLYGON((4 4,6 6,8 8,10 15))'))
 0
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('POLYGON((11 11,14 14,15 15,16 16,20 20))'));
-ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('POLYGON((11 11,14 14,15 15,16 16,20 20))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_distance.
 SELECT ST_Distance(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
 ST_Distance(g,GeomFromText(@star_elem_vertical))
 0
@@ -888,8 +885,7 @@ SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,
 ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTIPOLYGON(((4 4,6 6,8 8,10 15)))'))
 0
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTIPOLYGON(((11 11,14 14,15 15)),((16 16,20 20,30 30)))'));
-ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTIPOLYGON(((11 11,14 14,15 15)),((16 16,20 20,30 30)))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_distance.
 SELECT ST_Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
 ST_Distance(g,GeomFromText(@star_of_elems))
 0
@@ -1351,45 +1347,35 @@ SELECT ST_Distance(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_
 ST_Distance(fid,NULL)
 NULL
 SELECT ST_Distance(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-ERROR HY000: Invalid GIS data provided to function st_distance.
+ERROR 22023: Invalid GIS data provided to function st_distance.
 SELECT ST_Distance(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-ERROR HY000: Invalid GIS data provided to function st_distance.
+ERROR 22023: Invalid GIS data provided to function st_distance.
 SELECT ST_Distance(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Distance(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Distance(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Distance(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Distance(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Distance(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Distance(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Distance(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Distance(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Distance(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Distance(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Distance(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Distance(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Distance(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Distance(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Distance(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Distance(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Distance(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Distance(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Distance(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Distance(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Distance(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 ST_Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
 0

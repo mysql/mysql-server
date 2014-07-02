@@ -21,8 +21,6 @@
 /** This is the smoke test for the multidb suite.
  */
 
-/*global assert, spi_module, harness */
-
 "use strict";
 
 try {

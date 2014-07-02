@@ -152,8 +152,7 @@ SELECT AsText(Centroid(GeomFromText(@star_elem_vertical)));
 AsText(Centroid(GeomFromText(@star_elem_vertical)))
 POINT(15 10)
 SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,5 5))')));
-AsText(Centroid(GeomFromText('POLYGON((0 0,5 5))')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_centroid.
 SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,0 5,5 5))')));
 AsText(Centroid(GeomFromText('POLYGON((0 0,0 5,5 5))')))
 POINT(1.6666666666666667 3.3333333333333335)
@@ -185,8 +184,7 @@ SELECT AsText(Centroid(GeomFromText(@star_of_elems)));
 AsText(Centroid(GeomFromText(@star_of_elems)))
 POINT(15.64459161147903 10.20971302428256)
 SELECT AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 0,5 5)))')));
-AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 0,5 5)))')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_centroid.
 SELECT AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')));
 AsText(Centroid(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')))
 POINT(1.6666666666666667 3.3333333333333335)
@@ -446,38 +444,29 @@ SELECT AsText(Centroid(NULL));
 AsText(Centroid(NULL))
 NULL
 SELECT AsText(Centroid(GeomFromText('POINT(a 0)')));
-AsText(Centroid(GeomFromText('POINT(a 0)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Centroid(GeomFromText('POINT(! 0)')));
-AsText(Centroid(GeomFromText('POINT(! 0)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Centroid(GeomFromText('POINT('!' 0)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)')))' at line 1
 SELECT AsText(Centroid(GeomFromText('POINT(12,34 0)')));
-AsText(Centroid(GeomFromText('POINT(12,34 0)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Centroid(GeomFromText('LINESTRING(a 0,10 10)')));
-AsText(Centroid(GeomFromText('LINESTRING(a 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Centroid(GeomFromText('LINESTRING(0 0,! 10)')));
-AsText(Centroid(GeomFromText('LINESTRING(0 0,! 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Centroid(GeomFromText('LINESTRING('!' 0,10 10)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)')))' at line 1
 SELECT AsText(Centroid(GeomFromText('LINESTRING(12,34 0,10 10)')));
-AsText(Centroid(GeomFromText('LINESTRING(12,34 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Centroid(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))')));
-AsText(Centroid(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Centroid(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))')));
-AsText(Centroid(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Centroid(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))')))' at line 1
 SELECT AsText(Centroid(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
-AsText(Centroid(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Centroid(GeomFromText('GEOMETRYCOLLECTION()')));
 AsText(Centroid(GeomFromText('GEOMETRYCOLLECTION()')))
 NULL

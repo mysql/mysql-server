@@ -376,6 +376,7 @@ SELECT ST_Distance(GeomFromText('LINESTRING(4 4,6 6)'),GeomFromText('POLYGON((0 
 SELECT ST_Distance(GeomFromText('LINESTRING(4 4,6 6)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
 SELECT ST_Distance(GeomFromText('LINESTRING(-11 -11,-11 11)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
 SELECT ST_Distance(GeomFromText('LINESTRING(4.5 4.5,5.5 5.4)'),GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
 --echo #-------------------------------------------------------------------------------------------
 --echo # linestring,multipolygon
@@ -385,6 +386,7 @@ SELECT ST_Distance(GeomFromText('LINESTRING(0 0,20 20,30 30)'),GeomFromText('MUL
 SELECT ST_Distance(GeomFromText('LINESTRING(-1 5)'),GeomFromText('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
 SELECT ST_Distance(GeomFromText('LINESTRING(4.5 4.5,5.5 5.5)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),((4 4,4 6,6 6,6 4,4 4)))'));
 SELECT ST_Distance(GeomFromText('LINESTRING(5 5,15 15)'),GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
 --echo #-------------------------------------------------------------------------------------------
 --echo # linestring,geometrycollection
@@ -504,6 +506,7 @@ SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromTe
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('POLYGON((110 110,-100 100,-50 50))'));
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('POLYGON((4.3 4.3,4.5 4.8,5 5.5))'));
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('POLYGON((4 4,6 6,8 8,10 15))'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('POLYGON((11 11,14 14,15 15,16 16,20 20))'));
 SELECT ST_Distance(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
 --echo #-------------------------------------------------------------------------------------------
@@ -514,6 +517,7 @@ SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromTe
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))'),GeomFromText('MULTIPOLYGON(((5 0,20 20,100 100)),((0 0,-10 -10,10 100)))'));
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTIPOLYGON(((4.3 4.3,4.7 5,5 5.6)))'));
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),GeomFromText('MULTIPOLYGON(((4 4,6 6,8 8,10 15)))'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),GeomFromText('MULTIPOLYGON(((11 11,14 14,15 15)),((16 16,20 20,30 30)))'));
 SELECT ST_Distance(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
 --echo #-------------------------------------------------------------------------------------------
@@ -702,21 +706,31 @@ SELECT ST_Distance(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_
 SELECT ST_Distance(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 --error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Distance(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Distance(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Distance(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 SELECT ST_Distance(GeomFromText('POINT(10 10)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));

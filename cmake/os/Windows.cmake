@@ -35,9 +35,9 @@ INCLUDE(${CMAKE_BINARY_DIR}/win/configure.data OPTIONAL)
 GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 
-# We require at least Visual Studio 2010 (aka 10.0) which has version nr 1600.
-IF(MSVC_VERSION LESS 1600)
-  MESSAGE(FATAL_ERROR "Visual Studio 2010 or newer is required!")
+# We require at least Visual Studio 2013 (aka 12.0) which has version nr 1800.
+IF(MSVC_VERSION LESS 1800)
+  MESSAGE(FATAL_ERROR "Visual Studio 2013 or newer is required!")
 ENDIF()
 
 # OS display name (version_compile_os etc).
@@ -54,7 +54,7 @@ ADD_DEFINITIONS("-D_WIN32_WINNT=0x0601")
 SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -D_WIN32_WINNT=0x0601")
 
 # Speed up build process excluding unused header files
-ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN")
+ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN -DNOGDI")
 
 # We want to use std::min/std::max, not the windows.h macros
 ADD_DEFINITIONS("-DNOMINMAX")
