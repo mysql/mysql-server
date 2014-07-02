@@ -1855,6 +1855,7 @@ trx_commit_in_memory(
 	if (trx->rsegs.m_redo.rseg != NULL) {
 		trx_rseg_t*	rseg = trx->rsegs.m_redo.rseg;
 		mutex_enter(&rseg->mutex);
+		ut_ad(rseg->trx_ref_count > 0);
 		--rseg->trx_ref_count;
 		mutex_exit(&rseg->mutex);
 	}
