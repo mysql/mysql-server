@@ -31,19 +31,19 @@ DROP TABLE IF EXISTS t_null;
 
 # Base tables without partitions allowing exchange and insert from.
 eval CREATE TABLE t_10 (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
 ENGINE = $engine_table;
 
 eval CREATE TABLE t_100 (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
 ENGINE = $engine_table;
 
 eval CREATE TABLE t_1000 (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
 ENGINE = $engine_table;
@@ -63,36 +63,36 @@ INSERT INTO t_1000 VALUES (191, "Hundred ninety-one", '2191-01-01'), (193, "Hund
 
 # Special tables
 eval CREATE TABLE t_empty (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
 ENGINE = $engine_table;
 
 eval CREATE TABLE t_null (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
 ENGINE = $engine_table;
 
-eval CREATE TABLE tsp_01(a INT,b VARCHAR(55),c DATE,PRIMARY KEY (a))
+eval CREATE TABLE tsp_01(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (a))
              ENGINE = $engine_table $data_directory $index_directory
              AS SELECT a, b FROM t_10 WHERE MOD(a,5)= 1;
-eval CREATE TABLE tsp_02(a INT,b VARCHAR(55),c DATE,PRIMARY KEY (a)) 
+eval CREATE TABLE tsp_02(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (a)) 
              ENGINE = $engine_table $data_directory $index_directory
              AS SELECT a, b FROM t_10 WHERE MOD(a,5)= 2;
-eval CREATE TABLE tsp_03(a INT,b VARCHAR(55),c DATE,PRIMARY KEY (a)) 
+eval CREATE TABLE tsp_03(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (a)) 
              ENGINE = $engine_table $data_directory $index_directory
              AS SELECT a, b FROM t_10 WHERE MOD(a,5)= 3;
-eval CREATE TABLE tsp_04(a INT,b VARCHAR(55),c DATE,PRIMARY KEY (a)) 
+eval CREATE TABLE tsp_04(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (a)) 
              ENGINE = $engine_table $data_directory $index_directory
              AS SELECT a, b FROM t_10 WHERE MOD(a,5)= 4;
-eval CREATE TABLE tsp_00(a INT,b VARCHAR(55),c DATE,PRIMARY KEY (a)) 
+eval CREATE TABLE tsp_00(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (a)) 
              ENGINE = $engine_table $data_directory $index_directory
              AS SELECT a, b FROM t_10 WHERE MOD(a,5)= 0;
  
 # Tables with range partition.
 eval CREATE TABLE tp_r (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
 ENGINE = $engine_part
@@ -102,7 +102,7 @@ PARTITION BY RANGE (a)
  PARTITION p2 VALUES LESS THAN (1000) $p_data_directory $p_index_directory);
 
 eval CREATE TABLE tsp_r (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
 ENGINE = $engine_subpart
@@ -144,7 +144,7 @@ INSERT INTO tsp_r VALUES (162, "Hundred sixty-two", '2162-01-01'), (164, "Hundre
 INSERT INTO tsp_r VALUES (182, "Hundred eight-two", '2182-01-01'), (184, "Hundred eighty-four", '2184-01-01'), (186, "Hundred eighty-six", '2186-01-01'), (188, "Hundred eighty-eight", '2188-01-01');
 
 --error ER_VALUES_IS_NOT_INT_TYPE_ERROR
-eval CREATE TABLE tp_rvar(a INT,b VARCHAR(55),c DATE,PRIMARY KEY (b)) 
+eval CREATE TABLE tp_rvar(a INT,b VARCHAR(25),c DATE,PRIMARY KEY (b)) 
              ENGINE = $engine_table $data_directory $index_directory
 PARTITION BY RANGE (b)
 (PARTITION p0 VALUES LESS THAN ('H') $p_data_directory $p_index_directory,
@@ -153,7 +153,8 @@ PARTITION BY RANGE (b)
  PARTITION p3 VALUES LESS THAN (MAXVALUE) $p_data_directory $p_index_directory)
              AS SELECT a, b FROM tp_r;
 
-eval CREATE TABLE tp_rintvar(a INT,b VARCHAR(25),c DATE) 
+eval CREATE TABLE tp_rintvar(a INT,b VARCHAR(25),c DATE,
+             PRIMARY KEY (a,b))
              ENGINE = $engine_table $data_directory $index_directory
 PARTITION BY RANGE COLUMNS (a,b)
 (PARTITION p0 VALUES LESS THAN (10,'HHHHHHHHHHHHHHHHHHHHHHHHH'),
@@ -171,7 +172,8 @@ PARTITION BY RANGE COLUMNS (b)
  PARTITION p3 VALUES LESS THAN (MAXVALUE))
              AS SELECT a, b, c FROM tp_r;
 
-eval CREATE TABLE tp_rintdate(a INT,b VARCHAR(25),c DATE) 
+eval CREATE TABLE tp_rintdate(a INT,b VARCHAR(25),c DATE, 
+             PRIMARY KEY (a,c))
              ENGINE = $engine_table $data_directory $index_directory
 PARTITION BY RANGE COLUMNS (a,c)
 (PARTITION p0 VALUES LESS THAN (10,'2010-01-01'),
@@ -183,7 +185,8 @@ PARTITION BY RANGE COLUMNS (a,c)
 INSERT tp_rintdate SELECT * FROM t_100;
 INSERT tp_rintdate SELECT * FROM t_1000;
 
-eval CREATE TABLE tp_rdate(a INT,b VARCHAR(25),c DATE) 
+eval CREATE TABLE tp_rdate(a INT,b VARCHAR(25),c DATE,
+             PRIMARY KEY (c))
              ENGINE = $engine_table $data_directory $index_directory
 PARTITION BY RANGE COLUMNS (c)
 (PARTITION p0 VALUES LESS THAN ('2010-01-01'),
@@ -229,7 +232,7 @@ SUBPARTITIONS 5
 
 # Tables partition by list
 eval CREATE TABLE tp_l (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
 ENGINE = $engine_part
@@ -246,7 +249,7 @@ PARTITION BY LIST (a)
   AS SELECT a, b, c FROM tp_r;
 
 eval CREATE TABLE tsp_l (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
 ENGINE = $engine_subpart
@@ -280,7 +283,7 @@ SUBPARTITION BY HASH(a)
 
 # Tables partition by key
 eval CREATE TABLE tp_k (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
 ENGINE = $engine_subpart
@@ -289,7 +292,7 @@ PARTITIONS 3
   AS SELECT a, b, c FROM tp_r;
 
 eval CREATE TABLE tp_kvar (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (b)) $data_directory $index_directory
 ENGINE = $engine_subpart
@@ -298,7 +301,7 @@ PARTITIONS 3
   AS SELECT a, b, c FROM tp_r;
 
 eval CREATE TABLE tp_kdate (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (c)) $data_directory $index_directory
 ENGINE = $engine_subpart
@@ -308,29 +311,11 @@ PARTITIONS 3
 
 # Tabes partition by hash
 eval CREATE TABLE tp_h (a INT,
-  b VARCHAR(55),
+  b VARCHAR(25),
   c DATE,
   PRIMARY KEY (a)) $data_directory $index_directory
 ENGINE = $engine_subpart
-PARTITION BY KEY (a)
-PARTITIONS 3
-  AS SELECT a, b, c FROM tp_r;
-
-eval CREATE TABLE tp_hvar (a INT,
-  b VARCHAR(55),
-  c DATE,
-  PRIMARY KEY (b)) $data_directory $index_directory
-ENGINE = $engine_subpart
-PARTITION BY KEY (b)
-PARTITIONS 3
-  AS SELECT a, b, c FROM tp_r;
-
-eval CREATE TABLE tp_hdate (a INT,
-  b VARCHAR(55),
-  c DATE,
-  PRIMARY KEY (c)) $data_directory $index_directory
-ENGINE = $engine_subpart
-PARTITION BY KEY (c)
+PARTITION BY HASH (a)
 PARTITIONS 3
   AS SELECT a, b, c FROM tp_r;
 
