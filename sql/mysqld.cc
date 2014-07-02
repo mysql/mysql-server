@@ -7060,6 +7060,9 @@ mysqld_get_one_option(int optid,
     test_flags= argument ? (uint) atoi(argument) : 0;
     opt_endinfo=1;
     break;
+  case OPT_THREAD_CONCURRENCY:
+    WARN_DEPRECATED_NO_REPLACEMENT(NULL, "THREAD_CONCURRENCY");
+    break;
   case (int) OPT_ISAM_LOG:
     opt_myisam_log=1;
     break;
