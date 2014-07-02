@@ -55,64 +55,64 @@ test.t2	analyze	status	OK
 explain select * from t1
 where b1 = 5 and c1 = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	ref	b1x,c1x	b1x	4	const	#	#	Using where with pushed condition (`test`.`t1`.`c1` = 5)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x,c1x	b1x	4	const	#	#	Using where with pushed condition (`test`.`t1`.`c1` = 5)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` = 5) and (`test`.`t1`.`b1` = 5))
 # must use c2x
 explain select * from t2
 where b2 = 5 and c2 = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1	ref	b2x,c2x	c2x	4	const	#	#	Using where with pushed condition (`test`.`t2`.`b2` = 5)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b2x,c2x	c2x	4	const	#	#	Using where with pushed condition (`test`.`t2`.`b2` = 5)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t2` where ((`test`.`t2`.`c2` = 5) and (`test`.`t2`.`b2` = 5))
 # must use b1x, c2x
 explain select * from t1, t2
 where c1 = c2 and b1 = 5 and b2 = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	ref	b1x,c1x	b1x	4	const	#	#	Parent of 2 pushed join@1
-1	SIMPLE	t2	p0,p1	ref	b2x,c2x	c2x	4	test.t1.c1	#	#	Child of 't1' in pushed join@1; Using where with pushed condition (`test`.`t2`.`b2` = 5)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x,c1x	b1x	4	const	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b2x,c2x	c2x	4	test.t1.c1	#	#	Child of 't1' in pushed join@1; Using where with pushed condition (`test`.`t2`.`b2` = 5)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b2` = 5) and (`test`.`t1`.`b1` = 5) and (`test`.`t2`.`c2` = `test`.`t1`.`c1`))
 # must use c2x, b1x
 explain select * from t1, t2
 where b1 = b2 and c1 = 5 and c2 = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1	ref	b2x,c2x	c2x	4	const	#	#	Parent of 2 pushed join@1
-1	SIMPLE	t1	p0,p1	ref	b1x,c1x	b1x	4	test.t2.b2	#	#	Child of 't2' in pushed join@1; Using where with pushed condition (`test`.`t1`.`c1` = 5)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b2x,c2x	c2x	4	const	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x,c1x	b1x	4	test.t2.b2	#	#	Child of 't2' in pushed join@1; Using where with pushed condition (`test`.`t1`.`c1` = 5)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c2` = 5) and (`test`.`t1`.`c1` = 5) and (`test`.`t1`.`b1` = `test`.`t2`.`b2`))
 # must use t1, c2x
 explain select * from t1, t2
 where c1 = c2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	ALL	c1x	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
-1	SIMPLE	t2	p0,p1	ref	c2x	c2x	4	test.t1.c1	#	#	Child of 't1' in pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c1x	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	c2x	c2x	4	test.t1.c1	#	#	Child of 't1' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`c2` = `test`.`t1`.`c1`)
 # must use t2, b1x
 explain select * from t1, t2
 where b1 = b2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1	ALL	b2x	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
-1	SIMPLE	t1	p0,p1	ref	b1x	b1x	4	test.t2.b2	#	#	Child of 't2' in pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	b2x	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	b1x	b1x	4	test.t2.b2	#	#	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t1`.`c1` AS `c1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`b1` = `test`.`t2`.`b2`)
 # should NOT say: Using index for group-by
 explain select distinct (a1) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1` from `test`.`t1`
 # must say: Using index for group by
 explain select distinct (b1) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	index	NULL	b1x	4	NULL	#	#	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	b1x	4	NULL	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`b1` AS `b1` from `test`.`t1`
 # must say: Using index for group by
 explain select distinct (c1) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	index	NULL	c1x	4	NULL	#	#	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	c1x	4	NULL	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`c1` AS `c1` from `test`.`t1`
 drop table t1, t2;
