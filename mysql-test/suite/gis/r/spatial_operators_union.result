@@ -803,48 +803,36 @@ AsText(ST_Union(fid,NULL))
 NULL
 SELECT AsText(ST_Union(fid,GeomFromText(@star_top))) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-AsText(ST_Union(fid,GeomFromText(@star_top)))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_union.
 SELECT AsText(ST_Union(GeomFromText(@star_of_elems),fid)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-AsText(ST_Union(GeomFromText(@star_of_elems),fid))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_union.
 SELECT AsText(ST_Union(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Union(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Union(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Union(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Union(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)')))' at line 1
 SELECT AsText(ST_Union(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Union(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Union(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Union(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Union(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Union(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Union(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')))' at line 1
 SELECT AsText(ST_Union(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Union(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Union(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Union(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Union(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Union(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Union(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))' at line 1
 SELECT AsText(ST_Union(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Union(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Union(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Union(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Union(,));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
 SELECT AsText(ST_Union(GeomFromText(@star_of_elems),));
