@@ -136,7 +136,17 @@ ELSE()
   MESSAGE(STATUS "System libs used by ndbclient_so: ${NDBCLIENT_SYSTEM_LIBS}")
   TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES
     ${NDBCLIENT_SYSTEM_LIBS})
+
+  # Prepend any special linker flags(like -m64) for shared library
+  GET_TARGET_PROPERTY(ndbclient_so_link_flags ndbclient_so LINK_FLAGS)
+  IF(NOT ndbclient_so_link_flags)
+    # Avoid LINK_FLAGS-NOTFOUND
+    SET(ndbclient_so_link_flags)
+  ENDIF()
+  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
+    LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${ndbclient_so_link_flags}")
 ENDIF()
+
 
 SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
   OUTPUT_NAME "ndbclient"

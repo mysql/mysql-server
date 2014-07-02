@@ -283,15 +283,11 @@ DataBuffer<sz>::append(const Uint32* src, Uint32 len){
   }
   DataBufferIterator it;
 
-  bool b0, b1; 
-  if ((b0 = position(it, pos)) && (b1 = import(it, src, len)))
-  {
-    return true;
-  }
-
-  ndbout_c("%u %u", b0, b1);
-  abort();
-  return false;
+  bool ok = position(it, pos);
+  require(ok);
+  ok = import(it, src, len);
+  require(ok);
+  return true;
 }
 
 template<Uint32 sz>

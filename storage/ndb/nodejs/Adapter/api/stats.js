@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -75,7 +75,7 @@ function stats_incr(baseDomain, basePrefix, keyPath) {
     domain[key] = 1;
   }
 
-  udebug.log(dotted_name(basePrefix, keyPath), "INCR", "(" + domain[key] + ")");
+  udebug.log_detail(dotted_name(basePrefix, keyPath), "INCR", "(" + domain[key] + ")");
 }
 
 function stats_set(baseDomain, basePrefix, keyPath, value) {
@@ -84,7 +84,7 @@ function stats_set(baseDomain, basePrefix, keyPath, value) {
   var key = keyPath[(len)];
    
   domain[key] = value;
-  udebug.log(dotted_name(basePrefix, keyPath), "SET", value);
+  udebug.log_detail(dotted_name(basePrefix, keyPath), "SET", value);
 }
 
 function stats_push(baseDomain, basePrefix, keyPath, value) {
@@ -97,7 +97,7 @@ function stats_push(baseDomain, basePrefix, keyPath, value) {
   }  
   domain[key].push(value);
 
-  udebug.log(dotted_name(basePrefix, keyPath), "PUSH", value);
+  udebug.log_detail(dotted_name(basePrefix, keyPath), "PUSH", value);
 }
 
 function testPathIsArray(keyOrPath) {

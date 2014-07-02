@@ -1019,7 +1019,7 @@ test_if_important_data(const CHARSET_INFO *cs, const char *str,
    in other files.
  */
 
-CPP_UNNAMED_NS_START
+namespace {
 
 int compare(unsigned int a, unsigned int b)
 {
@@ -1030,7 +1030,7 @@ int compare(unsigned int a, unsigned int b)
   return 0;
 }
 
-CPP_UNNAMED_NS_END
+} // namespace
 
 /**
   Detect Item_result by given field type of UNION merge result.
