@@ -1927,48 +1927,36 @@ Disjoint(fid,NULL)
 NULL
 SELECT Disjoint(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-Disjoint(fid,GeomFromText(@star_top))
-NULL
+ERROR 22023: Invalid GIS data provided to function mbrdisjoint.
 SELECT Disjoint(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-Disjoint(GeomFromText(@star_of_elems),fid)
-NULL
+ERROR 22023: Invalid GIS data provided to function mbrdisjoint.
 SELECT Disjoint(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Disjoint(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Disjoint(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Disjoint(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Disjoint(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT Disjoint(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Disjoint(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Disjoint(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Disjoint(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Disjoint(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Disjoint(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Disjoint(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT Disjoint(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Disjoint(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Disjoint(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-Disjoint(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Disjoint(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-Disjoint(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Disjoint(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Disjoint(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT Disjoint(GeomFromText(@star_of_elems),);
@@ -2007,48 +1995,36 @@ ST_Disjoint(fid,NULL)
 NULL
 SELECT ST_Disjoint(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-ST_Disjoint(fid,GeomFromText(@star_top))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_disjoint.
 SELECT ST_Disjoint(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-ST_Disjoint(GeomFromText(@star_of_elems),fid)
-NULL
+ERROR 22023: Invalid GIS data provided to function st_disjoint.
 SELECT ST_Disjoint(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Disjoint(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Disjoint(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Disjoint(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Disjoint(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Disjoint(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Disjoint(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Disjoint(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Disjoint(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Disjoint(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Disjoint(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Disjoint(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Disjoint(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Disjoint(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Disjoint(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Disjoint(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Disjoint(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Disjoint(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Disjoint(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Disjoint(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_Disjoint(GeomFromText(@star_of_elems),);
@@ -2089,48 +2065,36 @@ MBRDisjoint(fid,NULL)
 NULL
 SELECT MBRDisjoint(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-MBRDisjoint(fid,GeomFromText(@star_top))
-NULL
+ERROR 22023: Invalid GIS data provided to function mbrdisjoint.
 SELECT MBRDisjoint(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-MBRDisjoint(GeomFromText(@star_of_elems),fid)
-NULL
+ERROR 22023: Invalid GIS data provided to function mbrdisjoint.
 SELECT MBRDisjoint(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRDisjoint(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRDisjoint(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRDisjoint(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRDisjoint(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRDisjoint(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRDisjoint(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRDisjoint(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRDisjoint(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRDisjoint(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRDisjoint(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRDisjoint(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRDisjoint(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRDisjoint(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRDisjoint(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRDisjoint(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRDisjoint(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRDisjoint(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRDisjoint(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRDisjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRDisjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRDisjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRDisjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRDisjoint(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT MBRDisjoint(GeomFromText(@star_of_elems),);

@@ -652,9 +652,8 @@ drop table t1;
 #
 
 select hex(concat(Dimension(GeomFromText('LINESTRING(0 0,10 10)'))));
+--error ER_GIS_INVALID_DATA
 create table t1 as select concat(Dimension(GeomFromText('LINSTRING(0 0,10 10)'))) as c1;
-show create table t1;
-drop table t1;
 
 select hex(concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
 create table t1 as select concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))) as c1;

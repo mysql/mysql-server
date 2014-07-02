@@ -186,7 +186,7 @@ insert into t1 (fl) values (1);
 insert into t1 (fl) values (1.11);
 --error 1416
 insert into t1 (fl) values ("qwerty");
---error 1048
+--error ER_GIS_INVALID_DATA
 insert into t1 (fl) values (pointfromtext('point(1,1)'));
 
 drop table t1;
