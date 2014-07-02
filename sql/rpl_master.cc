@@ -854,6 +854,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   bool searching_first_gtid= using_gtid_protocol;
   bool skip_group= false;
   bool binlog_has_previous_gtids_log_event= false;
+  bool has_transmit_started= false;
   Sid_map *sid_map= slave_gtid_executed ? slave_gtid_executed->get_sid_map() : NULL;
 
   IO_CACHE log;
@@ -917,16 +918,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   {
     heartbeat_ts= &heartbeat_buf;
     set_timespec_nsec(*heartbeat_ts, 0);
-  }
-  if (log_warnings > 1)
-    sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%u), pos(%s, %lu)",
-                        thd->thread_id, thd->server_id, log_ident, (ulong)pos);
-  if (RUN_HOOK(binlog_transmit, transmit_start,
-               (thd, flags, log_ident, pos, &observe_transmission)))
-  {
-    errmsg= "Failed to run hook 'transmit_start'";
-    my_errno= ER_UNKNOWN_ERROR;
-    GOTO_ERR;
   }
 
 #ifndef DBUG_OFF
@@ -1001,6 +992,17 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     GOTO_ERR;
   }
 
+  if (log_warnings > 1)
+    sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%u), pos(%s, %lu)",
+                          thd->thread_id, thd->server_id, log_ident, (ulong)pos);
+  if (RUN_HOOK(binlog_transmit, transmit_start,
+               (thd, flags, log_ident, pos, &observe_transmission)))
+  {
+    errmsg= "Failed to run hook 'transmit_start'";
+    my_errno= ER_UNKNOWN_ERROR;
+    GOTO_ERR;
+  }
+  has_transmit_started= true;
   /* reset transmit packet for the fake rotate event below */
   if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg,
                             observe_transmission))
@@ -1816,7 +1818,8 @@ end:
   end_io_cache(&log);
   mysql_file_close(file, MYF(MY_WME));
 
-  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
+  if (has_transmit_started)
+    (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   my_eof(thd);
   THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
   mysql_mutex_lock(&LOCK_thread_count);
@@ -1848,7 +1851,8 @@ err:
     error_text[sizeof(error_text) - 1]= '\0';
   }
   end_io_cache(&log);
-  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
+  if (has_transmit_started)
+    (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   /*
     Exclude  iteration through thread list
     this is needed for purge_logs() - it will iterate through
