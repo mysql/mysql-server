@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,6 +53,33 @@
       sql_print_warning("The syntax '%s' is deprecated and will be removed " \
                         "in a future release. Please use %s instead.",      \
                         (Old), (New));                                      \
+  } while(0)
+
+
+/*
+  Generates a warning that a feature is deprecated and there is no replacement.
+
+  Using it as
+
+  WARN_DEPRECATED_NO_REPLACEMENT(thd, "BAD");
+
+  Will result in a warning
+ 
+  "'BAD' is deprecated and will be removed in a future release."
+
+   Note that in macro arguments BAD is not quoted.
+*/
+
+#define WARN_DEPRECATED_NO_REPLACEMENT(Thd,Old)                             \
+  do {                                                                      \
+    if (((THD *) Thd) != NULL)                                              \
+      push_warning_printf(((THD *) Thd), Sql_condition::WARN_LEVEL_WARN,    \
+                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,           \
+                        ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),       \
+                        (Old));                                             \
+    else                                                                    \
+      sql_print_warning("'%s' is deprecated and will be removed "           \
+                        "in a future release.", (Old));                     \
   } while(0)
 
 /*************************************************************************/
