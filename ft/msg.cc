@@ -91,8 +91,8 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_portability.h"
 
 #include "ft/msg.h"
-#include "ft/xids.h"
-#include "ft/ybt.h"
+#include "ft/txn/xids.h"
+#include "util/dbt.h"
 
 ft_msg::ft_msg(const DBT *key, const DBT *val, enum ft_msg_type t, MSN m, XIDS x) :
     _key(key ? *key : toku_empty_dbt()),

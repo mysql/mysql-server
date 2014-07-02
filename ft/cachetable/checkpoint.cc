@@ -131,11 +131,11 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_portability.h"
 #include "portability/toku_atomic.h"
 
-#include "ft/cachetable.h"
+#include "ft/cachetable/cachetable.h"
+#include "ft/cachetable/checkpoint.h"
 #include "ft/ft.h"
 #include "ft/logger/log-internal.h"
-#include "ft/logger/logger.h"
-#include "ft/checkpoint.h"
+#include "ft/logger/recover.h"
 #include "util/frwlock.h"
 #include "util/status.h"
 

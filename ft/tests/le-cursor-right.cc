@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 // - LE_CURSOR somewhere else
 
 
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 #include "le-cursor.h"
 #include "test.h"
 

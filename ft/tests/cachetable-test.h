@@ -90,7 +90,7 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
-#include "cachetable-internal.h"
+#include "cachetable/cachetable-internal.h"
 
 //
 // Dummy callbacks for checkpointing

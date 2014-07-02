@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 // test the LE_CURSOR next function with provisionally deleted rows
 
 
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 #include "le-cursor.h"
 #include "test.h"
 

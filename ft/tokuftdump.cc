@@ -99,7 +99,7 @@ PATENT RIGHTS GRANT:
 #include <limits.h>
 
 #include "ft/serialize/block_table.h"
-#include "ft/cachetable.h"
+#include "ft/cachetable/cachetable.h"
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
 #include "ft/serialize/ft-serialize.h"

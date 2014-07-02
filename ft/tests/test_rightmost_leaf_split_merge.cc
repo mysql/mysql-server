@@ -90,7 +90,7 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 
-#include <ft/ybt.h>
+#include <util/dbt.h>
 #include <ft/ft-cachetable-wrappers.h>
 #include <ft/ft-flusher.h>
 

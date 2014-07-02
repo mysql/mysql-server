@@ -1,7 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
-#ident "$Id: rollback.h 49033 2012-10-17 18:48:30Z zardosht $"
+#ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -89,32 +89,29 @@ PATENT RIGHTS GRANT:
 
 #pragma once
 
-// We should be including ft/txn.h here but that header includes this one,
-// so we don't.
-#include "portability/toku_pthread.h"
-
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-class txn_child_manager {
+#include "ft/txn/rollback.h"
+
+class rollback_log_node_cache {
 public:
-    void init (TOKUTXN root);
+    void init (uint32_t max_num_avail_nodes);
     void destroy();
-    void start_child_txn_for_recovery(TOKUTXN child, TOKUTXN parent, TXNID_PAIR txnid);
-    void start_child_txn(TOKUTXN child, TOKUTXN parent);
-    void finish_child_txn(TOKUTXN child);
-    void suspend();
-    void resume();
-    void find_tokutxn_by_xid_unlocked(TXNID_PAIR xid, TOKUTXN* result);
-    int iterate(int (*cb)(TOKUTXN txn, void *extra), void* extra);
+    // returns true if rollback log node was successfully added,
+    // false otherwise
+    bool give_rollback_log_node(TOKUTXN txn, ROLLBACK_LOG_NODE log);
+    // if a rollback log node is available, will set log to it,
+    // otherwise, will set log to NULL and caller is on his own
+    // for getting a rollback log node
+    void get_rollback_log_node(TOKUTXN txn, ROLLBACK_LOG_NODE* log);
 
 private:
-    TXNID m_last_xid;
-    TOKUTXN m_root;
+    BLOCKNUM* m_avail_blocknums;
+    uint32_t m_first;
+    uint32_t m_num_avail;
+    uint32_t m_max_num_avail;
     toku_mutex_t m_mutex;
-
-    friend class txn_child_manager_unit_test;
 };
 
-
-ENSURE_POD(txn_child_manager);
+ENSURE_POD(rollback_log_node_cache);

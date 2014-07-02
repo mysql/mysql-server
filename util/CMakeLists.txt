@@ -1,5 +1,6 @@
 set(util_srcs
   context
+  dbt
   frwlock
   kibbutz
   memarena

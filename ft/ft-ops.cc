@@ -200,7 +200,7 @@ basement nodes, bulk fetch,  and partial fetch:
 
 */
 
-#include "ft/checkpoint.h"
+#include "ft/cachetable/checkpoint.h"
 #include "ft/cursor.h"
 #include "ft/ft.h"
 #include "ft/ft-cachetable-wrappers.h"
@@ -215,9 +215,9 @@ basement nodes, bulk fetch,  and partial fetch:
 #include "ft/serialize/ft-serialize.h"
 #include "ft/serialize/ft_layout_version.h"
 #include "ft/serialize/ft_node-serialize.h"
-#include "ft/txn_manager.h"
+#include "ft/txn/txn_manager.h"
 #include "ft/ule.h"
-#include "ft/xids.h"
+#include "ft/txn/xids.h"
 
 #include <toku_race_tools.h>
 

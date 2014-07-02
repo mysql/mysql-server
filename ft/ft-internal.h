@@ -96,12 +96,12 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_list.h"
 #include "portability/toku_race_tools.h"
 
-#include "ft/cachetable.h"
+#include "ft/cachetable/cachetable.h"
 #include "ft/comparator.h"
 #include "ft/ft.h"
 #include "ft/ft-ops.h"
 #include "ft/node.h"
-#include "ft/rollback.h"
+#include "ft/txn/rollback.h"
 
 // Symbol TOKUDB_REVISION is not defined by fractal-tree makefiles, so
 // BUILD_ID of 1000 indicates development build of main, not a release build.  

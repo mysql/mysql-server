@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 #include "toku_os.h"
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 
 #include "test-ft-txns.h"
 

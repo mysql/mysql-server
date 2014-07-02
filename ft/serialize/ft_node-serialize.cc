@@ -91,12 +91,12 @@ PATENT RIGHTS GRANT:
 
 #include "portability/toku_atomic.h"
 
-#include "ft/cachetable.h"
+#include "ft/cachetable/cachetable.h"
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
 #include "ft/node.h"
 #include "ft/logger/log-internal.h"
-#include "ft/rollback.h"
+#include "ft/txn/rollback.h"
 #include "ft/serialize/block_table.h"
 #include "ft/serialize/compress.h"
 #include "ft/serialize/ft_node-serialize.h"

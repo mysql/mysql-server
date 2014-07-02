@@ -94,11 +94,11 @@ PATENT RIGHTS GRANT:
 #include <db.h>
 #include <limits.h>
 
-#include <ft/cachetable.h>
+#include <ft/cachetable/cachetable.h>
 #include <ft/cursor.h>
 #include <ft/comparator.h>
 #include <ft/logger/logger.h>
-#include <ft/txn.h>
+#include <ft/txn/txn.h>
 
 #include <util/growable_array.h>
 #include <util/minicron.h>

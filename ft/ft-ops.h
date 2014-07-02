@@ -96,10 +96,10 @@ PATENT RIGHTS GRANT:
 
 #include <db.h>
 
-#include "ft/cachetable.h"
+#include "ft/cachetable/cachetable.h"
 #include "ft/comparator.h"
 #include "ft/msg.h"
-#include "ft/ybt.h"
+#include "util/dbt.h"
 
 typedef struct ft_handle *FT_HANDLE;
 

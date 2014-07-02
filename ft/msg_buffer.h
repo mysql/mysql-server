@@ -89,8 +89,8 @@ PATENT RIGHTS GRANT:
 #pragma once
 
 #include "ft/msg.h"
-#include "ft/xids.h"
-#include "ft/ybt.h"
+#include "ft/txn/xids.h"
+#include "util/dbt.h"
 
 class message_buffer {
 public:

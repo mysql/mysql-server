@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-//Must be defined before other recursive headers could include logger.h
+//Must be defined before other recursive headers could include logger/recover.h
 enum ft_layout_version_e {
     FT_LAYOUT_VERSION_5 = 5,
     FT_LAYOUT_VERSION_6 = 6,   // Diff from 5 to 6:  Add leafentry_estimate

@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 
 #pragma once
 
-#include <ft/txn_state.h>
+#include <ft/txn/txn_state.h>
 #include <toku_pthread.h>
 
 // the indexer_commit_keys is an ordered set of keys described by a DBT in the keys array.

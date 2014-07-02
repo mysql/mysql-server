@@ -122,7 +122,7 @@ PATENT RIGHTS GRANT:
 
 #include <src/ydb-internal.h>
 
-#include <ft/ybt.h>
+#include <util/dbt.h>
 
 #include <util/rwlock.h>
 #include <util/kibbutz.h>

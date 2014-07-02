@@ -95,8 +95,8 @@ PATENT RIGHTS GRANT:
 #include "ft/serialize/block_table.h"
 #include "ft/ft-internal.h"
 #include "ft/serialize/ft_node-serialize.h"
-#include "ft/rollback.h"
-#include "ft/rollback-ct-callbacks.h"
+#include "ft/txn/rollback.h"
+#include "ft/txn/rollback-ct-callbacks.h"
 
 #include "util/memarena.h"
 

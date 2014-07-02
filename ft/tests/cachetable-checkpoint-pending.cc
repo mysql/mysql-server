@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 #include <stdio.h>
 #include <unistd.h>
 #include "cachetable-test.h"
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 #include <portability/toku_atomic.h>
 
 static int N; // how many items in the table

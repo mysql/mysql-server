@@ -1,6 +1,17 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
+/* Purpose of this file is to provide the world with everything necessary
+ * to use the xids and nothing else.  
+ * Internal requirements of the xids logic do not belong here.
+ *
+ * xids is (abstractly) an immutable list of nested transaction ids, accessed only
+ * via the functions in this file.  
+ *
+ * See design documentation for nested transactions at
+ * TokuWiki/Imp/TransactionsOverview.
+ */
+
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -92,26 +103,68 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "rollback.h"
+#include "ft/txn/txn.h"
+#include "ft/serialize/rbuf.h"
+#include "ft/serialize/wbuf.h"
 
-class rollback_log_node_cache {
-public:
-    void init (uint32_t max_num_avail_nodes);
-    void destroy();
-    // returns true if rollback log node was successfully added,
-    // false otherwise
-    bool give_rollback_log_node(TOKUTXN txn, ROLLBACK_LOG_NODE log);
-    // if a rollback log node is available, will set log to it,
-    // otherwise, will set log to NULL and caller is on his own
-    // for getting a rollback log node
-    void get_rollback_log_node(TOKUTXN txn, ROLLBACK_LOG_NODE* log);
-
-private:
-    BLOCKNUM* m_avail_blocknums;
-    uint32_t m_first;
-    uint32_t m_num_avail;
-    uint32_t m_max_num_avail;
-    toku_mutex_t m_mutex;
+/* The number of transaction ids stored in the xids structure is 
+ * represented by an 8-bit value.  The value 255 is reserved. 
+ * The constant MAX_NESTED_TRANSACTIONS is one less because
+ * one slot in the packed leaf entry is used for the implicit
+ * root transaction (id 0).
+ */
+enum {
+    MAX_NESTED_TRANSACTIONS = 253,
+    MAX_TRANSACTION_RECORDS = MAX_NESTED_TRANSACTIONS + 1
 };
 
-ENSURE_POD(rollback_log_node_cache);
+// Variable size list of transaction ids (known in design doc as xids<>).
+// ids[0] is the outermost transaction.
+// ids[num_xids - 1] is the innermost transaction.
+// Should only be accessed by accessor functions toku_xids_xxx, not directly.
+
+// If the xids struct is unpacked, the compiler aligns the ids[] and we waste a lot of space
+struct __attribute__((__packed__)) XIDS_S {
+    // maximum value of MAX_TRANSACTION_RECORDS - 1 because transaction 0 is implicit
+    uint8_t num_xids; 
+    TXNID ids[];
+};
+typedef struct XIDS_S *XIDS;
+
+// Retrieve an XIDS representing the root transaction.
+XIDS toku_xids_get_root_xids(void);
+
+bool toku_xids_can_create_child(XIDS xids);
+
+void toku_xids_cpy(XIDS target, XIDS source);
+
+//Creates an XIDS representing this transaction.
+//You must pass in an XIDS representing the parent of this transaction.
+int toku_xids_create_child(XIDS parent_xids, XIDS *xids_p, TXNID this_xid);
+
+// The following two functions (in order) are equivalent to toku_xids_create child,
+// but allow you to do most of the work without knowing the new xid.
+int toku_xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p);
+void toku_xids_finalize_with_child(XIDS xids, TXNID this_xid);
+
+void toku_xids_create_from_buffer(struct rbuf *rb, XIDS *xids_p);
+
+void toku_xids_destroy(XIDS *xids_p);
+
+TXNID toku_xids_get_xid(XIDS xids, uint8_t index);
+
+uint8_t toku_xids_get_num_xids(XIDS xids);
+
+TXNID toku_xids_get_innermost_xid(XIDS xids);
+TXNID toku_xids_get_outermost_xid(XIDS xids);
+
+// return size in bytes
+uint32_t toku_xids_get_size(XIDS xids);
+
+uint32_t toku_xids_get_serialize_size(XIDS xids);
+
+unsigned char *toku_xids_get_end_of_array(XIDS xids);
+
+void wbuf_nocrc_xids(struct wbuf *wb, XIDS xids);
+
+void toku_xids_fprintf(FILE* fp, XIDS xids);

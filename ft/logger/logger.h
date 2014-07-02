@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 
 #include "ft/serialize/block_table.h"
 #include "ft/serialize/ft_layout_version.h"
-#include "ft/txn.h"
+#include "ft/txn/txn.h"
 
 typedef struct tokulogger *TOKULOGGER;
 

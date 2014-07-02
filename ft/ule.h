@@ -98,7 +98,7 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "leafentry.h"
-#include "txn_manager.h"
+#include "txn/txn_manager.h"
 #include <util/mempool.h>
 
 void toku_ule_status_init(void);

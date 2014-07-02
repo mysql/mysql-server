@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 
 #include "log-internal.h"
 #include "logger/logcursor.h"
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 
 static uint64_t footprint = 0;  // for debug and accountability
 

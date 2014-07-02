@@ -87,7 +87,7 @@ PATENT RIGHTS GRANT:
 */
 
 #include "ft/msg_buffer.h"
-#include "ft/ybt.h"
+#include "util/dbt.h"
 
 void message_buffer::create() {
     _num_entries = 0;

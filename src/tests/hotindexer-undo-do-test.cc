@@ -95,11 +95,10 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 
-#include <ft/xids.h>
 #include <ft/ule.h>
 #include <ft/ule-internal.h>
 #include <ft/le-cursor.h>
-#include <ft/xids.h>
+#include <ft/txn/xids.h>
 
 #include "indexer-internal.h"
 

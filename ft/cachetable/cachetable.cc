@@ -91,6 +91,7 @@ PATENT RIGHTS GRANT:
 
 #include <string.h>
 #include <time.h>
+#include <stdarg.h>
 
 #include <portability/memory.h>
 #include <portability/toku_race_tools.h>
@@ -100,9 +101,9 @@ PATENT RIGHTS GRANT:
 #include <portability/toku_stdlib.h>
 #include <portability/toku_time.h>
 
-#include "ft/cachetable.h"
-#include "ft/cachetable-internal.h"
-#include "ft/checkpoint.h"
+#include "ft/cachetable/cachetable.h"
+#include "ft/cachetable/cachetable-internal.h"
+#include "ft/cachetable/checkpoint.h"
 #include "ft/logger/log-internal.h"
 #include "util/rwlock.h"
 #include "util/status.h"
@@ -1588,7 +1589,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
     PAIR* dependent_pairs,
     enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
     )
-// See cachetable.h
+// See cachetable/cachetable.h
 {
     CACHETABLE ct = cachefile->cachetable;
     bool wait = false;
@@ -2024,7 +2025,7 @@ int toku_cachetable_get_and_pin_nonblocking(
     void *read_extraargs,
     UNLOCKERS unlockers
     )
-// See cachetable.h.
+// See cachetable/cachetable.h.
 {
     CACHETABLE ct = cf->cachetable;
     assert(lock_type == PL_READ ||
@@ -2207,7 +2208,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, uint32_t fullhash,
                             CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
                             void *read_extraargs,
                             bool *doing_prefetch)
-// Effect: See the documentation for this function in cachetable.h
+// Effect: See the documentation for this function in cachetable/cachetable.h
 {
     int r = 0;
     PAIR p = NULL;

@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 // Test that a db ignores insert messages in blackhole mode
 
 #include "test.h"
-#include <ft/ybt.h>
+#include <util/dbt.h>
 
 static DB *db;
 static DB *blackhole_db;

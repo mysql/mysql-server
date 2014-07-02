@@ -96,7 +96,7 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 
 #include "loader/loader-internal.h"
-#include "ybt.h"
+#include "util/dbt.h"
 
 static void error_callback_lock(ft_loader_error_callback loader_error) {
     toku_mutex_lock(&loader_error->mutex);
