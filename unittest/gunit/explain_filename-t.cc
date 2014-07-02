@@ -74,7 +74,7 @@ void test_1(const char *in, const char *exp, enum_explain_filename_mode mode)
 {
   char out[BUFLEN];
 
-  uint len1 = explain_filename(0, in, out, BUFLEN, mode);
+  size_t len1 = explain_filename(0, in, out, BUFLEN, mode);
 
   /* expected output and actual output must be same */
   bool pass = (strcmp(exp, out) == 0);

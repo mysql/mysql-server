@@ -35,7 +35,7 @@
 
 /** A row in the table*/
 struct st_row_execute_config {
-  uint desired_delay;
+  time_t desired_delay;
   bool desired_delay_is_set;
 };
 
