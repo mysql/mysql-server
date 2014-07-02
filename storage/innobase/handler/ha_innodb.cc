@@ -7077,34 +7077,33 @@ calc_row_difference(
 	return(DB_SUCCESS);
 }
 
-/**********************************************************************//**
+/**
 Updates a row given as a parameter to a new value. Note that we are given
 whole rows, not just the fields which are updated: this incurs some
 overhead for CPU when we check which fields are actually updated.
 TODO: currently InnoDB does not prevent the 'Halloween problem':
 in a searched update a single row can get updated several times
 if its index columns are updated!
+@param[in] old_row	Old row contents in MySQL format
+@param[out] new_row	Updated row contents in MySQL format
 @return error number or 0 */
 
 int
-ha_innobase::update_row(
-/*====================*/
-	const uchar*	old_row,	/*!< in: old row in MySQL format */
-	uchar*		new_row)	/*!< in: new row in MySQL format */
+ha_innobase::update_row_low(
+	const uchar*	old_row,
+	uchar*		new_row)
 {
 	int		err;
 
-	{
-	upd_t*		uvect;
 	dberr_t		error;
 	trx_t*		trx = thd_to_trx(m_user_thd);
 	TrxInInnoDB	trx_in_innodb(trx);
 
-	//DBUG_ENTER("ha_innobase::update_row");
+	DBUG_ENTER("ha_innobase::update_row");
 
 	if (trx_in_innodb.is_aborted()) {
 
-		return(innobase_rollback( ht, m_user_thd, false));
+		DBUG_RETURN(innobase_rollback( ht, m_user_thd, false));
 	}
 
 	ut_a(m_prebuilt->trx == trx);
@@ -7134,11 +7133,13 @@ ha_innobase::update_row(
 
 		if (m_upd_buf == NULL) {
 			m_upd_buf_size = 0;
-			return(HA_ERR_OUT_OF_MEM);
+			DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 		}
 	}
 
 	ha_statistic_increment(&SSV::ha_update_count);
+
+	upd_t*		uvect;
 
 	if (m_prebuilt->upd_node) {
 		uvect = m_prebuilt->upd_node->update;
@@ -7228,8 +7229,28 @@ func_exit:
 
 	innobase_active_small();
 
-	}
+	DBUG_RETURN(err);
+}
 
+/**
+Updates a row given as a parameter to a new value. Note that we are given
+whole rows, not just the fields which are updated: this incurs some
+overhead for CPU when we check which fields are actually updated.
+TODO: currently InnoDB does not prevent the 'Halloween problem':
+in a searched update a single row can get updated several times
+if its index columns are updated!
+@param[in] old_row	Old row contents in MySQL format
+@param[out] new_row	Updated row contents in MySQL format
+@return error number or 0 */
+
+int
+ha_innobase::update_row(
+	const uchar*	old_row,
+	uchar*		new_row)
+{
+	int	err = update_row_low(old_row, new_row);
+
+	/* We must wait after releasing the reference to the transaction. */
 	DEBUG_SYNC_C("ha_innobase_update_row_done");
 
 	return(err);
