@@ -49,19 +49,6 @@ void Binlog_sender::init()
   DBUG_PRINT("info", ("Initial packet->alloced_length: %zu",
                       m_packet.alloced_length()));
 
-  sql_print_information("Start binlog_dump to master_thread_id(%lu) "
-                        "slave_server(%u), pos(%s, %llu)",
-                        thd->thread_id, thd->server_id,
-                        m_start_file, m_start_pos);
-
-  if (RUN_HOOK(binlog_transmit, transmit_start,
-               (thd, m_flag, m_start_file, m_start_pos,
-                &m_observe_transmission)))
-  {
-    set_unknow_error("Failed to run hook 'transmit_start'");
-    DBUG_VOID_RETURN;
-  }
-
   if (!mysql_bin_log.is_open())
   {
     set_fatal_error("Binary log is not open");
@@ -82,6 +69,20 @@ void Binlog_sender::init()
 
   if (check_start_file())
     DBUG_VOID_RETURN;
+
+  sql_print_information("Start binlog_dump to master_thread_id(%lu) "
+                        "slave_server(%u), pos(%s, %llu)",
+                        thd->thread_id, thd->server_id,
+                        m_start_file, m_start_pos);
+
+  if (RUN_HOOK(binlog_transmit, transmit_start,
+               (thd, m_flag, m_start_file, m_start_pos,
+                &m_observe_transmission)))
+  {
+    set_unknow_error("Failed to run hook 'transmit_start'");
+    DBUG_VOID_RETURN;
+  }
+  m_transmit_started=true;
 
   init_checksum_alg();
   /*
@@ -137,7 +138,8 @@ void Binlog_sender::cleanup()
 
   THD *thd= m_thd;
 
-  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, m_flag));
+  if (m_transmit_started)
+    (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, m_flag));
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo= NULL;
