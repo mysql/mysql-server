@@ -490,7 +490,7 @@ static uint get_varstring_copy_length(Field_varstring *to,
   const bool is_multibyte_charset= (cs->mbmaxlen != 1);
   const uint to_byte_length= to->row_pack_length();
 
-  uint bytes_to_copy;
+  size_t bytes_to_copy;
   if (from->length_bytes == 1)
     bytes_to_copy= *from->ptr;
   else

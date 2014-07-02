@@ -903,7 +903,7 @@ int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
   if (cached_string_length == -1 || cached_string_format != sf)
   {
     int n_sids= 0, n_intervals= 0, n_long_intervals= 0;
-    int total_interval_length= 0;
+    size_t total_interval_length= 0;
     rpl_sidno max_sidno= get_max_sidno();
     for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     {

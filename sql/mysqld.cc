@@ -4203,8 +4203,8 @@ static void test_lc_time_sz()
   DBUG_ENTER("test_lc_time_sz");
   for (MY_LOCALE **loc= my_locales; *loc; loc++)
   {
-    uint max_month_len= 0;
-    uint max_day_len = 0;
+    size_t max_month_len= 0;
+    size_t max_day_len = 0;
     for (const char **month= (*loc)->month_names->type_names; *month; month++)
     {
       set_if_bigger(max_month_len,
@@ -4419,7 +4419,7 @@ int mysqld_main(int argc, char **argv)
 #if defined(__ia64__) || defined(__ia64)
       my_thread_stack_size= stack_size / 2;
 #else
-      my_thread_stack_size= stack_size - guardize;
+      my_thread_stack_size= static_cast<ulong>(stack_size - guardize);
 #endif
     }
   }
@@ -5255,10 +5255,10 @@ void adjust_table_cache_size(ulong requested_open_files)
 
 void adjust_table_def_size()
 {
-  longlong default_value;
+  ulong default_value;
   sys_var *var;
 
-  default_value= min<longlong> (400 + table_cache_size / 2, 2000);
+  default_value= min<ulong> (400 + table_cache_size / 2, 2000);
   var= intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
   DBUG_ASSERT(var != NULL);
   var->update_default(default_value);
