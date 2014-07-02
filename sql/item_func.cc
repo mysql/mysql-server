@@ -3870,7 +3870,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       free_udf(u_d);
       DBUG_RETURN(TRUE);
     }
-    func->max_length= min<size_t>(initid.max_length, MAX_BLOB_WIDTH);
+    func->max_length= min<uint32>(initid.max_length, MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
     const_item_cache=initid.const_item;
     /* 
@@ -5798,7 +5798,7 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     return 0;
   }
 
-  uint size;
+  size_t size;
   /*
     First we need to store value of var_entry, when the next situation
     appears:

@@ -2167,7 +2167,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   uchar *command_buffer= NULL;
   size_t command_size= 0;
   ulong len= 0;
-  uint logname_len= 0;
+  size_t logname_len= 0;
   uint server_id= 0;
   NET* net= NULL;
   my_off_t old_off= start_position_mot;
@@ -2215,7 +2215,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     error("Log name too long.");
     DBUG_RETURN(ERROR_STOP);
   }
-  const uint BINLOG_NAME_INFO_SIZE= logname_len= tlen;
+  const size_t BINLOG_NAME_INFO_SIZE= logname_len= tlen;
   
   if (opt_remote_proto == BINLOG_DUMP_NON_GTID)
   {
@@ -2273,7 +2273,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-    int4store(ptr_buffer, BINLOG_NAME_INFO_SIZE);
+    int4store(ptr_buffer, static_cast<uint32>(BINLOG_NAME_INFO_SIZE));
     ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
     memcpy(ptr_buffer, logname, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
@@ -2487,7 +2487,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     {
       Load_log_event *le= (Load_log_event*)ev;
       const char *old_fname= le->fname;
-      uint old_len= le->fname_len;
+      size_t old_len= le->fname_len;
       File file;
 
       if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)

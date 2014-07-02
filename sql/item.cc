@@ -8602,7 +8602,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     }
     else
     {
-      uint length= result->length();
+      size_t length= result->length();
       char *tmp_str= sql_strmake(result->ptr(), length);
       new_item= new Item_string(item->item_name, tmp_str, length, result->charset());
     }

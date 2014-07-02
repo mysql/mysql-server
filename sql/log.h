@@ -636,7 +636,7 @@ private:
      @param log_type     QUERY_LOG_SLOW or QUERY_LOG_GENERAL
      @param log_printer  Bitmap of LOG_NONE, LOG_FILE, LOG_TABLE
   */
-  void init_query_log(enum_log_table_type log_type, uint log_printer);
+  void init_query_log(enum_log_table_type log_type, ulonglong log_printer);
 
 public:
   Query_logger()

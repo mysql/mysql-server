@@ -3068,7 +3068,7 @@ bool select_export::send_data(List<Item> &items)
 	  space_inited=1;
 	  memset(space, ' ', sizeof(space));
 	}
-	uint length=item->max_length-used_length;
+	size_t length=item->max_length-used_length;
 	for (; length > sizeof(space) ; length-=sizeof(space))
 	{
 	  if (my_b_write(&cache,(uchar*) space,sizeof(space)))
