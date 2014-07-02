@@ -760,6 +760,107 @@ drop table test.t3;
 drop table test.t4;
 drop table test.t5;
 
+--sync_slave_with_master slave
+--connection slave
+--sync_slave_with_master master
+--connection master
+
+--echo Show a simple row-level delete-delete conflict
+--echo PRIMARY:
+
+insert into test.t1 values (77, "A good year");
+
+select * from test.t1 order by a;
+
+--sync_slave_with_master slave
+--connection slave
+--sync_slave_with_master master
+--connection master
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--connection slave
+--echo SECONDARY:
+stop slave;
+
+--connection master
+--echo PRIMARY:
+--echo Primary Delete
+delete from test.t1 where a=77;
+
+--echo Show Primary contents
+select * from test.t1 order by a;
+
+--connection slave
+--echo SECONDARY:
+select * from test.t1 order by a;
+
+--echo Secondary Delete->Insert in separate transactions
+--echo and potentially different epochs
+--echo Delete part with related transaction op
+begin;
+delete from test.t1 where a=77;
+insert into test.t1 values (73, "A superb year");
+commit;
+
+--echo Unrelated transaction from Secondary
+begin;
+insert into test.t1 values (84, "A good vintage");
+commit;
+
+# Optionally flush logs here to mix separate-epoch and
+# same-epoch
+--echo Optionally flush logs
+let $do_flush=query_get_value(SELECT (RAND() * 10) > 5 AS y, y, 1);
+
+if ($do_flush)
+{
+  --disable_query_log
+  --disable_result_log
+  FLUSH LOGS;
+  --enable_query_log
+  --enable_result_log
+}
+
+--echo Following Insert from Secondary - potentially in different epoch
+begin;
+insert into test.t1 values (77, "Exceptional");
+insert into test.t1 values (80, "Poor");
+commit;
+
+--echo Show Secondary contents
+select * from test.t1 order by a;
+
+--echo Allow propagation to Primary
+--sync_slave_with_master master
+--connection master
+--echo PRIMARY:
+--echo Expect:
+--echo - Delete-Delete conflict did not result in rejection of Secondary transaction
+--echo   Therefore related row from Secondary Deleting transaction (73) is present
+--echo - Unrelated transaction from Secondary (84) is present
+--echo - Following insert on delete-delete conflict row (77) is not in conflict,
+--echo   so both it and the related row from the same transaction (80) are present
+--echo
+
+select * from test.t1 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_stable.inc
+
+--echo Now sync with Secondary to show divergence
+--connection slave
+start slave;
+--connection master
+--sync_slave_with_master slave
+--connection slave
+--echo SECONDARY:
+--echo Expect:
+--echo - Primary delete of row 77 took out the newly inserted row 77 
+--echo - Otherwise Secondary is as before
+--echo 
+select * from test.t1 order by a;
+
+
 # Cleanup
 --connection master
 drop table mysql.ndb_replication;

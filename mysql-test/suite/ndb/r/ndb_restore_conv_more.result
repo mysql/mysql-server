@@ -132,7 +132,7 @@ engine=ndb;
 create tablespace ts1
 add datafile 'datafile1.dat'
 use logfile group lg1
-initial_size 32M
+initial_size 96M
 engine=ndb;
 # bug#17235051 : char<->text
 create table t1 (

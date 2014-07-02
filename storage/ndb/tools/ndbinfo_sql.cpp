@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <ndb_opts.h>
 #include <util/BaseString.hpp>
 #include "../src/kernel/vm/NdbinfoTables.cpp"
+#include "DictTabInfo.hpp"
 
 static char* opt_ndbinfo_db = (char*)"ndbinfo";
 static char* opt_table_prefix = (char*)"ndb$";
@@ -321,6 +322,23 @@ struct view {
     "count(*) as consensus_count "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>membership` "
     "GROUP BY arbitrator, arb_ticket, arb_connected"
+  },
+  {
+    "memory_per_fragment",
+    "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name," 
+    "types.type_name AS type, table_id, node_id, block_instance, "
+    "fragment_num, fixed_elem_count, fixed_elem_size_bytes, "
+    "fixed_elem_alloc_bytes, fixed_elem_free_bytes,  "
+    "FLOOR(fixed_elem_free_bytes/fixed_elem_size_bytes) AS "
+    "fixed_elem_free_rows, var_elem_count, var_elem_alloc_bytes, "
+    "var_elem_free_bytes, hash_index_alloc_bytes "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>frag_mem_use` AS space "
+    "JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` "
+    "AS name ON name.id=space.table_id AND name.type<=6 JOIN "
+    "`<NDBINFO_DB>`.dict_obj_types AS types ON name.type=types.type_id "
+    "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` AS parent_name "
+    "ON name.parent_obj_id=parent_name.id AND "
+    "name.parent_obj_type=parent_name.type"
   }
 };
 
@@ -354,6 +372,47 @@ static void fill_blocks(BaseString& sql)
   {
     const BlockName& bn = BlockNames[i];
     sql.appfmt("%s(%u, \"%s\")", separator, bn.number, bn.name);
+    separator = ", ";
+  }
+}
+
+static void fill_dict_obj_types(BaseString& sql)
+{
+  struct Entry
+  {
+    const DictTabInfo::TableType type;
+    const char* name;
+  };
+
+  const Entry entries[] =
+  {
+    {DictTabInfo::SystemTable, "System table"},
+    {DictTabInfo::UserTable, "User table"},
+    {DictTabInfo::UniqueHashIndex, "Unique hash index"},
+    {DictTabInfo::HashIndex, "Hash index"},
+    {DictTabInfo::UniqueOrderedIndex, "Unique ordered index"},
+    {DictTabInfo::OrderedIndex, "Ordered index"},
+    {DictTabInfo::HashIndexTrigger, "Hash index trigger"},
+    {DictTabInfo::SubscriptionTrigger, "Subscription trigger"},
+    {DictTabInfo::ReadOnlyConstraint, "Read only constraint"},
+    {DictTabInfo::IndexTrigger, "Index trigger"},
+    {DictTabInfo::ReorgTrigger, "Reorganize trigger"},
+    {DictTabInfo::Tablespace, "Tablespace"},
+    {DictTabInfo::LogfileGroup,  "Log file group"},
+    {DictTabInfo::Datafile, "Data file"},
+    {DictTabInfo::Undofile, "Undo file"},
+    {DictTabInfo::HashMap, "Hash map"},
+    {DictTabInfo::ForeignKey, "Foreign key definition"},
+    {DictTabInfo::FKParentTrigger, "Foreign key parent trigger"},
+    {DictTabInfo::FKChildTrigger, "Foreign key child trigger"},
+    {DictTabInfo::SchemaTransaction, "Schema transaction"}
+  };
+
+  const char* separator = "";
+  for (unsigned i = 0; i < sizeof entries / sizeof entries[0]; i++)
+  {
+    sql.appfmt("%s(%u, \"%s\")", separator, 
+               static_cast<unsigned>(entries[i].type), entries[i].name);
     separator = ", ";
   }
 }
@@ -400,6 +459,11 @@ struct lookup {
     "block_number INT UNSIGNED PRIMARY KEY, "
     "block_name VARCHAR(512)",
     &fill_blocks
+  },
+  { "dict_obj_types",
+    "type_id` INT UNSIGNED PRIMARY KEY, "
+    "type_name VARCHAR(512)",
+    &fill_dict_obj_types
   },
   { "config_params",
     "param_number INT UNSIGNED PRIMARY KEY, "
@@ -628,7 +692,7 @@ int main(int argc, char** argv){
 
     /* Create or replace the view */
     BaseString sql;
-    sql.assfmt("CREATE OR REPLACE DEFINER=`root@localhost` "
+    sql.assfmt("CREATE OR REPLACE DEFINER=`root`@`localhost` "
                "SQL SECURITY INVOKER VIEW `%s`.`%s` AS %s",
                opt_ndbinfo_db, v.name, view_sql.c_str());
     print_conditional_sql(sql);

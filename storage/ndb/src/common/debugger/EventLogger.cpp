@@ -1112,6 +1112,11 @@ void getTextSubscriptionStatus(QQQQ)
                          ", epoch %u/%u",
                          theData[4], theData[3]);
     break;
+  case(3): // SubscriptionStatus::NOTCONNECTED
+    BaseString::snprintf(m_text, m_text_len,
+                         "Forcing disconnect of node %u as it did not connect within %u seconds.",
+                         theData[2], theData[3]);
+    break;
   }
 }
 

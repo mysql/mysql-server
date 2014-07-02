@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,7 +54,15 @@ struct SectionSegment {
 /**
  * Pool for SectionSegments
  */
-class SectionSegmentPool : public ArrayPool<SectionSegment> {};
+class SectionSegmentPool : public ArrayPool<SectionSegment> 
+{
+private:
+  // Print an informative error message.
+  static void handleOutOfSegments(ArrayPool<SectionSegment>& pool);
+public:
+  SectionSegmentPool() : 
+    ArrayPool<SectionSegment>(&handleOutOfSegments){}
+};
 
 /**
  * And the instance

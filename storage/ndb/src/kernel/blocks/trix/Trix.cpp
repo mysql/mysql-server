@@ -1770,6 +1770,8 @@ Trix::executeBuildFKTransaction(Signal* signal,
   copy(dataBuffer, dataPtr);
   releaseSections(handle);
 
+  AttrOrderBuffer::ConstDataBufferIterator iter;
+  ndbrequire(subRec->attributeOrder.first(iter));
   for(Uint32 i = 0; i < headerPtr.sz; i++)
   {
     AttributeHeader* keyAttrHead = (AttributeHeader *) headerBuffer + i;
@@ -1779,10 +1781,11 @@ Trix::executeBuildFKTransaction(Signal* signal,
       return;
 
     /**
-     * Renumber index attributes in consequtive order
-     *   i.e in order given in UtilPrepareReq
+     * UTIL_EXECUTE header section expects real attrid (same as passed in
+     * UTIL_PREPARE).  SUMA sends child attrid, replace it by parent attrid.
      */
-    keyAttrHead->setAttributeId(i);
+    keyAttrHead->setAttributeId(*iter.data);
+    subRec->attributeOrder.next(iter);
   }
   // Increase expected CONF count
   subRec->expectedConf++;

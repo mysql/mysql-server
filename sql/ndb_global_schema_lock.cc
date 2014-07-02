@@ -318,7 +318,9 @@ ndbcluster_global_schema_unlock(THD *thd)
                       thd_ndb->global_schema_lock_count));
   DBUG_ASSERT(ndb != NULL);
   if (ndb == NULL)
-    return 0;
+  {
+    DBUG_RETURN(0);
+  }
   DBUG_ASSERT(trans != NULL || thd_ndb->global_schema_lock_error != 0);
   if (thd_ndb->global_schema_lock_count != 0)
   {

@@ -516,6 +516,9 @@ struct Fragmentrec {
 //-----------------------------------------------------------------------------
   Uint8 dirRangeFull;
 
+  // Number of Page8 pages allocated for the hash index.
+  Int32 m_noOfAllocatedPages;
+
 public:
   Uint32 getPageNumber(Uint32 bucket_number) const;
   Uint32 getPageIndex(Uint32 bucket_number) const;
@@ -660,7 +663,12 @@ public:
 
   void execACCMINUPDATE(Signal* signal);
   void execREAD_PSEUDO_REQ(Signal* signal);
+  // Get the size of the logical to physical page map, in bytes.
+  Uint32 getL2PMapAllocBytes(Uint32 fragId) const;
   void removerow(Uint32 op, const Local_key*);
+
+  // Get the size of the linear hash map in bytes.
+  Uint64 getLinHashByteSize(Uint32 fragId) const;
 
 private:
   BLOCK_DEFINES(Dbacc);
@@ -743,7 +751,11 @@ private:
 #else
   bool validate_lock_queue(OperationrecPtr) { return true;}
 #endif
-  
+  /**
+    Return true if the sum of per fragment pages counts matches the total
+    page count (cnoOfAllocatedPages). Used for consistency checks. 
+   */
+  bool validatePageCount() const;
 public:  
   void execACCKEY_ORD(Signal* signal, Uint32 opPtrI);
   void startNext(Signal* signal, OperationrecPtr lastOp);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -437,6 +437,7 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
       return -1;
 
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
     // test of schema trans
     {
       const char* p = NdbEnv_GetEnv("NDB_INDEX_STAT_ABORT_SYS_CREATE", (char*)0, 0);
@@ -446,6 +447,7 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
         return -1;
       }
     }
+#endif
 #endif
 
     if (dic->createTable(tab) == -1)
@@ -519,6 +521,7 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
   {
 
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
     // test of schema trans
     {
       const char* p = NdbEnv_GetEnv("NDB_INDEX_STAT_ABORT_SYS_DROP", (char*)0, 0);
@@ -528,6 +531,7 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
         return -1;
       }
     }
+#endif
 #endif
 
     if (dic->dropTableGlobal(*sys.m_sampletable) == -1)
@@ -2007,6 +2011,7 @@ NdbIndexStatImpl::convert_range(Range& range,
   }
 
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("NDB_INDEX_STAT_RANGE_ERROR", (char*)0, 0);
     if (p != 0 && strchr("1Y", p[0]) != 0)
@@ -2018,6 +2023,7 @@ NdbIndexStatImpl::convert_range(Range& range,
       }
     }
   }
+#endif
 #endif
 
   return 0;
@@ -2068,6 +2074,7 @@ NdbIndexStatImpl::query_stat(const Range& range, Stat& stat)
   NdbMutex_Unlock(m_query_mutex);
 
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("NDB_INDEX_STAT_SLOW_QUERY", (char*)0, 0);
     if (p != 0 && strchr("1Y", p[0]) != 0)
@@ -2076,6 +2083,7 @@ NdbIndexStatImpl::query_stat(const Range& range, Stat& stat)
       NdbSleep_MilliSleep(ms);
     }
   }
+#endif
 #endif
 
   // clients run these in parallel
@@ -2617,9 +2625,11 @@ NdbIndexStatImpl::setError(int code, int line, int extra)
   m_error.line = line;
   m_error.extra = extra;
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   const char* p = NdbEnv_GetEnv("NDB_INDEX_STAT_ABORT_ON_ERROR", (char*)0, 0);
   if (p != 0 && strchr("1Y", p[0]) != 0)
     abort();
+#endif
 #endif
 }
 

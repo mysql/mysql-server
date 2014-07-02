@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
-
+   Copyright (c) 2009, 2014, Oracle and/or it affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,7 @@
 
 #include <util/Properties.hpp>
 #include <kernel/NodeBitmask.hpp>
+#include <NdbEnv.h>
 
 struct ConfigFactory
 {
@@ -28,7 +28,7 @@ struct ConfigFactory
   static Uint32 get_ndbt_base_port(void)
   {
     Uint32 port = 0;
-    const char* base_port_str = getenv("NDBT_BASE_PORT");
+    const char* base_port_str = NdbEnv_GetEnv("NDBT_BASE_PORT", (char*)0, 0);
     if (base_port_str)
       port = atoi(base_port_str);
     if (!port)

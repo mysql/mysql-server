@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1052,6 +1052,121 @@ end:
   return result;
 }
 
+/**
+ * This method expects the listener to consume an inconsistent gci,
+ * and then it expects to move on to the following epochs.
+ * Listener stops the test when it either 1) receives 10 more epochs after
+ * it consumed an inconsistent epoch or 2) has received 200 epochs.
+ * Test succeeds for case 1 and fails for case 2.
+ */
+int runEventListenerCheckProgressUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Check progress after FI
+  int result = NDBT_OK;
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+  Uint64 poll_gci = 0, incons_gci = 0;
+  Uint64 op_gci = 0, curr_gci = 0, consumed_gci = 0;
+  bool found_gap = false;
+  Uint32 consumed_epochs = 0;
+  int32 consumed_epochs_after = 0; // epochs consumed after inconsis epoch
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp, *pCreate = 0;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  if ( pOp == NULL ) {
+    g_err << "Event operation creation failed on %s" << buf << endl;
+    return NDBT_FAILED;
+  }
+
+  int i;
+  int n_columns= table->getNoOfColumns();
+  NdbRecAttr* recAttr[1024];
+  NdbRecAttr* recAttrPre[1024];
+  for (i = 0; i < n_columns; i++) {
+    recAttr[i]    = pOp->getValue(table->getColumn(i)->getName());
+    recAttrPre[i] = pOp->getPreValue(table->getColumn(i)->getName());
+  }
+
+  if (pOp->execute())
+  { // This starts changes to "start flowing"
+    g_err << "execute operation execution failed: \n";
+    g_err << pOp->getNdbError().code << " "
+      << pOp->getNdbError().message << endl;
+    result = NDBT_FAILED;
+    goto end;
+  }
+
+  while (!ctx->isTestStopped())
+  {
+    ndb->pollEvents(100, &poll_gci);
+    if (!found_gap && !ndb->isConsistent(incons_gci))
+    {
+      found_gap = true;
+    }
+
+    /**
+     * Call next event even if pollEvents returns 0
+     * in order to remove the inconsistent event data, if occurred
+     */
+    while ((pOp = ndb->nextEvent()) != 0)
+    {
+      assert(pOp == pCreate);
+      op_gci = pOp->getGCI();
+      if (op_gci > curr_gci)
+      {
+        // epoch boundary
+        consumed_gci = curr_gci;
+        curr_gci = op_gci;
+        consumed_epochs ++;
+
+        if (found_gap && consumed_gci > incons_gci)
+        {
+            consumed_epochs_after ++;
+        }
+	if (consumed_epochs_after == 10 ||
+	    consumed_epochs == 200)
+	    ctx->stopTest();
+      }
+    }
+    consumed_gci = curr_gci; // epoch boundary
+  }
+
+  g_info << "Epochs consumed totally: " << consumed_epochs
+         << ". Epochs consumed after inconsistent epoch : "
+         << consumed_epochs_after << endl;
+
+  if (incons_gci == 0)
+  {
+    // not found gap
+    g_err << "Inconsistent event data has not been seen. Either fault injection did not work or test stopped earlier." << endl;
+    result =  NDBT_FAILED;
+  }
+  else if (incons_gci >= op_gci)
+  {
+    g_err << "Listener : consumption stalled after inconsistent gci : "
+          << incons_gci
+          << ". Last consumed gci : " << consumed_gci
+          << ". Last polled gci " << poll_gci << endl;
+    result =  NDBT_FAILED;
+  }
+  else {
+    g_err << "Listener : progressed from inconsis_gci : "
+          << incons_gci << " to last consumed gci " << consumed_gci
+          << ". Last polled gci : " << poll_gci << endl;
+  }
+end:
+  if (ndb->dropEventOperation(pCreate)) {
+    g_err << "dropEventOperation execution failed "
+          << ndb->getNdbError().code << " "
+          << ndb->getNdbError().message << endl;
+    result = NDBT_FAILED;
+  }
+  return result;
+}
+
 int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   //int loops = ctx->getNumLoops();
@@ -1831,7 +1946,7 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.getNumDbNodes() < 2)
   {
     ctx->stopTest();
-    return NDBT_OK;
+    DBUG_RETURN(NDBT_OK);
   }
   NdbDictionary::Table copy(* ctx->getTab());
   do
@@ -2127,6 +2242,19 @@ cleanup:
   }
 
   return result;
+}
+
+int
+errorInjectBufferOverflowOnly(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  NdbSleep_SecSleep(1);
+  if (restarter.insertErrorInAllNodes(13036) != 0)
+  {
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
 }
 
 int
@@ -3276,6 +3404,7 @@ runBug30780(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
 
     int c = i % cases;
+#ifdef NDB_USE_GET_ENV
     {
       char buf[100];
       const char * off = NdbEnv_GetEnv("NDB_ERR", buf, sizeof(buf));
@@ -3284,6 +3413,7 @@ runBug30780(NDBT_Context* ctx, NDBT_Step* step)
         c = atoi(off);
       }
     }
+#endif
     switch(c){
     case 0:
       ndbout_c("stopping %u", master);
@@ -3365,6 +3495,32 @@ runBug56579(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   return result;
+}
+
+int
+runBug18703871(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* ndb= GETNDB(step);
+  const NdbDictionary::Table * table= ctx->getTab();
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp = ndb->createEventOperation(buf);
+  if ( pOp == NULL ) {
+    g_err << "Event operation creation failed on %s" << buf << endl;
+    return NDBT_FAILED;
+  }
+
+  Uint64 curr_gci;
+  int res = ndb->pollEvents(0, &curr_gci);
+  if (res == 1 && ndb->nextEvent() == 0)
+  {
+    g_err << "pollEvents returned 1, but nextEvent found none" << endl;
+    ndb->dropEventOperation(pOp);
+    return NDBT_FAILED;
+  }
+  ndb->dropEventOperation(pOp);
+  return NDBT_OK;
 }
 
 int
@@ -3796,6 +3952,20 @@ TESTCASE("DbUtilRace",
 {
   INITIALIZER(runCreateEvent);
   STEP(runTryGetEvent);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("Bug18703871", "")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runBug18703871);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("NextEventRemoveInconsisEvent", "")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runEventListenerCheckProgressUntilStopped);
+  STEP(runInsertDeleteUntilStopped);
+  STEP(errorInjectBufferOverflowOnly);
   FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);

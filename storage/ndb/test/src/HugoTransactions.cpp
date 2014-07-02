@@ -606,10 +606,12 @@ HugoTransactions::loadTable(Ndb* pNdb,
 			    int doSleep,
                             bool oneTrans,
 			    int value,
-			    bool abort)
+			    bool abort,
+                            bool abort_on_first_error)
 {
   return loadTableStartFrom(pNdb, 0, records, batch, allowConstraintViolation,
-                            doSleep, oneTrans, value, abort);
+                            doSleep, oneTrans, value, abort,
+                            abort_on_first_error);
 }
 
 int
@@ -621,7 +623,8 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
                                      int doSleep,
                                      bool oneTrans,
                                      int value,
-                                     bool abort){
+                                     bool abort,
+                                     bool abort_on_first_error){
   int             check;
   int             retryAttempt = 0;
   int             retryMax = 5;
@@ -723,6 +726,10 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
 	break;
 	
       case NdbError::TemporaryError:      
+        if (abort_on_first_error)
+        {
+          return err.code;
+        }
 	NDB_ERR(err);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
@@ -783,6 +790,7 @@ HugoTransactions::fillTableStartFrom(Ndb* pNdb,
                                      int startFrom,
                                      int batch){
   int             check;
+  int             retryFull = 0;
   int             retryAttempt = 0;
   int             retryMax = 5;
 
@@ -876,6 +884,23 @@ HugoTransactions::fillTableStartFrom(Ndb* pNdb,
 
 	// Check if this is the "db full" error 
 	if (err.classification==NdbError::InsufficientSpace){
+          // Datamemory might have been released by abort of
+          // batch insert. Retry fill with a smaller batch
+          // in order to ensure table is filled to last row.
+          if (batch > 1){
+            c = c+batch; 
+            batch = batch/2;
+            continue;
+          }
+          // Only some datanodes might be full. Retry with
+          // another record until we are *really sure* that
+          // all datanodes are full.
+          if (retryFull < 64) {
+            retryFull++;
+            c++;
+	     continue;
+          }
+
 	  NDB_ERR(err);
 	  return NDBT_OK;
 	}
@@ -898,6 +923,7 @@ HugoTransactions::fillTableStartFrom(Ndb* pNdb,
     // Step to next record
     c = c+batch; 
     retryAttempt = 0;
+    retryFull = 0;
   }
   return NDBT_OK;
 }

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 if [ "$MYSQL_HOME" = "" ] ; then
   source ../env.properties
   echo MYSQL_HOME=$MYSQL_HOME
+  PATH="$MYSQL_LIBEXEC:$MYSQL_BIN:$PATH"
 fi
 
 #set -x
@@ -43,8 +44,8 @@ for ((i=0; i<nNodes; i++)) ; do
     # --no-defaults           Don't read default options from any option file.
     # --defaults-file=#       Only read default options from the given file #.
     # --defaults-extra-file=# Read this file after the global files are read.
-    #( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndbd" --initial )
-    ( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndbd" -c "$NDB_CONNECT" --initial )
+    #( cd "$mylogdir" ; "ndbd" --initial )
+    ( cd "$mylogdir" ; "ndbd" -c "$NDB_CONNECT" --initial )
 done
 
 #echo
@@ -56,7 +57,7 @@ for ((i=0; i<3; i++)) ; do printf "." ; sleep 1 ; done ; echo
 timeout=60
 echo
 echo "waiting ($timeout s) for ndbd to start up..."
-"$MYSQL_BIN/ndb_waiter" -c "$NDB_CONNECT" -t $timeout
+"ndb_waiter" -c "$NDB_CONNECT" -t $timeout
 
 # need some extra time
 for ((i=0; i<3; i++)) ; do printf "." ; sleep 1 ; done ; echo

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -96,6 +96,13 @@ public class Utility {
     static {
         for (int i = 0; i < 255; ++i) {
             ZERO_PAD[i] = (byte)0;
+        }
+    }
+ 
+    static final byte[] BLANK_PAD = new byte[255];
+    static {
+        for (int i = 0; i < 255; ++i) {
+            BLANK_PAD[i] = (byte)' ';
         }
     }
 
@@ -1294,6 +1301,28 @@ public class Utility {
         }
         return chars;
     }
+    
+    /** Pad the value with blanks on the right.
+     * @param buffer the input value
+     * @param storeColumn the store column
+     * @return the buffer padded with blanks on the right
+     */
+    private static ByteBuffer padString(ByteBuffer buffer, Column storeColumn) {
+        int suppliedLength = buffer.limit();
+        int requiredLength = storeColumn.getColumnSpace();
+        if (suppliedLength > requiredLength) {
+            throw new ClusterJUserException(local.message("ERR_Data_Too_Long",
+                    storeColumn.getName(), requiredLength, suppliedLength));
+        } else if (suppliedLength < requiredLength) {
+        	//reset buffer's limit
+        	buffer.limit(requiredLength);
+        	//pad to fixed length
+        	buffer.position(suppliedLength);
+        	buffer.put(BLANK_PAD, 0, requiredLength - suppliedLength);
+        	buffer.position(0);
+        }
+        return buffer;
+    }
 
     /** Fix the length information in a buffer based on the length prefix,
      * either 0, 1, or 2 bytes that hold the length information.
@@ -1907,10 +1936,11 @@ public class Utility {
         CharsetConverter charsetConverter = getCharsetConverter(collation);
         CharSequence chars = input;
         int prefixLength = storeColumn.getPrefixLength();
+        ByteBuffer byteBuffer = charsetConverter.encode(storeColumn.getName(), chars, collation, prefixLength, bufferManager);
         if (prefixLength == 0) {
-            chars = padString(input, storeColumn);
+            padString(byteBuffer, storeColumn);
         }
-        return charsetConverter.encode(storeColumn.getName(), chars, collation, prefixLength, bufferManager);
+        return byteBuffer;
     }
 
     /** Decode a ByteBuffer into a String using the charset. The return value
