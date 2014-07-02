@@ -1800,7 +1800,8 @@ static Sys_var_ulong Sys_thread_concurrency(
        "the desired number of threads that should be run at the same time."
        "This variable has no effect, and is deprecated. "
        "It will be removed in a future release.",
-       READ_ONLY GLOBAL_VAR(concurrency), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY GLOBAL_VAR(concurrency),
+       CMD_LINE(REQUIRED_ARG, OPT_THREAD_CONCURRENCY),
        VALID_RANGE(1, 512), DEFAULT(DEFAULT_CONCURRENCY), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
        DEPRECATED(""));
