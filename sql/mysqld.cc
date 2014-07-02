@@ -1421,7 +1421,7 @@ void clean_up(bool print_message)
 #endif
   query_cache.destroy();
   hostname_cache_free();
-  item_user_lock_free();
+  item_func_sleep_free();
   lex_free();       /* Free some memory */
   item_create_cleanup();
   if (!opt_noacl)
@@ -8136,7 +8136,6 @@ PSI_stage_info stage_updating= { 0, "updating", 0};
 PSI_stage_info stage_updating_main_table= { 0, "updating main table", 0};
 PSI_stage_info stage_updating_reference_tables= { 0, "updating reference tables", 0};
 PSI_stage_info stage_upgrading_lock= { 0, "upgrading lock", 0};
-PSI_stage_info stage_user_lock= { 0, "User lock", 0};
 PSI_stage_info stage_user_sleep= { 0, "User sleep", 0};
 PSI_stage_info stage_verifying_table= { 0, "verifying table", 0};
 PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log= { 0, "waiting for GTID to be written to binary log", 0};
@@ -8247,7 +8246,6 @@ PSI_stage_info *all_server_stages[]=
   & stage_updating_main_table,
   & stage_updating_reference_tables,
   & stage_upgrading_lock,
-  & stage_user_lock,
   & stage_user_sleep,
   & stage_verifying_table,
   & stage_waiting_for_handler_insert,
@@ -8327,7 +8325,7 @@ PSI_memory_key key_memory_handlerton;
 PSI_memory_key key_memory_XID;
 PSI_memory_key key_memory_host_cache_hostname;
 PSI_memory_key key_memory_user_var_entry_value;
-PSI_memory_key key_memory_User_level_lock_key;
+PSI_memory_key key_memory_User_level_lock;
 PSI_memory_key key_memory_MYSQL_LOG_name;
 PSI_memory_key key_memory_TC_LOG_MMAP_pages;
 PSI_memory_key key_memory_my_bitmap_map;
@@ -8469,7 +8467,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_XID, "XID", 0},
   { &key_memory_host_cache_hostname, "host_cache::hostname", 0},
   { &key_memory_user_var_entry_value, "user_var_entry::value", 0},
-  { &key_memory_User_level_lock_key, "User_level_lock::key", 0},
+  { &key_memory_User_level_lock, "User_level_lock", 0},
   { &key_memory_MYSQL_LOG_name, "MYSQL_LOG::name", 0},
   { &key_memory_TC_LOG_MMAP_pages, "TC_LOG_MMAP::pages", 0},
   { &key_memory_my_bitmap_map, "my_bitmap_map", 0},
