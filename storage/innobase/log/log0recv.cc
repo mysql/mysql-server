@@ -2232,7 +2232,7 @@ recv_report_corrupt_log(
 		(ulong) (ptr - recv_sys->buf),
 		(ulong) recv_previous_parsed_rec_offset);
 
-	ut_ad(ptr - recv_sys->buf <= recv_sys->len);
+	ut_ad(ptr <= recv_sys->buf + recv_sys->len);
 
 	const ulint	limit	= 100;
 	const ulint	before
