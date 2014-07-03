@@ -285,7 +285,7 @@ void block_allocator::alloc_block(uint64_t size, uint64_t *offset) {
         return;
     }
 
-    struct blockpair *bp = choose_block_first_fit_strategy(_blocks_array, _n_blocks, size, _alignment);
+    struct blockpair *bp = choose_block_to_alloc_after(size);
     if (bp != nullptr) {
         // our allocation strategy chose the space after `bp' to fit the new block
         uint64_t answer_offset = align(bp->offset + bp->size, _alignment);
