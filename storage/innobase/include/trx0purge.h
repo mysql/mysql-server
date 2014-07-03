@@ -155,11 +155,11 @@ struct purge_iter_t {
 };
 
 /** UNDO log truncate logger. Needed to track state of truncate during crash.
-A DDL_LOG kind of file will be created that will be removed on successful
-truncate but if server crashes before successful truncate this file will be
-used to initiate fix-up action during server start. */
+An auxiliary redo log file undo_<space_id>_trunc.log will created while the
+truncate of the UNDO is in progress. This file is required during recovery
+to complete the truncate. */
 
-class undo_trunc_logger_t {
+class UndoTruncateLogger {
 public:
 	/** Create the truncate log file.
 	@param[in]	space_id	id of the undo tablespace to truncate.
@@ -256,7 +256,7 @@ public:
 		byte*	log_buf = static_cast<byte*>(
 			ut_align(buf, UNIV_PAGE_SIZE));
 
-		mach_write_to_4(log_buf, undo_trunc_logger_t::s_magic);
+		mach_write_to_4(log_buf, UndoTruncateLogger::s_magic);
 
 		os_file_write(log_file_name, handle, log_buf, 0, sz);
 
@@ -323,7 +323,7 @@ public:
 
 			ulint	magic_no = mach_read_from_4(log_buf);
 			ut_free(buf);
-			if (magic_no == undo_trunc_logger_t::s_magic) {
+			if (magic_no == UndoTruncateLogger::s_magic) {
 				/* Found magic number. */
 				os_file_delete(innodb_log_file_key,
 					       log_file_name);
@@ -347,8 +347,8 @@ private:
 	{
 		ulint log_file_name_sz =
 			strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
-			+ strlen(undo_trunc_logger_t::s_log_prefix)
-			+ strlen(undo_trunc_logger_t::s_log_ext);
+			+ strlen(UndoTruncateLogger::s_log_prefix)
+			+ strlen(UndoTruncateLogger::s_log_ext);
 
 		log_file_name = new (std::nothrow) char[log_file_name_sz];
 		if (log_file_name == 0) {
@@ -371,8 +371,8 @@ private:
 		ut_snprintf(log_file_name + log_file_name_len,
 			    log_file_name_sz - log_file_name_len,
 			    "%s%lu_%s",
-			    undo_trunc_logger_t::s_log_prefix,
-			    (ulong) space_id, undo_trunc_logger_t::s_log_ext);
+			    UndoTruncateLogger::s_log_prefix,
+			    (ulong) space_id, UndoTruncateLogger::s_log_ext);
 
 		return(DB_SUCCESS);
 	}
@@ -389,11 +389,11 @@ public:
 };
 
 /** Track UNDO tablespace mark for truncate. */
-class undo_trunc_t {
+class UndoTruncate {
 public:
 	typedef	std::vector<trx_rseg_t*>	rseg_for_trunc_t;
 
-	undo_trunc_t()
+	UndoTruncate()
 		:
 		undo_logger(),
 		m_undo_for_trunc(ULINT_UNDEFINED),
@@ -407,14 +407,14 @@ public:
 
 	/** Is tablespace selected for truncate.
 	@return true if undo tablespace is marked for truncate */
-	bool is_undo_marked_for_trunc()
+	bool is_marked()
 	{
 		return(m_undo_for_trunc == ULINT_UNDEFINED ? false : true);
 	}
 
 	/** Mark the tablespace for truncate.
 	@param[in]	undo_id		tablespace for truncate. */
-	void mark_for_trunc(ulint undo_id)
+	void mark(ulint undo_id)
 	{
 		m_undo_for_trunc = undo_id;
 
@@ -432,7 +432,7 @@ public:
 
 	/** Get the tablespace marked for truncate.
 	@return tablespace id marked for truncate. */
-	ulint get_undo_mark_for_trunc()
+	ulint get_marked_space_id()
 	{
 		return m_undo_for_trunc;
 	}
@@ -447,7 +447,7 @@ public:
 	/** Get number of rsegs registered for truncate.
 	@return return number of rseg that belongs to tablespace mark for
 	truncate. */
-	ulint get_no_of_rsegs()
+	ulint rsegs_size()
 	{
 		return(m_rseg_for_trunc.size());
 	}
@@ -522,7 +522,7 @@ public:
 
 public:
 	/** DDL logger to protect truncate action against server crash. */
-	undo_trunc_logger_t		undo_logger;
+	UndoTruncateLogger		undo_logger;
 
 	/** List of UNDO tablespace(s) to truncate. */
 	typedef std::vector<ulint>	undo_spaces_t;
@@ -626,7 +626,7 @@ struct trx_purge_t{
 					by the pq_mutex */
 	PQMutex		pq_mutex;	/*!< Mutex protecting purge_queue */
 
-	undo_trunc_t    undo_trunc;	/*!< Track UNDO tablespace marked
+	UndoTruncate    undo_trunc;	/*!< Track UNDO tablespace marked
 					for truncate. */
 };
 
