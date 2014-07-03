@@ -68,7 +68,7 @@ select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_slave_list";
 
 select count(name) from mutex_instances
- where name like "wait/synch/mutex/sql/LOCK_active_mi";
+ where name like "wait/synch/mutex/sql/LOCK_msr_map";
 
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_manager";
