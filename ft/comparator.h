@@ -93,9 +93,9 @@ PATENT RIGHTS GRANT:
 #include <db.h>
 #include <string.h>
 
-#include <ft/ybt.h>
-//#include <ft/fttypes.h>
-#include <portability/memory.h>
+#include "portability/memory.h"
+
+#include "util/dbt.h"
 
 typedef int (*ft_compare_func)(DB *db, const DBT *a, const DBT *b);
 

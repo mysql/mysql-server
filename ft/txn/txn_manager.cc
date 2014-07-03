@@ -91,12 +91,12 @@ PATENT RIGHTS GRANT:
 
 #include "portability/toku_race_tools.h"
 
-#include "ft/checkpoint.h"
+#include "ft/cachetable/checkpoint.h"
 #include "ft/logger/log-internal.h"
 #include "ft/ule.h"
-#include "ft/txn.h"
-#include "ft/txn_manager.h"
-#include "ft/rollback.h"
+#include "ft/txn/txn.h"
+#include "ft/txn/txn_manager.h"
+#include "ft/txn/rollback.h"
 #include "util/omt.h"
 
 bool garbage_collection_debug = false;

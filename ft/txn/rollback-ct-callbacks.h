@@ -1,17 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
-/* Purpose of this file is to provide the world with everything necessary
- * to use the xids and nothing else.  
- * Internal requirements of the xids logic do not belong here.
- *
- * xids is (abstractly) an immutable list of nested transaction ids, accessed only
- * via the functions in this file.  
- *
- * See design documentation for nested transactions at
- * TokuWiki/Imp/TransactionsOverview.
- */
-
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -103,68 +92,43 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "ft/txn.h"
-#include "ft/serialize/rbuf.h"
-#include "ft/serialize/wbuf.h"
+#include "ft/cachetable/cachetable.h"
 
-/* The number of transaction ids stored in the xids structure is 
- * represented by an 8-bit value.  The value 255 is reserved. 
- * The constant MAX_NESTED_TRANSACTIONS is one less because
- * one slot in the packed leaf entry is used for the implicit
- * root transaction (id 0).
- */
-enum {
-    MAX_NESTED_TRANSACTIONS = 253,
-    MAX_TRANSACTION_RECORDS = MAX_NESTED_TRANSACTIONS + 1
-};
+void toku_rollback_flush_callback(CACHEFILE cachefile, int fd, BLOCKNUM logname, void *rollback_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool UU(is_clone));
+int toku_rollback_fetch_callback(CACHEFILE cachefile, PAIR p, int fd, BLOCKNUM logname, uint32_t fullhash, void **rollback_pv,  void** UU(disk_data), PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs);
+void toku_rollback_pe_est_callback(
+    void* rollback_v, 
+    void* UU(disk_data),
+    long* bytes_freed_estimate, 
+    enum partial_eviction_cost *cost, 
+    void* UU(write_extraargs)
+    );
+int toku_rollback_pe_callback (
+    void *rollback_v, 
+    PAIR_ATTR old_attr, 
+    void* UU(extraargs),
+    void (*finalize)(PAIR_ATTR new_attr, void * extra),
+    void *finalize_extra
+    );
+bool toku_rollback_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) ;
+int toku_rollback_pf_callback(void* UU(ftnode_pv),  void* UU(disk_data), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep));
+void toku_rollback_clone_callback(void* value_data, void** cloned_value_data, long* clone_size, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
 
-// Variable size list of transaction ids (known in design doc as xids<>).
-// ids[0] is the outermost transaction.
-// ids[num_xids - 1] is the innermost transaction.
-// Should only be accessed by accessor functions toku_xids_xxx, not directly.
+int toku_rollback_cleaner_callback (
+    void* UU(ftnode_pv),
+    BLOCKNUM UU(blocknum),
+    uint32_t UU(fullhash),
+    void* UU(extraargs)
+    );
 
-// If the xids struct is unpacked, the compiler aligns the ids[] and we waste a lot of space
-struct __attribute__((__packed__)) XIDS_S {
-    // maximum value of MAX_TRANSACTION_RECORDS - 1 because transaction 0 is implicit
-    uint8_t num_xids; 
-    TXNID ids[];
-};
-typedef struct XIDS_S *XIDS;
-
-// Retrieve an XIDS representing the root transaction.
-XIDS toku_xids_get_root_xids(void);
-
-bool toku_xids_can_create_child(XIDS xids);
-
-void toku_xids_cpy(XIDS target, XIDS source);
-
-//Creates an XIDS representing this transaction.
-//You must pass in an XIDS representing the parent of this transaction.
-int toku_xids_create_child(XIDS parent_xids, XIDS *xids_p, TXNID this_xid);
-
-// The following two functions (in order) are equivalent to toku_xids_create child,
-// but allow you to do most of the work without knowing the new xid.
-int toku_xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p);
-void toku_xids_finalize_with_child(XIDS xids, TXNID this_xid);
-
-void toku_xids_create_from_buffer(struct rbuf *rb, XIDS *xids_p);
-
-void toku_xids_destroy(XIDS *xids_p);
-
-TXNID toku_xids_get_xid(XIDS xids, uint8_t index);
-
-uint8_t toku_xids_get_num_xids(XIDS xids);
-
-TXNID toku_xids_get_innermost_xid(XIDS xids);
-TXNID toku_xids_get_outermost_xid(XIDS xids);
-
-// return size in bytes
-uint32_t toku_xids_get_size(XIDS xids);
-
-uint32_t toku_xids_get_serialize_size(XIDS xids);
-
-unsigned char *toku_xids_get_end_of_array(XIDS xids);
-
-void wbuf_nocrc_xids(struct wbuf *wb, XIDS xids);
-
-void toku_xids_fprintf(FILE* fp, XIDS xids);
+static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_rollback_log(FT ft) {
+    CACHETABLE_WRITE_CALLBACK wc;
+    wc.flush_callback = toku_rollback_flush_callback;
+    wc.pe_est_callback = toku_rollback_pe_est_callback;
+    wc.pe_callback = toku_rollback_pe_callback;
+    wc.cleaner_callback = toku_rollback_cleaner_callback;
+    wc.clone_callback = toku_rollback_clone_callback;
+    wc.checkpoint_complete_callback = nullptr;
+    wc.write_extraargs = ft;
+    return wc;
+}

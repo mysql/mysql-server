@@ -102,9 +102,9 @@ PATENT RIGHTS GRANT:
 #include "ft/ft-internal.h"
 #include "ft/logger/log.h"
 #include "ft/logger/logfilemgr.h"
-#include "ft/txn.h"
-#include "ft/txn_manager.h"
-#include "ft/rollback_log_node_cache.h"
+#include "ft/txn/txn.h"
+#include "ft/txn/txn_manager.h"
+#include "ft/txn/rollback_log_node_cache.h"
 
 #include "util/memarena.h"
 #include "util/omt.h"

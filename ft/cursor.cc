@@ -90,8 +90,8 @@ PATENT RIGHTS GRANT:
 
 #include "ft/cursor.h"
 #include "ft/leafentry.h"
-#include "ft/txn.h"
-#include "ft/ybt.h"
+#include "ft/txn/txn.h"
+#include "util/dbt.h"
 
 int toku_ft_cursor_create(FT_HANDLE ft_handle, FT_CURSOR cursor, TOKUTXN ttxn,
                           bool is_snapshot_read,

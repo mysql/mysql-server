@@ -23,10 +23,10 @@ add_custom_target(
   )
 
 set(FT_SOURCES
-  background_job_manager
   bndata
-  cachetable
-  checkpoint
+  cachetable/background_job_manager
+  cachetable/cachetable
+  cachetable/checkpoint
   cursor
   ft
   ft-cachetable-wrappers
@@ -45,16 +45,11 @@ set(FT_SOURCES
   logger/logfilemgr
   logger/logger
   logger/log_upgrade
+  logger/recover
   msg
   msg_buffer
   node
   pivotkeys
-  recover
-  rollback
-  rollback-apply
-  rollback-ct-callbacks
-  rollback_log_node_cache
-  roll
   serialize/block_allocator
   serialize/block_table
   serialize/compress
@@ -63,12 +58,16 @@ set(FT_SOURCES
   serialize/ft-serialize
   serialize/quicklz
   serialize/sub_block
-  txn
-  txn_child_manager
-  txn_manager
+  txn/rollback
+  txn/rollback-apply
+  txn/rollback-ct-callbacks
+  txn/rollback_log_node_cache
+  txn/roll
+  txn/txn
+  txn/txn_child_manager
+  txn/txn_manager
+  txn/xids
   ule
-  xids
-  ybt
   "${CMAKE_CURRENT_BINARY_DIR}/log_code"
   "${CMAKE_CURRENT_BINARY_DIR}/log_print"
   )

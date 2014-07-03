@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_portability.h"
 #include "portability/toku_pthread.h"
 
-#include "ft/txn.h"
+#include "ft/txn/txn.h"
 
 typedef struct txn_manager *TXN_MANAGER;
 

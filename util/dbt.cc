@@ -94,29 +94,25 @@ PATENT RIGHTS GRANT:
 
 #include "portability/memory.h"
 
-#include "ft/ybt.h"
+#include "util/dbt.h"
 
-DBT *
-toku_init_dbt(DBT *dbt) {
+DBT *toku_init_dbt(DBT *dbt) {
     memset(dbt, 0, sizeof(*dbt));
     return dbt;
 }
 
-DBT
-toku_empty_dbt(void) {
+DBT toku_empty_dbt(void) {
     static const DBT empty_dbt = { .data = 0, .size = 0, .ulen = 0, .flags = 0 };
     return empty_dbt;
 }
 
-DBT *
-toku_init_dbt_flags(DBT *dbt, uint32_t flags) {
+DBT *toku_init_dbt_flags(DBT *dbt, uint32_t flags) {
     toku_init_dbt(dbt);
     dbt->flags = flags;
     return dbt;
 }
 
-DBT_ARRAY *
-toku_dbt_array_init(DBT_ARRAY *dbts, uint32_t size) {
+DBT_ARRAY *toku_dbt_array_init(DBT_ARRAY *dbts, uint32_t size) {
     uint32_t capacity = 1;
     while (capacity < size) { capacity *= 2; }
 
@@ -129,8 +125,7 @@ toku_dbt_array_init(DBT_ARRAY *dbts, uint32_t size) {
     return dbts;
 }
 
-void
-toku_dbt_array_resize(DBT_ARRAY *dbts, uint32_t size) {
+void toku_dbt_array_resize(DBT_ARRAY *dbts, uint32_t size) {
     if (size != dbts->size) {
         if (size > dbts->capacity) {
             const uint32_t old_capacity = dbts->capacity;
@@ -158,14 +153,12 @@ toku_dbt_array_resize(DBT_ARRAY *dbts, uint32_t size) {
     }
 }
 
-void
-toku_dbt_array_destroy_shallow(DBT_ARRAY *dbts) {
+void toku_dbt_array_destroy_shallow(DBT_ARRAY *dbts) {
     toku_free(dbts->dbts);
     ZERO_STRUCT(*dbts);
 }
 
-void
-toku_dbt_array_destroy(DBT_ARRAY *dbts) {
+void toku_dbt_array_destroy(DBT_ARRAY *dbts) {
     for (uint32_t i = 0; i < dbts->capacity; i++) {
         toku_destroy_dbt(&dbts->dbts[i]);
     }
@@ -174,8 +167,7 @@ toku_dbt_array_destroy(DBT_ARRAY *dbts) {
 
 
 
-void
-toku_destroy_dbt(DBT *dbt) {
+void toku_destroy_dbt(DBT *dbt) {
     switch (dbt->flags) {
     case DB_DBT_MALLOC:
     case DB_DBT_REALLOC:
@@ -185,8 +177,7 @@ toku_destroy_dbt(DBT *dbt) {
     }
 }
 
-DBT *
-toku_fill_dbt(DBT *dbt, const void *k, uint32_t len) {
+DBT *toku_fill_dbt(DBT *dbt, const void *k, uint32_t len) {
     toku_init_dbt(dbt);
     dbt->size=len;
     dbt->data=(char*)k;
@@ -218,8 +209,7 @@ toku_sdbt_cleanup(struct simple_dbt *sdbt) {
     memset(sdbt, 0, sizeof(*sdbt));
 }
 
-static inline int
-sdbt_realloc(struct simple_dbt *sdbt) {
+static inline int sdbt_realloc(struct simple_dbt *sdbt) {
     void *new_data = toku_realloc(sdbt->data, sdbt->len);
     int r;
     if (new_data == NULL) {
@@ -231,8 +221,7 @@ sdbt_realloc(struct simple_dbt *sdbt) {
     return r;
 }
 
-static inline int
-dbt_realloc(DBT *dbt) {
+static inline int dbt_realloc(DBT *dbt) {
     void *new_data = toku_realloc(dbt->data, dbt->ulen);
     int r;
     if (new_data == NULL) {
@@ -244,13 +233,13 @@ dbt_realloc(DBT *dbt) {
     return r;
 }
 
-int
-toku_dbt_set (uint32_t len, const void *val, DBT *d, struct simple_dbt *sdbt) {
 // sdbt is the static value used when flags==0
 // Otherwise malloc or use the user-supplied memory, as according to the flags in d->flags.
+int toku_dbt_set(uint32_t len, const void *val, DBT *d, struct simple_dbt *sdbt) {
     int r;
-    if (!d) r = 0;
-    else {
+    if (d == nullptr) {
+        r = 0;
+    } else {
         switch (d->flags) {
         case (DB_DBT_USERMEM):
             d->size = len;

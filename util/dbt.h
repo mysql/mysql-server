@@ -1,5 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -86,75 +87,55 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <memory.h>
-#include <portability/toku_portability.h>
+#include <db.h>
 
-#include "rollback_log_node_cache.h"
+// TODO: John
+// Document this API a little better so that DBT
+// memory management can be morm widely understood.
 
-void rollback_log_node_cache::init (uint32_t max_num_avail_nodes) {
-    XMALLOC_N(max_num_avail_nodes, m_avail_blocknums);
-    m_max_num_avail = max_num_avail_nodes;
-    m_first = 0;
-    m_num_avail = 0;
-    toku_pthread_mutexattr_t attr;
-    toku_mutexattr_init(&attr);
-    toku_mutexattr_settype(&attr, TOKU_MUTEX_ADAPTIVE);
-    toku_mutex_init(&m_mutex, &attr);
-    toku_mutexattr_destroy(&attr);
-}
+DBT *toku_init_dbt(DBT *);
 
-void rollback_log_node_cache::destroy() {
-    toku_mutex_destroy(&m_mutex);
-    toku_free(m_avail_blocknums);
-}
+// returns: an initialized but empty dbt (for which toku_dbt_is_empty() is true)
+DBT toku_empty_dbt(void);
 
-// returns true if rollback log node was successfully added,
-// false otherwise
-bool rollback_log_node_cache::give_rollback_log_node(TOKUTXN txn, ROLLBACK_LOG_NODE log){
-    bool retval = false;
-    toku_mutex_lock(&m_mutex);
-    if (m_num_avail < m_max_num_avail) {
-        retval = true;
-        uint32_t index = m_first + m_num_avail;
-        if (index >= m_max_num_avail) {
-            index -= m_max_num_avail;
-        }
-        m_avail_blocknums[index].b = log->blocknum.b;
-        m_num_avail++;
-    }
-    toku_mutex_unlock(&m_mutex);
-    //
-    // now unpin the rollback log node
-    //
-    if (retval) {
-        make_rollback_log_empty(log);
-        toku_rollback_log_unpin(txn, log);
-    }
-    return retval;
-}
+DBT *toku_init_dbt_flags(DBT *, uint32_t flags);
 
-// if a rollback log node is available, will set log to it,
-// otherwise, will set log to NULL and caller is on his own
-// for getting a rollback log node
-void rollback_log_node_cache::get_rollback_log_node(TOKUTXN txn, ROLLBACK_LOG_NODE* log){
-    BLOCKNUM b = ROLLBACK_NONE;
-    toku_mutex_lock(&m_mutex);
-    if (m_num_avail > 0) {
-        b.b = m_avail_blocknums[m_first].b;
-        m_num_avail--;
-        if (++m_first >= m_max_num_avail) {
-            m_first = 0;
-        }
-    }
-    toku_mutex_unlock(&m_mutex);
-    if (b.b != ROLLBACK_NONE.b) {
-        toku_get_and_pin_rollback_log(txn, b, log);
-        invariant(rollback_log_is_unused(*log));
-    } else {
-        *log = NULL;
-    }
-}
+void toku_destroy_dbt(DBT *);
 
+DBT *toku_fill_dbt(DBT *dbt, const void *k, uint32_t len);
+
+DBT *toku_memdup_dbt(DBT *dbt, const void *k, size_t len);
+
+DBT *toku_copyref_dbt(DBT *dst, const DBT src);
+
+DBT *toku_clone_dbt(DBT *dst, const DBT &src);
+
+int toku_dbt_set(uint32_t len, const void *val, DBT *d, struct simple_dbt *sdbt);
+
+int toku_dbt_set_value(DBT *, const void **val, uint32_t vallen, void **staticptrp, bool dbt1_disposable);
+
+void toku_sdbt_cleanup(struct simple_dbt *sdbt);
+
+// returns: special DBT pointer representing positive infinity
+const DBT *toku_dbt_positive_infinity(void);
+
+// returns: special DBT pointer representing negative infinity
+const DBT *toku_dbt_negative_infinity(void);
+
+// returns: true if the given dbt is either positive or negative infinity
+bool toku_dbt_is_infinite(const DBT *dbt);
+
+// returns: true if the given dbt has no data (ie: dbt->data == nullptr)
+bool toku_dbt_is_empty(const DBT *dbt);
+
+// effect: compares two potentially infinity-valued dbts
+// requires: at least one is infinite (assert otherwise)
+int toku_dbt_infinite_compare(const DBT *a, const DBT *b);
+
+// returns: true if the given dbts have the same data pointer and size
+bool toku_dbt_equals(const DBT *a, const DBT *b);

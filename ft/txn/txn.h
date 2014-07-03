@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 
 #include "portability/toku_stdint.h"
 
-#include "ft/txn_state.h"
+#include "ft/txn/txn_state.h"
 #include "ft/serialize/block_table.h"
 #include "util/omt.h"
 
@@ -114,7 +114,7 @@ typedef struct txnid_pair_s {
 static const TXNID_PAIR TXNID_PAIR_NONE = { .parent_id64 = TXNID_NONE, .child_id64 = TXNID_NONE };
 
 // We include the child manager here beacuse it uses the TXNID / TOKUTXN types
-#include "ft/txn_child_manager.h"
+#include "ft/txn/txn_child_manager.h"
 
 /* Log Sequence Number (LSN)
  * Make the LSN be a struct instead of an integer so that we get better type checking. */

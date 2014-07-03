@@ -93,49 +93,47 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <db.h>
+#include <errno.h>
 
-// TODO: John
-// Document this API a little better so that DBT
-// memory management can be morm widely understood.
+#include "portability/memory.h"
+#include "portability/toku_portability.h"
 
-DBT *toku_init_dbt(DBT *);
+#include "ft/comparator.h"
+#include "ft/ft-ops.h"
+#include "util/x1764.h"
 
-// returns: an initialized but empty dbt (for which toku_dbt_is_empty() is true)
-DBT toku_empty_dbt(void);
+typedef void (*prepared_txn_callback_t)(DB_ENV *env, struct tokutxn *txn);
+typedef void (*keep_cachetable_callback_t)(DB_ENV *env, struct cachetable *ct);
 
-DBT *toku_init_dbt_flags(DBT *, uint32_t flags);
+// Run tokudb recovery from the log
+// Returns 0 if success
+int tokudb_recover(DB_ENV *env,
+		   prepared_txn_callback_t prepared_txn_callback,
+		   keep_cachetable_callback_t keep_cachetable_callback,
+		   struct tokulogger *logger,
+		   const char *env_dir,
+                   const char *log_dir,
+                   ft_compare_func bt_compare,
+                   ft_update_func update_function,
+                   generate_row_for_put_func generate_row_for_put,
+                   generate_row_for_del_func generate_row_for_del,
+                   size_t cachetable_size);
 
-void toku_destroy_dbt(DBT *);
+// Effect: Check the tokudb logs to determine whether or not we need to run recovery.
+// If the log is empty or if there is a clean shutdown at the end of the log, then we
+// dont need to run recovery.
+// Returns: true if we need recovery, otherwise false.
+int tokudb_needs_recovery(const char *logdir, bool ignore_empty_log);
 
-DBT *toku_fill_dbt(DBT *dbt, const void *k, uint32_t len);
+// Return 0 if recovery log exists, ENOENT if log is missing
+int tokudb_recover_log_exists(const char * log_dir);
 
-DBT *toku_memdup_dbt(DBT *dbt, const void *k, size_t len);
+// For test only - set callbacks for recovery testing
+void toku_recover_set_callback (void (*)(void*), void*);
+void toku_recover_set_callback2 (void (*)(void*), void*);
 
-DBT *toku_copyref_dbt(DBT *dst, const DBT src);
+extern int tokudb_recovery_trace;
 
-DBT *toku_clone_dbt(DBT *dst, const DBT &src);
+int toku_recover_lock (const char *lock_dir, int *lockfd);
 
-int toku_dbt_set(uint32_t len, const void *val, DBT *d, struct simple_dbt *sdbt);
-
-int toku_dbt_set_value(DBT *, const void **val, uint32_t vallen, void **staticptrp, bool ybt1_disposable);
-
-void toku_sdbt_cleanup(struct simple_dbt *sdbt);
-
-// returns: special DBT pointer representing positive infinity
-const DBT *toku_dbt_positive_infinity(void);
-
-// returns: special DBT pointer representing negative infinity
-const DBT *toku_dbt_negative_infinity(void);
-
-// returns: true if the given dbt is either positive or negative infinity
-bool toku_dbt_is_infinite(const DBT *dbt);
-
-// returns: true if the given dbt has no data (ie: dbt->data == nullptr)
-bool toku_dbt_is_empty(const DBT *dbt);
-
-// effect: compares two potentially infinity-valued dbts
-// requires: at least one is infinite (assert otherwise)
-int toku_dbt_infinite_compare(const DBT *a, const DBT *b);
-
-// returns: true if the given dbts have the same data pointer and size
-bool toku_dbt_equals(const DBT *a, const DBT *b);
+int toku_recover_unlock(int lockfd);

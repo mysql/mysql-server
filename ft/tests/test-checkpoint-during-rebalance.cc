@@ -96,7 +96,7 @@ PATENT RIGHTS GRANT:
 #include <ft-cachetable-wrappers.h>
 #include "ft-flusher.h"
 #include "ft-flusher-internal.h"
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 
 static TOKUTXN const null_txn = 0;
 

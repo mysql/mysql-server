@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 #include "ydb-internal.h"
 #include "indexer.h"
 #include <ft/log_header.h>
-#include <ft/checkpoint.h>
+#include <ft/cachetable/checkpoint.h>
 #include "ydb_row_lock.h"
 #include "ydb_write.h"
 #include "ydb_db.h"

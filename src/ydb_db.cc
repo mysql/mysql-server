@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 #include <locktree/locktree.h>
 #include <ft/ft.h>
 #include <ft/ft-flusher.h>
-#include <ft/checkpoint.h>
+#include <ft/cachetable/checkpoint.h>
 
 #include "ydb_cursor.h"
 #include "ydb_row_lock.h"

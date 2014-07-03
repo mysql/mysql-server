@@ -102,9 +102,9 @@ PATENT RIGHTS GRANT:
 #include <ft/ft-ops.h>
 #include <ft/leafentry.h>
 #include <ft/ule.h>
-#include <ft/xids.h>
+#include <ft/txn/xids.h>
 #include <ft/logger/log-internal.h>
-#include <ft/checkpoint.h>
+#include <ft/cachetable/checkpoint.h>
 #include <portability/toku_atomic.h>
 #include "loader.h"
 #include <util/status.h>

@@ -94,11 +94,11 @@ PATENT RIGHTS GRANT:
 #include <memory.h>
 #include <db.h>
 
+#include <ft/cachetable/checkpoint.h>
 #include <ft/ft.h>
 #include <ft/ft-ops.h>
 #include <ft/ft-flusher.h>
-#include <ft/checkpoint.h>
-#include <ft/recover.h>
+#include <ft/logger/recover.h>
 #include <ft/loader/loader.h>
 
 #include "ydb_env_func.h"

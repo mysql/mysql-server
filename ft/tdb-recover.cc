@@ -95,18 +95,15 @@ PATENT RIGHTS GRANT:
 //    cd ../src/tests/tmpdir
 //    ../../../ft/recover ../dir.test_log2.c.tdb
 
-#include "ft-ops.h"
-#include "recover.h"
+#include "ft/ft-ops.h"
+#include "ft/logger/recover.h"
 
 static int recovery_main(int argc, const char *const argv[]);
 
-int
-main(int argc, const char *const argv[]) {
-    {
-	int rr = toku_ft_layer_init();
-	assert(rr==0);
-    }
-    int r = recovery_main(argc, argv);
+int main(int argc, const char *const argv[]) {
+    int r = toku_ft_layer_init();
+    assert(r == 0);
+    r = recovery_main(argc, argv);
     toku_ft_layer_destroy();
     return r;
 }

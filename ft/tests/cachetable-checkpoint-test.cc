@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 #include <unistd.h>
 
 
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 
 static const int item_size = 1;
 

@@ -97,7 +97,7 @@ PATENT RIGHTS GRANT:
 #include <util/mempool.h>
 #include <util/omt.h>
 
-#include "ft/txn_manager.h"
+#include "ft/txn/txn_manager.h"
 #include "ft/serialize/rbuf.h"
 #include "ft/msg.h"
 

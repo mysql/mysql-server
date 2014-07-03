@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 
 
 #include "test.h"
-#include "cachetable-internal.h"
+#include "cachetable/cachetable-internal.h"
 
 static int flush_calls = 0;
 static int flush_evict_calls = 0;

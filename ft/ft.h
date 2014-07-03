@@ -93,10 +93,10 @@ PATENT RIGHTS GRANT:
 
 #include <db.h>
 
-#include "ft/cachetable.h"
+#include "ft/cachetable/cachetable.h"
 #include "ft/ft-ops.h"
 #include "ft/logger/log.h"
-#include "ft/ybt.h"
+#include "util/dbt.h"
 
 typedef struct ft *FT;
 typedef struct ft_options *FT_OPTIONS;

@@ -100,7 +100,7 @@ PATENT RIGHTS GRANT:
 
 #include <ft/ft.h>
 #include <ft/loader/loader.h>
-#include <ft/checkpoint.h>
+#include <ft/cachetable/checkpoint.h>
 
 #include "ydb-internal.h"
 #include "ydb_db.h"

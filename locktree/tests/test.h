@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 #include <limits.h>
 
 #include "ft/comparator.h"
-#include "ft/ybt.h"
+#include "util/dbt.h"
 
 namespace toku {
 

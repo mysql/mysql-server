@@ -98,10 +98,9 @@ PATENT RIGHTS GRANT:
 #include "portability/memory.h"
 #include "portability/toku_portability.h"
 
-#include "ft/logger/logger.h"
-#include "ft/rollback.h"
-#include "ft/recover.h"
-#include "ft/txn.h"
+#include "ft/logger/recover.h"
+#include "ft/txn/rollback.h"
+#include "ft/txn/txn.h"
 #include "util/bytestring.h"
 
 struct roll_entry;

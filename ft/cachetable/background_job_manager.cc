@@ -1,6 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -87,52 +86,74 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#pragma once
-
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2011-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <db.h>
-#include <errno.h>
+#include <portability/toku_config.h>
+#include <memory.h>
+#include <toku_pthread.h>
 
-#include "portability/memory.h"
-#include "portability/toku_portability.h"
+#include "cachetable/background_job_manager.h"
 
-#include "ft/comparator.h"
-#include "ft/ft-ops.h"
-#include "util/x1764.h"
+struct background_job_manager_struct {
+    bool accepting_jobs;
+    uint32_t num_jobs;
+    toku_cond_t jobs_wait;
+    toku_mutex_t jobs_lock;
+};
 
-typedef void (*prepared_txn_callback_t)(DB_ENV*, TOKUTXN);
-typedef void (*keep_cachetable_callback_t)(DB_ENV*, CACHETABLE);
+void bjm_init(BACKGROUND_JOB_MANAGER* pbjm) {
+    BACKGROUND_JOB_MANAGER XCALLOC(bjm);
+    toku_mutex_init(&bjm->jobs_lock, 0);    
+    toku_cond_init(&bjm->jobs_wait, NULL);
+    bjm->accepting_jobs = true;
+    bjm->num_jobs = 0;
+    *pbjm = bjm;
+}
 
-// Run tokudb recovery from the log
-// Returns 0 if success
-int tokudb_recover (DB_ENV *env,
-		    prepared_txn_callback_t    prepared_txn_callback,
-		    keep_cachetable_callback_t keep_cachetable_callback,
-		    struct tokulogger *logger,
-		    const char *env_dir, const char *log_dir,
-                    ft_compare_func bt_compare,
-                    ft_update_func update_function,
-                    generate_row_for_put_func       generate_row_for_put,
-                    generate_row_for_del_func       generate_row_for_del,
-                    size_t cachetable_size);
+void bjm_destroy(BACKGROUND_JOB_MANAGER bjm) {
+    assert(bjm->num_jobs == 0);
+    toku_cond_destroy(&bjm->jobs_wait);
+    toku_mutex_destroy(&bjm->jobs_lock);
+    toku_free(bjm);
+}
 
-// Effect: Check the tokudb logs to determine whether or not we need to run recovery.
-// If the log is empty or if there is a clean shutdown at the end of the log, then we
-// dont need to run recovery.
-// Returns: true if we need recovery, otherwise false.
-int tokudb_needs_recovery(const char *logdir, bool ignore_empty_log);
+void bjm_reset(BACKGROUND_JOB_MANAGER bjm) {
+    toku_mutex_lock(&bjm->jobs_lock);
+    assert(bjm->num_jobs == 0);
+    bjm->accepting_jobs = true;
+    toku_mutex_unlock(&bjm->jobs_lock);
+}
 
-// Return 0 if recovery log exists, ENOENT if log is missing
-int tokudb_recover_log_exists(const char * log_dir);
+int bjm_add_background_job(BACKGROUND_JOB_MANAGER bjm) {
+    int ret_val;
+    toku_mutex_lock(&bjm->jobs_lock);
+    if (bjm->accepting_jobs) {
+        bjm->num_jobs++;
+        ret_val = 0;
+    }
+    else {
+        ret_val = -1;
+    }
+    toku_mutex_unlock(&bjm->jobs_lock);
+    return ret_val;
+}
+void bjm_remove_background_job(BACKGROUND_JOB_MANAGER bjm){
+    toku_mutex_lock(&bjm->jobs_lock);
+    assert(bjm->num_jobs > 0);
+    bjm->num_jobs--;
+    if (bjm->num_jobs == 0 && !bjm->accepting_jobs) {
+        toku_cond_broadcast(&bjm->jobs_wait);
+    }
+    toku_mutex_unlock(&bjm->jobs_lock);
+}
 
-// For test only - set callbacks for recovery testing
-void toku_recover_set_callback (void (*)(void*), void*);
-void toku_recover_set_callback2 (void (*)(void*), void*);
+void bjm_wait_for_jobs_to_finish(BACKGROUND_JOB_MANAGER bjm) {
+    toku_mutex_lock(&bjm->jobs_lock);
+    bjm->accepting_jobs = false;
+    while (bjm->num_jobs > 0) {
+        toku_cond_wait(&bjm->jobs_wait, &bjm->jobs_lock);
+    }
+    toku_mutex_unlock(&bjm->jobs_lock);
+}
 
-extern int tokudb_recovery_trace;
-
-int toku_recover_lock (const char *lock_dir, int *lockfd);
-
-int toku_recover_unlock(int lockfd);

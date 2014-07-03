@@ -109,7 +109,7 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_htod.h"
 #include "portability/toku_portability.h"
 
-#include "ft/xids.h"
+#include "ft/txn/xids.h"
 
 /////////////////////////////////////////////////////////////////////////////////
 //  This layer of abstraction (xids_xxx) understands xids<> and nothing else.

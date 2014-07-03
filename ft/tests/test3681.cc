@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 //  * Thread 1 calls apply_msg_to_in_memory_leaves, calls get_and_pin_if_in_memory, tries to get a read lock on the root node and blocks on the rwlock because there is a write request on the lock.
 
 
-#include "checkpoint.h"
+#include "cachetable/checkpoint.h"
 #include "test.h"
 
 CACHETABLE ct;

@@ -103,8 +103,8 @@ PATENT RIGHTS GRANT:
 
 #include "ft/serialize/block_allocator.h"
 #include "ft/serialize/block_table.h"
-#include "ft/cachetable.h"
-#include "ft/cachetable-internal.h"
+#include "ft/cachetable/cachetable.h"
+#include "ft/cachetable/cachetable-internal.h"
 #include "ft/cursor.h"
 #include "ft/ft.h"
 #include "ft/ft-ops.h"

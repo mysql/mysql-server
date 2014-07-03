@@ -90,7 +90,7 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 
-#include <ft/ybt.h>
+#include <util/dbt.h>
 #include <ft/ft-cachetable-wrappers.h>
 
 // Each FT maintains a sequential insert heuristic to determine if its
