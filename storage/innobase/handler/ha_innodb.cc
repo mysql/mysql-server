@@ -16594,10 +16594,11 @@ static MYSQL_SYSVAR_LONGLONG(max_undo_log_size, innobase_max_undo_log_size,
   10 * 1024 * 1024L,
   LONGLONG_MAX, 1024 * 1024L);
 
-static MYSQL_SYSVAR_ULONG(undo_purge_lag, srv_undo_purge_lag,
+static MYSQL_SYSVAR_ULONG(purge_rseg_truncate_frequency,
+  srv_purge_rseg_truncate_frequency,
   PLUGIN_VAR_OPCMDARG,
   "Dictates rate at which UNDO records are purged. Value N means"
-  " purge on every Nth iteration of purge invocation",
+  " purge rollback segment(s) on every Nth iteration of purge invocation",
   NULL, NULL, 128, 1, 128, 0);
 
 /* Alias for innodb_undo_logs, this config variable is deprecated. */
@@ -16939,7 +16940,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),
   MYSQL_SYSVAR(max_undo_log_size),
-  MYSQL_SYSVAR(undo_purge_lag),
+  MYSQL_SYSVAR(purge_rseg_truncate_frequency),
   MYSQL_SYSVAR(rollback_segments),
   MYSQL_SYSVAR(undo_directory),
   MYSQL_SYSVAR(undo_tablespaces),

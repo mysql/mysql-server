@@ -2942,7 +2942,6 @@ fil_truncate_tablespace(
 	/* Step-2: Invalidate buffer pool pages belonging to the tablespace
 	to re-create. Remove all insert buffer entries for the tablespace */
 	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
-	ibuf_delete_for_discarded_space(space_id);
 
 	/* Step-3: Truncate the tablespace and accordingly update
 	the fil_space_t handler that is used to access this tablespace. */

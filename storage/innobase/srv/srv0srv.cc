@@ -106,7 +106,7 @@ ulint	srv_undo_tablespaces_open = 8;
 ulong	srv_undo_logs = 1;
 
 /** Rate at which UNDO records should be purged. */
-ulong	srv_undo_purge_lag = 128;
+ulong	srv_purge_rseg_truncate_frequency = 128;
 
 /** Maximum size of undo tablespace. */
 ulong	srv_max_undo_log_size;
@@ -2434,8 +2434,14 @@ srv_do_purge(
 		n_pages_purged = trx_purge(
 			n_use_threads, srv_purge_batch_size, false);
 
+		ulint	undo_trunc_freq =
+			purge_sys->undo_trunc.get_rseg_truncate_frequency();	
 
-		if (!(count++ % srv_undo_purge_lag)) {
+		ulint	rseg_truncate_frequency =
+			ut_min(srv_purge_rseg_truncate_frequency,
+			       undo_trunc_freq);
+
+		if (!(count++ % rseg_truncate_frequency)) {
 			/* Force a truncate of the history list. */
 			n_pages_purged += trx_purge(
 				1, srv_purge_batch_size, true);
