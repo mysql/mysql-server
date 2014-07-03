@@ -110,7 +110,6 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_portability.h"
 
 #include "ft/xids.h"
-#include "ft/xids-internal.h"
 
 /////////////////////////////////////////////////////////////////////////////////
 //  This layer of abstraction (xids_xxx) understands xids<> and nothing else.
@@ -122,7 +121,7 @@ PATENT RIGHTS GRANT:
 //  the variable num_xids.
 //
 // The xids struct is immutable.  The caller gets an initial version of XIDS
-// by calling xids_get_root_xids(), which returns the constant struct
+// by calling toku_xids_get_root_xids(), which returns the constant struct
 // representing the root transaction (id 0).  When a transaction begins, 
 // a new XIDS is created with the id of the current transaction appended to
 // the list.
@@ -134,8 +133,8 @@ PATENT RIGHTS GRANT:
 // nested transactions.
 
 XIDS
-xids_get_root_xids(void) {
-    static const struct xids_t root_xids = {
+toku_xids_get_root_xids(void) {
+    static const struct XIDS_S root_xids = {
         .num_xids = 0
     };
 
@@ -144,13 +143,13 @@ xids_get_root_xids(void) {
 }
 
 bool 
-xids_can_create_child(XIDS xids) {
+toku_xids_can_create_child(XIDS xids) {
     invariant(xids->num_xids < MAX_TRANSACTION_RECORDS);
     return (xids->num_xids + 1) != MAX_TRANSACTION_RECORDS;
 }
 
 int
-xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p) {
+toku_xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p) {
     // Postcondition:
     //  xids_p points to an xids that is an exact copy of parent_xids, but with room for one more xid.
     int rval;
@@ -169,9 +168,9 @@ xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p) {
 }
 
 void
-xids_finalize_with_child(XIDS xids, TXNID this_xid) {
+toku_xids_finalize_with_child(XIDS xids, TXNID this_xid) {
     // Precondition:
-    //  - xids was created by xids_create_unknown_child
+    //  - xids was created by toku_xids_create_unknown_child
     TXNID this_xid_disk = toku_htod64(this_xid);
     uint32_t num_child_xids = ++xids->num_xids;
     xids->ids[num_child_xids - 1] = this_xid_disk;
@@ -180,21 +179,21 @@ xids_finalize_with_child(XIDS xids, TXNID this_xid) {
 // xids is immutable.  This function creates a new xids by copying the
 // parent's list and then appending the xid of the new transaction.
 int
-xids_create_child(XIDS   parent_xids,		// xids list for parent transaction
-		  XIDS * xids_p,		// xids list created
-		  TXNID  this_xid) {		// xid of this transaction (new innermost)
-    bool can_create_child = xids_can_create_child(parent_xids);
+toku_xids_create_child(XIDS parent_xids,		// xids list for parent transaction
+                       XIDS *xids_p,		// xids list created
+                       TXNID this_xid) {		// xid of this transaction (new innermost)
+    bool can_create_child = toku_xids_can_create_child(parent_xids);
     if (!can_create_child) {
         return EINVAL;
     }
-    xids_create_unknown_child(parent_xids, xids_p);
-    xids_finalize_with_child(*xids_p, this_xid);
+    toku_xids_create_unknown_child(parent_xids, xids_p);
+    toku_xids_finalize_with_child(*xids_p, this_xid);
     return 0;
 }
 
 void
-xids_create_from_buffer(struct rbuf *rb,		// xids list for parent transaction
-		        XIDS * xids_p) {		// xids list created
+toku_xids_create_from_buffer(struct rbuf *rb,		// xids list for parent transaction
+                             XIDS *xids_p) {		// xids list created
     uint8_t num_xids = rbuf_char(rb);
     invariant(num_xids < MAX_TRANSACTION_RECORDS);
     XIDS CAST_FROM_VOIDP(xids, toku_xmalloc(sizeof(*xids) + num_xids*sizeof(xids->ids[0])));
@@ -207,8 +206,8 @@ xids_create_from_buffer(struct rbuf *rb,		// xids list for parent transaction
 }
 
 void
-xids_destroy(XIDS *xids_p) {
-    if (*xids_p != xids_get_root_xids()) toku_free(*xids_p);
+toku_xids_destroy(XIDS *xids_p) {
+    if (*xids_p != toku_xids_get_root_xids()) toku_free(*xids_p);
     *xids_p = NULL;
 }
 
@@ -216,48 +215,49 @@ xids_destroy(XIDS *xids_p) {
 // If requesting an xid out of range (which will be the case if xids array is empty)
 // then return 0, the xid of the root transaction.
 TXNID 
-xids_get_xid(XIDS xids, uint8_t index) {
-    invariant(index < xids_get_num_xids(xids));
+toku_xids_get_xid(XIDS xids, uint8_t index) {
+    invariant(index < toku_xids_get_num_xids(xids));
     TXNID rval = xids->ids[index];
     rval = toku_dtoh64(rval);
     return rval;
 }
 
 uint8_t 
-xids_get_num_xids(XIDS xids) {
+toku_xids_get_num_xids(XIDS xids) {
     uint8_t rval = xids->num_xids;
     return rval;
 }
 
 // Return innermost xid 
 TXNID 
-xids_get_innermost_xid(XIDS xids) {
+toku_xids_get_innermost_xid(XIDS xids) {
     TXNID rval = TXNID_NONE;
-    if (xids_get_num_xids(xids)) {
+    if (toku_xids_get_num_xids(xids)) {
         // if clause above makes this cast ok
-        uint8_t innermost_xid = (uint8_t)(xids_get_num_xids(xids)-1);
-        rval = xids_get_xid(xids, innermost_xid);
+        uint8_t innermost_xid = (uint8_t) (toku_xids_get_num_xids(xids) - 1);
+        rval = toku_xids_get_xid(xids, innermost_xid);
     }
     return rval;
 }
 
 TXNID
-xids_get_outermost_xid(XIDS xids) {
+toku_xids_get_outermost_xid(XIDS xids) {
     TXNID rval = TXNID_NONE;
-    if (xids_get_num_xids(xids))
-        rval = xids_get_xid(xids, 0);
+    if (toku_xids_get_num_xids(xids)) {
+        rval = toku_xids_get_xid(xids, 0);
+    }
     return rval;
 }
 
 void
-xids_cpy(XIDS target, XIDS source) {
-    size_t size = xids_get_size(source);
+toku_xids_cpy(XIDS target, XIDS source) {
+    size_t size = toku_xids_get_size(source);
     memcpy(target, source, size);
 }
 
 // return size in bytes
 uint32_t 
-xids_get_size(XIDS xids){
+toku_xids_get_size(XIDS xids) {
     uint32_t rval;
     uint8_t num_xids = xids->num_xids;
     rval = sizeof(*xids) + num_xids * sizeof(xids->ids[0]);
@@ -265,7 +265,7 @@ xids_get_size(XIDS xids){
 }
 
 uint32_t 
-xids_get_serialize_size(XIDS xids){
+toku_xids_get_serialize_size(XIDS xids) {
     uint32_t rval;
     uint8_t num_xids = xids->num_xids;
     rval = 1 + //num xids
@@ -274,7 +274,7 @@ xids_get_serialize_size(XIDS xids){
 }
 
 unsigned char *
-xids_get_end_of_array(XIDS xids) {
+toku_xids_get_end_of_array(XIDS xids) {
     TXNID *r = xids->ids + xids->num_xids;
     return (unsigned char*)r;
 }
@@ -288,13 +288,13 @@ void wbuf_nocrc_xids(struct wbuf *wb, XIDS xids) {
 }
 
 void
-xids_fprintf(FILE* fp, XIDS xids) {
+toku_xids_fprintf(FILE *fp, XIDS xids) {
     uint8_t index;
-    unsigned num_xids = xids_get_num_xids(xids);
+    unsigned num_xids = toku_xids_get_num_xids(xids);
     fprintf(fp, "[|%u| ", num_xids);
-    for (index = 0; index < xids_get_num_xids(xids); index++) {
+    for (index = 0; index < toku_xids_get_num_xids(xids); index++) {
         if (index) fprintf(fp, ",");
-        fprintf(fp, "%" PRIx64, xids_get_xid(xids, index));
+        fprintf(fp, "%" PRIx64, toku_xids_get_xid(xids, index));
     }
     fprintf(fp, "]");
 }

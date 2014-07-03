@@ -127,9 +127,9 @@ run_test(unsigned long eltsize, unsigned long nodesize, unsigned long repeat)
             *p = (rand() & 0xff);
         }
     }
-    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_0 = toku_xids_get_root_xids();
     XIDS xids_123;
-    int r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    int r = toku_xids_create_child(xids_0, &xids_123, (TXNID)123);
     CKERR(r);
 
     NONLEAF_CHILDINFO bnc;

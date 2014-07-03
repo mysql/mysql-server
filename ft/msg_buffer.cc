@@ -148,7 +148,7 @@ void message_buffer::deserialize_from_rbuf(struct rbuf *rb,
         }
 
         enqueue(msg, is_fresh, dest);
-        xids_destroy(&xids);
+        toku_xids_destroy(&xids);
     }
 
     invariant(_num_entries == n_in_this_buffer);
@@ -193,7 +193,7 @@ MSN message_buffer::deserialize_from_rbuf_v13(struct rbuf *rb,
         }
 
         enqueue(msg, is_fresh, dest);
-        xids_destroy(&xids);
+        toku_xids_destroy(&xids);
     }
 
     return highest_msn_in_this_buffer;
@@ -230,9 +230,9 @@ void message_buffer::enqueue(const ft_msg &msg, bool is_fresh, int32_t *offset) 
     struct buffer_entry *entry = get_buffer_entry(_memory_used);
     entry->type = (unsigned char) msg.type();
     entry->msn = msg.msn();
-    xids_cpy(&entry->xids_s, msg.xids());
+    toku_xids_cpy(&entry->xids_s, msg.xids());
     entry->is_fresh = is_fresh;
-    unsigned char *e_key = xids_get_end_of_array(&entry->xids_s);
+    unsigned char *e_key = toku_xids_get_end_of_array(&entry->xids_s);
     entry->keylen = keylen;
     memcpy(e_key, msg.kdbt()->data, keylen);
     entry->vallen = datalen;
@@ -261,7 +261,7 @@ ft_msg message_buffer::get_message(int32_t offset, DBT *keydbt, DBT *valdbt) con
     enum ft_msg_type type = (enum ft_msg_type) entry->type;
     MSN msn = entry->msn;
     const XIDS xids = (XIDS) &entry->xids_s;
-    const void *key = xids_get_end_of_array(xids);
+    const void *key = toku_xids_get_end_of_array(xids);
     const void *val = (uint8_t *) key + entry->keylen;
     return ft_msg(toku_fill_dbt(keydbt, key, keylen), toku_fill_dbt(valdbt, val, vallen), type, msn, xids);
 }
@@ -269,7 +269,7 @@ ft_msg message_buffer::get_message(int32_t offset, DBT *keydbt, DBT *valdbt) con
 void message_buffer::get_message_key_msn(int32_t offset, DBT *key, MSN *msn) const {
     struct buffer_entry *entry = get_buffer_entry(offset);
     if (key != nullptr) {
-        toku_fill_dbt(key, xids_get_end_of_array((XIDS) &entry->xids_s), entry->keylen);
+        toku_fill_dbt(key, toku_xids_get_end_of_array((XIDS) &entry->xids_s), entry->keylen);
     }
     if (msn != nullptr) {
         *msn = entry->msn;
@@ -313,6 +313,6 @@ void message_buffer::serialize_to_wbuf(struct wbuf *wb) const {
 size_t message_buffer::msg_memsize_in_buffer(const ft_msg &msg) {
     const uint32_t keylen = msg.kdbt()->size;
     const uint32_t datalen = msg.vdbt()->size;
-    const size_t xidslen = xids_get_size(msg.xids());
+    const size_t xidslen = toku_xids_get_size(msg.xids());
     return sizeof(struct buffer_entry) + keylen + datalen + xidslen - sizeof(XIDS_S);
 }

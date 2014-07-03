@@ -106,7 +106,7 @@ ft_msg ft_msg::deserialize_from_rbuf(struct rbuf *rb, XIDS *x, bool *is_fresh) {
     enum ft_msg_type t = (enum ft_msg_type) rbuf_char(rb);
     *is_fresh = rbuf_char(rb);
     MSN m = rbuf_MSN(rb);
-    xids_create_from_buffer(rb, x);
+    toku_xids_create_from_buffer(rb, x);
     rbuf_bytes(rb, &keyp, &keylen);
     rbuf_bytes(rb, &valp, &vallen);
 
@@ -118,7 +118,7 @@ ft_msg ft_msg::deserialize_from_rbuf_v13(struct rbuf *rb, MSN m, XIDS *x) {
     const void *keyp, *valp;
     uint32_t keylen, vallen;
     enum ft_msg_type t = (enum ft_msg_type) rbuf_char(rb);
-    xids_create_from_buffer(rb, x);
+    toku_xids_create_from_buffer(rb, x);
     rbuf_bytes(rb, &keyp, &keylen);
     rbuf_bytes(rb, &valp, &vallen);
 
@@ -156,7 +156,7 @@ size_t ft_msg::total_size() const {
     static const size_t total_overhead = key_val_overhead + msg_overhead;
 
     const size_t keyval_size = _key.size + _val.size;
-    const size_t xids_size = xids_get_serialize_size(xids());
+    const size_t xids_size = toku_xids_get_serialize_size(xids());
     return total_overhead + keyval_size + xids_size;
 }
 

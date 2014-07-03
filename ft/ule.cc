@@ -695,7 +695,7 @@ msg_init_empty_ule(ULE ule) {
 static void 
 msg_modify_ule(ULE ule, const ft_msg &msg) {
     XIDS xids = msg.xids();
-    invariant(xids_get_num_xids(xids) < MAX_TRANSACTION_RECORDS);
+    invariant(toku_xids_get_num_xids(xids) < MAX_TRANSACTION_RECORDS);
     enum ft_msg_type type = msg.type();
     if (type != FT_OPTIMIZE && type != FT_OPTIMIZE_FOR_UPGRADE) {
         ule_do_implicit_promotions(ule, xids);
@@ -751,10 +751,10 @@ static void ule_optimize(ULE ule, XIDS xids) {
     if (ule->num_puxrs) {
         TXNID uncommitted = ule->uxrs[ule->num_cuxrs].xid;      // outermost uncommitted
         TXNID oldest_living_xid = TXNID_NONE;
-        uint32_t num_xids = xids_get_num_xids(xids);
+        uint32_t num_xids = toku_xids_get_num_xids(xids);
         if (num_xids > 0) {
             invariant(num_xids==1);
-            oldest_living_xid = xids_get_xid(xids, 0);
+            oldest_living_xid = toku_xids_get_xid(xids, 0);
         }
         if (oldest_living_xid == TXNID_NONE || uncommitted < oldest_living_xid) {
             ule_promote_provisional_innermost_to_committed(ule);
@@ -1350,9 +1350,9 @@ int le_latest_is_del(LEAFENTRY le) {
 bool
 le_has_xids(LEAFENTRY le, XIDS xids) {
     //Read num_uxrs
-    uint32_t num_xids = xids_get_num_xids(xids);
+    uint32_t num_xids = toku_xids_get_num_xids(xids);
     invariant(num_xids > 0); //Disallow checking for having TXNID_NONE
-    TXNID xid = xids_get_xid(xids, 0);
+    TXNID xid = toku_xids_get_xid(xids, 0);
     invariant(xid!=TXNID_NONE);
 
     bool rval = (le_outermost_uncommitted_xid(le) == xid);
@@ -1602,13 +1602,13 @@ ule_do_implicit_promotions(ULE ule, XIDS xids) {
     //Optimization for (most) common case.
     //No commits necessary if everything is already committed.
     if (ule->num_puxrs > 0) {
-        int num_xids = xids_get_num_xids(xids);
+        int num_xids = toku_xids_get_num_xids(xids);
         invariant(num_xids>0);
         uint32_t max_index = ule->num_cuxrs + min_i32(ule->num_puxrs, num_xids) - 1;
         uint32_t ica_index = max_index;
         uint32_t index;
         for (index = ule->num_cuxrs; index <= max_index; index++) {
-            TXNID current_msg_xid = xids_get_xid(xids, index - ule->num_cuxrs);
+            TXNID current_msg_xid = toku_xids_get_xid(xids, index - ule->num_cuxrs);
             TXNID current_ule_xid = ule_get_xid(ule, index);
             if (current_msg_xid != current_ule_xid) {
                 //ica is innermost transaction with matching xids.
@@ -1698,7 +1698,7 @@ ule_promote_provisional_innermost_to_index(ULE ule, uint32_t index) {
 static void 
 ule_apply_insert(ULE ule, XIDS xids, uint32_t vallen, void * valp) {
     ule_prepare_for_new_uxr(ule, xids);
-    TXNID this_xid = xids_get_innermost_xid(xids);  // xid of transaction doing this insert
+    TXNID this_xid = toku_xids_get_innermost_xid(xids);  // xid of transaction doing this insert
     ule_push_insert_uxr(ule, this_xid == TXNID_NONE, this_xid, vallen, valp);
 }
 
@@ -1706,7 +1706,7 @@ ule_apply_insert(ULE ule, XIDS xids, uint32_t vallen, void * valp) {
 static void 
 ule_apply_delete(ULE ule, XIDS xids) {
     ule_prepare_for_new_uxr(ule, xids);
-    TXNID this_xid = xids_get_innermost_xid(xids);  // xid of transaction doing this delete
+    TXNID this_xid = toku_xids_get_innermost_xid(xids);  // xid of transaction doing this delete
     ule_push_delete_uxr(ule, this_xid == TXNID_NONE, this_xid);
 }
 
@@ -1717,7 +1717,7 @@ ule_apply_delete(ULE ule, XIDS xids) {
 // with placeholders.
 static void 
 ule_prepare_for_new_uxr(ULE ule, XIDS xids) {
-    TXNID this_xid = xids_get_innermost_xid(xids);
+    TXNID this_xid = toku_xids_get_innermost_xid(xids);
     //This is for LOADER_USE_PUTS or transactionless environment
     //where messages use XIDS of 0
     if (this_xid == TXNID_NONE && ule_get_innermost_xid(ule) == TXNID_NONE) {
@@ -1742,7 +1742,7 @@ ule_prepare_for_new_uxr(ULE ule, XIDS xids) {
 // Remember, the innermost uxr can only be an insert or a delete, not a placeholder. 
 static void 
 ule_apply_abort(ULE ule, XIDS xids) {
-    TXNID this_xid = xids_get_innermost_xid(xids);   // xid of transaction doing this abort
+    TXNID this_xid = toku_xids_get_innermost_xid(xids);   // xid of transaction doing this abort
     invariant(this_xid!=TXNID_NONE);
     UXR innermost = ule_get_innermost_uxr(ule);
     // need to check for provisional entries in ule, otherwise
@@ -1773,7 +1773,7 @@ ule_apply_broadcast_commit_all (ULE ule) {
 // If this transaction did modify the leafentry, then promote whatever it did.
 // Remember, the innermost uxr can only be an insert or a delete, not a placeholder. 
 void ule_apply_commit(ULE ule, XIDS xids) {
-    TXNID this_xid = xids_get_innermost_xid(xids);  // xid of transaction committing
+    TXNID this_xid = toku_xids_get_innermost_xid(xids);  // xid of transaction committing
     invariant(this_xid!=TXNID_NONE);
     // need to check for provisional entries in ule, otherwise
     // there is nothing to abort, not checking this may result
@@ -1915,7 +1915,7 @@ ule_add_placeholders(ULE ule, XIDS xids) {
     //Placeholders can be placed on top of the committed uxr.
     invariant(ule->num_cuxrs > 0);
 
-    uint32_t num_xids = xids_get_num_xids(xids);
+    uint32_t num_xids = toku_xids_get_num_xids(xids);
     // we assume that implicit promotion has happened
     // when we get this call, so the number of xids MUST
     // be greater than the number of provisional entries
@@ -1923,12 +1923,12 @@ ule_add_placeholders(ULE ule, XIDS xids) {
     // make sure that the xids stack matches up to a certain amount
     // this first for loop is just debug code
     for (uint32_t i = 0; i < ule->num_puxrs; i++) {
-        TXNID current_msg_xid = xids_get_xid(xids, i);
+        TXNID current_msg_xid = toku_xids_get_xid(xids, i);
         TXNID current_ule_xid = ule_get_xid(ule, i + ule->num_cuxrs);
         invariant(current_msg_xid == current_ule_xid);
     }
     for (uint32_t i = ule->num_puxrs; i < num_xids-1; i++) {
-        TXNID current_msg_xid = xids_get_xid(xids, i);
+        TXNID current_msg_xid = toku_xids_get_xid(xids, i);
         ule_push_placeholder_uxr(ule, current_msg_xid);
     }
 }

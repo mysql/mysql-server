@@ -273,7 +273,7 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                             !txn->for_recovery);
         toku_ft_root_put_msg(ft, msg, &gc_info);
         if (reset_root_xid_that_created) {
-            TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
+            TXNID new_root_xid_that_created = toku_xids_get_outermost_xid(xids);
             toku_reset_root_xid_that_created(ft, new_root_xid_that_created);
         }
     }

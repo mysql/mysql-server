@@ -314,9 +314,9 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
         set_BNC(&sn, i, toku_create_empty_nl());
     }
     //Create XIDS
-    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_0 = toku_xids_get_root_xids();
     XIDS xids_123;
-    r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    r = toku_xids_create_child(xids_0, &xids_123, (TXNID)123);
     CKERR(r);
     toku::comparator cmp;
     cmp.create(long_key_cmp, nullptr);
@@ -344,8 +344,8 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
     }
 
     //Cleanup:
-    xids_destroy(&xids_0);
-    xids_destroy(&xids_123);
+    toku_xids_destroy(&xids_0);
+    toku_xids_destroy(&xids_123);
     cmp.destroy();
 
     FT_HANDLE XMALLOC(ft);

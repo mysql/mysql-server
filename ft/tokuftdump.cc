@@ -308,7 +308,7 @@ static void dump_node(int fd, BLOCKNUM blocknum, FT ft) {
                         printf("HUH?");
 ok:
                         printf(" xid=");
-                        xids_fprintf(stdout, xids);
+                        toku_xids_fprintf(stdout, xids);
                         printf(" ");
                         print_item(key, keylen);
                         if (datalen>0) {

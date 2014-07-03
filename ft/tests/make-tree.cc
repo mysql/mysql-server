@@ -125,7 +125,7 @@ append_leaf(FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen)
 
     // apply an insert to the leaf node
     txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, false);
-    ft_msg msg(&thekey, &theval, FT_INSERT, msn, xids_get_root_xids());
+    ft_msg msg(&thekey, &theval, FT_INSERT, msn, toku_xids_get_root_xids());
     toku_ft_bn_apply_msg_once(BLB(leafnode,0), msg, idx, keylen, NULL, &gc_info, NULL, NULL);
 
     leafnode->max_msn_applied_to_node_on_disk = msn;
@@ -152,7 +152,7 @@ insert_into_child_buffer(FT_HANDLE ft, FTNODE node, int childnum, int minkey, in
         unsigned int key = htonl(val);
         DBT thekey; toku_fill_dbt(&thekey, &key, sizeof key);
         DBT theval; toku_fill_dbt(&theval, &val, sizeof val);
-        toku_ft_append_to_child_buffer(ft->ft->cmp, node, childnum, FT_INSERT, msn, xids_get_root_xids(), true, &thekey, &theval);
+        toku_ft_append_to_child_buffer(ft->ft->cmp, node, childnum, FT_INSERT, msn, toku_xids_get_root_xids(), true, &thekey, &theval);
 	node->max_msn_applied_to_node_on_disk = msn;
     }
 }

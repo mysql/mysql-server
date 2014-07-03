@@ -525,7 +525,7 @@ generate_provpair_for(ULE ule, const ft_msg &msg) {
     ule->uxrs = ule->uxrs_static;
 
     ule->num_cuxrs = 1;
-    ule->num_puxrs = xids_get_num_xids(xids);
+    ule->num_puxrs = toku_xids_get_num_xids(xids);
     uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
     ule->uxrs[0].type   = XR_DELETE;
     ule->uxrs[0].vallen = 0;
@@ -535,12 +535,12 @@ generate_provpair_for(ULE ule, const ft_msg &msg) {
         ule->uxrs[level].type   = XR_PLACEHOLDER;
         ule->uxrs[level].vallen = 0;
         ule->uxrs[level].valp   = NULL;
-        ule->uxrs[level].xid    = xids_get_xid(xids, level-1);
+        ule->uxrs[level].xid    = toku_xids_get_xid(xids, level-1);
     }
     ule->uxrs[num_uxrs - 1].type   = XR_INSERT;
     ule->uxrs[num_uxrs - 1].vallen = msg.vdbt()->size;
     ule->uxrs[num_uxrs - 1].valp   = msg.vdbt()->data;
-    ule->uxrs[num_uxrs - 1].xid    = xids_get_innermost_xid(xids);
+    ule->uxrs[num_uxrs - 1].xid    = toku_xids_get_innermost_xid(xids);
 }
 
 //Test all the different things that can happen to a
@@ -619,7 +619,7 @@ generate_provdel_for(ULE ule, const ft_msg &msg) {
     XIDS xids = msg.xids();
 
     ule->num_cuxrs = 1;
-    ule->num_puxrs = xids_get_num_xids(xids);
+    ule->num_puxrs = toku_xids_get_num_xids(xids);
     uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
     ule->uxrs[0].type   = XR_INSERT;
     ule->uxrs[0].vallen = msg.vdbt()->size;
@@ -629,12 +629,12 @@ generate_provdel_for(ULE ule, const ft_msg &msg) {
         ule->uxrs[level].type   = XR_PLACEHOLDER;
         ule->uxrs[level].vallen = 0;
         ule->uxrs[level].valp   = NULL;
-        ule->uxrs[level].xid    = xids_get_xid(xids, level-1);
+        ule->uxrs[level].xid    = toku_xids_get_xid(xids, level-1);
     }
     ule->uxrs[num_uxrs - 1].type   = XR_DELETE;
     ule->uxrs[num_uxrs - 1].vallen = 0;
     ule->uxrs[num_uxrs - 1].valp   = NULL;
-    ule->uxrs[num_uxrs - 1].xid    = xids_get_innermost_xid(xids);
+    ule->uxrs[num_uxrs - 1].xid    = toku_xids_get_innermost_xid(xids);
 }
 
 static void
@@ -643,7 +643,7 @@ generate_both_for(ULE ule, DBT *oldval, const ft_msg &msg) {
     XIDS xids = msg.xids();
 
     ule->num_cuxrs = 1;
-    ule->num_puxrs = xids_get_num_xids(xids);
+    ule->num_puxrs = toku_xids_get_num_xids(xids);
     uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
     ule->uxrs[0].type   = XR_INSERT;
     ule->uxrs[0].vallen = oldval->size;
@@ -653,12 +653,12 @@ generate_both_for(ULE ule, DBT *oldval, const ft_msg &msg) {
         ule->uxrs[level].type   = XR_PLACEHOLDER;
         ule->uxrs[level].vallen = 0;
         ule->uxrs[level].valp   = NULL;
-        ule->uxrs[level].xid    = xids_get_xid(xids, level-1);
+        ule->uxrs[level].xid    = toku_xids_get_xid(xids, level-1);
     }
     ule->uxrs[num_uxrs - 1].type   = XR_INSERT;
     ule->uxrs[num_uxrs - 1].vallen = msg.vdbt()->size;
     ule->uxrs[num_uxrs - 1].valp   = msg.vdbt()->data;
-    ule->uxrs[num_uxrs - 1].xid    = xids_get_innermost_xid(xids);
+    ule->uxrs[num_uxrs - 1].xid    = toku_xids_get_innermost_xid(xids);
 }
 
 //Test all the different things that can happen to a
@@ -868,9 +868,9 @@ static void test_le_optimize(void) {
     TXNID optimize_txnid = 1000;
     memset(&key, 0, sizeof(key));
     memset(&val, 0, sizeof(val));
-    XIDS root_xids = xids_get_root_xids();
+    XIDS root_xids = toku_xids_get_root_xids();
     XIDS msg_xids; 
-    int r = xids_create_child(root_xids, &msg_xids, optimize_txnid);
+    int r = toku_xids_create_child(root_xids, &msg_xids, optimize_txnid);
     assert(r==0);
     ft_msg msg(&key, &val, FT_OPTIMIZE, ZERO_MSN, msg_xids);
 
@@ -981,8 +981,8 @@ static void test_le_optimize(void) {
     verify_ule_equal(&ule_initial, &ule_expected);
 
     
-    xids_destroy(&msg_xids);
-    xids_destroy(&root_xids);
+    toku_xids_destroy(&msg_xids);
+    toku_xids_destroy(&root_xids);
 }
 
 //TODO: #1125 tests:
@@ -1020,9 +1020,9 @@ static void test_le_optimize(void) {
 static void
 init_xids(void) {
     uint32_t i;
-    nested_xids[0] = xids_get_root_xids();
+    nested_xids[0] = toku_xids_get_root_xids();
     for (i = 1; i < MAX_TRANSACTION_RECORDS; i++) {
-        int r = xids_create_child(nested_xids[i-1], &nested_xids[i], i * 37 + random() % 36);
+        int r = toku_xids_create_child(nested_xids[i-1], &nested_xids[i], i * 37 + random() % 36);
         assert(r==0);
     }
 }
@@ -1031,7 +1031,7 @@ static void
 destroy_xids(void) {
     uint32_t i;
     for (i = 0; i < MAX_TRANSACTION_RECORDS; i++) {
-        xids_destroy(&nested_xids[i]);
+        toku_xids_destroy(&nested_xids[i]);
     }
 }
 

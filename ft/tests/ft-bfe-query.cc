@@ -396,19 +396,19 @@ test_prefetching(void) {
     set_BNC(&sn, 1, toku_create_empty_nl());
     set_BNC(&sn, 2, toku_create_empty_nl());
     //Create XIDS
-    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_0 = toku_xids_get_root_xids();
     XIDS xids_123;
     XIDS xids_234;
-    r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    r = toku_xids_create_child(xids_0, &xids_123, (TXNID)123);
     CKERR(r);
-    r = xids_create_child(xids_123, &xids_234, (TXNID)234);
+    r = toku_xids_create_child(xids_123, &xids_234, (TXNID)234);
     CKERR(r);
 
     // data in the buffers does not matter in this test
     //Cleanup:
-    xids_destroy(&xids_0);
-    xids_destroy(&xids_123);
-    xids_destroy(&xids_234);
+    toku_xids_destroy(&xids_0);
+    toku_xids_destroy(&xids_123);
+    toku_xids_destroy(&xids_234);
 
     FT_HANDLE XMALLOC(ft);
     FT XCALLOC(ft_h);
