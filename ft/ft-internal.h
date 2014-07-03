@@ -124,10 +124,12 @@ enum { FT_SEQINSERT_SCORE_THRESHOLD = 100 };
 
 uint32_t compute_child_fullhash (CACHEFILE cf, FTNODE node, int childnum);
 
+enum ft_type {
+    FT_CURRENT = 1,
+    FT_CHECKPOINT_INPROGRESS
+};
+
 // The ft_header is not managed by the cachetable.  Instead, it hangs off the cachefile as userdata.
-
-enum ft_type {FT_CURRENT=1, FT_CHECKPOINT_INPROGRESS};
-
 struct ft_header {
     enum ft_type type;
 
@@ -292,9 +294,11 @@ struct ft_handle {
     struct ft_options options;
 };
 
-// TODO: Move to cachetable header
 PAIR_ATTR make_ftnode_pair_attr(FTNODE node);
 PAIR_ATTR make_invalid_pair_attr(void);
+
+
+// Only exported for tests.
 // Cachetable callbacks for ftnodes.
 void toku_ftnode_clone_callback(void* value_data, void** cloned_value_data, long* clone_size, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
 void toku_ftnode_checkpoint_complete_callback(void *value_data);
@@ -309,91 +313,11 @@ int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, uint32_t f
 
 CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(FT ft);
 
-/* serialization code */
-void toku_create_compressed_partition_from_available(FTNODE node, int childnum,
-                                                     enum toku_compression_method compression_method,
-                                                     SUB_BLOCK sb);
-int toku_serialize_ftnode_to_memory (FTNODE node,
-                                      FTNODE_DISK_DATA* ndd,
-                                      unsigned int basementnodesize,
-                                      enum toku_compression_method compression_method,
-                                      bool do_rebalancing,
-                                      bool in_parallel,
-                              /*out*/ size_t *n_bytes_to_write,
-                              /*out*/ size_t *n_uncompressed_bytes,
-                              /*out*/ char  **bytes_to_write);
-int toku_serialize_ftnode_to(int fd, BLOCKNUM, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT ft, bool for_checkpoint);
-int toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized_log, bool is_serialized,
-                                    FT ft, bool for_checkpoint);
-void toku_serialize_rollback_log_to_memory_uncompressed(ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized);
-int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT ft);
-int toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, struct ftnode_fetch_extra* bfe);
-int toku_deserialize_bp_from_compressed(FTNODE node, int childnum, struct ftnode_fetch_extra *bfe);
-int toku_deserialize_ftnode_from (int fd, BLOCKNUM off, uint32_t /*fullhash*/, FTNODE *ftnode, FTNODE_DISK_DATA* ndd, struct ftnode_fetch_extra* bfe);
-
-// <CER> For verifying old, non-upgraded nodes (versions 13 and 14).
-int
-decompress_from_raw_block_into_rbuf(uint8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum);
-// 
-    
-//////////////// <CER> TODO: Move these function declarations
-int
-deserialize_ft_from_fd_into_rbuf(int fd,
-                                 toku_off_t offset_of_header,
-                                 struct rbuf *rb,
-                                 uint64_t *checkpoint_count,
-                                 LSN *checkpoint_lsn,
-                                 uint32_t * version_p);
-
-int
-deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version);
-
-void read_block_from_fd_into_rbuf(
-    int fd, 
-    BLOCKNUM blocknum,
-    FT ft,
-    struct rbuf *rb
-    );
-
-int
-read_compressed_sub_block(struct rbuf *rb, struct sub_block *sb);
-
-int
-verify_ftnode_sub_block (struct sub_block *sb);
-
-void
-just_decompress_sub_block(struct sub_block *sb);
-
-/* Beginning of ft-node-deserialize.c helper functions. */
-void initialize_ftnode(FTNODE node, BLOCKNUM blocknum);
-int read_and_check_magic(struct rbuf *rb);
-int read_and_check_version(FTNODE node, struct rbuf *rb);
-void read_node_info(FTNODE node, struct rbuf *rb, int version);
-void allocate_and_read_partition_offsets(FTNODE node, struct rbuf *rb, FTNODE_DISK_DATA *ndd);
-int check_node_info_checksum(struct rbuf *rb);
-void read_legacy_node_info(FTNODE node, struct rbuf *rb, int version);
-int check_legacy_end_checksum(struct rbuf *rb);
-/* End of ft-node-deserialization.c helper functions. */
-
-unsigned int toku_serialize_ftnode_size(FTNODE node); /* How much space will it take? */
-
-void toku_verify_or_set_counts(FTNODE);
-
-size_t toku_serialize_ft_size (FT_HEADER h);
-void toku_serialize_ft_to (int fd, FT_HEADER h, struct block_table *blocktable, CACHEFILE cf);
-void toku_serialize_ft_to_wbuf (
-    struct wbuf *wbuf, 
-    FT_HEADER h, 
-    DISKOFF translation_location_on_disk, 
-    DISKOFF translation_size_on_disk
-    );
-int toku_deserialize_ft_from (int fd, LSN max_acceptable_lsn, FT *ft);
-void toku_serialize_descriptor_contents_to_fd(int fd, DESCRIPTOR desc, DISKOFF offset);
-void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, DESCRIPTOR desc);
-
+// This is only exported for tests.
 // append a child node to a parent node
 void toku_ft_nonleaf_append_child(FTNODE node, FTNODE child, const DBT *pivotkey);
 
+// This is only exported for tests.
 // append a message to a nonleaf node child buffer
 void toku_ft_append_to_child_buffer(const toku::comparator &cmp, FTNODE node, int childnum, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val);
 
@@ -406,14 +330,7 @@ STAT64INFO_S toku_get_and_clear_basement_stats(FTNODE leafnode);
 #define VERIFY_NODE(t,n) ((void)0)
 #endif
 
-void toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe);
-void toku_ft_status_update_flush_reason(FTNODE node, uint64_t uncompressed_bytes_flushed, uint64_t bytes_written, tokutime_t write_time, bool for_checkpoint);
-void toku_ft_status_update_serialize_times(FTNODE node, tokutime_t serialize_time, tokutime_t compress_time);
-void toku_ft_status_update_deserialize_times(FTNODE node, tokutime_t deserialize_time, tokutime_t decompress_time);
-void toku_ft_status_note_msn_discard(void);
-void toku_ft_status_note_update(bool broadcast);
-void toku_ft_status_note_msg_bytes_out(size_t buffsize);
-void toku_ft_status_note_ftnode(int height, bool created); // created = false means destroyed
+void toku_verify_or_set_counts(FTNODE);
 
 //
 // Helper function to fill a ftnode_fetch_extra with data
@@ -456,6 +373,7 @@ void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe, FT ft, struct ft_curs
 
 void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe);
 
+// TODO: consider moving this to ft/pivotkeys.cc
 class pivot_bounds {
 public:
     pivot_bounds(const DBT &lbe_dbt, const DBT &ubi_dbt);
@@ -477,13 +395,10 @@ private:
     const DBT _upper_bound_inclusive;
 };
 
-bool
-toku_bfe_wants_child_available (struct ftnode_fetch_extra* bfe, int childnum);
-
-int
-toku_bfe_leftmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node);
-int
-toku_bfe_rightmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node);
+// TODO: move into the ftnode_fetch_extra class
+bool toku_bfe_wants_child_available (struct ftnode_fetch_extra* bfe, int childnum);
+int toku_bfe_leftmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node);
+int toku_bfe_rightmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node);
 
 // allocate a block number
 // allocate and initialize a ftnode
@@ -668,10 +583,20 @@ typedef struct {
     TOKU_ENGINE_STATUS_ROW_S status[FT_STATUS_NUM_ROWS];
 } FT_STATUS_S, *FT_STATUS;
 
+void toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe);
+void toku_ft_status_update_flush_reason(FTNODE node, uint64_t uncompressed_bytes_flushed, uint64_t bytes_written, tokutime_t write_time, bool for_checkpoint);
+void toku_ft_status_update_serialize_times(FTNODE node, tokutime_t serialize_time, tokutime_t compress_time);
+void toku_ft_status_update_deserialize_times(FTNODE node, tokutime_t deserialize_time, tokutime_t decompress_time);
+void toku_ft_status_note_msn_discard(void);
+void toku_ft_status_note_update(bool broadcast);
+void toku_ft_status_note_msg_bytes_out(size_t buffsize);
+void toku_ft_status_note_ftnode(int height, bool created); // created = false means destroyed
+
 void toku_ft_get_status(FT_STATUS);
 
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);
 
+// For upgrade
 int toku_upgrade_subtree_estimates_to_stat64info(int fd, FT ft) __attribute__((nonnull));
 int toku_upgrade_msn_from_root_to_header(int fd, FT ft) __attribute__((nonnull));
 

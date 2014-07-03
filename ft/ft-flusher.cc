@@ -95,6 +95,7 @@ PATENT RIGHTS GRANT:
 #include "ft/ft-internal.h"
 #include "ft/ft-flusher.h"
 #include "ft/ft-flusher-internal.h"
+#include "ft/ft_node-serialize.h"
 #include "ft/node.h"
 #include "portability/toku_assert.h"
 #include "portability/toku_atomic.h"

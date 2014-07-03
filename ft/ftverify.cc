@@ -100,7 +100,9 @@ PATENT RIGHTS GRANT:
 
 #include "ft/block_allocator.h"
 #include "ft/ft-internal.h"
+#include "ft/ft-serialize.h"
 #include "ft/ft_layout_version.h"
+#include "ft/ft_node-serialize.h"
 #include "ft/node.h"
 #include "ft/rbuf.h"
 #include "ft/sub_block.h"

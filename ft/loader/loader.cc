@@ -103,6 +103,8 @@ PATENT RIGHTS GRANT:
 #include "ft/block_table.h"
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
+#include "ft/ft-serialize.h"
+#include "ft/ft_node-serialize.h"
 #include "ft/leafentry.h"
 #include "ft/loader/loader-internal.h"
 #include "ft/loader/pqueue.h"

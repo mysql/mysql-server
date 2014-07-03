@@ -364,6 +364,7 @@ void toku_initialize_empty_ftnode(FTNODE node, BLOCKNUM blocknum, int height, in
                                   int layout_version, unsigned int flags);
 
 int toku_ftnode_which_child(FTNODE node, const DBT *k, const toku::comparator &cmp);
+void toku_ftnode_save_ct_pair(CACHEKEY key, void *value_data, PAIR p);
 
 //
 // Field in ftnode_fetch_extra that tells the 

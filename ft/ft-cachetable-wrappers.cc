@@ -140,7 +140,7 @@ cachetable_put_empty_node_with_dep_nodes(
         dependent_dirty_bits,
         name,
         fullhash,
-        toku_node_save_ct_pair);
+        toku_ftnode_save_ct_pair);
     *result = new_node;
 }
 
