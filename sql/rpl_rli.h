@@ -254,6 +254,7 @@ private:
   /* Flag that ensures the retrieved GTID set is initialized only once. */
   bool gtid_retrieved_initialized;
 
+
 public:
   Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
   void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
@@ -515,6 +516,16 @@ public:
     WQ - Worker Queue containing event assignments
   */
   DYNAMIC_ARRAY workers; // number's is determined by global slave_parallel_workers
+
+  HASH mapping_db_to_worker; // To map a database to a worker
+  bool inited_hash_workers; //  flag to check if mapping_db_to_worker is inited
+
+#ifdef HAVE_PSI_INTERFACE
+  PSI_mutex_key key_mutex_slave_worker_hash;
+  PSI_cond_key  key_cond_slave_worker_hash;
+#endif
+  mysql_mutex_t slave_worker_hash_lock; // for mapping_db_to_worker
+  mysql_cond_t  slave_worker_hash_cond;// for mapping_db_to_worker
 
   /*
     For the purpose of reporting the worker status in performance schema table,
@@ -910,7 +921,7 @@ public:
                  PSI_mutex_key *param_key_info_stop_cond,
                  PSI_mutex_key *param_key_info_sleep_cond
 #endif
-                 , uint param_id, bool is_rli_fake
+                 , uint param_id, const char* param_channel, bool is_rli_fake
                 );
   virtual ~Relay_log_info();
 
@@ -985,6 +996,8 @@ public:
     commit_order_mngr= mngr;
   }
 
+  bool set_info_search_keys(Rpl_info_handler *to);
+
 protected:
   Format_description_log_event *rli_description_event;
 
@@ -1038,6 +1051,11 @@ private:
   */
   static const int LINES_IN_RELAY_LOG_INFO_WITH_ID= 7;
 
+  /*
+    Add a channel in the slave relay log info
+  */
+  static const int LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL= 8;
+
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
 
@@ -1057,9 +1075,22 @@ private:
     SLAVE must be executed and the problem fixed manually.
    */
   bool error_on_rli_init_info;
+
+ /**
+   sets the suffix required for relay log names
+   in multisource replication.
+   The extension is "-relay-bin-<channel_name>"
+   @param[in, out]  buff       buffer to store the complete relay log file name
+   @param[in]       buff_size  size of buffer buff
+   @param[in]       base_name  the base name of the relay log file
+ */
+  const char* add_channel_to_relay_log_name(char *buff, uint buff_size,
+                                            const char *base_name);
+
 };
 
 bool mysql_show_relaylog_events(THD* thd);
+
 
 /**
    @param  thd a reference to THD

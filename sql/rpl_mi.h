@@ -312,6 +312,13 @@ public:
   }
   static size_t get_number_info_mi_fields();
 
+  /**
+     returns the column number of a channel in the TABLE repository.
+     Mainly used during server startup to load the information required
+     from the slave repostiory tables. See rpl_info_factory.cc
+  */
+  static uint get_channel_field_num();
+
   bool is_auto_position()
   {
     return auto_position;
@@ -355,6 +362,8 @@ public:
     mi_description_event= fdle;
   }
 
+  bool set_info_search_keys(Rpl_info_handler *to);
+
 private:
   void init_master_log_pos();
 
@@ -374,7 +383,7 @@ private:
               PSI_mutex_key *param_key_info_stop_cond,
               PSI_mutex_key *param_key_info_sleep_cond,
 #endif
-              uint param_id
+              uint param_id, const char* param_channel
              );
 
   Master_info(const Master_info& info);

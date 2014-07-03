@@ -67,7 +67,7 @@ typedef struct st_db_worker_hash_entry
 
 } db_worker_hash_entry;
 
-bool init_hash_workers(ulong slave_parallel_workers);
+bool init_hash_workers(Relay_log_info *rli);
 void destroy_hash_workers(Relay_log_info*);
 Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                db_worker_hash_entry **ptr_entry,
@@ -316,7 +316,7 @@ public:
                PSI_mutex_key *param_key_info_stop_cond,
                PSI_mutex_key *param_key_info_sleep_cond
 #endif
-               , uint param_id
+               , uint param_id, const char *param_channel
               );
 
   virtual ~Slave_worker();
@@ -469,6 +469,8 @@ public:
       gaq_index= val;
   };
 
+  bool set_info_search_keys(Rpl_info_handler *to);
+
 protected:
 
   virtual void do_report(loglevel level, int err_code,
@@ -489,8 +491,5 @@ TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*);
 // Auxiliary function
 TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*, enum_mts_parallel_type);
 
-extern  mysql_mutex_t slave_worker_hash_lock;
-extern  mysql_cond_t slave_worker_hash_cond;
-extern HASH mapping_db_to_worker;
 #endif // HAVE_REPLICATION
 #endif

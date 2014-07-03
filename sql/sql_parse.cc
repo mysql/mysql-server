@@ -76,6 +76,7 @@
 #include "log_event.h"
 #include "rpl_slave.h"
 #include "rpl_master.h"
+#include "rpl_msr.h"        /* Multisource replication */
 #include "rpl_filter.h"
 #include <m_ctype.h>
 #include <myisam.h>
@@ -2628,15 +2629,10 @@ case SQLCOM_PREPARE:
 #ifdef HAVE_REPLICATION
   case SQLCOM_CHANGE_MASTER:
   {
+
     if (check_global_access(thd, SUPER_ACL))
       goto error;
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi != NULL)
-      res= change_master(thd, active_mi);
-    else
-      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
-                 MYF(0));
-    mysql_mutex_unlock(&LOCK_active_mi);
+    res= change_master_cmd(thd);
     break;
   }
   case SQLCOM_SHOW_SLAVE_STAT:
@@ -2644,19 +2640,23 @@ case SQLCOM_PREPARE:
     /* Accept one of two privileges */
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
-    mysql_mutex_lock(&LOCK_active_mi);
-    res= show_slave_status(thd, active_mi);
-    mysql_mutex_unlock(&LOCK_active_mi);
+    res= show_slave_status_cmd(thd);
     break;
   }
   case SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING:
   {
+    /* WL1697 TODO: remove this nonblocking command */
+    Master_info* mi= 0;
+    LEX *lex= thd->lex;
     /* Accept one of two privileges */
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
     DBUG_EXECUTE_IF("simulate_hold_show_slave_status_nonblocking",
                     my_sleep(10000000););
-    res= show_slave_status(thd, active_mi);
+
+    mi= msr_map.get_mi(lex->mi.channel);
+
+    res= show_slave_status(thd, mi);
     break;
   }
   case SQLCOM_SHOW_MASTER_STAT:
@@ -2989,16 +2989,11 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
   case SQLCOM_SLAVE_START:
   {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi != NULL)
-      res= start_slave(thd, active_mi, 1 /* net report*/);
-    else
-      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
-                 MYF(0));
-    mysql_mutex_unlock(&LOCK_active_mi);
+    res= start_slave_cmd(thd);
     break;
   }
   case SQLCOM_SLAVE_STOP:
+  {
   /*
     If the client thread has locked tables, a deadlock is possible.
     Assume that
@@ -3019,15 +3014,9 @@ end_with_restore_list:
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
     goto error;
   }
-  {
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi != NULL)
-      res= stop_slave(thd, active_mi, 1 /* net report*/);
-    else
-      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
-                 MYF(0));
-    mysql_mutex_unlock(&LOCK_active_mi);
-    break;
+
+  res= stop_slave_cmd(thd);
+  break;
   }
 #endif /* HAVE_REPLICATION */
 

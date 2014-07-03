@@ -573,14 +573,16 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   insert_table->next_number_field= insert_table->found_next_number_field;
 
 #ifdef HAVE_REPLICATION
-  if (thd->slave_thread)
-  {
-    DBUG_ASSERT(active_mi != NULL);
-    if(info.get_duplicate_handling() == DUP_UPDATE &&
-       insert_table->next_number_field != NULL &&
-       rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
-      goto exit_without_my_ok;
-  }
+    if ((thd->slave_thread & (SYSTEM_THREAD_SLAVE_SQL |
+         SYSTEM_THREAD_SLAVE_WORKER))!=0)
+    {
+      DBUG_ASSERT(thd->rli_slave != NULL);
+      DBUG_ASSERT(thd->rli_slave->mi != NULL);
+      if(info.get_duplicate_handling() == DUP_UPDATE &&
+         insert_table->next_number_field != NULL &&
+         rpl_master_has_bug(thd->rli_slave, 24432, TRUE, NULL, NULL))
+        goto exit_without_my_ok;
+    }
 #endif
 
   error=0;
@@ -1893,12 +1895,14 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   table->next_number_field=table->found_next_number_field;
 
 #ifdef HAVE_REPLICATION
-  if (thd->slave_thread)
-  { 
-    DBUG_ASSERT(active_mi != NULL);
+  if ((thd->slave_thread & (SYSTEM_THREAD_SLAVE_SQL |
+                            SYSTEM_THREAD_SLAVE_WORKER))!=0)
+  {
+    DBUG_ASSERT(thd->rli_slave != NULL);
+    DBUG_ASSERT(thd->rli_slave->mi != NULL);
     if (duplicate_handling == DUP_UPDATE &&
         table->next_number_field != NULL &&
-        rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
+        rpl_master_has_bug(thd->rli_slave, 24432, TRUE, NULL, NULL))
       DBUG_RETURN(1);
   }
 #endif
