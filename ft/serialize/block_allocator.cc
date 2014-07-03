@@ -98,10 +98,7 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_stdlib.h"
 
 #include "ft/serialize/block_allocator.h"
-
-// Here's a very simple implementation.
-// It's not very fast at allocating or freeing.
-// Previous implementation used next_fit, but now use first_fit since we are moving blocks around to reduce file size.
+#include "ft/serialize/block_allocator_strategy.h"
 
 #if 0
 #define VALIDATE() validate()
@@ -226,29 +223,11 @@ static inline uint64_t align(uint64_t value, uint64_t ba_alignment) {
     return ((value + ba_alignment - 1) / ba_alignment) * ba_alignment;
 }
 
-static struct block_allocator::blockpair *
-choose_block_first_fit_strategy(struct block_allocator::blockpair *blocks_array,
-                                uint64_t n_blocks, uint64_t size,
-                                uint64_t alignment) {
-    // Implement first fit.
-    for (uint64_t blocknum = 0; blocknum + 1 < n_blocks; blocknum++) {
-        // Consider the space after blocknum
-        struct block_allocator::blockpair *bp = &blocks_array[blocknum];
-        uint64_t possible_offset = align(bp->offset + bp->size, alignment);
-        if (possible_offset + size <= bp[1].offset) {
-            return bp;
-        }
-    }
-    return nullptr;
-}
-
-// TODO: other strategies
-// TODO: Put strategies in their own file, ft/serialize/block_allocator_strategy.{cc,h}?
-
-struct block_allocator::blockpair *block_allocator::choose_block_to_alloc_after(size_t size) {
+struct block_allocator::blockpair *
+block_allocator::choose_block_to_alloc_after(size_t size) {
     switch (_strategy) {
     case BA_STRATEGY_FIRST_FIT:
-        return choose_block_first_fit_strategy(_blocks_array, _n_blocks, size, _alignment);
+        return block_allocator_strategy::first_fit(_blocks_array, _n_blocks, size, _alignment);
     default:
         abort();
     }
