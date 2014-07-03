@@ -152,8 +152,7 @@ extern fil_addr_t	fil_addr_null;
 					contents of this field is valid
 					for all uncompressed pages. */
 #define FIL_PAGE_FILE_FLUSH_LSN	26	/*!< this is only defined for the
-					first page in a system tablespace
-					data file (ibdata*, not *.ibd):
+					first page of the system tablespace:
 					the file has been flushed to disk
 					at least up to this lsn */
 #define	FIL_RTREE_SPLIT_SEQ_NUM	26	/*!< This overloads
@@ -414,16 +413,14 @@ fil_set_max_space_id_if_bigger(
 /*===========================*/
 	ulint	max_id);/*!< in: maximum known id */
 #ifndef UNIV_HOTBACKUP
-/****************************************************************//**
-Writes the flushed lsn and the latest archived log number to the page
-header of the first page of each data file in the system tablespace.
+/** Write the flushed LSN to the page header of the first page in the
+system tablespace.
+@param[in]	lsn	flushed LSN
 @return DB_SUCCESS or error number */
 
 dberr_t
-fil_write_flushed_lsn_to_data_files(
-/*================================*/
-	lsn_t	lsn,		/*!< in: lsn to write */
-	ulint	arch_log_no);	/*!< in: latest archived log file number */
+fil_write_flushed_lsn(
+	lsn_t	lsn);
 
 /*******************************************************************//**
 Increments the count of pending operation, if space is not being deleted.
@@ -934,13 +931,35 @@ fil_page_get_type(
 	const byte*	page);	/*!< in: file page */
 
 /*******************************************************************//**
-Returns true if a single-table tablespace is being deleted.
-@return true if being deleted */
+Returns true if a single-table tablespace is redo skipped.
+@return true if redo skipped */
 
 bool
 fil_tablespace_is_being_deleted(
 /*============================*/
 	ulint		id);	/*!< in: space id */
+
+#ifdef UNIV_DEBUG
+/** Increase redo skipped of a tablespace.
+@param[in]	id	space id */
+void
+fil_space_inc_redo_skipped_count(
+	ulint		id);
+
+/** Decrease redo skipped of a tablespace.
+@param[in]	id	space id */
+void
+fil_space_dec_redo_skipped_count(
+	ulint		id);
+
+/*******************************************************************//**
+Check whether a single-table tablespace is redo skipped.
+@return true if redo skipped */
+bool
+fil_space_is_redo_skipped(
+/*======================*/
+	ulint		id);	/*!< in: space id */
+#endif
 
 /********************************************************************//**
 Delete the tablespace file and any related files like .cfg.

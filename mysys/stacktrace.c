@@ -131,7 +131,7 @@ static int safe_print_str(const char *addr, int max_len)
 
 #endif /* __linux __ */
 
-void my_safe_puts_stderr(const char* val, int max_len)
+void my_safe_puts_stderr(const char* val, size_t max_len)
 {
   char *heap_end;
 
@@ -524,7 +524,7 @@ void my_write_core(int unused)
 }
 
 
-void my_safe_puts_stderr(const char *val, int len)
+void my_safe_puts_stderr(const char *val, size_t len)
 {
   __try
   {

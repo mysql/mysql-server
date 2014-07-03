@@ -57,41 +57,6 @@ select a from t1 where mid(a+0,6,3) = ( mid(20040106123400,6,3) );
 a
 2004-01-06 12:34:00
 drop table t1;
-CREATE TABLE t1 (conn CHAR(7), connection_id INT);
-INSERT INTO t1 VALUES ('default', CONNECTION_ID());
-SELECT GET_LOCK('bug16501',600);
-GET_LOCK('bug16501',600)
-1
-INSERT INTO t1 VALUES ('con1', CONNECTION_ID());
-SELECT IS_USED_LOCK('bug16501') = connection_id
-FROM t1
-WHERE conn = 'default';
-IS_USED_LOCK('bug16501') = connection_id
-1
-SELECT GET_LOCK('bug16501',600);
-SELECT IS_USED_LOCK('bug16501') = CONNECTION_ID();
-IS_USED_LOCK('bug16501') = CONNECTION_ID()
-1
-SELECT RELEASE_LOCK('bug16501');
-RELEASE_LOCK('bug16501')
-1
-GET_LOCK('bug16501',600)
-1
-SELECT IS_USED_LOCK('bug16501') = connection_id
-FROM t1
-WHERE conn = 'con1';
-IS_USED_LOCK('bug16501') = connection_id
-1
-SELECT IS_USED_LOCK('bug16501') = CONNECTION_ID();
-IS_USED_LOCK('bug16501') = CONNECTION_ID()
-1
-SELECT RELEASE_LOCK('bug16501');
-RELEASE_LOCK('bug16501')
-1
-SELECT IS_USED_LOCK('bug16501');
-IS_USED_LOCK('bug16501')
-NULL
-DROP TABLE t1;
 select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
 export_set(3, _latin1'foo', _utf8'bar', ',', 4)
 foo,foo,bar,bar

@@ -1122,7 +1122,7 @@ static void initialize_readline (char *name);
 
 static COMMANDS *find_command(char *name);
 static COMMANDS *find_command(char cmd_name);
-static bool add_line(String &buffer, char *line, ulong line_length,
+static bool add_line(String &buffer, char *line, size_t line_length,
                      char *in_string, bool *ml_comment, bool truncated);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
@@ -2439,7 +2439,7 @@ static COMMANDS *find_command(char *name)
 }
 
 
-static bool add_line(String &buffer, char *line, ulong line_length,
+static bool add_line(String &buffer, char *line, size_t line_length,
                      char *in_string, bool *ml_comment, bool truncated)
 {
   uchar inchar;
@@ -3841,10 +3841,10 @@ print_table_data(MYSQL_RES *result)
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
       size_t name_length= strlen(field->name);
-      uint numcells= charset_info->cset->numcells(charset_info,
-                                                  field->name,
-                                                  field->name + name_length);
-      uint display_length= field->max_length + name_length - numcells;
+      size_t numcells= charset_info->cset->numcells(charset_info,
+                                                    field->name,
+                                                    field->name + name_length);
+      size_t display_length= field->max_length + name_length - numcells;
       tee_fprintf(PAGER, " %-*s |",
                   min<int>(display_length, MAX_COLUMN_LENGTH),
                   field->name);
