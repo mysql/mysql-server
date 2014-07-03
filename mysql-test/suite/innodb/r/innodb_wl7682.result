@@ -1137,8 +1137,28 @@ c1	c2
 100	aaaaaaaaaa
 drop table t1, t2;
 "Restarting Server with temp-tablespace auto-extension turned off"
+create table t0(a serial) engine=innodb;
+create temporary table t0t(a serial) engine=innodb;
+begin;
+insert into t0 values (),(),(),(),(),(),(),(),(),(),(),(),(),(),(),();
+insert into t0 select 0 from t0;
+insert into t0 select 0 from t0;
+insert into t0 select 0 from t0;
+insert into t0 select 0 from t0;
+insert into t0 select 0 from t0;
+insert into t0 select 0 from t0;
+insert into t0t select 0 from t0;
+update t0 set a=a+1048576;
+delete from t0;
+update t0t set a=a+1048576;
+delete from t0t;
+rollback;
+select * from t0;
+a
+select * from t0t;
+a
+drop table t0,t0t;
 set session innodb_create_intrinsic = 1;
-use test;
 create temporary table t1
 (keyc int, c1 varchar(1024), c2 varchar(1024),
 primary key(keyc)) engine = innodb;
