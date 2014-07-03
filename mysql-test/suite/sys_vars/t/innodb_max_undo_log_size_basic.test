@@ -93,8 +93,3 @@ SELECT COUNT(@@SESSION.innodb_max_undo_log_size);
 SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
 --echo 1 Expected
 
---Error ER_BAD_FIELD_ERROR
-SELECT innodb_max_undo_log_size = @@SESSION.innodb_max_undo_log_size;
---echo Expected error 'Readonly variable'
-
-

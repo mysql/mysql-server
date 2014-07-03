@@ -683,8 +683,6 @@ trx_purge_mark_undo_for_truncate(
 		"UNDO tablespace with space identifier " ULINTPF
 		" marked for truncate", undo_trunc->get_undo_mark_for_trunc());
 #endif /* UNIV_DEBUG */
-	undo_trunc->set_purge_lag(srv_undo_purge_lag);
-	srv_undo_purge_lag = 1;
 
 	/* Step-3: Iterate over all the rsegs of selected UNDO tablespace
 	and mark them temporarily unavailable for allocation.*/
@@ -929,7 +927,6 @@ trx_purge_initiate_truncate(
 
 	undo_trunc->reset();
 	undo_trunc_t::clear_trunc_list();
-	srv_undo_purge_lag = undo_trunc->get_purge_lag();
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_trunc_done",
 			ib_logf(IB_LOG_LEVEL_INFO, "ib_undo_trunc_trunc_done");

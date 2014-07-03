@@ -399,7 +399,8 @@ public:
 		m_undo_for_trunc(ULINT_UNDEFINED),
 		m_rseg_for_trunc(),
 		m_scan_start(1),
-		m_purge_lag()
+		m_purge_rseg_truncate_frequency(
+			srv_purge_rseg_truncate_frequency)
 	{
 		/* Do Nothing. */
 	}
@@ -422,6 +423,11 @@ public:
 			/* Note: UNDO tablespace ids starts from 1. */
 			m_scan_start = 1;
 		}
+
+		/* We found a UNDO-tablespace to truncate so set the
+		local purge rseg truncate frequency to 1. This will help
+		accelerate the purge action and in turn truncate action. */
+		m_purge_rseg_truncate_frequency = 1;
 	}
 
 	/** Get the tablespace marked for truncate.
@@ -460,6 +466,11 @@ public:
 	{
 		m_undo_for_trunc = ULINT_UNDEFINED;
 		m_rseg_for_trunc.clear();
+
+		/* Sync with global value as we are done with
+		truncate now. */
+		m_purge_rseg_truncate_frequency =
+			srv_purge_rseg_truncate_frequency;
 	}
 
 	/** Get the tablespace id to start scanning from.
@@ -502,18 +513,11 @@ public:
 			s_spaces_to_truncate.end() ? false : true);
 	}
 
-	/** Cache Purge Lag.
-	@param[in]	purge_lag	original server purge lag */
-	void set_purge_lag(ulint purge_lag)
+	/** Get local rseg purge truncate frequency
+	@return rseg purge truncate frequency. */
+	ulint get_rseg_truncate_frequency() const
 	{
-		m_purge_lag = purge_lag;
-	}
-
-	/** Get purge lag.
-	@return cached purge lag. */
-	ulint get_purge_lag()
-	{
-		return(m_purge_lag);
+		return(m_purge_rseg_truncate_frequency);
 	}
 
 public:
@@ -535,8 +539,11 @@ private:
 	This is to avoid bias selection of one tablespace always. */
 	ulint			m_scan_start;
 
-	/** Purge Lag. */
-	ulint			m_purge_lag;
+	/** Rollback segment(s) purge frequency. This is local
+	value maintained along with global value. It is set to global
+	value on start but when tablespace is marked for truncate it is
+	updated to 1 and then minimum value among 2 is used by purge action. */
+	ulint			m_purge_rseg_truncate_frequency;
 };
 
 /** The control structure used in the purge operation */
