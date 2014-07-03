@@ -140,7 +140,7 @@ void bn_data::initialize_from_separate_keys_and_vals(uint32_t num_entries, struc
     rbuf_literal_bytes(rb, &vals_src, val_data_size);
 
     if (num_entries > 0) {
-        void *vals_dest = toku_mempool_malloc(&this->m_buffer_mempool, val_data_size, 1);
+        void *vals_dest = toku_mempool_malloc(&this->m_buffer_mempool, val_data_size);
         paranoid_invariant_notnull(vals_dest);
         memcpy(vals_dest, vals_src, val_data_size);
     }
@@ -384,7 +384,7 @@ struct dmt_compressor_state {
 static int move_it (const uint32_t, klpair_struct *klpair, const uint32_t idx UU(), struct dmt_compressor_state * const oc) {
     LEAFENTRY old_le = oc->bd->get_le_from_klpair(klpair);
     uint32_t size = leafentry_memsize(old_le);
-    void* newdata = toku_mempool_malloc(oc->new_kvspace, size, 1);
+    void* newdata = toku_mempool_malloc(oc->new_kvspace, size);
     paranoid_invariant_notnull(newdata); // we do this on a fresh mempool, so nothing bad should happen
     memcpy(newdata, old_le, size);
     klpair->le_offset = toku_mempool_get_offset_from_pointer_and_base(oc->new_kvspace, newdata);
@@ -411,7 +411,7 @@ void bn_data::dmt_compress_kvspace(size_t added_size, void **maybe_free, bool fo
     } else {
         toku_mempool_construct(&new_kvspace, total_size_needed);
         size_t old_offset_limit = toku_mempool_get_offset_limit(&m_buffer_mempool);
-        void *new_mempool_base = toku_mempool_malloc(&new_kvspace, old_offset_limit, 1);
+        void *new_mempool_base = toku_mempool_malloc(&new_kvspace, old_offset_limit);
         memcpy(new_mempool_base, old_mempool_base, old_offset_limit);
     }
 
@@ -428,10 +428,10 @@ void bn_data::dmt_compress_kvspace(size_t added_size, void **maybe_free, bool fo
 //  If MAYBE_FREE is nullptr then free the old mempool's space.
 //  Otherwise, store the old mempool's space in maybe_free.
 LEAFENTRY bn_data::mempool_malloc_and_update_dmt(size_t size, void **maybe_free) {
-    void *v = toku_mempool_malloc(&m_buffer_mempool, size, 1);
+    void *v = toku_mempool_malloc(&m_buffer_mempool, size);
     if (v == nullptr) {
         dmt_compress_kvspace(size, maybe_free, false);
-        v = toku_mempool_malloc(&m_buffer_mempool, size, 1);
+        v = toku_mempool_malloc(&m_buffer_mempool, size);
         paranoid_invariant_notnull(v);
     }
     return (LEAFENTRY)v;
@@ -506,7 +506,7 @@ class split_klpairs_extra {
         LEAFENTRY old_le = m_left_bn->get_le_from_klpair(&klpair);
         size_t le_size = leafentry_memsize(old_le);
 
-        void *new_le = toku_mempool_malloc(dest_mp, le_size, 1);
+        void *new_le = toku_mempool_malloc(dest_mp, le_size);
         paranoid_invariant_notnull(new_le);
         memcpy(new_le, old_le, le_size);
         size_t le_offset = toku_mempool_get_offset_from_pointer_and_base(dest_mp, new_le);
@@ -659,7 +659,7 @@ void bn_data::set_contents_as_clone_of_sorted_array(
     dmt_builder.create(num_les, total_key_size);
 
     for (uint32_t idx = 0; idx < num_les; idx++) {
-        void* new_le = toku_mempool_malloc(&m_buffer_mempool, le_sizes[idx], 1);
+        void* new_le = toku_mempool_malloc(&m_buffer_mempool, le_sizes[idx]);
         paranoid_invariant_notnull(new_le);
         memcpy(new_le, old_les[idx], le_sizes[idx]);
         size_t le_offset = toku_mempool_get_offset_from_pointer_and_base(&m_buffer_mempool, new_le);

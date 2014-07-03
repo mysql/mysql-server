@@ -163,8 +163,8 @@ size_t toku_mempool_get_free_size(const struct mempool *mp);
 /* get the amount of space that has been allocated for use (wasted or not) */
 size_t toku_mempool_get_allocated_size(const struct mempool *mp);
 
-/* allocate a chunk of memory from the memory pool suitably aligned */
-void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment);
+/* allocate a chunk of memory from the memory pool */
+void *toku_mempool_malloc(struct mempool *mp, size_t size);
 
 /* free a previously allocated chunk of memory.  the free only updates
    a count of the amount of free space in the memory pool.  the memory

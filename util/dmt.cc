@@ -130,7 +130,7 @@ void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::create_from_sorted_memory_of_fix
     toku_mempool_construct(&this->mp, aligned_memsize);
     if (aligned_memsize > 0) {
         paranoid_invariant(numvalues > 0);
-        void *ptr = toku_mempool_malloc(&this->mp, aligned_memsize, 1);
+        void *ptr = toku_mempool_malloc(&this->mp, aligned_memsize);
         paranoid_invariant_notnull(ptr);
         uint8_t * const CAST_FROM_VOIDP(dest, ptr);
         const uint8_t * const CAST_FROM_VOIDP(src, mem);
@@ -261,7 +261,7 @@ dmtdata_t * dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::alloc_array_value_end(voi
     paranoid_invariant(this->values_same_size);
     this->d.a.num_values++;
 
-    void *ptr = toku_mempool_malloc(&this->mp, align(this->value_length), 1);
+    void *ptr = toku_mempool_malloc(&this->mp, align(this->value_length));
     paranoid_invariant_notnull(ptr);
     paranoid_invariant(reinterpret_cast<size_t>(ptr) % ALIGNMENT == 0);
     dmtdata_t *CAST_FROM_VOIDP(n, ptr);
@@ -302,7 +302,7 @@ void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::maybe_resize_array_for_insert(vo
         paranoid_invariant(copy_bytes <= toku_mempool_get_used_size(&this->mp));
         // Copy over to new mempool
         if (this->d.a.num_values > 0) {
-            void* dest = toku_mempool_malloc(&new_kvspace, copy_bytes, 1);
+            void* dest = toku_mempool_malloc(&new_kvspace, copy_bytes);
             invariant(dest!=nullptr);
             memcpy(dest, get_array_value(0), copy_bytes);
         }
@@ -344,7 +344,7 @@ void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::convert_from_tree_to_array(void)
     const uint32_t fixed_aligned_len = align(this->value_length);
     size_t mem_needed = num_values * fixed_aligned_len;
     toku_mempool_construct(&new_mp, mem_needed);
-    uint8_t* CAST_FROM_VOIDP(dest, toku_mempool_malloc(&new_mp, mem_needed, 1));
+    uint8_t* CAST_FROM_VOIDP(dest, toku_mempool_malloc(&new_mp, mem_needed));
     paranoid_invariant_notnull(dest);
     for (uint32_t i = 0; i < num_values; i++) {
         const dmt_node &n = get_node(tmp_array[i]);
@@ -588,7 +588,7 @@ node_offset dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::node_malloc_and_set_value
     size_t val_size = value.get_size();
     size_t size_to_alloc = __builtin_offsetof(dmt_node, value) + val_size;
     size_to_alloc = align(size_to_alloc);
-    void* np = toku_mempool_malloc(&this->mp, size_to_alloc, 1);
+    void* np = toku_mempool_malloc(&this->mp, size_to_alloc);
     paranoid_invariant_notnull(np);
     dmt_node *CAST_FROM_VOIDP(n, np);
     node_set_value(n, value);
@@ -645,7 +645,7 @@ void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::maybe_resize_tree(const dmtwrite
                 dmt_node &node = get_node(tmp_array[i]);
                 const size_t bytes_to_copy = __builtin_offsetof(dmt_node, value) + node.value_length;
                 const size_t bytes_to_alloc = align(bytes_to_copy);
-                void* newdata = toku_mempool_malloc(&new_kvspace, bytes_to_alloc, 1);
+                void* newdata = toku_mempool_malloc(&new_kvspace, bytes_to_alloc);
                 memcpy(newdata, &node, bytes_to_copy);
                 tmp_array[i] = toku_mempool_get_offset_from_pointer_and_base(&new_kvspace, newdata);
             }
@@ -1251,7 +1251,7 @@ void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::builder::build(dmt<dmtdata_t, dm
         invariant_zero(toku_mempool_get_frag_size(&this->temp.mp));
         struct mempool new_mp;
         toku_mempool_construct(&new_mp, used);
-        void * newbase = toku_mempool_malloc(&new_mp, used, 1);
+        void * newbase = toku_mempool_malloc(&new_mp, used);
         invariant_notnull(newbase);
         memcpy(newbase, toku_mempool_get_base(&this->temp.mp), used);
         toku_mempool_destroy(&this->temp.mp);
