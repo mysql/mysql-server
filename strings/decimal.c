@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2421,7 +2421,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
         error=E_DEC_TRUNCATED;
         goto done;
       }
-      stop1=start1+frac0;
+      stop1= start1 + frac0 + intg0;
       frac0+=intg0;
       to->intg=0;
       while (intg0++ < 0)
