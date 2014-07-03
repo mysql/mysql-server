@@ -92,14 +92,13 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <db.h>
-#include <toku_pthread.h>
 
-#include <ft/fttypes.h>
-#include <ft/comparator.h>
+#include "portability/toku_pthread.h"
 
-#include "locktree.h"
-#include "txnid_set.h"
-#include "wfg.h"
+#include "locktree/locktree.h"
+#include "locktree/txnid_set.h"
+#include "locktree/wfg.h"
+#include "ft/comparator.h"
 
 namespace toku {
 

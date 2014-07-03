@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 #include <toku_time.h>
 #include <toku_pthread.h>
 
-#include <ft/fttypes.h>
+#include <ft/ft-ops.h> // just for DICTIONARY_ID..
 #include <ft/comparator.h>
 
 #include <util/omt.h>

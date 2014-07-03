@@ -97,7 +97,6 @@ PATENT RIGHTS GRANT:
 #include "ft/block_allocator.h"
 #include "ft/block_table.h"
 #include "ft/ft-internal.h"        // ugly but pragmatic, need access to dirty bits while holding translation lock
-#include "ft/fttypes.h"
 // TODO: reorganize this dependency
 #include "ft/ft-ops.h" // for toku_maybe_truncate_file
 #include "ft/rbuf.h"
@@ -925,10 +924,9 @@ translation_deserialize_from_buffer(struct translation *t,    // destination int
     assert(t->smallest_never_used_blocknum.b >= RESERVED_BLOCKNUMS);
     t->blocknum_freelist_head       = rbuf_blocknum(&rt); 
     XMALLOC_N(t->length_of_array, t->block_translation);
-    int64_t i;
-    for (i=0; i < t->length_of_array; i++) {
-        t->block_translation[i].u.diskoff = rbuf_diskoff(&rt);
-        t->block_translation[i].size    = rbuf_diskoff(&rt);
+    for (int64_t i = 0; i < t->length_of_array; i++) {
+        t->block_translation[i].u.diskoff = rbuf_DISKOFF(&rt);
+        t->block_translation[i].size = rbuf_DISKOFF(&rt);
     }
     assert(calculate_size_on_disk(t)                                     == (int64_t)size_on_disk);
     assert(t->block_translation[RESERVED_BLOCKNUM_TRANSLATION].size      == (int64_t)size_on_disk);

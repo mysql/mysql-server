@@ -92,16 +92,17 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <toku_portability.h>
-#include <errno.h>
 #include <db.h>
+#include <errno.h>
 
-#include "fttypes.h"
-#include "memory.h"
-#include "logger.h"
-#include "rollback.h"
-#include "recover.h"
-#include "txn.h"
+#include "portability/memory.h"
+#include "portability/toku_portability.h"
+
+#include "ft/logger.h"
+#include "ft/rollback.h"
+#include "ft/recover.h"
+#include "ft/txn.h"
+#include "util/bytestring.h"
 
 struct roll_entry;
 

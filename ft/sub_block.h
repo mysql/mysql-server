@@ -92,14 +92,14 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "compress.h"
-#include "fttypes.h"
+#include "ft/compress.h"
 
+// TODO: Clean this abstraciton up
 static const int max_sub_blocks = 8;
-static const int target_sub_block_size = 512*1024;
+static const int target_sub_block_size = 512 * 1024;
 static const int max_basement_nodes = 32;
-static const int max_basement_node_uncompressed_size = 256*1024;
-static const int max_basement_node_compressed_size = 64*1024;
+static const int max_basement_node_uncompressed_size = 256 * 1024;
+static const int max_basement_node_compressed_size = 64 * 1024;
 
 struct sub_block {
     void *uncompressed_ptr;

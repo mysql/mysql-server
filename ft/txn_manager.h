@@ -92,21 +92,18 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <toku_portability.h>
-#include <util/omt.h>
-#include "fttypes.h"
-#include <portability/toku_pthread.h>
-#include <util/omt.h>
+#include "portability/toku_portability.h"
+#include "portability/toku_pthread.h"
+
+#include "ft/txn.h"
+
+typedef struct txn_manager *TXN_MANAGER;
 
 struct referenced_xid_tuple {
     TXNID begin_id;
     TXNID end_id;
     uint32_t references;
 };
-
-typedef toku::omt<TOKUTXN> txn_omt_t;
-typedef toku::omt<TXNID> xid_omt_t;
-typedef toku::omt<struct referenced_xid_tuple, struct referenced_xid_tuple *> rx_omt_t;
 
 struct txn_manager {
     toku_mutex_t txn_manager_lock;  // a lock protecting this object
@@ -189,22 +186,6 @@ void toku_txn_manager_destroy(TXN_MANAGER txn_manager);
 TXNID toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager);
 
 TXNID toku_txn_manager_get_oldest_referenced_xid_estimate(TXN_MANAGER txn_manager);
-
-//
-// Types of snapshots that can be taken by a tokutxn
-//  - TXN_SNAPSHOT_NONE: means that there is no snapshot. Reads do not use snapshot reads.
-//                       used for SERIALIZABLE and READ UNCOMMITTED
-//  - TXN_SNAPSHOT_ROOT: means that all tokutxns use their root transaction's snapshot
-//                       used for REPEATABLE READ
-//  - TXN_SNAPSHOT_CHILD: means that each child tokutxn creates its own snapshot
-//                        used for READ COMMITTED
-//
-
-typedef enum __TXN_SNAPSHOT_TYPE { 
-    TXN_SNAPSHOT_NONE=0,
-    TXN_SNAPSHOT_ROOT=1,
-    TXN_SNAPSHOT_CHILD=2
-} TXN_SNAPSHOT_TYPE;
 
 void toku_txn_manager_handle_snapshot_create_for_child_txn(
     TOKUTXN txn,

@@ -350,7 +350,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     size_t userdata = 0;
     int i;
     for (i=0; i<n; i++) {
-	struct check_pair pair = {sizeof sorted_keys[i], &sorted_keys[i], (ITEMLEN) strlen(sorted_vals[i]), sorted_vals[i], 0};
+	struct check_pair pair = {sizeof sorted_keys[i], &sorted_keys[i], (uint32_t) strlen(sorted_vals[i]), sorted_vals[i], 0};
         r = toku_ft_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
         if (r != 0) {
 	    assert(pair.call_count ==0);

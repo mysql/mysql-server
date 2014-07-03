@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 #include <ft/ft.h>
 #include <ft/ft-flusher.h>
 #include <ft/checkpoint.h>
-#include <ft/log_header.h>
 
 #include "ydb_cursor.h"
 #include "ydb_row_lock.h"
@@ -943,7 +942,7 @@ struct last_key_extra {
 };
 
 static int
-db_get_last_key_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen UU(), bytevec val UU(), void *extra, bool lock_only) {
+db_get_last_key_callback(uint32_t keylen, const void *key, uint32_t vallen UU(), const void *val UU(), void *extra, bool lock_only) {
     if (!lock_only) {
         DBT keydbt;
         toku_fill_dbt(&keydbt, key, keylen);

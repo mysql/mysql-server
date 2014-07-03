@@ -235,7 +235,7 @@ void ftnode_pivot_keys::deserialize_from_rbuf(struct rbuf *rb, int n) {
     XMALLOC_N_ALIGNED(64, _num_pivots, _dbt_keys);
     bool keys_same_size = true;
     for (int i = 0; i < _num_pivots; i++) {
-        bytevec pivotkeyptr;
+        const void *pivotkeyptr;
         uint32_t size;
         rbuf_bytes(rb, &pivotkeyptr, &size);
         toku_memdup_dbt(&_dbt_keys[i], pivotkeyptr, size);

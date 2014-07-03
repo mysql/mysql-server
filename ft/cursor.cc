@@ -226,8 +226,8 @@ static int ft_cursor_compare_set(const ft_search &search, const DBT *x) {
 }
 
 static int
-ft_cursor_current_getf(ITEMLEN keylen,                 bytevec key,
-                        ITEMLEN vallen,                 bytevec val,
+ft_cursor_current_getf(uint32_t keylen,                 const void *key,
+                        uint32_t vallen,                 const void *val,
                         void *v, bool lock_only) {
     struct ft_cursor_search_struct *CAST_FROM_VOIDP(bcss, v);
     int r;
@@ -286,7 +286,7 @@ int toku_ft_cursor_last(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *g
     return r;
 }
 
-int toku_ft_cursor_check_restricted_range(FT_CURSOR c, bytevec key, ITEMLEN keylen) {
+int toku_ft_cursor_check_restricted_range(FT_CURSOR c, const void *key, uint32_t keylen) {
     if (c->out_of_range_error) {
         FT ft = c->ft_handle->ft;
         DBT found_key;
@@ -367,8 +367,8 @@ int toku_ft_cursor_next(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *g
     return r;
 }
 
-static int ft_cursor_search_eq_k_x_getf(ITEMLEN keylen, bytevec key,
-                                        ITEMLEN vallen, bytevec val,
+static int ft_cursor_search_eq_k_x_getf(uint32_t keylen, const void *key,
+                                        uint32_t vallen, const void *val,
                                         void *v, bool lock_only) {
     struct ft_cursor_search_struct *CAST_FROM_VOIDP(bcss, v);
     int r;

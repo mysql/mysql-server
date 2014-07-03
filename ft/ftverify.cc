@@ -94,18 +94,17 @@ PATENT RIGHTS GRANT:
 // fractal tree file, one block at a time.
 ////////////////////////////////////////////////////////////////////
 
-#include "fttypes.h"
-#include "ft-internal.h"
-#include "node.h"
-#include "ft_layout_version.h"
-#include "block_table.h"
-#include "rbuf.h"
-#include "sub_block.h"
+#include "portability/toku_assert.h"
+#include "portability/toku_list.h"
+#include "portability/toku_portability.h"
 
-#include <toku_assert.h>
-#include <toku_list.h>
-#include <toku_portability.h>
-#include <util/threadpool.h>
+#include "ft/block_allocator.h"
+#include "ft/ft-internal.h"
+#include "ft/ft_layout_version.h"
+#include "ft/node.h"
+#include "ft/rbuf.h"
+#include "ft/sub_block.h"
+#include "util/threadpool.h"
 
 #include <fcntl.h>
 #include <math.h>

@@ -94,7 +94,6 @@ PATENT RIGHTS GRANT:
 
 #include "portability/memory.h"
 
-#include "ft/fttypes.h"
 #include "ft/ybt.h"
 
 DBT *
@@ -187,7 +186,7 @@ toku_destroy_dbt(DBT *dbt) {
 }
 
 DBT *
-toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
+toku_fill_dbt(DBT *dbt, const void *k, uint32_t len) {
     toku_init_dbt(dbt);
     dbt->size=len;
     dbt->data=(char*)k;
@@ -246,7 +245,7 @@ dbt_realloc(DBT *dbt) {
 }
 
 int
-toku_dbt_set (ITEMLEN len, bytevec val, DBT *d, struct simple_dbt *sdbt) {
+toku_dbt_set (uint32_t len, const void *val, DBT *d, struct simple_dbt *sdbt) {
 // sdbt is the static value used when flags==0
 // Otherwise malloc or use the user-supplied memory, as according to the flags in d->flags.
     int r;

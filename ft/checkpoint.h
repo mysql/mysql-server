@@ -160,12 +160,10 @@ typedef enum {SCHEDULED_CHECKPOINT  = 0,   // "normal" checkpoint taken on check
 // Callbacks are called during checkpoint procedure while checkpoint_safe lock is still held.
 // Callbacks are primarily intended for use in testing.
 // caller_id identifies why the checkpoint is being taken.
-int toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
-                    void (*callback_f)(void*),  void * extra,
-                    void (*callback2_f)(void*), void * extra2,
+int toku_checkpoint(CHECKPOINTER cp, struct tokulogger *logger,
+                    void (*callback_f)(void *extra), void *extra,
+                    void (*callback2_f)(void *extra2), void *extra2,
                     checkpoint_caller_t caller_id);
-
-
 
 /******
  * These functions are called from the ydb level.

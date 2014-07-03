@@ -96,7 +96,7 @@ static const char *fname = TOKU_TEST_FILENAME;
 static TOKUTXN const null_txn = 0;
 
 static int
-save_data (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, void *v, bool lock_only) {
+save_data (uint32_t UU(keylen), const void *UU(key), uint32_t vallen, const void *val, void *v, bool lock_only) {
     if (lock_only) return 0;
     assert(key!=NULL);
     void **CAST_FROM_VOIDP(vp, v);

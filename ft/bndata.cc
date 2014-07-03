@@ -89,8 +89,8 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <bndata.h>
-#include <ft-ops.h>
+#include <ft/bndata.h>
+#include <ft/ft-internal.h>
 
 using namespace toku;
 uint32_t bn_data::klpair_disksize(const uint32_t klpair_len, const klpair_struct *klpair) const {
@@ -129,14 +129,14 @@ void bn_data::initialize_from_separate_keys_and_vals(uint32_t num_entries, struc
     uint32_t ndone_before = rb->ndone;
     init_zero();
     invariant(all_keys_same_length);  // Until otherwise supported.
-    bytevec keys_src;
+    const void *keys_src;
     rbuf_literal_bytes(rb, &keys_src, key_data_size);
     //Generate dmt
     this->m_buffer.create_from_sorted_memory_of_fixed_size_elements(
             keys_src, num_entries, key_data_size, fixed_klpair_length);
     toku_mempool_construct(&this->m_buffer_mempool, val_data_size);
 
-    bytevec vals_src;
+    const void *vals_src;
     rbuf_literal_bytes(rb, &vals_src, val_data_size);
 
     if (num_entries > 0) {
@@ -256,7 +256,7 @@ void bn_data::deserialize_from_rbuf(uint32_t num_entries, struct rbuf *rb, uint3
         }
     }
     // Version >= 26 and version 25 deserialization are now identical except that <= 25 might allocate too much memory.
-    bytevec bytes;
+    const void *bytes;
     rbuf_literal_bytes(rb, &bytes, data_size);
     const unsigned char *CAST_FROM_VOIDP(buf, bytes);
     if (data_size == 0) {

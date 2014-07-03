@@ -132,7 +132,7 @@ int
 read_and_check_magic(struct rbuf *rb)
 {
     int r = 0;
-    bytevec magic;
+    const void *magic;
     rbuf_literal_bytes(rb, &magic, 8);
     if (memcmp(magic, "tokuleaf", 8)!=0 &&
         memcmp(magic, "tokunode", 8)!=0) {

@@ -101,18 +101,16 @@ PATENT RIGHTS GRANT:
  *       host order.
  */
 
-
 #include <errno.h>
 #include <string.h>
 
-#include <toku_portability.h>
-#include "fttypes.h"
-#include "xids.h"
-#include "xids-internal.h"
-#include "toku_assert.h"
-#include "memory.h"
-#include <toku_htod.h>
+#include "portability/memory.h"
+#include "portability/toku_assert.h"
+#include "portability/toku_htod.h"
+#include "portability/toku_portability.h"
 
+#include "ft/xids.h"
+#include "ft/xids-internal.h"
 
 /////////////////////////////////////////////////////////////////////////////////
 //  This layer of abstraction (xids_xxx) understands xids<> and nothing else.
@@ -131,11 +129,9 @@ PATENT RIGHTS GRANT:
 // 
 //
 
-
 // This is the xids list for a transactionless environment.
 // It is also the initial state of any xids list created for
 // nested transactions.
-
 
 XIDS
 xids_get_root_xids(void) {
@@ -152,7 +148,6 @@ xids_can_create_child(XIDS xids) {
     invariant(xids->num_xids < MAX_TRANSACTION_RECORDS);
     return (xids->num_xids + 1) != MAX_TRANSACTION_RECORDS;
 }
-
 
 int
 xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p) {
@@ -211,13 +206,11 @@ xids_create_from_buffer(struct rbuf *rb,		// xids list for parent transaction
     *xids_p = xids;
 }
 
-
 void
 xids_destroy(XIDS *xids_p) {
     if (*xids_p != xids_get_root_xids()) toku_free(*xids_p);
     *xids_p = NULL;
 }
-
 
 // Return xid at requested position.  
 // If requesting an xid out of range (which will be the case if xids array is empty)
@@ -235,7 +228,6 @@ xids_get_num_xids(XIDS xids) {
     uint8_t rval = xids->num_xids;
     return rval;
 }
-
 
 // Return innermost xid 
 TXNID 
@@ -280,7 +272,6 @@ xids_get_serialize_size(XIDS xids){
            8 * num_xids;
     return rval;
 }
-
 
 unsigned char *
 xids_get_end_of_array(XIDS xids) {

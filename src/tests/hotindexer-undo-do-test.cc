@@ -96,8 +96,6 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 #include <ft/tokuconst.h>
-#include <ft/fttypes.h>
-#include <ft/leafentry.h>
 #include <ft/ule.h>
 #include <ft/ule-internal.h>
 #include <ft/le-cursor.h>

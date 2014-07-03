@@ -91,24 +91,25 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 
 #include <db.h>
-#include "fttypes.h"
+
+#include "portability/toku_pthread.h"
+
+#include "loader/dbufio.h"
 #include "loader/loader.h"
 #include "util/queue.h"
-#include <toku_pthread.h>
-#include "loader/dbufio.h"
 
-enum { EXTRACTOR_QUEUE_DEPTH = 2,
-       FILE_BUFFER_SIZE  = 1<<24,
-       MIN_ROWSET_MEMORY = 1<<23,
-       MIN_MERGE_FANIN   = 2,
-       FRACTAL_WRITER_QUEUE_DEPTH = 3,
-       FRACTAL_WRITER_ROWSETS = FRACTAL_WRITER_QUEUE_DEPTH + 2,
-       DBUFIO_DEPTH = 2,
-       TARGET_MERGE_BUF_SIZE = 1<<24, // we'd like the merge buffer to be this big.
-       MIN_MERGE_BUF_SIZE = 1<<20, // always use at least this much
-       MAX_UNCOMPRESSED_BUF = MIN_MERGE_BUF_SIZE
+enum {
+    EXTRACTOR_QUEUE_DEPTH = 2,
+    FILE_BUFFER_SIZE  = 1<<24,
+    MIN_ROWSET_MEMORY = 1<<23,
+    MIN_MERGE_FANIN   = 2,
+    FRACTAL_WRITER_QUEUE_DEPTH = 3,
+    FRACTAL_WRITER_ROWSETS = FRACTAL_WRITER_QUEUE_DEPTH + 2,
+    DBUFIO_DEPTH = 2,
+    TARGET_MERGE_BUF_SIZE = 1<<24, // we'd like the merge buffer to be this big.
+    MIN_MERGE_BUF_SIZE = 1<<20, // always use at least this much
+    MAX_UNCOMPRESSED_BUF = MIN_MERGE_BUF_SIZE
 };
-
 
 /* These functions are exported to allow the tests to compile. */
 

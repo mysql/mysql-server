@@ -171,7 +171,6 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->write_log_files = true;
     result->trim_log_files = true;
     result->directory=0;
-    result->remove_finalize_callback = NULL;
     // fd is uninitialized on purpose
     // ct is uninitialized on purpose
     result->lg_max = 100<<20; // 100MB default

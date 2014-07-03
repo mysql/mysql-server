@@ -126,18 +126,18 @@ PATENT RIGHTS GRANT:
  *
  *****/
 
-#include <toku_portability.h>
 #include <time.h>
 
+#include "portability/toku_portability.h"
+#include "portability/toku_atomic.h"
+
+#include "ft/cachetable.h"
 #include "ft/ft.h"
-#include "fttypes.h"
-#include "cachetable.h"
-#include "log-internal.h"
-#include "logger.h"
-#include "checkpoint.h"
-#include <portability/toku_atomic.h>
-#include <util/status.h>
-#include <util/frwlock.h>
+#include "ft/log-internal.h"
+#include "ft/logger.h"
+#include "ft/checkpoint.h"
+#include "util/frwlock.h"
+#include "util/status.h"
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status

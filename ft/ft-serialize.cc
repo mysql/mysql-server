@@ -89,10 +89,12 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include "ft/block_allocator.h"
 #include "ft/block_table.h"
 #include "ft/compress.h"
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
+#include "ft/msg.h"
 
 // not version-sensitive because we only serialize a descriptor using the current layout_version
 uint32_t
@@ -152,7 +154,7 @@ deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, int layout_ve
     }
 
     uint32_t size;
-    bytevec data;
+    const void *data;
     rbuf_bytes(rb, &data, &size);
     toku_memdup_dbt(&desc->dbt, data, size);
 }
@@ -212,7 +214,7 @@ int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
 
     //Verification of initial elements.
     //Check magic number
-    bytevec magic;
+    const void *magic;
     rbuf_literal_bytes(rb, &magic, 8);
     lazy_assert(memcmp(magic,"tokudata",8)==0);
 
@@ -234,7 +236,7 @@ int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     size = rbuf_network_int(rb);
     lazy_assert(size == rb->size);
 
-    bytevec tmp_byte_order_check;
+    const void *tmp_byte_order_check;
     lazy_assert((sizeof tmp_byte_order_check) >= 8);
     rbuf_literal_bytes(rb, &tmp_byte_order_check, 8); //Must not translate byte order
     int64_t byte_order_stored;
@@ -244,13 +246,13 @@ int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     uint64_t checkpoint_count;
     checkpoint_count = rbuf_ulonglong(rb);
     LSN checkpoint_lsn;
-    checkpoint_lsn = rbuf_lsn(rb);
+    checkpoint_lsn = rbuf_LSN(rb);
     unsigned nodesize;
     nodesize = rbuf_int(rb);
     DISKOFF translation_address_on_disk;
-    translation_address_on_disk = rbuf_diskoff(rb);
+    translation_address_on_disk = rbuf_DISKOFF(rb);
     DISKOFF translation_size_on_disk;
-    translation_size_on_disk = rbuf_diskoff(rb);
+    translation_size_on_disk = rbuf_DISKOFF(rb);
     lazy_assert(translation_address_on_disk > 0);
     lazy_assert(translation_size_on_disk > 0);
 
@@ -343,7 +345,7 @@ int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
         time_of_last_optimize_begin = rbuf_ulonglong(rb);
         time_of_last_optimize_end = rbuf_ulonglong(rb);
         count_of_optimize_in_progress = rbuf_int(rb);
-        msn_at_start_of_last_completed_optimize = rbuf_msn(rb);
+        msn_at_start_of_last_completed_optimize = rbuf_MSN(rb);
     }
 
     enum toku_compression_method compression_method;
@@ -352,7 +354,7 @@ int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_19) {
         unsigned char method = rbuf_char(rb);
         compression_method = (enum toku_compression_method) method;
-        highest_unused_msn_for_upgrade = rbuf_msn(rb);
+        highest_unused_msn_for_upgrade = rbuf_MSN(rb);
     } else {
         // we hard coded zlib until 5.2, then quicklz in 5.2
         if (ft->layout_version_read_from_disk < FT_LAYOUT_VERSION_18) {
@@ -365,7 +367,7 @@ int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     MSN max_msn_in_ft;
     max_msn_in_ft = ZERO_MSN;  // We'll upgrade it from the root node later if necessary
     if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_21) {
-        max_msn_in_ft = rbuf_msn(rb);
+        max_msn_in_ft = rbuf_MSN(rb);
     }
 
     (void) rbuf_int(rb); //Read in checksum and ignore (already verified).
@@ -552,7 +554,7 @@ int deserialize_ft_from_fd_into_rbuf(int fd,
     rbuf_init(rb, prefix, prefix_size);
 
     //Check magic number
-    bytevec magic;
+    const void *magic;
     rbuf_literal_bytes(rb, &magic, 8);
     if (memcmp(magic,"tokudata",8)!=0) {
         if ((*(uint64_t*)magic) == 0) {
@@ -626,7 +628,7 @@ int deserialize_ft_from_fd_into_rbuf(int fd,
     }
 
     //Verify byte order
-    bytevec tmp_byte_order_check;
+    const void *tmp_byte_order_check;
     lazy_assert((sizeof toku_byte_order_host) == 8);
     rbuf_literal_bytes(rb, &tmp_byte_order_check, 8); //Must not translate byte order
     int64_t byte_order_stored;
@@ -638,7 +640,7 @@ int deserialize_ft_from_fd_into_rbuf(int fd,
 
     //Load checkpoint count
     *checkpoint_count = rbuf_ulonglong(rb);
-    *checkpoint_lsn = rbuf_lsn(rb);
+    *checkpoint_lsn = rbuf_LSN(rb);
     //Restart at beginning during regular deserialization
     rb->ndone = 0;
 

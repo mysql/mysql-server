@@ -94,11 +94,13 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 
 #include <ft/ybt.h>
-#include <ft/fttypes.h>
+//#include <ft/fttypes.h>
 #include <portability/memory.h>
 
+typedef int (*ft_compare_func)(DB *db, const DBT *a, const DBT *b);
+
 // TODO: this should really all be encapsulated in ft/comparator.cc
-int toku_builtin_compare_fun(DB *, const DBT *a, const DBT *b) __attribute__((__visibility__("default")));
+int toku_builtin_compare_fun(DB *db, const DBT *a, const DBT *b) __attribute__((__visibility__("default")));
 
 namespace toku {
 

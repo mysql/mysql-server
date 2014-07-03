@@ -92,14 +92,15 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <toku_portability.h>
+#include <db.h>
 #include <errno.h>
 
-#include <db.h>
-#include <util/x1764.h>
+#include "portability/memory.h"
+#include "portability/toku_portability.h"
 
-#include "fttypes.h"
-#include "memory.h"
+#include "ft/comparator.h"
+#include "ft/ft-ops.h"
+#include "util/x1764.h"
 
 typedef void (*prepared_txn_callback_t)(DB_ENV*, TOKUTXN);
 typedef void (*keep_cachetable_callback_t)(DB_ENV*, CACHETABLE);
@@ -109,7 +110,7 @@ typedef void (*keep_cachetable_callback_t)(DB_ENV*, CACHETABLE);
 int tokudb_recover (DB_ENV *env,
 		    prepared_txn_callback_t    prepared_txn_callback,
 		    keep_cachetable_callback_t keep_cachetable_callback,
-		    TOKULOGGER logger,
+		    struct tokulogger *logger,
 		    const char *env_dir, const char *log_dir,
                     ft_compare_func bt_compare,
                     ft_update_func update_function,

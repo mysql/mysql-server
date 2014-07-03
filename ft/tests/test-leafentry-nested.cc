@@ -91,10 +91,9 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 
 #include "test.h"
-#include "fttypes.h"
 
-#include "ule.h"
-#include "ule-internal.h"
+#include "ft/ule.h"
+#include "ft/ule-internal.h"
 
 enum {MAX_SIZE = 256};
 static XIDS nested_xids[MAX_TRANSACTION_RECORDS];

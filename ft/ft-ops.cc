@@ -2286,7 +2286,7 @@ static int ft_leaf_get_relative_key_pos(FT ft, FTNODE leaf, const DBT *key, bool
 
 static void ft_insert_directly_into_leaf(FT ft, FTNODE leaf, int target_childnum, DBT *key, DBT *val,
                                          XIDS message_xids, enum ft_msg_type type, txn_gc_info *gc_info);
-static int getf_nothing(ITEMLEN, bytevec, ITEMLEN, bytevec, void *, bool);
+static int getf_nothing(uint32_t, const void *, uint32_t, const void *, void *, bool);
 
 static int ft_maybe_insert_into_rightmost_leaf(FT ft, DBT *key, DBT *val, XIDS message_xids, enum ft_msg_type type,
                                                txn_gc_info *gc_info, bool unique)
@@ -3957,7 +3957,7 @@ try_again:
 
 /* ********************************* delete **************************************/
 static int
-getf_nothing (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), bytevec UU(val), void *UU(pair_v), bool UU(lock_only)) {
+getf_nothing (uint32_t UU(keylen), const void *UU(key), uint32_t UU(vallen), const void *UU(val), void *UU(pair_v), bool UU(lock_only)) {
     return 0;
 }
 
@@ -4720,7 +4720,7 @@ int toku_ft_strerror_r(int error, char *buf, size_t buflen)
 }
 
 // when a and b are chars, return a-b is safe here because return type is int.  No over/underflow possible.
-int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
+int toku_keycompare (const void *key1, uint32_t key1len, const void *key2, uint32_t key2len) {
     int comparelen = key1len<key2len ? key1len : key2len;
     const unsigned char *k1;
     const unsigned char *k2;

@@ -101,7 +101,6 @@ PATENT RIGHTS GRANT:
 #include "ft/block_table.h"
 #include "ft/cachetable.h"
 #include "ft/ft.h"
-#include "ft/fttypes.h"
 #include "ft/ft-internal.h"
 #include "ft/node.h"
 
@@ -124,9 +123,9 @@ static void format_time(const uint64_t time_int, char *buf) {
     buf[24] = 0;
 }
 
-static void print_item(bytevec val, ITEMLEN len) {
+static void print_item(const void *val, uint32_t len) {
     printf("\"");
-    ITEMLEN i;
+    uint32_t i;
     for (i=0; i<len; i++) {
         unsigned char ch = ((unsigned char*)val)[i];
         if (isprint(ch) && ch!='\\' && ch!='"') {
@@ -285,8 +284,8 @@ static void dump_node(int fd, BLOCKNUM blocknum, FT ft) {
                         XIDS xids = msg.xids();
                         const void *key = msg.kdbt()->data;
                         const void *data = msg.vdbt()->data;
-                        ITEMLEN keylen = msg.kdbt()->size;
-                        ITEMLEN datalen = msg.vdbt()->size;
+                        uint32_t keylen = msg.kdbt()->size;
+                        uint32_t datalen = msg.vdbt()->size;
                         printf("    msn=%" PRIu64 " (0x%" PRIx64 ") ", msn.msn, msn.msn);
                         printf("    TYPE=");
                         switch (type) {
