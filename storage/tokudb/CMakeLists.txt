@@ -31,6 +31,25 @@ IF(DEFINED TOKUDB_CHECK_JEMALLOC)
     ADD_DEFINITIONS("-DTOKUDB_CHECK_JEMALLOC=${TOKUDB_CHECK_JEMALLOC}")
 ENDIF()
 
+## adds a compiler flag if the compiler supports it
+include(CheckCCompilerFlag)
+include(CheckCXXCompilerFlag)
+
+macro(set_cflags_if_supported)
+  foreach(flag ${ARGN})
+    check_c_compiler_flag(${flag} HAVE_C_${flag})
+    if (HAVE_C_${flag})
+      set(CMAKE_C_FLAGS "${flag} ${CMAKE_C_FLAGS}")
+    endif ()
+    check_cxx_compiler_flag(${flag} HAVE_CXX_${flag})
+    if (HAVE_CXX_${flag})
+      set(CMAKE_CXX_FLAGS "${flag} ${CMAKE_CXX_FLAGS}")
+    endif ()
+  endforeach(flag)
+endmacro(set_cflags_if_supported)
+
+set_cflags_if_supported(-Wno-missing-field-initializers)
+
 ADD_SUBDIRECTORY(ft-index)
 
 # TODO: clean up includes in ft-index
