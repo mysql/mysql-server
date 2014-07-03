@@ -721,7 +721,7 @@ recv_find_max_checkpoint(
 				DBUG_PRINT("ib_log",
 					   ("invalid checkpoint,"
 					    " group " ULINTPF " at " ULINTPF
-					    ", checksum %#x",
+					    ", checksum %x",
 					    group->id, field,
 					    (unsigned) mach_read_from_4(
 						    LOG_CHECKPOINT_CHECKSUM_1
@@ -2218,7 +2218,7 @@ recv_report_corrupt_log(
 	ulint	space,	/*!< in: space id, this may also be garbage */
 	ulint	page_no)/*!< in: page number, this may also be garbage */
 {
-	ib_logf(IB_LOG_LEVEL_INFO,
+	ib_logf(IB_LOG_LEVEL_ERROR,
 		"############### CORRUPT LOG RECORD FOUND ##################");
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Log record type %d, page " ULINTPF ":" ULINTPF "."
@@ -2232,25 +2232,25 @@ recv_report_corrupt_log(
 		(ulong) (ptr - recv_sys->buf),
 		(ulong) recv_previous_parsed_rec_offset);
 
-	if ((ulint)(ptr - recv_sys->buf + 100)
-	    > recv_previous_parsed_rec_offset
-	    && (ulint)(ptr - recv_sys->buf + 100
-		       - recv_previous_parsed_rec_offset)
-	    < 200000) {
-		fputs("InnoDB: Hex dump of corrupt log starting"
-		      " 100 bytes before the start\n"
-		      "InnoDB: of the previous log rec,\n"
-		      "InnoDB: and ending 100 bytes after the start"
-		      " of the corrupt rec:\n",
-		      stderr);
+	ut_ad(ptr - recv_sys->buf <= recv_sys->len);
 
-		ut_print_buf(stderr,
-			     recv_sys->buf
-			     + recv_previous_parsed_rec_offset - 100,
-			     ptr - recv_sys->buf + 200
-			     - recv_previous_parsed_rec_offset);
-		putc('\n', stderr);
-	}
+	const ulint	limit	= 100;
+	const ulint	before
+		= std::min(recv_previous_parsed_rec_offset, limit);
+	const ulint	after
+		= std::min(recv_sys->len - (ptr - recv_sys->buf), limit);
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Hex dump starting " ULINTPF " bytes before and ending "
+		ULINTPF " bytes after the corrupted record:",
+		before, after);
+
+	ut_print_buf(stderr,
+		     recv_sys->buf
+		     + recv_previous_parsed_rec_offset - before,
+		     ptr - recv_sys->buf + before + after
+		     - recv_previous_parsed_rec_offset);
+	putc('\n', stderr);
 
 #ifndef UNIV_HOTBACKUP
 	if (!srv_force_recovery) {
@@ -3194,7 +3194,7 @@ recv_recovery_from_checkpoint_start(
 
 	if (recv_sys->mlog_checkpoint_lsn == 0) {
 		if (group->scanned_lsn != checkpoint_lsn) {
-			ib_logf(IB_LOG_LEVEL_INFO,
+			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Ignoring the redo log due to"
 				" missing MLOG_CHECKPOINT"
 				" between the checkpoint " LSN_PF " and"
