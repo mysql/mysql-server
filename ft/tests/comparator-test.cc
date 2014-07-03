@@ -122,6 +122,7 @@ static void test_desc(void) {
     expected_desc = &d2;
     c = cmp(&dbt_a, &dbt_b);
     invariant(c == MAGIC);
+    cmp2.destroy();
 
     // go back to using d1, but using the create_from API
     toku::comparator cmp3, cmp4;
@@ -132,6 +133,8 @@ static void test_desc(void) {
     invariant(c == MAGIC);
     c = cmp4(&dbt_a, &dbt_b);
     invariant(c == MAGIC);
+    cmp3.destroy();
+    cmp4.destroy();
 
     cmp.destroy();
 }
