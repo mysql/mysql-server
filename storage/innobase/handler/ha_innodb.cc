@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "api0misc.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
+#include "btr0bulk.h"
 #include "btr0sea.h"
 #include "buf0dblwr.h"
 #include "buf0dump.h"
@@ -1555,7 +1556,7 @@ convert_error_code_to_mysql(
 	case DB_OUT_OF_FILE_SPACE:
 		return(HA_ERR_RECORD_FILE_FULL);
 
-	case DB_TEMP_FILE_WRITE_FAILURE:
+	case DB_TEMP_FILE_WRITE_FAIL:
 		return(HA_ERR_TEMP_FILE_WRITE_FAILURE);
 
 	case DB_TABLE_IN_FK_CHECK:
@@ -15700,8 +15701,7 @@ checkpoint_now_set(
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}
-		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
-		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+		fil_write_flushed_lsn(log_sys->lsn);
 	}
 }
 
@@ -16381,6 +16381,11 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
 
+static MYSQL_SYSVAR_LONG(fill_factor, innobase_fill_factor,
+  PLUGIN_VAR_RQCMDARG,
+  "Percentage of B-tree page filled during bulk insert",
+  NULL, NULL, 100, 10, 100, 0);
+
 static MYSQL_SYSVAR_BOOL(ft_enable_diag_print, fts_enable_diag_print,
   PLUGIN_VAR_OPCMDARG,
   "Whether to enable additional FTS diagnostic printout ",
@@ -16837,6 +16842,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(force_recovery_crash),
 #endif /* !DBUG_OFF */
+  MYSQL_SYSVAR(fill_factor),
   MYSQL_SYSVAR(ft_cache_size),
   MYSQL_SYSVAR(ft_total_cache_size),
   MYSQL_SYSVAR(ft_result_cache_limit),

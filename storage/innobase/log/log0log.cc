@@ -2209,7 +2209,7 @@ loop:
 		fil_flush_file_spaces(FIL_TYPE_LOG);
 	}
 
-	/* The call fil_write_flushed_lsn_to_data_files() will pass the buffer
+	/* The call fil_write_flushed_lsn() will bypass the buffer
 	pool: therefore it is essential that the buffer pool has been
 	completely flushed to disk! (We do not call fil_write... if the
 	'very fast' shutdown is enabled.) */
@@ -2246,9 +2246,7 @@ loop:
 	srv_shutdown_lsn = lsn;
 
 	if (!srv_read_only_mode) {
-		fil_write_flushed_lsn_to_data_files(lsn, 0);
-
-		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+		fil_write_flushed_lsn(lsn);
 	}
 
 	fil_close_all_files();

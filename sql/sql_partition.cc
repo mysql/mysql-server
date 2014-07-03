@@ -1838,7 +1838,7 @@ end:
 
 static int add_write(File fptr, const char *buf, size_t len)
 {
-  uint ret_code= mysql_file_write(fptr, (const uchar*)buf, len, MYF(MY_FNABP));
+  size_t ret_code= mysql_file_write(fptr, (const uchar*)buf, len, MYF(MY_FNABP));
 
   if (likely(ret_code == 0))
     return 0;

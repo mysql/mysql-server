@@ -651,7 +651,9 @@ typedef char		my_bool; /* Small bool */
 #define dlsym(lib, name) (void*)GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
+#ifndef HAVE_DLOPEN
 #define HAVE_DLOPEN
+#endif
 #define DLERROR_GENERATE(errmsg, error_number) \
   char win_errormsg[2048]; \
   if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, \

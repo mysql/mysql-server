@@ -114,26 +114,19 @@ a freshly read page)
 */
 # define recv_recover_page(jri, block)	recv_recover_page_func(block)
 #endif /* !UNIV_HOTBACKUP */
-/********************************************************//**
-Recovers from a checkpoint. When this function returns, the database is able
-to start processing of new user transactions, but the function
-recv_recovery_from_checkpoint_finish should be called later to complete
-the recovery and free the resources used in it.
+/** Start recovering from a redo log checkpoint.
+@see recv_recovery_from_checkpoint_finish
+@param[in]	flush_lsn	FIL_PAGE_FILE_FLUSH_LSN
+of first system tablespace page
 @return error code or DB_SUCCESS */
 
 dberr_t
 recv_recovery_from_checkpoint_start(
-/*================================*/
-	lsn_t		min_flushed_lsn,/*!< in: min flushed lsn from
-					data files */
-	lsn_t		max_flushed_lsn);/*!< in: max flushed lsn from
-					 data files */
-/********************************************************//**
-Completes recovery from a checkpoint. */
+	lsn_t	flush_lsn);
+/** Complete recovery from a checkpoint. */
 
 void
 recv_recovery_from_checkpoint_finish(void);
-/*======================================*/
 /********************************************************//**
 Initiates the rollback of active transactions. */
 

@@ -4867,7 +4867,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
 
   for (;;)
   {
-    uint length;
+    size_t length;
 
     if ((length=my_b_gets(&purge_index_file, log_info.log_file_name,
                           FN_REFLEN)) <= 1)
@@ -6005,8 +6005,10 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
   if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     DBUG_RETURN(ER_ERROR_ON_WRITE);
   size_t length = my_b_bytes_in_cache(cache);
-  uint group, carry, hdr_offs;
-  ulong remains= 0; // part of unprocessed yet netto length of the event
+  uint group;
+  size_t carry;
+  size_t hdr_offs;
+  size_t remains= 0; // part of unprocessed yet netto length of the event
   long val;
   ulong end_log_pos_inc= 0; // each event processed adds BINLOG_CHECKSUM_LEN 2 t
   uint pc_offset= LOG_EVENT_HEADER_LEN + cache->commit_seq_offset;

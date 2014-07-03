@@ -32,6 +32,7 @@ Created 10/13/2010 Jimmy Yang
 #include "row0merge.h"
 #include "row0row.h"
 #include "btr0cur.h"
+#include "btr0bulk.h"
 #include "fts0plugin.h"
 
 /** Read the next record to buffer N.
@@ -854,7 +855,7 @@ loop:
 		if (!row_merge_write(merge_file[t_ctx.buf_used]->fd,
 				     merge_file[t_ctx.buf_used]->offset++,
 				     block[t_ctx.buf_used])) {
-			error = DB_TEMP_FILE_WRITE_FAILURE;
+			error = DB_TEMP_FILE_WRITE_FAIL;
 			goto func_exit;
 		}
 
@@ -947,7 +948,7 @@ exit:
 				if (!row_merge_write(merge_file[i]->fd,
 						merge_file[i]->offset++,
 						block[i])) {
-					error = DB_TEMP_FILE_WRITE_FAILURE;
+					error = DB_TEMP_FILE_WRITE_FAIL;
 					goto func_exit;
 				}
 
@@ -1088,6 +1089,57 @@ row_fts_start_parallel_merge(
 	}
 }
 
+/**
+Write out a single word's data as new entry/entries in the INDEX table.
+@param[in]	ins_ctx	insert context
+@param[in]	word	word string
+@param[in]	node	node colmns
+@return	DB_SUCCUESS if insertion runs fine, otherwise error code */
+static
+dberr_t
+row_merge_write_fts_node(
+	const	fts_psort_insert_t*	ins_ctx,
+	const	fts_string_t*		word,
+	const	fts_node_t*		node)
+{
+	dtuple_t*	tuple;
+	dfield_t*	field;
+	dberr_t		ret = DB_SUCCESS;
+	doc_id_t	write_first_doc_id[8];
+	doc_id_t	write_last_doc_id[8];
+	ib_uint32_t	write_doc_count;
+
+	tuple = ins_ctx->tuple;
+
+	/* The first field is the tokenized word */
+	field = dtuple_get_nth_field(tuple, 0);
+	dfield_set_data(field, word->f_str, word->f_len);
+
+	/* The second field is first_doc_id */
+	field = dtuple_get_nth_field(tuple, 1);
+	fts_write_doc_id((byte*)&write_first_doc_id, node->first_doc_id);
+	dfield_set_data(field, &write_first_doc_id, sizeof(doc_id_t));
+
+	/* The third and fourth fileds(TRX_ID, ROLL_PTR) are filled already.*/
+	/* The fifth field is last_doc_id */
+	field = dtuple_get_nth_field(tuple, 4);
+	fts_write_doc_id((byte*)&write_last_doc_id, node->last_doc_id);
+	dfield_set_data(field, &write_last_doc_id, sizeof(doc_id_t));
+
+	/* The sixth field is doc_count */
+	field = dtuple_get_nth_field(tuple, 5);
+	mach_write_to_4((byte*)&write_doc_count, (ib_uint32_t)node->doc_count);
+	dfield_set_data(field, &write_doc_count, sizeof(ib_uint32_t));
+
+	/* The seventh field is ilist */
+	field = dtuple_get_nth_field(tuple, 6);
+	dfield_set_data(field, node->ilist, node->ilist_size);
+
+	ret = ins_ctx->btr_bulk->insert(tuple);
+
+	return(ret);
+}
+
 /********************************************************************//**
 Insert processed FTS data to auxillary index tables.
 @return DB_SUCCESS if insertion runs fine */
@@ -1095,30 +1147,23 @@ static __attribute__((nonnull))
 dberr_t
 row_merge_write_fts_word(
 /*=====================*/
-	trx_t*		trx,		/*!< in: transaction */
-	que_t**		ins_graph,	/*!< in: Insert query graphs */
-	fts_tokenizer_word_t* word,	/*!< in: sorted and tokenized
-					word */
-	fts_table_t*	fts_table,	/*!< in: fts aux table instance */
-	CHARSET_INFO*	charset)	/*!< in: charset */
+	fts_psort_insert_t*	ins_ctx,	/*!< in: insert context */
+	fts_tokenizer_word_t*	word)		/*!< in: sorted and tokenized
+						word */
 {
-	ulint	selected;
 	dberr_t	ret = DB_SUCCESS;
 
-	selected = fts_select_index(
-		charset, word->text.f_str, word->text.f_len);
-	fts_table->suffix = fts_get_suffix(selected);
+	ut_ad(ins_ctx->aux_index_id == fts_select_index(
+		ins_ctx->charset, word->text.f_str, word->text.f_len));
 
 	/* Pop out each fts_node in word->nodes write them to auxiliary table */
-	while (ib_vector_size(word->nodes) > 0) {
+	for (ulint i = 0; i < ib_vector_size(word->nodes); i++) {
 		dberr_t		error;
 		fts_node_t*	fts_node;
 
-		fts_node = static_cast<fts_node_t*>(ib_vector_pop(word->nodes));
+		fts_node = static_cast<fts_node_t*>(ib_vector_get(word->nodes, i));
 
-		error = fts_write_node(
-			trx, &ins_graph[selected], fts_table, &word->text,
-			fts_node);
+		error = row_merge_write_fts_node(ins_ctx, &word->text, fts_node);
 
 		if (error != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
@@ -1131,6 +1176,8 @@ row_merge_write_fts_word(
 		ut_free(fts_node->ilist);
 		fts_node->ilist = NULL;
 	}
+
+	ib_vector_reset(word->nodes);
 
 	return(ret);
 }
@@ -1180,11 +1227,7 @@ row_fts_insert_tuple(
 				positions);
 
 			/* Write out the current word */
-			row_merge_write_fts_word(ins_ctx->trx,
-						 ins_ctx->ins_graph, word,
-						 &ins_ctx->fts_table,
-						 ins_ctx->charset);
-
+			row_merge_write_fts_word(ins_ctx, word);
 		}
 
 		return;
@@ -1215,9 +1258,7 @@ row_fts_insert_tuple(
 		}
 
 		/* Write out the current word */
-		row_merge_write_fts_word(ins_ctx->trx, ins_ctx->ins_graph,
-					 word, &ins_ctx->fts_table,
-					 ins_ctx->charset);
+		row_merge_write_fts_word(ins_ctx, word);
 
 		/* Copy the new word */
 		fts_string_dup(&word->text, &token_word, ins_ctx->heap);
@@ -1469,7 +1510,6 @@ row_fts_merge_insert(
 	ib_vector_t*		positions;
 	doc_id_t		last_doc_id;
 	ib_alloc_t*		heap_alloc;
-	ulint			n_bytes;
 	ulint			i;
 	mrec_buf_t**		buf;
 	int*			fd;
@@ -1481,6 +1521,14 @@ row_fts_merge_insert(
 	ulint			start;
 	fts_psort_insert_t	ins_ctx;
 	ulint			count_diag = 0;
+	fts_table_t		fts_table;
+	char			aux_table_name[MAX_FULL_NAME_LEN];
+	dict_table_t*		aux_table;
+	dict_index_t*		aux_index;
+	trx_t*			trx;
+	byte			trx_id_buf[6];
+	roll_ptr_t		roll_ptr = 0;
+	dfield_t*		field;
 
 	ut_ad(index);
 	ut_ad(table);
@@ -1488,9 +1536,10 @@ row_fts_merge_insert(
 	/* We use the insert query graph as the dummy graph
 	needed in the row module call */
 
-	ins_ctx.trx = trx_allocate_for_background();
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx, true);
 
-	ins_ctx.trx->op_info = "inserting index entries";
+	trx->op_info = "inserting index entries";
 
 	ins_ctx.opt_doc_id_size = psort_info[0].psort_common->opt_doc_id_size;
 
@@ -1551,23 +1600,47 @@ row_fts_merge_insert(
 	positions = ib_vector_create(heap_alloc, sizeof(ulint), 32);
 	last_doc_id = 0;
 
-	/* Allocate insert query graphs for FTS auxillary
-	Index Table, note we have FTS_NUM_AUX_INDEX such index tables */
-	n_bytes = sizeof(que_t*) * (FTS_NUM_AUX_INDEX + 1);
-	ins_ctx.ins_graph = static_cast<que_t**>(mem_heap_alloc(heap, n_bytes));
-	memset(ins_ctx.ins_graph, 0x0, n_bytes);
-
 	/* We should set the flags2 with aux_table_name here,
 	in order to get the correct aux table names. */
 	index->table->flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
 	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
 			index->table->flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
+	fts_table.type = FTS_INDEX_TABLE;
+	fts_table.index_id = index->id;
+	fts_table.table_id = table->id;
+	fts_table.parent = index->table->name;
+	fts_table.table = index->table;
+	fts_table.suffix = fts_get_suffix(id);
 
-	ins_ctx.fts_table.type = FTS_INDEX_TABLE;
-	ins_ctx.fts_table.index_id = index->id;
-	ins_ctx.fts_table.table_id = table->id;
-	ins_ctx.fts_table.parent = index->table->name;
-	ins_ctx.fts_table.table = index->table;
+	/* Get aux index */
+	fts_get_table_name(&fts_table, aux_table_name);
+	aux_table = dict_table_open_on_name(aux_table_name, FALSE, FALSE,
+					    DICT_ERR_IGNORE_NONE);
+	ut_ad(aux_table != NULL);
+	dict_table_close(aux_table, FALSE, FALSE);
+	aux_index = dict_table_get_first_index(aux_table);
+	aux_index->is_redo_skipped = index->is_redo_skipped;
+
+	/* Create bulk load instance */
+	ins_ctx.btr_bulk = new BtrBulk(aux_index, trx->id);
+	ins_ctx.btr_bulk->init();
+
+	/* Create tuple for insert */
+	ins_ctx.tuple = dtuple_create(heap, dict_index_get_n_fields(aux_index));
+	dict_index_copy_types(ins_ctx.tuple, aux_index,
+			      dict_index_get_n_fields(aux_index));
+
+	/* Set TRX_ID and ROLL_PTR */
+	trx_write_trx_id(trx_id_buf, trx->id);
+	field = dtuple_get_nth_field(ins_ctx.tuple, 2);
+	dfield_set_data(field, &trx_id_buf, 6);
+
+	field = dtuple_get_nth_field(ins_ctx.tuple, 3);
+	dfield_set_data(field, &roll_ptr, 7);
+
+#ifdef UNIV_DEBUG
+	ins_ctx.aux_index_id = id;
+#endif
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		if (psort_info[i].merge_file[id]->n_rec == 0) {
@@ -1667,19 +1740,16 @@ row_fts_merge_insert(
 	}
 
 exit:
-	fts_sql_commit(ins_ctx.trx);
+	fts_sql_commit(trx);
 
-	ins_ctx.trx->op_info = "";
+	trx->op_info = "";
 
 	mem_heap_free(tuple_heap);
 
-	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
-		if (ins_ctx.ins_graph[i]) {
-			fts_que_graph_free(ins_ctx.ins_graph[i]);
-		}
-	}
+	error = ins_ctx.btr_bulk->finish(error);
+	delete ins_ctx.btr_bulk;
 
-	trx_free_for_background(ins_ctx.trx);
+	trx_free_for_background(trx);
 
 	mem_heap_free(heap);
 

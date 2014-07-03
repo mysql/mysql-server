@@ -184,7 +184,7 @@ Hybrid_type_traits_integer::fix_length_and_dec(Item *item, Item *arg) const
 
 void item_init(void)
 {
-  item_user_lock_init();
+  item_func_sleep_init();
   uuid_short_init();
 }
 
@@ -8602,7 +8602,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     }
     else
     {
-      uint length= result->length();
+      size_t length= result->length();
       char *tmp_str= sql_strmake(result->ptr(), length);
       new_item= new Item_string(item->item_name, tmp_str, length, result->charset());
     }
