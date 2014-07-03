@@ -208,7 +208,7 @@ basement nodes, bulk fetch,  and partial fetch:
 #include "ft/ft-internal.h"
 #include "ft/msg.h"
 #include "ft/leafentry.h"
-#include "ft/log-internal.h"
+#include "ft/logger/log-internal.h"
 #include "ft/node.h"
 #include "ft/serialize/block_table.h"
 #include "ft/serialize/sub_block.h"

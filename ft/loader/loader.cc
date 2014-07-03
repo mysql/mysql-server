@@ -106,7 +106,7 @@ PATENT RIGHTS GRANT:
 #include "ft/loader/loader-internal.h"
 #include "ft/loader/pqueue.h"
 #include "ft/loader/dbufio.h"
-#include "ft/log-internal.h"
+#include "ft/logger/log-internal.h"
 #include "ft/node.h"
 #include "ft/serialize/block_table.h"
 #include "ft/serialize/ft-serialize.h"

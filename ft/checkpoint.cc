@@ -133,8 +133,8 @@ PATENT RIGHTS GRANT:
 
 #include "ft/cachetable.h"
 #include "ft/ft.h"
-#include "ft/log-internal.h"
-#include "ft/logger.h"
+#include "ft/logger/log-internal.h"
+#include "ft/logger/logger.h"
 #include "ft/checkpoint.h"
 #include "util/frwlock.h"
 #include "util/status.h"

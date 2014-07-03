@@ -98,7 +98,7 @@ PATENT RIGHTS GRANT:
 #include "portability/memory.h"
 #include "portability/toku_portability.h"
 
-#include "ft/logger.h"
+#include "ft/logger/logger.h"
 #include "ft/rollback.h"
 #include "ft/recover.h"
 #include "ft/txn.h"

@@ -106,7 +106,7 @@ PATENT RIGHTS GRANT:
 
 #include "ft/ft-internal.h"
 #include "ft/leafentry.h"
-#include "ft/logger.h"
+#include "ft/logger/logger.h"
 #include "ft/msg.h"
 #include "ft/txn.h"
 #include "ft/txn_manager.h"

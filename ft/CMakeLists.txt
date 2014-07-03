@@ -7,7 +7,7 @@ set_source_files_properties(
   "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
   PROPERTIES GENERATED TRUE)
 
-add_executable(logformat logformat.cc)
+add_executable(logformat logger/logformat.cc)
 target_link_libraries(logformat ${LIBTOKUPORTABILITY}_static)
 
 add_custom_command(
@@ -15,7 +15,7 @@ add_custom_command(
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_print.cc"
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
   COMMAND $<TARGET_FILE:logformat> .
-  DEPENDS logformat
+  DEPENDS logger/logformat
   )
 add_custom_target(
   generate_log_code
@@ -41,10 +41,10 @@ set(FT_SOURCES
   loader/pqueue
   leafentry
   le-cursor
-  logcursor
-  logfilemgr
-  logger
-  log_upgrade
+  logger/logcursor
+  logger/logfilemgr
+  logger/logger
+  logger/log_upgrade
   msg
   msg_buffer
   node

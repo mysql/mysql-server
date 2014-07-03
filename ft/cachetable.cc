@@ -89,24 +89,24 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <toku_portability.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <stdarg.h>
-#include "cachetable.h"
-#include <ft/log_header.h>
-#include "checkpoint.h"
-#include "log-internal.h"
-#include "cachetable-internal.h"
-#include <memory.h>
-#include <toku_race_tools.h>
+
+#include <portability/memory.h>
+#include <portability/toku_race_tools.h>
 #include <portability/toku_atomic.h>
 #include <portability/toku_pthread.h>
+#include <portability/toku_portability.h>
+#include <portability/toku_stdlib.h>
 #include <portability/toku_time.h>
-#include <util/rwlock.h>
-#include <util/status.h>
-#include <util/context.h>
+
+#include "ft/cachetable.h"
+#include "ft/cachetable-internal.h"
+#include "ft/checkpoint.h"
+#include "ft/logger/log-internal.h"
+#include "util/rwlock.h"
+#include "util/status.h"
+#include "util/context.h"
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status

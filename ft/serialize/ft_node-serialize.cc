@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
 #include "ft/node.h"
-#include "ft/log-internal.h"
+#include "ft/logger/log-internal.h"
 #include "ft/rollback.h"
 #include "ft/serialize/block_table.h"
 #include "ft/serialize/compress.h"

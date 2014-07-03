@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 
 #include "ft/serialize/block_table.h"
 #include "ft/ft.h"
-#include "ft/log-internal.h"
+#include "ft/logger/log-internal.h"
 #include "ft/rollback-ct-callbacks.h"
 
 static void rollback_unpin_remove_callback(CACHEKEY* cachekey, bool for_checkpoint, void* extra) {

@@ -97,7 +97,7 @@ PATENT RIGHTS GRANT:
 #include <ft/cachetable.h>
 #include <ft/cursor.h>
 #include <ft/comparator.h>
-#include <ft/logger.h>
+#include <ft/logger/logger.h>
 #include <ft/txn.h>
 
 #include <util/growable_array.h>

@@ -96,18 +96,18 @@ PATENT RIGHTS GRANT:
 #include <sys/types.h>
 #include <string.h>
 #include <dirent.h>
-#include "ft-internal.h"
-#include "log.h"
-#include "toku_list.h"
-#include "logfilemgr.h"
-#include "txn.h"
-#include "txn_manager.h"
-#include "rollback_log_node_cache.h"
 
-#include <portability/toku_pthread.h>
+#include "portability/toku_list.h"
+#include "portability/toku_pthread.h"
+#include "ft/ft-internal.h"
+#include "ft/logger/log.h"
+#include "ft/logger/logfilemgr.h"
+#include "ft/txn.h"
+#include "ft/txn_manager.h"
+#include "ft/rollback_log_node_cache.h"
 
-#include <util/memarena.h>
-#include <util/omt.h>
+#include "util/memarena.h"
+#include "util/omt.h"
 
 using namespace toku;
 // Locking for the logger

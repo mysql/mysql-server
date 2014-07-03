@@ -90,7 +90,7 @@ PATENT RIGHTS GRANT:
 #include <toku_portability.h>
 #include <string.h>
 
-#include "logcursor.h"
+#include "logger/logcursor.h"
 #include "test.h"
 
 #if defined(HAVE_LIMITS_H)
