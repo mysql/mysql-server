@@ -51,6 +51,7 @@ set(FT_SOURCES
   node
   pivotkeys
   serialize/block_allocator
+  serialize/block_allocator_strategy
   serialize/block_table
   serialize/compress
   serialize/ft_node-serialize
