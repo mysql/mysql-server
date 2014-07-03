@@ -21,6 +21,7 @@
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
 #include <portlib/NdbEnv.h>
+#include <logger/Logger.hpp>
 
 static int opt_stop_on_error = 0;
 
@@ -45,29 +46,29 @@ NDBT_Context::~NDBT_Context(){
 }
 
 const NdbDictionary::Table* NDBT_Context::getTab(){
-  assert(tables.size());
+  require(tables.size());
   return tables[0];
 }
 
 NDBT_TestSuite* NDBT_Context::getSuite(){ 
-  assert(suite != NULL);
+  require(suite != NULL);
   return suite;
 }
 
 NDBT_TestCase* NDBT_Context::getCase(){ 
-  assert(testcase != NULL);
+  require(testcase != NULL);
   return testcase;
 }
 
 const char* NDBT_Context::getTableName(int n) const
 { 
-  assert(suite != NULL);
+  require(suite != NULL);
   return suite->m_tables_in_test[n].c_str();
 }
 
 int NDBT_Context::getNumTables() const
 { 
-  assert(suite != NULL);
+  require(suite != NULL);
   return suite->m_tables_in_test.size();
 }
 
@@ -134,7 +135,7 @@ const char* NDBT_Context::getPropertyWait(const char* _name, const char* _waitVa
 void  NDBT_Context::setProperty(const char* _name, Uint32 _val){ 
   NdbMutex_Lock(propertyMutexPtr);
   const bool b = props.put(_name, _val, true);
-  assert(b == true);
+  require(b == true);
   NdbCondition_Broadcast(propertyCondPtr);
   NdbMutex_Unlock(propertyMutexPtr);
 }
@@ -144,7 +145,7 @@ NDBT_Context::decProperty(const char * name){
   NdbMutex_Lock(propertyMutexPtr);
   Uint32 val = 0;
   if(props.get(name, &val)){
-    assert(val > 0);
+    require(val > 0);
     props.put(name, (val - 1), true);
   }
   NdbCondition_Broadcast(propertyCondPtr);
@@ -179,7 +180,7 @@ NDBT_Context::casProperty(const char * name, Uint32 oldValue, Uint32 newValue)
 void  NDBT_Context::setProperty(const char* _name, const char* _val){ 
   NdbMutex_Lock(propertyMutexPtr);
   const bool b = props.put(_name, _val, true);
-  assert(b == true);
+  require(b == true);
   NdbCondition_Broadcast(propertyCondPtr);
   NdbMutex_Unlock(propertyMutexPtr);
 }
@@ -253,12 +254,12 @@ NDBT_Context::getTables()
 }
 
 void NDBT_Context::setSuite(NDBT_TestSuite* psuite){ 
-  assert(psuite != NULL);
+  require(psuite != NULL);
   suite = psuite;
 }
 
 void NDBT_Context::setCase(NDBT_TestCase* pcase){ 
-  assert(pcase != NULL);
+  require(pcase != NULL);
   testcase = pcase;
 }
 
@@ -321,20 +322,20 @@ NDBT_Step::tearDown(){
 }
 
 Ndb* NDBT_Step::getNdb() const {
-  assert(m_ndb != NULL);
+  require(m_ndb != NULL);
   return m_ndb;
 }
 
 
 int NDBT_Step::execute(NDBT_Context* ctx) {
-  assert(ctx != NULL);
+  require(ctx != NULL);
 
-  int result;  
-
-  g_info << "  |- " << name << " started [" << ctx->suite->getDate() << "]" 
+  char buf[64]; // For timestamp string
+  g_info << "  |- " << name << " started ["
+         << ctx->suite->getDate(buf, sizeof(buf)) << "]"
 	 << endl;
   
-  result = setUp(ctx->m_cluster_connection);
+  int result = setUp(ctx->m_cluster_connection);
   if (result != NDBT_OK){
     return result;
   }
@@ -342,12 +343,14 @@ int NDBT_Step::execute(NDBT_Context* ctx) {
   result = func(ctx, this);
 
   if (result != NDBT_OK) {
-    g_err << "  |- " << name << " FAILED [" << ctx->suite->getDate() 
-	   << "]" << endl;
+    g_err << "  |- " << name << " FAILED ["
+          << ctx->suite->getDate(buf, sizeof(buf))
+          << "]" << endl;
   }	 
    else {
-    g_info << "  |- " << name << " PASSED [" << ctx->suite->getDate() << "]"
-	   << endl;
+    g_info << "  |- " << name << " PASSED ["
+           << ctx->suite->getDate(buf, sizeof(buf))
+           << "]" << endl;
   }
   
   tearDown();
@@ -356,12 +359,12 @@ int NDBT_Step::execute(NDBT_Context* ctx) {
 }
 
 void NDBT_Step::setContext(NDBT_Context* pctx){
-  assert(pctx != NULL);
+  require(pctx != NULL);
   m_ctx = pctx;
 }
 
 NDBT_Context* NDBT_Step::getContext(){
-  assert(m_ctx != NULL);
+  require(m_ctx != NULL);
   return m_ctx;
 }
 
@@ -394,7 +397,7 @@ NDBT_TestCase::NDBT_TestCase(NDBT_TestSuite* psuite,
   _comment(pcomment),
   suite(psuite)
 {
-  assert(suite != NULL);
+  require(suite != NULL);
 
   m_all_tables = false;
   m_has_run = false;
@@ -441,7 +444,7 @@ NDBT_TestCaseImpl1::~NDBT_TestCaseImpl1(){
 }
 
 int NDBT_TestCaseImpl1::addStep(NDBT_Step* pStep){
-  assert(pStep != NULL);
+  require(pStep != NULL);
   steps.push_back(pStep);
   pStep->setStepNo(steps.size());
   int res = NORESULT;
@@ -450,14 +453,14 @@ int NDBT_TestCaseImpl1::addStep(NDBT_Step* pStep){
 }
 
 int NDBT_TestCaseImpl1::addVerifier(NDBT_Verifier* pVerifier){
-  assert(pVerifier != NULL);
+  require(pVerifier != NULL);
   verifiers.push_back(pVerifier);
   return 0;
 }
 
 int NDBT_TestCaseImpl1::addInitializer(NDBT_Initializer* pInitializer,
                                        bool first){
-  assert(pInitializer != NULL);
+  require(pInitializer != NULL);
   if (first)
     initializers.push(pInitializer, 0);
   else
@@ -466,15 +469,15 @@ int NDBT_TestCaseImpl1::addInitializer(NDBT_Initializer* pInitializer,
 }
 
 int NDBT_TestCaseImpl1::addFinalizer(NDBT_Finalizer* pFinalizer){
-  assert(pFinalizer != NULL);
+  require(pFinalizer != NULL);
   finalizers.push_back(pFinalizer);
   return 0;
 }
 
 void NDBT_TestCaseImpl1::addTable(const char* tableName, bool isVerify) {
-  assert(tableName != NULL);
+  require(tableName != NULL);
   const NdbDictionary::Table* pTable = NDBT_Tables::getTable(tableName);
-  assert(pTable != NULL);
+  require(pTable != NULL);
   testTables.push_back(pTable);
   isVerifyTables = isVerify;
 }
@@ -515,21 +518,21 @@ bool NDBT_TestCaseImpl1::isVerify(const NdbDictionary::Table* aTable) {
 
 void  NDBT_TestCase::setProperty(const char* _name, Uint32 _val){ 
   const bool b = props.put(_name, _val);
-  assert(b == true);
+  require(b == true);
 }
 
 void  NDBT_TestCase::setProperty(const char* _name, const char* _val){ 
   const bool b = props.put(_name, _val);
-  assert(b == true);
+  require(b == true);
 }
 
 
 void *
 runStep(void * s){
-  assert(s != NULL);
+  require(s != NULL);
   NDBT_Step* pStep = (NDBT_Step*)s;
   NDBT_Context* ctx = pStep->getContext();
-  assert(ctx != NULL);
+  require(ctx != NULL);
    // Execute function
   int res = pStep->execute(ctx);
   if(res != NDBT_OK){
@@ -537,7 +540,7 @@ runStep(void * s){
   }
   // Report 
   NDBT_TestCaseImpl1* pCase = (NDBT_TestCaseImpl1*)ctx->getCase();
-  assert(pCase != NULL);
+  require(pCase != NULL);
   pCase->reportStepResult(pStep, res);
   return NULL;
 }
@@ -584,8 +587,8 @@ void NDBT_TestCaseImpl1::waitSteps(){
 	numStepsFail++;
     }       
   }
-  assert(completedSteps == steps.size());
-  assert(completedSteps == numStepsCompleted);
+  require(completedSteps == steps.size());
+  require(completedSteps == numStepsCompleted);
   
   NdbMutex_Unlock(waitThreadsMutexPtr);
   void *status;
@@ -609,7 +612,7 @@ NDBT_TestCaseImpl1::getNoOfCompletedSteps() const {
 
 void NDBT_TestCaseImpl1::reportStepResult(const NDBT_Step* pStep, int result){
   NdbMutex_Lock(waitThreadsMutexPtr);
-  assert(pStep != NULL);
+  require(pStep != NULL);
   for (unsigned i = 0; i < steps.size(); i++){
     if(steps[i] != NULL && steps[i] == pStep){
       results[i] = result;
@@ -623,10 +626,11 @@ void NDBT_TestCaseImpl1::reportStepResult(const NDBT_Step* pStep, int result){
 }
 
 
-int NDBT_TestCase::execute(NDBT_Context* ctx){
-  int res;
-
-  ndbout << "- " << _name << " started [" << ctx->suite->getDate()
+int NDBT_TestCase::execute(NDBT_Context* ctx)
+{
+  char buf[64]; // For timestamp string
+  ndbout << "- " << _name << " started ["
+         << ctx->suite->getDate(buf, sizeof(buf))
 	 << "]" << endl;
 
   ctx->setCase(this);
@@ -637,7 +641,7 @@ int NDBT_TestCase::execute(NDBT_Context* ctx){
 
     PropertiesType pt;
     const bool b = props.getTypeOf(key, &pt);
-    assert(b == true);
+    require(b == true);
     switch(pt){
     case PropertiesType_Uint32:{
       Uint32 val;
@@ -660,6 +664,7 @@ int NDBT_TestCase::execute(NDBT_Context* ctx){
   // test case consist only of initializer
   startTimer(ctx);
   
+  int res;
   if ((res = runInit(ctx)) == NDBT_OK){
     // If initialiser is ok, run steps
     
@@ -678,12 +683,14 @@ int NDBT_TestCase::execute(NDBT_Context* ctx){
   runFinal(ctx); 
 
   if (res == NDBT_OK) {
-    ndbout << "- " << _name << " PASSED [" << ctx->suite->getDate() << "]"
-	   << endl;
+    ndbout << "- " << _name << " PASSED ["
+           << ctx->suite->getDate(buf, sizeof(buf))
+           << "]" << endl;
   }
   else {
-    ndbout << "- " << _name << " FAILED [" << ctx->suite->getDate() << "]"
-	   << endl;
+    ndbout << "- " << _name << " FAILED ["
+           << ctx->suite->getDate(buf, sizeof(buf))
+           << "]" << endl;
   }
   return res;
 }
@@ -841,7 +848,7 @@ void NDBT_TestSuite::setCreateAllTables(bool _flag){
   m_createAll = _flag;
 }
 void NDBT_TestSuite::setConnectCluster(bool _flag){
-  assert(m_createTable == false);
+  require(m_createTable == false);
   m_connect_cluster = _flag;
 }
 
@@ -870,13 +877,13 @@ bool NDBT_TestSuite::timerIsOn(){
 }
 
 int NDBT_TestSuite::addTest(NDBT_TestCase* pTest){
-  assert(pTest != NULL);
+  require(pTest != NULL);
   tests.push_back(pTest);
   return 0;
 }
 
 int NDBT_TestSuite::addExplicitTest(NDBT_TestCase* pTest){
-  assert(pTest != NULL);
+  require(pTest != NULL);
   explicitTests.push_back(pTest);
   return 0;
 }
@@ -908,17 +915,17 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
   if(tests.size() == 0)
     return NDBT_FAILED;
 
-  ndbout << name << " started [" << getDate() << "]" << endl;
+  char buf[64]; // For timestamp string
+  ndbout << name << " started [" << getDate(buf, sizeof(buf)) << "]" << endl;
 
+  testSuiteTimer.doStart();
   if(!runonce)
   {
-    testSuiteTimer.doStart();
     for (int t=0; t < NDBT_Tables::getNumTables(); t++){
       const NdbDictionary::Table* ptab = NDBT_Tables::getTable(t);
       ndbout << "|- " << ptab->getName() << endl;
       execute(con, ptab, _testname);
     }
-    testSuiteTimer.doStop();
   }
   else
   {
@@ -940,6 +947,7 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
         execute(con, pt, pTab);
     }
   }
+  testSuiteTimer.doStop();
   return reportAllTables(_testname);
 }
 
@@ -978,7 +986,8 @@ NDBT_TestSuite::executeOne(Ndb_cluster_connection& con,
   if (tests.size() == 0 && explicitTests.size() == 0)
     return NDBT_FAILED;
 
-  ndbout << name << " started [" << getDate() << "]" << endl;
+  char buf[64]; // For timestamp string
+  ndbout << name << " started [" << getDate(buf, sizeof(buf)) << "]" << endl;
 
   const NdbDictionary::Table* ptab = NDBT_Tables::getTable(_tabname);
   if (ptab == NULL)
@@ -1020,7 +1029,9 @@ NDBT_TestSuite::executeOneCtx(Ndb_cluster_connection& con,
       break;
     }
 
-    ndbout << name << " started [" << getDate() << "]" << endl;
+    char buf[64]; // For timestamp string
+    ndbout << name
+           << " started [" << getDate(buf, sizeof(buf)) << "]" << endl;
     ndbout << "|- " << ptab->getName() << endl;
 
     if (_testname == NULL)
@@ -1280,7 +1291,9 @@ runEmptyDropTable(NDBT_Context* ctx, NDBT_Step* step)
 int 
 NDBT_TestSuite::report(const char* _tcname){
   int result;
-  ndbout << "Completed " << name << " [" << getDate() << "]" << endl;
+  char buf[64]; // For timestamp string
+  ndbout << "Completed " << name
+         << " [" << getDate(buf, sizeof(buf)) << "]" << endl;
   printTestCaseSummary(_tcname);
   ndbout << numTestsExecuted << " test(s) executed" << endl;
   ndbout << numTestsOk << " test(s) OK" 
@@ -1318,7 +1331,10 @@ void NDBT_TestSuite::printTestCaseSummary(const char* _tcname){
 
 int NDBT_TestSuite::reportAllTables(const char* _testname){
   int result;
-  ndbout << "Completed running test [" << getDate() << "]" << endl;
+  char buf[64]; // For timestamp string
+  ndbout << "Completed running test ["
+         << getDate(buf, sizeof(buf))
+         << "]" << endl;
   const int totalNumTests = numTestsExecuted;
   printTestCaseSummary(_testname);
   ndbout << numTestsExecuted<< " test(s) executed" << endl;
@@ -1449,6 +1465,8 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
 
   ndb_load_defaults(NULL, load_default_groups,&argc,&_argv);
+  // Save pointer to memory allocated by 'ndb_load_defaults'
+  char** defaults_argv= _argv;
 
   int ho_error;
 #ifndef DBUG_OFF
@@ -1458,6 +1476,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 			       ndb_std_get_one_option)))
   {
     usage();
+    ndb_free_defaults(defaults_argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -1578,22 +1597,26 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
   if (opt_print == true){
     printExecutionTree();
+    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   if (opt_print_html == true){
     printExecutionTreeHTML();
+    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   if (opt_print_cases == true){
     printCases();
+    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   if(m_connect_cluster && con.connect(12, 5, 1))
   {
+    ndb_free_defaults(defaults_argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -1609,6 +1632,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     res = report(opt_testname);
   }
 
+  ndb_free_defaults(defaults_argv);
   return NDBT_ProgramExit(res);
 }
 
@@ -1651,27 +1675,16 @@ void NDBT_TestSuite::printCases(){
   } 
 }
 
-const char* NDBT_TestSuite::getDate(){
-  static char theTime[128];
-  struct tm* tm_now;
+const char* NDBT_TestSuite::getDate(char* str, size_t len)
+{
+  // Get current time
   time_t now;
-  now = time((time_t*)NULL);
-#ifdef NDB_WIN32
-  tm_now = localtime(&now);
-#else
-  tm_now = gmtime(&now);
-#endif
-  
-  BaseString::snprintf(theTime, 128,
-	   "%d-%.2d-%.2d %.2d:%.2d:%.2d",
-	   tm_now->tm_year + 1900, 
-	   tm_now->tm_mon + 1, 
-	   tm_now->tm_mday,
-	   tm_now->tm_hour,
-	   tm_now->tm_min,
-	   tm_now->tm_sec);
+  time(&now);
 
-  return theTime;
+  // Print as timestamp to buf
+  Logger::format_timestamp(now, str, len);
+
+  return str;
 }
 
 void NDBT_TestCaseImpl1::printHTML(){
@@ -1691,7 +1704,7 @@ void NDBT_TestCaseImpl1::print(){
   for(const char * key = it.first(); key != 0; key = it.next()){
     PropertiesType pt;
     const bool b = props.getTypeOf(key, &pt);
-    assert(b == true);
+    require(b == true);
     switch(pt){
     case PropertiesType_Uint32:{
       Uint32 val;

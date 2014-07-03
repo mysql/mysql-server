@@ -5,47 +5,68 @@
 
 /** Begin a transaction.
  * IMMEDIATE
- * If a transaction is already active, an exception is thrown.
+ *
+ * This function returns a promise.  On success, the promise will be fulfilled.  
+ * The optional callback receives only an error value.  Any extra arguments 
+ * passed after the callback function will be returned to the callback verbatim
+ * following the error.
  * 
+ * @param callback
  */
-begin();
+begin([callback], [...] );
 
-/** Commit a transaction. Errors are reported in the callback.
- *  Extra arguments are passed to the callback.
+/** Commit a transaction.
  *  ASYNC
+ *
+ * This function returns a promise.  On success, the promise will be fulfilled.  
+ * The optional callback receives only an error value.  Any extra arguments 
+ * passed after the callback function will be returned to the callback verbatim
+ * following the error.
  * 
  * @param callback 
  */
-commit(Function(error, ... ) callback, ... );
+commit([callback], [...] );
 
 
-/** Roll back a transaction. Errors are reported in the callback. 
+/** Roll back a transaction. 
  * ASYNC
+ *
+ * This function returns a promise.  On success, the promise will be fulfilled.
+ * The optional callback receives only an error value.  Any extra arguments 
+ * passed after the callback function will be returned to the callback verbatim
+ * following the error.
  *
  * @param callback 
  */
-rollback(Function(error, ... ) callback, ... );
+rollback([callback], [...] );
 
 
 /** Is there a transaction currently active?
  * IMMEDIATE
- * @return true if a transaction is active
+ *
+ * @return true if a transaction is active; or false if not
  */
 boolean isActive();
 
 
-/** Mark this transaction as rollback only. After this method is called,
- * commit() will roll back the transaction and throw an exception;
- * rollback() will roll back the transaction and not throw an exception.
- *
- * If in autocommit mode, an exception is thrown.
+/** Mark this transaction as rollback only.
  * IMMEDIATE
+ *
+ * After this method is called in explicit mode,
+ * commit() will roll back the transaction, reject the commit promise,
+ *   and return an error in the callback.
+ * rollback() will roll back the transaction, fulfill the rollback promise,
+ *   and return success in the callback.
+ * If a transaction is not active, or is already marked for rollback, the method is ignored.
+ *
  */
 setRollbackOnly();
 
 
 /** Has this transaction been marked for rollback only?
- * @return true if the transaction has been marked for rollback only
  * IMMEDIATE
+ *
+ * @return true if the transaction has been started and marked for rollback only; or false if not
+ *
  */
 boolean getRollbackOnly();

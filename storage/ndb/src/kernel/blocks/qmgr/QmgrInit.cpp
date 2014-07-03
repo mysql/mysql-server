@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,6 +74,10 @@ void Qmgr::initData()
   
   setHbApiDelay(hbDBAPI);
 
+  const NDB_TICKS now = NdbTick_getCurrentTicks(); //OJA bug#17757895
+  interface_check_timer.setDelay(1000);
+  interface_check_timer.reset(now);
+
 #ifdef ERROR_INSERT
   nodeFailCount = 0;
 #endif
@@ -91,10 +95,8 @@ void Qmgr::initData()
   cneighbourh = ZNIL;
   cneighbourl = ZNIL;
   cdelayRegreq = ZDELAY_REGREQ;
-  cactivateApiCheck = 0;
   c_allow_api_connect = 0;
   ctoStatus = Q_NOT_ACTIVE;
-  clatestTransactionCheck = 0;
 
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++)
   {

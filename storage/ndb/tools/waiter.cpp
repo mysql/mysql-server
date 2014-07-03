@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <time.h>
 #include <ndb_global.h>
 #include <ndb_opts.h>
+#include <time.h>
 
 #include <mgmapi.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <NdbTick.h>
+#include <portlib/ndb_localtime.h>
 
 #include <NDBT.hpp>
 
@@ -35,7 +36,7 @@ waitClusterStatus(const char* _addr, ndb_mgm_node_status _status);
 static int _no_contact = 0;
 static int _not_started = 0;
 static int _single_user = 0;
-static int _timeout = 120;
+static int _timeout = 120; // Seconds
 static const char* _wait_nodes = 0;
 static const char* _nowait_nodes = 0;
 static NdbNodeBitmask nowait_nodes_bitmask;
@@ -246,25 +247,24 @@ getStatus(){
   return -1;
 }
 
+static
 char*
-getTimeAsString(char* pStr)
+getTimeAsString(char* pStr, size_t len)
 {
+  // Get current time
   time_t now;
-  now= ::time((time_t*)NULL);
+  time(&now);
 
-  struct tm* tm_now;
-#ifdef NDB_WIN32
-  tm_now = localtime(&now);
-#else
-  tm_now = ::localtime(&now); //uses the "current" timezone
-#endif
+  // Convert to local timezone
+  tm tm_buf;
+  ndb_localtime_r(&now, &tm_buf);
 
-  BaseString::snprintf(pStr, 9,
-	   "%02d:%02d:%02d",
-	   tm_now->tm_hour,
-	   tm_now->tm_min,
-	   tm_now->tm_sec);
-
+  // Print to string buffer
+  BaseString::snprintf(pStr, len,
+                       "%02d:%02d:%02d",
+                       tm_buf.tm_hour,
+                       tm_buf.tm_min,
+                       tm_buf.tm_sec);
   return pStr;
 }
 
@@ -302,11 +302,12 @@ waitClusterStatus(const char* _addr,
   const int MAX_RESET_ATTEMPTS = 10;
   bool allInState = false;
 
-  Uint64 time_now = NdbTick_CurrentMillisecond();
-  Uint64 timeout_time = time_now + 1000 * _timeout;
+  NDB_TICKS start = NdbTick_getCurrentTicks();
+  NDB_TICKS now = start;
 
   while (allInState == false){
-    if (_timeout > 0 && time_now > timeout_time){
+    if (_timeout > 0 &&
+        NdbTick_Elapsed(start,now).seconds() > (Uint64)_timeout){
       /**
        * Timeout has expired waiting for the nodes to enter
        * the state we want
@@ -348,7 +349,7 @@ waitClusterStatus(const char* _addr,
 	    << " resetting timeout "
 	    << resetAttempts << endl;
 
-      timeout_time = time_now + 1000 * _timeout;
+      start = now;
 
       resetAttempts++;
     }
@@ -366,7 +367,7 @@ waitClusterStatus(const char* _addr,
     for (unsigned n = 0; n < ndbNodes.size(); n++) {
       ndb_mgm_node_state* ndbNode = &ndbNodes[n];
 
-      assert(ndbNode != NULL);
+      require(ndbNode != NULL);
 
       g_info << "Node " << ndbNode->node_id << ": "
 	     << ndb_mgm_get_node_status_string(ndbNode->node_status)<< endl;
@@ -376,15 +377,15 @@ waitClusterStatus(const char* _addr,
     }
 
     if (!allInState) {
-      char time[9];
-      g_info << "[" << getTimeAsString(time) << "] "
+      char timestamp[9];
+      g_info << "[" << getTimeAsString(timestamp, sizeof(timestamp)) << "] "
              << "Waiting for cluster enter state "
              << ndb_mgm_get_node_status_string(_status) << endl;
     }
 
     attempts++;
     
-    time_now = NdbTick_CurrentMillisecond();
+    now = NdbTick_getCurrentTicks();
   }
   return 0;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #include <ndb_global.h>
 #include "ndbd_malloc.hpp"
 #include <NdbMem.h>
+#include <NdbThread.h>
+#include <NdbOut.hpp>
 
 //#define TRACE_MALLOC
 #ifdef TRACE_MALLOC
@@ -29,22 +31,109 @@
 
 extern void do_refresh_watch_dog(Uint32 place);
 
+#define TOUCH_PARALLELISM 8
+#define MIN_START_THREAD_SIZE (128 * 1024 * 1024)
+#define TOUCH_PAGE_SIZE 4096
+#define NUM_PAGES_BETWEEN_WATCHDOG_SETS 32768
+
+struct AllocTouchMem
+{
+  volatile Uint32* watchCounter;
+  size_t sz;
+  void *p;
+  Uint32 index;
+};
+
+extern "C"
+void*
+touch_mem(void* arg)
+{
+  struct AllocTouchMem* touch_mem_ptr = (struct AllocTouchMem*)arg;
+
+  size_t sz = touch_mem_ptr->sz;
+  Uint32 index = touch_mem_ptr->index;
+  unsigned char *p = (unsigned char *)touch_mem_ptr->p;
+  size_t num_pages_per_thread = 1;
+  size_t first_page;
+  size_t tot_pages = (sz + (TOUCH_PAGE_SIZE - 1)) / TOUCH_PAGE_SIZE;
+
+  if (tot_pages > TOUCH_PARALLELISM)
+  {
+    num_pages_per_thread = ((tot_pages + (TOUCH_PARALLELISM - 1)) /
+                           TOUCH_PARALLELISM);
+  }
+
+  first_page = index * num_pages_per_thread;
+
+  if (first_page >= tot_pages)
+  {
+    return NULL; /* We're done, no page to handle */
+  }
+  else if ((tot_pages - first_page) < num_pages_per_thread)
+  {
+    num_pages_per_thread = tot_pages - first_page;
+  }
+
+  unsigned char * ptr = (unsigned char*)(p + (first_page * 4096));
+
+  for (Uint32 i = 0;
+       i < num_pages_per_thread;
+       ptr += TOUCH_PAGE_SIZE, i++)
+  {
+    *ptr = 0;
+    if (i % NUM_PAGES_BETWEEN_WATCHDOG_SETS == 0)
+    {
+      /* Roughly every 120 ms we come here in worst case */
+      *(touch_mem_ptr->watchCounter) = 9;
+    }
+  }
+  return NULL;
+}
+
 void
 ndbd_alloc_touch_mem(void *p, size_t sz, volatile Uint32 * watchCounter)
 {
+  struct NdbThread *thread_ptr[TOUCH_PARALLELISM];
+  struct AllocTouchMem touch_mem_struct[TOUCH_PARALLELISM];
+
   Uint32 tmp = 0;
   if (watchCounter == 0)
-    watchCounter = &tmp;
-
-  unsigned char * ptr = (unsigned char*)p;
-  while (sz >= 4096)
   {
-    * ptr = 0;
-    ptr += 4096;
-    sz -= 4096;
-    * watchCounter = 9;
+    watchCounter = &tmp;
+  }
+
+  for (Uint32 i = 0; i < TOUCH_PARALLELISM; i++)
+  {
+    touch_mem_struct[i].watchCounter = watchCounter;
+    touch_mem_struct[i].sz = sz;
+    touch_mem_struct[i].p = p;
+    touch_mem_struct[i].index = i;
+
+    thread_ptr[i] = NULL;
+    if (sz > MIN_START_THREAD_SIZE)
+    {
+      thread_ptr[i] = NdbThread_Create(touch_mem,
+                                       (NDB_THREAD_ARG*)&touch_mem_struct[i],
+                                       0,
+                                       "touch_thread",
+                                       NDB_THREAD_PRIO_MEAN);
+    }
+    if (thread_ptr[i] == NULL)
+    {
+      touch_mem((void*)&touch_mem_struct[i]);
+    }
+  }
+  for (Uint32 i = 0; i < TOUCH_PARALLELISM; i++)
+  {
+    void *dummy_status;
+    if (thread_ptr[i])
+    {
+      NdbThread_WaitFor(thread_ptr[i], &dummy_status);
+      NdbThread_Destroy(&thread_ptr[i]);
+    }
   }
 }
+
 
 #ifdef TRACE_MALLOC
 static void xxx(size_t size, size_t *s_m, size_t *s_k, size_t *s_b)

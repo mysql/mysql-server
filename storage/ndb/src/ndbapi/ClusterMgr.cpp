@@ -56,6 +56,7 @@ runClusterMgr_C(void * me)
 
 ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   theStop(0),
+  m_sent_API_REGREQ_to_myself(false),
   theFacade(_facade),
   theArbitMgr(NULL),
   m_connect_count(0),
@@ -65,7 +66,8 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   minDbVersion(0),
   theClusterMgrThread(NULL),
   waitingForHB(false),
-  m_cluster_state(CS_waiting_for_clean_cache)
+  m_cluster_state(CS_waiting_for_clean_cache),
+  m_hbFrequency(0)
 {
   DBUG_ENTER("ClusterMgr::ClusterMgr");
   clusterMgrThreadMutex = NdbMutex_Create();
@@ -125,7 +127,6 @@ ClusterMgr::configure(Uint32 nodeId,
       theNode.m_info.m_type = NodeInfo::MGM;
       break;
     default:
-      type = type;
       break;
     }
   }
@@ -167,6 +168,11 @@ ClusterMgr::configure(Uint32 nodeId,
     delete theArbitMgr;
     theArbitMgr= NULL;
   }
+
+  // Configure heartbeats.
+  unsigned hbFrequency = 0;
+  iter.get(CFG_MGMD_MGMD_HEARTBEAT_INTERVAL, &hbFrequency);
+  m_hbFrequency = static_cast<Uint32>(hbFrequency);
 }
 
 void
@@ -346,16 +352,16 @@ ClusterMgr::threadMain()
   nodeFail_signal.theTrace  = 0;
   nodeFail_signal.theLength = NodeFailRep::SignalLengthLong;
 
-  NDB_TICKS timeSlept = 100;
-  NDB_TICKS now = NdbTick_CurrentMillisecond();
+  Uint32 timeSlept = minHeartBeatInterval;
+  NDB_TICKS now = NdbTick_getCurrentTicks();
 
   while(!theStop)
   {
     /* Sleep at 100ms between each heartbeat check */
-    NDB_TICKS before = now;
+    const NDB_TICKS before = now;
     for (Uint32 i = 0; i<5; i++)
     {
-      NdbSleep_MilliSleep(20);
+      NdbSleep_MilliSleep(minHeartBeatInterval/5);
       {
         Guard g(clusterMgrThreadMutex);
         /**
@@ -366,8 +372,8 @@ ClusterMgr::threadMain()
         complete_poll();
       }
     }
-    now = NdbTick_CurrentMillisecond();
-    timeSlept = (now - before);
+    now = NdbTick_getCurrentTicks();
+    timeSlept = (Uint32)NdbTick_Elapsed(before, now).milliSec();
 
     if (m_cluster_state == CS_waiting_for_clean_cache &&
         theFacade.m_globalDictCache)
@@ -413,16 +419,19 @@ ClusterMgr::threadMain()
 	continue;
       }
       
-      if (nodeId == getOwnNodeId() && theNode.is_confirmed())
+      if (nodeId == getOwnNodeId())
       {
         /**
          * Don't send HB to self more than once
          * (once needed to avoid weird special cases in e.g ConfigManager)
          */
-        continue;
+        if (m_sent_API_REGREQ_to_myself)
+        {
+          continue;
+        }
       }
 
-      cm_node.hbCounter += (Uint32)timeSlept;
+      cm_node.hbCounter += timeSlept;
       if (cm_node.hbCounter >= m_max_api_reg_req_interval ||
           cm_node.hbCounter >= cm_node.hbFrequency)
       {
@@ -443,6 +452,11 @@ ClusterMgr::threadMain()
 #ifdef DEBUG_REG
 	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
 #endif
+        if (nodeId == getOwnNodeId())
+        {
+          /* Set flag to ensure we only send once to ourself */
+          m_sent_API_REGREQ_to_myself = true;
+        }
 	raw_sendSignal(&signal, nodeId);
       }//if
       
@@ -666,6 +680,14 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   assert(node.defined == true);
   assert(node.is_connected() == true);
 
+  /* 
+     API nodes send API_REGREQ once to themselves. Other than that, there are
+     no API-API heart beats.
+  */
+  assert(cm_node.m_info.m_type != NodeInfo::API ||
+         (nodeId == getOwnNodeId() &&
+          !cm_node.is_confirmed()));
+
   if(node.m_info.m_version != apiRegReq->version){
     node.m_info.m_version = apiRegReq->version;
     node.m_info.m_mysql_version = apiRegReq->mysql_version;
@@ -690,7 +712,12 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   conf->qmgrRef = numberToRef(API_CLUSTERMGR, theFacade.ownId());
   conf->version = NDB_VERSION;
   conf->mysql_version = NDB_MYSQL_VERSION_D;
-  conf->apiHeartbeatFrequency = cm_node.hbFrequency;
+
+  /*
+    This is the frequency (in centiseonds) at which we want the other node
+    to send API_REGREQ messages.
+  */
+  conf->apiHeartbeatFrequency = m_hbFrequency/10;
 
   conf->minDbVersion= 0;
   conf->nodeState= node.m_state;
@@ -771,7 +798,31 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
 
   cm_node.hbMissed = 0;
   cm_node.hbCounter = 0;
-  cm_node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
+  /*
+    By convention, conf->apiHeartbeatFrequency is in centiseconds rather than
+    milliseconds. See also Qmgr::sendApiRegConf().
+   */
+  const Int64 freq = 
+    (static_cast<Int64>(apiRegConf->apiHeartbeatFrequency) * 10) - 50;
+
+  if (freq > UINT_MAX32)
+  {
+    // In case of overflow.
+    assert(false);  /* Note this assert fails on some upgrades... */
+    cm_node.hbFrequency = UINT_MAX32;
+  }
+  else if (freq < minHeartBeatInterval)
+  {
+    /** 
+     * We use minHeartBeatInterval as a lower limit. This also prevents 
+     * against underflow.
+     */
+    cm_node.hbFrequency = minHeartBeatInterval;
+  }
+  else
+  {
+    cm_node.hbFrequency = static_cast<Uint32>(freq);
+  }
 
   // Distribute signal to all threads/blocks
   // TODO only if state changed...

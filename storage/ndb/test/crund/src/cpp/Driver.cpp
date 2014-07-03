@@ -15,53 +15,45 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "Driver.hpp"
+
+#include <cstddef>
+#include <cassert>
 #include <iostream>
 #include <sstream>
-#include <fstream>
 #include <string>
 #include <vector>
-#include <cassert>
-#include <ctime>
 
 #include "helpers.hpp"
 #include "string_helpers.hpp"
-
-#include "Driver.hpp"
 
 using std::cout;
 using std::flush;
 using std::endl;
 using std::ios_base;
-using std::ofstream;
 using std::ostringstream;
 using std::string;
-using std::wstring;
 using std::vector;
 
-using utils::Properties;
-using utils::toBool;
-using utils::toInt;
-using utils::toString;
-
-//---------------------------------------------------------------------------
+// ----------------------------------------------------------------------
+// usage
+// ----------------------------------------------------------------------
 
 vector< string > Driver::propFileNames;
 string Driver::logFileName;
 
 void
-Driver::exitUsage()
-{
+Driver::exitUsage() {
     cout << "usage: [options]" << endl
          << "    [-p <file name>]...    properties file name" << endl
-         << "    [-l <file name>]       log file name for data output" << endl
+         << "    [-l <file name>]       log file name for results" << endl
          << "    [-h|--help]            print usage message and exit" << endl
          << endl;
     exit(1); // return an error code
 }
 
 void
-Driver::parseArguments(int argc, const char* argv[])
-{
+Driver::parseArguments(int argc, const char* argv[]) {
     for (int i = 1; i < argc; i++) {
         const string arg = argv[i];
         if (arg.compare("-p") == 0) {
@@ -106,58 +98,34 @@ Driver::parseArguments(int argc, const char* argv[])
     //cout << "logFileName='" << logFileName << "'" << endl;
 }
 
-// ----------------------------------------------------------------------
-
 void
 Driver::run() {
     init();
-
-    if (nRuns > 0) {
-        cout << endl
-             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl
-             << "hot runs ..." << endl
-             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
-
-        for (int i = 0; i < nRuns; i++) {
-            runTests();
-        }
-
-        // write log buffers
-        if (logRealTime) {
-            log << descr << ", rtime[ms]"
-                << header.rdbuf()->str() << endl
-                << rtimes.rdbuf()->str() << endl << endl << endl;
-        }        
-        if (logCpuTime) {
-            log << descr << ", ctime[ms]"
-                << header.rdbuf()->str() << endl
-                << ctimes.rdbuf()->str() << endl << endl << endl;
-        }
-    }
-
+    runLoads();
     close();
 }
 
+// ----------------------------------------------------------------------
+// intializers/finalizers
+// ----------------------------------------------------------------------
+
 void
 Driver::init() {
+    cout.flags(ios_base::boolalpha); // print booleans as strings
     loadProperties();
     initProperties();
     printProperties();
     openLogFile();
-
-    // clear log buffers
-    logHeader = true;
-    header.rdbuf()->str("");
-    rtimes.rdbuf()->str("");
+    clearLogBuffers();
+    initLoads();
 }
 
 void
 Driver::close() {
-    // clear log buffers
-    header.rdbuf()->str("");
-    rtimes.rdbuf()->str("");
-
+    closeLoads();
+    clearLogBuffers();
     closeLogFile();
+    props.clear();
 }
 
 void
@@ -173,66 +141,236 @@ Driver::loadProperties() {
 
 void
 Driver::initProperties() {
-    cout << "setting driver properties ..." << flush;
-
+    cout << endl << "reading driver properties ..." << flush;
     ostringstream msg;
+    hasIgnoredSettings = false;
 
-    logRealTime = toBool(props[L"logRealTime"], true);
-    logCpuTime = toBool(props[L"logCpuTime"], false);
-
-    nRuns = toInt(props[L"nRuns"], 1, -1);
+    nRuns = toI(props[L"nRuns"], 1, -1);
     if (nRuns < 0) {
-        msg << "[ignored] nRuns:             '"
-            << toString(props[L"nRuns"]) << "'" << endl;
+        msg << "[IGNORED] nRuns:             '"
+            << toS(props[L"nRuns"]) << "'" << endl;
         nRuns = 1;
     }
 
-    //if (msg.tellp() == 0) // netbeans reports amibuities
-    if (msg.str().empty()) {
+    logRealTime = toB(props[L"logRealTime"], true);
+    logCpuTime = toB(props[L"logCpuTime"], false);
+    logSumOfOps = toB(props[L"logSumOfOps"], true);
+    failOnError = toB(props[L"failOnError"], true);
+
+    const string prefix("Ndbapi"); // name prefix for native loads
+    vector< string > ln;
+    split(toS(props[L"loads"]), ',', std::back_inserter(ln));
+    for (vector< string >::iterator i = ln.begin(); i != ln.end(); ++i) {
+        const string& l = *i;
+        if (l.compare(0, prefix.size(), prefix)) {
+            msg << "[IGNORED] non-Ndbapi load:      '" << l << "'" << endl;
+        } else {
+            loadClassNames.push_back(l);
+        }
+    }
+
+    if (!msg.tellp()) { // or msg.str().empty() if ambigous
         cout << "   [ok]" << endl;
     } else {
-        cout << endl << msg.str() << endl;
+        setIgnoredSettings();
+        cout << endl << msg.str() << flush;
     }
 }
 
 void
 Driver::printProperties() {
-    const ios_base::fmtflags f = cout.flags();
-    // no effect calling manipulator function, not sure why
-    //cout << ios_base::boolalpha;
-    cout.flags(ios_base::boolalpha);
-
-    cout << endl << "driver settings ..." << endl;
-    cout << "logRealTime:                    " << logRealTime << endl;
-    cout << "logCpuTime:                     " << logCpuTime << endl;
-    cout << "nRuns:                          " << nRuns << endl;
-
-    cout.flags(f);
+    cout << endl << "driver settings ..." << endl
+         << "nRuns:                          " << nRuns << endl
+         << "logRealTime:                    " << logRealTime << endl
+         << "logCpuTime:                     " << logCpuTime << endl
+         << "logSumOfOps:                    " << logSumOfOps << endl
+         << "failOnError:                    " << failOnError << endl
+         << "loadClassNames:                 " << toString(loadClassNames)
+         << endl;
 }
 
 void
 Driver::openLogFile() {
-    cout << endl
-         << "opening results file:" << flush;
+    cout << endl << "opening results file:           " << logFileName << endl;
     log.open(logFileName.c_str(), ios_base::out | ios_base::trunc);
     assert(log.good());
-    cout << "           [ok: " << logFileName << "]" << endl;
 }
 
 void
 Driver::closeLogFile() {
-    cout << endl
-         << "closing results file:" << flush;
+    cout << endl << "closing files ..." << flush;
     log.close();
-    cout << "           [ok: " << logFileName << "]" << endl;
+    cout << "               [ok]" << endl;
+}
+
+void
+Driver::initLoads() {
+    if (loads.empty())
+        addLoads();
+
+    if (loads.empty())
+        cout << endl
+             << "++++++++++  NOTHING TO TO, NO LOAD CLASSES GIVEN  ++++++++++"
+             << endl;
+
+    for (Loads::iterator i = loads.begin(); i != loads.end(); ++i) {
+        Load* l = *i;
+        assert(l);
+        l->init();
+    }
+}
+
+void
+Driver::closeLoads() {
+    for (Loads::iterator i = loads.begin(); i != loads.end(); ++i) {
+        Load* l = *i;
+        assert(l);
+        l->close();
+    }
+    loads.clear();
+}
+
+void
+Driver::addLoads() {
+    vector< string >& ln = loadClassNames;
+    for (vector< string >::iterator i = ln.begin(); i != ln.end(); ++i) {
+        const string& name = *i;
+        ostringstream msg;
+        cout << endl << "instantiating load ..." << flush;
+
+        if (!createLoad(name)) {
+            msg << "[SKIPPING] unknown load:        '" << name << "'" << endl;
+        }
+
+        if (!msg.tellp()) { // or msg.str().empty() if ambigous
+            cout << "          [ok: " << name << "]" << endl;
+        } else {
+            setIgnoredSettings();
+            cout << endl << msg.str() << flush;
+        }
+    }
 }
 
 // ----------------------------------------------------------------------
+// operations
+// ----------------------------------------------------------------------
 
 void
-Driver::begin(const string& name) {
-    cout << endl;
-    cout << name << endl;
+Driver::runLoads() {
+    if (hasIgnoredSettings) {
+        cout << endl
+             << "++++++++++++  SOME SETTINGS IGNORED, SEE ABOVE  ++++++++++++"
+             << endl;
+    }
+
+    for (Loads::iterator i = loads.begin(); i != loads.end(); ++i)
+        runLoad(**i);
+}
+
+void
+Driver::logWarning(const string& load, const string& msg) {
+    cout << "!!! WARNINGS OCCURRED, SEE LOG FILE: " << logFileName << endl;
+    errors << endl << "****************************************" << endl
+           << "Warning in load: " << load << endl << msg << endl;
+}
+
+void
+Driver::logError(const string& load, const string& msg) {
+    cout << "!!! ERRORS OCCURRED, SEE LOG FILE: " << logFileName << endl;
+    errors << endl << "****************************************" << endl
+           << "Error in load: " << load << endl << msg << endl;
+
+    if (failOnError)
+        abortIfErrors();
+}
+
+void
+Driver::abortIfErrors() {
+    if (errors.tellp()) {
+        log << "!!! ERRORS OCCURRED:" << endl
+            << errors.str() << endl;
+        log.close();
+        cout << endl
+             << "!!! Errors occurred, see log file: " << logFileName << endl
+             << "!!! Aborting..." << endl << endl;
+        exit(-1);
+    }
+}
+
+void
+Driver::clearLogBuffers() {
+    logHeader = true;
+    header.rdbuf()->str("");
+    rtimes.rdbuf()->str("");
+    ctimes.rdbuf()->str("");
+    errors.rdbuf()->str("");
+}
+
+void
+Driver::writeLogBuffers(const string& prefix) {
+    if (logRealTime) {
+        log << "rtime[ms]," << prefix
+            << header.str() << endl
+            << rtimes.str() << endl << endl;
+    }        
+    if (logCpuTime) {
+        log << "ctime[ms]," << prefix
+            << header.str() << endl
+            << ctimes.str() << endl << endl;
+    }
+    abortIfErrors();
+    clearLogBuffers();
+}
+
+void
+Driver::beginOps(int nOps) {
+    if (logRealTime) {
+        rtimes << nOps;
+        rta = 0;
+    }
+    if (logCpuTime) {
+        ctimes << nOps;
+        cta = 0;
+    }
+}
+
+void
+Driver::finishOps(int nOps) {
+    if (logSumOfOps) {
+        cout << endl << "total" << endl;
+        if (logRealTime) {
+            cout << "tx real time                    " << rta
+                 << " ms " << endl;
+        }
+        if (logCpuTime) {
+            cout << "tx cpu time                     " << cta
+                 << " ms " << endl;
+        }
+    }
+
+    if (logHeader) {
+        if (logSumOfOps) {
+            header << "\ttotal";
+        }
+        logHeader = false;
+    }
+    if (logRealTime) {
+        if (logSumOfOps) {
+            rtimes << "\t" << rta;
+        }
+        rtimes << endl;
+    }
+    if (logCpuTime) {
+        if (logSumOfOps) {
+            ctimes << "\t" << cta;
+        }
+        ctimes << endl;
+    }
+}
+
+void
+Driver::beginOp(const string& name) {
+    cout << endl << name << endl;
 
     if (logRealTime && logCpuTime) {
         s0 = hrt_tnow(&t0);
@@ -244,7 +382,7 @@ Driver::begin(const string& name) {
 }
 
 void
-Driver::finish(const string& name) {
+Driver::finishOp(const string& name, int nOps) {
     if (logRealTime && logCpuTime) {
         s1 = hrt_tnow(&t1);
     } else if (logRealTime) {
@@ -258,9 +396,10 @@ Driver::finish(const string& name) {
             cout << "ERROR: failed to get the system's real time.";
             rtimes << "\tERROR";
         } else {
-            long t = long(hrt_rtmicros(&t1.rtstamp, &t0.rtstamp)/1000);
+            const long t = long(hrt_rtmicros(&t1.rtstamp, &t0.rtstamp)/1000);
+            const long ops = (t > 0 ? (nOps * 1000) / t : 0);
             cout << "tx real time:                   " << t
-                 << "\tms" << endl;
+                 << "\tms\t" << ops << " ops/s" << endl;
             rtimes << "\t" << t;
             rta += t;
         }
@@ -271,9 +410,10 @@ Driver::finish(const string& name) {
             cout << "ERROR: failed to get this process's cpu time.";
             ctimes << "\tERROR";
         } else {
-            long t = long(hrt_ctmicros(&t1.ctstamp, &t0.ctstamp)/1000);
+            const long t = long(hrt_ctmicros(&t1.ctstamp, &t0.ctstamp)/1000);
+            const long ops = (t > 0 ? (nOps * 1000) / t : 0);
             cout << "tx cpu time:                    " << t
-                 << "\tms" << endl;
+                 << "\tms\t" << ops << " ops/s" << endl;
             ctimes << "\t" << t;
             cta += t;
         }
@@ -282,5 +422,3 @@ Driver::finish(const string& name) {
     if (logHeader)
         header << "\t" << name;
 }
-
-//---------------------------------------------------------------------------

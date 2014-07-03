@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -118,8 +118,6 @@ static void usage()
   ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
-extern int g_ndb_init_need_monotonic;
-
 /**
  * C++ Standard 3.6.1/3:
  *  The function main shall not be used (3.2) within a program.
@@ -129,7 +127,6 @@ extern int g_ndb_init_need_monotonic;
 int
 real_main(int argc, char** argv)
 {
-  g_ndb_init_need_monotonic = 1;
   NDB_INIT(argv[0]);
 
   // Print to stdout/console
@@ -197,12 +194,23 @@ real_main(int argc, char** argv)
       opt_allocated_nodeid ||
       opt_report_fd)
   {
+    /**
+      This is where we start running the real data node process after
+      reading options. This function will never return.
+    */
     ndbd_run(opt_foreground, opt_report_fd,
              opt_ndb_connectstring, opt_ndb_nodeid, opt_bind_address,
              opt_no_start, opt_initial, opt_initialstart,
              opt_allocated_nodeid, opt_retries, opt_delay);
   }
 
+  /**
+    The angel process takes care of automatic restarts, by default this is
+    the default to have an angel process. When an angel process is used the
+    program will enter into angel_run from where we fork off the real data
+    node process, the real process will always have opt_allocated_nodeid
+    set since we don't want the nodeid to change between restarts.
+  */
   angel_run(progname,
             original_args,
             opt_ndb_connectstring,

@@ -50,7 +50,7 @@ test_sequence
 prepare stmt1 from ' select * from t9 order by c1 ' ;
 execute stmt1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t9	t9	c1	c1	1	4	1	N	49155	0	63
+def	test	t9	t9	c1	c1	1	4	1	N	53251	0	63
 def	test	t9	t9	c2	c2	2	6	1	Y	32768	0	63
 def	test	t9	t9	c3	c3	9	9	1	Y	32768	0	63
 def	test	t9	t9	c4	c4	3	11	1	Y	32768	0	63
