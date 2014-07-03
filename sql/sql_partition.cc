@@ -1836,9 +1836,9 @@ end:
   ALTER TABLE commands. Finally it is used for SHOW CREATE TABLES.
 */
 
-static int add_write(File fptr, const char *buf, uint len)
+static int add_write(File fptr, const char *buf, size_t len)
 {
-  uint ret_code= mysql_file_write(fptr, (const uchar*)buf, len, MYF(MY_FNABP));
+  size_t ret_code= mysql_file_write(fptr, (const uchar*)buf, len, MYF(MY_FNABP));
 
   if (likely(ret_code == 0))
     return 0;
@@ -1856,7 +1856,7 @@ static int add_string(File fptr, const char *string)
   return add_write(fptr, string, strlen(string));
 }
 
-static int add_string_len(File fptr, const char *string, uint len)
+static int add_string_len(File fptr, const char *string, size_t len)
 {
   return add_write(fptr, string, len);
 }

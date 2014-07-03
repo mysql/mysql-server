@@ -43,7 +43,7 @@ public:
     m_diag_area(false),
     m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
     m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE),
-    m_flag(flag), m_observe_transmission(false)
+    m_flag(flag), m_observe_transmission(false), m_transmit_started(false)
   {}
 
   ~Binlog_sender() {}
@@ -105,7 +105,7 @@ private:
    * The size of the buffer next time we shrink it.
    * This variable is updated once everytime we shrink or grow the buffer.
    */
-  uint32 m_new_shrink_size;
+  size_t m_new_shrink_size;
 
   /*
      Max size of the buffer is 4GB (UINT_MAX32). It is UINT_MAX32 since the
@@ -157,6 +157,11 @@ private:
     transmitting each event. Otherwise, it is false and HOOKs are not called.
   */
   bool m_observe_transmission;
+
+  /* It is true if transmit_start hook is called. If the hook is not called
+   * it will be false.
+   */
+  bool m_transmit_started;
   /*
     It initializes the context, checks if the dump request is valid and
     if binlog status is correct.
@@ -180,7 +185,7 @@ private:
 
     @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_binlog(IO_CACHE *log_cache, my_off_t start_pos);
+  my_off_t send_binlog(IO_CACHE *log_cache, my_off_t start_pos);
 
   /**
     It sends some events in a binlog file to the client.
@@ -302,7 +307,7 @@ private:
   inline bool skip_event(const uchar *event_ptr, uint32 event_len,
                          bool in_exclude_group);
 
-  inline void calc_event_checksum(uchar *event_ptr, uint32 event_len);
+  inline void calc_event_checksum(uchar *event_ptr, size_t event_len);
   inline int flush_net();
   inline int send_packet();
   inline int send_packet_and_flush();
@@ -322,7 +327,7 @@ private:
                           if event_len is 0, then the caller needs to extend
                           the buffer itself.
   */
-  inline int reset_transmit_packet(ushort flags, uint32 event_len= 0);
+  inline int reset_transmit_packet(ushort flags, size_t event_len= 0);
 
   /**
     It waits until receiving an update_cond signal. It will send heartbeat
@@ -427,8 +432,8 @@ private:
    * @param new_val[out] The placeholder where the new value will be stored.
    * @return true in case of an error.
    */
-  inline bool calc_buffer_size(uint32 current_size, uint32 min_size,
-                               float factor, uint32 *new_val);
+  inline bool calc_buffer_size(size_t current_size, size_t min_size,
+                               float factor, size_t *new_val);
 };
 
 #endif // HAVE_REPLICATION

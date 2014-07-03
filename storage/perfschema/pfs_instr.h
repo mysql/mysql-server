@@ -496,6 +496,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   pfs_lock m_stmt_lock;
   /** Processlist state (derived from stage). */
   PFS_stage_key m_stage;
+  /** Current stage progress. */
+  PSI_stage_progress* m_stage_progress;
   /**
     Processlist info.
     Protected by @c m_stmt_lock.

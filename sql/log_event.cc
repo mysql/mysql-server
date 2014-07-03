@@ -248,7 +248,7 @@ int rewrite_buffer(char **buf, int event_len,
   size_t rewrite_db_len= strlen(rewrite_to_db);
 
   uchar const *const ptr_tbllen= ptr_dblen + old_db_len + 2;
-  int replace_segment= rewrite_db_len - old_db_len;
+  ssize_t replace_segment= rewrite_db_len - old_db_len;
   if (!(temp_rewrite_buf= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
                                             event_len + replace_segment,
                                             MYF(MY_WME))))
@@ -260,7 +260,7 @@ int rewrite_buffer(char **buf, int event_len,
   *temp_ptr++= strlen(rewrite_to_db);
   strncpy(temp_ptr, (const char*)rewrite_to_db, rewrite_db_len + 1);
   char* temp_ptr_tbllen= temp_ptr + rewrite_db_len + 1;
-  uint8 temp_length= event_len - (temp_length_l + old_db_len +2);
+  size_t temp_length= event_len - (temp_length_l + old_db_len +2);
   memcpy(temp_ptr_tbllen, ptr_tbllen, temp_length);
 
   my_free(*buf);
@@ -399,7 +399,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                 buff, log_name, pos);
 }
 
-static void set_thd_db(THD *thd, const char *db, uint32 db_len)
+static void set_thd_db(THD *thd, const char *db, size_t db_len)
 {
   char lcase_db_buf[NAME_LEN +1]; 
   LEX_STRING new_db;
@@ -426,7 +426,7 @@ static void set_thd_db(THD *thd, const char *db, uint32 db_len)
 */
 
 #ifdef MYSQL_CLIENT
-static void pretty_print_str(IO_CACHE* cache, const char* str, int len)
+static void pretty_print_str(IO_CACHE* cache, const char* str, size_t len)
 {
   const char* end = str + len;
   my_b_printf(cache, "\'");
@@ -575,7 +575,7 @@ inline bool unexpected_error_code(int unexpected_error)
   pretty_print_str()
 */
 
-static char *pretty_print_str(char *packet, const char *str, int len)
+static char *pretty_print_str(char *packet, const char *str, size_t len)
 {
   const char *end= str + len;
   char *pos= packet;
@@ -722,7 +722,7 @@ static inline int read_str_at_most_255_bytes(const char **buf,
   Transforms a string into "" or its expression in 0x... form.
 */
 
-char *str_to_hex(char *to, const char *from, uint len)
+char *str_to_hex(char *to, const char *from, size_t len)
 {
   if (len)
   {
@@ -748,7 +748,7 @@ append_query_string(THD *thd, const CHARSET_INFO *csinfo,
                     String const *from, String *to)
 {
   char *beg, *ptr;
-  uint32 const orig_len= to->length();
+  size_t const orig_len= to->length();
   if (to->reserve(orig_len + from->length()*2+3))
     return 1;
 
@@ -1219,7 +1219,7 @@ bool Log_event::write_footer(IO_CACHE* file)
   Log_event::write()
 */
 
-bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
+bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
 {
   uchar header[LOG_EVENT_HEADER_LEN];
   ulong now;
@@ -1306,7 +1306,7 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
   header[EVENT_TYPE_OFFSET]= get_type_code();
   int4store(header+ SERVER_ID_OFFSET, server_id);
   int4store(header+ EVENT_LEN_OFFSET, data_written);
-  int4store(header+ LOG_POS_OFFSET, log_pos);
+  int4store(header+ LOG_POS_OFFSET, static_cast<uint32>(log_pos));
   /*
     recording checksum of FD event computed with dropped
     possibly active LOG_EVENT_BINLOG_IN_USE_F flag.
@@ -3522,7 +3522,7 @@ int Query_log_event::pack_info(Protocol *protocol)
   Utility function for the next method (Query_log_event::write()) .
 */
 static void write_str_with_code_and_len(uchar **dst, const char *src,
-                                        uint len, uint code)
+                                        size_t len, uint code)
 {
   /*
     only 1 byte to store the length of catalog, so it should not
@@ -3550,7 +3550,7 @@ bool Query_log_event::write(IO_CACHE* file)
 {
   uchar buf[QUERY_HEADER_LEN + MAX_SIZE_LOG_EVENT_STATUS];
   uchar *start, *start_of_status;
-  ulong event_length;
+  size_t event_length;
 
   if (!query)
     return 1;                                   // Something wrong with event
@@ -3641,8 +3641,8 @@ bool Query_log_event::write(IO_CACHE* file)
   if (auto_increment_increment != 1 || auto_increment_offset != 1)
   {
     *start++= Q_AUTO_INCREMENT;
-    int2store(start, auto_increment_increment);
-    int2store(start+2, auto_increment_offset);
+    int2store(start, static_cast<uint16>(auto_increment_increment));
+    int2store(start+2, static_cast<uint16>(auto_increment_offset));
     start+= 4;
   }
   if (charset_inited)
@@ -4136,7 +4136,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 static int
 get_str_len_and_pointer(const Log_event::Byte **src,
                         const char **dst,
-                        uint *len,
+                        size_t *len,
                         const Log_event::Byte *end)
 {
   if (*src >= end)
@@ -4558,7 +4558,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   // TODO: print the catalog ??
   char buff[48], *end;  // Enough for "SET TIMESTAMP=1305535348.123456"
   char quoted_id[1+ 2*FN_REFLEN+ 2];
-  int quoted_len= 0;
+  size_t quoted_len= 0;
   bool different_db= 1;
   uint32 tmp;
 
@@ -4838,7 +4838,7 @@ static bool is_silent_error(THD* thd)
   to ignore it you would use --slave-skip-errors...
 */
 int Query_log_event::do_apply_event(Relay_log_info const *rli,
-                                      const char *query_arg, uint32 q_len_arg)
+                                      const char *query_arg, size_t q_len_arg)
 {
   DBUG_ENTER("Query_log_event::do_apply_event");
   int expected_error,actual_error= 0;
@@ -5159,7 +5159,7 @@ compare_errors:
       {
         if (actual_error == ER_SLAVE_IGNORED_TABLE)
         {
-          if (!slave_ignored_err_throttle.log(thd))
+          if (!slave_ignored_err_throttle.log())
             rli->report(INFORMATION_LEVEL, actual_error,
                         "Could not execute %s event. Detailed error: %s;"
                         " Error log throttle is enabled. This error will not be"
@@ -5398,7 +5398,18 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
     my_b_printf(head,"RESET CONNECTION%s\n", print_event_info->delimiter);
 #else
     my_b_printf(head,"ROLLBACK%s\n", print_event_info->delimiter);
+    if (print_event_info->is_gtid_next_set)
+      print_event_info->is_gtid_next_valid= false;
 #endif
+  }
+  // set gtid_next=automatic if we have previously set it to uuid:number
+  if (!print_event_info->is_gtid_next_valid)
+  {
+    my_b_printf(head, "%sAUTOMATIC'%s\n",
+                Gtid_log_event::SET_STRING_PREFIX,
+                print_event_info->delimiter);
+    print_event_info->is_gtid_next_set= false;
+    print_event_info->is_gtid_next_valid= true;
   }
   if (temp_buf &&
       print_event_info->base64_output_mode != BASE64_OUTPUT_NEVER &&
@@ -5465,7 +5476,7 @@ bool Start_log_event_v3::write(IO_CACHE* file)
   memcpy(buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
   if (!dont_set_created)
     created= get_time();
-  int4store(buff + ST_CREATED_OFFSET,created);
+  int4store(buff + ST_CREATED_OFFSET, static_cast<uint32>(created));
   return (write_header(file, sizeof(buff)) ||
           wrapper_my_b_safe_write(file, (uchar*) buff, sizeof(buff)) ||
 	  write_footer(file));
@@ -5903,7 +5914,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
   memcpy((char*) buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
   if (!dont_set_created)
     created= get_time();
-  int4store(buff + ST_CREATED_OFFSET,created);
+  int4store(buff + ST_CREATED_OFFSET, static_cast<uint32>(created));
   buff[ST_COMMON_HEADER_LEN_OFFSET]= LOG_EVENT_HEADER_LEN;
   memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET + 1, (uchar*) post_header_len,
          LOG_EVENT_TYPES);
@@ -6555,7 +6566,7 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
               commented ? "# " : "");
   if (check_fname_outside_temp_buf())
     my_b_printf(head, "LOCAL ");
-  my_b_printf(head, "INFILE '%-*s' ", fname_len, fname);
+  my_b_printf(head, "INFILE '%-*s' ", static_cast<int>(fname_len), fname);
 
   if (sql_ex.opt_flags & REPLACE_FLAG)
     my_b_printf(head,"REPLACE ");
@@ -7734,8 +7745,8 @@ int User_var_log_event::pack_info(Protocol* protocol)
   char quoted_id[1 + FN_REFLEN * 2 + 2];// quoted identifier
   size_t id_len= my_strmov_quoted_identifier(this->thd, quoted_id, name, name_len);
   quoted_id[id_len]= '\0';
-  uint val_offset= 2 + id_len;
-  uint event_len= val_offset;
+  size_t val_offset= 2 + id_len;
+  size_t event_len= val_offset;
 
   if (is_null)
   {
@@ -7890,7 +7901,7 @@ User_var_log_event(const char* buf, uint event_len,
       Old events will not have this extra byte, thence,
       we keep the flags set to UNDEF_F.
     */
-    uint bytes_read= ((val + val_len) - start);
+    size_t bytes_read= ((val + val_len) - start);
 #ifndef DBUG_OFF
     bool old_pre_checksum_fd= description_event->is_version_before_checksum();
 #endif
@@ -9721,7 +9732,7 @@ Rows_log_event::~Rows_log_event()
     my_free(m_extra_row_data);
 }
 
-int Rows_log_event::get_data_size()
+size_t Rows_log_event::get_data_size()
 {
   int const general_type_code= get_general_type_code();
 
@@ -9814,12 +9825,12 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
                       "write to the binary log.");
       DBUG_RETURN(ER_BINLOG_ROW_LOGGING_FAILED);
     }
-    ulong const new_alloc= 
+    const size_t new_alloc= 
         block_size * ((cur_size + length + block_size - 1) / block_size);
 
     uchar* const new_buf=
       (uchar*)my_realloc(key_memory_log_event,
-                         (uchar*)m_rows_buf, (uint) new_alloc,
+                         (uchar*)m_rows_buf, new_alloc,
                          MYF(MY_ALLOW_ZERO_PTR|MY_WME));
     if (unlikely(!new_buf))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -11494,7 +11505,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       extra columns on the slave. In that case, do not force
       MODE_NO_AUTO_VALUE_ON_ZERO.
     */
-    ulong saved_sql_mode= thd->variables.sql_mode;
+    sql_mode_t saved_sql_mode= thd->variables.sql_mode;
     if (!is_auto_inc_in_extra_columns())
       thd->variables.sql_mode= MODE_NO_AUTO_VALUE_ON_ZERO;
 
@@ -12452,7 +12463,7 @@ bool Table_map_log_event::write_data_header(IO_CACHE *file)
   uchar buf[TABLE_MAP_HEADER_LEN];
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
                   {
-                    int4store(buf + 0, m_table_id.id());
+                    int4store(buf + 0, static_cast<uint32>(m_table_id.id()));
                     int2store(buf + 4, m_flags);
                     return (wrapper_my_b_safe_write(file, buf, 6));
                   });
@@ -13957,7 +13968,8 @@ st_print_event_info::st_print_event_info()
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
    thread_id(0), thread_id_printed(false),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
-   have_unflushed_events(FALSE), skipped_event_in_transaction(false)
+   have_unflushed_events(false), skipped_event_in_transaction(false),
+   is_gtid_next_set(false), is_gtid_next_valid(true)
 {
   /*
     Currently we only use static PRINT_EVENT_INFO objects, so zeroed at

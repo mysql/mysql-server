@@ -5206,4 +5206,39 @@ ibuf_check_bitmap_on_import(
 	mutex_exit(&ibuf_mutex);
 	return(DB_SUCCESS);
 }
+
+/** Updates free bits and buffered bits for bulk loaded page.
+@param[in]	block	index page
+@param[in]	reset	flag if reset free val */
+void
+ibuf_set_bitmap_for_bulk_load(
+	buf_block_t*	block,
+	bool		reset)
+{
+	page_t*	bitmap_page;
+	mtr_t	mtr;
+	ulint	free_val;
+
+	ut_a(page_is_leaf(buf_block_get_frame(block)));
+
+	free_val = ibuf_index_page_calc_free(block);
+
+	mtr_start(&mtr);
+	mtr.set_named_space(block->page.id.space());
+
+	bitmap_page = ibuf_bitmap_get_map_page(block->page.id,
+                                               block->page.size, &mtr);
+
+	free_val = reset ? 0 : ibuf_index_page_calc_free(block);
+	ibuf_bitmap_page_set_bits(
+		bitmap_page, block->page.id, block->page.size,
+		IBUF_BITMAP_FREE, free_val, &mtr);
+
+	ibuf_bitmap_page_set_bits(
+		bitmap_page, block->page.id, block->page.size,
+		IBUF_BITMAP_BUFFERED, FALSE, &mtr);
+
+	mtr_commit(&mtr);
+}
+
 #endif /* !UNIV_HOTBACKUP */

@@ -23,21 +23,17 @@ C_MODE_START
 #ifdef HAVE_VALGRIND
 # include <valgrind/valgrind.h>
 # define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) VALGRIND_MALLOCLIKE_BLOCK(p1, p2, p3, p4)
-# define MEM_RESIZEINPLACE_BLOCK(p1, p2, p3, p4) VALGRIND_RESIZEINPLACE_BLOCK(p1, p2, p3, p4)
 # define MEM_FREELIKE_BLOCK(p1, p2) VALGRIND_FREELIKE_BLOCK(p1, p2)
 # include <valgrind/memcheck.h>
 # define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
 # define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
 # define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
-# define MEM_CHECK_DEFINED(a,len) VALGRIND_CHECK_MEM_IS_DEFINED(a,len)
 #else /* HAVE_VALGRIND */
 # define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) do {} while (0)
-# define MEM_RESIZEINPLACE_BLOCK(p1, p2, p3, p4) do {} while (0)
 # define MEM_FREELIKE_BLOCK(p1, p2) do {} while (0)
 # define MEM_UNDEFINED(a,len) ((void) 0)
 # define MEM_NOACCESS(a,len) ((void) 0)
 # define MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
-# define MEM_CHECK_DEFINED(a,len) ((void) 0)
 #endif /* HAVE_VALGRIND */
 
 #include <my_pthread.h>
@@ -150,13 +146,6 @@ C_MODE_START
 #define GETDATE_FIXEDLENGTH	16
 
 	/* defines when allocating data */
-extern void *my_raw_malloc(size_t size, myf flags);
-extern void *my_raw_realloc(void *oldpoint, size_t size, myf flags);
-extern void my_raw_free(void *ptr);
-extern void *my_raw_memdup(const void *from, size_t length, myf flags);
-extern char *my_raw_strdup(const char *from, myf flags);
-extern char *my_raw_strndup(const char *from, size_t length, myf flags);
-
 extern void *my_multi_malloc(PSI_memory_key key, myf flags, ...);
 
 #include <mysql/psi/psi.h>
@@ -209,6 +198,8 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 extern uint my_get_large_page_size(void);
 extern uchar * my_large_malloc(PSI_memory_key key, size_t size, myf my_flags);
 extern void my_large_free(uchar *ptr);
+extern my_bool my_use_large_pages;
+extern uint    my_large_page_size;
 #else
 #define my_get_large_page_size() (0)
 #define my_large_malloc(A,B,C) my_malloc((A),(B),(C))
@@ -237,11 +228,6 @@ extern ulong my_thread_stack_size;
 extern void (*proc_info_hook)(void *, const PSI_stage_info *, PSI_stage_info *,
                               const char *, const char *, const unsigned int);
 
-#ifdef HAVE_LINUX_LARGE_PAGES
-extern my_bool my_use_large_pages;
-extern uint    my_large_page_size;
-#endif
-
 /* charsets */
 #define MY_ALL_CHARSETS_SIZE 2048
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *default_charset_info;
@@ -254,18 +240,13 @@ extern ulong    my_file_total_opened;
 extern my_bool	my_init_done;
 
 extern MYSQL_PLUGIN_IMPORT int my_umask;		/* Default creation mask  */
-extern int my_umask_dir,
-	   my_recived_signals,	/* Signals we have got */
-	   my_safe_to_handle_signal, /* Set when allowed to SIGTSTP */
-	   my_dont_interrupt;	/* call remember_intr when set */
+extern int my_umask_dir;
 
 extern ulong	my_default_record_cache_size;
-extern my_bool  my_disable_locking, my_disable_async_io,
-                my_disable_flush_key_blocks, my_enable_symlinks;
+extern my_bool  my_disable_locking,
+                my_enable_symlinks;
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
-
-extern my_bool timed_mutexes;
 
 enum cache_type
 {
@@ -284,16 +265,6 @@ enum flush_type
   */
   FLUSH_FORCE_WRITE
 };
-
-typedef struct st_record_cache	/* Used when cacheing records */
-{
-  File file;
-  int	rc_seek,error,inited;
-  uint	rc_length,read_length,reclength;
-  my_off_t rc_record_pos,end_of_file;
-  uchar *rc_buff,*rc_buff2,*rc_pos,*rc_end,*rc_request_pos;
-  enum cache_type type;
-} RECORD_CACHE;
 
 enum file_type
 {
@@ -323,7 +294,6 @@ typedef struct st_dynamic_array
 
 typedef struct st_my_tmpdir
 {
-  DYNAMIC_ARRAY full_list;
   char **list;
   uint cur, max;
   mysql_mutex_t mutex;
@@ -510,15 +480,6 @@ extern my_error_reporter my_charset_error_reporter;
    ((info)->read_pos++, (int) (uchar) (info)->read_pos[-1]) :\
    _my_b_get(info))
 
-	/* my_b_write_byte dosn't have any err-check */
-#define my_b_write_byte(info,chr) \
-  (((info)->write_pos < (info)->write_end) ?\
-   ((*(info)->write_pos++)=(chr)) :\
-   (_my_b_write(info,0,0) , ((*(info)->write_pos++)=(chr))))
-
-#define my_b_fill_cache(info) \
-  (((info)->read_end=(info)->read_pos),(*(info)->read_function)(info,0,0))
-
 #define my_b_tell(info) ((info)->pos_in_file + \
 			 (size_t) (*(info)->current_pos - (info)->request_pos))
 
@@ -673,7 +634,6 @@ extern my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist);
 extern char *my_tmpdir(MY_TMPDIR *tmpdir);
 extern void free_tmpdir(MY_TMPDIR *tmpdir);
 
-extern void my_remember_signal(int signal_number, void (*func)(int));
 extern size_t dirname_part(char * to,const char *name, size_t *to_res_length);
 extern size_t dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
@@ -706,18 +666,8 @@ extern my_bool array_append_string_unique(const char *str,
 extern void get_date(char * to,int timeflag,time_t use_time);
 extern void soundex(CHARSET_INFO *, char * out_pntr, char * in_pntr,
                     pbool remove_garbage);
-extern int init_record_cache(RECORD_CACHE *info,size_t cachesize,File file,
-			     size_t reclength,enum cache_type type,
-			     pbool use_async_io);
-extern int read_cache_record(RECORD_CACHE *info,uchar *to);
-extern int end_record_cache(RECORD_CACHE *info);
-extern int write_cache_record(RECORD_CACHE *info,my_off_t filepos,
-			      const uchar *record,size_t length);
-extern int flush_write_cache(RECORD_CACHE *info);
-extern void handle_recived_signals(void);
 
 extern my_bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
-extern void my_string_ptr_sort(uchar *base,uint items,size_t size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 				  size_t size_of_element,uchar *buffer[]);
 extern void my_qsort(void *base_ptr, size_t total_elems, size_t size,
@@ -770,7 +720,6 @@ File create_temp_file(char *to, const char *dir, const char *pfx,
 #define my_init_dynamic_array(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D)
 #define my_init_dynamic_array_ci(A,B,C,D) init_dynamic_array2(A,B,NULL,C,D)
 #define my_init_dynamic_array2(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E)
-#define my_init_dynamic_array2_ci(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E)
 extern my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
                                    void *init_buffer, uint init_alloc,
                                    uint alloc_increment);
@@ -833,10 +782,10 @@ extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
                                size_t count);
 
 /* Wait a given number of microseconds */
-static inline void my_sleep(ulong m_seconds)
+static inline void my_sleep(time_t m_seconds)
 {
 #if defined(_WIN32)
-  Sleep(m_seconds/1000+1);      /* Sleep() has millisecond arg */
+  Sleep((DWORD)m_seconds/1000+1);      /* Sleep() has millisecond arg */
 #else
   struct timeval t;
   t.tv_sec=  m_seconds / 1000000L;
@@ -852,10 +801,7 @@ void my_free_open_file_info(void);
 extern time_t my_time(myf flags);
 extern ulonglong my_getsystime(void);
 extern ulonglong my_micro_time();
-extern ulonglong my_micro_time_and_time(time_t *time_arg);
-time_t my_time_possible_from_micro(ulonglong microtime);
 extern my_bool my_gethwaddr(uchar *to);
-extern int my_getncpus();
 
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
@@ -939,9 +885,6 @@ extern CHARSET_INFO *fs_character_set(void);
 extern size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
                                       char *to, size_t to_length,
                                       const char *from, size_t length);
-
-extern void thd_increment_bytes_sent(ulong length);
-extern void thd_increment_bytes_received(ulong length);
 
 #ifdef _WIN32
 extern my_bool have_tcpip;		/* Is set if tcpip is used */

@@ -169,7 +169,7 @@ struct st_savepoint
 {
   struct st_savepoint *prev;
   char                *name;
-  uint                 length;
+  size_t              length;
   Ha_trx_info         *ha_list;
   /** State of metadata locks before this savepoint was set. */
   MDL_savepoint        mdl_savepoint;
@@ -341,6 +341,10 @@ public:
   } m_flags;
 
   Transaction_ctx();
+  ~Transaction_ctx()
+  {
+    free_root(&m_mem_root, MYF(0));
+  }
 
   void cleanup()
   {

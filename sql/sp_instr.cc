@@ -447,6 +447,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
   String sql_query;
   sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
+  SQL_I_List<Item_trigger_field> *next_trig_list_bkp= NULL;
   sql_query.set_charset(system_charset_info);
 
   get_query(&sql_query);
@@ -461,6 +462,8 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     return NULL;
   }
 
+  if (m_trig_field_list.elements)
+    next_trig_list_bkp= m_trig_field_list.first->next_trig_field_list;
   // Cleanup current THD from previously held objects before new parsing.
   cleanup_before_parsing(thd);
 
@@ -539,8 +542,23 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
       if (!t)
         return NULL; // Don't take chances in production.
 
-      sp->setup_trigger_fields(thd, sp->m_trg_list->get_trigger_field_support(),
-                               t->get_subject_table_grant(), false);
+      for (Item_trigger_field *trg_fld= sp->m_cur_instr_trig_field_items.first;
+           trg_fld;
+           trg_fld= trg_fld->next_trg_field)
+      {
+        trg_fld->setup_field(thd, sp->m_trg_list->get_trigger_field_support(),
+                             t->get_subject_table_grant());
+      }
+
+      /**
+        Move Item_trigger_field's list to instruction's Item_trigger_field
+        list.
+      */
+      if (sp->m_cur_instr_trig_field_items.elements)
+      {
+        sp->m_cur_instr_trig_field_items.save_and_clear(&m_trig_field_list);
+        m_trig_field_list.first->next_trig_field_list= next_trig_list_bkp;
+      }
     }
 
     // Append newly created Items to the list of Items, owned by this
@@ -697,7 +715,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd)
   sp_head *sp= thd->sp_runtime_ctx->sp;
 
   if (sp->m_type == SP_TYPE_TRIGGER)
-    sp->m_trg_table_fields.empty();
+    m_trig_field_list.empty();
 }
 
 
@@ -850,12 +868,12 @@ void sp_instr_stmt::print(String *str)
     Print the query string (but not too much of it), just to indicate which
     statement it is.
   */
-  uint len= m_query.length;
+  size_t len= m_query.length;
   if (len > SP_STMT_PRINT_MAXLEN)
     len= SP_STMT_PRINT_MAXLEN-3;
 
   /* Copy the query string and replace '\n' with ' ' in the process */
-  for (uint i= 0 ; i < len ; i++)
+  for (size_t i= 0 ; i < len ; i++)
   {
     char c= m_query.str[i];
     if (c == '\n')
@@ -927,7 +945,7 @@ bool sp_instr_set::exec_core(THD *thd, uint *nextp)
 void sp_instr_set::print(String *str)
 {
   /* set name@offset ... */
-  int rsrv = SP_INSTR_UINT_MAXLEN+6;
+  size_t rsrv = SP_INSTR_UINT_MAXLEN+6;
   sp_variable *var = m_parsing_ctx->find_variable(m_offset);
 
   /* 'var' should always be non-null, but just in case... */
@@ -992,8 +1010,8 @@ bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd)
   {
     /* Adding m_trigger_field to the list of all Item_trigger_field objects */
     sp_head *sp= thd->sp_runtime_ctx->sp;
-    sp->m_trg_table_fields.link_in_list(m_trigger_field,
-                                        &m_trigger_field->next_trg_field);
+    sp->m_cur_instr_trig_field_items.
+      link_in_list(m_trigger_field, &m_trigger_field->next_trg_field);
   }
 
   return m_value_item == NULL || m_trigger_field == NULL;
@@ -1475,7 +1493,7 @@ void sp_instr_cpush::print(String *str)
 {
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
-  uint rsrv= SP_INSTR_UINT_MAXLEN + 7 + m_cursor_query.length + 1;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN + 7 + m_cursor_query.length + 1;
 
   if (cursor_name)
     rsrv+= cursor_name->length;
@@ -1581,7 +1599,7 @@ void sp_instr_copen::print(String *str)
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
   /* copen name@offset */
-  uint rsrv= SP_INSTR_UINT_MAXLEN+7;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN+7;
 
   if (cursor_name)
     rsrv+= cursor_name->length;
@@ -1624,7 +1642,7 @@ void sp_instr_cclose::print(String *str)
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
   /* cclose name@offset */
-  uint rsrv= SP_INSTR_UINT_MAXLEN+8;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN+8;
 
   if (cursor_name)
     rsrv+= cursor_name->length;
@@ -1669,7 +1687,7 @@ void sp_instr_cfetch::print(String *str)
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
   /* cfetch name@offset vars... */
-  uint rsrv= SP_INSTR_UINT_MAXLEN+8;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN+8;
 
   if (cursor_name)
     rsrv+= cursor_name->length;

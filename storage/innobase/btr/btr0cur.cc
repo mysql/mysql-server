@@ -6239,6 +6239,8 @@ struct btr_blob_log_check_t {
 	buf_block_t**	m_block;
 	/** The clustered record pointer */
 	rec_t**		m_rec;
+	/** The blob operation code */
+	enum blob_op	m_op;
 
 	/** Constructor
 	@param[in]	pcur		persistent cursor on a clustered
@@ -6247,18 +6249,21 @@ struct btr_blob_log_check_t {
 					pcur.
 	@param[in]	offsets		offsets of the clust_rec
 	@param[in,out]	block		record block containing pcur record
-	@param[in,out]	rec		the clustered record pointer */
+	@param[in,out]	rec		the clustered record pointer
+	@param[in]	op		the blob operation code */
 	btr_blob_log_check_t(
 		btr_pcur_t*	pcur,
 		mtr_t*		mtr,
 		const ulint*	offsets,
 		buf_block_t**	block,
-		rec_t**		rec)
+		rec_t**		rec,
+		enum blob_op	op)
 		: m_pcur(pcur),
 		  m_mtr(mtr),
 		  m_offsets(offsets),
 		  m_block(block),
-		  m_rec(rec)
+		  m_rec(rec),
+		  m_op(op)
 	{
 		ut_ad(rec_offs_validate(*m_rec, m_pcur->index(), m_offsets));
 		ut_ad((*m_block)->frame == page_align(*m_rec));
@@ -6270,7 +6275,16 @@ struct btr_blob_log_check_t {
 	void check()
 	{
 		dict_index_t*	index = m_pcur->index();
-		btr_pcur_store_position(m_pcur, m_mtr);
+		ulint		offs;
+		ulint		page_no;
+
+		if (m_op == BTR_STORE_INSERT_BULK) {
+			offs = page_offset(*m_rec);
+			page_no = page_get_page_no(
+				buf_block_get_frame(*m_block));
+		} else {
+			btr_pcur_store_position(m_pcur, m_mtr);
+		}
 		m_mtr->commit();
 
 		DEBUG_SYNC_C("blob_write_middle");
@@ -6282,11 +6296,26 @@ struct btr_blob_log_check_t {
 		m_mtr->set_log_mode(log_mode);
 		m_mtr->set_named_space(index->space);
 
-		ut_ad(m_pcur->rel_pos == BTR_PCUR_ON);
-		bool ret = btr_pcur_restore_position(
-			BTR_MODIFY_LEAF | BTR_MODIFY_EXTERNAL, m_pcur, m_mtr);
+		if (m_op == BTR_STORE_INSERT_BULK) {
+			page_id_t       page_id(dict_index_get_space(index),
+						page_no);
+			page_size_t     page_size(dict_table_page_size(
+						index->table));
+			page_cur_t*	page_cur = &m_pcur->btr_cur.page_cur;
 
-		ut_a(ret);
+			mtr_x_lock(dict_index_get_lock(index), m_mtr);
+			page_cur->block = btr_block_get(
+				page_id, page_size, RW_X_LATCH, index, m_mtr);
+			page_cur->rec = buf_block_get_frame(page_cur->block)
+				+ offs;
+		} else {
+			ut_ad(m_pcur->rel_pos == BTR_PCUR_ON);
+			bool ret = btr_pcur_restore_position(
+				BTR_MODIFY_LEAF | BTR_MODIFY_EXTERNAL,
+				m_pcur, m_mtr);
+
+			ut_a(ret);
+		}
 
 		*m_block	= btr_pcur_get_block(m_pcur);
 		*m_rec		= btr_pcur_get_rec(m_pcur);
@@ -6300,8 +6329,8 @@ struct btr_blob_log_check_t {
 		      || dict_table_is_intrinsic(index->table));
 
 		ut_ad(mtr_memo_contains_flagged(m_mtr,
-						dict_index_get_lock(index),
-						MTR_MEMO_SX_LOCK)
+		      dict_index_get_lock(index),
+		      MTR_MEMO_SX_LOCK | MTR_MEMO_X_LOCK)
 		      || dict_table_is_intrinsic(index->table));
 	}
 };
@@ -6372,7 +6401,7 @@ btr_store_big_rec_extern_fields(
 		.equals_to(rec_block->page.size));
 
 	btr_blob_log_check_t redo_log(pcur, btr_mtr, offsets, &rec_block,
-				      &rec);
+				      &rec, op);
 	page_zip = buf_block_get_page_zip(rec_block);
 	space_id = rec_block->page.id.space();
 	rec_page_no = rec_block->page.id.page_no();
@@ -6501,8 +6530,26 @@ btr_store_big_rec_extern_fields(
 				hint_page_no = prev_page_no + 1;
 			}
 
-			block = btr_page_alloc(index, hint_page_no,
-					       FSP_NO_DIR, 0, &mtr, &mtr);
+			if (op == BTR_STORE_INSERT_BULK) {
+				mtr_t	alloc_mtr;
+
+				mtr_start(&alloc_mtr);
+				if (index->is_redo_skipped) {
+					mtr_set_log_mode(&alloc_mtr,
+							 MTR_LOG_NO_REDO);
+				} else {
+					alloc_mtr.set_named_space(index->space);
+				}
+
+				block = btr_page_alloc(index, hint_page_no,
+					FSP_NO_DIR, 0, &alloc_mtr, &mtr);
+				mtr_commit(&alloc_mtr);
+
+			} else {
+				block = btr_page_alloc(index, hint_page_no,
+					FSP_NO_DIR, 0, &mtr, &mtr);
+			}
+
 			if (UNIV_UNLIKELY(block == NULL)) {
 				mtr_commit(&mtr);
 				error = DB_OUT_OF_FILE_SPACE;
@@ -6658,9 +6705,12 @@ btr_store_big_rec_extern_fields(
 							FIL_PAGE_NEXT);
 				}
 
-				page_zip_write_blob_ptr(
-					page_zip, rec, index, offsets,
-					field_no, &mtr);
+				/* We compress a page when finish bulk insert.*/
+				if (op != BTR_STORE_INSERT_BULK) {
+					page_zip_write_blob_ptr(
+						page_zip, rec, index, offsets,
+						field_no, &mtr);
+				}
 
 next_zip_page:
 				prev_page_no = page_no;

@@ -89,7 +89,6 @@ class sp_cache;
 class Parser_state;
 class Rows_log_event;
 class Sroutine_hash_entry;
-class User_level_lock;
 class user_var_entry;
 typedef struct st_log_info LOG_INFO;
 
@@ -1820,11 +1819,11 @@ public:
 
   HASH		handler_tables_hash;
   /*
-    One thread can hold up to one named user-level lock. This variable
-    points to a lock object if the lock is present. See item_func.cc and
-    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
+    A thread can hold named user-level locks. This variable
+    contains granted tickets if a lock is present. See item_func.cc and
+    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK.
   */
-  User_level_lock *ull;
+  HASH ull_hash;
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif
@@ -2404,6 +2403,8 @@ public:
   PROFILING  profiling;
 #endif
 
+  /** Current stage progress instrumentation. */
+  PSI_stage_progress *m_stage_progress_psi;
   /** Current statement digest. */
   sql_digest_state *m_digest;
   /** Top level statement digest. */
@@ -3091,7 +3092,7 @@ public:
 #ifndef EMBEDDED_LIBRARY
   inline bool vio_ok() const { return net.vio != 0; }
   /** Return FALSE if connection to client is broken. */
-  bool is_connected()
+  virtual bool is_connected()
   {
     /*
       All system threads (e.g., the slave IO thread) are connected but
@@ -3102,7 +3103,7 @@ public:
   }
 #else
   inline bool vio_ok() const { return TRUE; }
-  inline bool is_connected() { return TRUE; }
+  virtual bool is_connected() { return true; }
 #endif
   /**
     Mark the current error as fatal. Warning: this does not
@@ -4096,7 +4097,7 @@ public:
 
 
 class select_export :public select_to_file {
-  uint field_term_length;
+  size_t field_term_length;
   int field_sep_char,escape_char,line_sep_char;
   int field_term_char; // first char of FIELDS TERMINATED BY or MAX_INT
   /*
@@ -4670,12 +4671,12 @@ class user_var_entry
 {
   static const size_t extra_size= sizeof(double);
   char *m_ptr;          // Value
-  ulong m_length;       // Value length
+  size_t m_length;      // Value length
   Item_result m_type;   // Value type
 
   void reset_value()
   { m_ptr= NULL; m_length= 0; }
-  void set_value(char *value, ulong length)
+  void set_value(char *value, size_t length)
   { m_ptr= value; m_length= length; }
 
   /**
@@ -4700,7 +4701,7 @@ class user_var_entry
     or allocate a separate buffer.
     @param length - length of the value to be stored.
   */
-  bool realloc(uint length);
+  bool realloc(size_t length);
 
   /**
     Check if m_ptr point to an external buffer previously alloced by realloc().
@@ -4764,7 +4765,7 @@ class user_var_entry
     @retval        false on success
     @retval        true on memory allocation error
   */
-  bool store(void *from, uint length, Item_result type);
+  bool store(const void *from, size_t length, Item_result type);
 
 public:
   user_var_entry() {}                         /* Remove gcc warning */
@@ -4787,7 +4788,7 @@ public:
     @retval        false on success
     @retval        true on memory allocation error
   */
-  bool store(void *from, uint length, Item_result type,
+  bool store(const void *from, size_t length, Item_result type,
              const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   /**
     Set type of to the given value.
@@ -4839,7 +4840,7 @@ public:
 
   /* Routines to access the value and its type */
   const char *ptr() const { return m_ptr; }
-  ulong length() const { return m_length; }
+  size_t length() const { return m_length; }
   Item_result type() const { return m_type; }
   /* Item-alike routines to access the value */
   double val_real(my_bool *null_value);

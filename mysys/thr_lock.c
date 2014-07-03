@@ -333,7 +333,7 @@ void thr_lock_delete(THR_LOCK *lock)
 void thr_lock_info_init(THR_LOCK_INFO *info)
 {
   struct st_my_thread_var *tmp= my_thread_var;
-  info->thread=    tmp->pthread_self;
+  info->thread=    pthread_self();
   info->thread_id= tmp->id;
 }
 
@@ -550,14 +550,15 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
            ||\ = READ_HIGH_PRIORITY
            |\  = READ_WITH_SHARED_LOCKS
            \   = READ
-          
 
         + = Request can be satisified.
         - = Request cannot be satisified.
 
         READ_NO_INSERT and WRITE_ALLOW_WRITE should in principle
-        be incompatible. However this will cause starvation of
-        LOCK TABLE READ in InnoDB under high write load.
+        be incompatible. Before this could have caused starvation of
+        LOCK TABLE READ in InnoDB under high write load. However
+        now READ_NO_INSERT is only used for LOCK TABLES READ and this
+        statement is handled by the MDL subsystem.
         See Bug#42147 for more information.
       */
 

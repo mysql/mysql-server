@@ -1,0 +1,144 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# Presence of the query cache changes query stages,
+# causing noise in the test output
+--source include/have_query_cache_disabled.inc
+
+# Setup
+
+connect (con1, localhost, root, , );
+
+let $con1_THREAD_ID=`select thread_id from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(a int) engine = myisam;
+
+insert into t1 values (1), (2), (3), (4), (5);
+
+--connection default
+
+update performance_schema.threads
+  set instrumented = 'NO'
+  where processlist_id = connection_id();
+
+truncate table performance_schema.events_statements_history_long;
+truncate table performance_schema.events_stages_history_long;
+
+--disable_query_log
+eval select $con1_THREAD_ID into @con1_thread_id;
+--enable_query_log
+
+--connection con1
+
+# ALTER TABLE statement to inspect,
+# execution should instrument progress
+
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='copy_data_between_tables_before SIGNAL found_row WAIT_FOR wait_row EXECUTE 5';
+--send ALTER TABLE t1 engine = innodb;
+
+--connection default
+
+SET DEBUG_SYNC='now WAIT_FOR found_row';
+
+# Find the statement id of the ALTER TABLE
+select event_id from performance_schema.events_statements_current
+  where thread_id = @con1_thread_id into @con1_stmt_id;
+
+# completed 0
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+  from performance_schema.events_stages_current
+  where (thread_id = @con1_thread_id);
+
+SET DEBUG_SYNC='now SIGNAL wait_row';
+
+#======
+
+SET DEBUG_SYNC='now WAIT_FOR found_row';
+
+# completed 1
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+  from performance_schema.events_stages_current
+  where (thread_id = @con1_thread_id);
+
+SET DEBUG_SYNC='now SIGNAL wait_row';
+
+#======
+
+SET DEBUG_SYNC='now WAIT_FOR found_row';
+
+# completed 2
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+  from performance_schema.events_stages_current
+  where (thread_id = @con1_thread_id);
+
+SET DEBUG_SYNC='now SIGNAL wait_row';
+
+#======
+
+SET DEBUG_SYNC='now WAIT_FOR found_row';
+
+# completed 3
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+  from performance_schema.events_stages_current
+  where (thread_id = @con1_thread_id);
+
+SET DEBUG_SYNC='now SIGNAL wait_row';
+
+#======
+
+SET DEBUG_SYNC='now WAIT_FOR found_row';
+
+# completed 4
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+  from performance_schema.events_stages_current
+  where (thread_id = @con1_thread_id);
+
+SET DEBUG_SYNC='now SIGNAL wait_row';
+
+#======
+
+--connection con1
+
+# Complete the ALTER TABLE statement.
+--reap
+
+# Make sure the ALTER TABLE cleanup is executed,
+# as the last stages are after writing back to the client,
+# and done asynchronously from the last 'reap'.
+select "After payload";
+
+--connection default
+
+--echo Dumping ALTER TABLE stages
+
+# Print all stages for this ALTER TABLE statement
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+  from performance_schema.events_stages_history_long
+  where (thread_id = @con1_thread_id)
+  and (nesting_event_id = @con1_stmt_id)
+  order by thread_id, event_id;
+
+SET DEBUG_SYNC='RESET';
+
+--connection con1
+
+drop table t1;
+
+--disconnect con1
+
+--connection default
+
+update performance_schema.threads
+  set instrumented = 'YES'
+  where processlist_id = connection_id();
+

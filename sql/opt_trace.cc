@@ -42,8 +42,8 @@ private:
 public:
   Buffer() : allowed_mem_size(0), missing_bytes(0) {}
 
-  uint32 alloced_length() const { return string_buf.alloced_length(); }
-  uint32 length() const { return string_buf.length(); }
+  size_t alloced_length() const { return string_buf.alloced_length(); }
+  size_t length() const { return string_buf.length(); }
   void prealloc();    ///< pro-actively extend buffer if soon short of space
   char *c_ptr_safe() { return string_buf.c_ptr_safe(); }
   const char *ptr() const { return string_buf.ptr(); }
@@ -392,8 +392,8 @@ Opt_trace_struct& Opt_trace_struct::do_add_hex(const char *key, uint64 val)
   }
   *p--= 'x';
   *p= '0';
-  const int len= p_end + 1 - p;
-  DBUG_PRINT("opt", ("%s: %.*s", key, len, p));
+  const size_t len= p_end + 1 - p;
+  DBUG_PRINT("opt", ("%s: %.*s", key, static_cast<int>(len), p));
   stmt->add(check_key(key), p, len, false, false);
   return *this;
 }
@@ -803,12 +803,12 @@ void Buffer::append_escaped(const char *str, size_t length)
     if (pbuf > buf + (sizeof(buf) - 6))
     {
       // Possibly no room in 'buf' for next char, so flush buf.
-      string_buf.append(buf, static_cast<uint32>(pbuf - buf));
+      string_buf.append(buf, pbuf - buf);
       pbuf= buf; // back to buf's start
     }
   }
   // Flush any chars left in 'buf'.
-  string_buf.append(buf, static_cast<uint32>(pbuf - buf));
+  string_buf.append(buf, pbuf - buf);
 }
 
 
@@ -821,7 +821,7 @@ void Buffer::append(const char *str, size_t length)
   }
   DBUG_EXECUTE_IF("opt_trace_oom_in_buffers",
                   DBUG_SET("+d,simulate_out_of_memory"););
-  string_buf.append(str, static_cast<uint32>(length));
+  string_buf.append(str, length);
   DBUG_EXECUTE_IF("opt_trace_oom_in_buffers",
                   DBUG_SET("-d,simulate_out_of_memory"););
 }
@@ -877,7 +877,7 @@ void Buffer::prealloc()
       if (new_size > max_size) // Don't pre-allocate more than the limit.
         new_size= max_size;
       if (new_size >= alloced) // Never shrink string.
-        string_buf.realloc(static_cast<uint32>(new_size));
+        string_buf.realloc(new_size);
     }
   }
 }

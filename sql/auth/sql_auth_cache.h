@@ -1,7 +1,7 @@
 #ifndef SQL_USER_CACHE_INCLUDED
 #define SQL_USER_CACHE_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #include "hash_filo.h"                  // HASH, hash_filo
 #include "records.h"                    // READ_RECORD
 
+#include "prealloced_array.h"
+
 /* Forward Declarations */
 class String;
 
@@ -33,14 +35,14 @@ class String;
 class ACL_HOST_AND_IP
 {
   char *hostname;
-  uint hostname_length;
+  size_t hostname_length;
   long ip, ip_mask; // Used with masked ip:s
 
   const char *calc_ip(const char *ip_arg, long *val, char end);
 
 public:
   const char *get_host() const { return hostname; }
-  int get_host_len() { return hostname_length; }
+  size_t get_host_len() { return hostname_length; }
 
   bool has_wildcard()
   {
@@ -206,7 +208,7 @@ class GRANT_COLUMN :public Sql_alloc
 public:
   char *column;
   ulong rights;
-  uint key_length;
+  size_t key_length;
   GRANT_COLUMN(String &c,  ulong y);
 };
 
@@ -253,8 +255,11 @@ public:
 extern MEM_ROOT global_acl_memory;
 extern MEM_ROOT memex; 
 extern bool initialized;
-extern DYNAMIC_ARRAY acl_users, acl_proxy_users, acl_dbs;
-extern DYNAMIC_ARRAY acl_wild_hosts;
+const size_t ACL_PREALLOC_SIZE = 10U;
+extern Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users;
+extern Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users;
+extern Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs;
+extern Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts;
 extern HASH column_priv_hash, proc_priv_hash, func_priv_hash;
 extern hash_filo *acl_cache;
 extern HASH acl_check_hosts;

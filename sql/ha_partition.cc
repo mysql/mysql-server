@@ -1247,7 +1247,7 @@ static bool print_admin_msg(THD* thd, uint len,
   va_list args;
   Protocol *protocol= thd->protocol;
   uint length;
-  uint msg_length;
+  size_t msg_length;
   char name[NAME_LEN*2+2];
   char *msgbuf;
   bool error= true;
@@ -2239,26 +2239,6 @@ void ha_partition::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
   }
 }
 
-/*
-  Change comments specific to handler
-
-  SYNOPSIS
-    update_table_comment()
-    comment                       Original comment
-
-  RETURN VALUE
-    new comment
-
-  DESCRIPTION
-    No comment changes so far
-*/
-
-char *ha_partition::update_table_comment(const char *comment)
-{
-  return (char*) comment;                       /* Nothing to change */
-}
-
-
 /**
   Handle delete and rename table
 
@@ -2477,8 +2457,9 @@ static uint name_add(char *dest, const char *first_name, const char *sec_name)
 bool ha_partition::create_handler_file(const char *name)
 {
   partition_element *part_elem, *subpart_elem;
-  uint i, j, part_name_len, subpart_name_len;
-  uint tot_partition_words, tot_name_len, num_parts;
+  uint i, j;
+  size_t part_name_len, subpart_name_len, tot_name_len;
+  uint tot_partition_words, num_parts;
   uint tot_parts= 0;
   uint tot_len_words, tot_len_byte, chksum, tot_name_words;
   char *name_buffer_ptr;
@@ -2968,7 +2949,7 @@ bool ha_partition::insert_partition_name_in_hash(const char *name, uint part_id,
 {
   PART_NAME_DEF *part_def;
   uchar *part_name;
-  uint part_name_length;
+  size_t part_name_length;
   DBUG_ENTER("ha_partition::insert_partition_name_in_hash");
   /*
     Calculate and store the length here, to avoid doing it when

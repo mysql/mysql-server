@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,9 +160,9 @@ void Qmgr::execCONTINUEB(Signal* signal)
       jam();
       return;
     }
-    Uint64 now = NdbTick_CurrentMillisecond();
-
-    if (now > (c_start_election_time + c_restartFailureTimeout))
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    const Uint64 elapsed = NdbTick_Elapsed(c_start_election_time,now).milliSec();
+    if (elapsed > c_restartFailureTimeout)
     {
       jam();
       BaseString tmp;
@@ -259,10 +259,10 @@ Qmgr::execSTART_ORD(Signal* signal)
   /**
    * Start timer handling 
    */
-  Uint64 now = NdbTick_CurrentMillisecond();
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
   signal->theData[0] = ZTIMER_HANDLING;
-  signal->theData[1] = Uint32(now >> 32);
-  signal->theData[2] = Uint32(now);
+  signal->theData[1] = Uint32(now.getUint64() >> 32);
+  signal->theData[2] = Uint32(now.getUint64());
   sendSignal(QMGR_REF, GSN_CONTINUEB, signal, 3, JBB);
 }
 
@@ -286,13 +286,13 @@ void Qmgr::execSTTOR(Signal* signal)
   switch(signal->theData[1]){
   case 1:
     initData(signal);
+    g_eventLogger->info("Starting QMGR phase 1");
     startphase1(signal);
     recompute_version_info(NodeInfo::DB);
     recompute_version_info(NodeInfo::API);
     recompute_version_info(NodeInfo::MGM);
     return;
   case 7:
-    cactivateApiCheck = 1;
     if (cpresident == getOwnNodeId())
     {
       switch(arbitRec.method){
@@ -337,12 +337,17 @@ void Qmgr::execSTTOR(Signal* signal)
   }
   }
   
-  sendSttorryLab(signal);
+  sendSttorryLab(signal, false);
   return;
 }//Qmgr::execSTTOR()
 
-void Qmgr::sendSttorryLab(Signal* signal) 
+void Qmgr::sendSttorryLab(Signal* signal, bool first_phase)
 {
+  if (first_phase)
+  {
+    g_eventLogger->info("Include node protocol completed, phase 1 in QMGR"
+                        " completed");
+  }
 /****************************<*/
 /*< STTORRY                  <*/
 /****************************<*/
@@ -374,6 +379,8 @@ Qmgr::execDIH_RESTARTREF(Signal*signal)
 {
   jamEntry();
 
+  g_eventLogger->info("DIH reported initial start, now starting the"
+                      " Node Inclusion Protocol");
   const DihRestartRef * ref = CAST_CONSTPTR(DihRestartRef,
                                             signal->getDataPtr());
   c_start.m_latest_gci = 0;
@@ -390,6 +397,8 @@ Qmgr::execDIH_RESTARTCONF(Signal*signal)
   const DihRestartConf * conf = CAST_CONSTPTR(DihRestartConf,
                                               signal->getDataPtr());
 
+  g_eventLogger->info("DIH reported normal start, now starting the"
+                      " Node Inclusion Protocol");
   c_start.m_latest_gci = conf->latest_gci;
   c_start.m_no_nodegroup_nodes.assign(NdbNodeBitmask::Size,
                                       conf->no_nodegroup_mask);
@@ -398,7 +407,7 @@ Qmgr::execDIH_RESTARTCONF(Signal*signal)
 
 void Qmgr::setHbDelay(UintR aHbDelay)
 {
-  NDB_TICKS now = NdbTick_CurrentMillisecond();
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
   hb_send_timer.setDelay(aHbDelay < 10 ? 10 : aHbDelay);
   hb_send_timer.reset(now);
   hb_check_timer.setDelay(aHbDelay < 10 ? 10 : aHbDelay);
@@ -407,7 +416,7 @@ void Qmgr::setHbDelay(UintR aHbDelay)
 
 void Qmgr::setHbApiDelay(UintR aHbApiDelay)
 {
-  NDB_TICKS now = NdbTick_CurrentMillisecond();
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
   chbApiDelay = (aHbApiDelay < 100 ? 100 : aHbApiDelay);
   hb_api_timer.setDelay(chbApiDelay);
   hb_api_timer.reset(now);
@@ -420,7 +429,7 @@ void Qmgr::setArbitTimeout(UintR aArbitTimeout)
 
 void Qmgr::setCCDelay(UintR aCCDelay)
 {
-  NDB_TICKS now = NdbTick_CurrentMillisecond();
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
   if (aCCDelay == 0)
   {
     /* Connectivity check disabled */
@@ -585,7 +594,7 @@ void Qmgr::execCM_INFOCONF(Signal* signal)
 
   cpresident = ZNIL;
   cpresidentAlive = ZFALSE;
-  c_start_election_time = NdbTick_CurrentMillisecond();
+  c_start_election_time = NdbTick_getCurrentTicks();
   
   signal->theData[0] = ZSTART_FAILURE_LIMIT;
   sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 3000, 1);
@@ -1455,11 +1464,10 @@ void Qmgr::execCM_REGREF(Signal* signal)
 Uint32
 Qmgr::check_startup(Signal* signal)
 {
-  Uint64 now = NdbTick_CurrentMillisecond();
-  Uint64 partial_timeout = c_start_election_time + c_restartPartialTimeout;
-  Uint64 partitioned_timeout = partial_timeout + c_restartPartionedTimeout;
-  Uint64 no_nodegroup_timeout = c_start_election_time +
-    c_restartNoNodegroupTimeout;
+  const NDB_TICKS now  = NdbTick_getCurrentTicks();
+  const Uint64 elapsed = NdbTick_Elapsed(c_start_election_time,now).milliSec();
+  const Uint64 partitionedTimeout = c_restartPartialTimeout
+                                  + c_restartPartionedTimeout;
 
   const bool no_nodegroup_active =
     (c_restartNoNodegroupTimeout != ~Uint32(0)) &&
@@ -1494,10 +1502,10 @@ Qmgr::check_startup(Signal* signal)
     }
     else if (no_nodegroup_active)
     {
-      if (now < no_nodegroup_timeout)
+      if (elapsed < c_restartNoNodegroupTimeout)
       {
         signal->theData[1] = 6;
-        signal->theData[2] = Uint32((no_nodegroup_timeout - now + 500) / 1000);
+        signal->theData[2] = Uint32((c_restartNoNodegroupTimeout - elapsed + 500) / 1000);
         report_mask.assign(wait);
         retVal = 0;
         goto start_report;
@@ -1532,7 +1540,7 @@ Qmgr::check_startup(Signal* signal)
     }
   }
 
-  if (now >= no_nodegroup_timeout)
+  if (elapsed >= c_restartNoNodegroupTimeout)
   {
     tmp.bitOR(c_start.m_no_nodegroup_nodes);
   }
@@ -1609,21 +1617,21 @@ Qmgr::check_startup(Signal* signal)
       }
     }
 
-    if (now < partial_timeout)
+    if (elapsed < c_restartPartialTimeout)
     {
       jam();
 
       signal->theData[1] = c_restartPartialTimeout == (Uint32) ~0 ? 2 : 3;
-      signal->theData[2] = Uint32((partial_timeout - now + 500) / 1000);
+      signal->theData[2] = Uint32((c_restartPartialTimeout - elapsed + 500) / 1000);
       report_mask.assign(wait);
       retVal = 0;
 
-      if (no_nodegroup_active && now < no_nodegroup_timeout)
+      if (no_nodegroup_active && elapsed < c_restartNoNodegroupTimeout)
       {
         signal->theData[1] = 7;
-        signal->theData[2] = Uint32((no_nodegroup_timeout - now + 500) / 1000);
+        signal->theData[2] = Uint32((c_restartNoNodegroupTimeout - elapsed + 500) / 1000);
       }
-      else if (no_nodegroup_active && now >= no_nodegroup_timeout)
+      else if (no_nodegroup_active && elapsed >= c_restartNoNodegroupTimeout)
       {
         report_mask.bitANDC(c_start.m_no_nodegroup_nodes);
       }
@@ -1639,7 +1647,7 @@ Qmgr::check_startup(Signal* signal)
       jam();
       goto missing_nodegroup;
     case CheckNodeGroups::Partitioning:
-      if (now < partitioned_timeout && result != CheckNodeGroups::Win)
+      if (elapsed < partitionedTimeout && result != CheckNodeGroups::Win)
       {
         goto missinglog;
       }
@@ -1681,7 +1689,7 @@ check_log:
       }
       else if (retVal == 2)
       {
-	if (now <= partitioned_timeout)
+	if (elapsed <= partitionedTimeout)
 	{
 	  jam();
 	  goto missinglog;
@@ -1698,7 +1706,7 @@ check_log:
 
 missinglog:
   signal->theData[1] = c_restartPartionedTimeout == (Uint32) ~0 ? 4 : 5;
-  signal->theData[2] = Uint32((partitioned_timeout - now + 500) / 1000);
+  signal->theData[2] = Uint32((partitionedTimeout - elapsed + 500) / 1000);
   report_mask.assign(c_definedNodes);
   report_mask.bitANDC(c_start.m_starting_nodes);
   retVal = 0;
@@ -1752,7 +1760,8 @@ incomplete_log:
 }
 
 void
-Qmgr::electionWon(Signal* signal){
+Qmgr::electionWon(Signal* signal)
+{
   NodeRecPtr myNodePtr;
   cpresident = getOwnNodeId(); /* This node becomes president. */
   myNodePtr.i = getOwnNodeId();
@@ -1769,7 +1778,7 @@ Qmgr::electionWon(Signal* signal){
   c_clusterNodes.set(getOwnNodeId());
   
   cpresidentAlive = ZTRUE;
-  c_start_election_time = ~0;
+  NdbTick_Invalidate(&c_start_election_time);
   c_start.reset();
 
   signal->theData[0] = NDB_LE_CM_REGCONF;
@@ -1782,7 +1791,7 @@ Qmgr::electionWon(Signal* signal){
   if (c_start.m_starting_nodes.isclear())
   {
     jam();
-    sendSttorryLab(signal);
+    sendSttorryLab(signal, true);
   }
 }
 
@@ -2109,7 +2118,7 @@ void Qmgr::execCM_ADD(Signal* signal)
      * HEARTBEATS. 
      */
     sendHeartbeat(signal);
-    hb_send_timer.reset(0);
+    hb_send_timer.reset(NdbTick_getCurrentTicks());
 
     /**
      *  ENABLE COMMUNICATION WITH ALL BLOCKS WITH THE NEWLY ADDED NODE
@@ -2199,7 +2208,7 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
    * THAT WE MISS EARLY HEARTBEATS. 
    */
   sendHeartbeat(signal);
-  hb_send_timer.reset(0);
+  hb_send_timer.reset(NdbTick_getCurrentTicks());
 
   /**
    * ENABLE COMMUNICATION WITH ALL BLOCKS IN THE CURRENT CLUSTER AND SET 
@@ -2237,7 +2246,7 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
 void
 Qmgr::handleEnableComCommitNew(Signal *signal)
 {
-  sendSttorryLab(signal);
+  sendSttorryLab(signal, true);
   
   sendCmAckAdd(signal, getOwnNodeId(), CmAdd::CommitNew);
 }
@@ -2343,7 +2352,7 @@ void Qmgr::execCM_ACKADD(Signal* signal)
       if (c_start.m_starting_nodes.isclear())
       {
 	jam();
-	sendSttorryLab(signal);
+	sendSttorryLab(signal, true);
       }
     }
     return;
@@ -2461,10 +2470,6 @@ void Qmgr::findNeighbours(Signal* signal, Uint32 from)
 /*---------------------------------------------------------------------------*/
 void Qmgr::initData(Signal* signal) 
 {
-  NDB_TICKS now = NdbTick_CurrentMillisecond();
-  interface_check_timer.setDelay(1000);
-  interface_check_timer.reset(now);
-
   // catch-all for missing initializations
   memset(&arbitRec, 0, sizeof(arbitRec));
 
@@ -2606,25 +2611,39 @@ void Qmgr::initData(Signal* signal)
  *---------------------------------------------------------------------------*/
 void Qmgr::timerHandlingLab(Signal* signal) 
 {
-  NDB_TICKS TcurrentTime = NdbTick_CurrentMillisecond();
+  const NDB_TICKS TcurrentTime = NdbTick_getCurrentTicks();
   NodeRecPtr myNodePtr;
   myNodePtr.i = getOwnNodeId();
   ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
 
-  Uint32 sentHi = signal->theData[1];
-  Uint32 sentLo = signal->theData[2];
-  Uint64 sent = (Uint64(sentHi) << 32) + sentLo;
-
-  if (TcurrentTime >= sent + 1000 || (TcurrentTime < sent))
+  const Uint32 sentHi = signal->theData[1];
+  const Uint32 sentLo = signal->theData[2];
+  const NDB_TICKS sent((Uint64(sentHi) << 32) | sentLo);
+  
+  if (NdbTick_Compare(sent,TcurrentTime) > 0)
   {
     jam();
-    g_eventLogger->warning("timerHandlingLab now: %llu sent: %llu diff: %d",
-                           TcurrentTime, sent, int(TcurrentTime - sent));
+    const Uint64 backwards = NdbTick_Elapsed(TcurrentTime,sent).milliSec();
+    if (backwards > 0) //Ignore sub millisecond backticks
+    {
+      g_eventLogger->warning("timerHandlingLab, clock ticked backwards: %llu (ms)",
+                              backwards);
+    }
   }
-  else if (TcurrentTime >= sent + 150)
+  else
   {
-    g_eventLogger->info("timerHandlingLab now: %llu sent: %llu diff: %d",
-                        TcurrentTime, sent, int(TcurrentTime - sent));
+    const Uint64 elapsed = NdbTick_Elapsed(sent,TcurrentTime).milliSec();
+    if (elapsed >= 1000)
+    {
+      jam();
+      g_eventLogger->warning("timerHandlingLab, expected 10ms sleep"
+                             ", not scheduled for: %d (ms)", int(elapsed));
+    }
+    else if (elapsed >= 150)
+    {
+      g_eventLogger->info("timerHandlingLab, expected 10ms sleep"
+                          ", not scheduled for: %d (ms)", int(elapsed));
+    }
   }
 
   if (myNodePtr.p->phase == ZRUNNING) {
@@ -2669,36 +2688,12 @@ void Qmgr::timerHandlingLab(Signal* signal)
     apiHbHandlingLab(signal, TcurrentTime);
   }
 
-  if (cactivateApiCheck != 0) {
-    jam();
-    if (clatestTransactionCheck == 0) {
-      //-------------------------------------------------------------
-      // Initialise the Transaction check timer.
-      //-------------------------------------------------------------
-      clatestTransactionCheck = TcurrentTime;
-    }//if
-    int counter = 0;
-    while (TcurrentTime > ((NDB_TICKS)10 + clatestTransactionCheck)) {
-      jam();
-      clatestTransactionCheck += (NDB_TICKS)10;
-      sendSignal(DBTC_REF, GSN_TIME_SIGNAL, signal, 1, JBB);
-      sendSignal(DBLQH_REF, GSN_TIME_SIGNAL, signal, 1, JBB);          
-      counter++;
-      if (counter > 1) {
-	jam();
-	break;
-      } else {
-	;
-      }//if
-    }//while
-  }//if
-  
   //--------------------------------------------------
   // Resend this signal with 10 milliseconds delay.
   //--------------------------------------------------
   signal->theData[0] = ZTIMER_HANDLING;
-  signal->theData[1] = Uint32(TcurrentTime >> 32);
-  signal->theData[2] = Uint32(TcurrentTime);
+  signal->theData[1] = Uint32(TcurrentTime.getUint64() >> 32);
+  signal->theData[2] = Uint32(TcurrentTime.getUint64());
   sendSignalWithDelay(QMGR_REF, GSN_CONTINUEB, signal, 10, 3);
   return;
 }//Qmgr::timerHandlingLab()
@@ -2782,7 +2777,7 @@ void Qmgr::checkHeartbeat(Signal* signal)
   }//if
 }//Qmgr::checkHeartbeat()
 
-void Qmgr::apiHbHandlingLab(Signal* signal, Uint64 now)
+void Qmgr::apiHbHandlingLab(Signal* signal, NDB_TICKS now)
 {
   NodeRecPtr TnodePtr;
 
@@ -2828,7 +2823,8 @@ void Qmgr::apiHbHandlingLab(Signal* signal, Uint64 now)
       }//if
     }//if
     else if (TnodePtr.p->phase == ZAPI_INACTIVE &&
-             TnodePtr.p->m_secret != 0 && now > TnodePtr.p->m_alloc_timeout)
+             TnodePtr.p->m_secret != 0 &&
+             NdbTick_Compare(now,TnodePtr.p->m_alloc_timeout) > 0)
     {
       jam();
       TnodePtr.p->m_secret = 0;
@@ -2839,7 +2835,7 @@ void Qmgr::apiHbHandlingLab(Signal* signal, Uint64 now)
   return;
 }//Qmgr::apiHbHandlingLab()
 
-void Qmgr::checkStartInterface(Signal* signal, Uint64 now) 
+void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now) 
 {
   NodeRecPtr nodePtr;
   /*------------------------------------------------------------------------*/
@@ -2960,7 +2956,8 @@ void Qmgr::checkStartInterface(Signal* signal, Uint64 now)
       }
     }
     else if (type == NodeInfo::DB && nodePtr.p->phase == ZINIT &&
-             nodePtr.p->m_secret != 0 && now > nodePtr.p->m_alloc_timeout)
+             nodePtr.p->m_secret != 0 &&
+             NdbTick_Compare(now,nodePtr.p->m_alloc_timeout) > 0)
     {
       jam();
       nodePtr.p->m_secret = 0;
@@ -5495,6 +5492,7 @@ Qmgr::stateArbitInit(Signal* signal)
     arbitRec.code = 0;
     arbitRec.newstate = false;
   }
+  arbitRec.setTimestamp();  // Init arbitration timer 
   arbitRec.state = ARBIT_FIND;
   arbitRec.newstate = true;
   stateArbitFind(signal);
@@ -6413,9 +6411,9 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
     /**
      * generate secret
      */
-    Uint64 now = NdbTick_CurrentMillisecond();
-    Uint32 secret_hi = Uint32(now >> 24);
-    Uint32 secret_lo = Uint32(now << 8) + getOwnNodeId();
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    const Uint32 secret_hi = Uint32(now.getUint64() >> 24);
+    const Uint32 secret_lo = Uint32(now.getUint64() << 8) + getOwnNodeId();
     req.secret_hi = secret_hi;
     req.secret_lo = secret_lo;
 
@@ -6423,7 +6421,7 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
       req.timeout = 60000;
 
     nodePtr.p->m_secret = (Uint64(secret_hi) << 32) + secret_lo;
-    nodePtr.p->m_alloc_timeout = now + req.timeout;
+    nodePtr.p->m_alloc_timeout = NdbTick_AddMilliseconds(now,req.timeout);
 
     opAllocNodeIdReq.m_req = req;
     opAllocNodeIdReq.m_error = 0;
@@ -6836,7 +6834,7 @@ Qmgr::startConnectivityCheck(Signal* signal, Uint32 reason, Uint32 causingNode)
 
     m_connectivity_check.m_active = true;
     m_connectivity_check.m_tick = 0;
-    NDB_TICKS now = NdbTick_CurrentMillisecond();
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
     m_connectivity_check.m_timer.reset(now);
   }
   else
@@ -7084,7 +7082,7 @@ Qmgr::connectivityCheckCompleted(Signal* signal)
      * of goodwill
      */
     sendHeartbeat(signal);
-    hb_send_timer.reset(NdbTick_CurrentMillisecond());
+    hb_send_timer.reset(NdbTick_getCurrentTicks());
   };
 }
 

@@ -620,8 +620,13 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     m_current_stage_key= new_stage->m_key;
     proc_info= msg;
 
-    MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
+    m_stage_progress_psi= MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
   }
+  else
+  {
+    m_stage_progress_psi= NULL;
+  }
+
   return;
 }
 
@@ -909,6 +914,7 @@ THD::THD(bool enable_plugins)
    m_trans_end_pos(0),
    table_map_for_update(0),
    m_examined_row_count(0),
+   m_stage_progress_psi(NULL),
    m_digest(NULL),
    m_statement_psi(NULL),
    m_transaction_psi(NULL),
@@ -957,6 +963,7 @@ THD::THD(bool enable_plugins)
   col_access=0;
   is_slave_error= thread_specific_used= FALSE;
   my_hash_clear(&handler_tables_hash);
+  my_hash_clear(&ull_hash);
   tmp_table=0;
   cuted_fields= 0L;
   m_sent_row_count= 0L;
@@ -991,7 +998,6 @@ THD::THD(bool enable_plugins)
   net.vio=0;
 #endif
   client_capabilities= 0;                       // minimalistic client
-  ull=0;
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= 0;
   m_release_resources_done= false;
@@ -1527,6 +1533,8 @@ void THD::cleanup(void)
   if (global_read_lock.is_acquired())
     global_read_lock.unlock_global_read_lock(this);
 
+  mysql_ull_cleanup(this);
+
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
@@ -1534,14 +1542,6 @@ void THD::cleanup(void)
   close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
-
-  if (ull)
-  {
-    mysql_mutex_lock(&LOCK_user_locks);
-    item_user_lock_release(ull);
-    mysql_mutex_unlock(&LOCK_user_locks);
-    ull= NULL;
-  }
 
   /*
     Actions above might generate events for the binary log, so we
@@ -2218,7 +2218,7 @@ bool THD::convert_string(String *s, const CHARSET_INFO *from_cs,
 
 void THD::update_charset()
 {
-  uint32 not_used;
+  size_t not_used;
   charset_is_system_charset=
     !String::needs_conversion(0,
                               variables.character_set_client,
@@ -2783,7 +2783,8 @@ bool select_export::send_data(List<Item> &items)
   }
   row_count++;
   Item *item;
-  uint used_length=0,items_left=items.elements;
+  size_t used_length=0;
+  uint items_left=items.elements;
   List_iterator_fast<Item> li(items);
 
   if (my_b_write(&cache,(uchar*) exchange->line.line_start->ptr(),
@@ -2803,7 +2804,7 @@ bool select_export::send_data(List<Item> &items)
       const char *cannot_convert_error_pos;
       const char *from_end_pos;
       const char *error_pos;
-      uint32 bytes;
+      size_t bytes;
       uint64 estimated_bytes=
         ((uint64) res->length() / res->charset()->mbminlen + 1) *
         write_cs->mbmaxlen + 1;
@@ -2876,7 +2877,7 @@ bool select_export::send_data(List<Item> &items)
     else
     {
       if (fixed_row_size)
-	used_length=min(res->length(),item->max_length);
+	used_length=min<size_t>(res->length(),item->max_length);
       else
 	used_length=res->length();
       if ((result_type == STRING_RESULT || is_unsafe_field_sep) &&
@@ -3061,7 +3062,7 @@ bool select_export::send_data(List<Item> &items)
 	  space_inited=1;
 	  memset(space, ' ', sizeof(space));
 	}
-	uint length=item->max_length-used_length;
+	size_t length=item->max_length-used_length;
 	for (; length > sizeof(space) ; length-=sizeof(space))
 	{
 	  if (my_b_write(&cache,(uchar*) space,sizeof(space)))
@@ -3735,20 +3736,21 @@ bool select_dumpvar::send_eof()
 }
 
 
-void thd_increment_bytes_sent(ulong length)
+void thd_increment_bytes_sent(size_t length)
 {
-  THD *thd=current_thd;
-  if (likely(thd != 0))
-  { /* current_thd==0 when close_connection() calls net_send_error() */
+  THD *thd= current_thd;
+  if (likely(thd != NULL))
+  { /* current_thd==NULL when close_connection() calls net_send_error() */
     thd->status_var.bytes_sent+= length;
   }
 }
 
 
-void thd_increment_bytes_received(ulong length)
+void thd_increment_bytes_received(size_t length)
 {
-  if (likely(current_thd != NULL))
-    current_thd->status_var.bytes_received+= length;
+  THD *thd= current_thd;
+  if (likely(thd != NULL))
+    thd->status_var.bytes_received+= length;
 }
 
 
@@ -4553,9 +4555,14 @@ void THD::leave_locked_tables_mode()
       when leaving LTM.
     */
     global_read_lock.set_explicit_lock_duration(this);
-    /* Also ensure that we don't release metadata locks for open HANDLERs. */
+    /*
+      Also ensure that we don't release metadata locks for open HANDLERs
+      and user-level locks.
+    */
     if (handler_tables_hash.records)
       mysql_ha_set_explicit_lock_duration(this);
+    if (ull_hash.records)
+      mysql_ull_set_explicit_lock_duration(this);
   }
   locked_tables_mode= LTM_NONE;
 }

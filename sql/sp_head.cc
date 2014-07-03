@@ -415,15 +415,22 @@ bool sp_head::setup_trigger_fields(THD *thd,
                                    GRANT_INFO *subject_table_grant,
                                    bool need_fix_fields)
 {
-  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  for (SQL_I_List<Item_trigger_field> *trig_field_list=
+         m_list_of_trig_fields_item_lists.first;
+       trig_field_list;
+       trig_field_list= trig_field_list->first->next_trig_field_list)
   {
-    f->setup_field(thd, tfs, subject_table_grant);
-
-    if (need_fix_fields &&
-        !f->fixed &&
-        f->fix_fields(thd, (Item **) NULL))
+    for (Item_trigger_field *f= trig_field_list->first; f;
+         f= f->next_trg_field)
     {
-      return true;
+      f->setup_field(thd, tfs, subject_table_grant);
+
+      if (need_fix_fields &&
+          !f->fixed &&
+          f->fix_fields(thd, (Item **) NULL))
+      {
+        return true;
+      }
     }
   }
 
@@ -433,18 +440,25 @@ bool sp_head::setup_trigger_fields(THD *thd,
 
 void sp_head::mark_used_trigger_fields(TABLE *subject_table)
 {
-  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  for (SQL_I_List<Item_trigger_field> *trig_field_list=
+         m_list_of_trig_fields_item_lists.first;
+       trig_field_list;
+       trig_field_list= trig_field_list->first->next_trig_field_list)
   {
-    if (f->field_idx == (uint) -1)
+    for (Item_trigger_field *f= trig_field_list->first; f;
+         f= f->next_trg_field)
     {
-      // We cannot mark fields which does not present in table.
-      continue;
+      if (f->field_idx == (uint) -1)
+      {
+        // We cannot mark fields which does not present in table.
+        continue;
+      }
+
+      bitmap_set_bit(subject_table->read_set, f->field_idx);
+
+      if (f->get_settable_routine_parameter())
+        bitmap_set_bit(subject_table->write_set, f->field_idx);
     }
-
-    bitmap_set_bit(subject_table->read_set, f->field_idx);
-
-    if (f->get_settable_routine_parameter())
-      bitmap_set_bit(subject_table->write_set, f->field_idx);
   }
 }
 
@@ -461,14 +475,21 @@ void sp_head::mark_used_trigger_fields(TABLE *subject_table)
 
 bool sp_head::has_updated_trigger_fields(const MY_BITMAP *used_fields) const
 {
-  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  for (SQL_I_List<Item_trigger_field> *trig_field_list=
+         m_list_of_trig_fields_item_lists.first;
+       trig_field_list;
+       trig_field_list= trig_field_list->first->next_trig_field_list)
   {
-    // We cannot check fields which does not present in table.
-    if (f->field_idx != (uint) -1)
+    for (Item_trigger_field *f= trig_field_list->first; f;
+         f= f->next_trg_field)
     {
-      if (bitmap_is_set(used_fields, f->field_idx) &&
-          f->get_settable_routine_parameter())
-        return true;
+      // We cannot check fields which does not present in table.
+      if (f->field_idx != (uint) -1)
+      {
+        if (bitmap_is_set(used_fields, f->field_idx) &&
+            f->get_settable_routine_parameter())
+          return true;
+      }
     }
   }
 
@@ -1822,6 +1843,23 @@ bool sp_head::add_instr(THD *thd, sp_instr *instr)
 {
   m_parser_data.process_new_sp_instr(thd, instr);
 
+  if (m_type == SP_TYPE_TRIGGER && m_cur_instr_trig_field_items.elements)
+  {
+    SQL_I_List<Item_trigger_field> *instr_trig_fld_list;
+    /*
+      Move all the Item_trigger_field from "sp_head::
+      m_cur_instr_trig_field_items" to the per instruction Item_trigger_field
+      list "sp_lex_instr::m_trig_field_list" and clear "sp_head::
+      m_cur_instr_trig_field_items".
+    */
+    if ((instr_trig_fld_list= instr->get_instr_trig_field_list()) != NULL)
+    {
+      m_cur_instr_trig_field_items.save_and_clear(instr_trig_fld_list);
+      m_list_of_trig_fields_item_lists.link_in_list(instr_trig_fld_list,
+        &instr_trig_fld_list->first->next_trig_field_list);
+    }
+  }
+
   /*
     Memory root of every instruction is designated for permanent
     transformations (optimizations) made on the parsed tree during
@@ -1940,7 +1978,7 @@ bool sp_head::show_routine_code(THD *thd)
   field_list.push_back(new Item_uint(NAME_STRING("Pos"), 0, 9));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Instruction",
-                                             std::max(buffer.length(), 1024U)));
+                                             std::max<size_t>(buffer.length(), 1024U)));
   if (protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS |
                                          Protocol::SEND_EOF))
     return true;
@@ -2008,7 +2046,7 @@ bool sp_head::merge_table_list(THD *thd,
       */
       char tname_buff[(NAME_LEN + 1) * 3];
       String tname(tname_buff, sizeof(tname_buff), &my_charset_bin);
-      uint temp_table_key_length;
+      size_t temp_table_key_length;
 
       tname.length(0);
       tname.append(table->db, table->db_length);

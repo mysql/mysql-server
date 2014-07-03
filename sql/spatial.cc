@@ -203,7 +203,8 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
 
   /* + 1 to skip the byte order (stored in position SRID_SIZE). */
   geom_type= uint4korr(data + SRID_SIZE + 1);
-  if (!(result= create_by_typeid(buffer, (int) geom_type)))
+  if (geom_type < wkb_first || geom_type > wkb_last ||
+      !(result= create_by_typeid(buffer, (int) geom_type)))
     return NULL;
 
   uint32 srid= uint4korr(data);
@@ -255,6 +256,7 @@ Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
       result->init_from_wkt(trs, wkt) ||
       trs->check_next_symbol(')'))
     return NULL;
+
   if (init_stream)
     result->set_data_ptr(wkt->ptr() + WKB_HEADER_SIZE,
                          wkt->length() - WKB_HEADER_SIZE);
@@ -459,8 +461,10 @@ Geometry *Geometry::create_from_wkb(Geometry_buffer *buffer,
 
   if (len < WKB_HEADER_SIZE)
     return NULL;
+
   geom_type= wkb_get_uint(wkb+1, ::get_byte_order(wkb));
-  if (!(geom= create_by_typeid(buffer, (int) geom_type)) ||
+  if (geom_type < wkb_first || geom_type > wkb_last ||
+      !(geom= create_by_typeid(buffer, (int) geom_type)) ||
       res->reserve(WKB_HEADER_SIZE, 512))
     return NULL;
 
@@ -567,6 +571,8 @@ bool Geometry::create_point(String *result, point_xy p) const
 
 /**
   Append N points from packed format to text
+  Before calling this function, caller must have already checked that wkb's
+  buffer is complete and not truncated.
 
   @param OUT txt        Append points here
   @param     n_points   Number of points
@@ -769,7 +775,7 @@ uint Geometry::collection_init_from_opresult(String *bin,
 
 Geometry::Geometry(const Geometry &geo)
 {
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   wkbType geotype= geo.get_geotype();
 #endif
   DBUG_ASSERT(is_valid_geotype(geotype) &&
@@ -797,13 +803,13 @@ Geometry::~Geometry()
     problem we want to address/avoid by forbiding throwing exceptions in
     destructors of Geometry classes.
 
-    Since DBUG_ASSERT only works when DBUG_OFF and _lint not defined, the
-    try/catch is only enabled here depending on the same conditions, so that
+    Since DBUG_ASSERT only works when DBUG_OFF is not defined, the
+    try/catch is only enabled here depending on the same condition, so that
     in release builds we don't have the overhead of the try-catch statement.
 
     This is true also for destructors of children classes of Geometry.
   */
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   try
   {
 #endif
@@ -827,7 +833,7 @@ Geometry::~Geometry()
 
     donate_data();
 
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   }
   catch (...)
   {
@@ -847,7 +853,7 @@ Geometry &Geometry::operator=(const Geometry &rhs)
   if (this == &rhs)
     return *this;
 
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   Geometry::wkbType geotype= rhs.get_geotype();
 #endif
   DBUG_ASSERT((is_bg_adapter() || rhs.is_bg_adapter()) &&
@@ -969,6 +975,9 @@ void Gis_point::set_ptr(void *ptr, size_t len)
 
 uint32 Gis_point::get_data_size() const
 {
+  if (get_nbytes() < POINT_DATA_SIZE)
+    return GET_SIZE_ERROR;
+
   return POINT_DATA_SIZE;
 }
 
@@ -1390,7 +1399,7 @@ Gis_polygon::Gis_polygon(const void *wkb, size_t nbytes,
 Gis_polygon::~Gis_polygon()
 {
   /* See ~Geometry() for why we do try-catch like this. */
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   try
   {
 #endif
@@ -1418,7 +1427,7 @@ Gis_polygon::~Gis_polygon()
       given to us, we don't own it; otherwise the two pieces are already freed
       above.
      */
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   }
   catch (...)
   {
@@ -1550,11 +1559,7 @@ bool Gis_polygon_ring::set_ring_order(bool want_ccw)
     than 3 points in a polygon ring, so we should return error in this case.
    */
   if (rsz < 3)
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0),
-             "A polygon's ring must have at least 3 distinct points.");
     return true;
-  }
 
   for (size_t i= 0; i < rsz; i++)
   {
@@ -1621,7 +1626,6 @@ bool Gis_polygon_ring::set_ring_order(bool want_ccw)
     // be the same as min_i here.
     post_i= 0;
     // Can never come here if all polygon rings are closed.
-    my_error(ER_GIS_INVALID_DATA, MYF(0), "set_ring_order");
     return true;
   }
 
@@ -1767,7 +1771,6 @@ bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
 {
   uint32 n_linear_rings= 0;
   uint32 lr_pos= wkb->length();
-  int closed;
 
   if (wkb->reserve(4, 512))
     return true;
@@ -1787,11 +1790,6 @@ bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
       return true;
 
     ls.set_data_ptr(wkb->ptr() + ls_pos, wkb->length() - ls_pos);
-    if (ls.is_closed(&closed) || !closed)
-    {
-      trs->set_error_msg("POLYGON's linear ring isn't closed");
-      return true;
-    }
     n_linear_rings++;
     if (trs->skip_char(','))			// Didn't find ','
       break;
@@ -1873,15 +1871,12 @@ uint Gis_polygon::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
 
     uint32 ls_pos= res->length();
     int ls_len;
-    int closed;
 
     if (!(ls_len= ls.init_from_wkb(wkb, len, bo, res)))
       return 0;
 
     ls.set_data_ptr(res->ptr() + ls_pos, res->length() - ls_pos);
 
-    if (ls.is_closed(&closed) || !closed)
-      return 0;
     wkb+= ls_len;
     len-= ls_len;
   }
@@ -2490,6 +2485,8 @@ uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
   res->q_append(n_line_strings);
 
   wkb+= 4;
+  len-= 4;
+
   while (n_line_strings--)
   {
     Gis_line_string ls(false);
@@ -2500,7 +2497,7 @@ uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
       return 0;
 
     write_wkb_header(res, wkb_linestring);
-    if (!(ls_len= ls.init_from_wkb(wkb + WKB_HEADER_SIZE, len,
+    if (!(ls_len= ls.init_from_wkb(wkb + WKB_HEADER_SIZE, len - WKB_HEADER_SIZE,
                                    (wkbByteOrder) wkb[0], res)))
       return 0;
     ls_len+= WKB_HEADER_SIZE;;
@@ -2582,7 +2579,8 @@ int Gis_multi_line_string::geometry_n(uint32 num, String *result) const
     wkb.skip_unsafe(length);
   }
   return result->append(wkb.data() - 4 - WKB_HEADER_SIZE,
-                        length + 4 + WKB_HEADER_SIZE, (uint32) 0);
+                        length + 4 + WKB_HEADER_SIZE,
+                        static_cast<size_t>(0));
 }
 
 
@@ -2736,7 +2734,9 @@ uint Gis_multi_polygon::init_from_wkb(const char *wkb, uint len,
     return 0;
   res->q_append(n_poly);
 
-  wkb+=4;
+  wkb+= 4;
+  len-= 4;
+
   while (n_poly--)
   {
     Gis_polygon p(false);
@@ -2746,7 +2746,7 @@ uint Gis_multi_polygon::init_from_wkb(const char *wkb, uint len,
         res->reserve(WKB_HEADER_SIZE, 512))
       return 0;
     write_wkb_header(res, wkb_polygon);
-    if (!(p_len= p.init_from_wkb(wkb + WKB_HEADER_SIZE, len,
+    if (!(p_len= p.init_from_wkb(wkb + WKB_HEADER_SIZE, len - WKB_HEADER_SIZE,
                                  (wkbByteOrder) wkb[0], res)))
       return 0;
     p_len+= WKB_HEADER_SIZE;
@@ -2865,7 +2865,7 @@ int Gis_multi_polygon::geometry_n(uint32 num, String *result) const
     return 1;
   return result->append(start_of_polygon,
                         (uint32) (wkb.data() - start_of_polygon),
-                        (uint32) 0);
+                        static_cast<size_t>(0));
 }
 
 
@@ -3097,6 +3097,7 @@ uint Gis_geometry_collection::init_from_wkb(const char *wkb, uint len,
   res->q_append(n_geom);
 
   wkb+= 4;
+  len-= 4;
 
   /* Allow 0 components as an empty collection. */
   while (n_geom--)
@@ -3114,7 +3115,8 @@ uint Gis_geometry_collection::init_from_wkb(const char *wkb, uint len,
     write_wkb_header(res, static_cast<wkbType>(wkb_type));
 
     if (!(geom= create_by_typeid(&buffer, wkb_type)) ||
-        !(g_len= geom->init_from_wkb(wkb + WKB_HEADER_SIZE, len,
+        !(g_len= geom->init_from_wkb(wkb + WKB_HEADER_SIZE,
+                                     len - WKB_HEADER_SIZE,
                                      (wkbByteOrder)  wkb[0], res)))
       return 0;
     g_len+= WKB_HEADER_SIZE;
@@ -3839,13 +3841,14 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms)
 const void *Geometry::normalize_ring_order()
 {
   Geometry *geo= this;
+  bool inval= false;
 
   if (geo->get_type() == Geometry::wkb_polygon)
   {
     Gis_polygon bgeo(geo->get_data_ptr(), geo->get_data_size(),
                      geo->get_flags(), geo->get_srid());
     if (bgeo.set_polygon_ring_order())
-      return NULL;
+      inval= true;
   }
   else if (geo->get_type() == Geometry::wkb_multipolygon)
   {
@@ -3853,7 +3856,7 @@ const void *Geometry::normalize_ring_order()
                            geo->get_flags(), geo->get_srid());
     for (size_t i= 0; i < bgeo.size(); i++)
       if (bgeo[i].set_polygon_ring_order())
-        return NULL;
+        inval= true;
   }
   else if (geo->get_type() == Geometry::wkb_geometrycollection)
   {
@@ -3864,5 +3867,7 @@ const void *Geometry::normalize_ring_order()
     DBUG_ASSERT(false);
   }
 
+  if (inval)
+    return NULL;
   return geo->get_data_ptr();
 }

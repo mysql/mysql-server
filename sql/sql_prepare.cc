@@ -198,7 +198,7 @@ private:
   */
   MEM_ROOT main_mem_root;
 private:
-  bool set_db(const char *db, uint db_length);
+  bool set_db(const char *db, size_t db_length);
   bool set_parameters(String *expanded_query,
                       uchar *packet, uchar *packet_end);
   bool execute(String *expanded_query, bool open_cursor);
@@ -832,7 +832,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
     {
       const CHARSET_INFO *fromcs= thd->variables.character_set_client;
       const CHARSET_INFO *tocs= thd->variables.collation_connection;
-      uint32 dummy_offset;
+      size_t dummy_offset;
 
       param->value.cs_info.character_set_of_placeholder= fromcs;
       param->value.cs_info.character_set_client= fromcs;
@@ -2284,7 +2284,7 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
     0         in case of error (out of memory)
 */
 
-static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
+static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len)
 {
   THD *thd= lex->thd;
   char *query_str= 0;
@@ -2297,7 +2297,8 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
     bool needs_conversion;
     user_var_entry *entry;
     String *var_value= &str;
-    uint32 unused, len;
+    size_t unused;
+    size_t len;
     /*
       Convert @var contents to string in connection character set. Although
       it is known that int/real/NULL value cannot be a valid query we still
@@ -2379,7 +2380,7 @@ void mysql_sql_stmt_prepare(THD *thd)
   LEX_STRING *name= &lex->prepared_stmt_name;
   Prepared_statement *stmt;
   const char *query;
-  uint query_len= 0;
+  size_t query_len= 0;
   DBUG_ENTER("mysql_sql_stmt_prepare");
 
   if ((stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
@@ -2530,6 +2531,8 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     NOTE: We should reset whole table list here including all tables added
     by prelocking algorithm (it is not a problem for substatements since
     they have their own table list).
+    Another note: this loop uses query_tables so does not see TABLE_LISTs
+    which represent join nests.
   */
   for (TABLE_LIST *tables= lex->query_tables;
        tables;
@@ -3269,7 +3272,7 @@ bool Prepared_statement::set_name(LEX_STRING *name_arg)
 */
 
 bool
-Prepared_statement::set_db(const char *db_arg, uint db_length_arg)
+Prepared_statement::set_db(const char *db_arg, size_t db_length_arg)
 {
   /* Remember the current database. */
   if (db_arg && db_length_arg)

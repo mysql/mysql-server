@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -392,6 +392,7 @@ TEST_F(ItemTest, ItemFuncExportSet)
                                string_x,
                                sep_string);
     Parse_context pc(thd(), thd()->lex->current_select());
+    SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
     EXPECT_EQ(null_string, export_set->val_str(&str));
@@ -409,6 +410,7 @@ TEST_F(ItemTest, ItemFuncExportSet)
                                                     string_x, item_int_repeat),
                                sep_string);
     Parse_context pc(thd(), thd()->lex->current_select());
+    SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
     EXPECT_EQ(null_string, export_set->val_str(&str));
@@ -426,6 +428,35 @@ TEST_F(ItemTest, ItemFuncExportSet)
                                new Item_func_repeat(POS(),
                                                     string_x, item_int_repeat));
     Parse_context pc(thd(), thd()->lex->current_select());
+    SCOPED_TRACE("");
+    EXPECT_FALSE(export_set->itemize(&pc, &export_set));
+    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_EQ(null_string, export_set->val_str(&str));
+    EXPECT_STREQ("", str.c_ptr_safe());
+    EXPECT_EQ(1, error_handler.handle_called());
+  }
+  {
+    // Testing overflow caused by 'on-string'.
+    longlong max_size= 1024LL * 1024LL * 1024LL;
+    thd()->variables.max_allowed_packet= max_size;
+    Mock_error_handler error_handler(thd(), ER_WARN_ALLOWED_PACKET_OVERFLOWED);
+    Item *lpad=
+      new Item_func_lpad(POS(),
+                         new Item_string(STRING_WITH_LEN("a"),
+                                         &my_charset_bin),
+                         new Item_int(max_size),
+                         new Item_string(STRING_WITH_LEN("pppppppppppppppp"
+                                                         "pppppppppppppppp"),
+                                         &my_charset_bin)
+                         );
+    Item *export_set=
+      new Item_func_export_set(POS(),
+                               new Item_string(STRING_WITH_LEN("1111111"),
+                                               &my_charset_bin),
+                               lpad,
+                               new Item_int(1));
+    Parse_context pc(thd(), thd()->lex->current_select());
+    SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
     EXPECT_EQ(null_string, export_set->val_str(&str));
@@ -764,6 +795,9 @@ TEST_F(ItemTest, ItemDecimalTypecast)
   const char msg[]= "";
   POS pos;
   pos.cpp.start= pos.cpp.end= pos.raw.start= pos.raw.end= msg;
+  // Sun Studio needs this null_item,
+  // it fails to compile EXPECT_EQ(NULL, create_func_cast());
+  const Item *null_item= NULL;
 
   Cast_type type;
   type.target= ITEM_CAST_DECIMAL;
@@ -773,7 +807,7 @@ TEST_F(ItemTest, ItemDecimalTypecast)
 
   {
     initializer.set_expected_error(ER_TOO_BIG_PRECISION);
-    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
   }
 
   {
@@ -782,14 +816,14 @@ TEST_F(ItemTest, ItemDecimalTypecast)
     type.length= buff;
     type.dec= NULL;
     initializer.set_expected_error(ER_TOO_BIG_PRECISION);
-    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
   }
 
   {
     type.length= NULL;
     type.dec= "123456789012345678901234567890";
     initializer.set_expected_error(ER_TOO_BIG_SCALE);
-    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
   }
 
   {
@@ -798,7 +832,7 @@ TEST_F(ItemTest, ItemDecimalTypecast)
     type.length= buff;
     type.dec= buff;
     initializer.set_expected_error(ER_TOO_BIG_SCALE);
-    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
   }
 
 }

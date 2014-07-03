@@ -38,7 +38,7 @@ static my_bool win32_init_tcp_ip();
 #define SCALE_USEC      10000
 
 my_bool my_init_done= 0;
-ulong   my_thread_stack_size= 65536;
+ulong  my_thread_stack_size= 65536;
 
 static ulong atoi_octal(const char *str)
 {
@@ -468,6 +468,13 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL}
 };
 
+PSI_rwlock_key key_SAFE_HASH_lock;
+
+static PSI_rwlock_info all_mysys_rwlocks[]=
+{
+  { &key_SAFE_HASH_lock, "SAFE_HASH::lock", 0}
+};
+
 PSI_cond_key key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
   key_THR_COND_threads;
@@ -528,8 +535,7 @@ static PSI_memory_info all_mysys_memory[]=
   { &key_memory_MY_STAT, "MY_STAT", 0},
   { &key_memory_QUEUE, "QUEUE", 0},
   { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0},
-  { &key_memory_TREE, "TREE", 0},
-  { &key_memory_radix_sort, "radix_sort", 0}
+  { &key_memory_TREE, "TREE", 0}
 };
 
 void my_init_mysys_psi_keys()
@@ -539,6 +545,9 @@ void my_init_mysys_psi_keys()
 
   count= sizeof(all_mysys_mutexes)/sizeof(all_mysys_mutexes[0]);
   mysql_mutex_register(category, all_mysys_mutexes, count);
+
+  count= sizeof(all_mysys_rwlocks)/sizeof(all_mysys_rwlocks[0]);
+  mysql_rwlock_register(category, all_mysys_rwlocks, count);
 
   count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
   mysql_cond_register(category, all_mysys_conds, count);

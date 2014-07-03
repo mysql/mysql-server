@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
+#include <algorithm>
+#include <functional>
 using std::min;
 
 bool mysql_user_table_is_in_short_password_format= false;
@@ -48,8 +50,11 @@ static uint m_registry_array_size= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 MEM_ROOT global_acl_memory;
 MEM_ROOT memex;
-DYNAMIC_ARRAY acl_users, acl_proxy_users, acl_dbs;
-DYNAMIC_ARRAY acl_wild_hosts;
+Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users= NULL;
+Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users= NULL;
+Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs= NULL;
+Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts= NULL;
+
 HASH column_priv_hash, proc_priv_hash, func_priv_hash;
 hash_filo *acl_cache;
 HASH acl_check_hosts;
@@ -747,9 +752,9 @@ find_acl_user(const char *host, const char *user, my_bool exact)
 
   mysql_mutex_assert_owner(&acl_cache->lock);
 
-  for (uint i=0 ; i < acl_users.elements ; i++)
+  for (ACL_USER *acl_user= acl_users->begin();
+       acl_user != acl_users->end(); ++acl_user)
   {
-    ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
     DBUG_PRINT("info",("strcmp('%s','%s'), compare_hostname('%s','%s'),",
                        user, acl_user->user ? acl_user->user : "",
                        host,
@@ -815,7 +820,6 @@ ACL_PROXY_USER *
 acl_find_proxy_user(const char *user, const char *host, const char *ip, 
                     const char *authenticated_as, bool *proxy_used)
 {
-  uint i;
   /* if the proxied and proxy user are the same return OK */
   DBUG_ENTER("acl_find_proxy_user");
   DBUG_PRINT("info", ("user=%s host=%s ip=%s authenticated_as=%s",
@@ -828,10 +832,9 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
   }
 
   *proxy_used= TRUE; 
-  for (i=0; i < acl_proxy_users.elements; i++)
+  for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
+       proxy != acl_proxy_users->end(); ++proxy)
   {
-    ACL_PROXY_USER *proxy= dynamic_element(&acl_proxy_users, i, 
-                                           ACL_PROXY_USER *);
     if (proxy->matches(host, user, ip, authenticated_as))
       DBUG_RETURN(proxy);
   }
@@ -867,7 +870,6 @@ ulong acl_get(const char *host, const char *ip,
               const char *user, const char *db, my_bool db_is_pattern)
 {
   ulong host_access= ~(ulong)0, db_access= 0;
-  uint i;
   size_t key_length, copy_length;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
@@ -903,9 +905,8 @@ ulong acl_get(const char *host, const char *ip,
   /*
     Check if there are some access rights for database and user
   */
-  for (i=0 ; i < acl_dbs.elements ; i++)
+  for (ACL_DB *acl_db= acl_dbs->begin(); acl_db != acl_dbs->end(); ++acl_db)
   {
-    ACL_DB *acl_db=dynamic_element(&acl_dbs,i,ACL_DB*);
     if (!acl_db->user || !strcmp(user,acl_db->user))
     {
       if (acl_db->host.compare_hostname(host,ip))
@@ -965,29 +966,31 @@ exit:
 static void init_check_host(void)
 {
   DBUG_ENTER("init_check_host");
-  (void) my_init_dynamic_array(&acl_wild_hosts,sizeof(class ACL_HOST_AND_IP),
-                          acl_users.elements,1);
+  if (acl_wild_hosts != NULL)
+    acl_wild_hosts->clear();
+  else
+    acl_wild_hosts=
+      new Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
+
   (void) my_hash_init(&acl_check_hosts,system_charset_info,
-                      acl_users.elements, 0, 0,
+                      acl_users->size(), 0, 0,
                       (my_hash_get_key) check_get_key, 0, 0);
   if (!allow_all_hosts)
   {
-    for (uint i=0 ; i < acl_users.elements ; i++)
+    for (ACL_USER *acl_user= acl_users->begin();
+         acl_user != acl_users->end(); ++acl_user)
     {
-      ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
       if (acl_user->host.has_wildcard())
       {                                         // Has wildcard
-        uint j;
-        for (j=0 ; j < acl_wild_hosts.elements ; j++)
+        ACL_HOST_AND_IP *acl= NULL;
+        for (acl= acl_wild_hosts->begin(); acl != acl_wild_hosts->end(); ++acl)
         {                                       // Check if host already exists
-          ACL_HOST_AND_IP *acl=dynamic_element(&acl_wild_hosts,j,
-                                               ACL_HOST_AND_IP *);
           if (!my_strcasecmp(system_charset_info,
                              acl_user->host.get_host(), acl->get_host()))
             break;                              // already stored
         }
-        if (j == acl_wild_hosts.elements)       // If new
-          (void) push_dynamic(&acl_wild_hosts,(uchar*) &acl_user->host);
+        if (acl == acl_wild_hosts->end())       // If new
+          acl_wild_hosts->push_back(acl_user->host);
       }
       else if (!my_hash_search(&acl_check_hosts,(uchar*)
                                acl_user->host.get_host(),
@@ -1001,7 +1004,7 @@ static void init_check_host(void)
       }
     }
   }
-  freeze_size(&acl_wild_hosts);
+  acl_wild_hosts->shrink_to_fit();
   freeze_size(&acl_check_hosts.array);
   DBUG_VOID_RETURN;
 }
@@ -1017,7 +1020,8 @@ static void init_check_host(void)
 */
 void rebuild_check_host(void)
 {
-  delete_dynamic(&acl_wild_hosts);
+  delete acl_wild_hosts;
+  acl_wild_hosts= NULL;
   my_hash_free(&acl_check_hosts);
   init_check_host();
 }
@@ -1043,7 +1047,6 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
                  char *ip, char *db)
 {
   int res= 1;
-  uint i;
   ACL_USER *acl_user= 0;
   DBUG_ENTER("acl_getroot");
 
@@ -1077,9 +1080,9 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
      a stored procedure; user is set to what is actually a
      priv_user, which can be ''.
   */
-  for (i=0 ; i < acl_users.elements ; i++)
+  for (ACL_USER *acl_user_tmp= acl_users->begin();
+       acl_user_tmp != acl_users->end(); ++acl_user_tmp)
   {
-    ACL_USER *acl_user_tmp= dynamic_element(&acl_users,i,ACL_USER*);
     if ((!acl_user_tmp->user && !user[0]) ||
         (acl_user_tmp->user && strcmp(user, acl_user_tmp->user) == 0))
     {
@@ -1094,9 +1097,8 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
 
   if (acl_user)
   {
-    for (i=0 ; i < acl_dbs.elements ; i++)
+    for (ACL_DB *acl_db= acl_dbs->begin(); acl_db != acl_dbs->end(); ++acl_db)
     {
-      ACL_DB *acl_db= dynamic_element(&acl_dbs, i, ACL_DB*);
       if (!acl_db->user ||
           (user && user[0] && !strcmp(user, acl_db->user)))
       {
@@ -1129,14 +1131,19 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
 }
 
 
-int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
+namespace {
+
+class ACL_compare :
+  public std::binary_function<ACL_ACCESS, ACL_ACCESS, bool>
 {
-  if (a->sort > b->sort)
-    return -1;
-  if (a->sort < b->sort)
-    return 1;
-  return 0;
-}
+public:
+  bool operator()(const ACL_ACCESS &a, const ACL_ACCESS &b)
+  {
+    return a.sort > b.sort;
+  }
+};
+
+} // namespace
 
 
 /**
@@ -1160,7 +1167,7 @@ int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 */
 
 bool set_user_salt(ACL_USER *acl_user,
-                   const char *password, uint password_len)
+                   const char *password, size_t password_len)
 {
   bool result= false;
   /* Using old password protocol */
@@ -1210,10 +1217,10 @@ validate_user_plugin_records()
     DBUG_VOID_RETURN;
 
   lock_plugin_data();
-  for (uint i=0 ; i < acl_users.elements ; i++)
+  for (ACL_USER *acl_user= acl_users->begin();
+       acl_user != acl_users->end(); ++acl_user)
   {
     struct st_plugin_int *plugin;
-    ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
 
     if (acl_user->plugin.length)
     {
@@ -1230,7 +1237,7 @@ validate_user_plugin_records()
                             " Nobody can currently login using this account.",
                             (int) acl_user->plugin.length, acl_user->plugin.str,
                             acl_user->user,
-                            acl_user->host.get_host_len(), 
+                            static_cast<int>(acl_user->host.get_host_len()),
                             acl_user->host.get_host());
         }
       }
@@ -1248,7 +1255,7 @@ validate_user_plugin_records()
                             "Nobody can currently login using this account.",
                             sha256_password_plugin_name.str,
                             acl_user->user,
-                            acl_user->host.get_host_len(), 
+                            static_cast<int>(acl_user->host.get_host_len()),
                             acl_user->host.get_host());
       }
     }
@@ -1349,7 +1356,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   char tmp_name[NAME_LEN+1];
   int password_length;
   char *password;
-  uint password_len;
+  size_t password_len;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   bool password_expired= false;
   DBUG_ENTER("acl_load");
@@ -1370,7 +1377,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                        NULL, 1, 1, FALSE))
     goto end;
   table->use_all_columns();
-  (void) my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100);
+  acl_users->clear();
   
   allow_all_hosts=0;
   while (!(read_record_info.read_record(&read_record_info)))
@@ -1650,16 +1657,15 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       /* set_user_salt resets expiration flag so restore it */
       user.password_expired= password_expired;
 
-      (void) push_dynamic(&acl_users,(uchar*) &user);
+      acl_users->push_back(user);
       if (user.host.check_allow_all_hosts())
         allow_all_hosts=1;                      // Anyone can connect
     }
   } // END while reading records from the mysql.user table
   
-  my_qsort((uchar*) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
-           sizeof(ACL_USER),(qsort_cmp) acl_compare);
+  std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
   end_read_record(&read_record_info);
-  freeze_size(&acl_users);
+  acl_users->shrink_to_fit();
 
   /* Legacy password integrity checks ----------------------------------------*/
   { 
@@ -1712,7 +1718,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                        NULL, 1, 1, FALSE))
     goto end;
   table->use_all_columns();
-  (void) my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100);
+  acl_dbs->clear();
+
   while (!(read_record_info.read_record(&read_record_info)))
   {
     /* Reading record in mysql.db */
@@ -1762,17 +1769,16 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       if (db.access & CREATE_ACL)
         db.access|=REFERENCES_ACL | INDEX_ACL | ALTER_ACL;
     }
-    (void) push_dynamic(&acl_dbs,(uchar*) &db);
+    acl_dbs->push_back(db);
   } // END reading records from mysql.db tables
   
-  my_qsort((uchar*) dynamic_element(&acl_dbs,0,ACL_DB*),acl_dbs.elements,
-           sizeof(ACL_DB),(qsort_cmp) acl_compare);
+  std::sort(acl_dbs->begin(), acl_dbs->end(), ACL_compare());
   end_read_record(&read_record_info);
-  freeze_size(&acl_dbs);
+  acl_dbs->shrink_to_fit();
 
   /* Prepare to read records from the mysql.proxies_priv table */
-  (void) my_init_dynamic_array(&acl_proxy_users, sizeof(ACL_PROXY_USER), 
-                               50, 100);
+  acl_proxy_users->clear();
+
   if (tables[2].table)
   {
     if (init_read_record(&read_record_info, thd, table= tables[2].table,
@@ -1786,16 +1792,14 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       proxy.init(table, &global_acl_memory);
       if (proxy.check_validity(check_no_resolve))
         continue;
-      if (push_dynamic(&acl_proxy_users, (uchar*) &proxy))
+      if (acl_proxy_users->push_back(proxy))
       {
         end_read_record(&read_record_info);
         goto end;
       }
     } // END reading records from the mysql.proxies_priv table
 
-    my_qsort((uchar*) dynamic_element(&acl_proxy_users, 0, ACL_PROXY_USER*),
-             acl_proxy_users.elements,
-             sizeof(ACL_PROXY_USER), (qsort_cmp) acl_compare);
+    std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
     end_read_record(&read_record_info);
   }
   else
@@ -1803,7 +1807,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     sql_print_error("Missing system table mysql.proxies_priv; "
                     "please run mysql_upgrade to create it");
   }
-  freeze_size(&acl_proxy_users);
+  acl_proxy_users->shrink_to_fit();
 
   validate_user_plugin_records();
   init_check_host();
@@ -1820,10 +1824,14 @@ end:
 void acl_free(bool end)
 {
   free_root(&global_acl_memory,MYF(0));
-  delete_dynamic(&acl_users);
-  delete_dynamic(&acl_dbs);
-  delete_dynamic(&acl_wild_hosts);
-  delete_dynamic(&acl_proxy_users);
+  delete acl_users;
+  acl_users= NULL;
+  delete acl_dbs;
+  acl_dbs= NULL;
+  delete acl_wild_hosts;
+  acl_wild_hosts= NULL;
+  delete acl_proxy_users;
+  acl_proxy_users= NULL;
   my_hash_free(&acl_check_hosts);
   plugin_unlock(0, native_password_plugin);
   plugin_unlock(0, old_password_plugin);
@@ -1859,7 +1867,7 @@ void acl_free(bool end)
 my_bool acl_reload(THD *thd)
 {
   TABLE_LIST tables[3];
-  DYNAMIC_ARRAY old_acl_users, old_acl_dbs, old_acl_proxy_users;
+
   MEM_ROOT old_mem;
   bool old_initialized;
   my_bool return_val= TRUE;
@@ -1892,17 +1900,29 @@ my_bool acl_reload(THD *thd)
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
                       thd->get_stmt_da()->message_text());
     }
-    goto end;
+    close_acl_tables(thd);
+    DBUG_RETURN(true);
   }
 
   if ((old_initialized=initialized))
     mysql_mutex_lock(&acl_cache->lock);
 
-  old_acl_users= acl_users;
-  old_acl_proxy_users= acl_proxy_users;
-  old_acl_dbs= acl_dbs;
+  Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= acl_users;
+  Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= acl_dbs;
+  Prealloced_array<ACL_PROXY_USER,
+                   ACL_PREALLOC_SIZE> *old_acl_proxy_users = acl_proxy_users;
+
+  acl_users= new Prealloced_array<ACL_USER,
+                                  ACL_PREALLOC_SIZE>(key_memory_acl_mem);
+  acl_dbs= new Prealloced_array<ACL_DB,
+                                ACL_PREALLOC_SIZE>(key_memory_acl_mem);
+  acl_proxy_users=
+    new Prealloced_array<ACL_PROXY_USER,
+                         ACL_PREALLOC_SIZE>(key_memory_acl_mem);  
+
   old_mem= global_acl_memory;
-  delete_dynamic(&acl_wild_hosts);
+  delete acl_wild_hosts;
+  acl_wild_hosts= NULL;
   my_hash_free(&acl_check_hosts);
 
   if ((return_val= acl_load(thd, tables)))
@@ -1910,21 +1930,22 @@ my_bool acl_reload(THD *thd)
     DBUG_PRINT("error",("Reverting to old privileges"));
     acl_free();                         /* purecov: inspected */
     acl_users= old_acl_users;
-    acl_proxy_users= old_acl_proxy_users;
     acl_dbs= old_acl_dbs;
+    acl_proxy_users= old_acl_proxy_users;
+
     global_acl_memory= old_mem;
     init_check_host();
   }
   else
   {
     free_root(&old_mem,MYF(0));
-    delete_dynamic(&old_acl_users);
-    delete_dynamic(&old_acl_proxy_users);
-    delete_dynamic(&old_acl_dbs);
+    delete old_acl_users;
+    delete old_acl_dbs;
+    delete old_acl_proxy_users;
   }
   if (old_initialized)
     mysql_mutex_unlock(&acl_cache->lock);
-end:
+
   close_acl_tables(thd);
   DBUG_RETURN(return_val);
 }
@@ -1934,10 +1955,8 @@ void acl_insert_proxy_user(ACL_PROXY_USER *new_value)
 {
   DBUG_ENTER("acl_insert_proxy_user");
   mysql_mutex_assert_owner(&acl_cache->lock);
-  (void) push_dynamic(&acl_proxy_users, (uchar *) new_value);
-  my_qsort((uchar*) dynamic_element(&acl_proxy_users, 0, ACL_PROXY_USER *),
-           acl_proxy_users.elements,
-           sizeof(ACL_PROXY_USER), (qsort_cmp) acl_compare);
+  acl_proxy_users->push_back(*new_value);
+  std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   DBUG_VOID_RETURN;
 }
 
@@ -2355,7 +2374,7 @@ end:
 
 
 void acl_update_user(const char *user, const char *host,
-                     const char *password, uint password_len,
+                     const char *password, size_t password_len,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -2368,9 +2387,9 @@ void acl_update_user(const char *user, const char *host,
 {
   DBUG_ENTER("acl_update_user");
   mysql_mutex_assert_owner(&acl_cache->lock);
-  for (uint i=0 ; i < acl_users.elements ; i++)
+  for (ACL_USER *acl_user= acl_users->begin();
+       acl_user != acl_users->end(); ++acl_user)
   {
-    ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
     if ((!acl_user->user && !user[0]) ||
         (acl_user->user && !strcmp(user,acl_user->user)))
     {
@@ -2435,7 +2454,7 @@ void acl_update_user(const char *user, const char *host,
 
 
 void acl_insert_user(const char *user, const char *host,
-                     const char *password, uint password_len,
+                     const char *password, size_t password_len,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -2509,11 +2528,10 @@ void acl_insert_user(const char *user, const char *host,
   password_len+= hash_not_ok;
   
 
-  (void) push_dynamic(&acl_users,(uchar*) &acl_user);
+  acl_users->push_back(acl_user);
   if (acl_user.host.check_allow_all_hosts())
     allow_all_hosts=1;          // Anyone can connect /* purecov: tested */
-  my_qsort((uchar*) dynamic_element(&acl_users,0,ACL_USER*),acl_users.elements,
-           sizeof(ACL_USER),(qsort_cmp) acl_compare);
+  std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
@@ -2526,17 +2544,15 @@ void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke)
   mysql_mutex_assert_owner(&acl_cache->lock);
 
   DBUG_ENTER("acl_update_proxy_user");
-  for (uint i= 0; i < acl_proxy_users.elements; i++)
+  for (ACL_PROXY_USER *acl_user= acl_proxy_users->begin();
+       acl_user != acl_proxy_users->end(); ++acl_user)
   {
-    ACL_PROXY_USER *acl_user= 
-      dynamic_element(&acl_proxy_users, i, ACL_PROXY_USER *);
-
     if (acl_user->pk_equals(new_value))
     {
       if (is_revoke)
       {
         DBUG_PRINT("info", ("delting ACL_PROXY_USER"));
-        delete_dynamic_element(&acl_proxy_users, i);
+        acl_proxy_users->erase(acl_user);
       }
       else
       {
@@ -2555,9 +2571,8 @@ void acl_update_db(const char *user, const char *host, const char *db,
 {
   mysql_mutex_assert_owner(&acl_cache->lock);
 
-  for (uint i=0 ; i < acl_dbs.elements ; i++)
+  for (ACL_DB *acl_db= acl_dbs->begin(); acl_db < acl_dbs->end(); )
   {
-    ACL_DB *acl_db=dynamic_element(&acl_dbs,i,ACL_DB*);
     if ((!acl_db->user && !user[0]) ||
         (acl_db->user &&
         !strcmp(user,acl_db->user)))
@@ -2572,10 +2587,15 @@ void acl_update_db(const char *user, const char *host, const char *db,
           if (privileges)
             acl_db->access=privileges;
           else
-            delete_dynamic_element(&acl_dbs,i);
+          {
+            acl_db= acl_dbs->erase(acl_db);
+            // Don't increment loop variable.
+            continue;
+          }
         }
       }
     }
+    ++acl_db;
   }
 }
 
@@ -2604,9 +2624,8 @@ void acl_insert_db(const char *user, const char *host, const char *db,
   acl_db.db= strdup_root(&global_acl_memory, db);
   acl_db.access= privileges;
   acl_db.sort= get_sort(3,acl_db.host.get_host(), acl_db.db, acl_db.user);
-  (void) push_dynamic(&acl_dbs, (uchar*) &acl_db);
-  my_qsort((uchar*) dynamic_element(&acl_dbs, 0, ACL_DB*), acl_dbs.elements,
-                 sizeof(ACL_DB),(qsort_cmp) acl_compare);
+  acl_dbs->push_back(acl_db);
+  std::sort(acl_dbs->begin(), acl_dbs->end(), ACL_compare());
 }
 
 

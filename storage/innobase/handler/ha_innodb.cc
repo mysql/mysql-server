@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "api0misc.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
+#include "btr0bulk.h"
 #include "btr0sea.h"
 #include "buf0dblwr.h"
 #include "buf0dump.h"
@@ -1554,7 +1555,7 @@ convert_error_code_to_mysql(
 	case DB_OUT_OF_FILE_SPACE:
 		return(HA_ERR_RECORD_FILE_FULL);
 
-	case DB_TEMP_FILE_WRITE_FAILURE:
+	case DB_TEMP_FILE_WRITE_FAIL:
 		return(HA_ERR_TEMP_FILE_WRITE_FAILURE);
 
 	case DB_TABLE_IN_FK_CHECK:
@@ -3596,7 +3597,7 @@ innobase_commit(
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-		/* We need current binlog position for ibbackup to work. */
+		/* We need current binlog position for mysqlbackup to work. */
 
 		if (!read_only) {
 
@@ -6622,8 +6623,7 @@ no_commit:
 	innobase_srv_conc_enter_innodb(prebuilt);
 
 	/* Step-5: Execute insert graph that will result in actual insert. */
-	error = row_insert_for_mysql(
-		(byte*) record, prebuilt, thd_to_innodb_session(user_thd));
+	error = row_insert_for_mysql((byte*) record, prebuilt);
 
 	DEBUG_SYNC(user_thd, "ib_after_row_insert");
 
@@ -7093,8 +7093,7 @@ ha_innobase::update_row(
 
 	innobase_srv_conc_enter_innodb(prebuilt);
 
-	error = row_update_for_mysql(
-		(byte*) old_row, prebuilt, thd_to_innodb_session(user_thd));
+	error = row_update_for_mysql((byte*) old_row, prebuilt);
 
 	/* We need to do some special AUTOINC handling for the following case:
 
@@ -7196,8 +7195,7 @@ ha_innobase::delete_row(
 
 	innobase_srv_conc_enter_innodb(prebuilt);
 
-	error = row_update_for_mysql(
-		(byte*) record, prebuilt, thd_to_innodb_session(user_thd));
+	error = row_update_for_mysql((byte*) record, prebuilt);
 
 	innobase_srv_conc_exit_innodb(prebuilt);
 
@@ -7551,8 +7549,7 @@ ha_innobase::index_read(
 			prebuilt->session = thd_to_innodb_session(user_thd);
 
 			ret = row_search_no_mvcc(
-				buf, mode, prebuilt, match_mode, 0,
-				prebuilt->session);
+				buf, mode, prebuilt, match_mode, 0);
 		}
 
 		innobase_srv_conc_exit_innodb(prebuilt);
@@ -7843,8 +7840,7 @@ ha_innobase::general_fetch(
 		ret = row_search_mvcc(buf, 0, prebuilt, match_mode, direction);
 	} else {
 		ret = row_search_no_mvcc(
-			buf, 0, prebuilt, match_mode, direction,
-			prebuilt->session);
+			buf, 0, prebuilt, match_mode, direction);
 	}
 
 	innobase_srv_conc_exit_innodb(prebuilt);
@@ -10766,9 +10762,7 @@ ha_innobase::records()
 	build_template(false);
 
 	/* Count the records in the clustered index */
-	ret = row_scan_index_for_mysql(
-		prebuilt, index, false, &n_rows,
-		thd_to_innodb_session(user_thd));
+	ret = row_scan_index_for_mysql(prebuilt, index, false, &n_rows);
 	reset_template();
 	switch (ret) {
 	case DB_SUCCESS:
@@ -11947,8 +11941,7 @@ ha_innobase::check(
 			ret = row_count_rtree_recs(prebuilt, &n_rows);
 		} else {
 			ret = row_scan_index_for_mysql(
-				prebuilt, index, true, &n_rows,
-				thd_to_innodb_session(thd));
+				prebuilt, index, true, &n_rows);
 		}
 
 		DBUG_EXECUTE_IF(
@@ -12033,89 +12026,6 @@ ha_innobase::check(
 	}
 
 	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
-}
-
-/*************************************************************//**
-Adds information about free space in the InnoDB tablespace to a table comment
-which is printed out when a user calls SHOW TABLE STATUS. Adds also info on
-foreign keys.
-@return table comment + InnoDB free space + info on foreign keys */
-
-char*
-ha_innobase::update_table_comment(
-/*==============================*/
-	const char*	comment)/*!< in: table comment defined by user */
-{
-	uint	length = (uint) strlen(comment);
-	char*	str;
-	long	flen;
-
-	/* We do not know if MySQL can call this function before calling
-	external_lock(). To be safe, update the thd of the current table
-	handle. */
-
-	if (length > 64000 - 3) {
-		return((char*) comment); /* string too long */
-	}
-
-	update_thd(ha_thd());
-
-	prebuilt->trx->op_info = (char*)"returning table comment";
-
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(prebuilt->trx);
-	str = NULL;
-
-	/* output the data to a temporary file */
-
-	if (!srv_read_only_mode) {
-
-		mutex_enter(&srv_dict_tmpfile_mutex);
-
-		rewind(srv_dict_tmpfile);
-
-		fprintf(srv_dict_tmpfile, "InnoDB free: %" PRIuMAX " kB",
-			fsp_get_available_space_in_free_extents(
-				prebuilt->table->space));
-
-		dict_print_info_on_foreign_keys(
-			FALSE, srv_dict_tmpfile, prebuilt->trx,
-			prebuilt->table);
-
-		flen = ftell(srv_dict_tmpfile);
-
-		if (flen < 0) {
-			flen = 0;
-		} else if (length + flen + 3 > 64000) {
-			flen = 64000 - 3 - length;
-		}
-
-		/* allocate buffer for the full string, and
-		read the contents of the temporary file */
-
-		str = (char*) my_malloc(PSI_INSTRUMENT_ME,
-                                        length + flen + 3, MYF(0));
-
-		if (str) {
-			char* pos	= str + length;
-			if (length) {
-				memcpy(str, comment, length);
-				*pos++ = ';';
-				*pos++ = ' ';
-			}
-			rewind(srv_dict_tmpfile);
-			flen = (uint) fread(pos, 1, flen, srv_dict_tmpfile);
-			pos[flen] = 0;
-		}
-
-		mutex_exit(&srv_dict_tmpfile_mutex);
-	}
-
-	prebuilt->trx->op_info = (char*)"";
-
-	return(str ? str : (char*) comment);
 }
 
 /*******************************************************************//**
@@ -14074,7 +13984,7 @@ innobase_xa_prepare(
 		|| !thd_test_options(
 			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
-		/* For ibbackup to work the order of transactions in binlog
+		/* For mysqlbackup to work the order of transactions in binlog
 		and InnoDB must be the same. Consider the situation
 
 		  thread1> prepare; write to binlog; ...
@@ -15788,8 +15698,7 @@ checkpoint_now_set(
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}
-		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
-		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+		fil_write_flushed_lsn(log_sys->lsn);
 	}
 }
 
@@ -16469,6 +16378,11 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
 
+static MYSQL_SYSVAR_LONG(fill_factor, innobase_fill_factor,
+  PLUGIN_VAR_RQCMDARG,
+  "Percentage of B-tree page filled during bulk insert",
+  NULL, NULL, 100, 10, 100, 0);
+
 static MYSQL_SYSVAR_BOOL(ft_enable_diag_print, fts_enable_diag_print,
   PLUGIN_VAR_OPCMDARG,
   "Whether to enable additional FTS diagnostic printout ",
@@ -16910,6 +16824,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(force_recovery_crash),
 #endif /* !DBUG_OFF */
+  MYSQL_SYSVAR(fill_factor),
   MYSQL_SYSVAR(ft_cache_size),
   MYSQL_SYSVAR(ft_total_cache_size),
   MYSQL_SYSVAR(ft_result_cache_limit),

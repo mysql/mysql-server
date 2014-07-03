@@ -137,6 +137,7 @@ geomfromtext('POLYGON((525298.67 183511.53,525296.57
 183491.55))'))) st_u;
 
 SET @a=0x0000000001030000000200000005000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000024400000000000000000000000000000000000000000000000000000F03F000000000000F03F0000000000000040000000000000F03F00000000000000400000000000000040000000000000F03F0000000000000040000000000000F03F000000000000F03F;
+--error ER_GIS_INVALID_DATA
 SELECT ASTEXT(TOUCHES(@a, GEOMFROMTEXT('point(0 0)'))) t;
 
 
@@ -145,9 +146,11 @@ SELECT ASTEXT(TOUCHES(@a, GEOMFROMTEXT('point(0 0)'))) t;
 --echo # Bug 18408919 - WL7220 : OVERLAPPING MEMCPY CRASH IN GEOMETRY::AS_WKB
 --echo # Bug 18408875 - WL7220 : ASSERTION FAILED: *P == 0 || *P == 1
 --echo #
+--error ER_GIS_INVALID_DATA
 select st_union((cast(linestring(point(6,-68), point(-22,-4)) as binary(13))),
                 st_intersection(point(6,8),multipoint(point(3,1),point(-4,-6),point(1,6),point(-3,-5),point(5,4))));
 
+--error ER_GIS_INVALID_DATA
 select st_difference((convert(st_polygonfromwkb(linestring(point(1,1))) using gb18030)),
                      st_geomcollfromwkb(point(1,1)));
 
@@ -266,7 +269,7 @@ select st_crosses(st_union(geomfromtext('point(1 1)'), geomfromtext('multipoint(
 --echo #
 --echo # Bug 18701114 - WL7220: ASSERTION FAILED: (PTR != 0 && NBYTES > 0) || (PTR == 0 && NBYTES == 0),
 --echo #
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_INVALID_DATA
 select
 st_within(
            multipoint(point(4,2),point(-6,-8)),
@@ -281,11 +284,17 @@ st_within(
 # Checking parsing WKT of empty geometry collection and nested geometry collections.
 SELECT AsText(GeomFromText('GeometryCollection()'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(,)'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(point(0 0),)'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(,point(0 0))'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection((point(0 0)))'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'));
@@ -310,7 +319,7 @@ SELECT AsText(st_symdifference(GeomFromText('GeometryCollection(GeometryCollecti
 --echo #
 --echo # Bug 18701114 - WL7220: ASSERTION FAILED: (PTR != 0 && NBYTES > 0) || (PTR == 0 && NBYTES == 0),
 --echo #
---error ER_WRONG_ARGUMENTS
+--error ER_GIS_INVALID_DATA
 select
 st_within(
            multipoint(point(4,2),point(-6,-8)),
@@ -325,11 +334,17 @@ st_within(
 # Checking parsing WKT of empty geometry collection and nested geometry collections.
 SELECT AsText(GeomFromText('GeometryCollection()'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(,)'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(point(0 0),)'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(,point(0 0))'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection(())'));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(GeomFromText('GeometryCollection((point(0 0)))'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'));
@@ -381,4 +396,17 @@ select AsText(GeometryFromWKB(AsWKB(GeometryCollection(POINT(0, 0),
                                                       POLYGON(LineString(Point(10, 20), Point(1, 1), Point(2, 2))),
                                                       MULTIPOLYGON(Polygon(LineString(Point(0, 0), Point(1, 0), Point(1, 1),
                                                                                       Point(0, 0)))))))) as Result;
+
+
+--echo #
+--echo # BUG #18911119 ASSERTION FAILED: !NO_DATA(NBYTES)
+--echo #
+--error ER_GIS_INVALID_DATA
+select (aswkb(cast(st_union(multipoint(
+                                       point(8,6), point(1,-17679),
+                                       point(-9,-9)),
+                            linestring(point(91,12), point(-77,49),
+                                       point(53,-81)))as char(18))))
+in  ('1','2');
+
 --source include/gis_debug.inc

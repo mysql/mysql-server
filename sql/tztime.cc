@@ -119,7 +119,7 @@ typedef struct st_time_zone_info
   uint leapcnt;  // Number of leap-second corrections
   uint timecnt;  // Number of transitions between time types
   uint typecnt;  // Number of local time types
-  uint charcnt;  // Number of characters used for abbreviations
+  size_t charcnt;// Number of characters used for abbreviations
   uint revcnt;   // Number of transition descr. for TIME->my_time_t conversion
   /* The following are dynamical arrays are allocated in MEM_ROOT */
   my_time_t *ats;       // Times of transitions between time types
@@ -171,7 +171,7 @@ static my_bool
 tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
 {
   uchar *p;
-  int read_from_file;
+  size_t read_from_file;
   uint i;
   MYSQL_FILE *file;
 
@@ -197,7 +197,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
     if (mysql_file_fclose(file, MYF(MY_WME)) != 0)
       return 1;
 
-    if (read_from_file < (int)sizeof(struct tzhead))
+    if (read_from_file < sizeof(struct tzhead))
       return 1;
 
     ttisstdcnt= int4net(u.tzhead.tzh_ttisgmtcnt);
@@ -224,7 +224,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
         ttisgmtcnt)                             /* ttisgmts */
       return 1;
 #ifdef ABBR_ARE_USED
-    uint abbrs_buf_len= sp->charcnt+1;
+    size_t abbrs_buf_len= sp->charcnt+1;
 #endif
 
     if (!(tzinfo_buf= (char *)alloc_root(storage,
@@ -1326,8 +1326,8 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg):
 {
   uint hours= abs((int)(offset / SECS_PER_HOUR));
   uint minutes= abs((int)(offset % SECS_PER_HOUR / SECS_PER_MIN));
-  ulong length= my_snprintf(name_buff, sizeof(name_buff), "%s%02d:%02d",
-                            (offset>=0) ? "+" : "-", hours, minutes);
+  size_t length= my_snprintf(name_buff, sizeof(name_buff), "%s%02d:%02d",
+                             (offset>=0) ? "+" : "-", hours, minutes);
   name.set(name_buff, length, &my_charset_latin1);
 }
 
@@ -2176,7 +2176,7 @@ end:
     1 - String doesn't contain valid time zone offset
 */
 my_bool
-str_to_offset(const char *str, uint length, long *offset)
+str_to_offset(const char *str, size_t length, long *offset)
 {
   const char *end= str + length;
   my_bool negative;

@@ -1,13 +1,24 @@
-
-
-
-/* These are the errors 
-   Reference: 
-   Gulutzan & Pelzer, "SQL 99 Complete Really", chapter 47
+/* Errors returned by mysql-js are JavaScript Error objects.
+   They contain:
+     message: a string with a description of the problem
+     stack: the locus of the error
+     sqlstate: one of the Sqlstate values below
+     cause: an Error returned by an underlying implementation artifact
 */
-var Errors;
 
-Errors = {
+var DatabaseError = {
+  code           : null,   // MySQL Error Code number (number)
+  sqlstate       : null,   // SQLSTATE (string)
+  message        : null,   // Error message (string)
+  cause          : null,   // The underlying cause of this error
+  /* ...  Other adapter-specific properties which may be present */
+};
+
+
+
+// Reference: Gulutzan & Pelzer, "SQL 99 Complete Really", chapter 47
+
+var Sqlstates = {
   /* Standard-defined classes, SQL-99 */
   "02000" : "No Data",
 

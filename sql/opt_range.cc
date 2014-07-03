@@ -7232,7 +7232,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     uchar *min_str,*max_str;
     String tmp(buff1,sizeof(buff1),value->collation.collation),*res;
     size_t length, offset, min_length, max_length;
-    uint field_length= field->pack_length()+maybe_null;
+    size_t field_length= field->pack_length()+maybe_null;
 
     if (!optimize_range)
       goto end;
@@ -7298,8 +7298,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
     if (offset != maybe_null)			// BLOB or VARCHAR
     {
-      int2store(min_str+maybe_null,min_length);
-      int2store(max_str+maybe_null,max_length);
+      int2store(min_str+maybe_null, static_cast<uint16>(min_length));
+      int2store(max_str+maybe_null, static_cast<uint16>(max_length));
     }
     tree= new (alloc) SEL_ARG(field, min_str, max_str);
     goto end;
@@ -11012,7 +11012,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
         DBUG_RETURN(0);
     }
 
-    const uint count= ranges.size() - (cur_range - ranges.begin());
+    const size_t count= ranges.size() - (cur_range - ranges.begin());
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -11058,7 +11058,7 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
 	DBUG_RETURN(result);
     }
 
-    const uint count= ranges.size() - (cur_range-ranges.begin());
+    const size_t count= ranges.size() - (cur_range-ranges.begin());
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -11471,7 +11471,7 @@ void QUICK_RANGE_SELECT::add_keys_and_lengths(String *key_names,
                                               String *used_lengths)
 {
   char buf[64];
-  uint length;
+  size_t length;
   KEY *key_info= head->key_info + index;
   key_names->append(key_info->name);
   length= longlong2str(max_used_key_length, buf, 10) - buf;
@@ -11482,7 +11482,7 @@ void QUICK_INDEX_MERGE_SELECT::add_keys_and_lengths(String *key_names,
                                                     String *used_lengths)
 {
   char buf[64];
-  uint length;
+  size_t length;
   bool first= TRUE;
   QUICK_RANGE_SELECT *quick;
 
@@ -11517,7 +11517,7 @@ void QUICK_ROR_INTERSECT_SELECT::add_keys_and_lengths(String *key_names,
                                                       String *used_lengths)
 {
   char buf[64];
-  uint length;
+  size_t length;
   bool first= TRUE;
   QUICK_RANGE_SELECT *quick;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
@@ -14031,7 +14031,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
                                                       String *used_lengths)
 {
   char buf[64];
-  uint length;
+  size_t length;
   key_names->append(index_info->name);
   length= longlong2str(max_used_key_length, buf, 10) - buf;
   used_lengths->append(buf, length);
@@ -14331,7 +14331,7 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
   const KEY_PART_INFO *cur_key_part= key_parts + keypart_root->part;
   const SEL_ARG *keypart_range= keypart_root->first();
 
-  const uint save_range_so_far_length= range_so_far->length();
+  const size_t save_range_so_far_length= range_so_far->length();
 
   while (keypart_range)
   {

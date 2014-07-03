@@ -503,7 +503,7 @@ extern PSI_memory_key key_memory_Gcalc_dyn_list_block;
 extern PSI_memory_key key_memory_Gis_read_stream_err_msg;
 extern PSI_memory_key key_memory_Geometry_objects_data;
 extern PSI_memory_key key_memory_host_cache_hostname;
-extern PSI_memory_key key_memory_User_level_lock_key;
+extern PSI_memory_key key_memory_User_level_lock;
 extern PSI_memory_key key_memory_Filesort_info_record_pointers;
 extern PSI_memory_key key_memory_Sort_param_tmp_buffer;
 extern PSI_memory_key key_memory_Filesort_info_merge;
@@ -672,7 +672,6 @@ extern PSI_stage_info stage_updating;
 extern PSI_stage_info stage_updating_main_table;
 extern PSI_stage_info stage_updating_reference_tables;
 extern PSI_stage_info stage_upgrading_lock;
-extern PSI_stage_info stage_user_lock;
 extern PSI_stage_info stage_user_sleep;
 extern PSI_stage_info stage_verifying_table;
 extern PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log;
@@ -744,8 +743,8 @@ extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
 extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
 extern ulong specialflag;
-extern uint mysql_data_home_len;
-extern uint mysql_real_data_home_len;
+extern size_t mysql_data_home_len;
+extern size_t mysql_real_data_home_len;
 extern const char *mysql_real_data_home_ptr;
 extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
@@ -763,7 +762,7 @@ extern MYSQL_PLUGIN_IMPORT key_map key_map_full;          /* Should be threaded 
   Server mutex locks and condition variables.
  */
 extern mysql_mutex_t
-       LOCK_user_locks, LOCK_status,
+       LOCK_item_func_sleep, LOCK_status,
        LOCK_error_log, LOCK_uuid_generator,
        LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,

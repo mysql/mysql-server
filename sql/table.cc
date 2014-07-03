@@ -1840,6 +1840,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               table_field->type() == MYSQL_TYPE_BLOB &&
               table_field->field_length == key_part[i].length)
             continue;
+          /*
+            If the key column is of NOT NULL GEOMETRY type, specifically POINT
+            type whose length is known internally (which is 25). And key part
+            prefix size is equal to the POINT column max size, then we can
+            promote it to primary key.
+          */
+          if (!table_field->real_maybe_null() &&
+              table_field->type() == MYSQL_TYPE_GEOMETRY &&
+              table_field->get_geometry_type() == Field::GEOM_POINT &&
+              key_part[i].length == MAX_LEN_GEOM_POINT_FIELD)
+            continue;
 
 	  if (table_field->real_maybe_null() ||
 	      table_field->key_length() != key_part[i].length)
@@ -2954,7 +2965,8 @@ File create_frm(THD *thd, const char *name, const char *db,
   if ((file= mysql_file_create(key_file_frm,
                                name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
-    uint key_length, tmp_key_length, tmp, csid;
+    size_t key_length, tmp_key_length;
+    uint tmp, csid;
     memset(fileinfo, 0, 64);
     /* header */
     fileinfo[0]=(uchar) 254;
@@ -2992,15 +3004,15 @@ File create_frm(THD *thd, const char *name, const char *db,
                                   create_info->extra_size));
     int4store(fileinfo+10,length);
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
-    int2store(fileinfo+14,tmp_key_length);
+    int2store(fileinfo+14, static_cast<uint16>(tmp_key_length));
     int2store(fileinfo+16,reclength);
-    int4store(fileinfo+18,create_info->max_rows);
-    int4store(fileinfo+22,create_info->min_rows);
+    int4store(fileinfo+18, static_cast<uint32>(create_info->max_rows));
+    int4store(fileinfo+22, static_cast<uint32>(create_info->min_rows));
     /* fileinfo[26] is set in mysql_create_frm() */
     fileinfo[27]=2;				// Use long pack-fields
     /* fileinfo[28 & 29] is set to key_info_length in mysql_create_frm() */
     create_info->table_options|=HA_OPTION_LONG_BLOB_PTR; // Use portable blob pointers
-    int2store(fileinfo+30,create_info->table_options);
+    int2store(fileinfo+30, static_cast<uint16>(create_info->table_options));
     fileinfo[32]=0;				// No filename anymore
     fileinfo[33]=5;                             // Mark for 5.0 frm file
     int4store(fileinfo+34,create_info->avg_row_length);
@@ -3019,7 +3031,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[44]= (uchar) create_info->stats_auto_recalc;
     fileinfo[45]= 0;
     fileinfo[46]= 0;
-    int4store(fileinfo+47, key_length);
+    int4store(fileinfo+47, static_cast<uint32>(key_length));
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
     int4store(fileinfo+55, create_info->extra_size);
@@ -3027,7 +3039,7 @@ File create_frm(THD *thd, const char *name, const char *db,
       59-60 is reserved for extra_rec_buf_length,
       61 for default_part_db_type
     */
-    int2store(fileinfo+62, create_info->key_block_size);
+    int2store(fileinfo+62, static_cast<uint16>(create_info->key_block_size));
     memset(fill, 0, IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
@@ -3097,7 +3109,7 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
 {
   char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
-  uint length;
+  size_t length;
 
   field->val_str(&str);
   if (!(length= str.length()))
@@ -3129,13 +3141,13 @@ char *get_field(MEM_ROOT *mem, Field *field)
 {
   char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
-  uint length;
+  size_t length;
 
   field->val_str(&str);
   length= str.length();
   if (!length || !(to= (char*) alloc_root(mem,length+1)))
     return NullS;
-  memcpy(to,str.ptr(),(uint) length);
+  memcpy(to,str.ptr(), length);
   to[length]=0;
   return to;
 }
@@ -5755,9 +5767,6 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   schema_table_state= NOT_PROCESSED;
 
   mdl_request.ticket= NULL;
-
-  // optim_join_cond() may point to freed memory of previous execution.
-  set_optim_join_cond(join_cond() ? (Item*)1 : NULL);
 }
 
 /*

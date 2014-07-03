@@ -288,7 +288,7 @@ void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr)
   DBUG_ASSERT(begin_ptr);
   DBUG_ASSERT(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
 
-  uint body_utf8_length=
+  size_t body_utf8_length=
     (m_buf_length / thd->variables.character_set_client->mbminlen) *
     my_charset_utf8_bin.mbmaxlen;
 
@@ -332,7 +332,7 @@ void Lex_input_stream::body_utf8_append(const char *ptr,
   if (m_cpp_utf8_processed_ptr >= ptr)
     return;
 
-  int bytes_to_copy= ptr - m_cpp_utf8_processed_ptr;
+  size_t bytes_to_copy= ptr - m_cpp_utf8_processed_ptr;
 
   memcpy(m_body_utf8_ptr, m_cpp_utf8_processed_ptr, bytes_to_copy);
   m_body_utf8_ptr += bytes_to_copy;
@@ -824,7 +824,7 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function)
     1         name isn't a keyword
 */
 
-bool is_keyword(const char *name, uint len)
+bool is_keyword(const char *name, size_t len)
 {
   DBUG_ASSERT(len != 0);
   return get_hash_symbol(name,len,0)!=0;
@@ -2729,7 +2729,7 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
 
     // Print join condition
     Item *const cond=
-      (curr->select_lex->join && curr->optim_join_cond() != (Item*)1) ?
+      (curr->select_lex->join && curr->select_lex->join->optimized) ?
       curr->optim_join_cond() : curr->join_cond();
     if (cond)
     {
@@ -3042,7 +3042,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
 
   // Where
   Item *const cur_where=
-    (join && join->where_cond != (Item*)1) ? join->where_cond : m_where_cond;
+    (join && join->optimized) ? join->where_cond : m_where_cond;
 
   if (cur_where || cond_value != Item::COND_UNDEF)
   {
@@ -4219,6 +4219,12 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd,
                                             Item **new_where,
                                             Item **new_having)
 {
+  /*
+    We want to guarantee that
+    join->optimized is true => conditions are ready for reading.
+    So if we are here, this should hold:
+  */
+  DBUG_ASSERT(!(join && join->optimized));
   if (m_where_cond && !thd->stmt_arena->is_conventional())
   {
     *new_where= m_where_cond->copy_andor_structure(thd);

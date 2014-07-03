@@ -650,7 +650,7 @@ void Query_cache::unlock(void)
 */
 
 static bool has_no_cache_directive(const char *sql, uint offset,
-                                   uint query_length)
+                                   size_t query_length)
 {
   uint i= offset;
 
@@ -1773,7 +1773,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     if (table->callback()) 
     {
       char qcache_se_key_name[FN_REFLEN + 1];
-      uint qcache_se_key_len;
+      size_t qcache_se_key_len;
       engine_data= table->engine_data();
 
       qcache_se_key_len= build_table_filename(qcache_se_key_name,

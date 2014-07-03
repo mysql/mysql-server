@@ -37,7 +37,6 @@ PSI_memory_key key_memory_pack_frm;
 PSI_memory_key key_memory_my_err_head;
 PSI_memory_key key_memory_my_file_info;
 PSI_memory_key key_memory_max_alloca;
-PSI_memory_key key_memory_radix_sort;
 PSI_memory_key key_memory_MY_DIR;
 PSI_memory_key key_memory_MY_STAT;
 PSI_memory_key key_memory_MY_TMPDIR_full_list;
@@ -51,8 +50,6 @@ PSI_memory_key key_memory_win_PACL;
 PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
 #endif /* _WIN32 */
 
-my_bool timed_mutexes= 0;
-
 	/* from my_init */
 char *	home_dir=0;
 const char      *my_progname=0;
@@ -65,11 +62,6 @@ int		my_umask=0664, my_umask_dir=0777;
 struct st_my_file_info my_file_info_default[MY_NFILE];
 uint   my_file_limit= MY_NFILE;
 struct st_my_file_info *my_file_info= my_file_info_default;
-
-	/* From mf_brkhant */
-int			my_dont_interrupt=0;
-volatile int		_my_signals=0;
-struct st_remember _my_sig_remember[MAX_SIGNALS]={{0,0}};
 
 	/* from mf_reccache.c */
 ulong my_default_record_cache_size=RECORD_CACHE_SIZE;
@@ -126,7 +118,5 @@ ulonglong query_performance_frequency, query_performance_offset;
 
 	/* How to disable options */
 my_bool my_disable_locking=0;
-my_bool my_disable_async_io=0;
-my_bool my_disable_flush_key_blocks=0;
 my_bool my_enable_symlinks= 1;
 

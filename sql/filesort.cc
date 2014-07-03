@@ -1029,7 +1029,7 @@ write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
   Store length as suffix in high-byte-first order.
 */
 
-static inline void store_length(uchar *to, uint length, uint pack_length)
+static inline void store_length(uchar *to, size_t length, uint pack_length)
 {
   switch (pack_length) {
   case 1:
@@ -1126,7 +1126,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
           }
           break;
         }
-        uint length= res->length();
+        size_t length= res->length();
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
@@ -1138,7 +1138,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
             from= tmp_buffer;
           }
 #ifndef DBUG_OFF
-          uint tmp_length=
+          size_t tmp_length=
 #endif
             cs->coll->strnxfrm(cs, to, sort_field->length,
                                item->max_char_length(),
@@ -1149,7 +1149,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
         }
         else
         {
-          uint diff;
+          size_t diff;
           uint sort_field_length= sort_field->length -
             sort_field->suffix_length;
           if (sort_field_length < length)

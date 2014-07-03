@@ -73,7 +73,7 @@ let SEARCH_PATTERN=The innodb_system_tablespace data file 'ibdata1' was not foun
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
---source ../include/innodb-log-file-cleanup.inc
+--source ../include/log_file_cleanup.inc
 
 --echo # 2. With ibdata1, without ibdata2
 --remove_file $bugdir/ibdata2
@@ -84,7 +84,7 @@ let SEARCH_PATTERN=Tablespace size stored in header is \d+ pages, but;
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
---source ../include/innodb-log-file-cleanup.inc
+--source ../include/log_file_cleanup.inc
 
 --echo # 3. Without ibdata1 & ibdata2
 --remove_file $bugdir/ibdata1
@@ -95,7 +95,7 @@ let SEARCH_PATTERN=undo tablespace.*undo001.*exists\. Creating system tablespace
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
---source ../include/innodb-log-file-cleanup.inc
+--source ../include/log_file_cleanup.inc
 
 --echo # 4. Without ibdata*, ib_logfile* and with undo00*
 --remove_files_wildcard $bugdir ibdata*
@@ -106,7 +106,7 @@ let SEARCH_PATTERN=undo tablespace.*undo001.*exists\. Creating system tablespace
 let SEARCH_PATTERN=Could not create undo tablespace.*undo001;
 
 # clean up & Restore
---source ../include/innodb-log-file-cleanup.inc
+--source ../include/log_file_cleanup.inc
 
 
 --echo # 5. Without ibdata*,ib_logfile* files & Without undo002
@@ -119,7 +119,7 @@ let SEARCH_PATTERN=undo tablespace.*undo001.*exists\. Creating system tablespace
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
---source ../include/innodb-log-file-cleanup.inc
+--source ../include/log_file_cleanup.inc
 
 --echo # 6. Without ibdata*,ib_logfile* files & Without undo001, undo002
 # and with undo003
@@ -133,7 +133,7 @@ let SEARCH_PATTERN=undo tablespace.*undo003.*exists\. Creating system tablespace
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
---source ../include/innodb-log-file-cleanup.inc
+--source ../include/log_file_cleanup.inc
 
 --echo # 7. With ibdata files & Without undo002
 --remove_file $bugdir/undo002
@@ -144,7 +144,7 @@ let SEARCH_PATTERN=Expected to open 3 undo tablespaces but was able;
 let SEARCH_PATTERN=to find only 1 undo tablespaces;
 --source include/search_pattern_in_file.inc
 # clean up & Restore
---source ../include/innodb-log-file-cleanup.inc
+--source ../include/log_file_cleanup.inc
 
 --echo # 8. With ibdata files & Without undo001, undo002
 --remove_file $bugdir/undo001
@@ -157,7 +157,7 @@ let SEARCH_PATTERN=to find only 0 undo tablespaces;
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
---source ../include/innodb-log-file-cleanup.inc
+--source ../include/log_file_cleanup.inc
 
 --echo # 9. Without ibdata*, without undo*, Without ib_logfile1 and with ib_logfile2
 --remove_files_wildcard $bugdir ibdata*
@@ -169,7 +169,7 @@ let SEARCH_PATTERN=redo log file.*ib_logfile0.*exists\. Creating system tablespa
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
---source ../include/innodb-log-file-cleanup.inc
+--source ../include/log_file_cleanup.inc
 
 # 10. With ibdata*, without ib_logfile0
 #--remove_file $bugdir/ib_logfile0
@@ -179,7 +179,7 @@ let SEARCH_PATTERN=redo log file.*ib_logfile0.*exists\. Creating system tablespa
 #--exec $MYSQLD $args
 
 # clean up & Restore
-#--source ../include/innodb-log-file-cleanup.inc
+#--source ../include/log_file_cleanup.inc
 
 --echo # 11. With ibdata*, without ib_logfile1
 --remove_file $bugdir/ib_logfile1
@@ -189,7 +189,7 @@ let SEARCH_PATTERN=Only one log file found;
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
---source ../include/innodb-log-file-cleanup.inc
+--source ../include/log_file_cleanup.inc
 
 --echo # 12. With ibdata*, without ib_logfile2
 --remove_file $bugdir/ib_logfile2

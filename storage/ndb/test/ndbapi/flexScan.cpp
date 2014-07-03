@@ -684,7 +684,7 @@ flexScanThread(void* ThreadData)
       break;
     default:
       ndbout << "tType is " << tType << endl;
-      assert(false);
+      require(false);
       break;
     } // switch
     
@@ -1074,7 +1074,7 @@ static int insertRows(Ndb* pNdb, // NDB object
 	  check = MyOperations[tableCount]->insertTuple();
 	} // else if
 	else {
-	  assert(false);
+	  require(false);
 	} // else
 	
 	if (check == -1) {
@@ -1649,7 +1649,7 @@ static int verifyDeleteRows(Ndb* pNdb,
 	else {
 	  // Unexpected error
 	  ndbout << "Unexpected error during delete" << endl;
-	  assert(false);
+	  require(false);
 	} // else
 
 	pNdb->closeTransaction(MyTransaction);

@@ -311,7 +311,7 @@ static void del_udf(udf_func *udf)
       doesn't use it anymore
     */
     char *name= udf->name.str;
-    uint name_length=udf->name.length;
+    size_t name_length=udf->name.length;
     udf->name.str=(char*) "*";
     udf->name.length=1;
     my_hash_update(&udf_hash,(uchar*) udf,(uchar*) name,name_length);
@@ -573,7 +573,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   TABLE_LIST tables;
   udf_func *udf;
   char *exact_name_str;
-  uint exact_name_len;
+  size_t exact_name_len;
   bool save_binlog_row_based;
   int error= 1;
   DBUG_ENTER("mysql_drop_function");

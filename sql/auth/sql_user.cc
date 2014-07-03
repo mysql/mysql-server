@@ -136,7 +136,7 @@ enum enum_acl_lists
 
 
 int check_change_password(THD *thd, const char *host, const char *user,
-                          const char *new_password, uint new_password_len)
+                          const char *new_password, size_t new_password_len)
 {
   if (!initialized)
   {
@@ -552,8 +552,8 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
                                LEX_USER *user_from, LEX_USER *user_to)
 {
   int result= 0;
-  uint idx;
-  uint elements;
+  size_t idx;
+  size_t elements;
   const char *user= NULL;
   const char *host= NULL;
   ACL_USER *acl_user= NULL;
@@ -575,10 +575,10 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
   /* Get the number of elements in the in-memory structure. */
   switch (struct_no) {
   case USER_ACL:
-    elements= acl_users.elements;
+    elements= acl_users->size();
     break;
   case DB_ACL:
-    elements= acl_dbs.elements;
+    elements= acl_dbs->size();
     break;
   case COLUMN_PRIVILEGES_HASH:
     elements= column_priv_hash.records;
@@ -593,7 +593,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     grant_name_hash= &func_priv_hash;
     break;
   case PROXY_USERS_ACL:
-    elements= acl_proxy_users.elements;
+    elements= acl_proxy_users->size();
     break;
   default:
     DBUG_RETURN(-1);
@@ -611,13 +611,13 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     */
     switch (struct_no) {
     case USER_ACL:
-      acl_user= dynamic_element(&acl_users, idx, ACL_USER*);
+      acl_user= &acl_users->at(idx);
       user= acl_user->user;
       host= acl_user->host.get_host();
     break;
 
     case DB_ACL:
-      acl_db= dynamic_element(&acl_dbs, idx, ACL_DB*);
+      acl_db= &acl_dbs->at(idx);
       user= acl_db->user;
       host= acl_db->host.get_host();
       break;
@@ -631,7 +631,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
       break;
 
     case PROXY_USERS_ACL:
-      acl_proxy_user= dynamic_element(&acl_proxy_users, idx, ACL_PROXY_USER*);
+      acl_proxy_user= &acl_proxy_users->at(idx);
       user= acl_proxy_user->get_user();
       host= acl_proxy_user->host.get_host();
       break;
@@ -645,7 +645,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
       host= "";
 
 #ifdef EXTRA_DEBUG
-    DBUG_PRINT("loop",("scan struct: %u  index: %u  user: '%s'  host: '%s'",
+    DBUG_PRINT("loop",("scan struct: %u  index: %zu  user: '%s'  host: '%s'",
                        struct_no, idx, user, host));
 #endif
     if (strcmp(user_from->user.str, user) ||
@@ -657,7 +657,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     {
       switch ( struct_no ) {
       case USER_ACL:
-        delete_dynamic_element(&acl_users, idx);
+        acl_users->erase(idx);
         elements--;
         /*
         - If we are iterating through an array then we just have moved all
@@ -670,7 +670,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
         break;
 
       case DB_ACL:
-        delete_dynamic_element(&acl_dbs, idx);
+        acl_dbs->erase(idx);
         elements--;
         idx--;
         break;
@@ -687,7 +687,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
         break;
 
       case PROXY_USERS_ACL:
-        delete_dynamic_element(&acl_proxy_users, idx);
+        acl_proxy_users->erase(idx);
         elements--;
         idx--;
         break;

@@ -118,9 +118,7 @@
 #include <poll.h>
 #endif
 
-#ifdef HAVE_FESETROUND
 #include <fenv.h>
-#endif
 #include "table_cache.h"                // table_cache_manager
 #include "connection_acceptor.h"        // Connection_acceptor
 #include "connection_handler_impl.h"    // *_connection_handler
@@ -140,9 +138,6 @@ using std::vector;
 #define __GNU_LIBRARY__       // Skip warnings in getopt.h
 #endif
 #include <my_getopt.h>
-#ifdef HAVE_SYSENT_H
-#include <sysent.h>
-#endif
 #ifdef HAVE_PWD_H
 #include <pwd.h>        // For getpwent
 #endif
@@ -157,9 +152,6 @@ using std::vector;
 #endif
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
-#endif
-#ifdef HAVE_SELECT_H
-#include <select.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
@@ -234,10 +226,8 @@ inline void setup_fpu()
   fedisableexcept(FE_ALL_EXCEPT);
 #endif
 
-#ifdef HAVE_FESETROUND
     /* Set FPU rounding mode to "round-to-nearest" */
   fesetround(FE_TONEAREST);
-#endif /* HAVE_FESETROUND */
 
   /*
     x86 (32-bit) requires FPU precision to be explicitly set to 64 bit
@@ -522,12 +512,6 @@ bool thread_cache_size_specified= false;
 bool host_cache_size_specified= false;
 bool table_definition_cache_specified= false;
 
-Error_log_throttle err_log_throttle(Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
-                                    sql_print_error,
-                                    "Error log throttle: %10lu 'Can't create"
-                                    " thread to handle new connection'"
-                                    " error(s) suppressed");
-
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -604,7 +588,7 @@ char mysql_real_data_home[FN_REFLEN],
 char *lc_messages_dir_ptr, *log_error_file_ptr;
 char mysql_unpacked_real_data_home[FN_REFLEN];
 size_t mysql_unpacked_real_data_home_len;
-uint mysql_real_data_home_len, mysql_data_home_len= 1;
+size_t mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
@@ -1437,7 +1421,7 @@ void clean_up(bool print_message)
 #endif
   query_cache.destroy();
   hostname_cache_free();
-  item_user_lock_free();
+  item_func_sleep_free();
   lex_free();       /* Free some memory */
   item_create_cleanup();
   if (!opt_noacl)
@@ -4219,8 +4203,8 @@ static void test_lc_time_sz()
   DBUG_ENTER("test_lc_time_sz");
   for (MY_LOCALE **loc= my_locales; *loc; loc++)
   {
-    uint max_month_len= 0;
-    uint max_day_len = 0;
+    size_t max_month_len= 0;
+    size_t max_day_len = 0;
     for (const char **month= (*loc)->month_names->type_names; *month; month++)
     {
       set_if_bigger(max_month_len,
@@ -4435,7 +4419,7 @@ int mysqld_main(int argc, char **argv)
 #if defined(__ia64__) || defined(__ia64)
       my_thread_stack_size= stack_size / 2;
 #else
-      my_thread_stack_size= stack_size - guardize;
+      my_thread_stack_size= static_cast<ulong>(stack_size - guardize);
 #endif
     }
   }
@@ -5271,10 +5255,10 @@ void adjust_table_cache_size(ulong requested_open_files)
 
 void adjust_table_def_size()
 {
-  longlong default_value;
+  ulong default_value;
   sys_var *var;
 
-  default_value= min<longlong> (400 + table_cache_size / 2, 2000);
+  default_value= min<ulong> (400 + table_cache_size / 2, 2000);
   var= intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
   DBUG_ASSERT(var != NULL);
   var->update_default(default_value);
@@ -8091,7 +8075,7 @@ PSI_stage_info stage_connecting_to_master= { 0, "Connecting to master", 0};
 PSI_stage_info stage_converting_heap_to_myisam= { 0, "converting HEAP to MyISAM", 0};
 PSI_stage_info stage_copying_to_group_table= { 0, "Copying to group table", 0};
 PSI_stage_info stage_copying_to_tmp_table= { 0, "Copying to tmp table", 0};
-PSI_stage_info stage_copy_to_tmp_table= { 0, "copy to tmp table", 0};
+PSI_stage_info stage_copy_to_tmp_table= { 0, "copy to tmp table", PSI_FLAG_STAGE_PROGRESS};
 PSI_stage_info stage_creating_sort_index= { 0, "Creating sort index", 0};
 PSI_stage_info stage_creating_table= { 0, "creating table", 0};
 PSI_stage_info stage_creating_tmp_table= { 0, "Creating tmp table", 0};
@@ -8152,7 +8136,6 @@ PSI_stage_info stage_updating= { 0, "updating", 0};
 PSI_stage_info stage_updating_main_table= { 0, "updating main table", 0};
 PSI_stage_info stage_updating_reference_tables= { 0, "updating reference tables", 0};
 PSI_stage_info stage_upgrading_lock= { 0, "upgrading lock", 0};
-PSI_stage_info stage_user_lock= { 0, "User lock", 0};
 PSI_stage_info stage_user_sleep= { 0, "User sleep", 0};
 PSI_stage_info stage_verifying_table= { 0, "verifying table", 0};
 PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log= { 0, "waiting for GTID to be written to binary log", 0};
@@ -8263,7 +8246,6 @@ PSI_stage_info *all_server_stages[]=
   & stage_updating_main_table,
   & stage_updating_reference_tables,
   & stage_upgrading_lock,
-  & stage_user_lock,
   & stage_user_sleep,
   & stage_verifying_table,
   & stage_waiting_for_handler_insert,
@@ -8343,7 +8325,7 @@ PSI_memory_key key_memory_handlerton;
 PSI_memory_key key_memory_XID;
 PSI_memory_key key_memory_host_cache_hostname;
 PSI_memory_key key_memory_user_var_entry_value;
-PSI_memory_key key_memory_User_level_lock_key;
+PSI_memory_key key_memory_User_level_lock;
 PSI_memory_key key_memory_MYSQL_LOG_name;
 PSI_memory_key key_memory_TC_LOG_MMAP_pages;
 PSI_memory_key key_memory_my_bitmap_map;
@@ -8485,7 +8467,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_XID, "XID", 0},
   { &key_memory_host_cache_hostname, "host_cache::hostname", 0},
   { &key_memory_user_var_entry_value, "user_var_entry::value", 0},
-  { &key_memory_User_level_lock_key, "User_level_lock::key", 0},
+  { &key_memory_User_level_lock, "User_level_lock", 0},
   { &key_memory_MYSQL_LOG_name, "MYSQL_LOG::name", 0},
   { &key_memory_TC_LOG_MMAP_pages, "TC_LOG_MMAP::pages", 0},
   { &key_memory_my_bitmap_map, "my_bitmap_map", 0},

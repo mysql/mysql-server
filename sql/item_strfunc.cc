@@ -845,7 +845,7 @@ String *Item_func_concat::val_str(String *str)
           more than 25% of memory will be overcommitted on average.
         */
 
-        uint concat_len= res->length() + res2->length();
+        size_t concat_len= res->length() + res2->length();
 
         if (tmp_value.alloced_length() < concat_len)
         {
@@ -856,7 +856,7 @@ String *Item_func_concat::val_str(String *str)
           }
           else
           {
-            uint new_len = max(tmp_value.alloced_length() * 2, concat_len);
+            size_t new_len = max(tmp_value.alloced_length() * 2, concat_len);
 
             if (tmp_value.realloc(new_len))
               goto null;
@@ -914,7 +914,8 @@ String *Item_func_des_encrypt::val_str(String *str)
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
   const char *append_str="********";
-  uint key_number, res_length, tail;
+  uint key_number, tail;
+  size_t res_length;
   String *res= args[0]->val_str(str);
 
   if ((null_value= args[0]->null_value))
@@ -1010,7 +1011,8 @@ String *Item_func_des_decrypt::val_str(String *str)
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
   String *res= args[0]->val_str(str);
-  uint length,tail;
+  size_t length;
+  uint tail;
 
   if ((null_value= args[0]->null_value))
     return 0;
@@ -1193,7 +1195,7 @@ String *Item_func_concat_ws::val_str(String *str)
         25% of memory will be overcommitted on average.
       */
 
-      uint concat_len= res->length() + sep_str->length() + res2->length();
+      size_t concat_len= res->length() + sep_str->length() + res2->length();
 
       if (tmp_value.alloced_length() < concat_len)
       {
@@ -1204,7 +1206,7 @@ String *Item_func_concat_ws::val_str(String *str)
         }
         else
         {
-          uint new_len = max(tmp_value.alloced_length() * 2, concat_len);
+          size_t new_len = max(tmp_value.alloced_length() * 2, concat_len);
 
           if (tmp_value.realloc(new_len))
             goto null;
@@ -1316,7 +1318,7 @@ String *Item_func_replace::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String *res,*res2,*res3;
   int offset;
-  uint from_length,to_length;
+  size_t from_length, to_length;
   bool alloced=0;
   const char *ptr,*end,*strend,*search,*search_end;
   uint32 l;
@@ -1453,9 +1455,9 @@ String *Item_func_insert::val_str(String *str)
       args[3]->null_value)
     goto null; /* purecov: inspected */
 
-  if ((start < 0) || (start > res->length()))
+  if ((start < 0) || (start > static_cast<longlong>(res->length())))
     return res;                                 // Wrong param; skip insert
-  if ((length < 0) || (length > res->length()))
+  if ((length < 0) || (length > static_cast<longlong>(res->length())))
     length= res->length();
 
   /*
@@ -1477,9 +1479,9 @@ String *Item_func_insert::val_str(String *str)
    length= res->charpos((int) length, (uint32) start);
 
   /* Re-testing with corrected params */
-  if (start > res->length())
+  if (start > static_cast<longlong>(res->length()))
     return res; /* purecov: inspected */        // Wrong param; skip insert
-  if (length > res->length() - start)
+  if (length > static_cast<longlong>(res->length()) - start)
     length= res->length() - start;
 
   if ((ulonglong) (res->length() - length + res2->length()) >
@@ -1525,7 +1527,7 @@ String *Item_str_conv::val_str(String *str)
   null_value=0;
   if (multiply == 1)
   {
-    uint len;
+    size_t len;
     res= copy_if_not_alloced(str,res,res->length());
     len= converter(collation.collation, (char*) res->ptr(), res->length(),
                                         (char*) res->ptr(), res->length());
@@ -1534,7 +1536,7 @@ String *Item_str_conv::val_str(String *str)
   }
   else
   {
-    uint len= res->length() * multiply;
+    size_t len= res->length() * multiply;
     tmp_value.alloc(len);
     tmp_value.set_charset(collation.collation);
     len= converter(collation.collation, (char*) res->ptr(), res->length(),
@@ -1572,7 +1574,7 @@ String *Item_func_left::val_str(String *str)
 
   /* must be longlong to avoid truncation */
   longlong length= args[1]->val_int();
-  uint char_pos;
+  size_t char_pos;
 
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0;
@@ -1634,7 +1636,7 @@ String *Item_func_right::val_str(String *str)
   if (res->length() <= (ulonglong) length)
     return res; /* purecov: inspected */
 
-  uint start=res->numchars();
+  size_t start=res->numchars();
   if (start <= (uint) length)
     return res;
   start=res->charpos(start - (uint) length);
@@ -1684,11 +1686,11 @@ String *Item_func_substr::val_str(String *str)
 
   start= ((start < 0) ? res->numchars() + start : start - 1);
   start= res->charpos((int) start);
-  if ((start < 0) || ((uint) start + 1 > res->length()))
+  if ((start < 0) || (start + 1 > static_cast<longlong>(res->length())))
     return make_empty_result();
 
   length= res->charpos((int) length, (uint32) start);
-  tmp_length= res->length() - start;
+  tmp_length= static_cast<longlong>(res->length()) - start;
   length= min(length, tmp_length);
 
   if (!start && (longlong) res->length() == length)
@@ -1754,7 +1756,7 @@ String *Item_func_substr_index::val_str(String *str)
     return 0;
   }
   null_value=0;
-  uint delimiter_length= delimiter->length();
+  size_t delimiter_length= delimiter->length();
   if (!res->length() || !delimiter_length || !count)
     return make_empty_result();		// Wrong parameters
 
@@ -2506,7 +2508,7 @@ String *Item_func_soundex::val_str(String *str)
   if ((null_value= args[0]->null_value))
     return 0; /* purecov: inspected */
 
-  if (tmp_value.alloc(max(res->length(), 4 * cs->mbminlen)))
+  if (tmp_value.alloc(max(res->length(), static_cast<size_t>(4 * cs->mbminlen))))
     return str; /* purecov: inspected */
   char *to= (char *) tmp_value.ptr();
   char *to_end= to + tmp_value.alloced_length();
@@ -2646,7 +2648,7 @@ void Item_func_format::fix_length_and_dec()
 
 String *Item_func_format::val_str_ascii(String *str)
 {
-  uint32 str_length;
+  size_t str_length;
   /* Number of decimal digits */
   int dec;
   /* Number of characters used to represent the decimals, including '.' */
@@ -3005,7 +3007,7 @@ String *Item_func_char::val_str(String *str)
 
 
 inline String* alloc_buffer(String *res,String *str,String *tmp_value,
-			    ulong length)
+                            size_t length)
 {
   if (res->alloced_length() < length)
   {
@@ -3060,7 +3062,7 @@ end:
 String *Item_func_repeat::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  uint length,tot_length;
+  size_t length, tot_length;
   char *to;
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
@@ -3205,12 +3207,12 @@ end:
 String *Item_func_rpad::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  uint32 res_byte_length,res_char_length,pad_char_length,pad_byte_length;
+  size_t res_byte_length, res_char_length, pad_char_length, pad_byte_length;
   char *to;
   const char *ptr_pad;
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
-  longlong byte_count;
+  size_t byte_count;
   String *res= args[0]->val_str(str);
   String *rpad= args[2]->val_str(&rpad_str);
 
@@ -3236,7 +3238,9 @@ String *Item_func_rpad::val_str(String *str)
     rpad->set_charset(&my_charset_bin);
   }
 
-  if (count <= (res_char_length= res->numchars()))
+  res_char_length= res->numchars();
+
+  if (count <= static_cast<longlong>(res_char_length))
   {						// String to pad is big enough
     res->length(res->charpos((int) count));	// Shorten result if longer
     return (res);
@@ -3244,7 +3248,7 @@ String *Item_func_rpad::val_str(String *str)
   pad_char_length= rpad->numchars();
 
   byte_count= count * collation.collation->mbmaxlen;
-  if ((ulonglong) byte_count > current_thd->variables.max_allowed_packet)
+  if (byte_count > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
@@ -3255,7 +3259,7 @@ String *Item_func_rpad::val_str(String *str)
   if (args[2]->null_value || !pad_char_length)
     goto err;
   res_byte_length= res->length();	/* Must be done before alloc_buffer */
-  if (!(res= alloc_buffer(res,str,&tmp_value, (ulong) byte_count)))
+  if (!(res= alloc_buffer(res,str, &tmp_value, byte_count)))
     goto err;
 
   to= (char*) res->ptr()+res_byte_length;
@@ -3311,10 +3315,10 @@ end:
 String *Item_func_lpad::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  uint32 res_char_length,pad_char_length;
+  size_t res_char_length, pad_char_length;
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
-  longlong byte_count;
+  size_t byte_count;
   String *res= args[0]->val_str(&tmp_value);
   String *pad= args[2]->val_str(&lpad_str);
 
@@ -3343,7 +3347,7 @@ String *Item_func_lpad::val_str(String *str)
 
   res_char_length= res->numchars();
 
-  if (count <= res_char_length)
+  if (count <= static_cast<longlong>(res_char_length))
   {
     res->length(res->charpos((int) count));
     return res;
@@ -3352,7 +3356,7 @@ String *Item_func_lpad::val_str(String *str)
   pad_char_length= pad->numchars();
   byte_count= count * collation.collation->mbmaxlen;
   
-  if ((ulonglong) byte_count > current_thd->variables.max_allowed_packet)
+  if (byte_count > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
@@ -3362,13 +3366,13 @@ String *Item_func_lpad::val_str(String *str)
   }
 
   if (args[2]->null_value || !pad_char_length ||
-      str->alloc((uint32) byte_count))
+      str->alloc(byte_count))
     goto err;
-  
+
   str->length(0);
   str->set_charset(collation.collation);
   count-= res_char_length;
-  while (count >= pad_char_length)
+  while (count >= static_cast<longlong>(pad_char_length))
   {
     str->append(*pad);
     count-= pad_char_length;
@@ -3619,7 +3623,7 @@ String *Item_func_weight_string::val_str(String *str)
 {
   String *res;
   const CHARSET_INFO *cs= args[0]->collation.collation;
-  uint tmp_length, frm_length;
+  size_t tmp_length, frm_length;
   DBUG_ASSERT(fixed == 1);
 
   if (args[0]->result_type() != STRING_RESULT ||
@@ -3634,7 +3638,7 @@ String *Item_func_weight_string::val_str(String *str)
   tmp_length= field ? field->pack_length() :
               result_length ? result_length :
               cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
-                                    max(res->length(), nweights));
+                                    max<size_t>(res->length(), nweights));
 
   if(tmp_length > current_thd->variables.max_allowed_packet)
   {
@@ -3725,7 +3729,7 @@ String *Item_func_unhex::val_str(String *str)
   const char *from, *end;
   char *to;
   String *res;
-  uint length;
+  size_t length;
   DBUG_ASSERT(fixed == 1);
 
   res= args[0]->val_str(str);
@@ -4042,7 +4046,7 @@ String* Item_func_export_set::val_str(String* str)
   const String *no= args[2]->val_str(&no_buf);
   const String *sep= NULL;
 
-  uint num_set_values = 64;
+  ulonglong num_set_values = 64;
   str->length(0);
   str->set_charset(collation.collation);
 
@@ -4058,7 +4062,7 @@ String* Item_func_export_set::val_str(String* str)
   */
   switch(arg_count) {
   case 5:
-    num_set_values = (uint) args[4]->val_int();
+    num_set_values = static_cast<ulonglong>(args[4]->val_int());
     if (num_set_values > 64)
       num_set_values=64;
     if (args[4]->null_value)
@@ -4088,8 +4092,8 @@ String* Item_func_export_set::val_str(String* str)
   }
   null_value= false;
 
-  const ulong max_allowed_packet= current_thd->variables.max_allowed_packet;
-  const uint num_separators= num_set_values > 0 ? num_set_values - 1 : 0;
+  const ulonglong max_allowed_packet= current_thd->variables.max_allowed_packet;
+  const ulonglong num_separators= num_set_values > 0 ? num_set_values - 1 : 0;
   const ulonglong max_total_length=
     num_set_values * max(yes->length(), no->length()) +
     num_separators * sep->length();
@@ -4099,7 +4103,7 @@ String* Item_func_export_set::val_str(String* str)
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WARN_ALLOWED_PACKET_OVERFLOWED,
                         ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                        func_name(), max_allowed_packet);
+                        func_name(), static_cast<long>(max_allowed_packet));
     null_value= true;
     return NULL;
   }
@@ -4169,7 +4173,7 @@ String *Item_func_quote::val_str(String *str)
 
   char *from, *to, *end, *start;
   String *arg= args[0]->val_str(str);
-  uint arg_length, new_length;
+  size_t arg_length, new_length;
   if (!arg)					// Null argument
   {
     /* Return the string 'NULL' */
@@ -4375,8 +4379,8 @@ String *Item_func_compress::val_str(String *str)
   new_size= res->length() + res->length() / 5 + 12;
 
   // Check new_size overflow: new_size <= res->length()
-  if (((uint32) (new_size+5) <= res->length()) || 
-      buffer.realloc((uint32) new_size + 4 + 1))
+  if (((new_size+5) <= res->length()) || 
+      buffer.realloc(new_size + 4 + 1))
   {
     null_value= 1;
     return 0;
@@ -4404,7 +4408,7 @@ String *Item_func_compress::val_str(String *str)
     new_size++;
   }
 
-  buffer.length((uint32)new_size + 4);
+  buffer.length(new_size + 4);
   return &buffer;
 }
 

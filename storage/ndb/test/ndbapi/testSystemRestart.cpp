@@ -1089,7 +1089,7 @@ int runBug18385(NDBT_Context* ctx, NDBT_Step* step){
       if ((nodes[cnt] = restarter.getDbNodeId(i)) != node2)
 	cnt++;
     
-    assert(cnt == nodeCount - 1);
+    require(cnt == nodeCount - 1);
     
     CHECK(restarter.startNodes(nodes, cnt) == 0);
     CHECK(restarter.waitNodesStarted(nodes, cnt, 300) == 0);
@@ -1918,7 +1918,7 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(res.restartAll(false, true, true) == 0);
     CHECK(res.waitClusterNoStart() == 0);
     CHECK(res.startAll() == 0);
-    NDB_TICKS now = NdbTick_CurrentMillisecond();
+    Uint64 now = NdbTick_CurrentMillisecond();
     /**
      * running transaction while cluster is down...
      * causes *lots* of printouts...redirect to /dev/null

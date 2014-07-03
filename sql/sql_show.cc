@@ -613,7 +613,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
-  uint wild_length= 0;
+  size_t wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
 
@@ -911,7 +911,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     field_list.push_back(new Item_empty_string("View",NAME_CHAR_LEN));
     field_list.push_back(new Item_empty_string("Create View",
-                                               max(buffer.length(), 1024U)));
+                                               max<uint>(buffer.length(), 1024U)));
     field_list.push_back(new Item_empty_string("character_set_client",
                                                MY_CS_NAME_SIZE));
     field_list.push_back(new Item_empty_string("collation_connection",
@@ -922,7 +922,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     field_list.push_back(new Item_empty_string("Table",NAME_CHAR_LEN));
     // 1024 is for not to confuse old clients
     field_list.push_back(new Item_empty_string("Create Table",
-                                               max(buffer.length(), 1024U)));
+                                               max<size_t>(buffer.length(), 1024U)));
   }
 
   if (protocol->send_result_set_metadata(&field_list,
@@ -1110,7 +1110,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
     0	No conflicting character
 */
 
-static const char *require_quotes(const char *name, uint name_length)
+static const char *require_quotes(const char *name, size_t name_length)
 {
   bool pure_digit= TRUE;
   const char *end= name + name_length;
@@ -2577,7 +2577,7 @@ void remove_status_vars(SHOW_VAR *list)
   if (status_vars_inited)
   {
     mysql_mutex_lock(&LOCK_status);
-    int a= 0, b= all_status_vars.size(), c= (a+b)/2;
+    size_t a= 0, b= all_status_vars.size(), c= (a+b)/2;
 
     for (; list->name; list++)
     {
@@ -2790,7 +2790,7 @@ static bool show_status_array(THD *thd, const char *wild,
   char *prefix_end;
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
-  int len;
+  size_t len;
   SHOW_VAR tmp, *var;
   Item *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
@@ -4465,7 +4465,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
      !with_i_schema)
   {
     char path[FN_REFLEN+16];
-    uint path_len;
+    size_t path_len;
     MY_STAT stat_info;
     if (!lookup_field_vals.db_value.str[0])
       DBUG_RETURN(0);
@@ -5707,7 +5707,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   char definer[USER_HOST_BUFF_SIZE];
-  uint definer_len;
+  size_t definer_len;
   bool updatable_view;
   DBUG_ENTER("get_schema_views_record");
 
@@ -5847,7 +5847,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 
 bool store_constraints(THD *thd, TABLE *table, LEX_STRING *db_name,
                        LEX_STRING *table_name, const char *key_name,
-                       uint key_len, const char *con_type, uint con_len)
+                       size_t key_len, const char *con_type, size_t con_len)
 {
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
@@ -6043,7 +6043,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
 
 void store_key_column_usage(TABLE *table, LEX_STRING *db_name,
                             LEX_STRING *table_name, const char *key_name,
-                            uint key_len, const char *con_type, uint con_len,
+                            size_t key_len, const char *con_type, size_t con_len,
                             longlong idx)
 {
   CHARSET_INFO *cs= system_charset_info;
@@ -8821,7 +8821,7 @@ static void get_cs_converted_string_value(THD *thd,
   }
   {
     const uchar *ptr;
-    uint i, len;
+    size_t i, len;
     char buf[3];
 
     output_str->append("_");
