@@ -22,39 +22,42 @@
         '<(mysql_path)/include/mysql/storage/ndb/ndbapi',
         '<(mysql_path)/include/storage/ndb',
         '<(mysql_path)/include/storage/ndb/ndbapi',
-        'Adapter/impl/include'
+        'Adapter/impl/common/include',
+        'Adapter/impl/ndb/include'
       ],
         
       'sources': 
       [
-         "Adapter/impl/src/node_module.cpp",
-         "Adapter/impl/src/async_common.cpp",
-         "Adapter/impl/src/unified_debug.cpp",
-         "Adapter/impl/src/Record.cpp",
-         "Adapter/impl/src/AsyncNdbContext.cpp",
-         "Adapter/impl/src/DBOperationHelper.cpp",
-         "Adapter/impl/src/IndexBoundHelper.cpp",
-         "Adapter/impl/src/DBScanHelper.cpp", 
-         "Adapter/impl/src/DBDictionaryImpl.cpp",
-         "Adapter/impl/src/NdbTypeEncoders.cpp",
-         "Adapter/impl/src/NdbRecordObject.cpp",
-         "Adapter/impl/src/ColumnProxy.cpp",
-         "Adapter/impl/src/ColumnHandler.cpp",
-         "Adapter/impl/src/ValueObject.cpp",
-         "Adapter/impl/src/ScanImpl.cpp",
-         "Adapter/impl/src/EncoderCharset.cpp",
+         "Adapter/impl/common/src/async_common.cpp",
+         "Adapter/impl/common/src/unified_debug.cpp",
 
-         "Adapter/impl/src/Record_wrapper.cpp",
-         "Adapter/impl/src/Ndb_init_wrapper.cpp",
-         "Adapter/impl/src/Ndb_util_wrapper.cpp",
-         "Adapter/impl/src/Ndb_cluster_connection_wrapper.cpp",
-         "Adapter/impl/src/NdbTransaction_wrapper.cpp",
-         "Adapter/impl/src/Ndb_wrapper.cpp",
-         "Adapter/impl/src/NdbError_wrapper.cpp",
-         "Adapter/impl/src/NdbOperation_wrapper.cpp",
-         "Adapter/impl/src/AsyncNdbContext_wrapper.cpp",
-         "Adapter/impl/src/NdbInterpretedCode_wrapper.cpp",
-         "Adapter/impl/src/NdbScanFilter_wrapper.cpp"
+         "Adapter/impl/ndb/src/node_module.cpp",
+         "Adapter/impl/ndb/src/Record.cpp",
+         "Adapter/impl/ndb/src/AsyncNdbContext.cpp",
+         "Adapter/impl/ndb/src/DBOperationHelper.cpp",
+         "Adapter/impl/ndb/src/IndexBoundHelper.cpp",
+         "Adapter/impl/ndb/src/DBScanHelper.cpp", 
+         "Adapter/impl/ndb/src/DBDictionaryImpl.cpp",
+         "Adapter/impl/ndb/src/NdbTypeEncoders.cpp",
+         "Adapter/impl/ndb/src/NdbRecordObject.cpp",
+         "Adapter/impl/ndb/src/ColumnProxy.cpp",
+         "Adapter/impl/ndb/src/ColumnHandler.cpp",
+         "Adapter/impl/ndb/src/ValueObject.cpp",
+         "Adapter/impl/ndb/src/ScanImpl.cpp",
+         "Adapter/impl/ndb/src/EncoderCharset.cpp",
+
+         "Adapter/impl/ndb/src/Record_wrapper.cpp",
+         "Adapter/impl/ndb/src/Ndb_init_wrapper.cpp",
+         "Adapter/impl/ndb/src/Ndb_util_wrapper.cpp",
+         "Adapter/impl/ndb/src/Ndb_cluster_connection_wrapper.cpp",
+         "Adapter/impl/ndb/src/NdbTransaction_wrapper.cpp",
+         "Adapter/impl/ndb/src/Ndb_wrapper.cpp",
+         "Adapter/impl/ndb/src/NdbError_wrapper.cpp",
+         "Adapter/impl/ndb/src/NdbScanOperation_wrapper.cpp",
+         "Adapter/impl/ndb/src/PendingOperationSet_wrapper.cpp", 
+         "Adapter/impl/ndb/src/AsyncNdbContext_wrapper.cpp",
+         "Adapter/impl/ndb/src/NdbInterpretedCode_wrapper.cpp",
+         "Adapter/impl/ndb/src/NdbScanFilter_wrapper.cpp"
         ],
 
       'conditions': 
@@ -83,7 +86,7 @@
           {
             'sources' : 
             [
-               "Adapter/impl/src/mysqlclient_wrapper.cpp"
+               "Adapter/impl/ndb/src/mysqlclient_wrapper.cpp"
             ],
             'libraries':
             [

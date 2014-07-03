@@ -65,7 +65,7 @@ bool
 DbUtil::isConnected(){
   if (m_connected == true)
   {
-    assert(m_mysql);
+    require(m_mysql);
     return true;
   }
   return connect();
@@ -188,7 +188,7 @@ DbUtil::connect()
   }
   selectDb();
   m_connected= true;
-  assert(m_mysql);
+  require(m_mysql);
   return true;
 }
 
@@ -346,7 +346,7 @@ DbUtil::runQuery(const char* sql,
   rows.clear();
   if (!isConnected())
     return false;
-  assert(m_mysql);
+  require(m_mysql);
 
   g_debug << "runQuery: " << endl
           << " sql: '" << sql << "'" << endl;
@@ -373,7 +373,7 @@ DbUtil::runQuery(const char* sql,
     if (!args.contains(name.c_str()))
     {
       g_err << "param " << i << " missing" << endl;
-      assert(false);
+      require(false);
     }
     PropertiesType t;
     Uint32 val_i;
@@ -394,7 +394,7 @@ DbUtil::runQuery(const char* sql,
       g_debug << " param" << name.c_str() << ": " << val_s << endl;
       break;
     default:
-      assert(false);
+      require(false);
       break;
     }
   }
@@ -666,7 +666,7 @@ const char* SqlResultSet::column(const char* col_name){
     g_err << "ERROR: SqlResultSet::column("<< col_name << ")" << endl
           << "There is no row loaded, call next() before "
           << "acessing the column values" << endl;
-    assert(m_curr_row);
+    require(m_curr_row);
   }
   if (!m_curr_row->get(col_name, &value))
     return NULL;
@@ -680,7 +680,7 @@ uint SqlResultSet::columnAsInt(const char* col_name){
     g_err << "ERROR: SqlResultSet::columnAsInt("<< col_name << ")" << endl
           << "There is no row loaded, call next() before "
           << "acessing the column values" << endl;
-    assert(m_curr_row);
+    require(m_curr_row);
   }
   if (!m_curr_row->get(col_name, &value))
     return (uint)-1;
@@ -693,7 +693,7 @@ unsigned long long SqlResultSet::columnAsLong(const char* col_name){
     g_err << "ERROR: SqlResultSet::columnAsLong("<< col_name << ")" << endl
           << "There is no row loaded, call next() before "
           << "acessing the column values" << endl;
-    assert(m_curr_row);
+    require(m_curr_row);
   }
   if (!m_curr_row->get(col_name, &value))
     return (uint)-1;

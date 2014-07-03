@@ -319,7 +319,9 @@ int main(int argc, char** argv){
 
   ndb_cluster_connection->set_name("ndb_show_tables");
   if (ndb_cluster_connection->connect(12,5,1))
-    fatal("Unable to connect to management server.");
+    fatal("Unable to connect to management server.\n - Error: '%d: %s'",
+          ndb_cluster_connection->get_latest_error(),
+          ndb_cluster_connection->get_latest_error_msg());
   if (ndb_cluster_connection->wait_until_ready(30,0) < 0)
     fatal("Cluster nodes not ready in 30 seconds.");
 

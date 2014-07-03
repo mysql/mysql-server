@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+#include <my_config.h>
 #include <unistd.h>
 #include <stdlib.h>  
 #include <stdio.h>
@@ -60,10 +61,13 @@ Configuration::Configuration(Configuration *old) :
 bool Configuration::connectToPrimary() {
   char timestamp[40];
   time_t now;
+  tm tm_buf;
   
   /* Build the startup timestamp for the log message */
   time(&now);
-  strftime(timestamp, 40, "%d-%b-%Y %T %Z", localtime(&now));
+  localtime_r(&now, &tm_buf);
+  strftime(timestamp, sizeof(timestamp),
+           "%d-%b-%Y %T %Z", &tm_buf);
   
   /* ndb_init() must be the first call into the NDB API */
   ndb_init();

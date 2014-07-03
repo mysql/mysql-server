@@ -30,10 +30,6 @@
 */
 #define INNODB_COMPATIBILITY_HOOKS
 
-#if defined(i386) && !defined(__i386__)
-#define __i386__
-#endif
-
 /* Macros to make switching between C and C++ mode easier */
 #ifdef __cplusplus
 #define C_MODE_START    extern "C" {
@@ -43,12 +39,8 @@
 #define C_MODE_END
 #endif
 
-#ifdef __cplusplus
-#define CPP_UNNAMED_NS_START  namespace {
-#define CPP_UNNAMED_NS_END    }
-#endif
-
 #include <my_config.h>
+#include "my_compiler.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #define HAVE_PSI_INTERFACE
@@ -69,14 +61,6 @@
 */
 #undef SIZEOF_OFF_T
 #define SIZEOF_OFF_T 8
-
-/*
- Prevent inclusion of  Windows GDI headers - they define symbol
- ERROR that conflicts with mysql headers.
-*/
-#ifndef NOGDI
-#define NOGDI
-#endif
 
 /* Include common headers.*/
 #include <winsock2.h>
@@ -118,21 +102,13 @@
 #  define unlikely(x)  (x)
 #endif
 
-/* Fix problem with S_ISLNK() on Linux */
-#if defined(TARGET_OS_LINUX) || defined(__GLIBC__)
-#undef  _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
-
 /*
   Temporary solution to solve bug#7156. Include "sys/types.h" before
   the thread headers, else the function madvise() will not be defined
 */
-#if defined(HAVE_SYS_TYPES_H) && ( defined(sun) || defined(__sun) )
+#if defined(sun) || defined(__sun)
 #include <sys/types.h>
 #endif
-
-#define __EXTENSIONS__ 1	/* We want some extension */
 
 /*
   Solaris 9 include file <sys/feature_tests.h> refers to X/Open document
@@ -167,25 +143,10 @@
 #endif
 
 #if !defined(_WIN32)
-#ifndef _POSIX_PTHREAD_SEMANTICS
-#define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
-#endif
-
-#define _REENTRANT	1	/* Some thread libraries require this */
-
-#if !defined(_THREAD_SAFE)
-#define _THREAD_SAFE            /* Required for OSF1 */
-#endif
 #include <pthread.h>
 #endif /* !defined(_WIN32) */
 
-#if defined(_lint) && !defined(lint)
-#define lint
-#endif
-
-#ifndef stdin
 #include <stdio.h>
-#endif
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -193,26 +154,14 @@
 #include <math.h>
 #include <limits.h>
 #include <float.h>
-#ifdef HAVE_FENV_H
 #include <fenv.h> /* For fesetround() */
-#endif
 
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
-#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
-#endif
 #if TIME_WITH_SYS_TIME
 # include <sys/time.h>
-# include <time.h>
-#else
-# if HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
-#endif /* TIME_WITH_SYS_TIME */
+#endif
+#include <time.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -250,11 +199,6 @@
     typedef char compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
   } while(0)
 
-/* Declare madvise where it is not declared for C++, like Solaris */
-#if HAVE_MADVISE && !HAVE_DECL_MADVISE && defined(__cplusplus)
-extern "C" int madvise(void *addr, size_t len, int behav);
-#endif
-
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
 
@@ -269,8 +213,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #endif
 
 #if !defined(HAVE_UINT)
-#undef HAVE_UINT
-#define HAVE_UINT
 typedef unsigned int uint;
 typedef unsigned short ushort;
 #endif
@@ -288,13 +230,6 @@ typedef unsigned short ushort;
 #define FALSE		(0)	/* Logical false */
 #endif
 
-#include <my_compiler.h>
-
-/* The DBUG_ON flag always takes precedence over default DBUG_OFF */
-#if defined(DBUG_ON) && defined(DBUG_OFF)
-#undef DBUG_OFF
-#endif
-
 /* Some types that is different between systems */
 
 typedef int	File;		/* File descriptor */
@@ -307,7 +242,7 @@ typedef int	my_socket;	/* File descriptor for sockets */
 C_MODE_START
 typedef void	(*sig_return)();/* Returns type from signal */
 C_MODE_END
-#if defined(__GNUC__) && !defined(_lint)
+#if defined(__GNUC__)
 typedef char	pchar;		/* Mixed prototypes can take char */
 typedef char	pbool;		/* Mixed prototypes can take char */
 #else
@@ -453,10 +388,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 /* Some defines of functions for portability */
 
-#ifndef _WIN32
-#define closesocket(A)	close(A)
-#endif
-
 #if (_MSC_VER)
 #if !defined(_WIN64)
 inline double my_ulonglong2double(unsigned long long value)
@@ -490,34 +421,15 @@ inline unsigned long long my_double2ulonglong(double d)
 
 #define ulong_to_double(X) ((double) (ulong) (X))
 
-#ifndef STACK_DIRECTION
-#error "please add -DSTACK_DIRECTION=1 or -1 to your CPPFLAGS"
+#ifndef LONGLONG_MIN
+#define LONGLONG_MIN	LLONG_MIN
 #endif
-
-/* This is from the old m-machine.h file */
-
-#if SIZEOF_LONG_LONG > 4
-#define HAVE_LONG_LONG 1
+#ifndef LONGLONG_MAX
+#define LONGLONG_MAX	LLONG_MAX
 #endif
-
-/*
-  Some pre-ANSI-C99 systems like AIX 5.1 and Linux/GCC 2.95 define
-  ULONGLONG_MAX, LONGLONG_MIN, LONGLONG_MAX; we use them if they're defined.
-*/
-
-#if defined(HAVE_LONG_LONG) && !defined(LONGLONG_MIN)
-#define LONGLONG_MIN	((long long) 0x8000000000000000LL)
-#define LONGLONG_MAX	((long long) 0x7FFFFFFFFFFFFFFFLL)
+#ifndef ULONGLONG_MAX
+#define ULONGLONG_MAX   ULLONG_MAX
 #endif
-
-#if defined(HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)
-/* First check for ANSI C99 definition: */
-#ifdef ULLONG_MAX
-#define ULONGLONG_MAX  ULLONG_MAX
-#else
-#define ULONGLONG_MAX ((unsigned long long)(~0ULL))
-#endif
-#endif /* defined (HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)*/
 
 #define INT_MIN64       (~0x7FFFFFFFFFFFFFFFLL)
 #define INT_MAX64       0x7FFFFFFFFFFFFFFFLL
@@ -534,15 +446,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #define INT_MAX8        0x7F
 #define UINT_MAX8       0xFF
 
-/* From limits.h instead */
-#ifndef DBL_MIN
-#define DBL_MIN		4.94065645841246544e-324
-#define FLT_MIN		((float)1.40129846432481707e-45)
-#endif
-#ifndef DBL_MAX
-#define DBL_MAX		1.79769313486231470e+308
-#define FLT_MAX		((float)3.40282346638528860e+38)
-#endif
 #ifndef SIZE_T_MAX
 #define SIZE_T_MAX      (~((size_t) 0))
 #endif
@@ -643,23 +546,16 @@ typedef unsigned long uint32;
 #error Neither int or long is of 4 bytes width
 #endif
 
-#if !defined(HAVE_ULONG) && !defined(__USE_MISC)
+#if !defined(HAVE_ULONG)
 typedef unsigned long	ulong;		  /* Short for unsigned long */
 #endif
-#ifndef longlong_defined
 /* 
   Using [unsigned] long long is preferable as [u]longlong because we use 
   [unsigned] long long unconditionally in many places, 
   for example in constants with [U]LL suffix.
 */
-#if defined(HAVE_LONG_LONG) && SIZEOF_LONG_LONG == 8
 typedef unsigned long long int ulonglong; /* ulong or unsigned long long */
 typedef long long int	longlong;
-#else
-typedef unsigned long	ulonglong;	  /* ulong or unsigned long long */
-typedef long		longlong;
-#endif
-#endif
 typedef longlong int64;
 typedef ulonglong uint64;
 
@@ -730,19 +626,11 @@ typedef char		my_bool; /* Small bool */
 #define MYF(v)		(myf) (v)
 
 #ifndef LL
-#ifdef HAVE_LONG_LONG
 #define LL(A) A ## LL
-#else
-#define LL(A) A ## L
-#endif
 #endif
 
 #ifndef ULL
-#ifdef HAVE_LONG_LONG
 #define ULL(A) A ## ULL
-#else
-#define ULL(A) A ## UL
-#endif
 #endif
 
 
@@ -759,10 +647,6 @@ typedef char		my_bool; /* Small bool */
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
 #endif
 
-#if defined(EMBEDDED_LIBRARY)
-#define NO_EMBEDDED_ACCESS_CHECKS
-#endif
-
 #if defined(_WIN32)
 #define dlsym(lib, name) (void*)GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
@@ -770,16 +654,6 @@ typedef char		my_bool; /* Small bool */
 #ifndef HAVE_DLOPEN
 #define HAVE_DLOPEN
 #endif
-#endif
-
-#ifdef HAVE_DLOPEN
-#if defined(HAVE_DLFCN_H)
-#include <dlfcn.h>
-#endif
-#endif
-
-#ifndef HAVE_DLERROR
-#ifdef _WIN32
 #define DLERROR_GENERATE(errmsg, error_number) \
   char win_errormsg[2048]; \
   if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, \
@@ -796,15 +670,12 @@ typedef char		my_bool; /* Small bool */
     errmsg= ""
 #define dlerror() ""
 #define dlopen_errno GetLastError()
+
 #else /* _WIN32 */
-#define dlerror() "No support for dynamic loading (static build?)"
+#include <dlfcn.h>
 #define DLERROR_GENERATE(errmsg, error_number) errmsg= dlerror()
 #define dlopen_errno errno
 #endif /* _WIN32 */
-#else /* HAVE_DLERROR */
-#define DLERROR_GENERATE(errmsg, error_number) errmsg= dlerror()
-#define dlopen_errno errno
-#endif /* HAVE_DLERROR */
 
 
 /*
@@ -828,7 +699,7 @@ typedef char		my_bool; /* Small bool */
   Only Linux is known to need an explicit sync of the directory to make sure a
   file creation/deletion/renaming in(from,to) this directory durable.
 */
-#ifdef TARGET_OS_LINUX
+#ifdef __linux__
 #define NEED_EXPLICIT_SYNC_DIR 1
 #endif
 
@@ -841,65 +712,23 @@ typedef char		my_bool; /* Small bool */
 #  define __func__ __FUNCTION__
 #endif
 
-#ifndef HAVE_RINT
-/**
-   All integers up to this number can be represented exactly as double precision
-   values (DBL_MANT_DIG == 53 for IEEE 754 hardware).
-*/
-#define MAX_EXACT_INTEGER ((1LL << DBL_MANT_DIG) - 1)
-
-/**
-   rint(3) implementation for platforms that do not have it.
-   Always rounds to the nearest integer with ties being rounded to the nearest
-   even integer to mimic glibc's rint() behavior in the "round-to-nearest"
-   FPU mode. Hardware-specific optimizations are possible (frndint on x86).
-   Unlike this implementation, hardware will also honor the FPU rounding mode.
-*/
-
-static inline double rint(double x)
-{
-  double f, i;
-  f = modf(x, &i);
-  /*
-    All doubles with absolute values > MAX_EXACT_INTEGER are even anyway,
-    no need to check it.
-  */
-  if (x > 0.0)
-    i += (double) ((f > 0.5) || (f == 0.5 &&
-                                 i <= (double) MAX_EXACT_INTEGER &&
-                                 (longlong) i % 2));
-  else
-    i -= (double) ((f < -0.5) || (f == -0.5 &&
-                                  i >= (double) -MAX_EXACT_INTEGER &&
-                                  (longlong) i % 2));
-  return i;
-}
-#endif /* HAVE_RINT */
-
 /* 
   MYSQL_PLUGIN_IMPORT macro is used to export mysqld data
   (i.e variables) for usage in storage engine loadable plugins.
   Outside of Windows, it is dummy.
 */
-#ifndef MYSQL_PLUGIN_IMPORT
 #if (defined(_WIN32) && defined(MYSQL_DYNAMIC_PLUGIN))
 #define MYSQL_PLUGIN_IMPORT __declspec(dllimport)
 #else
 #define MYSQL_PLUGIN_IMPORT
 #endif
-#endif
 
 #include <my_dbug.h>
 
-/* Defines that are unique to the embedded version of MySQL */
-
 #ifdef EMBEDDED_LIBRARY
-
+#define NO_EMBEDDED_ACCESS_CHECKS
 /* Things we don't need in the embedded version of MySQL */
-/* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
-
 #undef HAVE_OPENSSL
-
 #endif /* EMBEDDED_LIBRARY */
 
 

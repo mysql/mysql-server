@@ -7168,7 +7168,7 @@ ER_GIS_UNKNOWN_ERROR
 ER_GIS_UNKNOWN_EXCEPTION
   eng "Unknown exception caught in GIS function %s."
 
-ER_GIS_INVALID_DATA
+ER_GIS_INVALID_DATA 22023
   eng "Invalid GIS data provided to function %s."
 
 ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION
@@ -7227,6 +7227,14 @@ ER_GIS_DATA_WRONG_ENDIANESS
 
 ER_CHANGE_MASTER_PASSWORD_LENGTH
   eng "The password provided for the replication user exceeds the maximum length of 32 characters"
+
+ER_USER_LOCK_WRONG_NAME 42000
+        eng "Incorrect user-level lock name '%-.192s'."
+
+# Should be different from ER_LOCK_DEADLOCK since it doesn't cause implicit
+# rollback. Should not be mapped to SQLSTATE 40001 for the same reason.
+ER_USER_LOCK_DEADLOCK
+  eng "Deadlock found when trying to get user-level lock; try rolling back transaction/releasing locks and restarting lock acquisition."
 
 #
 #  End of 5.7 error messages.

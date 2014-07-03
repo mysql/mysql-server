@@ -32,7 +32,6 @@
 #cmakedefine HAVE_LIBWRAP 1
 
 /* Header files */
-#cmakedefine HAVE_SYS_TYPES_H 1
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
 #cmakedefine HAVE_CRYPT_H 1
@@ -40,28 +39,18 @@
 #cmakedefine HAVE_DIRENT_H 1
 #cmakedefine HAVE_DLFCN_H 1
 #cmakedefine HAVE_EXECINFO_H 1
-#cmakedefine HAVE_FCNTL_H 1
-#cmakedefine HAVE_FENV_H 1
 #cmakedefine HAVE_FPU_CONTROL_H 1
 #cmakedefine HAVE_GRP_H 1
 #cmakedefine HAVE_IEEEFP_H 1
-#cmakedefine HAVE_INTTYPES_H 1
 #cmakedefine HAVE_LANGINFO_H 1
 #cmakedefine HAVE_MALLOC_H 1
-#cmakedefine HAVE_NDIR_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
 #cmakedefine HAVE_PATHS_H 1
 #cmakedefine HAVE_POLL_H 1
 #cmakedefine HAVE_PWD_H 1
 #cmakedefine HAVE_SCHED_H 1
-#cmakedefine HAVE_SELECT_H 1
-#cmakedefine HAVE_SYS_DIR_H 1
-#cmakedefine HAVE_SYS_NDIR_H 1
-#cmakedefine HAVE_STDINT_H 1
-#cmakedefine HAVE_STDLIB_H 1
 #cmakedefine HAVE_STRINGS_H 1
 #cmakedefine HAVE_SYNCH_H 1
-#cmakedefine HAVE_SYSENT_H 1
 #cmakedefine HAVE_SYS_CDEFS_H 1
 #cmakedefine HAVE_SYS_IOCTL_H 1
 #cmakedefine HAVE_SYS_MALLOC_H 1
@@ -70,10 +59,8 @@
 #cmakedefine HAVE_SYS_RESOURCE_H 1
 #cmakedefine HAVE_SYS_SELECT_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1
-#cmakedefine HAVE_SYS_STAT_H 1
 #cmakedefine HAVE_TERM_H 1
 #cmakedefine HAVE_ASM_TERMBITS_H 1
-#cmakedefine HAVE_TERMBITS_H 1
 #cmakedefine HAVE_TERMIOS_H 1
 #cmakedefine HAVE_TERMIO_H 1
 #cmakedefine HAVE_TERMCAP_H 1
@@ -84,14 +71,12 @@
 #cmakedefine HAVE_SYS_PARAM_H 1
 #cmakedefine HAVE_SYS_VADVISE_H 1
 #cmakedefine HAVE_FNMATCH_H 1
-#cmakedefine HAVE_STDARG_H 1
 #cmakedefine HAVE_SYS_UN_H 1
 #cmakedefine HAVE_VIS_H 1
 #cmakedefine HAVE_SASL_SASL_H 1
 
 /* Libevent */
 #cmakedefine HAVE_DEVPOLL 1
-#cmakedefine HAVE_SIGNAL_H 1
 #cmakedefine HAVE_SYS_DEVPOLL_H 1
 #cmakedefine HAVE_SYS_EPOLL_H 1
 #cmakedefine HAVE_TAILQFOREACH 1
@@ -107,7 +92,6 @@
 #cmakedefine HAVE_FTRUNCATE 1
 #cmakedefine HAVE_COMPRESS 1
 #cmakedefine HAVE_CRYPT 1
-#cmakedefine HAVE_DLERROR 1
 #cmakedefine HAVE_DLOPEN 1
 #cmakedefine HAVE_FCHMOD 1
 #cmakedefine HAVE_FCNTL 1
@@ -160,9 +144,6 @@
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_FGETLN 1
 #cmakedefine HAVE_STRSEP 1
-#cmakedefine HAVE_STRTOK_R 1
-#cmakedefine HAVE_STRTOLL 1
-#cmakedefine HAVE_STRDUP 1
 #cmakedefine HAVE_TELL 1
 #cmakedefine HAVE_VASPRINTF 1
 #cmakedefine HAVE_MEMALIGN 1
@@ -181,13 +162,10 @@
 /* WL2373 */
 #cmakedefine HAVE_SYS_TIME_H 1
 #cmakedefine HAVE_SYS_TIMES_H 1
-#cmakedefine HAVE_ASM_MSR_H 1
 #cmakedefine HAVE_TIMES 1
 #cmakedefine HAVE_GETTIMEOFDAY 1
-#cmakedefine HAVE_RDTSCLL 1
 
 /* Symbols */
-#cmakedefine HAVE_DECL_MADVISE 1
 #cmakedefine HAVE_LRAND48 1
 #cmakedefine GWINSZ_IN_SYS_IOCTL 1
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1
@@ -195,10 +173,8 @@
 #cmakedefine HAVE_SIGEV_THREAD_ID 1
 #cmakedefine HAVE_SIGEV_PORT 1
 #cmakedefine HAVE_LOG2 1
-#cmakedefine HAVE_RINT 1
 
 #cmakedefine HAVE_ISINF 1
-#cmakedefine HAVE_FESETROUND 1
 
 #cmakedefine HAVE_KQUEUE_TIMERS 1
 #cmakedefine HAVE_POSIX_TIMERS 1
@@ -237,8 +213,6 @@
 #cmakedefine HAVE_FP_EXCEPT 1
 
 /* Code tests*/
-#cmakedefine HAVE_GETADDRINFO 1
-#cmakedefine HAVE_SELECT 1
 #cmakedefine SOCKET_SIZE_TYPE @SOCKET_SIZE_TYPE@
 #cmakedefine HAVE_PTHREAD_YIELD_ZERO_ARG 1
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
@@ -260,7 +234,6 @@
 #cmakedefine HAVE_BUILTIN_UNREACHABLE 1
 #cmakedefine HAVE_BUILTIN_EXPECT 1
 #cmakedefine HAVE_BUILTIN_STPCPY 1
-#cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_VALGRIND
 
@@ -278,12 +251,10 @@
  * Platform specific CMake files
  */
 #define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
-#cmakedefine TARGET_OS_LINUX 1
-#cmakedefine _GNU_SOURCE 1
-#cmakedefine _FILE_OFFSET_BITS @_FILE_OFFSET_BITS@
 #cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
+#cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
 /* Windows stuff, mostly functions, that have Posix analogs but named differently */
 #cmakedefine IPPROTO_IPV6 @IPPROTO_IPV6@
@@ -305,8 +276,6 @@
 #cmakedefine ENABLE_MEMCACHED_SASL 1
 #cmakedefine ENABLE_MEMCACHED_SASL_PWDB 1
 #cmakedefine ENABLED_PROFILING 1
-#cmakedefine CYBOZU 1
-#cmakedefine BACKUP_TEST 1
 #cmakedefine HAVE_ASAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
 #cmakedefine OPTIMIZER_TRACE 1
@@ -459,5 +428,22 @@
  * Other
  */
 #cmakedefine EXTRA_DEBUG 1
+
+/*
+ * Hardcoded values needed by libevent/NDB/memcached
+ */
+#define HAVE_FCNTL_H 1
+#define HAVE_GETADDRINFO 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_SELECT 1
+#define HAVE_SIGNAL_H 1
+#define HAVE_STDARG_H 1
+#define HAVE_STDINT_H 1
+#define HAVE_STDLIB_H 1
+#define HAVE_STRDUP 1
+#define HAVE_STRTOK_R 1
+#define HAVE_STRTOLL 1
+#define HAVE_SYS_STAT_H 1
+#define HAVE_SYS_TYPES_H 1
 
 #endif

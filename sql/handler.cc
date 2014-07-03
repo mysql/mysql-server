@@ -5404,7 +5404,7 @@ struct binlog_log_query_st
 {
   enum_binlog_command binlog_command;
   const char *query;
-  uint query_length;
+  size_t query_length;
   const char *db;
   const char *table_name;
 };

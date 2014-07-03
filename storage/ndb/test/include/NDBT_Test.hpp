@@ -274,17 +274,17 @@ static const int FAILED_TO_DISCOVER = 1001;
 
 class NDBT_TestCaseResult{
 public: 
-  NDBT_TestCaseResult(const char* name, int _result, NDB_TICKS _ticks):
+  NDBT_TestCaseResult(const char* name, int _result, Uint64 _elapsed):
     m_result(_result){
     m_name.assign(name); 
-    m_ticks = _ticks;
+    m_elapsed = _elapsed;
     
   };
   const char* getName(){return m_name.c_str(); };
   int getResult(){return m_result; };
   const char* getTimeStr(){
-      // Convert to Uint32 in order to be able to print it to screen
-    Uint32 lapTime = (Uint32)m_ticks;
+    // Convert to Uint32 in order to be able to print it to screen
+    Uint32 lapTime = (Uint32)m_elapsed;
     Uint32 secTime = lapTime/1000;
     BaseString::snprintf(buf, 255, "%d secs (%d ms)", secTime, lapTime);
     return buf;
@@ -293,7 +293,7 @@ private:
   char buf[255];
   int m_result;
   BaseString m_name;
-  NDB_TICKS m_ticks;
+  Uint64 m_elapsed;  // Milliseconds
 };
 
 class NDBT_TestCaseImpl1 : public NDBT_TestCase {
@@ -382,7 +382,7 @@ public:
   /**
    * Returns current date and time in the format of 2002-12-04 10:00:01
    */
-  const char* getDate();
+  const char* getDate(char* str, size_t len);
 
   // Returns true if timing info should be printed
   bool timerIsOn();
