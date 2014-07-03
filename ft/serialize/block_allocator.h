@@ -124,7 +124,12 @@ public:
 
     static const size_t BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE = BLOCK_ALLOCATOR_HEADER_RESERVE * 2;
 
+    enum allocation_strategy {
+        BA_STRATEGY_FIRST_FIT = 1
+    };
+
     // Effect: Create a block allocator, in which the first RESERVE_AT_BEGINNING bytes are not put into a block.
+    //         The default allocation strategy is first fit (BA_STRATEGY_FIRST_FIT)
     //  All blocks be start on a multiple of ALIGNMENT.
     //  Aborts if we run out of memory.
     // Parameters
@@ -134,6 +139,10 @@ public:
 
     // Effect: Destroy this block allocator
     void destroy();
+
+    // Effect: Set the allocation strategy that the allocator should use
+    // Requires: No other threads are operating on this block allocator
+    void set_strategy(enum allocation_strategy strategy);
 
     // Effect: Allocate a block of the specified size at a particular offset.
     //  Aborts if anything goes wrong.
@@ -219,6 +228,7 @@ private:
     void grow_blocks_array_by(uint64_t n_to_add);
     void grow_blocks_array();
     int64_t find_block(uint64_t offset);
+    struct blockpair *choose_block_to_alloc_after(size_t size);
 
     static int compare_blockpairs(const void *av, const void *bv);
 
@@ -234,4 +244,6 @@ private:
     struct blockpair *_blocks_array;
     // Including the reserve_at_beginning
     uint64_t _n_bytes_in_use;
+    // The allocation strategy are we using
+    enum allocation_strategy _strategy;
 };
