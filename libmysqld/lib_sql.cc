@@ -1344,7 +1344,7 @@ bool Protocol::net_store_data(const uchar *from, size_t length,
                               const CHARSET_INFO *from_cs,
                               const CHARSET_INFO *to_cs)
 {
-  uint conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
+  size_t conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
   uint dummy_error;
   char *field_buf;
   if (!thd->mysql)            // bootstrap file handling

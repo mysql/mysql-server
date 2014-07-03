@@ -7476,7 +7476,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
 {
   uint	and_level,i,found_eq_constant;
   Key_field *key_fields, *end, *field;
-  uint sz;
+  size_t sz;
   uint m= max(select_lex->max_equal_elems, 1U);
   
   /* 
