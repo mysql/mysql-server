@@ -77,9 +77,6 @@ add_subdirectory(locktree)
 add_subdirectory(src)
 add_subdirectory(tools)
 
-## subdirectories that just install things
-add_subdirectory(examples)
-
 install(
   FILES README.md README-TOKUDB
   DESTINATION .
