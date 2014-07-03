@@ -697,7 +697,8 @@ fsp_space_modify_check(
 		      || srv_is_tablespace_truncated(id)
 		      || fil_space_is_being_truncated(id)
 		      || fil_space_get_flags(id) == ULINT_UNDEFINED
-		      || fil_space_get_type(id) == FIL_TYPE_TEMPORARY);
+		      || fil_space_get_type(id) == FIL_TYPE_TEMPORARY
+		      || fil_space_is_redo_skipped(id));
 		return;
 	case MTR_LOG_ALL:
 		/* We must not write redo log for the shared temporary
