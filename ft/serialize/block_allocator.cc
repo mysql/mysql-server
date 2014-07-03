@@ -119,12 +119,17 @@ void block_allocator::create(uint64_t reserve_at_beginning, uint64_t alignment) 
     _blocks_array_size = 1;
     XMALLOC_N(_blocks_array_size, _blocks_array);
     _n_bytes_in_use = reserve_at_beginning;
+    _strategy = BA_STRATEGY_FIRST_FIT;
 
     VALIDATE();
 }
 
 void block_allocator::destroy() {
     toku_free(_blocks_array);
+}
+
+void block_allocator::set_strategy(enum allocation_strategy strategy) {
+    _strategy = strategy;
 }
 
 void block_allocator::grow_blocks_array_by(uint64_t n_to_add) {
@@ -221,6 +226,34 @@ static inline uint64_t align(uint64_t value, uint64_t ba_alignment) {
     return ((value + ba_alignment - 1) / ba_alignment) * ba_alignment;
 }
 
+static struct block_allocator::blockpair *
+choose_block_first_fit_strategy(struct block_allocator::blockpair *blocks_array,
+                                uint64_t n_blocks, uint64_t size,
+                                uint64_t alignment) {
+    // Implement first fit.
+    for (uint64_t blocknum = 0; blocknum + 1 < n_blocks; blocknum++) {
+        // Consider the space after blocknum
+        struct block_allocator::blockpair *bp = &blocks_array[blocknum];
+        uint64_t possible_offset = align(bp->offset + bp->size, alignment);
+        if (possible_offset + size <= bp[1].offset) {
+            return bp;
+        }
+    }
+    return nullptr;
+}
+
+// TODO: other strategies
+// TODO: Put strategies in their own file, ft/serialize/block_allocator_strategy.{cc,h}?
+
+struct block_allocator::blockpair *block_allocator::choose_block_to_alloc_after(size_t size) {
+    switch (_strategy) {
+    case BA_STRATEGY_FIRST_FIT:
+        return choose_block_first_fit_strategy(_blocks_array, _n_blocks, size, _alignment);
+    default:
+        abort();
+    }
+}
+
 // Effect: Allocate a block. The resulting block must be aligned on the ba->alignment (which to make direct_io happy must be a positive multiple of 512).
 void block_allocator::alloc_block(uint64_t size, uint64_t *offset) {
     // Allocator does not support size 0 blocks. See block_allocator_free_block.
@@ -228,6 +261,8 @@ void block_allocator::alloc_block(uint64_t size, uint64_t *offset) {
 
     grow_blocks_array();
     _n_bytes_in_use += size;
+
+    // First and only block
     if (_n_blocks == 0) {
         assert(_n_bytes_in_use == _reserve_at_beginning + size); // we know exactly how many are in use
         _blocks_array[0].offset = align(_reserve_at_beginning, _alignment);
@@ -237,50 +272,39 @@ void block_allocator::alloc_block(uint64_t size, uint64_t *offset) {
         return;
     }
 
-    // Implement first fit.
-    {
-        uint64_t end_of_reserve = align(_reserve_at_beginning, _alignment);
-        if (end_of_reserve + size <= _blocks_array[0].offset ) {
-            // Check to see if the space immediately after the reserve is big enough to hold the new block.
-            struct blockpair *bp = &_blocks_array[0];
-            memmove(bp + 1, bp, _n_blocks * sizeof(*bp));
-            bp[0].offset = end_of_reserve;
-            bp[0].size = size;
-            _n_blocks++;
-            *offset = end_of_reserve;
-            VALIDATE();
-            return;
-        }
-    }
-
-    for (uint64_t blocknum = 0; blocknum + 1 < _n_blocks; blocknum++) {
-        // Consider the space after blocknum
-        struct blockpair *bp = &_blocks_array[blocknum];
-        uint64_t this_offset = bp[0].offset;
-        uint64_t this_size   = bp[0].size;
-        uint64_t answer_offset = align(this_offset + this_size, _alignment);
-        if (answer_offset + size > bp[1].offset) {
-            continue; // The block we want doesn't fit after this block.
-        }
-
-        // It fits, so allocate it here.
-        memmove(bp + 2, bp + 1, (_n_blocks - blocknum - 1) * sizeof(*bp));
-        bp[1].offset = answer_offset;
-        bp[1].size = size;
+    // Check to see if the space immediately after the reserve is big enough to hold the new block.
+    uint64_t end_of_reserve = align(_reserve_at_beginning, _alignment);
+    if (end_of_reserve + size <= _blocks_array[0].offset ) {
+        struct blockpair *bp = &_blocks_array[0];
+        memmove(bp + 1, bp, _n_blocks * sizeof(*bp));
+        bp[0].offset = end_of_reserve;
+        bp[0].size = size;
         _n_blocks++;
-        *offset = answer_offset;
+        *offset = end_of_reserve;
         VALIDATE();
         return;
     }
 
-    // It didn't fit anywhere, so fit it on the end.
-    assert(_n_blocks < _blocks_array_size);
-    struct blockpair *bp = &_blocks_array[_n_blocks];
-    uint64_t answer_offset = align(bp[-1].offset + bp[-1].size, _alignment);
-    bp->offset = answer_offset;
-    bp->size = size;
+    struct blockpair *bp = choose_block_first_fit_strategy(_blocks_array, _n_blocks, size, _alignment);
+    if (bp != nullptr) {
+        // our allocation strategy chose the space after `bp' to fit the new block
+        uint64_t answer_offset = align(bp->offset + bp->size, _alignment);
+        uint64_t blocknum = bp - _blocks_array;
+        assert(&_blocks_array[blocknum] == bp);
+        memmove(bp + 2, bp + 1, (_n_blocks - blocknum - 1) * sizeof(*bp));
+        bp[1].offset = answer_offset;
+        bp[1].size = size;
+        *offset = answer_offset;
+    } else {
+        // It didn't fit anywhere, so fit it on the end.
+        assert(_n_blocks < _blocks_array_size);
+        bp = &_blocks_array[_n_blocks];
+        uint64_t answer_offset = align(bp[-1].offset + bp[-1].size, _alignment);
+        bp->offset = answer_offset;
+        bp->size = size;
+        *offset = answer_offset;
+    }
     _n_blocks++;
-    *offset = answer_offset;
     VALIDATE();
 }
 
