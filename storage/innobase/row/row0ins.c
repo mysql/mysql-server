@@ -1702,7 +1702,7 @@ row_ins_scan_sec_index_for_duplicate(
 	do {
 		const rec_t*		rec	= btr_pcur_get_rec(&pcur);
 		const buf_block_t*	block	= btr_pcur_get_block(&pcur);
-		ulint			lock_type;
+		const ulint		lock_type = LOCK_ORDINARY;
 
 		if (page_rec_is_infimum(rec)) {
 
@@ -1711,16 +1711,6 @@ row_ins_scan_sec_index_for_duplicate(
 
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
-
-		/* If the transaction isolation level is no stronger than
-		READ COMMITTED, then avoid gap locks. */
-		if (!page_rec_is_supremum(rec)
-		    && thr_get_trx(thr)->isolation_level
-					<= TRX_ISO_READ_COMMITTED) {
-			lock_type = LOCK_REC_NOT_GAP;
-		} else {
-			lock_type = LOCK_ORDINARY;
-		}
 
 		if (allow_duplicates) {
 
