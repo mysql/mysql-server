@@ -197,7 +197,7 @@ toku_maybe_preallocate_in_file (int fd, int64_t size, int64_t expected_size, int
 // Effect: make the file bigger by either doubling it or growing by 16MiB whichever is less, until it is at least size
 // Return 0 on success, otherwise an error number.
 {
-    int64_t file_size;
+    int64_t file_size = 0;
     //TODO(yoni): Allow variable stripe_width (perhaps from ft) for larger raids
     const uint64_t stripe_width = 4096;
     {
