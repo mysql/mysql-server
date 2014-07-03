@@ -42,6 +42,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
 #include "sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "rpl_slave.h"
+#include "rpl_msr.h"       /* multisource replication */
 #include "lex_symbol.h"
 #include "item_create.h"
 #include "sp_head.h"
@@ -531,6 +532,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  CHAIN_SYM                     /* SQL-2003-N */
 %token  CHANGE
 %token  CHANGED
+%token  CHANNEL_SYM
 %token  CHARSET
 %token  CHAR_SYM                      /* SQL-2003-R */
 %token  CHECKSUM_SYM
@@ -1753,7 +1755,7 @@ change:
             DBUG_ASSERT(Lex->mi.repl_ignore_server_ids.empty());
             lex->mi.set_unspecified();
           }
-          master_defs
+          master_defs opt_channel
           {}
         | CHANGE REPLICATION FILTER_SYM
           {
@@ -2155,6 +2157,19 @@ master_file_def:
                                                Lex->mi.relay_log_pos);
           }
         ;
+
+opt_channel:
+         /*empty */
+       {
+         Lex->mi.channel= "";
+         Lex->mi.for_channel= false;
+       }
+     | FOR_SYM CHANNEL_SYM TEXT_STRING_sys_nonewline
+       {
+         Lex->mi.channel= $3.str;
+         Lex->mi.for_channel= true;
+       }
+    ;
 
 /* create a table */
 
@@ -8068,6 +8083,17 @@ opt_to:
         ;
 
 slave:
+        slave_start start_slave_opts{}
+      | STOP_SYM SLAVE opt_slave_thread_option_list opt_channel
+        {
+          LEX *lex=Lex;
+          lex->sql_command = SQLCOM_SLAVE_STOP;
+          lex->type = 0;
+          lex->slave_thd_opt= $3;
+        }
+      ;
+
+slave_start:
           START_SYM SLAVE opt_slave_thread_option_list
           {
             LEX *lex=Lex;
@@ -8079,6 +8105,9 @@ slave:
             lex->mi.set_unspecified();
             lex->slave_thd_opt= $3;
           }
+         ;
+
+start_slave_opts:
           slave_until
           slave_connection_opts
           {
@@ -8097,14 +8126,8 @@ slave:
               MYSQL_YYABORT;
             }
           }
-        | STOP_SYM SLAVE opt_slave_thread_option_list
-          {
-            LEX *lex=Lex;
-            lex->sql_command = SQLCOM_SLAVE_STOP;
-            lex->type = 0;
-            lex->slave_thd_opt= $3;
-          }
-        ;
+          opt_channel
+          ;
 
 start:
           START_SYM TRANSACTION_SYM opt_start_transaction_option_list
@@ -8238,7 +8261,11 @@ slave_thread_option:
         ;
 
 slave_until:
-          /*empty*/ {}
+          /*empty*/
+          {
+            LEX *lex= Lex;
+            lex->mi.slave_until= false;
+          }
         | UNTIL_SYM slave_until_opts
           {
             LEX *lex=Lex;
@@ -8260,6 +8287,7 @@ slave_until:
                           ER(ER_BAD_SLAVE_UNTIL_COND), MYF(0));
                MYSQL_YYABORT;
             }
+            lex->mi.slave_until= true;
           }
         ;
 
@@ -11563,7 +11591,7 @@ show_param:
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_RELAYLOG_EVENTS;
           }
-          opt_limit_clause
+          opt_limit_clause opt_channel
           {
             if ($6 != NULL)
               CONTEXTUALIZE($6);
@@ -11719,11 +11747,12 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_MASTER_STAT;
           }
-        | SLAVE STATUS_SYM NONBLOCKING_SYM
+        | SLAVE STATUS_SYM NONBLOCKING_SYM opt_channel
           {
+             //@todo: what todo in case of msr?
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING;
           }
-        | SLAVE STATUS_SYM
+        | SLAVE STATUS_SYM opt_channel
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           }
@@ -12023,7 +12052,7 @@ flush_option:
           { Lex->type|= REFRESH_SLOW_LOG; }
         | BINARY LOGS_SYM
           { Lex->type|= REFRESH_BINARY_LOG; }
-        | RELAY LOGS_SYM
+        | RELAY LOGS_SYM opt_channel
           { Lex->type|= REFRESH_RELAY_LOG; }
         | QUERY_SYM CACHE_SYM
           { Lex->type|= REFRESH_QUERY_CACHE_FREE; }
@@ -12063,7 +12092,7 @@ reset_options:
 
 reset_option:
           SLAVE               { Lex->type|= REFRESH_SLAVE; }
-          slave_reset_options { }
+          slave_reset_options opt_channel
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
         | QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
         ;
@@ -12923,6 +12952,7 @@ keyword_sp:
         | CATALOG_NAME_SYM         {}
         | CHAIN_SYM                {}
         | CHANGED                  {}
+        | CHANNEL_SYM              {}
         | CIPHER_SYM               {}
         | CLIENT_SYM               {}
         | CLASS_ORIGIN_SYM         {}

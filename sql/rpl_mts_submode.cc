@@ -89,7 +89,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
                                                  Slave_worker *ignore)
 {
   uint ret= 0;
-  HASH *hash= &mapping_db_to_worker;
+  HASH *hash= &rli->mapping_db_to_worker;
   THD *thd= rli->info_thd;
   bool cant_sync= FALSE;
   char llbuf[22];
@@ -105,7 +105,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
   {
     db_worker_hash_entry *entry;
 
-    mysql_mutex_lock(&slave_worker_hash_lock);
+    mysql_mutex_lock(&rli->slave_worker_hash_lock);
 
     entry= (db_worker_hash_entry*) my_hash_element(hash, i);
 
@@ -114,7 +114,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
     // the ignore Worker retains its active resources
     if (ignore && entry->worker == ignore && entry->usage > 0)
     {
-      mysql_mutex_unlock(&slave_worker_hash_lock);
+      mysql_mutex_unlock(&rli->slave_worker_hash_lock);
       continue;
     }
 
@@ -124,13 +124,13 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
       Slave_worker *w_entry= entry->worker;
 
       entry->worker= NULL; // mark Worker to signal when  usage drops to 0
-      thd->ENTER_COND(&slave_worker_hash_cond,
-                      &slave_worker_hash_lock,
+      thd->ENTER_COND(&rli->slave_worker_hash_cond,
+                      &rli->slave_worker_hash_lock,
                       &stage_slave_waiting_worker_to_release_partition,
                       &old_stage);
       do
       {
-        mysql_cond_wait(&slave_worker_hash_cond, &slave_worker_hash_lock);
+        mysql_cond_wait(&rli->slave_worker_hash_cond, &rli->slave_worker_hash_lock);
         DBUG_PRINT("info",
                    ("Either got awakened of notified: "
                     "entry %p, usage %lu, worker %lu",
@@ -142,7 +142,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
     }
     else
     {
-      mysql_mutex_unlock(&slave_worker_hash_lock);
+      mysql_mutex_unlock(&rli->slave_worker_hash_lock);
     }
     // resources relocation
     mts_move_temp_tables_to_thd(thd, entry->temporary_tables);

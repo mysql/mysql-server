@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,10 @@
 #include "rpl_mi.h"
 #include "rpl_reporting.h" /* MAX_SLAVE_ERRMSG */
 #include "mysql_com.h"
+#include "rpl_msr.h"
+#include "rpl_info.h"  /*CHANNELNAME_LENGTH */
+
+class Master_info;
 
 /**
   @addtogroup Performance_schema_tables
@@ -53,6 +57,8 @@ enum enum_rpl_connect_status_service_state {
   length field denoted by <field_name>_length.
 */
 struct st_row_connect_status {
+  char channel_name[CHANNELNAME_LENGTH];
+  uint channel_name_length;
   char source_uuid[UUID_LENGTH];
   ulonglong thread_id;
   bool thread_id_is_null;
@@ -69,7 +75,7 @@ struct st_row_connect_status {
 class table_replication_connection_status: public PFS_engine_table
 {
 private:
-  void make_row();
+  void make_row(Master_info *mi);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

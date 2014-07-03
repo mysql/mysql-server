@@ -73,7 +73,11 @@ const char *info_slave_worker_fields []=
   /*
     Bitmap used to identify what jobs were processed by a worker.
   */
-  "checkpoint_group_bitmap"
+  "checkpoint_group_bitmap",
+  /*
+    Channel on which this workers are acting
+  */
+  "channel_name"
 };
 
 /*
@@ -81,7 +85,7 @@ const char *info_slave_worker_fields []=
   entries with zero usage are tolerated so could be quickly
   recycled.
 */
-ulong mts_partition_hash_soft_max= 16;
+const ulong mts_partition_hash_soft_max= 16;
 
 Slave_worker::Slave_worker(Relay_log_info *rli
 #ifdef HAVE_PSI_INTERFACE
@@ -94,7 +98,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
                            PSI_mutex_key *param_key_info_stop_cond,
                            PSI_mutex_key *param_key_info_sleep_cond
 #endif
-                           , uint param_id
+                           , uint param_id, const char *param_channel
                           )
   : Relay_log_info(FALSE
 #ifdef HAVE_PSI_INTERFACE
@@ -103,7 +107,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
                    param_key_info_data_cond, param_key_info_start_cond,
                    param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
-                   , param_id + 1, true
+                   , param_id + 1, param_channel, true
                   ), c_rli(rli), id(param_id),
     checkpoint_relay_log_pos(0), checkpoint_master_log_pos(0),
     checkpoint_seqno(0), running_status(NOT_RUNNING)
@@ -364,7 +368,9 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
                      (ulong) 0) ||
       from->get_info(&nbytes, (ulong) 0) ||
       from->get_info(buffer, (size_t) nbytes,
-                     (uchar *) 0))
+                     (uchar *) 0) ||
+      /* default is empty string */
+      from->get_info(channel, sizeof(channel),(char*)""))
     DBUG_RETURN(TRUE);
 
   DBUG_ASSERT(nbytes <= no_bytes_in_map(&group_executed));
@@ -398,6 +404,17 @@ void Slave_worker::copy_values_for_PFS(ulong worker_id,
   currently_executing_gtid= gtid;
 }
 
+bool Slave_worker::set_info_search_keys(Rpl_info_handler *to)
+{
+  DBUG_ENTER("Slave_worker::set_info_search_keys");
+
+  /* primary keys are Id and channel_name */
+  if(to->set_info(0, (int)internal_id ) || to->set_info(12, channel))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
 bool Slave_worker::write_info(Rpl_info_handler *to)
 {
   DBUG_ENTER("Master_info::write_info");
@@ -418,7 +435,8 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
       to->set_info((ulong) checkpoint_master_log_pos) ||
       to->set_info((ulong) checkpoint_seqno) ||
       to->set_info(nbytes) ||
-      to->set_info(buffer, (size_t) nbytes))
+      to->set_info(buffer, (size_t) nbytes)||
+      to->set_info(channel))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
@@ -546,18 +564,6 @@ void Slave_worker::rollback_positions(Slave_job_group* ptr_g)
   }
 }
 
-HASH mapping_db_to_worker;
-static bool inited_hash_workers= FALSE;
-
-#ifdef HAVE_PSI_INTERFACE
-PSI_mutex_key key_mutex_slave_worker_hash;
-PSI_cond_key key_cond_slave_worker_hash;
-#endif
-
-mysql_mutex_t slave_worker_hash_lock;
-mysql_cond_t slave_worker_hash_cond;
-
-
 extern "C" uchar *get_key(const uchar *record, size_t *length,
                           my_bool not_used __attribute__((unused)))
 {
@@ -599,39 +605,39 @@ static void free_entry(db_worker_hash_entry *entry)
   DBUG_VOID_RETURN;
 }
 
-bool init_hash_workers(ulong slave_parallel_workers)
+bool init_hash_workers(Relay_log_info *rli)
 {
   DBUG_ENTER("init_hash_workers");
 
-  inited_hash_workers=
-    (my_hash_init(&mapping_db_to_worker, &my_charset_bin,
+  rli->inited_hash_workers=
+    (my_hash_init(&rli->mapping_db_to_worker, &my_charset_bin,
                  0, 0, 0, get_key,
                  (my_hash_free_key) free_entry, 0) == 0);
-  if (inited_hash_workers)
+  if (rli->inited_hash_workers)
   {
 #ifdef HAVE_PSI_INTERFACE
-    mysql_mutex_init(key_mutex_slave_worker_hash, &slave_worker_hash_lock,
+    mysql_mutex_init(rli->key_mutex_slave_worker_hash, &rli->slave_worker_hash_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_cond_slave_worker_hash, &slave_worker_hash_cond);
+    mysql_cond_init(rli->key_cond_slave_worker_hash, &rli->slave_worker_hash_cond);
 #else
-    mysql_mutex_init(NULL, &slave_worker_hash_lock,
+    mysql_mutex_init(NULL, &rli->slave_worker_hash_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_cond_init(NULL, &slave_worker_hash_cond);
+    mysql_cond_init(NULL, &rli->slave_worker_hash_cond, NULL);
 #endif
   }
 
-  DBUG_RETURN (!inited_hash_workers);
+  DBUG_RETURN (!rli->inited_hash_workers);
 }
 
 void destroy_hash_workers(Relay_log_info *rli)
 {
   DBUG_ENTER("destroy_hash_workers");
-  if (inited_hash_workers)
+  if (rli->inited_hash_workers)
   {
-    my_hash_free(&mapping_db_to_worker);
-    mysql_mutex_destroy(&slave_worker_hash_lock);
-    mysql_cond_destroy(&slave_worker_hash_cond);
-    inited_hash_workers= false;
+    my_hash_free(&rli->mapping_db_to_worker);
+    mysql_mutex_destroy(&rli->slave_worker_hash_lock);
+    mysql_cond_destroy(&rli->slave_worker_hash_cond);
+    rli->inited_hash_workers= false;
   }
 
   DBUG_VOID_RETURN;
@@ -817,7 +823,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
               rli->last_assigned_worker == last_worker);
   DBUG_ASSERT(is_mts_db_partitioned(rli));
 
-  if (!inited_hash_workers)
+  if (!rli->inited_hash_workers)
     DBUG_RETURN(NULL);
 
   db_worker_hash_entry *entry= NULL;
@@ -842,13 +848,13 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
   DBUG_PRINT("info", ("Searching for %s, %d", dbname, dblength));
 
-  hash_value= my_calc_hash(&mapping_db_to_worker, (uchar*) dbname,
+  hash_value= my_calc_hash(&rli->mapping_db_to_worker, (uchar*) dbname,
                            dblength);
 
-  mysql_mutex_lock(&slave_worker_hash_lock);
+  mysql_mutex_lock(&rli->slave_worker_hash_lock);
 
   entry= (db_worker_hash_entry *)
-    my_hash_search_using_hash_value(&mapping_db_to_worker, hash_value,
+    my_hash_search_using_hash_value(&rli->mapping_db_to_worker, hash_value,
                                     (uchar*) dbname, dblength);
   if (!entry)
   {
@@ -861,7 +867,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     my_bool ret;
     char *db= NULL;
 
-    mysql_mutex_unlock(&slave_worker_hash_lock);
+    mysql_mutex_unlock(&rli->slave_worker_hash_lock);
 
     DBUG_PRINT("info", ("Inserting %s, %d", dbname, dblength));
     /*
@@ -887,12 +893,12 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       Unless \exists the last assigned Worker, get a free worker based
       on a policy described in the function get_least_occupied_worker().
     */
-    mysql_mutex_lock(&slave_worker_hash_lock);
+    mysql_mutex_lock(&rli->slave_worker_hash_lock);
 
     entry->worker= (!last_worker) ?
       get_least_occupied_worker(rli, workers, NULL) : last_worker;
     entry->worker->usage_partition++;
-    if (mapping_db_to_worker.records > mts_partition_hash_soft_max)
+    if (rli->mapping_db_to_worker.records > mts_partition_hash_soft_max)
     {
       /*
         remove zero-usage (todo: rare or long ago scheduled) records.
@@ -901,13 +907,13 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       */
       my_init_dynamic_array(&hash_element, sizeof(db_worker_hash_entry *),
                             HASH_DYNAMIC_INIT, HASH_DYNAMIC_INCR);
-      for (uint i= 0; i < mapping_db_to_worker.records; i++)
+      for (uint i= 0; i < rli->mapping_db_to_worker.records; i++)
       {
         DBUG_ASSERT(!entry->temporary_tables || !entry->temporary_tables->prev);
         DBUG_ASSERT(!thd->temporary_tables || !thd->temporary_tables->prev);
 
         db_worker_hash_entry *entry=
-          (db_worker_hash_entry*) my_hash_element(&mapping_db_to_worker, i);
+          (db_worker_hash_entry*) my_hash_element(&rli->mapping_db_to_worker, i);
 
         if (entry->usage == 0)
         {
@@ -923,13 +929,13 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       for (uint i=0; i < hash_element.elements; i++)
       {
         db_worker_hash_entry *temp_entry= *(db_worker_hash_entry **) dynamic_array_ptr(&hash_element, i);
-        my_hash_delete(&mapping_db_to_worker, (uchar*) temp_entry);
+        my_hash_delete(&rli->mapping_db_to_worker, (uchar*) temp_entry);
       }
         /* Deleting the dynamic array */
       delete_dynamic(&hash_element);
     }
 
-    ret= my_hash_insert(&mapping_db_to_worker, (uchar*) entry);
+    ret= my_hash_insert(&rli->mapping_db_to_worker, (uchar*) entry);
 
     if (ret)
     {
@@ -972,11 +978,11 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       // loop while a user thread is stopping Coordinator gracefully
       do
       {
-        thd->ENTER_COND(&slave_worker_hash_cond,
-                                   &slave_worker_hash_lock,
+        thd->ENTER_COND(&rli->slave_worker_hash_cond,
+                                   &rli->slave_worker_hash_lock,
                                    &stage_slave_waiting_worker_to_release_partition,
                                    &old_stage);
-        mysql_cond_wait(&slave_worker_hash_cond, &slave_worker_hash_lock);
+        mysql_cond_wait(&rli->slave_worker_hash_cond, &rli->slave_worker_hash_lock);
       } while (entry->usage != 0 && !thd->killed);
 
       thd->EXIT_COND(&old_stage);
@@ -985,7 +991,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
         entry= NULL;
         goto err;
       }
-      mysql_mutex_lock(&slave_worker_hash_lock);
+      mysql_mutex_lock(&rli->slave_worker_hash_lock);
       entry->usage= 1;
       entry->worker->usage_partition++;
     }
@@ -1020,7 +1026,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     }
 #endif
   }
-  mysql_mutex_unlock(&slave_worker_hash_lock);
+  mysql_mutex_unlock(&rli->slave_worker_hash_lock);
 
   DBUG_ASSERT(entry);
 
@@ -1128,7 +1134,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     db_worker_hash_entry *entry=
       *((db_worker_hash_entry **) dynamic_array_ptr(ep, i));
 
-    mysql_mutex_lock(&slave_worker_hash_lock);
+    mysql_mutex_lock(&c_rli->slave_worker_hash_lock);
 
     DBUG_ASSERT(entry);
 
@@ -1157,13 +1163,13 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
         DBUG_PRINT("info",
                    ("Notifying entry %p release by worker %lu", entry, this->id));
 
-        mysql_cond_signal(&slave_worker_hash_cond);
+        mysql_cond_signal(&c_rli->slave_worker_hash_cond);
       }
     }
     else
       DBUG_ASSERT(usage_partition != 0);
 
-    mysql_mutex_unlock(&slave_worker_hash_lock);
+    mysql_mutex_unlock(&c_rli->slave_worker_hash_lock);
   }
 
   if (ep->elements > ep->max_element)
@@ -1180,9 +1186,9 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
   if (error)
   {
     // Awakening Coordinator that could be waiting for entry release
-    mysql_mutex_lock(&slave_worker_hash_lock);
-    mysql_cond_signal(&slave_worker_hash_cond);
-    mysql_mutex_unlock(&slave_worker_hash_lock);
+    mysql_mutex_lock(&c_rli->slave_worker_hash_lock);
+    mysql_cond_signal(&c_rli->slave_worker_hash_cond);
+    mysql_mutex_unlock(&c_rli->slave_worker_hash_lock);
   }
 
   DBUG_VOID_RETURN;
@@ -1562,7 +1568,6 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   */
   this->va_report(level, err_code, buff_coord, msg, args);
 }
-
 
 // returns the next available! (TODO: incompatible to circurla_buff method!!!)
 static int en_queue(Slave_jobs_queue *jobs, Slave_job_item *item)
