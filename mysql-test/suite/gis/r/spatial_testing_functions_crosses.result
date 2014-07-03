@@ -1731,48 +1731,36 @@ Crosses(fid,NULL)
 NULL
 SELECT Crosses(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-Crosses(fid,GeomFromText(@star_top))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_crosses.
 SELECT Crosses(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-Crosses(GeomFromText(@star_of_elems),fid)
-NULL
+ERROR 22023: Invalid GIS data provided to function st_crosses.
 SELECT Crosses(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Crosses(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Crosses(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Crosses(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Crosses(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT Crosses(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Crosses(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Crosses(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Crosses(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Crosses(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Crosses(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Crosses(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT Crosses(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Crosses(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Crosses(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-Crosses(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Crosses(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT Crosses(GeomFromText(@star_of_elems),);
@@ -1811,48 +1799,36 @@ ST_Crosses(fid,NULL)
 NULL
 SELECT ST_Crosses(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-ST_Crosses(fid,GeomFromText(@star_top))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_crosses.
 SELECT ST_Crosses(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-ST_Crosses(GeomFromText(@star_of_elems),fid)
-NULL
+ERROR 22023: Invalid GIS data provided to function st_crosses.
 SELECT ST_Crosses(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Crosses(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Crosses(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Crosses(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_Crosses(GeomFromText(@star_of_elems),);

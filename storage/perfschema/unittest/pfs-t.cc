@@ -41,10 +41,10 @@ PFS_file* lookup_file_by_name(const char* name)
 {
   uint i;
   PFS_file *pfs;
-  uint len= strlen(name);
+  size_t len= strlen(name);
   size_t dirlen;
   const char *filename;
-  uint filename_length;;
+  size_t filename_length;
 
   for (i= 0; i < file_max; i++)
   {

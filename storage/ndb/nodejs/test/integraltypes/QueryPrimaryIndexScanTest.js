@@ -38,7 +38,7 @@ var q3 = {p1: 3, p2: 7, expected: [7], queryType: 2, ordered: false, predicate: 
   return qdt.id.ne(qdt.param('p1')).and(qdt.id.eq(qdt.param('p2')));
 }};
 
-var q4 = {p1: 8, p2: 2, expected: [0, 1, 2, 8, 9], queryType: 3, ordered: false, 
+var q4 = {p1: 8, p2: 2, expected: [0, 1, 2, 8, 9], queryType: 2, ordered: false, 
        predicate: function(qdt) {
   return qdt.id.ge(qdt.param('p1')).or(qdt.id.le(qdt.param('p2')));
 }};
@@ -47,11 +47,11 @@ var q5 = {p1: 3, p2: 7, expected: [7, 8, 9], queryType: 2, ordered: false, predi
   return qdt.id.gt(qdt.param('p1')).and(qdt.not((qdt.id.lt(qdt.param('p2')))));
 }};
 
-var q6 = {p1: 3, p2: 7, expected: [0, 1, 2, 3, 4, 5, 6, 8, 9], queryType: 3, ordered: false, predicate: function(qdt) {
+var q6 = {p1: 3, p2: 7, expected: [0, 1, 2, 3, 4, 5, 6, 8, 9], queryType: 2, ordered: false, predicate: function(qdt) {
   return qdt.not(qdt.id.ne(qdt.param('p1')).and(qdt.id.eq(qdt.param('p2'))));
 }};
 
-var q7 = {p1: 3, p2: 7, expected: [0, 1, 2, 3, 4, 5, 6, 8, 9], queryType: 3, ordered: false, predicate: function(qdt) {
+var q7 = {p1: 3, p2: 7, expected: [0, 1, 2, 3, 4, 5, 6, 8, 9], queryType: 2, ordered: false, predicate: function(qdt) {
   return (qdt.id.ne(qdt.param('p1')).and(qdt.id.eq(qdt.param('p2')))).not();
 }};
 
@@ -59,7 +59,7 @@ var q8 = {p1: 3, p2: 7, expected: [4, 5, 6, 7], queryType: 2, ordered: false, pr
   return qdt.id.gt(qdt.param('p1')).andNot((qdt.id.gt(qdt.param('p2'))));
 }};
 
-var q9 = {p1: 7, p2: 2, expected: [0, 1, 8, 9], queryType: 3, ordered: false, predicate: function(qdt) {
+var q9 = {p1: 7, p2: 2, expected: [0, 1, 8, 9], queryType: 2, ordered: false, predicate: function(qdt) {
   return qdt.id.gt(qdt.param('p1')).orNot((qdt.id.ge(qdt.param('p2'))));
 }};
 

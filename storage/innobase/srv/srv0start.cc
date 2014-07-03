@@ -1009,7 +1009,7 @@ srv_open_tmp_tablespace(
 			"Could not create the shared %s.", tmp_space->name());
 
 	} else if ((err = tmp_space->open_or_create(
-			    true, &sum_of_new_sizes, NULL, NULL))
+			    true, &sum_of_new_sizes, NULL))
 		   != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -1164,8 +1164,7 @@ innobase_start_or_create_for_mysql(void)
 /*====================================*/
 {
 	bool		create_new_db = false;
-	lsn_t		min_flushed_lsn;
-	lsn_t		max_flushed_lsn;
+	lsn_t		flushed_lsn;
 	ulint		sum_of_data_file_sizes;
 	ulint		tablespace_size_in_header;
 	dberr_t		err;
@@ -1662,7 +1661,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint	sum_of_new_sizes;
 
 	err = srv_sys_space.open_or_create(
-		false, &sum_of_new_sizes, &min_flushed_lsn, &max_flushed_lsn);
+		false, &sum_of_new_sizes, &flushed_lsn);
 
 	switch (err) {
 	case DB_SUCCESS:
@@ -1699,10 +1698,10 @@ innobase_start_or_create_for_mysql(void)
 
 		buf_flush_sync_all_buf_pools();
 
-		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+		flushed_lsn = log_get_lsn();
 
 		err = create_log_files(
-			logfilename, dirnamelen, max_flushed_lsn, logfile0);
+			logfilename, dirnamelen, flushed_lsn, logfile0);
 
 		if (err != DB_SUCCESS) {
 			return(srv_init_abort(err));
@@ -1721,20 +1720,8 @@ innobase_start_or_create_for_mysql(void)
 
 			if (err == DB_NOT_FOUND) {
 				if (i == 0) {
-					if (max_flushed_lsn
-					    != min_flushed_lsn) {
-						ib_logf(IB_LOG_LEVEL_ERROR,
-							"Cannot create"
-							" log files because"
-							" data files are"
-							" corrupt or"
-							" not in sync"
-							" with each other");
-						return(srv_init_abort(
-							DB_ERROR));
-					}
-
-					if (max_flushed_lsn < (lsn_t) 1000) {
+					if (flushed_lsn
+					    < static_cast<lsn_t>(1000)) {
 						ib_logf(IB_LOG_LEVEL_ERROR,
 							"Cannot create"
 							" log files because"
@@ -1750,7 +1737,7 @@ innobase_start_or_create_for_mysql(void)
 
 					err = create_log_files(
 						logfilename, dirnamelen,
-						max_flushed_lsn, logfile0);
+						flushed_lsn, logfile0);
 
 					if (err != DB_SUCCESS) {
 						return(srv_init_abort(err));
@@ -1758,12 +1745,11 @@ innobase_start_or_create_for_mysql(void)
 
 					create_log_files_rename(
 						logfilename, dirnamelen,
-						max_flushed_lsn, logfile0);
+						flushed_lsn, logfile0);
 
 					/* Suppress the message about
 					crash recovery. */
-					max_flushed_lsn = min_flushed_lsn
-						= log_get_lsn();
+					flushed_lsn = log_get_lsn();
 					goto files_checked;
 				} else if (i < 2) {
 					/* must have at least 2 log files */
@@ -1917,15 +1903,12 @@ files_checked:
 
 		buf_flush_sync_all_buf_pools();
 
-		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+		flushed_lsn = log_get_lsn();
 
-		/* Stamp the LSN to the data files. */
-		fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
-
-		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+		fil_write_flushed_lsn(flushed_lsn);
 
 		create_log_files_rename(
-			logfilename, dirnamelen, max_flushed_lsn, logfile0);
+			logfilename, dirnamelen, flushed_lsn, logfile0);
 
 	} else {
 
@@ -1967,8 +1950,7 @@ files_checked:
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
 
-		err = recv_recovery_from_checkpoint_start(
-			min_flushed_lsn, max_flushed_lsn);
+		err = recv_recovery_from_checkpoint_start(flushed_lsn);
 
 		if (err == DB_SUCCESS) {
 			/* Initialize the change buffer. */
@@ -2075,7 +2057,7 @@ files_checked:
 
 			fil_names_clear(log_sys->lsn, false);
 
-			min_flushed_lsn = max_flushed_lsn = log_sys->lsn;
+			flushed_lsn = log_sys->lsn;
 
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Resizing redo log from %u*%u to %u*%u pages"
@@ -2084,18 +2066,18 @@ files_checked:
 				(unsigned) srv_log_file_size,
 				(unsigned) srv_n_log_files,
 				(unsigned) srv_log_file_size_requested,
-				max_flushed_lsn);
+				flushed_lsn);
 
 			/* Flush the old log files. */
 			log_mutex_exit();
 
-			log_write_up_to(max_flushed_lsn, true);
+			log_write_up_to(flushed_lsn, true);
 
 			/* If innodb_flush_method=O_DSYNC,
 			we need to explicitly flush the log buffers. */
 			fil_flush(SRV_LOG_SPACE_FIRST_ID);
 
-			ut_ad(max_flushed_lsn == log_get_lsn());
+			ut_ad(flushed_lsn == log_get_lsn());
 
 			/* Prohibit redo log writes from any other
 			threads until creating a log checkpoint at the
@@ -2106,9 +2088,7 @@ files_checked:
 			RECOVERY_CRASH(3);
 
 			/* Stamp the LSN to the data files. */
-			fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
-
-			fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+			fil_write_flushed_lsn(flushed_lsn);
 
 			RECOVERY_CRASH(4);
 
@@ -2127,7 +2107,7 @@ files_checked:
 			srv_log_file_size = srv_log_file_size_requested;
 
 			err = create_log_files(
-				logfilename, dirnamelen, max_flushed_lsn,
+				logfilename, dirnamelen, flushed_lsn,
 				logfile0);
 
 			if (err != DB_SUCCESS) {
@@ -2135,7 +2115,7 @@ files_checked:
 			}
 
 			create_log_files_rename(
-				logfilename, dirnamelen, max_flushed_lsn,
+				logfilename, dirnamelen, flushed_lsn,
 				logfile0);
 		}
 

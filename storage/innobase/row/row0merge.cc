@@ -1411,6 +1411,7 @@ row_merge_read_clustered_index(
 	mem_heap_t*		spatial_heap = NULL;
 	ulint			num_spatial = 0;
 	BtrBulk*		clust_btr_bulk = NULL;
+	bool			clust_temp_file = false;
 	DBUG_ENTER("row_merge_read_clustered_index");
 
 	ut_ad((old_table == new_table) == !col_map);
@@ -2021,8 +2022,10 @@ write_buffers:
 			if (!skip_sort && !(buf->index->type & DICT_FTS)) {
 				/* In case we can have all rows in sort buffer,
 				we can insert directly into the index without
-				temporary file */
-				if (row == NULL && file->fd == -1) {
+				temporary file if clustered index does not uses
+				temporary file. */
+				if (row == NULL && file->fd == -1
+				    && !clust_temp_file) {
 					DBUG_EXECUTE_IF(
 						"row_merge_write_failure",
 						err = DB_TEMP_FILE_WRITE_FAIL;
@@ -2050,6 +2053,13 @@ write_buffers:
 						err = DB_OUT_OF_MEMORY;
 						trx->error_key_num = i;
 						goto func_exit;
+					}
+
+					/* Ensure that duplicates in the
+					clustered index will be detected before
+					inserting secondary index records. */
+					if (dict_index_is_clust(buf->index)) {
+						clust_temp_file = true;
 					}
 
 					ut_ad(file->n_rec > 0);

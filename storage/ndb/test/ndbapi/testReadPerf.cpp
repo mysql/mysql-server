@@ -164,10 +164,10 @@ error:
 int
 create_table(){
   NdbDictionary::Dictionary* dict = g_ndb->getDictionary();
-  assert(dict);
+  require(dict);
   if(g_paramters[P_CREATE].value){
     const NdbDictionary::Table * pTab = NDBT_Tables::getTable(g_table);
-    assert(pTab);
+    require(pTab);
     NdbDictionary::Table copy = * pTab;
     copy.setLogging(false);
     if(dict->createTable(copy) != 0){
@@ -200,9 +200,9 @@ create_table(){
   g_tab = dict->getTable(g_table);
   g_i_unique = dict->getIndex(g_unique, g_table);
   g_i_ordered = dict->getIndex(g_ordered, g_table);
-  assert(g_tab);
-  assert(g_i_unique);
-  assert(g_i_ordered);
+  require(g_tab);
+  require(g_i_unique);
+  require(g_i_ordered);
   return 0;
 }
 
@@ -254,7 +254,7 @@ void err(NdbError e){
 int
 run_read(){
   //int iter = g_paramters[P_LOOPS].value;
-  NDB_TICKS start1, stop;
+  Uint64 start1, stop;
   //int sum_time= 0;
   
   const Uint32 rows = g_paramters[P_ROWS].value;
@@ -302,7 +302,7 @@ run_read(){
 	check = pOp->equal(pk, start_row);
 	for(int j = 0; j<g_tab->getNoOfColumns(); j++){
 	  res = pOp->getValue(j);
-	  assert(res);
+	  require(res);
 	}
       }
       break;
@@ -318,7 +318,7 @@ run_read(){
 	check = pOp->equal(pk, start_row);
 	for(int j = 0; j<g_tab->getNoOfColumns(); j++){
 	  res = pOp->getValue(j);
-	  assert(res);
+	  require(res);
 	}
       }
       break;
@@ -353,23 +353,23 @@ run_read(){
       break;
     }
       
-    assert(res);
+    require(res);
     if(check != 0){
       ndbout << pOp->getNdbError() << endl;
       ndbout << pTrans->getNdbError() << endl;
     }
-    assert(check == 0);
+    require(check == 0);
 
     for(int j = 0; j<g_tab->getNoOfColumns(); j++){
       res = pOp->getValue(j);
-      assert(res);
+      require(res);
     }
       
     check = pTrans->execute(NoCommit);
     if(check != 0){
       ndbout << pTrans->getNdbError() << endl;
     }
-    assert(check == 0);
+    require(check == 0);
     if(g_paramters[P_OPER].value >= 4){
       while((check = pSp->nextResult(true)) == 0){
 	cnt++;
@@ -379,11 +379,11 @@ run_read(){
 	err(pTrans->getNdbError());
 	return -1;
       }
-      assert(check == 1);
+      require(check == 1);
       pSp->close();
     }
   }
-  assert(g_paramters[P_OPER].value < 4 || (cnt == range));
+  require(g_paramters[P_OPER].value < 4 || (cnt == range));
   
   pTrans->close();
   

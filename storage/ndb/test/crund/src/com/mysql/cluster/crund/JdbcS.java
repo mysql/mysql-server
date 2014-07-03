@@ -87,11 +87,12 @@ class JdbcS extends CrundSLoad {
         if (msg.length() == 0) {
             out.println("     [ok]");
         } else {
+            driver.hasIgnoredSettings = true;
             out.println();
             out.print(msg.toString());
         }
 
-        name = "->" + url.substring(0, 10); // shortcut will do
+        name = url.substring(0, 10); // shortcut will do
      }
 
     protected void printProperties() {
@@ -270,7 +271,7 @@ class JdbcS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runInsert(XMode mode, int[] id) throws SQLException {
-        final String name = "S_insAttr_" + mode;
+        final String name = "S_insAttr," + mode;
         final int n = id.length;
         driver.beginOp(name);
         connection.setAutoCommit(mode == XMode.indy);
@@ -305,7 +306,7 @@ class JdbcS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runLookup(XMode mode, int[] id) throws SQLException {
-        final String name = "S_getAttr_" + mode;
+        final String name = "S_getAttr," + mode;
         final int n = id.length;
         driver.beginOp(name);
         connection.setAutoCommit(mode == XMode.indy);
@@ -380,7 +381,7 @@ class JdbcS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runUpdate(XMode mode, int[] id) throws SQLException {
-        final String name = "S_setAttr_" + mode;
+        final String name = "S_setAttr," + mode;
         final int n = id.length;
         driver.beginOp(name);
         connection.setAutoCommit(mode == XMode.indy);
@@ -416,7 +417,7 @@ class JdbcS extends CrundSLoad {
     // ----------------------------------------------------------------------
 
     protected void runDelete(XMode mode, int[] id) throws SQLException {
-        final String name = "S_del_" + mode;
+        final String name = "S_del," + mode;
         final int n = id.length;
         driver.beginOp(name);
         connection.setAutoCommit(mode == XMode.indy);
