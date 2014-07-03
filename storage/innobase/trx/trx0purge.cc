@@ -636,9 +636,12 @@ void
 trx_purge_mark_undo_for_truncate(
 	undo_trunc_t*	undo_trunc)
 {
-	/* Step-1: If UNDO Tablespace already marked for truncate
-	return else search for qualifying undo tablespace. */
-	if (undo_trunc->is_undo_marked_for_trunc()) {
+	/* Step-1: If UNDO Tablespace
+		- already marked for truncate (OR)
+		- truncate disabled
+	return immediately else search for qualifying tablespace. */
+	if (undo_trunc->is_undo_marked_for_trunc()
+	    || !srv_undo_truncate) {
 		return;
 	}
 

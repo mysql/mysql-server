@@ -108,6 +108,13 @@ ulong	srv_undo_logs = 1;
 /** Rate at which UNDO records should be purged. */
 ulong	srv_purge_rseg_truncate_frequency = 128;
 
+/** Enable or Disable Truncate of UNDO tablespace.
+Note: If enabled then UNDO tablespace will be selected for truncate.
+While Server waits for undo-tablespace to truncate if user disables
+it, truncate action is completed but no new tablespace is marked
+for truncate (action is never aborted). */
+my_bool	srv_undo_truncate = FALSE;
+
 /** Maximum size of undo tablespace. */
 ulong	srv_max_undo_log_size;
 
