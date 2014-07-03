@@ -815,7 +815,7 @@ srv_undo_tablespaces_init(
 		server crashed while truncate was active on UNDO tablespace.*/
 		for (i = 0; i < n_undo_tablespaces; ++i) {
 
-			undo_trunc_t	undo_trunc;
+			UndoTruncate	undo_trunc;
 
 			if (undo_trunc.needs_fix_up(undo_tablespace_ids[i])) {
 
@@ -979,7 +979,7 @@ srv_undo_tablespaces_init(
 		     it != fix_up_undo_spaces.end();
 		     ++it) {
 
-			undo_trunc_t::add_space_to_trunc_list(*it);
+			UndoTruncate::add_space_to_trunc_list(*it);
 
 			fsp_header_init(
 				*it, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
@@ -998,7 +998,7 @@ srv_undo_tablespaces_init(
 				}
 			}
 
-			undo_trunc_t::clear_trunc_list();
+			UndoTruncate::clear_trunc_list();
 		}
 		mtr_commit(&mtr);
 
@@ -1018,7 +1018,7 @@ srv_undo_tablespaces_init(
 				*it, BUF_REMOVE_FLUSH_WRITE, &trx);
 
 			/* Remove the DDL log file now. */
-			undo_trunc_t	undo_trunc;
+			UndoTruncate	undo_trunc;
 			undo_trunc.undo_logger.done(*it);
 		}
 	}

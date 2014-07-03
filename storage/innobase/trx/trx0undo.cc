@@ -2095,10 +2095,10 @@ trx_undo_free_prepared(
 
 bool
 trx_undo_truncate_tablespace(
-	undo_trunc_t*	undo_trunc)
+	UndoTruncate*	undo_trunc)
 {
 	bool	success = true;
-	ulint	space_id = undo_trunc->get_undo_mark_for_trunc();
+	ulint	space_id = undo_trunc->get_marked_space_id();
 
 	/* Step-1: Truncate tablespace. */
 	success = fil_truncate_tablespace(
@@ -2123,7 +2123,7 @@ trx_undo_truncate_tablespace(
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	mtr_x_lock(fil_space_get_latch(space_id, NULL), &mtr);
 
-	for (ulint i = 0; i < undo_trunc->get_no_of_rsegs(); ++i) {
+	for (ulint i = 0; i < undo_trunc->rsegs_size(); ++i) {
 		trx_rsegf_t*	rseg_header;
 
 		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);

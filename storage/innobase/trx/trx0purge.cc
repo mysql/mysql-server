@@ -225,7 +225,7 @@ trx_purge_sys_create(
 
 	new (&purge_sys->iter) purge_iter_t;
 	new (&purge_sys->limit) purge_iter_t;
-	new (&purge_sys->undo_trunc) undo_trunc_t;
+	new (&purge_sys->undo_trunc) UndoTruncate;
 #ifdef UNIV_DEBUG
 	new (&purge_sys->done) purge_iter_t;
 #endif /* UNIV_DEBUG */
@@ -634,14 +634,13 @@ tablespace qualifies for TRUNCATE (size > threshold).
 static
 void
 trx_purge_mark_undo_for_truncate(
-	undo_trunc_t*	undo_trunc)
+	UndoTruncate*	undo_trunc)
 {
 	/* Step-1: If UNDO Tablespace
 		- already marked for truncate (OR)
 		- truncate disabled
 	return immediately else search for qualifying tablespace. */
-	if (undo_trunc->is_undo_marked_for_trunc()
-	    || !srv_undo_truncate) {
+	if (undo_trunc->is_marked() || !srv_undo_truncate) {
 		return;
 	}
 
@@ -664,8 +663,8 @@ trx_purge_mark_undo_for_truncate(
 		if (fil_space_get_size(space_id)
 		    > (srv_max_undo_log_size / srv_page_size)) {
 			/* Tablespace qualifies for truncate. */
-			undo_trunc->mark_for_trunc(space_id);
-			undo_trunc_t::add_space_to_trunc_list(space_id);
+			undo_trunc->mark(space_id);
+			UndoTruncate::add_space_to_trunc_list(space_id);
 			break;
 		}
 
@@ -677,14 +676,14 @@ trx_purge_mark_undo_for_truncate(
 	}
 
 	/* Couldn't make any selection. */
-	if (!undo_trunc->is_undo_marked_for_trunc()) {
+	if (!undo_trunc->is_marked()) {
 		return;
 	}
 
 #ifdef UNIV_DEBUG
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"UNDO tablespace with space identifier " ULINTPF
-		" marked for truncate", undo_trunc->get_undo_mark_for_trunc());
+		" marked for truncate", undo_trunc->get_marked_space_id());
 #endif /* UNIV_DEBUG */
 
 	/* Step-3: Iterate over all the rsegs of selected UNDO tablespace
@@ -694,7 +693,7 @@ trx_purge_mark_undo_for_truncate(
 
 		if (rseg != NULL && !trx_sys_is_noredo_rseg_slot(rseg->id)) {
 			if (rseg->space
-				== undo_trunc->get_undo_mark_for_trunc()) {
+				== undo_trunc->get_marked_space_id()) {
 
 				/* Once set this rseg will not be allocated
 				to new booting transaction but we will wait
@@ -708,10 +707,10 @@ trx_purge_mark_undo_for_truncate(
 	return;
 }
 
-const ib_uint32_t		undo_trunc_logger_t::s_magic = 76845412;
-const char*			undo_trunc_logger_t::s_log_prefix = "undo_";
-const char*			undo_trunc_logger_t::s_log_ext = "trunc.log";
-undo_trunc_t::undo_spaces_t	undo_trunc_t::s_spaces_to_truncate;
+const ib_uint32_t		UndoTruncateLogger::s_magic = 76845412;
+const char*			UndoTruncateLogger::s_log_prefix = "undo_";
+const char*			UndoTruncateLogger::s_log_ext = "trunc.log";
+UndoTruncate::undo_spaces_t	UndoTruncate::s_spaces_to_truncate;
 
 /** Cleanse purge queue to remove the rseg that reside in undo-tablespace
 marked for truncate.
@@ -719,7 +718,7 @@ marked for truncate.
 static
 void
 trx_purge_cleanse_purge_queue(
-	undo_trunc_t*	undo_trunc)
+	UndoTruncate*	undo_trunc)
 {
 	mutex_enter(&purge_sys->pq_mutex);
 	typedef	std::vector<TrxUndoRsegs>	purge_elem_list_t;
@@ -742,7 +741,7 @@ trx_purge_cleanse_purge_queue(
 		     ++it2) {
 
 			if ((*it2)->space
-				== undo_trunc->get_undo_mark_for_trunc()) {
+				== undo_trunc->get_marked_space_id()) {
 				it->erase(it2);
 				break;
 			}
@@ -767,11 +766,11 @@ static
 void
 trx_purge_initiate_truncate(
 	purge_iter_t*	limit,
-	undo_trunc_t*	undo_trunc)
+	UndoTruncate*	undo_trunc)
 {
 	/* Step-1: Early check to findout if any of the the UNDO tablespace
 	is marked for truncate. */
-	if (!undo_trunc->is_undo_marked_for_trunc()) {
+	if (!undo_trunc->is_marked()) {
 		/* No tablespace marked for truncate yet. */
 		return;
 	}
@@ -780,7 +779,7 @@ trx_purge_initiate_truncate(
 	active undo records. */
 	bool all_free = true;
 
-	for (ulint i = 0; i < undo_trunc->get_no_of_rsegs() && all_free; ++i) {
+	for (ulint i = 0; i < undo_trunc->rsegs_size() && all_free; ++i) {
 
 		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
 
@@ -869,7 +868,7 @@ trx_purge_initiate_truncate(
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Truncating UNDO tablespace with space identifier " ULINTPF "",
-		undo_trunc->get_undo_mark_for_trunc());
+		undo_trunc->get_marked_space_id());
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_start",
 			ib_logf(IB_LOG_LEVEL_INFO,
@@ -880,7 +879,7 @@ trx_purge_initiate_truncate(
 	dberr_t	err =
 #endif /* UNIV_DEBUG */
 		undo_trunc->undo_logger.init(
-			undo_trunc->get_undo_mark_for_trunc());
+			undo_trunc->get_marked_space_id());
 	ut_ad(err == DB_SUCCESS);
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_truncate",
@@ -898,7 +897,7 @@ trx_purge_initiate_truncate(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Failed to truncate UNDO tablespace with"
 			" space identifier " ULINTPF "",
-			undo_trunc->get_undo_mark_for_trunc());
+			undo_trunc->get_marked_space_id());
 		return;
 	}
 
@@ -922,14 +921,14 @@ trx_purge_initiate_truncate(
 
 	log_make_checkpoint_at(LSN_MAX, TRUE);
 
-	undo_trunc->undo_logger.done(undo_trunc->get_undo_mark_for_trunc());
+	undo_trunc->undo_logger.done(undo_trunc->get_marked_space_id());
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Completed truncate of UNDO tablespace with space identifier "
-		ULINTPF "", undo_trunc->get_undo_mark_for_trunc());
+		ULINTPF "", undo_trunc->get_marked_space_id());
 
 	undo_trunc->reset();
-	undo_trunc_t::clear_trunc_list();
+	UndoTruncate::clear_trunc_list();
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_trunc_done",
 			ib_logf(IB_LOG_LEVEL_INFO, "ib_undo_trunc_trunc_done");
