@@ -98,12 +98,12 @@ PATENT RIGHTS GRANT:
 #include <inttypes.h>
 #include <limits.h>
 
-#include "ft/block_table.h"
+#include "ft/serialize/block_table.h"
 #include "ft/cachetable.h"
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
-#include "ft/ft-serialize.h"
-#include "ft/ft_node-serialize.h"
+#include "ft/serialize/ft-serialize.h"
+#include "ft/serialize/ft_node-serialize.h"
 #include "ft/node.h"
 
 static int do_dump_data = 1;

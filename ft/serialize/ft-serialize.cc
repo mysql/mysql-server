@@ -89,13 +89,13 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "ft/block_allocator.h"
-#include "ft/block_table.h"
-#include "ft/compress.h"
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
-#include "ft/ft-serialize.h"
 #include "ft/msg.h"
+#include "ft/serialize/block_allocator.h"
+#include "ft/serialize/block_table.h"
+#include "ft/serialize/compress.h"
+#include "ft/serialize/ft-serialize.h"
 
 // not version-sensitive because we only serialize a descriptor using the current layout_version
 uint32_t

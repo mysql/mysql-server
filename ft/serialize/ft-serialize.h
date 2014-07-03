@@ -88,8 +88,8 @@ PATENT RIGHTS GRANT:
 
 #pragma once
 
-#include "ft/block_table.h"
 #include "ft/ft.h"
+#include "ft/serialize/block_table.h"
 
 size_t toku_serialize_ft_size(struct ft_header *h);
 void toku_serialize_ft_to(int fd, struct ft_header *h, struct block_table *blocktable, CACHEFILE cf);

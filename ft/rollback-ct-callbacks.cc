@@ -92,9 +92,9 @@ PATENT RIGHTS GRANT:
 #include "portability/memory.h"
 #include "portability/toku_portability.h"
 
-#include "ft/block_table.h"
+#include "ft/serialize/block_table.h"
 #include "ft/ft-internal.h"
-#include "ft/ft_node-serialize.h"
+#include "ft/serialize/ft_node-serialize.h"
 #include "ft/rollback.h"
 #include "ft/rollback-ct-callbacks.h"
 

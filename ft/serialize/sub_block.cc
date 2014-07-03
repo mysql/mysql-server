@@ -98,9 +98,9 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_assert.h"
 #include "portability/toku_portability.h"
 
-#include "ft/compress.h"
-#include "ft/sub_block.h"
-#include "ft/quicklz.h"
+#include "ft/serialize/compress.h"
+#include "ft/serialize/sub_block.h"
+#include "ft/serialize/quicklz.h"
 #include "util/threadpool.h"
 #include "util/x1764.h"
 

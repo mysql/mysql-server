@@ -100,19 +100,19 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 #include <fcntl.h>
 
-#include "ft/block_table.h"
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
-#include "ft/ft-serialize.h"
-#include "ft/ft_node-serialize.h"
 #include "ft/leafentry.h"
 #include "ft/loader/loader-internal.h"
 #include "ft/loader/pqueue.h"
 #include "ft/loader/dbufio.h"
 #include "ft/log-internal.h"
 #include "ft/node.h"
-#include "ft/sub_block.h"
-#include "ft/sub_block_map.h"
+#include "ft/serialize/block_table.h"
+#include "ft/serialize/ft-serialize.h"
+#include "ft/serialize/ft_node-serialize.h"
+#include "ft/serialize/sub_block.h"
+#include "ft/serialize/sub_block_map.h"
 
 #include "util/x1764.h"
 

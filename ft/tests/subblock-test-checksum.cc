@@ -91,8 +91,8 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 
-#include "compress.h"
-#include "sub_block.h"
+#include "serialize/compress.h"
+#include "serialize/sub_block.h"
 
 #include <toku_portability.h>
 #include <util/threadpool.h>

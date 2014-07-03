@@ -98,7 +98,7 @@ PATENT RIGHTS GRANT:
 #include <util/omt.h>
 
 #include "ft/txn_manager.h"
-#include "ft/rbuf.h"
+#include "ft/serialize/rbuf.h"
 #include "ft/msg.h"
 
 /*

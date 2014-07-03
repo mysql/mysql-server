@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 
 #include <toku_stdint.h>
 
-#include "ft/block_table.h"
+#include "ft/serialize/block_table.h"
 #include "ft/ft.h"
 #include "ft/log-internal.h"
 #include "ft/rollback-ct-callbacks.h"

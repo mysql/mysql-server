@@ -94,8 +94,8 @@ PATENT RIGHTS GRANT:
 #include "portability/memory.h"
 
 #include "ft/node.h"
-#include "ft/rbuf.h"
-#include "ft/wbuf.h"
+#include "ft/serialize/rbuf.h"
+#include "ft/serialize/wbuf.h"
 
 void ftnode_pivot_keys::create_empty() {
     _num_pivots = 0;

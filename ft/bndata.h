@@ -90,10 +90,11 @@ PATENT RIGHTS GRANT:
 
 #pragma once
 
-#include <util/mempool.h>
-#include "wbuf.h"
-#include <util/dmt.h>
-#include "leafentry.h"
+#include "util/dmt.h"
+#include "util/mempool.h"
+
+#include "ft/leafentry.h"
+#include "ft/serialize/wbuf.h"
 
 // Key/leafentry pair stored in a dmt.  The key is inlined, the offset (in leafentry mempool) is stored for the leafentry.
 struct klpair_struct {

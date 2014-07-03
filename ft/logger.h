@@ -92,8 +92,8 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "ft/block_table.h"
-#include "ft/ft_layout_version.h"
+#include "ft/serialize/block_table.h"
+#include "ft/serialize/ft_layout_version.h"
 #include "ft/txn.h"
 
 typedef struct tokulogger *TOKULOGGER;
@@ -278,7 +278,7 @@ struct txn_manager *toku_logger_get_txn_manager(TOKULOGGER logger);
 
 // For serialize / deserialize
 
-#include "ft/wbuf.h"
+#include "ft/serialize/wbuf.h"
 
 static inline void wbuf_nocrc_FILENUM(struct wbuf *wb, FILENUM fileid) {
     wbuf_nocrc_uint(wb, fileid.fileid);
@@ -309,7 +309,7 @@ static inline void wbuf_nocrc_XIDP (struct wbuf *w, TOKU_XA_XID *xid) {
     wbuf_nocrc_literal_bytes(w, xid->data, xid->gtrid_length+xid->bqual_length);
 }
 
-#include "ft/rbuf.h"
+#include "ft/serialize/rbuf.h"
 
 static inline void rbuf_FILENUM(struct rbuf *rb, FILENUM *filenum) {
     filenum->fileid = rbuf_int(rb);

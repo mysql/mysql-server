@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 
 #include "ft/node.h"
 #include "ft/ft-internal.h"
-#include "ft/ft_node-serialize.h"
+#include "ft/serialize/ft_node-serialize.h"
 
 /*
  * ft-node-deserialize.c -

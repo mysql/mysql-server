@@ -232,13 +232,13 @@ private:
 
 // For serialize / deserialize
 
-#include "ft/wbuf.h"
+#include "ft/serialize/wbuf.h"
 
 static inline void wbuf_MSN(struct wbuf *wb, MSN msn) {
     wbuf_ulonglong(wb, msn.msn);
 }
 
-#include "ft/rbuf.h"
+#include "ft/serialize/rbuf.h"
 
 static inline MSN rbuf_MSN(struct rbuf *rb) {
     MSN msn = { .msn = rbuf_ulonglong(rb) };

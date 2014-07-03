@@ -94,8 +94,8 @@ PATENT RIGHTS GRANT:
 
 #include "portability/toku_stdint.h"
 
-#include "ft/block_table.h"
 #include "ft/txn_state.h"
+#include "ft/serialize/block_table.h"
 #include "util/omt.h"
 
 typedef uint64_t TXNID;
@@ -385,7 +385,7 @@ void txn_status_destroy(void);
 
 // For serialize / deserialize
 
-#include "ft/wbuf.h"
+#include "ft/serialize/wbuf.h"
 
 static inline void wbuf_TXNID(struct wbuf *wb, TXNID txnid) {
     wbuf_ulonglong(wb, txnid);
@@ -408,7 +408,7 @@ static inline void wbuf_LSN(struct wbuf *wb, LSN lsn) {
     wbuf_ulonglong(wb, lsn.lsn);
 }
 
-#include "ft/rbuf.h"
+#include "ft/serialize/rbuf.h"
 
 static inline void rbuf_TXNID(struct rbuf *rb, TXNID *txnid) {
     *txnid = rbuf_ulonglong(rb);

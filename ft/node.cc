@@ -91,10 +91,10 @@ PATENT RIGHTS GRANT:
 
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
-#include "ft/ft_node-serialize.h"
+#include "ft/serialize/ft_node-serialize.h"
 #include "ft/node.h"
-#include "ft/rbuf.h"
-#include "ft/wbuf.h"
+#include "ft/serialize/rbuf.h"
+#include "ft/serialize/wbuf.h"
 #include "util/scoped_malloc.h"
 #include "util/sort.h"
 

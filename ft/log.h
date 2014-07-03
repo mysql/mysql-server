@@ -106,14 +106,6 @@ PATENT RIGHTS GRANT:
 
 struct roll_entry;
 
-static inline int toku_copy_BYTESTRING(BYTESTRING *target, BYTESTRING val) {
-    target->len = val.len;
-    target->data = (char *) toku_memdup(val.data, (size_t)val.len);
-    if (target->data==0) {
-        return get_error_errno();
-    }
-    return 0;
-}
 static inline void toku_free_TXNID(TXNID txnid __attribute__((__unused__))) {}
 static inline void toku_free_TXNID_PAIR(TXNID_PAIR txnid __attribute__((__unused__))) {}
 

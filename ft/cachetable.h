@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 
 #include <fcntl.h>
 
-#include "ft/block_table.h"
+#include "ft/serialize/block_table.h"
 #include "ft/logger.h"
 #include "ft/txn.h"
 #include "util/minicron.h"

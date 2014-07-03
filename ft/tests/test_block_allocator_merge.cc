@@ -87,7 +87,7 @@ PATENT RIGHTS GRANT:
 */
 
 #ident "Copyright (c) 2009-2013 Tokutek Inc.  All rights reserved."
-#include "../block_allocator.h"
+#include "ft/serialize/block_allocator.h"
 #include <memory.h>
 #include <assert.h>
 // Test the merger.
