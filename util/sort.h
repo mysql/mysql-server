@@ -94,16 +94,6 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 #include <memory.h>
 
-#if defined(HAVE_CILK)
-#include <cilk/cilk.h>
-#define cilk_worker_count (__cilkrts_get_nworkers())
-#else
-#define cilk_spawn
-#define cilk_sync
-#define cilk_for for
-#define cilk_worker_count 1
-#endif
-
 namespace toku {
 
     template<typename sortdata_t, typename sortextra_t, int (*cmp)(sortextra_t &, const sortdata_t &, const sortdata_t &)>
@@ -147,9 +137,8 @@ namespace toku {
             }
             const int mid = n / 2;
             sortdata_t *right_as[2] = { &(as[0])[mid], &(as[1])[mid] };
-            const int r1 = cilk_spawn mergesort_internal(as, which, mid, extra);
+            const int r1 = mergesort_internal(as, which, mid, extra);
             const int r2 = mergesort_internal(right_as, which, n - mid, extra);
-            cilk_sync;
             if (r1 != r2) {
                 // move everything to the same place (r2)
                 memcpy(as[r2], as[r1], mid * (sizeof as[r2][0]));
@@ -221,9 +210,8 @@ namespace toku {
                 const int a2 = an / 2;
                 const sortdata_t *akey = &a[a2];
                 const int b2 = binsearch(*akey, b, bn, 0, extra);
-                cilk_spawn merge(dest, a, a2, b, b2, extra);
+                merge(dest, a, a2, b, b2, extra);
                 merge(&dest[a2 + b2], akey, an - a2, &b[b2], bn - b2, extra);
-                cilk_sync;
             }
         }
 

@@ -494,15 +494,8 @@ static int env_del_multiple_test_no_array(
             { int chk_r = (txn)->abort(txn); CKERR(chk_r); }            \
         })
 
-
-int test_main (int argc, char * const argv[]);
-int
-#if defined(__cilkplusplus)
-cilk_main(int argc, char *argv[]) 
-#else
-main(int argc, char * const argv[]) 
-#endif
-{
+int test_main(int argc, char *const argv[]);
+int main(int argc, char *const argv[]) {
     int r;
     toku_os_initialize_settings(1);
     r = test_main(argc, argv);
