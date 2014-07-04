@@ -1206,13 +1206,12 @@ select count(Area(g)) FROM gis_multi_polygon;
 
 
 --echo #Checking the Area of some random Polygon and MultiPolygon.
-### The below section is commented till the BUG#17541849 is fixed
-#Select Area(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))'));
-#
-#Select Area(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))'));
-#
-#Select Area(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))));
-#
+Select Area(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))'));
+
+Select Area(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))'));
+
+Select Area(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))));
+
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
 
 Select Area(MPolyFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
@@ -1853,9 +1852,8 @@ Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('0.9999', '765
 
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))')));
 
-### The below section is commented till the BUG@17611279 is fixed
-#Select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))')));
-#
+Select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))')));
+
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251'))))))));
 
 
@@ -1900,15 +1898,16 @@ Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(
 --error 1582
 Select AsText(Centroid());
 
-### The below section is commented till the BUG@17606622 is fixed
-#Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20,1 1), (-1 -1, -10 -1, -10 -15, -1 -15, -1 -1))')));
-#
-#Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1,10 20, 1 20, 1 1),(-1 -1, -10 -1, -10 -15, -1 -15, -1 -1)))')));
-#
-#Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20,1 1), (5 5))')));
-#
-#Select AsText(Centroid(PolyFromText('POLYGON((1 0, 2 0, 3 0, 4 0, 5 0,1 0), (2 0, 3 0, 2 0))')));
-#
+Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20,1 1), (-1 -1, -10 -1, -10 -15, -1 -15, -1 -1))')));
+
+Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1,10 20, 1 20, 1 1),(-1 -1, -10 -1, -10 -15, -1 -15, -1 -1)))')));
+
+--error ER_GIS_INVALID_DATA
+Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20,1 1), (5 5))')));
+
+--error ER_GIS_INVALID_DATA
+Select AsText(Centroid(PolyFromText('POLYGON((1 0, 2 0, 3 0, 4 0, 5 0,1 0), (2 0, 3 0, 2 0))')));
+
 Select AsText(Centroid(PolygonFromText('POLYGON((1234.7777665 -35242.89876, -0276354.77777 -1111.0000, 22222.989898 0000000.2322322 ,1234.7777665 -35242.89876))')));
 
 

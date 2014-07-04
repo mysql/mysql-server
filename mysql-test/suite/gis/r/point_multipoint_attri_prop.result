@@ -1376,6 +1376,11 @@ select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(a 
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)')))));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('a', '-0'))))));
+Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('a', '-0'))))))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
 select Astext(Envelope(PointFromText('point(a d)')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(a d)')))));
