@@ -105,11 +105,9 @@ static void init_bit_buffer(MI_BIT_BUFF *bit_buff,uchar *buffer,uint length);
 static uint fill_and_get_bits(MI_BIT_BUFF *bit_buff,uint count);
 static void fill_buffer(MI_BIT_BUFF *bit_buff);
 static uint max_bit(uint value);
-#ifdef HAVE_MMAP
 static uchar *_mi_mempack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
                                          MI_BLOCK_INFO *info, uchar **rec_buff_p,
 					 uchar *header);
-#endif
 
 static mi_bit_type mask[]=
 {
@@ -1485,8 +1483,6 @@ static uint max_bit(uint value)
 #include <sys/mman.h>
 #endif
 
-#ifdef HAVE_MMAP
-
 static int _mi_read_mempack_record(MI_INFO *info,my_off_t filepos,uchar *buf);
 static int _mi_read_rnd_mempack_record(MI_INFO*, uchar *,my_off_t, my_bool);
 
@@ -1645,7 +1641,6 @@ static int _mi_read_rnd_mempack_record(MI_INFO *info, uchar *buf,
   DBUG_RETURN(my_errno);
 }
 
-#endif /* HAVE_MMAP */
 
 	/* Save length of row */
 
