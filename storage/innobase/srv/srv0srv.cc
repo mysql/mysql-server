@@ -2442,7 +2442,7 @@ srv_do_purge(
 			n_use_threads, srv_purge_batch_size, false);
 
 		ulint	undo_trunc_freq =
-			purge_sys->undo_trunc.get_rseg_truncate_frequency();	
+			purge_sys->undo_trunc.get_rseg_truncate_frequency();
 
 		ulint	rseg_truncate_frequency =
 			ut_min(srv_purge_rseg_truncate_frequency,
