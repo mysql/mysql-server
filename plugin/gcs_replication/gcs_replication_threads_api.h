@@ -31,6 +31,8 @@
 #define REPLICATION_THREAD_START_IO_NOT_CONNECTED 6
 #define REPLICATION_THREAD_STOP_ERROR 7
 #define REPLICATION_THREAD_STOP_RL_FLUSH_ERROR 8
+#define REPLICATION_THREAD_REPOSITORY_PURGE_ERROR 9
+
 
 //Error for the wait event consuption, equal to the server wait for gtid method
 #define REPLICATION_THREAD_WAIT_TIMEOUT_ERROR -1
@@ -90,6 +92,8 @@ public:
     Start the SQL/IO threads according to the given thread mask option
 
     @param thread_mask          threads to start (SLAVE_SQL and/or SLAVE_IO)
+    @param test_and_purge       test if the node suffered a reset master and if
+                                so, purge the relay logs
     @param wait_for_connection  wait for the IO thread to connect
 
     @return the operation status
@@ -100,8 +104,22 @@ public:
         Error caused by a not present but needed master info repository
       @retval REPLICATION_THREAD_START_IO_NOT_CONNECTED
         Error when the threads start, but the IO thread cannot connect
+      @retval REPLICATION_THREAD_REPOSITORY_PURGE_ERROR
+        Error when relay log purging fails before the thread starts
   */
-  int start_replication_threads(int thread_mask, bool wait_for_connection);
+  int start_replication_threads(int thread_mask, bool test_and_purge,
+                                bool wait_for_connection);
+
+  /**
+    Test if the node suffered a RESET MASTER command and if so, purges the
+    relay logs
+
+    @return the operation status
+      @retval 0      OK
+      @retval REPLICATION_THREAD_REPOSITORY_PURGE_ERROR
+        Error when relay log purging fails before the thread starts
+  */
+  int test_and_purge_relay_logs();
 
   /**
     Stops the SQL/IO threads according to the given thread mask option.

@@ -659,7 +659,9 @@ int Recovery_module::start_recovery_donor_threads(bool failover)
   */
   int thread_mask= (failover) ? SLAVE_IO : SLAVE_SQL | SLAVE_IO;
 
-  error= donor_connection_interface.start_replication_threads(thread_mask, true);
+  error= donor_connection_interface.start_replication_threads(thread_mask,
+                                                              false,
+                                                              true);
   if (error)
   {
     if (error == REPLICATION_THREAD_START_ERROR)

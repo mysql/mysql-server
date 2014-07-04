@@ -52,7 +52,8 @@ int Applier_sql_thread::initialize()
   //Initialize only the SQL thread
   int thread_mask= SLAVE_SQL;
   DBUG_EXECUTE_IF("gcs_applier_do_not_start_sql_thread", thread_mask=0;);
-  error= sql_thread_interface.start_replication_threads(thread_mask ,false);
+  error= sql_thread_interface.start_replication_threads(thread_mask, true,
+                                                        false);
   if (error)
   {
     if (error == REPLICATION_THREAD_START_ERROR)
