@@ -4843,7 +4843,6 @@ int mts_recovery_groups(Relay_log_info *rli)
   bool flag_group_seen_begin= FALSE;
   uint recovery_group_cnt= 0;
   bool not_reached_commit= true;
-  DYNAMIC_ARRAY above_lwm_jobs;
   Slave_job_group job_worker;
   IO_CACHE log;
   File file;
@@ -4881,9 +4880,9 @@ int mts_recovery_groups(Relay_log_info *rli)
     Gathers information on valuable workers and stores it in 
     above_lwm_jobs in asc ordered by the master binlog coordinates.
   */
-  my_init_dynamic_array(&above_lwm_jobs, sizeof(Slave_job_group),
-                        rli->recovery_parallel_workers,
-                        rli->recovery_parallel_workers);
+  Prealloced_array<Slave_job_group, 16, true>
+    above_lwm_jobs(PSI_NOT_INSTRUMENTED);
+  above_lwm_jobs.reserve(rli->recovery_parallel_workers);
 
   for (uint id= 0; id < rli->recovery_parallel_workers; id++)
   {
@@ -4909,7 +4908,7 @@ int mts_recovery_groups(Relay_log_info *rli)
       job_worker.checkpoint_log_pos= worker->checkpoint_master_log_pos;
       job_worker.checkpoint_log_name= worker->checkpoint_master_log_name;
 
-      insert_dynamic(&above_lwm_jobs, (uchar*) &job_worker);
+      above_lwm_jobs.push_back(job_worker);
     }
     else
     {
@@ -4940,22 +4939,23 @@ int mts_recovery_groups(Relay_log_info *rli)
   */
   DBUG_ASSERT(!rli->recovery_groups_inited);
 
-  if (above_lwm_jobs.elements != 0)
+  if (!above_lwm_jobs.empty())
   {
     bitmap_init(groups, NULL, MTS_MAX_BITS_IN_GROUP, FALSE);
     rli->recovery_groups_inited= true;
     bitmap_clear_all(groups);
   }
   rli->mts_recovery_group_cnt= 0;
-  for (uint it_job= 0; it_job < above_lwm_jobs.elements; it_job++)
+  for (Slave_job_group *jg= above_lwm_jobs.begin();
+       jg != above_lwm_jobs.end(); ++jg)
   {
-    Slave_worker *w= ((Slave_job_group *)
-                      dynamic_array_ptr(&above_lwm_jobs, it_job))->worker;
+    Slave_worker *w= jg->worker;
     LOG_POS_COORD w_last= { const_cast<char*>(w->get_group_master_log_name()),
                             w->get_group_master_log_pos() };
     bool checksum_detected= FALSE;
 
-    sql_print_information("Slave: MTS group recovery relay log info based on Worker-Id %lu, "
+    sql_print_information("Slave: MTS group recovery relay log info based on "
+                          "Worker-Id %lu, "
                           "group_relay_log_name %s, group_relay_log_pos %llu "
                           "group_master_log_name %s, group_master_log_pos %llu",
                           w->id,
@@ -5102,13 +5102,12 @@ int mts_recovery_groups(Relay_log_info *rli)
 
 err:
   
-  for (uint it_job= 0; it_job < above_lwm_jobs.elements; it_job++)
+  for (Slave_job_group *jg= above_lwm_jobs.begin();
+       jg != above_lwm_jobs.end(); ++jg)
   {
-    get_dynamic(&above_lwm_jobs, (uchar *) &job_worker, it_job);
-    delete job_worker.worker;
+    delete jg->worker;
   }
 
-  delete_dynamic(&above_lwm_jobs);
   if (rli->recovery_groups_inited && rli->mts_recovery_group_cnt == 0)
   {
     bitmap_free(groups);
