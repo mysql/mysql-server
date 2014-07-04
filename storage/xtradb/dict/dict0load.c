@@ -2196,6 +2196,23 @@ dict_load_foreign_cols(
 		ut_a(!rec_get_deleted_flag(rec, 0));
 
 		field = rec_get_nth_field_old(rec, 0, &len);
+
+if (len != id_len || ut_memcmp(id, field, len) != 0) {
+			char * tmp,*tmp2;
+
+			tmp = mem_heap_alloc(foreign->heap, id_len+4);
+			ut_memcpy(tmp, id, id_len);
+			tmp[id_len]='\0';
+			tmp2 = mem_heap_alloc(foreign->heap, len+4);
+			ut_memcpy(tmp2, id, len);
+			tmp2[len]='\0';
+			fprintf(stderr, "InnoDB: Error: len = %lu != id_len %lu\n",
+				len, id_len);
+			fprintf(stderr, "InnoDB: Error: id %s != field %s\n",
+				tmp, tmp2);
+
+		}
+
 		ut_a(len == id_len);
 		ut_a(ut_memcmp(id, field, len) == 0);
 
