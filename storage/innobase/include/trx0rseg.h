@@ -170,8 +170,8 @@ struct trx_rseg_t {
 	system file copy */
 	ulint				id;
 
-	/** mutex protecting the fields in this struct except id,
-	which is constant */
+	/** mutex protecting the fields in this struct except id,space,page_no
+	which are constant */
 	RsegMutex			mutex;
 
 	/** space where the rollback segment header is placed */
