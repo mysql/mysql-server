@@ -628,6 +628,229 @@ loop:
 	goto loop;
 }
 
+/** UNDO log truncate logger. Needed to track state of truncate during crash.
+An auxiliary redo log file undo_<space_id>_trunc.log will created while the
+truncate of the UNDO is in progress. This file is required during recovery
+to complete the truncate. */
+
+namespace UndoTruncateLogger {
+
+	/** Populate log file name based on space_id
+	@param[in]	space_id	id of the undo tablespace.
+	@return DB_SUCCESS or error code */
+	dberr_t populate_log_file_name(
+		ulint	space_id,
+		char*&	log_file_name)
+	{
+		ulint log_file_name_sz =
+			strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
+			+ strlen(UndoTruncateLogger::s_log_prefix)
+			+ strlen(UndoTruncateLogger::s_log_ext);
+
+		log_file_name = new (std::nothrow) char[log_file_name_sz];
+		if (log_file_name == 0) {
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		memset(log_file_name, 0, log_file_name_sz);
+
+		strcpy(log_file_name, srv_log_group_home_dir);
+		ulint	log_file_name_len = strlen(log_file_name);
+
+		if (log_file_name[log_file_name_len - 1]
+				!= OS_PATH_SEPARATOR) {
+
+			log_file_name[log_file_name_len]
+				= OS_PATH_SEPARATOR;
+			log_file_name_len = strlen(log_file_name);
+		}
+
+		ut_snprintf(log_file_name + log_file_name_len,
+			    log_file_name_sz - log_file_name_len,
+			    "%s%lu_%s",
+			    UndoTruncateLogger::s_log_prefix,
+			    (ulong) space_id, s_log_ext);
+
+		return(DB_SUCCESS);
+	}
+
+	/** Create the truncate log file.
+	@param[in]	space_id	id of the undo tablespace to truncate.
+	@return DB_SUCCESS or error code. */
+	dberr_t init(ulint space_id)
+	{
+		dberr_t		err;
+		char*		log_file_name;
+
+		/* Step-1: Create the log file name using the pre-decided
+		prefix/suffix and table id of undo tablepsace to truncate. */
+		err = populate_log_file_name(space_id, log_file_name);
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+
+		/* Step-2: Create the log file, open it and write 0 to
+		indicate init phase. */
+		bool            ret;
+		os_file_t	handle = os_file_create(
+			innodb_log_file_key, log_file_name, OS_FILE_CREATE,
+			OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
+		if (!ret) {
+			delete[] log_file_name;
+			return(DB_IO_ERROR);
+		}
+
+		ulint	sz = UNIV_PAGE_SIZE;
+		void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+		if (buf == NULL) {
+			os_file_close(handle);
+			delete[] log_file_name;
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		byte*	log_buf = static_cast<byte*>(
+			ut_align(buf, UNIV_PAGE_SIZE));
+
+		os_file_write(log_file_name, handle, log_buf, 0, sz);
+
+		os_file_flush(handle);
+		os_file_close(handle);
+
+		ut_free(buf);
+		delete[] log_file_name;
+
+		return(DB_SUCCESS);
+	}
+
+	/** Mark completion of undo truncate action by writing magic number to
+	the log file and then removing it from the disk.
+	If we are going to remove it from disk then why write magic number ?
+	This is to safeguard from unlink (file-system) anomalies that will keep
+	the link to the file even after unlink action is successfull and
+	ref-count = 0.
+	@param[in]	space_id	id of the undo tablespace to truncate.*/
+	void done(
+		ulint	space_id)
+	{
+		dberr_t		err;
+		char*		log_file_name;
+
+		/* Step-1: Create the log file name using the pre-decided
+		prefix/suffix and table id of undo tablepsace to truncate. */
+		err = populate_log_file_name(space_id, log_file_name);
+		if (err != DB_SUCCESS) {
+			return;
+		}
+
+		/* Step-2: Open log file and write magic number to
+		indicate done phase. */
+		bool    ret;
+		os_file_t	handle =
+			os_file_create_simple_no_error_handling(
+				innodb_log_file_key, log_file_name,
+				OS_FILE_OPEN, OS_FILE_READ_WRITE,
+				srv_read_only_mode, &ret);
+
+		if (!ret) {
+			os_file_delete(innodb_log_file_key, log_file_name);
+			delete[] log_file_name;
+			return;
+		}
+
+		ulint	sz = UNIV_PAGE_SIZE;
+		void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+		if (buf == NULL) {
+			os_file_close(handle);
+			os_file_delete(innodb_log_file_key, log_file_name);
+			delete[] log_file_name;
+			return;
+		}
+
+		byte*	log_buf = static_cast<byte*>(
+			ut_align(buf, UNIV_PAGE_SIZE));
+
+		mach_write_to_4(log_buf, UndoTruncateLogger::s_magic);
+
+		os_file_write(log_file_name, handle, log_buf, 0, sz);
+
+		os_file_flush(handle);
+		os_file_close(handle);
+
+		ut_free(buf);
+		os_file_delete(innodb_log_file_key, log_file_name);
+		delete[] log_file_name;
+	}
+
+	/** Check if TRUNCATE_DDL_LOG file exist.
+	@param[in]	space_id	id of the undo tablespace.
+	@return true if exist else false. */
+	bool is_log_present(
+		ulint	space_id)
+	{
+		dberr_t		err;
+		char*		log_file_name;
+
+		/* Step-1: Populate log file name. */
+		err = populate_log_file_name(space_id, log_file_name);
+		if (err != DB_SUCCESS) {
+			return(false);
+		}
+
+		/* Step-2: Check for existence of the file. */
+		bool		exist;
+		os_file_type_t	type;
+		os_file_status(log_file_name, &exist, &type);
+
+		/* Step-3: If file exist, check if for presence of magic number.
+		If found, then simple delete the file and report file
+		doesn't exist as presence of magic number suggest that truncate
+		action was complete. */
+		if (exist) {
+			bool    ret;
+			os_file_t	handle =
+				os_file_create_simple_no_error_handling(
+					innodb_log_file_key, log_file_name,
+					OS_FILE_OPEN, OS_FILE_READ_WRITE,
+					srv_read_only_mode, &ret);
+			if (!ret) {
+				os_file_delete(innodb_log_file_key,
+					       log_file_name);
+				delete[] log_file_name;
+				return(false);
+			}
+
+			ulint	sz = UNIV_PAGE_SIZE;
+			void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+			if (buf == NULL) {
+				os_file_close(handle);
+				os_file_delete(innodb_log_file_key,
+					       log_file_name);
+				delete[] log_file_name;
+				return(false);
+			}
+
+			byte*	log_buf = static_cast<byte*>(
+				ut_align(buf, UNIV_PAGE_SIZE));
+			os_file_read(handle, log_buf, 0, sz);
+			os_file_close(handle);
+
+			ulint	magic_no = mach_read_from_4(log_buf);
+			ut_free(buf);
+			if (magic_no == UndoTruncateLogger::s_magic) {
+				/* Found magic number. */
+				os_file_delete(innodb_log_file_key,
+					       log_file_name);
+				delete[] log_file_name;
+				return(false);
+			}
+		}
+
+		delete[] log_file_name;
+
+		return(exist);
+	}
+};
+
 /** Iterate over all the UNDO tablespaces and check if any of the UNDO
 tablespace qualifies for TRUNCATE (size > threshold).
 @param[in,out]	undo_trunc	undo truncate tracker */
@@ -707,9 +930,6 @@ trx_purge_mark_undo_for_truncate(
 	return;
 }
 
-const ib_uint32_t		UndoTruncateLogger::s_magic = 76845412;
-const char*			UndoTruncateLogger::s_log_prefix = "undo_";
-const char*			UndoTruncateLogger::s_log_ext = "trunc.log";
 UndoTruncate::undo_spaces_t	UndoTruncate::s_spaces_to_truncate;
 
 /** Cleanse purge queue to remove the rseg that reside in undo-tablespace
@@ -878,7 +1098,7 @@ trx_purge_initiate_truncate(
 #ifdef UNIV_DEBUG
 	dberr_t	err =
 #endif /* UNIV_DEBUG */
-		undo_trunc->undo_logger.init(
+		undo_trunc->start_logging(
 			undo_trunc->get_marked_space_id());
 	ut_ad(err == DB_SUCCESS);
 
@@ -921,7 +1141,7 @@ trx_purge_initiate_truncate(
 
 	log_make_checkpoint_at(LSN_MAX, TRUE);
 
-	undo_trunc->undo_logger.done(undo_trunc->get_marked_space_id());
+	undo_trunc->done_logging(undo_trunc->get_marked_space_id());
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Completed truncate of UNDO tablespace with space identifier "

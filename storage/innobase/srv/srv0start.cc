@@ -1019,7 +1019,7 @@ srv_undo_tablespaces_init(
 
 			/* Remove the DDL log file now. */
 			UndoTruncate	undo_trunc;
-			undo_trunc.undo_logger.done(*it);
+			undo_trunc.done_logging(*it);
 		}
 	}
 
