@@ -6441,6 +6441,49 @@ btr_store_big_rec_extern_fields(
 				BTR_EXTERN_FIELD_REF_SIZE));
 	}
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+
+	/* Calculate the total number of pages for blob data */
+	ulint	total_blob_pages = 0;
+	const page_size_t	page_size(dict_table_page_size(index->table));
+
+	/* Space available in compressed page to carry blob data */
+	const ulint	payload_size_zip = page_size.physical()
+		- FIL_PAGE_DATA;
+
+	/* Space available in uncompressed page to carry blob data */
+	const ulint	payload_size = page_size.physical()
+		- FIL_PAGE_DATA - BTR_BLOB_HDR_SIZE - FIL_PAGE_DATA_END;
+
+	if (page_size.is_compressed()) {
+		for (ulint i = 0; i < big_rec_vec->n_fields; i++) {
+			total_blob_pages
+				+= (compressBound(big_rec_vec->fields[i].len)
+				    + payload_size_zip - 1) / payload_size_zip;
+		}
+	} else {
+		for (ulint i = 0; i < big_rec_vec->n_fields; i++) {
+			total_blob_pages += (big_rec_vec->fields[i].len
+					     + payload_size - 1)
+				/ payload_size;
+		}
+	}
+
+	const ulint	n_extents = (total_blob_pages + FSP_EXTENT_SIZE - 1)
+		/ FSP_EXTENT_SIZE;
+	ulint	n_reserved = 0;
+#ifdef UNIV_DEBUG
+	ulint	n_used = 0;	/* number of pages used */
+#endif /* UNIV_DEBUG */
+
+	if (!fsp_reserve_free_extents(&n_reserved, space_id, n_extents,
+				      FSP_BLOB, btr_mtr)) {
+		error = DB_OUT_OF_FILE_SPACE;
+		goto func_exit;
+	}
+
+	ut_ad(n_reserved > 0);
+	ut_ad(n_reserved == n_extents);
+
 	/* We have to create a file segment to the tablespace
 	for each field and put the pointer to the field in rec */
 
@@ -6458,32 +6501,6 @@ btr_store_big_rec_extern_fields(
 				   extern_len);
 
 		ut_a(extern_len > 0);
-
-		/* For intrinsic table reserve extent. This logic should be
-		enabled for normal table too but for now enabling it for
-		intrinsic table only. */
-		ulint	n_reserved = 0;
-		if (dict_table_is_intrinsic(index->table)) {
-			bool	success;
-			mtr_t	reserve_mtr;
-
-			mtr_start(&reserve_mtr);
-			dict_disable_redo_if_temporary(
-				index->table, &reserve_mtr);
-
-			ulint	n_extents = ((extern_len / UNIV_PAGE_SIZE)
-				 / FSP_EXTENT_SIZE) + 1;
-
-			success = fsp_reserve_free_extents(
-				&n_reserved, index->space,
-				n_extents, FSP_NORMAL, &reserve_mtr);
-
-			mtr_commit(&reserve_mtr);
-
-			if (!success) {
-				return(DB_OUT_OF_FILE_SPACE);
-			}
-		}
 
 		prev_page_no = FIL_NULL;
 
@@ -6550,11 +6567,8 @@ btr_store_big_rec_extern_fields(
 					FSP_NO_DIR, 0, &mtr, &mtr);
 			}
 
-			if (UNIV_UNLIKELY(block == NULL)) {
-				mtr_commit(&mtr);
-				error = DB_OUT_OF_FILE_SPACE;
-				goto func_exit;
-			}
+			ut_a(block != NULL);
+			ut_ad(++n_used <= (n_reserved * FSP_EXTENT_SIZE));
 
 			page_no = block->page.id.page_no();
 			page = buf_block_get_frame(block);
@@ -6614,8 +6628,7 @@ btr_store_big_rec_extern_fields(
 				c_stream.next_out = page
 					+ FIL_PAGE_DATA;
 				c_stream.avail_out = static_cast<uInt>(
-					page_zip_get_size(page_zip))
-					- FIL_PAGE_DATA;
+					payload_size_zip);
 
 				err = deflate(&c_stream, Z_FINISH);
 				ut_a(err == Z_OK || err == Z_STREAM_END);
@@ -6727,14 +6740,8 @@ next_zip_page:
 						 FIL_PAGE_TYPE_BLOB,
 						 MLOG_2BYTES, &mtr);
 
-				if (extern_len > (UNIV_PAGE_SIZE
-						  - FIL_PAGE_DATA
-						  - BTR_BLOB_HDR_SIZE
-						  - FIL_PAGE_DATA_END)) {
-					store_len = UNIV_PAGE_SIZE
-						- FIL_PAGE_DATA
-						- BTR_BLOB_HDR_SIZE
-						- FIL_PAGE_DATA_END;
+				if (extern_len > payload_size) {
+					store_len = payload_size;
 				} else {
 					store_len = extern_len;
 				}
@@ -6796,13 +6803,15 @@ next_zip_page:
 				error = DB_OUT_OF_FILE_SPACE;
 				goto func_exit;);
 
-		if (n_reserved > 0) {
-			fil_space_release_free_extents(
-				index->space, n_reserved);
-		}
-
 		rec_offs_make_nth_extern(offsets, field_no);
 	}
+
+	/* Verify that the number of extents used is the same as the number
+	of extents reserved. */
+	ut_ad(page_zip != NULL
+	      || ((n_used + FSP_EXTENT_SIZE - 1) / FSP_EXTENT_SIZE
+		  == n_reserved));
+	ut_ad((n_used + FSP_EXTENT_SIZE - 1) / FSP_EXTENT_SIZE <= n_reserved);
 
 func_exit:
 	if (page_zip) {
@@ -6812,6 +6821,8 @@ func_exit:
 	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
+
+	fil_space_release_free_extents(space_id, n_reserved);
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 	/* All pointers to externally stored columns in the record
