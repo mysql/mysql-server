@@ -3844,10 +3844,6 @@ row_merge_build_indexes(
 	int64_t			sig_count = 0;
 	bool			fts_psort_initiated = false;
 	bool			is_redo_skipped;
-#ifdef BULK_LOAD_PFS_PRINT
-	ulint			start_time_ms = ut_time_ms();
-	ulint			diff_time;
-#endif
 	DBUG_ENTER("row_merge_build_indexes");
 
 	ut_ad(!srv_read_only_mode);
@@ -3921,9 +3917,6 @@ row_merge_build_indexes(
 	duplicate keys. */
 	innobase_rec_reset(table);
 
-#ifdef BULK_LOAD_PFS_PRINT
-	start_time_ms = ut_time_ms();
-#endif
 	/* Read clustered index of the table and create files for
 	secondary index entries for merge sort */
 	error = row_merge_read_clustered_index(
@@ -3936,13 +3929,6 @@ row_merge_build_indexes(
 
 		goto func_exit;
 	}
-
-#ifdef BULK_LOAD_PFS_PRINT
-	diff_time = ut_time_ms() - start_time_ms;
-	start_time_ms = ut_time_ms();
-	ib_logf(IB_LOG_LEVEL_INFO, "cluster index read time\t : %ld",
-		diff_time);
-#endif
 
 	DEBUG_SYNC_C("row_merge_after_scan");
 
@@ -4019,14 +4005,6 @@ wait_again:
 					psort_info, 0);
 			}
 
-#ifdef BULK_LOAD_PFS_PRINT
-			diff_time = ut_time_ms() - start_time_ms;
-			start_time_ms = ut_time_ms();
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"index %s build time\t : %ld",
-				sort_idx->name, diff_time);
-#endif
-
 #ifdef FTS_INTERNAL_DIAG_PRINT
 			DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Insert\n");
 #endif
@@ -4037,14 +4015,6 @@ wait_again:
 			error = row_merge_sort(
 				trx, &dup, &merge_files[i],
 				block, &tmpfd);
-
-#ifdef BULK_LOAD_PFS_PRINT
-			diff_time = ut_time_ms() - start_time_ms;
-			start_time_ms = ut_time_ms();
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"index %s sort time\t : %ld",
-				sort_idx->name, diff_time);
-#endif
 
 			if (error == DB_SUCCESS) {
 				BtrBulk	btr_bulk(sort_idx, trx->id);
@@ -4057,14 +4027,6 @@ wait_again:
 
 				error = btr_bulk.finish(error);
 			}
-
-#ifdef BULK_LOAD_PFS_PRINT
-			diff_time = ut_time_ms() - start_time_ms;
-			start_time_ms = ut_time_ms();
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"index %s build time\t : %ld",
-				sort_idx->name, diff_time);
-#endif
 		}
 
 		/* Close the temporary file to free up space. */
@@ -4171,12 +4133,6 @@ func_exit:
 
 	if (error == DB_SUCCESS) {
 		log_make_checkpoint_at(LSN_MAX, TRUE);
-
-#ifdef BULK_LOAD_PFS_PRINT
-			diff_time = ut_time_ms() - start_time_ms;
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"checkpoint time\t : %ld", diff_time);
-#endif
 	}
 
 	DBUG_RETURN(error);
