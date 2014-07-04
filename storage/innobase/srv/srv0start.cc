@@ -969,8 +969,8 @@ srv_undo_tablespaces_init(
 		/* Turn off REDO logging. We are in server start mode and fixing
 		UNDO tablespace even before REDO log is read. Let's say we
 		do REDO logging here then this REDO log record will be applied
-		while recovery execute. We surely don't need that as this is
-		fix-up action parallel to REDO logging. */
+		as part of the current recovery process. We surely don't need
+		that as this is fix-up action parallel to REDO logging. */
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 		sys_header = trx_sysf_get(&mtr);
 
