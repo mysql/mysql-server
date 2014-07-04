@@ -1289,6 +1289,15 @@ ERROR 22023: Invalid GIS data provided to function st_area.
 select count(Area(g)) FROM gis_multi_polygon;
 ERROR 22023: Invalid GIS data provided to function st_area.
 #Checking the Area of some random Polygon and MultiPolygon.
+Select Area(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))'));
+Area(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))'))
+0
+Select Area(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))'));
+Area(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))'))
+0
+Select Area(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))));
+Area(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))))
+0
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
 Area(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'))
 -10.5
@@ -1978,6 +1987,9 @@ POINT(214608.54865133337 2551.7804033333337)
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))')));
 AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.
 POINT(214608.54865133337 2551.7804033333337)
+Select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))')));
+AsText(Centroid(MPolyFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00
+POINT(214608.54865133337 2551.7804033333337)
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251'))))))));
 AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251'))))))))
 POINT(214608.54865133337 2551.7804033333337)
@@ -2003,6 +2015,16 @@ AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.
 POINT(0.3333333333333333 -3703.6666666666665)
 Select AsText(Centroid());
 ERROR 42000: Incorrect parameter count in the call to native function 'Centroid'
+Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20,1 1), (-1 -1, -10 -1, -10 -15, -1 -15, -1 -1))')));
+AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20,1 1), (-1 -1, -10 -1, -10 -15, -1 -15, -1 -1))')))
+POINT(36.3 62.3)
+Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1,10 20, 1 20, 1 1),(-1 -1, -10 -1, -10 -15, -1 -15, -1 -1)))')));
+AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1,10 20, 1 20, 1 1),(-1 -1, -10 -1, -10 -15, -1 -15, -1 -1)))')))
+POINT(36.3 62.3)
+Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20,1 1), (5 5))')));
+ERROR 22023: Invalid GIS data provided to function st_centroid.
+Select AsText(Centroid(PolyFromText('POLYGON((1 0, 2 0, 3 0, 4 0, 5 0,1 0), (2 0, 3 0, 2 0))')));
+ERROR 22023: Invalid GIS data provided to function st_centroid.
 Select AsText(Centroid(PolygonFromText('POLYGON((1234.7777665 -35242.89876, -0276354.77777 -1111.0000, 22222.989898 0000000.2322322 ,1234.7777665 -35242.89876))')));
 AsText(Centroid(PolygonFromText('POLYGON((1234.7777665 -35242.89876, -0276354.77777 -1111.0000, 22222.989898 0000000.2322322 ,1234.7777665 -35242.89876))')))
 POINT(-84299.0033685 -12117.8888426)

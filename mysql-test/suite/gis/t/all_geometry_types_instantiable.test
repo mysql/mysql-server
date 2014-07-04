@@ -121,13 +121,9 @@ INSERT INTO gis_point VALUES
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_point;
-
 select count(astext(g)) from gis_point;
-
 select count(distinct(g)) from gis_point;
-
 select count(distinct(astext(g))) from gis_point;
-
 
 --echo #INSERT valid entries to LineString class
 --disable_warnings
@@ -200,13 +196,9 @@ INSERT INTO gis_line VALUES
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_line;
-
 select count(astext(g)) from gis_line;
-
 select count(distinct(g)) from gis_line;
-
 select count(distinct(astext(g))) from gis_line;
-
 
 --echo #INSERT valid entries to Polygon class
 --disable_warnings
@@ -290,13 +282,9 @@ INSERT INTO gis_polygon VALUES
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_polygon;
-
 select count(astext(g)) from gis_polygon;
-
 select count(distinct(g)) from gis_polygon;
-
 select count(distinct(astext(g))) from gis_polygon;
-
 
 --echo #INSERT valid entries to multi_point class
 --disable_warnings
@@ -371,13 +359,9 @@ INSERT INTO gis_multi_point VALUES
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_multi_point;
-
 select count(astext(g)) from gis_multi_point;
-
 select count(distinct(g)) from gis_multi_point;
-
 select count(distinct(astext(g))) from gis_multi_point;
-
 
 --echo #INSERT valid entries to multi_line class
 --disable_warnings
@@ -454,13 +438,9 @@ INSERT INTO gis_multi_line VALUES
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_multi_line;
-
 select count(astext(g)) from gis_multi_line;
-
 select count(distinct(g)) from gis_multi_line;
-
 select count(distinct(astext(g))) from gis_multi_line;
-
 
 --echo #INSERT valid entries to multi_polygon class
 --disable_warnings
@@ -540,13 +520,9 @@ INSERT INTO gis_multi_polygon VALUES
 
 --echo #Checking the integrity of the above insert statements 
 select count(g) from gis_multi_polygon;
-
 select count(astext(g)) from gis_multi_polygon;
-
 select count(distinct(g)) from gis_multi_polygon;
-
 select count(distinct(astext(g))) from gis_multi_polygon;
-
 
 --echo #INSERT valid entries to geometry_collection class
 --disable_warnings
@@ -623,13 +599,9 @@ INSERT INTO gis_geometrycollection VALUES
 
 --echo #Checking the integrity of the above insert statements 
 select count(g) from gis_geometrycollection;
-
 select count(astext(g)) from gis_geometrycollection;
-
 select count(distinct(g)) from gis_geometrycollection;
-
 select count(distinct(astext(g))) from gis_geometrycollection;
-
 
 ############################################################################################
 # Inserting the spatial values of all kinds to the parent class                            #
@@ -646,13 +618,9 @@ INSERT into gis_geometry SELECT * FROM gis_geometrycollection;
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_geometry;
-
 select count(astext(g)) from gis_geometry;
-
 select count(distinct(g)) from gis_geometry;
-
 select count(distinct(astext(g))) from gis_geometry;
-
 
 --echo #Displaying the created spatial columns
 SHOW FIELDS FROM gis_point;
@@ -921,7 +889,6 @@ Where c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),L
 --echo #check the data
 SELECT COUNT(*) FROM tab;
 
-
 --echo #check UPDATE stmt with Where clause and a constant predicate
 SET @c8=GeomCollFromText('GeometryCollection(Point(10 10),LineString(20 20, 30 30))');
 UPDATE tab2 SET c8=@c8
@@ -936,70 +903,38 @@ SELECT AsText(c8) From tab2;
 
 --echo #check GIS datatypes with aggregate functions
 SELECT COUNT(AsText(g)) FROM gis_point;
-
 SELECT COUNT(AsText(g)) FROM gis_line;
-
 SELECT COUNT(AsText(g)) FROM gis_polygon;
-
 SELECT COUNT(AsText(g)) FROM gis_multi_point;
-
 SELECT COUNT(AsText(g)) FROM gis_multi_line;
-
 SELECT COUNT(AsText(g)) FROM gis_multi_polygon;
-
 SELECT COUNT(AsText(g)) FROM gis_geometrycollection;
-
 SELECT COUNT(AsText(g)) FROM gis_geometry;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_point;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_line;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_polygon;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_multi_point;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_multi_line;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_multi_polygon;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_geometrycollection;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_geometry;
 
-
 SELECT SUM(AsText(g)) FROM gis_point;
-
 SELECT SUM(AsText(g)) FROM gis_line;
-
 SELECT SUM(AsText(g)) FROM gis_polygon;
-
 SELECT SUM(AsText(g)) FROM gis_multi_point;
-
 SELECT SUM(AsText(g)) FROM gis_multi_line;
-
 SELECT SUM(AsText(g)) FROM gis_multi_polygon;
-
 SELECT SUM(AsText(g)) FROM gis_geometrycollection;
-
 SELECT SUM(AsText(g)) FROM gis_geometry;
-
 SELECT AVG(AsText(g)) FROM gis_point;
-
 SELECT AVG(AsText(g)) FROM gis_line;
-
 SELECT AVG(AsText(g)) FROM gis_polygon;
-
 SELECT AVG(AsText(g)) FROM gis_multi_point;
-
 SELECT AVG(AsText(g)) FROM gis_multi_line;
-
 SELECT AVG(AsText(g)) FROM gis_multi_polygon;
-
 SELECT AVG(AsText(g)) FROM gis_geometrycollection;
-
 SELECT AVG(AsText(g)) FROM gis_geometry;
-
 
 --echo #here it show some string value no meaning
 SELECT MAX(AsText(g)) FROM gis_point;
@@ -1022,21 +957,13 @@ SELECT MIN(AsText(g)) FROM gis_geometrycollection;
 SELECT MIN(AsText(g)) FROM gis_geometry;
 
 SELECT STD(AsText(g)) FROM gis_point;
-
 SELECT STD(AsText(g)) FROM gis_line;
-
 SELECT STD(AsText(g)) FROM gis_polygon;
-
 SELECT STD(AsText(g)) FROM gis_multi_point;
-
 SELECT STD(AsText(g)) FROM gis_multi_line;
-
 SELECT STD(AsText(g)) FROM gis_multi_polygon;
-
 SELECT STD(AsText(g)) FROM gis_geometrycollection;
-
 SELECT STD(AsText(g)) FROM gis_geometry;
-
 
 ############################################################################################
 # Checking support of GIS types with partition table and foregin key                       #
@@ -1085,7 +1012,6 @@ SHOW CREATE TABLE tab3;
 
 SELECT COUNT(*) FROM tab3;
 
-
 --echo #check start transaction commit & Rollback
 START TRANSACTION;
 DELETE FROM tab3;
@@ -1093,13 +1019,11 @@ ROLLBACK;
 
 SELECT COUNT(*) FROM tab3;
 
-
 START TRANSACTION;
 DELETE FROM tab3;
 COMMIT;
 
 SELECT COUNT(*) FROM tab3;
-
 
 --echo #check information schema for all the columns
 SELECT sc.COLUMN_NAME, sc.ORDINAL_POSITION, sc.DATA_TYPE, sc.COLUMN_TYPE FROM information_schema.columns sc INNER JOIN information_schema.tables st ON sc.TABLE_NAME=st.TABLE_NAME WHERE st.TABLE_NAME='tab' ORDER BY sc.COLUMN_NAME;
