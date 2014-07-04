@@ -61,6 +61,10 @@
 # define MY_ALIGNED(size)
 #endif
 
+/* Visual Studio requires '__inline' for C code */
+#if !defined(__cplusplus) && defined(_MSC_VER)
+# define inline __inline
+#endif
 
 /**
   C++ Type Traits

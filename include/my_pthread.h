@@ -163,7 +163,6 @@ static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
 /* Dummy defines for easier code */
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
 #define pthread_attr_setscope(A,B) pthread_dummy(0)
-#define pthread_yield() SwitchToThread()
 
 #else /* Normal threads */
 
@@ -184,12 +183,16 @@ typedef void *(* pthread_handler)(void *);
 #define my_pthread_once(C,F) pthread_once(C,F)
 #define my_pthread_getspecific(A,B) ((A) pthread_getspecific(B))
 
-#if !defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
-/* no pthread_yield() available */
-#define pthread_yield() sched_yield()
-#endif
-
 #endif /* defined(_WIN32) */
+
+static inline void my_thread_yield()
+{
+#ifdef _WIN32
+  SwitchToThread();
+#else
+  sched_yield();
+#endif
+}
 
 /* Define mutex types, see my_thr_init.c */
 #define MY_MUTEX_INIT_SLOW   NULL
