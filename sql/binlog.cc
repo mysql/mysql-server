@@ -7792,8 +7792,8 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
   }
 
   /*
-    Call ha_recover if and only if there is a registered engine that 
-    does 2PC, otherwise in DBUG builds calling ha_recover directly 
+    Call ha_recover if and only if there is a registered engine that
+    does 2PC, otherwise in DBUG builds calling ha_recover directly
     will result in an assert. (Production builds would be safe since
     ha_recover returns right away if total_ha_2pc <= opt_log_bin.)
    */
