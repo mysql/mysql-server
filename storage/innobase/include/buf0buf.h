@@ -693,16 +693,33 @@ buf_block_buf_fix_inc_func(
 	__attribute__((nonnull));
 
 /** Increments the bufferfix count.
-@param[in,out]	block	block to bufferfix */
+@param[in,out]	bpage	block to bufferfix
+@return the count */
 UNIV_INLINE
-void
+ulint
+buf_block_fix(
+	buf_page_t*	bpage);
+
+/** Increments the bufferfix count.
+@param[in,out]	block	block to bufferfix
+@return the count */
+UNIV_INLINE
+ulint
 buf_block_fix(
 	buf_block_t*	block);
 
 /** Decrements the bufferfix count.
-@param[in,out]	block	block to bufferunfix */
+@param[in,out]	bpage	block to bufferunfix
+@return	the remaining buffer-fix count */
 UNIV_INLINE
-void
+ulint
+buf_block_unfix(
+	buf_page_t*	bpage);
+/** Decrements the bufferfix count.
+@param[in,out]	block	block to bufferunfix
+@return	the remaining buffer-fix count */
+UNIV_INLINE
+ulint
 buf_block_unfix(
 	buf_block_t*	block);
 
@@ -1479,32 +1496,15 @@ public:
 	/** Page size. Protected by buf_pool mutex. */
 	page_size_t	size;
 
-#ifdef PAGE_ATOMIC_REF_COUNT
 	/** Count of how manyfold this block is currently bufferfixed. */
 	ib_uint32_t	buf_fix_count;
 
 	/** type of pending I/O operation; also protected by
-	buf_pool->mutex for writes only @see enum buf_io_fix */
-	byte		io_fix;
+	buf_pool->mutex for writes only */
+	buf_io_fix	io_fix;
 
-	byte		state;
-#else
-	/** Count of how manyfold this block is currently bufferfixed. */
-	unsigned	buf_fix_count:19;
-
-	/** type of pending I/O operation; also protected by
-	buf_pool->mutex for writes only @see enum buf_io_fix */
-	unsigned	io_fix:2;
-
-	/*!< state of the control block; also protected by buf_pool->mutex.
-	State transitions from BUF_BLOCK_READY_FOR_USE to BUF_BLOCK_MEMORY
-	need not be protected by buf_page_get_mutex(). @see enum buf_page_state.
-	State changes that are relevant to page_hash are additionally protected
-	by the appropriate page_hash mutex i.e.: if a page is in page_hash or
-	is being added to/removed from page_hash then the corresponding changes
-	must also be protected by page_hash mutex. */
-	unsigned	state:BUF_PAGE_STATE_BITS;
-#endif /* PAGE_ATOMIC_REF_COUNT */
+	/** Block state. @see buf_page_in_file */
+	buf_page_state	state;
 
 #ifndef UNIV_HOTBACKUP
 	unsigned	flush_type:2;	/*!< if this block is currently being
