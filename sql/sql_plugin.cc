@@ -1063,7 +1063,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
       could be unlocked faster - optimizing for LIFO semantics.
     */
     plugin_ref *iter= lex->plugins.end() - 1;
-    bool found_it= false;
+    bool found_it __attribute__((unused)) = false;
     for (; iter >= lex->plugins.begin() - 1; --iter)
     {
       if (plugin == *iter)
