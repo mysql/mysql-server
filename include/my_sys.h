@@ -828,7 +828,6 @@ extern my_bool my_gethwaddr(uchar *to);
 #define MAP_FAILED       ((void *)-1)
 #define MS_SYNC          0x0000
 
-#define HAVE_MMAP
 void *my_mmap(void *, size_t, int, int, int, my_off_t);
 int my_munmap(void *, size_t);
 #endif
