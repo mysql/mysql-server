@@ -4843,7 +4843,10 @@ int mts_recovery_groups(Relay_log_info *rli)
   bool flag_group_seen_begin= FALSE;
   uint recovery_group_cnt= 0;
   bool not_reached_commit= true;
-  Slave_job_group job_worker;
+
+  // Value-initialization, to avoid compiler warnings on push_back.
+  Slave_job_group job_worker= Slave_job_group();
+
   IO_CACHE log;
   File file;
   LOG_INFO linfo;
