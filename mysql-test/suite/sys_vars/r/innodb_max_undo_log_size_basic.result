@@ -46,6 +46,3 @@ SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
 COUNT(@@GLOBAL.innodb_max_undo_log_size)
 1
 1 Expected
-SELECT innodb_max_undo_log_size = @@SESSION.innodb_max_undo_log_size;
-ERROR 42S22: Unknown column 'innodb_max_undo_log_size' in 'field list'
-Expected error 'Readonly variable'
