@@ -1023,68 +1023,72 @@ get_next_redo_rseg(
 	}
 
 #ifdef UNIV_DEBUG
-	ulint start_scan_slot = slot;
-	bool look_for_rollover = false;
+	ulint	start_scan_slot = slot;
+	bool	look_for_rollover = false;
 #endif /* UNIV_DEBUG */
 
-reallocate:
-	for (;;) {
-		rseg = trx_sys->rseg_array[slot];
+	bool	allocated = false;
+
+	while (!allocated) {
+
+		for (;;) {
+			rseg = trx_sys->rseg_array[slot];
 
 #ifdef UNIV_DEBUG
-		/* Ensure that we are not revisiting the same
-		slot that we have already inspected. */
-		if (look_for_rollover) {
-			ut_ad(start_scan_slot != slot);
-		}
-		look_for_rollover = true;
+			/* Ensure that we are not revisiting the same
+			slot that we have already inspected. */
+			if (look_for_rollover) {
+				ut_ad(start_scan_slot != slot);
+			}
+			look_for_rollover = true;
 #endif /* UNIV_DEBUG */
 
-		slot = (slot + 1) % max_undo_logs;
-
-		/* Skip slots allocated for noredo rsegs */
-		while (trx_sys_is_noredo_rseg_slot(slot)) {
 			slot = (slot + 1) % max_undo_logs;
+
+			/* Skip slots allocated for noredo rsegs */
+			while (trx_sys_is_noredo_rseg_slot(slot)) {
+				slot = (slot + 1) % max_undo_logs;
+			}
+
+			if (rseg == NULL) {
+				continue;
+			} else if (rseg->space == srv_sys_space.space_id()
+				   && n_tablespaces > 0
+				   && trx_sys->rseg_array[slot] != NULL
+				   && trx_sys->rseg_array[slot]->space
+					!= srv_sys_space.space_id()) {
+				/** If undo-tablespace is configured, skip
+				rseg from system-tablespace and try to use
+				undo-tablespace rseg unless it is not possible
+				due to lower limit of undo-logs. */
+				continue;
+			} else if (rseg->skip_allocation) {
+				/** This rseg resides in the tablespace that
+				has been marked for truncate so avoid using this
+				rseg. Also, this is possible only if there are
+				at-least 2 UNDO tablespaces active and 2 redo
+				rsegs active (other than default system bound
+				rseg-0). */
+				ut_ad(n_tablespaces > 1);
+				ut_ad(max_undo_logs
+					>= (1 + srv_tmp_undo_logs + 2));
+				continue;
+			}
+			break;
 		}
 
-		if (rseg == NULL) {
-			continue;
-		} else if (rseg->space == srv_sys_space.space_id()
-			   && n_tablespaces > 0
-			   && trx_sys->rseg_array[slot] != NULL
-			   && trx_sys->rseg_array[slot]->space
-			      != srv_sys_space.space_id()) {
-			/** If undo-tablespace is configured, skip
-			rseg from system-tablespace and try to use
-			undo-tablespace rseg unless it is not possible
-			due to lower limit of undo-logs. */
-			continue;
-		} else if (rseg->skip_allocation) {
-			/** This rseg resides in the tablespace that
-			has been marked for truncate so avoid using this
-			rseg. Also, this is possible only if there are
-			at-least 2 UNDO tablespaces active and 2 redo
-			rsegs active (other than default system bound
-			rseg-0). */
-			ut_ad(n_tablespaces > 1);
-			ut_ad(max_undo_logs >= (1 + srv_tmp_undo_logs + 2));
-			continue;
+		/* By now we have only selected the rseg but not marked it
+		allocated. By marking it allocated we are ensuring that it will
+		never be selected for UNDO truncate purge. */
+		mutex_enter(&rseg->mutex);
+		if (!rseg->skip_allocation) {
+			rseg->trx_ref_count++;
+			allocated = true;
 		}
-		break;
-	}
-
-	/* By now we have only selected the rseg but not marked it allocated.
-	By marking it allocated we are ensuring that it will never be selected
-	for UNDO truncate purge. */
-	mutex_enter(&rseg->mutex);
-	if (!rseg->skip_allocation) {
-		rseg->trx_ref_count++;
-	} else {
 		mutex_exit(&rseg->mutex);
-		goto reallocate;
 	}
-	mutex_exit(&rseg->mutex);
 
+	ut_ad(rseg->trx_ref_count > 0);
 	ut_ad(!trx_sys_is_noredo_rseg_slot(rseg->id));
 	return(rseg);
 }

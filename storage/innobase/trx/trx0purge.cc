@@ -926,8 +926,6 @@ trx_purge_mark_undo_for_truncate(
 			}
 		}
 	}
-
-	return;
 }
 
 UndoTruncate::undo_spaces_t	UndoTruncate::s_spaces_to_truncate;
@@ -1006,7 +1004,7 @@ trx_purge_initiate_truncate(
 		mutex_enter(&rseg->mutex);
 
 		if (rseg->trx_ref_count > 0) {
-			/* This rseg is still being hold by an active
+			/* This rseg is still being held by an active
 			transaction. */
 			all_free = false;
 			mutex_exit(&rseg->mutex);
