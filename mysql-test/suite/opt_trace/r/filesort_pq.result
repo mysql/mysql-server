@@ -1541,7 +1541,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
               {
                 "direction": "asc",
                 "table": "intermediate_tmp_table",
-                "field": "tmp_table_column"
+                "field": "tmp_field_0"
               }
             ],
             "filesort_priority_queue_optimization": {

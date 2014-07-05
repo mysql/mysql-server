@@ -4972,6 +4972,8 @@ btr_cur_optimistic_delete_func(
 	ut_ad(flags == 0 || flags == BTR_CREATE_FLAG);
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_is_block_fix(mtr, btr_cur_get_block(cursor),
+			       MTR_MEMO_PAGE_X_FIX, cursor->index->table));
 	ut_ad(mtr->is_named_space(cursor->index->space));
 
 	/* This is intended only for leaf page deletions */
@@ -5100,8 +5102,9 @@ btr_cur_pessimistic_delete(
 	      || (flags & BTR_CREATE_FLAG));
 	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
 					MTR_MEMO_X_LOCK
-					| MTR_MEMO_SX_LOCK));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+					| MTR_MEMO_SX_LOCK)
+	      || dict_table_is_intrinsic(index->table));
+	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 	ut_ad(mtr->is_named_space(index->space));
 
 	if (!has_reserved_extents) {

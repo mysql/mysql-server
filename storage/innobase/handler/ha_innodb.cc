@@ -8671,13 +8671,13 @@ create_table_def(
 		block such statement.
 		This is work-around fix till Optimizer can handle this issue
 		(probably 5.7.4+). */
-		char field_name[MAX_FULL_NAME_LEN + 2];
+		char field_name[MAX_FULL_NAME_LEN + 2 + 10];
 
 		if (dict_table_is_intrinsic(table) && field->orig_table) {
 
 			ut_snprintf(field_name, sizeof(field_name),
-				    "%s_%s", field->orig_table->alias,
-				    field->field_name);
+				    "%s_%s_%lu", field->orig_table->alias,
+				    field->field_name, i);
 
 		} else {
 			ut_snprintf(field_name, sizeof(field_name),
@@ -9643,7 +9643,9 @@ index_bad:
 		*flags2 |= DICT_TF2_TEMPORARY;
 
 		/* Intrinsic table reside only in shared temporary tablespace.*/
-		if (THDVAR(thd, create_intrinsic) && !use_file_per_table) {
+		if ((THDVAR(thd, create_intrinsic)
+		     || create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)
+		    && !use_file_per_table) {
 			*flags2 |= DICT_TF2_INTRINSIC;
 		}
 	}
@@ -11544,6 +11546,11 @@ ha_innobase::info_low(
 
 			KEY*	key = &table->key_info[i];
 
+			/* Check if this index supports index statistics. */
+			if (!key->supports_records_per_key()) {
+				continue;
+			}
+
 			for (j = 0; j < key->actual_key_parts; j++) {
 
 				if ((key->flags & HA_FULLTEXT)
@@ -11714,6 +11721,7 @@ ha_innobase::disable_indexes(
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
 			index->allow_duplicates = true;
 		}
+		error = 0;
 	}
 
 	return(error);

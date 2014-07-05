@@ -3735,6 +3735,11 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   SYNPOSIS
     TABLE::fill_item_list()
       item_list          a pointer to an empty list used to store items
+      limit              maximum number of fields to add
+  @pre 'limit' is MAX_FIELDS or the number of columns in the table except
+  that the temporary table includes 'hash_field' which is at the end of
+  column lists and should be skipped because 'hash_field' is a pesudo
+  column.
 
   DESCRIPTION
     Create Item_field object for each column in the table and
@@ -3746,13 +3751,14 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
     1                    out of memory
 */
 
-bool TABLE::fill_item_list(List<Item> *item_list) const
+bool TABLE::fill_item_list(List<Item> *item_list, uint limit) const
 {
   /*
     All Item_field's created using a direct pointer to a field
     are fixed in Item_field constructor.
   */
-  for (Field **ptr= field; *ptr; ptr++)
+  uint i= 0;
+  for (Field **ptr= field; *ptr && i < limit; ptr++, i++)
   {
     Item_field *item= new Item_field(*ptr);
     if (!item || item_list->push_back(item))
@@ -3768,18 +3774,22 @@ bool TABLE::fill_item_list(List<Item> *item_list) const
   SYNPOSIS
     TABLE::fill_item_list()
       item_list          a non-empty list with Item_fields
+      limit              maximum number of fields to set 
+  @pre 'limit' is MAX_FIELDS or the number of columns in the table except
+  that the temporary table includes 'hash_field' which is at the end of
+  column lists and should be skipped because 'hash_field' is a pesudo
+  column.
 
   DESCRIPTION
     This is a counterpart of fill_item_list used to redirect
     Item_fields to the fields of a newly created table.
-    The caller must ensure that number of items in the item_list
-    is the same as the number of columns in the table.
 */
 
-void TABLE::reset_item_list(List<Item> *item_list) const
+void TABLE::reset_item_list(List<Item> *item_list, uint limit) const
 {
   List_iterator_fast<Item> it(*item_list);
-  for (Field **ptr= field; *ptr; ptr++)
+  uint i= 0;
+  for (Field **ptr= field; *ptr && i < limit; ptr++, i++)
   {
     Item_field *item_field= (Item_field*) it++;
     DBUG_ASSERT(item_field != 0);
