@@ -3825,12 +3825,13 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
     if (tables_used->uses_materialization())
     {
       /*
-        Currently all result tables are MyISAM or HEAP. MyISAM allows caching
-        unless table is under in a concurrent insert (which never could
-        happen to a derived table). HEAP always allows caching.
+        Currently all result tables are MyISAM/Innodb or HEAP. MyISAM/Innodb
+        allows caching unless table is under in a concurrent insert
+        (which never could happen to a derived table). HEAP always allows caching.
       */
       DBUG_ASSERT(table->s->db_type() == heap_hton ||
-                  table->s->db_type() == myisam_hton);
+                  table->s->db_type() == myisam_hton ||
+                  table->s->db_type() == innodb_hton);
       DBUG_RETURN(0);
     }
 

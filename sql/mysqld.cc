@@ -337,6 +337,11 @@ char *my_bind_addr_str;
 static char *default_collation_name;
 char *default_storage_engine;
 char *default_tmp_storage_engine;
+/**
+   Use to mark which engine should be choosen to create internal
+   temp table
+ */
+ulong internal_tmp_disk_storage_engine;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static bool binlog_format_used= false;
 
@@ -405,6 +410,7 @@ my_bool old_mode;
 handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
+handlerton *innodb_hton;
 
 uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
@@ -8054,7 +8060,7 @@ PSI_stage_info stage_checking_query_cache_for_query= { 0, "checking query cache 
 PSI_stage_info stage_cleaning_up= { 0, "cleaning up", 0};
 PSI_stage_info stage_closing_tables= { 0, "closing tables", 0};
 PSI_stage_info stage_connecting_to_master= { 0, "Connecting to master", 0};
-PSI_stage_info stage_converting_heap_to_myisam= { 0, "converting HEAP to MyISAM", 0};
+PSI_stage_info stage_converting_heap_to_ondisk= { 0, "converting HEAP to ondisk", 0};
 PSI_stage_info stage_copying_to_group_table= { 0, "Copying to group table", 0};
 PSI_stage_info stage_copying_to_tmp_table= { 0, "Copying to tmp table", 0};
 PSI_stage_info stage_copy_to_tmp_table= { 0, "copy to tmp table", PSI_FLAG_STAGE_PROGRESS};
@@ -8164,7 +8170,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_cleaning_up,
   & stage_closing_tables,
   & stage_connecting_to_master,
-  & stage_converting_heap_to_myisam,
+  & stage_converting_heap_to_ondisk,
   & stage_copying_to_group_table,
   & stage_copying_to_tmp_table,
   & stage_copy_to_tmp_table,

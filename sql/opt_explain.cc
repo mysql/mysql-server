@@ -1533,7 +1533,12 @@ bool Explain_join::explain_rows_and_filtered()
   }
   else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL ||
            tab->type == JT_CONST || tab->type == JT_SYSTEM)
-    examined_rows= tab->rowcount;
+    // Materialization temp table is empty
+    if (tab->sj_mat_exec &&
+        (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL))
+      examined_rows= 0;
+    else
+      examined_rows= tab->rowcount;
   else
     examined_rows= tab->position->rows_fetched;
 
