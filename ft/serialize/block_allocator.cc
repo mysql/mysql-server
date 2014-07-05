@@ -106,6 +106,14 @@ PATENT RIGHTS GRANT:
 #define VALIDATE()
 #endif
 
+static inline bool ba_trace_enabled() {
+#if 0
+    return true;
+#else
+    return false;
+#endif
+}
+
 void block_allocator::create(uint64_t reserve_at_beginning, uint64_t alignment) {
     // the alignment must be at least 512 and aligned with 512 to work with direct I/O
     assert(alignment >= 512 && (alignment % 512) == 0);
@@ -119,10 +127,18 @@ void block_allocator::create(uint64_t reserve_at_beginning, uint64_t alignment) 
     _strategy = BA_STRATEGY_FIRST_FIT;
 
     VALIDATE();
+
+    if (ba_trace_enabled()) {
+        fprintf(stderr, "ba_trace_create %p", this);
+    }
 }
 
 void block_allocator::destroy() {
     toku_free(_blocks_array);
+
+    if (ba_trace_enabled()) {
+        fprintf(stderr, "ba_trace_destroy %p", this);
+    }
 }
 
 void block_allocator::set_strategy(enum allocation_strategy strategy) {
@@ -235,36 +251,34 @@ block_allocator::choose_block_to_alloc_after(size_t size) {
 
 // Effect: Allocate a block. The resulting block must be aligned on the ba->alignment (which to make direct_io happy must be a positive multiple of 512).
 void block_allocator::alloc_block(uint64_t size, uint64_t *offset) {
+    struct blockpair *bp;
+
     // Allocator does not support size 0 blocks. See block_allocator_free_block.
     invariant(size > 0);
 
     grow_blocks_array();
     _n_bytes_in_use += size;
 
-    // First and only block
+    uint64_t end_of_reserve = align(_reserve_at_beginning, _alignment);
+
     if (_n_blocks == 0) {
+        // First and only block
         assert(_n_bytes_in_use == _reserve_at_beginning + size); // we know exactly how many are in use
         _blocks_array[0].offset = align(_reserve_at_beginning, _alignment);
         _blocks_array[0].size = size;
         *offset = _blocks_array[0].offset;
-        _n_blocks++;
-        return;
-    }
-
-    // Check to see if the space immediately after the reserve is big enough to hold the new block.
-    uint64_t end_of_reserve = align(_reserve_at_beginning, _alignment);
-    if (end_of_reserve + size <= _blocks_array[0].offset ) {
-        struct blockpair *bp = &_blocks_array[0];
+        goto done;
+    } else if (end_of_reserve + size <= _blocks_array[0].offset ) {
+        // Check to see if the space immediately after the reserve is big enough to hold the new block.
+        bp = &_blocks_array[0];
         memmove(bp + 1, bp, _n_blocks * sizeof(*bp));
         bp[0].offset = end_of_reserve;
         bp[0].size = size;
-        _n_blocks++;
         *offset = end_of_reserve;
-        VALIDATE();
-        return;
+        goto done;
     }
 
-    struct blockpair *bp = choose_block_to_alloc_after(size);
+    bp = choose_block_to_alloc_after(size);
     if (bp != nullptr) {
         // our allocation strategy chose the space after `bp' to fit the new block
         uint64_t answer_offset = align(bp->offset + bp->size, _alignment);
@@ -283,8 +297,15 @@ void block_allocator::alloc_block(uint64_t size, uint64_t *offset) {
         bp->size = size;
         *offset = answer_offset;
     }
+
+done:
     _n_blocks++;
     VALIDATE();
+
+    if (ba_trace_enabled()) {
+        fprintf(stderr, "ba_trace_alloc %p %lu %lu\n",
+                this, static_cast<unsigned long>(size), static_cast<unsigned long>(*offset));
+    }
 }
 
 // Find the index in the blocks array that has a particular offset.  Requires that the block exist.
@@ -326,6 +347,12 @@ void block_allocator::free_block(uint64_t offset) {
             (_n_blocks - bn - 1) * sizeof(struct blockpair));
     _n_blocks--;
     VALIDATE();
+
+    if (ba_trace_enabled()) {
+        fprintf(stderr, "ba_trace_free %p %lu\n",
+                this, static_cast<unsigned long>(offset));
+                
+    }
 }
 
 uint64_t block_allocator::block_size(uint64_t offset) {
