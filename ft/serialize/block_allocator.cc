@@ -129,7 +129,7 @@ void block_allocator::create(uint64_t reserve_at_beginning, uint64_t alignment) 
     VALIDATE();
 
     if (ba_trace_enabled()) {
-        fprintf(stderr, "ba_trace_create %p", this);
+        fprintf(stderr, "ba_trace_create %p\n", this);
     }
 }
 
@@ -137,7 +137,7 @@ void block_allocator::destroy() {
     toku_free(_blocks_array);
 
     if (ba_trace_enabled()) {
-        fprintf(stderr, "ba_trace_destroy %p", this);
+        fprintf(stderr, "ba_trace_destroy %p\n", this);
     }
 }
 
@@ -458,6 +458,14 @@ void block_allocator::get_unused_statistics(TOKU_DB_FRAGMENTATION report) {
             }
         }
     }
+}
+
+void block_allocator::get_statistics(TOKU_DB_FRAGMENTATION report) {
+    report->data_bytes = _n_bytes_in_use; 
+    report->data_blocks = _n_blocks; 
+    report->file_size_bytes = 0;
+    report->checkpoint_bytes_additional = 0;
+    get_unused_statistics(report);
 }
 
 void block_allocator::validate() const {

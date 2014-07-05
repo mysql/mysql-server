@@ -1,6 +1,6 @@
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE DONT_DEPRECATE_ERRNO)
 
-set(tools tokudb_dump tokuftdump tdb_logprint tdb-recover ftverify)
+set(tools tokudb_dump tokuftdump tdb_logprint tdb-recover ftverify ba_replay)
 foreach(tool ${tools})
   add_executable(${tool} ${tool})
   add_dependencies(${tool} install_tdb_h)
