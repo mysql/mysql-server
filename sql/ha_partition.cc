@@ -4303,7 +4303,7 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   /* Only binlog when it starts any call to the partitions handlers */
   *binlog_stmt= false;
 
-  if (set_part_state(alter_info, m_part_info, PART_ADMIN))
+  if (set_part_state(alter_info, m_part_info, PART_ADMIN, true))
     DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   /*
