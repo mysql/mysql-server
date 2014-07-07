@@ -90,12 +90,6 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 
-static void ba_alloc_at(block_allocator *ba, uint64_t size, uint64_t offset) {
-    ba->validate();
-    ba->alloc_block_at(size * 512, offset * 512);
-    ba->validate();
-}
-
 static void ba_alloc(block_allocator *ba, uint64_t size, uint64_t *answer) {
     ba->validate();
     uint64_t actual_answer;
@@ -133,28 +127,8 @@ static void
 test_ba0 (void) {
     block_allocator allocator;
     block_allocator *ba = &allocator;
-    uint64_t b0, b1;
     ba->create(100*512, 1*512);
     assert(ba->allocated_limit()==100*512);
-    ba_alloc_at(ba, 50, 100);
-    assert(ba->allocated_limit()==150*512);
-    ba_alloc_at(ba, 25, 150);
-    ba_alloc   (ba, 10, &b0);
-    ba_check_l (ba, 0, 0,   100);
-    ba_check_l (ba, 1, 100,  50);
-    ba_check_l (ba, 2, 150,  25);
-    ba_check_l (ba, 3, b0,  10);
-    ba_check_none (ba, 4);
-    assert(b0==175);
-    ba_free(ba, 150);
-    ba_alloc_at(ba, 10, 150);
-    ba_alloc(ba, 10, &b0);
-    assert(b0==160);
-    ba_alloc(ba, 10, &b0);
-    ba_alloc(ba, 113, &b1);
-    assert(113*512==ba->block_size(b1 *512));
-    assert(10 *512==ba->block_size(b0 *512));
-    assert(50 *512==ba->block_size(100*512));
 
     uint64_t b2, b3, b4, b5, b6, b7;
     ba_alloc(ba, 100, &b2);     

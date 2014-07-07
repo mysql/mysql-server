@@ -237,7 +237,7 @@ static void dump_node(int fd, BLOCKNUM blocknum, FT ft) {
     assert(n!=0);
     printf("ftnode\n");
     DISKOFF disksize, diskoffset;
-    toku_translate_blocknum_to_offset_size(ft->blocktable, blocknum, &diskoffset, &disksize);
+    ft->blocktable.translate_blocknum_to_offset_size(blocknum, &diskoffset, &disksize);
     printf(" diskoffset  =%" PRId64 "\n", diskoffset);
     printf(" disksize    =%" PRId64 "\n", disksize);
     printf(" serialize_size =%u\n", toku_serialize_ftnode_size(n));
@@ -334,13 +334,13 @@ ok:
 }
 
 static void dump_block_translation(FT ft, uint64_t offset) {
-    toku_blocknum_dump_translation(ft->blocktable, make_blocknum(offset));
+    ft->blocktable.blocknum_dump_translation(make_blocknum(offset));
 }
 
 static void dump_fragmentation(int UU(f), FT ft, int tsv) {
     int64_t used_space;
     int64_t total_space;
-    toku_blocktable_internal_fragmentation(ft->blocktable, &total_space, &used_space);
+    ft->blocktable.internal_fragmentation(&total_space, &used_space);
     int64_t fragsizes = total_space - used_space;
 
     if (tsv) {
@@ -386,8 +386,8 @@ static void dump_nodesizes(int fd, FT ft) {
     memset(&info, 0, sizeof(info));
     info.fd = fd;
     info.ft = ft;
-    toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED,
-                            nodesizes_helper, &info, true, true);
+    ft->blocktable.iterate(block_table::TRANSLATION_CHECKPOINTED,
+                           nodesizes_helper, &info, true, true);
     printf("leafblocks\t%" PRIu64 "\n", info.leafblocks);
     printf("blocksizes\t%" PRIu64 "\n", info.blocksizes);
     printf("leafsizes\t%" PRIu64 "\n", info.leafsizes);
@@ -476,7 +476,7 @@ static void verify_block(unsigned char *cp, uint64_t file_offset, uint64_t size)
 
 static void dump_block(int fd, BLOCKNUM blocknum, FT ft) {
     DISKOFF offset, size;
-    toku_translate_blocknum_to_offset_size(ft->blocktable, blocknum, &offset, &size);
+    ft->blocktable.translate_blocknum_to_offset_size(blocknum, &offset, &size);
     printf("%" PRId64 " at %" PRId64 " size %" PRId64 "\n", blocknum.b, offset, size);
 
     unsigned char *CAST_FROM_VOIDP(vp, toku_malloc(size));
@@ -688,22 +688,22 @@ int main (int argc, const char *const argv[]) {
             dump_fragmentation(fd, ft, do_tsv);
         }
         if (do_translation_table) {
-            toku_dump_translation_table_pretty(stdout, ft->blocktable);
+            ft->blocktable.dump_translation_table_pretty(stdout);
         }
         if (do_garbage) {
             dump_garbage_stats(fd, ft);
         }
         if (!do_header && !do_rootnode && !do_fragmentation && !do_translation_table && !do_garbage) {
             printf("Block translation:");
-            toku_dump_translation_table(stdout, ft->blocktable);
+            ft->blocktable.dump_translation_table(stdout);
 
             dump_header(ft);
             
             struct __dump_node_extra info;
             info.fd = fd;
             info.ft = ft;
-            toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED,
-                                    dump_node_wrapper, &info, true, true);
+            ft->blocktable.iterate(block_table::TRANSLATION_CHECKPOINTED,
+                                   dump_node_wrapper, &info, true, true);
         }
     }
     toku_cachefile_close(&cf, false, ZERO_LSN);

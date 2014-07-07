@@ -412,10 +412,8 @@ cleanup:
 // Passes our check_block() function to be called as we iterate over
 // the block table.  This will print any interesting failures and
 // update us on our progress.
-static void
-check_block_table(int fd, BLOCK_TABLE bt, struct ft *h)
-{
-    int64_t num_blocks = toku_block_get_blocks_in_use_unlocked(bt);
+static void check_block_table(int fd, block_table *bt, struct ft *h) {
+    int64_t num_blocks = bt->get_blocks_in_use_unlocked();
     printf("Starting verification of checkpoint containing");
     printf(" %" PRId64 " blocks.\n", num_blocks);
     fflush(stdout);
@@ -425,13 +423,11 @@ check_block_table(int fd, BLOCK_TABLE bt, struct ft *h)
 					     .blocks_failed = 0,
 					     .total_blocks = num_blocks,
 					     .h = h };
-    int r = 0;
-    r = toku_blocktable_iterate(bt, 
-				TRANSLATION_CURRENT,
-				check_block,
-				&extra,
-				true,
-				true);
+    int r = bt->iterate(block_table::TRANSLATION_CURRENT,
+                    check_block,
+                    &extra,
+                    true,
+                    true);
     if (r != 0) {
         // We can print more information here if necessary.
     }
@@ -493,11 +489,11 @@ main(int argc, char const * const argv[])
     // walk over the block table and check blocks
     if (h1) {
         printf("Checking dictionary from header 1.\n");
-        check_block_table(dictfd, h1->blocktable, h1);
+        check_block_table(dictfd, &h1->blocktable, h1);
     }
     if (h2) {
         printf("Checking dictionary from header 2.\n");
-        check_block_table(dictfd, h2->blocktable, h2);
+        check_block_table(dictfd, &h2->blocktable, h2);
     }
     if (h1 == NULL && h2 == NULL) {
         printf("Both headers have a corruption and could not be used.\n");

@@ -128,6 +128,14 @@ public:
         BA_STRATEGY_FIRST_FIT = 1
     };
 
+    struct blockpair {
+        uint64_t offset;
+        uint64_t size;
+        blockpair(uint64_t o, uint64_t s) :
+            offset(o), size(s) {
+        }
+    };
+
     // Effect: Create a block allocator, in which the first RESERVE_AT_BEGINNING bytes are not put into a block.
     //         The default allocation strategy is first fit (BA_STRATEGY_FIRST_FIT)
     //  All blocks be start on a multiple of ALIGNMENT.
@@ -137,6 +145,19 @@ public:
     //  alignment (IN)                   Block alignment.
     void create(uint64_t reserve_at_beginning, uint64_t alignment);
 
+    // Effect: Create a block allocator, in which the first RESERVE_AT_BEGINNING bytes are not put into a block.
+    //         The default allocation strategy is first fit (BA_STRATEGY_FIRST_FIT)
+    //         The allocator is initialized to contain `n_blocks' of blockpairs, taken from `pairs'
+    //  All blocks be start on a multiple of ALIGNMENT.
+    //  Aborts if we run out of memory.
+    // Parameters
+    //  pairs,                           unowned array of pairs to copy
+    //  n_blocks,                        Size of pairs array
+    //  reserve_at_beginning (IN)        Size of reserved block at beginning.  This size does not have to be aligned.
+    //  alignment (IN)                   Block alignment.
+    void create_from_blockpairs(uint64_t reserve_at_beginning, uint64_t alignment,
+                                struct blockpair *pairs, uint64_t n_blocks);
+
     // Effect: Destroy this block allocator
     void destroy();
 
@@ -144,35 +165,10 @@ public:
     // Requires: No other threads are operating on this block allocator
     void set_strategy(enum allocation_strategy strategy);
 
-    // Effect: Allocate a block of the specified size at a particular offset.
-    //  Aborts if anything goes wrong.
-    //  The performance of this function may be as bad as Theta(N), where N is the number of blocks currently in use.
-    // Usage note: To allocate several blocks (e.g., when opening a FT),  use block_allocator_alloc_blocks_at().
-    // Requires: The resulting block may not overlap any other allocated block.
-    //  And the offset must be a multiple of the block alignment.
-    // Parameters:
-    //  size (IN):   The size of the block.
-    //  offset (IN): The location of the block.
-    void alloc_block_at(uint64_t size, uint64_t offset);
-
-    struct blockpair {
-        uint64_t offset;
-        uint64_t size;
-        blockpair(uint64_t o, uint64_t s) :
-            offset(o), size(s) {
-        }
-    };
-
-    // Effect: Take pairs in any order, and add them all, as if we did block_allocator_alloc_block() on each pair.
-    //  This should run in time O(N + M log M) where N is the number of blocks in ba, and M is the number of new blocks.
-    // Modifies: pairs (sorts them).
-    void alloc_blocks_at(uint64_t n_blocks, blockpair *pairs);
-
     // Effect: Allocate a block of the specified size at an address chosen by the allocator.
     //  Aborts if anything goes wrong.
     //  The block address will be a multiple of the alignment.
     // Parameters:
-    //  ba (IN/OUT):  The block allocator.   (Modifies ba.)
     //  size (IN):    The size of the block.  (The size does not have to be aligned.)
     //  offset (OUT): The location of the block.
     void alloc_block(uint64_t size, uint64_t *offset);
@@ -180,14 +176,12 @@ public:
     // Effect: Free the block at offset.
     // Requires: There must be a block currently allocated at that offset.
     // Parameters:
-    //  ba (IN/OUT): The block allocator.  (Modifies ba.)
     //  offset (IN): The offset of the block.
     void free_block(uint64_t offset);
 
     // Effect: Return the size of the block that starts at offset.
     // Requires: There must be a block currently allocated at that offset.
     // Parameters:
-    //  ba (IN/OUT): The block allocator.  (Modifies ba.)
     //  offset (IN): The offset of the block.
     uint64_t block_size(uint64_t offset);
 
@@ -221,18 +215,8 @@ public:
     //  report->checkpoint_bytes_additional is ignored on return
     void get_statistics(TOKU_DB_FRAGMENTATION report);
 
-    // Effect: Merge dst[d] and src[s] into dst[d+s], merging in place.
-    //   Initially dst and src hold sorted arrays (sorted by increasing offset).
-    //   Finally dst contains all d+s elements sorted in order.
-    // Requires: 
-    //   dst and src are sorted.
-    //   dst must be large enough (sizeof(dst) >= d && sizeof(src) >= s)
-    //   No blocks may overlap.
-    // Rationale: This is exposed so it can be tested by a glass box tester.
-    static void merge_blockpairs_into(uint64_t d, struct blockpair dst[],
-                                      uint64_t s, const struct blockpair src[]);
-
 private:
+    void _create_internal(uint64_t reserve_at_beginning, uint64_t alignment);
     void grow_blocks_array_by(uint64_t n_to_add);
     void grow_blocks_array();
     int64_t find_block(uint64_t offset);

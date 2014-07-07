@@ -845,8 +845,8 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
     invariant(blocknum.b>=0);
     DISKOFF offset;
 
-    toku_blocknum_realloc_on_disk(ft->blocktable, blocknum, n_to_write, &offset,
-                                  ft, fd, for_checkpoint); //dirties h
+    ft->blocktable.realloc_on_disk(blocknum, n_to_write, &offset,
+                                   ft, fd, for_checkpoint); //dirties h
 
     tokutime_t t0 = toku_time_now();
     toku_os_full_pwrite(fd, compressed_buf, n_to_write, offset);
@@ -1085,7 +1085,7 @@ void read_block_from_fd_into_rbuf(
 {
     // get the file offset and block size for the block
     DISKOFF offset, size;
-    toku_translate_blocknum_to_offset_size(ft->blocktable, blocknum, &offset, &size);
+    ft->blocktable.translate_blocknum_to_offset_size(blocknum, &offset, &size);
     DISKOFF size_aligned = roundup_to_multiple(512, size);
     uint8_t *XMALLOC_N_ALIGNED(512, size_aligned, raw_block);
     rbuf_init(rb, raw_block, size);
@@ -1101,11 +1101,12 @@ static const int read_header_heuristic_max = 32*1024;
 #define MIN(a,b) (((a)>(b)) ? (b) : (a))
 #endif
 
-static void read_ftnode_header_from_fd_into_rbuf_if_small_enough (int fd, BLOCKNUM blocknum, FT ft, struct rbuf *rb, struct ftnode_fetch_extra *bfe)
 // Effect: If the header part of the node is small enough, then read it into the rbuf.  The rbuf will be allocated to be big enough in any case.
-{
+static void read_ftnode_header_from_fd_into_rbuf_if_small_enough(int fd, BLOCKNUM blocknum,
+                                                                 FT ft, struct rbuf *rb,
+                                                                 struct ftnode_fetch_extra *bfe) {
     DISKOFF offset, size;
-    toku_translate_blocknum_to_offset_size(ft->blocktable, blocknum, &offset, &size);
+    ft->blocktable.translate_blocknum_to_offset_size(blocknum, &offset, &size);
     DISKOFF read_size = roundup_to_multiple(512, MIN(read_header_heuristic_max, size));
     uint8_t *XMALLOC_N_ALIGNED(512, roundup_to_multiple(512, size), raw_block);
     rbuf_init(rb, raw_block, read_size);
@@ -1937,10 +1938,8 @@ deserialize_and_upgrade_ftnode(FTNODE node,
     // we read the different sub-sections.
     // get the file offset and block size for the block
     DISKOFF offset, size;
-    toku_translate_blocknum_to_offset_size(bfe->ft->blocktable,
-                                           blocknum,
-                                           &offset,
-                                           &size);
+    bfe->ft->blocktable.translate_blocknum_to_offset_size(blocknum, &offset, &size);
+
     struct rbuf rb;
     r = read_and_decompress_block_from_fd_into_rbuf(fd,
                                                     blocknum,
@@ -2218,16 +2217,13 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
     // 
     // get the file offset and block size for the block
     DISKOFF node_offset, total_node_disk_size;
-    toku_translate_blocknum_to_offset_size(
-        bfe->ft->blocktable, 
-        node->blocknum, 
-        &node_offset, 
-        &total_node_disk_size
-        );
+    bfe->ft->blocktable.translate_blocknum_to_offset_size(node->blocknum, &node_offset, &total_node_disk_size);
 
     uint32_t curr_offset = BP_START(ndd, childnum);
-    uint32_t curr_size   = BP_SIZE (ndd, childnum);
-    struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
+    uint32_t curr_size = BP_SIZE (ndd, childnum);
+
+    struct rbuf rb;
+    rbuf_init(&rb, nullptr, 0);
 
     uint32_t pad_at_beginning = (node_offset+curr_offset)%512;
     uint32_t padded_size = roundup_to_multiple(512, pad_at_beginning + curr_size);
@@ -2530,20 +2526,22 @@ toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBA
         serialized_log = &serialized_local;
         toku_serialize_rollback_log_to_memory_uncompressed(log, serialized_log);
     }
+
     BLOCKNUM blocknum = serialized_log->blocknum;
+    invariant(blocknum.b >= 0);
 
-    //Compress and malloc buffer to write
+    // Compress and malloc buffer to write
     serialize_uncompressed_block_to_memory(serialized_log->data,
-            serialized_log->n_sub_blocks, serialized_log->sub_block,
-            ft->h->compression_method, &n_to_write, &compressed_buf);
+                                           serialized_log->n_sub_blocks,
+                                           serialized_log->sub_block,
+                                           ft->h->compression_method,
+                                           &n_to_write, &compressed_buf);
 
-    {
-        lazy_assert(blocknum.b>=0);
-        DISKOFF offset;
-        toku_blocknum_realloc_on_disk(ft->blocktable, blocknum, n_to_write, &offset,
-                                      ft, fd, for_checkpoint); //dirties h
-        toku_os_full_pwrite(fd, compressed_buf, n_to_write, offset);
-    }
+    // Dirties the ft
+    DISKOFF offset;
+    ft->blocktable.realloc_on_disk(blocknum, n_to_write, &offset,
+                                   ft, fd, for_checkpoint);
+    toku_os_full_pwrite(fd, compressed_buf, n_to_write, offset);
     toku_free(compressed_buf);
     if (!is_serialized) {
         toku_static_serialized_rollback_log_destroy(&serialized_local);
@@ -2803,16 +2801,19 @@ cleanup:
     return r;
 }
 
-// Read rollback log node from file into struct.  Perform version upgrade if necessary.
-int
-toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT ft) {
+// Read rollback log node from file into struct.
+// Perform version upgrade if necessary.
+int toku_deserialize_rollback_log_from(int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT ft) {
     int layout_version = 0;
     int r;
-    struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
+
+    struct rbuf rb;
+    rbuf_init(&rb, nullptr, 0);
 
     // get the file offset and block size for the block
     DISKOFF offset, size;
-    toku_translate_blocknum_to_offset_size(ft->blocktable, blocknum, &offset, &size);
+    ft->blocktable.translate_blocknum_to_offset_size(blocknum, &offset, &size);
+
     // if the size is 0, then the blocknum is unused
     if (size == 0) {
         // blocknum is unused, just create an empty one and get out
@@ -2838,7 +2839,9 @@ toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE
     r = deserialize_rollback_log_from_rbuf_versioned(layout_version, blocknum, logp, &rb);
 
 cleanup:
-    if (rb.buf) toku_free(rb.buf);
+    if (rb.buf) {
+        toku_free(rb.buf);
+    }
     return r;
 }
 

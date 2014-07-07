@@ -121,7 +121,7 @@ ft_destroy(FT ft) {
     //header and checkpoint_header have same Blocktable pointer
     //cannot destroy since it is still in use by CURRENT
     assert(ft->h->type == FT_CURRENT);
-    toku_blocktable_destroy(&ft->blocktable);
+    ft->blocktable.destroy();
     ft->cmp.destroy();
     toku_destroy_dbt(&ft->descriptor.dbt);
     toku_destroy_dbt(&ft->cmp_descriptor.dbt);
@@ -203,7 +203,7 @@ static void ft_begin_checkpoint (LSN checkpoint_lsn, void *header_v) {
     assert(ft->checkpoint_header == NULL);
     ft_copy_for_checkpoint_unlocked(ft, checkpoint_lsn);
     ft->h->dirty = 0;             // this is only place this bit is cleared        (in currentheader)
-    toku_block_translation_note_start_checkpoint_unlocked(ft->blocktable);
+    ft->blocktable.note_start_checkpoint_unlocked();
     toku_ft_unlock (ft);
 }
 
@@ -239,8 +239,6 @@ ft_hack_highest_unused_msn_for_upgrade_for_checkpoint(FT ft) {
 static void ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
     FT ft = (FT) header_v;
     FT_HEADER ch = ft->checkpoint_header;
-    //printf("%s:%d allocated_limit=%lu writing queue to %lu\n", __FILE__, __LINE__,
-    //             block_allocator_allocated_limit(h->block_allocator), h->unused_blocks.b*h->nodesize);
     assert(ch);
     assert(ch->type == FT_CHECKPOINT_INPROGRESS);
     if (ch->dirty) {            // this is only place this bit is tested (in checkpoint_header)
@@ -255,16 +253,15 @@ static void ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
         ft_hack_highest_unused_msn_for_upgrade_for_checkpoint(ft);
                                                              
         // write translation and header to disk (or at least to OS internal buffer)
-        toku_serialize_ft_to(fd, ch, ft->blocktable, ft->cf);
+        toku_serialize_ft_to(fd, ch, &ft->blocktable, ft->cf);
         ch->dirty = 0;                      // this is only place this bit is cleared (in checkpoint_header)
         
         // fsync the cachefile
         toku_cachefile_fsync(cf);
         ft->h->checkpoint_count++;        // checkpoint succeeded, next checkpoint will save to alternate header location
         ft->h->checkpoint_lsn = ch->checkpoint_lsn;  //Header updated.
-    } 
-    else {
-        toku_block_translation_note_skipped_checkpoint(ft->blocktable);
+    } else {
+        ft->blocktable.note_skipped_checkpoint();
     }
 }
 
@@ -272,14 +269,12 @@ static void ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
 // free unused disk space 
 // (i.e. tell BlockAllocator to liberate blocks used by previous checkpoint).
 // Must have access to fd (protected)
-static void ft_end_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v) {
+static void ft_end_checkpoint(CACHEFILE UU(cf), int fd, void *header_v) {
     FT ft = (FT) header_v;
     assert(ft->h->type == FT_CURRENT);
-    toku_block_translation_note_end_checkpoint(ft->blocktable, fd);
-    if (ft->checkpoint_header) {
-        toku_free(ft->checkpoint_header);
-        ft->checkpoint_header = NULL;
-    }
+    ft->blocktable.note_end_checkpoint(fd);
+    toku_free(ft->checkpoint_header);
+    ft->checkpoint_header = nullptr;
 }
 
 // maps to cf->close_userdata
@@ -407,7 +402,7 @@ static void ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
                                 ft_note_pin_by_checkpoint,
                                 ft_note_unpin_by_checkpoint);
 
-    toku_block_verify_no_free_blocknums(ft->blocktable);
+    ft->blocktable.verify_no_free_blocknums();
 }
 
 
@@ -456,8 +451,8 @@ void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
     toku_ft_init_reflock(ft);
 
     // Assign blocknum for root block, also dirty the header
-    toku_blocktable_create_new(&ft->blocktable);
-    toku_allocate_blocknum(ft->blocktable, &ft->h->root_blocknum, ft);
+    ft->blocktable.create();
+    ft->blocktable.allocate_blocknum(&ft->h->root_blocknum, ft);
 
     ft_init(ft, options, cf);
 
@@ -875,14 +870,13 @@ toku_ft_stat64 (FT ft, struct ftstat64_s *s) {
     s->verify_time_sec = ft->h->time_of_last_verification;    
 }
 
-void
-toku_ft_get_fractal_tree_info64(FT ft, struct ftinfo64 *s) {
-    toku_blocktable_get_info64(ft->blocktable, s);
+void toku_ft_get_fractal_tree_info64(FT ft, struct ftinfo64 *info) {
+    ft->blocktable.get_info64(info);
 }
 
 int toku_ft_iterate_fractal_tree_block_map(FT ft, int (*iter)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*), void *iter_extra) {
     uint64_t this_checkpoint_count = ft->h->checkpoint_count;
-    return toku_blocktable_iterate_translation_tables(ft->blocktable, this_checkpoint_count, iter, iter_extra);
+    return ft->blocktable.iterate_translation_tables(this_checkpoint_count, iter, iter_extra);
 }
 
 void 
@@ -908,7 +902,7 @@ toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR desc, int fd) {
     // make space for the new descriptor and write it out to disk
     DISKOFF offset, size;
     size = toku_serialize_descriptor_size(desc) + 4;
-    toku_realloc_descriptor_on_disk(ft->blocktable, size, &offset, ft, fd);
+    ft->blocktable.realloc_descriptor_on_disk(size, &offset, ft, fd);
     toku_serialize_descriptor_contents_to_fd(fd, desc, offset);
 
     // cleanup the old descriptor and set the in-memory descriptor to the new one
@@ -1086,7 +1080,7 @@ void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space) {
         .total_space = 0,
         .used_space = 0
     };
-    toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED, garbage_helper, &info, true, true);
+    ft->blocktable.iterate(block_table::TRANSLATION_CHECKPOINTED, garbage_helper, &info, true, true);
     *total_space = info.total_space;
     *used_space = info.used_space;
 }

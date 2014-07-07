@@ -422,22 +422,22 @@ test_prefetching(void) {
                  16);
     ft_h->cmp.create(int64_key_cmp, nullptr);
     ft->ft = ft_h;
-    toku_blocktable_create_new(&ft_h->blocktable);
+    ft_h->blocktable.create();
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
+        ft_h->blocktable.allocate_blocknum(&b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
+        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false);
         assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
+        ft_h->blocktable.translate_blocknum_to_offset_size(b, &offset, &size);
         assert(offset == (DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
@@ -450,8 +450,8 @@ test_prefetching(void) {
 
     toku_destroy_ftnode_internals(&sn);
 
-    toku_block_free(ft_h->blocktable, block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&ft_h->blocktable);
+    ft_h->blocktable.block_free(block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    ft_h->blocktable.destroy();
     ft_h->cmp.destroy();
     toku_free(ft_h->h);
     toku_free(ft_h);

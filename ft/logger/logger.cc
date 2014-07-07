@@ -269,32 +269,30 @@ bool toku_logger_rollback_is_open (TOKULOGGER logger) {
 
 #define MAX_CACHED_ROLLBACK_NODES 4096
 
-void
-toku_logger_initialize_rollback_cache(TOKULOGGER logger, FT ft) {
-    toku_free_unused_blocknums(ft->blocktable, ft->h->root_blocknum);
+void toku_logger_initialize_rollback_cache(TOKULOGGER logger, FT ft) {
+    ft->blocktable.free_unused_blocknums(ft->h->root_blocknum);
     logger->rollback_cache.init(MAX_CACHED_ROLLBACK_NODES);
 }
 
-int
-toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create) {
+int toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create) {
     assert(logger->is_open);
     assert(!logger->rollback_cachefile);
 
-    FT_HANDLE t = NULL;   // Note, there is no DB associated with this FT.
-    toku_ft_handle_create(&t);
-    int r = toku_ft_handle_open(t, toku_product_name_strings.rollback_cachefile, create, create, cachetable, nullptr);
+    FT_HANDLE ft_handle = nullptr;   // Note, there is no DB associated with this FT.
+    toku_ft_handle_create(&ft_handle);
+    int r = toku_ft_handle_open(ft_handle, toku_product_name_strings.rollback_cachefile, create, create, cachetable, nullptr);
     if (r == 0) {
-        logger->rollback_cachefile = t->ft->cf;
-        toku_logger_initialize_rollback_cache(logger, t->ft);
+        FT ft = ft_handle->ft;
+        logger->rollback_cachefile = ft->cf;
+        toku_logger_initialize_rollback_cache(logger, ft_handle->ft);
 
-        //Verify it is empty
-        //Must have no data blocks (rollback logs or otherwise).
-        toku_block_verify_no_data_blocks_except_root(t->ft->blocktable, t->ft->h->root_blocknum);
-        bool is_empty;
-        is_empty = toku_ft_is_empty_fast(t);
+        // Verify it is empty
+        // Must have no data blocks (rollback logs or otherwise).
+        ft->blocktable.verify_no_data_blocks_except_root(ft->h->root_blocknum);
+        bool is_empty = toku_ft_is_empty_fast(ft_handle);
         assert(is_empty);
     } else {
-        toku_ft_handle_close(t);
+        toku_ft_handle_close(ft_handle);
     }
     return r;
 }
@@ -314,9 +312,9 @@ void toku_logger_close_rollback_check_empty(TOKULOGGER logger, bool clean_shutdo
             if (clean_shutdown) {
                 //Verify it is safe to close it.
                 assert(!ft->h->dirty);  //Must not be dirty.
-                toku_free_unused_blocknums(ft->blocktable, ft->h->root_blocknum);
-                //Must have no data blocks (rollback logs or otherwise).
-                toku_block_verify_no_data_blocks_except_root(ft->blocktable, ft->h->root_blocknum);
+                ft->blocktable.free_unused_blocknums(ft->h->root_blocknum);
+                // Must have no data blocks (rollback logs or otherwise).
+                ft->blocktable.verify_no_data_blocks_except_root(ft->h->root_blocknum);
                 assert(!ft->h->dirty);
             } else {
                 ft->h->dirty = 0;
