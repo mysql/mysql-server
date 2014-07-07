@@ -19,11 +19,11 @@ def build(ctx):
   \
   "common/src/async_common.cpp " +\
   "common/src/unified_debug.cpp " +\
+  "common/src/common_v8_values.cpp " +\
   \
   "ndb/src/Record.cpp " +\
   "ndb/src/DBOperationHelper.cpp " +\
   "ndb/src/IndexBoundHelper.cpp " +\
-  "ndb/src/DBScanHelper.cpp " +\
   "ndb/src/DBDictionaryImpl.cpp " +\
   "ndb/src/Record_wrapper.cpp " +\
   "ndb/src/Ndb_init_wrapper.cpp " +\
@@ -31,9 +31,6 @@ def build(ctx):
   "ndb/src/Ndb_cluster_connection_wrapper.cpp " + \
   "ndb/src/Ndb_wrapper.cpp " +\
   "ndb/src/NdbError_wrapper.cpp " +\
-  "ndb/src/NdbTransaction_wrapper.cpp " +\
-  "ndb/src/NdbScanOperation_wrapper.cpp " +\
-  "ndb/src/PendingOperationSet_wrapper.cpp " +\
   "ndb/src/NdbInterpretedCode_wrapper.cpp " +\
   "ndb/src/NdbScanFilter_wrapper.cpp " +\
   "ndb/src/AsyncNdbContext.cpp " +\
@@ -43,8 +40,17 @@ def build(ctx):
   "ndb/src/ColumnProxy.cpp " +\
   "ndb/src/ColumnHandler.cpp " +\
   "ndb/src/ValueObject.cpp " +\
-  "ndb/src/ScanImpl.cpp " +\
   "ndb/src/EncoderCharset.cpp " +\
+  "ndb/src/DBSessionImpl.cpp " +\
+  "ndb/src/DBSessionImpl_wrapper.cpp " +\
+  "ndb/src/DBTransactionContext.cpp " +\
+  "ndb/src/DBTransactionContext_wrapper.cpp " +\
+  "ndb/src/DBOperationSet.cpp " +\
+  "ndb/src/DBOperationSet_wrapper.cpp " +\
+  "ndb/src/ScanOperation.cpp " +\
+  "ndb/src/ScanOperation_wrapper.cpp " +\
+  "ndb/src/BlobHandler.cpp " +\
+  "ndb/src/KeyOperation.cpp " +\
   \
   "ndb/src/mysqlclient_wrapper.cpp " +\
   ""

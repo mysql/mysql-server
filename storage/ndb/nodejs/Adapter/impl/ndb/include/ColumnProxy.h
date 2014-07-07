@@ -27,26 +27,36 @@ public:
   ColumnProxy();
   ~ColumnProxy();
   void setHandler(const ColumnHandler *);
+  void setBlobBuffer(Handle<Object>);
+  bool valueIsNull();
+  BlobWriteHandler * createBlobWriteHandle(int);
 
   Handle<Value> get(char *);
   void          set(Handle<Value>);
   Handle<Value> write(char *);
-  bool          isNull;  // value has been set to null
+
+protected:
+  void Dispose();
 
 private:
   const ColumnHandler *handler;
   Persistent<Value> jsValue;
+  Persistent<Object> blobBuffer;
+  bool isNull;           // value has been set to null
   bool isLoaded;         // value has been read from buffer
   bool isDirty;          // value should be rewritten in buffer
 };
 
 
 inline ColumnProxy::ColumnProxy() :
-  isNull(false), isLoaded(false), isDirty(false)
+  jsValue(), blobBuffer(), isNull(false), isLoaded(false), isDirty(false)
 {}
 
 inline void ColumnProxy::setHandler(const ColumnHandler *h) {
   handler = h;
 }
 
+inline bool ColumnProxy::valueIsNull() {
+  return isNull;
+}
 

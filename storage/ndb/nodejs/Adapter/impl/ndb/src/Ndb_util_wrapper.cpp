@@ -28,7 +28,6 @@
 #include "NativeMethodCall.h"
 
 #include "ndb_util/CharsetMap.hpp"
-#include "ndb_util/decimal_utils.hpp"
 
 using namespace v8;
 
@@ -152,50 +151,9 @@ Handle<Value> CharsetMap_isMultibyte(const Arguments &args) {
   return scope.Close(ncall.jsReturnVal());
 }
 
-Handle<Value>  decimal_str2bin_wrapper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DETAIL);
-  HandleScope scope;
-
-  REQUIRE_ARGS_LENGTH(6);
-
-  typedef NativeCFunctionCall_6_<int, const char *, int, int, int, void *, int> NCALL;
-
-  NCALL ncall(& decimal_str2bin, args);
-  ncall.run();
-
-  return scope.Close(ncall.jsReturnVal());
-}
-
-
-Handle<Value>  decimal_bin2str_wrapper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DETAIL);
-  HandleScope scope;
-
-  REQUIRE_ARGS_LENGTH(6);
-
-  typedef NativeCFunctionCall_6_<int, const void *, int, int, int, char *, int> NCALL;
-
-  NCALL ncall(& decimal_bin2str, args);
-  ncall.run();
-
-  return scope.Close(ncall.jsReturnVal());
-}
-
-
 void Ndb_util_initOnLoad(Handle<Object> target) {
   HandleScope scope;
   Local<FunctionTemplate> JSCharsetMap;
-
-  DEFINE_JS_FUNCTION(target, "decimal_str2bin", decimal_str2bin_wrapper);
-  DEFINE_JS_FUNCTION(target, "decimal_bin2str", decimal_bin2str_wrapper);
-
-  DEFINE_JS_CONSTANT(target, E_DEC_OK);
-  DEFINE_JS_CONSTANT(target, E_DEC_TRUNCATED);
-  DEFINE_JS_CONSTANT(target, E_DEC_OVERFLOW);
-  DEFINE_JS_CONSTANT(target, E_DEC_BAD_NUM);
-  DEFINE_JS_CONSTANT(target, E_DEC_OOM);
-  DEFINE_JS_CONSTANT(target, E_DEC_BAD_PREC);
-  DEFINE_JS_CONSTANT(target, E_DEC_BAD_SCALE);
 
   DEFINE_JS_FUNCTION(target, "CharsetMap_init", CharsetMap_init_wrapper);
   DEFINE_JS_FUNCTION(target, "CharsetMap_unload", CharsetMap_unload_wrapper);

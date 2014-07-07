@@ -72,6 +72,19 @@ function RandomVarcharGenerator(length) {
 }
 
 
+function RandomVarbinaryGenerator(length) {
+  var lengthGenerator = new RandomIntGenerator(0, length),
+      byteGenerator = new RandomIntGenerator(0, 255);
+  this.next = function() {
+    var i = 0,
+        sz = lengthGenerator.next(),
+        buffer = new Buffer(sz);
+    for(; i < sz ; i++) buffer[i] = byteGenerator.next();
+    return buffer;
+  }
+}
+
+
 function RandomCharGenerator(length) {
   var characterGenerator = new RandomCharacterGenerator();
   this.next = function() {
@@ -79,6 +92,17 @@ function RandomCharGenerator(length) {
         str = "";
     for(; i < length ; i++) str += characterGenerator.next();
     return str;
+  };
+}
+
+
+function RandomBinaryGenerator(length) {
+  var byteGenerator = new RandomIntGenerator(0, 255);
+  this.next = function() {
+    var i = 0,
+        buffer = new Buffer(length);
+    for(; i < length ; i++) buffer[i] = byteGenerator.next();
+    return buffer;
   };
 }
 
@@ -116,8 +140,13 @@ function RandomGeneratorForColumn(column) {
     case "DECIMAL":
       g = new RandomFloatGenerator(0, 100000); // fixme
       break;
+    case "BINARY":
+      g = new RandomBinaryGenerator(column.length);
     case "CHAR":
       g = new RandomCharGenerator(column.length);
+      break;
+    case "VARBINARY":
+      g = new RandomVarbinaryGenerator(column.length);
       break;
     case "VARCHAR":
       g = new RandomVarcharGenerator(column.length);
@@ -136,8 +165,6 @@ function RandomGeneratorForColumn(column) {
     case "BLOB":
     case "TEXT":
     case "BIT":
-    case "BINARY":
-    case "VARBINARY":
     default:
       throw("UNSUPPORTED COLUMN TYPE " + column.columnType);
       break;
@@ -146,19 +173,25 @@ function RandomGeneratorForColumn(column) {
   return g;
 }
 
+function DummyConstructor() { };
 
-function RandomRowGenerator(table) {
-  var i = 0,
-      generators = [];
-  for(; i < table.columns.length ; i++) {
-    generators[i] = RandomGeneratorForColumn(table.columns[i]);
+function RandomRowGenerator(tableHandler) {
+  var i, column, names, generators, ctor;
+  generators = [];
+  names = [];
+  ctor = tableHandler.newObjectConstructor || DummyConstructor;
+
+  for(i = 0; i < tableHandler.fieldNumberToColumnMap.length ; i++) {
+    column        = tableHandler.fieldNumberToColumnMap[i];
+    names[i]      = tableHandler.fieldNumberToFieldMap[i].fieldName;
+    generators[i] = RandomGeneratorForColumn(column);
   }
 
   this.newRow = function() {
-    var n, col, row = {};
-    for(n = 0; n < table.columns.length ; n++) {
-      col = table.columns[n];
-      row[col.name] = generators[n].next();
+    var n, row;
+    row = new ctor();
+    for(n = 0; n < names.length ; n++) {
+      row[names[n]] = generators[n].next();
     }
     return row;
   };
