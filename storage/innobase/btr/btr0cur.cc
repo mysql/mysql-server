@@ -851,7 +851,11 @@ btr_cur_search_to_nth_level(
 #else
 	info = btr_search_get_info(index);
 
-	guess = info->root_guess;
+	if (!buf_pool_is_obsolete(info->withdraw_clock)) {
+		guess = info->root_guess;
+	} else {
+		guess = NULL;
+	}
 
 #ifdef BTR_CUR_HASH_ADAPT
 
@@ -1241,6 +1245,7 @@ retry_page_get:
 #ifdef BTR_CUR_ADAPT
 		if (block != guess) {
 			info->root_guess = block;
+			info->withdraw_clock = buf_withdraw_clock;
 		}
 #endif
 	}
