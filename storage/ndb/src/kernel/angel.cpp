@@ -51,6 +51,7 @@ reportShutdown(const ndb_mgm_configuration* config,
 
   Uint32 length, theData[25];
   EventReport *rep= CAST_PTR(EventReport, &theData[0]);
+  rep->eventType = 0; /* Ensure it's initialised */
 
   rep->setNodeId(nodeid);
   if (restart)
@@ -141,7 +142,11 @@ ignore_signals(void)
 #elif defined SIGINFO
     SIGINFO,
 #endif
+#ifdef _WIN32
+    SIGTERM,
+#else
     SIGQUIT,
+#endif
     SIGTERM,
 #ifdef SIGTSTP
     SIGTSTP,
@@ -168,7 +173,11 @@ ignore_signals(void)
     SIGPOLL,
 #endif
     SIGSEGV,
+#ifdef _WIN32
+    SIGINT,
+#else
     SIGPIPE,
+#endif
 #ifdef SIGTRAP
     SIGTRAP
 #endif

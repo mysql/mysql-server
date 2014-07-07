@@ -2531,6 +2531,8 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     NOTE: We should reset whole table list here including all tables added
     by prelocking algorithm (it is not a problem for substatements since
     they have their own table list).
+    Another note: this loop uses query_tables so does not see TABLE_LISTs
+    which represent join nests.
   */
   for (TABLE_LIST *tables= lex->query_tables;
        tables;

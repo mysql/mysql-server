@@ -18,6 +18,9 @@
  02110-1301  USA
  */
 
+// FIXME:  IS NULL / IS NOT NULL are const operations but do not require any
+// buffer space
+
 "use strict";
 
 var adapter            = require(path.join(build_dir, "ndb_adapter.node")),
@@ -147,7 +150,7 @@ BufferManagerVisitor.prototype.visitQueryBetweenOperator = function(node) {
 /** Handle nodes QueryIsNull, QueryIsNotNull */
 BufferManagerVisitor.prototype.visitQueryUnaryOperator = function(node) {
   markNode(node);
-  blah("visitQueryUnaryOperator", node);
+  node.ndb.layout = { "columnNumber" : node.queryField.field.columnNumber };
 };
 
 
@@ -194,7 +197,16 @@ FilterBuildingVisitor.prototype.visitQueryUnaryPredicate = function(node) {
 
 /** Handle nodes QueryIsNull, QueryIsNotNull */
 FilterBuildingVisitor.prototype.visitQueryUnaryOperator = function(node) {
-  blah("visitQueryUnaryOperator", node);
+  var opcode = node.ndb.opcode;
+  var colId = node.ndb.layout.columnNumber;
+
+  if(opcode === 7) {
+    this.ndbScanFilter.isnull(colId);
+  }
+  else {
+    assert(opcode === 8);
+    this.ndbScanFilter.isnotnull(colId);
+  }
 };
 
 /** Handle node QueryBetween */
@@ -239,10 +251,10 @@ function prepareFilterSpec(queryHandler) {
 
   /* Assembly */
   if(bufferManager.paramBufferSize === 0) {
-    var filterBuildingVisitor = new FilterBuildingVisitor(queryHandler, null);
+    var filterBuildingVisitor = new FilterBuildingVisitor(spec, null);
     queryHandler.predicate.visit(filterBuildingVisitor);
-    queryHandler.constFilter.ndbScanFilter = filterBuildingVisitor.ndbScanFilter;
-    queryHandler.constFilter.ndbInterpretedCode = filterBuildingVisitor.ndbInterpretedCode;
+    spec.constFilter.ndbScanFilter = filterBuildingVisitor.ndbScanFilter;
+    spec.constFilter.ndbInterpretedCode = filterBuildingVisitor.ndbInterpretedCode;
   }
   else {
     spec.isConst         = false;
