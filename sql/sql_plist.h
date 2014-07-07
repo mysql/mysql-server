@@ -1,6 +1,6 @@
 #ifndef SQL_PLIST_H
 #define SQL_PLIST_H
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -155,10 +155,8 @@ public:
   typedef I_P_List<T, B, C, I> Base;
   typedef I_P_List_iterator<T, Base> Iterator;
   typedef I_P_List_iterator<const T, Base> Const_Iterator;
-#ifndef _lint
   friend class I_P_List_iterator<T, Base>;
   friend class I_P_List_iterator<const T, Base>;
-#endif
 };
 
 

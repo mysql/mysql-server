@@ -344,10 +344,24 @@ struct btrsea_sync_check : public sync_check_functor_t {
 
 	virtual bool operator()(const latch_t& latch)
 	{
-		// FIXME: This condition doesn't look right
+		/* If calling thread doesn't hold search latch then
+		check if there are latch level exception provided.
+
+		Note: Optimizer has added InnoDB intrinsic table as an
+		alternative to MyISAM intrinsic table.
+		With this a new path/workflow came into existence that is
+		Server -> Plugin -> SE
+		Plugin in this case is I_S which is sharing the latch vector
+		of InnoDB and so there could be lock conflicts.
+		Ideally Plugin should use difference namespace latch vector
+		as it doesn't have any depedency with SE latching protocol.
+
+		Added check that will allow thread to hold I_S latches */
 		if (!m_has_search_latch
-		    || (latch.m_level != SYNC_SEARCH_SYS
-			&& latch.m_level != SYNC_FTS_CACHE)) {
+		    && (latch.m_level != SYNC_SEARCH_SYS
+			&& latch.m_level != SYNC_FTS_CACHE
+			&& latch.m_level != SYNC_TRX_I_S_RWLOCK
+			&& latch.m_level != SYNC_TRX_I_S_LAST_READ)) {
 			m_result = true;
 			return(m_result);
 		}
@@ -381,7 +395,8 @@ struct dict_sync_check : public sync_check_functor_t {
 			&& latch.m_level != SYNC_DICT_OPERATION
 			&& latch.m_level != SYNC_FTS_CACHE
 			/* This only happens in recv_apply_hashed_log_recs. */
-			&& latch.m_level != SYNC_RECV_WRITER)) {
+			&& latch.m_level != SYNC_RECV_WRITER
+			&& latch.m_level != SYNC_NO_ORDER_CHECK)) {
 
 			m_result = true;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -431,7 +431,7 @@ struct RPL_TABLE_LIST
 
 
 /* Anonymous namespace for template functions/classes */
-CPP_UNNAMED_NS_START
+namespace {
 
   /*
     Smart pointer that will automatically call my_afree (a macro) when
@@ -458,7 +458,7 @@ CPP_UNNAMED_NS_START
     Obj* get() { return m_ptr; }
   };
 
-CPP_UNNAMED_NS_END
+} // namespace
 
 class Deferred_log_events
 {

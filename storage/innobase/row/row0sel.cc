@@ -3978,7 +3978,6 @@ The cursor is an iterator over the table/index.
 				Note: if this is != 0, then prebuilt must has a
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
-@param[in,out]	session		session handler
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -3987,8 +3986,7 @@ row_search_no_mvcc(
 	ulint			mode,
 	row_prebuilt_t*		prebuilt,
 	ulint			match_mode,
-	ulint			direction,
-	innodb_session_t*	session)
+	ulint			direction)
 {
 	dict_index_t*	index		= prebuilt->index;
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
@@ -4077,8 +4075,8 @@ row_search_no_mvcc(
 		index->last_sel_cur->release();
 
 		/* Capture table snapshot in form of trx-id. */
-		index->trx_id = session->get_table_curr_sess_trx_id(
-			index->table->name);
+		index->trx_id = dict_table_get_curr_table_sess_trx_id(
+			index->table);
 
 		/* Fresh search commences. */
 		mtr_start(mtr);

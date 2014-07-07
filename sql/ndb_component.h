@@ -15,13 +15,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef HA_NDBCLUSTER_COMPONENT_H
-#define HA_NDBCLUSTER_COMPONENT_H
+#ifndef NDB_COMPONENT_H
+#define NDB_COMPONENT_H
 
 #include <my_global.h>
 #include <my_pthread.h>
 
 extern "C" void * Ndb_component_run_C(void *);
+
+/**
+ * Baseclass encapsulating the different components
+ * in ndbcluster.
+ *
+ * NOTE! The intention should be to not correlate to number of
+ * threads since that is an implementation detail in each
+ * component.
+ */
 
 class Ndb_component
 {
@@ -35,7 +44,7 @@ protected:
   /**
    * Con/de-structor is protected...so that sub-class needs to provide own
    */
-  Ndb_component();
+  Ndb_component(const char* name);
   virtual ~Ndb_component();
 
   /**
@@ -54,9 +63,26 @@ protected:
   virtual int do_deinit() = 0;
 
   /**
+   * Component wakeup function
+   * - called when component is set to stop, should
+   *   wakeup component from waiting
+   */
+  virtual void do_wakeup() = 0;
+
+  /**
    * For usage in threads main loop
    */
   bool is_stop_requested();
+
+protected:
+  void log_verbose(unsigned verbose_level, const char* fmt, ...)
+    __attribute__((format(printf, 3, 4)));
+  void log_error(const char *fmt, ...)
+    __attribute__((format(printf, 2, 3)));
+  void log_warning(const char *fmt, ...)
+    __attribute__((format(printf, 2, 3)));
+  void log_info(const char *fmt, ...)
+    __attribute__((format(printf, 2, 3)));
 
 private:
 
@@ -74,6 +100,8 @@ private:
   pthread_t m_thread;
   native_mutex_t m_start_stop_mutex;
   native_cond_t m_start_stop_cond;
+
+  const char* m_name;
 
   void run_impl();
   friend void * Ndb_component_run_C(void *);

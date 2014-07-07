@@ -1022,6 +1022,10 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
+  Field *hash_field;                    /* Field used by unique constraint */
+  /* Mask and bitmap are used along with hash_field */
+  uchar *hash_field_mask;
+  MY_BITMAP hash_field_bitmap;
   Field *fts_doc_id_field;              /* Set if FTS_DOC_ID field is present */
 
   /* Table's triggers, 0 if there are no of them */
@@ -1213,8 +1217,8 @@ private:
 public:
 
   void init(THD *thd, TABLE_LIST *tl);
-  bool fill_item_list(List<Item> *item_list) const;
-  void reset_item_list(List<Item> *item_list) const;
+  bool fill_item_list(List<Item> *item_list, uint limit= MAX_FIELDS) const;
+  void reset_item_list(List<Item> *item_list, uint limit) const;
   void clear_column_bitmaps(void);
   void prepare_for_position(void);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
@@ -1933,6 +1937,8 @@ private:
   /**
      Optimized copy of m_join_cond (valid for one single
      execution). Initialized by SELECT_LEX::get_optimizable_conditions().
+     @todo it would be good to reset it in reinit_before_use(), if
+     reinit_stmt_before_use() had a loop including join nests.
   */
   Item          *m_optim_join_cond;
 public:

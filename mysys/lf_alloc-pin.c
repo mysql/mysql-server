@@ -216,7 +216,7 @@ void lf_pinbox_put_pins(LF_PINS *pins)
     lf_pinbox_real_free(pins);
     if (pins->purgatory_count)
     {
-      pthread_yield();
+      my_thread_yield();
     }
   }
   top_ver= pinbox->pinstack_top_ver;

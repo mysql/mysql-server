@@ -49,8 +49,6 @@ public:
 		m_space_id(ULINT_UNDEFINED),
 		m_path(),
 		m_flags(),
-		m_min_flushed_lsn(LSN_MAX),
-		m_max_flushed_lsn(0),
 		m_ignore_read_only(false)
 	{
 		/* No op */
@@ -139,38 +137,6 @@ public:
 		return(m_flags);
 	}
 
-	/** Set the minimum flushed LSN found in this tablespace
-	@param lsn	A flushed lsn for a datafile */
-	void set_min_flushed_lsn(lsn_t lsn)
-	{
-		if (m_min_flushed_lsn > lsn) {
-			m_min_flushed_lsn = lsn;
-		}
-	}
-
-	/** Get the minimum flushed LSN found in this tablespace
-	@return m_min_flushed_lsn for this tablespaces */
-	lsn_t min_flushed_lsn()	const
-	{
-		return(m_min_flushed_lsn);
-	}
-
-	/** Set the maximum flushed LSN found in this tablespace
-	@param lsn	A flushed lsn for a datafile */
-	void set_max_flushed_lsn(lsn_t lsn)
-	{
-		if (m_max_flushed_lsn < lsn) {
-			m_max_flushed_lsn = lsn;
-		}
-	}
-
-	/** Get the maximum flushed LSN found in this tablespace
-	@return m_max_flushed_lsn for this tablespaces */
-	lsn_t max_flushed_lsn()	const
-	{
-		return(m_max_flushed_lsn);
-	}
-
 	/** Set Ignore Read Only Status for tablespace.
 	@param[in]      read_only_status        read only status indicator */
 	void set_ignore_read_only(bool read_only_status)
@@ -232,12 +198,6 @@ private:
 
 	/** Tablespace flags */
 	ulint		m_flags;
-
-	/** Minimum of flushed LSN values in data files */
-	lsn_t		m_min_flushed_lsn;
-
-	/** Maximum of flushed LSN values in data files */
-	lsn_t		m_max_flushed_lsn;
 
 protected:
 	/** Ignore server read only configuration for this tablespace. */

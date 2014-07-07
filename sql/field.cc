@@ -1019,7 +1019,7 @@ test_if_important_data(const CHARSET_INFO *cs, const char *str,
    in other files.
  */
 
-CPP_UNNAMED_NS_START
+namespace {
 
 int compare(unsigned int a, unsigned int b)
 {
@@ -1030,7 +1030,7 @@ int compare(unsigned int a, unsigned int b)
   return 0;
 }
 
-CPP_UNNAMED_NS_END
+} // namespace
 
 /**
   Detect Item_result by given field type of UNION merge result.
@@ -7018,7 +7018,7 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 void Field_string::make_sort_key(uchar *to, size_t length)
 {
-  uint tmp __attribute__((unused))=
+  size_t tmp __attribute__((unused))=
     field_charset->coll->strnxfrm(field_charset,
                                   to, length, char_length(),
                                   ptr, field_length,
@@ -7298,7 +7298,7 @@ type_conversion_status Field_varstring::store(const char *from, size_t length,
   if (length_bytes == 1)
     *ptr= (uchar) copy_length;
   else
-    int2store(ptr, copy_length);
+    int2store(ptr, static_cast<uint16>(copy_length));
 
   return check_string_copy_error(well_formed_error_pos,
                                  cannot_convert_error_pos, from_end_pos,
@@ -7515,9 +7515,10 @@ void Field_varstring::sql_type(String &res) const
 }
 
 
-uint32 Field_varstring::data_length()
+uint32 Field_varstring::data_length(uint row_offset)
 {
-  return length_bytes == 1 ? (uint32) *ptr : uint2korr(ptr);
+  return length_bytes == 1 ?
+    (uint32) *(ptr + row_offset) : uint2korr(ptr + row_offset);
 }
 
 /*
@@ -8132,7 +8133,7 @@ size_t Field_blob::get_key_image(uchar *buff, size_t length, imagetype type_arg)
     memset(buff+HA_KEY_BLOB_LENGTH+blob_length, 0, (length-blob_length));
     length=(uint) blob_length;
   }
-  int2store(buff,length);
+  int2store(buff, static_cast<uint16>(length));
   memcpy(buff+HA_KEY_BLOB_LENGTH, blob, length);
   return HA_KEY_BLOB_LENGTH+length;
 }

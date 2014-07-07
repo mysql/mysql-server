@@ -187,6 +187,7 @@ btr_pcur_store_position(
 
 	/* Function try to check if block is S/X latch. */
 	cursor->modify_clock = buf_block_get_modify_clock(block);
+	cursor->withdraw_clock = buf_withdraw_clock;
 }
 
 /**************************************************************//**
@@ -287,7 +288,8 @@ btr_pcur_restore_position_func(
             && !dict_table_is_intrinsic(cursor->btr_cur.index->table)) {
 		/* Try optimistic restoration. */
 
-		if (btr_cur_optimistic_latch_leaves(
+		if (!buf_pool_is_obsolete(cursor->withdraw_clock)
+		    && btr_cur_optimistic_latch_leaves(
 			cursor->block_when_stored, cursor->modify_clock,
 			&latch_mode, btr_pcur_get_btr_cur(cursor),
 			file, line, mtr)) {
@@ -384,6 +386,7 @@ btr_pcur_restore_position_func(
 				buf_block_get_modify_clock(
 					cursor->block_when_stored);
 			cursor->old_stored = BTR_PCUR_OLD_STORED;
+			cursor->withdraw_clock = buf_withdraw_clock;
 
 			mem_heap_free(heap);
 

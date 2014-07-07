@@ -185,9 +185,9 @@ public:
   partition_type part_type;
   partition_type subpart_type;
 
-  uint part_info_len;
-  uint part_func_len;
-  uint subpart_func_len;
+  size_t part_info_len;
+  size_t part_func_len;
+  size_t subpart_func_len;
 
   uint num_parts;
   uint num_subparts;

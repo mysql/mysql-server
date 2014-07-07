@@ -1,0 +1,78 @@
+create table t1 (
+a int not null,
+b int not null,
+unique key t1x1 (b) using hash,
+primary key using hash (a)
+) engine=ndb;
+create table t2 (
+a int not null,
+b int not null,
+key t2x1 (b),
+primary key using hash (a),
+foreign key t2fk1 (b) references t1 (b)
+) engine=ndb;
+
+ndb_show_tables completed.....
+
+select type,name from ndb_show_tables_results
+where (type like '%Index%' or type like '%ForeignKey%')
+and (name like '%t1%' or name like '%t2%')
+order by name;
+type	name
+'ForeignKey'	'XX/XX/t2fk1'
+'UniqueHashIndex'	't1x1$unique'
+'OrderedIndex'	't2x1'
+insert into t1 values (1,10),(2,20),(3,30),(4,40),(5,50);
+insert into t2 values (1,10),(2,10),(3,30),(4,50),(5,50);
+select * from t1 where b = 10 order by a;
+a	b
+1	10
+select * from t2 where b = 10 order by a;
+a	b
+1	10
+2	10
+# run restart skip indexes
+
+ndb_show_tables completed.....
+
+select type,name from ndb_show_tables_results
+where (type like '%Index%' or type like '%ForeignKey%')
+and (name like '%t1%' or name like '%t2%')
+order by name;
+type	name
+# run backup
+# create empty schema
+drop table t2, t1;
+create table t1 (
+a int not null,
+b int not null,
+unique key t1x1 (b) using hash,
+primary key using hash (a)
+) engine=ndb;
+create table t2 (
+a int not null,
+b int not null,
+key t2x1 (b),
+primary key using hash (a),
+foreign key t2fk1 (b) references t1 (b)
+) engine=ndb;
+
+ndb_show_tables completed.....
+
+select type,name from ndb_show_tables_results
+where (type like '%Index%' or type like '%ForeignKey%')
+and (name like '%t1%' or name like '%t2%')
+order by name;
+type	name
+'ForeignKey'	'XX/XX/t2fk1'
+'UniqueHashIndex'	't1x1$unique'
+'OrderedIndex'	't2x1'
+# run restore
+select * from t1 where b = 10 order by a;
+a	b
+1	10
+select * from t2 where b = 10 order by a;
+a	b
+1	10
+2	10
+drop table t2, t1;
