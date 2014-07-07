@@ -19,6 +19,8 @@
  */
 "use strict";
 
+var udebug     = unified_debug.getLogger("test/t_basic/DefaultValuesTest.js");
+
 /***** Persist with domain object ***/
 var t1 = new harness.SerialTest("testPersistDomainObjectDefaultNameAndAge");
 t1.run = function() {
@@ -157,6 +159,8 @@ t6.run = function() {
     session.persist(object, function(err, session2) {
       if (!err) {
         testCase.appendErrorMessage('t6 Expected error not received for not null no default undefined');
+      } else {
+        udebug.log('t6 Expected error received:', err);
       }
       testCase.failOnError();
     }, session);
@@ -167,13 +171,16 @@ t6.run = function() {
 var t7 = new harness.SerialTest("testPersistDomainObjectNotNullNoDefaultNull");
 t7.run = function() {
   var testCase = this;
-  // create the domain object 4176 with no magic; must fail
+  // create the domain object 4176 with magic null; must fail
   var object = new global.t_basic(4176);
   object.magic = null;
   fail_openSession(testCase, function(session) {
     session.persist(object, function(err, session2) {
       if (!err) {
-        testCase.appendErrorMessage('t6 Expected error not received for not null no default null');
+        testCase.appendErrorMessage('t7 Expected error not received for not null no default null');
+      } else {
+        testCase.errorIfNotEqual('t7 Wrong sqlstate', '23000', err.sqlstate);
+        udebug.log('t7 Expected error received:', err);
       }
       testCase.failOnError();
     }, session);

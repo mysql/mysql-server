@@ -26,10 +26,10 @@ import java.util.ArrayList;
 abstract public class CrundLoad extends Load {
     // resources
     protected final CrundDriver driver;
-    protected String name;
 
     public CrundLoad(CrundDriver driver) {
         this.driver = driver;
+        driver.addLoad(this);
     }
 
     // ----------------------------------------------------------------------
@@ -38,10 +38,6 @@ abstract public class CrundLoad extends Load {
 
     abstract protected void initProperties();
     abstract protected void printProperties();
-
-    public String getName() {
-        return name;
-    }
 
     public void init() throws Exception {
         initProperties();
@@ -80,6 +76,38 @@ abstract public class CrundLoad extends Load {
     // the sequence of benchmark operations
     protected final List<Op> ops = new ArrayList<Op>();
 
+    // runs a sequence of benchmark operations
+    public void runOperations(int nOps) throws Exception {
+        final int[] id = new int[nOps];
+        for (int i = 0; i < nOps; i++)
+            id[i] = i * 2;
+
+        for (Op op : ops) {
+            // clear any data/result caches before the next transaction
+            clearPersistenceContext();
+            runOperation(op, id);
+        }
+
+        driver.abortIfErrors();
+    }
+
+    // runs a benchmark operation
+    protected void runOperation(Op op, int[] id) throws Exception {
+        final String on = op.getName();
+        if (on == null)
+            return;
+
+        if (!excludedOperation(on)) {
+            driver.beginOp(on);
+            try {
+                op.run(id);
+            } catch (Exception e) {
+                driver.logError(getName(), op.getName(), e);
+            }
+            driver.finishOp(on, id.length);
+        }
+    }
+
     // skip operation if excluded or not in non-empty includes list
     protected boolean excludedOperation(String name) {
         for (String r : driver.exclude)
@@ -101,40 +129,6 @@ abstract public class CrundLoad extends Load {
 
         //out.println("*** exclude " + name + ": non-match includes");
         return true;
-    }
-
-    // runs a benchmark operation
-    protected void runOperation(Op op, int[] id) throws Exception {
-        final String on = op.getName();
-        if (on == null)
-            return;
-
-        if (!excludedOperation(on)) {
-            driver.beginOp(on);
-            try {
-                op.run(id);
-            } catch (Exception e) {
-                if (driver.failOnError)
-                    throw e;
-                driver.logError(getName(), op.getName(), e);
-            }
-            driver.finishOp(on, id.length);
-        }
-    }
-
-    // runs a sequence of benchmark operations
-    public void runOperations(int nOps) throws Exception {
-        final int[] id = new int[nOps];
-        for (int i = 0; i < nOps; i++)
-            id[i] = i * 2;
-
-        for (Op op : ops) {
-            // clear any data/result caches before the next transaction
-            clearPersistenceContext();
-            runOperation(op, id);
-        }
-
-        driver.abortIfErrors();
     }
 
     // ----------------------------------------------------------------------

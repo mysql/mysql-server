@@ -1,6 +1,5 @@
-/*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,6 +88,47 @@ NdbOut& NdbOut::setHexFormat(int _format)
   return *this;
 }
 
+NdbOut& NdbOut::hexdump(const Uint32* words, size_t count)
+{
+  /**
+   * Write at most about 1000 characters.
+   * If not all words are printed end with "...\n".
+   * Words are written as "H'11223344 ", 11 character each.
+   */
+  char buf[90 * 11 + 4 + 1];
+  size_t offset = 0;
+  size_t words_to_dump = count;
+  if (words_to_dump > 90)
+  {
+    words_to_dump = 90;
+  }
+  for(size_t i = 0 ; i < words_to_dump ; i ++ )
+  {
+    // Write at most 6 words per line
+    char sep = (i % 6 == 5) ? '\n' : ' ';
+    assert(offset + 11 < sizeof(buf));
+    int n = BaseString::snprintf(buf + offset, sizeof(buf) - offset, "H'%08x%c", words[i], sep);
+    assert(n == 11);
+    offset += n;
+  }
+  if (words_to_dump < count)
+  {
+    assert(offset + 4 < sizeof(buf));
+    int n = BaseString::snprintf(buf + offset, sizeof(buf) - offset, "...\n");
+    assert(n == 4);
+    offset += n;
+  }
+  else
+  {
+    assert(offset + 1 < sizeof(buf));
+    int n = BaseString::snprintf(buf + offset, sizeof(buf) - offset, "\n");
+    assert(n == 1);
+    offset += n;
+  }
+  m_out->write(buf, offset);  
+  return *this;
+}
+
 NdbOut::NdbOut(OutputStream & out, bool autoflush)
   : m_out(& out), isHex(0), m_autoflush(autoflush)
 {
@@ -111,38 +151,76 @@ NdbOut::~NdbOut()
 }
 
 void
-NdbOut::print(const char * fmt, ...){
+NdbOut::print(const char * fmt, ...)
+{
+  if (fmt == NULL)
+  {
+    /*
+     Function was called with fmt being NULL, this is an error
+     but handle it gracefully by simpling printing nothing
+     instead of continuing down the line whith the NULL pointer.
+
+     Catch problem with an assert in debug compile.
+    */
+    assert(false);
+    return;
+  }
+
   va_list ap;
   char buf[1000];
   
   va_start(ap, fmt);
-  if (fmt != 0)
-    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   *this << buf;
   va_end(ap);
 }
 
 void
-NdbOut::println(const char * fmt, ...){
+NdbOut::println(const char * fmt, ...)
+{
+  if (fmt == NULL)
+  {
+    /*
+     Function was called with fmt being NULL, this is an error
+     but handle it gracefully by simpling printing nothing
+     instead of continuing down the line whith the NULL pointer.
+
+     Catch problem with an assert in debug compile.
+    */
+    assert(false);
+    *this << endl;
+    return;
+  }
+
   va_list ap;
   char buf[1000];
   
   va_start(ap, fmt);
-  if (fmt != 0)
-    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   *this << buf << endl;
   va_end(ap);
 }
 
-extern "C"
+static
 void 
-vndbout_c(const char * fmt, va_list ap){
-  char buf[1000];
-  
-  if (fmt != 0)
+vndbout_c(const char * fmt, va_list ap)
+{
+  if (fmt == NULL)
   {
-    BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+    /*
+     Function was called with fmt being NULL, this is an error
+     but handle it gracefully by simpling printing an empty newline
+     instead of continuing down the line whith the NULL pointer.
+
+     Catch problem with an assert in debug compile.
+    */
+    assert(false);
+    ndbout << endl; // Empty newline
+    return;
   }
+
+  char buf[1000];
+  BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
   ndbout << buf << endl;
 }
 

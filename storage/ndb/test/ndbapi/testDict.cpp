@@ -366,7 +366,7 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
         int inum;
         for (inum = 0; inum < icount; inum++) {
           const int tcols = pTab2->getNoOfColumns();
-          assert(tcols != 0);
+          require(tcols != 0);
           int icols = 1 + myRandom48(tcols);
           if (icols > NDB_MAX_ATTRIBUTES_IN_INDEX)
             icols = NDB_MAX_ATTRIBUTES_IN_INDEX;
@@ -383,7 +383,7 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
           for (ic = 0; ic < icols; ic++) {
             int tc = myRandom48(tcols);
             const NdbDictionary::Column* c = pTab2->getColumn(tc);
-            assert(c != 0);
+            require(c != 0);
             if (mask.get(tc) ||
                 c->getType() == NdbDictionary::Column::Blob ||
                 c->getType() == NdbDictionary::Column::Text ||
@@ -424,7 +424,7 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
             break;
         }
         const NdbDictionary::Table* pTab3 = tabList[num3].pTab;
-        assert(pTab3 != 0);
+        require(pTab3 != 0);
         char tabName3[200];
         strcpy(tabName3, pTab3->getName());
         HugoTransactions hugoTrans(*pTab3);
@@ -445,7 +445,7 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
         }
       }
       tabList[num].exists = 1;
-      assert(numExists < numTables);
+      require(numExists < numTables);
       numExists++;
       if (numExists == numTables)
         bias = 0;
@@ -479,7 +479,7 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
         break;
       }
       tabList[num].exists = 0;
-      assert(numExists > 0);
+      require(numExists > 0);
       numExists--;
       if (numExists == 0)
         bias = 1;
@@ -2003,7 +2003,7 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
   per *= 1000;
   per /= times;
   
-  ndbout_c("%d random getColumn(name) in %Ld ms -> %u us/get",
+  ndbout_c("%d random getColumn(name) in %lld ms -> %u us/get",
 	   times, stop, Uint32(per));
 
   return NDBT_OK;
@@ -2576,7 +2576,7 @@ runDictOps(NDBT_Context* ctx, NDBT_Step* step)
         ind.setType(NdbDictionary::Index::OrderedIndex);
         ind.setLogging(false);
       } else {
-        assert(false);
+        require(false);
       }
       const char** indtemp = indlist;
       while (*++indtemp != 0) {
@@ -3325,7 +3325,7 @@ RandSchemaOp::remove_obj(Obj* obj)
         break;
       }
     }
-    assert(found);
+    require(found);
   }
 
   {
@@ -3339,7 +3339,7 @@ RandSchemaOp::remove_obj(Obj* obj)
         break;
       }
     }
-    assert(found);
+    require(found);
   }
   delete obj;
 }
@@ -3480,7 +3480,7 @@ RandSchemaOp::cleanup(Ndb* ndb)
     }
   }
   
-  assert(m_objects.size() == 0);
+  require(m_objects.size() == 0);
   return NDBT_OK;
 }
 
@@ -3933,7 +3933,7 @@ poll_msg(NDBT_Context* ctx, int loc, int rem, char* msg)
   const char* ptr;
   if ((ptr = ctx->getProperty(msgName, (char*)0)) != 0 && ptr[0] != 0)
   {
-    assert(strlen(ptr) < MaxMsg);
+    require(strlen(ptr) < MaxMsg);
     memset(msg, 0, MaxMsg);
     strcpy(msg, ptr);
     g_info << loc << ": recv from:" << rem << " msg:" << msg << endl;
@@ -4025,7 +4025,7 @@ runBug48604(NDBT_Context* ctx, NDBT_Step* step)
   const NdbDictionary::Index* pInd = 0;
   (void)pDic->dropTable(tabName_Bug48604);
   int loc = step->getStepNo() - 1;
-  assert(loc == 0);
+  require(loc == 0);
   g_err << "main" << endl;
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
@@ -4092,7 +4092,7 @@ runBug48604ops(NDBT_Context* ctx, NDBT_Step* step)
   const NdbDictionary::Table* pTab = 0;
   //const NdbDictionary::Index* pInd = 0;
   int loc = step->getStepNo() - 1;
-  assert(loc > 0);
+  require(loc > 0);
   g_err << "ops: loc:" << loc << endl;
   int result = NDBT_OK;
   int records = ctx->getNumRecords();
@@ -4101,7 +4101,7 @@ runBug48604ops(NDBT_Context* ctx, NDBT_Step* step)
   do
   {
     CHECK(recv_msg(ctx, loc, 0, msg));
-    assert(msg[0] == 's');
+    require(msg[0] == 's');
     CHECK((pTab = pDic->getTable(tabName_Bug48604)) != 0);
     HugoOperations ops(*pTab);
     bool have_trans = false;
@@ -4120,14 +4120,14 @@ runBug48604ops(NDBT_Context* ctx, NDBT_Step* step)
         {
           if (c == 'n')
           {
-            assert(have_trans);
+            require(have_trans);
             CHECK(ops.execute_NoCommit(pNdb) == 0);
             g_info << loc << ": not committed" << endl;
             continue;
           }
           if (c == 'c')
           {
-            assert(have_trans);
+            require(have_trans);
             CHECK(ops.execute_Commit(pNdb) == 0);
             ops.closeTransaction(pNdb);
             have_trans = false;
@@ -4136,7 +4136,7 @@ runBug48604ops(NDBT_Context* ctx, NDBT_Step* step)
           }
           if (c == 'a')
           {
-            assert(have_trans);
+            require(have_trans);
             CHECK(ops.execute_Rollback(pNdb) == 0);
             ops.closeTransaction(pNdb);
             have_trans = false;
@@ -4172,12 +4172,12 @@ runBug48604ops(NDBT_Context* ctx, NDBT_Step* step)
             CHECK(ops.clearTable(pNdb) == 0);
             continue;
           }
-          assert(false);
+          require(false);
         }
         CHECK(send_msg(ctx, loc, 0, "o"));
         continue;
       }
-      assert(false);
+      require(false);
     }
   } while (0);
 
@@ -4259,7 +4259,7 @@ static bool st_core_on_err = false;
 static uint
 urandom(uint m)
 {
-  assert(m != 0);
+  require(m != 0);
   uint n = (uint)ndb_rand();
   return n % m;
 }
@@ -4387,8 +4387,8 @@ ST_Trg::realname() const
   const char* p = name;
   const char* q = strchr(p, '<');
   const char* r = strchr(p, '>');
-  assert(q != 0 && r != 0 && q < r);
-  assert(ind->id != -1);
+  require(q != 0 && r != 0 && q < r);
+  require(ind->id != -1);
   sprintf(realname_buf, "%.*s%d%s", (int)(q - p), p, ind->id, r + 1);
   return realname_buf;
 }
@@ -4449,8 +4449,8 @@ protected:
 
 const ndb_mgm_node_state&
 ST_Restarter::get_state(int node_id) {
-  assert(node_id > 0 && node_id < MAX_NODES);
-  assert(!first_time);
+  require(node_id > 0 && node_id < MAX_NODES);
+  require(!first_time);
   return state[node_id];
 }
 
@@ -4458,15 +4458,15 @@ void
 ST_Restarter::set_state(const ndb_mgm_node_state& new_state)
 {
   int node_id = new_state.node_id;
-  assert(1 <= node_id && node_id < MAX_NODES);
+  require(1 <= node_id && node_id < MAX_NODES);
 
-  assert(new_state.node_type == NDB_MGM_NODE_TYPE_MGM ||
-         new_state.node_type == NDB_MGM_NODE_TYPE_NDB ||
-         new_state.node_type == NDB_MGM_NODE_TYPE_API);
+  require(new_state.node_type == NDB_MGM_NODE_TYPE_MGM ||
+          new_state.node_type == NDB_MGM_NODE_TYPE_NDB ||
+          new_state.node_type == NDB_MGM_NODE_TYPE_API);
 
   ndb_mgm_node_state& old_state = state[node_id];
   if (!first_time)
-    assert(old_state.node_type == new_state.node_type);
+    require(old_state.node_type == new_state.node_type);
   old_state = new_state;
 }
 
@@ -4515,7 +4515,7 @@ struct ST_Con {
     dic = a_ndb->getDictionary();
     restarter = a_restarter;
     numdbnodes = restarter->getNumDbNodes();
-    assert(numdbnodes >= 1);
+    require(numdbnodes >= 1);
     sprintf(dbname, "%s", ndb->getDatabaseName());
     tablist = new ST_Tablist;
     tabcount = 0;
@@ -4525,10 +4525,10 @@ struct ST_Con {
     xcon = 0;
     node_id = ncc->node_id();
     {
-      assert(restarter->get_status() == 0);
+      require(restarter->get_status() == 0);
       const ndb_mgm_node_state& state = restarter->get_state(node_id);
-      assert(state.node_type == NDB_MGM_NODE_TYPE_API);
-      assert(state.version != 0); // means "connected"
+      require(state.node_type == NDB_MGM_NODE_TYPE_API);
+      require(state.version != 0); // means "connected"
       g_info << "node_id:" << node_id << endl;
     }
     loop = -1;
@@ -4583,14 +4583,14 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
     const Vector<BaseString>& tables = ctx->getSuite()->m_tables_in_test;
     pTab = NDBT_Tables::getTable(tables[i].c_str());
 #endif
-    assert(pTab != 0 && pTab->getName() != 0);
+    require(pTab != 0 && pTab->getName() != 0);
 
     {
       bool ok = true;
       int n;
       for (n = 0; n < pTab->getNoOfColumns(); n++) {
         const NdbDictionary::Column* pCol = pTab->getColumn(n);
-        assert(pCol != 0);
+        require(pCol != 0);
         if (pCol->getStorageType() !=
             NdbDictionary::Column::StorageTypeMemory) {
           g_err << pTab->getName() << ": skip non-mem table for now" << endl;
@@ -4653,13 +4653,15 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
         ind.trgcount = 1;
       }
       else
-        assert(false);
+      {
+        require(false);
+      }
 
       const char* sep = "";
       const char* colname;
       while ((colname = *indspec++) != 0) {
         const NdbDictionary::Column* col = tab.tab->getColumn(colname);
-        assert(col != 0);
+        require(col != 0);
         pInd->addColumn(*col);
 
         ind.colnames.appfmt("%s%s", sep, colname);
@@ -4735,7 +4737,7 @@ st_wait_db_node_up(ST_Con& c, int node_id)
     chk1(st_check_db_nodes(c, node_id) == 0);
 
     const ndb_mgm_node_state& state = c.restarter->get_state(node_id);
-    assert(state.node_type == NDB_MGM_NODE_TYPE_NDB);
+    require(state.node_type == NDB_MGM_NODE_TYPE_NDB);
     if (state.node_status == NDB_MGM_NODE_STATUS_STARTED)
       break;
     g_info << "waiting count:" << count << "/" << max_count << endl;
@@ -4752,7 +4754,7 @@ err:
 static int
 st_start_xcon(ST_Con& c)
 {
-  assert(c.xcon == 0);
+  require(c.xcon == 0);
   g_info << "start extra connection" << endl;
 
   do {
@@ -4778,7 +4780,7 @@ err:
 static int
 st_stop_xcon(ST_Con& c)
 {
-  assert(c.xcon != 0);
+  require(c.xcon != 0);
   int node_id = c.xcon->node_id;
   g_info << "stop extra connection node_id:" << node_id << endl;
 
@@ -4791,7 +4793,7 @@ st_stop_xcon(ST_Con& c)
   while (1) {
     chk1(c.restarter->get_status() == 0);
     const ndb_mgm_node_state& state = c.restarter->get_state(node_id);
-    assert(state.node_type == NDB_MGM_NODE_TYPE_API);
+    require(state.node_type == NDB_MGM_NODE_TYPE_API);
     if (state.version == 0) // means "disconnected"
       break;
     g_info << "waiting count:" << ++count << endl;
@@ -4838,11 +4840,11 @@ st_get_errins(ST_Con& c, const ST_Errins* list)
   uint size = 0;
   while (!list[size++].ends)
     ;
-  assert(size > 1);
+  require(size > 1);
   uint n = urandom(size - 1);
   const ST_Errins& errins = list[n];
   if (errins.list == 0) {
-    assert(errins.value != 0);
+    require(errins.value != 0);
     return errins;
   }
   return st_get_errins(c, errins.list);
@@ -4851,7 +4853,7 @@ st_get_errins(ST_Con& c, const ST_Errins* list)
 static int
 st_do_errins(ST_Con& c, ST_Errins& errins)
 {
-  assert(errins.value != 0);
+  require(errins.value != 0);
   if (c.numdbnodes < 2)
     errins.master = 1;
   else if (errins.master == -1)
@@ -4881,7 +4883,7 @@ st_find_obj(const char* dbname, const char* name)
     const ST_Obj* objp = st_objlist[i];
     if (strcmp(objp->dbname, dbname) == 0 &&
         strcmp(objp->name, name) == 0) {
-      assert(ret_objp == 0);
+      require(ret_objp == 0);
       ret_objp = objp;
     }
   }
@@ -5003,7 +5005,7 @@ st_set_create_tab(ST_Con& c, ST_Tab& tab, bool create)
   for (j = 0; j < tab.indcount; j++) {
     ST_Ind& ind = tab.ind(j);
     if (create == true)
-      assert(!ind.exists());
+      require(!ind.exists());
     else {
       if (ind.exists())
         st_set_create_ind(c, ind, false);
@@ -5018,7 +5020,7 @@ st_known_type(const NdbDictionary::Dictionary::List::Element& element)
 {
   switch (element.type) {
   case NdbDictionary::Object::UserTable:
-    assert(element.database != 0);
+    require(element.database != 0);
     if (strcmp(element.database, "mysql") == 0)
       break;
     if (strncmp(element.name, "NDB$BLOB", 8) == 0)
@@ -5269,7 +5271,7 @@ st_equal_table(const NdbDictionary::Table& t1, const NdbDictionary::Table& t2)
   for (n = 0; n < t1.getNoOfColumns(); n++) {
     const NdbDictionary::Column* c1 = t1.getColumn(n);
     const NdbDictionary::Column* c2 = t2.getColumn(n);
-    assert(c1 != 0 && c2 != 0);
+    require(c1 != 0 && c2 != 0);
     chk2(st_equal_column(*c1, *c2, type) == 0, "col:" << n);
   }
   chk1(t1.getNoOfPrimaryKeys() == t2.getNoOfPrimaryKeys());
@@ -5284,7 +5286,7 @@ static int
 st_equal_index(const NdbDictionary::Index& i1, const NdbDictionary::Index& i2)
 {
   chk1(strcmp(i1.getName(), i2.getName()) == 0);
-  assert(i1.getTable() != 0 && i2.getTable() != 0);
+  require(i1.getTable() != 0 && i2.getTable() != 0);
   chk1(strcmp(i1.getTable(), i2.getTable()) == 0);
   chk1(i1.getNoOfColumns() == i2.getNoOfColumns());
   chk1(i1.getType() == i2.getType());
@@ -5294,7 +5296,7 @@ st_equal_index(const NdbDictionary::Index& i1, const NdbDictionary::Index& i2)
   for (n = 0; n < (int)i1.getNoOfColumns(); n++) {
     const NdbDictionary::Column* c1 = i1.getColumn(n);
     const NdbDictionary::Column* c2 = i2.getColumn(n);
-    assert(c1 != 0 && c2 != 0);
+    require(c1 != 0 && c2 != 0);
     chk2(st_equal_column(*c1, *c2, type) == 0, "col:" << n);
   }
   chk1(i1.getLogging() == i2.getLogging());
@@ -5408,7 +5410,7 @@ err:
 static int
 st_begin_trans(ST_Con& c, ST_Errins errins)
 {
-  assert(errins.code != 0);
+  require(errins.code != 0);
   chk1(st_do_errins(c, errins) == 0);
   chk1(st_begin_trans(c, errins.code) == 0);
   return 0;
@@ -5424,7 +5426,7 @@ st_begin_trans(ST_Con& c, ST_Retry retry)
     int code = 0;
     if (c.dic->beginSchemaTrans() == -1) {
       code = c.dic->getNdbError().code;
-      assert(code != 0);
+      require(code != 0);
     }
     chk2(code == 0 || code == 780 || code == 701, c.dic->getNdbError());
     if (code == 0) {
@@ -5495,7 +5497,7 @@ static int
 st_load_table(ST_Con& c, ST_Tab& tab, int rows = 1000)
 {
   g_info << tab.name << ": load data rows:" << rows << endl;
-  assert(tab.tab_r != 0);
+  require(tab.tab_r != 0);
   HugoTransactions ht(*tab.tab_r);
   chk1(ht.loadTable(c.ndb, rows) == 0);
   return 0;
@@ -5509,7 +5511,7 @@ st_create_table(ST_Con& c, ST_Tab& tab, int code = 0)
   g_info << tab.name << ": create table";
   if (code == 0) {
     g_info << endl;
-    assert(!tab.exists());
+    require(!tab.exists());
     chk2(c.dic->createTable(*tab.tab) == 0, c.dic->getNdbError());
     g_info << tab.name << ": created" << endl;
     st_set_create_tab(c, tab, true);
@@ -5529,7 +5531,7 @@ err:
 static int
 st_create_table(ST_Con& c, ST_Tab& tab, ST_Errins errins)
 {
-  assert(errins.code != 0);
+  require(errins.code != 0);
   chk1(st_do_errins(c, errins) == 0);
   chk1(st_create_table(c, tab, errins.code) == 0);
   return 0;
@@ -5543,7 +5545,7 @@ st_drop_table(ST_Con& c, ST_Tab& tab, int code = 0)
   g_info << tab.name << ": drop table";
   if (code == 0) {
     g_info << endl;
-    assert(tab.exists());
+    require(tab.exists());
     c.dic->invalidateTable(tab.name);
     chk2(c.dic->dropTable(tab.name) == 0, c.dic->getNdbError());
     g_info << tab.name << ": dropped" << endl;
@@ -5564,7 +5566,7 @@ err:
 static int
 st_drop_table(ST_Con& c, ST_Tab& tab, ST_Errins errins)
 {
-  assert(errins.code != 0);
+  require(errins.code != 0);
   chk1(st_do_errins(c, errins) == 0);
   chk1(st_drop_table(c, tab, errins.code) == 0);
   return 0;
@@ -5580,7 +5582,7 @@ st_create_index(ST_Con& c, ST_Ind& ind, int code = 0)
          << tab.name << "(" << ind.colnames.c_str() << ")";
   if (code == 0) {
     g_info << endl;
-    assert(!ind.exists());
+    require(!ind.exists());
     chk2(c.dic->createIndex(*ind.ind, *tab.tab_r) == 0, c.dic->getNdbError());
     st_set_create_ind(c, ind, true);
     g_info << ind.name << ": created" << endl;
@@ -5599,7 +5601,7 @@ err:
 static int
 st_create_index(ST_Con& c, ST_Ind& ind, ST_Errins errins)
 {
-  assert(errins.code != 0);
+  require(errins.code != 0);
   chk1(st_do_errins(c, errins) == 0);
   chk1(st_create_index(c, ind, errins.code) == 0);
   return 0;
@@ -5614,7 +5616,7 @@ st_drop_index(ST_Con& c, ST_Ind& ind, int code = 0)
   g_info << ind.name << ": drop index";
   if (code == 0) {
     g_info << endl;
-    assert(ind.exists());
+    require(ind.exists());
     c.dic->invalidateIndex(ind.name, tab.name);
     chk2(c.dic->dropIndex(ind.name, tab.name) == 0, c.dic->getNdbError());
     g_info << ind.name << ": dropped" << endl;
@@ -5635,7 +5637,7 @@ err:
 static int
 st_drop_index(ST_Con& c, ST_Ind& ind, ST_Errins errins)
 {
-  assert(errins.code != 0);
+  require(errins.code != 0);
   chk1(st_do_errins(c, errins) == 0);
   chk1(st_drop_index(c, ind, errins.code) == 0);
   return 0;
@@ -5808,9 +5810,9 @@ st_test_rollback_create_table(ST_Con& c, int arg = -1)
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
     if (i % 2 == 0)
-      assert(!tab.exists());
+      require(!tab.exists());
     else {
-      assert(tab.exists());
+      require(tab.exists());
       chk1(st_drop_table(c, tab) == 0);
     }
   }
@@ -5842,10 +5844,10 @@ st_test_rollback_drop_table(ST_Con& c, int arg = -1)
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
     if (i % 2 == 0) {
-      assert(tab.exists());
+      require(tab.exists());
       chk1(st_drop_table(c, tab) == 0);
     } else {
-      assert(!tab.exists());
+      require(!tab.exists());
     }
   }
   return NDBT_OK;
@@ -5877,9 +5879,9 @@ st_test_rollback_create_index(ST_Con& c, int arg = -1)
     for (j = 0; j < tab.indcount; j++) {
       ST_Ind& ind = tab.ind(j);
       if (j % 2 == 0)
-        assert(!ind.exists());
+        require(!ind.exists());
       else {
-        assert(ind.exists());
+        require(ind.exists());
         chk1(st_drop_index(c, ind) == 0);
       }
     }
@@ -5919,10 +5921,10 @@ st_test_rollback_drop_index(ST_Con& c, int arg = -1)
     for (j = 0; j < tab.indcount; j++) {
       ST_Ind& ind = tab.ind(j);
       if (j % 2 == 0) {
-        assert(ind.exists());
+        require(ind.exists());
         chk1(st_drop_index(c, ind) == 0);
       } else {
-        assert(!ind.exists());
+        require(!ind.exists());
       }
     }
   }
@@ -6122,7 +6124,7 @@ st_test_local_create(ST_Con& c, int arg = -1)
   ST_Errins *list = st_test_local_create_list;
   const int listlen = 
     sizeof(st_test_local_create_list)/sizeof(st_test_local_create_list[0]);
-  assert(0 <= n && n < listlen);
+  require(0 <= n && n < listlen);
   const bool only_unique = (n == 0 || n == 1 || n == 4 || n == 5);
   int i, j;
   for (i = 0; i < c.tabcount; i++) {
@@ -6529,7 +6531,7 @@ st_test_snf_parse(ST_Con& c, int arg = -1)
   for (i = 0; i < c.tabcount; i++) {
     ST_Tab& tab = c.tab(i);
     if (i == midcount) {
-      assert(c.numdbnodes > 1);
+      require(c.numdbnodes > 1);
       uint rand = urandom(c.numdbnodes);
       node_id = c.restarter->getRandomNotMasterNodeId(rand);
       g_info << "restart node " << node_id << " (async)" << endl;
@@ -6570,7 +6572,7 @@ st_test_mnf_parse(ST_Con& c, int arg = -1)
     ST_Tab& tab = c.tab(i);
     chk1(st_create_table_index(c, tab) == 0);
     if (i == midcount) {
-      assert(c.numdbnodes > 1);
+      require(c.numdbnodes > 1);
       node_id = c.restarter->getMasterNodeId();
       g_info << "restart node " << node_id << " (async)" << endl;
       int flags = 0;
@@ -7667,7 +7669,7 @@ runBug41905(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 vers = 0;
   while (ret == NDBT_OK) {
     const NdbDictionary::Table* pOldTab = pDic->getTableGlobal(tabName.c_str());
-    assert(pOldTab != 0);
+    require(pOldTab != 0);
 
     const Uint32 old_st = pOldTab->getObjectStatus();
     const Uint32 old_cols = pOldTab->getNoOfColumns();
@@ -7763,7 +7765,7 @@ runBug41905getTable(NDBT_Context* ctx, NDBT_Step* step)
     while (1) {
       count++;
       const NdbDictionary::Table* pTmp = pDic->getTableGlobal(tabName.c_str());
-      assert(pTmp != 0);
+      require(pTmp != 0);
       Uint32 code = pDic->getNdbError().code;
       Uint32 status = pTmp->getObjectStatus();
       if (oldstatus == 2 && status == 3)
@@ -9334,7 +9336,7 @@ runWL946(NDBT_Context* ctx, NDBT_Step* step)
       if (d.flag & 4)
       {
         d.prec = myRandom48(7);
-        assert(d.prec >= 0 && d.prec <= 6);
+        require(d.prec >= 0 && d.prec <= 6);
         c.setPrecision(d.prec);
       }
       c.setPrimaryKey(d.flag & 1);
@@ -9626,11 +9628,6 @@ struct Fkdef {
     bool retrieved;
     int id;
     int version;
-    Ob() {
-      retrieved = false;
-      id = -1;
-      version = -1;
-    }
   };
   struct Col {
     char colname[strmax];
@@ -9644,6 +9641,7 @@ struct Fkdef {
     int ncol;
     bool pk;
     bool unique;
+    const NdbDictionary::Index* pInd;
   };
   struct Tab : Ob {
     char tabname[strmax];
@@ -9651,6 +9649,7 @@ struct Fkdef {
     int ncol;
     Ind ind[indmax]; // first "index" is primary key
     int nind;
+    const NdbDictionary::Table* pTab;
   };
   struct Key : Ob {
     char keyname[strmax];
@@ -9663,11 +9662,10 @@ struct Fkdef {
     NdbDictionary::ForeignKey::FkAction deleteAction;
   };
   struct List {
-    bool retrieved;
-    NdbDictionary::Dictionary::List list;
-    List() {
-      retrieved = false;
-    }
+    NdbDictionary::Dictionary::List* list;
+    int keystart; // FK stuff sorted to end of list starts here
+    List() { list = 0; }
+    ~List() { delete list; }
   };
   Tab tab[tabmax];
   int ntab;
@@ -9676,6 +9674,7 @@ struct Fkdef {
   List list;
   bool nokeys;
   bool nodrop;
+  int testcase;
 };
 
 static int
@@ -9687,6 +9686,18 @@ fk_compare_icol(const void* p1, const void* p2)
 }
 
 static int
+fk_type(int t)
+{
+  if (
+    t ==  NdbDictionary::Object::ForeignKey ||
+    t ==  NdbDictionary::Object::FKParentTrigger ||
+    t ==  NdbDictionary::Object::FKChildTrigger
+  )
+    return 1;
+  return 0;
+}
+
+static int
 fk_compare_element(const void* p1, const void* p2)
 {
   const NdbDictionary::Dictionary::List::Element& e1 =
@@ -9694,6 +9705,8 @@ fk_compare_element(const void* p1, const void* p2)
   const NdbDictionary::Dictionary::List::Element& e2 =
     *(const NdbDictionary::Dictionary::List::Element*)p2;
   int k = 0;
+  if ((k = fk_type(e1.type) - fk_type(e2.type)) != 0)
+    return k;
   if ((k = e1.type - e2.type) != 0)
     return k;
   if ((k = (int)e1.id - (int)e2.id) != 0)
@@ -9701,9 +9714,30 @@ fk_compare_element(const void* p1, const void* p2)
   return 0;
 }
 
-// t0 (a0 pk, b0 key), t1 (a1 pk, b1 key), fk b1->a0
+static bool
+fk_find_element(const Fkdef::List& list, int type,
+                const char* database, const char* name)
+{
+  int found = 0;
+  for (int i = 0; i < (int)list.list->count; i++)
+  {
+    const NdbDictionary::Dictionary::List::Element& e =
+      list.list->elements[i];
+    if (e.type == type &&
+        strcmp(e.database, database) == 0 &&
+        strcmp(e.name, name) == 0)
+    {
+      found++;
+    }
+  }
+  require(found == 0 || found == 1);
+  return found;
+}
+
+// testcase 1: t0 (a0 pk, b0 key), t1 (a1 pk, b1 key), fk b1->a0
+
 static void
-fk_define_all1(Fkdef& d)
+fk_define_tables1(Fkdef& d)
 {
   d.ntab = 2;
   for (int i = 0; i < d.ntab; i++)
@@ -9720,6 +9754,8 @@ fk_define_all1(Fkdef& d)
       dc.icol = j;
     }
     dt.nind = 2;
+    dt.pTab = 0;
+    dt.retrieved = false;
     {
       Fkdef::Ind& di = dt.ind[0];
       sprintf(di.indname, "%s", "pk");
@@ -9727,6 +9763,8 @@ fk_define_all1(Fkdef& d)
       di.col[0] = dt.col[0];
       di.pk = true;
       di.unique = true;
+      di.pInd = 0;
+      di.retrieved = false;
     }
     {
       Fkdef::Ind& di = dt.ind[1];
@@ -9735,25 +9773,33 @@ fk_define_all1(Fkdef& d)
       di.col[0] = dt.col[1];
       di.pk = false;
       di.unique = false;
+      di.pInd = 0;
+      di.retrieved = false;
     }
   }
   g_info << "defined " << d.ntab << " tables" << endl;
-  {
-    d.nkey = 1;
-    Fkdef::Key& dk = d.key[0];
-    sprintf(dk.keyname, "fk%d", 0);
-    dk.tab0 = &d.tab[0];
-    dk.tab1 = &d.tab[1];
-    dk.ind0 = &dk.tab0->ind[0];
-    dk.ind1 = &dk.tab1->ind[1];
-    dk.updateAction = NdbDictionary::ForeignKey::NoAction;
-    dk.deleteAction = NdbDictionary::ForeignKey::NoAction;
-  }
-  g_info << "defined " << d.nkey << " keys" << endl;
 }
 
 static void
-fk_define_all2(Fkdef& d)
+fk_define_keys1(Fkdef& d)
+{
+  d.nkey = 1;
+  Fkdef::Key& dk = d.key[0];
+  sprintf(dk.keyname, "fk%d", 0);
+  dk.tab0 = &d.tab[0];
+  dk.tab1 = &d.tab[1];
+  dk.ind0 = &dk.tab0->ind[0];
+  dk.ind1 = &dk.tab1->ind[1];
+  dk.updateAction = NdbDictionary::ForeignKey::NoAction;
+  dk.deleteAction = NdbDictionary::ForeignKey::NoAction;
+  dk.retrieved = false;
+  g_info << "defined " << d.nkey << " keys" << endl;
+}
+
+// testcase 2: random
+
+static void
+fk_define_tables2(Fkdef& d)
 {
   d.ntab = 1 + myRandom48(d.tabmax);
   for (int i = 0; i < d.ntab; i++)
@@ -9770,6 +9816,8 @@ fk_define_all2(Fkdef& d)
       dc.icol = j;
     }
     dt.nind = 1 + myRandom48(d.indmax);
+    dt.pTab = 0;
+    dt.retrieved = false;
     for (int k = 0; k < dt.nind; k++)
     {
       Fkdef::Ind& di = dt.ind[k];
@@ -9806,68 +9854,104 @@ fk_define_all2(Fkdef& d)
         if (di.unique)
           qsort(&di.col, di.ncol, sizeof(di.col[0]), fk_compare_icol);
       }
+      di.pInd = 0;
+      di.retrieved = false;
     }
   }
   g_info << "defined " << d.ntab << " tables" << endl;
-  {
-    int nkey = 1 + myRandom48(d.ntab * 5);
-    int k = 0;
-    int ntrymax = nkey * 100;
-    int ntry = 0;
-    while (k < nkey && ntry++ < ntrymax)
-    {
-      Fkdef::Key& dk = d.key[k];
-      int i0 = myRandom48(d.ntab);
-      int i1 = myRandom48(d.ntab);
-      Fkdef::Tab& dt0 = d.tab[i0];
-      Fkdef::Tab& dt1 = d.tab[i1];
-      int k0 = myRandom48(dt0.nind);
-      int k1 = myRandom48(dt1.nind);
-      Fkdef::Ind& di0 = dt0.ind[k0];
-      Fkdef::Ind& di1 = dt1.ind[k1];
-      if (!di0.unique || di0.ncol != di1.ncol)
-        continue;
-      if (i0 == i1 && k0 == k1)
-        if (myRandom48(10) != 0) // allowed but try to avoid
-          continue;
-      sprintf(dk.keyname, "fk%d", k);
-      dk.tab0 = &dt0;
-      dk.tab1 = &dt1;
-      dk.ind0 = &di0;
-      dk.ind1 = &di1;
-      dk.updateAction = NdbDictionary::ForeignKey::NoAction;
-      dk.deleteAction = NdbDictionary::ForeignKey::NoAction;
-      k++;
-    }
-    d.nkey = k;
-    g_info << "defined " << d.nkey << " keys tries:" << ntry << endl;
-  }
 }
 
-void
-fk_define_all(Fkdef& d, int testcase)
+static void
+fk_define_keys2(Fkdef& d)
 {
-  if (testcase == 1)
-    fk_define_all1(d);
-  else if (testcase == 2)
-    fk_define_all2(d);
+  int nkey = 1 + myRandom48(d.ntab * 5);
+  int k = 0;
+  int ntrymax = nkey * 100;
+  int ntry = 0;
+  while (k < nkey && ntry++ < ntrymax)
+  {
+    Fkdef::Key& dk = d.key[k];
+    new (&dk) Fkdef::Key;
+    int i0 = myRandom48(d.ntab);
+    int i1 = myRandom48(d.ntab);
+    Fkdef::Tab& dt0 = d.tab[i0];
+    Fkdef::Tab& dt1 = d.tab[i1];
+    int k0 = myRandom48(dt0.nind);
+    int k1 = myRandom48(dt1.nind);
+    Fkdef::Ind& di0 = dt0.ind[k0];
+    Fkdef::Ind& di1 = dt1.ind[k1];
+    if (!di0.unique || di0.ncol != di1.ncol)
+      continue;
+    if (i0 == i1 && k0 == k1)
+      if (myRandom48(10) != 0) // allowed but try to avoid
+        continue;
+    sprintf(dk.keyname, "fk%d", k);
+    dk.tab0 = &dt0;
+    dk.tab1 = &dt1;
+    dk.ind0 = &di0;
+    dk.ind1 = &di1;
+    dk.updateAction = NdbDictionary::ForeignKey::NoAction;
+    dk.deleteAction = NdbDictionary::ForeignKey::NoAction;
+    dk.retrieved = false;
+    k++;
+  }
+  d.nkey = k;
+  g_info << "defined " << d.nkey << " keys tries:" << ntry << endl;
+}
+
+static void
+fk_define_tables(Fkdef& d)
+{
+  if (d.testcase == 1)
+    fk_define_tables1(d);
+  else if (d.testcase == 2)
+    fk_define_tables2(d);
   else
     require(false);
 }
 
+static void
+fk_define_keys(Fkdef& d)
+{
+  if (d.nokeys)
+  {
+    d.nkey = 0;
+    return;
+  }
+  if (d.testcase == 1)
+    fk_define_keys1(d);
+  else if (d.testcase == 2)
+    fk_define_keys2(d);
+  else
+    require(false);
+}
+
+static void
+fk_undefine_keys(Fkdef& d)
+{
+  d.nkey = 0;
+}
+
+static void
+fk_define_all(Fkdef& d)
+{
+  fk_define_tables(d);
+  fk_define_keys(d);
+}
+
 static int
-fk_create_table(const Fkdef& d, Ndb* pNdb, int i)
+fk_create_table(Fkdef& d, Ndb* pNdb, int i)
 {
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = NDBT_OK;
   do
   {
-    const Fkdef::Tab& dt = d.tab[i];
+    Fkdef::Tab& dt = d.tab[i];
     NdbDictionary::Table tab;
     tab.setName(dt.tabname);
     for (int j = 0; j < dt.ncol; j++)
     {
-      const Fkdef::Col& dc = dt.col[j];
+      Fkdef::Col& dc = dt.col[j];
       NdbDictionary::Column col;
       col.setName(dc.colname);
       col.setType(NdbDictionary::Column::Unsigned);
@@ -9877,9 +9961,16 @@ fk_create_table(const Fkdef& d, Ndb* pNdb, int i)
     }
     g_info << "create table " << dt.tabname << endl;
     CHK2(pDic->createTable(tab) == 0, pDic->getNdbError());
+    const NdbDictionary::Table* pTab = 0;
+    CHK2((pTab = pDic->getTable(dt.tabname)) != 0, pDic->getNdbError());
+    require(!dt.retrieved);
+    dt.retrieved = true;
+    dt.id = pTab->getObjectId();
+    dt.version = pTab->getObjectVersion();
+    dt.pTab = pTab;
     for (int k = 1; k < dt.nind; k++) // skip pk
     {
-      const Fkdef::Ind& di = dt.ind[k];
+      Fkdef::Ind& di = dt.ind[k];
       NdbDictionary::Index ind;
       ind.setName(di.indname);
       ind.setTable(dt.tabname);
@@ -9900,6 +9991,13 @@ fk_create_table(const Fkdef& d, Ndb* pNdb, int i)
       }
       g_info << "create index " << di.indname << endl;
       CHK2(pDic->createIndex(ind) == 0, pDic->getNdbError());
+      const NdbDictionary::Index* pInd = 0;
+      CHK2((pInd = pDic->getIndex(di.indname, dt.tabname)) != 0, pDic->getNdbError());
+      require(!di.retrieved);
+      di.retrieved = true;
+      di.id = pInd->getObjectId();
+      di.version = pInd->getObjectVersion();
+      di.pInd = pInd;
     }
   }
   while (0);
@@ -9907,52 +10005,70 @@ fk_create_table(const Fkdef& d, Ndb* pNdb, int i)
 }
 
 static int
-fk_create_key(const Fkdef& d, Ndb* pNdb, int k)
+fk_create_tables(Fkdef& d, Ndb* pNdb)
+{
+  int result = NDBT_OK;
+  for (int i = 0; i < d.ntab; i++)
+  {
+    CHK1(fk_create_table(d, pNdb, i) == NDBT_OK);
+  }
+  return result;
+}
+
+static int
+fk_create_key(Fkdef& d, Ndb* pNdb, int k)
 {
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = NDBT_OK;
   do
   {
-    if (d.nokeys)
-      break;
-    const Fkdef::Key& dk = d.key[k];
+    Fkdef::Key& dk = d.key[k];
     NdbDictionary::ForeignKey key;
     key.setName(dk.keyname);
     const Fkdef::Tab& dt0 = *dk.tab0;
     const Fkdef::Tab& dt1 = *dk.tab1;
     const Fkdef::Ind& di0 = *dk.ind0;
     const Fkdef::Ind& di1 = *dk.ind1;
-    const NdbDictionary::Table* pTab0 = 0;
-    const NdbDictionary::Table* pTab1 = 0;
-    const NdbDictionary::Index* pInd0 = 0;
-    const NdbDictionary::Index* pInd1 = 0;
-    CHK2((pTab0 = pDic->getTable(dt0.tabname)) != 0, pDic->getNdbError());
-    CHK2((pTab1 = pDic->getTable(dt1.tabname)) != 0, pDic->getNdbError());
-    if (!di0.pk)
-    {
-      CHK2((pInd0 = pDic->getIndex(di0.indname, dt0.tabname)) != 0, pDic->getNdbError());
-    }
-    if (!di1.pk)
-    {
-      CHK2((pInd1 = pDic->getIndex(di1.indname, dt1.tabname)) != 0, pDic->getNdbError());
-    }
+    const NdbDictionary::Table* pTab0 = dt0.pTab;
+    const NdbDictionary::Table* pTab1 = dt1.pTab;
+    const NdbDictionary::Index* pInd0 = di0.pInd;
+    const NdbDictionary::Index* pInd1 = di1.pInd;
     key.setParent(*pTab0, pInd0);
     key.setChild(*pTab1, pInd1);
     g_info << "create key " << dk.keyname << endl;
     CHK2(pDic->createForeignKey(key) == 0, pDic->getNdbError());
+    {
+      NdbDictionary::ForeignKey key;
+      CHK2(pDic->getForeignKey(key, dk.keyname) == 0, pDic->getNdbError());
+      require(!dk.retrieved);
+      dk.retrieved = true;
+      dk.id = key.getObjectId();
+      dk.version = key.getObjectVersion();
+    }
   }
   while (0);
   return result;
 }
 
 static int
-fk_alter_table(const Fkdef& d, Ndb* pNdb, int i)
+fk_create_keys(Fkdef& d, Ndb* pNdb)
+{
+  int result = NDBT_OK;
+  for (int k = 0; k < d.nkey; k++)
+  {
+    CHK1(fk_create_key(d, pNdb, k) == NDBT_OK);
+  }
+  return result;
+}
+
+static int
+fk_alter_table(Fkdef& d, Ndb* pNdb, int i)
 {
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = NDBT_OK;
   do
   {
-    const Fkdef::Tab& dt = d.tab[i];
+    Fkdef::Tab& dt = d.tab[i];
     const NdbDictionary::Table* pTab1 = 0;
     CHK2((pTab1 = pDic->getTable(dt.tabname)) != 0, pDic->getNdbError());
     g_info << "alter table " << dt.tabname << endl;
@@ -9968,84 +10084,69 @@ fk_alter_table(const Fkdef& d, Ndb* pNdb, int i)
     g_info << "old: id=" << id2 << " version=" << hex << version2 << endl;
     CHK2(id1 == id2, id1 << " != " << id2);
     CHK2(version1 != version2, version1 << " == " << version2);
+    dt.id = id2;
+    dt.version = version2;
   }
   while (0);
   return result;
 }
 
 static int
-fk_create_all(const Fkdef& d, Ndb* pNdb)
+fk_alter_tables(Fkdef& d, Ndb* pNdb, bool atrandom)
+{
+  int result = NDBT_OK;
+  for (int i = 0; i < d.ntab; i++)
+  {
+    if (!atrandom || myRandom48(2) == 0)
+    {
+      CHK1(fk_alter_table(d, pNdb, i) == NDBT_OK);
+    }
+  }
+  return result;
+}
+
+static int
+fk_create_all(Fkdef& d, Ndb* pNdb)
 {
   int result = NDBT_OK;
   do
   {
-    for (int i = 0; i < d.ntab; i++)
-    {
-      CHK1(fk_create_table(d, pNdb, i) == NDBT_OK);
-    }
-    CHK1(result == NDBT_OK);
-    for (int k = 0; k < d.nkey; k++)
-    {
-      CHK1(fk_create_key(d, pNdb, k) == NDBT_OK);
-    }
-    CHK1(result == NDBT_OK);
+    CHK1(fk_create_tables(d, pNdb) == 0);
+    CHK1(fk_create_keys(d, pNdb) == NDBT_OK);
     // imitate mysqld by doing an alter table afterwards
-    for (int i = 0; i < d.ntab; i++)
-    {
-      if (myRandom48(2) == 0)
-      {
-        CHK1(fk_alter_table(d, pNdb, i) == NDBT_OK);
-      }
-    }
-    CHK1(result == NDBT_OK);
+    CHK1(fk_alter_tables(d, pNdb, true) == NDBT_OK);
   }
   while (0);
   return result;
 }
 
 static int
-fk_verify_table(Fkdef& d, Ndb* pNdb, int i)
+fk_verify_table(const Fkdef& d, Ndb* pNdb, int i)
 {
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = NDBT_OK;
   do
   {
-    Fkdef::Tab& dt = d.tab[i];
+    const Fkdef::Tab& dt = d.tab[i];
     g_info << "verify table " << dt.tabname << endl;
     const NdbDictionary::Table* pTab = 0;
     CHK2((pTab = pDic->getTable(dt.tabname)) != 0, pDic->getNdbError());
     int id = pTab->getObjectId();
     int version = pTab->getObjectVersion();
-    if (!dt.retrieved)
-    {
-      dt.retrieved = true;
-      dt.id = id;
-      dt.version = version;
-    }
-    else
-    {
-      CHK2(dt.id == id, dt.id << " != " << id);
-      CHK2(dt.version == version, dt.version << " != " << version);
-    }
+    require(dt.retrieved);
+    CHK2(dt.id == id, dt.id << " != " << id);
+    CHK2(dt.version == version, dt.version << " != " << version);
     for (int k = 1; k < dt.nind; k++) // skip pk
     {
-      Fkdef::Ind& di = dt.ind[k];
+      const Fkdef::Ind& di = dt.ind[k];
       g_info << "verify index " << di.indname << endl;
       const NdbDictionary::Index* pInd = 0;
       CHK2((pInd = pDic->getIndex(di.indname, dt.tabname)) != 0, pDic->getNdbError());
       int id = pInd->getObjectId();
       int version = pInd->getObjectVersion();
-      if (!di.retrieved)
-      {
-        di.retrieved = true;
-        di.id = id;
-        di.version = version;
-      }
-      else
-      {
-        CHK2(di.id == id, di.id << " != " << id);
-        CHK2(di.version == version, di.version << " != " << version);
-      }
+      require(di.retrieved);
+      CHK2(di.id == id, di.id << " != " << id);
+      CHK2(di.version == version, di.version << " != " << version);
     }
     CHK1(result == NDBT_OK);
   }
@@ -10054,31 +10155,32 @@ fk_verify_table(Fkdef& d, Ndb* pNdb, int i)
 }
 
 static int
-fk_verify_key(Fkdef& d, Ndb* pNdb, int k)
+fk_verify_tables(const Fkdef& d, Ndb* pNdb)
+{
+  int result = NDBT_OK;
+  for (int i = 0; i < d.ntab; i++)
+  {
+    CHK1(fk_verify_table(d, pNdb, i) == 0);
+  }
+  return result;
+}
+
+static int
+fk_verify_key(const Fkdef& d, Ndb* pNdb, int k)
 {
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = NDBT_OK;
   do
   {
-    if (d.nokeys)
-      break;
-    Fkdef::Key& dk = d.key[k];
+    const Fkdef::Key& dk = d.key[k];
     g_info << "verify key " << dk.keyname << endl;
     NdbDictionary::ForeignKey key;
     CHK2(pDic->getForeignKey(key, dk.keyname) == 0, pDic->getNdbError());
     int id = key.getObjectId();
     int version = key.getObjectVersion();
-    if (!dk.retrieved)
-    {
-      dk.retrieved = true;
-      dk.id = id;
-      dk.version = version;
-    }
-    else
-    {
-      CHK2(dk.id == id, dk.id << " != " << id);
-      CHK2(dk.version == version, dk.version << " != " << version);
-    }
+    require(dk.retrieved);
+    CHK2(dk.id == id, dk.id << " != " << id);
+    CHK2(dk.version == version, dk.version << " != " << version);
     CHK1(strcmp(dk.keyname, key.getName()) == 0);
 #if 0 // can add more checks
     const Fkdef::Tab& dt0 = *dk.tab0;
@@ -10092,90 +10194,32 @@ fk_verify_key(Fkdef& d, Ndb* pNdb, int k)
 }
 
 static int
-fk_verify_list(Fkdef& d, Ndb* pNdb)
+fk_verify_keys(const Fkdef& d, Ndb* pNdb)
 {
-  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  int result = NDBT_OK;
+  for (int k = 0; k < d.nkey; k++)
+  {
+    CHK1(fk_verify_key(d, pNdb, k) == 0);
+  }
+  return result;
+}
+
+static int
+fk_verify_ddl(const Fkdef& d, Ndb* pNdb)
+{
   int result = NDBT_OK;
   do
   {
-    g_info << "verify object list" << endl;
-    Fkdef::List& list1 = d.list;
-    Fkdef::List list2;
-    Fkdef::List& list = !list1.retrieved ? list1 : list2;
-    CHK2(pDic->listObjects(list.list) == 0, pDic->getNdbError());
-    qsort(list.list.elements, list.list.count, sizeof(list.list.elements[0]),
-          fk_compare_element);
-    g_info << "count=" << list.list.count << endl;
-    for (int i = 0; i < (int)list.list.count; i++)
-    {
-      {
-        NdbDictionary::Dictionary::List::Element& e =
-          list.list.elements[i];
-        if (e.database == 0)
-        {
-          e.database = new char [1];
-          e.database[0] = 0;
-        }
-      }
-      const NdbDictionary::Dictionary::List::Element& e =
-        list.list.elements[i];
-      g_info << "ob " << i << ":"
-             << " type=" << e.type << " id=" << e.id
-             << " db=" << e.database << " name=" << e.name
-             << endl;
-      if (i > 0)
-      {
-        const NdbDictionary::Dictionary::List::Element& e2 =
-          list.list.elements[i - 1];
-        CHK1(e.type != e2.type || e.id != e2.id);
-      }
-    }
-    if (!list1.retrieved)
-      list1.retrieved = true;
-    else
-    {
-      CHK1(list1.list.count == list2.list.count);
-      for (int i = 0; i < (int)list.list.count; i++)
-      {
-        const NdbDictionary::Dictionary::List::Element& e1 =
-          list1.list.elements[i];
-        const NdbDictionary::Dictionary::List::Element& e2 =
-          list2.list.elements[i];
-        CHK1(e1.type == e2.type);
-        CHK1(e1.id == e2.id);
-        CHK1(strcmp(e1.database, e2.database) == 0);
-        CHK1(strcmp(e1.name, e2.name) == 0);
-      }
-    }
+    g_info << "verify ddl" << endl;
+    CHK1(fk_verify_tables(d, pNdb) == 0);
+    CHK1(fk_verify_keys(d, pNdb) == 0);
   }
   while (0);
   return result;
 }
 
 static int
-fk_verify_ddl(Fkdef& d, Ndb* pNdb)
-{
-  int result = NDBT_OK;
-  do
-  {
-    for (int i = 0; i < d.ntab; i++)
-    {
-      CHK1(fk_verify_table(d, pNdb, i) == 0);
-    }
-    CHK1(result == NDBT_OK);
-    for (int k = 0; k < d.nkey; k++)
-    {
-      CHK1(fk_verify_key(d, pNdb, k) == 0);
-    }
-    CHK1(result == NDBT_OK);
-    CHK1(fk_verify_list(d, pNdb) == 0);
-  }
-  while (0);
-  return result;
-}
-
-static int
-fk_verify_dml1(Fkdef& d, Ndb* pNdb, int records)
+fk_verify_dml(const Fkdef& d, Ndb* pNdb, int records)
 {
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = NDBT_OK;
@@ -10185,6 +10229,9 @@ fk_verify_dml1(Fkdef& d, Ndb* pNdb, int records)
   const int errHasChild = 256;
   do
   {
+    if (!(d.testcase == 1 && records > 0))
+      break;
+    g_info << "verify dml" << endl;
     const Fkdef::Tab& dt0 = d.tab[0];
     const Fkdef::Tab& dt1 = d.tab[1];
     const NdbDictionary::Table* pTab0 = 0;
@@ -10194,6 +10241,7 @@ fk_verify_dml1(Fkdef& d, Ndb* pNdb, int records)
     HugoTransactions tx0(*pTab0);
     HugoTransactions tx1(*pTab1);
     // insert into child t1 - not ok
+    g_err << "expect error " << errNoParent << endl;
     CHK1(tx1.loadTable(pNdb, records, batch, allowCV) != 0);
     CHK2(tx1.getNdbError().code == errNoParent, tx1.getNdbError());
     // insert into parent t0 - ok
@@ -10203,6 +10251,7 @@ fk_verify_dml1(Fkdef& d, Ndb* pNdb, int records)
     CHK2(tx1.loadTable(pNdb, records, batch, allowCV) == 0,
          tx1.getNdbError());
     // delete from parent - not ok
+    g_err << "expect error " << errHasChild << endl;
     CHK1(tx0.pkDelRecords(pNdb, records, batch, allowCV) != 0);
     CHK2(tx0.getNdbError().code == errHasChild, tx0.getNdbError());
     // delete from child t1 - ok
@@ -10217,29 +10266,134 @@ fk_verify_dml1(Fkdef& d, Ndb* pNdb, int records)
 }
 
 static int
-fk_verify_dml(Fkdef& d, int testcase, Ndb* pNdb, int records)
+fk_retrieve_list(Fkdef& d, Ndb* pNdb, Fkdef::List& list)
 {
+  (void)d;
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = NDBT_OK;
   do
   {
-    if (records == 0) // asking to not verify dml
-      break;
-    if (testcase != 1) // case 2 is too uncertain
-      break;
-    CHK1(fk_verify_dml1(d, pNdb, records) == NDBT_OK);
+    g_info << "list objects" << endl;
+    require(list.list == 0);
+    list.list = new NdbDictionary::Dictionary::List;
+    CHK2(pDic->listObjects(*list.list) == 0, pDic->getNdbError());
+    qsort(list.list->elements, list.list->count, sizeof(list.list->elements[0]),
+          fk_compare_element);
+    list.keystart = 0;
+    for (int i = 0; i < (int)list.list->count; i++)
+    {
+      NdbDictionary::Dictionary::List::Element& e =
+        list.list->elements[i];
+      if (e.database == 0)
+      {
+        e.database = new char [1];
+        e.database[0] = 0;
+      }
+      if (!fk_type(e.type))
+        list.keystart++;
+      g_info << "ob " << i << ":"
+             << " type=" << e.type << " id=" << e.id
+             << " db=" << e.database << " name=" << e.name << endl;
+      if (i > 0)
+      {
+        const NdbDictionary::Dictionary::List::Element& e2 =
+          list.list->elements[i - 1];
+        CHK1(e.type != e2.type || e.id != e2.id);
+      }
+    }
+    g_info << "list count=" << list.list->count
+           << " keystart=" << list.keystart << endl;
   }
   while (0);
   return result;
 }
 
 static int
-fk_drop_table(const Fkdef& d, Ndb* pNdb, int i, bool force)
+fk_verify_list(Fkdef& d, Ndb* pNdb, bool ignore_keys)
+{
+  int result = NDBT_OK;
+  do
+  {
+    Fkdef::List& list1 = d.list;
+    if (list1.list == 0)
+    {
+      g_info << "retrieve first object list" << endl;
+      CHK1(fk_retrieve_list(d, pNdb, list1) == 0);
+    }
+    else
+    {
+      g_info << "verify object list old vs new"
+                " ignore_keys=" << ignore_keys << endl;
+      Fkdef::List list2;
+      CHK1(fk_retrieve_list(d, pNdb, list2) == NDBT_OK);
+      // optionally ignore FK stuff in either list
+      int count1 = !ignore_keys ? list1.list->count : list1.keystart;
+      int count2 = !ignore_keys ? list2.list->count : list2.keystart;
+      CHK1(count1 == count2);
+      for (int i = 0; i < count1; i++)
+      {
+        const NdbDictionary::Dictionary::List::Element& e1 =
+          list1.list->elements[i];
+        const NdbDictionary::Dictionary::List::Element& e2 =
+          list2.list->elements[i];
+        CHK2(e1.type == e2.type,
+             i << ": " << e1.type << " != " << e2.type);
+        CHK2(e1.id == e2.id,
+             i << ": " << e1.id << " != " << e2.id);
+        CHK2(strcmp(e1.database, e2.database) == 0,
+             i << ": " << e1.database << " != " << e2.database);
+        CHK2(strcmp(e1.name, e2.name) == 0,
+             i << ": " << e1.name << " != " << e2.name);
+      }
+      CHK1(result == NDBT_OK);
+      // replace old by new
+      delete list1.list;
+      list1.list = list2.list;
+      list1.keystart = list2.keystart;
+      list2.list = 0;
+    }
+    // verify objects vs list
+    for (int i = 0; i < d.ntab; i++)
+    {
+      const Fkdef::Tab& dt = d.tab[i];
+      CHK2(fk_find_element(list1, NdbDictionary::Object::UserTable,
+           "TEST_DB", dt.tabname), dt.tabname);
+      for (int k = 1; k < dt.nind; k++)
+      {
+        const Fkdef::Ind& di = dt.ind[k];
+        if (di.unique)
+        {
+          CHK2(fk_find_element(list1, NdbDictionary::Object::UniqueHashIndex,
+               "sys", di.indname), di.indname);
+        }
+        else
+        {
+          CHK2(fk_find_element(list1, NdbDictionary::Object::OrderedIndex,
+               "sys", di.indname), di.indname);
+        }
+      }
+      CHK1(result == NDBT_OK);
+    }
+    for (int k = 0; k < d.nkey; k++) {
+      const Fkdef::Key& dk = d.key[k];
+      CHK2(fk_find_element(list1, NdbDictionary::Object::ForeignKey,
+           "", dk.keyname), dk.keyname);
+      // could also check FK triggers..
+    }
+    CHK1(result == NDBT_OK);
+  }
+  while (0);
+  return result;
+}
+
+static int
+fk_drop_table(Fkdef& d, Ndb* pNdb, int i, bool force)
 {
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = NDBT_OK;
   do
   {
-    const Fkdef::Tab& dt = d.tab[i];
+    Fkdef::Tab& dt = d.tab[i];
     g_info << "drop table " << dt.tabname
            << (force ? " (force)" : "") << endl;
     if (pDic->dropTable(dt.tabname) != 0)
@@ -10249,21 +10403,48 @@ fk_drop_table(const Fkdef& d, Ndb* pNdb, int i, bool force)
       CHK2(err.code == 709 || err.code == 723, err);
       break;
     }
+    // all indexes are dropped by ndb api
+    for (int k = 0; k < dt.nind; k++)
+    {
+      Fkdef::Ind& di = dt.ind[k];
+      di.retrieved = false;
+      di.pInd = 0;
+    }
+    // all related FKs child/parent are dropped by ndb api
+    for (int k = 0; k < d.nkey; k++)
+    {
+      Fkdef::Key& dk = d.key[k];
+      if (dk.tab0 == &dt || dk.tab1 == &dt)
+      {
+        dk.retrieved = false;
+      }
+    }
+    dt.retrieved = false;
+    dt.pTab = 0;
   }
   while (0);
   return result;
 }
 
 static int
-fk_drop_key(const Fkdef& d, Ndb* pNdb, int k, bool force)
+fk_drop_tables(Fkdef& d, Ndb* pNdb, bool force)
+{
+  int result = NDBT_OK;
+  for (int i = 0; i < d.ntab; i++)
+  {
+    CHK1(fk_drop_table(d, pNdb, i, force) == NDBT_OK);
+  }
+  return result;
+}
+
+static int
+fk_drop_key(Fkdef& d, Ndb* pNdb, int k, bool force)
 {
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = NDBT_OK;
   do
   {
-    if (d.nokeys)
-      break;
-    const Fkdef::Key& dk = d.key[k];
+    Fkdef::Key& dk = d.key[k];
     g_info << "drop key " << dk.keyname
            << (force ? " (force)" : "") << endl;
     NdbDictionary::ForeignKey key;
@@ -10275,30 +10456,145 @@ fk_drop_key(const Fkdef& d, Ndb* pNdb, int k, bool force)
       break;
     }
     CHK2(pDic->dropForeignKey(key) == 0, pDic->getNdbError());
+    dk.retrieved = false;
   }
   while (0);
   return result;
 }
 
 static int
-fk_drop_all(const Fkdef& d, Ndb* pNdb, bool force)
+fk_drop_keys(Fkdef& d, Ndb* pNdb, bool force)
+{
+  int result = NDBT_OK;
+  for (int k = 0; k < d.nkey; k++)
+  {
+    CHK1(fk_drop_key(d, pNdb, k, force) == NDBT_OK);
+  }
+  return result;
+}
+
+static int
+fk_drop_all(Fkdef& d, Ndb* pNdb, bool force)
 {
   int result = NDBT_OK;
   do
   {
-    for (int k = 0; k < d.nkey; k++)
-    {
-      CHK1(fk_drop_key(d, pNdb, k, force) == NDBT_OK);
-    }
-    CHK1(result == NDBT_OK);
+    CHK1(fk_drop_keys(d, pNdb, force) == NDBT_OK);
+    CHK1(fk_drop_tables(d, pNdb, force) == NDBT_OK);
+  }
+  while (0);
+  return result;
+}
+
+// for FK_Bug18069680
+
+static int
+fk_create_all_random(Fkdef& d, Ndb* pNdb)
+{
+  int result = NDBT_OK;
+  int ntab = 0;
+  int nkey = 0;
+  do
+  {
     for (int i = 0; i < d.ntab; i++)
     {
-      CHK1(fk_drop_table(d, pNdb, i, force) == NDBT_OK);
+      Fkdef::Tab& dt = d.tab[i];
+      if (!dt.retrieved && myRandom48(3) == 0)
+      {
+        CHK1(fk_create_table(d, pNdb, i) == 0);
+        require(dt.retrieved);
+        ntab++;
+      }
+    }
+    CHK1(result == NDBT_OK);
+    for (int k = 0; k < d.nkey; k++)
+    {
+      Fkdef::Key& dk = d.key[k];
+      if (!dk.retrieved && myRandom48(3) == 0 &&
+          dk.tab0->retrieved && dk.tab1->retrieved)
+      {
+        CHK1(fk_create_key(d, pNdb, k) == 0);
+        require(dk.retrieved);
+        nkey++;
+      }
+    }
+    CHK1(result == NDBT_OK);
+    require(ntab <= d.ntab && nkey <= d.nkey);
+  }
+  while (ntab < d.ntab || nkey < d.nkey);
+  return result;
+}
+
+static int
+fk_drop_indexes_under(const Fkdef& d, Ndb* pNdb)
+{
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  int result = NDBT_OK;
+  do
+  {
+    for (int i = 0; i < d.ntab; i++)
+    {
+      const Fkdef::Tab& dt = d.tab[i];
+      for (int k = 1; k < dt.nind; k++) // skip pk
+      {
+        const Fkdef::Ind& di = dt.ind[k];
+        int parent = 0;
+        int child = 0;
+        for (int m = 0; m < d.nkey; m++)
+        {
+          const Fkdef::Key& dk = d.key[m];
+          if (dk.ind0 == &di)
+            parent++;
+          if (dk.ind1 == &di)
+            child++;
+        }
+        if (parent != 0 || child != 0)
+        {
+          // drop must fail
+          g_info << "try to drop index under " << di.indname
+                 << " parent:" << parent << " child:" << child << endl;
+          int ret = pDic->dropIndex(di.indname, dt.tabname);
+          CHK2(ret != 0, "no error on drop underlying index");
+          const NdbError& err = pDic->getNdbError();
+          // could be either error code depending on check order
+          CHK2(err.code == 21081 || err.code == 21082, pDic->getNdbError());
+        }
+      }
+      CHK1(result == NDBT_OK);
     }
     CHK1(result == NDBT_OK);
   }
   while (0);
   return result;
+}
+
+// for manual testing
+static void
+fk_env_options(Fkdef& d)
+{
+  // random seed
+  int seed = (int)getpid();
+  {
+    const char* p = NdbEnv_GetEnv("RANDOM_SEED", (char*)0, 0);
+    if (p != 0)
+      seed = atoi(p);
+  }
+  myRandom48Init(seed);
+  g_err << "random seed: " << seed << endl;
+  // create no FKs at all
+  d.nokeys = false;
+  {
+    const char* p = NdbEnv_GetEnv("FK_NOKEYS", (char*)0, 0);
+    if (p != 0 && strchr("1Y", p[0]) != 0)
+      d.nokeys = true;
+  }
+  // do not drop objects at end
+  d.nodrop = false;
+  {
+    const char* p = NdbEnv_GetEnv("FK_NODROP", (char*)0, 0);
+    if (p != 0 && strchr("1Y", p[0]) != 0)
+      d.nodrop = true;
+  }
 }
 
 int
@@ -10308,46 +10604,22 @@ runFK_SRNR(NDBT_Context* ctx, NDBT_Step* step)
   const int loops = ctx->getNumLoops();
   const int records = ctx->getNumRecords();
   int result = NDBT_OK;
-  int testcase = ctx->getProperty("testcase", (Uint32)0);
 
   NdbRestarter restarter;
   const int numdbnodes = restarter.getNumDbNodes();
 
-  int seed = (int)getpid();
-  {
-    const char* p = NdbEnv_GetEnv("RANDOM_SEED", (char*)0, 0);
-    if (p != 0)
-      seed = atoi(p);
-  }
-  myRandom48Init(seed);
-  g_err << "random seed: " << seed << endl;
-
   Fkdef d;
-
-  // create no FKs at all
-  d.nokeys = false;
-  {
-    const char* p = NdbEnv_GetEnv("FK_SRNR_NOKEYS", (char*)0, 0);
-    if (p != 0 && strchr("1Y", p[0]) != 0)
-      d.nokeys = true;
-  }
-
-  // do not drop objects at end
-  d.nodrop = false;
-  {
-    const char* p = NdbEnv_GetEnv("FK_SRNR_NODROP", (char*)0, 0);
-    if (p != 0 && strchr("1Y", p[0]) != 0)
-      d.nodrop = true;
-  }
-
-  fk_define_all(d, testcase);
+  d.testcase = ctx->getProperty("testcase", (Uint32)0);
+  fk_env_options(d);
+  fk_define_all(d);
 
   do
   {
     (void)fk_drop_all(d, pNdb, true);
     CHK1(fk_create_all(d, pNdb) == NDBT_OK);
     CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
-    CHK1(fk_verify_dml(d, testcase, pNdb, records) == NDBT_OK);
+    CHK1(fk_verify_dml(d, pNdb, records) == NDBT_OK);
+    CHK1(fk_verify_list(d, pNdb, false) == NDBT_OK);
 
     for (int loop = 0; loop < loops; loop++)
     {
@@ -10372,7 +10644,8 @@ runFK_SRNR(NDBT_Context* ctx, NDBT_Step* step)
         g_info << "nostart node " << nodeid << endl;
 
         CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
-        CHK1(fk_verify_dml(d, testcase, pNdb, records) == NDBT_OK);
+        CHK1(fk_verify_dml(d, pNdb, records) == NDBT_OK);
+        CHK1(fk_verify_list(d, pNdb, false) == NDBT_OK);
 
         g_info << "start node " << nodeid << endl;
         CHK1(restarter.startNodes(&nodeid, 1) == 0);
@@ -10382,7 +10655,8 @@ runFK_SRNR(NDBT_Context* ctx, NDBT_Step* step)
       g_info << "cluster is started" << endl;
 
       CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
-      CHK1(fk_verify_dml(d, testcase, pNdb, records) == NDBT_OK);
+      CHK1(fk_verify_dml(d, pNdb, records) == NDBT_OK);
+      CHK1(fk_verify_list(d, pNdb, false) == NDBT_OK);
     }
     CHK1(result == NDBT_OK);
 
@@ -10390,6 +10664,145 @@ runFK_SRNR(NDBT_Context* ctx, NDBT_Step* step)
     {
       CHK1(fk_drop_all(d, pNdb, false) == NDBT_OK);
     }
+  }
+  while (0);
+
+  if (result != NDBT_OK)
+  {
+    if (!d.nodrop)
+      (void)fk_drop_all(d, pNdb, true);
+  }
+  return result;
+}
+
+int
+runFK_TRANS(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  const int loops = ctx->getNumLoops();
+  const int records = ctx->getNumRecords();
+  int result = NDBT_OK;
+  const int abort_flag = NdbDictionary::Dictionary::SchemaTransAbort;
+
+  Fkdef d;
+  d.testcase = ctx->getProperty("testcase", (Uint32)0);
+  fk_env_options(d);
+  fk_define_tables(d);
+  fk_undefine_keys(d);
+
+  do
+  {
+    (void)fk_drop_all(d, pNdb, true);
+    CHK1(fk_create_tables(d, pNdb) == NDBT_OK);
+    CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
+    CHK1(fk_verify_list(d, pNdb, false) == NDBT_OK);
+
+    // what to do on loop % 3
+    const int abort_loop[3][2] = { { 1, -1 }, { 0, 1 }, { 0, 0 } };
+
+    for (int loop = 0; loop < loops; loop++)
+    {
+      g_info << "loop " << loop << "<" << loops << endl;
+
+      int abort_create = abort_loop[loop % 3][0];
+      require(abort_create == 0 || abort_create == 1);
+      g_info << "abort create: " << abort_create << endl;
+
+      fk_define_keys(d);
+      CHK2(pDic->beginSchemaTrans() == 0, pDic->getNdbError());
+      CHK1(fk_create_keys(d, pNdb) == 0);
+      if (!abort_create)
+      {
+        g_info << "commit schema trans" << endl;
+        CHK2(pDic->endSchemaTrans(0) == 0, pDic->getNdbError());
+        CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
+        CHK1(fk_verify_dml(d, pNdb, records) == NDBT_OK);
+        CHK1(fk_verify_list(d, pNdb, true) == NDBT_OK);
+      }
+      else
+      {
+        g_info << "abort schema trans" << endl;
+        CHK2(pDic->endSchemaTrans(abort_flag) == 0, pDic->getNdbError());
+        fk_undefine_keys(d);
+        CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
+        CHK1(fk_verify_list(d, pNdb, false) == NDBT_OK);
+        continue; // nothing to drop
+      }
+
+      int abort_drop = abort_loop[loop % 3][1];
+      require(abort_drop == 0 || abort_drop == 1);
+      g_info << "abort drop: " << abort_drop << endl;
+
+      CHK2(pDic->beginSchemaTrans() == 0, pDic->getNdbError());
+      CHK1(fk_drop_keys(d, pNdb, false) == 0);
+      if (!abort_drop)
+      {
+        g_info << "commit schema trans" << endl;
+        CHK2(pDic->endSchemaTrans(0) == 0, pDic->getNdbError());
+        fk_undefine_keys(d);
+        CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
+        CHK1(fk_verify_list(d, pNdb, true) == NDBT_OK);
+      }
+      else
+      {
+        g_info << "abort schema trans" << endl;
+        CHK2(pDic->endSchemaTrans(abort_flag) == 0, pDic->getNdbError());
+        CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
+        CHK1(fk_verify_dml(d, pNdb, records) == NDBT_OK);
+        CHK1(fk_verify_list(d, pNdb, false) == NDBT_OK);
+        // prepare for next round
+        CHK1(fk_drop_keys(d, pNdb, false) == NDBT_OK);
+        fk_undefine_keys(d);
+      }
+    }
+    CHK1(result == NDBT_OK);
+
+    if (!d.nodrop)
+    {
+      CHK1(fk_drop_all(d, pNdb, false) == NDBT_OK);
+    }
+  }
+  while (0);
+
+  if (result != NDBT_OK)
+  {
+    (void)pDic->endSchemaTrans(abort_flag);
+    if (!d.nodrop)
+      (void)fk_drop_all(d, pNdb, true);
+  }
+  return result;
+}
+
+int
+runFK_Bug18069680(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const int loops = ctx->getNumLoops();
+  const int records = ctx->getNumRecords();
+  int result = NDBT_OK;
+
+  Fkdef d;
+  d.testcase = ctx->getProperty("testcase", (Uint32)0);
+  fk_env_options(d);
+  fk_define_all(d);
+
+  do
+  {
+    (void)fk_drop_all(d, pNdb, true);
+
+    for (int loop = 0; loop < loops; loop++)
+    {
+      g_info << "loop " << loop << "<" << loops << endl;
+
+      CHK1(fk_create_all_random(d, pNdb) == NDBT_OK);
+      CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
+      CHK1(fk_verify_dml(d, pNdb, records) == NDBT_OK);
+
+      CHK1(fk_drop_indexes_under(d, pNdb) == NDBT_OK);
+      CHK1(fk_drop_tables(d, pNdb, false) == NDBT_OK);
+    }
+    CHK1(result == NDBT_OK);
   }
   while (0);
 
@@ -10825,6 +11238,24 @@ TESTCASE("FK_SRNR2",
          "Give any tablename as argument (T1)"){
   TC_PROPERTY("testcase", 2);
   INITIALIZER(runFK_SRNR);
+}
+TESTCASE("FK_TRANS1",
+         "Foreign keys schema trans, simple case with DDL and DML checks.\n"
+         "Give any tablename as argument (T1)"){
+  TC_PROPERTY("testcase", 1);
+  INITIALIZER(runFK_TRANS);
+}
+TESTCASE("FK_TRANS2",
+         "Foreign keys schema trans, complex case with DDL checks.\n"
+         "Give any tablename as argument (T1)"){
+  TC_PROPERTY("testcase", 2);
+  INITIALIZER(runFK_TRANS);
+}
+TESTCASE("FK_Bug18069680",
+         "NDB API drop table with foreign keys.\n"
+         "Give any tablename as argument (T1)"){
+  TC_PROPERTY("testcase", 2);
+  INITIALIZER(runFK_Bug18069680);
 }
 TESTCASE("CreateHashmaps",
          "Create (default) hashmaps")

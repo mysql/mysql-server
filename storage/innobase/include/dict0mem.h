@@ -733,6 +733,9 @@ struct dict_index_t{
 #endif
 	dict_field_t*	fields;	/*!< array of field descriptions */
 	st_mysql_ftparser*	parser;/*!< fulltext plugin parser */
+	bool		is_redo_skipped;
+				/*!< TRUE if skip redo log for allocation
+				under special cases, such as bulk load. */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */

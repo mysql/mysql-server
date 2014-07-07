@@ -1,0 +1,7 @@
+!include suite/ndb/my.cnf
+
+[cluster_config.1]
+__at_restart_skip_indexes=1
+
+[mysqld]
+ndb-index-stat-enable = 0

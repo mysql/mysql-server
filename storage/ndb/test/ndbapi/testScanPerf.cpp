@@ -142,11 +142,11 @@ main(int argc, const char** argv){
 int
 create_table(){
   NdbDictionary::Dictionary* dict = g_ndb->getDictionary();
-  assert(dict);
+  require(dict);
   if(g_paramters[P_CREATE].value){
     g_ndb->getDictionary()->dropTable(g_tablename);
     const NdbDictionary::Table * pTab = NDBT_Tables::getTable(g_tablename);
-    assert(pTab);
+    require(pTab);
     NdbDictionary::Table copy = * pTab;
     copy.setLogging(false);
     if(dict->createTable(copy) != 0){
@@ -171,8 +171,8 @@ create_table(){
   }
   g_table = dict->getTable(g_tablename);
   g_index = dict->getIndex(g_indexname, g_tablename);
-  assert(g_table);
-  assert(g_index);
+  require(g_table);
+  require(g_index);
 
   /* Obtain NdbRecord instances for the table and index */
   {
@@ -199,7 +199,7 @@ create_table(){
                                        cols,
                                        sizeof(NdbDictionary::RecordSpecification));
 
-    assert(g_table_record);
+    require(g_table_record);
   }
   {
     NdbDictionary::RecordSpecification spec[ NDB_MAX_ATTRIBUTES_IN_TABLE ];
@@ -230,7 +230,7 @@ create_table(){
                                        cols,
                                        sizeof(NdbDictionary::RecordSpecification));
 
-    assert(g_index_record);
+    require(g_index_record);
   }
 
 
@@ -275,12 +275,12 @@ setEqBound(NdbIndexScanOperation *isop,
 int
 run_scan(){
   int iter = g_paramters[P_LOOPS].value;
-  NDB_TICKS start1, stop;
+  Uint64 start1, stop;
   int sum_time= 0;
 
   Uint32 sample_rows = 0;
   int tot_rows = 0;
-  NDB_TICKS sample_start = NdbTick_CurrentMillisecond();
+  Uint64 sample_start = NdbTick_CurrentMillisecond();
 
   Uint32 tot = g_paramters[P_ROWS].value;
 
@@ -343,7 +343,7 @@ run_scan(){
       break;
     case 2:  // 1 row
     default: {
-      assert(g_table->getNoOfPrimaryKeys() == 1); // only impl. so far
+      require(g_table->getNoOfPrimaryKeys() == 1); // only impl. so far
       abort();
 #if 0
       int tot = g_paramters[P_ROWS].value;
@@ -367,7 +367,7 @@ run_scan(){
                               NULL, // Mask
                               &options,
                               sizeof(NdbScanOperation::ScanOptions));
-      assert(pOp);
+      require(pOp);
     } else {
       pOp= pIOp= pTrans->scanIndex(g_index_record,
                                    g_table_record,
@@ -382,23 +382,23 @@ run_scan(){
         abort();
       }
         
-      assert(pIOp);
+      require(pIOp);
 
       switch(g_paramters[P_BOUND].value){
       case 0: // All
 	break;
       case 1: // None
         check= setEqBound(pIOp, g_index_record, 0, 0);
-        assert(check == 0);
+        require(check == 0);
 	break;
       case 2: { // 1 row
       default:  
-	assert(g_table->getNoOfPrimaryKeys() == 1); // only impl. so far
+	require(g_table->getNoOfPrimaryKeys() == 1); // only impl. so far
 	int tot = g_paramters[P_ROWS].value;
 	int row = rand() % tot;
 
         check= setEqBound(pIOp, g_index_record, row, 0);
-        assert(check == 0);
+        require(check == 0);
 	break;
       }
       case 3: { // read multi
@@ -415,19 +415,19 @@ run_scan(){
             err(pIOp->getNdbError());
             abort();
           }
-          assert(check == 0);
+          require(check == 0);
 	}
 	break;
       }
       }
     }
-    assert(pOp);
+    require(pOp);
     
-    assert(check == 0);
+    require(check == 0);
 
     int rows = 0;
     check = pTrans->execute(NoCommit);
-    assert(check == 0);
+    require(check == 0);
     int fetch = g_paramters[P_FETCH].value;
 
     const char * result_row_ptr;
@@ -440,14 +440,14 @@ run_scan(){
         err(pTrans->getNdbError());
         return -1;
       }
-      assert(check == 2);
+      require(check == 2);
     }
 
     if(check == -1){
       err(pTrans->getNdbError());
       return -1;
     }
-    assert(check == 1);
+    require(check == 1);
 
     pTrans->close();
     pTrans = 0;

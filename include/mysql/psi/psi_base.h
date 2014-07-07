@@ -33,8 +33,6 @@ extern "C" {
 
 #define PSI_NOT_INSTRUMENTED 0
 
-#ifdef HAVE_PSI_INTERFACE
-
 /**
   Global flag.
   This flag indicate that an instrumentation point is a global variable,
@@ -57,6 +55,8 @@ extern "C" {
   It indicates the instrumentation provides progress data.
 */
 #define PSI_FLAG_STAGE_PROGRESS (1 << 3)
+
+#ifdef HAVE_PSI_INTERFACE
 
 /**
   Shared Exclusive flag.

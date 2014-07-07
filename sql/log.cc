@@ -1166,7 +1166,7 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
 
 
 void Query_logger::init_query_log(enum_log_table_type log_type,
-                                  uint log_printer)
+                                  ulonglong log_printer)
 {
   if (log_type == QUERY_LOG_SLOW)
   {
@@ -1532,9 +1532,9 @@ bool Slow_log_throttle::log(THD *thd, bool eligible)
 }
 
 
-bool Error_log_throttle::log(THD *thd)
+bool Error_log_throttle::log()
 {
-  ulonglong end_utime_of_query= thd->current_utime();
+  ulonglong end_utime_of_query= my_micro_time();
 
   /*
     If the window has expired, we'll try to write a summary line.
@@ -1557,7 +1557,7 @@ bool Error_log_throttle::log(THD *thd)
 }
 
 
-bool Error_log_throttle::flush(THD *thd)
+bool Error_log_throttle::flush()
 {
   // Write summary if we throttled.
   ulong     suppressed_count= prepare_summary(1);
@@ -1858,8 +1858,6 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
 */
 
 ulong tc_log_page_waits= 0;
-
-#ifdef HAVE_MMAP
 
 #define TC_LOG_HEADER_SIZE (sizeof(tc_log_magic)+1)
 
@@ -2310,7 +2308,6 @@ err1:
                   "--tc-heuristic-recover={commit|rollback}");
   return 1;
 }
-#endif
 
 TC_LOG *tc_log;
 TC_LOG_DUMMY tc_log_dummy;

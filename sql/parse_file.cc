@@ -719,12 +719,12 @@ File_parser::parse(uchar* base, MEM_ROOT *mem_root,
     {
       File_option *parameter= parameters+first_param,
 	*parameters_end= parameters+required;
-      int len= 0;
+      size_t len= 0;
       for (; parameter < parameters_end; parameter++)
       {
 	len= parameter->name.length;
 	// check length
-	if (len < (end-ptr) && ptr[len] != '=')
+	if (len < static_cast<size_t>(end-ptr) && ptr[len] != '=')
 	  continue;
 	// check keyword
 	if (memcmp(parameter->name.str, ptr, len) == 0)

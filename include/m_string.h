@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -228,10 +228,8 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #define strtoll(A,B,C) strtol((A),(B),(C))
 #define strtoull(A,B,C) strtoul((A),(B),(C))
 #else
-#ifdef HAVE_LONG_LONG
 extern char *ll2str(longlong val,char *dst,int radix, int upcase);
 extern char *longlong10_to_str(longlong val,char *dst,int radix);
-#endif
 #endif
 #define longlong2str(A,B,C) ll2str((A),(B),(C),1)
 

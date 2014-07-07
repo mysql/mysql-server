@@ -440,7 +440,10 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
             goto err;
           }
 
-          if (set_part_state(alter_info, table->table->part_info, PART_ADMIN))
+          if (set_part_state(alter_info,
+                             table->table->part_info,
+                             PART_ADMIN,
+                             true))
           {
             char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
             size_t length;

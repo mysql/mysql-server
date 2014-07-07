@@ -188,6 +188,33 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_defaults.m_disk_write_speed /= (4 * 10);
   c_defaults.m_disk_write_speed_sr /= (4 * 10);
 
+  /*
+    Temporary fix, we divide the speed by number of ldm threads since we
+    now can write in all ldm threads in parallel. Since previously we could
+    write in 2 threads we also multiply by 2 if number of ldm threads is
+    at least 2.
+
+    The real fix will be to make the speed of writing more adaptable and also
+    to use the real configured value and also add a new max disk speed value
+    that can be used when one needs to write faster.
+  */
+  Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
+  if (num_ldm_threads == 0)
+  {
+    /* We are running with ndbd binary */
+    jam();
+    num_ldm_threads = 1;
+  }
+  c_defaults.m_disk_write_speed /= num_ldm_threads;
+  c_defaults.m_disk_write_speed_sr /= num_ldm_threads;
+
+  if (num_ldm_threads > 1)
+  {
+    jam();
+    c_defaults.m_disk_write_speed *= 2;
+    c_defaults.m_disk_write_speed_sr *= 2;
+  }
+
   ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
   //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &noTables));
