@@ -1,0 +1,71 @@
+#
+# WL#6737:  InnoDB: Enabling InnoDB temp-tables as default internal SE for
+#	    MySQL Optimizer
+#
+
+--source include/have_innodb.inc
+--source include/no_valgrind_without_big.inc
+--source include/not_embedded.inc
+
+################################################################################
+#
+# Workload will run following scenarios
+# 1. Execute different kind of queries using InnoDB as temp-tables
+#
+################################################################################
+
+#-----------------------------------------------------------------------------
+#
+# create test bed.
+#
+let $big_tables = `select @@big_tables`;
+let $internal_se = `select @@internal_tmp_disk_storage_engine`;
+set global big_tables = 1;
+set global internal_tmp_disk_storage_engine = innodb;
+#
+##--disable_query_log
+--source suite/innodb/include/create_workload_itt.inc
+##--enable_query_log
+
+#-----------------------------------------------------------------------------
+#
+# Workload in non-read-only mode.
+#
+--source suite/innodb/include/query_workload_itt.inc
+
+#-----------------------------------------------------------------------------
+#
+# Workload in read-only mode.
+#
+--echo "Restarting in read only mode"
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 60
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+#
+--source suite/innodb/include/query_workload_itt.inc
+#
+#
+--echo "Restarting Server in normal mode."
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+#-----------------------------------------------------------------------------
+#
+# remove test bed.
+#
+--source suite/innodb/include/drop_workload_itt.inc
+eval set global big_tables = $big_tables;
+eval set global internal_tmp_disk_storage_engine = $internal_se;
+
