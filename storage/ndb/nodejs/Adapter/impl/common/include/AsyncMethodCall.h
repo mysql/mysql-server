@@ -25,6 +25,7 @@
 
 #include "JsConverter.h"
 #include "async_common.h"
+#include "common_v8_values.h"
 
 using namespace v8;
 
@@ -95,7 +96,7 @@ class AsyncCall {
       if (callback->IsCallable()) {
         uv_work_t * req = new uv_work_t;
         req->data = (void *) this;
-        uv_queue_work(uv_default_loop(), req, work_thd_run, ASYNC_COMMON_MAIN_THD_CALLBACK);
+        uv_queue_work(uv_default_loop(), req, work_thd_run, main_thd_complete);
       }
       else {
         ThrowException(Exception::TypeError(String::New("Uncallable Callback")));
@@ -150,7 +151,12 @@ public:
       return scope.Close(obj);
     }
     else {
-      return scope.Close(toJS(return_val));
+      /* Optimization for a common case */
+      if(return_val == 0) {
+        return scope.Close(Zero());
+      } else {
+        return scope.Close(toJS(return_val));
+      }
     }
   }
 

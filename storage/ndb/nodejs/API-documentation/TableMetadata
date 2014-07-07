@@ -9,6 +9,7 @@ TableMetadata = {
   name             : "", // Table Name
   columns          : {}, // ordered array of ColumnMetadata objects
   indexes          : {}, // array of IndexMetadata objects 
+  foreignKeys      : {}, // array of ForeignKeyMetadata objects
   partitionKey     : {}, // ordered array of column numbers in the partition key
 };
 
@@ -40,7 +41,6 @@ ColumnMetadata = {
   /* Group B: Non-numeric */
   length           : 0    ,  //  CHAR or VARCHAR length in characters
   isBinary         : false,  //  true for BLOB/BINARY/VARBINARY
-  charsetNumber    : 0    ,  //  internal number of charset
   charsetName      : ""   ,  //  name of charset
 };
 
@@ -58,6 +58,20 @@ IndexMetadata = {
   isUnique         : true  ,  // true or false
   isOrdered        : true  ,  // true or false; can scan if true
   columnNumbers    : null  ,  // an ordered array of column numbers
+};
+
+
+/* ForeignKeyMetadata represents a foreign key constraint.  
+
+   The "foreignKeys" array of TableMetadata will hold the foreign key constraints.
+    
+*/
+ForeignKeyMetadata = {
+  name             : ""    ,  // Constraint name 
+  columnNames      : null  ,  // an ordered array of column numbers
+  targetTable      : ""    ,  // referenced table name
+  targetDatabase   : ""    ,  // referenced database
+  targetColumnNames: null  ,  // an ordered array of target column names
 };
 
 

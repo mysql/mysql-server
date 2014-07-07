@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -39,8 +39,10 @@ var SessionFactory = function(key, dbConnectionPool, properties, mappings, delet
 };
 
 SessionFactory.prototype.inspect = function() {
+  var numberOfMappings = this.mappings? this.mappings.length: 0;
+  var numberOfSessions = this.sessions? this.sessions.length: 0;
   return "[[API SessionFactory with key:" + this.key + ", " + 
-  this.mappings.length + " mappings, " + this.sessions.length + " sessions.]]\n";
+  numberOfMappings + " mappings, " + numberOfSessions + " sessions.]]\n";
 };
 
 //openSession(Function(Object error, Session session, ...) callback, ...);
@@ -104,7 +106,7 @@ SessionFactory.prototype.close = function(user_callback) {
   }
     
   function closeConnection() {
-    udebug.log_detail('closeConnection calling mynode.delete_callback for key', self.key,
+    if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('closeConnection calling mynode.delete_callback for key', self.key,
         'database', self.properties.database);
     self.delete_callback(self.key, self.properties.database, closeOnConnectionClose);
   }

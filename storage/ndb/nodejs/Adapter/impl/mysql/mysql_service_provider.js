@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -39,7 +39,8 @@ exports.loadRequiredModules = function() {
     require("mysql");
   }
   catch(e) {
-    error = new Error("The mysql adapter requires node-mysql version 2.0");
+    error = new Error("Error loading mysql node_module: " + e.message);
+    error.cause = e;
     throw error;
   }
   
@@ -60,9 +61,12 @@ var MysqlDefaultConnectionProperties = {
   "mysql_user"     : "root",
   "mysql_password" : "",
   "mysql_charset"  : "UTF8MB4",
+  "mysql_sql_mode" : "STRICT_ALL_TABLES",
   "mysql_socket"   : null,
   "debug"          : true,
-  "mysql_debug"    : false
+  "mysql_trace"    : false,
+  "mysql_debug"    : false,
+  "mysql_pool_size": 10
 };
 
 

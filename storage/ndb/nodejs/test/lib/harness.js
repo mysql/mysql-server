@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -117,6 +117,13 @@ Test.prototype.pass = function() {
     console.log('Error: pass called with status already ' + (this.failed?'failed':'passed'));
     assert(this.failed === null);
   } else {
+    if (this.session && !this.session.isClosed()) {
+      // if session is open, close it
+      if (this.session.currentTransaction().isActive()) {
+        console.log('Test.pass found active transaction');
+      }
+      this.session.close();
+    }
     this.failed = false;
     this.result.pass(this);
   }
@@ -127,11 +134,16 @@ Test.prototype.fail = function(message) {
     console.log('Error: pass called with status already ' + (this.failed?'failed':'passed'));
     assert(this.failed === null);
   } else {
+    if (this.session && !this.session.isClosed()) {
+      // if session is open, close it
+      this.session.close();
+    }
     this.failed = true;
     if (message) {
       this.appendErrorMessage(message);
+      this.stack = message.stack;
     }
-    this.result.fail(this, { 'message' : this.errorMessages});
+    this.result.fail(this, { 'message' : this.errorMessages, 'stack': this.stack});
   }
 };
 
@@ -172,7 +184,6 @@ Test.prototype.run = function() {
 
 function getType(obj) {
   var type = typeof(obj);
-  console.log(util.inspect(obj));
   if (type === 'object') return obj.constructor.name;
   return type;
 }
@@ -325,8 +336,7 @@ Suite.prototype.addTestsFromFile = function(f, onlyTests) {
       this.addTest(f, t);
     }
     else { 
-      udebug.log_detail(t);
-      throw "Module " + f + " does not export a Test.";
+      console.log("Warning: " + f + " does not export a Test.");
     }
   }
 };
