@@ -30,6 +30,11 @@
 #include "field.h"
 #include "item.h"
 
+/*
+   For global system variable internal_tmp_disk_storage_engine
+ */
+enum enum_internal_tmp_disk_storage_engine { TMP_TABLE_MYISAM, TMP_TABLE_INNODB };
+
 class SJ_TMP_TABLE;
 struct TABLE;
 class THD;
@@ -51,7 +56,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 */
 
 TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
-bool create_myisam_from_heap(THD *thd, TABLE *table,
+bool create_ondisk_from_heap(THD *thd, TABLE *table,
                              MI_COLUMNDEF *start_recinfo,
                              MI_COLUMNDEF **recinfo, 
 			     int error, bool ignore_last_dup,

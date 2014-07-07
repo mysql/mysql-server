@@ -337,6 +337,11 @@ char *my_bind_addr_str;
 static char *default_collation_name;
 char *default_storage_engine;
 char *default_tmp_storage_engine;
+/**
+   Use to mark which engine should be choosen to create internal
+   temp table
+ */
+ulong internal_tmp_disk_storage_engine;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static bool binlog_format_used= false;
 
@@ -405,6 +410,7 @@ my_bool old_mode;
 handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
+handlerton *innodb_hton;
 
 uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
@@ -5465,12 +5471,10 @@ struct my_option my_long_options[]=
    "more than one storage engine, when binary log is disabled).",
    &opt_tc_log_file, &opt_tc_log_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_MMAP
   {"log-tc-size", 0, "Size of transaction coordinator log.",
    &opt_tc_log_size, &opt_tc_log_size, 0, GET_ULONG,
    REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ULONG_MAX, 0,
    TC_LOG_PAGE_SIZE, 0},
-#endif
   {"master-info-file", 0,
    "The location and name of the file that remembers the master and where "
    "the I/O replication thread is in the master's binlogs.",
@@ -6415,11 +6419,9 @@ SHOW_VAR status_vars[]= {
   {"Table_open_cache_hits",    (char*) offsetof(STATUS_VAR, table_open_cache_hits), SHOW_LONGLONG_STATUS},
   {"Table_open_cache_misses",  (char*) offsetof(STATUS_VAR, table_open_cache_misses), SHOW_LONGLONG_STATUS},
   {"Table_open_cache_overflows",(char*) offsetof(STATUS_VAR, table_open_cache_overflows), SHOW_LONGLONG_STATUS},
-#ifdef HAVE_MMAP
   {"Tc_log_max_pages_used",    (char*) &tc_log_max_pages_used,  SHOW_LONG},
   {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG_NOFLUSH},
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
-#endif
 #ifndef EMBEDDED_LIBRARY
   {"Threads_cached",           (char*) &Per_thread_connection_handler::blocked_pthread_count, SHOW_LONG_NOFLUSH},
 #endif
@@ -7732,9 +7734,7 @@ void refresh_status(THD *thd)
 *****************************************************************************/
 
 #ifdef HAVE_PSI_INTERFACE
-#ifdef HAVE_MMAP
 PSI_mutex_key key_LOCK_tc;
-#endif /* HAVE_MMAP */
 
 #ifdef HAVE_OPENSSL
 PSI_mutex_key key_LOCK_des_key_file;
@@ -7795,9 +7795,7 @@ PSI_mutex_key key_commit_order_manager_mutex;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
-#ifdef HAVE_MMAP
   { &key_LOCK_tc, "TC_LOG_MMAP::LOCK_tc", 0},
-#endif /* HAVE_MMAP */
 
 #ifdef HAVE_OPENSSL
   { &key_LOCK_des_key_file, "LOCK_des_key_file", PSI_FLAG_GLOBAL},
@@ -7911,10 +7909,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
 };
 
-#ifdef HAVE_MMAP
 PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
-#endif /* HAVE_MMAP */
-
 PSI_cond_key key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_manager,
   key_COND_server_started,
@@ -7939,11 +7934,9 @@ PSI_cond_key key_commit_order_manager_cond;
 
 static PSI_cond_info all_server_conds[]=
 {
-#ifdef HAVE_MMAP
   { &key_PAGE_cond, "PAGE::cond", 0},
   { &key_COND_active, "TC_LOG_MMAP::COND_active", 0},
   { &key_COND_pool, "TC_LOG_MMAP::COND_pool", 0},
-#endif /* HAVE_MMAP */
   { &key_BINLOG_COND_done, "MYSQL_BIN_LOG::COND_done", 0},
   { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0},
   { &key_BINLOG_prep_xids_cond, "MYSQL_BIN_LOG::prep_xids_cond", 0},
@@ -8009,10 +8002,7 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL}
 };
 
-#ifdef HAVE_MMAP
 PSI_file_key key_file_map;
-#endif /* HAVE_MMAP */
-
 PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
@@ -8025,9 +8015,7 @@ PSI_file_key key_file_relaylog, key_file_relaylog_index;
 
 static PSI_file_info all_server_files[]=
 {
-#ifdef HAVE_MMAP
   { &key_file_map, "map", 0},
-#endif /* HAVE_MMAP */
   { &key_file_binlog, "binlog", 0},
   { &key_file_binlog_index, "binlog_index", 0},
   { &key_file_relaylog, "relaylog", 0},
@@ -8072,7 +8060,7 @@ PSI_stage_info stage_checking_query_cache_for_query= { 0, "checking query cache 
 PSI_stage_info stage_cleaning_up= { 0, "cleaning up", 0};
 PSI_stage_info stage_closing_tables= { 0, "closing tables", 0};
 PSI_stage_info stage_connecting_to_master= { 0, "Connecting to master", 0};
-PSI_stage_info stage_converting_heap_to_myisam= { 0, "converting HEAP to MyISAM", 0};
+PSI_stage_info stage_converting_heap_to_ondisk= { 0, "converting HEAP to ondisk", 0};
 PSI_stage_info stage_copying_to_group_table= { 0, "Copying to group table", 0};
 PSI_stage_info stage_copying_to_tmp_table= { 0, "Copying to tmp table", 0};
 PSI_stage_info stage_copy_to_tmp_table= { 0, "copy to tmp table", PSI_FLAG_STAGE_PROGRESS};
@@ -8182,7 +8170,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_cleaning_up,
   & stage_closing_tables,
   & stage_connecting_to_master,
-  & stage_converting_heap_to_myisam,
+  & stage_converting_heap_to_ondisk,
   & stage_copying_to_group_table,
   & stage_copying_to_tmp_table,
   & stage_copy_to_tmp_table,

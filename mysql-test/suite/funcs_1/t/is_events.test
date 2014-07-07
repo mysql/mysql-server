@@ -89,6 +89,7 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 #                     is associated.
 #
 eval DESCRIBE          information_schema.$is_table;
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 eval SHOW CREATE TABLE information_schema.$is_table;
 eval SHOW COLUMNS FROM information_schema.$is_table;
 
