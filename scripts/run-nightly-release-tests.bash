@@ -12,7 +12,7 @@ cd $tokudbdir
 if [ ! -d build ] ; then
     mkdir build
     pushd build
-    CC=gcc47 CXX=g++47 cmake \
+    cmake \
         -D CMAKE_BUILD_TYPE=Release \
         -D USE_VALGRIND=ON \
         -D TOKU_DEBUG_PARANOID=OFF \
