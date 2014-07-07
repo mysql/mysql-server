@@ -31,9 +31,9 @@ function TestData(id) {
 function ErrorVerifier(testCase, sqlState) {
   this.run = function onRead(err, rowRead) {
     var message = "Expected SQLState " + sqlState;
-    if(testCase.errorIfUnset(message, err && err.cause && err.cause.sqlstate)) 
+    if(testCase.errorIfUnset(message, err && err.sqlstate)) 
     {
-      testCase.errorIfNotEqual("Expected sqlstate", sqlState, err.cause.sqlstate);
+      testCase.errorIfNotEqual("Expected sqlstate", sqlState, err.sqlstate);
     }
     testCase.failOnError();
   };
@@ -133,7 +133,7 @@ t5.run = function() {
 }
 
 // cNullableTimestamp 1969.
-// This should return 22008 INVALID DATETIME
+// This should return 22007 INVALID DATETIME
 var t6 = new harness.ConcurrentTest("Timestamp1969");
 t6.run = function() {
   var data = new TestData(16);

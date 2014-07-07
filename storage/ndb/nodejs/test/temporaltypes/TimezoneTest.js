@@ -77,6 +77,12 @@ function ValueVerifier(testCase, field, value) {
       }
     }
     catch(e) { testCase.appendErrorMessage(e); }
+    if (testCase.ndbSession) {
+      testCase.ndbSession.close();
+    }
+    if (testCase.mysqlSession) {
+      testCase.mysqlSession.close();
+    }
     testCase.failOnError();
   };
 }

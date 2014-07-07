@@ -26,13 +26,16 @@ using v8::Handle;
 using v8::Value;
 using v8::Object;
 
+class BlobWriteHandler;
+
 class ColumnHandler {
 public:
   ColumnHandler();
   ~ColumnHandler();
   void init(const NdbDictionary::Column *, size_t, Handle<Value>);
-  Handle<Value> read(char *) const;
+  Handle<Value> read(char *, Handle<Object>) const;
   Handle<Value> write(Handle<Value>, char *) const;
+  BlobWriteHandler * createBlobWriteHandle(Handle<Value>, int fieldNo) const;
     
 public:
   const NdbDictionary::Column *column;
@@ -43,6 +46,7 @@ private:
   Persistent<Object> converterReader;
   Persistent<Object> converterWriter;
   bool hasConverterReader, hasConverterWriter;
+  bool isLob, isText;
 };
 
 

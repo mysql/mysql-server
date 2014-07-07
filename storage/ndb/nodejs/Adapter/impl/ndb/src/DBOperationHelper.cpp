@@ -23,12 +23,14 @@
 #include <node.h>
 
 #include "adapter_global.h"
-#include "Operation.h"
+#include "KeyOperation.h"
+#include "DBOperationSet.h"
 #include "NdbWrappers.h"
 #include "v8_binder.h"
 #include "js_wrapper_macros.h"
 #include "NdbRecordObject.h"
-#include "PendingOperationSet.h"
+#include "DBTransactionContext.h"
+#include "BlobHandler.h"
 
 enum {
   HELPER_ROW_BUFFER = 0,
@@ -40,32 +42,33 @@ enum {
   HELPER_VALUE_OBJECT,
   HELPER_OPCODE,
   HELPER_IS_VO,
+  HELPER_BLOBS,
   HELPER_IS_VALID
 };
 
-const NdbOperation * DBOperationHelper_VO(Handle<Object>, int, NdbTransaction *);
-const NdbOperation * DBOperationHelper_NonVO(Handle<Object>, int, NdbTransaction *);
-const NdbOperation * buildNdbOperation(Operation &, int, NdbTransaction *);
+void DBOperationHelper_VO(Handle<Object>, KeyOperation &);
+void DBOperationHelper_NonVO(Handle<Object>, KeyOperation &);
 
-void setKeysInOp(Handle<Object> spec, Operation & op);
+void setKeysInOp(Handle<Object> spec, KeyOperation & op);
 
 
 /* DBOperationHelper takes an array of HelperSpecs.
    arg0: Length of Array
    arg1: Array of HelperSpecs
-   arg2: NdbTransaction *
+   arg2: DBTransactionContext *
+   arg3: Old DBOperationSet wrapper (for recycling)
 
-   Returns: a wrapped PendingOperationSet
-   The set has the same length as the array that came in
+   Returns: DBOperationSet
 */
 Handle<Value> DBOperationHelper(const Arguments &args) {
   HandleScope scope;
 
   int length = args[0]->Int32Value();
   const Local<Object> array = args[1]->ToObject();
-  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
+  DBTransactionContext *txc = unwrapPointer<DBTransactionContext *>(args[2]->ToObject());
+  Handle<Value> oldWrapper = args[3];
 
-  PendingOperationSet * opList = new PendingOperationSet(length);
+  DBOperationSet * pendingOps = new DBOperationSet(txc, length);
 
   for(int i = 0 ; i < length ; i++) {
     Handle<Object> spec = array->Get(i)->ToObject();
@@ -74,26 +77,24 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
     bool is_vo  = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
     bool op_ok  = spec->Get(HELPER_IS_VALID)->ToBoolean()->Value();
 
-    const NdbOperation * op = NULL;
-
+    KeyOperation * op = pendingOps->getKeyOperation(i);
+    
     if(op_ok) {
-      op = is_vo ?
-        DBOperationHelper_VO(spec, opcode, tx):
-        DBOperationHelper_NonVO(spec, opcode, tx);
-
-      if(op)    opList->setNdbOperation(i, op);
-      else      opList->setError(i, tx->getNdbError());
-    }
-    else {
-      opList->setNdbOperation(i, NULL);
+      op->opcode = opcode;
+      if(is_vo) DBOperationHelper_VO(spec, *op);
+      else      DBOperationHelper_NonVO(spec, *op);
     }
   }
-
-  return PendingOperationSet_Wrapper(opList);
+  
+  if(oldWrapper->IsObject()) {
+    return DBOperationSet_Recycle(oldWrapper->ToObject(), pendingOps);
+  } else {
+    return DBOperationSet_Wrapper(pendingOps);
+  }
 }
 
 
-void setKeysInOp(Handle<Object> spec, Operation & op) {
+void setKeysInOp(Handle<Object> spec, KeyOperation & op) {
   HandleScope scope;
 
   Local<Value> v;
@@ -113,42 +114,48 @@ void setKeysInOp(Handle<Object> spec, Operation & op) {
 }
 
 
-const NdbOperation * buildNdbOperation(Operation &op,
-                                       int opcode, NdbTransaction *tx) {
-  const NdbOperation * ndbop;
-    
-  switch(opcode) {
-    case 1:  // OP_READ:
-      ndbop = op.readTuple(tx);
-      break;
-    case 2:  // OP_INSERT:
-      ndbop = op.insertTuple(tx);
-      break;
-    case 4:  // OP_UPDATE:
-      ndbop = op.updateTuple(tx);
-      break;
-    case 8:  // OP_WRITE:
-      ndbop = op.writeTuple(tx);
-      break;
-    case 16: // OP_DELETE:
-      ndbop = op.deleteTuple(tx);
-      break;
-    default:
-      assert("Unhandled opcode" == 0);
-      return NULL;
+int createBlobReadHandles(Handle<Object> blobsArray, const Record * rowRecord,
+                          KeyOperation & op) {
+  int ncreated = 0;
+  int ncol = rowRecord->getNoOfColumns();
+  for(int i = 0 ; i < ncol ; i++) {
+    const NdbDictionary::Column * col = rowRecord->getColumn(i);
+    if((col->getType() ==  NdbDictionary::Column::Blob) ||
+       (col->getType() ==  NdbDictionary::Column::Text)) 
+    {
+      op.setBlobHandler(new BlobReadHandler(i, col->getColumnNo()));
+      ncreated++;
+    }
   }
-
-  return ndbop;
+  return ncreated;
 }
 
 
-const NdbOperation * DBOperationHelper_NonVO(Handle<Object> spec, int opcode,
-                                             NdbTransaction *tx) {
+int createBlobWriteHandles(Handle<Object> blobsArray, const Record * rowRecord,
+                           KeyOperation & op) {
+  int ncreated = 0;
+  int ncol = rowRecord->getNoOfColumns();
+  for(int i = 0 ; i < ncol ; i++) {
+    if(blobsArray->Get(i)->IsObject()) {
+      Local<Object> blobValue = blobsArray->Get(i)->ToObject();
+      assert(node::Buffer::HasInstance(blobValue));
+      const NdbDictionary::Column * col = rowRecord->getColumn(i);
+      assert( (col->getType() ==  NdbDictionary::Column::Blob) ||
+              (col->getType() ==  NdbDictionary::Column::Text));
+      ncreated++;
+      op.setBlobHandler(new BlobWriteHandler(i, col->getColumnNo(), blobValue));
+    }
+  }
+  return ncreated;
+}
+
+
+void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
   HandleScope scope;
-  Operation op;
 
   Local<Value> v;
   Local<Object> o;
+  int nblobs = 0;
 
   setKeysInOp(spec, op);
   
@@ -161,7 +168,17 @@ const NdbOperation * DBOperationHelper_NonVO(Handle<Object> spec, int opcode,
   v = spec->Get(HELPER_ROW_RECORD);
   if(! v->IsNull()) {
     o = v->ToObject();
-    op.row_record = unwrapPointer<const Record *>(o);
+    const Record * record = unwrapPointer<const Record *>(o);
+    op.row_record = record;
+
+    v = spec->Get(HELPER_BLOBS);
+    if(v->IsObject()) {
+      if(op.opcode == 1) {
+        nblobs = createBlobReadHandles(v->ToObject(), record, op);
+      } else {
+        nblobs = createBlobWriteHandles(v->ToObject(), record, op);
+      }
+    }
   }
   
   v = spec->Get(HELPER_LOCK_MODE);
@@ -178,29 +195,23 @@ const NdbOperation * DBOperationHelper_NonVO(Handle<Object> spec, int opcode,
       op.useColumn(colId->Int32Value());
     }
   }
-  
-  DEBUG_PRINT("Non-VO opcode: %d mask: %u", opcode, op.u.maskvalue);
 
-  return buildNdbOperation(op, opcode, tx);
+  DEBUG_PRINT("Non-VO %s -- mask: %u lobs: %d", op.getOperationName(), 
+              op.u.maskvalue, nblobs);
 }
 
-const NdbOperation * DBOperationHelper_VO(Handle<Object> spec, int opcode,
-                                          NdbTransaction *tx) {
+
+void DBOperationHelper_VO(Handle<Object> spec,  KeyOperation & op) {
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   Local<Value> v;
   Local<Object> o;
   Local<Object> valueObj;
-  const NdbOperation * ndbOp;
-  Operation op;
 
-  /* NdbOperation.prepare() just verified that this is really a VO */
   v = spec->Get(HELPER_VALUE_OBJECT);
   valueObj = v->ToObject();
   NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(valueObj);
 
-  /* The VO may have values that are not yet encoded to its buffer. */
-  nro->prepare();  // FIXME: prepare() could return an error
-  
   /* Set the key record and key buffer from the helper spec */
   setKeysInOp(spec, op);
   
@@ -208,21 +219,22 @@ const NdbOperation * DBOperationHelper_VO(Handle<Object> spec, int opcode,
   op.row_record = nro->getRecord();
   op.row_buffer = nro->getBuffer();
 
-  /* "write" and "persist" must write all columns. 
-     Other operations only require the columns that have changed since read.
+  /* A persist operation must write all columns.
+     A save operation must write all columns only if the PK has changed.
+     Other operations only write columns that have changed since being read.
   */
-  if(opcode == 2 || opcode == 8) 
-    op.setRowMask(0xFFFFFFFF);
+  if(op.opcode == 2) 
+    op.setRowMask(op.row_record->getAllColumnMask());
+  else if(op.opcode == 8 && (nro->getMaskValue() & op.row_record->getPkColumnMask())) 
+    op.setRowMask(op.row_record->getAllColumnMask());
   else 
     op.setRowMask(nro->getMaskValue());
 
-  DEBUG_PRINT("  VO   opcode: %d mask: %u", opcode, op.u.maskvalue);
+  int nblobs = nro->createBlobWriteHandles(op);
 
-  ndbOp = buildNdbOperation(op, opcode, tx);
-  
+  DEBUG_PRINT("  VO   %s -- mask: %u lobs: %d", op.getOperationName(), 
+              op.u.maskvalue, nblobs);
   nro->resetMask(); 
-
-  return ndbOp;
 }
 
 
@@ -241,6 +253,7 @@ void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEFINE_JS_INT(OpHelper, "value_obj",    HELPER_VALUE_OBJECT);
   DEFINE_JS_INT(OpHelper, "opcode",       HELPER_OPCODE);
   DEFINE_JS_INT(OpHelper, "is_value_obj", HELPER_IS_VO);
+  DEFINE_JS_INT(OpHelper, "blobs",        HELPER_BLOBS);
   DEFINE_JS_INT(OpHelper, "is_valid",     HELPER_IS_VALID);
 
   Persistent<Object> LockModes = Persistent<Object>(Object::New());

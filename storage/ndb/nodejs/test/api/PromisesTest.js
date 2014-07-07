@@ -30,7 +30,7 @@ var bad_properties = {
   "mysql_user"        : "_BAD_USER_",
   "mysql_password"    : "_NOT_A_REAL_PASSWORD!_", 
   "ndb_connectstring" : "this_host_does_not_exist"
-}
+};
 
 var tests = [];
 
@@ -51,8 +51,7 @@ t_222.run = function() {
     assert(n === 1);  // 2.2.2.3 ; could happen after test has already passed
     test.errorIfUnset("PromisesTest.t_222 onFulfilled gets a value", session);   // 2.2.2.1
     test.errorIfNotEqual("PromisesTest.t_222 Not a session", typeof session.find, "function");
-    test.errorIfNotEqual("typeof this (2.2.5) " + this, "undefined", typeof this);
-
+    test.errorIfNotEqual("typeof this (2.2.5) " + this, "undefined", typeof this); 
     session.close(function() {
       test.failOnError();
       });
@@ -332,7 +331,7 @@ t_2273.run = function() {
   test = this;
   
   function p2OnFulfilled(v) {
-    v.close(function(){test.failOnError()});
+    v.close(function(){test.failOnError();});
   }
 
   p1 = mynode.openSession(good_properties, null);
@@ -492,15 +491,27 @@ function createHelpers(testCase, session, errorSqlStateMatch, errorMessageMatch)
           testCase.appendErrorMessage('err.message must be a string.');
         }
       }
-      testCase.failOnError();
+      if (session.currentTransaction().isActive()) {
+        session.currentTransaction().rollback(function(err) {
+          if (err) {
+            err.message += '\n failure occurred on rollback after test in checkReportFailure';
+            testCase.fail(err);
+          } else {
+            testCase.failOnError();
+          }
+        });
+      } else {
+        testCase.failOnError();
+      }
     }
   };
-};
+}
 
 var testIdleCommit = new harness.ConcurrentTest('Idle commit must fail');
 testIdleCommit.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
+    testCase.session = session;
     if (err) throw err;
     var helpers = createHelpers(testCase, session, '2500', 'Idle cannot commit');
     helpers.commit().
@@ -513,6 +524,7 @@ var testIdleRollback = new harness.ConcurrentTest('Idle rollback must fail');
 testIdleRollback.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
+    testCase.session = session;
     if (err) throw err;
     var helpers = createHelpers(testCase, session, '2500', 'Idle cannot rollback');
     helpers.rollback().
@@ -526,6 +538,7 @@ testActiveBegin.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
     if (err) throw err;
+    testCase.session = session;
     var helpers = createHelpers(testCase, session, '2500', 'Active cannot begin');
     var p1 = helpers.begin();
       var p2 = p1.then(helpers.begin);
@@ -540,6 +553,7 @@ var testRollbackOnlyBegin = new harness.ConcurrentTest('RollbackOnly begin must 
 testRollbackOnlyBegin.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
+    testCase.session = session;
     if (err) throw err;
     var helpers = createHelpers(testCase, session, '2500', 'RollbackOnly cannot begin');
     helpers.begin().
@@ -554,6 +568,7 @@ var testRollbackOnlyCommit = new harness.ConcurrentTest('RollbackOnly commit mus
 testRollbackOnlyCommit.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
+    testCase.session = session;
     if (err) throw err;
     var helpers = createHelpers(testCase, session, '2500', 'RollbackOnly cannot commit');
     helpers.begin().
