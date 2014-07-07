@@ -857,14 +857,23 @@ can_convert_field_to(Field *field,
   @param tmp_table_var[out]
   Virtual temporary table for performing conversions, if necessary.
 
+  @param mem_root [in]
+  mem_root from which memory should be allocated.
+  Default value is NULL and thread's mem_root will be considered in
+  that case.
+
   @retval true Master table is compatible with slave table.
   @retval false Master table is not compatible with slave table.
 */
 bool
 table_def::compatible_with(THD *thd, Relay_log_info *rli,
-                           TABLE *table, TABLE **conv_table_var)
+                           TABLE *table, TABLE **conv_table_var,
+                           MEM_ROOT *mem_root /*default = NULL*/)
   const
 {
+  /* If mem_root provided is NULL, use it from thd's mem_root. */
+  if (mem_root == NULL)
+    mem_root= thd->mem_root;
   /*
     We only check the initial columns for the tables.
   */
@@ -892,7 +901,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
           This will create the full table with all fields. This is
           necessary to ge the correct field lengths for the record.
         */
-        tmp_table= create_conversion_table(thd, rli, table);
+        tmp_table= create_conversion_table(thd, rli, table, mem_root);
         if (tmp_table == NULL)
             return false;
         /*
@@ -962,9 +971,13 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
   conversion table.
  */
 
-TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *target_table) const
+TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
+                                          TABLE *target_table,
+                                          MEM_ROOT *mem_root /*default = NULL */) const
 {
   DBUG_ENTER("table_def::create_conversion_table");
+  if (mem_root == NULL)
+    mem_root= thd->mem_root;
 
   List<Create_field> field_list;
   TABLE *conv_table= NULL;
@@ -989,8 +1002,8 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
   for (uint col= 0 ; col < cols_to_create; ++col)
   {
     Create_field *field_def=
-      (Create_field*) alloc_root(thd->mem_root, sizeof(Create_field));
-    if (field_list.push_back(field_def))
+      (Create_field*) alloc_root(mem_root, sizeof(Create_field));
+    if (field_list.push_back(field_def, mem_root))
       DBUG_RETURN(NULL);
 
     uint decimals= 0;
@@ -1057,7 +1070,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     field_def->interval= interval;
   }
 
-  conv_table= create_virtual_tmp_table(thd, field_list);
+  conv_table= create_virtual_tmp_table(thd, field_list, mem_root);
 
 err:
   if (conv_table == NULL)
