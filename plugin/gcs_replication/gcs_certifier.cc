@@ -17,11 +17,7 @@ using namespace std;
 
 #include "gcs_plugin.h"
 #include "gcs_certifier.h"
-#include <gcs_protocol_factory.h>
-#include <gcs_protocol.h>
-#include <gcs_message.h>
 #include <gcs_replication.h>
-
 
 static void *launch_broadcast_thread(void* arg)
 {
@@ -30,14 +26,16 @@ static void *launch_broadcast_thread(void* arg)
   return 0;
 }
 
-
-Certifier_broadcast_thread::Certifier_broadcast_thread()
-  :aborted(false), broadcast_pthd_running(false)
+Certifier_broadcast_thread::Certifier_broadcast_thread
+                                      (Gcs_communication_interface* comm_intf,
+                                       Gcs_control_interface* ctrl_intf,
+                                       Cluster_member_info* local_node_info)
+  :aborted(false), broadcast_pthd_running(false), gcs_communication(comm_intf),
+   gcs_control(ctrl_intf), local_node(local_node_info)
 {
   pthread_mutex_init(&broadcast_pthd_lock, NULL);
   pthread_cond_init(&broadcast_pthd_cond, NULL);
 }
-
 
 Certifier_broadcast_thread::~Certifier_broadcast_thread()
 {
@@ -126,28 +124,36 @@ int Certifier_broadcast_thread::broadcast_gtid_executed()
 {
   DBUG_ENTER("Certifier_broadcast_thread::broadcast_gtid_executed");
 
-  // Only broadcast if I'm online.
-  GCS::Protocol *protocol= GCS::Protocol_factory::get_instance();
-  if (protocol->get_client_info().get_recovery_status() !=
-      GCS::MEMBER_ONLINE)
+  if (this->local_node == NULL ||
+      this->local_node->get_recovery_status() !=
+                                        Cluster_member_info::MEMBER_ONLINE)
+  {
     DBUG_RETURN(0);
+  }
+
 
   int error= 0;
   uchar *encoded_gtid_executed= NULL;
   uint length;
   get_server_encoded_gtid_executed(&encoded_gtid_executed, &length);
 
-  GCS::Message *message = new GCS::Message(GCS::PAYLOAD_CERTIFICATION_EVENT);
-  message->append(encoded_gtid_executed, length);
+  Gtid_Executed_Message gtid_executed_message;
+  vector<uchar> encoded_gtid_executed_message;
+  gtid_executed_message.append_gtid_executed(encoded_gtid_executed, length);
+  gtid_executed_message.encode(&encoded_gtid_executed_message);
 
-  // FIXME: ignore return value for now, due to bad "quorate" handling when group
-  // decreases to a non majority view is not installed and status not updated
-  /*if (protocol->broadcast(*message))
+  Gcs_message msg(*gcs_control->get_local_information(),
+                  *gcs_control->get_current_view()->get_group_id(),
+                  UNIFORM);
+
+  msg.append_to_payload(&encoded_gtid_executed_message.front(),
+                        encoded_gtid_executed_message.size());
+
+  if (gcs_communication->send_message(&msg))
   {
     log_message(MY_ERROR_LEVEL, "Unable to broadcast stable transactions set message");
     error= 1;
-  }*/
-  protocol->broadcast(*message);
+  }
 
 #if !defined(DBUG_OFF)
   char *encoded_gtid_executed_string=
@@ -157,18 +163,20 @@ int Certifier_broadcast_thread::broadcast_gtid_executed()
 #endif
 
   my_free(encoded_gtid_executed);
-  delete message;
   DBUG_RETURN(error);
 }
 
 
 Certifier::Certifier()
-  :initialized(false), next_seqno(1), positive_cert(0), negative_cert(0)
+  :gcs_communication(NULL), gcs_control(NULL), local_node(NULL),
+   initialized(false), next_seqno(1), positive_cert(0), negative_cert(0)
 {
   incoming= new Synchronized_queue<Data_packet*>();
   stable_sid_map= new Sid_map(NULL);
   stable_gtid_set= new Gtid_set(stable_sid_map, NULL);
-  broadcast_thread= new Certifier_broadcast_thread();
+  broadcast_thread= new Certifier_broadcast_thread(gcs_communication,
+                                                   gcs_control,
+                                                   local_node);
 
 #ifdef HAVE_PSI_INTERFACE
   PSI_mutex_info certifier_mutexes[]=
@@ -400,6 +408,23 @@ bool Certifier::set_group_stable_transactions_set(Gtid_set* executed_gtid_set)
   DBUG_RETURN(false);
 }
 
+void
+Certifier::set_gcs_interfaces(Gcs_communication_interface* comm_if,
+                              Gcs_control_interface* ctrl_if)
+{
+  DBUG_ENTER("Certifier::set_gcs_interfaces");
+  this->gcs_communication= comm_if;
+  this->gcs_control= ctrl_if;
+  DBUG_VOID_RETURN;
+}
+
+void
+Certifier::set_local_node_info(Cluster_member_info* local_info)
+{
+  DBUG_ENTER("Certifier::set_local_node_info");
+  this->local_node= local_info;
+  DBUG_VOID_RETURN;
+}
 
 void Certifier::garbage_collect()
 {
@@ -426,14 +451,14 @@ void Certifier::garbage_collect()
 }
 
 
-int Certifier::handle_certifier_data(const char *data, uint len)
+int Certifier::handle_certifier_data(uchar *data, uint len)
 {
   DBUG_ENTER("Certifier::handle_certifier_data");
 
   if (!is_initialized())
     DBUG_RETURN(1);
 
-  this->incoming->push(new Data_packet((uchar*)data, len));
+  this->incoming->push(new Data_packet(data, len));
 
   if (get_gcs_nodes_number() == this->incoming->size())
     DBUG_RETURN(stable_set_handle());
@@ -639,4 +664,35 @@ ulonglong Certifier::get_cert_db_size()
 rpl_gno Certifier::get_last_sequence_number()
 {
   return next_seqno-1;
+}
+
+/*
+  Gtid_Executed_Message implementation
+ */
+
+Gtid_Executed_Message::Gtid_Executed_Message()
+                      : Gcs_plugin_message(PAYLOAD_CERTIFICATION_EVENT)
+{
+}
+
+Gtid_Executed_Message::~Gtid_Executed_Message()
+{
+}
+
+void
+Gtid_Executed_Message::append_gtid_executed(uchar* gtid_data, size_t len)
+{
+  data.insert(data.end(), gtid_data, gtid_data+len);
+}
+
+void
+Gtid_Executed_Message::encode_message(vector<uchar>* buf)
+{
+  buf->insert(buf->end(), data.begin(), data.end());
+}
+
+void
+Gtid_Executed_Message::decode_message(uchar* buf, size_t len)
+{
+  data.insert(data.end(), buf, buf+len);
 }

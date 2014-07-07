@@ -16,15 +16,23 @@
 #ifndef GCS_CERTIFIER
 #define GCS_CERTIFIER
 
-#include "../gcs_plugin_utils.h"
+#include "gcs_plugin_utils.h"
+#include "gcs_member_info.h"
+#include "gcs_communication_interface.h"
+#include "gcs_control_interface.h"
 #include "gcs_replication.h"
+#include "gcs_certifier_stats_interface.h"
+#include "gcs_plugin_messages.h"
+
 #include <replication.h>
 #include <log_event.h>
 #include <applier_interfaces.h>
 #include <map>
 #include <string>
 #include <list>
-#include "gcs_certifier_stats_interface.h"
+#include <vector>
+
+using std::vector;
 
 /**
   This class is a core component of the database state machine
@@ -48,15 +56,21 @@
   certified and is later written to the Relay log of the participating node.
 
 */
-
-
 typedef std::map<std::string, rpl_gno> cert_db;
-
 
 class Certifier_broadcast_thread
 {
 public:
-  Certifier_broadcast_thread();
+  /**
+    Certifier_broadcast_thread constructor
+
+    @param comm_intf       Reference to the GCS Communication Interface
+    @param ctrl_intf       Reference to the GCS Control Interface
+    @param local_node_info Reference to the local node information
+   */
+  Certifier_broadcast_thread(Gcs_communication_interface* comm_intf,
+                             Gcs_control_interface* ctrl_intf,
+                             Cluster_member_info* local_node_info);
   virtual ~Certifier_broadcast_thread();
 
   /**
@@ -98,6 +112,13 @@ private:
   pthread_cond_t broadcast_pthd_cond;
   bool broadcast_pthd_running;
 
+  //GCS interfaces to the Cluster where one belongs
+  Gcs_communication_interface* gcs_communication;
+  Gcs_control_interface* gcs_control;
+
+  //Local node information
+  Cluster_member_info* local_node;
+
   /**
     Broadcast local GTID_EXECUTED to group.
 
@@ -114,10 +135,16 @@ class Certifier_interface : public Certifier_stats
 public:
   virtual ~Certifier_interface() {}
   virtual void handle_view_change()= 0;
-  virtual int handle_certifier_data(const char *data, uint len)= 0;
+  virtual int handle_certifier_data(uchar *data, uint len)= 0;
+
   virtual void get_certification_info(cert_db *cert_db, rpl_gno *seq_number)= 0;
   virtual void set_certification_info(std::map<std::string, rpl_gno> *cert_db,
                                       rpl_gno sequence_number)= 0;
+
+  virtual void set_local_node_info(Cluster_member_info* local_info)= 0;
+
+  virtual void set_gcs_interfaces(Gcs_communication_interface* comm_if,
+                                  Gcs_control_interface* ctrl_if)= 0;
 };
 
 
@@ -160,7 +187,7 @@ public:
       @retval 0      OK
       @retval !=0    Error on queue
   */
-  virtual int handle_certifier_data(const char *data, uint len);
+  virtual int handle_certifier_data(uchar *data, uint len);
 
   /**
     This member function SHALL certify the set of items against transactions
@@ -226,7 +253,24 @@ public:
     */
   rpl_gno get_last_sequence_number();
 
+  /**
+   All the methods below exist in order to inject dependencies into to the
+   Certifier that one cannot do at object construction time
+   */
+  void set_local_node_info(Cluster_member_info* local_info);
+
+  void set_gcs_interfaces(Gcs_communication_interface* comm_if,
+                          Gcs_control_interface* ctrl_if);
+
 private:
+
+  //GCS interfaces to the Cluster where one belongs
+  Gcs_communication_interface* gcs_communication;
+  Gcs_control_interface* gcs_control;
+
+  //Local node information
+  Cluster_member_info* local_node;
+
   /**
     Is certifier initialized.
   */
@@ -334,11 +378,44 @@ private:
   */
   rpl_gno get_last_delivered_gno();
 
-  /**
-    Update method to store the count of the positively and negatively
-    certified transaction on a particular node.
-    */
+/*
+  Update method to store the count of the positively and negatively
+  certified transaction on a particular node.
+*/
   void update_certified_transaction_count(bool result);
+};
+
+/*
+ @class Gtid_Executed_Message
+
+  Class to convey the serialized contents of the previously executed GTIDs
+ */
+class Gtid_Executed_Message: public Gcs_plugin_message
+{
+public:
+  /**
+   Gtid_Executed_Message constructor
+   */
+  Gtid_Executed_Message();
+  virtual ~Gtid_Executed_Message();
+
+  /**
+    Appends Gtid executed information in a raw format
+
+   * @param[in] gtid_data encoded GTID data
+   * @param[in] len GTID data length
+   */
+  void append_gtid_executed(uchar* gtid_data, size_t len);
+
+protected:
+  /*
+   Implementation of the template methods of Gcs_plugin_message
+   */
+  void encode_message(vector<uchar>* buf);
+  void decode_message(uchar* buf, size_t len);
+
+private:
+  vector<uchar> data;
 };
 
 #endif /* GCS_CERTIFIER */

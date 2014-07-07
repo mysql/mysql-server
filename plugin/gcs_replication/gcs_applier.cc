@@ -50,8 +50,8 @@ Applier_module::Applier_module()
     { &suspend_key_mutex, "LOCK_applier_suspend", 0}
   };
 
-  register_gcs_psi_keys(applier_mutexes, 1,
-                        applier_conds, 1);
+  register_gcs_psi_keys(applier_mutexes, 2,
+                        applier_conds, 3);
 #endif /* HAVE_PSI_INTERFACE */
 
   mysql_mutex_init(run_key_mutex, &run_lock, MY_MUTEX_INIT_FAST);

@@ -8,16 +8,12 @@
 
 --connection server1
 set @@session.sql_log_bin=off;
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 set @@session.sql_log_bin=on;
 --source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --connection server2
 set @@session.sql_log_bin=off;
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 set @@session.sql_log_bin=on;
 --source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc

@@ -25,21 +25,24 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   endif (LIBCPG)
 
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/include)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/interface)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/bindings/corosync)
   SET(GCS_SOURCES
     gcs_plugin.cc gcs_plugin.h
-    gcs_plugin_utils.cc gcs_plugin_utils.h
+    gcs_member_info.cc gcs_member_info.h
+    gcs_binding_factory.cc gcs_binding_factory.h
+    gcs_plugin_utils.h
     observer_server_state.cc observer_server_state.h
     observer_trans.cc observer_trans.h
+    gcs_plugin_messages.cc gcs_plugin_messages.h
     gcs_certifier.cc gcs_certifier.h
     gcs_event_handlers.cc gcs_event_handlers.h
-    gcs_protocol_factory.cc gcs_corosync.cc
     pipeline_factory.h pipeline_factory.cc
     gcs_replication_threads_api.h gcs_replication_threads_api.cc
     gcs_applier.h gcs_applier.cc
     gcs_commit_validation.cc gcs_commit_validation.h
     gcs_recovery_message.cc gcs_recovery_message.h
     gcs_recovery.cc gcs_recovery.h
-    gcs_payload.cc gcs_member_info.cc gcs_protocol.cc gcs_message.cc
     gcs_certifier_stats_interface.h
     handlers/certification_handler.h
     handlers/certification_handler.cc
@@ -48,13 +51,36 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     handlers/applier_sql_thread.h
     handlers/applier_sql_thread.cc
   )
-  ADD_LIBRARY(gcs STATIC gcs_protocol_factory.cc gcs_corosync.cc)
+
+  ADD_LIBRARY(gcs_unit_test_resource STATIC  gcs_member_info.cc)
+
+  ADD_LIBRARY(gcs_interface STATIC  gcs/interface/gcs_group_identifier.cc
+                                    gcs/interface/gcs_member_identifier.cc
+                                    gcs/interface/gcs_message.cc
+                                    gcs/interface/gcs_view.cc
+                                    gcs/interface/gcs_view_identifier.cc)
+
+
+  ADD_LIBRARY(gcs_corosync STATIC gcs/bindings/corosync/gcs_state_exchange.cc
+                                  gcs/bindings/corosync/gcs_state_exchange.h
+                                  gcs/bindings/corosync/gcs_corosync_communication_interface.cc
+                                  gcs/bindings/corosync/gcs_corosync_communication_interface.h
+                                  gcs/bindings/corosync/gcs_corosync_control_interface.cc
+                                  gcs/bindings/corosync/gcs_corosync_control_interface.h
+                                  gcs/bindings/corosync/gcs_corosync_interface.cc
+                                  gcs/bindings/corosync/gcs_corosync_interface.h
+                                  gcs/bindings/corosync/gcs_corosync_statistics_interface.cc
+                                  gcs/bindings/corosync/gcs_corosync_statistics_interface.h
+                                  gcs/bindings/corosync/gcs_corosync_utils.cc
+                                  gcs/bindings/corosync/gcs_corosync_utils.h)
 
   MYSQL_ADD_PLUGIN(gcs_replication ${GCS_SOURCES}
-  MODULE_ONLY MODULE_OUTPUT_NAME "gcs_replication_plugin")
+                   MODULE_ONLY MODULE_OUTPUT_NAME "gcs_replication_plugin")
+
 
   if (LIBCPG)
-    TARGET_LINK_LIBRARIES(gcs ${LIBCPG} ${LIBPTHREAD} )
-    TARGET_LINK_LIBRARIES(gcs_replication gcs)
+    TARGET_LINK_LIBRARIES(gcs_corosync gcs_interface ${LIBCPG} ${LIBPTHREAD} )
+    TARGET_LINK_LIBRARIES(gcs_replication gcs_interface gcs_corosync)
   endif(LIBCPG)
+
 endif(CMAKE_SYSTEM_NAME MATCHES "Linux")

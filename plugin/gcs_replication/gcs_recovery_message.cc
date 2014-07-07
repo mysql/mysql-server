@@ -15,32 +15,43 @@
 
 #include "gcs_applier.h"
 #include "gcs_recovery_message.h"
-#include "gcs_message.h"
 #include "my_byteorder.h"
 
 Recovery_message::Recovery_message(Recovery_message_type type,
                                    string* uuid)
-    : recovery_message_type(type), node_uuid(uuid)
-{}
+    : Gcs_plugin_message(PAYLOAD_RECOVERY_EVENT),
+      recovery_message_type(type)
+{
+  node_uuid= new string(uuid->c_str());
+}
 
-Recovery_message::Recovery_message(const uchar* data, size_t len)
+Recovery_message::~Recovery_message()
+{
+  delete node_uuid;
+}
+
+Recovery_message::Recovery_message(uchar* buf, size_t len)
+    : Gcs_plugin_message(PAYLOAD_RECOVERY_EVENT)
+{
+  decode(buf, len);
+}
+
+void Recovery_message::decode_message(uchar* data, size_t len)
 {
   const uchar* slider= data;
   recovery_message_type= (Recovery_message_type)uint2korr(slider);
   slider += 2;
   node_uuid = new string((const char*) slider);
-  slider += node_uuid->length()+1;
-
-  DBUG_ASSERT((uchar*) slider == len + (uchar*) data);
 }
 
-const uchar* Recovery_message::encode(MessageBuffer* mbuf_ptr)
+void Recovery_message::encode_message(vector<uchar>* mbuf_ptr)
 {
-  mbuf_ptr->append_uint16((uint16) get_code());
-  mbuf_ptr->append_uint16((uint16) recovery_message_type);
-  mbuf_ptr->append_stdstr(*node_uuid);
+  uchar s[RECOVERY_MESSAGE_TYPE_LENGTH];
+  int2store(s, (uint16) recovery_message_type);
+  mbuf_ptr->insert(mbuf_ptr->end(), s, s + RECOVERY_MESSAGE_TYPE_LENGTH);
 
-  return mbuf_ptr->data();
+  mbuf_ptr->insert(mbuf_ptr->end(), node_uuid->c_str(),
+                   node_uuid->c_str() + (node_uuid->length() + 1));
 }
 
 

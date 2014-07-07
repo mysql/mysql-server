@@ -15,6 +15,8 @@
 --echo #
 
 --connection server1
+call mtr.add_suppression(".*Error when configuring the connection to the donor");
+
 --source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 

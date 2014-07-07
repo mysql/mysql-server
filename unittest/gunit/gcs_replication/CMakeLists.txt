@@ -1,0 +1,42 @@
+# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
+IF(HAVE_NO_UNUSED_TYPEDEFS)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
+ENDIF()
+
+INCLUDE_DIRECTORIES(${GMOCK_INCLUDE_DIRS})
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/interface)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/gcs/bindings/corosync)
+
+# Add tests
+SET(TESTS
+    gcs_message
+    gcs_corosync_statistics_interface
+    gcs_corosync_communication_interface
+    gcs_corosync_control_interface
+    gcs_corosync_interface
+    gcs_state_exchange
+    gcs_member_info
+    )
+
+FOREACH(test ${TESTS})
+  ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+  TARGET_LINK_LIBRARIES(${test}-t gcs_interface gcs_corosync gcs_unit_test_resource gunit_small)
+  ADD_TEST(${test} ${test}-t)
+ENDFOREACH()

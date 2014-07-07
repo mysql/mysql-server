@@ -153,6 +153,9 @@ void table_replication_connection_nodes::make_row(uint index)
     DBUG_VOID_RETURN;
   }
 
+  gcs_info->node_host= NULL;
+  gcs_info->node_id= NULL;
+
   bool stats_not_available= get_gcs_nodes_stats(index, gcs_info);
   if (stats_not_available)
     DBUG_PRINT("info", ("GCS stats not available!"));
@@ -178,6 +181,12 @@ void table_replication_connection_nodes::make_row(uint index)
 
     m_row_exists= true;
   }
+
+  if(gcs_info->node_host != NULL)
+    my_free((char*)gcs_info->node_host);
+
+  if(gcs_info->node_id != NULL)
+    my_free((char*)gcs_info->node_id);
 
   my_free(gcs_info);
   DBUG_VOID_RETURN;

@@ -18,23 +18,39 @@
 
 #include "gcs_plugin_utils.h"
 #include "gcs_applier.h"
-#include <gcs_protocol.h>
+#include "gcs_communication_interface.h"
+#include "gcs_control_interface.h"
 #include <applier_interfaces.h>
 #include <gcs_replication.h>
 #include <rpl_rli.h>
 #include <list>
 
-using GCS::Member_set;
-using GCS::Member;
 using std::list;
+using std::vector;
 
 class Recovery_module
 {
 
 public:
+/**
+  Recovery_module constructor
 
+  @param applier
+            reference to the applier module
+  @param comm_if
+            reference to the communication interface of the current cluster
+  @param ctrl_if
+            reference to the control interface of the current cluster
+  @param local_info
+            reference to the local node information
+  @param cluster_info_if
+            reference to the Global cluster view manager
+ */
   Recovery_module(Applier_module_interface *applier,
-                  GCS::Protocol *com_protocol);
+                  Gcs_communication_interface *comm_if,
+                  Gcs_control_interface *ctrl_if,
+                  Cluster_member_info *local_info,
+                  Cluster_member_info_manager_interface* cluster_info_if);
 
   ~Recovery_module();
 
@@ -52,16 +68,14 @@ public:
     @note this method only returns when the recovery thread is already running
 
     @param group_name       the joiner's group name
-    @param view_id          the new view id
-    @param cluster_members  the new view members
+    @param rec_view_id          the new view id
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
   int start_recovery(const string& group_name,
-                                 ulonglong view_id,
-                                 Member_set& cluster_members);
+                     int rec_view_id);
 
   /**
    Checks to see if the recovery IO/SQL thread is still running, probably caused
@@ -104,14 +118,13 @@ public:
       If the donor left, and the state transfer is still ongoing, then pick a
       new one and restart the transfer.
 
-    @param left             the members who left the view
-    @param cluster_members  the current view members (for donor selection)
+    @param did_nodes_left states if members left the view
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
    */
-  int update_recovery_process(Member_set& left, Member_set& cluster_members);
+  int update_recovery_process(bool did_nodes_left);
 
 
   int donor_failover();
@@ -181,13 +194,13 @@ private:
   int initialize_donor_connection();
 
   /**
-   Initializes the connection parameters for the donor connection.
+    Initializes the connection parameters for the donor connection.
 
-    @return the operation status
-      @retval 0      OK
-      @retval !=0    Error
+    @return
+      @retval false Everything OK
+      @retval true  In case of the selected donor is not available
    */
-  void initialize_connection_parameters();
+  bool initialize_connection_parameters();
 
   /**
     Starts the recovery slave threads to receive data from the donor.
@@ -244,19 +257,26 @@ private:
 #endif
   THD *recovery_thd;
 
-  /** The plugin's communication protocol instance  */
-  GCS::Protocol *communication_proto;
+  // GCS interfaces for control and communication
+  Gcs_control_interface* gcs_control_interface;
+  Gcs_communication_interface* gcs_communication_interface;
+
+  //Information about the local node
+  Cluster_member_info* local_node_information;
+
   /* The plugin's applier module interface*/
   Applier_module_interface *applier_module;
 
   /* The group to which the recovering node belongs*/
   string group_name;
   /* The associated view id for the current recovery session */
-  ulonglong view_id;
-  /* The cluster members during recovery */
-  Member_set member_set;
-  /* The selected donor node */
-  Member selected_donor;
+  int view_id;
+
+  /* The selected donor node uuid*/
+  string selected_donor_uuid;
+  //Pointer to the Cluster Member manager
+  Cluster_member_info_manager_interface* cluster_info;
+
   /* Donors who recovery could not connect */
   list<string> rejected_donors;
   /* Retry count on donor connections*/

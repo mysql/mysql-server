@@ -1,13 +1,9 @@
 include/have_gcs_replication_plugin.inc
 set @@session.sql_log_bin=off;
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 set @@session.sql_log_bin=on;
 include/install_gcs_replication.inc
 include/start_gcs_replication.inc
 set @@session.sql_log_bin=off;
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 set @@session.sql_log_bin=on;
 include/install_gcs_replication.inc
 include/start_gcs_replication.inc

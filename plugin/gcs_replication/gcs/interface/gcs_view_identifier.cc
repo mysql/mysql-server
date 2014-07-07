@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,23 +13,18 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_PROTOCOL_FACTORY_H
-#define GCS_PROTOCOL_FACTORY_H
+#include "gcs_view_identifier.h"
 
-#include <gcs_protocol.h>
-#include "gcs_stats.h"
-
-namespace GCS
+Gcs_view_identifier::Gcs_view_identifier(int view_id)
 {
+  this->view_id= view_id;
+}
 
-class Protocol_factory
+Gcs_view_identifier::~Gcs_view_identifier()
 {
-public:
-  static Protocol* create_protocol(Protocol_type type,
-                                   Stats& collector);
-  static Protocol* get_instance();
-};
+}
 
-} // namespace
-
-#endif
+int Gcs_view_identifier::get_view_id()
+{
+  return view_id;
+}

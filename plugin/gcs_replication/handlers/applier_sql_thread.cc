@@ -68,6 +68,7 @@ int Applier_sql_thread::initialize()
                     "SQL thread");
     }
   }
+
   DBUG_RETURN(error);
 }
 

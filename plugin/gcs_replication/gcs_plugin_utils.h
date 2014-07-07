@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_UTILS_INCLUDE
-#define GCS_UTILS_INCLUDE
+#ifndef GCS_UTILS_INCLUDED
+#define GCS_UTILS_INCLUDED
 
 #ifndef MYSQL_SERVER
 #define MYSQL_SERVER
@@ -30,14 +30,6 @@
 #include <mysql/plugin.h>
 #include <mysql/service_my_plugin_log.h>
 #include <mysql/plugin_gcs_rpl.h>
-#include <gcs_protocol.h>
-
-typedef enum enum_applier_state {
-  APPLIER_STATE_ON= 1,
-  APPLIER_STATE_OFF,
-  APPLIER_ERROR
-} Member_applier_state;
-
 
 int log_message(enum plugin_log_level level, const char *format, ...);
 
@@ -171,10 +163,4 @@ private:
   void operator=(Mutex_autolock const&);
 };
 
-enum enum_node_state
-map_protocol_node_state_to_server_node_state(GCS::Member_recovery_status protocol_status);
-
-enum enum_applier_status
-map_node_applier_state_to_server_applier_status(Member_applier_state
-                                                applier_status);
-#endif /* GCS_UTILS_INCLUDE */
+#endif /* GCS_UTILS_INCLUDED */

@@ -16,29 +16,30 @@
 #ifndef GCS_RECOVERY_MESSAGE_INCLUDED
 #define GCS_RECOVERY_MESSAGE_INCLUDED
 
+#define RECOVERY_MESSAGE_TYPE_LENGTH 2
+
 #include <string>
 #include <set>
-#include "gcs_payload.h"
+#include "gcs_plugin_messages.h"
 
-using GCS::Serializable;
-using GCS::Payload_code;
-using GCS::MessageBuffer;
 using std::string;
 
-/**
+class Recovery_message : public Gcs_plugin_message
+{
+
+public:
+
+  /**
   The several recovery type messages.
  */
-typedef enum en_recovery_message_type
-{
-  /**Recovery ended, node is online.*/
-  RECOVERY_END_MESSAGE,
-  /**Donor transmitted all data (for future use)*/
-  DONOR_FINISHED_MESSAGE,
-  MEMBER_END  // the end of the enum
-} Recovery_message_type;
-
-class Recovery_message : public Serializable
-{
+  typedef enum
+  {
+    /**Recovery ended, node is online.*/
+    RECOVERY_END_MESSAGE,
+    /**Donor transmitted all data (for future use)*/
+    DONOR_FINISHED_MESSAGE,
+    RECOVERY_MESSAGE_TYPE_END  // the end of the enum
+  } Recovery_message_type;
 
 public:
 
@@ -49,6 +50,19 @@ public:
     @param[in] node_uuid  the origination node uuid
   */
   Recovery_message(Recovery_message_type type, string* node_uuid);
+
+  /**
+    Message destructor
+   */
+  ~Recovery_message();
+
+  /**
+    Message constructor for raw data
+
+    @param[in] buf raw data
+    @param[in] len raw length
+  */
+  Recovery_message(uchar* buf, size_t len);
 
   /** Returns this recovery message type */
   Recovery_message_type get_recovery_message_type()
@@ -62,9 +76,7 @@ public:
     return node_uuid;
   }
 
-  /** Returns this message's payload type */
-  Payload_code get_code() { return GCS::PAYLOAD_RECOVERY_EVENT; }
-
+protected:
   /**
     Encodes the message contents for transmission.
 
@@ -72,15 +84,15 @@ public:
 
     @return the written buffer
   */
-  const uchar *encode(MessageBuffer* mbuf_ptr);
+  void encode_message(vector<uchar>* mbuf_ptr);
 
   /**
-    Message decoding constructor
+    Message decoding method
 
     @param[in] data  the received data
     @param[in] len   the received data size
   */
-  Recovery_message(const uchar* data, size_t len);
+  void decode_message(uchar* buf, size_t len);
 
 private:
   /**The message type*/

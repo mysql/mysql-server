@@ -28,8 +28,11 @@
 #include <rpl_gtid.h>             // rpl_sidno
 #include "gcs_applier.h"
 #include "gcs_recovery.h"
-#include <gcs_protocol.h>
-#include <gcs_stats.h>
+
+
+#include "gcs_interface.h"
+#include "gcs_event_handlers.h"
+
 
 /*
   Plugin errors
@@ -47,23 +50,36 @@ extern char gcs_replication_group[UUID_LENGTH+1];
 extern rpl_sidno gcs_cluster_sidno;
 extern char gcs_replication_boot;
 extern bool wait_on_engine_initialization;
+extern const char *available_bindings_names[];
 
 //The modules
-extern GCS::Protocol *gcs_module;
+extern Gcs_interface *gcs_module;
 extern Applier_module *applier_module;
 extern Recovery_module *recovery_module;
-extern GCS::Stats cluster_stats;
+extern Cluster_member_info_manager_interface *cluster_member_mgr;
+
+//Auxiliary Functionality
+extern Gcs_plugin_events_handler* events_handler;
+extern Gcs_plugin_leave_notifier* leave_notifier;
+extern Cluster_member_info* local_member_info;
+
+/*
+  These variables are handles to the registered event handlers in each GCS
+  interface. To better understand the handle mechanism, please refer to
+  the event handler registration mechanism in any GCS interface
+ */
+extern int gcs_communication_event_handle;
+extern int gcs_control_event_handler;
+extern int gcs_control_exchanged_data_handle;
 
 //Appliers module variables
 extern ulong handler_pipeline_type;
 //GCS module variables
 extern char *gcs_group_pointer;
 
-//handlers
-extern GCS::Event_handlers gcs_plugin_event_handlers;
-
 //Plugin global methods
 int configure_and_start_applier_module();
+int configure_cluster_member_manager();
 int terminate_applier_module();
 int initialize_recovery_module();
 int terminate_recovery_module();

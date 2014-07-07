@@ -14,115 +14,53 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "gcs_event_handlers.h"
-#include "gcs_plugin.h"
 #include "gcs_certifier.h"
 #include "gcs_recovery.h"
 #include <sql_class.h>
-#include "gcs_message.h"
-#include "gcs_protocol.h"
-#include "gcs_payload.h"
 #include "gcs_recovery_message.h"
 #include <set>
 #include <string>
 
-using GCS::View;
-using GCS::Member_set;
-using GCS::Member;
-using GCS::Member_recovery_status;
-
-using std::set;
-
-/**
-  Updates all node with the given status.
-  If the node is a local node then the status is also changed on the protocol
-  object so the correct state is transmited on view changes.
-
-  @note if the given status is "GCS::MEMBER_OFFLINE" then the state is only
-  update in the protocol for the local node, as all the other offline members
-  simply disapear from the group.
-
-  @param uuid        the member uuid
-  @param status      the status to which the node should change
-  @param is_local    is the node local or not
-*/
-static void change_node_status(string* uuid, GCS::Member_recovery_status status,
-                               bool is_local)
+Gcs_plugin_events_handler::
+Gcs_plugin_events_handler(Applier_module_interface* applier_module,
+                          Recovery_module* recovery_module,
+                          Cluster_member_info_manager_interface* cluster_mgr,
+                          Cluster_member_info* local_node_info,
+                          Gcs_plugin_leave_notifier* leave_notifier)
 {
-  // Nodes that left are not on view, so there is nothing to update.
-  if (status != GCS::MEMBER_OFFLINE &&
-      cluster_stats.set_node_status(uuid, status))
-    log_message(MY_ERROR_LEVEL, "Error updating node '%s' to status '%d'",
-                uuid->c_str(), status);
+  this->applier_module= applier_module;
+  this->recovery_module= recovery_module;
+  this->cluster_info_mgr= cluster_mgr;
+  this->local_node_info= local_node_info;
+  this->leave_notifier= leave_notifier;
 
-  if (is_local)
-    gcs_module->get_client_info().set_recovery_status(status);
+  this->temporary_states= new set<Cluster_member_info*,
+                                  Gcs_member_info_pointer_comparator>();
 }
 
-/**
-  Updates all nodes in the given set to the given status if their base status
-  is equal to the given condition one.
-
-  @note if no condition exists to update, pass GCS::MEMBER_END as the condition.
-
-  @param members           the members to update
-  @param status            the status to which the nodes should change
-  @param condition_status  the condition status to be tested
-*/
-static void update_node_status(GCS::Member_set& members,
-                               GCS::Member_recovery_status status,
-                               GCS::Member_recovery_status condition_status)
+Gcs_plugin_events_handler::~Gcs_plugin_events_handler()
 {
-  string local_uuid= gcs_module->get_client_uuid();
+  delete temporary_states;
+}
 
-  for (std::set<GCS::Member>::iterator it= members.begin();
-       it != members.end();
-       ++it)
+void
+Gcs_plugin_events_handler::on_message_received(Gcs_message& message)
+{
+  gcs_payload_message_code message_code=
+              Gcs_plugin_message_utils::retrieve_code(message.get_payload());
+
+  switch (message_code)
   {
-    GCS::Member member = *it;
-    bool is_local= !(member.get_uuid().compare(local_uuid));
-    if(condition_status == GCS::MEMBER_END ||
-       member.get_recovery_status() == condition_status)
-    {
-      change_node_status(&member.get_uuid(), status, is_local);
-    }
-  }
-}
-
-void handle_view_change(GCS::View& view, GCS::Member_set& total,
-                        GCS::Member_set& left, GCS::Member_set& joined,
-                        bool quorate)
-{
-  string node_uuid= gcs_module->get_client_uuid();
-  Member_recovery_status node_status= cluster_stats.get_node_status(&node_uuid);
-  //if we are offline at this point it means the local node is joining.
-  bool is_joining= (node_status == GCS::MEMBER_OFFLINE);
-
-  //Handle joining members and calculates if we are joining.
-  handle_joining_nodes(view, joined, total, is_joining);
-  //Update any recovery running process and handle state changes
-  handle_leaving_nodes(left, total, is_joining);
-
-  DBUG_ASSERT(view.get_view_id() == 0 || quorate);
-  log_view_change(view.get_view_id(), total, left, joined);
-
-  Certifier_interface *certifier= applier_module->get_certification_handler()->get_certifier();
-  certifier->handle_view_change();
-}
-
-void handle_message_delivery(GCS::Message *msg, const GCS::View& view)
-{
-  switch (GCS::get_payload_code(msg))
-  {
-  case GCS::PAYLOAD_TRANSACTION_EVENT:
-    handle_transactional_message(msg);
+  case PAYLOAD_TRANSACTION_EVENT:
+    handle_transactional_message(message);
     break;
 
-  case GCS::PAYLOAD_CERTIFICATION_EVENT:
-    handle_certifier_message(msg);
+  case PAYLOAD_CERTIFICATION_EVENT:
+    handle_certifier_message(message);
     break;
 
-  case GCS::PAYLOAD_RECOVERY_EVENT:
-    handle_recovery_message(msg);
+  case PAYLOAD_RECOVERY_EVENT:
+    handle_recovery_message(message);
     break;
 
   default:
@@ -130,13 +68,142 @@ void handle_message_delivery(GCS::Message *msg, const GCS::View& view)
   }
 }
 
-void handle_joining_nodes(GCS::View& view,
-                         GCS::Member_set& joined,
-                         GCS::Member_set& total,
-                         bool is_joining)
+void
+Gcs_plugin_events_handler::handle_transactional_message(Gcs_message& message)
+{
+  if (this->applier_module)
+  {
+    uchar* payload_data= Gcs_plugin_message_utils::
+                               retrieve_data(&message);
+    size_t payload_size= Gcs_plugin_message_utils::
+                               retrieve_length(&message);
+
+    this->applier_module->handle(payload_data, payload_size);
+  }
+  else
+  {
+    log_message(MY_ERROR_LEVEL, "Message received without a proper applier");
+  }
+}
+
+void
+Gcs_plugin_events_handler::handle_certifier_message(Gcs_message& message)
+{
+  if (this->applier_module == NULL)
+  {
+    log_message(MY_ERROR_LEVEL, "Message received without a proper applier");
+    return;
+  }
+
+  Certifier_interface *certifier= this->applier_module
+                                      ->get_certification_handler()
+                                      ->get_certifier();
+
+  uchar* payload_data= Gcs_plugin_message_utils::
+                               retrieve_data(&message);
+  size_t payload_size= Gcs_plugin_message_utils::
+                               retrieve_length(&message);
+
+  if (certifier->handle_certifier_data(payload_data,
+                                       payload_size))
+  {
+    log_message(MY_ERROR_LEVEL, "Error processing message in Certifier");
+  }
+}
+
+void
+Gcs_plugin_events_handler::handle_recovery_message(Gcs_message& message)
+{
+  Recovery_message recovery_message(message.get_payload(),
+                                    message.get_payload_length());
+
+  string *node_uuid= recovery_message.get_node_uuid();
+
+  // The node is declare as online upon receiving this message
+  cluster_info_mgr->update_member_status(*node_uuid,
+                                         Cluster_member_info::MEMBER_ONLINE);
+
+  bool is_local= !node_uuid->compare(*local_node_info->get_uuid());
+  if(is_local)
+  {
+    log_message(MY_INFORMATION_LEVEL,
+                "[Recovery:] This node was declared online");
+  }
+  else
+  {
+    log_message(MY_INFORMATION_LEVEL,
+                "[Recovery:] Node %s was declared online",
+                node_uuid->c_str());
+  }
+}
+
+void
+Gcs_plugin_events_handler::on_view_changed(Gcs_view *new_view)
+{
+  bool is_leaving= is_member_on_vector(new_view->get_leaving_members(),
+                                       *local_node_info->get_gcs_member_id());
+
+  bool is_joining= is_member_on_vector(new_view->get_joined_members(),
+                                       *local_node_info->get_gcs_member_id());
+
+  //update the Cluster Manager with all the received states
+  this->update_cluster_info_manager(new_view, is_leaving);
+
+  //Handle joining members and calculates if we are joining.
+  this->handle_joining_nodes(new_view, is_joining);
+
+  //Update any recovery running process and handle state changes
+  this->handle_leaving_nodes(new_view, is_joining, is_leaving);
+
+  if(!is_leaving)
+  {
+    Certifier_interface *certifier= applier_module->get_certification_handler()
+                                                  ->get_certifier();
+    certifier->handle_view_change();
+  }
+}
+
+void Gcs_plugin_events_handler::update_cluster_info_manager(Gcs_view *new_view,
+                                                            bool is_leaving)
+{
+  //update the Cluster Manager with all the received states
+  vector<Cluster_member_info*> to_update;
+
+  if(!is_leaving)
+  {
+    to_update.insert(to_update.end(),
+                     temporary_states->begin(),
+                     temporary_states->end());
+
+    //Clean-up members that are leaving
+    vector<Gcs_member_identifier>* leaving= new_view->get_leaving_members();
+    vector<Gcs_member_identifier>::iterator left_it;
+    vector<Cluster_member_info*>::iterator to_update_it;
+    for(left_it= leaving->begin(); left_it != leaving->end(); left_it++)
+    {
+      for(to_update_it= to_update.begin();
+          to_update_it != to_update.end();
+          to_update_it++)
+      {
+        if( (*left_it) == *(*to_update_it)->get_gcs_member_id() )
+        {
+          delete (*to_update_it);
+
+          to_update.erase(to_update_it);
+          break;
+        }
+      }
+    }
+  }
+  cluster_info_mgr->update(&to_update);
+  temporary_states->clear();
+}
+
+void Gcs_plugin_events_handler::handle_joining_nodes(Gcs_view *new_view,
+                                                     bool is_joining)
 {
   //nothing to do here
-  if(joined.size() == 0)
+  if (new_view->get_members()->size() == 0)
   {
     return;
   }
@@ -147,7 +214,10 @@ void handle_joining_nodes(GCS::View& view,
 
    As so, nodes that are offline, their state is changed to member_in_recovery.
   */
-  update_node_status(joined, GCS::MEMBER_IN_RECOVERY, GCS::MEMBER_OFFLINE);
+  update_node_status
+              (new_view->get_joined_members(),
+               Cluster_member_info::MEMBER_IN_RECOVERY,
+               Cluster_member_info::MEMBER_OFFLINE);
 
   /*
    If we are joining, two scenarios exist
@@ -156,18 +226,20 @@ void handle_joining_nodes(GCS::View& view,
   */
   if (is_joining)
   {
-    if ((int)total.size() == 1)
+    if (new_view->get_members()->size() == 1)
     {
       log_message(MY_INFORMATION_LEVEL,
-                  "[Recovery:] Only one node alive. "
-                  "Declaring the node online.");
-      change_node_status(&gcs_module->get_client_uuid(), GCS::MEMBER_ONLINE, true);
+                  "[Recovery] Only one node alive. Declaring the node %s online.",
+                  local_node_info->get_uuid()->c_str());
+      cluster_info_mgr->update_member_status
+              (*local_node_info->get_uuid(),
+               Cluster_member_info::MEMBER_ONLINE);
     }
     else //start recovery
     {
       log_message(MY_INFORMATION_LEVEL,
                   "[Recovery:] Starting recovery with view_id %llu",
-                  view.get_view_id());
+                  new_view->get_view_id()->get_view_id());
       /*
        During the view change, a suspension packet is sent to the applier module
        so all posterior transactions inbound are not applied, but queued, until
@@ -186,14 +258,15 @@ void handle_joining_nodes(GCS::View& view,
        this point in the data, and the certification information for all the data
        that comes next.
       */
-      recovery_module->start_recovery(view.get_group_name(), view.get_view_id(), total);
+      recovery_module->start_recovery(new_view->get_group_id()->get_group_id(),
+                                      new_view->get_view_id()->get_view_id());
     }
   }
   else
   {
     log_message(MY_INFORMATION_LEVEL,
-                "[Recovery:] Marking view change with view_id %llu",
-                view.get_view_id());
+                "[Recovery:] Marking view change with view_id %d",
+                new_view->get_view_id()->get_view_id());
     /**
      If not a joining member, all nodes should record on their own binlogs a
      marking event that identifies the frontier between the data the joining
@@ -206,86 +279,186 @@ void handle_joining_nodes(GCS::View& view,
      information to certify the transactions that will come after this view
      change. If selected as a donor, this info will also be sent to the joiner.
     */
-    applier_module->add_view_change_packet(view.get_view_id());
+    applier_module->add_view_change_packet(new_view->get_view_id()
+                                                   ->get_view_id());
   }
 }
 
-void handle_leaving_nodes(GCS::Member_set& left, GCS::Member_set& total,
-                          bool joining)
+void
+Gcs_plugin_events_handler::handle_leaving_nodes(Gcs_view* new_view,
+                                                bool is_joining,
+                                                bool is_leaving)
 {
-  string node_uuid= gcs_module->get_client_uuid();
-  Member_recovery_status node_status= cluster_stats.get_node_status(&node_uuid);
+  Cluster_member_info* for_local_status=
+        cluster_info_mgr->get_cluster_member_info(*local_node_info->get_uuid());
 
-  //if the node is joining or in recovery, no need to update the process
-  if(!joining && node_status == GCS::MEMBER_IN_RECOVERY)
+  Cluster_member_info::Cluster_member_status node_status=
+                                        for_local_status->get_recovery_status();
+
+  bool nodes_left= (new_view->get_leaving_members()->size() > 0);
+
+  //if the node is joining or not in recovery, no need to update the process
+  if(!is_joining && node_status == Cluster_member_info::MEMBER_IN_RECOVERY)
   {
     /*
      This method has 2 purposes:
      If a donor leaves, recovery needs to switch donor
      If this node leaves, recovery needs to shutdown.
     */
-    recovery_module->update_recovery_process(left, total);
+    recovery_module->update_recovery_process(nodes_left);
   }
 
-  if (left.size() > 0)
+  if (nodes_left)
   {
-    update_node_status(left, GCS::MEMBER_OFFLINE, GCS::MEMBER_END /* No condition*/);
+    update_node_status(new_view->get_leaving_members(),
+                       Cluster_member_info::MEMBER_OFFLINE,
+                       Cluster_member_info::MEMBER_END);
+  }
+
+  if(is_leaving)
+  {
+    leave_notifier->end_view_modification();
   }
 }
 
-
-void handle_transactional_message(GCS::Message *msg)
+bool Gcs_plugin_events_handler::is_member_on_vector
+                                      (vector<Gcs_member_identifier>* members,
+                                       Gcs_member_identifier member_id)
 {
-  if (applier_module)
-  {
-    // andrei todo: raw byte shall be the same in all GCS modules == uchar
-    applier_module->handle((const char*) GCS::get_payload_data(msg),
-                      GCS::get_data_len(msg));
-  }
-  else
-  {
-    log_message(MY_ERROR_LEVEL, "Message received without a proper applier");
-  }
+  vector<Gcs_member_identifier>::iterator it;
+
+  it= find(members->begin(), members->end(), member_id);
+
+  return it != members->end();
 }
 
-void handle_certifier_message(GCS::Message *msg)
+int
+Gcs_plugin_events_handler::on_data(vector<uchar>* exchanged_data)
 {
-  if (applier_module == NULL)
+  /*
+  For now, we are only carrying Cluster Member Info on Exchangeable data
+  Since we are receiving the state from all Cluster members, one shall
+  store it in a set to ensure that we don't have repetitions.
+
+  All collected data will be given to Cluster Member Manager at view install
+  time.
+  */
+  vector<Cluster_member_info*>* member_infos=
+                             cluster_info_mgr->decode(&exchanged_data->front());
+
+  //This construct is here in order to deallocate memory of duplicates
+  vector<Cluster_member_info*>::iterator member_infos_it;
+  for(member_infos_it= member_infos->begin();
+      member_infos_it != member_infos->end();
+      member_infos_it++)
   {
-    log_message(MY_ERROR_LEVEL, "Message received without a proper applier");
-    return;
+    if(temporary_states->count((*member_infos_it)) > 0)
+    {
+      delete (*member_infos_it);
+    }
+    else
+    {
+      this->temporary_states->insert((*member_infos_it));
+    }
   }
 
-  Certifier_interface *certifier= applier_module->get_certification_handler()->get_certifier();
-  if (certifier->handle_certifier_data((const char*) GCS::get_payload_data(msg),
-                                       GCS::get_data_len(msg)))
-  {
-      log_message(MY_ERROR_LEVEL, "Error processing payload information event");
-  }
+  member_infos->clear();
+  delete member_infos;
+
+  return 0;
 }
 
-void handle_recovery_message(GCS::Message *msg)
+void
+Gcs_plugin_events_handler::update_node_status
+                 (vector<Gcs_member_identifier>* members,
+                  Cluster_member_info::Cluster_member_status status,
+                  Cluster_member_info::Cluster_member_status condition_status)
 {
-  size_t data_len= GCS::get_data_len(msg);
-  const uchar* data= GCS::get_payload_data(msg);
-  Recovery_message *recovery_message= new Recovery_message(data, data_len);
-
-  string *node_uuid= recovery_message->get_node_uuid();
-  bool is_local= !node_uuid->compare(gcs_module->get_client_uuid());
-
-  // The node is declare as online upon receiving this message
-  change_node_status(node_uuid, GCS::MEMBER_ONLINE, is_local);
-
-  if(is_local)
+  for (vector<Gcs_member_identifier>::iterator it= members->begin();
+       it != members->end();
+       ++it)
   {
-    log_message(MY_INFORMATION_LEVEL,
-                "[Recovery:] This node was declared online");
-  }
-  else
-  {
-    log_message(MY_INFORMATION_LEVEL,
-                "[Recovery:] Node %s was declared online",
-                node_uuid->c_str());
+    Gcs_member_identifier member = *it;
+    Cluster_member_info* member_info=
+                cluster_info_mgr->get_cluster_member_info_by_member_id(member);
+
+    if(member_info == NULL)
+    {
+      //Trying to update a non-existing member
+      continue;
+    }
+
+    if(condition_status == Cluster_member_info::MEMBER_END ||
+       member_info->get_recovery_status() == condition_status)
+    {
+      cluster_info_mgr->update_member_status(*member_info->get_uuid(), status);
+    }
   }
 }
 
+Gcs_plugin_leave_notifier::Gcs_plugin_leave_notifier()
+{
+  view_changing= false;
+
+#ifdef HAVE_PSI_INTERFACE
+  PSI_cond_info leave_notifier_conds[]=
+  {
+    { &wait_for_view_key_cond, "COND_leave_notifier", 0}
+  };
+
+  PSI_mutex_info leave_notifier_mutexes[]=
+  {
+    { &wait_for_view_key_mutex, "LOCK_leave_notifier", 0}
+  };
+
+  register_gcs_psi_keys(leave_notifier_mutexes, 1,
+                        leave_notifier_conds, 1);
+#endif /* HAVE_PSI_INTERFACE */
+
+  mysql_cond_init(wait_for_view_key_cond, &wait_for_view_cond);
+  mysql_mutex_init(wait_for_view_key_mutex, &wait_for_view_mutex,
+                   MY_MUTEX_INIT_FAST);
+}
+Gcs_plugin_leave_notifier::~Gcs_plugin_leave_notifier()
+{
+  mysql_mutex_destroy(&wait_for_view_mutex);
+  mysql_cond_destroy(&wait_for_view_cond);
+}
+
+void
+Gcs_plugin_leave_notifier::start_view_modification()
+{
+  mysql_mutex_lock(&wait_for_view_mutex);
+  view_changing= true;
+  mysql_mutex_unlock(&wait_for_view_mutex);
+}
+
+void
+Gcs_plugin_leave_notifier::end_view_modification()
+{
+  mysql_mutex_lock(&wait_for_view_mutex);
+  view_changing= false;
+  mysql_cond_broadcast(&wait_for_view_cond);
+  mysql_mutex_unlock(&wait_for_view_mutex);
+}
+
+bool
+Gcs_plugin_leave_notifier::wait_for_view_modification(long timeout)
+{
+  struct timespec ts;
+  int result= 0;
+
+  mysql_mutex_lock(&wait_for_view_mutex);
+  while (view_changing)
+  {
+    set_timespec(ts, timeout);
+    result=
+         mysql_cond_timedwait(&wait_for_view_cond, &wait_for_view_mutex, &ts);
+
+    if(result != 0) //It means that it broke by timeout or an error.
+      break;
+  }
+  mysql_mutex_unlock(&wait_for_view_mutex);
+
+  return (result != 0);
+}

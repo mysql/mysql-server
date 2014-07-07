@@ -17,10 +17,14 @@
 #define GCS_REPLICATION_THREADS_API_INCLUDE
 
 #include "gcs_plugin_utils.h"
+
 #include <rpl_info_factory.h>
 #include <rpl_slave.h>
 #include <rpl_rli.h>
 #include <gcs_replication.h>
+#include <string>
+
+using std::string;
 
 //Errors as given in the start/stop/init methods
 #define REPLICATION_THREAD_REPOSITORY_CREATION_ERROR 1

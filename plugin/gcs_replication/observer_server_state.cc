@@ -15,7 +15,6 @@
 
 #include "gcs_plugin.h"
 #include "observer_server_state.h"
-#include "gcs_protocol_factory.h"
 
 /*
   DBMS lifecycle events observers.

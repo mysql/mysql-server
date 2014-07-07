@@ -20,11 +20,9 @@
 #include "gcs_commit_validation.h"
 #include <sql_class.h>                          // THD
 #include <gcs_replication.h>
-#include <gcs_protocol.h>
-#include <gcs_protocol_factory.h>
 #include "gcs_event_handlers.h"
-#include <string>
-#include <my_stacktrace.h>
+#include "gcs_binding_factory.h"
+#include "gcs_corosync_control_interface.h"
 
 using std::string;
 
@@ -33,9 +31,11 @@ static MYSQL_PLUGIN plugin_info_ptr;
 /* configuration related: */
 
 ulong gcs_protocol_opt;
-const char *gcs_protocol_names[]= {"COROSYNC", NullS};
+
+const char *available_bindings_names[]= {"COROSYNC", (char *)0};
+
 TYPELIB gcs_protocol_typelib=
-{ array_elements(gcs_protocol_names) - 1, "", gcs_protocol_names, NULL };
+{ array_elements(available_bindings_names) - 1, "", available_bindings_names, NULL };
 
 //Plugin related
 char gcs_replication_group[UUID_LENGTH+1];
@@ -48,8 +48,17 @@ ulong handler_pipeline_type;
 //Recovery module related
 char gcs_recovery_user[USERNAME_LENGTH + 1];
 char *gcs_recovery_user_pointer= NULL;
-//Called dummy was it was never updated
+
+/**
+  Dummy variable associated to the recovery password sysvar making it never
+  accessible.
+  The real value resides in the below field
+*/
 char *gcs_dummy_recovery_password= NULL;
+
+//Invisible. After Recovery consumes it will be nullified
+char gcs_recovery_password[MAX_PASSWORD_LENGTH + 1];
+
 ulong gcs_recovery_retry_count= 0;
 
 //Generic components variables
@@ -57,6 +66,13 @@ ulong gcs_components_stop_timeout= LONG_TIMEOUT;
 
 //GCS module variables
 char *gcs_group_pointer= NULL;
+Gcs_interface *gcs_module= NULL;
+Gcs_plugin_events_handler* events_handler= NULL;
+Gcs_plugin_leave_notifier* leave_notifier= NULL;
+
+int gcs_communication_event_handle= 0;
+int gcs_control_event_handler= 0;
+int gcs_control_exchanged_data_handle= 0;
 
 /* end of conf */
 
@@ -71,18 +87,10 @@ char applier_relay_log_name[] = "sql_applier";
 char applier_relay_log_info_name[]= "sql_applier_relay_log.info";
 //The plugin recovery module
 Recovery_module *recovery_module= NULL;
-// Specific/configured GCS module
-GCS::Protocol *gcs_module= NULL;
-//The statistics module
-GCS::Stats cluster_stats;
 
-static GCS::Client_info rinfo((GCS::Client_logger_func) log_message);
-
-GCS::Event_handlers gcs_plugin_event_handlers=
-{
-  handle_view_change,
-  handle_message_delivery
-};
+//Application management information
+Cluster_member_info_manager_interface *cluster_member_mgr= NULL;
+Cluster_member_info* local_member_info= NULL;
 
 /*
   Internal auxiliary functions signatures.
@@ -95,21 +103,21 @@ static bool server_engine_initialized();
 
 char* get_last_certified_transaction(char* buf, rpl_gno last_seq_num);
 
+enum enum_node_state
+map_protocol_node_state_to_server_node_state
+                             (Cluster_member_info::Cluster_member_status
+                                                               protocol_status);
+
+enum enum_applier_status
+map_node_applier_state_to_server_applier_status(Member_applier_state
+                                                              applier_status);
+
 /*
   Auxiliary public functions.
 */
 bool is_gcs_rpl_running()
 {
   return gcs_running;
-}
-
-void fill_client_info(GCS::Client_info* info)
-{
-  char *hostname, *uuid;
-  uint port;
-
-  get_server_host_port_uuid(&hostname, &port, &uuid);
-  info->store(string(hostname), port, string(uuid), GCS::MEMBER_OFFLINE);
 }
 
 int log_message(enum plugin_log_level level, const char *format, ...)
@@ -141,58 +149,209 @@ struct st_mysql_gcs_rpl gcs_rpl_descriptor=
 bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info)
 {
   info->group_name= gcs_group_pointer;
-  info->view_id= cluster_stats.get_view_id();
   info->node_state= is_gcs_rpl_running();
-  info->number_of_nodes= cluster_stats.get_number_of_nodes();
-  info->total_messages_sent= cluster_stats.get_total_messages_sent();
-  info->total_bytes_sent= cluster_stats.get_total_bytes_sent();
-  info->total_messages_received= cluster_stats.get_total_messages_received();
-  info->total_bytes_received= cluster_stats.get_total_bytes_received();
-  info->last_message_timestamp= cluster_stats.get_last_message_timestamp();
-  info->min_message_length= cluster_stats.get_min_message_length();
-  info->max_message_length= cluster_stats.get_max_message_length();
+
+  Gcs_view* view= NULL;
+  Gcs_statistics_interface* stats_if= NULL;
+
+  if(gcs_group_pointer != NULL)
+  {
+    string gcs_group_name(gcs_group_pointer);
+    Gcs_group_identifier group_id(gcs_group_name);
+
+    if(gcs_module != NULL)
+    {
+      Gcs_control_interface* ctrl_if= gcs_module->get_control_session(group_id);
+      stats_if= gcs_module->get_statistics(group_id);
+
+      if(ctrl_if != NULL)
+      {
+        view= ctrl_if->get_current_view();
+      }
+    }
+  }
+
+  if(view != NULL)
+  {
+    info->view_id= view->get_view_id()->get_view_id();
+    info->number_of_nodes= view->get_members()->size();
+  }
+  else
+  {
+    info->view_id= 0;
+    info->number_of_nodes= 0;
+  }
+
+  if(stats_if != NULL)
+  {
+    info->total_messages_sent= stats_if->get_total_messages_sent();
+    info->total_bytes_sent= stats_if->get_total_bytes_sent();
+    info->total_messages_received= stats_if->get_total_messages_received();
+    info->total_bytes_received= stats_if->get_total_bytes_received();
+    info->last_message_timestamp= stats_if->get_last_message_timestamp();
+    info->min_message_length= stats_if->get_min_message_length();
+    info->max_message_length= stats_if->get_max_message_length();
+  }
+  else
+  {
+    info->total_messages_sent= 0;
+    info->total_bytes_sent= 0;
+    info->total_messages_received= 0;
+    info->total_bytes_received= 0;
+    info->last_message_timestamp= 0;
+    info->min_message_length= 0;
+    info->max_message_length= 0;
+  }
 
   return false;
 }
 
 bool get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO *info)
 {
-  info->group_name= gcs_group_pointer;
+  /*
+   This case means that the plugin has never been initialized...
+   and one would not be able to extract information
+   */
+  if(cluster_member_mgr == NULL)
+  {
+    string empty_string("");
 
-  uint number_of_nodes= cluster_stats.get_number_of_nodes();
-  if (index >= number_of_nodes) {
-    if (index == 0) {
-      // No nodes on view and index= 0 so return local node info.
-      GCS::Client_info node_info= gcs_module->get_client_info();
-      info->node_id= node_info.get_uuid().c_str();
-      info->node_host= node_info.get_hostname().c_str();
-      info->node_port= node_info.get_port();
-      info->node_state=
-          map_protocol_node_state_to_server_node_state(
-              node_info.get_recovery_status());
-      return false;
+    info->group_name= gcs_group_pointer;
+    info->node_id= my_strndup(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                             PSI_NOT_INSTRUMENTED,
+#endif
+                             empty_string.c_str(),
+                             empty_string.length(),
+                             MYF(0));
+
+    info->node_host= my_strndup(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                             PSI_NOT_INSTRUMENTED,
+#endif
+                             empty_string.c_str(),
+                             empty_string.length(),
+                             MYF(0));
+
+    info->node_port= 0;
+    info->node_state= NODE_STATE_OFFLINE;
+
+    return false;
+  }
+
+  Gcs_control_interface* ctrl_if= NULL;
+  if(gcs_group_pointer != NULL)
+  {
+    info->group_name= gcs_group_pointer;
+
+    string gcs_group_name(gcs_group_pointer);
+    Gcs_group_identifier group_id(gcs_group_name);
+
+    ctrl_if= gcs_module->get_control_session(group_id);
+  }
+
+  uint number_of_nodes= 0;
+  if(ctrl_if != NULL)
+  {
+    Gcs_view* view= ctrl_if->get_current_view();
+    if(view != NULL)
+    {
+      number_of_nodes= view->get_members()->size();
     }
-    else {
+  }
+  else
+  {
+    number_of_nodes= 1;
+  }
+
+  if (index >= number_of_nodes) {
+    if (index != 0) {
       // No nodes on view.
       return true;
     }
   }
 
+  Cluster_member_info* node_info
+                 = cluster_member_mgr->get_cluster_member_info_by_index(index);
+
+  if(node_info == NULL) // The requested node is not managed...
+  {
+    return true;
+  }
+
   // Get info from view.
-  info->node_id= cluster_stats.get_node_id(index);
-  info->node_host= cluster_stats.get_node_host(index);
-  info->node_port= cluster_stats.get_node_port(index);
+    info->node_id= my_strndup(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                             PSI_NOT_INSTRUMENTED,
+#endif
+                             node_info->get_uuid()->c_str(),
+                             node_info->get_uuid()->length(),
+                             MYF(0));
+
+    info->node_host= my_strndup(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                             PSI_NOT_INSTRUMENTED,
+#endif
+                             node_info->get_hostname()->c_str(),
+                             node_info->get_hostname()->length(),
+                             MYF(0));
+
+  info->node_port= node_info->get_port();
   info->node_state=
       map_protocol_node_state_to_server_node_state(
-          cluster_stats.get_recovery_status(index));
+          node_info->get_recovery_status());
+
+  delete node_info;
+
   return false;
+}
+
+uint get_gcs_nodes_number()
+{
+  uint number_of_nodes= 0;
+
+  if(gcs_group_pointer != NULL)
+  {
+    /*
+      Even when node is disconnected from group there is the
+      local node.
+    */
+    string gcs_group_name(gcs_group_pointer);
+    Gcs_group_identifier group_id(gcs_group_name);
+
+    Gcs_control_interface* ctrl_if= NULL;
+    ctrl_if= gcs_module->get_control_session(group_id);
+
+    Gcs_view* view= NULL;
+    view= ctrl_if->get_current_view();
+
+    if(view != NULL && ctrl_if != NULL && ctrl_if->belongs_to_group())
+    {
+      number_of_nodes= view->get_members()->size();
+    }
+  }
+
+  return number_of_nodes == 0 ? 1 : number_of_nodes;
 }
 
 bool get_gcs_node_stat_info(RPL_GCS_NODE_STATS_INFO *info)
 {
+  //This means that the plugin never started
+  if(cluster_member_mgr == NULL)
+  {
+    string empty_string("");
+    info->node_id= empty_string.c_str();
+  }
+  else
+  {
+    char *hostname, *uuid;
+    uint port;
+    get_server_host_port_uuid(&hostname, &port, &uuid);
+
+    info->node_id= uuid;
+  }
+
   info->group_name= gcs_group_pointer;
-  GCS::Client_info node_info= gcs_module->get_client_info();
-  info->node_id= node_info.get_uuid().c_str();
 
   //Check if the gcs replication has started.
   if(applier_module)
@@ -237,17 +396,40 @@ bool get_gcs_node_stat_info(RPL_GCS_NODE_STATS_INFO *info)
         map_node_applier_state_to_server_applier_status(
             (Member_applier_state)APPLIER_STATE_OFF);
   }
+
   return false;
 }
 
-uint get_gcs_nodes_number()
+enum enum_node_state
+map_protocol_node_state_to_server_node_state
+                   (Cluster_member_info::Cluster_member_status protocol_status)
 {
-  /*
-    Even when node is disconnected from group there is the
-    local node.
-  */
-  uint number_of_nodes= cluster_stats.get_number_of_nodes();
-  return number_of_nodes == 0 ? 1 : number_of_nodes;
+  switch(protocol_status)
+  {
+    case 1:  // MEMBER_ONLINE
+      return NODE_STATE_ONLINE;
+    case 2:  // MEMBER_OFFLINE
+      return NODE_STATE_OFFLINE;
+    case 3:  // MEMBER_IN_RECOVERY
+      return NODE_STATE_RECOVERING;
+    default:
+      return NODE_STATE_OFFLINE;
+  }
+}
+
+enum enum_applier_status
+map_node_applier_state_to_server_applier_status(Member_applier_state
+                                                                applier_status)
+{
+  switch(applier_status)
+  {
+    case 1:  // APPLIER_STATE_ON
+      return APPLIER_STATE_RUNNING;
+    case 2:  // APPLIER_STATE_OFF
+      return APPLIER_STATE_STOP;
+    default: // APPLIER_ERROR
+      return APPLIER_STATE_ERROR;
+  }
 }
 
 char* get_last_certified_transaction(char* buf, rpl_gno last_seq_num)
@@ -285,6 +467,15 @@ int gcs_rpl_start()
   if (init_cluster_sidno())
     DBUG_RETURN(GCS_CONFIGURATION_ERROR);
 
+  if(gcs_module->initialize())
+  {
+    DBUG_RETURN(GCS_CONFIGURATION_ERROR);
+  }
+
+  configure_cluster_member_manager();
+
+  initialize_recovery_module();
+
   if (server_engine_initialized())
   {
     //we can only start the applier if the log has been initialized
@@ -311,6 +502,40 @@ int gcs_rpl_start()
   DBUG_RETURN(0); //All is OK
 }
 
+int configure_cluster_member_manager()
+{
+  //Retrieve local GCS information
+  string group_id_str(gcs_group_pointer);
+  Gcs_group_identifier group_id(group_id_str);
+  Gcs_control_interface* gcs_ctrl= gcs_module->get_control_session(group_id);
+
+  //Configure Cluster Member Manager
+  char *hostname, *uuid;
+  uint port;
+  get_server_host_port_uuid(&hostname, &port, &uuid);
+
+  if(local_member_info != NULL)
+  {
+    delete local_member_info;
+  }
+
+  local_member_info = new Cluster_member_info(hostname,
+                                              port,
+                                              uuid,
+                                              gcs_ctrl->get_local_information(),
+                                              Cluster_member_info::MEMBER_OFFLINE);
+
+  //Create the membership info visible for the cluster
+  if(cluster_member_mgr != NULL)
+  {
+    delete cluster_member_mgr;
+  }
+
+  cluster_member_mgr= new Cluster_member_info_manager(local_member_info);
+
+  return 0;
+}
+
 int gcs_rpl_stop()
 {
   Mutex_autolock a(&gcs_running_mutex);
@@ -320,8 +545,44 @@ int gcs_rpl_stop()
     DBUG_RETURN(0);
 
   /* first leave all joined groups (currently one) */
-  gcs_module->leave(string(gcs_group_pointer));
-  gcs_module->close_session();
+  string gcs_group_name(gcs_group_pointer);
+  Gcs_group_identifier group_id(gcs_group_name);
+
+  Gcs_control_interface *ctrl_if=
+                                gcs_module->get_control_session(group_id);
+  Gcs_communication_interface *comm_if=
+                                gcs_module->get_communication_session(group_id);
+
+  leave_notifier->start_view_modification();
+
+  if(ctrl_if->belongs_to_group())
+  {
+    if(ctrl_if->leave())
+    {
+      log_message(MY_WARNING_LEVEL,"Error leaving the group");
+    }
+
+    log_message(MY_INFORMATION_LEVEL, "going to wait for view modification");
+    if(leave_notifier->wait_for_view_modification(10))
+    {
+      log_message(MY_WARNING_LEVEL,
+                  "On shutdown there was a timeout receiving a view change."
+                  "This can lead to a possible inconsistent state."
+                  "Check the log for more details");
+    }
+  }
+
+  //Unregister callbacks and destroy notifiers
+  ctrl_if->remove_data_exchange_event_listener(gcs_control_event_handler);
+  ctrl_if->remove_data_exchange_event_listener(gcs_control_exchanged_data_handle);
+  comm_if->remove_event_listener(gcs_communication_event_handle);
+
+  gcs_control_event_handler= 0;
+  gcs_control_exchanged_data_handle= 0;
+  gcs_communication_event_handle= 0;
+
+  delete events_handler;
+  delete leave_notifier;
 
   if(terminate_recovery_module())
   {
@@ -330,7 +591,6 @@ int gcs_rpl_stop()
                 "On shutdown there was a timeout on the recovery module "
                 "termination. Check the log for more details");
   }
-
 
   /*
     The applier is only shutdown after the communication layer to avoid
@@ -346,6 +606,8 @@ int gcs_rpl_stop()
     Even if the applier did not terminate, let gcs_running be false
     as he can shutdown in the meanwhile.
   */
+
+  gcs_module->finalize();
 
   gcs_running= false;
   DBUG_RETURN(error);
@@ -378,14 +640,13 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
     return 1;
   }
 
-  if (!(gcs_module= GCS::Protocol_factory::create_protocol((GCS::Protocol_type)
-                                                             gcs_protocol_opt, cluster_stats)))
+  if ((gcs_module=
+         Gcs_binding_factory::get_gcs_implementation
+                              ((plugin_gcs_bindings)gcs_protocol_opt)) == NULL)
   {
     log_message(MY_ERROR_LEVEL, "Failure in GCS protocol initialization");
     return 1;
   };
-
-  initialize_recovery_module();
 
   if (gcs_replication_boot && start_gcs_rpl())
     return 1;
@@ -397,6 +658,21 @@ int gcs_replication_deinit(void *p)
 {
   if (cleanup_gcs_rpl())
     return 1;
+
+  Gcs_binding_factory::cleanup_gcs_implementation
+                                       ((plugin_gcs_bindings)gcs_protocol_opt);
+
+  if(cluster_member_mgr != NULL)
+  {
+    delete cluster_member_mgr;
+    cluster_member_mgr= NULL;
+  }
+
+  if(local_member_info != NULL)
+  {
+    delete local_member_info;
+    local_member_info= NULL;
+  }
 
   if (unregister_server_state_observer(&server_state_observer, p))
   {
@@ -416,6 +692,7 @@ int gcs_replication_deinit(void *p)
               "The observers in GCS cluster have been successfully unregistered");
 
   pthread_mutex_destroy(&gcs_running_mutex);
+
   return 0;
 }
 
@@ -525,33 +802,77 @@ int terminate_applier_module()
 
 int configure_and_start_gcs()
 {
-  fill_client_info(&rinfo);
-  gcs_module->set_client_info(rinfo);
+  //Create data to be exchanged here...
+  string group_id_str(gcs_group_pointer);
+  Gcs_group_identifier group_id(group_id_str);
+  Gcs_control_interface* gcs_ctrl= gcs_module->get_control_session(group_id);
 
-  if (gcs_module->open_session(&gcs_plugin_event_handlers))
-    return GCS_COMMUNICATION_LAYER_SESSION_ERROR;
+  gcs_ctrl
+        ->set_exchangeable_data(cluster_member_mgr->get_exchangeable_format());
 
-  if (gcs_module->join(string(gcs_group_pointer)))
+  leave_notifier= new Gcs_plugin_leave_notifier();
+  events_handler= new Gcs_plugin_events_handler(applier_module,
+                                                recovery_module,
+                                                cluster_member_mgr,
+                                                local_member_info,
+                                                leave_notifier);
+
+  gcs_control_event_handler= gcs_ctrl->add_event_listener(events_handler);
+  gcs_control_exchanged_data_handle
+                   = gcs_ctrl->add_data_exchange_event_listener(events_handler);
+
+  //Set interfaces for Certifier
+  Gcs_communication_interface *comm_if=
+                            gcs_module->get_communication_session(group_id);
+
+  gcs_communication_event_handle= comm_if->add_event_listener(events_handler);
+
+  applier_module->get_certification_handler()->get_certifier()
+                                       ->set_gcs_interfaces(comm_if, gcs_ctrl);
+  applier_module->get_certification_handler()->get_certifier()
+                                       ->set_local_node_info(local_member_info);
+
+  if (gcs_ctrl->join())
   {
-    gcs_module->close_session();
     return GCS_COMMUNICATION_LAYER_JOIN_ERROR;
   }
+
   return 0;
 }
 
 int initialize_recovery_module()
 {
-  recovery_module = new Recovery_module(applier_module, gcs_module);
+  string group_id_str(gcs_group_pointer);
+  Gcs_group_identifier group_id(group_id_str);
+
+  Gcs_communication_interface *comm_if=
+                            gcs_module->get_communication_session(group_id);
+  Gcs_control_interface *ctrl_if=
+                            gcs_module->get_control_session(group_id);
+
+  recovery_module = new Recovery_module(applier_module, comm_if,
+                                        ctrl_if, local_member_info,
+                                        cluster_member_mgr);
+
+  recovery_module
+              ->set_recovery_donor_connection_user(gcs_recovery_user_pointer);
+  recovery_module
+              ->set_recovery_donor_connection_password(&gcs_recovery_password[0]);
   return 0;
 }
 
 int terminate_recovery_module()
 {
+  int error= 0;
   if(recovery_module != NULL)
   {
-    return recovery_module->stop_recovery();
+    error = recovery_module->stop_recovery();
+
+    delete recovery_module;
+
+    recovery_module= NULL;
   }
-  return 0;
+  return error;
 }
 
 static bool server_engine_initialized(){
@@ -609,8 +930,6 @@ static void update_group_name(MYSQL_THD thd, SYS_VAR *var, void *ptr, const
   const char *newGroup= *(const char**)val;
   strncpy(gcs_replication_group, newGroup, UUID_LENGTH);
   gcs_group_pointer= &gcs_replication_group[0];
-
-  cluster_stats.reset();
 
   DBUG_VOID_RETURN;
 }
@@ -673,6 +992,7 @@ static int check_recovery_con_password(MYSQL_THD thd, SYS_VAR *var, void* ptr,
     DBUG_RETURN(1);
   }
 
+  strncpy(gcs_recovery_password, str, strlen(str)+1);
   if (recovery_module != NULL)
   {
     recovery_module->set_recovery_donor_connection_password(str);
@@ -763,7 +1083,7 @@ static MYSQL_SYSVAR_ENUM(gcs_protocol, gcs_protocol_opt,
   "The name of GCS protocol to us.",
   NULL,
   NULL,
-  GCS::PROTO_COROSYNC,
+  COROSYNC,
   &gcs_protocol_typelib);
 
 //Recovery module variables

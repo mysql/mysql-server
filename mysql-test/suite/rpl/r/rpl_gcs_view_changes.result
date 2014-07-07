@@ -1,16 +1,8 @@
 include/have_gcs_replication_plugin.inc
 include/install_gcs_replication.inc
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 include/install_gcs_replication.inc
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 include/install_gcs_replication.inc
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 include/install_gcs_replication.inc
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 include/stop_gcs_replication.inc
 include/stop_gcs_replication.inc

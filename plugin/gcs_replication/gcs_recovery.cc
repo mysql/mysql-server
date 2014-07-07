@@ -15,10 +15,8 @@
 
 #include "gcs_recovery.h"
 #include "gcs_recovery_message.h"
-#include <gcs_protocol_factory.h>
 #include "gcs_member_info.h"
 #include "handlers/certification_handler.h"
-#include "gcs_message.h"
 #include <applier_interfaces.h>
 #include <mysqld_thd_manager.h>  // Global_THD_manager
 #include <rpl_info_factory.h>
@@ -40,13 +38,19 @@ static void *launch_handler_thread(void* arg)
 }
 
 Recovery_module::Recovery_module(Applier_module_interface *applier,
-                                 GCS::Protocol *protocol)
-  :communication_proto(protocol), applier_module(applier), view_id(0),
-  selected_donor(NULL), donor_connection_retry_count(0),
-  recovery_running(false), donor_transfer_finished(false),
-  connected_to_donor(false), donor_connection_interface(),
-  stop_wait_timeout(LONG_TIMEOUT), max_connection_attempts_to_donors(-1)
+                                 Gcs_communication_interface *comm_if,
+                                 Gcs_control_interface *ctrl_if,
+                                 Cluster_member_info* local_info,
+                                 Cluster_member_info_manager_interface*
+                                                                cluster_info_if)
+  : gcs_control_interface(ctrl_if),gcs_communication_interface(comm_if),
+    local_node_information(local_info), applier_module(applier),
+    view_id(0), cluster_info(cluster_info_if),donor_connection_retry_count(0),
+    recovery_running(false), donor_transfer_finished(false),
+    connected_to_donor(false), donor_connection_interface(),
+    stop_wait_timeout(LONG_TIMEOUT), max_connection_attempts_to_donors(-1)
 {
+  selected_donor_uuid.clear();
 
   (void) strncpy(donor_connection_user, DEFAULT_USER, strlen(DEFAULT_USER)+1);
   (void) strncpy(donor_connection_password,
@@ -89,8 +93,7 @@ Recovery_module::~Recovery_module()
 
 int
 Recovery_module::start_recovery(const string& group_name,
-                                ulonglong rec_view_id,
-                                Member_set& cluster_members)
+                                int rec_view_id)
 {
   DBUG_ENTER("Recovery_module::initialize_recovery_thd");
 
@@ -98,7 +101,6 @@ Recovery_module::start_recovery(const string& group_name,
 
   this->group_name= group_name;
   this->view_id= rec_view_id;
-  this->member_set= cluster_members;
 
   if(check_recovery_thread_status())
   {
@@ -114,7 +116,7 @@ Recovery_module::start_recovery(const string& group_name,
   //Set the retry count to be the max number of possible donors
   if(max_connection_attempts_to_donors == -1)
   {
-    max_connection_attempts_to_donors= cluster_members.size() -1;
+    max_connection_attempts_to_donors= cluster_info->get_number_of_members() -1;
   }
 
 #ifdef HAVE_PSI_INTERFACE
@@ -142,6 +144,9 @@ Recovery_module::start_recovery(const string& group_name,
   }
 
   mysql_mutex_unlock(&run_lock);
+
+  log_message(MY_INFORMATION_LEVEL,
+              "[Recovery:] Recovery Thread Started...");
 
   DBUG_RETURN(0);
 }
@@ -226,8 +231,7 @@ Recovery_module::stop_recovery()
 }
 
 int
-Recovery_module::update_recovery_process(Member_set& left,
-                                         Member_set& cluster_members)
+Recovery_module::update_recovery_process(bool did_nodes_left)
 {
   DBUG_ENTER("Recovery_module::update_recovery_process");
 
@@ -235,11 +239,8 @@ Recovery_module::update_recovery_process(Member_set& left,
 
   if (recovery_running)
   {
-
-    string node_id = communication_proto->get_client_uuid();
-    string donor_id= selected_donor.get_uuid();
-
-    if (GCS::is_member_in_set(node_id, left))
+    //If i left the Cluster... the cluster manager will only have me
+    if(cluster_info->get_number_of_members() == 1)
     {
       stop_recovery();
     }
@@ -256,25 +257,22 @@ Recovery_module::update_recovery_process(Member_set& left,
       mysql_mutex_lock(&donor_selection_lock);
 
       //if some node left, reset the counter as potential failed members left
-      if((int)left.size() > 1)
+      if(did_nodes_left)
       {
         donor_connection_retry_count= 0;
         rejected_donors.clear();
       }
 
       /*
-       Set the new members for donor selection in case the donor still being
-       selected under the normal thread flow, or for future selection in case of
-       failover.
-      */
-      member_set= cluster_members;
-
-      /*
-       It makes sense to cut our connect to the donor if:
-       1) The donor has left the building
+       It makes sense to cut our connection to the donor if:
+       1) The donor has left the building and
        2) We are already connected to him.
       */
-      if (GCS::is_member_in_set(donor_id,left) && connected_to_donor)
+
+      Cluster_member_info* donor=
+            cluster_info->get_cluster_member_info(selected_donor_uuid);
+
+      if ((donor == NULL) && connected_to_donor)
       {
         /*
          The donor transfer flag is not lock protected on the recovery thread so
@@ -290,7 +288,7 @@ Recovery_module::update_recovery_process(Member_set& left,
         {
           log_message(MY_INFORMATION_LEVEL,
                       "[Recovery:] Killing the current recovery connection as the "
-                      "donor %s left.", donor_id.c_str());
+                      "donor %s left.", selected_donor_uuid.c_str());
           if(donor_failover())
           {
             /*
@@ -305,7 +303,7 @@ Recovery_module::update_recovery_process(Member_set& left,
                       "recovery impossible."
                       "The node will now leave to cluster");
               mysql_mutex_unlock(&donor_selection_lock);
-              communication_proto->leave(group_name);
+              gcs_control_interface->leave();
               DBUG_RETURN(error);
             }
             else
@@ -432,7 +430,7 @@ cleanup:
    last view waiting for this thread to die.
   */
   if(error)
-    communication_proto->leave(group_name);
+    gcs_control_interface->leave();
 
   clean_recovery_thread_context();
 
@@ -469,26 +467,36 @@ bool Recovery_module::select_donor()
   bool clean_run= rejected_donors.empty();
   while(!no_available_donors)
   {
-    std::set<Member>::iterator set_iterator= member_set.begin();
+    std::vector<Cluster_member_info*>* member_set=
+                                              cluster_info->get_all_members();
+    std::vector<Cluster_member_info*>::iterator it= member_set->begin();
     //select the first online node
-    while(set_iterator != member_set.end()){
-      Member member = *set_iterator;
+    while(it != member_set->end())
+    {
+      Cluster_member_info* member = *it;
       //is online and it's not me and didn't error out before
-      string m_uuid=  member.get_uuid();
+      string m_uuid= *member->get_uuid();
 
-      bool is_online= member.get_recovery_status() == GCS::MEMBER_ONLINE;
-      bool not_self= m_uuid.compare(communication_proto->get_client_uuid());
+      bool is_online= member->get_recovery_status() ==
+                                Cluster_member_info::MEMBER_ONLINE;
+      bool not_self= m_uuid.compare(*local_node_information->get_uuid());
       bool not_rejected= std::find(rejected_donors.begin(),
                                    rejected_donors.end(),
                                    m_uuid) == rejected_donors.end();
 
       if ( is_online && not_self && not_rejected )
       {
-        selected_donor= *set_iterator;
+        selected_donor_uuid.clear();
+        selected_donor_uuid.append(*(*it)->get_uuid());
+
+        delete member_set;
+
         return no_available_donors;
       }
-      ++set_iterator;
+      ++it;
     }
+
+    delete member_set;
 
     //no donor was found
     if(!clean_run)
@@ -539,12 +547,12 @@ int Recovery_module::establish_donor_connection(bool failover)
       if ((error= initialize_donor_connection()))
       {
         log_message(MY_ERROR_LEVEL,
-                "[Recovery:] Error when configuring the connection to the donor.");
+             "[Recovery:] Error when configuring the connection to the donor.");
       }
     }
     else
     {
-      initialize_connection_parameters();
+      error= initialize_connection_parameters();
     }
 
     if (!error && !recovery_aborted)
@@ -566,7 +574,7 @@ int Recovery_module::establish_donor_connection(bool failover)
       else
       {
         donor_connection_retry_count++;
-        rejected_donors.push_back(selected_donor.get_uuid());
+        rejected_donors.push_back(selected_donor_uuid);
         log_message(MY_INFORMATION_LEVEL,
                     "[Recovery:] Retrying connection with another donor. "
                     "Attempt %d/%d",
@@ -587,7 +595,7 @@ int Recovery_module::establish_donor_connection(bool failover)
 
 int Recovery_module::initialize_donor_connection(){
 
-  DBUG_ENTER("Recovery_module::initialize_connection_parameters");
+  DBUG_ENTER("Recovery_module::initialize_donor_connection");
 
   int error= 0;
 
@@ -620,25 +628,42 @@ int Recovery_module::initialize_donor_connection(){
     DBUG_RETURN(error);
   }
 
-  initialize_connection_parameters();
+  error= initialize_connection_parameters();
 
-  donor_connection_interface.initialize_view_id_until_condition(view_id);
+  if(!error)
+  {
+    donor_connection_interface.initialize_view_id_until_condition(view_id);
+  }
 
   DBUG_RETURN(error);
 }
 
-void Recovery_module::initialize_connection_parameters()
+bool Recovery_module::initialize_connection_parameters()
 {
-  const string hostname= selected_donor.get_hostname();
-  uint port= selected_donor.get_port();
+  Cluster_member_info* selected_donor=
+                    cluster_info->get_cluster_member_info(selected_donor_uuid);
+
+  if(selected_donor == NULL)
+  {
+    return true;
+  }
+
+  string hostname= *selected_donor->get_hostname();
+  uint port= selected_donor->get_port();
 
   donor_connection_interface.initialize_connection_parameters(&hostname,
           port, donor_connection_user, donor_connection_password, NULL, 1);
 
   log_message(MY_INFORMATION_LEVEL,
-          "[Recovery:] Establishing connection to donor %s at %s@%s"
-          " port: %d.", selected_donor.get_uuid().c_str(),
-          donor_connection_user, hostname.c_str(), port);
+          "[Recovery:] Establishing connection to donor %s at %s@%s with pass %s"
+          " port: %d.",
+          selected_donor->get_uuid()->c_str(),
+          donor_connection_user,
+          hostname.c_str(),
+          donor_connection_password,
+          port);
+
+  return false;
 }
 
 
@@ -738,9 +763,28 @@ void Recovery_module::wait_for_applier_module_recovery()
 void Recovery_module::notify_cluster_recovery_end()
 {
   Recovery_message *recovery_msg
-    = new Recovery_message(RECOVERY_END_MESSAGE,
-                           &(communication_proto->get_client_uuid()));
+    = new Recovery_message(Recovery_message::RECOVERY_END_MESSAGE,
+                           local_node_information->get_uuid());
 
-  GCS::Message msg(recovery_msg, GCS::MSG_GCS_CLIENT);
-  communication_proto->broadcast(msg);
+  vector<uchar> encoded_recovery_msg;
+  recovery_msg->encode(&encoded_recovery_msg);
+
+  Gcs_group_identifier destination(string(this->group_name));
+  Gcs_member_identifier *origin= gcs_control_interface->get_local_information();
+
+  Gcs_message* msg= new Gcs_message(*origin, destination, UNIFORM);
+
+  msg->append_to_payload(&encoded_recovery_msg.front(),
+                         encoded_recovery_msg.size());
+
+  bool msg_error= gcs_communication_interface->send_message(msg);
+
+  if(msg_error)
+  {
+    log_message(MY_ERROR_LEVEL,
+                "[Recovery:]Error sending message from Recovery");
+  }
+
+  delete recovery_msg;
+  delete msg;
 }

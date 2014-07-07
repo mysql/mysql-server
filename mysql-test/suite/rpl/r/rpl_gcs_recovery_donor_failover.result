@@ -2,6 +2,7 @@ include/have_gcs_replication_plugin.inc
 #
 # Setup a new 2 node cluster
 #
+call mtr.add_suppression(".*Error when configuring the connection to the donor");
 include/install_gcs_replication.inc
 include/start_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc

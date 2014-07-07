@@ -21,12 +21,9 @@
 
 #
 # First prepare four nodes and manually create a table on each.
-# (There's a bug Gtid_state::acquire_ownership assert preventing normal execution)
 #
 --connection server1
 --source include/install_gcs_replication.inc
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 
 if (`select view_id <> 0 from performance_schema.replication_connection_status`)
 {
@@ -37,18 +34,12 @@ if (`select view_id <> 0 from performance_schema.replication_connection_status`)
 
 --connection server2
 --source include/install_gcs_replication.inc
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 
 --connection server3
 --source include/install_gcs_replication.inc
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 
 --connection server4
 --source include/install_gcs_replication.inc
-call mtr.add_suppression("could not form the cluster");
-call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
@@ -81,7 +72,9 @@ let $wait_condition= select number_of_nodes = 4 from performance_schema.replicat
 while($restart_cnt)
 {
     --let $s_id1=`select 1 + floor(rand()*100 % 4)`
+
     --connection server$s_id1
+
     STOP GCS_REPLICATION;
 
     --let $s_id2= $s_id1
@@ -90,6 +83,7 @@ while($restart_cnt)
 	--let $s_id2=`select 1 + floor(rand()*100 % 4)`
     }
     --connection server$s_id2
+
     #
     # Here is the care point: don't go stopping the 2nd node until
     # it's proved the previous one is out of the view.
@@ -207,21 +201,6 @@ INSERT INTO t1 SET c1=2;
 # TODO: implement COMMIT instead of the coded rollback
 --connection server1
 rollback;
-
-# We can't run COMMIT 'cos such the plugin error code is not propageted
-# to the server session and the error apparently is not sent to the server client:
-
-# #9  0xb742d137 in __assert_fail () from /lib/i386-linux-gnu/libc.so.6
-# #10 0x083f585f in Protocol::end_statement (this=0xab000b88) at /home/andrei/MySQL/BZR/2a-23May/WL/wl7332-state_exchange/sql/protocol.cc:573
-# #11 0x0849689b in dispatch_command (command=COM_QUERY, thd=0xab000780, packet=0xab003621 "COMMIT", packet_length=6) at /home/andrei/MySQL/BZR/2a-23May/WL/wl7332-state_exchange/sql/sql_parse.cc:1570
-# #12 0x084945f0 in do_command (thd=0xab000780) at /home/andrei/MySQL/BZR/2a-23Ma
-
-
---connection server1
-# server1 is up but being alone it's not the Prim Comp
-# as witnessed by the zero view-id:
-let $wait_condition= select view_id = 0 from performance_schema.replication_connection_status;
---source include/wait_condition.inc
 
 #
 # Part III.

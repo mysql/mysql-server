@@ -86,6 +86,12 @@ public:
   uint  len;
 };
 
+typedef enum enum_applier_state {
+  APPLIER_STATE_ON= 1,
+  APPLIER_STATE_OFF,
+  APPLIER_ERROR
+} Member_applier_state;
+
 class Applier_module_interface
 {
 
@@ -98,6 +104,7 @@ public:
   virtual ulong get_message_queue_size()= 0;
   virtual void add_suspension_packet()= 0;
   virtual void add_view_change_packet(ulonglong view_id)= 0;
+  virtual int handle(uchar *data, uint len)= 0;
 };
 
 class Applier_module: public Applier_module_interface
@@ -184,9 +191,9 @@ public:
       @retval 0      OK
       @retval !=0    Error on queue
   */
-  int handle(const char *data, uint len)
+  int handle(uchar *data, uint len)
   {
-    return this->incoming->push(new Data_packet((uchar*)data, len));
+    return this->incoming->push(new Data_packet(data, len));
   }
 
   /**

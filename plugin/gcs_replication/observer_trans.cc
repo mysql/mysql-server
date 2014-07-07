@@ -16,15 +16,10 @@
 #include "gcs_plugin.h"
 #include "observer_trans.h"
 #include "gcs_plugin_utils.h"
-#include <gcs_protocol.h>
-#include <gcs_protocol_factory.h>
 #include <log_event.h>
 #include <my_stacktrace.h>
 #include "sql_class.h"
 #include "gcs_replication.h"
-#include "gcs_message.h"
-
-using GCS::MessageBuffer;
 
 /*
   Internal auxiliary functions signatures.
@@ -32,8 +27,6 @@ using GCS::MessageBuffer;
 static bool reinit_cache(IO_CACHE *cache,
                          enum cache_type type,
                          my_off_t position);
-
-static bool copy_cache(GCS::Message *msg, IO_CACHE *src);
 
 int add_write_set(Transaction_context_log_event *tcle,
                    std::list<uint32> *set)
@@ -88,10 +81,7 @@ int gcs_trans_before_commit(Trans_param *param)
   IO_CACHE cache;
   // Todo optimize for memory (IO-cache's buf to start with, if not enough then trans mem-root)
   // to avoid New message create/delete and/or its implicit MessageBuffer.
-  GCS::Message *message= new GCS::Message(GCS::PAYLOAD_TRANSACTION_EVENT);
-
-  // GCS API.
-  GCS::Protocol *protocol= GCS::Protocol_factory::get_instance();
+  Transaction_Message transaction_msg;
 
   // Binlog cache.
   bool is_dml= true;
@@ -185,7 +175,7 @@ int gcs_trans_before_commit(Trans_param *param)
   }
 
   // Copy GCS cache to buffer.
-  if (copy_cache(message, &cache))
+  if (transaction_msg.append_cache(&cache))
   {
     log_message(MY_ERROR_LEVEL, "Failed while writing GCS cache to buffer");
     error= 1;
@@ -193,7 +183,7 @@ int gcs_trans_before_commit(Trans_param *param)
   }
 
   // Copy binlog cache content to buffer.
-  if (copy_cache(message, cache_log))
+  if (transaction_msg.append_cache(cache_log))
   {
     log_message(MY_ERROR_LEVEL, "Failed while writing binlog cache to buffer");
     error= 1;
@@ -216,7 +206,8 @@ int gcs_trans_before_commit(Trans_param *param)
     goto err;
   }
 
-  if (protocol->broadcast(*message))
+  //Broadcast the Transaction Message
+  if (send_transaction_message(&transaction_msg))
   {
     log_message(MY_ERROR_LEVEL, "Failed to broadcast GCS message");
     error= 1;
@@ -231,7 +222,6 @@ int gcs_trans_before_commit(Trans_param *param)
 
 err:
   delete tcle;
-  delete message;
   if (!mutex_init)
     destroy_cond_mutex(&COND_certify_wait, &LOCK_certify_wait);
   close_cached_file(&cache);
@@ -266,7 +256,6 @@ Trans_observer trans_observer = {
   gcs_trans_after_rollback,
 };
 
-
 /*
   Internal auxiliary functions.
 */
@@ -293,13 +282,40 @@ static bool reinit_cache(IO_CACHE *cache,
   DBUG_RETURN(false);
 }
 
-/*
-  Copy one cache content to a buffer.
+bool send_transaction_message(Transaction_Message* msg)
+{
+  string gcs_group_name(gcs_group_pointer);
+  Gcs_group_identifier group_id(gcs_group_name);
 
-  @param[in,out]   message pointer where the cache data are copied in
-  @param[in] src   cache from which data will be read
-*/
-static bool copy_cache(GCS::Message *msg, IO_CACHE *src)
+  Gcs_communication_interface *comm_if
+                              = gcs_module->get_communication_session(group_id);
+  Gcs_control_interface *ctrl_if
+                              = gcs_module->get_control_session(group_id);
+
+  Gcs_message to_send(*ctrl_if->get_local_information(),
+                      *ctrl_if->get_current_view()->get_group_id(),
+                      UNIFORM);
+
+  vector<uchar> transaction_message_data;
+  msg->encode(&transaction_message_data);
+  to_send.append_to_payload(&transaction_message_data.front(),
+                             transaction_message_data.size());
+
+  return comm_if->send_message(&to_send);
+}
+
+//Transaction Message implementation
+
+Transaction_Message::Transaction_Message():Gcs_plugin_message(PAYLOAD_TRANSACTION_EVENT)
+{
+}
+
+Transaction_Message::~Transaction_Message()
+{
+}
+
+bool
+Transaction_Message::append_cache(IO_CACHE *src)
 {
   DBUG_ENTER("copy_cache");
   size_t length;
@@ -311,8 +327,22 @@ static bool copy_cache(GCS::Message *msg, IO_CACHE *src)
     if (src->error)
       DBUG_RETURN(true);
 
-    msg->append(src->read_pos, length);
+    data.insert(data.end(),
+                src->read_pos,
+                src->read_pos + length);
   }
 
   DBUG_RETURN(false);
+}
+
+void
+Transaction_Message::encode_message(vector<uchar>* buf)
+{
+  buf->insert(buf->end(), data.begin(), data.end());
+}
+
+void
+Transaction_Message::decode_message(uchar* buf, size_t len)
+{
+  data.insert(data.end(), buf, buf+len);
 }
