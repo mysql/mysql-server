@@ -8,7 +8,10 @@ drop table if exists t1, t2;
 create table t1(a int, b varchar(20));
 create table t2(a int, b varchar(20));
 insert into t1 values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
-insert into t2 values(2, 'd'), (3, 'e'), (4, 'f'), (4, 'f'), (5, 'e');
+insert into t2 values(2, 'd'), (3, 'e'), (4, 'f'), (4, 'f'), (5, 'e'),
+                      (6, 'g'), (7, 'h');
+analyze table t1;
+analyze table t2;
 
 # Notice: if want mysql to use innodb tmp table, the following variable
 # settings should not be commented 
@@ -79,6 +82,7 @@ select SQL_BUFFER_RESULT * from t1 order by 1, 2;
   insert into t3 select 5 + 10000 * rand(), '5' from t3;
   insert into t3 select 5 + 10000 * rand(), '5' from t3;
   insert into t3 select 5 + 10000 * rand(), '5' from t3;
+  analyze table t3;
   set @old_sort_buffer_size = @@sort_buffer_size;
   set @@sort_buffer_size = 32804;
   explain format=json select distinct b from t3 group by a; 
@@ -90,6 +94,7 @@ select SQL_BUFFER_RESULT * from t1 order by 1, 2;
   drop table if exists t3;
   create table t3(a int, b int, c int, d char, e blob);
   insert into t3 values(1,2,3,'4','5');
+  analyze table t3;
   explain format=json select distinct t3.a,e from t3, t1 order by t3.b;
   select distinct t3.a,e from t3, t1 order by t3.b;
   drop table t3;
@@ -112,6 +117,7 @@ select * from (select b from t1) as t1, (select b from t2) as t2 order by 1, 2;
 drop table if exists t3;
 create table t3(a int, b int, c int, d char);
 insert into t3 values(1,2,3,'4');
+analyze table t3;
 create index t3_indx1 on t3(a);
 explain format=json select * from t1, (select * from t3) as t where t.a =5;
 select * from t1, (select * from t3) as t where t.a =5 order by 1, 2;
@@ -159,6 +165,7 @@ insert into t1 values(1, 'ababab');
 insert into t1 values(2, 'cccddd');
 insert into t1 values(2, 'cccddd');
 insert into t1 values(3, 'eeffddd'); 
+analyze table t1;
 explain format=json 
   select * from t1 left join t2 on t1.a = t2.a order by t1.b;
 select * from t1 left join t2 on t1.a = t2.a order by t1.b;
@@ -177,6 +184,7 @@ CREATE TABLE `t2`
 insert into t2 values(10, 20, 'aa');
 insert into t2 values(20, 30, 'aabb');
 insert into t2 values(30, 40, 'aabbcc');
+analyze table t2;
 explain format=json select distinct concat(c1, repeat('xx', 250)) as cc from t2;
 select distinct concat(c1, repeat('xx', 250)) as cc from t2 order by 1;
 explain format=json select concat(c1, repeat('xx', 250)) as cc from t2 group by cc;
@@ -190,6 +198,7 @@ create table test(c1 int, c2 int, c3 int, c4 int, c5 int, c6 int,
                  );
 insert into test values(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
                         13, 14, 15, 16, 17, 18);
+analyze table test;
 explain format=json select distinct * from test;
 select distinct * from test;
 drop table test;
@@ -210,7 +219,6 @@ insert into t1 values (1,'one');
 insert into t1 values (2,'two');
 insert into t1 values (3,'three');
 insert into t1 values (4,'four');
-
 set @Oporto='Oporto';
 select sum(a) + 200 as the_sum, @Oporto as the_town from t1
 where a > 1 
@@ -234,6 +242,7 @@ create table t3 (
                  primary key(pk1, pk2, pk3)
                 ) engine=innodb;
 insert into t3 select a,a, a,a,a from t0;
+analyze table t1,t3;
 explain format=json select * from t3 where b in (select a from t1);
 select * from t3 where b in (select a from t1);
 drop table t0, t1, t3;
