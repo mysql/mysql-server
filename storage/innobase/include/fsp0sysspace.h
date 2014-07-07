@@ -147,25 +147,22 @@ public:
 	@return next increment size */
 	ulint get_increment() const;
 
-	/** Opens or Creates the data files if they do not exist.
-	@param[in]	is_temp		Whether this is a temporary tablespace
-	@param[out]	sum_new_sizes	Sum of sizes of the new files added
-	@param[out]	min_lsn		Minimum flushed LSN among all datafiles
-	@param[out]	max_lsn		Maximum flushed LSN among all datafiles
+	/** Open or create the data files
+	@param[in]  is_temp		whether this is a temporary tablespace
+	@param[out] sum_new_sizes	sum of sizes of the new files added
+	@param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
 	@return DB_SUCCESS or error code */
 	dberr_t open_or_create(
 		bool	is_temp,
 		ulint*	sum_new_sizes,
-		lsn_t*	min_lsn,
-		lsn_t*	max_lsn)
+		lsn_t*	flush_lsn)
 		__attribute__((warn_unused_result));
 
 private:
-	/** Read the flushed lsn values and check the header flags in each
-	datafile for this tablespace.  Save the minimum and maximum flushed
-	lsn values.
+	/** Check the tablespace header for this tablespace.
+	@param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 	@return DB_SUCCESS or error code */
-	dberr_t read_lsn_and_check_flags();
+	dberr_t read_lsn_and_check_flags(lsn_t* flushed_lsn);
 
 	/**
 	@return true if the last file size is valid. */

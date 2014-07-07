@@ -31,6 +31,7 @@
 
 --let $slave_param= Slave_SQL_Running
 --let $slave_param_value= No
+--let $slave_param_comparison= =
 --let $slave_error_param= Last_SQL_Errno
 --source include/wait_for_slave_param.inc
 --let $slave_error_param= 

@@ -232,7 +232,7 @@ Rsq::Rsq(uint n)
 uint
 Rsq::next()
 {
-  assert(m_n != 0);
+  require(m_n != 0);
   return (m_start + m_i++ * m_prime) % m_n;
 }
 
@@ -299,15 +299,15 @@ struct Tmr;
 struct Par : public Opt {
   uint m_no;
   Con* m_con;
-  Con& con() const { assert(m_con != 0); return *m_con; }
+  Con& con() const { require(m_con != 0); return *m_con; }
   const Tab* m_tab;
-  const Tab& tab() const { assert(m_tab != 0); return *m_tab; }
+  const Tab& tab() const { require(m_tab != 0); return *m_tab; }
   const ITab* m_itab;
-  const ITab& itab() const { assert(m_itab != 0); return *m_itab; }
+  const ITab& itab() const { require(m_itab != 0); return *m_itab; }
   Set* m_set;
-  Set& set() const { assert(m_set != 0); return *m_set; }
+  Set& set() const { require(m_set != 0); return *m_set; }
   Tmr* m_tmr;
-  Tmr& tmr() const { assert(m_tmr != 0); return *m_tmr; }
+  Tmr& tmr() const { require(m_tmr != 0); return *m_tmr; }
   char m_currcase[2];
   uint m_lno;
   uint m_slno;
@@ -400,8 +400,8 @@ struct Tmr {
   const char* time();
   const char* pct(const Tmr& t1);
   const char* over(const Tmr& t1);
-  NDB_TICKS m_on;
-  NDB_TICKS m_ms;
+  Uint64 m_on;
+  Uint64 m_ms;
   uint m_cnt;
   char m_time[100];
   char m_text[100];
@@ -417,15 +417,15 @@ Tmr::clr()
 void
 Tmr::on()
 {
-  assert(m_on == 0);
+  require(m_on == 0);
   m_on = NdbTick_CurrentMillisecond();
 }
 
 void
 Tmr::off(uint cnt)
 {
-  NDB_TICKS off = NdbTick_CurrentMillisecond();
-  assert(m_on != 0 && off >= m_on);
+  const Uint64 off = NdbTick_CurrentMillisecond();
+  require(m_on != 0 && off >= m_on);
   m_ms += off - m_on;
   m_cnt += cnt;
   m_on = 0;
@@ -507,7 +507,7 @@ Chs::Chs(CHARSET_INFO* cs) :
   m_xmul = m_cs->strxfrm_multiply;
   if (m_xmul == 0)
     m_xmul = 1;
-  assert(m_xmul <= maxxmulsize);
+  require(m_xmul <= maxxmulsize);
   m_chr = new Chr [maxcharcount];
   uint i = 0;
   uint miss1 = 0;
@@ -520,7 +520,7 @@ Chs::Chs(CHARSET_INFO* cs) :
     uint& size = m_chr[i].m_size;
     bool ok;
     size = m_cs->mbminlen + urandom(m_cs->mbmaxlen - m_cs->mbminlen + 1);
-    assert(m_cs->mbminlen <= size && size <= m_cs->mbmaxlen);
+    require(m_cs->mbminlen <= size && size <= m_cs->mbmaxlen);
     // prefer longer chars
     if (size == m_cs->mbminlen && m_cs->mbminlen < m_cs->mbmaxlen && urandom(5) != 0)
       continue;
@@ -547,7 +547,7 @@ Chs::Chs(CHARSET_INFO* cs) :
       continue;
     }
     // normalize
-    memset(xbytes, 0, sizeof(xbytes));
+    memset(xbytes, 0, sizeof(m_chr[i].m_xbytes));
     // currently returns buffer size always
     size_t xlen = NdbSqlUtil::ndb_strnxfrm(cs, xbytes, m_xmul * size, bytes, size);
     // check we got something
@@ -735,8 +735,7 @@ Col::wellformed(const void* addr) const
       const char* src = (const char*)addr;
       uint len = m_bytelength;
       int not_used;
-	  (void)not_used; /* squash warning when assert is #defined to nothing */
-      assert((*cs->cset->well_formed_len)(cs, src, src + len, 0xffff, &not_used) == len);
+      require((*cs->cset->well_formed_len)(cs, src, src + len, 0xffff, &not_used) == len);
     }
     break;
   case Col::Varchar:
@@ -746,9 +745,8 @@ Col::wellformed(const void* addr) const
       const char* ssrc = (const char*)src;
       uint len = src[0];
       int not_used;
-	  (void)not_used; /* squash warning when assert is #defined to nothing */
-      assert(len <= m_bytelength);
-      assert((*cs->cset->well_formed_len)(cs, ssrc + 1, ssrc + 1 + len, 0xffff, &not_used) == len);
+      require(len <= m_bytelength);
+      require((*cs->cset->well_formed_len)(cs, ssrc + 1, ssrc + 1 + len, 0xffff, &not_used) == len);
     }
     break;
   case Col::Longvarchar:
@@ -758,13 +756,12 @@ Col::wellformed(const void* addr) const
       const char* ssrc = (const char*)src;
       uint len = src[0] + (src[1] << 8);
       int not_used;
-	  (void)not_used; /* squash warning when assert is #defined to nothing */
-      assert(len <= m_bytelength);
-      assert((*cs->cset->well_formed_len)(cs, ssrc + 2, ssrc + 2 + len, 0xffff, &not_used) == len);
+      require(len <= m_bytelength);
+      require((*cs->cset->well_formed_len)(cs, ssrc + 2, ssrc + 2 + len, 0xffff, &not_used) == len);
     }
     break;
   default:
-    assert(false);
+    require(false);
     break;
   }
 }
@@ -797,7 +794,7 @@ operator<<(NdbOut& out, const Col& col)
     break;
   default:
     out << "type" << (int)col.m_type;
-    assert(false);
+    require(false);
     break;
   }
   out << (col.m_pk ? " pk" : "");
@@ -874,7 +871,7 @@ ITab::~ITab()
 void
 ITab::icoladd(uint k, const ICol* icolptr)
 {
-  assert(k == icolptr->m_num && k < m_icols && m_icol[k] == 0);
+  require(k == icolptr->m_num && k < m_icols && m_icol[k] == 0);
   m_icol[k] = icolptr;
   m_keymask |= (1 << icolptr->m_col.m_num);
 }
@@ -940,7 +937,7 @@ Tab::~Tab()
 void
 Tab::coladd(uint k, Col* colptr)
 {
-  assert(k == colptr->m_num && k < m_cols && m_col[k] == 0);
+  require(k == colptr->m_num && k < m_cols && m_col[k] == 0);
   m_col[k] = colptr;
   if (colptr->m_pk)
     m_pkmask |= (1 << k);
@@ -949,7 +946,7 @@ Tab::coladd(uint k, Col* colptr)
 void
 Tab::itabadd(uint j, ITab* itabptr)
 {
-  assert(j < m_itabs && m_itab[j] == 0 && itabptr != 0);
+  require(j < m_itabs && m_itab[j] == 0 && itabptr != 0);
   m_itab[j] = itabptr;
   if (itabptr->m_type == ITab::OrderedIndex)
     m_orderedindexes++;
@@ -986,33 +983,33 @@ verifytables()
     const Tab* t = tablist[j];
     if (t == 0)
       continue;
-    assert(t->m_cols != 0 && t->m_col != 0);
+    require(t->m_cols != 0 && t->m_col != 0);
     for (uint k = 0; k < t->m_cols; k++) {
       const Col* c = t->m_col[k];
-      assert(c != 0 && c->m_num == k);
-      assert(!(c->m_pk && c->m_nullable));
+      require(c != 0 && c->m_num == k);
+      require(!(c->m_pk && c->m_nullable));
     }
-    assert(t->m_col[t->m_cols] == 0);
+    require(t->m_col[t->m_cols] == 0);
     {
-      assert(t->m_keycol < t->m_cols);
+      require(t->m_keycol < t->m_cols);
       const Col* c = t->m_col[t->m_keycol];
-      assert(c->m_pk && c->m_type == Col::Unsigned);
+      require(c->m_pk && c->m_type == Col::Unsigned);
     }
-    assert(t->m_itabs != 0 && t->m_itab != 0);
+    require(t->m_itabs != 0 && t->m_itab != 0);
     for (uint i = 0; i < t->m_itabs; i++) {
       const ITab* x = t->m_itab[i];
       if (x == 0)
         continue;
-      assert(x != 0 && x->m_icols != 0 && x->m_icol != 0);
+      require(x != 0 && x->m_icols != 0 && x->m_icol != 0);
       for (uint k = 0; k < x->m_icols; k++) {
         const ICol* c = x->m_icol[k];
-        assert(c != 0 && c->m_num == k && c->m_col.m_num < t->m_cols);
+        require(c != 0 && c->m_num == k && c->m_col.m_num < t->m_cols);
         if (x->m_type == ITab::UniqueHashIndex) {
-          assert(!c->m_col.m_nullable);
+          require(!c->m_col.m_nullable);
         }
       }
     }
-    assert(t->m_itab[t->m_itabs] == 0);
+    require(t->m_itab[t->m_itabs] == 0);
   }
 }
 
@@ -1269,7 +1266,7 @@ struct Con {
 int
 Con::connect()
 {
-  assert(m_ndb == 0);
+  require(m_ndb == 0);
   m_ndb = new Ndb(g_ncc, "TEST_DB");
   CHKCON(m_ndb->init() == 0, *this);
   CHKCON(m_ndb->waitUntilReady(30) == 0, *this);
@@ -1280,7 +1277,7 @@ Con::connect()
 void
 Con::connect(const Con& con)
 {
-  assert(m_ndb == 0);
+  require(m_ndb == 0);
   m_ndb = con.m_ndb;
 }
 
@@ -1294,7 +1291,7 @@ Con::disconnect()
 int
 Con::startTransaction()
 {
-  assert(m_ndb != 0);
+  require(m_ndb != 0);
   if (m_tx != 0)
     closeTransaction();
   CHKCON((m_tx = m_ndb->startTransaction()) != 0, *this);
@@ -1305,7 +1302,7 @@ Con::startTransaction()
 int
 Con::getNdbOperation(const Tab& tab)
 {
-  assert(m_tx != 0);
+  require(m_tx != 0);
   CHKCON((m_op = m_tx->getNdbOperation(tab.m_name)) != 0, *this);
   return 0;
 }
@@ -1313,7 +1310,7 @@ Con::getNdbOperation(const Tab& tab)
 int
 Con::getNdbIndexOperation1(const ITab& itab, const Tab& tab)
 {
-  assert(m_tx != 0);
+  require(m_tx != 0);
   CHKCON((m_op = m_indexop = m_tx->getNdbIndexOperation(itab.m_name, tab.m_name)) != 0, *this);
   return 0;
 }
@@ -1321,7 +1318,7 @@ Con::getNdbIndexOperation1(const ITab& itab, const Tab& tab)
 int
 Con::getNdbIndexOperation(const ITab& itab, const Tab& tab)
 {
-  assert(m_tx != 0);
+  require(m_tx != 0);
   uint tries = 0;
   while (1) {
     if (getNdbIndexOperation1(itab, tab) == 0)
@@ -1335,7 +1332,7 @@ Con::getNdbIndexOperation(const ITab& itab, const Tab& tab)
 int
 Con::getNdbScanOperation(const Tab& tab)
 {
-  assert(m_tx != 0);
+  require(m_tx != 0);
   CHKCON((m_op = m_scanop = m_tx->getNdbScanOperation(tab.m_name)) != 0, *this);
   return 0;
 }
@@ -1343,7 +1340,7 @@ Con::getNdbScanOperation(const Tab& tab)
 int
 Con::getNdbIndexScanOperation1(const ITab& itab, const Tab& tab)
 {
-  assert(m_tx != 0);
+  require(m_tx != 0);
   CHKCON((m_op = m_scanop = m_indexscanop = m_tx->getNdbIndexScanOperation(itab.m_name, tab.m_name)) != 0, *this);
   return 0;
 }
@@ -1351,7 +1348,7 @@ Con::getNdbIndexScanOperation1(const ITab& itab, const Tab& tab)
 int
 Con::getNdbIndexScanOperation(const ITab& itab, const Tab& tab)
 {
-  assert(m_tx != 0);
+  require(m_tx != 0);
   uint tries = 0;
   while (1) {
     if (getNdbIndexScanOperation1(itab, tab) == 0)
@@ -1365,7 +1362,7 @@ Con::getNdbIndexScanOperation(const ITab& itab, const Tab& tab)
 int
 Con::getNdbScanFilter()
 {
-  assert(m_tx != 0 && m_scanop != 0);
+  require(m_tx != 0 && m_scanop != 0);
   delete m_scanfilter;
   m_scanfilter = new NdbScanFilter(m_scanop);
   return 0;
@@ -1374,7 +1371,7 @@ Con::getNdbScanFilter()
 int
 Con::equal(int num, const char* addr)
 {
-  assert(m_tx != 0 && m_op != 0);
+  require(m_tx != 0 && m_op != 0);
   CHKCON(m_op->equal(num, addr) == 0, *this);
   return 0;
 }
@@ -1382,7 +1379,7 @@ Con::equal(int num, const char* addr)
 int
 Con::getValue(int num, NdbRecAttr*& rec)
 {
-  assert(m_tx != 0 && m_op != 0);
+  require(m_tx != 0 && m_op != 0);
   CHKCON((rec = m_op->getValue(num, 0)) != 0, *this);
   return 0;
 }
@@ -1390,7 +1387,7 @@ Con::getValue(int num, NdbRecAttr*& rec)
 int
 Con::setValue(int num, const char* addr)
 {
-  assert(m_tx != 0 && m_op != 0);
+  require(m_tx != 0 && m_op != 0);
   CHKCON(m_op->setValue(num, addr) == 0, *this);
   return 0;
 }
@@ -1398,7 +1395,7 @@ Con::setValue(int num, const char* addr)
 int
 Con::setBound(int num, int type, const void* value)
 {
-  assert(m_tx != 0 && m_indexscanop != 0);
+  require(m_tx != 0 && m_indexscanop != 0);
   CHKCON(m_indexscanop->setBound(num, type, value) == 0, *this);
   return 0;
 }
@@ -1406,7 +1403,7 @@ Con::setBound(int num, int type, const void* value)
 int
 Con::beginFilter(int group)
 {
-  assert(m_tx != 0 && m_scanfilter != 0);
+  require(m_tx != 0 && m_scanfilter != 0);
   CHKCON(m_scanfilter->begin((NdbScanFilter::Group)group) == 0, *this);
   return 0;
 }
@@ -1414,7 +1411,7 @@ Con::beginFilter(int group)
 int
 Con::endFilter()
 {
-  assert(m_tx != 0 && m_scanfilter != 0);
+  require(m_tx != 0 && m_scanfilter != 0);
   CHKCON(m_scanfilter->end() == 0, *this);
   return 0;
 }
@@ -1422,7 +1419,7 @@ Con::endFilter()
 int
 Con::setFilter(int num, int cond, const void* value, uint len)
 {
-  assert(m_tx != 0 && m_scanfilter != 0);
+  require(m_tx != 0 && m_scanfilter != 0);
   CHKCON(m_scanfilter->cmp((NdbScanFilter::BinaryCondition)cond, num, value, len) == 0, *this);
   return 0;
 }
@@ -1430,7 +1427,7 @@ Con::setFilter(int num, int cond, const void* value, uint len)
 int
 Con::execute(ExecType et)
 {
-  assert(m_tx != 0);
+  require(m_tx != 0);
   CHKCON(m_tx->execute(et) == 0, *this);
   return 0;
 }
@@ -1461,7 +1458,7 @@ Con::execute(ExecType et, uint& err)
 int
 Con::readTuple(Par par)
 {
-  assert(m_tx != 0 && m_op != 0);
+  require(m_tx != 0 && m_op != 0);
   NdbOperation::LockMode lm = par.m_lockmode;
   CHKCON(m_op->readTuple(lm) == 0, *this);
   return 0;
@@ -1470,7 +1467,7 @@ Con::readTuple(Par par)
 int
 Con::readTuples(Par par)
 {
-  assert(m_tx != 0 && m_scanop != 0);
+  require(m_tx != 0 && m_scanop != 0);
   int scan_flags = 0;
   if (par.m_tupscan)
     scan_flags |= NdbScanOperation::SF_TupScan;
@@ -1481,7 +1478,7 @@ Con::readTuples(Par par)
 int
 Con::readIndexTuples(Par par)
 {
-  assert(m_tx != 0 && m_indexscanop != 0);
+  require(m_tx != 0 && m_indexscanop != 0);
   int scan_flags = 0;
   if (par.m_ordered)
     scan_flags |= NdbScanOperation::SF_OrderBy;
@@ -1507,9 +1504,9 @@ int
 Con::nextScanResult(bool fetchAllowed)
 {
   int ret;
-  assert(m_scanop != 0);
+  require(m_scanop != 0);
   CHKCON((ret = m_scanop->nextResult(fetchAllowed)) != -1, *this);
-  assert(ret == 0 || ret == 1 || (!fetchAllowed && ret == 2));
+  require(ret == 0 || ret == 1 || (!fetchAllowed && ret == 2));
   return ret;
 }
 
@@ -1534,7 +1531,7 @@ Con::nextScanResult(bool fetchAllowed, uint& err)
 int
 Con::updateScanTuple(Con& con2)
 {
-  assert(con2.m_tx != 0);
+  require(con2.m_tx != 0);
   CHKCON((con2.m_op = m_scanop->updateCurrentTuple(con2.m_tx)) != 0, *this);
   con2.m_txid = m_txid; // in the kernel
   return 0;
@@ -1543,7 +1540,7 @@ Con::updateScanTuple(Con& con2)
 int
 Con::deleteScanTuple(Con& con2)
 {
-  assert(con2.m_tx != 0);
+  require(con2.m_tx != 0);
   CHKCON(m_scanop->deleteCurrentTuple(con2.m_tx) == 0, *this);
   con2.m_txid = m_txid; // in the kernel
   return 0;
@@ -1552,7 +1549,7 @@ Con::deleteScanTuple(Con& con2)
 void
 Con::closeScan()
 {
-  assert(m_scanop != 0);
+  require(m_scanop != 0);
   m_scanop->close();
   m_scanop = 0, m_indexscanop = 0;
 
@@ -1561,7 +1558,7 @@ Con::closeScan()
 void
 Con::closeTransaction()
 {
-  assert(m_ndb != 0 && m_tx != 0);
+  require(m_ndb != 0 && m_tx != 0);
   m_ndb->closeTransaction(m_tx);
   m_tx = 0, m_txid = 0, m_op = 0;
   m_scanop = 0, m_indexscanop = 0;
@@ -1829,7 +1826,7 @@ Val::Val(const Col& col) :
     memset(m_char, 0x7e, 2 + col.m_bytelength);
     break;
   default:
-    assert(false);
+    require(false);
     break;
   }
 }
@@ -1850,7 +1847,7 @@ Val::~Val()
     delete [] m_longvarchar;
     break;
   default:
-    assert(false);
+    require(false);
     break;
   }
 }
@@ -1860,7 +1857,7 @@ Val::copy(const Val& val2)
 {
   const Col& col = m_col;
   const Col& col2 = val2.m_col;
-  assert(col.m_type == col2.m_type && col.m_length == col2.m_length);
+  require(col.m_type == col2.m_type && col.m_length == col2.m_length);
   if (val2.m_null) {
     m_null = true;
     return;
@@ -1886,7 +1883,7 @@ Val::copy(const void* addr)
     memcpy(m_longvarchar, addr, 2 + col.m_bytelength);
     break;
   default:
-    assert(false);
+    require(false);
     break;
   }
   m_null = false;
@@ -1908,7 +1905,7 @@ Val::dataaddr() const
   default:
     break;
   }
-  assert(false);
+  require(false);
   return 0;
 }
 
@@ -1960,7 +1957,7 @@ Val::calckey(Par par, uint i)
     }
     break;
   default:
-    assert(false);
+    require(false);
     break;
   }
 }
@@ -1977,7 +1974,7 @@ Val::calckeychars(Par par, uint i, uint& n, uchar* buf)
       break;
     }
     const Chr& chr = chs->m_chr[i % maxcharcount];
-    assert(n + chr.m_size <= col.m_bytelength);
+    require(n + chr.m_size <= col.m_bytelength);
     memcpy(buf + n, chr.m_bytes, chr.m_size);
     n += chr.m_size;
     len++;
@@ -2033,7 +2030,7 @@ Val::calcnokey(Par par)
     }
     break;
   default:
-    assert(false);
+    require(false);
     break;
   }
 }
@@ -2056,9 +2053,9 @@ Val::calcnokeychars(Par par, uint& n, uchar* buf)
         r = -r;
     }
     uint i = half + r;
-    assert(i < maxcharcount);
+    require(i < maxcharcount);
     const Chr& chr = chs->m_chr[i];
-    assert(n + chr.m_size <= col.m_bytelength);
+    require(n + chr.m_size <= col.m_bytelength);
     memcpy(buf + n, chr.m_bytes, chr.m_size);
     n += chr.m_size;
     len++;
@@ -2073,7 +2070,7 @@ Val::setval(Par par) const
   Con& con = par.con();
   const Col& col = m_col;
   if (col.m_pk) {
-    assert(!m_null);
+    require(!m_null);
     const char* addr = (const char*)dataaddr();
     LL5("setval pk [" << col << "] " << *this);
     CHK(con.equal(col.m_num, addr) == 0);
@@ -2089,7 +2086,7 @@ int
 Val::setval(Par par, const ICol& icol) const
 {
   Con& con = par.con();
-  assert(!m_null);
+  require(!m_null);
   const char* addr = (const char*)dataaddr();
   LL5("setval key [" << icol << "] " << *this);
   CHK(con.equal(icol.m_num, addr) == 0);
@@ -2103,7 +2100,7 @@ Val::cmp(Par par, const Val& val2) const
 {
   const Col& col = m_col;
   const Col& col2 = val2.m_col;
-  assert(col.equal(col2));
+  require(col.equal(col2));
   if (m_null || val2.m_null) {
     if (!m_null)
       return +1;
@@ -2148,7 +2145,7 @@ Val::cmp(Par par, const Val& val2) const
   default:
     break;
   }
-  assert(false);
+  require(false);
   return 0;
 }
 
@@ -2166,7 +2163,7 @@ Val::cmpchars(Par par, const uchar* buf1, uint len1, const uchar* buf2, uint len
     uint len = maxxmulsize * col.m_bytelength;
     int n1 = NdbSqlUtil::strnxfrm_bug7284(cs, x1, chs->m_xmul * len, buf1, len1);
     int n2 = NdbSqlUtil::strnxfrm_bug7284(cs, x2, chs->m_xmul * len, buf2, len2);
-    assert(n1 != -1 && n1 == n2);
+    require(n1 != -1 && n1 == n2);
     k = memcmp(x1, x2, n1);
   } else {
     k = (*cs->coll->strnncollsp)(cs, buf1, len1, buf2, len2, false);
@@ -2243,7 +2240,7 @@ operator<<(NdbOut& out, const Val& val)
     break;
   default:
     out << "type" << col.m_type;
-    assert(false);
+    require(false);
     break;
   }
   return out;
@@ -2340,7 +2337,7 @@ Row::copy(const Row& row2, bool copy_bi)
   m_st = row2.m_st;
   m_op = row2.m_op;
   m_txid = row2.m_txid;
-  assert(m_bi == 0);
+  require(m_bi == 0);
   if (copy_bi && row2.m_bi != 0) {
     m_bi = new Row(tab);
     m_bi->copy(*row2.m_bi, copy_bi);
@@ -2351,7 +2348,7 @@ void
 Row::copyval(const Row& row2, uint colmask)
 {
   const Tab& tab = m_tab;
-  assert(&tab == &row2.m_tab);
+  require(&tab == &row2.m_tab);
   for (uint k = 0; k < tab.m_cols; k++) {
     Val& val = *m_val[k];
     const Val& val2 = *row2.m_val[k];
@@ -2413,7 +2410,7 @@ Row::insrow(Par par)
   CHKCON(con.m_op->insertTuple() == 0, con);
   CHK(setval(par, tab.m_pkmask) == 0);
   CHK(setval(par, ~tab.m_pkmask) == 0);
-  assert(m_st == StUndef);
+  require(m_st == StUndef);
   m_st = StDefine;
   m_op = OpIns;
   m_txid = con.m_txid;
@@ -2429,7 +2426,7 @@ Row::updrow(Par par)
   CHKCON(con.m_op->updateTuple() == 0, con);
   CHK(setval(par, tab.m_pkmask) == 0);
   CHK(setval(par, ~tab.m_pkmask) == 0);
-  assert(m_st == StUndef);
+  require(m_st == StUndef);
   m_st = StDefine;
   m_op = OpUpd;
   m_txid = con.m_txid;
@@ -2441,12 +2438,12 @@ Row::updrow(Par par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
-  assert(itab.m_type == ITab::UniqueHashIndex && &itab.m_tab == &tab);
+  require(itab.m_type == ITab::UniqueHashIndex && &itab.m_tab == &tab);
   CHK(con.getNdbIndexOperation(itab, tab) == 0);
   CHKCON(con.m_op->updateTuple() == 0, con);
   CHK(setval(par, itab) == 0);
   CHK(setval(par, ~tab.m_pkmask) == 0);
-  assert(m_st == StUndef);
+  require(m_st == StUndef);
   m_st = StDefine;
   m_op = OpUpd;
   m_txid = con.m_txid;
@@ -2461,7 +2458,7 @@ Row::delrow(Par par)
   CHK(con.getNdbOperation(m_tab) == 0);
   CHKCON(con.m_op->deleteTuple() == 0, con);
   CHK(setval(par, tab.m_pkmask) == 0);
-  assert(m_st == StUndef);
+  require(m_st == StUndef);
   m_st = StDefine;
   m_op = OpDel;
   m_txid = con.m_txid;
@@ -2473,11 +2470,11 @@ Row::delrow(Par par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
-  assert(itab.m_type == ITab::UniqueHashIndex && &itab.m_tab == &tab);
+  require(itab.m_type == ITab::UniqueHashIndex && &itab.m_tab == &tab);
   CHK(con.getNdbIndexOperation(itab, tab) == 0);
   CHKCON(con.m_op->deleteTuple() == 0, con);
   CHK(setval(par, itab) == 0);
-  assert(m_st == StUndef);
+  require(m_st == StUndef);
   m_st = StDefine;
   m_op = OpDel;
   m_txid = con.m_txid;
@@ -2501,7 +2498,7 @@ Row::selrow(Par par, const ITab& itab)
 {
   Con& con = par.con();
   const Tab& tab = m_tab;
-  assert(itab.m_type == ITab::UniqueHashIndex && &itab.m_tab == &tab);
+  require(itab.m_type == ITab::UniqueHashIndex && &itab.m_tab == &tab);
   CHK(con.getNdbIndexOperation(itab, tab) == 0);
   CHKCON(con.readTuple(par) == 0, con);
   CHK(setval(par, itab) == 0);
@@ -2515,7 +2512,7 @@ Row::setrow(Par par)
   Con& con = par.con();
   const Tab& tab = m_tab;
   CHK(setval(par, ~tab.m_pkmask) == 0);
-  assert(m_st == StUndef);
+  require(m_st == StUndef);
   m_st = StDefine;
   m_op = OpUpd;
   m_txid = con.m_txid;
@@ -2528,7 +2525,7 @@ int
 Row::cmp(Par par, const Row& row2) const
 {
   const Tab& tab = m_tab;
-  assert(&tab == &row2.m_tab);
+  require(&tab == &row2.m_tab);
   int c = 0;
   for (uint k = 0; k < tab.m_cols; k++) {
     const Val& val = *m_val[k];
@@ -2548,7 +2545,7 @@ Row::cmp(Par par, const Row& row2, const ITab& itab) const
     const ICol& icol = *itab.m_icol[i];
     const Col& col = icol.m_col;
     uint k = col.m_num;
-    assert(k < tab.m_cols);
+    require(k < tab.m_cols);
     const Val& val = *m_val[k];
     const Val& val2 = *row2.m_val[k];
     if ((c = val.cmp(par, val2)) != 0)
@@ -2562,7 +2559,7 @@ Row::verify(Par par, const Row& row2, bool pkonly) const
 {
   const Tab& tab = m_tab;
   const Row& row1 = *this;
-  assert(&row1.m_tab == &row2.m_tab);
+  require(&row1.m_tab == &row2.m_tab);
   for (uint k = 0; k < tab.m_cols; k++) {
     const Col& col = row1.m_val[k]->m_col;
     if (!pkonly || col.m_pk) {
@@ -2714,7 +2711,7 @@ Set::Set(const Tab& tab, uint rows) :
     m_rec[k] = 0;
   }
   m_mutex = NdbMutex_Create();
-  assert(m_mutex != 0);
+  require(m_mutex != 0);
 }
 
 Set::~Set()
@@ -2754,8 +2751,8 @@ Set::compat(Par par, uint i, const Row::Op op) const
     const Row& row = *rowp;
     if (!(op & Row::OpREAD)) {
       if (row.m_st == Row::StDefine || row.m_st == Row::StPrepare) {
-        assert(row.m_op & Row::OpDML);
-        assert(row.m_txid != 0);
+        require(row.m_op & Row::OpDML);
+        require(row.m_txid != 0);
         if (con.m_txid != row.m_txid) {
           ret = false;
           place = 2;
@@ -2771,8 +2768,8 @@ Set::compat(Par par, uint i, const Row::Op op) const
         break;
       }
       if (row.m_st == Row::StCommit) {
-        assert(row.m_op == Row::OpNone);
-        assert(row.m_txid == 0);
+        require(row.m_op == Row::OpNone);
+        require(row.m_txid == 0);
         ret = op == Row::OpUpd || op == Row::OpDel;
         place = 5;
         break;
@@ -2794,7 +2791,7 @@ Set::compat(Par par, uint i, const Row::Op op) const
     }
   } while (0);
   LL4("compat ret=" << ret << " place=" << place);
-  assert(ret == false || ret == true);
+  require(ret == false || ret == true);
   return ret;
 }
 
@@ -2802,7 +2799,7 @@ void
 Set::push(uint i)
 {
   const Tab& tab = m_tab;
-  assert(i < m_rows);
+  require(i < m_rows);
   Row* bi = m_row[i];
   m_row[i] = new Row(tab);
   Row& row = *m_row[i];
@@ -2814,16 +2811,16 @@ Set::push(uint i)
 void
 Set::copyval(uint i, uint colmask)
 {
-  assert(m_row[i] != 0);
+  require(m_row[i] != 0);
   Row& row = *m_row[i];
-  assert(row.m_bi != 0);
+  require(row.m_bi != 0);
   row.copyval(*row.m_bi, colmask);
 }
 
 void
 Set::calc(Par par, uint i, uint colmask)
 {
-  assert(m_row[i] != 0);
+  require(m_row[i] != 0);
   Row& row = *m_row[i];
   row.calc(par, i, colmask);
 }
@@ -2842,15 +2839,15 @@ Set::count() const
 const Row*
 Set::getrow(uint i, bool dirty) const
 {
-  assert(i < m_rows);
+  require(i < m_rows);
   const Row* rowp = m_row[i];
   if (dirty) {
     while (rowp != 0) {
       bool b1 = rowp->m_op == Row::OpNone;
       bool b2 = rowp->m_st == Row::StCommit;
-      assert(b1 == b2);
+      require(b1 == b2);
       if (b1) {
-        assert(rowp->m_bi == 0);
+        require(rowp->m_bi == 0);
         break;
       }
       rowp = rowp->m_bi;
@@ -2862,7 +2859,7 @@ Set::getrow(uint i, bool dirty) const
 int
 Set::setrow(uint i, const Row* src, bool force)
 {
-  assert(i < m_rows);
+  require(i < m_rows);
   if (m_row[i] != 0)
     if (!force)
       return -1;
@@ -2880,7 +2877,7 @@ Set::post(Par par, ExecType et)
 {
   LL4("post");
   Con& con = par.con();
-  assert(con.m_txid != 0);
+  require(con.m_txid != 0);
   uint i;
   for (i = 0; i < m_rows; i++) {
     Row* rowp = m_row[i];
@@ -2889,20 +2886,20 @@ Set::post(Par par, ExecType et)
       continue;
     }
     if (rowp->m_st == Row::StCommit) {
-      assert(rowp->m_op == Row::OpNone);
-      assert(rowp->m_txid == 0);
-      assert(rowp->m_bi == 0);
+      require(rowp->m_op == Row::OpNone);
+      require(rowp->m_txid == 0);
+      require(rowp->m_bi == 0);
       LL5("skip committed " << i << " " << rowp);
       continue;
     }
-    assert(rowp->m_st == Row::StDefine || rowp->m_st == Row::StPrepare);
-    assert(rowp->m_txid != 0);
+    require(rowp->m_st == Row::StDefine || rowp->m_st == Row::StPrepare);
+    require(rowp->m_txid != 0);
     if (con.m_txid != rowp->m_txid) {
       LL5("skip txid " << i << " " << HEX(con.m_txid) << " " << rowp);
       continue;
     }
     // TODO read ops
-    assert(rowp->m_op & Row::OpDML);
+    require(rowp->m_op & Row::OpDML);
     LL4("post BEFORE " << rowp);
     if (et == NoCommit) {
       if (rowp->m_st == Row::StDefine) {
@@ -2932,7 +2929,7 @@ Set::post(Par par, ExecType et)
         delete tmp;
       }
     } else {
-      assert(false);
+      require(false);
     }
     m_row[i] = rowp;
     LL4("post AFTER " << rowp);
@@ -2944,7 +2941,7 @@ Set::post(Par par, ExecType et)
 int
 Set::insrow(Par par, uint i)
 {
-  assert(m_row[i] != 0);
+  require(m_row[i] != 0);
   Row& row = *m_row[i];
   CHK(row.insrow(par) == 0);
   return 0;
@@ -2953,7 +2950,7 @@ Set::insrow(Par par, uint i)
 int
 Set::updrow(Par par, uint i)
 {
-  assert(m_row[i] != 0);
+  require(m_row[i] != 0);
   Row& row = *m_row[i];
   CHK(row.updrow(par) == 0);
   return 0;
@@ -2962,7 +2959,7 @@ Set::updrow(Par par, uint i)
 int
 Set::updrow(Par par, const ITab& itab, uint i)
 {
-  assert(m_row[i] != 0);
+  require(m_row[i] != 0);
   Row& row = *m_row[i];
   CHK(row.updrow(par, itab) == 0);
   return 0;
@@ -2971,7 +2968,7 @@ Set::updrow(Par par, const ITab& itab, uint i)
 int
 Set::delrow(Par par, uint i)
 {
-  assert(m_row[i] != 0);
+  require(m_row[i] != 0);
   Row& row = *m_row[i];
   CHK(row.delrow(par) == 0);
   return 0;
@@ -2980,7 +2977,7 @@ Set::delrow(Par par, uint i)
 int
 Set::delrow(Par par, const ITab& itab, uint i)
 {
-  assert(m_row[i] != 0);
+  require(m_row[i] != 0);
   Row& row = *m_row[i];
   CHK(row.delrow(par, itab) == 0);
   return 0;
@@ -3010,7 +3007,7 @@ Set::selrow(Par par, const ITab& itab, const Row& keyrow)
 int
 Set::setrow(Par par, uint i)
 {
-  assert(m_row[i] != 0);
+  require(m_row[i] != 0);
   CHK(m_row[i]->setrow(par) == 0);
   return 0;
 }
@@ -3033,7 +3030,7 @@ Set::getkey(Par par, uint* i)
 {
   const Tab& tab = m_tab;
   uint k = tab.m_keycol;
-  assert(m_rec[k] != 0);
+  require(m_rec[k] != 0);
   const char* aRef = m_rec[k]->aRef();
   Uint32 key = *(const Uint32*)aRef;
   LL5("getkey: " << key);
@@ -3049,7 +3046,7 @@ Set::putval(uint i, bool force, uint n)
   LL4("putval key=" << i << " row=" << n << " old=" << m_row[i]);
   CHK( i<m_rows );
   if (m_row[i] != 0) {
-    assert(force);
+    require(force);
     delete m_row[i];
     m_row[i] = 0;
   }
@@ -3058,7 +3055,7 @@ Set::putval(uint i, bool force, uint n)
   for (uint k = 0; k < tab.m_cols; k++) {
     Val& val = *row.m_val[k];
     NdbRecAttr* rec = m_rec[k];
-    assert(rec != 0);
+    require(rec != 0);
     if (rec->isNULL()) {
       val.m_null = true;
       continue;
@@ -3087,7 +3084,7 @@ Set::sort(Par par, const ITab& itab)
 void
 Set::sort(Par par, const ITab& itab, uint lo, uint hi)
 {
-  assert(lo < m_rows && hi < m_rows && lo <= hi);
+  require(lo < m_rows && hi < m_rows && lo <= hi);
   Row* const p = m_row[lo];
   uint i = lo;
   uint j = hi;
@@ -3121,7 +3118,7 @@ int
 Set::verify(Par par, const Set& set2, bool pkonly, bool dirty) const
 {
   const Set& set1 = *this;
-  assert(&set1.m_tab == &set2.m_tab && set1.m_rows == set2.m_rows);
+  require(&set1.m_tab == &set2.m_tab && set1.m_rows == set2.m_rows);
   LL3("verify dirty:" << dirty);
   for (uint i = 0; i < set1.m_rows; i++) {
     // the row versions we actually compare
@@ -3169,7 +3166,7 @@ Set::verifyorder(Par par, const ITab& itab, bool descending) const
     if (n == 0)
       continue;
     uint i1 = m_rowkey[n - 1];
-    assert(m_row[i1] != 0 && m_row[i2] != 0);
+    require(m_row[i1] != 0 && m_row[i2] != 0);
     const Row& row1 = *m_row[i1];
     const Row& row2 = *m_row[i2];
     bool ok;
@@ -3225,7 +3222,7 @@ int
 BVal::setbnd(Par par) const
 {
   Con& con = par.con();
-  assert(g_compare_null || !m_null);
+  require(g_compare_null || !m_null);
   const char* addr = !m_null ? (const char*)dataaddr() : 0;
   const ICol& icol = m_icol;
   CHK(con.setBound(icol.m_num, m_type, addr) == 0);
@@ -3243,7 +3240,7 @@ BVal::setflt(Par par) const
     NdbScanFilter::COND_EQ
   };
   Con& con = par.con();
-  assert(g_compare_null || !m_null);
+  require(g_compare_null || !m_null);
   const char* addr = !m_null ? (const char*)dataaddr() : 0;
   const ICol& icol = m_icol;
   const Col& col = icol.m_col;
@@ -3324,7 +3321,7 @@ BSet::calc(Par par)
         return;
       if (m_bvals != 0 && urandom(3) == 0)
         return;
-      assert(m_bvals < m_alloc);
+      require(m_bvals < m_alloc);
       BVal& bval = *new BVal(icol);
       m_bval[m_bvals++] = &bval;
       bval.m_null = false;
@@ -3350,7 +3347,7 @@ BSet::calc(Par par)
       do {
         bval.calcnokey(par);
         if (i == 1) {
-          assert(m_bvals >= 2);
+          require(m_bvals >= 2);
           const BVal& bv1 = *m_bval[m_bvals - 2];
           const BVal& bv2 = *m_bval[m_bvals - 1];
           if (bv1.cmp(par, bv2) > 0 && urandom(100) != 0)
@@ -3372,8 +3369,8 @@ BSet::calcpk(Par par, uint i)
   for (uint k = 0; k < itab.m_icols; k++) {
     const ICol& icol = *itab.m_icol[k];
     const Col& col = icol.m_col;
-    assert(col.m_pk);
-    assert(m_bvals < m_alloc);
+    require(col.m_pk);
+    require(m_bvals < m_alloc);
     BVal& bval = *new BVal(icol);
     m_bval[m_bvals++] = &bval;
     bval.m_type = 4;
@@ -3424,8 +3421,8 @@ BSet::filter(Par par, const Set& set, Set& set2) const
 {
   const Tab& tab = m_tab;
   const ITab& itab = m_itab;
-  assert(&tab == &set2.m_tab && set.m_rows == set2.m_rows);
-  assert(set2.count() == 0);
+  require(&tab == &set2.m_tab && set.m_rows == set2.m_rows);
+  require(set2.count() == 0);
   for (uint i = 0; i < set.m_rows; i++) {
     set.lock();
     do {
@@ -3466,14 +3463,14 @@ BSet::filter(Par par, const Set& set, Set& set2) const
         else if (bval.m_type == 4)
           ok2 = (ret == 0);
         else {
-          assert(false);
+          require(false);
         }
         if (!ok2)
           break;
       }
       if (!ok2)
         break;
-      assert(set2.m_row[i] == 0);
+      require(set2.m_row[i] == 0);
       set2.m_row[i] = new Row(tab);
       Row& row2 = *set2.m_row[i];
       row2.copy(row, true);
@@ -3683,7 +3680,7 @@ pkreadfast(Par par, uint count)
   // not batched on purpose
   for (uint j = 0; j < count; j++) {
     uint i = urandom(set.m_rows);
-    assert(set.compat(par, i, Row::OpREAD));
+    require(set.compat(par, i, Row::OpREAD));
     CHK(con.startTransaction() == 0);
     // define key
     keyrow.calc(par, i);
@@ -4947,7 +4944,7 @@ savepointtest(Par par, const char* op)
           set.copyval(i, tab.m_pkmask);
           CHK(set.delrow(par, i) == 0);
         } else {
-          assert(false);
+          require(false);
         }
         set.unlock();
       }
@@ -4991,7 +4988,7 @@ savepointtest(Par par, const char* op)
 static int
 savepointtest(Par par)
 {
-  assert(par.m_usedthreads == 1);
+  require(par.m_usedthreads == 1);
   const char* oplist[] = {
     // each based on previous and "c" not last
     "i",
@@ -5070,7 +5067,7 @@ halloweentest(Par par, const ITab& itab)
   }
   CHK(con.execute(Commit) == 0);
   set.post(par, Commit);
-  assert(set.count() == set.m_rows);
+  require(set.count() == set.m_rows);
   CHK(pkdelete(par) == 0);
   return 0;
 }
@@ -5078,7 +5075,7 @@ halloweentest(Par par, const ITab& itab)
 static int
 halloweentest(Par par)
 {
-  assert(par.m_usedthreads == 1);
+  require(par.m_usedthreads == 1);
   const Tab& tab = par.tab();
   for (uint i = 0; i < tab.m_itabs; i++) {
     if (tab.m_itab[i] == 0)
@@ -5151,7 +5148,7 @@ Thr::Thr(Par par, uint n) :
   // mutex
   m_mutex = NdbMutex_Create();
   m_cond = NdbCondition_Create();
-  assert(m_mutex != 0 && m_cond != 0);
+  require(m_mutex != 0 && m_cond != 0);
   // run
   const uint stacksize = 256 * 1024;
   const NDB_THREAD_PRIO prio = NDB_THREAD_PRIO_LOW;
@@ -5207,7 +5204,7 @@ Thr::run()
       break;
     }
     LL4("start");
-    assert(m_state == Start);
+    require(m_state == Start);
     m_ret = (*m_func)(m_par);
     m_state = Stop;
     LL4("stop");
@@ -5751,7 +5748,7 @@ runtest(Par par)
     LL0("random seed: loop number");
   }
   // cs
-  assert(par.m_csname != 0);
+  require(par.m_csname != 0);
   if (strcmp(par.m_csname, "random") != 0) {
     CHARSET_INFO* cs;
     CHK((cs = get_charset_by_name(par.m_csname, MYF(0))) != 0 || (cs = get_charset_by_csname(par.m_csname, MY_CS_PRIMARY, MYF(0))) != 0);
@@ -5771,7 +5768,7 @@ runtest(Par par)
   for (n = 0; n < par.m_threads; n++) {
     g_thrlist[n] = new Thr(par, n);
     Thr& thr = *g_thrlist[n];
-    assert(thr.m_thread != 0);
+    require(thr.m_thread != 0);
   }
   for (par.m_lno = 0; par.m_loop == 0 || par.m_lno < par.m_loop; par.m_lno++) {
     LL1("loop: " << par.m_lno);

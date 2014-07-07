@@ -714,11 +714,11 @@ compare_index_row_prefix(const NdbRecord *rec,
       {
         Uint32 len1;
         bool ok1 = col->shrink_varchar(row1, len1, buf1);
-        assert(ok1);
+        require(ok1);
         ptr1 = buf1;
         Uint32 len2;
         bool ok2 = col->shrink_varchar(row2, len2, buf2);
-        assert(ok2);
+        require(ok2);
         ptr2 = buf2;
       }
 
@@ -1546,7 +1546,8 @@ NdbScanOperation::setReadLockMode(LockMode lockMode)
       break;
     default:
       /* Not supported / invalid. */
-      assert(false);
+      require(false);
+      return;
   }
   theLockMode= lockMode;
   ScanTabReq *req= CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());

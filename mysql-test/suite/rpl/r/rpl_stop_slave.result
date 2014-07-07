@@ -99,10 +99,12 @@ CREATE TABLE t1 (c1 INT KEY, c2 INT) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(1, 1);
 include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
 [connection master]
+include/stop_dump_threads.inc
 SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
 [connection slave]
-include/restart_slave.inc
+include/start_slave.inc
 BEGIN;
 UPDATE t1 SET c2 = 2 WHERE c1 = 1;
 [connection master]
@@ -121,8 +123,11 @@ SET DEBUG_SYNC= 'RESET';
 [connection slave]
 include/wait_for_slave_to_stop.inc
 [connection slave1]
+[connection master]
+SET GLOBAL debug= '$debug_save';
+include/stop_dump_threads.inc
+[connection slave1]
 include/start_slave.inc
 [connection master]
 DROP TABLE t1, t2;
-SET GLOBAL debug= $debug_save;
 include/rpl_end.inc

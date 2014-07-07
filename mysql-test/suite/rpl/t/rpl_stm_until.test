@@ -195,6 +195,119 @@ connection slave;
 start slave;
 sync_with_master;
 
+#
+# Bug #19010820 START SLAVE UNTIL WILL TIMEOUT IF WAITING FOR
+#               THE LAST TRANSACTION IN RELAYLOG
+#
+# This part of the test verifies correctness and effectiveness of the
+# until-stopping when the position used is inside the last group/transaction
+# in the relaylog.
+#
+# It will create a single event transaction (if GTIDs are disabled)
+# or a two events transaction (if GTIDs are enabled), and will start
+# the SQL thread using the UNTIL MASTER_LOG_FILE/POS and RELAY_LOG_FILE/POS,
+# pointing to the first or last byte of the created transaction.
+#
+# The test expects that, after issuing the START SLAVE SQL_THREAD with the
+# UNTIL clause, the SQL thread will apply the created transaction and will
+# update its position before stopping. The test will verify the
+# binlog/relaylog file, the position, and finally will wait for the SQL
+# thread to stop.
+#
+
+--source include/rpl_connection_master.inc
+--echo # Make sure the master will put the new events in a new binlog file
+FLUSH LOGS;
+
+# Check if SQL thread stops correctly
+# after executing the last event of the master binlog
+# based on master binlog file and position
+--echo # Testing the execution until the last transaction of the master binlog
+
+# Stop the SQL thread after syncing
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+
+# Create a table in the master (one event without GTIDS, two with GTIDS)
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+
+# Save master position to use on UNTIL clause of START SLAVE
+--let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--dec $master_pos
+
+# Sync the IO thread with the master
+--source include/sync_slave_io_with_master.inc
+
+--echo # Start SQL thread until it executed the CREATE TABLE
+--replace_result $master_file MASTER_FILE $master_pos MASTER_POS
+eval START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE = "$master_file", MASTER_LOG_POS = $master_pos;
+
+--echo # Wait until SQL thread reaches last master binlog file
+--let $slave_param= Relay_Master_Log_File
+--let $slave_param_value= $master_file
+--let $slave_param_comparison= =
+--source include/wait_for_slave_param.inc
+
+--echo # Wait until SQL thread reaches desired master binlog position
+--let $slave_param= Exec_Master_Log_Pos
+--let $slave_param_value= $master_pos
+--let $slave_param_comparison= >=
+--source include/wait_for_slave_param.inc
+
+--echo # If the desired position was reached, SQL thread should stop.
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $assert_cond= "[SHOW TABLES LIKE "t1"]" = "t1"
+--let $assert_text= t1 should be replicated
+--source include/assert.inc
+#
+# Check if SQL thread stops correctly
+# after executing the last event of the slave relaylog
+# based on slave relaylog file and position
+--echo # Testing the execution until the last transaction of the slave relaylog
+
+# Save slave position to use on UNTIL clause of START SLAVE
+--let $slave_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $slave_pos= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+--inc $slave_pos
+
+# Create a table in the master
+# (one event if GTID_MODE=OFF; two events if GTID_MODE=ON)
+--source include/rpl_connection_master.inc
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+
+# Sync the IO thread with the master
+--source include/sync_slave_io_with_master.inc
+
+--echo # Start SQL thread until it executed the CREATE TABLE
+--replace_result $slave_file SLAVE_FILE $slave_pos SLAVE_POS
+eval START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = "$slave_file", RELAY_LOG_POS = $slave_pos;
+
+--echo # Wait until SQL thread reaches last slave relaylog file
+--let $slave_param= Relay_Log_File
+--let $slave_param_value= $slave_file
+--let $slave_param_comparison= =
+--source include/wait_for_slave_param.inc
+
+--echo # Wait until SQL thread reaches desired slave relaylog position
+--let $slave_param= Relay_Log_Pos
+--let $slave_param_value= $slave_pos
+--let $slave_param_comparison= >=
+--source include/wait_for_slave_param.inc
+
+--echo # If the desired position was reached, SQL thread should stop.
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $assert_cond= "[SHOW TABLES LIKE "t2"]" = "t2"
+--let $assert_text= t2 should be replicated
+--source include/assert.inc
+
+# Cleanup
+--source include/start_slave_sql.inc
+--source include/rpl_connection_master.inc
+DROP TABLE t1, t2;
+
 # End of tests
---let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -204,8 +204,8 @@ void
 Dbtup::execDUMP_STATE_ORD(Signal* signal)
 {
   Uint32 type = signal->theData[0];
-  DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
 
+  (void)type;
 #if 0
   if (type == 100) {
     RelTabMemReq * const req = (RelTabMemReq *)signal->getDataPtrSend();
@@ -270,6 +270,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 #endif
 #ifdef ERROR_INSERT
   if (type == DumpStateOrd::EnableUndoDelayDataWrite) {
+    DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
     ndbout << "Dbtup:: delay write of datapages for table = " 
 	   << dumpState->args[1]<< endl;
     c_errorInsert4000TableId = dumpState->args[1];
@@ -382,6 +383,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
   }
 #endif
 
+#ifdef ERROR_INSERT
   if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
   {
     {
@@ -419,6 +421,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_CHECK2(c_storedProcPool, c_storedProcCountNonAPI);
     return;
   }
+#endif
 }//Dbtup::execDUMP_STATE_ORD()
 
 /* ---------------------------------------------------------------- */
@@ -493,18 +496,18 @@ operator<<(NdbOut& out, const Dbtup::Operationrec& op)
   // table
   out << " [fragmentPtr " << hex << op.fragmentPtr << "]";
   // type
-  out << " [op_type " << dec << op.op_struct.op_type << "]";
+  out << " [op_type " << dec << op.op_type << "]";
   out << " [delete_insert_flag " << dec;
-  out << op.op_struct.delete_insert_flag << "]";
+  out << op.op_struct.bit_field.delete_insert_flag << "]";
   // state
-  out << " [tuple_state " << dec << op.op_struct.tuple_state << "]";
-  out << " [trans_state " << dec << op.op_struct.trans_state << "]";
-  out << " [in_active_list " << dec << op.op_struct.in_active_list << "]";
+  out << " [tuple_state " << dec << op.tuple_state << "]";
+  out << " [trans_state " << dec << op.trans_state << "]";
+  out << " [in_active_list " << dec << op.op_struct.bit_field.in_active_list << "]";
   // links
   out << " [prevActiveOp " << hex << op.prevActiveOp << "]";
   out << " [nextActiveOp " << hex << op.nextActiveOp << "]";
   // tuples
-  out << " [tupVersion " << hex << op.tupVersion << "]";
+  out << " [tupVersion " << hex << op.op_struct.bit_field.tupVersion << "]";
   out << " [m_tuple_location " << op.m_tuple_location << "]";
   out << " [m_copy_tuple_location " << op.m_copy_tuple_location << "]";
   out << "]";

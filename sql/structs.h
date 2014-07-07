@@ -134,20 +134,20 @@ typedef struct st_key {
   /**
     Array of AVG(#records with the same field value) for 1st ... Nth key part.
     0 means 'not known'.
-    For temporary heap tables this member is NULL.
+    For internally created temporary tables this member is NULL.
   */
   ulong *rec_per_key;
 
 private:
   /**
     Array of AVG(#records with the same field value) for 1st ... Nth
-    key part. For temporary heap tables this member is NULL.  This is
-    the same information as stored in the above rec_per_key array but
-    using float values instead of integer values. If the storage
-    engine has supplied values in this array, these will be
-    used. Otherwise the value in rec_per_key will be used.
-    @todo In the next release the rec_per_key array above should be
-    removed and only this should be used.
+    key part. For internally created temporary tables this member is
+    NULL. This is the same information as stored in the above
+    rec_per_key array but using float values instead of integer
+    values. If the storage engine has supplied values in this array,
+    these will be used. Otherwise the value in rec_per_key will be
+    used.  @todo In the next release the rec_per_key array above
+    should be removed and only this should be used.
   */
   rec_per_key_t *rec_per_key_float;
 public:
@@ -215,10 +215,26 @@ public:
   void set_records_per_key(uint key_part_no, rec_per_key_t rec_per_key_est)
   {
     DBUG_ASSERT(key_part_no < actual_key_parts);
-    DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN || 
+    DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN ||
                 rec_per_key_est >= 0.0);
+    DBUG_ASSERT(rec_per_key_float != NULL);
 
     rec_per_key_float[key_part_no]= rec_per_key_est;
+  }
+
+  /**
+    Check if this key supports storing records per key information.
+
+    @return true if it has support for storing records per key information,
+            false otherwise.
+  */
+
+  bool supports_records_per_key() const
+  {
+    if (rec_per_key_float != NULL && rec_per_key != NULL)
+      return true;
+
+    return false;
   }
 
   /**
@@ -234,7 +250,7 @@ public:
     @param rec_per_key_float_arg pointer to allocated array for storing
                                  records per key using float
   */
-  
+
   void set_rec_per_key_array(ulong *rec_per_key_arg,
                              rec_per_key_t *rec_per_key_float_arg)
   {

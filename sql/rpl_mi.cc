@@ -539,7 +539,7 @@ void Master_info::set_password(const char* password_arg)
   DBUG_VOID_RETURN;
 }
 
-bool Master_info::get_password(char *password_arg, int *password_arg_size)
+bool Master_info::get_password(char *password_arg, size_t *password_arg_size)
 {
   bool ret= true;
   DBUG_ENTER("Master_info::get_password");

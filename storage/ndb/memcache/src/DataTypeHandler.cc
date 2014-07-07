@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
- reserved.
+ Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -17,6 +16,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+#include <my_config.h>
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
@@ -490,7 +490,7 @@ int dth_encode_varchar(const NdbDictionary::Column *col,
   *length_byte = (uint8_t) len;
   
   /* Copy string value into buffer */
-  strncpy(char_buffer, str, len);
+  memcpy(char_buffer, str, len);
 
   return len;
 }
@@ -529,7 +529,7 @@ int dth_encode_longvarchar(const NdbDictionary::Column *col, size_t len,
   * (cbuf+1) = (char) ((total_len & short_hi) >> 8);
   
   /* Copy string value into buffer */
-  strncpy(dest, str, len);
+  memcpy(dest, str, len);
   
   return len;
 }

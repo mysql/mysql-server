@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,8 +40,10 @@ computeBlockSize(Uint32 blockSz, Uint32 wpp)
       minspill_bs = blockSz -i;
     }
   }
+#ifdef VM_TRACE
   ndbout_c("blockSz: %u, wpp: %u -> %u (%u)",
            blockSz, wpp, minspill_bs, minspill);
+#endif
   return minspill_bs;
 }
 

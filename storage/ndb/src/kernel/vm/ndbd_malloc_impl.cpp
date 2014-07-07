@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -528,9 +528,15 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
       chunk = &m_unmapped_chunks[idx];
     }
 
+    g_eventLogger->info("Touch Memory Starting, %u pages, page size = %d",
+                        chunk->m_cnt,
+                        (int)sizeof(Alloc_page));
+
     ndbd_alloc_touch_mem(chunk->m_ptr,
                          chunk->m_cnt * sizeof(Alloc_page),
                          watchCounter);
+
+    g_eventLogger->info("Touch Memory Completed");
 
     if (memlock)
     {
@@ -546,6 +552,10 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
        */
       const Alloc_page * start = chunk->m_ptr;
       Uint32 cnt = chunk->m_cnt;
+      g_eventLogger->info("Lock Memory Starting, %u pages, page size = %d",
+                          chunk->m_cnt,
+                          (int)sizeof(Alloc_page));
+
       while (cnt > 32768) // 1G
       {
         if (watchCounter)
@@ -559,6 +569,8 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
         *watchCounter = 9;
 
       NdbMem_MemLock(start, cnt * sizeof(Alloc_page));
+
+      g_eventLogger->info("Lock memory Completed");
     }
 
     grow(chunk->m_start, chunk->m_cnt);
@@ -644,13 +656,19 @@ found:
     if (start >= ZONE_LO_BOUND)
     {
       Uint64 mbytes = ((Uint64(cnt) * 32) + 1023) / 1024;
-      ndbout_c("Adding %uMb to ZONE_HI (%u,%u)", (Uint32)mbytes, start, cnt);
+      g_eventLogger->info("Adding %uMb to ZONE_HI (%u,%u)",
+                          (Uint32)mbytes,
+                          start,
+                          cnt);
       release(start, cnt);
     }
     else if (start + cnt <= ZONE_LO_BOUND)
     {
       Uint64 mbytes = ((Uint64(cnt)*32) + 1023) / 1024;
-      ndbout_c("Adding %uMb to ZONE_LO (%u,%u)", (Uint32)mbytes, start, cnt);
+      g_eventLogger->info("Adding %uMb to ZONE_LO (%u,%u)",
+                          (Uint32)mbytes,
+                          start,
+                          cnt);
       release(start, cnt);      
     }
     else
@@ -659,10 +677,14 @@ found:
       Uint32 cnt1 = start + cnt - ZONE_LO_BOUND;
       Uint64 mbytes0 = ((Uint64(cnt0)*32) + 1023) / 1024;
       Uint64 mbytes1 = ((Uint64(cnt1)*32) + 1023) / 1024;
-      ndbout_c("Adding %uMb to ZONE_LO (split %u,%u)", (Uint32)mbytes0,
-               start, cnt0);
-      ndbout_c("Adding %uMb to ZONE_HI (split %u,%u)", (Uint32)mbytes1,
-               ZONE_LO_BOUND, cnt1);
+      g_eventLogger->info("Adding %uMb to ZONE_LO (split %u,%u)",
+                          (Uint32)mbytes0,
+                          start,
+                          cnt0);
+      g_eventLogger->info("Adding %uMb to ZONE_HI (split %u,%u)",
+                          (Uint32)mbytes1,
+                          ZONE_LO_BOUND,
+                          cnt1);
       release(start, cnt0);
       release(ZONE_LO_BOUND, cnt1);
     }
@@ -1023,7 +1045,7 @@ Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
     return ;
   }
   mt_mem_manager_unlock();
-  * cnt = req;
+  *cnt = req;
 #ifdef NDBD_RANDOM_START_PAGE
   *i += g_random_start_page_id;
 #endif
@@ -1066,7 +1088,6 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt)
 #ifdef UNIT_TEST
 
 #include <Vector.hpp>
-#include <NdbTick.h>
 
 struct Chunk {
   Uint32 pageId;
@@ -1185,7 +1206,6 @@ main(int argc, char** argv)
       Chunk chunk = chunks[ch];
       chunks.erase(ch);
       timer[0].start();
-      Uint64 start = NdbTick_CurrentMillisecond();      
       mem.release(chunk.pageId, chunk.pageCount);
       timer[0].stop();
       if(DEBUG)
