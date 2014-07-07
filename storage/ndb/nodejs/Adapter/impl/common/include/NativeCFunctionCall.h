@@ -148,6 +148,40 @@ public:
 
 
 /** Template class with:
+  * 4 arguments
+  * return value of type R
+**/
+
+template <typename R, typename A0, typename A1, typename A2,
+                      typename A3>
+class NativeCFunctionCall_4_ : public AsyncCall_Returning<R>,
+                               public Call_4_<A0, A1, A2, A3>
+{
+public:
+  /* Member variables */
+  typedef R (*Function_T)(A0,A1,A2,A3);
+  Function_T function;
+  
+  /* Constructor */
+  NativeCFunctionCall_4_<R, A0, A1, A2, A3>(Function_T f, const Arguments &args) :
+    AsyncCall_Returning<R>(args[4]),  /* callback */
+    Call_4_<A0, A1, A2, A3>(args),
+    function(f)
+  { }
+
+  /* Methods */
+  void run() {
+    AsyncCall_Returning<R>::return_val = (function)(
+      Call_4_<A0, A1, A2, A3>::arg0,
+      Call_4_<A0, A1, A2, A3>::arg1,
+      Call_4_<A0, A1, A2, A3>::arg2,
+      Call_4_<A0, A1, A2, A3>::arg3
+    );
+  }
+};
+
+
+/** Template class with:
   * 6 arguments
   * return value of type R
 **/

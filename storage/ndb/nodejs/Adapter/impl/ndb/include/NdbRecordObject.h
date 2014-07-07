@@ -20,10 +20,11 @@
 
 #include "Record.h"
 #include "ColumnProxy.h"
+#include "KeyOperation.h"
 
 class NdbRecordObject {
 public:
-  NdbRecordObject(const Record *, ColumnHandlerSet *, Handle<Value>);
+  NdbRecordObject(const Record *, ColumnHandlerSet *, Handle<Value>, Handle<Value>);
   ~NdbRecordObject();
   
   Handle<Value> getField(int);
@@ -35,6 +36,7 @@ public:
   char * getBuffer() const;
   uint32_t getMaskValue() const;
   unsigned short getWriteCount() const;
+  int createBlobWriteHandles(KeyOperation &);
 
 private:
   const Record * record;

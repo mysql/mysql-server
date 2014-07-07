@@ -33,9 +33,9 @@ OperationCodes = {
   'OP_WRITE'       :  8,       8 : 'write',
   'OP_DELETE'      : 16,      16 : 'delete',
   'OP_SCAN'        : 32,      32 : 'scan',
-  'OP_SCAN_READ'   : 33,      33 : 'scan/read',
-  'OP_SCAN_COUNT'  : 34,      34 : 'scan/count',
-  'OP_SCAN_DELETE' : 48,      48 : 'scan/delete'
+  'OP_SCAN_READ'   : 33,      33 : 'scan_read',
+  'OP_SCAN_COUNT'  : 34,      34 : 'scan_count',
+  'OP_SCAN_DELETE' : 48,      48 : 'scan_delete'
 };
 
 
