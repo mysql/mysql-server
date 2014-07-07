@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -64,7 +64,10 @@ ib_create(
 
 	if (n_sync_obj == 0) {
 		table->heap = mem_heap_create_typed(
-			ut_min(4096, MEM_MAX_ALLOC_IN_BUF), type);
+			ut_min(4096UL,
+				MEM_MAX_ALLOC_IN_BUF / 2
+				- MEM_BLOCK_HEADER_SIZE - MEM_SPACE_NEEDED(0)),
+			type);
 		ut_a(table->heap);
 
 		return(table);
@@ -84,11 +87,58 @@ ib_create(
 		ut_malloc(n_sync_obj * sizeof(void*)));
 
 	for (ulint i = 0; i < n_sync_obj; i++) {
-		table->heaps[i] = mem_heap_create_typed(4096, type);
+		table->heaps[i] = mem_heap_create_typed(
+			ut_min(4096UL,
+				MEM_MAX_ALLOC_IN_BUF / 2
+				- MEM_BLOCK_HEADER_SIZE - MEM_SPACE_NEEDED(0)),
+			type);
 		ut_a(table->heaps[i]);
 	}
 
 	return(table);
+}
+
+/** Recreate a hash table with at least n array cells. The actual number
+of cells is chosen to be a prime number slightly bigger than n.
+The new cells are all cleared. The heaps are recreated.
+The sync objects are reused.
+@param[in,out]	table	hash table to be resuzed (to be freed later)
+@param[in]	n	number of array cells
+@return	resized new table */
+
+hash_table_t*
+ib_recreate(
+	hash_table_t*	table,
+	ulint		n)
+{
+	/* This function is for only page_hash for now */
+	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
+	ut_ad(table->n_sync_obj > 0);
+
+	hash_table_t*	new_table = hash_create(n);
+
+	new_table->type = table->type;
+	new_table->n_sync_obj = table->n_sync_obj;
+	new_table->sync_obj = table->sync_obj;
+
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
+		mem_heap_free(table->heaps[i]);
+	}
+	ut_free(table->heaps);
+
+	new_table->heaps = static_cast<mem_heap_t**>(
+		ut_malloc(new_table->n_sync_obj * sizeof(void*)));
+
+	for (ulint i = 0; i < new_table->n_sync_obj; i++) {
+		new_table->heaps[i] = mem_heap_create_typed(
+			ut_min(4096UL,
+				MEM_MAX_ALLOC_IN_BUF / 2
+				- MEM_BLOCK_HEADER_SIZE - MEM_SPACE_NEEDED(0)),
+			MEM_HEAP_FOR_PAGE_HASH);
+		ut_a(new_table->heaps[i]);
+	}
+
+	return(new_table);
 }
 
 /*************************************************************//**

@@ -1272,7 +1272,8 @@ rtr_cur_restore_position_func(
 
 	ut_ad(latch_mode == BTR_CONT_MODIFY_TREE);
 
-	if (buf_page_optimistic_get(RW_X_LATCH,
+	if (!buf_pool_is_obsolete(r_cursor->withdraw_clock)
+	    && buf_page_optimistic_get(RW_X_LATCH,
 				    r_cursor->block_when_stored,
 				    r_cursor->modify_clock, file, line, mtr)) {
 		ut_ad(r_cursor->pos_state == BTR_PCUR_IS_POSITIONED);
