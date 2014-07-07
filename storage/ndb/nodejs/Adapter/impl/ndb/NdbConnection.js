@@ -88,6 +88,7 @@ NdbConnection.prototype.connect = function(properties, callback) {
   }
 
   function onConnected(cb_err, rval) {
+    var err;
     udebug.log("connect() onConnected rval =", rval);
     if(rval === 0) {
       stats.incr( [ "connections","successful" ]);
@@ -95,7 +96,9 @@ NdbConnection.prototype.connect = function(properties, callback) {
     }
     else {
       stats.incr( [ "connections","failed" ]);
-      runCallbacks('NDB Connect failed ' + rval, self);
+      err = new Error(self.ndb_cluster_connection.get_latest_error_msg());
+      err.sqlstate = "08000";
+      runCallbacks(err, self);
     }
   }
   
@@ -107,7 +110,7 @@ NdbConnection.prototype.connect = function(properties, callback) {
   else {
     this.pendingConnections.push(callback);
     if(this.pendingConnections.length === 1) {
-      stats.incr( [ "connect", "async" ] );
+      stats.incr( ["connect"] );
       this.ndb_cluster_connection.connect(
         properties.ndb_connect_retries, properties.ndb_connect_delay,
         properties.ndb_connect_verbose, onConnected);
@@ -116,30 +119,6 @@ NdbConnection.prototype.connect = function(properties, callback) {
       stats.incr( [ "connect","queued" ] );
     }
   }
-};
-
-
-NdbConnection.prototype.connectSync = function(properties) {
-  if(this.isConnected) {
-    stats.incr( [ "connect", "join" ] );
-    return true;
-  }
-
-  stats.incr( [ "connect", "sync" ] );
-  var r, nnodes;
-  r = this.ndb_cluster_connection.connect(properties.ndb_connect_retries,
-                                          properties.ndb_connect_delay,
-                                          properties.ndb_connect_verbose);
-  if(r === 0) {
-    stats.incr( [ "connections","successful" ]);
-    nnodes = this.ndb_cluster_connection.wait_until_ready(1, 1);
-    logReadyNodes(this.ndb_cluster_connection, nnodes);
-    if(nnodes >= 0) {
-      this.isConnected = true;
-    }
-  }
-  
-  return this.isConnected;
 };
 
 

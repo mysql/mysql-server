@@ -1,0 +1,84 @@
+--source include/have_ndb.inc
+
+--disable_query_log
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+  id INT,
+  type VARCHAR(20),
+  state VARCHAR(20),
+  logging VARCHAR(20),
+  _database VARCHAR(255),
+  _schema VARCHAR(20),
+  name VARCHAR(255)
+);
+--enable_query_log
+
+let $qry =
+select type,name from ndb_show_tables_results
+where (type like '%Index%' or type like '%ForeignKey%')
+and (name like '%t1%' or name like '%t2%')
+order by name;
+
+let $cre1 =
+create table t1 (
+  a int not null,
+  b int not null,
+  unique key t1x1 (b) using hash,
+  primary key using hash (a)
+) engine=ndb;
+
+let $cre2 =
+create table t2 (
+  a int not null,
+  b int not null,
+  key t2x1 (b),
+  primary key using hash (a),
+  foreign key t2fk1 (b) references t1 (b)
+) engine=ndb;
+
+--eval $cre1
+--eval $cre2
+
+--source ndb_show_tables_result.inc
+--replace_regex /[0-9]+\/[0-9]+/XX\/XX/
+--eval $qry
+
+insert into t1 values (1,10),(2,20),(3,30),(4,40),(5,50);
+insert into t2 values (1,10),(2,10),(3,30),(4,50),(5,50);
+
+select * from t1 where b = 10 order by a;
+select * from t2 where b = 10 order by a;
+
+--echo # run restart skip indexes
+
+--exec $NDB_MGM --no-defaults -e "all restart -n" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --not-started >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults -e "all start" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+
+--source ndb_show_tables_result.inc
+--replace_regex /[0-9]+\/[0-9]+/XX\/XX/
+--eval $qry
+
+# FRM is wrong so SQL level fails (drop works)
+# verify that SQL level can be fixed via BACKUP
+
+--echo # run backup
+--source include/ndb_backup.inc
+
+--echo # create empty schema
+drop table t2, t1;
+--eval $cre1
+--eval $cre2
+
+--source ndb_show_tables_result.inc
+--replace_regex /[0-9]+\/[0-9]+/XX\/XX/
+--eval $qry
+
+--echo # run restore
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select * from t1 where b = 10 order by a;
+select * from t2 where b = 10 order by a;
+
+drop table t2, t1;

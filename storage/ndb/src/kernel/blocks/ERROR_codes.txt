@@ -17,11 +17,11 @@ Next QMGR 938
 Next NDBCNTR 1004
 Next NDBFS 2000
 Next DBACC 3002
-Next DBTUP 4035
+Next DBTUP 4039
 Next DBLQH 5075
-Next DBDICT 6215
+Next DBDICT 6216
 Next DBDIH 7236
-Next DBTC 8100
+Next DBTC 8108
 Next CMVMI 9000
 Next BACKUP 10042
 Next DBUTIL 11002
@@ -336,6 +336,12 @@ ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 8018: Throw away a COMMITTED signal
 8019: Throw away a COMPLETED signal
 
+ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTUP
+--------------------------------------------------
+4035: Randomly add a random delay to disk data access
+4037: Delay TRANSID_AI while sending packed result to API 
+4038: Delay data-node internal TRANSID_AI send for 10 millis
+
 TESTING TAKE-OVER FUNCTIONALITY IN DBTC
 ---------------------------------------
 
@@ -401,6 +407,20 @@ DBLQH LONG SIGNAL TESTING
 5051: Send short LQHKEYREQ to next replica
 5052: Fail to store KeyInfo from TUP in long section
 
+DBTC TCINDXREQ TESTING
+----------------------
+
+8100: Force TCINDXREQ to recycle a connection record of ongoing abort, phase 1 (set by test case). Will block TCROLLBACKREP.
+
+8101: Force TCINDXREQ to recycle a connection record of ongoing abort, phase 2 (set internally). Will release TCROLLBACKREP.
+
+8102: simulate out of memory (segments,attributes) in fk_scanFromChildTable
+8103: simulate out of memory in fk_constructAttrInfoUpdateCascade
+8104: simulate ZGET_DATAREC_ERROR (218) in fk_buildKeyInfo
+8105: prevent fix (bugXXX) to failed trigger op handling
+8106: simulate out of memory in fk_constructAttrInfoSetNull
+8107: Cause transaction abort with timeout error
+
 CMVMI
 -----
 9000 Set RestartOnErrorInsert to restart -n
@@ -454,17 +474,17 @@ Test Crashes in handling take over
 7135: Crash master after copying table 0 to starting node
 7136: Crash master after completing copy of tables
 7137: Crash master after adding a fragment before copying it
-7138: Crash when receiving CREATE_FRAGREQ in prepare phase
-7139: Crash when receiving CREATE_FRAGREQ in commit phase
-7140: Crash master when receiving all CREATE_FRAGCONF in prepare phase
-7141: Crash master when receiving all CREATE_FRAGCONF in commit phase
+7138: Crash when receiving UPDATE_FRAG_STATEREQ in prepare phase
+7139: Crash when receiving UPDATE_FRAG_STATEREQ in commit phase
+7140: Crash master when receiving all UPDATE_FRAG_STATECONF in prepare phase
+7141: Crash master when receiving all UPDATE_FRAG_STATECONF in commit phase
 7142: Crash master when receiving COPY_FRAGCONF
 7143: Crash master when receiving COPY_ACTIVECONF
 7144: Crash when receiving END_TOREQ
 7145: Crash master after receiving first END_TOCONF
 7146: Crash master after receiving all END_TOCONF
 7147: Crash master after receiving first START_TOCONF
-7148: Crash master after receiving first CREATE_FRAGCONF
+7148: Crash master after receiving first UPDATE_FRAG_STATECONF
 7152: Crash master after receiving first UPDATE_TOCONF
 7153: Crash master after receiving all UPDATE_TOCONF
 7154: Crash when receiving UPDATE_TOREQ
@@ -477,8 +497,8 @@ Test failures in various states in take over functionality
 7158: Block take over at sending of START_TOREQ
 7159: Block take over at selecting next fragment
 7160: Block take over at creating new fragment
-7161: Block take over at sending of CREATE_FRAGREQ in prepare phase
-7162: Block take over at sending of CREATE_FRAGREQ in commit phase
+7161: Block take over at sending of UPDATE_FRAG_STATEREQ in prepare phase
+7162: Block take over at sending of UPDATE_FRAG_STATEREQ in commit phase
 7163: Block take over at sending of UPDATE_TOREQ at end of copy frag
 7164: Block take over at sending of END_TOREQ
 7169: Block take over at sending of UPDATE_TOREQ at end of copy
@@ -678,6 +698,8 @@ Dbdict:
 6201 Set error code after handleTabInfoInit in master (index)
 6202 Set error code before CREATE_FRAGMENTATION in master
 6203 Set error code before CREATE_FRAGMENTATION in master (index)
+
+6215 Randomly fail GET_TABINFOREQ with Busy (no CLEAR_ERROR_INSERT_VALUE)
 
 Dbtup:
 4014 - handleInsert - Out of undo buffer

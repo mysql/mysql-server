@@ -687,7 +687,7 @@ createFK(NdbDictionary::Dictionary * dict,
   {
     const NdbDictionary::Index * idx = dict->getIndex(childIdx->getName(),
                                                       pChild->getName());
-    assert(idx != 0);
+    require(idx != 0);
     childIdx = idx;
   }
 
@@ -1278,9 +1278,9 @@ static
 int
 terrorCodes[] =
 {
-  8099,
-  8100,
-  8101,
+  8106,
+  8103,
+  8104,
   8102,
   0
 };

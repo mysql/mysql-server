@@ -45,11 +45,12 @@ public:
     T_LDM   = 1, /* LQH/ACC/TUP/TUX etc */
     T_RECV  = 2, /* CMVMI */
     T_REP   = 3, /* SUMA */
-    T_IO    = 4, /* FS, SocketServer etc */
-    T_TC    = 5, /* TC+SPJ */
-    T_SEND  = 6, /* No blocks */
+    T_IO    = 4, /* File threads */
+    T_WD    = 5, /* SocketServer, Socket Client, Watchdog */
+    T_TC    = 6, /* TC+SPJ */
+    T_SEND  = 7, /* No blocks */
 
-    T_END  = 7
+    T_END  = 8
   };
 
   THRConfig();
@@ -59,12 +60,19 @@ public:
   int setLockExecuteThreadToCPU(const char * val);
   int setLockIoThreadsToCPU(unsigned val);
 
-  int do_parse(const char * ThreadConfig);
+  int do_parse(const char * ThreadConfig,
+               unsigned realtime,
+               unsigned spintime);
   int do_parse(unsigned MaxNoOfExecutionThreads,
                unsigned __ndbmt_lqh_threads,
-               unsigned __ndbmt_classic);
+               unsigned __ndbmt_classic,
+               unsigned realtime,
+               unsigned spintime);
 
   const char * getConfigString();
+  void append_name(const char *name,
+                   const char *sep,
+                   bool & append_name_flag);
 
   const char * getErrorMessage() const;
   const char * getInfoMessage() const;
@@ -79,6 +87,8 @@ protected:
     unsigned m_no; // within type
     enum BType { B_UNBOUND, B_CPU_BOUND, B_CPUSET_BOUND } m_bind_type;
     unsigned m_bind_no; // cpu_no/cpuset_no
+    unsigned m_realtime; //0 = no realtime, 1 = realtime
+    unsigned m_spintime; //0 = no spinning, > 0 spintime in microseconds
   };
   bool m_classic;
   SparseBitmask m_LockExecuteThreadToCPU;
@@ -91,9 +101,9 @@ protected:
   BaseString m_cfg_string;
   BaseString m_print_string;
 
-  void add(T_Type);
+  void add(T_Type, unsigned realtime, unsigned spintime);
   Uint32 find_type(char *&);
-  int find_spec(char *&, T_Type);
+  int find_spec(char *&, T_Type, unsigned real_time, unsigned spin_time);
   int find_next(char *&);
 
   unsigned createCpuSet(const SparseBitmask&);
@@ -126,14 +136,21 @@ public:
 class THRConfigApplier : public THRConfig
 {
 public:
-  int create_cpusets();
-
   const char * getName(const unsigned short list[], unsigned cnt) const;
   void appendInfo(BaseString&, const unsigned short list[], unsigned cnt) const;
   void appendInfoSendThread(BaseString&, unsigned instance_no) const;
   int do_bind(NdbThread*, const unsigned short list[], unsigned cnt);
   int do_bind_io(NdbThread*);
+  int do_bind_watchdog(NdbThread*);
   int do_bind_send(NdbThread*, unsigned);
+  bool do_get_realtime_io() const;
+  bool do_get_realtime_wd() const;
+  bool do_get_realtime_send(unsigned) const;
+  unsigned do_get_spintime_send(unsigned) const;
+  bool do_get_realtime(const unsigned short list[],
+                       unsigned cnt) const;
+  unsigned do_get_spintime(const unsigned short list[],
+                           unsigned cnt) const;
 
 protected:
   const T_Thread* find_thread(const unsigned short list[], unsigned cnt) const;

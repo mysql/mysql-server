@@ -80,6 +80,7 @@
  */
 
 #include <my_global.h>
+#include "my_sys.h"
 #include <m_string.h>
 #include <errno.h>
 #include <ctype.h>
@@ -297,15 +298,8 @@ static int DoTrace(CODE_STATE *cs);
 #define ENABLE_TRACE    3
 #define DISABLE_TRACE   4
 
-        /* Test to see if file is writable */
-#if defined(HAVE_ACCESS)
-static BOOLEAN Writable(const char *pathname);
-        /* Change file owner and group */
-static void ChangeOwner(CODE_STATE *cs, char *pathname);
-        /* Allocate memory for runtime support */
-#endif
-
 static void DoPrefix(CODE_STATE *cs, uint line);
+static BOOLEAN Writable(const char *pathname);
 
 static char *DbugMalloc(size_t size);
 static const char *BaseName(const char *pathname);
@@ -324,19 +318,6 @@ static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 #define ERR_OPEN "%s: can't open debug output stream \"%s\": "
 #define ERR_CLOSE "%s: can't close debug file: "
 #define ERR_ABORT "%s: debugger aborting because %s\n"
-
-/*
- *      Macros and defines for testing file accessibility under UNIX and MSDOS.
- */
-
-#undef EXISTS
-#if !defined(HAVE_ACCESS)
-#define EXISTS(pathname) (FALSE)        /* Assume no existance */
-#define Writable(name) (TRUE)
-#else
-#define EXISTS(pathname)         (access(pathname, F_OK) == 0)
-#define WRITABLE(pathname)       (access(pathname, W_OK) == 0)
-#endif
 
 
 /*
@@ -2290,17 +2271,15 @@ static const char *BaseName(const char *pathname)
  */
 
 
-#ifndef Writable
-
 static BOOLEAN Writable(const char *pathname)
 {
   BOOLEAN granted;
   char *lastslash;
 
   granted= FALSE;
-  if (EXISTS(pathname))
+  if (my_access(pathname, F_OK) == 0)
   {
-    if (WRITABLE(pathname))
+    if (my_access(pathname, W_OK) == 0)
       granted= TRUE;
   }
   else
@@ -2310,14 +2289,13 @@ static BOOLEAN Writable(const char *pathname)
       *lastslash= '\0';
     else
       pathname= ".";
-    if (WRITABLE(pathname))
+    if (my_access(pathname, W_OK) == 0)
       granted= TRUE;
     if (lastslash != NULL)
       *lastslash= '/';
   }
   return granted;
 }
-#endif
 
 
 /*

@@ -42,7 +42,8 @@ set(NODE_GYP ${NDB_NODEJS_EXTRAS_PATH}/node-gyp/${NODE_VERSION})
 set(NODE_INCLUDES ${NODE_GYP}/src ${NODE_GYP}/deps/uv/include ${NODE_GYP}/deps/v8/include)
 
 include_directories(${NODE_INCLUDES})
-include_directories(Adapter/impl/include)
+include_directories(Adapter/impl/common/include)
+include_directories(Adapter/impl/ndb/include) 
 
 link_directories(
   ${NDB_SOURCE_DIR}/src
@@ -52,33 +53,34 @@ add_definitions(-D_BUILDING_V8_SHARED=1 -DBUILDING_UV_SHARED=1)
 add_definitions(-D_BUILDING_NODE_EXTENSION)
 
 set(ADAPTER_SOURCE_FILES
-  Adapter/impl/src/async_common.cpp
-  Adapter/impl/src/AsyncNdbContext.cpp
-  Adapter/impl/src/AsyncNdbContext_wrapper.cpp
-  Adapter/impl/src/ColumnHandler.cpp
-  Adapter/impl/src/ColumnProxy.cpp
-  Adapter/impl/src/DBDictionaryImpl.cpp
-  Adapter/impl/src/DBOperationHelper.cpp
-  Adapter/impl/src/DBScanHelper.cpp
-  Adapter/impl/src/EncoderCharset.cpp
-  Adapter/impl/src/IndexBoundHelper.cpp
-  Adapter/impl/src/Ndb_cluster_connection_wrapper.cpp
-  Adapter/impl/src/Ndb_init_wrapper.cpp
-  Adapter/impl/src/Ndb_util_wrapper.cpp
-  Adapter/impl/src/Ndb_wrapper.cpp
-  Adapter/impl/src/NdbError_wrapper.cpp
-  Adapter/impl/src/NdbInterpretedCode_wrapper.cpp
-  Adapter/impl/src/NdbOperation_wrapper.cpp
-  Adapter/impl/src/NdbRecordObject.cpp
-  Adapter/impl/src/NdbScanFilter_wrapper.cpp
-  Adapter/impl/src/NdbTransaction_wrapper.cpp
-  Adapter/impl/src/NdbTypeEncoders.cpp
-  Adapter/impl/src/node_module.cpp
-  Adapter/impl/src/Record.cpp
-  Adapter/impl/src/Record_wrapper.cpp
-  Adapter/impl/src/ScanImpl.cpp
-  Adapter/impl/src/unified_debug.cpp
-  Adapter/impl/src/ValueObject.cpp
+  Adapter/impl/common/src/async_common.cpp
+  Adapter/impl/common/src/unified_debug.cpp
+  Adapter/impl/ndb/src/AsyncNdbContext.cpp
+  Adapter/impl/ndb/src/AsyncNdbContext_wrapper.cpp
+  Adapter/impl/ndb/src/ColumnHandler.cpp
+  Adapter/impl/ndb/src/ColumnProxy.cpp
+  Adapter/impl/ndb/src/DBDictionaryImpl.cpp
+  Adapter/impl/ndb/src/DBOperationHelper.cpp
+  Adapter/impl/ndb/src/DBScanHelper.cpp
+  Adapter/impl/ndb/src/EncoderCharset.cpp
+  Adapter/impl/ndb/src/IndexBoundHelper.cpp
+  Adapter/impl/ndb/src/Ndb_cluster_connection_wrapper.cpp
+  Adapter/impl/ndb/src/Ndb_init_wrapper.cpp
+  Adapter/impl/ndb/src/Ndb_util_wrapper.cpp
+  Adapter/impl/ndb/src/Ndb_wrapper.cpp
+  Adapter/impl/ndb/src/NdbError_wrapper.cpp
+  Adapter/impl/ndb/src/NdbInterpretedCode_wrapper.cpp
+  Adapter/impl/ndb/src/NdbScanOperation_wrapper.cpp
+  Adapter/impl/ndb/src/PendingOperationSet_wrapper.cpp
+  Adapter/impl/ndb/src/NdbRecordObject.cpp
+  Adapter/impl/ndb/src/NdbScanFilter_wrapper.cpp
+  Adapter/impl/ndb/src/NdbTransaction_wrapper.cpp
+  Adapter/impl/ndb/src/NdbTypeEncoders.cpp
+  Adapter/impl/ndb/src/node_module.cpp
+  Adapter/impl/ndb/src/Record.cpp
+  Adapter/impl/ndb/src/Record_wrapper.cpp
+  Adapter/impl/ndb/src/ScanImpl.cpp
+  Adapter/impl/ndb/src/ValueObject.cpp
 )
 
 
