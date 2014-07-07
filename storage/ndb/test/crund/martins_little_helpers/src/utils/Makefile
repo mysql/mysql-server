@@ -58,7 +58,7 @@ include	../../../env.properties
 
   DISTCLEAN	= *~ *% */*~
 
-  INCLUDES	= $(JAVA_INCLUDEOPTS) -I.
+  INCLUDES	= $(JAVA_INCLUDEOPTS0) $(JAVA_INCLUDEOPTS1) -I.
 
   CLASSPATH	= ".."
 

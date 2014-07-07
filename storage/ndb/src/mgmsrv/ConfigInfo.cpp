@@ -16,7 +16,6 @@
 */
 
 #include <ndb_global.h>
-#ifndef NDB_MGMAPI
 
 #include <NdbTCP.h>
 #include "ConfigInfo.hpp"
@@ -28,11 +27,8 @@
 #include <ndb_opts.h>
 #include <ndb_version.h>
 
-#else
-#include "ConfigInfo.hpp"
-#include <mgmapi_config_parameters.h>
-#include <ndb_version.h>
-#endif /* NDB_MGMAPI */
+
+#include <portlib/ndb_localtime.h>
 
 #define KEY_INTERNAL 0
 #define MAX_INT_RNIL 0xfffffeff
@@ -54,7 +50,6 @@
 #define MGM_TOKEN "MGM"
 #define API_TOKEN "API"
 
-#ifndef NDB_MGMAPI
 const ConfigInfo::AliasPair
 ConfigInfo::m_sectionNameAliases[]={
   {API_TOKEN, "MYSQLD"},
@@ -242,7 +237,6 @@ const DeprecationTransform f_deprecation[] = {
   { MGM_TOKEN, "Id", "NodeId", 0, 1 },
   { 0, 0, 0, 0, 0}
 };
-#endif /* NDB_MGMAPI */
 
 static
 const ConfigInfo::Typelib arbit_method_typelib[] = {
@@ -2215,6 +2209,54 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(NDB_DEFAULT_HASHMAP_BUCKETS)
   },
 
+  {
+    CFG_DB_LCP_SCAN_WATCHDOG_LIMIT,
+    "LcpScanProgressTimeout",
+    DB_TOKEN,
+    "Maximum time a local checkpoint fragment scan can be stalled for.  "
+    "If this is exceeded, the node will shutdown to ensure systemwide "
+    "LCP progress.  Warnings are periodically emitted when a fragment scan "
+    "stalls for more than one third of this time.  0 indicates no time limit.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "60",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_AT_RESTART_SKIP_INDEXES,
+    "__at_restart_skip_indexes",
+    DB_TOKEN,
+    "Ignore all index and foreign key info on the node "
+    "at (non-initial) restart.  "
+    "This is a one-time recovery option for a non-startable database.  "
+    "Carefully consult documentation before using.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"
+  },
+
+  {
+    CFG_DB_AT_RESTART_SKIP_FKS,
+    "__at_restart_skip_fks",
+    DB_TOKEN,
+    "Ignore all foreign key info on the node "
+    "at (non-initial) restart.  "
+    "This is a one-time recovery option for a non-startable database.  "
+    "Carefully consult documentation before using.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -2660,6 +2702,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     0, 0, 0
   },
+
+  {
+    CFG_MGMD_MGMD_HEARTBEAT_INTERVAL,
+    "HeartbeatIntervalMgmdMgmd",
+    MGM_TOKEN,
+    "Time between " MGM_TOKEN_PRINT "-" MGM_TOKEN_PRINT " heartbeats. " 
+    MGM_TOKEN_PRINT " considered dead after 3 missed HBs",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "1500",
+    "100",
+    STR_VALUE(MAX_INT_RNIL) },
 
   /****************************************************************************
    * TCP
@@ -3318,7 +3373,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
 const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
 
-#ifndef NDB_MGMAPI
 /****************************************************************************
  * Ctor
  ****************************************************************************/
@@ -3629,7 +3683,7 @@ static
 const char *
 getInfoString(const Properties * section, 
 	      const char* fname, const char * type){
-  const char* val;
+  const char* val = NULL;
   const Properties * p;
   if (section->get(fname, &p) && p->get(type, &val)) {
     return val;
@@ -4981,6 +5035,8 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   Uint32 lqhThreads = 0;
   Uint32 classic = 0;
   Uint32 ndbLogParts = 0;
+  Uint32 realtimeScheduler = 0;
+  Uint32 spinTimer = 0;
   const char * thrconfig = 0;
   const char * locktocpu = 0;
 
@@ -4994,6 +5050,8 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   ctx.m_currentSection->get("__ndbmt_lqh_threads", &lqhThreads);
   ctx.m_currentSection->get("__ndbmt_classic", &classic);
   ctx.m_currentSection->get("NoOfFragmentLogParts", &ndbLogParts);
+  ctx.m_currentSection->get("RealtimeScheduler", &realtimeScheduler);
+  ctx.m_currentSection->get("SchedulerSpinTimer", &spinTimer);
 
   if (!check_2n_number_less_32(lqhThreads))
   {
@@ -5008,7 +5066,7 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   }
   if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
   {
-    int ret = tmp.do_parse(thrconfig);
+    int ret = tmp.do_parse(thrconfig, realtimeScheduler, spinTimer);
     if (ret)
     {
       ctx.reportError("Unable to parse ThreadConfig: %s",
@@ -5033,7 +5091,11 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   }
   else if (maxExecuteThreads || lqhThreads || classic)
   {
-    int ret = tmp.do_parse(maxExecuteThreads, lqhThreads, classic);
+    int ret = tmp.do_parse(maxExecuteThreads,
+                           lqhThreads,
+                           classic,
+                           realtimeScheduler,
+                           spinTimer);
     if (ret)
     {
       ctx.reportError("Unable to set thread configuration: %s",
@@ -5358,18 +5420,21 @@ add_system_section(Vector<ConfigInfo::ConfigRuleSection>&sections,
     ConfigInfo::ConfigRuleSection s;
 
     // Generate a unique name for this new cluster
-    time_t now = ::time((time_t*)NULL);
-    struct tm* tm_now = ::localtime(&now);
+    time_t now;
+    time(&now);
+
+    tm tm_buf;
+    ndb_localtime_r(&now, &tm_buf);
 
     char name_buf[18];
     BaseString::snprintf(name_buf, sizeof(name_buf),
                          "MC_%d%.2d%.2d%.2d%.2d%.2d",
-                         tm_now->tm_year + 1900,
-                         tm_now->tm_mon + 1,
-                         tm_now->tm_mday,
-                         tm_now->tm_hour,
-                         tm_now->tm_min,
-                         tm_now->tm_sec);
+                         tm_buf.tm_year + 1900,
+                         tm_buf.tm_mon + 1,
+                         tm_buf.tm_mday,
+                         tm_buf.tm_hour,
+                         tm_buf.tm_min,
+                         tm_buf.tm_sec);
 
     s.m_sectionType = BaseString("SYSTEM");
     s.m_sectionData = new Properties(true);
@@ -6049,4 +6114,3 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
 
 
 template class Vector<ConfigInfo::ConfigRuleSection>;
-#endif /* NDB_MGMAPI */

@@ -762,6 +762,9 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   case DB_TYPE_PARTITION_DB:
     partition_hton= hton;
     break;
+  case DB_TYPE_INNODB:
+    innodb_hton = hton;
+    break;
   default:
     break;
   };
@@ -5404,7 +5407,7 @@ struct binlog_log_query_st
 {
   enum_binlog_command binlog_command;
   const char *query;
-  uint query_length;
+  size_t query_length;
   const char *db;
   const char *table_name;
 };
@@ -6381,7 +6384,8 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
       *flags & (HA_MRR_INDEX_ONLY | HA_MRR_SORTED) || // Unsupported by DS-MRR
       (keyno == table->s->primary_key && h->primary_key_is_clustered()) ||
-       key_uses_partial_cols(table, keyno))
+       key_uses_partial_cols(table, keyno) ||
+       table->s->tmp_table != NO_TMP_TABLE)
   {
     /* Use the default implementation, don't modify args: See comments  */
     return TRUE;

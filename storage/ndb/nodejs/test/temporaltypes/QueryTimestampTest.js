@@ -24,48 +24,27 @@ var udebug = unified_debug.getLogger("integraltypes/QueryTimestampTest.js");
 var QueryTest = require('../lib/QueryTest.js');
 
 /** equal query should use index scan */
-var q1 = {name: 'q1', p1: '2001-01-01 01:01:01', expected: [1], queryType: 2, ordered: false, predicate: function(qdt) {
-  return qdt.cTimestamp.eq(qdt.param('p1'));
-}};
-
-/** equal query should use index scan */
-var q2 = {name: 'q2', p1: new Date('2001-01-01 01:01:01'), expected: [1], queryType: 2, ordered: false, predicate: function(qdt) {
+var q1 = {name: 'q1', p1: new Date('2001-01-01 01:01:01'), expected: [1], queryType: 2, ordered: false, predicate: function(qdt) {
   return qdt.cTimestamp.eq(qdt.param('p1'));
 }};
 
 /** greater and less query should use index scan */
-var q3 = {name: 'q3', p1: '2001-01-01 01:01:01', p2: '2004-04-04 04:04:04', expected: [2, 3], queryType: 2, ordered: false, predicate: function(qdt) {
+var q2 = {name: 'q2', p1: new Date('2001-01-01 01:01:01'), p2: new Date('2004-04-04 04:04:04'), expected: [2, 3], queryType: 2, ordered: false, predicate: function(qdt) {
   return qdt.cTimestamp.gt(qdt.param('p1')).and(qdt.cTimestamp.lt(qdt.param('p2')));
-}};
-
-/** greater and less query should use index scan */
-var q4 = {name: 'q4', p1: new Date('2001-01-01 01:01:01'), p2: new Date('2004-04-04 04:04:04'), expected: [2, 3], queryType: 2, ordered: false, predicate: function(qdt) {
-  return qdt.cTimestamp.gt(qdt.param('p1')).and(qdt.cTimestamp.lt(qdt.param('p2')));
-}};
-
-/** greater equal and less equal query should use index scan */
-var q5 = {name: 'q5', p1: '2001-01-01 01:01:01', p2: '2004-04-04 04:04:04', expected: [1, 2, 3, 4], queryType: 2, ordered: false, predicate: function(qdt) {
-  return qdt.cTimestamp.ge(qdt.param('p1')).and(qdt.cTimestamp.le(qdt.param('p2')));
 }};
 
 /** greater equal query and less equal should use index scan */
-var q6 = {name: 'q6', p1: new Date('2001-01-01 01:01:01'), p2: new Date('2004-04-04 04:04:04'), expected: [1, 2, 3, 4], queryType: 2, ordered: false, predicate: function(qdt) {
+var q3 = {name: 'q3', p1: new Date('2001-01-01 01:01:01'), p2: new Date('2004-04-04 04:04:04'), expected: [1, 2, 3, 4], queryType: 2, ordered: false, predicate: function(qdt) {
   return qdt.cTimestamp.ge(qdt.param('p1')).and(qdt.cTimestamp.le(qdt.param('p2')));
 }};
 
 /** between query should use index scan */
 // between doesn't work yet
-var q7 = {name: 'q7', p1: '2001-01-01 01:01:01', p2: '2004-04-04 04:04:04', expected: [1, 2, 3, 4], queryType: 2, ordered: false, predicate: function(qdt) {
+var q4 = {name: 'q4', p1: new Date('2001-01-01 01:01:01'), p2: new Date('2004-04-04 04:04:04'), expected: [1, 2, 3, 4], queryType: 2, ordered: false, predicate: function(qdt) {
   return qdt.cTimestamp.between(qdt.param('p1'), qdt.param('p2'));
 }};
 
-/** between query should use index scan */
-// between doesn't work yet
-var q8 = {name: 'q8', p1: new Date('2001-01-01 01:01:01'), p2: new Date('2004-04-04 04:04:04'), expected: [1, 2, 3, 4], queryType: 2, ordered: false, predicate: function(qdt) {
-  return qdt.cTimestamp.between(qdt.param('p1'), qdt.param('p2'));
-}};
-
-var queryTests = [q1, q2, q3, q4, q5, q6, q7, q8];
+var queryTests = [q1, q2, q3, q4];
 
 /** Set up domain type */
 var temporaltypes = function temporaltypes() {};

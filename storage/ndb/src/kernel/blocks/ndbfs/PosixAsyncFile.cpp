@@ -250,7 +250,9 @@ void PosixAsyncFile::openReq(Request *request)
     flags |= FsOpenReq::OM_CREATE;
   }
 
+#ifdef O_DIRECT
 no_odirect:
+#endif
   theFd = ::open(theFileName.c_str(), new_flags, mode);
   if (-1 == theFd)
   {
@@ -337,7 +339,7 @@ no_odirect:
 
 #ifdef TRACE_INIT
     Uint32 write_cnt = 0;
-    Uint64 start = NdbTick_CurrentMillisecond();
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
 #endif
     while(off < sz)
     {
@@ -358,7 +360,9 @@ no_odirect:
         cnt++;
         size += request->par.open.page_size;
       }
+#ifdef O_DIRECT
   retry:
+#endif
       off_t save_size = size;
       char* buf = (char*)m_page_ptr.p;
       while(size > 0)
@@ -406,8 +410,8 @@ no_odirect:
     }
     ::fsync(theFd);
 #ifdef TRACE_INIT
-    Uint64 stop = NdbTick_CurrentMillisecond();
-    Uint64 diff = stop - start;
+    const NDB_TICKS stop = NdbTick_getCurrentTicks();
+    Uint64 diff = NdbTick_Elapsed(start, stop).milliSec();
     if (diff == 0)
       diff = 1;
     ndbout_c("wrote %umb in %u writes %us -> %ukb/write %umb/s",

@@ -25,6 +25,8 @@
 #include "sql_class.h"
 #include "my_global.h"
 
+using std::list;
+
 pthread_t compress_thread_id= 0;
 static bool terminate_compress_thread= false;
 static bool should_compress= false;
@@ -913,6 +915,7 @@ void create_compress_gtid_table_thread()
   {
     sql_print_error("Failed to initialize thread attribute "
                     "when creating compression thread.");
+    delete thd;
     return;
   }
 
@@ -923,8 +926,12 @@ void create_compress_gtid_table_thread()
       (error= mysql_thread_create(key_thread_compress_gtid_table,
                                   &compress_thread_id, &attr,
                                   compress_gtid_table, (void*) thd)))
+  {
     sql_print_error("Can not create thread to compress gtid_executed table "
                     "(errno= %d)", error);
+    /* Delete the created THD after failed to create a compression thread. */
+    delete thd;
+  }
 
   (void) pthread_attr_destroy(&attr);
 }

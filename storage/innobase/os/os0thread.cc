@@ -234,12 +234,8 @@ os_thread_yield(void)
 {
 #if defined(_WIN32)
 	SwitchToThread();
-#elif (defined(HAVE_SCHED_YIELD) && defined(HAVE_SCHED_H))
-	sched_yield();
-#elif defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
-	pthread_yield();
 #else
-	os_thread_sleep(0);
+	sched_yield();
 #endif
 }
 #endif /* !UNIV_HOTBACKUP */

@@ -1534,6 +1534,9 @@ public:
 };
 
 
+void item_func_sleep_init();
+void item_func_sleep_free();
+
 class Item_func_sleep :public Item_int_func
 {
   typedef Item_int_func super;
@@ -1768,14 +1771,8 @@ public:
 
 #endif /* HAVE_DLOPEN */
 
-/*
-** User level locks
-*/
-
-class User_level_lock;
-void item_user_lock_init(void);
-void item_user_lock_release(User_level_lock *ull);
-void item_user_lock_free(void);
+void mysql_ull_cleanup(THD *thd);
+void mysql_ull_set_explicit_lock_duration(THD *thd);
 
 class Item_func_get_lock :public Item_int_func
 {
@@ -1804,6 +1801,19 @@ public:
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+};
+
+class Item_func_release_all_locks :public Item_int_func
+{
+  typedef Item_int_func super;
+
+public:
+  explicit Item_func_release_all_locks(const POS &pos) :Item_int_func(pos) {}
+  virtual bool itemize(Parse_context *pc, Item **res);
+
+  longlong val_int();
+  const char *func_name() const { return "release_all_locks"; }
+  void fix_length_and_dec() { unsigned_flag= TRUE; }
 };
 
 /* replication functions */
@@ -2414,7 +2424,7 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "is_free_lock"; }
-  void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
+  void fix_length_and_dec() { max_length= 1; maybe_null= TRUE;}
 };
 
 class Item_func_is_used_lock :public Item_int_func
@@ -2428,7 +2438,7 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "is_used_lock"; }
-  void fix_length_and_dec();
+  void fix_length_and_dec() { unsigned_flag= TRUE; maybe_null= TRUE; }
 };
 
 /* For type casts */

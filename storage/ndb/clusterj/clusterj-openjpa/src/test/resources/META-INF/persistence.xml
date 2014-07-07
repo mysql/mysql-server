@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-   Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@
     <class>com.mysql.clusterj.jpatest.model.B0</class>
     <class>com.mysql.clusterj.jpatest.model.BigIntegerTypes</class>
     <class>com.mysql.clusterj.jpatest.model.BlobTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.BytePK</class>
     <class>com.mysql.clusterj.jpatest.model.ClobTypes</class>
     <class>com.mysql.clusterj.jpatest.model.DecimalTypes</class>
     <class>com.mysql.clusterj.jpatest.model.Embedded</class>
@@ -52,6 +53,7 @@
     <class>com.mysql.clusterj.jpatest.model.DateAsSqlDateTypes</class>
     <class>com.mysql.clusterj.jpatest.model.DatetimeAsUtilDateTypes</class>
     <class>com.mysql.clusterj.jpatest.model.DatetimeAsSqlTimestampTypes</class>
+    <class>com.mysql.clusterj.jpatest.model.ShortPK</class>
     <class>com.mysql.clusterj.jpatest.model.TimeAsUtilDateTypes</class>
     <class>com.mysql.clusterj.jpatest.model.TimeAsSqlTimeTypes</class>
     <class>com.mysql.clusterj.jpatest.model.TimestampAsUtilDateTypes</class>

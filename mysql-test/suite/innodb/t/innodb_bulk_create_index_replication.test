@@ -1,0 +1,181 @@
+######## suite/innodb/t/innodb_wl7277_1.test                     #####
+#                                                                    #
+# Testcase for worklog WL#7277: InnoDB: Bulk Load for Create Index   #
+#  The basic idea of bulk load is to build an index from bottom up   #
+#  (also known as sorted index build).                               #
+# Earlier index was create by repeatedly inserting records           #
+# Test scenario :                                                    #
+# - Run bulk create index on replication setup                       #
+# - Run bulk create on partitioned table and see its replictaed      #
+#   to slave                                                         #
+# Creation:                                                          #
+# 2014-06-19 Implemented this test as part of WL#7277                #
+#                                                                    #
+######################################################################
+
+--source include/not_embedded.inc
+-- source include/have_innodb.inc
+-- source include/master-slave.inc
+
+-- connection master
+# Create Insert Procedure
+DELIMITER |;
+CREATE PROCEDURE populate_t1(load_even INT)
+BEGIN
+	DECLARE i int DEFAULT 1;
+
+	START TRANSACTION;
+	WHILE (i <= 100) DO
+                IF i%2 = 0 AND load_even = 1 THEN
+		    INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+                END IF;
+                IF i%2 != 0 AND load_even != 1 THEN
+		    INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+                END IF;
+		SET i = i + 1;
+	END WHILE;
+	COMMIT;
+END|
+DELIMITER ;|
+
+CREATE TABLE t1(
+	class	INT,
+	id	INT,
+	title	VARCHAR(100)
+) ENGINE=InnoDB ;
+
+
+
+
+-- disable_query_log
+# Load half records
+CALL populate_t1(1);
+-- enable_query_log
+
+SELECT COUNT(*) FROM t1;
+
+/* Create index. */
+CREATE INDEX idx_id ON t1(id);
+
+CREATE INDEX idx_title ON t1(title);
+
+
+/* Select by index. */
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+
+SELECT * FROM t1 WHERE id = 10;
+SELECT * FROM t1 WHERE title = 'a10';
+
+SELECT * FROM t1 WHERE id = 20;
+SELECT * FROM t1 WHERE title = 'a20';
+
+SELECT * FROM t1 WHERE id = 30;
+SELECT * FROM t1 WHERE title = 'a30';
+
+SELECT * FROM t1 WHERE id = 101;
+SELECT * FROM t1 WHERE title = 'a101';
+
+/*Insert/Update/Delete. */
+DELETE FROM t1 WHERE id < 40 AND id > 30;
+INSERT INTO t1 VALUES(38, 38, 'b38');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 30 AND id > 20;
+
+SELECT * FROM t1 WHERE id = 28;
+SELECT * FROM t1 WHERE title = 'a28';
+SELECT * FROM t1 WHERE title = 'b28';
+
+SELECT * FROM t1 WHERE id = 38;
+SELECT * FROM t1 WHERE title = 'a38';
+SELECT * FROM t1 WHERE title = 'b38';
+
+SELECT * FROM t1 WHERE id = 101;
+SELECT * FROM t1 WHERE title = 'a101';
+
+-- disable_query_log
+# Load half records (follow up load)
+CALL populate_t1(0);
+-- enable_query_log
+SELECT COUNT(*) FROM t1;
+
+
+SELECT * FROM t1 WHERE id = 10;
+SELECT * FROM t1 WHERE title = 'a10';
+
+SELECT * FROM t1 WHERE id = 20;
+SELECT * FROM t1 WHERE title = 'a20';
+
+SELECT * FROM t1 WHERE id = 30;
+SELECT * FROM t1 WHERE title = 'a30';
+
+SELECT * FROM t1 WHERE id = 101;
+SELECT * FROM t1 WHERE title = 'a101';
+
+# Create partition table
+CREATE TABLE t_part (
+         class INT ,
+         id INT ,
+         title VARCHAR(30)
+     ) ENGINE=InnoDB
+     PARTITION BY RANGE(id)
+     SUBPARTITION BY KEY(id)
+     SUBPARTITIONS 4
+     (
+         PARTITION p0 VALUES LESS THAN (5000),
+         PARTITION p1 VALUES LESS THAN (MAXVALUE)
+     );
+INSERT INTO t_part SELECT * FROM t1;
+ALTER TABLE t_part ADD INDEX `idx` (class,id,title(10));
+
+SELECT * FROM t_part WHERE id = 10;
+SELECT * FROM t_part WHERE title = 'a10';
+
+SELECT * FROM t_part WHERE id = 20;
+SELECT * FROM t_part WHERE title = 'a20';
+
+SELECT * FROM t_part WHERE id = 30;
+SELECT * FROM t_part WHERE title = 'a30';
+
+SELECT * FROM t_part WHERE id = 101;
+SELECT * FROM t_part WHERE title = 'a101';
+
+
+--source include/sync_slave_sql_with_master.inc
+-- connection slave
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t_part;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t_part;
+
+SELECT * FROM t1 WHERE id = 10;
+SELECT * FROM t1 WHERE title = 'a10';
+
+SELECT * FROM t1 WHERE id = 20;
+SELECT * FROM t1 WHERE title = 'a20';
+
+SELECT * FROM t1 WHERE id = 30;
+SELECT * FROM t1 WHERE title = 'a30';
+
+SELECT * FROM t1 WHERE id = 101;
+SELECT * FROM t1 WHERE title = 'a101';
+
+
+
+SELECT * FROM t_part WHERE id = 10;
+SELECT * FROM t_part WHERE title = 'a10';
+
+SELECT * FROM t_part WHERE id = 20;
+SELECT * FROM t_part WHERE title = 'a20';
+
+SELECT * FROM t_part WHERE id = 30;
+SELECT * FROM t_part WHERE title = 'a30';
+
+SELECT * FROM t_part WHERE id = 101;
+SELECT * FROM t_part WHERE title = 'a101';
+
+
+-- connection master
+DROP PROCEDURE populate_t1;
+DROP TABLE t1;
+DROP TABLE t_part;
+--source include/rpl_end.inc

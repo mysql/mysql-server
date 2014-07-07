@@ -1705,7 +1705,7 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
           }
           if (node_state->node_group >= 0 || node_state->node_group == (int)RNIL)
 	    if (master_id && node_state->dynamic_id == master_id)
-	      ndbout << ", Master";
+	      ndbout << ", *";
         }
 	ndbout << ")" << endl;
       } else {
@@ -2536,16 +2536,10 @@ report_events(const ndb_logevent& event)
   }
   textF(out+pos, sizeof(out)-pos, event.SavedEvent.data, event.SavedEvent.len);
 
-  time_t t = event.SavedEvent.time;
-  struct tm * tm_now = localtime(&t);
-  ndbout_c("%d-%.2d-%.2d %.2d:%.2d:%.2d %s",
-           tm_now->tm_year + 1900,
-           tm_now->tm_mon + 1, //month is [0,11]. +1 -> [1,12]
-           tm_now->tm_mday,
-           tm_now->tm_hour,
-           tm_now->tm_min,
-           tm_now->tm_sec,
-           out);
+  char timestamp_str[64];
+  Logger::format_timestamp(event.SavedEvent.time, timestamp_str, sizeof(timestamp_str));
+
+  ndbout_c("%s %s", timestamp_str, out);
 }
 
 static int
@@ -3096,6 +3090,12 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
           Guard g(m_print_mutex);
           printLogEvent(&log_event);
           count++;
+          // for WAIT STARTED, exit after printing "Backup started" logevent
+          if(flags == 1 && log_event.type == NDB_LE_BackupStarted) 
+          {
+            ndb_mgm_destroy_logevent_handle(&log_handle);
+            return 0;
+          }
         }
       }
       else

@@ -24,7 +24,7 @@ var NdbDefaultConnectionProperties = {
                                         another client tries to re-open it.
                                      */
 
-  "use_ndb_async_api"   : true,     /* If true, some operations will be
+  "use_ndb_async_api"   : false,     /* If true, some operations will be
                                         executed using asynchronous calls for
                                         improved concurrency. If false, the
                                         number of operations in transit will be

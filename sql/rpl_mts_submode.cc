@@ -553,7 +553,7 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
 {
   Slave_committed_queue *gaq= rli->gaq;
   Slave_worker *worker= NULL;
-  Slave_job_group* ptr_group;
+  Slave_job_group* ptr_group __attribute__((unused));
   PSI_stage_info *old_stage= 0;
   THD* thd= rli->info_thd;
   DBUG_ENTER("Mts_submode_logical_clock::get_least_occupied_worker");
