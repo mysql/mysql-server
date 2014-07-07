@@ -48,7 +48,6 @@
 #cmakedefine HAVE_PATHS_H 1
 #cmakedefine HAVE_POLL_H 1
 #cmakedefine HAVE_PWD_H 1
-#cmakedefine HAVE_SCHED_H 1
 #cmakedefine HAVE_STRINGS_H 1
 #cmakedefine HAVE_SYNCH_H 1
 #cmakedefine HAVE_SYS_CDEFS_H 1
@@ -121,7 +120,6 @@
 #cmakedefine HAVE_MEMRCHR 1
 #cmakedefine HAVE_MLOCK 1
 #cmakedefine HAVE_MLOCKALL 1
-#cmakedefine HAVE_MMAP 1
 #cmakedefine HAVE_MMAP64 1
 #cmakedefine HAVE_POLL 1
 #cmakedefine HAVE_POSIX_FALLOCATE 1
@@ -132,7 +130,6 @@
 #cmakedefine HAVE_READDIR_R 1
 #cmakedefine HAVE_READLINK 1
 #cmakedefine HAVE_REALPATH 1
-#cmakedefine HAVE_SCHED_YIELD 1
 #cmakedefine HAVE_SETFD 1
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SLEEP 1
@@ -185,48 +182,23 @@
 #cmakedefine WORDS_BIGENDIAN 1 
 
 /* Type sizes */
-#cmakedefine sigset_t @sigset_t@
-#cmakedefine mode_t @mode_t@
-#cmakedefine SIZEOF_SIGSET_T @SIZEOF_SIGSET_T@
-#cmakedefine SIZEOF_VOIDP  @SIZEOF_VOIDP@
-#define HAVE_CHARP 1
-#cmakedefine SIZEOF_CHARP  @SIZEOF_CHARP@
-#define HAVE_LONG 1
-#cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
-#define HAVE_CHAR 1
-#cmakedefine SIZEOF_CHAR @SIZEOF_CHAR@
-#define HAVE_SHORT 1
-#cmakedefine SIZEOF_SHORT @SIZEOF_SHORT@
-#define HAVE_INT 1
-#cmakedefine SIZEOF_INT @SIZEOF_INT@
-#cmakedefine HAVE_LONG_LONG 1
+#cmakedefine SIZEOF_VOIDP     @SIZEOF_VOIDP@
+#cmakedefine SIZEOF_CHARP     @SIZEOF_CHARP@
+#cmakedefine SIZEOF_LONG      @SIZEOF_LONG@
+#cmakedefine SIZEOF_SHORT     @SIZEOF_SHORT@
+#cmakedefine SIZEOF_INT       @SIZEOF_INT@
 #cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
-#cmakedefine HAVE_OFF_T 1
-#cmakedefine SIZEOF_OFF_T @SIZEOF_OFF_T@
+#cmakedefine SIZEOF_OFF_T     @SIZEOF_OFF_T@
+#cmakedefine SIZEOF_TIME_T    @SIZEOF_TIME_T@
 #cmakedefine HAVE_UINT 1
-#cmakedefine SIZEOF_UINT @SIZEOF_UINT@
 #cmakedefine HAVE_ULONG 1
-#cmakedefine SIZEOF_ULONG @SIZEOF_ULONG@
 #cmakedefine HAVE_U_INT32_T 1
-#cmakedefine SIZEOF_U_INT32_T @SIZEOF_U_INT32_T@
-#cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
 #cmakedefine HAVE_FP_EXCEPT 1
 
 /* Code tests*/
-#cmakedefine SOCKET_SIZE_TYPE @SOCKET_SIZE_TYPE@
-#cmakedefine HAVE_PTHREAD_YIELD_ZERO_ARG 1
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
 #cmakedefine TIME_WITH_SYS_TIME 1
 #cmakedefine NO_FCNTL_NONBLOCK 1
-/*
-  Define to `__inline__' or `__inline' if that's what the C compiler calls it.
-*/
-#cmakedefine C_HAS_inline 1
-#if !(C_HAS_inline)
-#ifndef __cplusplus
-# define inline @C_INLINE@
-#endif
-#endif
 #cmakedefine HAVE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_FAKE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_ABI_CXA_DEMANGLE 1
@@ -259,12 +231,6 @@
 /* Windows stuff, mostly functions, that have Posix analogs but named differently */
 #cmakedefine IPPROTO_IPV6 @IPPROTO_IPV6@
 #cmakedefine IPV6_V6ONLY @IPV6_V6ONLY@
-#cmakedefine S_IROTH @S_IROTH@
-#cmakedefine S_IFIFO @S_IFIFO@
-#cmakedefine SIGQUIT @SIGQUIT@
-#cmakedefine SIGPIPE @SIGPIPE@
-#cmakedefine isnan @isnan@
-#cmakedefine ssize_t @ssize_t@
 /* This should mean case insensitive file system */
 #cmakedefine FN_NO_CASE_SENSE 1
 
@@ -445,5 +411,6 @@
 #define HAVE_STRTOLL 1
 #define HAVE_SYS_STAT_H 1
 #define HAVE_SYS_TYPES_H 1
+#define SIZEOF_CHAR 1
 
 #endif

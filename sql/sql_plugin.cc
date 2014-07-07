@@ -33,6 +33,7 @@
 #include "sql_audit.h"
 #include <mysql/plugin_auth.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql_tmp_table.h"
 #include <mysql/plugin_validate_password.h>
 #include "my_default.h"
 #include "debug_sync.h"
@@ -1063,7 +1064,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
       could be unlocked faster - optimizing for LIFO semantics.
     */
     plugin_ref *iter= lex->plugins.end() - 1;
-    bool found_it= false;
+    bool found_it __attribute__((unused)) = false;
     for (; iter >= lex->plugins.begin() - 1; --iter)
     {
       if (plugin == *iter)
@@ -3909,6 +3910,23 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
     if (tmp->load_option != PLUGIN_FORCE &&
         tmp->load_option != PLUGIN_FORCE_PLUS_PERMANENT)
       plugin_load_option= (enum_plugin_load_option) *(ulong*) opts[0].value;
+  }
+
+  /*
+    If InnoDB engine is the default engine for intrinsic temp table,
+    it must be loaded.
+
+    Note: Here we can't set PLUGIN_FORCE or PLUGIN_FORCE_PLUS_PERMANENT.
+    Because MTR need a contructed system variable 'innodb', such a variable
+    will not be made if set plugin_load_option to both of those options.
+  */
+  if (!my_strcasecmp(&my_charset_latin1, tmp->name.str, "innodb"))
+  {
+    if (internal_tmp_disk_storage_engine == TMP_TABLE_INNODB)
+    {
+      plugin_load_option= PLUGIN_ON;
+      opts[0].def_value= opts[1].def_value= plugin_load_option;
+    }
   }
 
   disable_plugin= (plugin_load_option == PLUGIN_OFF);

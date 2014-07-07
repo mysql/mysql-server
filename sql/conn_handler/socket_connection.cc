@@ -759,7 +759,7 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
   struct sockaddr_storage cAddr;
   for (uint retry= 0; retry < MAX_ACCEPT_RETRY; retry++)
   {
-    size_socket length= sizeof(struct sockaddr_storage);
+    socket_len_t length= sizeof(struct sockaddr_storage);
     connect_sock= mysql_socket_accept(key_socket_client_connection, listen_sock,
                                       (struct sockaddr *)(&cAddr), &length);
     if (mysql_socket_getfd(connect_sock) != INVALID_SOCKET ||

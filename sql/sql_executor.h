@@ -78,6 +78,8 @@ typedef enum_nested_loop_state
 class SJ_TMP_TABLE : public Sql_alloc
 {
 public:
+  SJ_TMP_TABLE():hash_field(NULL)
+  {}
   /*
     Array of pointers to tables whose rowids compose the temporary table
     record.
@@ -125,6 +127,8 @@ public:
 
   /* Pointer to next table (next->start_idx > this->end_idx) */
   SJ_TMP_TABLE *next; 
+  /* Calc hash instead of too long key */
+  Field_longlong *hash_field;
 };
 
 
@@ -319,4 +323,6 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
 		  Ref_ptr_array ref_pointer_array,
 		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
 		  uint elements, List<Item> &all_fields);
+bool check_unique_constraint(TABLE *table, int hidden_field_count);
+ulonglong unique_hash(Field *field, ulonglong *hash);
 #endif /* SQL_EXECUTOR_INCLUDED */

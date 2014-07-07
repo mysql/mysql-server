@@ -499,6 +499,10 @@ mem_heap_create_func(
 		return(NULL);
 	}
 
+	/* The first block should not be in buffer pool,
+	because it might be relocated to resize buffer pool. */
+	ut_ad(block->buf_block == NULL);
+
 	UT_LIST_INIT(block->base, &mem_block_t::list);
 
 	/* Add the created block itself as the first block in the list */

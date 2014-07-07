@@ -4511,15 +4511,7 @@ public:
   {
     result->abort_result_set(); /* purecov: inspected */
   }
-  void cleanup()
-  {
-    /*
-      Only called for top-level select_results, usually select_send,
-      and for the results of subquery engines
-      (select_<something>_subselect).
-    */
-    DBUG_ASSERT(false); /* purecov: inspected */
-  }
+  void cleanup() {}
   void set_thd(THD *thd_arg)
   {
     /*
