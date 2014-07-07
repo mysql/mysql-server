@@ -103,7 +103,7 @@ ctest -D ExperimentalStart \
 Contributing
 ------------
 
-Please report bugs in TokuFT here on github.
+Please report bugs in TokuFT to the [issue tracker][jira].
 
 We have two publicly accessible mailing lists for TokuDB:
 
@@ -120,6 +120,8 @@ and two for TokuMX:
    TokuMX.
 
 We are also available on IRC on freenode.net, in the #tokutek channel.
+
+[jira]: https://tokutek.atlassian.net/browse/FT/
 
 
 License
