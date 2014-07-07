@@ -201,6 +201,7 @@ btr_blob_op_is_update(
 {
 	switch (op) {
 	case BTR_STORE_INSERT:
+	case BTR_STORE_INSERT_BULK:
 		return(FALSE);
 	case BTR_STORE_INSERT_UPDATE:
 	case BTR_STORE_UPDATE:

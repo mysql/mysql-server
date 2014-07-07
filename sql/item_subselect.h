@@ -687,6 +687,7 @@ class subselect_indexsubquery_engine : public subselect_engine
 protected:
   st_join_table *tab;
   Item *cond; /* The WHERE condition of subselect */
+  ulonglong hash; /* Hash value calculated by copy_ref_key, when needed. */
 private:
   /* FALSE for 'ref', TRUE for 'ref-or-null'. */
   bool check_null;

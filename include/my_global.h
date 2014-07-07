@@ -256,11 +256,15 @@ C_MODE_END
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-typedef SOCKET_SIZE_TYPE size_socket;
-
-#ifndef SOCKOPT_OPTLEN_TYPE
-#define SOCKOPT_OPTLEN_TYPE size_socket
+#ifdef _WIN32
+typedef int       socket_len_t;
+typedef int       sigset_t;
+typedef int       mode_t;
+typedef SSIZE_T   ssize_t;
+#else
+typedef socklen_t socket_len_t;
 #endif
+typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 
 /* file create flags */
 
@@ -316,7 +320,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
-#define FN_NO_CASE_SENCE	/* Files are not case-sensitive */
 #else
 #define FN_LIBCHAR	'/'
 #define FN_LIBCHAR2	'/'
@@ -418,8 +421,6 @@ inline unsigned long long my_double2ulonglong(double d)
 #ifndef double2ulonglong
 #define double2ulonglong(A) ((ulonglong) (double) (A))
 #endif
-
-#define ulong_to_double(X) ((double) (ulong) (X))
 
 #ifndef LONGLONG_MIN
 #define LONGLONG_MIN	LLONG_MIN

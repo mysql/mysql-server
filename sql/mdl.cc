@@ -1218,6 +1218,7 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
   if (lock == NULL || lock == MY_ERRPTR)
   {
     lf_hash_search_unpin(pins);
+    *pinned= false; // Avoid warnings on older compilers.
     return lock;
   }
 
