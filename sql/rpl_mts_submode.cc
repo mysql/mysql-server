@@ -260,12 +260,11 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
  */
 Slave_worker *
 Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
-                                                DYNAMIC_ARRAY *ws,
+                                                Slave_worker_array *ws,
                                                 Log_event *ev)
 {
  long usage= LONG_MAX;
   Slave_worker **ptr_current_worker= NULL, *worker= NULL;
-  ulong i= 0;
 
   DBUG_ENTER("Mts_submode_database::get_least_occupied_worker");
 
@@ -273,18 +272,18 @@ Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
 
   if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0))
   {
-    worker= *((Slave_worker **)dynamic_array_ptr(ws,
-                                                 w_rr % ws->elements));
+    worker= ws->at(w_rr % ws->size());
     sql_print_information("Chosing worker id %lu, the following is"
-                          " going to be %lu", worker->id, w_rr % ws->elements);
+                          " going to be %lu", worker->id,
+                          static_cast<ulong>(w_rr % ws->size()));
     DBUG_ASSERT(worker != NULL);
     DBUG_RETURN(worker);
   }
 #endif
 
-  for (i= 0; i< ws->elements; i++)
+  for (Slave_worker **it= ws->begin(); it != ws->end(); ++it)
   {
-    ptr_current_worker= (Slave_worker **) dynamic_array_ptr(ws, i);
+    ptr_current_worker= it;
     if ((*ptr_current_worker)->usage_partition <= usage)
     {
       worker= *ptr_current_worker;
@@ -548,8 +547,8 @@ Mts_submode_logical_clock::detach_temp_tables( THD *thd, const Relay_log_info* r
 
 Slave_worker *
 Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
-                                              DYNAMIC_ARRAY *ws,
-                                              Log_event * ev)
+                                                     Slave_worker_array *ws,
+                                                     Log_event * ev)
 {
   Slave_committed_queue *gaq= rli->gaq;
   Slave_worker *worker= NULL;
@@ -561,10 +560,10 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
 
   if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0))
   {
-    worker= *((Slave_worker **)dynamic_array_ptr(ws,
-                                                 w_rr % ws->elements));
+    worker= ws->at(w_rr % ws->size());
     sql_print_information("Chosing worker id %lu, the following is"
-                          " going to be %lu", worker->id, w_rr % ws->elements);
+                          " going to be %lu", worker->id,
+                          static_cast<ulong>(w_rr % ws->size()));
     DBUG_ASSERT(worker != NULL);
     DBUG_RETURN(worker);
   }
@@ -585,9 +584,9 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
     worker= rli->last_assigned_worker;
   else
   {
-    if (worker_seq < ws->elements)
+    if (worker_seq < ws->size())
     {
-      worker= *((Slave_worker **)dynamic_array_ptr(ws, worker_seq));
+      worker= ws->at(worker_seq);
       worker_seq++;
     }
     else
@@ -640,10 +639,9 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
 Slave_worker*
 Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli)
 {
-  Slave_worker *w_i;
-  for (uint i= 0; i < rli->workers.elements; i++)
+  for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
   {
-    get_dynamic(&rli->workers, (uchar *) &w_i, i);
+    Slave_worker *w_i= *it;
     if (w_i->jobs.len == 0)
       return w_i;
   }
