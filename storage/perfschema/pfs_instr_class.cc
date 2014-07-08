@@ -566,9 +566,6 @@ get_table_stat(PFS_table_share *share)
     return NULL;
   }
  
-  if(strcmp(share->m_schema_name, "test")==0 && strcmp(share->m_table_name, "ghost")==0)
-    printf("here\n");
-
   PFS_table_stat *pfs= NULL;
   static uint PFS_ALIGNED table_stat_monotonic_index= 0;
   ulong index= 0;
@@ -607,8 +604,6 @@ get_table_stat(PFS_table_share *share)
 
 void release_table_stat(PFS_table_stat *pfs)
 {
-  if(!pfs->m_lock.is_populated())
-    printf("HERE\n");
   pfs->m_lock.allocated_to_free();
   table_stat_full= false;
   return;
@@ -1688,6 +1683,7 @@ search:
       res= lf_hash_insert(&table_share_hash, pins, &pfs);
       if (likely(res == 0))
       {
+        pfs->m_table_stat= NULL;
         return pfs;
       }
 
@@ -1783,9 +1779,9 @@ void drop_table_share(PFS_thread *thread,
     PFS_table_share *pfs= *entry;
     lf_hash_delete(&table_share_hash, pins,
                    pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
-    pfs->m_lock.allocated_to_free();
     if (pfs->m_table_stat)
        release_table_stat(pfs->m_table_stat);
+    pfs->m_lock.allocated_to_free();
   }
 
   lf_hash_search_unpin(pins);
