@@ -2115,11 +2115,11 @@ insert into t2 values(1,1), (2,2), (3,3), (4,4);
 explain extended
 select * from t1, t2, t1 as t3
 where t2.a = t1.b
-  and t3.a = t2.b;
+  and t3.a = t2.b /* mixed engines */;
 --sorted_result
 select * from t1, t2, t1 as t3
 where t2.a = t1.b
-  and t3.a = t2.b;
+  and t3.a = t2.b /* mixed engines */;
 
 connection ddl;
 drop table t1, t2;
