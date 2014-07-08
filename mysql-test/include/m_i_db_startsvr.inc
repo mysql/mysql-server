@@ -9,25 +9,22 @@ rmtree([ "$DDIR" ]);
 EOF
 
 --echo # Execution of mysql_install_db starts............
---exec $BASEDIR/bin/mysql_install_db --no-defaults --datadir=$DDIR --basedir=$BASEDIR --extra-sql-file=$MYSQL_TEST_DIR/t/m_i_db_createschema.sql --defaults-file=$MYSQL_TEST_DIR/t/m_i_db_config.cnf $midparam
+--exec $MYSQL_INSTALL_DB --no-defaults --datadir=$DDIR --basedir=$BASEDIR --extra-sql-file=$MYSQL_TEST_DIR/t/m_i_db_createschema.sql --defaults-file=$MYSQL_TEST_DIR/t/m_i_db_config.cnf $midparam
 --echo # Execution of mysql_install_db ends..............
 --exec echo "restart:--datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
 --perl
-use Fcntl;
-use Tie::File;
-
 $passwd="";
-tie my @rows, 'Tie::File', "$ENV{MYSQL_TMP_DIR}/readpwdfilepath.txt", mode => O_RDONLY or die "error: $!\n";
-$filename=$rows[-1];
+open(PWDPATH, "$ENV{MYSQL_TMP_DIR}/readpwdfilepath.txt") or die("Could not open pwdpath file");
+my $filename = <PWDPATH>;
+chomp $filename;
 if (-e $filename) {
-  # open the file in read-only mode as we won't be modifying the file
-  tie my @rows, 'Tie::File', $filename, mode => O_RDONLY or die "error: $!\n";
-  #-- print last line
-  $passwd=$rows[-1];
-  # unlink $filename;
+  open(PWDFILE, $filename) or die("Could not open password file");
+  my @pass = <PWDFILE>;
+  chomp @pass;
+  $passwd=@pass[1];
 }
 open(FILE, ">", "$ENV{MYSQL_TMP_DIR}/readpwd.inc") or die $!;
 print FILE "delimiter lessprobability;\n";
