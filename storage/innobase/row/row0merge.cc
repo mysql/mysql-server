@@ -120,9 +120,11 @@ public:
 				       | BTR_NO_LOCKING_FLAG
 				       | BTR_KEEP_SYS_FLAG | BTR_CREATE_FLAG;
 
-		*mtr_committed = false;
-
 		ut_ad(dict_index_is_spatial(m_index));
+
+		DBUG_EXECUTE_IF("row_merge_instrument_log_check_flush",
+			log_sys->check_flush_or_checkpoint = true;
+		);
 
 		for (idx_tuple_vec::iterator it = m_dtuple_vec->begin();
 		     it != m_dtuple_vec->end();

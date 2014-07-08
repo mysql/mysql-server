@@ -8,7 +8,14 @@ Note	1051	Unknown table 'test.t2'
 create table t1(a int, b varchar(20));
 create table t2(a int, b varchar(20));
 insert into t1 values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
-insert into t2 values(2, 'd'), (3, 'e'), (4, 'f'), (4, 'f'), (5, 'e');
+insert into t2 values(2, 'd'), (3, 'e'), (4, 'f'), (4, 'f'), (5, 'e'),
+(6, 'g'), (7, 'h');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 set @old_internal_tmp_disk_storage_engine= @@internal_tmp_disk_storage_engine;
 set global internal_tmp_disk_storage_engine='innodb';
 set @old_big_tables= @@big_tables;
@@ -58,13 +65,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "33.00"
+      "query_cost": "45.00"
     },
     "ordering_operation": {
       "using_temporary_table": true,
       "using_filesort": true,
       "cost_info": {
-        "sort_cost": "25.00"
+        "sort_cost": "35.00"
       },
       "nested_loop": [
         {
@@ -90,15 +97,15 @@ EXPLAIN
           "table": {
             "table_name": "t2",
             "access_type": "ALL",
-            "rows_examined_per_scan": 5,
-            "rows_produced_per_join": 25,
+            "rows_examined_per_scan": 7,
+            "rows_produced_per_join": 35,
             "filtered": 100,
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
               "read_cost": "1.00",
-              "eval_cost": "5.00",
-              "prefix_cost": "8.00",
-              "data_read_per_join": "800"
+              "eval_cost": "7.00",
+              "prefix_cost": "10.00",
+              "data_read_per_join": "1K"
             },
             "used_columns": [
               "a",
@@ -232,7 +239,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.00"
+      "query_cost": "10.00"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -263,15 +270,15 @@ EXPLAIN
             "table": {
               "table_name": "t2",
               "access_type": "ALL",
-              "rows_examined_per_scan": 5,
-              "rows_produced_per_join": 25,
+              "rows_examined_per_scan": 7,
+              "rows_produced_per_join": 35,
               "filtered": 100,
               "using_join_buffer": "Block Nested Loop",
               "cost_info": {
                 "read_cost": "1.00",
-                "eval_cost": "5.00",
-                "prefix_cost": "8.00",
-                "data_read_per_join": "800"
+                "eval_cost": "7.00",
+                "prefix_cost": "10.00",
+                "data_read_per_join": "1K"
               },
               "used_columns": [
                 "a",
@@ -292,31 +299,39 @@ a	b	a	b
 1	a	3	e
 1	a	4	f
 1	a	5	e
+1	a	6	g
+1	a	7	h
 2	b	2	d
 2	b	3	e
 2	b	4	f
 2	b	5	e
+2	b	6	g
+2	b	7	h
 3	c	2	d
 3	c	3	e
 3	c	4	f
 3	c	5	e
+3	c	6	g
+3	c	7	h
 4	c	2	d
 4	c	3	e
 4	c	4	f
 4	c	5	e
+4	c	6	g
+4	c	7	h
 explain format=json select SQL_BIG_RESULT t1.b from t1, t2 group by t1.b;
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "33.00"
+      "query_cost": "45.00"
     },
     "grouping_operation": {
       "using_temporary_table": true,
       "using_filesort": true,
       "cost_info": {
-        "sort_cost": "25.00"
+        "sort_cost": "35.00"
       },
       "buffer_result": {
         "using_temporary_table": true,
@@ -343,15 +358,15 @@ EXPLAIN
             "table": {
               "table_name": "t2",
               "access_type": "ALL",
-              "rows_examined_per_scan": 5,
-              "rows_produced_per_join": 25,
+              "rows_examined_per_scan": 7,
+              "rows_produced_per_join": 35,
               "filtered": 100,
               "using_join_buffer": "Block Nested Loop",
               "cost_info": {
                 "read_cost": "1.00",
-                "eval_cost": "5.00",
-                "prefix_cost": "8.00",
-                "data_read_per_join": "800"
+                "eval_cost": "7.00",
+                "prefix_cost": "10.00",
+                "data_read_per_join": "1K"
               }
             }
           }
@@ -373,7 +388,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "33.00"
+      "query_cost": "45.00"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -382,7 +397,7 @@ EXPLAIN
         "using_temporary_table": true,
         "using_filesort": true,
         "cost_info": {
-          "sort_cost": "25.00"
+          "sort_cost": "35.00"
         },
         "buffer_result": {
           "using_temporary_table": true,
@@ -410,16 +425,16 @@ EXPLAIN
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows_examined_per_scan": 5,
-                "rows_produced_per_join": 25,
+                "rows_examined_per_scan": 7,
+                "rows_produced_per_join": 35,
                 "filtered": 100,
                 "distinct": true,
                 "using_join_buffer": "Block Nested Loop",
                 "cost_info": {
                   "read_cost": "1.00",
-                  "eval_cost": "5.00",
-                  "prefix_cost": "8.00",
-                  "data_read_per_join": "800"
+                  "eval_cost": "7.00",
+                  "prefix_cost": "10.00",
+                  "data_read_per_join": "1K"
                 }
               }
             }
@@ -442,7 +457,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "13.00"
+      "query_cost": "15.00"
     },
     "grouping_operation": {
       "using_temporary_table": true,
@@ -474,14 +489,14 @@ EXPLAIN
           "table": {
             "table_name": "t2",
             "access_type": "ALL",
-            "rows_examined_per_scan": 5,
+            "rows_examined_per_scan": 7,
             "rows_produced_per_join": 5,
-            "filtered": 20,
+            "filtered": 14.286,
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
               "read_cost": "1.00",
               "eval_cost": "1.00",
-              "prefix_cost": "8.00",
+              "prefix_cost": "10.00",
               "data_read_per_join": "160"
             },
             "used_columns": [
@@ -507,7 +522,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.00"
+      "query_cost": "10.00"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -536,15 +551,15 @@ EXPLAIN
           "table": {
             "table_name": "t2",
             "access_type": "ALL",
-            "rows_examined_per_scan": 5,
+            "rows_examined_per_scan": 7,
             "rows_produced_per_join": 5,
-            "filtered": 20,
+            "filtered": 14.286,
             "distinct": true,
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
               "read_cost": "1.00",
               "eval_cost": "1.00",
-              "prefix_cost": "8.00",
+              "prefix_cost": "10.00",
               "data_read_per_join": "160"
             },
             "used_columns": [
@@ -622,6 +637,9 @@ insert into t3 select 5 + 10000 * rand(), '5' from t3;
 insert into t3 select 5 + 10000 * rand(), '5' from t3;
 insert into t3 select 5 + 10000 * rand(), '5' from t3;
 insert into t3 select 5 + 10000 * rand(), '5' from t3;
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 set @old_sort_buffer_size = @@sort_buffer_size;
 set @@sort_buffer_size = 32804;
 explain format=json select distinct b from t3 group by a;
@@ -630,7 +648,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1844.20"
+      "query_cost": "1848.20"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -648,9 +666,9 @@ EXPLAIN
           "rows_produced_per_join": 1536,
           "filtered": 100,
           "cost_info": {
-            "read_cost": "1.00",
+            "read_cost": "5.00",
             "eval_cost": "307.20",
-            "prefix_cost": "308.20",
+            "prefix_cost": "312.20",
             "data_read_per_join": "48K"
           },
           "used_columns": [
@@ -678,6 +696,9 @@ Warnings:
 Note	1051	Unknown table 'test.t3'
 create table t3(a int, b int, c int, d char, e blob);
 insert into t3 values(1,2,3,'4','5');
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 explain format=json select distinct t3.a,e from t3, t1 order by t3.b;
 EXPLAIN
 {
@@ -784,19 +805,19 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "2.00"
+              "query_cost": "2.40"
             },
             "table": {
               "table_name": "t2",
               "access_type": "ALL",
-              "rows_examined_per_scan": 5,
-              "rows_produced_per_join": 5,
+              "rows_examined_per_scan": 7,
+              "rows_produced_per_join": 7,
               "filtered": 100,
               "cost_info": {
                 "read_cost": "1.00",
-                "eval_cost": "1.00",
-                "prefix_cost": "2.00",
-                "data_read_per_join": "160"
+                "eval_cost": "1.40",
+                "prefix_cost": "2.40",
+                "data_read_per_join": "224"
               },
               "used_columns": [
                 "a",
@@ -823,6 +844,8 @@ a	b
 4	f
 4	f
 5	e
+6	g
+7	h
 explain format=json select * from t1 union select * from t2 order by 1, 2;
 EXPLAIN
 {
@@ -865,19 +888,19 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "2.00"
+              "query_cost": "2.40"
             },
             "table": {
               "table_name": "t2",
               "access_type": "ALL",
-              "rows_examined_per_scan": 5,
-              "rows_produced_per_join": 5,
+              "rows_examined_per_scan": 7,
+              "rows_produced_per_join": 7,
               "filtered": 100,
               "cost_info": {
                 "read_cost": "1.00",
-                "eval_cost": "1.00",
-                "prefix_cost": "2.00",
-                "data_read_per_join": "160"
+                "eval_cost": "1.40",
+                "prefix_cost": "2.40",
+                "data_read_per_join": "224"
               },
               "used_columns": [
                 "a",
@@ -902,6 +925,8 @@ a	b
 4	c
 4	f
 5	e
+6	g
+7	h
 explain format=json select tt.* from (select * from t1) as tt;
 EXPLAIN
 {
@@ -972,7 +997,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.00"
+      "query_cost": "12.00"
     },
     "nested_loop": [
       {
@@ -1024,15 +1049,15 @@ EXPLAIN
         "table": {
           "table_name": "t2",
           "access_type": "ALL",
-          "rows_examined_per_scan": 5,
-          "rows_produced_per_join": 25,
+          "rows_examined_per_scan": 7,
+          "rows_produced_per_join": 35,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.00",
-            "eval_cost": "5.00",
-            "prefix_cost": "10.00",
-            "data_read_per_join": "800"
+            "eval_cost": "7.00",
+            "prefix_cost": "12.00",
+            "data_read_per_join": "1K"
           },
           "used_columns": [
             "b"
@@ -1044,19 +1069,19 @@ EXPLAIN
             "query_block": {
               "select_id": 3,
               "cost_info": {
-                "query_cost": "2.00"
+                "query_cost": "2.40"
               },
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows_examined_per_scan": 5,
-                "rows_produced_per_join": 5,
+                "rows_examined_per_scan": 7,
+                "rows_produced_per_join": 7,
                 "filtered": 100,
                 "cost_info": {
                   "read_cost": "1.00",
-                  "eval_cost": "1.00",
-                  "prefix_cost": "2.00",
-                  "data_read_per_join": "160"
+                  "eval_cost": "1.40",
+                  "prefix_cost": "2.40",
+                  "data_read_per_join": "224"
                 },
                 "used_columns": [
                   "b"
@@ -1078,11 +1103,15 @@ a	e
 a	e
 a	f
 a	f
+a	g
+a	h
 b	d
 b	e
 b	e
 b	f
 b	f
+b	g
+b	h
 c	d
 c	d
 c	d
@@ -1098,11 +1127,20 @@ c	f
 c	f
 c	f
 c	f
+c	g
+c	g
+c	g
+c	h
+c	h
+c	h
 drop table if exists t3;
 Warnings:
 Note	1051	Unknown table 'test.t3'
 create table t3(a int, b int, c int, d char);
 insert into t3 values(1,2,3,'4');
+analyze table t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 create index t3_indx1 on t3(a);
 explain format=json select * from t1, (select * from t3) as t where t.a =5;
 EXPLAIN
@@ -1209,7 +1247,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.00"
+      "query_cost": "8.80"
     },
     "nested_loop": [
       {
@@ -1248,14 +1286,14 @@ EXPLAIN
               "table": {
                 "table_name": "t2",
                 "access_type": "ALL",
-                "rows_examined_per_scan": 5,
-                "rows_produced_per_join": 5,
+                "rows_examined_per_scan": 7,
+                "rows_produced_per_join": 7,
                 "filtered": 100,
                 "cost_info": {
                   "read_cost": "1.00",
-                  "eval_cost": "1.00",
-                  "prefix_cost": "2.00",
-                  "data_read_per_join": "160"
+                  "eval_cost": "1.40",
+                  "prefix_cost": "2.40",
+                  "data_read_per_join": "224"
                 },
                 "used_columns": [
                   "a"
@@ -1285,7 +1323,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "12.00"
+      "query_cost": "14.00"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -1313,14 +1351,14 @@ EXPLAIN
           "table": {
             "table_name": "t2",
             "access_type": "ALL",
-            "rows_examined_per_scan": 5,
+            "rows_examined_per_scan": 7,
             "rows_produced_per_join": 5,
-            "filtered": 20,
+            "filtered": 14.286,
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
               "read_cost": "1.00",
               "eval_cost": "1.00",
-              "prefix_cost": "12.00",
+              "prefix_cost": "14.00",
               "data_read_per_join": "160"
             },
             "used_columns": [
@@ -1381,7 +1419,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "4.00"
+      "query_cost": "4.40"
     },
     "nested_loop": [
       {
@@ -1410,15 +1448,15 @@ EXPLAIN
           "update": true,
           "table_name": "t2",
           "access_type": "ALL",
-          "rows_examined_per_scan": 5,
-          "rows_produced_per_join": 5,
+          "rows_examined_per_scan": 7,
+          "rows_produced_per_join": 7,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "1.00",
-            "eval_cost": "1.00",
-            "prefix_cost": "4.00",
-            "data_read_per_join": "160"
+            "eval_cost": "1.40",
+            "prefix_cost": "4.40",
+            "data_read_per_join": "224"
           },
           "used_columns": [
             "a"
@@ -1498,6 +1536,9 @@ insert into t1 values(1, 'ababab');
 insert into t1 values(2, 'cccddd');
 insert into t1 values(2, 'cccddd');
 insert into t1 values(3, 'eeffddd');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain format=json 
 select * from t1 left join t2 on t1.a = t2.a order by t1.b;
 EXPLAIN
@@ -1505,13 +1546,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "26.86"
+      "query_cost": "36.46"
     },
     "ordering_operation": {
       "using_temporary_table": true,
       "using_filesort": true,
       "cost_info": {
-        "sort_cost": "20.00"
+        "sort_cost": "28.00"
       },
       "nested_loop": [
         {
@@ -1537,15 +1578,15 @@ EXPLAIN
           "table": {
             "table_name": "t2",
             "access_type": "ALL",
-            "rows_examined_per_scan": 5,
-            "rows_produced_per_join": 20,
+            "rows_examined_per_scan": 7,
+            "rows_produced_per_join": 28,
             "filtered": 100,
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
               "read_cost": "1.06",
-              "eval_cost": "4.00",
-              "prefix_cost": "6.86",
-              "data_read_per_join": "640"
+              "eval_cost": "5.60",
+              "prefix_cost": "8.46",
+              "data_read_per_join": "896"
             },
             "used_columns": [
               "a",
@@ -1654,6 +1695,9 @@ CREATE TABLE `t2`
 insert into t2 values(10, 20, 'aa');
 insert into t2 values(20, 30, 'aabb');
 insert into t2 values(30, 40, 'aabbcc');
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 explain format=json select distinct concat(c1, repeat('xx', 250)) as cc from t2;
 EXPLAIN
 {
@@ -1768,6 +1812,9 @@ c13 int, c14 int, c15 int, c16 int, c17 int, c18 int
 );
 insert into test values(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
 13, 14, 15, 16, 17, 18);
+analyze table test;
+Table	Op	Msg_type	Msg_text
+test.test	analyze	status	OK
 explain format=json select distinct * from test;
 EXPLAIN
 {
@@ -1855,6 +1902,10 @@ pk1 char(200), pk2 char(200), pk3 char(200),
 primary key(pk1, pk2, pk3)
 ) engine=innodb;
 insert into t3 select a,a, a,a,a from t0;
+analyze table t1,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t3	analyze	status	OK
 explain format=json select * from t3 where b in (select a from t1);
 EXPLAIN
 {

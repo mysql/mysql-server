@@ -1527,6 +1527,7 @@ trx_undo_mem_create(
 	undo->empty = TRUE;
 	undo->top_page_no = page_no;
 	undo->guess_block = NULL;
+	undo->withdraw_clock = 0;
 
 	return(undo);
 }

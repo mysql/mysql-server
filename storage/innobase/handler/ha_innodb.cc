@@ -142,10 +142,6 @@ static long long innobase_buffer_pool_size, innobase_log_file_size;
 Connected to buf_LRU_old_ratio. */
 static uint innobase_old_blocks_pct;
 
-/** Maximum on-disk size of change buffer in terms of percentage
-of the buffer pool. */
-static uint innobase_change_buffer_max_size = CHANGE_BUFFER_DEFAULT_SIZE;
-
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
 
@@ -568,6 +564,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_dump_status,	  SHOW_CHAR},
   {"buffer_pool_load_status",
   (char*) &export_vars.innodb_buffer_pool_load_status,	  SHOW_CHAR},
+  {"buffer_pool_resize_status",
+  (char*) &export_vars.innodb_buffer_pool_resize_status,  SHOW_CHAR},
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
   {"buffer_pool_bytes_data",
@@ -3351,6 +3349,8 @@ innobase_change_buffering_inited_ok:
 
 	err = innobase_start_or_create_for_mysql();
 
+	innobase_buffer_pool_size = static_cast<long long>(srv_buf_pool_size);
+
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(innobase_init_abort());
 	}
@@ -3361,7 +3361,7 @@ innobase_change_buffering_inited_ok:
 	innobase_old_blocks_pct = static_cast<uint>(
 		buf_LRU_old_ratio_update(innobase_old_blocks_pct, TRUE));
 
-	ibuf_max_size_update(innobase_change_buffer_max_size);
+	ibuf_max_size_update(srv_change_buffer_max_size);
 
 	innobase_open_tables = hash_create(200);
 	mysql_mutex_init(innobase_share_mutex_key,
@@ -14544,6 +14544,79 @@ innodb_stopword_table_validate(
 	return(ret);
 }
 
+/** Update the system variable innodb_buffer_pool_size using the "saved"
+value. This function is registered as a callback with MySQL.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static
+void
+innodb_buffer_pool_size_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	long long	in_val = *static_cast<const long long*>(save);
+
+#ifdef UNIV_LOG_DEBUG
+	/* UNIV_LOG_DEBUG might not release blocks from the buffer pool,
+	even after recv_recovery_from_checkpoint_finish().
+	Cannot resize the buffer pool. */
+	return;
+#endif /* UNIV_LOG_DEBUG */
+
+	if (!srv_was_started) {
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "Cannot update innodb_buffer_pool_size,"
+				    " because InnoDB is not started.");
+		return;
+	}
+
+	buf_pool_mutex_enter_all();
+	if (srv_buf_pool_old_size != srv_buf_pool_size) {
+		buf_pool_mutex_exit_all();
+
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "Cannot update innodb_buffer_pool_size,"
+				    " another resize is already in progress.");
+		return;
+	}
+
+	if (srv_buf_pool_instances > 1
+	    && in_val < BUF_POOL_SIZE_THRESHOLD) {
+		buf_pool_mutex_exit_all();
+
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "Cannot update innodb_buffer_pool_size"
+				    " to less than 1GB if"
+				    " innodb_buffer_pool_instances > 1.");
+		return;
+	}
+
+	srv_buf_pool_size = buf_pool_size_align(static_cast<ulint>(in_val));
+
+	innobase_buffer_pool_size = static_cast<long long>(srv_buf_pool_size);
+
+	if (srv_buf_pool_old_size == srv_buf_pool_size) {
+		buf_pool_mutex_exit_all();
+		/* nothing to do */
+		return;
+	}
+
+	buf_pool_mutex_exit_all();
+
+	ut_snprintf(export_vars.innodb_buffer_pool_resize_status,
+		    sizeof(export_vars.innodb_buffer_pool_resize_status),
+		    "Requested to resize buffer pool.");
+
+	os_event_set(srv_buf_resize_event);
+}
+
 /*************************************************************//**
 Check whether valid argument given to "innodb_fts_internal_tbl_name"
 This function is registered as a callback with MySQL.
@@ -14671,9 +14744,9 @@ innodb_change_buffer_max_size_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	innobase_change_buffer_max_size =
+	srv_change_buffer_max_size =
 			(*static_cast<const uint*>(save));
-	ibuf_max_size_update(innobase_change_buffer_max_size);
+	ibuf_max_size_update(srv_change_buffer_max_size);
 }
 
 #ifdef UNIV_DEBUG
@@ -16294,9 +16367,18 @@ can be removed and 8 used instead. The problem with the current setup is that
 with 128MiB default buffer pool size and 8 instances by default we would emit
 a warning when no options are specified. */
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
-  NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
+  NULL, innodb_buffer_pool_size_update,
+  128*1024*1024L, SRV_BUF_POOL_MIN_SIZE, LONGLONG_MAX, 1024*1024L);
+
+static MYSQL_SYSVAR_ULONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Size of a single memory chunk within each buffer pool instance"
+  " for resizing buffer pool. Online buffer pool resizing happens"
+  " at this granularity. 0 means disable resizing buffer pool.",
+  NULL, NULL,
+  128 * 1024 * 1024, 1024 * 1024, LONG_MAX, 1024 * 1024);
 
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
 static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
@@ -16658,7 +16740,7 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_update, "all");
 
 static MYSQL_SYSVAR_UINT(change_buffer_max_size,
-  innobase_change_buffer_max_size,
+  srv_change_buffer_max_size,
   PLUGIN_VAR_RQCMDARG,
   "Maximum on-disk size of change buffer in terms of percentage"
   " of the buffer pool.",
@@ -16792,6 +16874,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_bk_commit_interval),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
+  MYSQL_SYSVAR(buffer_pool_chunk_size),
   MYSQL_SYSVAR(buffer_pool_instances),
   MYSQL_SYSVAR(buffer_pool_filename),
   MYSQL_SYSVAR(buffer_pool_dump_now),
