@@ -213,6 +213,14 @@ public:
     //  report->checkpoint_bytes_additional is filled in
     void get_unused_statistics(TOKU_DB_FRAGMENTATION report);
 
+    // Effect: Fill in report->data_bytes with the number of bytes in use
+    //         Fill in report->data_blocks with the number of blockpairs in use
+    //         Fill in unused statistics using this->get_unused_statistics()
+    // Requires:
+    //  report->file_size is ignored on return
+    //  report->checkpoint_bytes_additional is ignored on return
+    void get_statistics(TOKU_DB_FRAGMENTATION report);
+
     // Effect: Merge dst[d] and src[s] into dst[d+s], merging in place.
     //   Initially dst and src hold sorted arrays (sorted by increasing offset).
     //   Finally dst contains all d+s elements sorted in order.
