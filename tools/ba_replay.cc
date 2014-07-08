@@ -311,25 +311,25 @@ static void print_result(uint64_t allocator_id,
     uint64_t total_bytes = report->data_bytes + report->unused_bytes;
     uint64_t total_blocks = report->data_blocks + report->unused_blocks;
     printf("\n");
-    printf("allocator_id:   %20ld\n", allocator_id);
+    printf("allocator_id:   %20" PRId64 "\n", allocator_id);
     printf("strategy:       %20s\n", strategy_str(strategy));
 
     // byte statistics
-    printf("total bytes:    %20ld\n", total_bytes);
-    printf("used bytes:     %20ld (%.3lf)\n", report->data_bytes,
+    printf("total bytes:    %20" PRId64 "\n", total_bytes);
+    printf("used bytes:     %20" PRId64 " (%.3lf)\n", report->data_bytes,
            static_cast<double>(report->data_bytes) / total_bytes);
-    printf("unused bytes:   %20ld (%.3lf)\n", report->unused_bytes,
+    printf("unused bytes:   %20" PRId64 " (%.3lf)\n", report->unused_bytes,
            static_cast<double>(report->unused_bytes) / total_bytes);
 
     // block statistics
-    printf("total blocks:   %20ld\n", total_blocks);
-    printf("used blocks:    %20ld (%.3lf)\n", report->data_blocks,
+    printf("total blocks:   %20" PRId64 "\n", total_blocks);
+    printf("used blocks:    %20" PRId64 " (%.3lf)\n", report->data_blocks,
            static_cast<double>(report->data_blocks) / total_blocks);
-    printf("unused blocks:  %20ld (%.3lf)\n", report->unused_blocks,
+    printf("unused blocks:  %20" PRId64 " (%.3lf)\n", report->unused_blocks,
            static_cast<double>(report->unused_blocks) / total_blocks);
 
     // misc
-    printf("largest unused: %20ld\n", report->largest_unused_block);
+    printf("largest unused: %20" PRId64 "\n", report->largest_unused_block);
 }
 
 int main(void) {
