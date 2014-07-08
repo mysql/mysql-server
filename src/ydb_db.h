@@ -131,6 +131,7 @@ static inline const toku::comparator &toku_db_get_comparator(DB *db) {
     return toku_ft_get_comparator(db->i->ft_handle);
 }
 
+int toku_db_use_builtin_key_cmp(DB *db);
 int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn);
 int toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname, uint32_t flags, int mode);
 int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn);

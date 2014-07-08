@@ -2887,6 +2887,17 @@ toku_ft_handle_get_fanout(FT_HANDLE ft_handle, unsigned int *fanout)
         *fanout = ft_handle->options.fanout;
     }
 }
+
+void toku_ft_handle_set_memcmp_magic(FT_HANDLE ft_handle, uint8_t magic) {
+    invariant(magic != 0);
+    if (ft_handle->ft) {
+        // handle is already open, application bug if memcmp magic changes
+        invariant(ft_handle->ft->cmp.get_memcmp_magic() == magic);
+    } else {
+        ft_handle->options.memcmp_magic = magic;
+    }
+}
+
 static int
 verify_builtin_comparisons_consistent(FT_HANDLE t, uint32_t flags) {
     if ((flags & TOKU_DB_KEYCMP_BUILTIN) && (t->options.compare_fun != toku_builtin_compare_fun))
@@ -2955,6 +2966,7 @@ toku_ft_handle_inherit_options(FT_HANDLE t, FT ft) {
         .compression_method = ft->h->compression_method,
         .fanout = ft->h->fanout,
         .flags = ft->h->flags,
+        .memcmp_magic = ft->cmp.get_memcmp_magic(),
         .compare_fun = ft->cmp.get_compare_func(),
         .update_fun = ft->update_fun
     };
@@ -4721,32 +4733,23 @@ int toku_ft_strerror_r(int error, char *buf, size_t buflen)
     }
 }
 
-// when a and b are chars, return a-b is safe here because return type is int.  No over/underflow possible.
-int toku_keycompare (const void *key1, uint32_t key1len, const void *key2, uint32_t key2len) {
-    int comparelen = key1len<key2len ? key1len : key2len;
-    const unsigned char *k1;
-    const unsigned char *k2;
-    for (CAST_FROM_VOIDP(k1, key1), CAST_FROM_VOIDP(k2, key2);
-	 comparelen>4;
-	 k1+=4, k2+=4, comparelen-=4) {
-	{ int v1=k1[0], v2=k2[0]; if (v1!=v2) return v1-v2; }
-	{ int v1=k1[1], v2=k2[1]; if (v1!=v2) return v1-v2; }
-	{ int v1=k1[2], v2=k2[2]; if (v1!=v2) return v1-v2; }
-	{ int v1=k1[3], v2=k2[3]; if (v1!=v2) return v1-v2; }
+int toku_keycompare(const void *key1, uint32_t key1len, const void *key2, uint32_t key2len) {
+    int comparelen = key1len < key2len ? key1len : key2len;
+    int c = memcmp(key1, key2, comparelen);
+    if (__builtin_expect(c != 0, 1)) {
+        return c;
+    } else {
+        if (key1len < key2len) {
+            return -1;
+        } else if (key1len > key2len) { 
+            return 1;
+        } else {
+            return 0;
+        }
     }
-    for (;
-	 comparelen>0;
-	 k1++, k2++, comparelen--) {
-	if (*k1 != *k2) {
-	    return (int)*k1-(int)*k2;
-	}
-    }
-    if (key1len<key2len) return -1;
-    if (key1len>key2len) return 1;
-    return 0;
 }
 
-int toku_builtin_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
+int toku_builtin_compare_fun(DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 

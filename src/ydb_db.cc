@@ -431,8 +431,27 @@ void toku_db_lt_on_destroy_callback(toku::locktree *lt) {
     toku_ft_handle_close(ft_handle);
 }
 
-int 
-toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, int mode) {
+// Instruct db to use the default (built-in) key comparison function
+// by setting the flag bits in the db and ft structs
+int toku_db_use_builtin_key_cmp(DB *db) {
+    HANDLE_PANICKED_DB(db);
+    int r = 0;
+    if (db_opened(db)) {
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be set after DB open.\n");
+    } else if (db->i->key_compare_was_set) {
+        r = toku_ydb_do_error(db->dbenv, EINVAL, "Key comparison function already set.\n");
+    } else {
+        uint32_t tflags;
+        toku_ft_get_flags(db->i->ft_handle, &tflags);
+
+        tflags |= TOKU_DB_KEYCMP_BUILTIN;
+        toku_ft_set_flags(db->i->ft_handle, tflags);
+        db->i->key_compare_was_set = true;
+    }
+    return r;
+}
+
+int toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, int mode) {
     //Set comparison functions if not yet set.
     HANDLE_READ_ONLY_TXN(txn);
     if (!db->i->key_compare_was_set && db->dbenv->i->bt_compare) {
@@ -701,6 +720,19 @@ static int
 toku_db_get_fanout(DB *db, unsigned int *fanout) {
     HANDLE_PANICKED_DB(db);
     toku_ft_handle_get_fanout(db->i->ft_handle, fanout);
+    return 0;
+}
+
+static int
+toku_db_set_memcmp_magic(DB *db, uint8_t magic) {
+    HANDLE_PANICKED_DB(db);
+    if (db_opened(db)) {
+        return EINVAL;
+    }
+    if (magic == 0) {
+        return EINVAL;
+    }
+    toku_ft_handle_set_memcmp_magic(db->i->ft_handle, magic);
     return 0;
 }
 
@@ -1101,6 +1133,7 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     USDB(change_compression_method);
     USDB(set_fanout);
     USDB(get_fanout);
+    USDB(set_memcmp_magic);
     USDB(change_fanout);
     USDB(set_flags);
     USDB(get_flags);
