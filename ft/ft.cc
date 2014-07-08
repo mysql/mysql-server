@@ -384,7 +384,7 @@ static void ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
     toku_list_init(&ft->live_ft_handles);
 
     // intuitively, the comparator points to the FT's cmp descriptor
-    ft->cmp.create(options->compare_fun, &ft->cmp_descriptor);
+    ft->cmp.create(options->compare_fun, &ft->cmp_descriptor, options->memcmp_magic);
     ft->update_fun = options->update_fun;
 
     if (ft->cf != NULL) {
@@ -486,7 +486,7 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE ft_handle, CACHEFILE cf, LSN 
 
     invariant_notnull(ft);
     // intuitively, the comparator points to the FT's cmp descriptor
-    ft->cmp.create(ft_handle->options.compare_fun, &ft->cmp_descriptor);
+    ft->cmp.create(ft_handle->options.compare_fun, &ft->cmp_descriptor, ft_handle->options.memcmp_magic);
     ft->update_fun = ft_handle->options.update_fun;
     ft->cf = cf;
     toku_cachefile_set_userdata(cf,
@@ -611,6 +611,7 @@ toku_ft_init(FT ft,
         .compression_method = compression_method,
         .fanout = fanout,
         .flags = 0,
+        .memcmp_magic = 0,
         .compare_fun = NULL,
         .update_fun = NULL
     };

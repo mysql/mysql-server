@@ -465,27 +465,6 @@ needs_recovery (DB_ENV *env) {
 
 static int toku_env_txn_checkpoint(DB_ENV * env, uint32_t kbyte, uint32_t min, uint32_t flags);
 
-// Instruct db to use the default (built-in) key comparison function
-// by setting the flag bits in the db and ft structs
-static int
-db_use_builtin_key_cmp(DB *db) {
-    HANDLE_PANICKED_DB(db);
-    int r = 0;
-    if (db_opened(db))
-        r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be set after DB open.\n");
-    else if (db->i->key_compare_was_set)
-        r = toku_ydb_do_error(db->dbenv, EINVAL, "Key comparison function already set.\n");
-    else {
-        uint32_t tflags;
-        toku_ft_get_flags(db->i->ft_handle, &tflags);
-
-        tflags |= TOKU_DB_KEYCMP_BUILTIN;
-        toku_ft_set_flags(db->i->ft_handle, tflags);
-        db->i->key_compare_was_set = true;
-    }
-    return r;
-}
-
 // Keys used in persistent environment dictionary:
 // Following keys added in version 12
 static const char * orig_env_ver_key = "original_version";
@@ -1025,7 +1004,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     {
         r = toku_db_create(&env->i->persistent_environment, env, 0);
         assert_zero(r);
-        r = db_use_builtin_key_cmp(env->i->persistent_environment);
+        r = toku_db_use_builtin_key_cmp(env->i->persistent_environment);
         assert_zero(r);
         r = toku_db_open_iname(env->i->persistent_environment, txn, toku_product_name_strings.environmentdictionary, DB_CREATE, mode);
         if (r != 0) {
@@ -1063,7 +1042,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     {
         r = toku_db_create(&env->i->directory, env, 0);
         assert_zero(r);
-        r = db_use_builtin_key_cmp(env->i->directory);
+        r = toku_db_use_builtin_key_cmp(env->i->directory);
         assert_zero(r);
         r = toku_db_open_iname(env->i->directory, txn, toku_product_name_strings.fileopsdirectory, DB_CREATE, mode);
         if (r != 0) {

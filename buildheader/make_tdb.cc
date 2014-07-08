@@ -545,6 +545,7 @@ static void print_db_struct (void) {
 			 "int (*change_fanout)(DB *db, uint32_t fanout)",
 			 "int (*get_fanout)(DB *db, uint32_t *fanout)",
 			 "int (*set_fanout)(DB *db, uint32_t fanout)",
+			 "int (*set_memcmp_magic)(DB *db, uint8_t magic)",
 			 "int (*set_indexer)(DB*, DB_INDEXER*)",
 			 "void (*get_indexer)(DB*, DB_INDEXER**)",
 			 "int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going)",
