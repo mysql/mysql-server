@@ -2057,23 +2057,22 @@ select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
 join t1 as t3 on t3.a = t2.a
-join t1 as t4 on t4.a = t3.b;
+join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL, pushdown=off */;
 
 set ndb_join_pushdown=true;
 
---replace_column 10 # 11 #
 explain extended
 select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
 join t1 as t3 on t3.a = t2.a
-join t1 as t4 on t4.a = t3.b;
+join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL, pushdown=on */;
 --sorted_result
 select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
 join t1 as t3 on t3.a = t2.a
-join t1 as t4 on t4.a = t3.b;
+join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL, pushdown=on */;
 
 ## Test subquery execution where 'Full scan on null key' strategy requires
 ## table scan execution in addition to the key lookup which was prepared
