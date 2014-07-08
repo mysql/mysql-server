@@ -21,7 +21,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	gis_key	NULL	NULL	NULL	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`fid` AS `fid`,st_astext(`test`.`t1`.`g`) AS `AsText(g)` from `test`.`t1` where st_within(`test`.`t1`.`g`,<cache>(st_geometryfromtext('Polygon((140 140,160 140,160 160,140 140))')))
-SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
+SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))')) ORDER BY fid;
 fid	AsText(g)
 1	LINESTRING(150 150,150 150)
 2	LINESTRING(149 149,151 151)
@@ -51,7 +51,7 @@ SELECT count(*) FROM t1;
 count(*)
 100
 SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g,
-GeomFromText('Polygon((40 40,60 40,60 60,40 40))'));
+GeomFromText('Polygon((40 40,60 40,60 60,40 40))')) ORDER BY fid;
 fid	AsText(g)
 46	LINESTRING(51 41,60 50)
 56	LINESTRING(41 41,50 50)
