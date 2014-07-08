@@ -6257,6 +6257,54 @@ dict_fs2utf8(
 	}
 }
 
+/** Resize the hash tables besed on the current buffer pool size. */
+
+void
+dict_resize()
+{
+	dict_table_t*	table;
+
+	mutex_enter(&dict_sys->mutex);
+
+	/* all table entries are in table_LRU and table_non_LRU lists */
+	hash_table_free(dict_sys->table_hash);
+	hash_table_free(dict_sys->table_id_hash);
+
+	dict_sys->table_hash = hash_create(
+		buf_pool_get_curr_size()
+		/ (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
+
+	dict_sys->table_id_hash = hash_create(
+		buf_pool_get_curr_size()
+		/ (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		ulint	fold = ut_fold_string(table->name);
+		ulint	id_fold = ut_fold_ull(table->id);
+
+		HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash,
+			    fold, table);
+
+		HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
+			    id_fold, table);
+	}
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		ulint	fold = ut_fold_string(table->name);
+		ulint	id_fold = ut_fold_ull(table->id);
+
+		HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash,
+			    fold, table);
+
+		HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
+			    id_fold, table);
+	}
+
+	mutex_exit(&dict_sys->mutex);
+}
+
 /**********************************************************************//**
 Closes the data dictionary module. */
 

@@ -485,6 +485,8 @@ struct trx_undo_t {
 	undo_no_t	top_undo_no;	/*!< undo number of the latest record */
 	buf_block_t*	guess_block;	/*!< guess for the buffer block where
 					the top page might reside */
+	ulint		withdraw_clock;	/*!< the withdraw clock value of the
+					buffer pool when guess_block was stored */
 	/*-----------------------------*/
 	UT_LIST_NODE_T(trx_undo_t) undo_list;
 					/*!< undo log objects in the rollback

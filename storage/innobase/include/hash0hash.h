@@ -327,10 +327,12 @@ do {\
 	cell_count2222 = hash_get_n_cells(OLD_TABLE);\
 \
 	for (i2222 = 0; i2222 < cell_count2222; i2222++) {\
-		NODE_TYPE*	node2222 = HASH_GET_FIRST((OLD_TABLE), i2222);\
+		NODE_TYPE*	node2222 = static_cast<NODE_TYPE*>(\
+			HASH_GET_FIRST((OLD_TABLE), i2222));\
 \
 		while (node2222) {\
-			NODE_TYPE*	next2222 = node2222->PTR_NAME;\
+			NODE_TYPE*	next2222 = static_cast<NODE_TYPE*>(\
+				node2222->PTR_NAME);\
 			ulint		fold2222 = FOLD_FUNC(node2222);\
 \
 			HASH_INSERT(NODE_TYPE, PTR_NAME, (NEW_TABLE),\
@@ -404,6 +406,33 @@ hash_get_lock(
 /*==========*/
 	hash_table_t*	table,	/*!< in: hash table */
 	ulint		fold);	/*!< in: fold */
+
+/** If not appropriate rw_lock for a fold value in a hash table,
+relock S-lock the another rw_lock until appropriate for a fold value.
+@param[in]	hash_lock	latched rw_lock to be confirmed
+@param[in]	table		hash table
+@param[in]	fold		fold value
+@return	latched rw_lock */
+UNIV_INLINE
+rw_lock_t*
+hash_lock_s_confirm(
+	rw_lock_t*	hash_lock,
+	hash_table_t*	table,
+	ulint		fold);
+
+/** If not appropriate rw_lock for a fold value in a hash table,
+relock X-lock the another rw_lock until appropriate for a fold value.
+@param[in]	hash_lock	latched rw_lock to be confirmed
+@param[in]	table		hash table
+@param[in]	fold		fold value
+@return	latched rw_lock */
+UNIV_INLINE
+rw_lock_t*
+hash_lock_x_confirm(
+	rw_lock_t*	hash_lock,
+	hash_table_t*	table,
+	ulint		fold);
+
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
 

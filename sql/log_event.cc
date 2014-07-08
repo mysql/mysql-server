@@ -878,6 +878,9 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   server_id= thd->server_id;
   unmasked_server_id= server_id;
   when= thd->start_time;
+#ifdef HAVE_REPLICATION
+  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
+#endif //HAVE_REPLICATION
 }
 
 /**
@@ -902,6 +905,9 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
   when.tv_sec=  0;
   when.tv_usec= 0;
   log_pos=	0;
+#ifdef HAVE_REPLICATION
+  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
+#endif //HAVE_REPLICATION
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -919,7 +925,11 @@ Log_event::Log_event(const char* buf,
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
+#ifdef HAVE_REPLICATION
+  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
+#endif //HAVE_REPLICATION
 #endif
+
   when.tv_sec= uint4korr(buf);
   when.tv_usec= 0;
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
@@ -11373,8 +11383,13 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         DBUG_ASSERT(ptr->m_tabledef_valid);
         TABLE *conv_table;
+        /*
+          Use special mem_root 'Log_event::m_event_mem_root' while doing
+          compatiblity check (i.e., while creating temporary table)
+         */
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
-                                             ptr->table, &conv_table))
+                                             ptr->table,
+                                             &conv_table,&m_event_mem_root))
         {
           DBUG_PRINT("debug", ("Table: %s.%s is not compatible with master",
                                ptr->table->s->db.str,
