@@ -46,7 +46,6 @@ Created 10/25/1995 Heikki Tuuri
 // Forward declaration
 struct trx_t;
 class truncate_t;
-struct fil_space_t;
 struct btr_create_t;
 class page_id_t;
 
