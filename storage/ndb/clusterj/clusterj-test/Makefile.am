@@ -1,4 +1,4 @@
-#   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+#   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -67,6 +67,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/DynamicShortPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/FindByPrimaryKey2Test.java \
   $(clusterj_test_src)/testsuite/clusterj/FindByPrimaryKeyTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/FixedLengthCharTest.java \
   $(clusterj_test_src)/testsuite/clusterj/HashOnlyLongIntStringPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/LoadTest.java \
   $(clusterj_test_src)/testsuite/clusterj/LongIntStringPKTest.java \
@@ -148,6 +149,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/CharsetLatin1.java \
   $(clusterj_test_src)/testsuite/clusterj/model/CharsetModel.java \
   $(clusterj_test_src)/testsuite/clusterj/model/CharsetSjis.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/CharsetSwedishUtf8.java \
   $(clusterj_test_src)/testsuite/clusterj/model/CharsetUtf8.java \
   $(clusterj_test_src)/testsuite/clusterj/model/ConversationSummary.java \
   $(clusterj_test_src)/testsuite/clusterj/model/CrazyDelegate.java \
