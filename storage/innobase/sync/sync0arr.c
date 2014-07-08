@@ -2,6 +2,7 @@
 
 Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
+Copyright (c) 2013, 2014, SkySQL Ab. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -469,8 +470,8 @@ sync_array_cell_print(
 	FILE*		file,	/*!< in: file where to print */
 	sync_cell_t*	cell)	/*!< in: sync cell */
 {
-	mutex_t*	mutex;
-	rw_lock_t*	rwlock;
+	mutex_t*	mutex = NULL;
+	rw_lock_t*	rwlock = NULL;
 	ulint		type;
 	ulint		writer;
 

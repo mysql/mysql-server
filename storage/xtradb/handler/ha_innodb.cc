@@ -13430,6 +13430,11 @@ static MYSQL_SYSVAR_ULINT(checkpoint_age_target, srv_checkpoint_age_target,
   "Control soft limit of checkpoint age. (0 : not control)",
   NULL, NULL, 0, 0, ~0UL, 0);
 
+static MYSQL_SYSVAR_UINT(simulate_comp_failures, srv_simulate_comp_failures,
+  PLUGIN_VAR_NOCMDARG,
+  "Simulate compression failures.",
+  NULL, NULL, 0, 0, 99, 0);
+
 static
 void
 innodb_flush_neighbor_pages_update(
@@ -13736,6 +13741,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_checkpoint_now),
   MYSQL_SYSVAR(track_redo_log_now),
 #endif /* UNIV_DEBUG */
+  MYSQL_SYSVAR(simulate_comp_failures),
   NULL
 };
 

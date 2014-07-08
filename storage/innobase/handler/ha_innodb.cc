@@ -9936,6 +9936,11 @@ innodb_mutex_show_status(
 	DBUG_RETURN(FALSE);
 }
 
+static MYSQL_SYSVAR_UINT(simulate_comp_failures, srv_simulate_comp_failures,
+  PLUGIN_VAR_NOCMDARG,
+  "Simulate compression failures.",
+  NULL, NULL, 0, 0, 99, 0);
+
 static
 bool innobase_show_status(handlerton *hton, THD* thd, 
                           stat_print_fn* stat_print,
@@ -12019,6 +12024,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(trx_purge_view_update_only_debug),
 #endif /* UNIV_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
+  MYSQL_SYSVAR(simulate_comp_failures),
   NULL
 };
 

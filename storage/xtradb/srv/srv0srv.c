@@ -3,6 +3,7 @@
 Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
+Copyright (c) 2013, 2014, SkySQL Ab. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -615,6 +616,9 @@ intervals. Following macros define thresholds for these conditions. */
 #define SRV_PEND_IO_THRESHOLD	(PCT_IO(3))
 #define SRV_RECENT_IO_ACTIVITY	(PCT_IO(5))
 #define SRV_PAST_IO_ACTIVITY	(PCT_IO(200))
+
+/** Simulate compression failures. */
+UNIV_INTERN uint srv_simulate_comp_failures = 0;
 
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM

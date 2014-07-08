@@ -3,6 +3,7 @@
 Copyright (c) 1995, 2011, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
+Copyright (c) 2013, 2014, SkySQL Ab. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -429,6 +430,9 @@ extern my_bool srv_fake_changes_locks;
 
 /** print all user-level transactions deadlocks to mysqld stderr */
 extern my_bool srv_print_all_deadlocks;
+
+/** Simulate compression failures. */
+extern uint srv_simulate_comp_failures;
 
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
