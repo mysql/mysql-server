@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -271,14 +271,14 @@ Suma::execSTTOR(Signal* signal) {
   DBUG_PRINT("info",("startphase = %u, typeOfStart = %u",
 		     m_startphase, m_typeOfStart));
 
-  if(m_startphase == 3)
+  if (m_startphase == 3)
   {
     jam();
     void* ptr = m_ctx.m_mm.get_memroot();
     c_page_pool.set((Buffer_page*)ptr, (Uint32)~0);
   }
 
-  if(m_startphase == 5)
+  if (m_startphase == 5)
   {
     jam();
 
@@ -294,7 +294,7 @@ Suma::execSTTOR(Signal* signal) {
     DBUG_VOID_RETURN;
   }
   
-  if(m_startphase == 7)
+  if (m_startphase == 7)
   {
     if (m_typeOfStart != NodeState::ST_NODE_RESTART &&
 	m_typeOfStart != NodeState::ST_INITIAL_NODE_RESTART)
@@ -306,12 +306,12 @@ Suma::execSTTOR(Signal* signal) {
 	  // I'm running this bucket
 	  DBUG_PRINT("info",("bucket %u set to true", i));
 	  m_active_buckets.set(i);
-	  ndbout_c("m_active_buckets.set(%d)", i);
+          g_eventLogger->info("Activating bucket %u in SUMA", i);
 	}
       }
     }
     
-    if(!m_active_buckets.isclear())
+    if (!m_active_buckets.isclear())
     {
       NdbNodeBitmask tmp;
       Uint32 bucket = 0;
@@ -327,8 +327,8 @@ Suma::execSTTOR(Signal* signal) {
     else
       m_gcp_complete_rep_count = 0; // I contribute 1 gcp complete rep
     
-    if(m_typeOfStart == NodeState::ST_INITIAL_START &&
-       c_masterNodeId == getOwnNodeId())
+    if (m_typeOfStart == NodeState::ST_INITIAL_START &&
+        c_masterNodeId == getOwnNodeId())
     {
       jam();
       createSequence(signal);
@@ -342,16 +342,7 @@ Suma::execSTTOR(Signal* signal) {
     }
   }//if
   
-  if(m_startphase == 100)
-  {
-    /**
-     * Allow API's to connect
-     */
-    sendSTTORRY(signal);
-    DBUG_VOID_RETURN;
-  }
-
-  if(m_startphase == 101)
+  if (m_startphase == 101)
   {
     if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
 	m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
@@ -365,7 +356,6 @@ Suma::execSTTOR(Signal* signal) {
     }
   }
   sendSTTORRY(signal);
-  
   DBUG_VOID_RETURN;
 }
 
@@ -821,16 +811,15 @@ Suma::sendSTTORRY(Signal* signal){
   signal->theData[4] = 3;
   signal->theData[5] = 5;
   signal->theData[6] = 7;
-  signal->theData[7] = 100;
-  signal->theData[8] = 101;
-  signal->theData[9] = 255; // No more start phases from missra
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 10, JBB);
+  signal->theData[7] = 101;
+  signal->theData[8] = 255; // No more start phases from missra
+  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 9, JBB);
 }
 
 void
 Suma::execNDB_STTOR(Signal* signal) 
 {
-  jamEntry();                            
+  jamEntry();
 }
 
 void
@@ -2657,7 +2646,7 @@ Suma::get_tabinfo_ref_release(Signal* signal, Ptr<Table> tabPtr)
   LocalDLList<Subscription> subList(c_subscriptionPool,
                                     tabPtr.p->m_subscriptions);
   Ptr<Subscription> subPtr;
-  bool empty = subList.isEmpty();
+  ndbassert(!subList.isEmpty());
   for(subList.first(subPtr); !subPtr.isNull();)
   {
     jam();
@@ -2684,7 +2673,6 @@ Suma::get_tabinfo_ref_release(Signal* signal, Ptr<Table> tabPtr)
   }
 
   c_tables.release(tabPtr);
-  ndbassert(!empty);
 }
 
 void
@@ -2718,7 +2706,7 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
   LocalDLList<Subscription> subList(c_subscriptionPool,
                                     tabPtr.p->m_subscriptions);
   Ptr<Subscription> subPtr;
-  bool empty = subList.isEmpty();
+  ndbassert(!subList.isEmpty());
   for(subList.first(subPtr); !subPtr.isNull(); subList.next(subPtr))
   {
     jam();
@@ -2741,7 +2729,6 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
     }
   }
 
-  ndbassert(!empty);
 }
 
 bool
@@ -4766,7 +4753,7 @@ found:
       {
 	Uint32 state = c_buckets[i].m_state;
 	m_switchover_buckets.clear(i);
-	printf("%u/%u (%u/%u) switchover complete bucket %d state: %x", 
+	printf("%u/%u (%u/%u) switchover complete bucket %d state: %x\n", 
 	       Uint32(gci >> 32),
 	       Uint32(gci),
 	       Uint32(c_buckets[i].m_switchover_gci >> 32),
@@ -4874,8 +4861,8 @@ found:
                      get_responsible_node(i, nodegroup) == getOwnNodeId());
           m_active_buckets.set(i);
           m_gcp_complete_rep_count++;
-          ndbout_c("shutdown takover");
           c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_SHUTDOWN_TO;
+          ndbout_c("shutdown handover takeover");
         }
       }
     }
@@ -6274,7 +6261,9 @@ loop:
   if (count == 0)
     return RNIL;
 
-  ndbout_c("alloc_chunk(%d %d) - ", ref, count);
+  g_eventLogger->info("Allocate event buffering page chunk in SUMA, %u pages,"
+                      " first page ref = %u",
+                      count, ref);
 
   m_first_free_page = ptr.p->m_page_id = ref;
   ptr.p->m_size = count;

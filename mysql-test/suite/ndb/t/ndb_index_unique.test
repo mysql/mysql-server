@@ -118,6 +118,7 @@ select * from t2 where b = 3 AND c IS NULL order by a;
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL order by a;
 set @old_os = @@session.optimizer_switch;
 set optimizer_switch = 'engine_condition_pushdown=on';
+--replace_column 10 # 11 #
 explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 set optimizer_switch = @old_os;

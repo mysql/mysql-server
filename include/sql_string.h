@@ -119,7 +119,7 @@ typedef struct st_io_cache IO_CACHE;
 typedef struct st_mem_root MEM_ROOT;
 
 int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
-String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
+String *copy_if_not_alloced(String *a, String *b, size_t arg_length);
 inline size_t copy_and_convert(char *to, size_t to_length,
                                const CHARSET_INFO *to_cs,
                                const char *from, size_t from_length,
@@ -127,60 +127,57 @@ inline size_t copy_and_convert(char *to, size_t to_length,
 {
   return my_convert(to, to_length, to_cs, from, from_length, from_cs, errors);
 }
-uint32 well_formed_copy_nchars(const CHARSET_INFO *to_cs,
-                               char *to, uint to_length,
+size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs,
+                               char *to, size_t to_length,
                                const CHARSET_INFO *from_cs,
-                               const char *from, uint from_length,
-                               uint nchars,
+                               const char *from, size_t from_length,
+                               size_t nchars,
                                const char **well_formed_error_pos,
                                const char **cannot_convert_error_pos,
                                const char **from_end_pos);
-uint convert_to_printable(char *to, size_t to_len,
-                          const char *from, size_t from_len,
-                          const CHARSET_INFO *from_cs, size_t nbytes= 0);
+size_t convert_to_printable(char *to, size_t to_len,
+                            const char *from, size_t from_len,
+                            const CHARSET_INFO *from_cs, size_t nbytes= 0);
 
-uint bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len);
+size_t bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len);
 
 class String
 {
-  char *Ptr;
-  uint32 str_length,Alloced_length;
-  bool alloced;
-  const CHARSET_INFO *str_charset;
+  char *m_ptr;
+  size_t m_length;
+  const CHARSET_INFO *m_charset;
+  uint32 m_alloced_length; // should be size_t, but kept uint32 for size reasons
+  bool m_is_alloced;
 public:
   String()
-  { 
-    Ptr=0; str_length=Alloced_length=0; alloced=0; 
-    str_charset= &my_charset_bin; 
-  }
-  String(uint32 length_arg)
-  { 
-    alloced=0; Alloced_length=0; (void) real_alloc(length_arg); 
-    str_charset= &my_charset_bin;
+    :m_ptr(NULL), m_length(0), m_charset(&my_charset_bin),
+     m_alloced_length(0), m_is_alloced(false)
+  { }
+  String(size_t length_arg)
+    :m_ptr(NULL), m_length(0), m_charset(&my_charset_bin),
+     m_alloced_length(0), m_is_alloced(false)
+  {
+    (void) real_alloc(length_arg);
   }
   String(const char *str, const CHARSET_INFO *cs)
-  { 
-    Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;
-    str_charset=cs;
-  }
-  String(const char *str,uint32 len, const CHARSET_INFO *cs)
-  { 
-    Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;
-    str_charset=cs;
-  }
-  String(char *str,uint32 len, const CHARSET_INFO *cs)
-  { 
-    Ptr=(char*) str; Alloced_length=str_length=len; alloced=0;
-    str_charset=cs;
-  }
+    :m_ptr(const_cast<char*>(str)), m_length(strlen(str)),
+     m_charset(cs), m_alloced_length(0), m_is_alloced(false)
+  { }
+  String(const char *str, size_t len, const CHARSET_INFO *cs)
+    :m_ptr(const_cast<char*>(str)), m_length(len),
+     m_charset(cs), m_alloced_length(0), m_is_alloced(false)
+  { }
+  String(char *str, size_t len, const CHARSET_INFO *cs)
+    :m_ptr(str), m_length(len), m_charset(cs),
+     m_alloced_length(static_cast<uint32>(len)), m_is_alloced(false)
+  { }
   String(const String &str)
-  { 
-    Ptr=str.Ptr ; str_length=str.str_length ;
-    Alloced_length=str.Alloced_length; alloced=0; 
-    str_charset=str.str_charset;
-  }
-  static void *operator new(size_t size, MEM_ROOT *mem_root)
-  { return (void*) alloc_root(mem_root, (uint) size); }
+    :m_ptr(str.m_ptr), m_length(str.m_length), m_charset(str.m_charset),
+     m_alloced_length(static_cast<uint32>(str.m_alloced_length)),
+     m_is_alloced(false)
+  { }
+  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
+  { return (void*) alloc_root(mem_root, size); }
   static void operator delete(void *ptr_arg, size_t size)
   {
     (void) ptr_arg;
@@ -191,38 +188,38 @@ public:
   { /* never called */ }
   ~String() { free(); }
 
-  inline void set_charset(const CHARSET_INFO *charset_arg)
-  { str_charset= charset_arg; }
-  inline const CHARSET_INFO *charset() const { return str_charset; }
-  inline uint32 length() const { return str_length;}
-  inline uint32 alloced_length() const { return Alloced_length;}
-  inline char& operator [] (uint32 i) const { return Ptr[i]; }
-  inline void length(uint32 len) { str_length=len ; }
-  inline bool is_empty() const { return (str_length == 0); }
-  inline void mark_as_const() { Alloced_length= 0;}
-  inline const char *ptr() const { return Ptr; }
-  inline char *c_ptr()
+  void set_charset(const CHARSET_INFO *charset_arg)
+  { m_charset= charset_arg; }
+  const CHARSET_INFO *charset() const { return m_charset; }
+  size_t length() const { return m_length;}
+  size_t alloced_length() const { return m_alloced_length;}
+  char& operator [] (size_t i) const { return m_ptr[i]; }
+  void length(size_t len) { m_length= len; }
+  bool is_empty() const { return (m_length == 0); }
+  void mark_as_const() { m_alloced_length= 0;}
+  const char *ptr() const { return m_ptr; }
+  char *c_ptr()
   {
-    DBUG_ASSERT(!alloced || !Ptr || !Alloced_length || 
-                (Alloced_length >= (str_length + 1)));
+    DBUG_ASSERT(!m_is_alloced || !m_ptr || !m_alloced_length ||
+                (m_alloced_length >= (m_length + 1)));
 
-    if (!Ptr || Ptr[str_length])		/* Should be safe */
-      (void) realloc(str_length);
-    return Ptr;
+    if (!m_ptr || m_ptr[m_length])		/* Should be safe */
+      (void) realloc(m_length);
+    return m_ptr;
   }
-  inline char *c_ptr_quick()
+  char *c_ptr_quick()
   {
-    if (Ptr && str_length < Alloced_length)
-      Ptr[str_length]=0;
-    return Ptr;
+    if (m_ptr && m_length < m_alloced_length)
+      m_ptr[m_length]= 0;
+    return m_ptr;
   }
-  inline char *c_ptr_safe()
+  char *c_ptr_safe()
   {
-    if (Ptr && str_length < Alloced_length)
-      Ptr[str_length]=0;
+    if (m_ptr && m_length < m_alloced_length)
+      m_ptr[m_length]= 0;
     else
-      (void) realloc(str_length);
-    return Ptr;
+      (void) realloc(m_length);
+    return m_ptr;
   }
   LEX_STRING lex_string() const
   {
@@ -230,16 +227,18 @@ public:
     return lex_string;
   }
 
-  void set(String &str,uint32 offset,uint32 arg_length)
+  void set(String &str,size_t offset, size_t arg_length)
   {
     DBUG_ASSERT(&str != this);
     free();
-    Ptr=(char*) str.ptr()+offset; str_length=arg_length; alloced=0;
-    if (str.Alloced_length)
-      Alloced_length=str.Alloced_length-offset;
+    m_ptr= const_cast<char*>(str.ptr()) + offset;
+    m_length= arg_length;
+    m_is_alloced= false;
+    if (str.m_alloced_length)
+      m_alloced_length= str.m_alloced_length - static_cast<uint32>(offset);
     else
-      Alloced_length=0;
-    str_charset=str.str_charset;
+      m_alloced_length= 0;
+    m_charset= str.m_charset;
   }
 
 
@@ -251,26 +250,33 @@ public:
      @param cs Character set to use for interpreting string data.
      @note The new buffer will not be null terminated.
   */
-  inline void set(char *str,uint32 arg_length, const CHARSET_INFO *cs)
+  void set(char *str, size_t arg_length, const CHARSET_INFO *cs)
   {
     free();
-    Ptr=(char*) str; str_length=Alloced_length=arg_length ; alloced=0;
-    str_charset=cs;
+    m_ptr= str;
+    m_length= m_alloced_length= static_cast<uint32>(arg_length);
+    m_is_alloced= false;
+    m_charset= cs;
   }
-  inline void set(const char *str,uint32 arg_length, const CHARSET_INFO *cs)
+  void set(const char *str, size_t arg_length, const CHARSET_INFO *cs)
   {
     free();
-    Ptr=(char*) str; str_length=arg_length; Alloced_length=0 ; alloced=0;
-    str_charset=cs;
+    m_ptr= const_cast<char*>(str);
+    m_length= arg_length;
+    m_alloced_length= 0;
+    m_is_alloced= false;
+    m_charset= cs;
   }
-  bool set_ascii(const char *str, uint32 arg_length);
-  inline void set_quick(char *str,uint32 arg_length, const CHARSET_INFO *cs)
+  bool set_ascii(const char *str, size_t arg_length);
+  void set_quick(char *str, size_t arg_length, const CHARSET_INFO *cs)
   {
-    if (!alloced)
+    if (!m_is_alloced)
     {
-      Ptr=(char*) str; str_length=Alloced_length=arg_length;
+      m_ptr= str;
+      m_length= arg_length;
+      m_alloced_length= static_cast<uint32>(arg_length);
     }
-    str_charset=cs;
+    m_charset= cs;
   }
   bool set_int(longlong num, bool unsigned_flag, const CHARSET_INFO *cs);
   bool set(longlong num, const CHARSET_INFO *cs)
@@ -301,68 +307,70 @@ public:
     VALUES ('foo', 'fi', 'fo')
       
   */
-  inline void chop()
+  void chop()
   {
-    str_length--;
-    Ptr[str_length]= '\0';
-    DBUG_ASSERT(strlen(Ptr) == str_length);
+    m_length--;
+    m_ptr[m_length]= '\0';
+    DBUG_ASSERT(strlen(m_ptr) == m_length);
   }
 
-  inline void free()
+  void free()
   {
-    if (alloced)
+    if (m_is_alloced)
     {
-      alloced=0;
-      Alloced_length=0;
-      my_free(Ptr);
-      Ptr=0;
-      str_length=0;				/* Safety */
+      m_is_alloced= false;
+      m_alloced_length= 0;
+      my_free(m_ptr);
+      m_ptr= NULL;
+      m_length= 0;				/* Safety */
     }
   }
-  inline bool alloc(uint32 arg_length)
+  bool alloc(size_t arg_length)
   {
-    if (arg_length < Alloced_length)
-      return 0;
+    if (arg_length < m_alloced_length)
+      return false;
     return real_alloc(arg_length);
   }
-  bool real_alloc(uint32 arg_length);			// Empties old string
-  bool realloc(uint32 arg_length);
+  bool real_alloc(size_t arg_length);			// Empties old string
+  bool realloc(size_t arg_length);
 
   // Shrink the buffer, but only if it is allocated on the heap.
-  inline void shrink(uint32 arg_length)
+  void shrink(size_t arg_length)
   {
     if (!is_alloced())
       return;
-    if (arg_length < Alloced_length)
+    if (arg_length < m_alloced_length)
     {
       char *new_ptr;
-      if (!(new_ptr=(char*) my_realloc(STRING_PSI_MEMORY_KEY,
-                                       Ptr,arg_length,MYF(0))))
+      if (!(new_ptr= static_cast<char*>(my_realloc(STRING_PSI_MEMORY_KEY,
+                                                   m_ptr, arg_length, MYF(0)))))
       {
-	Alloced_length = 0;
-	real_alloc(arg_length);
+        m_alloced_length= 0;
+        real_alloc(arg_length);
       }
       else
       {
-	Ptr=new_ptr;
-	Alloced_length=arg_length;
+        m_ptr= new_ptr;
+        m_alloced_length= static_cast<uint32>(arg_length);
       }
     }
   }
-  bool is_alloced() const { return alloced; }
-  inline String& operator = (const String &s)
+  bool is_alloced() const { return m_is_alloced; }
+  String& operator = (const String &s)
   {
     if (&s != this)
     {
       /*
-        It is forbidden to do assignments like 
+        It is forbidden to do assignments like
         some_string = substring_of_that_string
        */
       DBUG_ASSERT(!s.uses_buffer_owned_by(this));
       free();
-      Ptr=s.Ptr ; str_length=s.str_length ; Alloced_length=s.Alloced_length;
-      str_charset=s.str_charset;
-      alloced=0;
+      m_ptr= s.m_ptr;
+      m_length= s.m_length;
+      m_alloced_length= s.m_alloced_length;
+      m_charset= s.m_charset;
+      m_is_alloced= false;
     }
     return *this;
   }
@@ -374,87 +382,87 @@ public:
 
     @param s - a String object to steal buffer from.
   */
-  inline void takeover(String &s)
+  void takeover(String &s)
   {
     DBUG_ASSERT(this != &s);
     // Make sure buffers of the two Strings do not overlap
     DBUG_ASSERT(!s.uses_buffer_owned_by(this));
     free();
-    Ptr= s.Ptr;
-    str_length= s.str_length;
-    Alloced_length= s.Alloced_length;
-    alloced= s.alloced;
-    str_charset= s.str_charset;
-    s.Ptr= NULL;
-    s.Alloced_length= 0;
-    s.str_length= 0;
-    s.alloced= 0;
+    m_ptr= s.m_ptr;
+    m_length= s.m_length;
+    m_alloced_length= s.m_alloced_length;
+    m_is_alloced= s.m_is_alloced;
+    m_charset= s.m_charset;
+    s.m_ptr= NULL;
+    s.m_alloced_length= 0;
+    s.m_length= 0;
+    s.m_is_alloced= false;
   }
 
   bool copy();					// Alloc string if not alloced
   bool copy(const String &s);			// Allocate new string
   // Allocate new string
-  bool copy(const char *s,uint32 arg_length, const CHARSET_INFO *cs);
-  static bool needs_conversion(uint32 arg_length,
+  bool copy(const char *s, size_t arg_length, const CHARSET_INFO *cs);
+  static bool needs_conversion(size_t arg_length,
   			       const CHARSET_INFO *cs_from, const CHARSET_INFO *cs_to,
-			       uint32 *offset);
-  static bool needs_conversion_on_storage(uint32 arg_length,
+			       size_t *offset);
+  static bool needs_conversion_on_storage(size_t arg_length,
                                           const CHARSET_INFO *cs_from,
                                           const CHARSET_INFO *cs_to);
-  bool copy_aligned(const char *s, uint32 arg_length, uint32 offset,
+  bool copy_aligned(const char *s, size_t arg_length, size_t offset,
 		    const CHARSET_INFO *cs);
-  bool set_or_copy_aligned(const char *s, uint32 arg_length,
+  bool set_or_copy_aligned(const char *s, size_t arg_length,
                            const CHARSET_INFO *cs);
-  bool copy(const char*s,uint32 arg_length, const CHARSET_INFO *csfrom,
+  bool copy(const char*s, size_t arg_length, const CHARSET_INFO *csfrom,
 	    const CHARSET_INFO *csto, uint *errors);
   bool append(const String &s);
   bool append(const char *s);
   bool append(LEX_STRING *ls)
   {
-    return append(ls->str, (uint32) ls->length);
+    return append(ls->str, ls->length);
   }
   bool append(Simple_cstring str)
   {
-    return append(str.ptr(), static_cast<uint>(str.length()));
+    return append(str.ptr(), str.length());
   }
-  bool append(const char *s, uint32 arg_length);
-  bool append(const char *s, uint32 arg_length, const CHARSET_INFO *cs);
+  bool append(const char *s, size_t arg_length);
+  bool append(const char *s, size_t arg_length, const CHARSET_INFO *cs);
   bool append_ulonglong(ulonglong val);
-  bool append(IO_CACHE* file, uint32 arg_length);
-  bool append_with_prefill(const char *s, uint32 arg_length, 
-			   uint32 full_length, char fill_char);
+  bool append(IO_CACHE* file, size_t arg_length);
+  bool append_with_prefill(const char *s, size_t arg_length, 
+			   size_t full_length, char fill_char);
   bool append_parenthesized(long nr, int radix= 10);
-  int strstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
-  int strrstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
-  bool replace(uint32 offset,uint32 arg_length,const char *to,uint32 length);
-  bool replace(uint32 offset,uint32 arg_length,const String &to);
-  inline bool append(char chr)
+  int strstr(const String &search,size_t offset=0); // Returns offset to substring or -1
+  int strrstr(const String &search,size_t offset=0); // Returns offset to substring or -1
+  bool replace(size_t offset, size_t arg_length,const char *to, size_t length);
+  bool replace(size_t offset, size_t arg_length,const String &to);
+  bool append(char chr)
   {
-    if (str_length < Alloced_length)
+    if (m_length < m_alloced_length)
     {
-      Ptr[str_length++]=chr;
+      m_ptr[m_length++]= chr;
     }
     else
     {
-      if (realloc(str_length+1))
+      if (realloc(m_length+1))
 	return 1;
-      Ptr[str_length++]=chr;
+      m_ptr[m_length++]= chr;
     }
     return 0;
   }
-  bool fill(uint32 max_length,char fill);
+  bool fill(size_t max_length,char fill);
   void strip_sp();
   friend int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
   friend int stringcmp(const String *a,const String *b);
-  friend String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
-  uint32 numchars() const;
-  int charpos(int i,uint32 offset=0);
+  friend String *copy_if_not_alloced(String *a,String *b, size_t arg_length);
+  size_t numchars() const;
+  size_t charpos(size_t i, size_t offset=0);
 
-  int reserve(uint32 space_needed)
+  int reserve(size_t space_needed)
   {
-    return realloc(str_length + space_needed);
+    return realloc(m_length + space_needed);
   }
-  int reserve(uint32 space_needed, uint32 grow_by);
+  int reserve(size_t space_needed, size_t grow_by);
   /*
     The following append operations do NOT check alloced memory
     q_*** methods writes values of parameters itself
@@ -462,90 +470,90 @@ public:
   */
   void q_append(const char c)
   {
-    Ptr[str_length++] = c;
+    m_ptr[m_length++] = c;
   }
   void q_append(const uint32 n)
   {
-    int4store(Ptr + str_length, n);
-    str_length += 4;
+    int4store(m_ptr + m_length, n);
+    m_length += 4;
   }
   void q_append(double d)
   {
-    float8store(Ptr + str_length, d);
-    str_length += 8;
+    float8store(m_ptr + m_length, d);
+    m_length += 8;
   }
   void q_append(double *d)
   {
-    float8store(Ptr + str_length, *d);
-    str_length += 8;
+    float8store(m_ptr + m_length, *d);
+    m_length += 8;
   }
-  void q_append(const char *data, uint32 data_len)
+  void q_append(const char *data, size_t data_len)
   {
-    memcpy(Ptr + str_length, data, data_len);
-    str_length += data_len;
+    memcpy(m_ptr + m_length, data, data_len);
+    m_length += data_len;
   }
 
   void write_at_position(int position, uint32 value)
   {
-    int4store(Ptr + position,value);
+    int4store(m_ptr + position,value);
   }
 
-  void qs_append(const char *str, uint32 len);
+  void qs_append(const char *str, size_t len);
   void qs_append(double d);
   void qs_append(double *d);
-  inline void qs_append(const char c)
+  void qs_append(const char c)
   {
-     Ptr[str_length]= c;
-     str_length++;
+     m_ptr[m_length]= c;
+     m_length++;
   }
   void qs_append(int i);
   void qs_append(uint i);
 
   /* Inline (general) functions used by the protocol functions */
 
-  inline char *prep_append(uint32 arg_length, uint32 step_alloc)
+  char *prep_append(size_t arg_length, size_t step_alloc)
   {
-    uint32 new_length= arg_length + str_length;
-    if (new_length > Alloced_length)
+    size_t new_length= arg_length + m_length;
+    if (new_length > m_alloced_length)
     {
       if (realloc(new_length + step_alloc))
-        return 0;
+        return NULL;
     }
-    uint32 old_length= str_length;
-    str_length+= arg_length;
-    return Ptr+ old_length;			/* Area to use */
+    size_t old_length= m_length;
+    m_length+= arg_length;
+    return m_ptr+ old_length;			/* Area to use */
   }
 
-  inline bool append(const char *s, uint32 arg_length, uint32 step_alloc)
+  bool append(const char *s, size_t arg_length, size_t step_alloc)
   {
-    uint32 new_length= arg_length + str_length;
-    if (new_length > Alloced_length && realloc(new_length + step_alloc))
-      return TRUE;
-    memcpy(Ptr+str_length, s, arg_length);
-    str_length+= arg_length;
-    return FALSE;
+    size_t new_length= arg_length + m_length;
+    if (new_length > m_alloced_length && realloc(new_length + step_alloc))
+      return true;
+    memcpy(m_ptr+m_length, s, arg_length);
+    m_length+= arg_length;
+    return false;
   }
   void print(String *print);
 
   /* Swap two string objects. Efficient way to exchange data without memcpy. */
   void swap(String &s);
 
-  inline bool uses_buffer_owned_by(const String *s) const
+  bool uses_buffer_owned_by(const String *s) const
   {
-    return (s->alloced && Ptr >= s->Ptr && Ptr < s->Ptr + s->str_length);
+    return (s->m_is_alloced && m_ptr >= s->m_ptr && m_ptr < s->m_ptr + s->m_length);
   }
   bool is_ascii() const
   {
     if (length() == 0)
-      return TRUE;
+      return true;
     if (charset()->mbminlen > 1)
-      return FALSE;
+      return false;
     for (const char *c= ptr(), *end= c + length(); c < end; c++)
     {
       if (!my_isascii(*c))
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
   }
   /**
     Make a zero-terminated copy of our value,allocated in the specified MEM_ROOT
@@ -556,14 +564,14 @@ public:
   */
   char *dup(MEM_ROOT *root) const
   {
-    if (str_length > 0 && Ptr[str_length - 1] == 0)
-      return static_cast<char *>(memdup_root(root, Ptr, str_length));
+    if (m_length > 0 && m_ptr[m_length - 1] == 0)
+      return static_cast<char *>(memdup_root(root, m_ptr, m_length));
 
-    char *ret= static_cast<char*>(alloc_root(root, str_length + 1));
+    char *ret= static_cast<char*>(alloc_root(root, m_length + 1));
     if (ret != NULL)
     {
-      memcpy(ret, Ptr, str_length);
-      ret[str_length]= 0;
+      memcpy(ret, m_ptr, m_length);
+      ret[m_length]= 0;
     }
     return ret;
   }

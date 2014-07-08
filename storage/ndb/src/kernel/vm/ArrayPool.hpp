@@ -1504,7 +1504,7 @@ void
 SafeArrayPool<T>::release(Uint32 i)
 {
   int ret = lock();
-  assert(ret == 0);
+  require(ret == 0);
   ArrayPool<T>::release(i);
   unlock();
 }
@@ -1515,7 +1515,7 @@ void
 SafeArrayPool<T>::release(Ptr<T>& ptr)
 {
   int ret = lock();
-  assert(ret == 0);
+  require(ret == 0);
   ArrayPool<T>::release(ptr);
   unlock();
 }

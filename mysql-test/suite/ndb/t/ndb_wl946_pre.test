@@ -5,6 +5,7 @@
 
 --source include/have_ndb.inc
 --source include/not_embedded.inc
+--source suite/ndb/include/have_little_endian.inc
 
 --disable_warnings
 drop table if exists t1;

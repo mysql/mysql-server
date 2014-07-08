@@ -1555,10 +1555,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     STATUS_VAR current_global_status_var;
     ulong uptime;
-    uint length __attribute__((unused));
+    size_t length __attribute__((unused));
     ulonglong queries_per_second1000;
     char buff[250];
-    uint buff_len= sizeof(buff);
+    size_t buff_len= sizeof(buff);
 
     query_logger.general_log_print(thd, command, NullS);
     thd->status_var.com_stat[SQLCOM_SHOW_STATUS]++;
@@ -1983,27 +1983,80 @@ bool sp_process_definer(THD *thd)
 static bool lock_tables_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
+  MDL_deadlock_and_lock_abort_error_handler deadlock_handler;
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   uint counter;
   TABLE_LIST *table;
 
   thd->in_lock_tables= 1;
 
+retry:
+
   if (open_tables(thd, &tables, &counter, 0, &lock_tables_prelocking_strategy))
     goto err;
 
-  /*
-    We allow to change temporary tables even if they were locked for read
-    by LOCK TABLES. To avoid a discrepancy between lock acquired at LOCK
-    TABLES time and by the statement which is later executed under LOCK TABLES
-    we ensure that for temporary tables we always request a write lock (such
-    discrepancy can cause problems for the storage engine).
-    We don't set TABLE_LIST::lock_type in this case as this might result in
-    extra warnings from THD::decide_logging_format() even though binary logging
-    is totally irrelevant for LOCK TABLES.
-  */
+  deadlock_handler.init();
+  thd->push_internal_handler(&deadlock_handler);
+
   for (table= tables; table; table= table->next_global)
-    if (!table->placeholder() && table->table->s->tmp_table)
-      table->table->reginfo.lock_type= TL_WRITE;
+  {
+    if (!table->placeholder())
+    {
+      if (table->table->s->tmp_table)
+      {
+        /*
+          We allow to change temporary tables even if they were locked for read
+          by LOCK TABLES. To avoid a discrepancy between lock acquired at LOCK
+          TABLES time and by the statement which is later executed under LOCK
+          TABLES we ensure that for temporary tables we always request a write
+          lock (such discrepancy can cause problems for the storage engine).
+          We don't set TABLE_LIST::lock_type in this case as this might result
+          in extra warnings from THD::decide_logging_format() even though
+          binary logging is totally irrelevant for LOCK TABLES.
+        */
+        table->table->reginfo.lock_type= TL_WRITE;
+      }
+      else if (table->lock_type == TL_READ &&
+               ! table->prelocking_placeholder &&
+               table->table->file->ha_table_flags() & HA_NO_READ_LOCAL_LOCK)
+      {
+        /*
+          In case when LOCK TABLE ... READ LOCAL was issued for table with
+          storage engine which doesn't support READ LOCAL option and doesn't
+          use THR_LOCK locks we need to upgrade weak SR metadata lock acquired
+          in open_tables() to stronger SRO metadata lock.
+          This is not needed for tables used through stored routines or
+          triggers as we always acquire SRO (or even stronger SNRW) metadata
+          lock for them.
+        */
+        bool result= thd->mdl_context.upgrade_shared_lock(
+                                        table->table->mdl_ticket,
+                                        MDL_SHARED_READ_ONLY,
+                                        thd->variables.lock_wait_timeout);
+
+        if (deadlock_handler.need_reopen())
+        {
+          /*
+            Deadlock occurred during upgrade of metadata lock.
+            Let us restart acquring and opening tables for LOCK TABLES.
+          */
+          thd->pop_internal_handler();
+          close_tables_for_reopen(thd, &tables, mdl_savepoint);
+          if (open_temporary_tables(thd, tables))
+            goto err;
+          goto retry;
+        }
+
+        if (result)
+        {
+          thd->pop_internal_handler();
+          goto err;
+        }
+      }
+    }
+  }
+
+  thd->pop_internal_handler();
 
   if (lock_tables(thd, tables, counter, 0) ||
       thd->locked_tables_list.init_locked_tables(thd))
@@ -6014,11 +6067,13 @@ TABLE_LIST *st_select_lex::convert_right_join()
     If lock is a write lock, then tables->updating is set 1
     This is to get tables_ok to know that the table is updated by the
     query
+    Set type of metadata lock to request according to lock_type.
 */
 
 void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
 {
   bool for_update= lock_type >= TL_READ_NO_INSERT;
+  enum_mdl_type mdl_type= mdl_type_for_dml(lock_type);
   DBUG_ENTER("set_lock_for_tables");
   DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
 		       for_update));
@@ -6028,8 +6083,7 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
   {
     tables->lock_type= lock_type;
     tables->updating=  for_update;
-    tables->mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                                 MDL_SHARED_WRITE : MDL_SHARED_READ);
+    tables->mdl_request.set_type(mdl_type);
   }
   DBUG_VOID_RETURN;
 }
@@ -6527,7 +6581,7 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
     walk->lock_type= target_tbl->lock_type;
     /* We can assume that tables to be deleted from are locked for write. */
     DBUG_ASSERT(walk->lock_type >= TL_WRITE_ALLOW_WRITE);
-    walk->mdl_request.set_type(MDL_SHARED_WRITE);
+    walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_type));
     target_tbl->correspondent_table= walk;	// Remember corresponding table
   }
   DBUG_RETURN(FALSE);
@@ -6789,8 +6843,8 @@ bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
                               bool no_error)
 {
   int well_formed_error;
-  uint res= cs->cset->well_formed_len(cs, str.str, str.str + str.length,
-                                      max_char_length, &well_formed_error);
+  size_t res= cs->cset->well_formed_len(cs, str.str, str.str + str.length,
+                                        max_char_length, &well_formed_error);
 
   if (!well_formed_error &&  str.length == res)
     return FALSE;

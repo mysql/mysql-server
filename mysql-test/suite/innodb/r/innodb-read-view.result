@@ -61,7 +61,7 @@ c1	c2
 103	3
 COMMIT;
 'T3'
-SET DEBUG_SYNC='row_select_wait WAIT_FOR waiting1';
+SET DEBUG_SYNC='row_search_for_mysql_before_return WAIT_FOR waiting1';
 SELECT * FROM t1;;
 'T2'
 SET DEBUG_SYNC='now SIGNAL waiting1';
@@ -73,7 +73,7 @@ c1	c2
 2	2
 3	3
 'T3'
-SET DEBUG_SYNC='row_select_wait WAIT_FOR waiting1';
+SET DEBUG_SYNC='row_search_for_mysql_before_return WAIT_FOR waiting1';
 SELECT * FROM t2;;
 'T2'
 SET DEBUG_SYNC='now SIGNAL waiting1';

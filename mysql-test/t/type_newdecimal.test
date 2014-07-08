@@ -1297,6 +1297,7 @@ let $nine_81=
 
 eval SELECT substring(('M') FROM ($nine_81)) AS foo;
 eval SELECT min($nine_81) AS foo;
+--error ER_GIS_INVALID_DATA
 eval SELECT multipolygonfromtext(('4294967294.1'),($nine_81)) AS foo;
 eval SELECT convert(($nine_81), decimal(30,30)) AS foo;
 eval SELECT bit_xor($nine_81) AS foo;
@@ -1652,4 +1653,17 @@ DROP TABLE t1;
 CREATE TABLE t1(b INT, KEY(b));
 INSERT INTO t1 VALUES (0);
 SELECT 1 FROM t1 WHERE b NOT IN (0.1,-0.1);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#18563112 SELECT INTO VARIABLE CRASH IN USER_VAR_ENTRY::STORE
+--echo #
+
+CREATE TABLE t1(
+a DECIMAL(25,20) UNSIGNED, KEY(a)
+);
+
+INSERT INTO t1 VALUES (1), (NULL);
+
+SELECT a FROM t1 GROUP BY 1 IN(1) INTO @b;
 DROP TABLE t1;

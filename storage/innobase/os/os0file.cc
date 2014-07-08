@@ -1806,7 +1806,7 @@ os_file_delete_if_exists_func(
 		*exist = true;
 	}
 loop:
-	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
+	/* In Windows, deleting an .ibd file may fail if mysqlbackup is copying
 	it */
 
 	ret = DeleteFile((LPCTSTR) name);
@@ -1877,7 +1877,7 @@ os_file_delete_func(
 	BOOL	ret;
 	ulint	count	= 0;
 loop:
-	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
+	/* In Windows, deleting an .ibd file may fail if mysqlbackup is copying
 	it */
 
 	ret = DeleteFile((LPCTSTR) name);
@@ -1899,7 +1899,7 @@ loop:
 		os_file_get_last_error(true); /* print error information */
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot delete file %s. Are you running ibbackup"
+			"Cannot delete file %s. Are you running mysqlbackup"
 			" to back up the file?", name);
 	}
 

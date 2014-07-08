@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -265,6 +265,11 @@ int PFS_object_row::make_row(const MDL_key *mdl)
     m_schema_name_length= 0;
     m_object_name_length= 0;
     break;
+  case MDL_key::USER_LEVEL_LOCK:
+    m_object_type= OBJECT_TYPE_USER_LEVEL_LOCK;
+    m_schema_name_length= 0;
+    m_object_name_length= mdl->name_length();
+    break;
   case MDL_key::NAMESPACE_END:
   default:
     m_object_type= NO_OBJECT_TYPE;
@@ -522,6 +527,9 @@ void set_field_object_type(Field *f, enum_object_type object_type)
   case OBJECT_TYPE_COMMIT:
     PFS_engine_table::set_field_varchar_utf8(f, "COMMIT", 6);
     break;
+  case OBJECT_TYPE_USER_LEVEL_LOCK:
+    PFS_engine_table::set_field_varchar_utf8(f, "USER LEVEL LOCK", 15);
+    break;
   case NO_OBJECT_TYPE:
   default:
     DBUG_ASSERT(false);
@@ -592,8 +600,14 @@ void set_field_mdl_type(Field *f, opaque_mdl_type mdl_type)
   case MDL_SHARED_WRITE:
     PFS_engine_table::set_field_varchar_utf8(f, "SHARED_WRITE", 12);
     break;
+  case MDL_SHARED_WRITE_LOW_PRIO:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_WRITE_LOW_PRIO", 21);
+    break;
   case MDL_SHARED_UPGRADABLE:
     PFS_engine_table::set_field_varchar_utf8(f, "SHARED_UPGRADABLE", 17);
+    break;
+  case MDL_SHARED_READ_ONLY:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_READ_ONLY", 16);
     break;
   case MDL_SHARED_NO_WRITE:
     PFS_engine_table::set_field_varchar_utf8(f, "SHARED_NO_WRITE", 15);

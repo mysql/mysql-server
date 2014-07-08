@@ -49,6 +49,9 @@
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include <algorithm>
+#include <functional>
+#include "prealloced_array.h"
+#include "template_utils.h"
 
 using std::min;
 using std::max;
@@ -273,7 +276,9 @@ static void free_re(void);
 static uint opt_protocol= 0;
 #endif
 
-DYNAMIC_ARRAY q_lines;
+struct st_command;
+typedef Prealloced_array<st_command*, 1024> Q_lines;
+Q_lines *q_lines;
 
 #include "sslopt-vars.h"
 
@@ -549,22 +554,40 @@ struct st_command *curr_command= 0;
 
 char builtin_echo[FN_REFLEN];
 
+/* Stores regex substitutions */
+
+struct st_regex
+{
+  char* pattern; /* Pattern to be replaced */
+  char* replace; /* String or expression to replace the pattern with */
+  int icase; /* true if the match is case insensitive */
+};
+
 struct st_replace_regex
 {
-DYNAMIC_ARRAY regex_arr; /* stores a list of st_regex subsitutions */
+  st_replace_regex()
+    : regex_arr(PSI_NOT_INSTRUMENTED),
+      buf(NULL),
+      even_buf(NULL),
+      odd_buf(NULL),
+      even_buf_len(0),
+      odd_buf_len(0)
+  {}
+  /* stores a list of st_regex subsitutions */
+  Prealloced_array<st_regex, 128> regex_arr;
 
-/*
-Temporary storage areas for substitutions. To reduce unnessary copying
-and memory freeing/allocation, we pre-allocate two buffers, and alternate
-their use, one for input/one for output, the roles changing on the next
-st_regex substition. At the end of substitutions  buf points to the
-one containing the final result.
-*/
-char* buf;
-char* even_buf;
-char* odd_buf;
-int even_buf_len;
-int odd_buf_len;
+  /*
+    Temporary storage areas for substitutions. To reduce unnessary copying
+    and memory freeing/allocation, we pre-allocate two buffers, and alternate
+    their use, one for input/one for output, the roles changing on the next
+    st_regex substition. At the end of substitutions  buf points to the
+    one containing the final result.
+  */
+  char* buf;
+  char* even_buf;
+  char* odd_buf;
+  int even_buf_len;
+  int odd_buf_len;
 };
 
 struct st_replace_regex *glob_replace_regex= 0;
@@ -795,13 +818,6 @@ public:
         perror("fwrite");
       }
     }
-
-    if (!lines)
-    {
-      fprintf(stderr,
-              "\nMore results from queries before failure can be found in %s\n",
-              m_file_name);
-    }
     fflush(stderr);
 
     DBUG_VOID_RETURN;
@@ -957,9 +973,9 @@ static void init_connection_thd(struct st_connection *cn)
   cn->query_done= 1;
   cn->command= 0;
   if (native_mutex_init(&cn->query_mutex, NULL) ||
-      native_cond_init(&cn->query_cond, NULL) ||
+      native_cond_init(&cn->query_cond) ||
       native_mutex_init(&cn->result_mutex, NULL) ||
-      native_cond_init(&cn->result_cond, NULL) ||
+      native_cond_init(&cn->result_cond) ||
       pthread_create(&cn->tid, &cn_thd_attrib, connection_thread, (void*)cn))
     die("Error in the thread library");
   cn->has_thread=TRUE;
@@ -1314,7 +1330,7 @@ end:
   {
     const char var_name[]= "__error";
     char buf[10];
-    int err_len= my_snprintf(buf, 10, "%u", error);
+    size_t err_len= my_snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -1386,9 +1402,9 @@ void free_used_memory()
   close_files();
   my_hash_free(&var_hash);
 
-  for (i= 0 ; i < q_lines.elements ; i++)
+  struct st_command **q;
+  for (q= q_lines->begin(); q != q_lines->end(); ++q)
   {
-    struct st_command **q= dynamic_element(&q_lines, i, struct st_command**);
     my_free((*q)->query_buf);
     if ((*q)->content.str)
       dynstr_free(&(*q)->content);
@@ -1401,7 +1417,7 @@ void free_used_memory()
   }
   while (embedded_server_arg_count > 1)
     my_free(embedded_server_args[--embedded_server_arg_count]);
-  delete_dynamic(&q_lines);
+  delete q_lines;
   dynstr_free(&ds_res);
   if (ds_warn)
     dynstr_free(ds_warn);
@@ -3120,8 +3136,8 @@ static void init_builtin_echo(void)
 */
 
 static int replace(DYNAMIC_STRING *ds_str,
-                   const char *search_str, ulong search_len,
-                   const char *replace_str, ulong replace_len)
+                   const char *search_str, size_t search_len,
+                   const char *replace_str, size_t replace_len)
 {
   DYNAMIC_STRING ds_tmp;
   const char *start= strstr(ds_str->str, search_str);
@@ -3266,7 +3282,7 @@ void do_exec(struct st_command *command)
   {
     const char var_name[]= "__error";
     char buf[10];
-    int err_len= my_snprintf(buf, 10, "%u", error);
+    size_t err_len= my_snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -4507,9 +4523,133 @@ void do_sync_with_master(struct st_command *command)
 
 
 /*
-  when ndb binlog is on, this call will wait until last updated epoch
-  (locally in the mysqld) has been received into the binlog
+  Wait for ndb binlog injector to be up-to-date with all changes
+  done on the local mysql server
 */
+
+static void
+ndb_wait_for_binlog_injector(void)
+{
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  MYSQL *mysql = &cur_con->mysql;
+  const char *query;
+  ulong have_ndbcluster;
+  if (mysql_query(mysql, query=
+                  "select count(*) from information_schema.engines"
+                  "  where engine = 'ndbcluster' and"
+                  "        support in ('YES', 'DEFAULT')"))
+    die("'%s' failed: %d %s", query,
+        mysql_errno(mysql), mysql_error(mysql));
+  if (!(res= mysql_store_result(mysql)))
+    die("mysql_store_result() returned NULL for '%s'", query);
+  if (!(row= mysql_fetch_row(res)))
+    die("Query '%s' returned empty result", query);
+
+  have_ndbcluster= strcmp(row[0], "1") == 0;
+  mysql_free_result(res);
+
+  if (!have_ndbcluster)
+  {
+    return;
+  }
+
+  ulonglong start_epoch= 0,
+    handled_epoch= 0,
+    latest_trans_epoch=0,
+    latest_handled_binlog_epoch= 0,
+    start_handled_binlog_epoch= 0;
+  const int WaitSeconds = 150;
+
+  int count= 0;
+  int do_continue= 1;
+  while (do_continue)
+  {
+    const char binlog[]= "binlog";
+    const char latest_trans_epoch_str[]=
+      "latest_trans_epoch=";
+    const char latest_handled_binlog_epoch_str[]=
+      "latest_handled_binlog_epoch=";
+    if (count)
+      my_sleep(100*1000); /* 100ms */
+
+    if (mysql_query(mysql, query= "show engine ndb status"))
+      die("failed in '%s': %d %s", query,
+          mysql_errno(mysql), mysql_error(mysql));
+    if (!(res= mysql_store_result(mysql)))
+      die("mysql_store_result() returned NULL for '%s'", query);
+    while ((row= mysql_fetch_row(res)))
+    {
+      if (strcmp(row[1], binlog) == 0)
+      {
+        const char *status= row[2];
+
+        /* latest_trans_epoch */
+        while (*status && strncmp(status, latest_trans_epoch_str,
+                                  sizeof(latest_trans_epoch_str)-1))
+          status++;
+        if (*status)
+        {
+          status+= sizeof(latest_trans_epoch_str)-1;
+          latest_trans_epoch= my_strtoull(status, (char**) 0, 10);
+        }
+        else
+          die("result does not contain '%s' in '%s'",
+              latest_trans_epoch_str, query);
+
+        /* latest_handled_binlog */
+        while (*status &&
+               strncmp(status, latest_handled_binlog_epoch_str,
+                       sizeof(latest_handled_binlog_epoch_str)-1))
+          status++;
+        if (*status)
+        {
+          status+= sizeof(latest_handled_binlog_epoch_str)-1;
+          latest_handled_binlog_epoch= my_strtoull(status, (char**) 0, 10);
+        }
+        else
+          die("result does not contain '%s' in '%s'",
+              latest_handled_binlog_epoch_str, query);
+
+        if (count == 0)
+        {
+          start_epoch= latest_trans_epoch;
+          start_handled_binlog_epoch= latest_handled_binlog_epoch;
+        }
+        break;
+      }
+    }
+    if (!row)
+      die("result does not contain '%s' in '%s'",
+          binlog, query);
+    if (latest_handled_binlog_epoch > handled_epoch)
+      count= 0;
+    handled_epoch= latest_handled_binlog_epoch;
+    count++;
+    if (latest_handled_binlog_epoch >= start_epoch)
+      do_continue= 0;
+    else if (count > (WaitSeconds * 10))
+    {
+      die("do_save_master_pos() timed out after %u s waiting for "
+          "last committed epoch to be applied by the "
+          "Ndb binlog injector.  "
+          "Ndb epoch %llu/%llu to be handled.  "
+          "Last handled epoch : %llu/%llu.  "
+          "First handled epoch : %llu/%llu.",
+          WaitSeconds,
+          start_epoch >> 32,
+          start_epoch & 0xffffffff,
+          latest_handled_binlog_epoch >> 32,
+          latest_handled_binlog_epoch & 0xffffffff,
+          start_handled_binlog_epoch >> 32,
+          start_handled_binlog_epoch & 0xffffffff);
+    }
+
+    mysql_free_result(res);
+  }
+}
+
+
 int do_save_master_pos()
 {
   MYSQL_RES *res;
@@ -4517,103 +4657,11 @@ int do_save_master_pos()
   MYSQL *mysql = &cur_con->mysql;
   const char *query;
   DBUG_ENTER("do_save_master_pos");
-
   /*
-    Wait for ndb binlog to be up-to-date with all changes
-    done on the local mysql server
+    when ndb binlog is on, this call will wait until last updated epoch
+    (locally in the mysqld) has been received into the binlog
   */
-  {
-    bool have_ndbcluster;
-    if (mysql_query(mysql, query=
-                    "select count(*) from information_schema.engines"
-                    "  where engine = 'ndbcluster' and"
-                    "        support in ('YES', 'DEFAULT')"))
-      die("'%s' failed: %d %s", query,
-          mysql_errno(mysql), mysql_error(mysql));
-    if (!(res= mysql_store_result(mysql)))
-      die("mysql_store_result() returned NULL for '%s'", query);
-    if (!(row= mysql_fetch_row(res)))
-      die("Query '%s' returned empty result", query);
-
-    have_ndbcluster= strcmp(row[0], "1") == 0;
-    mysql_free_result(res);
-
-    if (have_ndbcluster)
-    {
-      ulonglong start_epoch= 0, handled_epoch= 0,
-	latest_trans_epoch=0,
-	latest_handled_binlog_epoch= 0;
-      int count= 0;
-      int do_continue= 1;
-      while (do_continue)
-      {
-        const char binlog[]= "binlog";
-        const char latest_trans_epoch_str[]=
-          "latest_trans_epoch=";
-        const char latest_handled_binlog_epoch_str[]=
-          "latest_handled_binlog_epoch=";
-        if (count)
-          my_sleep(100*1000); /* 100ms */
-        if (mysql_query(mysql, query= "show engine ndb status"))
-          die("failed in '%s': %d %s", query,
-              mysql_errno(mysql), mysql_error(mysql));
-        if (!(res= mysql_store_result(mysql)))
-          die("mysql_store_result() returned NULL for '%s'", query);
-        while ((row= mysql_fetch_row(res)))
-        {
-          if (strcmp(row[1], binlog) == 0)
-          {
-            const char *status= row[2];
-
-	    /* latest_trans_epoch */
-	    while (*status && strncmp(status, latest_trans_epoch_str,
-				      sizeof(latest_trans_epoch_str)-1))
-	      status++;
-	    if (*status)
-	    {
-	      status+= sizeof(latest_trans_epoch_str)-1;
-	      latest_trans_epoch= my_strtoull(status, (char**) 0, 10);
-	    }
-	    else
-	      die("result does not contain '%s' in '%s'",
-		  latest_trans_epoch_str, query);
-
-	    /* latest_handled_binlog */
-	    while (*status &&
-		   strncmp(status, latest_handled_binlog_epoch_str,
-			   sizeof(latest_handled_binlog_epoch_str)-1))
-	      status++;
-	    if (*status)
-	    {
-	      status+= sizeof(latest_handled_binlog_epoch_str)-1;
-	      latest_handled_binlog_epoch= my_strtoull(status, (char**) 0, 10);
-	    }
-	    else
-	      die("result does not contain '%s' in '%s'",
-		  latest_handled_binlog_epoch_str, query);
-
-	    if (count == 0)
-	      start_epoch= latest_trans_epoch;
-	    break;
-	  }
-	}
-	if (!row)
-	  die("result does not contain '%s' in '%s'",
-	      binlog, query);
-	if (latest_handled_binlog_epoch > handled_epoch)
-	  count= 0;
-	handled_epoch= latest_handled_binlog_epoch;
-	count++;
-	if (latest_handled_binlog_epoch >= start_epoch)
-          do_continue= 0;
-        else if (count > 300) /* 30s */
-	{
-	  break;
-        }
-        mysql_free_result(res);
-      }
-    }
-  }
+  ndb_wait_for_binlog_injector();
 
   if (mysql_query(mysql, query= "show master status"))
     die("failed in 'show master status': %d %s",
@@ -6636,14 +6684,14 @@ int read_command(struct st_command** command_ptr)
 
   if (parser.current_line < parser.read_lines)
   {
-    get_dynamic(&q_lines, (uchar*) command_ptr, parser.current_line) ;
+    *command_ptr= q_lines->at(parser.current_line);
     DBUG_RETURN(0);
   }
   if (!(*command_ptr= command=
         (struct st_command*) my_malloc(PSI_NOT_INSTRUMENTED,
                                        sizeof(*command),
                                        MYF(MY_WME|MY_ZEROFILL))) ||
-      insert_dynamic(&q_lines, &command))
+      q_lines->push_back(command))
     die("Out of memory");
   command->type= Q_UNKNOWN;
 
@@ -7120,7 +7168,8 @@ void check_regerr(my_regex_t* r, int err)
 
 #ifdef _WIN32
 
-DYNAMIC_ARRAY patterns;
+typedef Prealloced_array<const char*, 16> Patterns;
+Patterns *patterns;
 
 /*
   init_win_path_patterns
@@ -7147,7 +7196,7 @@ void init_win_path_patterns()
 
   DBUG_ENTER("init_win_path_patterns");
 
-  my_init_dynamic_array(&patterns, sizeof(const char*), 16, 16);
+  patterns= new Patterns(PSI_NOT_INSTRUMENTED);
 
   /* Loop through all paths in the array */
   for (i= 0; i < num_paths; i++)
@@ -7170,7 +7219,7 @@ void init_win_path_patterns()
       continue;
     }
 
-    if (insert_dynamic(&patterns, &p))
+    if (patterns->push_back(p))
       die("Out of memory");
 
     DBUG_PRINT("info", ("p: %s", p));
@@ -7187,12 +7236,13 @@ void init_win_path_patterns()
 void free_win_path_patterns()
 {
   uint i= 0;
-  for (i=0 ; i < patterns.elements ; i++)
+  const char **pat;
+  for (pat= patterns->begin(); pat != patterns->end(); ++pat)
   {
-    const char** pattern= dynamic_element(&patterns, i, const char**);
-    my_free((void *) *pattern);
+    my_free(const_cast<char*>(*pat));
   }
-  delete_dynamic(&patterns);
+  delete patterns;
+  patterns= NULL;
 }
 
 /*
@@ -7211,19 +7261,17 @@ void free_win_path_patterns()
 
 void fix_win_paths(const char *val, size_t len)
 {
-  uint i;
-  char *p;
-
   DBUG_ENTER("fix_win_paths");
-  for (i= 0; i < patterns.elements; i++)
+  const char **pat;
+  for (pat= patterns->begin(); pat != patterns->end(); ++pat)
   {
-    const char** pattern= dynamic_element(&patterns, i, const char**);
-    DBUG_PRINT("info", ("pattern: %s", *pattern));
+    char *p;
+    DBUG_PRINT("info", ("pattern: %s", *pat));
 
     /* Search for the path in string */
-    while ((p= strstr((char*)val, *pattern)))
+    while ((p= strstr(const_cast<char*>(val), *pat)))
     {
-      DBUG_PRINT("info", ("Found %s in val p: %s", *pattern, p));
+      DBUG_PRINT("info", ("Found %s in val p: %s", *pat, p));
 
       while (*p && !my_isspace(charset_info, *p))
       {
@@ -8838,7 +8886,7 @@ int main(int argc, char **argv)
   cur_block->ok= TRUE; /* Outer block should always be executed */
   cur_block->cmd= cmd_none;
 
-  my_init_dynamic_array(&q_lines, sizeof(struct st_command*), 1024, 1024);
+  q_lines= new Q_lines(PSI_NOT_INSTRUMENTED);
 
   if (my_hash_init(&var_hash, charset_info,
                    1024, 0, 0, get_var_key, var_free, MYF(0)))
@@ -9773,15 +9821,6 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
 */
 
 
-/* Stores regex substitutions */
-
-struct st_regex
-{
-  char* pattern; /* Pattern to be replaced */
-  char* replace; /* String or expression to replace the pattern with */
-  int icase; /* true if the match is case insensitive */
-};
-
 int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replace,
                 char *string, int icase);
 
@@ -9833,9 +9872,9 @@ struct st_replace_regex* init_replace_regex(char* expr)
   struct st_regex reg;
 
   /* my_malloc() will die on fail with MY_FAE */
-  res=(struct st_replace_regex*)my_malloc(PSI_NOT_INSTRUMENTED,
-                                          sizeof(*res)+expr_len ,MYF(MY_FAE+MY_WME));
-  my_init_dynamic_array(&res->regex_arr,sizeof(struct st_regex),128,128);
+  void *rawmem= my_malloc(PSI_NOT_INSTRUMENTED,
+                          sizeof(*res)+expr_len ,MYF(MY_FAE+MY_WME));
+  res= new (rawmem) st_replace_regex;
 
   buf= (char*)res + sizeof(*res);
   expr_end= expr + expr_len;
@@ -9856,7 +9895,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
 
     if (p == expr_end || ++p == expr_end)
     {
-      if (res->regex_arr.elements)
+      if (res->regex_arr.size())
         break;
       else
         goto err;
@@ -9887,7 +9926,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
       reg.icase= 1;
 
     /* done parsing the statement, now place it in regex_arr */
-    if (insert_dynamic(&res->regex_arr, &reg))
+    if (res->regex_arr.push_back(reg))
       die("Out of memory");
   }
   res->odd_buf_len= res->even_buf_len= 8192;
@@ -9926,7 +9965,7 @@ err:
 
 int multi_reg_replace(struct st_replace_regex* r,char* val)
 {
-  uint i;
+  size_t i;
   char* in_buf, *out_buf;
   int* buf_len_p;
 
@@ -9936,12 +9975,10 @@ int multi_reg_replace(struct st_replace_regex* r,char* val)
   r->buf= 0;
 
   /* For each substitution, do the replace */
-  for (i= 0; i < r->regex_arr.elements; i++)
+  for (i= 0; i < r->regex_arr.size(); i++)
   {
-    struct st_regex re;
+    struct st_regex re(r->regex_arr[i]);
     char* save_out_buf= out_buf;
-
-    get_dynamic(&r->regex_arr,(uchar*)&re,i);
 
     if (!reg_replace(&out_buf, buf_len_p, re.pattern, re.replace,
                      in_buf, re.icase))
@@ -9997,11 +10034,11 @@ void free_replace_regex()
 {
   if (glob_replace_regex)
   {
-    delete_dynamic(&glob_replace_regex->regex_arr);
     my_free(glob_replace_regex->even_buf);
     my_free(glob_replace_regex->odd_buf);
+    glob_replace_regex->~st_replace_regex();
     my_free(glob_replace_regex);
-    glob_replace_regex=0;
+    glob_replace_regex= NULL;
   }
 }
 
@@ -10013,7 +10050,7 @@ void free_replace_regex()
 */
 #define SECURE_REG_BUF   if (buf_len < need_buf_len)                    \
   {                                                                     \
-    int off= res_p - buf;                                               \
+    my_ptrdiff_t off= res_p - buf;                                      \
     buf= (char*)my_realloc(PSI_NOT_INSTRUMENTED,                        \
                            buf,need_buf_len,MYF(MY_WME+MY_FAE));        \
     res_p= buf + off;                                                   \
@@ -10189,7 +10226,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
     }
     else /* no match this time, just copy the string as is */
     {
-      int left_in_str= str_end-str_p;
+      size_t left_in_str= str_end-str_p;
       need_buf_len= (res_p-buf) + left_in_str;
       SECURE_REG_BUF
         memcpy(res_p,str_p,left_in_str);
@@ -10891,22 +10928,24 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val)
 
 */
 
-static int comp_lines(const char **a, const char **b)
+class Comp_lines :
+  public std::binary_function<const char*, const char *, bool>
 {
-  return (strcmp(*a,*b));
-}
+public:
+  bool operator()(const char *a, const char *b)
+  {
+    return strcmp(a, b) < 0;
+  }
+};
 
 void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
 {
-  unsigned i;
   char *start= ds_input->str;
-  DYNAMIC_ARRAY lines;
+  Prealloced_array<const char*, 32> lines(PSI_NOT_INSTRUMENTED);
   DBUG_ENTER("dynstr_append_sorted");
 
   if (!*start)
     DBUG_VOID_RETURN;  /* No input */
-
-  my_init_dynamic_array(&lines, sizeof(const char*), 32, 32);
 
   /* First line is result header, skip past it */
   while (*start && *start != '\n')
@@ -10925,24 +10964,21 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
     *line_end= 0;
 
     /* Insert pointer to the line in array */
-    if (insert_dynamic(&lines, &start))
+    if (lines.push_back(start))
       die("Out of memory inserting lines to sort");
 
     start= line_end+1;
   }
 
   /* Sort array */
-  qsort(lines.buffer, lines.elements,
-        sizeof(char**), (qsort_cmp)comp_lines);
+  std::sort(lines.begin(), lines.end(), Comp_lines());
 
   /* Create new result */
-  for (i= 0; i < lines.elements ; i++)
+  for (const char **line= lines.begin(); line != lines.end(); ++line)
   {
-    const char **line= dynamic_element(&lines, i, const char**);
     dynstr_append(ds, *line);
     dynstr_append(ds, "\n");
   }
 
-  delete_dynamic(&lines);
   DBUG_VOID_RETURN;
 }

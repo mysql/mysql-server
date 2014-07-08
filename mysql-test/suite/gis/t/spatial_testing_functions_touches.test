@@ -1145,25 +1145,37 @@ SELECT Touches(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 SELECT Touches(NULL,NULL);
 SELECT Touches(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT Touches(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT Touches(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT Touches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Touches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT Touches(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Touches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Touches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Touches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT Touches(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Touches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Touches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Touches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT Touches(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT Touches(,);
@@ -1186,25 +1198,37 @@ SELECT ST_Touches(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 SELECT ST_Touches(NULL,NULL);
 SELECT ST_Touches(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Touches(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Touches(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Touches(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Touches(,);
@@ -1227,25 +1251,37 @@ SELECT MBRTouches(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 SELECT MBRTouches(NULL,NULL);
 SELECT MBRTouches(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT MBRTouches(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT MBRTouches(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT MBRTouches(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRTouches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT MBRTouches(,);

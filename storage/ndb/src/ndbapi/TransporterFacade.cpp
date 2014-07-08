@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <NdbOut.hpp>
 #include <NdbEnv.h>
 #include <NdbSleep.h>
+#include <NdbLockCpuUtil.h>
 
 #include <kernel/GlobalSignalNumbers.h>
 #include <mgmapi_config_parameters.h>
@@ -61,7 +62,7 @@ static int indexToNumber(int index)
 #endif
 
 #define DBG_POLL 0
-#define dbg(x,y) if (DBG_POLL) printf("%llu : " x "\n", NdbTick_CurrentNanosecond() / 1000, y)
+#define dbg(x,y) //if (DBG_POLL) printf("%llu : " x "\n", NdbTick_CurrentNanosecond() / 1000, y)
 
 /*****************************************************************************
  * Call back functions
@@ -216,7 +217,7 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
                                   LinearSectionPtr ptr[3])
 {
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;
-  
+
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(header->theVerId_signalNumber)){
     signalLogger.executeSignal(* header, 
@@ -249,7 +250,11 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
       NdbApiSignal * tSignal = &tmpSignal;
       tSignal->setDataPtr(theData);
       clnt->trp_deliver_signal(tSignal, ptr);
-    }//if
+    }
+    else
+    {
+      handleMissingClnt(header, theData);
+    }
   }
   else if (tRecBlockNo == API_PACKED)
   {
@@ -293,6 +298,10 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
               m_poll_owner->m_poll.lock_client(clnt);
               clnt->trp_deliver_signal(tSignal, 0);
             }
+            else
+            {
+              handleMissingClnt(header, tDataPtr);
+            }
           }
         }
       }
@@ -310,7 +319,11 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
       tSignal->setDataPtr(theData);
       m_poll_owner->m_poll.lock_client(clnt);
       clnt->trp_deliver_signal(tSignal, ptr);
-    }//if   
+    }
+    else
+    {
+      handleMissingClnt(header, theData);
+    }
   }
   else
   {
@@ -320,6 +333,8 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
       TRP_DEBUG( "TransporterFacade received signal to unknown block no." );
       ndbout << "BLOCK NO: "  << tRecBlockNo << " sig " 
              << header->theVerId_signalNumber  << endl;
+      ndbout << *header << "-- Signal Data --" << endl;
+      ndbout.hexdump(theData, MAX(header->theLength, 25)) << flush;
       abort();
     }
   }
@@ -333,6 +348,69 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
   const Uint32 MAX_MESSAGES_IN_LOCKED_CLIENTS =
     m_poll_owner->m_poll.m_lock_array_size - 6;
    return m_poll_owner->m_poll.m_locked_cnt >= MAX_MESSAGES_IN_LOCKED_CLIENTS;
+}
+
+#include <signaldata/TcKeyConf.hpp>
+#include <signaldata/TcCommit.hpp>
+#include <signaldata/TcKeyFailConf.hpp>
+
+void
+TransporterFacade::handleMissingClnt(const SignalHeader * header,
+                                     const Uint32 * theData)
+{
+  Uint32 gsn = header->theVerId_signalNumber;
+  Uint32 transId[2];
+  if (gsn == GSN_TCKEYCONF || gsn == GSN_TCINDXCONF)
+  {
+    const TcKeyConf * conf = CAST_CONSTPTR(TcKeyConf, theData);
+    if (TcKeyConf::getMarkerFlag(conf->confInfo) == false)
+    {
+      return;
+    }
+    transId[0] = conf->transId1;
+    transId[1] = conf->transId2;
+  }
+  else if (gsn == GSN_TC_COMMITCONF)
+  {
+    const TcCommitConf * conf = CAST_CONSTPTR(TcCommitConf, theData);
+    if ((conf->apiConnectPtr & 1) == 0)
+    {
+      return;
+    }
+    transId[0] = conf->transId1;
+    transId[1] = conf->transId2;
+  }
+  else if (gsn == GSN_TCKEY_FAILCONF)
+  {
+    const TcKeyFailConf * conf = CAST_CONSTPTR(TcKeyFailConf, theData);
+    if ((conf->apiConnectPtr & 1) == 0)
+    {
+      return;
+    }
+    transId[0] = conf->transId1;
+    transId[1] = conf->transId2;
+  }
+  else
+  {
+    return;
+  }
+
+  // ndbout_c("KESO KESO KESO: sending commit ack marker 0x%.8x 0x%.8x (gsn: %u)",
+  //         transId[0], transId[1], gsn);
+
+  Uint32 ownBlockNo = header->theReceiversBlockNumber;
+  Uint32 aTCRef = header->theSendersBlockRef;
+
+  NdbApiSignal tSignal(numberToRef(ownBlockNo, ownId()));
+  tSignal.theReceiversBlockNumber = refToBlock(aTCRef);
+  tSignal.theVerId_signalNumber   = GSN_TC_COMMIT_ACK;
+  tSignal.theLength               = 2;
+
+  Uint32 * dataPtr = tSignal.getDataPtrSend();
+  dataPtr[0] = transId[0];
+  dataPtr[1] = transId[1];
+
+  m_poll_owner->safe_sendSignal(&tSignal, refToNode(aTCRef));
 }
 
 // These symbols are needed, but not used in the API
@@ -623,7 +701,7 @@ ReceiveThreadClient::trp_deliver_signal(const NdbApiSignal *signal,
 void
 TransporterFacade::checkClusterMgr(NDB_TICKS & lastTime)
 {
-  lastTime = NdbTick_CurrentMillisecond();
+  lastTime = NdbTick_getCurrentTicks();
   theClusterMgr->lock();
   theTransporterRegistry->update_connections();
   theClusterMgr->flush_send_buffers();
@@ -700,7 +778,7 @@ void
 TransporterFacade::unlock_recv_thread_cpu()
 {
   if (theReceiveThread)
-    NdbThread_UnlockCPU(theReceiveThread);
+    Ndb_UnlockCPU(theReceiveThread);
 }
 
 void
@@ -709,7 +787,7 @@ TransporterFacade::lock_recv_thread_cpu()
   Uint32 cpu_id = recv_thread_cpu_id;
   if (cpu_id != NO_RECV_THREAD_CPU_ID && theReceiveThread)
   {
-    NdbThread_LockCPU(theReceiveThread, cpu_id);
+    Ndb_LockCPU(theReceiveThread, cpu_id);
   }
 }
 
@@ -732,7 +810,7 @@ void TransporterFacade::threadMainReceive(void)
 {
   bool poll_owner = false;
   bool check_cluster_mgr;
-  NDB_TICKS currTime = NdbTick_CurrentMillisecond();
+  NDB_TICKS currTime = NdbTick_getCurrentTicks();
   NDB_TICKS lastTime = currTime;
 
   while (theReceiveThread == NULL)
@@ -748,9 +826,10 @@ void TransporterFacade::threadMainReceive(void)
   lock_recv_thread_cpu();
   while(!theStopReceive)
   {
-    currTime = NdbTick_CurrentMillisecond();
+    currTime = NdbTick_getCurrentTicks();
+    Uint64 elapsed = NdbTick_Elapsed(lastTime,currTime).milliSec();
     check_cluster_mgr = false;
-    if (currTime > (lastTime + ((NDB_TICKS)100)))
+    if (elapsed > 100)
       check_cluster_mgr = true; /* 100 milliseconds have passed */
     if (!poll_owner)
     {
@@ -772,7 +851,8 @@ void TransporterFacade::threadMainReceive(void)
     if (poll_owner)
     {
       bool stay_poll_owner = !check_cluster_mgr;
-      if ((currTime - m_receive_activation_time) > (NDB_TICKS)1000)
+      elapsed = NdbTick_Elapsed(m_receive_activation_time,currTime).milliSec();
+      if (elapsed > 1000)
       {
         /* Reset timer for next activation check time */
         m_receive_activation_time = currTime;
@@ -1946,7 +2026,7 @@ TransporterFacade::get_an_alive_node()
 #ifdef VM_TRACE
   const char* p = NdbEnv_GetEnv("NDB_ALIVE_NODE_ID", (char*)0, 0);
   if (p != 0 && *p != 0)
-    return atoi(p);
+    DBUG_RETURN(atoi(p));
 #endif
   NodeId i;
   for (i = theStartNodeId; i < MAX_NDB_NODES; i++) {

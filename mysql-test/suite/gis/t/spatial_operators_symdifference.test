@@ -316,10 +316,13 @@ SELECT AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_horizontal))) FRO
 --echo #linestring,polygon
 SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))')));
 SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal)));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))) FROM gis_geometrycollection WHERE fid=110;
 --echo #linestring,multipolygon
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15))),((25 0,0 15,25 0))')));
 SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems)));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))) FROM gis_geometrycollection WHERE fid=110;
 --echo #linestring,geometrycollection
 SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems)));
@@ -527,25 +530,37 @@ SELECT AsText(ST_Symdifference(g,NULL)) FROM gis_geometrycollection,gis_geometry
 SELECT AsText(ST_Symdifference(NULL,NULL));
 SELECT AsText(ST_Symdifference(fid,NULL)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(fid,GeomFromText(@star_top))) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),fid)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Symdifference(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Symdifference(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Symdifference(,));

@@ -295,9 +295,6 @@ Datafile::read_first_page(bool read_only_mode)
 		m_space_id = fsp_header_get_space_id(m_first_page);
 	}
 
-	m_flushed_lsn = mach_read_from_8(
-		m_first_page + FIL_PAGE_FILE_FLUSH_LSN);
-
 	return(DB_SUCCESS);
 }
 
@@ -424,12 +421,14 @@ Datafile::validate_for_recovery()
 tablespace is opened.  This occurs before the fil_space_t is created
 so the Space ID found here must not already be open.
 m_is_valid is set true on success, else false.
+@param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
+(only valid for the first file of the system tablespace)
 @retval DB_SUCCESS on if the datafile is valid
 @retval DB_CORRUPTION if the datafile is not readable
 @retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
 
 dberr_t
-Datafile::validate_first_page()
+Datafile::validate_first_page(lsn_t* flush_lsn)
 {
 	m_is_valid = true;
 	const char* error_txt = NULL;
@@ -442,6 +441,11 @@ Datafile::validate_first_page()
 	} else {
 		ut_ad(m_first_page_buf);
 		ut_ad(m_first_page);
+
+		if (flush_lsn) {
+			*flush_lsn = mach_read_from_8(
+				m_first_page + FIL_PAGE_FILE_FLUSH_LSN);
+		}
 	}
 
 	/* Check if the whole page is blank. */

@@ -126,7 +126,7 @@ DROP TABLE t2;
 Now check bulk insert using create .. as select.
 SHOW VARIABLES LIKE 'default_storage_engine';
 Variable_name	Value
-storage_engine	MyISAM
+default_storage_engine	MyISAM
 SET default_storage_engine="ndb";
 CREATE TABLE t2 AS SELECT * FROM t1;
 SELECT COUNT(*) FROM t2;

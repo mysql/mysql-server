@@ -96,7 +96,6 @@ protected:
     /* Save original and install our custom error hook. */
     m_old_error_handler_hook= error_handler_hook;
     error_handler_hook= test_error_handler_hook;
-    mdl_locks_unused_locks_low_water= MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
 
   }
 
@@ -108,6 +107,8 @@ protected:
   void SetUp()
   {
     expected_error= 0;
+    mdl_locks_unused_locks_low_water= MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
+    max_write_lock_count= ULONG_MAX;
     mdl_init();
     m_mdl_context.init(this);
     EXPECT_FALSE(m_mdl_context.has_locks());
@@ -228,20 +229,11 @@ private:
 void MDL_thread::run()
 {
   MDL_request request;
-  MDL_request global_request;
-  MDL_request_list request_list;
-  MDL_REQUEST_INIT(&global_request,
-                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                   MDL_TRANSACTION);
   MDL_REQUEST_INIT(&request,
                    MDL_key::TABLE, db_name, m_table_name, m_mdl_type,
                    MDL_TRANSACTION);
 
-  request_list.push_front(&request);
-  if (m_mdl_type >= MDL_SHARED_UPGRADABLE)
-    request_list.push_front(&global_request);
-
-  EXPECT_FALSE(m_mdl_context.acquire_locks(&request_list, long_timeout));
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
   EXPECT_TRUE(m_mdl_context.
               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, m_table_name,
                                           m_mdl_type));
@@ -728,6 +720,434 @@ TEST_F(MDLTest, UpgradableConcurrency)
 
 
 /*
+  Test compatibility matrice for MDL_SHARED_WRITE_LOW_PRIO lock.
+*/
+
+TEST_F(MDLTest, SharedWriteLowPrioCompatibility)
+{
+  enum_mdl_type compatible[]= { MDL_SHARED, MDL_SHARED_HIGH_PRIO,
+                                MDL_SHARED_READ, MDL_SHARED_WRITE,
+                                MDL_SHARED_WRITE_LOW_PRIO,
+                                MDL_SHARED_UPGRADABLE };
+  enum_mdl_type incompatible[]= { MDL_SHARED_READ_ONLY, MDL_SHARED_NO_WRITE,
+                                  MDL_SHARED_NO_READ_WRITE, MDL_EXCLUSIVE };
+  enum_mdl_type higher_prio[]= { MDL_SHARED_READ_ONLY, MDL_SHARED_NO_WRITE,
+                                 MDL_SHARED_NO_READ_WRITE, MDL_EXCLUSIVE };
+  Notification lock_grabbed;
+  Notification release_lock;
+  MDL_thread mdl_thread(table_name1, MDL_SHARED_WRITE_LOW_PRIO,
+                        &lock_grabbed, &release_lock, NULL, NULL);
+  uint i;
+
+  // Start thread which will acquire SWLP lock and pause.
+  mdl_thread.start();
+  lock_grabbed.wait_for_notification();
+
+  // We should be able to take all locks from compatible list
+  for (i= 0; i < sizeof(compatible)/sizeof(enum_mdl_type); ++i)
+  {
+    MDL_REQUEST_INIT(&m_request,
+                     MDL_key::TABLE, db_name, table_name1, compatible[i],
+                     MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+    EXPECT_NE(m_null_ticket, m_request.ticket);
+    m_mdl_context.release_transactional_locks();
+  }
+
+  // But none of the locks from incompatible list
+  for (i= 0; i < sizeof(incompatible)/sizeof(enum_mdl_type); ++i)
+  {
+    MDL_REQUEST_INIT(&m_request,
+                     MDL_key::TABLE, db_name, table_name1, incompatible[i],
+                     MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+    EXPECT_EQ(m_null_ticket, m_request.ticket);
+  }
+
+  release_lock.notify();
+  mdl_thread.join();
+
+  // Check that SWLP lock can be acquired when any of compatible locks is active
+  for (i= 0; i < sizeof(compatible)/sizeof(enum_mdl_type); ++i)
+  {
+    Notification second_grabbed;
+    Notification second_release;
+    MDL_thread mdl_thread2(table_name1, compatible[i],
+                           &second_grabbed, &second_release,
+                           NULL, NULL);
+
+    // Start thread that will acquire one of locks from compatible list
+    mdl_thread2.start();
+    second_grabbed.wait_for_notification();
+
+    // Acquisition of SWLP should succeed
+    MDL_REQUEST_INIT(&m_request,
+                     MDL_key::TABLE, db_name, table_name1,
+                     MDL_SHARED_WRITE_LOW_PRIO, MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+    EXPECT_NE(m_null_ticket, m_request.ticket);
+    m_mdl_context.release_transactional_locks();
+
+    second_release.notify();
+    mdl_thread2.join();
+  }
+
+  /*
+    Check that SWLP lock can't be acquired when any of incompatible locks
+    is active.
+  */
+  for (i= 0; i < sizeof(incompatible)/sizeof(enum_mdl_type); ++i)
+  {
+    Notification third_grabbed;
+    Notification third_release;
+    MDL_thread mdl_thread3(table_name1, incompatible[i],
+                           &third_grabbed, &third_release,
+                           NULL, NULL);
+
+    // Start thread that will acquire one of locks from incompatible list
+    mdl_thread3.start();
+    third_grabbed.wait_for_notification();
+
+    // Acquisition of SWLP should fail.
+    MDL_REQUEST_INIT(&m_request,
+                     MDL_key::TABLE, db_name, table_name1,
+                     MDL_SHARED_WRITE_LOW_PRIO, MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+    EXPECT_EQ(m_null_ticket, m_request.ticket);
+
+    third_release.notify();
+    mdl_thread3.join();
+  }
+
+  /*
+    Check that SWLP lock can't be acquired if one of higher-prio locks is
+    pending.
+  */
+  for (i= 0; i < sizeof(higher_prio)/sizeof(enum_mdl_type); ++i)
+  {
+    Notification fourth_grabbed;
+    Notification fourth_release;
+    Notification fifth_blocked;
+    MDL_thread mdl_thread4(table_name1, MDL_SHARED_WRITE,
+                           &fourth_grabbed, &fourth_release,
+                           NULL, NULL);
+    MDL_thread mdl_thread5(table_name1, higher_prio[i],
+                           NULL, NULL, &fifth_blocked, NULL);
+
+    // Acquire SW lock on the table.
+    mdl_thread4.start();
+    fourth_grabbed.wait_for_notification();
+
+    // Ensure that there is pending high-prio lock.
+    mdl_thread5.start();
+    fifth_blocked.wait_for_notification();
+
+    // Acquisition of SWLP should fail because there is pending high-prio lock.
+    MDL_REQUEST_INIT(&m_request,
+                     MDL_key::TABLE, db_name, table_name1,
+                     MDL_SHARED_WRITE_LOW_PRIO, MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+    EXPECT_EQ(m_null_ticket, m_request.ticket);
+
+    fourth_release.notify();
+    mdl_thread4.join();
+    mdl_thread5.join();
+  }
+
+  /*
+    Check that higher-prio locks can be acquired even if there
+    is pending SWLP lock.
+  */
+  for (i= 0; i < sizeof(higher_prio)/sizeof(enum_mdl_type); ++i)
+  {
+    Notification sixth_grabbed;
+    Notification sixth_release;
+    Notification seventh_blocked;
+    Notification seventh_grabbed;
+    Notification eighth_blocked;
+    Notification eighth_release;
+    MDL_thread mdl_thread6(table_name1, MDL_EXCLUSIVE,
+                           &sixth_grabbed, &sixth_release,
+                           NULL, NULL);
+    MDL_thread mdl_thread7(table_name1, higher_prio[i],
+                           &seventh_grabbed, NULL, &seventh_blocked, NULL);
+    MDL_thread mdl_thread8(table_name1, MDL_SHARED_WRITE_LOW_PRIO,
+                           NULL, &eighth_release, &eighth_blocked, NULL);
+
+    // Acquire X lock on the table.
+    mdl_thread6.start();
+    sixth_grabbed.wait_for_notification();
+
+    // Ensure that there is pending high-prio lock.
+    mdl_thread7.start();
+    seventh_blocked.wait_for_notification();
+
+    // Ensure that there is pending SWLP after it.
+    mdl_thread8.start();
+    eighth_blocked.wait_for_notification();
+
+    // Release X lock.
+    sixth_release.notify();
+    mdl_thread6.join();
+
+    /*
+      This should unblock high-prio lock and not SWLP (otherwise we will
+      wait for SWLP release.
+    */
+    seventh_grabbed.wait_for_notification();
+    mdl_thread7.join();
+
+    // After this SWLP lock will be granted and can be released
+    eighth_release.notify();
+    mdl_thread8.join();
+  }
+}
+
+
+/*
+  Test compatibility matrice for MDL_SHARED_READ_ONLY lock.
+*/
+
+TEST_F(MDLTest, SharedReadOnlyCompatibility)
+{
+  enum_mdl_type compatible[]= { MDL_SHARED, MDL_SHARED_HIGH_PRIO,
+                                MDL_SHARED_READ, MDL_SHARED_UPGRADABLE,
+                                MDL_SHARED_READ_ONLY, MDL_SHARED_NO_WRITE};
+  enum_mdl_type incompatible[]= { MDL_SHARED_WRITE, MDL_SHARED_WRITE_LOW_PRIO,
+                                  MDL_SHARED_NO_READ_WRITE, MDL_EXCLUSIVE };
+  enum_mdl_type higher_prio[]= { MDL_SHARED_WRITE, MDL_SHARED_NO_READ_WRITE,
+                                 MDL_EXCLUSIVE };
+  Notification lock_grabbed;
+  Notification release_lock;
+  MDL_thread mdl_thread(table_name1, MDL_SHARED_READ_ONLY,
+                        &lock_grabbed, &release_lock, NULL, NULL);
+  uint i;
+
+  // Start thread which will acquire SRO lock and pause.
+  mdl_thread.start();
+  lock_grabbed.wait_for_notification();
+
+  // We should be able to take all locks from compatible list
+  for (i= 0; i < sizeof(compatible)/sizeof(enum_mdl_type); ++i)
+  {
+    MDL_REQUEST_INIT(&m_request,
+                     MDL_key::TABLE, db_name, table_name1, compatible[i],
+                     MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+    EXPECT_NE(m_null_ticket, m_request.ticket);
+    m_mdl_context.release_transactional_locks();
+  }
+
+  // But none of the locks from incompatible list
+  for (i= 0; i < sizeof(incompatible)/sizeof(enum_mdl_type); ++i)
+  {
+    MDL_REQUEST_INIT(&m_request,
+                     MDL_key::TABLE, db_name, table_name1, incompatible[i],
+                     MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+    EXPECT_EQ(m_null_ticket, m_request.ticket);
+  }
+
+  release_lock.notify();
+  mdl_thread.join();
+
+  // Check that SRO lock can be acquired when any of compatible locks is active
+  for (i= 0; i < sizeof(compatible)/sizeof(enum_mdl_type); ++i)
+  {
+    Notification second_grabbed;
+    Notification second_release;
+    MDL_thread mdl_thread2(table_name1, compatible[i],
+                           &second_grabbed, &second_release,
+                           NULL, NULL);
+
+    // Start thread that will acquire one of locks from compatible list
+    mdl_thread2.start();
+    second_grabbed.wait_for_notification();
+
+    // Acquisition of SRO should succeed
+    MDL_REQUEST_INIT(&m_request,
+                     MDL_key::TABLE, db_name, table_name1, MDL_SHARED_READ_ONLY,
+                     MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+    EXPECT_NE(m_null_ticket, m_request.ticket);
+    m_mdl_context.release_transactional_locks();
+
+    second_release.notify();
+    mdl_thread2.join();
+  }
+
+  /*
+    Check that SRO lock can't be acquired when any of incompatible locks
+    is active.
+  */
+  for (i= 0; i < sizeof(incompatible)/sizeof(enum_mdl_type); ++i)
+  {
+    Notification third_grabbed;
+    Notification third_release;
+    MDL_thread mdl_thread3(table_name1, incompatible[i],
+                           &third_grabbed, &third_release,
+                           NULL, NULL);
+
+    // Start thread that will acquire one of locks from incompatible list
+    mdl_thread3.start();
+    third_grabbed.wait_for_notification();
+
+    // Acquisition of SRO should fail.
+    MDL_REQUEST_INIT(&m_request,
+                     MDL_key::TABLE, db_name, table_name1, MDL_SHARED_READ_ONLY,
+                     MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+    EXPECT_EQ(m_null_ticket, m_request.ticket);
+
+    third_release.notify();
+    mdl_thread3.join();
+  }
+
+  /*
+    Check that SRO lock can't be acquired if one of higher-prio locks is
+    pending.
+  */
+  for (i= 0; i < sizeof(higher_prio)/sizeof(enum_mdl_type); ++i)
+  {
+    Notification fourth_grabbed;
+    Notification fourth_release;
+    Notification fifth_blocked;
+    MDL_thread mdl_thread4(table_name1, MDL_SHARED_READ_ONLY,
+                           &fourth_grabbed, &fourth_release,
+                           NULL, NULL);
+    MDL_thread mdl_thread5(table_name1, higher_prio[i],
+                           NULL, NULL, &fifth_blocked, NULL);
+
+    // Acquire SRO lock on the table.
+    mdl_thread4.start();
+    fourth_grabbed.wait_for_notification();
+
+    // Ensure that there is pending high-prio lock.
+    mdl_thread5.start();
+    fifth_blocked.wait_for_notification();
+
+    // Acquisition of SRO should fail because there is pending high-prio lock.
+    MDL_REQUEST_INIT(&m_request,
+                     MDL_key::TABLE, db_name, table_name1, MDL_SHARED_READ_ONLY,
+                     MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+    EXPECT_EQ(m_null_ticket, m_request.ticket);
+
+    fourth_release.notify();
+    mdl_thread4.join();
+    mdl_thread5.join();
+  }
+
+  // Check that SRO lock can be acquired if there is pending SWLP request.
+  Notification sixth_grabbed;
+  Notification sixth_release;
+  Notification seventh_blocked;
+  MDL_thread mdl_thread6(table_name1, MDL_SHARED_READ_ONLY,
+                         &sixth_grabbed, &sixth_release,
+                         NULL, NULL);
+  MDL_thread mdl_thread7(table_name1, MDL_SHARED_WRITE_LOW_PRIO,
+                         NULL, NULL, &seventh_blocked, NULL);
+
+  // Acquire SRO lock on the table.
+  mdl_thread6.start();
+  sixth_grabbed.wait_for_notification();
+
+  // Ensure that there is pending SWLP lock.
+  mdl_thread7.start();
+  seventh_blocked.wait_for_notification();
+
+  // Acquisition of SRO should succeed despite pending SWLP is present
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED_READ_ONLY,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+  EXPECT_NE(m_null_ticket, m_request.ticket);
+  m_mdl_context.release_transactional_locks();
+
+  sixth_release.notify();
+  mdl_thread6.join();
+  mdl_thread7.join();
+
+  /*
+    Check that higher-prio locks can be acquired even if there
+    is pending SRO lock.
+  */
+  for (i= 0; i < sizeof(higher_prio)/sizeof(enum_mdl_type); ++i)
+  {
+    Notification eighth_grabbed;
+    Notification eighth_release;
+    Notification nineth_blocked;
+    Notification nineth_grabbed;
+    Notification tenth_blocked;
+    Notification tenth_release;
+    MDL_thread mdl_thread8(table_name1, MDL_EXCLUSIVE,
+                           &eighth_grabbed, &eighth_release,
+                           NULL, NULL);
+    MDL_thread mdl_thread9(table_name1, higher_prio[i],
+                           &nineth_grabbed, NULL, &nineth_blocked, NULL);
+    MDL_thread mdl_thread10(table_name1, MDL_SHARED_READ_ONLY,
+                           NULL, &tenth_release, &tenth_blocked, NULL);
+
+    // Acquire X lock on the table.
+    mdl_thread8.start();
+    eighth_grabbed.wait_for_notification();
+
+    // Ensure that there is pending high-prio lock.
+    mdl_thread9.start();
+    nineth_blocked.wait_for_notification();
+
+    // Ensure that there is pending SRO after it.
+    mdl_thread10.start();
+    tenth_blocked.wait_for_notification();
+
+    // Release X lock.
+    eighth_release.notify();
+    mdl_thread8.join();
+
+    /*
+      This should unblock high-prio lock and not SRO (otherwise we will
+      wait for SRO release.
+    */
+    nineth_grabbed.wait_for_notification();
+    mdl_thread9.join();
+
+    // After this SRO lock will be granted and can be released
+    tenth_release.notify();
+    mdl_thread10.join();
+  }
+
+  // Check that SWLP lock can't be acquired if there is pending SRO request.
+  Notification eleventh_grabbed;
+  Notification eleventh_release;
+  Notification twelveth_blocked;
+  MDL_thread mdl_thread11(table_name1, MDL_SHARED_WRITE,
+                         &eleventh_grabbed, &eleventh_release,
+                         NULL, NULL);
+  MDL_thread mdl_thread12(table_name1, MDL_SHARED_READ_ONLY,
+                          NULL, NULL, &twelveth_blocked, NULL);
+
+  // Acquire SW lock on the table.
+  mdl_thread11.start();
+  eleventh_grabbed.wait_for_notification();
+
+  // Ensure that there is pending SRO lock.
+  mdl_thread12.start();
+  twelveth_blocked.wait_for_notification();
+
+  // Acquisition of SWLP should fail.
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_SHARED_WRITE_LOW_PRIO,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+  EXPECT_EQ(m_null_ticket, m_request.ticket);
+
+  eleventh_release.notify();
+  mdl_thread11.join();
+  mdl_thread12.join();
+}
+
+
+/*
   Verifies following scenario,
   Low priority lock requests starvation. Lock is granted to high priority
   lock request in wait queue always as max_write_lock_count is a large value.
@@ -889,7 +1309,6 @@ TEST_F(MDLTest, HogLockTest2)
   Notification thd_release_locks[5];
   Notification thd_lock_blocked[5];
   Notification thd_lock_released[5];
-  const ulong org_max_write_lock_count= max_write_lock_count;
 
   /* Locks taken by the threads */
   enum {THD1_X, THD2_SR, THD3_SW, THD4_SNRW, THD5_SNRW};
@@ -1002,8 +1421,6 @@ TEST_F(MDLTest, HogLockTest2)
   mdl_thread3.join();
   mdl_thread4.join();
   mdl_thread5.join();
-
-  max_write_lock_count= org_max_write_lock_count;
 }
 
 
@@ -1211,7 +1628,6 @@ TEST_F(MDLTest, HogLockTest3)
   Notification thd_release_locks[7];
   Notification thd_lock_blocked[7];
   Notification thd_lock_released[7];
-  const ulong org_max_write_lock_count= max_write_lock_count;
 
   enum {THD1_X, THD2_S, THD3_SR, THD4_SW, THD5_SU, THD6_X, THD7_SNRW};
 
@@ -1350,8 +1766,6 @@ TEST_F(MDLTest, HogLockTest3)
   mdl_thread5.join();
   mdl_thread6.join();
   mdl_thread7.join();
-
-  max_write_lock_count= org_max_write_lock_count;
 }
 
 
@@ -1380,7 +1794,6 @@ TEST_F(MDLTest, HogLockTest4)
   Notification thd_release_locks[5];
   Notification thd_lock_blocked[5];
   Notification thd_lock_released[5];
-  const ulong org_max_write_lock_count= max_write_lock_count;
 
   /* Locks taken by the threads */
   enum {THD1_X, THD2_SU, THD3_X, THD4_SNRW, THD5_SR};
@@ -1487,8 +1900,6 @@ TEST_F(MDLTest, HogLockTest4)
   mdl_thread3.join();
   mdl_thread4.join();
   mdl_thread5.join();
-
-  max_write_lock_count= org_max_write_lock_count;
 }
 
 
@@ -1519,7 +1930,6 @@ TEST_F(MDLTest, HogLockTest5)
   Notification thd_release_locks[6];
   Notification thd_lock_blocked[6];
   Notification thd_lock_released[6];
-  const ulong org_max_write_lock_count= max_write_lock_count;
 
   /* Locks taken by the threads */
   enum {THD1_X, THD2_SNW, THD3_SR, THD4_SW, THD5_SU, THD6_SNRW};
@@ -1633,8 +2043,6 @@ TEST_F(MDLTest, HogLockTest5)
   mdl_thread4.join();
   mdl_thread5.join();
   mdl_thread6.join();
-
-  max_write_lock_count= org_max_write_lock_count;
 }
 
 
@@ -1904,17 +2312,11 @@ TEST_F(MDLTest, CloneExclusiveShared)
                         NULL, &lock_blocked, NULL);
 
   /* Acquire EXCLUSIVE lock, counter of "obtrusive" locks is increased. */
-  MDL_REQUEST_INIT(&m_global_request,
-                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                   MDL_EXPLICIT);
   MDL_REQUEST_INIT(&m_request,
                    MDL_key::TABLE, db_name, table_name1, MDL_EXCLUSIVE,
                    MDL_EXPLICIT);
 
-  m_request_list.push_front(&m_request);
-  m_request_list.push_front(&m_global_request);
-
-  EXPECT_FALSE(m_mdl_context.acquire_locks(&m_request_list, long_timeout));
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
 
   /*
     Save initial ticket and create its clone.
@@ -1937,7 +2339,6 @@ TEST_F(MDLTest, CloneExclusiveShared)
 
   /* Release remaining EXCLUSIVE lock to unblock request for SHARED lock. */
   m_mdl_context.release_lock(m_request.ticket);
-  m_mdl_context.release_lock(m_global_request.ticket);
 
   mdl_thread.join();
 }
@@ -1948,7 +2349,6 @@ TEST_F(MDLTest, CloneExclusiveShared)
   locks are acquired, even though the former can be initially acquired
   using "fast path".
 */
-
 TEST_F(MDLTest, NotifyScenarios)
 {
   /*
@@ -2092,13 +2492,6 @@ TEST_F(MDLTest, UpgradeScenarios)
                    MDL_TRANSACTION);
   EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
 
-  /* Acquire IX lock to be able to upgrade. */
-  MDL_REQUEST_INIT(&m_global_request,
-                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                   MDL_TRANSACTION);
-  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_global_request, long_timeout));
-
-
   /* Upgrade S lock to X lock. */
   EXPECT_FALSE(m_mdl_context.
                upgrade_shared_lock(m_request.ticket, MDL_EXCLUSIVE, long_timeout));
@@ -2136,13 +2529,6 @@ TEST_F(MDLTest, UpgradeScenarios)
                    MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE,
                    MDL_TRANSACTION);
   EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
-
-  /* Acquire IX lock to be able to upgrade. */
-  MDL_REQUEST_INIT(&m_global_request,
-                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                   MDL_TRANSACTION);
-  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_global_request, long_timeout));
-
 
   /* Upgrade SU lock to X lock. */
   EXPECT_FALSE(m_mdl_context.
@@ -2658,6 +3044,1021 @@ TEST_F(MDLTest, UnusedMinRatio)
     since low water threshold is zero.
   */
   EXPECT_EQ(0, mdl_get_unused_locks_count());
+}
+
+
+/*
+  Verifies following scenario,
+  After granting max_write_lock_count(=1) number of times for SW
+  lock request, lock is granted to starving SRO lock request
+  in wait queue. After SRO lock has been granted SW locks again
+  get higher priority than SRO locks until max_write_lock_count(=1)
+  SW lock requests has been satisfied.
+
+  - max_write_lock_count= 1
+  - THREAD 1: Acquires SW lock on the table.
+  - THREAD 2: Requests for SRO lock on the table, blocked.
+  - THREAD 3: Acquires SW lock on the table (m_piglet_lock_count= 1).
+  - THREAD 4: Requests for SW on the table, blocked.
+  - THREAD 5: Requests for SRO lock on the table, blocked.
+  - THREAD 1,3: Release SW locks.
+  - THREAD 2,5: Get SRO locks, (m_piglet_lock_count= 0)
+    THREAD 6: Requests SRO lock, blocked.
+  - THREAD 2,5: Release SRO locks.
+  - THREAD 4: Gets SW lock (m_piglet_lock_count= 1).
+  - THREAD 7: Requests SW lock, blocked.
+  - THREAD 4: Releases SW lock.
+  - THREAD 6: Gets SRO lock. Releases it.
+  - THREAD 7: Gets SW lock.
+*/
+
+TEST_F(MDLTest, PigletLockTest)
+{
+  Notification thd_lock_grabbed[7];
+  Notification thd_release_locks[7];
+  Notification thd_lock_blocked[7];
+  Notification thd_lock_released[7];
+
+  /* Locks taken by the threads */
+  enum {THD1_SW, THD2_SRO, THD3_SW, THD4_SW, THD5_SRO, THD6_SRO, THD7_SW};
+
+  max_write_lock_count= 1;
+
+  /*
+    THREAD1:  Acquires SW lock on table.
+    Lock Wait Queue: <empty>
+    Lock Granted: SW
+  */
+  MDL_thread mdl_thread1(table_name1, MDL_SHARED_WRITE,
+                         &thd_lock_grabbed[THD1_SW],
+                         &thd_release_locks[THD1_SW],
+                         &thd_lock_blocked[THD1_SW],
+                         &thd_lock_released[THD1_SW]);
+  mdl_thread1.start();
+  thd_lock_grabbed[THD1_SW].wait_for_notification();
+
+  /*
+    THREAD2:  Requesting SRO lock on table.
+    Lock Wait Queue: SRO
+    Lock Granted: SW
+  */
+  MDL_thread mdl_thread2(table_name1, MDL_SHARED_READ_ONLY,
+                         &thd_lock_grabbed[THD2_SRO],
+                         &thd_release_locks[THD2_SRO],
+                         &thd_lock_blocked[THD2_SRO],
+                         &thd_lock_released[THD2_SRO]);
+  mdl_thread2.start();
+  thd_lock_blocked[THD2_SRO].wait_for_notification();
+
+  /*
+    THREAD3:  Acquires SW lock on table. m_piglet_lock_count becomes 1.
+    Lock Wait Queue: SRO
+    Lock Granted: SW, SW
+  */
+  MDL_thread mdl_thread3(table_name1, MDL_SHARED_WRITE,
+                         &thd_lock_grabbed[THD3_SW],
+                         &thd_release_locks[THD3_SW],
+                         &thd_lock_blocked[THD3_SW],
+                         &thd_lock_released[THD3_SW]);
+  mdl_thread3.start();
+  thd_lock_grabbed[THD3_SW].wait_for_notification();
+
+  /*
+    THREAD4:  Requesting SW lock on table.
+    Blocks because m_piglet_lock_count == max_write_lock_count.
+
+    Lock Wait Queue: SRO <-- SW
+    Lock Granted: SW, SW
+    m_piglet_lock_count == 1
+  */
+  MDL_thread mdl_thread4(table_name1, MDL_SHARED_WRITE,
+                         &thd_lock_grabbed[THD4_SW],
+                         &thd_release_locks[THD4_SW],
+                         &thd_lock_blocked[THD4_SW],
+                         &thd_lock_released[THD4_SW]);
+  mdl_thread4.start();
+  thd_lock_blocked[THD4_SW].wait_for_notification();
+
+  /*
+    THREAD 5: Requests SRO lock on the table.
+    Lock Wait Queue: SRO <-- SW <--SRO
+    Lock Granted: SW, SW
+    m_piglet_lock_count == 1
+  */
+  MDL_thread mdl_thread5(table_name1, MDL_SHARED_READ_ONLY,
+                         &thd_lock_grabbed[THD5_SRO],
+                         &thd_release_locks[THD5_SRO],
+                         &thd_lock_blocked[THD5_SRO],
+                         &thd_lock_released[THD5_SRO]);
+  mdl_thread5.start();
+  thd_lock_blocked[THD5_SRO].wait_for_notification();
+
+  /*
+     THREAD 1, 3: Release SW locks. Both SRO locks are granted since
+     m_piglet_lock_count == max_write_lock_count. After that
+     m_piglet_lock_count is reset to 0.
+
+     Lock Wait Queue: SW
+     Lock Granted: SRO, SRO
+  */
+  thd_release_locks[THD1_SW].notify();
+  thd_lock_released[THD1_SW].wait_for_notification();
+  thd_release_locks[THD3_SW].notify();
+  thd_lock_released[THD3_SW].wait_for_notification();
+
+  /* Locks are granted to THREAD 2 and THREAD 5 */
+  thd_lock_grabbed[THD2_SRO].wait_for_notification();
+  thd_lock_grabbed[THD5_SRO].wait_for_notification();
+
+  /*
+    THREAD 6: Requests SRO lock on the table.
+    Blocked because m_piglet_lock_count == 0.
+    Lock Wait Queue: SW <-- SRO
+    Lock Granted: SRO, SRO
+  */
+  MDL_thread mdl_thread6(table_name1, MDL_SHARED_READ_ONLY,
+                         &thd_lock_grabbed[THD6_SRO],
+                         &thd_release_locks[THD6_SRO],
+                         &thd_lock_blocked[THD6_SRO],
+                         &thd_lock_released[THD6_SRO]);
+  mdl_thread6.start();
+  thd_lock_blocked[THD6_SRO].wait_for_notification();
+
+  /* THREAD 2 and THREAD 5: Release SRO locks */
+  thd_release_locks[THD2_SRO].notify();
+  thd_lock_released[THD2_SRO].wait_for_notification();
+  thd_release_locks[THD5_SRO].notify();
+  thd_lock_released[THD5_SRO].wait_for_notification();
+
+  /*
+    THREAD 4: Gets SW lock.
+    Since there is pending SRO, m_piglet_lock_count becomes 1.
+    Lock Wait Queue: SRO
+    Lock Granted: SW
+  */
+  thd_lock_grabbed[THD4_SW].wait_for_notification();
+
+  /*
+    THREAD 7: Requests SW lock on the table.
+    Blocked because m_piglet_lock_count == max_write_lock_count.
+    Lock Wait Queue: SRO <-- SW
+    Lock Granted: SW
+  */
+  MDL_thread mdl_thread7(table_name1, MDL_SHARED_WRITE,
+                         &thd_lock_grabbed[THD7_SW],
+                         &thd_release_locks[THD7_SW],
+                         &thd_lock_blocked[THD7_SW],
+                         &thd_lock_released[THD7_SW]);
+  mdl_thread7.start();
+  thd_lock_blocked[THD7_SW].wait_for_notification();
+
+  /* THREAD 4: Release SW lock */
+  thd_release_locks[THD4_SW].notify();
+  thd_lock_released[THD4_SW].wait_for_notification();
+
+  /* THREAD 6: Gets SRO lock. */
+  thd_lock_grabbed[THD6_SRO].wait_for_notification();
+
+  /* Cleanup */
+  thd_release_locks[THD6_SRO].notify();
+  thd_lock_released[THD6_SRO].wait_for_notification();
+
+  thd_lock_grabbed[THD7_SW].wait_for_notification();
+  thd_release_locks[THD7_SW].notify();
+  thd_lock_released[THD7_SW].wait_for_notification();
+
+  mdl_thread1.join();
+  mdl_thread2.join();
+  mdl_thread3.join();
+  mdl_thread4.join();
+  mdl_thread5.join();
+  mdl_thread6.join();
+  mdl_thread7.join();
+}
+
+
+/*
+  Verifies interaction of "piglet" and "hog" lock requests.
+
+  Check situation when we first reach limit on successive grants
+  of "piglet" and then "hog" locks. Notice that once both these
+  limits are reached we give a way to SRO locks and reset both
+  counters even though there are still pending SW locks. This is
+  allows to avoid stream of concurrent SRO and SW starving out
+  "hog" locks.
+
+  - max_write_lock_count= 1
+  - THREAD 1: Acquires SW lock on the table.
+  - THREAD 2: Requests for SRO lock on the table, blocked.
+  - THREAD 3: Acquires SW lock on the table (m_piglet_lock_count= 1).
+  - THREAD 4: Requests for SW on the table, blocked.
+  - THREAD 5: Requests for SNRW lock on the table, blocked.
+  - THREAD 6: Requests for SRO lock on the table, blocked.
+  - THREAD 7: Requests for SNRW lock on the table, blocked.
+  - THREAD 8: Requests for SW lock on the table, blocked.
+  - THREAD 1, 3: Release SW locks.
+  - THREAD 5: Gets SNRW lock on the table (m_hog_lock_count= 1).
+  - THREAD 5: Releases SNRW lock.
+  - THREAD 2, 6: Get SRO locks on the table. (m_piglet_lock_count= 0,
+                                              m_hog_lock_count= 0)
+  - THREAD 9: Requests for SRO lock on the table, blocked.
+  - THREAD 2, 6: Release SRO locks on the table.
+  - THREAD 7: Gets SNRW lock (m_hog_lock_count= 1).
+  - THREAD 7: Releases SNRW lock.
+  - THREAD 4: Gets SW lock on the table. (m_piglet_lock_count= 1)
+  - THREAD 4: Releases SW lock.
+  - THREAD 9: Gets SRO lock. (m_piglet_lock_count= 0,
+                              m_hog_lock_count= 0).
+  - THREAD 9: Releases SRO lock.
+  - THREAD 8: Gets SW lock.
+*/
+
+TEST_F(MDLTest, PigletThenHogLockTest)
+{
+  Notification thd_lock_grabbed[9];
+  Notification thd_release_locks[9];
+  Notification thd_lock_blocked[9];
+  Notification thd_lock_released[9];
+
+  /* Locks taken by the threads */
+  enum {THD1_SW, THD2_SRO, THD3_SW, THD4_SW, THD5_SNRW, THD6_SRO, THD7_SNRW,
+        THD8_SW, THD9_SRO};
+
+  max_write_lock_count= 1;
+
+  /*
+    THREAD1:  Acquires SW lock on table.
+    Lock Wait Queue: <empty>
+    Lock Granted: SW
+  */
+  MDL_thread mdl_thread1(table_name1, MDL_SHARED_WRITE,
+                         &thd_lock_grabbed[THD1_SW],
+                         &thd_release_locks[THD1_SW],
+                         &thd_lock_blocked[THD1_SW],
+                         &thd_lock_released[THD1_SW]);
+  mdl_thread1.start();
+  thd_lock_grabbed[THD1_SW].wait_for_notification();
+
+  /*
+    THREAD2:  Requesting SRO lock on table.
+    Lock Wait Queue: SRO
+    Lock Granted: SW
+  */
+  MDL_thread mdl_thread2(table_name1, MDL_SHARED_READ_ONLY,
+                         &thd_lock_grabbed[THD2_SRO],
+                         &thd_release_locks[THD2_SRO],
+                         &thd_lock_blocked[THD2_SRO],
+                         &thd_lock_released[THD2_SRO]);
+  mdl_thread2.start();
+  thd_lock_blocked[THD2_SRO].wait_for_notification();
+
+  /*
+    THREAD3:  Acquires SW lock on table. m_piglet_lock_count becomes 1.
+    Lock Wait Queue: SRO
+    Lock Granted: SW, SW
+  */
+  MDL_thread mdl_thread3(table_name1, MDL_SHARED_WRITE,
+                         &thd_lock_grabbed[THD3_SW],
+                         &thd_release_locks[THD3_SW],
+                         &thd_lock_blocked[THD3_SW],
+                         &thd_lock_released[THD3_SW]);
+  mdl_thread3.start();
+  thd_lock_grabbed[THD3_SW].wait_for_notification();
+
+  /*
+    THREAD4:  Requesting SW lock on table.
+    Blocks because m_piglet_lock_count == max_write_lock_count.
+
+    Lock Wait Queue: SRO <-- SW
+    Lock Granted: SW, SW
+    m_piglet_lock_count == 1
+  */
+  MDL_thread mdl_thread4(table_name1, MDL_SHARED_WRITE,
+                         &thd_lock_grabbed[THD4_SW],
+                         &thd_release_locks[THD4_SW],
+                         &thd_lock_blocked[THD4_SW],
+                         &thd_lock_released[THD4_SW]);
+  mdl_thread4.start();
+  thd_lock_blocked[THD4_SW].wait_for_notification();
+
+  /*
+    THREAD 5: Requests SNRW lock on the table.
+    Lock Wait Queue: SRO <-- SW <-- SNRW
+    Lock Granted: SW, SW
+    m_piglet_lock_count == 1
+  */
+  MDL_thread mdl_thread5(table_name1, MDL_SHARED_NO_READ_WRITE,
+                         &thd_lock_grabbed[THD5_SNRW],
+                         &thd_release_locks[THD5_SNRW],
+                         &thd_lock_blocked[THD5_SNRW],
+                         &thd_lock_released[THD5_SNRW]);
+  mdl_thread5.start();
+  thd_lock_blocked[THD5_SNRW].wait_for_notification();
+
+  /*
+    THREAD 6: Requests SRO lock on the table.
+    Blocked because m_hog_lock_count == 0.
+    Lock Wait Queue: SRO <-- SW <-- SNRW <-- SRO
+    Lock Granted: SW, SW
+    m_piglet_lock_count == 1
+  */
+  MDL_thread mdl_thread6(table_name1, MDL_SHARED_READ_ONLY,
+                         &thd_lock_grabbed[THD6_SRO],
+                         &thd_release_locks[THD6_SRO],
+                         &thd_lock_blocked[THD6_SRO],
+                         &thd_lock_released[THD6_SRO]);
+  mdl_thread6.start();
+  thd_lock_blocked[THD6_SRO].wait_for_notification();
+
+  /*
+    THREAD 7: Requests SNRW lock on the table.
+    Lock Wait Queue: SRO <-- SW <-- SNRW <-- SRO <-- SNRW
+    Lock Granted: SW, SW
+    m_piglet_lock_count == 1
+  */
+  MDL_thread mdl_thread7(table_name1, MDL_SHARED_NO_READ_WRITE,
+                         &thd_lock_grabbed[THD7_SNRW],
+                         &thd_release_locks[THD7_SNRW],
+                         &thd_lock_blocked[THD7_SNRW],
+                         &thd_lock_released[THD7_SNRW]);
+  mdl_thread7.start();
+  thd_lock_blocked[THD7_SNRW].wait_for_notification();
+
+  /*
+    THREAD 8: Requests SW lock on the table.
+    Blocked because of pending SRO and SNRW locks.
+    Lock Wait Queue: SRO <-- SW <-- SNRW <-- SRO <-- SNRW <-- SW
+    Lock Granted: SW, SW
+    m_piglet_lock_count == 1
+  */
+  MDL_thread mdl_thread8(table_name1, MDL_SHARED_WRITE,
+                         &thd_lock_grabbed[THD8_SW],
+                         &thd_release_locks[THD8_SW],
+                         &thd_lock_blocked[THD8_SW],
+                         &thd_lock_released[THD8_SW]);
+  mdl_thread8.start();
+  thd_lock_blocked[THD8_SW].wait_for_notification();
+
+  /*
+    THREAD 1, 3: Release SW locks. The first SNRW lock is granted.
+
+    Lock Wait Queue: SRO <-- SW <-- SRO <-- SNRW <-- SW
+    Lock Granted: SNRW
+    m_piglet_lock_count == 1
+    m_hog_lock_count == 1
+  */
+  thd_release_locks[THD1_SW].notify();
+  thd_lock_released[THD1_SW].wait_for_notification();
+  thd_release_locks[THD3_SW].notify();
+  thd_lock_released[THD3_SW].wait_for_notification();
+
+  /* Lock is granted to THREAD 5 */
+  thd_lock_grabbed[THD5_SNRW].wait_for_notification();
+
+  /*
+    THREAD 5: Release SNRW lock.
+    Since m_piglet_lock_count == 1 and m_hog_lock_count == 1 this
+    ublocks SRO locks.
+  */
+  thd_release_locks[THD5_SNRW].notify();
+  thd_lock_released[THD5_SNRW].wait_for_notification();
+
+  /*
+    THREAD 2,6: Get SRO locks.
+    m_piglet_lock_count and m_hog_lock_count are reset to 0.
+
+    Lock Wait Queue: SW <-- SNRW <-- SW
+    Lock Granted: SRO, SRO
+    m_piglet_lock_count == 0
+    m_hog_lock_count == 0
+  */
+  thd_lock_grabbed[THD2_SRO].wait_for_notification();
+  thd_lock_grabbed[THD6_SRO].wait_for_notification();
+
+  /*
+    THREAD 9: Requests SRO lock on the table.
+    Blocked because m_piglet_lock_count == 0 and m_hog_lock_count == 0.
+    Lock Wait Queue: SW <-- SNRW <-- SW <-- SRO
+    Lock Granted: SRO, SRO
+    m_piglet_lock_count == 0
+    m_hog_lock_count == 0
+  */
+  MDL_thread mdl_thread9(table_name1, MDL_SHARED_READ_ONLY,
+                         &thd_lock_grabbed[THD9_SRO],
+                         &thd_release_locks[THD9_SRO],
+                         &thd_lock_blocked[THD9_SRO],
+                         &thd_lock_released[THD9_SRO]);
+  mdl_thread9.start();
+  thd_lock_blocked[THD9_SRO].wait_for_notification();
+
+  /*
+    THREAD 2,6: Release SRO locks.
+    Since m_piglet_lock_count == 0 and m_hog_lock_count == 0 this
+    unblocks SNRW lock request,
+  */
+  thd_release_locks[THD2_SRO].notify();
+  thd_lock_released[THD2_SRO].wait_for_notification();
+  thd_release_locks[THD6_SRO].notify();
+  thd_lock_released[THD6_SRO].wait_for_notification();
+
+  /*
+    THREAD 7: Gets SNRW lock.
+    m_hog_lock_count is set to 1 since there is pending SW and SRO locks.
+
+    Lock Wait Queue: SW <-- SW <-- SRO
+    Lock Granted: SNW
+    m_piglet_lock_count == 0
+    m_hog_lock_count == 1
+  */
+  thd_lock_grabbed[THD7_SNRW].wait_for_notification();
+
+  /* THREAD 7: Releases SNRW lock. This will unblock one of SW locks. */
+  thd_release_locks[THD7_SNRW].notify();
+  thd_lock_released[THD7_SNRW].wait_for_notification();
+
+  /*
+    THREAD 4: Gets SW locks.
+    m_piglet_lock_count is set to 1 since there is pending SRO lock.
+
+    Lock Wait Queue: SW <-- SRO
+    Lock Granted: SW
+    m_piglet_lock_count == 1
+    m_hog_lock_count == 0
+  */
+  thd_lock_grabbed[THD4_SW].wait_for_notification();
+
+  /*
+    THREAD 4: Release SW locks.
+    Since m_piglet_lock_count == 1 this unblocks SRO lock request,
+  */
+  thd_release_locks[THD4_SW].notify();
+  thd_lock_released[THD4_SW].wait_for_notification();
+
+  /*
+    THREAD 9: Gets SRO lock.
+    m_piglet_lock_count is reset to 0.
+
+    Lock Wait Queue:  SW
+    Lock Granted: SRO
+    m_piglet_lock_count == 0
+    m_hog_lock_count == 0
+  */
+  thd_lock_grabbed[THD9_SRO].wait_for_notification();
+
+  /*
+    THREAD 9: Release SRO lock.
+    Since m_hog_lock_count == 1 this unblocks SW lock request.
+  */
+  thd_release_locks[THD9_SRO].notify();
+  thd_lock_released[THD9_SRO].wait_for_notification();
+
+  /* THREAD 8: Gets SW lock. */
+  thd_lock_grabbed[THD8_SW].wait_for_notification();
+
+  /* Cleanup */
+  thd_release_locks[THD8_SW].notify();
+  thd_lock_released[THD8_SW].wait_for_notification();
+
+  mdl_thread1.join();
+  mdl_thread2.join();
+  mdl_thread3.join();
+  mdl_thread4.join();
+  mdl_thread5.join();
+  mdl_thread6.join();
+  mdl_thread7.join();
+  mdl_thread8.join();
+  mdl_thread9.join();
+}
+
+
+/*
+  Another test for interaction of "piglet" and "hog" lock requests.
+
+  Check situation when we first reach limit on successive grants
+  of "hog" and then "piglet" locks. Again once both these limits
+  are reached we give a way to SRO locks and reset both counters
+  even though there are still pending SW locks in order to avoid
+  starvation of "hog" requests.
+
+  - max_write_lock_count= 1
+  - THREAD 1: Acquires SW lock on the table.
+  - THREAD 2: Requests for SNRW lock on the table, blocked.
+  - THREAD 3: Requests for SW on the table, blocked.
+  - THREAD 1: Releases SW lock.
+  - THREAD 2: Gets SNRW lock (m_hog_lock_count= 1).
+  - THREAD 4: Requests for SNRW lock on the table, blocked.
+  - THREAD 5: Requests for SRO lock on the table, blocked.
+  - THREAD 2: Releases SNRW lock.
+  - THREAD 3: Gets SW lock (m_piglet_lock_count= 1).
+  - THREAD 6: Requests for SW lock on the table, blocked.
+  - THREAD 3: Releases SW lock.
+  - THREAD 5: Gets SRO lock (m_piglet_lock_count=0, m_hog_lock_count= 0).
+  - THREAD 7: Requests SR lock on the table, blocked.
+  - THREAD 5: Releases SRO lock.
+  - THREAD 4: Gets SNRW lock (m_hog_lock_count= 1)
+  - THREAD 4: Releases SNRW lock.
+  - THREAD 6,7: Get SW and SR locks.
+*/
+
+TEST_F(MDLTest, HogThenPigletLockTest)
+{
+  Notification thd_lock_grabbed[7];
+  Notification thd_release_locks[7];
+  Notification thd_lock_blocked[7];
+  Notification thd_lock_released[7];
+
+  /* Locks taken by the threads */
+  enum {THD1_SW, THD2_SNRW, THD3_SW, THD4_SNRW, THD5_SRO, THD6_SW, THD7_SR};
+
+  max_write_lock_count= 1;
+
+  /*
+    THREAD1:  Acquires SW lock on table.
+
+    Lock Wait Queue: <empty>
+    Lock Granted: SW
+  */
+  MDL_thread mdl_thread1(table_name1, MDL_SHARED_WRITE,
+                         &thd_lock_grabbed[THD1_SW],
+                         &thd_release_locks[THD1_SW],
+                         &thd_lock_blocked[THD1_SW],
+                         &thd_lock_released[THD1_SW]);
+  mdl_thread1.start();
+  thd_lock_grabbed[THD1_SW].wait_for_notification();
+
+  /*
+    THREAD2:  Requesting SNRW lock on table.
+
+    Lock Wait Queue: SNRW
+    Lock Granted: SW
+  */
+  MDL_thread mdl_thread2(table_name1, MDL_SHARED_NO_READ_WRITE,
+                         &thd_lock_grabbed[THD2_SNRW],
+                         &thd_release_locks[THD2_SNRW],
+                         &thd_lock_blocked[THD2_SNRW],
+                         &thd_lock_released[THD2_SNRW]);
+  mdl_thread2.start();
+  thd_lock_blocked[THD2_SNRW].wait_for_notification();
+
+  /*
+    THREAD3:  Requesting SW lock on table.
+
+    Lock Wait Queue: SNRW <-- SW
+    Lock Granted: SW
+  */
+  MDL_thread mdl_thread3(table_name1, MDL_SHARED_WRITE,
+                         &thd_lock_grabbed[THD3_SW],
+                         &thd_release_locks[THD3_SW],
+                         &thd_lock_blocked[THD3_SW],
+                         &thd_lock_released[THD3_SW]);
+  mdl_thread3.start();
+  thd_lock_blocked[THD3_SW].wait_for_notification();
+
+  /*
+    THREAD 1: Release SW lock. The SNRW lock is granted.
+    m_hog_lock_count is set to 1.
+
+    Lock Wait Queue: SW
+    Lock Granted: SNRW
+    m_piglet_lock_count == 0
+    m_hog_lock_count == 1
+  */
+  thd_release_locks[THD1_SW].notify();
+  thd_lock_released[THD1_SW].wait_for_notification();
+
+  /* THREAD 2: Gets SNRW. */
+  thd_lock_grabbed[THD2_SNRW].wait_for_notification();
+
+  /*
+    THREAD4:  Requesting SNRW lock on table.
+    Blocks because m_hog_lock_count == 1.
+
+    Lock Wait Queue: SW <-- SNRW
+    Lock Granted: SNRW
+    m_piglet_lock_count == 0
+    m_hog_lock_count == 1
+  */
+  MDL_thread mdl_thread4(table_name1, MDL_SHARED_NO_READ_WRITE,
+                         &thd_lock_grabbed[THD4_SNRW],
+                         &thd_release_locks[THD4_SNRW],
+                         &thd_lock_blocked[THD4_SNRW],
+                         &thd_lock_released[THD4_SNRW]);
+  mdl_thread4.start();
+  thd_lock_blocked[THD4_SNRW].wait_for_notification();
+
+  /*
+    THREAD 5: Requests SRO lock on the table.
+
+    Lock Wait Queue: SW <-- SNRW <-- SRO
+    Lock Granted: SNRW
+    m_piglet_lock_count == 0
+    m_hog_lock_count == 1
+  */
+  MDL_thread mdl_thread5(table_name1, MDL_SHARED_READ_ONLY,
+                         &thd_lock_grabbed[THD5_SRO],
+                         &thd_release_locks[THD5_SRO],
+                         &thd_lock_blocked[THD5_SRO],
+                         &thd_lock_released[THD5_SRO]);
+  mdl_thread5.start();
+  thd_lock_blocked[THD5_SRO].wait_for_notification();
+
+  /*
+    THREAD 2: Releases SNRW lock. This unblocks SW lock
+    since m_hog_lock_count == 1.
+  */
+  thd_release_locks[THD2_SNRW].notify();
+  thd_lock_released[THD2_SNRW].wait_for_notification();
+
+  /*
+    THREAD 3: Gets SW lock on the table.
+    m_piglet_lock_count is set to 1.
+
+    Lock Wait Queue: SNRW <-- SRO
+    Lock Granted: SW
+    m_piglet_lock_count == 1
+    m_hog_lock_count == 1
+  */
+  thd_lock_grabbed[THD3_SW].wait_for_notification();
+
+  /*
+    THREAD 6: Requests SW lock on the table.
+    Blocked because m_piglet_lock_count == 1.
+
+    Lock Wait Queue: SNRW <-- SRO <-- SW
+    Lock Granted: SW
+    m_piglet_lock_count == 1
+    m_hog_lock_count == 1
+  */
+  MDL_thread mdl_thread6(table_name1, MDL_SHARED_WRITE,
+                         &thd_lock_grabbed[THD6_SW],
+                         &thd_release_locks[THD6_SW],
+                         &thd_lock_blocked[THD6_SW],
+                         &thd_lock_released[THD6_SW]);
+  mdl_thread6.start();
+  thd_lock_blocked[THD6_SW].wait_for_notification();
+
+  /*
+    THREAD 3: Releases SW lock. SRO lock is granted.
+    Both m_piglet_lock_count and m_hog_lock_count are reset to 0.
+
+    Lock Wait Queue: SNRW <-- SW
+    Lock Granted: SRO
+    m_piglet_lock_count == 0
+    m_hog_lock_count == 0
+  */
+  thd_release_locks[THD3_SW].notify();
+  thd_lock_released[THD3_SW].wait_for_notification();
+
+  /* THREAD 5: Gets SRO lock. */
+  thd_lock_grabbed[THD5_SRO].wait_for_notification();
+
+  /*
+    THREAD 7: Requests SR lock on the table. Blocked.
+
+    Lock Wait Queue: SNRW <-- SW <-- SR
+    Lock Granted: SRO
+    m_piglet_lock_count == 0
+    m_hog_lock_count == 0
+  */
+  MDL_thread mdl_thread7(table_name1, MDL_SHARED_READ,
+                         &thd_lock_grabbed[THD7_SR],
+                         &thd_release_locks[THD7_SR],
+                         &thd_lock_blocked[THD7_SR],
+                         &thd_lock_released[THD7_SR]);
+  mdl_thread7.start();
+  thd_lock_blocked[THD7_SR].wait_for_notification();
+
+  /* THREAD 5: Releases SRO lock. */
+  thd_release_locks[THD5_SRO].notify();
+  thd_lock_released[THD5_SRO].wait_for_notification();
+
+  /*
+    THREAD 4: Gets SNRW lock. m_hog_lock_count is set to 1.
+
+    Lock Wait Queue: SW <-- SR
+    Lock Granted: SNRW
+    m_piglet_lock_count == 0
+    m_hog_lock_count == 1
+  */
+  thd_lock_grabbed[THD4_SNRW].wait_for_notification();
+
+  /* THREAD 4: Releases SNRW lock. */
+  thd_release_locks[THD4_SNRW].notify();
+  thd_lock_released[THD4_SNRW].wait_for_notification();
+
+  /* THREAD 6, 8: Get SW and SR locks. */
+  thd_lock_grabbed[THD6_SW].wait_for_notification();
+  thd_lock_grabbed[THD7_SR].wait_for_notification();
+
+  /* Cleanup */
+  thd_release_locks[THD6_SW].notify();
+  thd_lock_released[THD6_SW].wait_for_notification();
+  thd_release_locks[THD7_SR].notify();
+  thd_lock_released[THD7_SR].wait_for_notification();
+
+  mdl_thread1.join();
+  mdl_thread2.join();
+  mdl_thread3.join();
+  mdl_thread4.join();
+  mdl_thread5.join();
+  mdl_thread6.join();
+  mdl_thread7.join();
+}
+
+
+/**
+  Auxiliary thread class which simulates connection which does
+  LOCK TABLES t1 WRITE, t1 READ/UNLOCK TABLES in a loop.
+*/
+
+class MDL_SRO_SNRW_thread : public Thread, public Test_MDL_context_owner
+{
+public:
+  MDL_SRO_SNRW_thread()
+  {
+    m_mdl_context.init(this);
+  }
+
+  ~MDL_SRO_SNRW_thread()
+  {
+    m_mdl_context.destroy();
+  }
+
+  virtual void run();
+
+  virtual void notify_shared_lock(MDL_context_owner *in_use,
+                                  bool needs_thr_lock_abort)
+  { }
+
+private:
+  MDL_context    m_mdl_context;
+};
+
+
+void MDL_SRO_SNRW_thread::run()
+{
+  for (int i= 0; i < 100; ++i)
+  {
+    MDL_request request1, request2;
+    MDL_request_list request_list;
+
+    MDL_REQUEST_INIT(&request1,
+                     MDL_key::TABLE, db_name, table_name1,
+                     MDL_SHARED_NO_READ_WRITE,
+                     MDL_TRANSACTION);
+    MDL_REQUEST_INIT(&request2,
+                     MDL_key::TABLE, db_name, table_name1,
+                     MDL_SHARED_READ_ONLY,
+                     MDL_TRANSACTION);
+    /*
+      Simulate LOCK TABLES t1 WRITE, t1 READ, by putting SRO lock
+      to the front of the list and SNRW to its back.
+    */
+    request_list.push_front(&request1);
+    request_list.push_front(&request2);
+
+    /*
+      Lock acquisition should succeed and never deadlock. I.e. we should
+      always acquire SNRW first and only then SRO.
+    */
+    EXPECT_FALSE(m_mdl_context.acquire_locks(&request_list, long_timeout));
+    m_mdl_context.release_transactional_locks();
+  }
+}
+
+
+/*
+  Check that MDL_context::acquire_locks() takes type of lock requested
+  into account when it sorts requests in order to avoid/reduce number
+  of deadlocks.
+  Also provides additional coverage for case when we concurrently create
+  and destroy MDL_lock instances for the same object.
+*/
+
+TEST_F(MDLTest, AcquireLocksTypeOrder)
+{
+  MDL_SRO_SNRW_thread thread1, thread2;
+
+  /* Force immediate destruction of unused MDL_lock object. */
+  mdl_locks_unused_locks_low_water= 0;
+
+  thread1.start();
+  thread2.start();
+  thread1.join();
+  thread2.join();
+}
+
+
+/**
+  Thread class for testing MDL_context::set_force_dml_deadlock_weight()
+  method.
+*/
+
+class MDL_weight_thread : public Thread, public Test_MDL_context_owner
+{
+public:
+  MDL_weight_thread(Notification *first_grabbed, Notification *go_for_second,
+                    Notification *lock_blocked)
+    : m_first_grabbed(first_grabbed), m_go_for_second(go_for_second),
+      m_lock_blocked(lock_blocked)
+  {
+    m_mdl_context.init(this);
+  }
+
+  ~MDL_weight_thread()
+  {
+    m_mdl_context.destroy();
+  }
+
+  virtual void run();
+
+  virtual void notify_shared_lock(MDL_context_owner *in_use,
+                                  bool needs_thr_lock_abort)
+  { }
+
+  virtual void enter_cond(mysql_cond_t *cond,
+                          mysql_mutex_t* mutex,
+                          const PSI_stage_info *stage,
+                          PSI_stage_info *old_stage,
+                          const char *src_function,
+                          const char *src_file,
+                          int src_line)
+  {
+    Test_MDL_context_owner::enter_cond(cond, mutex, stage, old_stage,
+                                       src_function, src_file, src_line);
+
+    m_lock_blocked->notify();
+    return;
+  }
+
+private:
+  MDL_context   m_mdl_context;
+  Notification  *m_first_grabbed;
+  Notification  *m_go_for_second;
+  Notification  *m_lock_blocked;
+};
+
+
+void MDL_weight_thread::run()
+{
+  MDL_request request1, request2;
+
+  MDL_REQUEST_INIT(&request1,
+                   MDL_key::TABLE, db_name, table_name1,
+                   MDL_SHARED_NO_READ_WRITE,
+                   MDL_TRANSACTION);
+
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request1, long_timeout));
+
+  m_first_grabbed->notify();
+  m_go_for_second->wait_for_notification();
+
+  MDL_REQUEST_INIT(&request2,
+                   MDL_key::TABLE, db_name, table_name2,
+                   MDL_SHARED_NO_READ_WRITE,
+                   MDL_TRANSACTION);
+
+  /* Mark current thread as preferred deadlock victim. */
+  m_mdl_context.set_force_dml_deadlock_weight(true);
+
+  /*
+    Wait for the second table should end-up in a deadlock with
+    thread being chosen as victim.
+  */
+  expected_error= ER_LOCK_DEADLOCK;
+  EXPECT_TRUE(m_mdl_context.acquire_lock(&request2, long_timeout));
+
+  m_mdl_context.release_transactional_locks();
+}
+
+
+/**
+  Test coverage for MDL_context::set_force_dml_deadlock_weight() method.
+*/
+
+TEST_F(MDLTest, ForceDMLDeadlockWeight)
+{
+  Notification first_grabbed, go_for_second, second_blocked;
+  MDL_weight_thread thread(&first_grabbed, &go_for_second, &second_blocked);
+
+  /*
+    Start the concurrent thread and wait until it acquires SNRW lock on
+    table_name1 and gets suspended.
+  */
+  thread.start();
+  first_grabbed.wait_for_notification();
+
+  /* Now let us grab SNRW lock table_name2. */
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name2,
+                   MDL_SHARED_NO_READ_WRITE,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+
+  /*
+    Resume the concurrent thread. It should try to acquire SNRW lock on
+    table_name2. Wait for it to get blocked.
+  */
+  go_for_second.notify();
+  second_blocked.wait_for_notification();
+
+  /*
+    Now let us try to grab SNRW lock table_name1.
+    This should lead to deadlock.
+
+    Normally this context will be chosen as a victim since all waits
+    happen for the same type request - SNRW and it has joined waiters
+    graph last.
+
+    But since another thread uses MDL_context::set_force_dml_deadlock_weight()
+    method it will be chosen as a victim instead.
+  */
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1,
+                   MDL_SHARED_NO_READ_WRITE,
+                   MDL_TRANSACTION);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
+
+  m_mdl_context.release_transactional_locks();
+
+  thread.join();
+}
+
+
+/** Simple MDL_context_visitor which stores pointer to context visited. */
+
+class MDLTestContextVisitor : public MDL_context_visitor
+{
+public:
+  MDLTestContextVisitor() : m_visited_ctx(NULL) { }
+  virtual void visit_context(const MDL_context *ctx)
+  { m_visited_ctx= ctx; }
+  const MDL_context *get_visited_ctx() { return m_visited_ctx; }
+
+private:
+  const MDL_context *m_visited_ctx;
+};
+
+
+/**
+  Test coverage for MDL_context::find_lock_owner() method.
+*/
+
+TEST_F(MDLTest, FindLockOwner)
+{
+  Notification first_grabbed,first_release;
+  Notification second_blocked, second_grabbed, second_release;
+  MDL_thread thread1(table_name1, MDL_EXCLUSIVE,
+                     &first_grabbed, &first_release,
+                     NULL, NULL);
+  MDL_thread thread2(table_name1, MDL_EXCLUSIVE,
+                     &second_grabbed, &second_release,
+                     &second_blocked, NULL);
+  MDL_key mdl_key(MDL_key::TABLE, db_name, table_name1);
+
+  /* There should be no lock owner before we have started any threads. */
+  MDLTestContextVisitor visitor1;
+  EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor1));
+  EXPECT_EQ(NULL, visitor1.get_visited_ctx());
+
+  /*
+    Start the first thread and wait until it grabs the lock.
+    This thread should be found as lock owner.
+  */
+  thread1.start();
+  first_grabbed.wait_for_notification();
+  EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor1));
+  EXPECT_EQ(&thread1.get_mdl_context(), visitor1.get_visited_ctx());
+
+  /*
+    Start the second thread and wait unti it is blocked waiting for the lock.
+    The first thread still should be reported as lock owner.
+  */
+  MDLTestContextVisitor visitor2;
+  thread2.start();
+  second_blocked.wait_for_notification();
+  EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor2));
+  EXPECT_EQ(&thread1.get_mdl_context(), visitor2.get_visited_ctx());
+
+  /*
+    Let the first thread to release lock and wait until the second thread
+    acquires it. The second thread should be reported as lock owner now.
+  */
+  MDLTestContextVisitor visitor3;
+  first_release.notify();
+  second_grabbed.wait_for_notification();
+  EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor3));
+  EXPECT_EQ(&thread2.get_mdl_context(), visitor3.get_visited_ctx());
+
+  /* Release the lock. Wait until both threads have stopped. */
+  second_release.notify();
+  thread1.join();
+  thread2.join();
+
+  /* There should be no lock owners again. */
+  MDLTestContextVisitor visitor4;
+  EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor4));
+  EXPECT_EQ(NULL, visitor4.get_visited_ctx());
 }
 
 

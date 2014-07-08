@@ -224,31 +224,7 @@ template<typename T, class Pool, typename THead, class LM = DefaultDoubleLinkMet
 public:
 typedef THead Head;
 typedef typename THead::POD HeadPOD;
-class Local: public IntrusiveList<T, Pool, THead, LM>
-{
-public:
-  explicit Local(Pool& pool, typename THead::POD& head)
-  : IntrusiveList<T, Pool, THead, LM>(pool, head), m_src(head) {
-#if defined VM_TRACE || defined ERROR_INSERT
-    assert(!m_src.in_use);
-    m_src.in_use = true;
-#endif
-  }
-  ~Local() {
-#if defined VM_TRACE || defined ERROR_INSERT
-    assert(m_src.in_use);
-#endif
-    m_src = this->m_head;
-#if defined VM_TRACE || defined ERROR_INSERT
-    assert(!m_src.in_use);
-#endif
-  }
-private:
-  Local(const Local&); // Not to be implemented
-  Local&  operator=(const Local&); // Not to be implemented
-private:
-  typename THead::POD& m_src;
-};
+class Local;
 public:
   explicit IntrusiveList(Pool& pool, typename THead::POD head): m_pool(pool), m_head(head) { }
   explicit IntrusiveList(Pool& pool): m_pool(pool) { m_head.init(); }
@@ -294,6 +270,33 @@ public:
 protected:
   Pool& m_pool;
   THead m_head;
+};
+
+template<typename T, class Pool, typename THead, class LM>
+class IntrusiveList<T, Pool, THead, LM>::Local: public IntrusiveList<T, Pool, THead, LM>
+{
+public:
+  explicit Local(Pool& pool, typename THead::POD& head)
+  : IntrusiveList<T, Pool, THead, LM>(pool, head), m_src(head) {
+#if defined VM_TRACE || defined ERROR_INSERT
+    assert(!m_src.in_use);
+    m_src.in_use = true;
+#endif
+  }
+  ~Local() {
+#if defined VM_TRACE || defined ERROR_INSERT
+    assert(m_src.in_use);
+#endif
+    m_src = this->m_head;
+#if defined VM_TRACE || defined ERROR_INSERT
+    assert(!m_src.in_use);
+#endif
+  }
+private:
+  Local(const Local&); // Not to be implemented
+  Local&  operator=(const Local&); // Not to be implemented
+private:
+  typename THead::POD& m_src;
 };
 
 /* Specialisations */

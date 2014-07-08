@@ -76,7 +76,7 @@ getTableProperty(NDBT_Context* ctx, NDBT_Table* pTab, const char* name)
   sprintf(key, "%s-%s", name, pTab->getName());
   //Uint32 num = ctx->getProperty(key, (Uint32)-1);
   Uint32 num = workaround[pTab->getTableId()];
-  assert(num != (Uint32)-1);
+  require(num != (Uint32)-1);
   return num;
 }
 
@@ -151,7 +151,7 @@ runFullScan(NDBT_Context* ctx, NDBT_Step* step)
     char buf[200];
     sprintf(buf, "%s_X%03d", pTab->getName(), numIndex);
     NDBT_Index* pInd = NDBT_Index::discoverIndexFromDb(pNdb, buf, pTab->getName());
-    assert(pInd != 0);
+    require(pInd != 0);
     g_info << "Scan index:" << pInd->getName() << endl << *pInd;
     NdbConnection* pCon = pNdb->startTransaction();
     if (pCon == 0) {

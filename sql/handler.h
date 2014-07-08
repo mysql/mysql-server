@@ -247,6 +247,15 @@ enum enum_alter_inplace_result {
 */
 #define HA_CAN_FULLTEXT_HINTS         (LL(1) << 43)
 
+/**
+  Storage engine doesn't support LOCK TABLE ... READ LOCAL locks
+  but doesn't want to use handler::store_lock() API for upgrading
+  them to LOCK TABLE ... READ locks, for example, because it doesn't
+  use THR_LOCK locks at all.
+*/
+#define HA_NO_READ_LOCAL_LOCK         (LL(1) << 44)
+
+
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
 #define HA_READ_PREV            2       /* supports ::index_prev */
@@ -340,6 +349,7 @@ enum enum_alter_inplace_result {
 #define HA_LEX_CREATE_TMP_TABLE	1
 #define HA_LEX_CREATE_IF_NOT_EXISTS 2
 #define HA_LEX_CREATE_TABLE_LIKE 4
+#define HA_LEX_CREATE_INTERNAL_TMP_TABLE 8
 #define HA_OPTION_NO_CHECKSUM	(1L << 17)
 #define HA_OPTION_NO_DELAY_KEY_WRITE (1L << 18)
 #define HA_MAX_REC_LENGTH	65535U
@@ -2591,8 +2601,6 @@ public:
   /* end of the list of admin commands */
 
   virtual int indexes_are_disabled(void) {return 0;}
-  virtual char *update_table_comment(const char * comment)
-  { return (char*) comment;}
   virtual void append_create_info(String *packet) {}
   /**
     If index == MAX_KEY then a check for table is made and if index <

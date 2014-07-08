@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,9 +16,17 @@
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCSourceCompiles) 
+INCLUDE(CheckCXXSourceCompiles)
 
 # Enable 64 bit file offsets
-SET(_FILE_OFFSET_BITS 64)
+ADD_DEFINITIONS(-D_FILE_OFFSET_BITS=64)
+
+# Enable general POSIX extensions. See standards(5) man page.
+ADD_DEFINITIONS(-D__EXTENSIONS__)
+
+# Solaris threads with POSIX semantics:
+# http://docs.oracle.com/cd/E19455-01/806-5257/6je9h033k/index.html
+ADD_DEFINITIONS(-D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT)
 
 # On  Solaris, use of intrinsics will screw the lib search logic
 # Force using -lm, so rint etc are found.
@@ -60,6 +68,27 @@ CHECK_C_SOURCE_RUNS(
   }
 "  HAVE_SOLARIS_ATOMIC)
 
+CHECK_CXX_SOURCE_COMPILES("
+    #undef inline
+    #if !defined(_REENTRANT)
+    #define _REENTRANT
+    #endif
+    #include <pthread.h>
+    #include <sys/types.h>
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <netdb.h>
+    int main()
+    {
+
+       struct hostent *foo =
+       gethostbyaddr_r((const char *) 0,
+          0, 0, (struct hostent *) 0, (char *) NULL,  0, (int *)0);
+       return 0;
+    }
+  "
+  HAVE_SOLARIS_STYLE_GETHOST)
 
 # Check is special processor flag needs to be set on older GCC
 #that defaults to v8 sparc . Code here is taken from my_rdtsc.c 

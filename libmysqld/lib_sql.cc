@@ -893,12 +893,12 @@ void THD::clear_data_list()
 static char *dup_str_aux(MEM_ROOT *root, const char *from, size_t length,
 			 const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs)
 {
-  uint32 dummy32;
+  size_t dummy_offset;
   uint dummy_err;
   char *result;
 
   /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
-  if (tocs && String::needs_conversion(0, fromcs, tocs, &dummy32))
+  if (tocs && String::needs_conversion(0, fromcs, tocs, &dummy_offset))
   {
     size_t new_len= (tocs->mbmaxlen * length) / fromcs->mbminlen + 1;
     result= (char *)alloc_root(root, new_len);
@@ -1344,7 +1344,7 @@ bool Protocol::net_store_data(const uchar *from, size_t length,
                               const CHARSET_INFO *from_cs,
                               const CHARSET_INFO *to_cs)
 {
-  uint conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
+  size_t conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
   uint dummy_error;
   char *field_buf;
   if (!thd->mysql)            // bootstrap file handling

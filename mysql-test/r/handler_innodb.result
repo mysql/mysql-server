@@ -757,19 +757,13 @@ ERROR HY000: Table storage engine for 't1' doesn't have this option
 handler t1 close;
 unlock tables;
 drop table t1;
-# Now test case which was reported originally but which no longer
-# triggers execution path which has caused the problem.
+# Now test case which was reported originally.
 create table t1 (a int, key(a));
 insert into t1 values (1);
 handler t1 open;
 alter table t1 engine=memory;
-# Since S metadata lock was already acquired at HANDLER OPEN time
-# and TL_READ lock requested by HANDLER READ is compatible with
-# ALTER's TL_WRITE_ALLOW_READ the below statement should succeed
-# without waiting. The old version of table should be used in it.
 handler t1 read a next;
-a
-1
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 handler t1 close;
 drop table t1;
 USE information_schema;
@@ -1040,12 +1034,10 @@ drop table t1 ;
 # --> connection con2 
 # Waitng for 'drop table t1' to get blocked...
 # --> connection default
+# Attempt to upgrade metadata locks to SR from S will lead to
+# deadlock which will result in table being automatically closed.
 handler t1 read a prev;
-a	b
-5	NULL
-handler t1 read a prev;
-a	b
-4	NULL
+ERROR 42S02: Table 'test.t1' doesn't exist
 handler t1 close;
 # --> connection con1
 # Reaping 'drop table t1'...
@@ -1089,20 +1081,16 @@ a
 # thus we can reopen it in the handler
 handler t1 open;
 # We can commit the transaction, it doesn't close the handler
-# and doesn't let DROP to proceed.
+# and doesn't let DROP to proceed immediately.
 commit;
+# Waiting for 'drop table t1' to get blocked...
+# --> connection default
+# OTOH the first attempt to read from HANDLER will lead to metadata
+# locks deadlock and thus to HANDLER being automatically closed.
 handler t1 read a prev;
-a
-5
-handler t1 read a prev;
-a
-4
-handler t1 read a prev;
-a
-3
+ERROR 42S02: Table 'test.t1' doesn't exist
 handler t1 close;
 # --> connection con1
-# Now drop can proceed
 # Reaping 'drop table t1'...
 # --> connection default
 #
@@ -1219,15 +1207,13 @@ rollback to savepoint sv;
 # Reaping 'drop table t2'...
 # Demonstrate that ROLLBACK TO SAVEPOINT didn't release the handler
 # lock.
+# --> connection con3
+# Check if 'drop table t1' still blocked...
 # --> connection default
+# Demonstrate that the drop will go through as soon as we close
+# or will try to access HANDLER
 handler t1 read a next;
-a
-3
-handler t1 read a next;
-a
-4
-# Demonstrate that the drop will go through as soon as we close the 
-# HANDLER
+ERROR 42S02: Table 'test.t1' doesn't exist
 handler t1 close;
 # connection con1
 # Reaping 'drop table t1'...
@@ -1278,15 +1264,13 @@ rollback to savepoint sv;
 # Reaping 'drop table t2'...
 # Demonstrate that ROLLBACK TO SAVEPOINT didn't release the handler
 # lock.
+# --> connection con3
+# Check if 'drop table t1' is still blocked...
 # --> connection default
+# Demonstrate that the drop will go through as soon as we access or
+# close the HANDLER
 handler t1 read a next;
-a
-3
-handler t1 read a next;
-a
-4
-# Demonstrate that the drop will go through as soon as we close the 
-# HANDLER
+ERROR 42S02: Table 'test.t1' doesn't exist
 handler t1 close;
 # connection con1
 # Reaping 'drop table t1'...
@@ -1324,14 +1308,12 @@ drop table t3;
 # Let DROP TABLE statement sync in.
 # --> connection con2
 # Waiting for 'drop table t3' to get blocked...
-# Demonstrate that ROLLBACK TO SAVEPOINT didn't release the handler
-# lock.
+# The fact that DROP TABLE is blocked means that ROLLBACK TO SAVEPOINT
+# didn't release the handler lock.
 # --> connection default
+# Drop will go through as soon as we access or close the HANDLER
 handler t3 read a next;
-a
-2
-# Demonstrate that the drop will go through as soon as we close the 
-# HANDLER
+ERROR 42S02: Table 'test.t3' doesn't exist
 handler t3 close;
 # connection con1
 # Reaping 'drop table t3'...

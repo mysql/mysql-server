@@ -88,7 +88,7 @@ int main(int argc, char** argv){
 
   Ndb MyNdb(&con, _dbname );
   if(MyNdb.init() != 0){
-    ERR(MyNdb.getNdbError());
+    NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   
@@ -139,7 +139,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
     if (pTrans == NULL) {
       err = pNdb->getNdbError();
       if (err.status == NdbError::TemporaryError){
-	ERR(err);
+	NDB_ERR(err);
 	NdbSleep_MilliSleep(50);
 	continue;
       }
@@ -162,7 +162,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
     if(pTrans->execute(NdbTransaction::NoCommit) != 0){
       err = pTrans->getNdbError();    
       if(err.status == NdbError::TemporaryError){
-	ERR(err);
+	NDB_ERR(err);
 	pNdb->closeTransaction(pTrans);
 	NdbSleep_MilliSleep(50);
 	continue;
@@ -190,7 +190,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
       err = pTrans->getNdbError();    
       if(check == -1){
 	if(err.status == NdbError::TemporaryError){
-	  ERR(err);
+	  NDB_ERR(err);
 	  pNdb->closeTransaction(pTrans);
 	  NdbSleep_MilliSleep(50);
 	  par = 1;
@@ -202,7 +202,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
     if(check == -1){
       err = pTrans->getNdbError();    
       if(err.status == NdbError::TemporaryError){
-	ERR(err);
+	NDB_ERR(err);
 	pNdb->closeTransaction(pTrans);
 	NdbSleep_MilliSleep(50);
 	par = 1;
@@ -222,6 +222,6 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
   
  failed:
   if(pTrans != 0) pNdb->closeTransaction(pTrans);
-  ERR(err);
+  NDB_ERR(err);
   return (err.code != 0 ? err.code : NDBT_FAILED);
 }

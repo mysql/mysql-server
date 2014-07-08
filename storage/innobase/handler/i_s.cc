@@ -151,8 +151,7 @@ do {									\
 	}								\
 } while (0)
 
-#if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 &&	\
-	!defined __clang__
+#if !defined __STRICT_ANSI__ && defined __GNUC__ && !defined __clang__
 #define STRUCT_FLD(name, value)	name: value
 #else
 #define STRUCT_FLD(name, value)	value
@@ -5505,7 +5504,8 @@ i_s_innodb_fill_buffer_pool(
 
 	/* Go through each chunk of buffer pool. Currently, we only
 	have one single chunk for each buffer pool */
-	for (ulint n = 0; n < buf_pool->n_chunks; n++) {
+	for (ulint n = 0;
+	     n < ut_min(buf_pool->n_chunks, buf_pool->n_chunks_new); n++) {
 		const buf_block_t*	block;
 		ulint			n_blocks;
 		buf_page_info_t*	info_buffer;

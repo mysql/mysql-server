@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,12 +101,14 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   if (theInstance == 0) {
     ndbrequire(mainBlock == 0);
     mainBlock = this;
+    theMainInstance = mainBlock;
     globalData.setBlock(blockNumber, mainBlock);
+    mainBlock->addInstance(this, theInstance);
   } else {
     ndbrequire(mainBlock != 0);
     mainBlock->addInstance(this, theInstance);
+    theMainInstance = mainBlock;
   }
-  theMainInstance = mainBlock;
 
   c_fragmentIdCounter = 1;
   c_fragSenderRunning = false;
@@ -189,13 +191,20 @@ SimulatedBlock::~SimulatedBlock()
 #endif
 
 #ifdef VM_TRACE
+  enable_global_variables();
   delete [] m_global_variables;
+  m_global_variables = 0;
 #endif
 
   if (theInstanceList != 0) {
     Uint32 i;
     for (i = 0; i < MaxInstances; i++)
-      delete theInstanceList[i];
+    {
+      if (theInstanceList[i] != this)
+      {
+        delete theInstanceList[i];
+      }
+    }
     delete [] theInstanceList;
   }
   theInstanceList = 0;
@@ -2090,6 +2099,25 @@ SimulatedBlock::execSEND_PACKED(Signal* signal)
 {
 }
 
+ATTRIBUTE_NOINLINE
+void
+SimulatedBlock::handle_execute_error(GlobalSignalNumber gsn)
+{
+  /**
+   * This method only called if an error has occurred
+   */
+  char errorMsg[255];
+  if (!(gsn <= MAX_GSN)) {
+    BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d too high)", gsn);
+    ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
+  }
+  if (!(theExecArray[gsn] != 0)) {
+    BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d not added)", gsn);
+    ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
+  }
+  ndbrequire(false);
+}
+
 // MT LQH callback CONF via signal
 
 const SimulatedBlock::CallbackEntry&
@@ -2103,7 +2131,9 @@ SimulatedBlock::getCallbackEntry(Uint32 ci)
 
 void
 SimulatedBlock::sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
-                                 CallbackPtr& cptr, Uint32 returnCode)
+                                 CallbackPtr& cptr,
+                                 Uint32 senderData, Uint32 callbackInfo,
+                                 Uint32 returnCode)
 {
   Uint32 blockNo = blockToMain(fullBlockNo);
   Uint32 instanceNo = blockToInstance(fullBlockNo);
@@ -2111,9 +2141,6 @@ SimulatedBlock::sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
   ndbrequire(b != 0);
 
   const CallbackEntry& ce = b->getCallbackEntry(cptr.m_callbackIndex);
-
-  // wl4391_todo add as arg if this is not enough
-  Uint32 senderData = returnCode;
 
   if (!isNdbMtLqh()) {
     Callback c;
@@ -2125,6 +2152,7 @@ SimulatedBlock::sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
       jam();
       CallbackAck* ack = (CallbackAck*)signal->getDataPtrSend();
       ack->senderData = senderData;
+      ack->callbackInfo = callbackInfo;
       EXECUTE_DIRECT(number(), GSN_CALLBACK_ACK,
                      signal, CallbackAck::SignalLength);
     }
@@ -2134,6 +2162,7 @@ SimulatedBlock::sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
     conf->senderRef = reference();
     conf->callbackIndex = cptr.m_callbackIndex;
     conf->callbackData = cptr.m_callbackData;
+    conf->callbackInfo = callbackInfo;
     conf->returnCode = returnCode;
 
     if (ce.m_flags & CALLBACK_DIRECT) {
@@ -2157,20 +2186,25 @@ SimulatedBlock::execCALLBACK_CONF(Signal* signal)
 
   Uint32 senderData = conf->senderData;
   Uint32 senderRef = conf->senderRef;
+  Uint32 callbackIndex = conf->callbackIndex;
+  Uint32 callbackData = conf->callbackData;
+  Uint32 callbackInfo = conf->callbackInfo;
+  Uint32 returnCode = conf->returnCode;
 
   ndbrequire(m_callbackTableAddr != 0);
-  const CallbackEntry& ce = getCallbackEntry(conf->callbackIndex);
+  const CallbackEntry& ce = getCallbackEntry(callbackIndex);
   CallbackFunction function = ce.m_function;
 
   Callback callback;
   callback.m_callbackFunction = function;
-  callback.m_callbackData = conf->callbackData;
-  execute(signal, callback, conf->returnCode);
+  callback.m_callbackData = callbackData;
+  execute(signal, callback, returnCode);
 
   if (ce.m_flags & CALLBACK_ACK) {
     jam();
     CallbackAck* ack = (CallbackAck*)signal->getDataPtrSend();
     ack->senderData = senderData;
+    ack->callbackInfo = callbackInfo;
     sendSignal(senderRef, GSN_CALLBACK_ACK,
                signal, CallbackAck::SignalLength, JBB);
   }
@@ -4097,7 +4131,7 @@ SimulatedBlock::debugOutTag(char *buf, int line)
   timebuf[0] = 0;
 #ifdef VM_TRACE_TIME
   {
-    NDB_TICKS t = NdbTick_CurrentMillisecond();
+    Uint64 t = NdbTick_CurrentMillisecond();
     uint s = (t / 1000) % 3600;
     uint ms = t % 1000;
     sprintf(timebuf, " - %u.%03u -", s, ms);
@@ -4430,6 +4464,53 @@ SimulatedBlock::ndbinfo_send_scan_conf(Signal* signal,
   }
   sendSignal(sender_ref, GSN_DBINFO_SCANCONF, signal,
              signal_length, JBB);
+}
+
+void SimulatedBlock::init_elapsed_time(Signal *signal,
+                                       NDB_TICKS &latestTIME_SIGNAL)
+{
+  const NDB_TICKS currentTime = NdbTick_getCurrentTicks();
+  signal->theData[0] = Uint32(currentTime.getUint64() >> 32);
+  signal->theData[1] = Uint32(currentTime.getUint64() & 0xFFFFFFFF);
+  latestTIME_SIGNAL = currentTime;
+  sendSignal(reference(), GSN_TIME_SIGNAL, signal, 2, JBB);
+}
+
+void SimulatedBlock::sendTIME_SIGNAL(Signal *signal,
+                                     const NDB_TICKS currentTime,
+                                     Uint32 delay)
+{
+  signal->theData[0] = Uint32(currentTime.getUint64() >> 32);
+  signal->theData[1] = Uint32(currentTime.getUint64() & 0xFFFFFFFF);
+  sendSignalWithDelay(reference(), GSN_TIME_SIGNAL, signal, delay, 2);
+}
+
+/*
+  This function is used to handle TIME_SIGNAL. This signal is intended to
+  be used sort of like a drum beat. We should execute some timer calls
+  every so often. However the OS can easily make the delayed signals to
+  be delayed if the OS is occupied with other things. We will never report
+  sleeps for longer than twice the expected delay. We rely on the delayed
+  signal scheduler to ensure that we run time a bit faster for a while
+  after long sleeps.
+
+  This function will return the elapsed time since last time we called it.
+*/
+Uint64
+SimulatedBlock::elapsed_time(Signal *signal,
+                             const NDB_TICKS currentTime,
+                             NDB_TICKS &latestTIME_SIGNAL,
+                             Uint32 expected_delay)
+{
+  const Uint64 elapsed_time =
+    NdbTick_Elapsed(latestTIME_SIGNAL, currentTime).milliSec();
+  latestTIME_SIGNAL = currentTime;
+
+  if (elapsed_time > Uint64(2 * expected_delay))
+  {
+    return Uint64(2 * expected_delay);
+  }
+  return elapsed_time;
 }
 
 #ifdef VM_TRACE

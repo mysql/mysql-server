@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -51,13 +51,14 @@
   @param K the stage key
   @param F the source file name
   @param L the source file line
+  @return the current stage progress
 */
 #ifdef HAVE_PSI_STAGE_INTERFACE
   #define MYSQL_SET_STAGE(K, F, L) \
     inline_mysql_set_stage(K, F, L)
 #else
   #define MYSQL_SET_STAGE(K, F, L) \
-    do {} while (0)
+    NULL
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -69,11 +70,65 @@ static inline void inline_mysql_stage_register(
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-static inline void
+static inline PSI_stage_progress*
 inline_mysql_set_stage(PSI_stage_key key,
                        const char *src_file, int src_line)
 {
-  PSI_STAGE_CALL(start_stage)(key, src_file, src_line);
+  return PSI_STAGE_CALL(start_stage)(key, src_file, src_line);
+}
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+#define mysql_stage_set_work_completed(P1, P2) \
+  inline_mysql_stage_set_work_completed(P1, P2)
+#else
+#define mysql_stage_set_work_completed(P1, P2) \
+  do {} while (0)
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+#define mysql_stage_inc_work_completed(P1, P2) \
+  inline_mysql_stage_inc_work_completed(P1, P2)
+#else
+#define mysql_stage_inc_work_completed(P1, P2) \
+  do {} while (0)
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+#define mysql_stage_set_work_estimated(P1, P2) \
+  inline_mysql_stage_set_work_estimated(P1, P2)
+#else
+#define mysql_stage_set_work_estimated(P1, P2) \
+  do {} while (0)
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+static inline void
+inline_mysql_stage_set_work_completed(PSI_stage_progress *progress,
+                                      ulonglong val)
+{
+  if (progress != NULL)
+    progress->m_work_completed= val;
+}
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+static inline void
+inline_mysql_stage_inc_work_completed(PSI_stage_progress *progress,
+                                      ulonglong val)
+{
+  if (progress != NULL)
+    progress->m_work_completed+= val;
+}
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+static inline void
+inline_mysql_stage_set_work_estimated(PSI_stage_progress *progress,
+                                      ulonglong val)
+{
+  if (progress != NULL)
+    progress->m_work_estimated= val;
 }
 #endif
 

@@ -270,7 +270,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
       NdbEventOperation *tmp;
       while ((tmp= pNdb->nextEvent()))
       {
-	assert(tmp == pOp);
+	require(tmp == pOp);
 	r++;
 	count++;
 
@@ -685,7 +685,7 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
       ndb->pollEvents(100, &curr_gci);
       while ((pOp= ndb->nextEvent()) != 0)
       {
-	assert(pOp == pCreate);
+	require(pOp == pCreate);
       
         if (pOp->getEventType() >=
             NdbDictionary::Event::TE_FIRST_NON_DATA_EVENT)
@@ -1034,7 +1034,7 @@ int runEventListenerUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
       ndb->pollEvents(100, &curr_gci);
       while ((pOp= ndb->nextEvent()) != 0)
       {
-	assert(pOp == pCreate);
+	require(pOp == pCreate);
       } 
     }
   }
@@ -3522,9 +3522,9 @@ int runTryGetEvent(NDBT_Context* ctx, NDBT_Step* step)
         return NDBT_FAILED;
       }
       g_err << "Got event successfully" << endl;
-      g_err << "Inserting errors 8101 + 4035" << endl;
-      restarter.insertErrorInAllNodes(8101);
-      restarter.insertErrorInAllNodes(4035);      
+      g_err << "Inserting errors 8107 + 4038" << endl;
+      restarter.insertErrorInAllNodes(8107);
+      restarter.insertErrorInAllNodes(4038);      
     }
     else
     {

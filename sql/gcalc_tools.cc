@@ -1243,7 +1243,7 @@ int Gcalc_result_receiver::reorder_chunks(chunk_info *chunks, int nchunks)
   DBUG_ENTER("Gcalc_result_receiver::sort_polygon_rings");
 
   String tmp;
-  uint32 reserve_length= buffer.length();
+  size_t reserve_length= buffer.length();
   if (tmp.reserve(reserve_length, MY_ALIGN(reserve_length, 512)))
     DBUG_RETURN(1);
 

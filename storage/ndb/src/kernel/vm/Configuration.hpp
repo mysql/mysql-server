@@ -38,8 +38,10 @@ enum ThreadTypes
   SocketServerThread = 2,
   SocketClientThread = 3,
   NdbfsThread = 4,
-  MainThread = 5,
-  NotInUse = 6
+  BlockThread = 5,
+  SendThread = 6,
+  ReceiveThread = 7,
+  NotInUse = 8
 };
 
 #define MAX_NDB_THREADS 256
@@ -93,8 +95,11 @@ public:
                            enum ThreadTypes type,
                            bool real_time,
                            bool init);
-  Uint32 addThread(struct NdbThread*, enum ThreadTypes type);
-  void removeThreadId(Uint32 index);
+  bool get_io_real_time() const;
+  Uint32 addThread(struct NdbThread*,
+                   enum ThreadTypes type,
+                   bool single_threaded = false);
+  void removeThread(struct NdbThread*);
   void yield_main(Uint32 thread_index, bool start);
   void initThreadArray();
 

@@ -32,6 +32,7 @@ let $ndb_pattern    = 'number_of_replicas';
 # We do not unify the engine name here, because the rowformat is
 # specific to the engine.
 --replace_column  8 "#TBLR#" 9 "#ARL#" 10 "#DL#" 11 "#MDL#" 12 "#IL#" 13 "#DF#" 15 "#CRT#" 16 "#UT#" 17 "#CT#" 20 "#CO#" 21 "#TC#"
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 eval
 SELECT *,
        LEFT( table_comment,

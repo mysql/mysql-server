@@ -257,6 +257,12 @@ exports.getLogger = function(filename) {
     };
   }
 
+  function makeIsFunction(level) {
+    return function() {      
+      return (udeb_level >= level) || (this.file_level >= level);
+    };
+  }
+
   var theLogger = new Logger();
   theLogger.file_level = presetPerFileLevel[filename] || UDEB_URGENT;
 
@@ -267,6 +273,12 @@ exports.getLogger = function(filename) {
   theLogger.log_detail     = makeLogFunction(5);
   theLogger.log            = theLogger.log_debug;
   
+  theLogger.is_urgent     = makeIsFunction(1);
+  theLogger.is_notice     = makeIsFunction(2);
+  theLogger.is_info       = makeIsFunction(3);
+  theLogger.is_debug      = makeIsFunction(4);
+  theLogger.is_detail     = makeIsFunction(5);
+
   fileLoggers[filename] = theLogger;
   
   return theLogger;

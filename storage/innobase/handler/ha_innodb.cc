@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "api0misc.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
+#include "btr0bulk.h"
 #include "btr0sea.h"
 #include "buf0dblwr.h"
 #include "buf0dump.h"
@@ -140,10 +141,6 @@ static long long innobase_buffer_pool_size, innobase_log_file_size;
 /** Percentage of the buffer pool to reserve for 'old' blocks.
 Connected to buf_LRU_old_ratio. */
 static uint innobase_old_blocks_pct;
-
-/** Maximum on-disk size of change buffer in terms of percentage
-of the buffer pool. */
-static uint innobase_change_buffer_max_size = CHANGE_BUFFER_DEFAULT_SIZE;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -567,6 +564,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_buffer_pool_dump_status,	  SHOW_CHAR},
   {"buffer_pool_load_status",
   (char*) &export_vars.innodb_buffer_pool_load_status,	  SHOW_CHAR},
+  {"buffer_pool_resize_status",
+  (char*) &export_vars.innodb_buffer_pool_resize_status,  SHOW_CHAR},
   {"buffer_pool_pages_data",
   (char*) &export_vars.innodb_buffer_pool_pages_data,	  SHOW_LONG},
   {"buffer_pool_bytes_data",
@@ -1554,7 +1553,7 @@ convert_error_code_to_mysql(
 	case DB_OUT_OF_FILE_SPACE:
 		return(HA_ERR_RECORD_FILE_FULL);
 
-	case DB_TEMP_FILE_WRITE_FAILURE:
+	case DB_TEMP_FILE_WRITE_FAIL:
 		return(HA_ERR_TEMP_FILE_WRITE_FAILURE);
 
 	case DB_TABLE_IN_FK_CHECK:
@@ -2343,7 +2342,8 @@ ha_innobase::ha_innobase(
 		  HA_CAN_FULLTEXT_HINTS |
 		  HA_CAN_EXPORT |
 		  HA_CAN_RTREEKEYS |
-		  HA_HAS_RECORDS
+		  HA_HAS_RECORDS |
+		  HA_NO_READ_LOCAL_LOCK
 		  ),
 	start_of_scan(0),
 	num_write_row(0)
@@ -3349,6 +3349,8 @@ innobase_change_buffering_inited_ok:
 
 	err = innobase_start_or_create_for_mysql();
 
+	innobase_buffer_pool_size = static_cast<long long>(srv_buf_pool_size);
+
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(innobase_init_abort());
 	}
@@ -3359,7 +3361,7 @@ innobase_change_buffering_inited_ok:
 	innobase_old_blocks_pct = static_cast<uint>(
 		buf_LRU_old_ratio_update(innobase_old_blocks_pct, TRUE));
 
-	ibuf_max_size_update(innobase_change_buffer_max_size);
+	ibuf_max_size_update(srv_change_buffer_max_size);
 
 	innobase_open_tables = hash_create(200);
 	mysql_mutex_init(innobase_share_mutex_key,
@@ -3367,7 +3369,7 @@ innobase_change_buffering_inited_ok:
 			 MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_cond_mutex_key,
 			 &commit_cond_m, MY_MUTEX_INIT_FAST);
-	mysql_cond_init(commit_cond_key, &commit_cond, NULL);
+	mysql_cond_init(commit_cond_key, &commit_cond);
 	innodb_inited= 1;
 #ifdef MYSQL_DYNAMIC_PLUGIN
 	if (innobase_hton != p) {
@@ -3595,7 +3597,7 @@ innobase_commit(
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-		/* We need current binlog position for ibbackup to work. */
+		/* We need current binlog position for mysqlbackup to work. */
 
 		if (!read_only) {
 
@@ -6621,8 +6623,7 @@ no_commit:
 	innobase_srv_conc_enter_innodb(prebuilt);
 
 	/* Step-5: Execute insert graph that will result in actual insert. */
-	error = row_insert_for_mysql(
-		(byte*) record, prebuilt, thd_to_innodb_session(user_thd));
+	error = row_insert_for_mysql((byte*) record, prebuilt);
 
 	DEBUG_SYNC(user_thd, "ib_after_row_insert");
 
@@ -7092,8 +7093,7 @@ ha_innobase::update_row(
 
 	innobase_srv_conc_enter_innodb(prebuilt);
 
-	error = row_update_for_mysql(
-		(byte*) old_row, prebuilt, thd_to_innodb_session(user_thd));
+	error = row_update_for_mysql((byte*) old_row, prebuilt);
 
 	/* We need to do some special AUTOINC handling for the following case:
 
@@ -7195,8 +7195,7 @@ ha_innobase::delete_row(
 
 	innobase_srv_conc_enter_innodb(prebuilt);
 
-	error = row_update_for_mysql(
-		(byte*) record, prebuilt, thd_to_innodb_session(user_thd));
+	error = row_update_for_mysql((byte*) record, prebuilt);
 
 	innobase_srv_conc_exit_innodb(prebuilt);
 
@@ -7550,8 +7549,7 @@ ha_innobase::index_read(
 			prebuilt->session = thd_to_innodb_session(user_thd);
 
 			ret = row_search_no_mvcc(
-				buf, mode, prebuilt, match_mode, 0,
-				prebuilt->session);
+				buf, mode, prebuilt, match_mode, 0);
 		}
 
 		innobase_srv_conc_exit_innodb(prebuilt);
@@ -7842,8 +7840,7 @@ ha_innobase::general_fetch(
 		ret = row_search_mvcc(buf, 0, prebuilt, match_mode, direction);
 	} else {
 		ret = row_search_no_mvcc(
-			buf, 0, prebuilt, match_mode, direction,
-			prebuilt->session);
+			buf, 0, prebuilt, match_mode, direction);
 	}
 
 	innobase_srv_conc_exit_innodb(prebuilt);
@@ -8674,13 +8671,13 @@ create_table_def(
 		block such statement.
 		This is work-around fix till Optimizer can handle this issue
 		(probably 5.7.4+). */
-		char field_name[MAX_FULL_NAME_LEN + 2];
+		char field_name[MAX_FULL_NAME_LEN + 2 + 10];
 
 		if (dict_table_is_intrinsic(table) && field->orig_table) {
 
 			ut_snprintf(field_name, sizeof(field_name),
-				    "%s_%s", field->orig_table->alias,
-				    field->field_name);
+				    "%s_%s_%lu", field->orig_table->alias,
+				    field->field_name, i);
 
 		} else {
 			ut_snprintf(field_name, sizeof(field_name),
@@ -9646,7 +9643,9 @@ index_bad:
 		*flags2 |= DICT_TF2_TEMPORARY;
 
 		/* Intrinsic table reside only in shared temporary tablespace.*/
-		if (THDVAR(thd, create_intrinsic) && !use_file_per_table) {
+		if ((THDVAR(thd, create_intrinsic)
+		     || create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)
+		    && !use_file_per_table) {
 			*flags2 |= DICT_TF2_INTRINSIC;
 		}
 	}
@@ -10765,9 +10764,7 @@ ha_innobase::records()
 	build_template(false);
 
 	/* Count the records in the clustered index */
-	ret = row_scan_index_for_mysql(
-		prebuilt, index, false, &n_rows,
-		thd_to_innodb_session(user_thd));
+	ret = row_scan_index_for_mysql(prebuilt, index, false, &n_rows);
 	reset_template();
 	switch (ret) {
 	case DB_SUCCESS:
@@ -11549,6 +11546,11 @@ ha_innobase::info_low(
 
 			KEY*	key = &table->key_info[i];
 
+			/* Check if this index supports index statistics. */
+			if (!key->supports_records_per_key()) {
+				continue;
+			}
+
 			for (j = 0; j < key->actual_key_parts; j++) {
 
 				if ((key->flags & HA_FULLTEXT)
@@ -11719,6 +11721,7 @@ ha_innobase::disable_indexes(
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
 			index->allow_duplicates = true;
 		}
+		error = 0;
 	}
 
 	return(error);
@@ -11946,8 +11949,7 @@ ha_innobase::check(
 			ret = row_count_rtree_recs(prebuilt, &n_rows);
 		} else {
 			ret = row_scan_index_for_mysql(
-				prebuilt, index, true, &n_rows,
-				thd_to_innodb_session(thd));
+				prebuilt, index, true, &n_rows);
 		}
 
 		DBUG_EXECUTE_IF(
@@ -12032,89 +12034,6 @@ ha_innobase::check(
 	}
 
 	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
-}
-
-/*************************************************************//**
-Adds information about free space in the InnoDB tablespace to a table comment
-which is printed out when a user calls SHOW TABLE STATUS. Adds also info on
-foreign keys.
-@return table comment + InnoDB free space + info on foreign keys */
-
-char*
-ha_innobase::update_table_comment(
-/*==============================*/
-	const char*	comment)/*!< in: table comment defined by user */
-{
-	uint	length = (uint) strlen(comment);
-	char*	str;
-	long	flen;
-
-	/* We do not know if MySQL can call this function before calling
-	external_lock(). To be safe, update the thd of the current table
-	handle. */
-
-	if (length > 64000 - 3) {
-		return((char*) comment); /* string too long */
-	}
-
-	update_thd(ha_thd());
-
-	prebuilt->trx->op_info = (char*)"returning table comment";
-
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(prebuilt->trx);
-	str = NULL;
-
-	/* output the data to a temporary file */
-
-	if (!srv_read_only_mode) {
-
-		mutex_enter(&srv_dict_tmpfile_mutex);
-
-		rewind(srv_dict_tmpfile);
-
-		fprintf(srv_dict_tmpfile, "InnoDB free: %" PRIuMAX " kB",
-			fsp_get_available_space_in_free_extents(
-				prebuilt->table->space));
-
-		dict_print_info_on_foreign_keys(
-			FALSE, srv_dict_tmpfile, prebuilt->trx,
-			prebuilt->table);
-
-		flen = ftell(srv_dict_tmpfile);
-
-		if (flen < 0) {
-			flen = 0;
-		} else if (length + flen + 3 > 64000) {
-			flen = 64000 - 3 - length;
-		}
-
-		/* allocate buffer for the full string, and
-		read the contents of the temporary file */
-
-		str = (char*) my_malloc(PSI_INSTRUMENT_ME,
-                                        length + flen + 3, MYF(0));
-
-		if (str) {
-			char* pos	= str + length;
-			if (length) {
-				memcpy(str, comment, length);
-				*pos++ = ';';
-				*pos++ = ' ';
-			}
-			rewind(srv_dict_tmpfile);
-			flen = (uint) fread(pos, 1, flen, srv_dict_tmpfile);
-			pos[flen] = 0;
-		}
-
-		mutex_exit(&srv_dict_tmpfile_mutex);
-	}
-
-	prebuilt->trx->op_info = (char*)"";
-
-	return(str ? str : (char*) comment);
 }
 
 /*******************************************************************//**
@@ -13234,25 +13153,45 @@ free_share(
 	mysql_mutex_unlock(&innobase_share_mutex);
 }
 
+/*********************************************************************//**
+Returns number of THR_LOCK locks used for one instance of InnoDB table.
+InnoDB no longer relies on THR_LOCK locks so 0 value is returned.
+Instead of THR_LOCK locks InnoDB relies on combination of metadata locks
+(e.g. for LOCK TABLES and DDL) and its own locking subsystem.
+Note that even though this method returns 0, SQL-layer still calls
+::store_lock(), ::start_stmt() and ::external_lock() methods for InnoDB
+tables. */
+
+uint
+ha_innobase::lock_count(void) const
+/*===============================*/
+{
+	return 0;
+}
+
 /*****************************************************************//**
-Converts a MySQL table lock stored in the 'lock' field of the handle to
-a proper type before storing pointer to the lock into an array of pointers.
+Supposed to convert a MySQL table lock stored in the 'lock' field of the
+handle to a proper type before storing pointer to the lock into an array
+of pointers.
+In practice, since InnoDB no longer relies on THR_LOCK locks and its
+lock_count() method returns 0 it just informs storage engine about type
+of THR_LOCK which SQL-layer would have acquired for this specific statement
+on this specific table.
 MySQL also calls this if it wants to reset some table locks to a not-locked
 state during the processing of an SQL query. An example is that during a
 SELECT the read lock is released early on the 'const' tables where we only
 fetch one row. MySQL does not call this when it releases all locks at the
 end of an SQL statement.
-@return pointer to the next element in the 'to' array */
+@return pointer to the current element in the 'to' array. */
 
 THR_LOCK_DATA**
 ha_innobase::store_lock(
 /*====================*/
 	THD*			thd,		/*!< in: user thread handle */
-	THR_LOCK_DATA**		to,		/*!< in: pointer to an array
-						of pointers to lock structs;
-						pointer to the 'lock' field
-						of current handle is stored
-						next to this array */
+	THR_LOCK_DATA**		to,		/*!< in: pointer to the current
+						element in an array of pointers
+						to lock structs;
+						only used as return value */
 	enum thr_lock_type	lock_type)	/*!< in: lock type to store in
 						'lock'; this may also be
 						TL_IGNORE */
@@ -13473,8 +13412,6 @@ ha_innobase::store_lock(
 
 		lock.type = lock_type;
 	}
-
-	*to++= &lock;
 
 	if (!trx_is_started(trx)
 	    && (prebuilt->select_lock_type != LOCK_NONE
@@ -14055,7 +13992,7 @@ innobase_xa_prepare(
 		|| !thd_test_options(
 			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
-		/* For ibbackup to work the order of transactions in binlog
+		/* For mysqlbackup to work the order of transactions in binlog
 		and InnoDB must be the same. Consider the situation
 
 		  thread1> prepare; write to binlog; ...
@@ -14607,6 +14544,79 @@ innodb_stopword_table_validate(
 	return(ret);
 }
 
+/** Update the system variable innodb_buffer_pool_size using the "saved"
+value. This function is registered as a callback with MySQL.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static
+void
+innodb_buffer_pool_size_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	long long	in_val = *static_cast<const long long*>(save);
+
+#ifdef UNIV_LOG_DEBUG
+	/* UNIV_LOG_DEBUG might not release blocks from the buffer pool,
+	even after recv_recovery_from_checkpoint_finish().
+	Cannot resize the buffer pool. */
+	return;
+#endif /* UNIV_LOG_DEBUG */
+
+	if (!srv_was_started) {
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "Cannot update innodb_buffer_pool_size,"
+				    " because InnoDB is not started.");
+		return;
+	}
+
+	buf_pool_mutex_enter_all();
+	if (srv_buf_pool_old_size != srv_buf_pool_size) {
+		buf_pool_mutex_exit_all();
+
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "Cannot update innodb_buffer_pool_size,"
+				    " another resize is already in progress.");
+		return;
+	}
+
+	if (srv_buf_pool_instances > 1
+	    && in_val < BUF_POOL_SIZE_THRESHOLD) {
+		buf_pool_mutex_exit_all();
+
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "Cannot update innodb_buffer_pool_size"
+				    " to less than 1GB if"
+				    " innodb_buffer_pool_instances > 1.");
+		return;
+	}
+
+	srv_buf_pool_size = buf_pool_size_align(static_cast<ulint>(in_val));
+
+	innobase_buffer_pool_size = static_cast<long long>(srv_buf_pool_size);
+
+	if (srv_buf_pool_old_size == srv_buf_pool_size) {
+		buf_pool_mutex_exit_all();
+		/* nothing to do */
+		return;
+	}
+
+	buf_pool_mutex_exit_all();
+
+	ut_snprintf(export_vars.innodb_buffer_pool_resize_status,
+		    sizeof(export_vars.innodb_buffer_pool_resize_status),
+		    "Requested to resize buffer pool.");
+
+	os_event_set(srv_buf_resize_event);
+}
+
 /*************************************************************//**
 Check whether valid argument given to "innodb_fts_internal_tbl_name"
 This function is registered as a callback with MySQL.
@@ -14734,9 +14744,9 @@ innodb_change_buffer_max_size_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	innobase_change_buffer_max_size =
+	srv_change_buffer_max_size =
 			(*static_cast<const uint*>(save));
-	ibuf_max_size_update(innobase_change_buffer_max_size);
+	ibuf_max_size_update(srv_change_buffer_max_size);
 }
 
 #ifdef UNIV_DEBUG
@@ -15769,8 +15779,7 @@ checkpoint_now_set(
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}
-		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
-		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+		fil_write_flushed_lsn(log_sys->lsn);
 	}
 }
 
@@ -16358,9 +16367,18 @@ can be removed and 8 used instead. The problem with the current setup is that
 with 128MiB default buffer pool size and 8 instances by default we would emit
 a warning when no options are specified. */
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
-  NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
+  NULL, innodb_buffer_pool_size_update,
+  128*1024*1024L, SRV_BUF_POOL_MIN_SIZE, LONGLONG_MAX, 1024*1024L);
+
+static MYSQL_SYSVAR_ULONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Size of a single memory chunk within each buffer pool instance"
+  " for resizing buffer pool. Online buffer pool resizing happens"
+  " at this granularity. 0 means disable resizing buffer pool.",
+  NULL, NULL,
+  128 * 1024 * 1024, 1024 * 1024, LONG_MAX, 1024 * 1024);
 
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
 static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
@@ -16449,6 +16467,11 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
+
+static MYSQL_SYSVAR_LONG(fill_factor, innobase_fill_factor,
+  PLUGIN_VAR_RQCMDARG,
+  "Percentage of B-tree page filled during bulk insert",
+  NULL, NULL, 100, 10, 100, 0);
 
 static MYSQL_SYSVAR_BOOL(ft_enable_diag_print, fts_enable_diag_print,
   PLUGIN_VAR_OPCMDARG,
@@ -16717,7 +16740,7 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_update, "all");
 
 static MYSQL_SYSVAR_UINT(change_buffer_max_size,
-  innobase_change_buffer_max_size,
+  srv_change_buffer_max_size,
   PLUGIN_VAR_RQCMDARG,
   "Maximum on-disk size of change buffer in terms of percentage"
   " of the buffer pool.",
@@ -16851,6 +16874,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_bk_commit_interval),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
+  MYSQL_SYSVAR(buffer_pool_chunk_size),
   MYSQL_SYSVAR(buffer_pool_instances),
   MYSQL_SYSVAR(buffer_pool_filename),
   MYSQL_SYSVAR(buffer_pool_dump_now),
@@ -16891,6 +16915,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(force_recovery_crash),
 #endif /* !DBUG_OFF */
+  MYSQL_SYSVAR(fill_factor),
   MYSQL_SYSVAR(ft_cache_size),
   MYSQL_SYSVAR(ft_total_cache_size),
   MYSQL_SYSVAR(ft_result_cache_limit),

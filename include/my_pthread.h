@@ -67,7 +67,7 @@ typedef void * (__cdecl *pthread_handler)(void *);
 
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
 int pthread_attr_init(pthread_attr_t *connect_att);
-int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
+int pthread_attr_setstacksize(pthread_attr_t *connect_att, size_t stack);
 int pthread_attr_getstacksize(pthread_attr_t *connect_att, size_t *stack);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
 
@@ -163,14 +163,11 @@ static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
 /* Dummy defines for easier code */
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
 #define pthread_attr_setscope(A,B) pthread_dummy(0)
-#define pthread_yield() SwitchToThread()
 
 #else /* Normal threads */
 
 #include <pthread.h>
-#ifdef HAVE_SCHED_H
 #include <sched.h>
-#endif
 #ifdef HAVE_SYNCH_H
 #include <synch.h>
 #endif
@@ -186,12 +183,16 @@ typedef void *(* pthread_handler)(void *);
 #define my_pthread_once(C,F) pthread_once(C,F)
 #define my_pthread_getspecific(A,B) ((A) pthread_getspecific(B))
 
-#if !defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
-/* no pthread_yield() available */
-#define pthread_yield() sched_yield()
-#endif
-
 #endif /* defined(_WIN32) */
+
+static inline void my_thread_yield()
+{
+#ifdef _WIN32
+  SwitchToThread();
+#else
+  sched_yield();
+#endif
+}
 
 /* Define mutex types, see my_thr_init.c */
 #define MY_MUTEX_INIT_SLOW   NULL
@@ -260,9 +261,7 @@ struct st_my_thread_var
   mysql_mutex_t mutex;
   mysql_mutex_t * volatile current_mutex;
   mysql_cond_t * volatile current_cond;
-  pthread_t pthread_self;
   my_thread_id id;
-  int cmp_length;
   int volatile abort;
   my_bool init;
   struct st_my_thread_var *next,**prev;
@@ -277,7 +276,6 @@ struct st_my_thread_var
 extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
 extern int set_mysys_var(struct st_my_thread_var *mysys_var);
 extern void **my_thread_var_dbug();
-extern uint my_thread_end_wait_time;
 #define my_thread_var (_my_thread_var())
 #define my_errno my_thread_var->thr_errno
 

@@ -677,6 +677,17 @@ class Item : public Parse_tree_node
   int8 is_expensive_cache;
   virtual bool is_expensive_processor(uchar *arg) { return false; }
 
+protected:
+  /**
+     Sets the result value of the function an empty string, using the current
+     character set. No memory is allocated.
+     @retval A pointer to the str_value member.
+   */
+  String *make_empty_result() {
+    str_value.set("", 0, collation.collation);
+    return &str_value; 
+  }
+
 public:
   static void *operator new(size_t size) throw ()
   { return sql_alloc(size); }
@@ -1219,6 +1230,103 @@ protected:
   longlong val_int_from_time();
   longlong val_int_from_datetime();
   double val_real_from_decimal();
+
+
+  /**
+    Get the value to return from val_bool() in case of errors.
+
+    This function is called from val_bool() when an error has occured
+    and we need to return something to abort evaluation of the
+    item. The expected pattern in val_bool() is
+
+      if (<error condition>)
+      {
+        my_error(...)
+        return error_bool();
+      }
+
+    @return The value val_bool() should return.
+  */
+  bool error_bool()
+  {
+    null_value= maybe_null;
+    return false;
+  }
+
+
+  /**
+    Get the value to return from val_decimal() in case of errors.
+
+    @see Item::error_bool
+
+    The expected pattern is to use the buffer given as parameter to
+    val_decimal:
+
+      my_decimal *Item_foo::val_decimal(my_decimal *decimal_buffer)
+      {
+        ...
+        if (<error condition>)
+        {
+          my_error(...)
+          return error_decimal(decimal_buffer);
+        }
+        ...
+      }
+
+    @param decimal_buffer Buffer used for returning value.
+
+    @return The value val_decimal() should return.
+  */
+  my_decimal *error_decimal(my_decimal *decimal_buffer)
+  {
+    if (!maybe_null)
+      my_decimal_set_zero(decimal_buffer);
+    null_value= maybe_null;
+    return null_value ? NULL : decimal_buffer;
+  }
+
+
+  /**
+    Get the value to return from val_int() in case of errors.
+
+    @see Item::error_bool
+
+    @return The value val_int() should return.
+  */
+  longlong error_int()
+  {
+    null_value= maybe_null;
+    return 0;
+  }
+
+
+  /**
+    Get the value to return from val_real() in case of errors.
+
+    @see Item::error_bool
+
+    @return The value val_real() should return.
+  */
+  double error_real()
+  {
+    null_value= maybe_null;
+    return 0.0;
+  }
+
+
+  /**
+    Get the value to return from val_str() in case of errors.
+
+    @see Item::error_bool
+
+    @return The value val_str() should return.
+  */
+  String *error_str()
+  {
+    null_value= maybe_null;
+    return null_value ? NULL : make_empty_result();
+  }
+
 
   /**
     Convert val_str() to date in MYSQL_TIME
@@ -2722,7 +2830,7 @@ public:
   void set_double(double i);
   void set_decimal(const char *str, ulong length);
   void set_decimal(const my_decimal *dv);
-  bool set_str(const char *str, ulong length);
+  bool set_str(const char *str, size_t length);
   bool set_longdata(const char *str, ulong length);
   void set_time(MYSQL_TIME *tm, timestamp_type type, uint32 max_length_arg);
   bool set_from_user_var(THD *thd, const user_var_entry *entry);
@@ -3115,7 +3223,7 @@ protected:
   void init(const char *str, size_t length,
             const CHARSET_INFO *cs, Derivation dv, uint repertoire)
   {
-    str_value.set_or_copy_aligned(str, static_cast<uint32>(length), cs);
+    str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
     /*
       We have to have a different max_length than 'length' here to
@@ -3124,7 +3232,7 @@ protected:
       number of chars for a string of this type because we in Create_field::
       divide the max_length with mbmaxlen).
     */
-    max_length= str_value.numchars()*cs->mbmaxlen;
+    max_length= static_cast<uint32>(str_value.numchars() * cs->mbmaxlen);
     item_name.copy(str, length, cs);
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
@@ -3132,14 +3240,14 @@ protected:
   }
 public:
   /* Create from a string, set name from the string itself. */
-  Item_string(const char *str,uint length,
+  Item_string(const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : m_cs_specified(FALSE)
   {
     init(str, length, cs, dv, repertoire);
   }
-  Item_string(const POS &pos, const char *str,uint length,
+  Item_string(const POS &pos, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : super(pos), m_cs_specified(FALSE)
@@ -3158,27 +3266,27 @@ public:
   }
 
   /* Create from the given name and string. */
-  Item_string(const Name_string name_par, const char *str, uint length,
+  Item_string(const Name_string name_par, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : m_cs_specified(FALSE)
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
-    max_length= str_value.numchars()*cs->mbmaxlen;
+    max_length= static_cast<uint32>(str_value.numchars() * cs->mbmaxlen);
     item_name= name_par;
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
     fixed= 1;
   }
-  Item_string(const POS &pos, const Name_string name_par, const char *str, uint length,
+  Item_string(const POS &pos, const Name_string name_par, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : super(pos), m_cs_specified(FALSE)
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
-    max_length= str_value.numchars()*cs->mbmaxlen;
+    max_length= static_cast<uint32>(str_value.numchars()*cs->mbmaxlen);
     item_name= name_par;
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
@@ -3193,11 +3301,9 @@ public:
     : super(pos), m_cs_specified(FALSE)
   {
     str_value.set_or_copy_aligned(literal.str ? literal.str : "",
-                                  literal.str ? static_cast<uint32>(
-                                  literal.length) : 0,
-                                  cs);
+                                  literal.str ? literal.length : 0, cs);
     collation.set(cs, dv, repertoire);
-    max_length= str_value.numchars()*cs->mbmaxlen;
+    max_length= static_cast<uint32>(str_value.numchars()*cs->mbmaxlen);
     item_name= name_par;
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
@@ -3211,7 +3317,8 @@ public:
   void set_str_with_copy(const char *str_arg, uint length_arg)
   {
     str_value.copy(str_arg, length_arg, collation.collation);
-    max_length= str_value.numchars() * collation.collation->mbmaxlen;
+    max_length= static_cast<uint32>(str_value.numchars() *
+                                    collation.collation->mbmaxlen);
   }
   void set_repertoire_from_value()
   {
@@ -3243,15 +3350,16 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   Item *clone_item() 
   {
-    return new Item_string(static_cast<Name_string>(item_name), str_value.ptr(), 
+    return new Item_string(static_cast<Name_string>(item_name), str_value.ptr(),
     			   str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   Item *charset_converter(const CHARSET_INFO *tocs, bool lossless);
   inline void append(char *str, size_t length)
   {
-    str_value.append(str, static_cast<uint32>(length));
-    max_length= str_value.numchars() * collation.collation->mbmaxlen;
+    str_value.append(str, length);
+    max_length= static_cast<uint32>(str_value.numchars() *
+                                    collation.collation->mbmaxlen);
   }
   virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
@@ -3312,12 +3420,12 @@ class Item_static_string_func :public Item_string
   const Name_string func_name;
 public:
   Item_static_string_func(const Name_string &name_par,
-                          const char *str, uint length, const CHARSET_INFO *cs,
+                          const char *str, size_t length, const CHARSET_INFO *cs,
                           Derivation dv= DERIVATION_COERCIBLE)
     :Item_string(null_name_string, str, length, cs, dv), func_name(name_par)
   {}
   Item_static_string_func(const POS &pos, const Name_string &name_par,
-                          const char *str, uint length, const CHARSET_INFO *cs,
+                          const char *str, size_t length, const CHARSET_INFO *cs,
                           Derivation dv= DERIVATION_COERCIBLE)
     :Item_string(pos, null_name_string, str, length, cs, dv),
      func_name(name_par)
@@ -3338,11 +3446,11 @@ public:
 class Item_partition_func_safe_string: public Item_string
 {
 public:
-  Item_partition_func_safe_string(const Name_string name, uint length,
+  Item_partition_func_safe_string(const Name_string name, size_t length,
                                   const CHARSET_INFO *cs= NULL):
     Item_string(name, NullS, 0, cs)
   {
-    max_length= length;
+    max_length= static_cast<uint32>(length);
   }
 };
 
@@ -3350,7 +3458,7 @@ public:
 class Item_blob :public Item_partition_func_safe_string
 {
 public:
-  Item_blob(const char *name, uint length) :
+  Item_blob(const char *name, size_t length) :
     Item_partition_func_safe_string(Name_string(name, strlen(name)),
                                     length, &my_charset_bin)
   { }
@@ -3368,12 +3476,12 @@ public:
 class Item_empty_string :public Item_partition_func_safe_string
 {
 public:
-  Item_empty_string(const char *header, uint length,
+  Item_empty_string(const char *header, size_t length,
                     const CHARSET_INFO *cs= NULL) :
     Item_partition_func_safe_string(Name_string(header, strlen(header)),
                                     0, cs ? cs : &my_charset_utf8_general_ci)
     {
-      max_length= length * collation.collation->mbmaxlen;
+      max_length= static_cast<uint32>(length * collation.collation->mbmaxlen);
     }
   void make_field(Send_field *field);
 };
@@ -4435,6 +4543,11 @@ public:
   enum_trigger_variable_type trigger_var_type;
   /* Next in list of all Item_trigger_field's in trigger */
   Item_trigger_field *next_trg_field;
+  /*
+    Next list of Item_trigger_field's in "sp_head::
+    m_list_of_trig_fields_item_lists".
+  */
+  SQL_I_List<Item_trigger_field> *next_trig_field_list;
   /* Index of the field in the TABLE::field array */
   uint field_idx;
   /* Pointer to an instance of Table_trigger_field_support interface */
@@ -4446,7 +4559,7 @@ public:
                      ulong priv, const bool ro)
     :Item_field(context_arg,
                (const char *)NULL, (const char *)NULL, field_name_arg),
-     trigger_var_type(trigger_var_type_arg),
+     trigger_var_type(trigger_var_type_arg), next_trig_field_list(NULL),
      field_idx((uint)-1), original_privilege(priv),
      want_privilege(priv), table_grants(NULL), read_only (ro)
   {}

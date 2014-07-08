@@ -585,13 +585,20 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   /**
-    List of all items (Item_trigger_field objects) representing fields in
-    old/new version of row in trigger. We use this list for checking whenever
-    all such fields are valid at trigger creation time and for binding these
-    fields to TABLE object at table open (although for latter pointer to table
-    being opened is probably enough).
+    List of item (Item_trigger_field objects)'s lists representing fields
+    in old/new version of row in trigger. We use this list for checking
+    whether all such fields are valid or not at trigger creation time and for
+    binding these fields to TABLE object at table open (although for latter
+    pointer to table being opened is probably enough).
   */
-  SQL_I_List<Item_trigger_field> m_trg_table_fields;
+  SQL_I_List<SQL_I_List<Item_trigger_field> > m_list_of_trig_fields_item_lists;
+  /**
+    List of all the Item_trigger_field items created while parsing
+    sp instruction. After parsing, in add_instr method this list
+    is moved to per instruction Item_trigger_field list
+    "sp_lex_instr::m_trig_field_list".
+  */
+  SQL_I_List<Item_trigger_field> m_cur_instr_trig_field_items;
 
   /// Trigger characteristics.
   st_trg_chistics m_trg_chistics;
@@ -855,11 +862,14 @@ public:
     @param[in,out] query_tables_last_ptr  Pointer to the next_global member of
                                           last element of the list where tables
                                           will be added (or to its root).
+    @param[in] sql_command                SQL-command for which we are adding
+                                          elements to the table list.
     @param[in] belong_to_view             Uppermost view which uses this routine,
                                           NULL if none.
   */
   void add_used_tables_to_table_list(THD *thd,
                                      TABLE_LIST ***query_tables_last_ptr,
+                                     enum_sql_command sql_command,
                                      TABLE_LIST *belong_to_view);
 
   /**

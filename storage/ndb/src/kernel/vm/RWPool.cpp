@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,9 @@ RWPool::init(const Record_info& ri, const Pool_context& pc)
   m_record_info.m_offset_magic = ((ri.m_offset_magic + 3) >> 2);
   m_record_info.m_offset_next_pool = ((ri.m_offset_next_pool + 3) >> 2);
   m_memroot = (RWPage*)m_ctx.get_memroot();
+#ifdef VM_TRACE
   ndbout_c("RWPool::init(%x, %d)",ri.m_type_id, m_record_info.m_size);
+#endif
 }
 
 bool

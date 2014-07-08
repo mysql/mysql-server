@@ -37,7 +37,7 @@ As build tools, plain make' and 'ant' are used for the Java, C++ sources
         $ make dbg
         $ make opt
 
---> Lisdt supported make, ant targets:
+--> List supported make, ant targets:
         $ make help
         $ ant help
 

@@ -50,6 +50,12 @@ struct PSI_sp_locker;
 typedef struct PSI_sp_locker PSI_sp_locker;
 struct PSI_metadata_lock;
 typedef struct PSI_metadata_lock PSI_metadata_lock;
+struct PSI_stage_progress
+{
+  ulonglong m_work_completed;
+  ulonglong m_work_estimated;
+};
+typedef struct PSI_stage_progress PSI_stage_progress;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ Rpl_info_table::Rpl_info_table(uint nparam,
   str_schema.str= str_table.str= NULL;
   str_schema.length= str_table.length= 0;
 
-  uint schema_length= strlen(param_schema);
+  size_t schema_length= strlen(param_schema);
   if ((str_schema.str= (char *) my_malloc(key_memory_Rpl_info_table,
                                           schema_length + 1, MYF(0))))
   {
@@ -33,7 +33,7 @@ Rpl_info_table::Rpl_info_table(uint nparam,
     strmake(str_schema.str, param_schema, schema_length);
   }
   
-  uint table_length= strlen(param_table);
+  size_t table_length= strlen(param_table);
   if ((str_table.str= (char *) my_malloc(key_memory_Rpl_info_table,
                                          table_length + 1, MYF(0))))
   {
@@ -79,7 +79,7 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance)
   int error= 1;
   enum enum_return_id res= FOUND_ID;
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
 
   DBUG_ENTER("Rlp_info_table::do_init_info");
@@ -143,7 +143,7 @@ int Rpl_info_table::do_flush_info(const bool force)
   int error= 1;
   enum enum_return_id res= FOUND_ID;
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
 
   DBUG_ENTER("Rpl_info_table::do_flush_info");
@@ -256,7 +256,7 @@ int Rpl_info_table::do_clean_info()
   int error= 1;
   enum enum_return_id res= FOUND_ID;
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
 
   DBUG_ENTER("Rpl_info_table::do_remove_info");
@@ -307,7 +307,7 @@ int Rpl_info_table::do_reset_info(uint nparam,
 {
   int error= 1;
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
   Rpl_info_table *info= NULL;
   THD *thd= NULL;
@@ -360,7 +360,7 @@ end:
 enum_return_check Rpl_info_table::do_check_info()
 {
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
   enum_return_check return_check= ERROR_CHECKING_REPOSITORY;
 
@@ -415,7 +415,7 @@ end:
 enum_return_check Rpl_info_table::do_check_info(uint instance)
 {
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
   enum_return_check return_check= ERROR_CHECKING_REPOSITORY;
 
@@ -474,7 +474,7 @@ bool Rpl_info_table::do_count_info(uint nparam,
 {
   int error= 1;
   TABLE *table= NULL;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   Open_tables_backup backup;
   Rpl_info_table *info= NULL;
   THD *thd= NULL;
@@ -581,9 +581,9 @@ bool Rpl_info_table::do_set_info(const int pos, const float value)
                                             &my_charset_bin));
 }
 
-bool Rpl_info_table::do_set_info(const int pos, const Dynamic_ids *value)
+bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
 {
-  if (const_cast<Dynamic_ids *>(value)->pack_dynamic_ids(&field_values->value[pos]))
+  if (const_cast<Server_ids*>(value)->pack_dynamic_ids(&field_values->value[pos]))
     return TRUE;
 
   return FALSE;
@@ -664,8 +664,8 @@ bool Rpl_info_table::do_get_info(const int pos, float *value,
   return TRUE;
 }
 
-bool Rpl_info_table::do_get_info(const int pos, Dynamic_ids *value,
-                                 const Dynamic_ids *default_value __attribute__((unused)))
+bool Rpl_info_table::do_get_info(const int pos, Server_ids *value,
+                                 const Server_ids *default_value __attribute__((unused)))
 {
   if (value->unpack_dynamic_ids(field_values->value[pos].c_ptr_safe()))
     return TRUE;
@@ -686,7 +686,7 @@ bool Rpl_info_table::do_is_transactional()
 bool Rpl_info_table::do_update_is_transactional()
 {
   bool error= TRUE;
-  ulong saved_mode;
+  sql_mode_t saved_mode;
   TABLE *table= NULL;
   Open_tables_backup backup;
 

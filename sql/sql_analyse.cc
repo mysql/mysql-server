@@ -251,7 +251,7 @@ void field_str::add()
 {
   char buff[MAX_FIELD_WIDTH], *ptr;
   String s(buff, sizeof(buff),&my_charset_bin), *res;
-  ulong length;
+  size_t length;
 
   if (!(res= item->str_result(&s)))
   {
@@ -945,16 +945,16 @@ void field_decimal::get_opt_type(String *answer,
 {
   my_decimal zero;
   char buff[MAX_FIELD_WIDTH];
-  uint length;
+  size_t length;
 
   my_decimal_set_zero(&zero);
   my_bool is_unsigned= (my_decimal_cmp(&zero, &min_arg) >= 0);
 
   length= my_snprintf(buff, sizeof(buff), "DECIMAL(%d, %d)",
-                      (int) (max_length - (item->decimals ? 1 : 0)),
-                      item->decimals);
+                      static_cast<int>(max_length - (item->decimals ? 1 : 0)),
+                      static_cast<int>(item->decimals));
   if (is_unsigned)
-    length= (uint) (my_stpcpy(buff+length, " UNSIGNED")- buff);
+    length= (my_stpcpy(buff+length, " UNSIGNED")- buff);
   answer->append(buff, length);
 }
 
@@ -1130,7 +1130,7 @@ bool select_analyse::change_columns()
   func_items[8] = new Item_proc_string("Std", 255);
   func_items[8]->maybe_null = 1;
   func_items[9] = new Item_proc_string("Optimal_fieldtype",
-				       max(64U, output_str_length));
+				       max<size_t>(64U, output_str_length));
   result_fields.empty();
   for (uint i = 0; i < array_elements(func_items); i++)
   {

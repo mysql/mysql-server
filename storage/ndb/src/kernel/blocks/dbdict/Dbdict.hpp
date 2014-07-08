@@ -1286,6 +1286,7 @@ private:
   void initSchemaFile(XSchemaFile *, Uint32 firstPage, Uint32 lastPage,
                       bool initEntries);
   void resizeSchemaFile(XSchemaFile * xsf, Uint32 noOfPages);
+  void modifySchemaFileAtRestart(XSchemaFile * xsf);
   void computeChecksum(XSchemaFile *, Uint32 pageNo);
   bool validateChecksum(const XSchemaFile *);
   SchemaFile::TableEntry * getTableEntry(Uint32 tableId);
@@ -4138,6 +4139,8 @@ private:
   void enableFK_fromCreateFK(Signal*, Uint32 tx_key, Uint32 ret);
   void enableFK_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   bool c_restart_enable_fks;
+  Uint32 c_at_restart_skip_indexes;
+  Uint32 c_at_restart_skip_fks;
 
   // Events
   void

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -72,23 +72,27 @@ exports.Batch.prototype.clear = function() {
 
 
 exports.Batch.prototype.find = function() {
-  var context = new userContext.UserContext(arguments, 3, 2, this.session, this.session.sessionFactory, false);
+  var context, promise;
+  context = new userContext.UserContext(arguments, 3, 2, this.session, this.session.sessionFactory, false);
   // delegate to context's find function for execution
-  context.find();
+  promise = context.find();
   this.operationContexts.push(context);
+  return promise;
 };
 
 
 exports.Batch.prototype.load = function() {
-  var context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
+  var context, promise;
+  context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
   // delegate to context's load function for execution
-  context.load();
+  promise = context.load();
   this.operationContexts.push(context);
+  return promise;
 };
 
 
 exports.Batch.prototype.persist = function(tableIndicator) {
-  var context;
+  var context, promise;
   if (typeof(tableIndicator) === 'object') {
     // persist(domainObject, callback)
     context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
@@ -97,13 +101,14 @@ exports.Batch.prototype.persist = function(tableIndicator) {
     context = new userContext.UserContext(arguments, 3, 1, this.session, this.session.sessionFactory, false);
   }
   // delegate to context's persist function for execution
-  context.persist();
+  promise = context.persist();
   this.operationContexts.push(context);
+  return promise;
 };
 
 
 exports.Batch.prototype.remove = function(tableIndicator) {
-  var context;
+  var context, promise;
   if (typeof(tableIndicator) === 'object') {
     // remove(domainObject, callback)
     context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
@@ -112,13 +117,14 @@ exports.Batch.prototype.remove = function(tableIndicator) {
     context = new userContext.UserContext(arguments, 3, 1, this.session, this.session.sessionFactory, false);
   }
   // delegate to context's remove function for execution
-  context.remove();
+  promise = context.remove();
   this.operationContexts.push(context);
+  return promise;
 };
 
 
 exports.Batch.prototype.update = function(tableIndicator) {
-  var context;
+  var context, promise;
   if (typeof(tableIndicator) === 'object') {
     // update(domainObject, callback)
     context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
@@ -127,13 +133,14 @@ exports.Batch.prototype.update = function(tableIndicator) {
     context = new userContext.UserContext(arguments, 4, 1, this.session, this.session.sessionFactory, false);
   }
   // delegate to context's update function for execution
-  context.update();
+  promise = context.update();
   this.operationContexts.push(context);
+  return promise;
 };
 
 
 exports.Batch.prototype.save = function(tableIndicator) {
-  var context;
+  var context, promise;
   if (typeof(tableIndicator) === 'object') {
     // save(domainObject, callback)
     context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
@@ -142,16 +149,18 @@ exports.Batch.prototype.save = function(tableIndicator) {
     context = new userContext.UserContext(arguments, 3, 1, this.session, this.session.sessionFactory, false);
   }
   // delegate to context's save function for execution
-  context.save();
+  promise = context.save();
   this.operationContexts.push(context);
+  return promise;
 };
 
 
 exports.Batch.prototype.execute = function() {
   var context = new userContext.UserContext(arguments, 1, 1, this.session, this.session.sessionFactory, true);
-  context.executeBatch(this.operationContexts);
+  var promise = context.executeBatch(this.operationContexts);
   // clear the operations that have just been executed
   this.operationContexts = [];
+  return promise;
 };
 
 exports.Batch.prototype.isBatch = function() {

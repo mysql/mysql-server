@@ -56,7 +56,7 @@ eval kill query $ID;
 connection con2;
 --error 0,ER_QUERY_INTERRUPTED
 reap;
-let $rows= `select count(*) from t2  /* must be 2 or 0 */`;
+let $rows= `select count(*) from t2  /* must be 1 or 0 */`;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --let $row_number=4
 if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
@@ -387,6 +387,14 @@ drop function bug27563;
 #
 # common cleanup 
 #
+
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection con2;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+connection default;
 
 drop table t1,t2,t3;
 

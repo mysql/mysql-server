@@ -1334,20 +1334,17 @@ Storage Level by-passing all the locking and transaction semantics.
 For InnoDB case, this will also by-pass hidden column generation.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 static
 dberr_t
 row_insert_for_mysql_using_cursor(
 	const byte*		mysql_rec,
-	row_prebuilt_t*		prebuilt,
-	innodb_session_t*	session)
+	row_prebuilt_t*		prebuilt)
 {
 	dberr_t		err	= DB_SUCCESS;
 	ins_node_t*	node	= NULL;
 	que_thr_t*	thr	= NULL;
 	mtr_t		mtr;
-	trx_id_t	trx_id;
 
 	/* Step-1: Get the reference of row to insert. */
 	row_get_prebuilt_insert_row(prebuilt);
@@ -1362,14 +1359,13 @@ row_insert_for_mysql_using_cursor(
 	dict_index_t*	clust_index = dict_table_get_first_index(node->table);
 
 	if (dict_index_is_auto_gen_clust(clust_index)) {
-		row_id_t	row_id;
-		row_id = session->get_next_table_sess_row_id(
-			prebuilt->table->name);
-		dict_sys_write_row_id(node->row_id_buf, row_id);
+		dict_sys_write_row_id(
+			node->row_id_buf,
+			dict_table_get_next_table_sess_row_id(node->table));
 	}
 
-	trx_id = session->get_next_table_sess_trx_id(prebuilt->table->name);
-	trx_write_trx_id(node->trx_id_buf, trx_id);
+	trx_write_trx_id(node->trx_id_buf,
+			 dict_table_get_next_table_sess_trx_id(node->table));
 
 	/* Step-4: Iterate over all the indexes and insert entries. */
 	dict_index_t*	inserted_upto = NULL;
@@ -1628,21 +1624,18 @@ error_exit:
 /** Does an insert for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS*/
 
 dberr_t
 row_insert_for_mysql(
 	const byte*		mysql_rec,
-	row_prebuilt_t*		prebuilt,
-	innodb_session_t*	session)
+	row_prebuilt_t*		prebuilt)
 {
 	/* For intrinsic tables there a lot of restrictions that can be
 	relaxed including locking of table, transaction handling, etc.
 	Use direct cursor interface for inserting to intrinsic tables. */
 	if (dict_table_is_intrinsic(prebuilt->table)) {
-		return(row_insert_for_mysql_using_cursor(
-			mysql_rec, prebuilt, session));
+		return(row_insert_for_mysql_using_cursor(mysql_rec, prebuilt));
 	} else {
 		return(row_insert_for_mysql_using_ins_graph(
 			mysql_rec, prebuilt));
@@ -2005,43 +1998,39 @@ row_delete_for_mysql_using_cursor(
 @param[in]	node		update node carrying information to delete.
 @param[out]	delete_entries	vector of cursor to deleted entries.
 @param[in]	thr		thread handler
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 static
 dberr_t
 row_update_for_mysql_using_cursor(
 	const upd_node_t*	node,
 	cursors_t&		delete_entries,
-	que_thr_t*		thr,
-	innodb_session_t*	session)
+	que_thr_t*		thr)
 {
 	dberr_t		err = DB_SUCCESS;
 	dict_table_t*	table = node->table;
 	mem_heap_t*	heap = mem_heap_create(1000);
 	dtuple_t*	entry;
-	trx_id_t        trx_id;
 	dfield_t*	trx_id_field;
 
 	/* Step-1: Update row-id column if table has auto-generated index.
 	Every update will result in update of auto-generated index. */
 	if (dict_index_is_auto_gen_clust(dict_table_get_first_index(table))) {
 		/* Update the row_id column. */
-		row_id_t	row_id;
 		dfield_t*	row_id_field;
 
-		row_id = session->get_next_table_sess_row_id(node->table->name);
 		row_id_field = dtuple_get_nth_field(
 			node->upd_row, dict_table_get_n_cols(table) - 2);
 
 		dict_sys_write_row_id(
-			static_cast<byte*>(row_id_field->data), row_id);
+			static_cast<byte*>(row_id_field->data),
+			dict_table_get_next_table_sess_row_id(node->table));
 	}
 
 	/* Step-2: Update the trx_id column. */
-	trx_id = session->get_next_table_sess_trx_id(node->table->name);
 	trx_id_field = dtuple_get_nth_field(
 		node->upd_row, dict_table_get_n_cols(table) - 1);
-	trx_write_trx_id(static_cast<byte*>(trx_id_field->data), trx_id);
+	trx_write_trx_id(static_cast<byte*>(trx_id_field->data),
+			 dict_table_get_next_table_sess_trx_id(node->table));
 
 
 	/* Step-3: Check if UPDATE can lead to DUPLICATE key violation.
@@ -2113,14 +2102,12 @@ row_update_for_mysql_using_cursor(
 /** Does an update or delete of a row for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 static
 dberr_t
 row_del_upd_for_mysql_using_cursor(
 	const byte*		mysql_rec,
-	row_prebuilt_t*		prebuilt,
-	innodb_session_t*	session)
+	row_prebuilt_t*		prebuilt)
 {
 	dberr_t			err = DB_SUCCESS;
 	upd_node_t*		node;
@@ -2161,7 +2148,7 @@ row_del_upd_for_mysql_using_cursor(
 		/* Step-4: Complete UPDATE operation by inserting new row with
 		updated data. */
 		err = row_update_for_mysql_using_cursor(
-			node, delete_entries, thr, session);
+			node, delete_entries, thr);
 
 		if (err == DB_SUCCESS) {
 			srv_stats.n_rows_updated.inc();
@@ -2478,18 +2465,15 @@ error:
 /** Does an update or delete of a row for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 
 dberr_t
 row_update_for_mysql(
 	const byte*		mysql_rec,
-	row_prebuilt_t*		prebuilt,
-	innodb_session_t*	session)
+	row_prebuilt_t*		prebuilt)
 {
 	if (dict_table_is_intrinsic(prebuilt->table)) {
-		return(row_del_upd_for_mysql_using_cursor(
-			mysql_rec, prebuilt, session));
+		return(row_del_upd_for_mysql_using_cursor(mysql_rec, prebuilt));
 	} else {
 		ut_a(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
 		return(row_update_for_mysql_using_upd_graph(
@@ -5322,9 +5306,8 @@ row_scan_index_for_mysql(
 	bool			check_keys,	/*!< in: true=check for mis-
 						ordered or duplicate records,
 						false=count the rows only */
-	ulint*			n_rows,		/*!< out: number of entries
+	ulint*			n_rows)		/*!< out: number of entries
 						seen in the consistent read */
-	innodb_session_t*	session)	/*!< in,out: session handler. */
 {
 	dtuple_t*	prev_entry	= NULL;
 	ulint		matched_fields;
@@ -5368,7 +5351,7 @@ row_scan_index_for_mysql(
 
 	cnt = 1000;
 
-	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0, session);
+	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
 loop:
 	/* Check thd->killed every 1,000 scanned rows */
 	if (--cnt == 0) {
@@ -5496,7 +5479,7 @@ not_ok:
 
 next_rec:
 	ret = row_search_for_mysql(
-		buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT, session);
+		buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);
 
 	goto loop;
 }

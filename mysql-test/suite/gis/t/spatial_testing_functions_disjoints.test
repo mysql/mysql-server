@@ -968,25 +968,37 @@ SELECT Disjoint(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 SELECT Disjoint(NULL,NULL);
 SELECT Disjoint(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT Disjoint(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT Disjoint(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT Disjoint(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT Disjoint(,);
@@ -1009,25 +1021,37 @@ SELECT ST_Disjoint(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 SELECT ST_Disjoint(NULL,NULL);
 SELECT ST_Disjoint(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Disjoint(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Disjoint(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Disjoint(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Disjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Disjoint(,);
@@ -1048,25 +1072,37 @@ SELECT MBRDisjoint(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 SELECT MBRDisjoint(NULL,NULL);
 SELECT MBRDisjoint(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT MBRDisjoint(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT MBRDisjoint(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT MBRDisjoint(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT MBRDisjoint(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT MBRDisjoint(,);

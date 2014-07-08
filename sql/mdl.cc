@@ -99,7 +99,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
   {0, "Waiting for stored procedure metadata lock", 0},
   {0, "Waiting for trigger metadata lock", 0},
   {0, "Waiting for event metadata lock", 0},
-  {0, "Waiting for commit lock", 0}
+  {0, "Waiting for commit lock", 0},
+  {0, "User lock", 0} /* Be compatible with old status. */
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -133,6 +134,7 @@ public:
   void init();
   void destroy();
 
+  inline MDL_lock *find(LF_PINS *pins, const MDL_key *key, bool *pinned);
   inline MDL_lock *find_or_insert(LF_PINS *pins, const MDL_key *key, bool *pinned);
 
   /**
@@ -464,22 +466,29 @@ public:
     */
     bitmap_t m_granted_incompatible[MDL_TYPE_END];
     /**
-      Array of bitmaps which elements specify which waiting locks are
-      incompatible with the type of lock being requested. Basically, this
+      Arrays of bitmaps which elements specify which waiting locks are
+      incompatible with the type of lock being requested. Basically, each
       array defines priorities between lock types.
+      We need 4 separate arrays since in order to prevent starvation for
+      some of lock request types, we use different priority matrices:
+      0) in "normal" situation.
+      1) in situation when the number of successively granted "piglet" requests
+         exceeds the max_write_lock_count limit.
+      2) in situation when the number of successively granted "hog" requests
+         exceeds the max_write_lock_count limit.
+      3) in situation when both "piglet" and "hog" counters exceed limit.
     */
-    bitmap_t m_waiting_incompatible[MDL_TYPE_END];
+    bitmap_t m_waiting_incompatible[4][MDL_TYPE_END];
     /**
       Array of increments for "unobtrusive" types of lock requests for locks.
       @sa MDL_lock::get_unobtrusive_lock_increment().
     */
     fast_path_state_t m_unobtrusive_lock_increment[MDL_TYPE_END];
     /**
-      Bitmap of lock types which, in order to prevent starvation, should be
-      only granted max_write_lock_count times in a row while other lock
-      types are waiting.
+      Indicates that locks of this type are affected by
+      the max_write_lock_count limit.
     */
-    bitmap_t m_hog_lock_types;
+    bool m_is_affected_by_max_write_lock_count;
 
     /**
       Pointer to a static method which determines if the type of lock
@@ -499,6 +508,12 @@ public:
       representation to bitmap of lock types.
     */
     bitmap_t (*m_fast_path_granted_bitmap)(const MDL_lock &lock);
+    /**
+      Pointer to a static method which determines if waiting for the lock
+      should be aborted when when connection is lost. NULL if locks of
+      this type don't require such aborts.
+    */
+    bool (*m_needs_connection_check)(const MDL_lock *lock);
   };
 
 public:
@@ -546,13 +561,58 @@ public:
 
   const bitmap_t *incompatible_waiting_types_bitmap() const
   {
-    return m_strategy->m_waiting_incompatible;
+    return
+      m_strategy->m_waiting_incompatible[m_current_waiting_incompatible_idx];
+  }
+
+  /**
+    Get index of priority matrice in MDL_lock_strategy::m_waiting_incompatible
+    array which corresponds to current values of the m_piglet_lock_count and
+    m_hog_lock_count counters and the max_write_lock_count threshold.
+  */
+  uint get_incompatible_waiting_types_bitmap_idx() const
+  {
+    mysql_prlock_assert_write_owner(&m_rwlock);
+    /*
+      To prevent starvation for lock types with lower priority use:
+
+      *) MDL_lock_strategy::m_waiting_incompatible[0] matrice by default.
+      *) MDL_lock_strategy::m_waiting_incompatible[1] when the number of
+         successively granted "piglet" requests exceeds max_write_lock_count.
+      *) MDL_lock_strategy::m_waiting_incompatible[2] when the number of
+         successively granted "hog" requests exceeds max_write_lock_count.
+      *) MDL_lock_strategy::m_waiting_incompatible[3] when both "piglet" and
+         "hog" counters exceed this limit.
+    */
+    uint idx= 0;
+    if (m_piglet_lock_count >= max_write_lock_count)
+      idx+= 1;
+    if (m_hog_lock_count >= max_write_lock_count)
+      idx+= 2;
+    return idx;
+  }
+
+  /**
+    Switch priority matrice for the MDL_lock object if m_piglet_lock_count or/
+    and m_hog_lock_count counters have crossed max_write_lock_count threshold.
+
+    @returns true - if priority matrice has been changed, false - otherwise.
+  */
+  bool switch_incompatible_waiting_types_bitmap_if_needed()
+  {
+    mysql_prlock_assert_write_owner(&m_rwlock);
+
+    uint new_idx= get_incompatible_waiting_types_bitmap_idx();
+    if (m_current_waiting_incompatible_idx == new_idx)
+      return false;
+    m_current_waiting_incompatible_idx= new_idx;
+    return true;
   }
 
   bool has_pending_conflicting_lock(enum_mdl_type type);
 
-  bool can_grant_lock(enum_mdl_type type, MDL_context *requstor_ctx,
-                      bool ignore_lock_priority) const;
+  bool can_grant_lock(enum_mdl_type type,
+                      const MDL_context *requestor_ctx) const;
 
   void reschedule_waiters();
 
@@ -575,11 +635,49 @@ public:
       m_strategy->m_notify_conflicting_locks(ctx, this);
   }
 
-  bitmap_t hog_lock_types_bitmap() const
+  bool needs_connection_check() const
   {
-    return m_strategy->m_hog_lock_types;
+    return m_strategy->m_needs_connection_check ?
+           m_strategy->m_needs_connection_check(this) : false;
   }
 
+  bool is_affected_by_max_write_lock_count() const
+  {
+    return m_strategy->m_is_affected_by_max_write_lock_count;
+  }
+
+  /**
+    If we just have granted a lock of "piglet" or "hog" type and there are
+    pending lower priority locks, increase the appropriate counter. If this
+    counter now exceeds the max_write_lock_count threshold, switch priority
+    matrice for the MDL_lock object.
+
+    @returns true - if priority matrice has been changed, false - otherwise.
+  */
+  bool count_piglets_and_hogs(enum_mdl_type type)
+  {
+    mysql_prlock_assert_write_owner(&m_rwlock);
+
+    if ((MDL_BIT(type) & MDL_OBJECT_HOG_LOCK_TYPES) != 0)
+    {
+      if (m_waiting.bitmap() & ~MDL_OBJECT_HOG_LOCK_TYPES)
+      {
+        m_hog_lock_count++;
+        if (switch_incompatible_waiting_types_bitmap_if_needed())
+          return true;
+      }
+    }
+    else if (type == MDL_SHARED_WRITE)
+    {
+      if (m_waiting.bitmap() & MDL_BIT(MDL_SHARED_READ_ONLY))
+      {
+        m_piglet_lock_count++;
+        if (switch_incompatible_waiting_types_bitmap_if_needed())
+          return true;
+      }
+    }
+    return false;
+  }
 
   /**
     @returns "Fast path" increment for request for "unobtrusive" type
@@ -665,11 +763,24 @@ public:
   /** Tickets for contexts waiting to acquire a lock. */
   Ticket_list m_waiting;
 
+private:
   /**
-    Number of times high priority lock requests have been granted while
-    low priority lock requests were waiting.
+    Number of times high priority, "hog" lock requests (X, SNRW, SNW) have been
+    granted while lower priority lock requests (all other types) were waiting.
+    Currently used only for object locks. Protected by m_rwlock lock.
   */
   ulong m_hog_lock_count;
+  /**
+    Number of times high priority, "piglet" lock requests (SW) have been
+    granted while locks requests with lower priority (SRO) were waiting.
+    Currently used only for object locks. Protected by m_rwlock lock.
+  */
+  ulong m_piglet_lock_count;
+  /**
+    Index of one of the MDL_lock_strategy::m_waiting_incompatible
+    arrays which represents the current priority matrice.
+  */
+  uint m_current_waiting_incompatible_idx;
 
 public:
 
@@ -695,6 +806,8 @@ public:
 
   inline static MDL_lock *create(const MDL_key *key);
   inline static void destroy(MDL_lock *lock);
+
+  inline MDL_context *get_lock_owner() const;
 
 public:
   /**
@@ -866,15 +979,16 @@ public:
     return (lock.m_fast_path_state & 0xFFFFFFFFFFFFFFFULL) ?
             MDL_BIT(MDL_INTENTION_EXCLUSIVE) : 0;
   }
+
   /**
-    Check if type of lock requested on per-object lock is X, SNW or SNRW,
-    so threads holding conflicting shared metadata locks on this object
-    need to be notified.
+    Check if we are requesting X lock on the object, so threads holding
+    conflicting S/SH metadata locks on it need to be notified.
+
     @sa MDL_lock::object_lock_notify_conflicting_locks.
   */
   static bool object_lock_needs_notification(const MDL_ticket *ticket)
   {
-    return (ticket->get_type() >= MDL_SHARED_NO_WRITE);
+    return (ticket->get_type() == MDL_EXCLUSIVE);
   }
   static void object_lock_notify_conflicting_locks(MDL_context *ctx,
                                                    MDL_lock *lock);
@@ -897,6 +1011,27 @@ public:
       result|= MDL_BIT(MDL_SHARED_WRITE);
     return result;
   }
+
+  /**
+    Check if MDL_lock object represents user-level lock, so threads waiting
+    for it need to check if connection is lost and abort waiting when it is.
+  */
+  static bool object_lock_needs_connection_check(const MDL_lock *lock)
+  {
+    return (lock->key.mdl_namespace() == MDL_key::USER_LEVEL_LOCK);
+  }
+
+  /**
+    Bitmap with "hog" lock types for object locks.
+
+    Locks of these types can easily starve out lower priority locks.
+    To prevent this we only grant them max_write_lock_count times in
+    a row while other lock types are waiting.
+  */
+  static const bitmap_t MDL_OBJECT_HOG_LOCK_TYPES=
+                          (MDL_BIT(MDL_SHARED_NO_WRITE) |
+                           MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
+                           MDL_BIT(MDL_EXCLUSIVE));
 
 
   static const MDL_lock_strategy m_scoped_lock_strategy;
@@ -1037,8 +1172,7 @@ void MDL_map::destroy()
 
 
 /**
-  Find MDL_lock object corresponding to the key, create it
-  if it does not exist.
+  Find MDL_lock object corresponding to the key.
 
   @param[in/out]  pins     LF_PINS to be used for pinning pointers during
                            look-up and returned MDL_lock object.
@@ -1048,13 +1182,12 @@ void MDL_map::destroy()
                                    (i.e. it is an object for GLOBAL or COMMIT
                                    namespaces).
 
-  @retval non-NULL - Success. MDL_lock instance for the key with
-                     locked MDL_lock::m_rwlock.
-  @retval NULL     - Failure (OOM).
+  @retval MY_ERRPTR      - Failure (OOM)
+  @retval other-non-NULL - MDL_lock object found.
+  @retval NULL           - Object not found.
 */
 
-MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
-                                  bool *pinned)
+MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
 {
   MDL_lock *lock;
 
@@ -1079,33 +1212,67 @@ MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
     return lock;
   }
 
-  while ((lock= static_cast<MDL_lock *>(lf_hash_search(&m_locks,
-                                          pins,
-                                          mdl_key->ptr(),
-                                          mdl_key->length()))) == NULL)
+  lock= static_cast<MDL_lock *>(lf_hash_search(&m_locks, pins, mdl_key->ptr(),
+                                          mdl_key->length()));
+
+  if (lock == NULL || lock == MY_ERRPTR)
   {
     lf_hash_search_unpin(pins);
+    *pinned= false; // Avoid warnings on older compilers.
+    return lock;
+  }
+
+  *pinned= true;
+
+  return lock;
+}
+
+
+/**
+  Find MDL_lock object corresponding to the key, create it
+  if it does not exist.
+
+  @param[in/out]  pins     LF_PINS to be used for pinning pointers during
+                           look-up and returned MDL_lock object.
+  @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
+  @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
+                           FALSE - if MDL_lock object doesn't require pinning
+                                   (i.e. it is an object for GLOBAL or COMMIT
+                                   namespaces).
+
+  @retval non-NULL - Success. MDL_lock instance for the key with
+                     locked MDL_lock::m_rwlock.
+  @retval NULL     - Failure (OOM).
+*/
+
+MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
+                                  bool *pinned)
+{
+  MDL_lock *lock;
+
+  while ((lock= find(pins, mdl_key, pinned)) == NULL)
+  {
     /*
       MDL_lock for key isn't present in hash, try to insert new object.
       This can fail due to concurrent inserts.
     */
-    if (lf_hash_insert(&m_locks, pins, mdl_key) == -1) /* If OOM. */
+    int rc= lf_hash_insert(&m_locks, pins, mdl_key);
+    if (rc == -1) /* If OOM. */
       return NULL;
-
-    /*
-      New MDL_lock object is not used yet. So we need to
-      increment number of unused lock objects.
-    */
-    my_atomic_add32(&m_unused_lock_objects, 1);
+    else if (rc == 0)
+    {
+      /*
+        New MDL_lock object is not used yet. So we need to
+        increment number of unused lock objects.
+      */
+      my_atomic_add32(&m_unused_lock_objects, 1);
+    }
   }
   if (lock == MY_ERRPTR)
   {
-    lf_hash_search_unpin(pins);
     /* If OOM in lf_hash_search. */
     return NULL;
   }
-
-  *pinned= true;
 
   return lock;
 }
@@ -1284,6 +1451,7 @@ MDL_context::MDL_context()
   :
   m_owner(NULL),
   m_needs_thr_lock_abort(FALSE),
+  m_force_dml_deadlock_weight(false),
   m_waiting_for(NULL),
   m_pins(NULL),
   m_rand_state(UINT_MAX32)
@@ -1439,6 +1607,8 @@ inline void MDL_lock::reinit(const MDL_key *mdl_key)
       break;
   }
   m_hog_lock_count= 0;
+  m_piglet_lock_count= 0;
+  m_current_waiting_incompatible_idx= 0;
   m_fast_path_state= 0;
   /*
     Check that we have clean "m_granted" and "m_waiting" sets/lists in both
@@ -1506,17 +1676,60 @@ void MDL_ticket::destroy(MDL_ticket *ticket)
 
 
 /**
-  Return the 'weight' of this ticket for the
-  victim selection algorithm. Requests with 
-  lower weight are preferred to requests
-  with higher weight when choosing a victim.
+  Return the 'weight' of this ticket for the victim selection algorithm.
+  Requests with lower weight are preferred to requests with higher weight
+  when choosing a victim.
+
+  @note When MDL_context::m_force_dml_deadlock_weight is set, the return value
+        of this method is ignored and DEADLOCK_WEIGHT_DML is used for the
+        context.
 */
 
 uint MDL_ticket::get_deadlock_weight() const
 {
-  return (m_lock->key.mdl_namespace() == MDL_key::GLOBAL ||
-          m_type >= MDL_SHARED_UPGRADABLE ?
-          DEADLOCK_WEIGHT_DDL : DEADLOCK_WEIGHT_DML);
+  /*
+    Waits for user-level locks have lower weight than waits for locks
+    typically acquired by DDL, so we don't abort DDL in case of deadlock
+    involving user-level locks and DDL. Deadlock errors are not normally
+    expected from DDL by users.
+    Waits for user-level locks have higher weight than waits for locks
+    acquired by DML, so we prefer to abort DML in case of deadlock involving
+    user-level locks and DML. User-level locks are explicitly requested by
+    user, so they are probably important for them. Plus users expect
+    deadlocks from DML transactions and for DML statements executed in
+    @@autocommit=1 mode back-off and retry algorithm hides deadlock errors.
+  */
+  if (m_lock->key.mdl_namespace() == MDL_key::USER_LEVEL_LOCK)
+    return DEADLOCK_WEIGHT_ULL;
+
+  /*
+    Locks higher or equal to MDL_SHARED_UPGRADABLE:
+    *) Are typically acquired for DDL and LOCK TABLES statements.
+    *) Are often acquired in a way which doesn't allow simple release of
+       locks and restart of lock acquisition process in case of deadlock
+       (e.g. through lock_table_names() call).
+
+    To avoid such statements getting aborted with ER_LOCK_DEADLOCK error
+    we use the higher DEADLOCK_WEIGHT_DDL weight for them.
+
+    Note that two DDL statements should not typically deadlock with each
+    other since they normally acquire locks in the same order, thanks to
+    to the fact that lock_table_names() uses MDL_context::acquire_locks()
+    method which sorts lock requests before trying to acquire them.
+
+    In cases when "strong" locks can be acquired out-of-order (e.g. for
+    LOCK TABLES) we try to use DEADLOCK_WEIGHT_DML instead.
+
+    TODO/FIXME: The below condition needs to be updated. The fact that a
+                lock from GLOBAL namespace is requested no longer means
+                that this is a DDL statement. There is a bug report about
+                this.
+  */
+  if (m_lock->key.mdl_namespace() == MDL_key::GLOBAL ||
+      m_type >= MDL_SHARED_UPGRADABLE)
+    return DEADLOCK_WEIGHT_DDL;
+
+  return DEADLOCK_WEIGHT_DML;
 }
 
 
@@ -1526,7 +1739,7 @@ MDL_wait::MDL_wait()
   :m_wait_status(EMPTY)
 {
   mysql_mutex_init(key_MDL_wait_LOCK_wait_status, &m_LOCK_wait_status, NULL);
-  mysql_cond_init(key_MDL_wait_COND_wait_status, &m_COND_wait_status, NULL);
+  mysql_cond_init(key_MDL_wait_COND_wait_status, &m_COND_wait_status);
 }
 
 
@@ -1723,41 +1936,6 @@ void MDL_lock::reschedule_waiters()
 {
   MDL_lock::Ticket_iterator it(m_waiting);
   MDL_ticket *ticket;
-  bool skip_high_priority= false;
-  bitmap_t hog_lock_types= hog_lock_types_bitmap();
-
-  if (m_hog_lock_count >= max_write_lock_count)
-  {
-    /*
-      If number of successively granted high-prio, strong locks has exceeded
-      max_write_lock_count give a way to low-prio, weak locks to avoid their
-      starvation.
-    */
-
-    if ((m_waiting.bitmap() & ~hog_lock_types) != 0)
-    {
-      /*
-        Even though normally when m_hog_lock_count is non-0 there is
-        some pending low-prio lock, we still can encounter situation
-        when m_hog_lock_count is non-0 and there are no pending low-prio
-        locks. This, for example, can happen when a ticket for pending
-        low-prio lock was removed from waiters list due to timeout,
-        and reschedule_waiters() is called after that to update the
-        waiters queue. m_hog_lock_count will be reset to 0 at the
-        end of this call in such case.
-
-        Note that it is not an issue if we fail to wake up any pending
-        waiters for weak locks in the loop below. This would mean that
-        all of them are either killed, timed out or chosen as a victim
-        by deadlock resolver, but have not managed to remove ticket
-        from the waiters list yet. After tickets will be removed from
-        the waiters queue there will be another call to
-        reschedule_waiters() with pending bitmap updated to reflect new
-        state of waiters queue.
-      */
-      skip_high_priority= true;
-    }
-  }
 
   /*
     Find the first (and hence the oldest) waiting request which
@@ -1779,16 +1957,7 @@ void MDL_lock::reschedule_waiters()
   */
   while ((ticket= it++))
   {
-    /*
-      Skip high-prio, strong locks if earlier we have decided to give way to
-      low-prio, weaker locks.
-    */
-    if (skip_high_priority &&
-        ((MDL_BIT(ticket->get_type()) & hog_lock_types) != 0))
-      continue;
-
-    if (can_grant_lock(ticket->get_type(), ticket->get_ctx(),
-                       skip_high_priority))
+    if (can_grant_lock(ticket->get_type(), ticket->get_ctx()))
     {
       if (! ticket->get_ctx()->m_wait.set_status(MDL_wait::GRANTED))
       {
@@ -1807,12 +1976,26 @@ void MDL_lock::reschedule_waiters()
         m_waiting.remove_ticket(ticket);
         m_granted.add_ticket(ticket);
 
-        /*
-          Increase counter of successively granted high-priority strong locks,
-          if we have granted one.
-        */
-        if ((MDL_BIT(ticket->get_type()) & hog_lock_types) != 0)
-          m_hog_lock_count++;
+        if (is_affected_by_max_write_lock_count())
+        {
+          /*
+            Increase the counter of successively granted high priority "hog" or
+            "piglet" locks, if we have granted one and there are pending
+            lower priority locks.
+          */
+          if (count_piglets_and_hogs(ticket->get_type()))
+          {
+            /*
+              Switch of priority matrice might have unblocked some lower-prio
+              locks which are still compatible with the lock type we just have
+              granted (for example, when we grant SNW lock and there are pending
+              requests of SR type). Restart iteration to wake them up, otherwise
+              we might get deadlocks.
+            */
+            it.rewind();
+            continue;
+          }
+        }
       }
       /*
         If we could not update the wait slot of the waiter,
@@ -1825,22 +2008,90 @@ void MDL_lock::reschedule_waiters()
     }
   }
 
-  if ((m_waiting.bitmap() & ~hog_lock_types) == 0)
+  if (is_affected_by_max_write_lock_count())
   {
     /*
-      Reset number of successively granted high-prio, strong locks
-      if there are no pending low-prio, weak locks.
+      Reset number of successively granted higher-prio "hog"/"piglet" locks
+      if there are no pending lower-prio conflicting locks.
       This ensures:
-      - That m_hog_lock_count is correctly reset after strong lock
-      is released and weak locks are granted (or there are no
-      other lock requests).
-      - That situation when SNW lock is granted along with some SR
-      locks, but SW locks are still blocked are handled correctly.
-      - That m_hog_lock_count is zero in most cases when there are no pending
-      weak locks (see comment at the start of this method for example of
-      exception). This allows to save on checks at the start of this method.
+      - That m_hog_lock_count/m_piglet_lock_count is correctly reset after
+        a strong lock is released and weak locks are granted (or there are
+        no other lock requests).
+      - That the situation when SNW lock is granted along with some SR/SRO
+        locks, but SW locks are still blocked is handled correctly.
+      - That m_hog_lock_count/m_piglet_lock_count is zero in all cases
+        when there are no pending weak locks (e.g. when weak locks are
+        removed due to deadlock, being killed or timeout).
+
+      Also switch priority matrice accordingly. Note that switch in
+      this particular place doesn't require reschedule since:
+
+      1) We never switch to a matrice which prefers lower priority locks
+         more than "hog"/"piglet" locks here (this might have happened if
+         MDL_lock::switch_incompatible_waiting_types_bitmap_if_needed()
+         was used instead and max_write_lock_count was decreased
+         concurrently).
+      2) When we switch from matrice #1 (which prefers SRO over SW) to
+         default matrice #0 only the priority of SW vs SRO requests changes.
+         Since the switch happens only when there are no pending SRO
+         locks, no reschedule is required.
+      3) When we switch from matrice #2 (which prefers all non-"nog" over
+         "hog" requests) to default matrice #0 only the priority of "hog" vs
+         non-"hog" requests changes. But since this happens when there are
+         no non-"hog" requests, no reschedule is required.
+      4) When we switch from matrice #3 (which prefers SRO over SW and
+         non-"hog"-minus-SW over "hog" locks) to default matrice #0 only
+         the priority of non-"hog"-minus-SW vs "hog" and SRO vs SW changes
+         (see invariant [INV3]). Since the switch happens only when there
+         are no pending non-"hog"-minus-SW/SRO requests, no reschedule is
+         required.
+
+      Note that we might be switching priority matrice in a situation when we
+      had pending SRO/non-"hog"/non-"hog"-minus-SW requests at the start of
+      the call but they were granted during the loop. If some "piglet"/"hog"
+      requests are compatible with those lower priority locks, they were
+      granted as well. Those which were not compatible were not granted and
+      should stay waiting until lower priority locks are released (in other
+      words, the fact that a lock moved from pending to granted doesn't unblock
+      additional requests, see invariant [INV2]).
     */
-    m_hog_lock_count= 0;
+    if (m_current_waiting_incompatible_idx == 3)
+    {
+      /*
+        We can't simply switch from matrice #3 to matrice #2 when there are no
+        pending SRO locks, as that would allow a stream of concurrent SW and SRO
+        requests to starve out "hog" locks when max_write_lock_count is set
+        (there will be always pending SW or/and SRO locks in this case, so no
+        switch back to matrice #0 will ever happen).
+
+        So we switch from matrice #3 to #0 directly and ignore pending SW/SWLP
+        locks. This is OK as situation when matrice #3 is active can only
+        occur when there were max_write_lock_count SW locks granted recently
+        (before switch from #0 -> #1 which preceded switch #3 or before switch
+        #2 -> #3).
+      */
+      if ((m_waiting.bitmap() & ~(MDL_OBJECT_HOG_LOCK_TYPES |
+                                  MDL_BIT(MDL_SHARED_WRITE) |
+                                  MDL_BIT(MDL_SHARED_WRITE_LOW_PRIO))) == 0)
+      {
+        m_piglet_lock_count= 0;
+        m_hog_lock_count= 0;
+        m_current_waiting_incompatible_idx= 0;
+      }
+    }
+    else
+    {
+      if ((m_waiting.bitmap() & ~MDL_OBJECT_HOG_LOCK_TYPES) == 0)
+      {
+        m_hog_lock_count= 0;
+        m_current_waiting_incompatible_idx&= ~2;
+      }
+      if ((m_waiting.bitmap() & MDL_BIT(MDL_SHARED_READ_ONLY)) == 0)
+      {
+        m_piglet_lock_count= 0;
+        m_current_waiting_incompatible_idx&= ~1;
+      }
+    }
   }
 }
 
@@ -1871,19 +2122,6 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_scoped_lock_strategy =
       S        |  +      -   +  - |
       X        |  +      -   -  - |
 
-    The second array specifies if particular type of request can be satisfied
-    if there is already waiting request for the scoped lock of certain type.
-    I.e. it specifies what is the priority of different lock types.
-
-               |    Pending      |
-       Request |  scoped lock    |
-        type   | IS(*)  IX  S  X |
-      ---------+-----------------+
-      IS       |  +      +  +  + |
-      IX       |  +      +  -  - |
-      S        |  +      +  +  - |
-      X        |  +      +  +  + |
-
     Here: "+" -- means that request can be satisfied
           "-" -- means that request can't be satisfied and should wait
 
@@ -1904,13 +2142,39 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_scoped_lock_strategy =
   */
   {
     MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED),
-    MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_INTENTION_EXCLUSIVE), 0, 0, 0, 0, 0, 0,
+    MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_INTENTION_EXCLUSIVE),
+    0, 0, 0, 0, 0, 0, 0, 0,
     MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED) |
       MDL_BIT(MDL_INTENTION_EXCLUSIVE)
   },
+  /**
+    Each array in the next group specifies if a particular type of request can
+    be satisfied if there is already a waiting request for the scoped lock of
+    a certain type. I.e. each array specifies a matrice with priorities for
+    different lock types.
+
+    Scoped locks only use the first array which represents the "default"
+    priority matrix. The remaing 3 matrices are not relevant for them.
+
+               |    Pending      |
+       Request |  scoped lock    |
+        type   | IS(*)  IX  S  X |
+      ---------+-----------------+
+      IS       |  +      +  +  + |
+      IX       |  +      +  -  - |
+      S        |  +      +  +  - |
+      X        |  +      +  +  + |
+
+    Here the meaning of "+", "-" and (*) is the same as above.
+  */
   {
-    MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED),
-    MDL_BIT(MDL_EXCLUSIVE), 0, 0, 0, 0, 0, 0, 0
+    {
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED),
+      MDL_BIT(MDL_EXCLUSIVE), 0, 0, 0, 0, 0, 0, 0, 0, 0
+    },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
   },
   /**
     Array of increments for "unobtrusive" types of lock requests for scoped
@@ -1925,13 +2189,13 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_scoped_lock_strategy =
     We encode number of IX locks acquired using "fast path" in bits 0 .. 59
     of MDL_lock::m_fast_path_state.
   */
-  { 1, 0, 0, 0, 0, 0, 0, 0, 0 },
+  { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   /*
     In scoped locks, only IX lock request would starve because of X/S.
-    But that is practically very rare case. So just return 0 from
-    hog_lock_types_bitmap().
+    But that is practically a very rare case. So we don't apply the
+    max_write_lock_count limit to them.
   */
-  0,
+  false,
   /*
     Scoped locks doesn't require notification of owners of conflicting
     locks for any type of requests. Hence 'm_needs_notification' is NULL.
@@ -1941,13 +2205,15 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_scoped_lock_strategy =
     For the same reason, 'm_notify_conflicting_locks' is NULL for scoped locks.
   */
   NULL,
-  &MDL_lock::scoped_lock_fast_path_granted_bitmap
+  &MDL_lock::scoped_lock_fast_path_granted_bitmap,
+  /* Scoped locks never require connection check. */
+  NULL
 };
 
 
 /**
-  Strategy instance for per-object locks. Supports SHARED, SHARED_UPGRADABLE,
-  SHARED HIGH PRIORITY and EXCLUSIVE locks.
+  Strategy instance for per-object locks.
+  Supports all locked modes except INTENTION EXCLUSIVE locks.
 */
 
 const MDL_lock::MDL_lock_strategy MDL_lock::m_object_lock_strategy =
@@ -1960,43 +2226,22 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_object_lock_strategy =
     The first array specifies if particular type of request can be satisfied
     if there is granted lock of certain type.
 
-       Request  |  Granted requests for lock       |
-        type    | S  SH  SR  SW  SU  SNW  SNRW  X  |
-      ----------+----------------------------------+
-      S         | +   +   +   +   +   +    +    -  |
-      SH        | +   +   +   +   +   +    +    -  |
-      SR        | +   +   +   +   +   +    -    -  |
-      SW        | +   +   +   +   +   -    -    -  |
-      SU        | +   +   +   +   -   -    -    -  |
-      SNW       | +   +   +   -   -   -    -    -  |
-      SNRW      | +   +   -   -   -   -    -    -  |
-      X         | -   -   -   -   -   -    -    -  |
-      SU -> X   | -   -   -   -   0   0    0    0  |
-      SNW -> X  | -   -   -   0   0   0    0    0  |
-      SNRW -> X | -   -   0   0   0   0    0    0  |
-
-    The second array specifies if particular type of request can be satisfied
-    if there is waiting request for the same lock of certain type. In other
-    words it specifies what is the priority of different lock types.
-
-       Request  |  Pending requests for lock      |
-        type    | S  SH  SR  SW  SU  SNW  SNRW  X |
-      ----------+---------------------------------+
-      S         | +   +   +   +   +   +     +   - |
-      SH        | +   +   +   +   +   +     +   + |
-      SR        | +   +   +   +   +   +     -   - |
-      SW        | +   +   +   +   +   -     -   - |
-      SU        | +   +   +   +   +   +     +   - |
-      SNW       | +   +   +   +   +   +     +   - |
-      SNRW      | +   +   +   +   +   +     +   - |
-      X         | +   +   +   +   +   +     +   + |
-      SU -> X   | +   +   +   +   +   +     +   + |
-      SNW -> X  | +   +   +   +   +   +     +   + |
-      SNRW -> X | +   +   +   +   +   +     +   + |
+       Request  |  Granted requests for lock            |
+        type    | S  SH  SR  SW  SWLP  SU  SRO  SNW  SNRW  X  |
+      ----------+---------------------------------------------+
+      S         | +   +   +   +    +    +   +    +    +    -  |
+      SH        | +   +   +   +    +    +   +    +    +    -  |
+      SR        | +   +   +   +    +    +   +    +    -    -  |
+      SW        | +   +   +   +    +    +   -    -    -    -  |
+      SWLP      | +   +   +   +    +    +   -    -    -    -  |
+      SU        | +   +   +   +    +    -   +    -    -    -  |
+      SRO       | +   +   +   -    -    +   +    +    -    -  |
+      SNW       | +   +   +   -    -    -   +    -    -    -  |
+      SNRW      | +   +   -   -    -    -   -    -    -    -  |
+      X         | -   -   -   -    -    -   -    -    -    -  |
 
     Here: "+" -- means that request can be satisfied
           "-" -- means that request can't be satisfied and should wait
-          "0" -- means impossible situation which will trigger assert
 
     @note In cases then current context already has "stronger" type
           of lock on the object it will be automatically granted
@@ -2011,31 +2256,156 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_object_lock_strategy =
     MDL_BIT(MDL_EXCLUSIVE),
     MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE),
     MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
-      MDL_BIT(MDL_SHARED_NO_WRITE),
+      MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_READ_ONLY),
+    MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
+      MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_READ_ONLY),
     MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
       MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_UPGRADABLE),
     MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
-      MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_UPGRADABLE) |
-      MDL_BIT(MDL_SHARED_WRITE),
+      MDL_BIT(MDL_SHARED_WRITE_LOW_PRIO) | MDL_BIT(MDL_SHARED_WRITE),
     MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
       MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_UPGRADABLE) |
+      MDL_BIT(MDL_SHARED_WRITE_LOW_PRIO) | MDL_BIT(MDL_SHARED_WRITE),
+    MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
+      MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_READ_ONLY) |
+      MDL_BIT(MDL_SHARED_UPGRADABLE) | MDL_BIT(MDL_SHARED_WRITE_LOW_PRIO) |
       MDL_BIT(MDL_SHARED_WRITE) | MDL_BIT(MDL_SHARED_READ),
     MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
-      MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_UPGRADABLE) |
+      MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_READ_ONLY) |
+      MDL_BIT(MDL_SHARED_UPGRADABLE) | MDL_BIT(MDL_SHARED_WRITE_LOW_PRIO) |
       MDL_BIT(MDL_SHARED_WRITE) | MDL_BIT(MDL_SHARED_READ) |
       MDL_BIT(MDL_SHARED_HIGH_PRIO) | MDL_BIT(MDL_SHARED)
   },
+  /**
+    Each array in the next group specifies if a particular type of request can
+    be satisfied if there is a waiting request for the same lock of a certain
+    type. In other words each array specifies a priority matrix for different
+    lock types.
+
+    We use each of the arrays depending on whether the number of successively
+    granted "piglet" and "hog" lock requests exceed the max_write_lock_count
+    threshold. This is necessary to avoid high priority lock requests starving
+    out requests with lower priority.
+
+    The first array in the group is used in default situation when both
+    MDL_lock::m_piglet_lock_count and MDL_lock::m_hog_lock_count don't exceed
+    the threshold.
+
+    A priority matrice specified by it looks like:
+
+       Request  |         Pending requests for lock          |
+        type    | S  SH  SR  SW  SWLP  SU  SRO  SNW  SNRW  X |
+      ----------+--------------------------------------------+
+      S         | +   +   +   +    +    +   +    +     +   - |
+      SH        | +   +   +   +    +    +   +    +     +   + |
+      SR        | +   +   +   +    +    +   +    +     -   - |
+      SW        | +   +   +   +    +    +   +    -     -   - |
+      SWLP      | +   +   +   +    +    +   -    -     -   - |
+      SU        | +   +   +   +    +    +   +    +     +   - |
+      SRO       | +   +   +   -    +    +   +    +     -   - |
+      SNW       | +   +   +   +    +    +   +    +     +   - |
+      SNRW      | +   +   +   +    +    +   +    +     +   - |
+      X         | +   +   +   +    +    +   +    +     +   + |
+
+    Invariant [INV2]: for all priority matrices, if A is the set of
+    incompatible waiting requests for a given request and B is the set
+    of incompatible granted requests for the same request, then A will
+    always be a subset of B. This means that moving a lock from waiting
+    to granted state doesn't unblock additional requests.
+    MDL_lock::reschedule_waiters() code relies on this.
+  */
   {
-    0,
-    MDL_BIT(MDL_EXCLUSIVE),
-    0,
-    MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE),
-    MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
-      MDL_BIT(MDL_SHARED_NO_WRITE),
-    MDL_BIT(MDL_EXCLUSIVE),
-    MDL_BIT(MDL_EXCLUSIVE),
-    MDL_BIT(MDL_EXCLUSIVE),
-    0
+    {
+      0,
+      MDL_BIT(MDL_EXCLUSIVE),
+      0,
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE),
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
+        MDL_BIT(MDL_SHARED_NO_WRITE),
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
+        MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_READ_ONLY),
+      MDL_BIT(MDL_EXCLUSIVE),
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
+        MDL_BIT(MDL_SHARED_WRITE),
+      MDL_BIT(MDL_EXCLUSIVE),
+      MDL_BIT(MDL_EXCLUSIVE),
+      0
+    },
+    /**
+      The second array in the group is used when the number of successively
+      granted "piglet" (SW) locks exceeds max_write_lock_count.
+
+      It is the same matrix as in the first case but with the SW lock type
+      having lower priority than the SRO lock type.
+    */
+    {
+      0,
+      MDL_BIT(MDL_EXCLUSIVE),
+      0,
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE),
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
+        MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_READ_ONLY),
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
+        MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_READ_ONLY),
+      MDL_BIT(MDL_EXCLUSIVE),
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE),
+      MDL_BIT(MDL_EXCLUSIVE),
+      MDL_BIT(MDL_EXCLUSIVE),
+      0
+    },
+    /**
+      The third array in the group is used when the number of successively
+      granted "hog" (SNW, SNRW, X) locks exceeds max_write_lock_count.
+
+      In this case S, SH, SR, SW, SNRW, SRO and SU locks types have
+      priority over all "hog" types.
+    */
+    {
+      0,
+      0,
+      0,
+      0,
+      0,
+      MDL_BIT(MDL_SHARED_READ_ONLY),
+      0,
+      MDL_BIT(MDL_SHARED_WRITE),
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_UPGRADABLE) |
+      MDL_BIT(MDL_SHARED_WRITE_LOW_PRIO) | MDL_BIT(MDL_SHARED_WRITE),
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_READ_ONLY) |
+      MDL_BIT(MDL_SHARED_UPGRADABLE) | MDL_BIT(MDL_SHARED_WRITE_LOW_PRIO) |
+      MDL_BIT(MDL_SHARED_WRITE) | MDL_BIT(MDL_SHARED_READ),
+      static_cast<bitmap_t>(~MDL_OBJECT_HOG_LOCK_TYPES)
+    },
+    /**
+      The fourth array in the group is used when both the number of successively
+      granted "piglet" (SW) and the number of successively granted "hog"
+      (SNW, SNRW, X) locks exceed max_write_lock_count.
+
+      This matrice prefers SRO locks over SW/SWLP locks. And non-"hog" locks
+      other than SW/SWLP over "hog" locks.
+
+      Note that the fact that "hog" locks have the same priority vs SW/SWLP
+      locks as in the default matrice (#0) is important and is relied upon in
+      MDL_lock::reschedule_waiters(). This is invariant [INV3].
+    */
+    {
+      0,
+      0,
+      0,
+      0,
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
+        MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_READ_ONLY),
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
+        MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_READ_ONLY),
+      0,
+      0,
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_UPGRADABLE),
+      MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_READ_ONLY) |
+      MDL_BIT(MDL_SHARED_UPGRADABLE) | MDL_BIT(MDL_SHARED_READ),
+      static_cast<bitmap_t>(~(MDL_OBJECT_HOG_LOCK_TYPES |
+                            MDL_BIT(MDL_SHARED_WRITE) |
+                            MDL_BIT(MDL_SHARED_WRITE_LOW_PRIO)))
+    }
   },
   /**
     Array of increments for "unobtrusive" types of lock requests for per-object
@@ -2045,31 +2415,31 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_object_lock_strategy =
 
     For per-object locks:
     - "unobtrusive" types: S, SH, SR and SW
-    - "obtrusive" types: SU, SNW, SNRW, X
+    - "obtrusive" types: SU, SRO, SNW, SNRW, X
 
     Number of locks acquired using "fast path" are encoded in the following
     bits of MDL_lock::m_fast_path_state:
 
     - bits 0 .. 19  - S and SH (we don't differentiate them once acquired)
     - bits 20 .. 39 - SR
-    - bits 40 .. 59 - SW
+    - bits 40 .. 59 - SW and SWLP (we don't differentiate them once acquired)
 
     Overflow is not an issue as we are unlikely to support more than 2^20 - 1
     concurrent connections in foreseeable future.
 
     This encoding defines the below contents of increment array.
   */
-  { 0, 1, 1, 1ULL << 20, 1ULL << 40, 0, 0, 0, 0 },
+  { 0, 1, 1, 1ULL << 20, 1ULL << 40, 1ULL << 40, 0, 0, 0, 0, 0 },
   /*
-    To prevent starvation, these lock types that are only granted
-    max_write_lock_count times in a row while other lock types are
+    To prevent starvation, "hog" and "piglet" lock types are only granted
+    max_write_lock_count times in a row while conflicting lock types are
     waiting.
   */
-  (MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
-   MDL_BIT(MDL_EXCLUSIVE)),
+  true,
   &MDL_lock::object_lock_needs_notification,
   &MDL_lock::object_lock_notify_conflicting_locks,
-  &MDL_lock::object_lock_fast_path_granted_bitmap
+  &MDL_lock::object_lock_fast_path_granted_bitmap,
+  &MDL_lock::object_lock_needs_connection_check
 };
 
 
@@ -2079,7 +2449,6 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_object_lock_strategy =
 
   @param  type_arg             The requested lock type.
   @param  requestor_ctx        The MDL context of the requestor.
-  @param  ignore_lock_priority Ignore lock priority.
 
   @retval TRUE   Lock request can be satisfied
   @retval FALSE  There is some conflicting lock.
@@ -2091,8 +2460,7 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_object_lock_strategy =
 
 bool
 MDL_lock::can_grant_lock(enum_mdl_type type_arg,
-                         MDL_context *requestor_ctx,
-                         bool ignore_lock_priority) const
+                         const MDL_context *requestor_ctx) const
 {
   bool can_grant= FALSE;
   bitmap_t waiting_incompat_map= incompatible_waiting_types_bitmap()[type_arg];
@@ -2103,9 +2471,9 @@ MDL_lock::can_grant_lock(enum_mdl_type type_arg,
     - There are no incompatible types of satisfied requests
     in other contexts
     - There are no waiting requests which have higher priority
-    than this request when priority was not ignored.
+    than this request.
   */
-  if (ignore_lock_priority || !(m_waiting.bitmap() & waiting_incompat_map))
+  if (!(m_waiting.bitmap() & waiting_incompat_map))
   {
     if (! (fast_path_granted_bitmap() & granted_incompat_map))
     {
@@ -2163,6 +2531,29 @@ MDL_lock::can_grant_lock(enum_mdl_type type_arg,
 }
 
 
+/**
+  Return the first MDL_context which owns the lock.
+
+  @return Pointer to the first MDL_context which has acquired the lock
+          NULL if there are no such contexts.
+
+  @note This method works properly only for locks acquired using
+        "slow" path. It won't return context if it has used "fast"
+        path to acquire the lock.
+*/
+
+inline MDL_context *
+MDL_lock::get_lock_owner() const
+{
+  Ticket_iterator it(m_granted);
+  MDL_ticket *ticket;
+
+  if ((ticket= it++))
+    return ticket->get_ctx();
+  return NULL;
+}
+
+
 /** Remove a ticket from waiting or pending queue and wakeup up waiters. */
 
 void MDL_lock::remove_ticket(MDL_context *ctx, LF_PINS *pins,
@@ -2213,7 +2604,30 @@ void MDL_lock::remove_ticket(MDL_context *ctx, LF_PINS *pins,
   }
 
 
-  if (! last_slow_path)
+  if (last_slow_path)
+  {
+    /*
+      We might end-up with the last waiting ticket being removed and non-0
+      m_hog_lock_count/m_piglet_lock_count in the following situation:
+
+      1) There is a granted "hog"/"piglet" lock blocking a lower priority lock
+         request.
+      2) The lower priority lock request is timed out or killed. It is not yet
+         removed from waiters list and bitmap.
+      3) The "Hog"/"piglet" lock is released. Its reschedule_waiters() call
+         will still see the pending lower priority lock so it won't reset
+         the m_hog_lock_count/m_piglet_lock_count counters.
+      4) MDL_lock::remove_ticket() is called for the timed out/killed
+         lower priority ticket. Which turns out to be the last ticket
+         for this lock.
+
+      Hence we need to reset these counters here.
+    */
+    m_hog_lock_count= 0;
+    m_piglet_lock_count= 0;
+    m_current_waiting_incompatible_idx= 0;
+  }
+  else
   {
     /*
       There can be some contexts waiting to acquire a lock
@@ -2295,7 +2709,8 @@ bool MDL_ticket::is_incompatible_when_granted(enum_mdl_type type) const
 }
 
 
-bool MDL_ticket::is_incompatible_when_waiting(enum_mdl_type type) const
+bool
+MDL_ticket::is_incompatible_when_waiting(enum_mdl_type type) const
 {
   return (MDL_BIT(m_type) &
           m_lock->incompatible_waiting_types_bitmap()[type]);
@@ -2505,8 +2920,6 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   bool force_slow;
   bool pinned;
 
-  DBUG_ASSERT(mdl_request->type != MDL_EXCLUSIVE ||
-              owns_equal_or_stronger_lock(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE));
   DBUG_ASSERT(mdl_request->ticket == NULL);
 
   /* Don't take chances in production. */
@@ -2686,6 +3099,13 @@ retry:
     while (! lock->fast_path_state_cas(&old_state,
                                        old_state + unobtrusive_lock_increment));
 
+    /*
+      Lock has been acquired. Since this can only be an "unobtrusive" lock and
+      there were no active/pending requests for "obtrusive" locks, we don't need
+      to care about "hog" and "piglet" locks and the max_write_lock_count
+      threshold.
+    */
+
     if (pinned)
       lf_hash_search_unpin(m_pins);
 
@@ -2804,9 +3224,27 @@ slow_path:
 
   ticket->m_lock= lock;
 
-  if (lock->can_grant_lock(mdl_request->type, this, false))
+  if (lock->can_grant_lock(mdl_request->type, this))
   {
     lock->m_granted.add_ticket(ticket);
+
+    if (lock->is_affected_by_max_write_lock_count())
+    {
+      /*
+        If we have acquired an higher-prio "piglet" or "hog" lock while there
+        are pending lower priority locks, we need to increment the appropriate
+        counter.
+
+        If one or both of these counters exceed the max_write_lock_count
+        threshold, change priority matrice for this MDL_lock object.
+        Reschedule waiters to avoid problems when the change of matrice
+        happens concurrently to other thread acquiring a lower priority
+        lock between its call to MDL_lock::can_grant_lock() and
+        MDL_context::find_deadlock().
+      */
+      if (lock->count_piglets_and_hogs(mdl_request->type))
+        lock->reschedule_waiters();
+    }
 
     mysql_prlock_unlock(&lock->m_rwlock);
 
@@ -2937,8 +3375,8 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
 
 
 /**
-  Notify threads holding a shared metadata locks on object which
-  conflict with a pending X, SNW or SNRW lock.
+  Notify threads holding S/SH metadata locks on an object, which conflict
+  with a pending X lock.
 
   @note Currently this method is guaranteed to notify shared lock
         owners which have MDL_context::m_needs_thr_lock_abort flag
@@ -2947,6 +3385,11 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
         locks).
         This is OK as notification for other contexts is anyway
         no-op now.
+
+  @note We don't notify threads holding other than S/SH types of
+        conflicting locks on the object since notification should
+        not be needed and anyway will be no-op for them (unless
+        they also hold S/SH locks on the object).
 
   @param  ctx  MDL_context for current thread.
   @param  lock MDL_lock object representing lock which is to be
@@ -2960,10 +3403,9 @@ void MDL_lock::object_lock_notify_conflicting_locks(MDL_context *ctx, MDL_lock *
 
   while ((conflicting_ticket= it++))
   {
-    /* Only try to abort locks on which we back off. */
     if (conflicting_ticket->get_ctx() != ctx &&
-        conflicting_ticket->get_type() < MDL_SHARED_UPGRADABLE)
-
+        (conflicting_ticket->get_type() == MDL_SHARED ||
+         conflicting_ticket->get_type() == MDL_SHARED_HIGH_PRIO))
     {
       MDL_context *conflicting_ctx= conflicting_ticket->get_ctx();
 
@@ -2971,6 +3413,22 @@ void MDL_lock::object_lock_notify_conflicting_locks(MDL_context *ctx, MDL_lock *
         If thread which holds conflicting lock is waiting on table-level
         lock or some other non-MDL resource we might need to wake it up
         by calling code outside of MDL.
+
+        The only scenario in which it is important now looks like:
+        Thread 1: HANDLER t1 OPEN, acquires S metadata lock on t1.
+        Thread 2: LOCK TABLES t1 WRITE, t2 READ LOCAL, acquire
+                  SNRW lock on t1, SR lock on t2 and TL_READ THR_LOCK
+                  lock on t2.
+        Thread 1: Executes UPDATE t2 SET i = 1 or some other DML which
+                  will directly or indirectly block on THR_LOCK for t2.
+        Thread 2: Does ALTER TABLE t1 ... which tries to upgrade SNRW
+                  metadata lock to X lock and blocks because of S lock
+                  from open HANDLER.
+
+        A similar scenario is possible when MERGE tables are used instead
+        of the READ LOCAL clause.
+        Once we will get rid of the support for READ LOCAL and MERGE clauses
+        this code can be removed.
       */
       ctx->get_owner()->
         notify_shared_lock(conflicting_ctx->get_owner(),
@@ -3072,9 +3530,27 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       if (wait_status != MDL_wait::EMPTY)
         break;
 
+      if (lock->needs_connection_check() && ! m_owner->is_connected())
+      {
+        /*
+          If this is user-level lock and the client is disconnected don't wait
+          forever: assume it's the same as statement being killed (this differs
+          from pre-5.7 where we treat it as timeout, but is more logical).
+          Using MDL_wait::set_status() to set status atomically wastes one
+          condition variable wake up but should happen rarely.
+          We don't want to do this check for all types of metadata locks since
+          in general case we may want to complete wait/operation even when
+          connection is lost (e.g. in case of logging into slow/general log).
+        */
+        if (! m_wait.set_status(MDL_wait::KILLED))
+          wait_status= MDL_wait::KILLED;
+        break;
+      }
+
       mysql_prlock_wrlock(&lock->m_rwlock);
       lock->notify_conflicting_locks(this);
       mysql_prlock_unlock(&lock->m_rwlock);
+
       set_timespec(abs_shortwait, 1);
     }
     if (wait_status == MDL_wait::EMPTY)
@@ -3082,8 +3558,17 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
                                      mdl_request->key.get_wait_state_name());
   }
   else
+  {
+    /*
+      This branch should be never taken for locks requiring checking
+      if connection is alive. Currently such locks also always require
+      notification so we don't check this explicitly, only assert this.
+    */
+    DBUG_ASSERT(! lock->needs_connection_check());
+
     wait_status= m_wait.timed_wait(m_owner, &abs_timeout, TRUE,
                                    mdl_request->key.get_wait_state_name());
+  }
 
   done_waiting_for();
 
@@ -3143,7 +3628,18 @@ class MDL_request_cmp :
 public:
   bool operator()(const MDL_request *req1, const MDL_request *req2)
   {
-    return req1->key.cmp(&req2->key) < 0;
+    int rc= req1->key.cmp(&req2->key);
+    /*
+      In cases when both requests correspond to the same key, we need to put
+      the request for the stronger lock type first, to avoid extra deadlocks.
+      We do this by simply comparing types of lock requests.
+      This works OK since it is mostly needed to avoid the scenario when
+      LOCK TABLES t1 WRITE, t1 READ acquires SRO lock before SNRW lock.
+      It won't work in the general case (e.g. SRO is not stronger than SW).
+    */
+    if (rc == 0)
+      rc= static_cast<int>(req2->type) - static_cast<int>(req1->type);
+    return rc < 0;
   }
 };
 
@@ -3747,7 +4243,7 @@ void MDL_context::release_lock(MDL_ticket *ticket)
   the corresponding lists, i.e. stored in reverse temporal order.
   This allows to employ this function to:
   - back off in case of a lock conflict.
-  - release all locks in the end of a statment or transaction
+  - release all locks in the end of a statement or transaction
   - rollback to a savepoint.
 */
 
@@ -3898,6 +4394,57 @@ MDL_context::owns_equal_or_stronger_lock(
 
 
 /**
+  Find the first context which owns the lock and inspect it by
+  calling MDL_context_visitor::visit_context() method.
+
+  @return True in case error (e.g. OOM). False otherwise. There
+          is no guarantee that owner was found in either case.
+  @note This method only works properly for locks which were
+        acquired using "slow" path.
+*/
+
+bool MDL_context::find_lock_owner(const MDL_key *mdl_key,
+                                  MDL_context_visitor *visitor)
+{
+  MDL_lock *lock;
+  MDL_context *owner;
+  bool pinned;
+
+  if (fix_pins())
+    return true;
+
+retry:
+  if ((lock= mdl_locks.find(m_pins, mdl_key, &pinned)) == MY_ERRPTR)
+    return true;
+
+  /* No MDL_lock object, no owner, nothing to visit. */
+  if (lock == NULL)
+    return false;
+
+  mysql_prlock_rdlock(&lock->m_rwlock);
+
+  if (lock->m_fast_path_state & MDL_lock::IS_DESTROYED)
+  {
+    mysql_prlock_unlock(&lock->m_rwlock);
+    if (pinned)
+      lf_hash_search_unpin(m_pins);
+    DEBUG_SYNC(get_thd(), "mdl_find_lock_owner_is_destroyed");
+    goto retry;
+  }
+
+  if (pinned)
+    lf_hash_search_unpin(m_pins);
+
+  if ((owner= lock->get_lock_owner()))
+    visitor->visit_context(owner);
+
+  mysql_prlock_unlock(&lock->m_rwlock);
+
+  return false;
+}
+
+
+/**
   Check if we have any pending locks which conflict with existing shared lock.
 
   @pre The ticket must match an acquired lock.
@@ -3910,6 +4457,12 @@ bool MDL_ticket::has_pending_conflicting_lock() const
   return m_lock->has_pending_conflicting_lock(m_type);
 }
 
+/** Return a key identifying this lock. */
+
+const MDL_key *MDL_ticket::get_key() const
+{
+  return &m_lock->key;
+}
 
 /**
   Releases metadata locks that were acquired after a specific savepoint.

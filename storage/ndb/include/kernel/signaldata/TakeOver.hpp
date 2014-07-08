@@ -129,7 +129,7 @@ struct UpdateToConf
   Uint32 startingNodeId;
 };
 
-struct CreateFragReq 
+struct UpdateFragStateReq 
 {
   STATIC_CONST( SignalLength = 9 );
 
@@ -150,7 +150,7 @@ struct CreateFragReq
   Uint32 failedNodeId;
 };
 
-struct CreateFragConf 
+struct UpdateFragStateConf 
 {
   STATIC_CONST( SignalLength = 6 );
   

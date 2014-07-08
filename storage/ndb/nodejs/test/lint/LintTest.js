@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -215,13 +215,13 @@ ignore("IndexBounds.js", 11, "Expected a conditional expression and instead saw 
 ignore("IndexBounds.js", 13, "Expected a conditional expression and instead saw an assignment.");
 
 // Adapter/impl/ndb
-ignore("NdbOperation.js",27,"\'gather\' was used before it was defined.");
-ignore("NdbOperation.js",7,"Empty block.");
+ignore("NdbOperation.js", 22, "Use the array literal notation [].");  // 374
+ignore("NdbOperation.js",27,"\'gather\' was used before it was defined."); //550
+
 ignore("NdbConnectionPool.js",15,"Expected a conditional expression and instead saw an assignment.");
 ignore("NdbConnectionPool.js",17,"Expected a conditional expression and instead saw an assignment.");
 
 ignore("LintTest.js",14,"Expected a conditional expression and instead saw an assignment.");
-ignore("NdbOperation.js",12,"Expected a conditional expression and instead saw an assignment.");
 ignore("TableMapping.js",3,"The body of a for in should be wrapped in an if statement to filter unwanted properties from the prototype.");
 ignore("stats.js",13,"Expected '{' and instead saw 'r'.");
 ignore("MySQLDictionary.js",7,"Missing 'break' after 'case'.");

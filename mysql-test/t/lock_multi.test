@@ -94,26 +94,139 @@ connection writer;
 reap;
 drop table t1;
 
-#
-# Test problem when using locks with multi-updates
-# It should not block when multi-update is reading on a read-locked table
-#
 
+--echo #
+--echo # Test locking in multi-update statements.
+--echo #
+
+--echo # 
+--echo # Multi-update should not be blocked by THR_LOCK locks acquired
+--echo # on table which is not updated.
+--echo # 
+--enable_connect_log
 connection locker;
 create table t1 (a int, b int);
 create table t2 (c int, d int);
 insert into t1 values(1,1);
 insert into t1 values(2,2);
 insert into t2 values(1,2);
-lock table t1 read;
+connection locker2;
+select get_lock("mysqltest_lock", 100);
+connection locker;
+--echo # Sending:
+--send select a from t1 where get_lock('mysqltest_lock', 100)
 connection writer;
+--echo # Wait till above select gets blocked on a user lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and info = "select a from t1 where get_lock('mysqltest_lock', 100)";
+--source include/wait_condition.inc
 update t1,t2 set c=a where b=d;
 connection reader;
 select c from t2;
+connection locker2;
+select release_lock("mysqltest_lock");
+connection locker;
+--echo # Reap select.
+--reap
+select release_lock("mysqltest_lock");
+
+--echo #
+--echo # Indeed it should be blocked by THR_LOCK locks on table
+--echo # which is updated.
+--echo #
+connection locker2;
+select get_lock("mysqltest_lock", 100);
+connection locker;
+--echo # Sending:
+--send select c from t2 where get_lock('mysqltest_lock', 100)
+connection writer;
+--echo # Wait till above select gets blocked on a user lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and info = "select c from t2 where get_lock('mysqltest_lock', 100)";
+--source include/wait_condition.inc
+--echo # Sending:
+--send update t1,t2 set c=a where b=d;
+connection default;
+--echo # Wait till multi-update is blocked on THR_LOCK lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table level lock" and
+        info = "update t1,t2 set c=a where b=d";
+connection locker2;
+select release_lock("mysqltest_lock");
+connection locker;
+--echo # Reap select.
+--reap
+select release_lock("mysqltest_lock");
+connection writer;
+--echo # Reap multi-update.
+--reap
+
+--echo #
+--echo # OTOH multi-update will be blocked by concurrent LOCK TABLES READ
+--echo # on any table in the join. This is because multi-update acquires
+--echo # SW metadata locks on all tables in the join which conflicts with
+--echo # SRO metadata lock acquired by LOCK TABLES READ.
+--echo #
+
+connection locker;
+lock table t1 read;
+connection writer;
+--echo # Sending:
+--send update t1,t2 set c=a where b=d;
+connection default;
+--echo # Wait till multi-update is blocked on THR_LOCK lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "update t1,t2 set c=a where b=d";
 connection locker;
 unlock tables;
+connection writer;
+--echo # Reap multi-update.
+--reap
+
+connection locker;
+lock table t2 read;
+connection writer;
+--echo # Sending:
+--send update t1,t2 set c=a where b=d;
+connection default;
+--echo # Wait till multi-update is blocked on THR_LOCK lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "update t1,t2 set c=a where b=d";
+connection locker;
+unlock tables;
+connection writer;
+--echo # Reap multi-update.
+--reap
+
+--echo #
+--echo # Still if multi-update is executed under LOCK TABLES
+--echo # it will be compatible with LOCK TABLES READ on the
+--echo # table from its join which is only read.
+--echo #
+--echo # Main difference here is that LOCK TABLES preannounces
+--echo # locks which will be requested by multi-update.
+--echo #
+connection locker;
+lock table t1 read;
+connection writer;
+lock tables t1 read, t2 write;
+update t1,t2 set c=a where b=d;
+unlock tables;
+connection locker;
+unlock tables;
+
+connection default;
 drop table t1;
 drop table t2;
+--disable_connect_log
+
 
 #
 # Test problem when using locks on many tables and dropping a table that
@@ -502,9 +615,16 @@ drop table t1,t2;
 #           statement being KILLed
 #
 create table t1 (i int);
+insert into t1 values (1);
+select get_lock('mysqltest_lock', 100);
 connection locker;
-lock table t1 read;
+send select * from t1 where get_lock('mysqltest_lock', 100);
 connection writer;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "select * from t1 where get_lock('mysqltest_lock', 100)";
+--source include/wait_condition.inc
 send
 update t1 set i= 10;
 connection reader;
@@ -531,8 +651,11 @@ connection reader;
 connection writer;
 --error ER_QUERY_INTERRUPTED
 --reap
+connection default;
+select release_lock('mysqltest_lock');
 connection locker;
-unlock tables;
+--reap
+select release_lock('mysqltest_lock');
 connection default;
 drop table t1;
 
@@ -666,24 +789,38 @@ drop table t1;
 drop table if exists t1,t2;
 --enable_warnings
 create table t1 (a int);
+insert into t1 values (1);
+connect (blocker,localhost,root,,);
+connection blocker;
+select get_lock('mysqltest_lock', 100);
+connection default;
 flush status;
-lock tables t1 read;
-let $tlwa= `show status like 'Table_locks_waited'`;
+send select * from t1 where get_lock('mysqltest_lock', 100);
 connect (waiter,localhost,root,,);
 connection waiter;
-send insert into t1 values(1);
-connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "select * from t1 where get_lock('mysqltest_lock', 100)";
+--source include/wait_condition.inc
+
+let $tlwa= `show status like 'Table_locks_waited'`;
+send update t1 set a= 2;
+connection blocker;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table level lock" and
-        info = "insert into t1 values(1)";
+        info = "update t1 set a= 2";
 --source include/wait_condition.inc
 let $tlwb= `show status like 'Table_locks_waited'`;
-unlock tables;
+select release_lock('mysqltest_lock');
 connection waiter;
 --reap
 connection default;
+--reap
+select release_lock('mysqltest_lock');
 drop table t1;
+disconnect blocker;
 disconnect waiter;
 --disable_query_log
 eval SET @tlwa= SUBSTRING_INDEX('$tlwa', '	', -1);
@@ -798,9 +935,18 @@ DROP VIEW  IF EXISTS v1;
 CREATE TABLE t1 ( f1 integer );
 CREATE VIEW v1 AS SELECT f1 FROM t1 ;
 
+--echo # Connection 2
+connect (con2,localhost,root);
 LOCK TABLES v1 WRITE, t1 READ;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
 FLUSH TABLE t1;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection 1
+connection default;
+LOCK TABLES t1 WRITE;
+FLUSH TABLE t1;                                    # Assertion happened here
+
 UNLOCK TABLES;
 
 # Cleanup
@@ -1151,6 +1297,3271 @@ connection default;
 disconnect con1;
 UNLOCK TABLES;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Test coverage for LOCK TABLES ... READ/WRITE
+--echo #
+--echo # Of course this functionality is well-covered by tests all
+--echo # around the test suite. Still it is nice to have formal
+--echo # coverage for LOCK TABLES in one place.
+--echo # 
+
+--enable_connect_log
+--echo # We are going to check behavior for both InnoDB and MyISAM
+--echo # tables.
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+CREATE TABLE t2 (i INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE TABLE t3 (j INT);
+CREATE TABLE t4 (j INT);
+CREATE VIEW v3 AS SELECT * FROM t3 WHERE (SELECT COUNT(*) FROM t1);
+CREATE VIEW v4 AS SELECT * FROM t4 WHERE (SELECT COUNT(*) FROM t2);
+CREATE TABLE t5 (k INT);
+CREATE TABLE t6 (k INT);
+CREATE TRIGGER bi_t5 BEFORE INSERT ON t5 FOR EACH ROW SET @a:= (SELECT COUNT(*) FROM t1);
+CREATE TRIGGER bi_t6 BEFORE INSERT ON t6 FOR EACH ROW SET @a:= (SELECT COUNT(*) FROM t2);
+CREATE TABLE t7 (z INT);
+CREATE TABLE t8 (z INT);
+CREATE TRIGGER bi_t7 BEFORE INSERT ON t7 FOR EACH ROW INSERT INTO t1 VALUES (1);
+CREATE TRIGGER bi_t8 BEFORE INSERT ON t8 FOR EACH ROW INSERT INTO t2 VALUES (1);
+
+--echo #
+--echo # 1) LOCK TABLES READ explicitly locking table
+--echo #
+--echo # 1.a) Allows concurrent reads
+LOCK TABLE t1 READ, t2 READ;
+connect (con1, localhost, root);
+SELECT * FROM t1;
+SELECT * FROM t2;
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # 1.b) Is allowed concurrently to reads
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Start read by sending SELECT:
+--send SELECT GET_LOCK('mysqltest_lock', 100) FROM t1, t2;
+
+connect (con2, localhost, root);
+--echo # Wait until SELECT gets read lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "SELECT GET_LOCK('mysqltest_lock', 100) FROM t1, t2";
+--source include/wait_condition.inc
+--echo # LOCK TABLES should not be blocked.
+LOCK TABLES t1 READ, t2 READ;
+UNLOCK TABLES;
+
+connection default;
+--echo # Unblock SELECT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+--echo #
+--echo # 1.c) Blocks concurrent modifications to table
+connection default;
+
+LOCK TABLE t1 READ, t2 READ;
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+
+connection con2;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t2 VALUES (1)";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERTs
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap INSERT
+--reap
+
+connection con2;
+--echo # Reap INSERT
+--reap
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 1.d) Is blocked by concurrent table modifications
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES t1 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 READ";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+connection default;
+
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+--echo # 
+--echo # The below part of test also covers scenario in which bug #42147
+--echo # "Concurrent DML and LOCK TABLE ... READ for InnoDB table cause
+--echo # warnings in errlog" occurred.
+--echo #
+connection con1;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES t2 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 READ";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 1.e) LOCK TABLES READ which explicitly locks table is not blocked
+--echo #      by concurrent transactions which read table.
+BEGIN;
+SELECT * FROM t1;
+
+connection con1;
+LOCK TABLES t1 READ;
+UNLOCK TABLES;
+
+connection default;
+COMMIT;
+
+BEGIN;
+SELECT * FROM t2;
+
+connection con1;
+LOCK TABLES t2 READ;
+UNLOCK TABLES;
+
+connection default;
+COMMIT;
+
+--echo #
+--echo # 1.f) LOCK TABLES READ which explicitly locks table is blocked
+--echo #      by concurrent transactions which modify table.
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t1 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 READ";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES READ
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+connection default;
+BEGIN;
+INSERT INTO t2 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t2 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 READ";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES READ
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 1.g) LOCK TABLES READ which explicitly locks table is compatible
+--echo #      with itself.
+LOCK TABLES t1 READ, t2 READ;
+
+connection con1;
+LOCK TABLES t1 READ, t2 READ;
+UNLOCK TABLES;
+
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # 1.h) LOCK TABLES READ which explicitly locks table is not compatible
+--echo #      with LOCK TABLE WRITE.
+LOCK TABLES t1 READ;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t2 READ;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t1 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t1 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 READ";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES READ
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t2 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t2 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 READ";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES READ
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+
+--echo #
+--echo # 2) LOCK TABLES WRITE explicitly locking table
+--echo #
+--echo # 2.a) Doesn't allow concurrent reads
+connection default;
+LOCK TABLE t1 WRITE;
+
+connection con1;
+--echo # Sending:
+--send SELECT * FROM t1;
+
+connection default;
+--echo # Wait until SELECT gets blocked 
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "SELECT * FROM t1";
+--source include/wait_condition.inc
+--echo # Unblock SELECT
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+
+connection default;
+LOCK TABLE t2 WRITE;
+
+connection con1;
+--echo # Sending:
+--send SELECT * FROM t2;
+
+connection default;
+--echo # Wait until SELECT gets blocked 
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "SELECT * FROM t2";
+--source include/wait_condition.inc
+--echo # Unblock SELECT
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+
+connection default;
+--echo #
+--echo # 2.b) Is not allowed concurrently to reads
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Start read by sending SELECT:
+--send SELECT GET_LOCK('mysqltest_lock', 100) FROM t1;
+
+connection con2;
+--echo # Wait until SELECT gets read lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "SELECT GET_LOCK('mysqltest_lock', 100) FROM t1";
+--source include/wait_condition.inc
+--echo # Sending:
+--send LOCK TABLES t1 WRITE;
+
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 WRITE";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--echo # Unblock SELECT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLE WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Start read by sending SELECT:
+--send SELECT GET_LOCK('mysqltest_lock', 100) FROM t2;
+
+connection con2;
+--echo # Wait until SELECT gets read lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "SELECT GET_LOCK('mysqltest_lock', 100) FROM t2";
+--source include/wait_condition.inc
+--echo # Sending:
+--send LOCK TABLES t2 WRITE;
+
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 WRITE";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--echo # Unblock SELECT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLE WRITE
+--reap
+UNLOCK TABLES;
+
+
+--echo #
+--echo # 2.c) Blocks concurrent modifications to table
+connection default;
+LOCK TABLE t1 WRITE, t2 WRITE;
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+
+connection con2;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t2 VALUES (1)";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERTs
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap INSERT
+--reap
+
+connection con2;
+--echo # Reap INSERT
+--reap
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 2.d) Is blocked by concurrent table modifications
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES t1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 WRITE";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES t2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 WRITE";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 2.e) LOCK TABLES WRITE which explicitly locks table is blocked
+--echo #      by concurrent transactions which read table.
+BEGIN;
+SELECT * FROM t1;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+BEGIN;
+SELECT * FROM t2;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo #
+--echo # 2.f) LOCK TABLES WRITE which explicitly locks table is blocked
+--echo #      by concurrent transactions which modify table.
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+BEGIN;
+INSERT INTO t2 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 2.g) LOCK TABLES WRITE which explicitly locks table is not compatible
+--echo #      with itself.
+LOCK TABLES t1 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t2 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+
+--echo #
+--echo # 3) LOCK TABLES which locks table for read through view.
+--echo #    Case of main table in mergeable view.
+--echo #
+--echo # 3.a) Allows concurrent reads
+connection default;
+LOCK TABLE v1 READ, v2 READ;
+connection con1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # 3.b) Is allowed concurrently to reads
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Start read by sending SELECT:
+--send SELECT GET_LOCK('mysqltest_lock', 100) FROM t1, t2;
+
+connection con2;
+--echo # Wait until SELECT gets read lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "SELECT GET_LOCK('mysqltest_lock', 100) FROM t1, t2";
+--source include/wait_condition.inc
+--echo # LOCK TABLES should not be blocked.
+LOCK TABLES v1 READ, v2 READ;
+UNLOCK TABLES;
+
+connection default;
+--echo # Unblock SELECT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+--echo #
+--echo # 3.c) Blocks concurrent modifications to table
+connection default;
+
+LOCK TABLE v1 READ, v2 READ;
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+
+connection con2;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t2 VALUES (1)";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERTs
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap INSERT
+--reap
+
+connection con2;
+--echo # Reap INSERT
+--reap
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 3.d) Is blocked by concurrent table modifications
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES v1 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v1 READ";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+connection default;
+
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES v2 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v2 READ";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 3.e) LOCK TABLES which locks table for read through view is not blocked
+--echo #      by concurrent transactions which read table.
+BEGIN;
+SELECT * FROM t1;
+
+connection con1;
+LOCK TABLES v1 READ;
+UNLOCK TABLES;
+
+connection default;
+COMMIT;
+
+BEGIN;
+SELECT * FROM t2;
+
+connection con1;
+LOCK TABLES v2 READ;
+UNLOCK TABLES;
+
+connection default;
+COMMIT;
+
+--echo #
+--echo # 3.f) LOCK TABLES which locks table for read through view is blocked
+--echo #      by concurrent transactions which modify table.
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v1 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v1 READ";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES READ
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+connection default;
+BEGIN;
+INSERT INTO t2 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v2 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v2 READ";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES READ
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 3.g) LOCK TABLES READ which locks table for read through view is
+--echo #      compatible with explicit LOCK TABLES READ on the same table.
+LOCK TABLES t1 READ, t2 READ;
+
+connection con1;
+LOCK TABLES v1 READ, v2 READ;
+UNLOCK TABLES;
+
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # 3.h) LOCK TABLES READ which locks table for read through view is
+--echo #      not compatible with explicit LOCK TABLES WRITE on the same table.
+LOCK TABLES v1 READ;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES v2 READ;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t1 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v1 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v1 READ";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES READ
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t2 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v2 READ;
+
+connection default;
+--echo # Wait until LOCK TABLES READ is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v2 READ";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES READ
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES READ
+--reap
+UNLOCK TABLES;
+
+
+--echo #
+--echo # 4) LOCK TABLES which locks table for read through mergeable view.
+--echo #    Case of table not from the main join. Such table will be locked
+--echo #    for read even though view is locked for write.
+--echo # 4.a) Allows concurrent reads
+connection default;
+LOCK TABLES v3 WRITE, v4 WRITE;
+connection con1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # 4.b) Is allowed concurrently to reads
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Start read by sending SELECT:
+--send SELECT GET_LOCK('mysqltest_lock', 100) FROM t1, t2;
+
+connection con2;
+--echo # Wait until SELECT gets read lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "SELECT GET_LOCK('mysqltest_lock', 100) FROM t1, t2";
+--source include/wait_condition.inc
+--echo # LOCK TABLES should not be blocked.
+LOCK TABLES v3 WRITE, v4 WRITE;
+UNLOCK TABLES;
+
+connection default;
+--echo # Unblock SELECT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+--echo #
+--echo # 4.c) Blocks concurrent modifications to table
+connection default;
+
+LOCK TABLES v3 WRITE, v4 WRITE;
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+
+connection con2;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t2 VALUES (1)";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERTs
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap INSERT
+--reap
+
+connection con2;
+--echo # Reap INSERT
+--reap
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 4.d) Is blocked by concurrent table modifications
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES v3 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v3 WRITE";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+connection default;
+
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES v4 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v4 WRITE";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 4.e) LOCK TABLES which locks table for read through view is not blocked
+--echo #      by concurrent transactions which read table.
+BEGIN;
+SELECT * FROM t1;
+
+connection con1;
+LOCK TABLES v3 WRITE;
+UNLOCK TABLES;
+
+connection default;
+COMMIT;
+
+BEGIN;
+SELECT * FROM t2;
+
+connection con1;
+LOCK TABLES v4 WRITE;
+UNLOCK TABLES;
+
+connection default;
+COMMIT;
+
+--echo #
+--echo # 4.f) LOCK TABLES which locks table for read through view is blocked
+--echo #      by concurrent transactions which modify table.
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v3 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v3 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+connection default;
+BEGIN;
+INSERT INTO t2 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v4 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v4 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 4.g) LOCK TABLES which locks table for read through view is
+--echo #      compatible with explicit LOCK TABLES READ on the same table.
+LOCK TABLES t1 READ, t2 READ;
+
+connection con1;
+LOCK TABLES v3 WRITE, v4 WRITE;
+UNLOCK TABLES;
+
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # 4.h) LOCK TABLES which locks table for read through view is
+--echo #      not compatible with explicit LOCK TABLES WRITE on the same table.
+LOCK TABLES v3 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES v4 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t1 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v3 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v3 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t2 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v4 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v4 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+
+--echo #
+--echo # 5) LOCK TABLES which locks tables for write through view
+--echo #
+--echo # 5.a) Doesn't allow concurrent reads
+connection default;
+LOCK TABLE v1 WRITE;
+
+connection con1;
+--echo # Sending:
+--send SELECT * FROM t1;
+
+connection default;
+--echo # Wait until SELECT gets blocked 
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "SELECT * FROM t1";
+--source include/wait_condition.inc
+--echo # Unblock SELECT
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+
+connection default;
+LOCK TABLE v2 WRITE;
+
+connection con1;
+--echo # Sending:
+--send SELECT * FROM t2;
+
+connection default;
+--echo # Wait until SELECT gets blocked 
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "SELECT * FROM t2";
+--source include/wait_condition.inc
+--echo # Unblock SELECT
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+
+connection default;
+--echo #
+--echo # 5.b) Is not allowed concurrently to reads
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Start read by sending SELECT:
+--send SELECT GET_LOCK('mysqltest_lock', 100) FROM t1;
+
+connection con2;
+--echo # Wait until SELECT gets read lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "SELECT GET_LOCK('mysqltest_lock', 100) FROM t1";
+--source include/wait_condition.inc
+--echo # Sending:
+--send LOCK TABLES v1 WRITE;
+
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v1 WRITE";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--echo # Unblock SELECT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLE WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Start read by sending SELECT:
+--send SELECT GET_LOCK('mysqltest_lock', 100) FROM t2;
+
+connection con2;
+--echo # Wait until SELECT gets read lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "SELECT GET_LOCK('mysqltest_lock', 100) FROM t2";
+--source include/wait_condition.inc
+--echo # Sending:
+--send LOCK TABLES v2 WRITE;
+
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v2 WRITE";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--echo # Unblock SELECT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLE WRITE
+--reap
+UNLOCK TABLES;
+
+
+--echo #
+--echo # 5.c) Blocks concurrent modifications to table
+connection default;
+LOCK TABLE v1 WRITE, v2 WRITE;
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+
+connection con2;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t2 VALUES (1)";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERTs
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap INSERT
+--reap
+
+connection con2;
+--echo # Reap INSERT
+--reap
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 5.d) Is blocked by concurrent table modifications
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES v1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v1 WRITE";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES v2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v2 WRITE";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 5.e) LOCK TABLES which locks table for write through view is blocked
+--echo #      by concurrent transactions which read table.
+BEGIN;
+SELECT * FROM t1;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v1 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+BEGIN;
+SELECT * FROM t2;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v2 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo #
+--echo # 5.f) LOCK TABLES which locks table for write through view is blocked
+--echo #      by concurrent transactions which modify table.
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v1 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+BEGIN;
+INSERT INTO t2 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES v2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES v2 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 5.g) LOCK TABLES which locks table for write through view is not
+--echo #      compatible with LOCK TABLE WRITE.
+LOCK TABLES v1 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES v2 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+
+--echo #
+--echo # 6) LOCK TABLES which locks table for read through trigger.
+--echo #
+--echo # 6.a) Allows concurrent reads
+connection default;
+LOCK TABLES t5 WRITE, t6 WRITE;
+connection con1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # 6.b) Is allowed concurrently to reads
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Start read by sending SELECT:
+--send SELECT GET_LOCK('mysqltest_lock', 100) FROM t1, t2;
+
+connection con2;
+--echo # Wait until SELECT gets read lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "SELECT GET_LOCK('mysqltest_lock', 100) FROM t1, t2";
+--source include/wait_condition.inc
+--echo # LOCK TABLES should not be blocked.
+LOCK TABLES v3 WRITE, t6 WRITE;
+UNLOCK TABLES;
+
+connection default;
+--echo # Unblock SELECT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+--echo #
+--echo # 6.c) Blocks concurrent modifications to table
+connection default;
+
+LOCK TABLES t5 WRITE, t6 WRITE;
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+
+connection con2;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t2 VALUES (1)";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERTs
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap INSERT
+--reap
+
+connection con2;
+--echo # Reap INSERT
+--reap
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 6.d) Is blocked by concurrent table modifications
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES t5 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t5 WRITE";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+connection default;
+
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES t6 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t6 WRITE";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 6.e) LOCK TABLES which locks table for read through trigger is not
+--echo #      blocked by concurrent transactions which read table.
+BEGIN;
+SELECT * FROM t1;
+
+connection con1;
+LOCK TABLES t5 WRITE;
+UNLOCK TABLES;
+
+connection default;
+COMMIT;
+
+BEGIN;
+SELECT * FROM t2;
+
+connection con1;
+LOCK TABLES t6 WRITE;
+UNLOCK TABLES;
+
+connection default;
+COMMIT;
+
+--echo #
+--echo # 6.f) LOCK TABLES which locks table for read through trigger is
+--echo #      blocked by concurrent transactions which modify table.
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t5 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t5 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+connection default;
+BEGIN;
+INSERT INTO t2 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t6 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t6 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 6.g) LOCK TABLES which locks table for read through trigger is
+--echo #      compatible with explicit LOCK TABLES READ on the same table.
+LOCK TABLES t1 READ, t2 READ;
+
+connection con1;
+LOCK TABLES t5 WRITE, t6 WRITE;
+UNLOCK TABLES;
+
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # 6.h) LOCK TABLES which locks table for read through trigger is
+--echo #      not compatible with explicit LOCK TABLES WRITE on the same table.
+LOCK TABLES t5 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t6 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t1 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t5 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t5 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t2 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t6 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t6 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES
+--reap
+UNLOCK TABLES;
+
+
+--echo #
+--echo # 7) LOCK TABLES which locks tables for write through trigger
+--echo #
+--echo # 7.a) Doesn't allow concurrent reads
+connection default;
+LOCK TABLE t7 WRITE;
+
+connection con1;
+--echo # Sending:
+--send SELECT * FROM t1;
+
+connection default;
+--echo # Wait until SELECT gets blocked 
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "SELECT * FROM t1";
+--source include/wait_condition.inc
+--echo # Unblock SELECT
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+
+connection default;
+LOCK TABLE t8 WRITE;
+
+connection con1;
+--echo # Sending:
+--send SELECT * FROM t2;
+
+connection default;
+--echo # Wait until SELECT gets blocked 
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "SELECT * FROM t2";
+--source include/wait_condition.inc
+--echo # Unblock SELECT
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+
+connection default;
+--echo #
+--echo # 7.b) Is not allowed concurrently to reads
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Start read by sending SELECT:
+--send SELECT GET_LOCK('mysqltest_lock', 100) FROM t1;
+
+connection con2;
+--echo # Wait until SELECT gets read lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "SELECT GET_LOCK('mysqltest_lock', 100) FROM t1";
+--source include/wait_condition.inc
+--echo # Sending:
+--send LOCK TABLES t7 WRITE;
+
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t7 WRITE";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--echo # Unblock SELECT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLE WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Start read by sending SELECT:
+--send SELECT GET_LOCK('mysqltest_lock', 100) FROM t2;
+
+connection con2;
+--echo # Wait until SELECT gets read lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "SELECT GET_LOCK('mysqltest_lock', 100) FROM t2";
+--source include/wait_condition.inc
+--echo # Sending:
+--send LOCK TABLES t8 WRITE;
+
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t8 WRITE";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--echo # Unblock SELECT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping SELECT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLE WRITE
+--reap
+UNLOCK TABLES;
+
+
+--echo #
+--echo # 7.c) Blocks concurrent modifications to table
+connection default;
+LOCK TABLE t7 WRITE, t8 WRITE;
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+
+connection con2;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t2 VALUES (1)";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERTs
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap INSERT
+--reap
+
+connection con2;
+--echo # Reap INSERT
+--reap
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 7.d) Is blocked by concurrent table modifications
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t1 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES t7 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t7 WRITE";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+
+SELECT GET_LOCK('mysqltest_lock', 100);
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100));
+
+connection con2;
+--echo # Wait until INSERT gets SW MDL lock and starts waiting for user lock
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and
+        info = "INSERT INTO t2 VALUES (GET_LOCK('mysqltest_lock', 100))";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send LOCK TABLES t8 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due to INSERT
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t8 WRITE";
+--source include/wait_condition.inc
+
+--echo # Unblock INSERT.
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con1;
+--echo # Reaping INSERT
+--reap
+SELECT RELEASE_LOCK('mysqltest_lock');
+
+connection con2;
+--echo # Reaping LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 7.e) LOCK TABLES which locks table for write through trigger is blocked
+--echo #      by concurrent transactions which read table.
+BEGIN;
+SELECT * FROM t1;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t7 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t7 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+BEGIN;
+SELECT * FROM t2;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t8 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t8 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo #
+--echo # 7.f) LOCK TABLES which locks table for write through trigger is blocked
+--echo #      by concurrent transactions which modify table.
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t7 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t7 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+BEGIN;
+INSERT INTO t2 VALUES (1);
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t8 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked due concurrent transaction
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t8 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+COMMIT;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+--echo # Revert effects from INSERTs
+DELETE FROM t1 LIMIT 1;
+DELETE FROM t2 LIMIT 1;
+
+--echo #
+--echo # 7.g) LOCK TABLES which locks table for write through trigger is not
+--echo #      compatible with LOCK TABLE WRITE.
+LOCK TABLES t7 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t1 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t1 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+
+connection default;
+LOCK TABLES t8 WRITE;
+
+connection con1;
+--echo # Sending:
+--send LOCK TABLES t2 WRITE;
+
+connection default;
+--echo # Wait until LOCK TABLES WRITE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLES t2 WRITE";
+--source include/wait_condition.inc
+--echo # Unblock LOCK TABLES WRITE
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reap LOCK TABLES WRITE
+--reap
+UNLOCK TABLES;
+disconnect con1;
+disconnect con2;
+connection default;
+
+DROP VIEW v1, v2, v3, v4;
+DROP TABLES t1, t2, t3, t4, t5, t6, t7, t8;
+--disable_connect_log
+
+
+--echo #
+--echo # Test coverage for LOCK TABLES ... READ LOCAL
+--echo #
+--enable_connect_log
+SET @old_concurrent_insert= @@global.concurrent_insert;
+SET @@global.concurrent_insert= 1;
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+CREATE TABLE t2 (i INT) ENGINE=InnoDB;
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS (SELECT * FROM t1) UNION (SELECT * FROM t1);
+CREATE VIEW v3 AS SELECT * FROM t2;
+
+--echo #
+--echo # 1) READ LOCAL is fully supported for MyISAM.
+--echo #    Concurrent inserts are allowed.
+--echo #
+LOCK TABLE t1 READ LOCAL;
+
+connect (con1, localhost, root);
+INSERT INTO t1 VALUES (1);
+
+--echo #
+--echo #   Concurrent updates are blocked.
+--echo #
+--echo # Sending:
+--send UPDATE t1 SET i= 2
+
+connection default;
+--echo # Wait until UPDATE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table level lock" and
+        info = "UPDATE t1 SET i= 2";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+connection con1;
+--echo # Reaping UPDATE.
+--reap
+
+--echo # 
+--echo # 2) READ LOCAL works even for mergeable views on
+--echo #    top of MyISAM tables.
+--echo #
+connection default;
+LOCK TABLE v1 READ LOCAL;
+
+connection con1;
+INSERT INTO v1 VALUES (1);
+INSERT INTO t1 VALUES (3);
+
+--echo #   Concurrent updates are blocked.
+--echo # Sending:
+--send UPDATE t1 SET i= 2
+
+connection default;
+--echo # Wait until UPDATE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table level lock" and
+        info = "UPDATE t1 SET i= 2";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+connection con1;
+--echo # Reaping UPDATE.
+--reap
+
+--echo #
+--echo # 3) READ LOCAL doesn't work for non-mergeable views on
+--echo #    top of MyISAM tables.
+--echo #
+connection default;
+LOCK TABLE v2 READ LOCAL;
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t1 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+connection con1;
+--echo # Reaping INSERT.
+--reap
+
+connection default;
+LOCK TABLE v2 READ LOCAL;
+
+connection con1;
+--echo # Sending:
+--send UPDATE t1 SET i= 2;
+
+connection default;
+--echo # Wait until UPDATE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "UPDATE t1 SET i= 2";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+connection con1;
+--echo # Reaping UPDATE.
+--reap
+
+--echo #
+--echo # 4) READ LOCAL locks are upgraded to simple READ locks
+--echo #    for InnoDB tables. So they block both concurrent inserts
+--echo #    and updates.
+--echo #
+connection default;
+LOCK TABLE t2 READ LOCAL;
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t2 VALUES (1)";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+connection con1;
+--echo # Reaping INSERT.
+--reap
+
+connection default;
+LOCK TABLE t2 READ LOCAL;
+
+connection con1;
+--echo # Sending:
+--send UPDATE t2 SET i= 2;
+
+connection default;
+--echo # Wait until UPDATE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "UPDATE t2 SET i= 2";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+connection con1;
+--echo # Reaping UPDATE.
+--reap
+
+--echo #
+--echo # 5) For mergeable views on top of InnoDB tables READ LOCAL locks are
+--echo #    upgraded to simple READ locks as well.
+--echo #
+connection default;
+LOCK TABLE v3 READ LOCAL;
+
+connection con1;
+--echo # Sending:
+--send INSERT INTO t2 VALUES (1)
+
+connection default;
+--echo # Wait until INSERT is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t2 VALUES (1)";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+connection con1;
+--echo # Reaping INSERT.
+--reap
+
+connection default;
+LOCK TABLE v3 READ LOCAL;
+
+connection con1;
+--echo # Sending:
+--send UPDATE t2 SET i= 2;
+
+connection default;
+--echo # Wait until UPDATE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "UPDATE t2 SET i= 2";
+--source include/wait_condition.inc
+UNLOCK TABLES;
+connection con1;
+--echo # Reaping UPDATE.
+--reap
+
+connection default;
+disconnect con1;
+DROP VIEW v1, v2, v3;
+DROP TABLES t1, t2;
+SET @@global.concurrent_insert= @old_concurrent_insert;
+--disable_connect_log
+
+
+--echo #
+--echo # Test coverage for interaction between LOCK TABLE ... READ and
+--echo # concurrent DML which uses LOW_PRIORITY and HIGH_PRIORITY clauses/
+--echo # concurrent DML which is executed in @@low_priority_updates=1 mode.
+--echo #
+--enable_connect_log
+--echo # We will use MyISAM to avoid row-locks.
+CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE TABLE t2 (j INT);
+CREATE TRIGGER t2_ai AFTER INSERT ON t2 FOR EACH ROW
+  INSERT LOW_PRIORITY INTO t1 VALUES (2);
+CREATE TABLE t3 (k INT);
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW
+  INSERT INTO t1 VALUES (2);
+CREATE TABLE tm (i INT) ENGINE=MERGE UNION=(t1);
+
+--echo #
+--echo # 1) Let us check that DML operations with LOW_PRIORITY clauses have
+--echo #    lower priority than pending LOCK TABLE ... READ, thus can't starve
+--echo #    it out.
+--echo #
+--echo # Acquire SW lock on the table, to create pending LOCK TABLE ... READ.
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+connect (blocker, localhost, root);
+--echo # Sending:
+--send LOCK TABLE t1 READ;
+
+connection default;
+--echo # Wait until LOCK TABLE READ gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLE t1 READ";
+--source include/wait_condition.inc
+
+connect (con_insert, localhost, root);
+--echo # INSERT HIGH_PRIORITY should not get blocked
+INSERT HIGH_PRIORITY INTO t1 VALUES (1);
+
+--echo # Sending:
+--send INSERT LOW_PRIORITY INTO t1 VALUES (1);
+
+connection default;
+--echo # Check that INSERT is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT LOW_PRIORITY INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+
+connect (con_replace, localhost, root);
+--echo # Sending:
+--send REPLACE LOW_PRIORITY INTO t1 VALUES (1);
+
+connection default;
+--echo # Check that REPLACE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "REPLACE LOW_PRIORITY INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+
+connect (con_update, localhost, root);
+--echo # Sending:
+--send UPDATE LOW_PRIORITY t1 SET i= 1;
+
+connection default;
+--echo # Check that UPDATE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "UPDATE LOW_PRIORITY t1 SET i= 1";
+--source include/wait_condition.inc
+
+connect (con_update_multi, localhost, root);
+--echo # Sending:
+--send UPDATE LOW_PRIORITY t1 AS a, t1 AS b SET a.i= 1;
+
+connection default;
+--echo # Check that multi-UPDATE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "UPDATE LOW_PRIORITY t1 AS a, t1 AS b SET a.i= 1";
+--source include/wait_condition.inc
+
+connect (con_delete, localhost, root);
+--echo # Sending:
+--send DELETE LOW_PRIORITY FROM t1 LIMIT 1;
+
+connection default;
+--echo # Check that DELETE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "DELETE LOW_PRIORITY FROM t1 LIMIT 1";
+--source include/wait_condition.inc
+
+connect (con_delete_multi, localhost, root);
+--echo # Sending:
+--send DELETE LOW_PRIORITY FROM a USING t1 AS a, t1 AS b;
+
+connection default;
+--echo # Check that multi-DELETE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "DELETE LOW_PRIORITY FROM a USING t1 AS a, t1 AS b";
+--source include/wait_condition.inc
+
+connect (con_load, localhost, root);
+--echo # Sending:
+--send LOAD DATA LOW_PRIORITY INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t1 (@dummy,i);
+
+connection default;
+--echo # Check that LOAD DATA is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOAD DATA LOW_PRIORITY INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t1 (@dummy,i)";
+--source include/wait_condition.inc
+
+--echo #
+--echo # This should work even for views.
+--echo #
+connect (con_view, localhost, root);
+--echo # Sending:
+--send DELETE LOW_PRIORITY FROM v1;
+
+connection default;
+--echo # Check that DELETE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "DELETE LOW_PRIORITY FROM v1";
+--source include/wait_condition.inc
+
+--echo #
+--echo # And when LOW_PRIORITY clause is used in trigger.
+--echo # 
+connect (con_trigger, localhost, root);
+--echo # Sending:
+--send INSERT INTO t2 VALUES (1);
+
+connection default;
+--echo # Check that INSERT in trigger is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t2 VALUES (1)";
+--source include/wait_condition.inc
+
+--echo #
+--echo # And for MERGE tables
+--echo #
+connect (con_merge, localhost, root);
+--echo # Sending:
+--send DELETE LOW_PRIORITY FROM tm LIMIT 1;
+
+connection default;
+--echo # Check that DELETE from MERGE table is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "DELETE LOW_PRIORITY FROM tm LIMIT 1";
+--source include/wait_condition.inc
+
+--echo # Unblock LOCK TABLE .. READ
+COMMIT;
+
+connection blocker;
+--echo # Reaping LOCK TABLE .. READ
+--reap
+UNLOCK TABLES;
+
+--echo # Reap all DML statements.
+connection con_insert;
+--reap
+connection con_replace;
+--reap
+connection con_update;
+--reap
+connection con_update_multi;
+--reap
+connection con_delete;
+--reap
+connection con_delete_multi;
+--reap
+connection con_load;
+--reap
+connection con_view;
+--reap
+connection con_trigger;
+--reap
+connection con_merge;
+--reap
+connection default;
+
+--echo #
+--echo # 2) Let us check that DML operations have lower priority than pending
+--echo #    LOCK TABLE ... READ when @@low_priority_updates mode is on.
+--echo #
+--echo # Acquire SW lock on the table, to create pending LOCK TABLE ... READ.
+BEGIN;
+INSERT INTO t1 VALUES (0);
+
+connection blocker;
+--echo # Sending:
+--send LOCK TABLE t1 READ;
+
+connection default;
+--echo # Wait until LOCK TABLE READ gets blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOCK TABLE t1 READ";
+--source include/wait_condition.inc
+
+connection con_insert;
+SET @@session.low_priority_updates= 1;
+--echo # INSERT HIGH_PRIORITY still should not get blocked
+INSERT HIGH_PRIORITY INTO t1 VALUES (1);
+
+--echo # Sending:
+--send INSERT INTO t1 VALUES (1);
+
+connection default;
+--echo # Check that INSERT is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+
+connection con_replace;
+SET @@session.low_priority_updates= 1;
+--echo # Sending:
+--send REPLACE INTO t1 VALUES (1);
+
+connection default;
+--echo # Check that REPLACE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "REPLACE INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+
+connection con_update;
+SET @@session.low_priority_updates= 1;
+--echo # Sending:
+--send UPDATE t1 SET i= 1;
+
+connection default;
+--echo # Check that UPDATE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "UPDATE t1 SET i= 1";
+--source include/wait_condition.inc
+
+connection con_update_multi;
+SET @@session.low_priority_updates= 1;
+--echo # Sending:
+--send UPDATE t1 AS a, t1 AS b SET a.i= 1;
+
+connection default;
+--echo # Check that multi-UPDATE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "UPDATE t1 AS a, t1 AS b SET a.i= 1";
+--source include/wait_condition.inc
+
+connection con_delete;
+SET @@session.low_priority_updates= 1;
+--echo # Sending:
+--send DELETE FROM t1 LIMIT 1;
+
+connection default;
+--echo # Check that DELETE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "DELETE FROM t1 LIMIT 1";
+--source include/wait_condition.inc
+
+connection con_delete_multi;
+SET @@session.low_priority_updates= 1;
+--echo # Sending:
+--send DELETE FROM a USING t1 AS a, t1 AS b;
+
+connection default;
+--echo # Check that multi-DELETE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "DELETE FROM a USING t1 AS a, t1 AS b";
+--source include/wait_condition.inc
+
+connection con_load;
+SET @@session.low_priority_updates= 1;
+--echo # Sending:
+--send LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t1 (@dummy,i);
+
+connection default;
+--echo # Check that LOAD DATA is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t1 (@dummy,i)";
+--source include/wait_condition.inc
+
+connection con_view;
+SET @@session.low_priority_updates= 1;
+--echo # Sending:
+--send DELETE FROM v1;
+
+connection default;
+--echo # Check that DELETE is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "DELETE FROM v1";
+--source include/wait_condition.inc
+
+--echo #
+--echo # And when table used in trigger.
+--echo # 
+connection con_trigger;
+SET @@session.low_priority_updates= 1;
+--echo # Sending:
+--send INSERT INTO t3 VALUES (1);
+
+connection default;
+--echo # Check that INSERT in trigger is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "INSERT INTO t3 VALUES (1)";
+--source include/wait_condition.inc
+
+--echo #
+--echo # And for MERGE tables
+--echo #
+connection con_merge;
+SET @@session.low_priority_updates= 1;
+--echo # Sending:
+--send DELETE FROM tm LIMIT 1;
+
+connection default;
+--echo # Check that DELETE from MERGE table is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "DELETE FROM tm LIMIT 1";
+--source include/wait_condition.inc
+
+--echo # Unblock LOCK TABLE .. READ
+COMMIT;
+
+connection blocker;
+--echo # Reaping LOCK TABLE .. READ
+--reap
+UNLOCK TABLES;
+
+--echo # Reap all DML statements.
+connection con_insert;
+--reap
+connection con_replace;
+--reap
+connection con_update;
+--reap
+connection con_update_multi;
+--reap
+connection con_delete;
+--reap
+connection con_delete_multi;
+--reap
+connection con_load;
+--reap
+connection con_view;
+--reap
+connection con_trigger;
+--reap
+connection con_merge;
+--reap
+
+connection default;
+disconnect blocker;
+disconnect con_insert;
+disconnect con_replace;
+disconnect con_update;
+disconnect con_update_multi;
+disconnect con_delete;
+disconnect con_delete_multi;
+disconnect con_load;
+disconnect con_view;
+disconnect con_trigger;
+disconnect con_merge;
+
+DROP VIEW v1;
+DROP TABLES tm, t2, t3, t1;
+--disable_connect_log
 
 
 # Wait till all disconnects are completed

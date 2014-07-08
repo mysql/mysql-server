@@ -265,6 +265,7 @@ SET(TESTS
   sql_plist
   sql_string
   stdcxx
+  stl_alloc
   strings_skip_trailing
   strtoll
   thread_utils

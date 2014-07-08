@@ -1402,7 +1402,7 @@ Old_rows_log_event::~Old_rows_log_event()
 }
 
 
-int Old_rows_log_event::get_data_size()
+size_t Old_rows_log_event::get_data_size()
 {
   uchar buf[sizeof(m_width)+1];
   uchar *end= net_store_length(buf, (m_width + 7) / 8);
@@ -2477,6 +2477,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
             table->file->print_error(error, MYF(0));
             DBUG_RETURN(error);
           }
+          goto restart_ha_rnd_next;
         }
         break;
 
