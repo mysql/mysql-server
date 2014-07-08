@@ -5364,6 +5364,11 @@ dict_find_table_by_space(
 
 	ut_ad(space_id > 0);
 
+	if (dict_sys == NULL) {
+		/* This could happen when it's in redo processing. */
+		return(NULL);
+	}
+
 	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 	num_item =  UT_LIST_GET_LEN(dict_sys->table_LRU);
 
