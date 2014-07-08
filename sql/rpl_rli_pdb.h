@@ -73,7 +73,8 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                db_worker_hash_entry **ptr_entry,
                                bool need_temp_tables, Slave_worker *w);
 Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
-                                        DYNAMIC_ARRAY *workers, Log_event* ev);
+                                        Slave_worker_array *workers,
+                                        Log_event* ev);
 
 #define SLAVE_INIT_DBS_IN_GROUP 4     // initial allocation for CGEP dynarray
 
@@ -267,7 +268,7 @@ public:
 #endif
 
   /* Checkpoint routine refreshes the queue */
-  ulong move_queue_head(DYNAMIC_ARRAY *ws);
+  ulong move_queue_head(Slave_worker_array *ws);
   /* Method is for slave shutdown time cleanup */
   void free_dynamic_items();
   /* 
