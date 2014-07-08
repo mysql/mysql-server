@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1518,6 +1518,15 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         privileges of top_view
       */
       tbl->grant.want_privilege= SELECT_ACL;
+
+      /*
+        For LOCK TABLES we need to acquire "strong" metadata lock to ensure
+        that we properly protect underlying tables for storage engines which
+        don't use THR_LOCK locks.
+      */
+      if (old_lex->sql_command == SQLCOM_LOCK_TABLES)
+        tbl->mdl_request.set_type(MDL_SHARED_READ_ONLY);
+
       /*
         After unfolding the view we lose the list of tables referenced in it
         (we will have only a list of underlying tables in case of MERGE
@@ -1578,9 +1587,36 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       */
       for (tbl= view_main_select_tables; tbl; tbl= tbl->next_local)
       {
+        enum_mdl_type mdl_lock_type;
+
         tbl->lock_type= table->lock_type;
-        tbl->mdl_request.set_type((tbl->lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                                  MDL_SHARED_WRITE : MDL_SHARED_READ);
+
+        if (old_lex->sql_command == SQLCOM_LOCK_TABLES)
+        {
+          /*
+            For LOCK TABLES we need to acquire "strong" metadata lock to
+            ensure that we properly protect underlying tables for storage
+            engines which don't use THR_LOCK locks.
+            OTOH for mergeable views we want to respect LOCAL clause in
+            LOCK TABLES ... READ LOCAL.
+          */
+          if (tbl->lock_type >= TL_WRITE_ALLOW_WRITE)
+            mdl_lock_type= MDL_SHARED_NO_READ_WRITE;
+          else
+          {
+            mdl_lock_type= (tbl->lock_type == TL_READ) ?
+                           MDL_SHARED_READ : MDL_SHARED_READ_ONLY;
+          }
+        }
+        else
+        {
+          /*
+            For other statements we can acquire "weak" locks.
+            Still we want to respect explicit LOW_PRIORITY clause.
+          */
+          mdl_lock_type= mdl_type_for_dml(tbl->lock_type);
+        }
+        tbl->mdl_request.set_type(mdl_lock_type);
       }
       /*
         If the view is mergeable, we might want to

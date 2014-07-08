@@ -1283,7 +1283,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <NONE>
         create change do drop insert replace insert2
-        insert_values update delete truncate rename
+        insert_values delete truncate rename
         show describe load alter optimize keycache preload flush
         reset purge begin commit rollback savepoint release
         slave master_def master_defs master_file_def slave_until_opts
@@ -1310,7 +1310,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types normal_join
         table_to_table_list table_to_table opt_table_list opt_as
-        single_multi table_wild_list table_wild_one opt_wild
+        table_wild_list table_wild_one opt_wild
         opt_and charset
         help
         opt_extended_describe
@@ -3781,7 +3781,7 @@ sp_proc_stmt_iterate:
             uint ip= sp->instructions();
 
             /* Inclusive the dest. */
-            uint n= pctx->diff_handlers(lab->ctx, FALSE);
+            size_t n= pctx->diff_handlers(lab->ctx, FALSE);
 
             if (n)
             {
@@ -4888,7 +4888,7 @@ size_number:
             uint text_shift_number= 0;
             longlong prefix_number;
             char *start_ptr= $1.str;
-            uint str_len= $1.length;
+            size_t str_len= $1.length;
             char *end_ptr= start_ptr + str_len;
             int error;
             prefix_number= my_strtoll10(start_ptr, &end_ptr, &error);
@@ -6499,7 +6499,8 @@ spatial_type:
         | GEOMETRYCOLLECTION  { $$= Field::GEOM_GEOMETRYCOLLECTION; }
         | POINT_SYM
           {
-            Lex->length= (char*)"25";
+            Lex->length= const_cast<char*>(STRINGIFY_ARG
+                                           (MAX_LEN_GEOM_POINT_FIELD));
             $$= Field::GEOM_POINT;
           }
         | MULTIPOINT          { $$= Field::GEOM_MULTIPOINT; }
@@ -9164,11 +9165,11 @@ simple_expr:
           }
         | BINARY simple_expr %prec NEG
           {
-            $$= create_func_cast(YYTHD, $2, ITEM_CAST_CHAR, &my_charset_bin);
+            $$= create_func_cast(YYTHD, @2, $2, ITEM_CAST_CHAR, &my_charset_bin);
           }
         | CAST_SYM '(' expr AS cast_type ')'
           {
-            $$= create_func_cast(YYTHD, $3, &$5);
+            $$= create_func_cast(YYTHD, @3, $3, &$5);
           }
         | CASE_SYM opt_expr when_list opt_else END
           {
@@ -9176,7 +9177,7 @@ simple_expr:
           }
         | CONVERT_SYM '(' expr ',' cast_type ')'
           {
-            $$= create_func_cast(YYTHD, $3, &$5);
+            $$= create_func_cast(YYTHD, @3, $3, &$5);
           }
         | CONVERT_SYM '(' expr USING charset_name ')'
           {
@@ -11366,7 +11367,11 @@ opt_delete_options:
 
 opt_delete_option:
           QUICK        { Select->options|= OPTION_QUICK; }
-        | LOW_PRIORITY { YYPS->m_lock_type= TL_WRITE_LOW_PRIORITY; }
+        | LOW_PRIORITY
+        {
+          YYPS->m_lock_type= TL_WRITE_LOW_PRIORITY;
+          YYPS->m_mdl_type= MDL_SHARED_WRITE_LOW_PRIO;
+        }
         | IGNORE_SYM   { Lex->set_ignore(true); }
         ;
 
@@ -11450,7 +11455,7 @@ opt_profile_args:
   | FOR_SYM QUERY_SYM NUM
     {
       int error;
-      Lex->query_id= my_strtoll10($3.str, NULL, &error);
+      Lex->query_id= static_cast<my_thread_id>(my_strtoll10($3.str, NULL, &error));
       if (error != 0)
         MYSQL_YYABORT;
     }
@@ -12162,7 +12167,9 @@ load:
             if (lex->duplicates == DUP_REPLACE && $4 == TL_WRITE_CONCURRENT_INSERT)
               $4= TL_WRITE_DEFAULT;
             if (!Select->add_table_to_list(YYTHD, $12, NULL, TL_OPTION_UPDATING,
-                                           $4, MDL_SHARED_WRITE, NULL, $13))
+                                           $4, $4 == TL_WRITE_LOW_PRIORITY ?
+                                               MDL_SHARED_WRITE_LOW_PRIO :
+                                               MDL_SHARED_WRITE, NULL, $13))
               MYSQL_YYABORT;
             lex->field_list.empty();
             lex->update_list.empty();
@@ -12636,9 +12643,9 @@ IDENT_sys:
             {
               const CHARSET_INFO *cs= system_charset_info;
               int dummy_error;
-              uint wlen= cs->cset->well_formed_len(cs, $1.str,
-                                                   $1.str+$1.length,
-                                                   $1.length, &dummy_error);
+              size_t wlen= cs->cset->well_formed_len(cs, $1.str,
+                                                     $1.str+$1.length,
+                                                     $1.length, &dummy_error);
               if (wlen < $1.length)
               {
                 ErrConvString err($1.str, $1.length, &my_charset_bin);
@@ -13500,11 +13507,26 @@ table_lock:
           table_ident opt_table_alias lock_option
           {
             thr_lock_type lock_type= (thr_lock_type) $3;
-            bool lock_for_write= (lock_type >= TL_WRITE_ALLOW_WRITE);
+            enum_mdl_type mdl_lock_type;
+
+            if (lock_type >= TL_WRITE_ALLOW_WRITE)
+            {
+              /* LOCK TABLE ... WRITE/LOW_PRIORITY WRITE */
+              mdl_lock_type= MDL_SHARED_NO_READ_WRITE;
+            }
+            else if (lock_type == TL_READ)
+            {
+              /* LOCK TABLE ... READ LOCAL */
+              mdl_lock_type= MDL_SHARED_READ;
+            }
+            else
+            {
+              /* LOCK TABLE ... READ */
+              mdl_lock_type= MDL_SHARED_READ_ONLY;
+            }
+
             if (!Select->add_table_to_list(YYTHD, $1, $2, 0, lock_type,
-                                           (lock_for_write ?
-                                            MDL_SHARED_NO_READ_WRITE :
-                                            MDL_SHARED_READ)))
+                                           mdl_lock_type))
               MYSQL_YYABORT;
           }
         ;
@@ -14462,7 +14484,7 @@ view_select:
             LEX *lex= Lex;
 
             lex->create_view_select.str= const_cast<char *>(@2.cpp.start);
-            uint len= @3.cpp.end - lex->create_view_select.str;
+            size_t len= @3.cpp.end - lex->create_view_select.str;
             void *create_view_select= thd->memdup(lex->create_view_select.str, len);
             lex->create_view_select.length= len;
             lex->create_view_select.str= (char *) create_view_select;

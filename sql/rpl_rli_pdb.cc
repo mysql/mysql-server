@@ -119,7 +119,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
                         SLAVE_INIT_DBS_IN_GROUP, 1);
   mysql_mutex_init(key_mutex_slave_parallel_worker, &jobs_lock,
                    MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_cond_slave_parallel_worker, &jobs_cond, NULL);
+  mysql_cond_init(key_cond_slave_parallel_worker, &jobs_cond);
 }
 
 Slave_worker::~Slave_worker()
@@ -612,11 +612,11 @@ bool init_hash_workers(ulong slave_parallel_workers)
 #ifdef HAVE_PSI_INTERFACE
     mysql_mutex_init(key_mutex_slave_worker_hash, &slave_worker_hash_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_cond_slave_worker_hash, &slave_worker_hash_cond, NULL);
+    mysql_cond_init(key_cond_slave_worker_hash, &slave_worker_hash_cond);
 #else
     mysql_mutex_init(NULL, &slave_worker_hash_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_cond_init(NULL, &slave_worker_hash_cond, NULL);
+    mysql_cond_init(NULL, &slave_worker_hash_cond);
 #endif
   }
 
@@ -801,7 +801,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                bool need_temp_tables, Slave_worker *last_worker)
 {
   uint i;
-  DYNAMIC_ARRAY *workers= &rli->workers;
+  Slave_worker_array *workers= &rli->workers;
 
   /*
     A dynamic array to store the mapping_db_to_worker hash elements
@@ -1042,7 +1042,8 @@ err:
    @return a pointer to chosen Slave_worker instance
 
 */
-Slave_worker *get_least_occupied_worker(Relay_log_info *rli, DYNAMIC_ARRAY *ws,
+Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
+                                        Slave_worker_array *ws,
                                         Log_event* ev)
 {
   return rli->current_mts_submode->get_least_occupied_worker(rli, ws, ev);
@@ -1387,7 +1388,7 @@ bool Slave_committed_queue::count_done(Relay_log_info* rli)
 
    @return number of discarded items
 */
-ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
+ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
 {
   DBUG_ENTER("Slave_committed_queue::move_queue_head");
   ulong i, cnt= 0;
@@ -1417,7 +1418,7 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
     /* Worker-id domain guard */
     compile_time_assert(MTS_WORKER_UNDEF > MTS_MAX_WORKERS);
 
-    get_dynamic(ws, (uchar *) &w_i, ptr_g->worker_id);
+    w_i= ws->at(ptr_g->worker_id);
 
     /*
       Memorizes the latest valid group_relay_log_name.
@@ -1993,7 +1994,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
     rli->mts_wq_overrun_cnt++;  // statistics
 
     // guarding correctness of incrementing in case of the only one Worker
-    DBUG_ASSERT(rli->workers.elements != 1 ||
+    DBUG_ASSERT(rli->workers.size() != 1 ||
                 rli->mts_wq_excess_cnt == worker->wq_overrun_cnt);
   }
   else if (worker->excess_cnt > 0)
@@ -2005,7 +2006,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
     worker->wq_overrun_cnt= 0; // and the local is reset
 
     DBUG_ASSERT(rli->mts_wq_excess_cnt >= 0);
-    DBUG_ASSERT(rli->mts_wq_excess_cnt == 0 || rli->workers.elements > 1);
+    DBUG_ASSERT(rli->mts_wq_excess_cnt == 0 || rli->workers.size() > 1);
 
   }
 

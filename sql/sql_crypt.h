@@ -38,8 +38,8 @@ class SQL_CRYPT :public Sql_alloc
   ~SQL_CRYPT() {}
   void init(ulong *seed);
   void reinit() { shift=0; rand=org_rand; }
-  void encode(char *str, uint length);
-  void decode(char *str, uint length);
+  void encode(char *str, size_t length);
+  void decode(char *str, size_t length);
 };
 
 #endif /* SQL_CRYPT_INCLUDED */

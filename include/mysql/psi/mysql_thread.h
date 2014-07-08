@@ -502,17 +502,18 @@ typedef struct st_mysql_cond mysql_cond_t;
   inline_mysql_cond_register(P1, P2, P3)
 
 /**
-  @def mysql_cond_init(K, C, A)
+  @def mysql_cond_init(K, C)
   Instrumented cond_init.
   @c mysql_cond_init is a replacement for @c pthread_cond_init.
+  Note that pthread_condattr_t is not supported in MySQL.
   @param C The cond to initialize
   @param K The PSI_cond_key for this instrumented cond
-  @param A Condition attributes
+
 */
 #ifdef HAVE_PSI_COND_INTERFACE
-  #define mysql_cond_init(K, C, A) inline_mysql_cond_init(K, C, A)
+  #define mysql_cond_init(K, C) inline_mysql_cond_init(K, C)
 #else
-  #define mysql_cond_init(K, C, A) inline_mysql_cond_init(C, A)
+  #define mysql_cond_init(K, C) inline_mysql_cond_init(C)
 #endif
 
 /**
@@ -1113,15 +1114,14 @@ static inline int inline_mysql_cond_init(
 #ifdef HAVE_PSI_COND_INTERFACE
   PSI_cond_key key,
 #endif
-  mysql_cond_t *that,
-  const native_condattr_t *attr)
+  mysql_cond_t *that)
 {
 #ifdef HAVE_PSI_COND_INTERFACE
   that->m_psi= PSI_COND_CALL(init_cond)(key, &that->m_cond);
 #else
   that->m_psi= NULL;
 #endif
-  return native_cond_init(&that->m_cond, attr);
+  return native_cond_init(&that->m_cond);
 }
 
 static inline int inline_mysql_cond_destroy(

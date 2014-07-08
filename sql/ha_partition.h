@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -310,10 +310,6 @@ public:
     Meta data routines to CREATE, DROP, RENAME table and often used at
     ALTER TABLE (update_create_info used from ALTER TABLE and SHOW ..).
 
-    update_table_comment is used in SHOW TABLE commands to provide a
-    chance for the handler to add any interesting comments to the table
-    comments not provided by the users comment.
-
     create_handler_files is called before opening a new handler object
     with openfrm to call create. It is used to create any local handler
     object needed in opening the object in openfrm
@@ -327,7 +323,6 @@ public:
                                    const char *old_name, int action_flag,
                                    HA_CREATE_INFO *create_info);
   virtual void update_create_info(HA_CREATE_INFO *create_info);
-  virtual char *update_table_comment(const char *comment);
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
                                 ulonglong * const copied,

@@ -1558,13 +1558,38 @@ public:
 };
 
 
+/*
+  Class used for unique constraint implementation by subselect_hash_sj_engine.
+  It uses store_key_item implementation to do actual copying, but after
+  that, copy_inner calculates hash of each key part for unique constraint.
+*/
+
+class store_key_hash_item :public store_key_item
+{
+ protected:
+  Item *item;
+  ulonglong *hash;
+public:
+  store_key_hash_item(THD *thd, Field *to_field_arg, uchar *ptr,
+                 uchar *null_ptr_arg, uint length, Item *item_arg,
+                 ulonglong *hash_arg)
+    :store_key_item(thd, to_field_arg, ptr,
+	       null_ptr_arg, length, item_arg), hash(hash_arg)
+  {}
+  const char *name() const { return "func"; }
+
+ protected:  
+  enum store_key_result copy_inner();
+};
+
+
 class store_key_const_item :public store_key_item
 {
   bool inited;
 public:
   store_key_const_item(THD *thd, Field *to_field_arg, uchar *ptr,
-		       uchar *null_ptr_arg, uint length,
-		       Item *item_arg)
+                       uchar *null_ptr_arg, uint length,
+                       Item *item_arg)
     :store_key_item(thd, to_field_arg, ptr,
                     null_ptr_arg, length, item_arg), inited(0)
   {

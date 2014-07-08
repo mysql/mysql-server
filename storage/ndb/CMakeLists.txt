@@ -105,6 +105,9 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_local_schema.cc
   ../../sql/ndb_repl_tab.cc
   ../../sql/ndb_conflict.cc
+  ../../sql/ndb_tdc.cc
+  ../../sql/ndb_log.cc
+  ../../sql/ndb_binlog_thread.cc
 )
 
 # Include directories used when building ha_ndbcluster

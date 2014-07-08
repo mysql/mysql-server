@@ -23,8 +23,8 @@ DEBUG =
 LFLAGS = -Wall
 TOP_SRCDIR = ../../../..
 INCLUDE_DIR = $(TOP_SRCDIR)/storage/ndb/include
-LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src/.libs \
-          -L$(TOP_SRCDIR)/libmysql_r/.libs
+LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src \
+          -L$(TOP_SRCDIR)/libmysql
 SYS_LIB = 
 
 $(TARGET): $(OBJS)

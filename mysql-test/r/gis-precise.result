@@ -223,8 +223,7 @@ st_u
 MULTIPOLYGON(((525400 18370,525000.9677614468 183300,525400 183300,525400 18370)),((525000.9677614468 183300,525000 183300,525000 183700,525000.9677614468 183300)),((525265.58 183481.95,525263.95 183484.75,525260.7 183491.55,525276.79 183500,525278.39 183500.84,525278.63 183500.97,525280.98 183502.26,525283.17 183503.47,525289.11 183506.62,525296.42 183510.31,525296.57 183510.39,525298.67 183511.53,525302.81 183513.8,525304.5 183510.83,525307.85 183504.95,525304.45 183504.25,525301.75 183509.35,525283.55 183500,525282.2 183499.3,525282.3 183499.1,525280.35 183498.2,525275.5 183495.7,525276.5 183493.45,525278.97 183488.73,525265.58 183481.95),(525266.99 183484.33,525263.26 183491.55,525266.15 183493.04,525269.88 183485.82,525266.99 183484.33),(525272.06 183488.37,525268.94 183494.51,525271.94 183496.03,525275.06 183489.89,525272.06 183488.37)))
 SET @a=0x0000000001030000000200000005000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000024400000000000000000000000000000000000000000000000000000F03F000000000000F03F0000000000000040000000000000F03F00000000000000400000000000000040000000000000F03F0000000000000040000000000000F03F000000000000F03F;
 SELECT ASTEXT(TOUCHES(@a, GEOMFROMTEXT('point(0 0)'))) t;
-t
-NULL
+ERROR 22023: Invalid GIS data provided to function st_touches.
 #
 # Bug 18408988 - WL7220 : OVERLAPPING MEMCPY CRASH IN BG_GEOMETRY_COLLECTION::CUT
 # Bug 18408919 - WL7220 : OVERLAPPING MEMCPY CRASH IN GEOMETRY::AS_WKB
@@ -232,18 +231,10 @@ NULL
 #
 select st_union((cast(linestring(point(6,-68), point(-22,-4)) as binary(13))),
 st_intersection(point(6,8),multipoint(point(3,1),point(-4,-6),point(1,6),point(-3,-5),point(5,4))));
-st_union((cast(linestring(point(6,-68), point(-22,-4)) as binary(13))),
-st_intersection(point(6,8),multipoint(point(3,1),point(-4,-6),point(1,6),point(-3,-5),point(5,4))))
-NULL
-Warnings:
-Warning	1292	Truncated incorrect BINARY(13) value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x18@\x00\x00\x00\x00\x00\x00Q\xC0\x00\x00\x00\x00\x'
+ERROR 22023: Invalid GIS data provided to function st_union.
 select st_difference((convert(st_polygonfromwkb(linestring(point(1,1))) using gb18030)),
 st_geomcollfromwkb(point(1,1)));
-st_difference((convert(st_polygonfromwkb(linestring(point(1,1))) using gb18030)),
-st_geomcollfromwkb(point(1,1)))
-NULL
-Warnings:
-Warning	1300	Invalid gb18030 character string: 'F03F00'
+ERROR 22023: Invalid GIS data provided to function st_difference.
 select mpointfromwkb(st_intersection(linestring(point(-59,82),point(32,29)), point(2,-5)));
 mpointfromwkb(st_intersection(linestring(point(-59,82),point(32,29)), point(2,-5)))
 NULL
@@ -470,7 +461,7 @@ polygon(
 linestring(point(13,0),point(13,0)),
 linestring(point(2,4), point(2,4))
 ));
-ERROR HY000: Incorrect arguments to A polygon's ring must have at least 3 distinct points.
+ERROR 22023: Invalid GIS data provided to function st_within.
 #
 # Bug 18851092 - GEOMFROMTEXT DOES NOT UNDERSTAND NESTED GEOMETRYCOLLECTIONS
 #
@@ -481,23 +472,17 @@ SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
 AsText(GeomFromText('GeometryCollection(GeometryCollection())'))
 GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())
 SELECT AsText(GeomFromText('GeometryCollection(,)'));
-AsText(GeomFromText('GeometryCollection(,)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection(())'));
-AsText(GeomFromText('GeometryCollection(())'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection(point(0 0),)'));
-AsText(GeomFromText('GeometryCollection(point(0 0),)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection(,point(0 0))'));
-AsText(GeomFromText('GeometryCollection(,point(0 0))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection(())'));
-AsText(GeomFromText('GeometryCollection(())'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection((point(0 0)))'));
-AsText(GeomFromText('GeometryCollection((point(0 0)))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
 AsText(GeomFromText('GeometryCollection(GeometryCollection())'))
 GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())
@@ -540,7 +525,7 @@ polygon(
 linestring(point(13,0),point(13,0)),
 linestring(point(2,4), point(2,4))
 ));
-ERROR HY000: Incorrect arguments to A polygon's ring must have at least 3 distinct points.
+ERROR 22023: Invalid GIS data provided to function st_within.
 #
 # Bug 18851092 - GEOMFROMTEXT DOES NOT UNDERSTAND NESTED GEOMETRYCOLLECTIONS
 #
@@ -551,23 +536,17 @@ SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
 AsText(GeomFromText('GeometryCollection(GeometryCollection())'))
 GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())
 SELECT AsText(GeomFromText('GeometryCollection(,)'));
-AsText(GeomFromText('GeometryCollection(,)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection(())'));
-AsText(GeomFromText('GeometryCollection(())'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection(point(0 0),)'));
-AsText(GeomFromText('GeometryCollection(point(0 0),)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection(,point(0 0))'));
-AsText(GeomFromText('GeometryCollection(,point(0 0))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection(())'));
-AsText(GeomFromText('GeometryCollection(())'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection((point(0 0)))'));
-AsText(GeomFromText('GeometryCollection((point(0 0)))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
 AsText(GeomFromText('GeometryCollection(GeometryCollection())'))
 GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())
@@ -642,6 +621,16 @@ MULTIPOLYGON(Polygon(LineString(Point(0, 0), Point(1, 0), Point(1, 1),
 Point(0, 0)))))))) as Result;
 Result
 GEOMETRYCOLLECTION(POINT(0 0),MULTIPOINT(0 0,1 1),LINESTRING(0 0,10 10),MULTILINESTRING((1 2,1 3)),POLYGON((10 20,1 1,2 2,10 20)),MULTIPOLYGON(((0 0,1 0,1 1,0 0))))
+#
+# BUG #18911119 ASSERTION FAILED: !NO_DATA(NBYTES)
+#
+select (aswkb(cast(st_union(multipoint(
+point(8,6), point(1,-17679),
+point(-9,-9)),
+linestring(point(91,12), point(-77,49),
+point(53,-81)))as char(18))))
+in  ('1','2');
+ERROR 22023: Invalid GIS data provided to function st_aswkb.
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN
@@ -945,7 +934,7 @@ SELECT * FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
 a
 1
 DELETE FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
-ERROR HY000: Invalid GIS data provided to function st_distance.
+ERROR 22023: Invalid GIS data provided to function st_distance.
 UPDATE t1 SET a=1 ORDER BY cast(st_distance(1,1) as DECIMAL);
-ERROR HY000: Invalid GIS data provided to function st_distance.
+ERROR 22023: Invalid GIS data provided to function st_distance.
 DROP TABLE t1;

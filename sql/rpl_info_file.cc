@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include "log.h"
 
 int init_ulongvar_from_file(ulong* var, IO_CACHE* f, ulong default_val);
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
+int init_strvar_from_file(char *var, size_t max_size, IO_CACHE *f,
                           const char *default_val);
 int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
@@ -386,7 +386,7 @@ bool Rpl_info_file::do_set_info(const int pos, const float value)
           FALSE : TRUE);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const Dynamic_ids *value)
+bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
 {
   bool error= TRUE;
   String buffer;
@@ -394,7 +394,7 @@ bool Rpl_info_file::do_set_info(const int pos, const Dynamic_ids *value)
   /*
     This produces a line listing the total number and all the server_ids.
   */
-  if (const_cast<Dynamic_ids *>(value)->pack_dynamic_ids(&buffer))
+  if (const_cast<Server_ids*>(value)->pack_dynamic_ids(&buffer))
     goto err;
 
   error= (my_b_printf(&info_file, "%s\n", buffer.c_ptr_safe()) >
@@ -437,8 +437,8 @@ bool Rpl_info_file::do_get_info(const int pos, float *value,
                                   default_value));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, Dynamic_ids *value,
-                                const Dynamic_ids *default_value __attribute__((unused)))
+bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
+                                const Server_ids *default_value __attribute__((unused)))
 {
   /*
     Static buffer to use most of the times. However, if it is not big
@@ -490,10 +490,10 @@ uint Rpl_info_file::do_get_rpl_info_type()
   return INFO_REPOSITORY_FILE;
 }
 
-int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
+int init_strvar_from_file(char *var, size_t max_size, IO_CACHE *f,
                           const char *default_val)
 {
-  uint length;
+  size_t length;
   DBUG_ENTER("init_strvar_from_file");
 
   if ((length=my_b_gets(f,var, max_size)))

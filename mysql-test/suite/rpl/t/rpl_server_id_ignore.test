@@ -4,18 +4,22 @@
 # phases of tests:
 #
 # 0. master_id new line in show slave status
-# 1. syntax related: 
+# 1. syntax related:
 #    a. error reporting if options clash;
-#    b. overriding the old IGNORE_SERVER_IDS setup by the following 
+#    b. overriding the old IGNORE_SERVER_IDS setup by the following
 #       CHANGE MASTER ... IGNORE_SERVER_IDS= (list);
 #    c. the old setup preserving by CHANGE MASTER w/o IGNORE_SERVER_IDS
-#    d. resetting the ignored server ids with the empty list arg to 
+#    d. resetting the ignored server ids with the empty list arg to
 #       IGNORE_SERVER_IDS=()
 #    e. RESET SLAVE preserves the list
-# 2. run time related: 
+#    f. RESET SLAVE ALL should empty the list.
+# 2. run time related:
 #    a. observing no processing events from a master listed in IGNORE_SERVER_IDS
 #    b. nullifying the list and resuming of taking binlog from the very beginning with
 #       executing events this time
+#
+# Related BUGS: Bug #18816897- IGNORE_SERVER_IDS NOT RESETTING POST RESET SLAVE ALL
+#
 
 source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
@@ -41,7 +45,7 @@ change master to IGNORE_SERVER_IDS= (10, 100);
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 reset slave;
---echo *** must be empty due to reset slave ***
+--echo *** must be still (10,100) after reset slave ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 --replace_column 2 ####
@@ -53,7 +57,7 @@ change master to IGNORE_SERVER_IDS= (5, 1, 4, 3, 1);
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 --echo *** ignore master (server 1) queries for a while ***
-start slave;
+--source include/start_slave.inc
 
 connection master;
 
@@ -95,10 +99,23 @@ change master to IGNORE_SERVER_IDS= ();
 --echo *** must be empty due to IGNORE_SERVER_IDS empty list ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
+
+--echo *** RESET SLAVE ALL should empty the list ***
+
+CHANGE MASTER TO IGNORE_SERVER_IDS= (10, 100);
+let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
+echo ignore server id list: $ignore_list;
+
+RESET SLAVE ALL;
+
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 eval change master to master_host='127.0.0.1', master_port=$MASTER_MYPORT, master_user='root';
-start slave;
+--source include/start_slave.inc
+
+--let $assert_text= RESET SLAVE ALL must empty the list of server-ids.
+--let $assert_cond= "[SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1]" = ""
+--source include/assert.inc
 
 connection master;
 
@@ -112,12 +129,4 @@ connection master;
 drop table t1;
 #connection slave
 --source include/sync_slave_sql_with_master.inc
-
---echo end of the tests
-
-
-
-
-
-
 --source include/rpl_end.inc

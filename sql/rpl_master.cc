@@ -117,7 +117,7 @@ void end_slave_list()
     1	Error.   Error message sent to client
 */
 
-int register_slave(THD* thd, uchar* packet, uint packet_length)
+int register_slave(THD* thd, uchar* packet, size_t packet_length)
 {
   int res;
   SLAVE_INFO *si;
@@ -303,14 +303,14 @@ bool show_slave_hosts(THD* thd)
   } while (0)
 
 
-bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
+bool com_binlog_dump(THD *thd, char *packet, size_t packet_length)
 {
   DBUG_ENTER("com_binlog_dump");
   ulong pos;
   String slave_uuid;
   ushort flags= 0;
   const uchar* packet_position= (uchar *) packet;
-  uint packet_bytes_todo= packet_length;
+  size_t packet_bytes_todo= packet_length;
 
   thd->status_var.com_other++;
   thd->enable_slow_log= opt_log_slow_admin_statements;
@@ -345,7 +345,7 @@ error_malformed_packet:
 }
 
 
-bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
+bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length)
 {
   DBUG_ENTER("com_binlog_dump_gtid");
   /*
@@ -360,7 +360,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
   uint32 name_size= 0;
   char* gtid_string= NULL;
   const uchar* packet_position= (uchar *) packet;
-  uint packet_bytes_todo= packet_length;
+  size_t packet_bytes_todo= packet_length;
   Sid_map sid_map(NULL/*no sid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_executed(&sid_map);
 
@@ -579,7 +579,7 @@ bool show_master_status(THD* thd)
   {
     LOG_INFO li;
     mysql_bin_log.get_current_log(&li);
-    int dir_len = dirname_length(li.log_file_name);
+    size_t dir_len = dirname_length(li.log_file_name);
     protocol->store(li.log_file_name + dir_len, &my_charset_bin);
     protocol->store((ulonglong) li.pos);
     protocol->store(binlog_filter->get_do_db());
@@ -613,8 +613,8 @@ bool show_binlogs(THD* thd)
   File file;
   char fname[FN_REFLEN];
   List<Item> field_list;
-  uint length;
-  int cur_dir_len;
+  size_t length;
+  size_t cur_dir_len;
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlogs");
 
@@ -646,7 +646,7 @@ bool show_binlogs(THD* thd)
   /* The file ends with EOF or empty line */
   while ((length=my_b_gets(index_file, fname, sizeof(fname))) > 1)
   {
-    int dir_len;
+    size_t dir_len;
     ulonglong file_length= 0;                   // Length if open fails
     fname[--length] = '\0';                     // remove the newline
 

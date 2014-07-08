@@ -316,10 +316,13 @@ SELECT AsText(ST_Difference(g,GeomFromText(@star_lines_near_horizontal))) FROM g
 --echo #linestring,polygon
 SELECT AsText(ST_Difference(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))')));
 SELECT AsText(ST_Difference(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal)));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))) FROM gis_geometrycollection WHERE fid=110;
 --echo #linestring,multipolygon
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15))),((25 0,0 15,25 0))')));
 SELECT AsText(ST_Difference(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems)));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))) FROM gis_geometrycollection WHERE fid=110;
 --echo #linestring,geometrycollection
 SELECT AsText(ST_Difference(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3)));
@@ -345,7 +348,6 @@ SELECT AsText(ST_Difference(g,GeomFromText(@star_line_vertical))) FROM gis_geome
 SELECT AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')));
 SELECT AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal)));
 SELECT AsText(ST_Difference(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multilinestring
 SELECT AsText(ST_Difference(g,GeomFromText(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=114;
 --echo #multilinestring,polygon
 SELECT AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical)));
@@ -397,7 +399,7 @@ SELECT AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_collection_el
 --error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
 SELECT AsText(ST_Difference(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems)));
 SELECT AsText(ST_Difference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=100;
-SELECT AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_collection_multilinestr)));
+SELECT AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_collection_elems)));
 --echo #-------------------------------------------------------------------------------------------
 --echo #multipolygon,point
 SELECT AsText(ST_Difference(GeomFromText(@star_of_elems),GeomFromText(@star_top)));
@@ -517,25 +519,37 @@ SELECT AsText(ST_Difference(g,NULL)) FROM gis_geometrycollection,gis_geometrycol
 SELECT AsText(ST_Difference(NULL,NULL));
 SELECT AsText(ST_Difference(fid,NULL)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(fid,GeomFromText(@star_top))) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText(@star_of_elems),fid)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Difference(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Difference(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Difference(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Difference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Difference(,));

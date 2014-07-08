@@ -30,9 +30,6 @@
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
-#ifdef HAVE_SELECT_H
-#include <select.h>
-#endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif

@@ -402,10 +402,7 @@ static void display_table_locks(void)
   if (saved_table_locks.empty())
     return;
 
-  // shrink_to_fit
-  Saved_locks_array(key_memory_locked_thread_list,
-                    saved_table_locks.begin(), saved_table_locks.end())
-    .swap(saved_table_locks);
+  saved_table_locks.shrink_to_fit();
 
   std::sort(saved_table_locks.begin(), saved_table_locks.end(), DL_commpare());
 

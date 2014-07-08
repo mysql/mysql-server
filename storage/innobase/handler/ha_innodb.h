@@ -195,7 +195,6 @@ class ha_innobase: public handler
 	int delete_table(const char *name);
 	int rename_table(const char* from, const char* to);
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
-	char* update_table_comment(const char* comment);
 	char* get_foreign_key_create_info();
 	int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list);
 	int get_parent_foreign_key_list(THD *thd,
@@ -203,6 +202,7 @@ class ha_innobase: public handler
 	bool can_switch_engines();
 	uint referenced_by_foreign_key();
 	void free_foreign_key_create_info(char* str);
+	uint lock_count(void) const;
 	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 					enum thr_lock_type lock_type);
 	void init_table_handle_for_HANDLER();

@@ -35,10 +35,8 @@
 
 #ifdef _WIN32
 typedef CONDITION_VARIABLE native_cond_t;
-typedef struct { int dummy; } native_condattr_t;
 #else
 typedef pthread_cond_t native_cond_t;
-typedef pthread_condattr_t native_condattr_t;
 #endif
 
 #ifdef _WIN32
@@ -81,14 +79,14 @@ static DWORD get_milliseconds(const struct timespec *abstime)
 }
 #endif /* _WIN32 */
 
-static inline int native_cond_init(native_cond_t *cond,
-                                   const native_condattr_t *attr)
+static inline int native_cond_init(native_cond_t *cond)
 {
 #ifdef _WIN32
   InitializeConditionVariable(cond);
   return 0;
 #else
-  return pthread_cond_init(cond, attr);
+  /* pthread_condattr_t is not used in MySQL */
+  return pthread_cond_init(cond, NULL);
 #endif
 }
 

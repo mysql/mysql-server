@@ -160,6 +160,12 @@ struct PFS_instr_class
     return m_flags & PSI_FLAG_MUTABLE;
   }
 
+  bool is_progress() const
+  {
+    DBUG_ASSERT(m_type == PFS_CLASS_STAGE);
+    return m_flags & PSI_FLAG_STAGE_PROGRESS;
+  }
+
   static void set_enabled(PFS_instr_class *pfs, bool enabled);
   static void set_timed(PFS_instr_class *pfs, bool timed);
 

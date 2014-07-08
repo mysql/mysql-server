@@ -71,7 +71,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     }
     if (info->s->file_map) /* Don't use cache if mmap */
       break;
-#if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
+#if defined(HAVE_MADVISE)
     if ((share->options & HA_OPTION_COMPRESS_RECORD))
     {
       mysql_mutex_lock(&share->intern_lock);
@@ -156,7 +156,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       error=end_io_cache(&info->rec_cache);
       /* Sergei will insert full text index caching here */
     }
-#if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
+#if defined(HAVE_MADVISE)
     if (info->opt_flag & MEMMAP_USED)
       madvise((char*) share->file_map, share->state.state.data_file_length,
               MADV_RANDOM);
@@ -302,7 +302,6 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     mi_extra_keyflag(info, function);
     break;
   case HA_EXTRA_MMAP:
-#ifdef HAVE_MMAP
     mysql_mutex_lock(&share->intern_lock);
     /*
       Memory map the data file if it is not already mapped. It is safe
@@ -320,7 +319,6 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       }
     }
     mysql_mutex_unlock(&share->intern_lock);
-#endif
     break;
   case HA_EXTRA_MARK_AS_LOG_TABLE:
     mysql_mutex_lock(&share->intern_lock);
@@ -390,7 +388,7 @@ int mi_reset(MI_INFO *info)
   }
   if (share->base.blobs)
     mi_alloc_rec_buff(info, -1, &info->rec_buff);
-#if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
+#if defined(HAVE_MADVISE)
   if (info->opt_flag & MEMMAP_USED)
     madvise((char*) share->file_map, share->state.state.data_file_length,
             MADV_RANDOM);

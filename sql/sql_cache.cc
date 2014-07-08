@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -650,7 +650,7 @@ void Query_cache::unlock(void)
 */
 
 static bool has_no_cache_directive(const char *sql, uint offset,
-                                   uint query_length)
+                                   size_t query_length)
 {
   uint i= offset;
 
@@ -1773,7 +1773,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     if (table->callback()) 
     {
       char qcache_se_key_name[FN_REFLEN + 1];
-      uint qcache_se_key_len;
+      size_t qcache_se_key_len;
       engine_data= table->engine_data();
 
       qcache_se_key_len= build_table_filename(qcache_se_key_name,
@@ -2216,7 +2216,7 @@ void Query_cache::init()
   mysql_mutex_init(key_structure_guard_mutex,
                    &structure_guard_mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_cache_status_changed,
-                  &COND_cache_status_changed, NULL);
+                  &COND_cache_status_changed);
   m_cache_lock_status= Query_cache::UNLOCKED;
   initialized = 1;
   /*
@@ -3825,12 +3825,13 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
     if (tables_used->uses_materialization())
     {
       /*
-        Currently all result tables are MyISAM or HEAP. MyISAM allows caching
-        unless table is under in a concurrent insert (which never could
-        happen to a derived table). HEAP always allows caching.
+        Currently all result tables are MyISAM/Innodb or HEAP. MyISAM/Innodb
+        allows caching unless table is under in a concurrent insert
+        (which never could happen to a derived table). HEAP always allows caching.
       */
       DBUG_ASSERT(table->s->db_type() == heap_hton ||
-                  table->s->db_type() == myisam_hton);
+                  table->s->db_type() == myisam_hton ||
+                  table->s->db_type() == innodb_hton);
       DBUG_RETURN(0);
     }
 

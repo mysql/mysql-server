@@ -2,17 +2,18 @@
 # Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 #
 
+# Checking if perl Expect module is installed on the system.
+# If not, the test will be skipped.
+--source include/have_expect.inc
 --source include/not_embedded.inc
+--source include/not_windows.inc
+
 SELECT password_last_changed into @password from mysql.user where host='localhost';
 call mtr.add_suppression("Dictionary file not specified");
 SET PASSWORD for root@localhost = PASSWORD('');
 # The execution of mysql_secure_installation using perl which uses the
 # Expect module as mysql_secure_installation is user interactive.
 --perl
-
-# Checking if perl Expect module is installed on the system.
-# If not, the test will be skipped.
-die "Please install the Expect module ." unless(eval{require Expect});
 
 use strict;
 require Expect;

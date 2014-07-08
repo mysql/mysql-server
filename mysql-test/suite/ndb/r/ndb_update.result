@@ -22,6 +22,8 @@ pk1	b	c
 UPDATE t1 set pk1 = 4 where pk1 = 2;
 ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
 UPDATE IGNORE t1 set pk1 = 4 where pk1 = 2;
+Warnings:
+Warning	1062	Duplicate entry '4' for key 'PRIMARY'
 select * from t1 order by pk1;
 pk1	b	c
 0	0	0
@@ -33,9 +35,14 @@ info: Rows matched: 1  Changed: 0  Warnings: 0
 UPDATE t1 set c = 1 WHERE b IN(0,1,2,3,4);
 ERROR 23000: Duplicate entry '1' for key 'c'
 UPDATE IGNORE t1 set c = 1 WHERE b IN(0,1,2,3,4);
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'c'
+Warning	1062	Duplicate entry '1' for key 'c'
 UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
 ERROR 23000: Duplicate entry '2' for key 'c'
 UPDATE IGNORE t1 set pk1 = 1, c = 2 where pk1 = 4;
+Warnings:
+Warning	1062	Duplicate entry '2' for key 'c'
 select * from t1 order by pk1;
 pk1	b	c
 0	0	0

@@ -1,0 +1,24 @@
+# This file is created to add test cases for mysqlbinlog tool
+#  which can be executed only against debug compiled mysqlbinlog
+#  tool.
+
+--source include/mysqlbinlog_have_debug.inc
+-- source include/have_binlog_format_statement.inc
+-- source include/have_log_bin.inc
+
+--echo #
+--echo # Bug#18742916 : MYSQLBINLOG --RAW DOES NOT CHECK FOR ERRORS
+--echo #
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 1
+--exec $MYSQL_BINLOG -#d,simulate_result_file_write_error_for_FD_event --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT -r$MYSQLTEST_VARDIR/tmp/ master-bin.000001 2>&1
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 1
+--exec $MYSQL_BINLOG -#d,simulate_result_file_write_error --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT -r$MYSQLTEST_VARDIR/tmp/ master-bin.000001 2>&1
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/master-bin.000001
+
+--echo
+--echo End of tests

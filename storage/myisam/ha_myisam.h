@@ -104,8 +104,8 @@ class ha_myisam: public handler
   FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
   {
     return ft_init_search(flags,file,inx,
-                          (uchar *)key->ptr(), key->length(), key->charset(),
-                          table->record[0]);
+                          (uchar *)key->ptr(), (uint)key->length(),
+                          key->charset(), table->record[0]);
   }
   int ft_read(uchar *buf);
   int rnd_init(bool scan);

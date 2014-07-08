@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 */
 
 #include <mysql.h>
+#include "prealloced_array.h"
 
 /* 
   handler::print_error has a case statement for error numbers.
@@ -83,7 +84,7 @@ class ha_federated: public handler
   /**
     Array of all stored results we get during a query execution.
   */
-  DYNAMIC_ARRAY results;
+  Prealloced_array<MYSQL_RES*, 4, true> results;
   bool position_called;
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
   int remote_error_number;

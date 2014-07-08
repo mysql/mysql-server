@@ -494,7 +494,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   char swap_file_name[FN_REFLEN+1];
   char temp_file_name[FN_REFLEN+1];
   uint swap_part_id;
-  uint part_file_name_len;
+  size_t part_file_name_len;
   Alter_table_prelocking_strategy alter_prelocking_strategy;
   MDL_ticket *swap_table_mdl_ticket= NULL;
   MDL_ticket *part_table_mdl_ticket= NULL;

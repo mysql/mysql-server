@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1679,7 +1679,7 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
       Uint32 attrDescriptor= attr_descr[attrDescriptorIndex].tabDescr;
       Uint32 attributeOffset= attr_descr[attrDescriptorIndex + 1].tabDescr;
       if ((AttributeDescriptor::getPrimaryKey(attrDescriptor)) &&
-          (regOperPtr->op_struct.op_type != ZINSERT)) {
+          (regOperPtr->op_type != ZINSERT)) {
         if (checkUpdateOfPrimaryKey(req_struct,
                                     &inBuffer[inBufIndex],
                                     regTabPtr)) {
@@ -1750,7 +1750,7 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
       if (inBufIndex == 1 + sz && inBufIndex == inBufLen)
       {
         // No table attributes are updated. Optimize op only.
-        regOperPtr->op_struct.m_physical_only_op = 1;
+        regOperPtr->op_struct.bit_field.m_physical_only_op = 1;
       }
     }
     else if (attributeId == AttributeHeader::ROW_AUTHOR)
@@ -1793,7 +1793,7 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
       }
 
       /* Record that GCI has been set explicitly */
-      regOperPtr->op_struct.m_gci_written = 1;
+      regOperPtr->op_struct.bit_field.m_gci_written = 1;
 
       *req_struct->m_tuple_ptr->get_mm_gci(regTabPtr) = gciHi;
 

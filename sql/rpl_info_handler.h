@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -268,8 +268,8 @@ public:
     @retval FALSE No error
     @retval TRUE Failure
   */
-  bool get_info(Dynamic_ids *value,
-                const Dynamic_ids *default_value)
+  bool get_info(Server_ids *value,
+                const Server_ids *default_value)
   {
     if (cursor >= ninfo || prv_error)
       return TRUE;
@@ -384,7 +384,7 @@ private:
   virtual bool do_set_info(const int pos, const ulong value)= 0;
   virtual bool do_set_info(const int pos, const int value)= 0;
   virtual bool do_set_info(const int pos, const float value)= 0;
-  virtual bool do_set_info(const int pos, const Dynamic_ids *value)= 0;
+  virtual bool do_set_info(const int pos, const Server_ids *value)= 0;
   virtual bool do_get_info(const int pos, char *value,
                            const size_t size,
                            const char *default_value)= 0;
@@ -397,8 +397,8 @@ private:
                            const int default_value)= 0;
   virtual bool do_get_info(const int pos, float *value,
                            const float default_value)= 0;
-  virtual bool do_get_info(const int pos, Dynamic_ids *value,
-                           const Dynamic_ids *default_value)= 0;
+  virtual bool do_get_info(const int pos, Server_ids *value,
+                           const Server_ids *default_value)= 0;
   virtual char* do_get_description_info()= 0;
   virtual bool do_is_transactional()= 0;
   virtual bool do_update_is_transactional()= 0;

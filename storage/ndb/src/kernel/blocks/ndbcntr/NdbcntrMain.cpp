@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,8 +103,8 @@ static BlockInfo ALL_BLOCKS[] = {
   ,{ LGMAN_REF,  1 ,     0,     0 }
   ,{ PGMAN_REF,  1 ,     0,     0 }
   ,{ RESTORE_REF,1 ,     0,     0 }
-  ,{ DBINFO_REF,1 ,     0,     0 }
-  ,{ DBSPJ_REF,1 ,     0,     0 }
+  ,{ DBINFO_REF, 1 ,     0,     0 }
+  ,{ DBSPJ_REF,  1 ,     0,     0 }
 };
 
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
@@ -153,8 +153,11 @@ void Ndbcntr::execCONTINUEB(Signal* signal)
       // Fall-through
     }
     
-    Uint64 now = NdbTick_CurrentMillisecond();
-    if(now > c_start.m_startFailureTimeout)
+    const Uint64 elapsed = NdbTick_Elapsed(
+                              c_start.m_startTime,
+                              NdbTick_getCurrentTicks()).milliSec();
+
+    if (elapsed > c_start.m_startFailureTimeout)
     {
       jam();
       Uint32 to_3= 0;
@@ -413,6 +416,987 @@ parse_spec(Vector<ddentry> & dst,
   return 0;
 }
 
+/**
+Restart Phases in MySQL Cluster
+-------------------------------
+In MySQL Cluster the restart is processed in phases, the restart of a node
+is driven by a set of phases. In addition a node restart is also synchronised
+with already started nodes and other nodes that are starting up in parallel
+with our node. This comment will describe the various phases used.
+
+The first step in starting a node is to create the data node run-time
+environment. The data node process is normally running with an angel process,
+this angel process ensures that the data node is automatically restarted in
+cases of failures. So the only reason to run the data node again is after an
+OS crash or after a shutdown by an operator or as part of a software upgrade.
+
+When starting up the data node, the data node needs a node id, this is either
+assigned through setting the parameter --ndb-nodeid when starting the data
+node, or it is assigned by the management server when retrieving the
+configuration. The angel process will ensure that the assigned node id will be
+the same for all restarts of the data node.
+
+After forking the data node process, the starting process stays as the angel
+process and the new process becomes the actual data node process. The actual
+data node process starts by retrieving the configuration from the management
+server.
+
+At this stage we have read the options, we have allocated a node id, we have
+the configuration loaded from the management server. We will print some
+important information to the data node log about our thread configuration and
+some other things. To ensure that we find the correct files and create files
+in the correct place we set the datadir of our data node process.
+
+Next we have to start the watch-dog thread since we are now starting to do
+activities where we want to ensure that we don't get stuck due to some
+software error.
+
+Next we will allocate the memory of the global memory pools, this is where
+most memory is allocated, we still have a fair amount of memory allocated as
+part of the initialisation of the various software modules in the NDB kernel,
+but step by step we're moving towards usage of the global memory pools.
+
+Allocating memory can be a fairly time-consuming process where the OS can
+require up to one second for each GByte of memory allocated (naturally OS
+dependent and will change over time). What actually consumes the time here is
+actually that we also touch each page to ensure that the allocated memory is
+also mapped to real physical memory to avoid page misses while we're running
+the process. To speed up this process we have made the touching of memory
+multi-threaded.
+
+Actually where most memory is allocated is configurable, the configuration
+variable LateAlloc can be used to delay the allocation of most memory to early
+phases of the restart.
+
+The only memory that is required to allocate in the early phase is the job
+buffer, memory for sending messages over the network and finally memory for
+messages to and from the file system threads. So allocation of e.g.
+DataMemory, IndexMemory and DiskPageBufferMemory can be delayed until the
+early start phases.
+
+After allocating the global memory pool we initialise all data used by the
+run-time environment. This ensures that we're ready to send and receive data
+between the threads used in the data node process as soon as they are started.
+
+At this point we've only started the watch-dog process and the thread started
+as part of creating the process (this thread will later be converted to the
+first receive thread if we're running ndbmtd and the only execution thread if
+we are running ndbd). Next step is to load all software modules and initialise
+those to ensure they're properly set-up when the messages start arriving for
+execution.
+
+Before we start the run-time environment we also need to activate the send
+and receive services. This involves creating a socket client thread that
+attempts to connect to socket server parts of other nodes in the cluster and
+a thread to listen to the socket server used for those data nodes we
+communicate as the socket server.
+
+The default behaviour is that the node with the lowest nodeid is the socket
+server in the communication setup. This can be changed in the data node
+configuration.
+
+Before we proceed and start the data node environment we will place the start
+signals of the run-time environment in its proper job buffer. Actually to
+start the system one needs to place two equal signals in the job buffer. The
+first start signal starts the communication to other nodes and sets the state
+to wait for the next signal to actually start the system. The second one will
+start running the start phases.
+
+Finally we start all the threads of the run-time environment. These can
+currently include a main thread, a rep thread, a number of tc threads,
+a number of send threads, a number of receive threads and a number of
+ldm threads. Given that communication buffers for all threads have been
+preallocated, we can start sending signals immediately as those threads
+startup. The receiving thread will start to take care of its received signals
+as soon as it has come to that point in its thread startup code.
+
+There are two identical start signals, the first starts a recurring signal
+that is sent on a regular basis to keep track of time in the data node.
+Only the second one starts performing the various start phases.
+
+A startup of a data node is handled in a set of phases. The first phase is
+to send the signal READ_CONFIG_REQ to all software modules in the kernel,
+then STTOR is similarly sent to all software modules in 256 phases numbered
+from 0 to 255. These are numbered from 0 to 255, we don't use all of those
+phases, but the code is flexible such that any of those phases could be
+used now or sometime in the future.
+
+In addition we have 6 modules that are involved in one more set of start
+phases. The signal sent in these phases are called NDB_STTOR. The original
+idea was to view this message as the local start of the NDB subsystem.
+These signals are sent and handled by NDBCNTR and sent as part of the STTOR
+handling in NDBCNTR. This means that it becomes a sequential part of the
+startup phases.
+
+Before starting the phases we ensure that any management node can connect
+to our node and that all other node are disconnected and that they can only
+send messages to the QMGR module. The management server receives reports
+about various events in the data node and the QMGR module is taking care of
+the inclusion of the data node into the cluster. Before we're included in
+the cluster we cannot communicate with other nodes in any manner.
+
+The start always starts in the main thread where each software module is
+represented by at least a proxy module that all multithreaded modules contain.
+The proxy module makes it possible to easy send and receive messages to a
+set of modules of the same type using one message and one reply.
+
+The READ_CONFIG_REQ signals are always sent in the same order. It starts by
+sending to CMVMI, this is the block that receives the start order and it
+performs a number of functions from where the software modules can affect the
+run-time environment. It normally allocates most memory of the process and
+touches all of this memory. It is part of the main thread.
+
+The next module receiving READ_CONFIG_REQ is NDBFS, this is the module that
+controls the file system threads, this module is found in the main thread.
+
+Next module is DBINFO, this module supports the ndbinfo database used to get
+information about the data node internals in table format, this module is
+found in the main thread.
+
+Next is DBTUP, this is the module where the actual data is stored. Next DBACC,
+the module where primary key and unique key hash indexes are stored and where
+we control row locks from. Both those blocks are contained in the ldm threads.
+
+Next is DBTC, the module where transaction coordination is managed from,
+this module is part of the tc thread. Next is DBLQH, the module that controls
+the actions on data through key operations and scans and also handles the
+REDO logs. This is the main module of the ldm thread.
+
+Next is DBTUX that operates ordered index reusing pages used to store rows
+in DBTUP, also part of the ldm thread. Next is DBDICT, the dictionary module
+used to store and handle all metadata information about tables and columns,
+tablespaces, log files and so forth. DICT is part of the main thread.
+
+Next is DBDIH, the module to store and handle distribution information about
+all tables, the table partitions and all replicas of each partition. It
+controls the local checkpoint process, the global checkpoint process and
+controls a major part of the restart processing. The DIH module is a part of
+the main thread.
+
+Next is NDBCNTR that controls the restart phases, it's part of the main
+thread. Next is QMGR which takes care of the heartbeat protocol and inclusion
+and exclusion of nodes in the cluster. It's part of the main thread.
+
+Next is TRIX that performs a few services related to ordered indexes and other
+trigger-based services. It's part of the tc thread. Next is BACKUP, this is
+used for backups and local checkpoints and is part of the ldm thread.
+
+Next is DBUTIL that provides a number of services such as performing key
+operations on behalf of code in the modules. It's part of the main thread.
+Next is the SUMA module that takes care of replication events, this is the
+module handled by the rep thread.
+
+Next is TSMAN, then LGMAN, and then PGMAN that are all part of the disk data
+handling taking care of tablespace, UNDO logging and page management. They
+are all part of the ldm thread.
+
+RESTORE is a module used to restore local checkpoints as part of a startup.
+This module is also part of the ldm thread.
+
+Finally we have the DBSPJ module that takes care of join queries pushed down
+to the data node, it executes as part of the tc thread.
+
+The DBTUP, DBACC, DBLQH, DBTUX, BACKUP, TSMAN, LGMAN, PGMAN, RESTORE are all
+tightly integrated modules that takes care of the data and indexes locally in
+each node. This set of modules form an LDM instance, each node can have
+multiple LDM instances and these can be spread over a set of threads.
+Each LDM instance owns its own partition of the data.
+
+We also have two modules that are not a part of restart handling, this is the
+TRPMAN module that performs a number of transport-related functions
+(communication with other nodes). It executes in the receive threads. Finally
+we have the THRMAN that executes in every thread and does some thread
+management functionality.
+
+All modules receive READ_CONFIG_REQ, all modules also receive STTOR for
+phase 0 and phase 1. In phase 1 they report back which startphases they want
+to get informed about more.
+
+During the READ_CONFIG_REQ the threads can execute for a very long time in
+a module since we can be allocating and touching memory of large sizes. This
+means that our watchdog thread have a special timeout for this phase to
+ensure that we don't crash the process simply due to a long time of
+initialising our memory. In normal operations each signal should execute only
+for a small number of microseconds.
+
+The start phases are synchronized by sending the message STTOR to all modules,
+logically each module gets this signal for each start phase from 0 to 255.
+However the response message STTORRY contains the list of start phases the
+module really is interested in.
+
+The NDBCNTR module that handles the start phase signals can optimise away
+any signals not needed. The order in which modules receive the STTOR message
+is the same for all phases:
+
+1) NDBFS
+2) DBTC
+3) DBDIH
+4) DBLQH
+5) DBACC
+6) DBTUP
+7) DBDICT
+8) NDBCNTR
+9) CMVMI
+10)QMGR
+11)TRIX
+12)BACKUP
+13)DBUTIL
+14)SUMA
+15)DBTUX
+16)TSMAN
+17)LGMAN
+18)PGMAN
+19)RESTORE
+20)DBINFO
+21)DBSPJ
+
+In addition there is a special start phase handling controlled by NDBCNTR,
+so when NDBCNTR receives its own STTOR message it starts a local start phase
+handling involving the modules, DBLQH, DBDICT, DBTUP, DBACC, DBTC and DBDIH.
+
+This happens for phases 2 through 8. The messages sent in these start phases
+are NDB_STTOR and NDB_STTORRY, they are handled in a similar manner to STTOR
+and STTORRY. The modules receive also those start phases in the same order
+for all phases and this order is:
+
+1) DBLQH
+2) DBDICT
+3) DBTUP
+4) DBACC
+5) DBTC
+6) DBDIH
+
+For those modules that are multithreaded, the STTOR and NDB_STTOR messages
+always are received by the Proxy module that executes in the main thread.
+The Proxy module will then send the STTOR and NDB_STTOR messages to each
+individual instance of the module (the number of instances is normally the
+same as the number of threads, but could sometimes be different). It does
+so in parallel, so all instances execute STTOR in parallel.
+
+So effectively each instance of a module will logically first receive
+READ_CONFIG_REQ, then a set of STTOR messages for each start phase and some
+modules will also receive NDB_STTOR in a certain order. All these messages
+are sent in a specific order and sequentially. So this means that we have the
+ability to control when things are done by performing it in the correct start
+phase.
+
+Next we will describe step-by-step what happens in a node restart (or a node
+start as part of a cluster start/restart). The startup is currently a
+sequential process except where it is stated that it happens in parallel.
+The below description thus describes the order things actually happens
+currently.
+
+READ_CONFIG_REQ
+---------------
+The READ_CONFIG_REQ does more or less the same for all software modules. It
+allocates the memory required by the software module and initialises the
+memory (creates various free lists and so forth). It also reads the various
+configuration parameter which is of interest to the module (these often
+affect the size of the memory we allocate).
+
+It starts in CMVMI that allocates most of the global memory pool, next we
+have NDBFS that creates the necessary file directories for disk data, it
+also creates the bound IO threads that can be used by one file at a time
+(initial number of threads configurable through InitalNoOpenFiles), then it
+creates a number of free threads (number of them configurable through
+IOThreadPool) used by disk data files (all files used to handle disk data),
+each such thread can be used to open/read/write/close a disk data file.
+Finally NDBFS also creates the communication channel from the file system
+threads back to the other threads.
+
+All other modules follow the same standard, they calculate a number of sizes
+based on hard coded defines or through configuration variables, they allocate
+memory for those variables, finally they initialise those allocated memory
+structures.
+
+STTOR Phase 0
+-------------
+First STTOR phase executed is STTOR phase 0. The only modules doing anything
+in this phase is NDBCNTR that clears the file system if the start is an initial
+start and CMVMI that creates the file system directory.
+
+STTOR Phase 1
+-------------
+Next phase executed is STTOR phase 1, in this phase most modules initialise
+some more data, references to neighbour modules are setup if necessary. In
+addition DBDIH create some special mutexes that ensures that only one process
+is involved in certain parts of the code at a time.
+
+NDBCNTR initialises some data related to running NDB_STTOR starting in
+phase 2. CMVMI locks memory if configured to do so, after this it installs the
+normal watchdog timeout since now all large memory allocations are performed.
+CMVMI also starts regular memory reporting.
+
+QMGR is the most active module in this phase. It initialises some data, it
+gets the restart type (initial start or normal start) from DBDIH, it opens
+communication to all nodes in the cluster, it starts checking for node
+failures of the include node handling. Finally it runs the protocol to
+include the new node into the heartbeat protocol. This could take a while
+since the node inclusion process can only bring in one node at a time and
+the protocol contains some delays.
+
+The BACKUP module then starts the disk speed check loop which will run as
+long as the node is up and running.
+
+STTOR Phase 2
+-------------
+Next step is to execute STTOR phase 2. The only module that does anything in
+STTOR phase 2 is NDBCNTR, it asks DIH for the restart type, it reads the node
+from the configuration, it initialises the partial timeout variables that
+controls for how long to wait before we perform a partial start.
+
+NDBCNTR sends the signal CNTR_START_REQ to the NDBCNTR in the current master
+node, this signal enables the master node to delay the start of this node if
+necessary due to other starting nodes or some other condition. For cluster
+starts/restarts it also gives the master node the chance to ensure we wait
+for enough nodes to start up before we start the nodes.
+
+The master only accepts one node at a time that has received CNTR_START_CONF,
+the next node can only receive CNTR_START_CONF after the previous starting
+node have completed copying the metadata and releasing the metadata locks and
+locks on DIH info, that happens below in STTOR phase 5.
+
+After receiving CNTR_START_CONF, NDBCNTR continues by running NDB_STTOR
+phase 1. Here DBLQH initialises the node records, it starts a reporting
+service. It does also initialise the data about the REDO log, this also
+includes initialising the REDO log on disk for all types of initial start
+(can be quite time consuming).
+
+DBDICT initialises the schema file (contains the tables that have been created
+in the cluster and other metadata objects). DBTUP initialises a default value
+fragment and DBTC and DBDIH initialises some data variables. After completing
+the NDB_STTOR phase in NDBCNTR there is no more work done in STTOR phase 2.
+
+STTOR Phase 3
+-------------
+Next step is to run the STTOR phase 3. Most modules that need the list of
+nodes in the cluster reads this in this phase. DBDIH reads the nodes in this
+phase, DBDICT sets the restart type. Next NDBCNTR receives this phase and
+starts NDB_STTOR phase 2. In this phase DBLQH sets up connections from its
+operation records to the operation records in DBACC and DBTUP. This is done
+in parallel for all DBLQH module instances.
+
+DBDIH now prepares the node restart process by locking the meta data. This
+means that we will wait until any ongoing meta data operation is completed
+and when it is completed we will lock the meta data such that no meta data
+changes can be done until we're done with the phase where we are copying the
+metadata informatiom.
+
+The reason for locking is that all meta data and distribution info is fully
+replicated. So we need to lock this information while we are copying the data
+from the master node to the starting node. While we retain this lock we cannot
+change meta data and also we cannot update distribution information while
+running local checkpoints.
+
+After locking this we need to request permission to start the node from the
+master node. The request for permission to start the node is handled by the
+starting node sending START_PERMREQ to the master node. This could receive a
+negative reply if another node is already processing a node restart, it could
+fail if an initial start is required. If another node is already starting we
+will wait 3 second and try again. This is executed in DBDIH as part of
+NDB_STTOR phase 2.
+
+After completing the NDB_STTOR phase 2 the STTOR phase 3 continues by the
+CMVMI module activating the checks of send packed data which is used by scan
+and key operations.
+
+Next the BACKUP module reads the configured nodes. Next the SUMA module sets
+the reference to the Page Pool such that it can reuse pages from this global
+memory pool, next DBTUX sets the restart type. Finally PGMAN starts a stats
+loop and a cleanup loop that will run as long as the node is up and running.
+
+We could crash the node if our node is still involved in some processes
+ongoing in the master node. This is fairly normal and will simply trigger a
+crash followed by a normal new start up by the angel process. The request
+for permission is handled by the master sending the information to all nodes.
+
+For initial starts the request for permission can be quite time consuming
+since we have to invalidate all local checkpoints from all tables in the
+meta data on all nodes. There is no parallelisation of this invalidation
+process currently, so it will invalidate one table at a time.
+
+STTOR Phase 4
+-------------
+After completing STTOR phase 3 we move onto STTOR phase 4. This phase starts
+by DBLQH acquiring a backup record in the BACKUP module that will be used
+for local checkpoint processing.
+
+Next NDBCNTR starts NDB_STTOR phase 3. This starts also in DBLQH where we
+read the configured nodes. Then we start reading the REDO log to get it
+set-up (we will set this up in the background, it will be synchronised by
+another part of cluster restart/node restart later described), for all types
+of initial starts we will wait until the initialisation of the REDO log have
+been completed until reporting this phase as completed.
+
+Next DBDICT will read the configured nodes whereafter also DBTC reads the
+configured nodes and starts transaction counters reporting. Next in
+NDB_STTOR phase 3 is that DBDIH initialises restart data for initial starts.
+
+Before completing its work in STTOR phase 4, NDBCNTR will set-up a waiting
+point such that all starting nodes have reached this point before
+proceeding. This is only done for cluster starts/restarts, so not for node
+restarts.
+
+The master node controls this waitpoint and will send the signal
+NDB_STARTREQ to DBDIH when all nodes of the cluster restart have reached
+this point. More on this signal later.
+
+The final thing happening in STTOR phase 4 is that DBSPJ reads the configured
+nodes.
+
+STTOR Phase 5
+-------------
+We now move onto STTOR phase 5. The first thing done here is to run NDB_STTOR
+phase 4. Only DBDIH does some work here and it only does something in node
+restarts. In this case it asks the current master node to start it up by
+sending the START_MEREQ signal to it.
+
+START_MEREQ works by copying distribution information from master DBDIH node
+and then also meta data information from master DBDICT. It copies one table
+of distribution information at a time which makes the process a bit slow
+since it includes writing the table to disk in the starting node.
+
+The only manner to trace this event is when writing the table distribution
+information per table in DBDIH in the starting node. We can trace the
+reception of DICTSTARTREQ that is received in the starting nodes DBDICT.
+
+When DBDIH and DBDICT information is copied then we need to block the global
+checkpoint in order to include the new node in all changes of meta data and
+distribution information from now on. This is performed by sending
+INCL_NODEREQ to all nodes. After this we can release the meta data lock that
+was set by DBDIH already in STTOR phase 2.
+
+After completing NDB_STTOR phase 4, NDBCNTR synchronises the start again in
+the following manner:
+
+If initial cluster start and master then create system tables
+If cluster start/restart then wait for all nodes to reach this point.
+After waiting for nodes in a cluster start/restart then run NDB_STTOR
+phase 5 in master node (only sent to DBDIH).
+If node restart then run NDB_STTOR phase 5 (only sent to DBDIH).
+
+NDB_STTOR phase 5 in DBDIH is waiting for completion of a local checkpoint
+if it is a master and we are running a cluster start/restart. For node
+restarts we send the signal START_COPYREQ to the starting node to ask for
+copying of data to our node.
+
+  START OF DATABASE RECOVERY
+
+We start with explaining a number of terms used.
+------------------------------------------------
+LCP: Local checkpoint, in NDB this means that all data in main memory is
+written to disk and we also write changed disk pages to disk to ensure
+that all changes before a certain point is available on disk.
+Execute REDO log: This means that we're reading the REDO log one REDO log
+record at a time and executing the action if needed that is found in the
+REDO log record.
+Apply the REDO log: Synonym of execute the REDO log.
+Prepare REDO log record: This is a REDO log record that contains the
+information about a change in the database (insert/delete/update/write).
+COMMIT REDO log record: This is a REDO log record that specifies that a
+Prepare REDO log record is to be actually executed. The COMMIT REDO log
+record contains a back reference to the Prepare REDO log record.
+ABORT REDO log record: Similarly to the COMMIT REDO log record but here
+the transaction was aborted so there is no need to apply the REDO log
+record.
+Database: Means in this context all the data residing in the cluster or
+in the node when there is a node restart.
+Off-line Database: Means that our database in our node is not on-line
+and thus cannot be used for reading. This is the state of the database
+after restoring a LCP, but before applying the REDO log.
+Off-line Consistent database: This is a database state which is not
+up-to-date with the most recent changes, but it represents an old state
+in the database that existed previously. This state is achieved after
+restoring an LCP and executing the REDO log.
+On-line Database: This is a database state which is up-to-date, any node
+that can be used to read data is has its database on-line (actually
+fragments are brought on-line one by one).
+On-line Recoverable Database: This is an on-line database that is also
+recoverable. In a node restart we reach the state on-line database first,
+but we need to run an LCP before the database can also be recovered to
+its current state. A recoverable database is also durable so this means
+that we're adding the D in ACID to the database when we reach this state.
+Node: There are API nodes, data nodes and management server nodes. A data
+node is a ndbd/ndbmtd process that runs all the database logic and
+contains the database data. The management server node is a process that
+runs ndb_mgmd that contains the cluster configuration and also performs
+a number of management services. API nodes are part of application processes
+and within mysqld's. There can be more than one API node per application
+process. Each API node is connected through a socket (or other
+communication media) to each of the data nodes and management server nodes.
+When one refers to nodes in this text it's mostly implied that we're
+talking about a data node.
+Node Group: A set of data nodes that all contain the same data. The number
+of nodes in a node group is equal to the number of replicas we use in the
+cluster.
+Fragment: A part of a table that is fully stored on one node group.
+Partition: Synonym of fragment.
+Fragment replica: This is one fragment in one node. There can be up
+to 4 replicas of a fragment (so thus a node group can have up to
+4 nodes in it).
+Distribution information: This is information about the partitions
+(synonym of fragments) of the tables and on which nodes they reside
+and information about LCPs that have been executed on each fragment
+replica.
+Metadata: This is the information about tables, indexes, triggers,
+foreign keys, hash maps, files, log file groups, table spaces.
+Dictionary information: Synonym to metadata.
+LDM: Stands for Local Data Manager, these are the blocks that execute
+the code that handles the data handled within one data node. It contains
+blocks that handles the tuple storage, the hash index, the T-tree index,
+the page buffer manager, the tablespace manager, a block that writes
+LCPs and a block that restores LCPs, a log manager for disk data.
+
+------------------------------------------------------------------------------
+| What happens as part START_COPYREQ is what is the real database restore    |
+| process. Here most of the important database recovery algorithms are       |
+| executed to bring the database online again. The earlier phases were still |
+| needed to restore the metadata and setup communication, setup memory and   |
+| bringing in the starting node as a full citizen in the cluster of data     |
+| nodes.                                                                     |
+------------------------------------------------------------------------------
+
+START_COPYREQ goes through all distribution information and sends
+START_FRAGREQ to the owning DBLQH module instance for each fragment replica
+to be restored on the node. DBLQH will start immediately to restore those
+fragment replicas, it will queue the fragment replicas and restore one at a
+time. This happens in two phases, first all fragment replicas that requires
+restore of a local checkpoint starts to do that.
+
+After all fragment replicas to restore have been sent and we have restored all
+fragments from a local checkpoint stored on our disk (or sometime by getting
+the entire fragment from an alive node) then it is time to run the disk data
+UNDO log. Finally after running this UNDO log we're ready to get the fragment
+replicas restored to latest disk-durable state by applying the REDO log.
+
+DBDIH will send all required information for all fragment replicas to DBLQH
+whereafter it sends START_RECREQ to DBLQH to indicate all fragment replica
+information have been sent now.
+
+START_RECREQ is sent through the DBLQH proxy module and this part is
+parallelised such that all LDM instances are performing the below parts in
+parallel.
+
+If we're doing a initial node restart we don't need to restore any local
+checkpoints since initial node restart means that we start without a file
+system. So this means that we have to restore all data from other nodes in
+the node group. In this case we start applying the copying of fragment
+replicas immediately in DBLQH when we receive START_FRAGREQ. In this case
+we don't need to run any Undo or Redo log since there is no local checkpoint
+to restore the fragment.
+
+When this is completed and DBDIH has reported that all fragment replicas to
+start have been sent by sending START_RECREQ to DBLQH we will send
+START_RECREQ to TSMAN whereafter we are done with the restore of the data.
+
+We will specify all fragment replicas to restore as part of REDO log
+execution. This is done through the signal EXEC_FRAGREQ. When all such signals
+have been sent we send EXEC_SRREQ to indicate we have prepared for the next
+phase of REDO log execution in DBLQH.
+
+When all such signals are sent we have completed what is termed as phase 2
+of DBLQH, the phase 1 in DBLQH is what started in NDB_STTOR phase 3 to prepare
+the REDO log for reading it. So when both those phases are complete we're ready
+to start what is termed phase 3 in DBLQH.
+
+These DBLQH phases are not related to the start phases, these are internal
+stages of startup in the DBLQH module.
+
+Phase 3 in DBLQH is the reading of the REDO log and applying it on fragment
+replicas restored from the local checkpoint. This is required to create a
+database state which is synchronised on a specific global checkpoint. So we
+first install a local checkpoint for all fragments, next we apply the REDO
+log to synchronise the fragment replica with a certain global checkpoint.
+
+Before executing the REDO log we need to calculate the start GCI and the last
+GCI to apply in the REDO log by checking the limits on all fragment replicas
+we will restore to the desired global checkpoint.
+
+DBDIH has stored information about each local checkpoint of a fragment
+replica which global checkpoint ranges that are required to run from the REDO
+log in order to bring it to the state of a certain global checkpoint. This
+information was sent in the START_FRAGREQ signal. DBLQH will merge all of
+those limits per fragment replica to a global range of global checkpoints to
+run for this LDM instance. So each fragment replica has its own GCP id range
+to execute and this means that the minimum of all those start ranges and
+maximum of all the end ranges is the global range of GCP ids that we need
+to execute in the REDO log to bring the cluster on-line again.
+
+The next step is to calculate the start and stop megabyte in the REDO log for
+each log part by using the start and stop global checkpoint id. All the
+information required to calculate this is already in memory, so it's a pure
+calculation.
+
+When we execute the REDO log we actually only apply the COMMIT records in the
+correct global checkpoint range. The COMMIT record and the actual change
+records are in different places in the REDO log, so for each Megabyte of
+REDO log we record how far back in the REDO log we have to go to find the
+change records.
+
+While running the REDO log we maintain a fairly large cache of the REDO log
+to avoid that we have to do disk reads in those cases where the transaction
+ran for a long time.
+
+This means that long-running and large transactions can have a negative effect
+on restart times.
+
+After all log parts have completed this calculation we're now ready to start
+executing the REDO log. After executing the REDO log to completion we also
+write some stuff into the REDO log to indicate that any information beyond
+what we used here won't be used at any later time.
+
+We now need to wait for all other log parts to also complete execution of
+their parts of the REDO log. The REDO log execution is designed such that we
+can execute the REDO log in more than one phase, this is intended for cases
+where we can rebuild a node from more than one live node. Currently this code
+should never be used.
+
+So the next step is to check for the new head and tail of the REDO log parts.
+This is done through the same code that uses start and stop global
+checkpoints to calculate this number. This phase of the code also prepares
+the REDO log parts for writing new REDO log records by ensuring that the
+proper REDO log files are open. It also involves some rather tricky code to
+ensure that pages that have been made dirty are properly handled.
+
+  COMPLETED RESTORING OFF-LINE CONSISTENT DATABASE
+------------------------------------------------------------------------------
+| After completing restoring fragment replicas to a consistent global        |
+| checkpoint, we will now start rebuilding the ordered indexes based on the  |
+| data restored. After rebuilding the ordered indexes we are ready to send   |
+| START_RECCONF to the starting DBDIH. START_RECCONF is sent through the     |
+| DBLQH proxy, so it won't be passed onto DBDIH until all DBLQH instances    |
+| have completed this phase and responded with START_RECCONF.                |
+------------------------------------------------------------------------------
+
+At this point in the DBLQH instances we have restored a consistent but old
+variant of all data in the node. There are still no ordered indexes and there
+is still much work remaining to get the node synchronised with the other nodes
+again. For cluster restarts it might be that the node is fully ready to go,
+it's however likely that some nodes still requires being synchronised with
+nodes that have restored a more recent global checkpoint.
+
+The DBDIH of the starting node will then start the take over process now
+that the starting node has consistent fragment replicas. We will prepare the
+starting node's DBLQH for the copying phase by sending PREPARE_COPY_FRAG_REQ
+for each fragment replica we will copy over. This is a sequential process that
+could be parallelised a bit.
+
+The process to take over a fragment replica is quite involved. It starts by
+sending PREPARE_COPY_FRAGREQ/CONF to the starting DBLQH, then we send
+UPDATE_TOREQ/CONF to the master DBDIH to ensure we lock the fragment
+information before the take over starts. After receiving confirmation of this
+fragment lock, the starting node send UPDATE_FRAG_STATEREQ/CONF to all nodes to
+include the new node into all operations on the fragment.
+
+After completing this we again send UPDATE_TOREQ/CONF to the master node to
+inform of the new status and unlock the lock on the fragment information. Then
+we're ready to perform the actual copying of the fragment. This is done by
+sending COPY_FRAGREQ/CONF to the node that will copy the data. When this
+copying is done we send COPY_ACTIVEREQ/CONF to the starting node to activate
+the fragment replica.
+
+Next we again send UPDATE_TOREQ/CONF to the master informing about that we're
+about to install the commit the take over of the new fragment replica. Next we
+commit the new fragment replica by sending UPDATE_FRAG_STATEREQ/CONF to all
+nodes informing them about completion of the copying of the fragment replica.
+Finally we send another update to the master node with UPDATE_TOREQ/CONF.
+Now we're finally complete with copying of this fragment.
+
+The idea with this scheme is that the first UPDATE_FRAG_STATEREQ ensures that
+we're a part of all transactions on the fragment. After doing the COPY_FRAGREQ
+that synchronises the starting node's fragment replica with the alive node's
+fragment replica on a row by row basis, we're sure that the two fragment
+replicas are entirely synchronised and we can do a new UPDATE_FRAG_STATEREQ to
+ensure all nodes know that we're done with the synchronisation.
+
+  COMPLETED RESTORING ON-LINE NOT RECOVERABLE DATABASE
+------------------------------------------------------------------------------
+| At this point we have restored an online variant of the database by        |
+| bringing one fragment at a time online. The database is still not          |
+| recoverable since we haven't enabled logging yet and there is no local     |
+| checkpoint of the data in the starting node.                               |
+------------------------------------------------------------------------------
+
+Next step is to enable logging on all fragments, after completing this step
+we will send END_TOREQ to the master DBDIH. At this point we will wait until a
+local checkpoint is completed where this node have been involved. Finally when
+the local checkpoint have been completed we will send END_TOCONF to the
+starting node and then we will send START_COPYCONF and that will complete
+this phase of the restart.
+
+  COMPLETED RESTORING ON-LINE RECOVERABLE DATABASE
+------------------------------------------------------------------------------
+| At this point we have managed to restored all data and we have brought it  |
+| online and now we have also executed a local checkpoint afer enabling      |
+| logging and so now data in the starting node is also recoverable. So this  |
+| means that the database is now fully online again.                         |
+------------------------------------------------------------------------------
+
+After completing NDB_STTOR phase 5 then all nodes that have been synchronised
+in a waitpoint here are started again and NDBCNTR continues by running
+phase 6 of NDB_STTOR.
+
+In this phase DBLQH, DBDICT and DBTC sets some status variables indicating
+that now the start has completed (it's not fully completed yet, but all
+services required for those modules to operate are completed. DBDIH also
+starts global checkpoint protocol for cluster start/restarts where it has
+become the master node.
+
+Yet one more waiting point for all nodes is now done in the case of a cluster
+start/restart.
+
+The final step in STTOR phase 5 is SUMA that reads the configured nodes,
+gets the node group members and if there is node restart it asks another
+node to recreate subscriptions for it.
+
+STTOR Phase 6
+-------------
+We now move onto STTOR phase 6. In this phase NDBCNTR gets the node group of
+the node, DBUTIL gets the systable id, prepares a set of operations for later
+use and connects to TC to enable it to run key operations on behalf of other
+modules later on.
+
+STTOR Phase 7
+-------------
+Next we move onto STTOR phase 7. DBDICT now starts the index statistics loop
+that will run as long as the node lives.
+
+QMGR will start arbitration handling to handle a case where we are at risk of
+network partitioning.
+
+BACKUP will update the disk checkpoint speed (there is one config variable
+for speed during restarts and one for normal operation, here we install the
+normal operation speed). If initial start BACKUP will also create a backup
+sequence through DBUTIL.
+
+SUMA will create a sequence if it's running in a master node and it's an
+initial start. SUMA will also always calculate which buckets it is
+responsible to handle. Finally DBTUX will start monitoring of ordered indexes.
+
+STTOR Phase 8
+-------------
+We then move onto STTOR phase 8. First thing here is to run phase 7 of
+NDB_STTOR in which DBDICT enables foreign keys. Next NDBCNTR will also wait
+for all nodes to come here if we're doing a cluster start/restart.
+
+Next CMVMI will set state to STARTED and QMGR will enable communication to
+all API nodes.
+
+STTOR Phase 101
+---------------
+After this phase the only remaining phase is STTOR phase 101 in which SUMA
+takes over responsibility of the buckets it is responsible for in the
+asynchronous replication handling.
+
+Major potential consumers of time so far:
+
+All steps in the memory allocation (all steps of the READ_CONFIG_REQ).
+CMVMI STTOR phase 1 that could lock memory. QMGR phase 1 that runs the
+node inclusion protocol.
+
+NDBCNTR STTOR phase 2 that waits for CNTR_START_REQ, DBLQH REDO log
+initialisation for initial start types that happens in STTOR phase 2.
+Given that only one node can be in this phase at a time, this can be
+stalled by a local checkpoint wait of another node starting. So this
+wait can be fairly long.
+
+DBLQH sets up connections to DBACC and DBTUP, this is NDB_STTOR phase 2.
+DBDIH in NDB_STTOR phase 2 also can wait for the meta data to be locked
+and it can wait for response to START_PERMREQ.
+
+For initial starts waiting for DBLQH to complete NDB_STTOR phase 3 where
+it initialises set-up of the REDO logs. NDBCNTR for cluster start/restarts
+in STTOR phase 4 after completing NDB_STTOR phase 3 have to wait for all
+nodes to reach this point and then it has to wait for NDB_STARTREQ to
+complete.
+
+For node restarts we have delays in waiting for response to START_MEREQ
+signal and START_COPYREQ, this is actually where most of the real work of
+the restart is done. SUMA STTOR phase 5 where subscriptions are recreated
+is another potential time consumer.
+
+All waitpoints are obvious potential consumers of time. Those are mainly
+located in NDBCNTR (waitpoint 5.2, 5,1 and 6).
+
+Historical anecdotes:
+1) The NDB kernel run-time environment was originally designed for an
+AXE virtual machine. In AXE the starts were using the module MISSRA to
+drive the STTOR/STTORRY signals for the various startup phases.
+The MISSRA was later merged into NDBCNTR and is a submodule of NDBCNTR
+nowadays. The name of STTOR and STTORRY has some basis in the AXE systems
+way of naming signals in early days but has been forgotten now. At least
+the ST had something to do wih Start/Restart.
+
+2) The reason for introducing the NDB_STTOR was since we envisioned a system
+where the NDB kernel was just one subsystem within the run-time environment.
+So therefore we introduced separate start phases for the NDB subsystem.
+Over time the need for such a subsystem startup phases are no longer there,
+but the software is already engineered for this and thus it's been kept in
+this manner.
+
+3) Also the responsibility for the distributed parts of the database start
+is divided. QMGR is responsible for discovering when nodes are up and down.
+NDBCNTR maintains the protocols for failure handling and other changes of the
+node configuration. Finally DBDIH is responsible for the distributed start of
+the database parts. It interacts a lot with DBLQH that have the local
+responsibility of starting one nodes database part as directed by DBDIH.
+
+Local checkpoint processing in MySQL Cluster
+--------------------------------------------
+
+This comment attempts to describe the processing of checkpoints as it happens
+in MySQL Cluster. It also clarifies where potential bottlenecks are. This
+comment is mainly intended as internal documentation of the open source code
+of MySQL Cluster.
+
+The reason for local checkpoints in MySQL Cluster is to ensure that we have
+copy of data on disk which can be used to run the REDO log against to restore
+the data in MySQL Cluster after a crash.
+
+We start by introducing different restart variants in MySQL Cluster. The first
+variant is a normal node restart, this means that the node have been missing
+for a short time, but is now back on line again. We start by installing a
+checkpointed version of all tables (including executing proper parts of the
+REDO log against it). Next step is to use the replica which are still online
+to make the checkpointed version up to date. Replicas are always organised in
+node groups, the most common size of a node group is two nodes. So when a
+node starts up, it uses the other node in the same node group to get an
+online version of the tables back online. In a normal node restart we have
+first restored a somewhat old version of all tables before using the other
+node to synchronize it. This means that we only need to ship the latest
+version of the rows that have been updated since the node failed before the
+node restart. We also have the case of initial node restarts where all data
+have to be restored from the other node since the checkpoint in the starting
+node is either too old to be reused or it's not there at all when a completely
+new node is started up.
+
+The third variant of restart is a so called system restart, this means that
+the entire cluster is starting up after a cluster crash or after a controlled
+stop of the cluster. In this restart type we first restore a checkpoint on all
+nodes before running the REDO log to get the system in a consistent and
+up-to-date state. If any node was restored to an older global checkpoint than
+the one to restart from, then it is necessary to use the same code used in
+node restarts to bring those node to an online state.
+
+The system restart will restore a so called global checkpoint. A set of
+transactions are grouped together into a global checkpoint, when this global
+checkpoint has been completed the transactions belonging to it are safe and
+will survive a cluster crash. We run global checkpoints on a second level,
+local checkpoints write the entire data set to disk and is a longer process
+taking at least minutes.
+
+Before a starting node can be declared as fully restored it has to participate
+in a local checkpoint. The crashing node misses a set of REDO log record
+needed to restore the cluster, thus the node isn't fully restored until it can
+be used to restore all data it owns in a system restart.
+
+So when performing a rolling node restart where all nodes in the cluster are
+restarted (e.g. to upgrade the software in MySQL Cluster), it makes sense to
+restart a set of nodes at a time since we can only have one set of nodes
+restarted at a time.
+
+This was a bit of prerequisite to understand the need for local checkpoints.
+We now move to the description of how a local checkpoint is processed.
+
+The local checkpoint is a distributed process. It is controlled by a
+software module called DBDIH (or DIH for short, DIstribution Handler).
+DIH contains all the information about where various replicas of each fragment
+(synonym with partition) are placed and various data on these replicas.
+DIH stores distribution information in one file per table. This file is
+actually two files, this is to ensure that we can do careful writing of the
+file. We first write file 0, when this is completed, we write file 1,
+in this manner we can easily handle any crashes while writing the table
+description.
+
+When a local checkpoint have been completed, DIH immediately starts the
+process to start the next checkpoint. At least one global checkpoint have
+to be completed since starting the local checkpoint before we will start a
+new local checkpoint.
+
+The first step in the next local checkpoint is to check if we're ready to
+run it yet. This is performed by sending the message TCGETOPSIZEREQ to all
+TC's in the cluster. This will report back the amount of REDO log information
+generated by checking the information received in TC for all write
+transactions. The message will be sent by the master DIH. The role of the
+master is assigned to the oldest surviving data node, this makes it easy to
+select a new master whenever a data node currently acting as master dies.
+All nodes agree on the order of nodes entering the cluster, so the age of
+a node is consistent in all nodes in the cluster.
+
+When all messages have returned the REDO log write size to the master
+DIH we will compare it to the config variable TimeBetweenLocalCheckpoints
+(this variable is set in logarithm of size, so e.g. 25 means we wait
+2^25 words of REDO log has been created in the cluster which is 128 MByte
+of REDO log info).
+
+When sufficient amount of REDO log is generated, then we start the next local
+checkpoint, the first step is to clear all TC counters, this is done by
+sending TC_CLOPSIZEREQ to all TC's in the cluster.
+
+The next step is to calculate the keep GCI (this is the oldest global
+checkpoint id that needs to be retained in the REDO log). This number is very
+important since it's the point where we can move the tail of the REDO log
+forward. If we run out of REDO log space we will not be able to run any
+writing transactions until we have started the next local checkpoint and
+thereby moved the REDO log tail forward.
+
+We calculate this number by checking each fragment what GCI it needs to be
+restored. We currently keep two old local checkpoints still valid, so we
+won't move the GCI back to invalidate the two oldest local checkpoints per
+fragment. The GCI that will be restorable after completing this calculation
+is the minimum GCI found on all fragments when looping over them.
+
+Next we write this number and the new local checkpoint id and some other
+information in the Sysfile of all nodes in the cluster. This Sysfile is the
+first thing we look at when starting a restore of the cluster in a system
+restart, so it's important to have this type of information correct in this
+file.
+
+When this is done we will calculate which nodes that will participate in the
+local checkpoint (nodes currently performing the early parts of a restart is
+not part of the local checkpoint and obviously also not dead nodes).
+
+We send the information about the starting local checkpoint to all other DIH's
+in the system. We must keep all other DIH's up-to-date all the time to ensure
+it is easy to continue the local checkpoint also when the master DIH crashes
+or is stopped in the middle of the local checkpoint process. Each DIH records
+the set of nodes participating in the local checkpoint. They also set a flag
+on each replica record indicating a local checkpoint is ongoing, on each
+fragment record we also set the number of replicas that are part of this local
+checkpoint.
+
+Now we have completed the preparations for the local checkpoint, it is now
+time to start doing the actual checkpoint writing of the actual data. The
+master DIH controls this process by sending off a LCP_FRAG_ORD for each
+fragment replica that should be checkpointed. DIH can currently have 2 such
+LCP_FRAG_ORD outstanding per node and 2 fragment replicas queued. Each LDM
+thread can process writing of one fragment replica at a time and it can
+have one request for the next fragment replica queued. It's fairly
+straightforward to extend this number such that more fragment replicas can
+be written in parallel and more can be queued.
+
+LCP_FRAG_REP is sent to all DIH's when the local checkpoint for a fragment
+replica is completed. When a DIH discovers that all fragment replicas of a
+table have completed the local checkpoint, then it's time to write the table
+description to the file system. This will record the interesting local
+checkpoint information for all of the fragment replicas. There are two things
+that can cause this to wait. First writing and reading of the entire table
+description is something that can only happen one at a time, this mainly
+happens when there is some node failure handling ongoing while the local
+checkpoint is being processed.
+
+The second thing that can block the writing of a table description is that
+currently a maximum of 4 table descriptions can be written in parallel. This
+could easily become a bottleneck since each write a file can take in the order
+of fifty milliseconds. So this means we can currently only write about 80 such
+tables per second. In a system with many tables and little data this could
+become a bottleneck. It should however not be a difficult bottleneck.
+
+When the master DIH has sent all requests to checkpoint all fragment replicas
+it will send a special LCP_FRAG_ORD to all nodes indicating that no more
+fragment replicas will be sent out.
+*/
+
 void 
 Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
 {
@@ -495,8 +1479,10 @@ void Ndbcntr::execSTTOR(Signal* signal)
 
   switch (cstartPhase) {
   case 0:
-    if(m_ctx.m_config.getInitialStart()){
+    if (m_ctx.m_config.getInitialStart())
+    {
       jam();
+      g_eventLogger->info("Clearing filesystem in initial start");
       c_fsRemoveCount = 0;
       clearFilesystem(signal);
       return;
@@ -598,6 +1584,7 @@ void Ndbcntr::execNDB_STTORRY(Signal* signal)
     break;
   case ZSTART_PHASE_9:
     jam();
+    g_eventLogger->info("NDB start phase 8 completed");
     ph8ALab(signal);
     return;
     break;
@@ -715,10 +1702,8 @@ void Ndbcntr::ph2ALab(Signal* signal)
 
 inline
 Uint64
-setTimeout(Uint64 time, Uint32 timeoutValue){
-  if(timeoutValue == 0)
-    return ~(Uint64)0;
-  return time + timeoutValue;
+setTimeout(Uint32 timeoutValue){
+  return (timeoutValue != 0) ? timeoutValue : ~(Uint64)0;
 }
 
 /*******************************/
@@ -750,10 +1735,10 @@ void Ndbcntr::execREAD_NODESCONF(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_START_PARTITION_TIMEOUT, &to_2);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_FAILURE_TIMEOUT, &to_3);
   
-  c_start.m_startTime = NdbTick_CurrentMillisecond();
-  c_start.m_startPartialTimeout = setTimeout(c_start.m_startTime, to_1);
-  c_start.m_startPartitionedTimeout = setTimeout(c_start.m_startTime, to_2);
-  c_start.m_startFailureTimeout = setTimeout(c_start.m_startTime, to_3);
+  c_start.m_startTime = NdbTick_getCurrentTicks();
+  c_start.m_startPartialTimeout = setTimeout(to_1);
+  c_start.m_startPartitionedTimeout = setTimeout(to_2);
+  c_start.m_startFailureTimeout = setTimeout(to_3);
   
   sendCntrStartReq(signal);
 
@@ -764,14 +1749,30 @@ void Ndbcntr::execREAD_NODESCONF(Signal* signal)
 }
 
 void
-Ndbcntr::execCM_ADD_REP(Signal* signal){
+Ndbcntr::execCM_ADD_REP(Signal* signal)
+{
   jamEntry();
   c_clusterNodes.set(signal->theData[0]);
 }
 
 void
-Ndbcntr::sendCntrStartReq(Signal * signal){
+Ndbcntr::sendCntrStartReq(Signal * signal)
+{
   jamEntry();
+
+  if (getOwnNodeId() == cmasterNodeId)
+  {
+    g_eventLogger->info("Asking master node to accept our start "
+                        "(we are master, GCI = %u)",
+                        c_start.m_lastGci);
+  }
+  else
+  {
+    g_eventLogger->info("Asking master node to accept our start "
+                        "(nodeId = %u is master), GCI = %u",
+                        cmasterNodeId,
+                        c_start.m_lastGci);
+  }
 
   CntrStartReq * req = (CntrStartReq*)signal->getDataPtrSend();
   req->startType = ctypeOfStart;
@@ -830,6 +1831,36 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal){
   c_startedNodes.bitOR(tmp);
   c_start.m_starting.assign(NdbNodeBitmask::Size, conf->startingNodes);
   m_cntr_start_conf = true;
+  g_eventLogger->info("NDBCNTR master accepted us into cluster,"
+                      " start NDB start phase 1");
+  switch (ctypeOfStart)
+  {
+    case NodeState::ST_INITIAL_START:
+    {
+      g_eventLogger->info("We are performing initial start of cluster");
+      break;
+    }
+    case NodeState::ST_INITIAL_NODE_RESTART:
+    {
+      g_eventLogger->info("We are performing initial node restart");
+      break;
+    }
+    case NodeState::ST_NODE_RESTART:
+    {
+      g_eventLogger->info("We are performing a node restart");
+      break;
+    }
+    case NodeState::ST_SYSTEM_RESTART:
+    {
+      g_eventLogger->info("We are performing a restart of the cluster");
+      break;
+    }
+    default:
+    {
+      ndbrequire(false);
+      break;
+    }
+  }
   ph2GLab(signal);
 }
 
@@ -1199,11 +2230,13 @@ Ndbcntr::trySystemRestart(Signal* signal){
 
 void Ndbcntr::ph2GLab(Signal* signal) 
 {
-  if (cndbBlocksCount < ZNO_NDB_BLOCKS) {
+  if (cndbBlocksCount < ZNO_NDB_BLOCKS)
+  {
     jam();
     sendNdbSttor(signal);
     return;
   }//if
+  g_eventLogger->info("NDB start phase 1 completed");
   sendSttorry(signal);
   return;
 }//Ndbcntr::ph2GLab()
@@ -1224,6 +2257,7 @@ void Ndbcntr::ph2GLab(Signal* signal)
 /*******************************/
 void Ndbcntr::startPhase3Lab(Signal* signal) 
 {
+  g_eventLogger->info("Start NDB start phase 2");
   ph3ALab(signal);
   return;
 }//Ndbcntr::startPhase3Lab()
@@ -1233,12 +2267,13 @@ void Ndbcntr::startPhase3Lab(Signal* signal)
 /*******************************/
 void Ndbcntr::ph3ALab(Signal* signal) 
 {
-  if (cndbBlocksCount < ZNO_NDB_BLOCKS) {
+  if (cndbBlocksCount < ZNO_NDB_BLOCKS)
+  {
     jam();
     sendNdbSttor(signal);
     return;
   }//if
-
+  g_eventLogger->info("NDB start phase 2 completed");
   sendSttorry(signal);
   return;
 }//Ndbcntr::ph3ALab()
@@ -1256,6 +2291,7 @@ void Ndbcntr::ph3ALab(Signal* signal)
 /*******************************/
 void Ndbcntr::startPhase4Lab(Signal* signal) 
 {
+  g_eventLogger->info("Start NDB start phase 3");
   ph4ALab(signal);
 }//Ndbcntr::startPhase4Lab()
 
@@ -1274,13 +2310,16 @@ void Ndbcntr::ph4BLab(Signal* signal)
 /*--------------------------------------*/
 /* CASE: CSTART_PHASE = ZSTART_PHASE_4  */
 /*--------------------------------------*/
-  if (cndbBlocksCount < ZNO_NDB_BLOCKS) {
+  if (cndbBlocksCount < ZNO_NDB_BLOCKS)
+  {
     jam();
     sendNdbSttor(signal);
     return;
   }//if
+  g_eventLogger->info("NDB start phase 3 completed");
   if ((ctypeOfStart == NodeState::ST_NODE_RESTART) ||
-      (ctypeOfStart == NodeState::ST_INITIAL_NODE_RESTART)) {
+      (ctypeOfStart == NodeState::ST_INITIAL_NODE_RESTART))
+  {
     jam();
     sendSttorry(signal);
     return;
@@ -1456,11 +2495,13 @@ void Ndbcntr::startPhase5Lab(Signal* signal)
 /*---------------------------------------------------------------------------*/
 void Ndbcntr::ph5ALab(Signal* signal) 
 {
-  if (cndbBlocksCount < ZNO_NDB_BLOCKS) {
+  if (cndbBlocksCount < ZNO_NDB_BLOCKS)
+  {
     jam();
     sendNdbSttor(signal);
     return;
   }//if
+  g_eventLogger->info("NDB start phase 4 completed");
 
   cstartPhase = cstartPhase + 1;
   cinternalStartphase = cstartPhase - 1;
@@ -1472,10 +2513,14 @@ void Ndbcntr::ph5ALab(Signal* signal)
       /* MASTER CNTR IS RESPONSIBLE FOR       */
       /* CREATING SYSTEM TABLES               */
       /*--------------------------------------*/
+      g_eventLogger->info("Creating System Tables Starting"
+                          " as part of initial start");
       beginSchemaTransLab(signal);
       return;
     case NodeState::ST_SYSTEM_RESTART:
       jam();
+      g_eventLogger->info("As master we will wait for other nodes to reach"
+                          " the state waitpoint52 as well");
       waitpoint52Lab(signal);
       return;
     case NodeState::ST_NODE_RESTART:
@@ -1506,7 +2551,8 @@ void Ndbcntr::ph5ALab(Signal* signal)
     req->internalStartPhase = cinternalStartphase;
     req->typeOfStart = cdihStartType;
     req->masterNodeId = cmasterNodeId;
-    
+   
+    g_eventLogger->info("Start NDB start phase 5 (only to DBDIH)");
     //#define TRACE_STTOR
 #ifdef TRACE_STTOR
     ndbout_c("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
@@ -1525,6 +2571,10 @@ void Ndbcntr::ph5ALab(Signal* signal)
     /* RECEIVE A WAIT REPORT FROM THE MASTER*/
     /* WHEN THE MASTER HAS FINISHED HIS WORK*/
     /*--------------------------------------*/
+    g_eventLogger->info("During cluster start/restart only master runs"
+                        " phase 5 of NDB start phases");
+    g_eventLogger->info("Report to master node our state and wait for master");
+
     signal->theData[0] = getOwnNodeId();
     signal->theData[1] = CntrWaitRep::ZWAITPOINT_5_2;
     sendSignal(calcNdbCntrBlockRef(cmasterNodeId), 
@@ -1554,6 +2604,7 @@ void Ndbcntr::waitpoint52Lab(Signal* signal)
     jam();
     cnoWaitrep = 0;
 
+    g_eventLogger->info("Start NDB start phase 5 (only to DBDIH)");
     NdbSttor * const req = (NdbSttor*)signal->getDataPtrSend();
     req->senderRef = reference();
     req->nodeId = getOwnNodeId();
@@ -1574,8 +2625,10 @@ void Ndbcntr::waitpoint52Lab(Signal* signal)
 /*******************************/
 void Ndbcntr::ph6ALab(Signal* signal) 
 {
+  g_eventLogger->info("NDB start phase 5 completed");
   if ((ctypeOfStart == NodeState::ST_NODE_RESTART) ||
-      (ctypeOfStart == NodeState::ST_INITIAL_NODE_RESTART)) {
+      (ctypeOfStart == NodeState::ST_INITIAL_NODE_RESTART))
+  {
     jam();
     waitpoint51Lab(signal);
     return;
@@ -1599,6 +2652,7 @@ void Ndbcntr::waitpoint51Lab(Signal* signal)
 // CONNECT TO TC FOR APPLICATIONS.
 // THIS IS NDB START PHASE 6 WHICH IS FOR ALL BLOCKS IN ALL NODES.
 /*---------------------------------------------------------------------------*/
+  g_eventLogger->info("Start NDB start phase 6");
   cinternalStartphase = cstartPhase - 1;
   cndbBlocksCount = 0;
   ph6BLab(signal);
@@ -1609,13 +2663,16 @@ void Ndbcntr::ph6BLab(Signal* signal)
 {
   // c_missra.currentStartPhase - cstartPhase - cinternalStartphase =
   // 5 - 7 - 6
-  if (cndbBlocksCount < ZNO_NDB_BLOCKS) {
+  if (cndbBlocksCount < ZNO_NDB_BLOCKS)
+  {
     jam();
     sendNdbSttor(signal);
     return;
   }//if
+  g_eventLogger->info("NDB start phase 6 completed");
   if ((ctypeOfStart == NodeState::ST_NODE_RESTART) ||
-      (ctypeOfStart == NodeState::ST_INITIAL_NODE_RESTART)) {
+      (ctypeOfStart == NodeState::ST_INITIAL_NODE_RESTART))
+  {
     jam();
     sendSttorry(signal);
     return;
@@ -1648,6 +2705,7 @@ void Ndbcntr::waitpoint61Lab(Signal* signal)
 // Start phase 8 (internal 7)
 void Ndbcntr::startPhase8Lab(Signal* signal)
 {
+  g_eventLogger->info("Start NDB start phase 7");
   cinternalStartphase = cstartPhase - 1;
   cndbBlocksCount = 0;
   ph7ALab(signal);
@@ -1655,13 +2713,16 @@ void Ndbcntr::startPhase8Lab(Signal* signal)
 
 void Ndbcntr::ph7ALab(Signal* signal)
 {
-  while (cndbBlocksCount < ZNO_NDB_BLOCKS) {
+  while (cndbBlocksCount < ZNO_NDB_BLOCKS)
+  {
     jam();
     sendNdbSttor(signal);
     return;
   }
+  g_eventLogger->info("NDB start phase 7 completed");
   if ((ctypeOfStart == NodeState::ST_NODE_RESTART) ||
-      (ctypeOfStart == NodeState::ST_INITIAL_NODE_RESTART)) {
+      (ctypeOfStart == NodeState::ST_INITIAL_NODE_RESTART))
+  {
     jam();
     sendSttorry(signal);
     return;
@@ -1701,10 +2762,6 @@ void Ndbcntr::startPhase9Lab(Signal* signal)
 
 void Ndbcntr::ph8ALab(Signal* signal)
 {
-/*---------------------------------------------------------------------------*/
-// NODES WHICH PERFORM A NODE RESTART NEEDS TO GET THE DYNAMIC ID'S
-// OF THE OTHER NODES HERE.
-/*---------------------------------------------------------------------------*/
   sendSttorry(signal);
   resetStartVariables(signal);
   return;
@@ -1833,10 +2890,16 @@ void Ndbcntr::execCNTR_WAITREP(Signal* signal)
     break;
   case CntrWaitRep::ZWAITPOINT_5_1:
     jam();
+    g_eventLogger->info("Master node %u have reached completion of NDB start"
+                        " phase 5",
+                        signal->theData[0]);
     waitpoint51Lab(signal);
     break;
   case CntrWaitRep::ZWAITPOINT_5_2:
     jam();
+    g_eventLogger->info("Node %u have reached completion of NDB start"
+                        " phase 4",
+                        signal->theData[0]);
     waitpoint52Lab(signal);
     break;
   case CntrWaitRep::ZWAITPOINT_6_1:
@@ -1900,7 +2963,8 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   const bool tStarted = !failedStarted.isclear();
   const bool tStarting = !failedStarting.isclear();
 
-  if(tMasterFailed){
+  if (tMasterFailed)
+  {
     jam();
     /**
      * If master has failed choose qmgr president as master
@@ -1920,25 +2984,29 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   c_startedNodes.bitANDC(allFailed);
 
   const NodeState & st = getNodeState();
-  if(st.startLevel == st.SL_STARTING){
+  if (st.startLevel == st.SL_STARTING)
+  {
     jam();
 
     const Uint32 phase = st.starting.startPhase;
     
     const bool tStartConf = (phase > 2) || (phase == 2 && cndbBlocksCount > 0);
 
-    if(tMasterFailed){
+    if (tMasterFailed)
+    {
       progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED,
 		"Unhandled node failure during restart");
     }
     
-    if(tStartConf && tStarting){
+    if (tStartConf && tStarting)
+    {
       // One of other starting nodes has crashed...
       progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED,
 		"Unhandled node failure of starting node during restart");
     }
 
-    if(tStartConf && tStarted){
+    if (tStartConf && tStarted)
+    {
       // One of other started nodes has crashed...      
       progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED,
 		"Unhandled node failure of started node during restart");
@@ -2661,6 +3729,7 @@ void Ndbcntr::crSystab8Lab(Signal* signal)
 void Ndbcntr::execTCRELEASECONF(Signal* signal) 
 {
   jamEntry();
+  g_eventLogger->info("Creation of System Tables Completed");
   waitpoint52Lab(signal);
   return;
 }//Ndbcntr::execTCRELEASECONF()
@@ -2768,7 +3837,6 @@ void Ndbcntr::sendNdbSttor(Signal* signal)
   for (int i = 0; i < 16; i++) {
     // Garbage
     req->config[i] = 0x88776655;
-    //cfgBlockPtr.p->cfgData[i];
   }
   
   //#define MAX_STARTPHASE 2
@@ -2808,8 +3876,10 @@ Ndbcntr::execDUMP_STATE_ORD(Signal* signal)
   Uint32 arg = dumpState->args[0];
 
   if(arg == 13){
-    infoEvent("Cntr: cstartPhase = %d, cinternalStartphase = %d, block = %d", 
-	      cstartPhase, cinternalStartphase, cndbBlocksCount);
+    infoEvent("Cntr: cstartPhase = %d, cinternalStartphase = %d, block = %d",
+	      cstartPhase,
+              cinternalStartphase,
+              cndbBlocksCount);
     infoEvent("Cntr: cmasterNodeId = %d", cmasterNodeId);
   }
 
@@ -2988,7 +4058,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal){
   }
   
   c_stopRec.stopReq = * req;
-  c_stopRec.stopInitiatedTime = NdbTick_CurrentMillisecond();
+  c_stopRec.stopInitiatedTime = NdbTick_getCurrentTicks();
   
   if (stopnodes)
   {
@@ -3174,9 +4244,9 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
 void
 Ndbcntr::StopRecord::checkApiTimeout(Signal* signal){
   const Int32 timeout = stopReq.apiTimeout; 
-  const NDB_TICKS alarm = stopInitiatedTime + (NDB_TICKS)timeout;
-  const NDB_TICKS now = NdbTick_CurrentMillisecond();
-  if((timeout >= 0 && now >= alarm)){
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  if(timeout >= 0 &&
+     NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithApiInSomeMagicWay)
     jam();
     NodeState newState(NodeState::SL_STOPPING_2, 
@@ -3197,9 +4267,9 @@ Ndbcntr::StopRecord::checkApiTimeout(Signal* signal){
 void
 Ndbcntr::StopRecord::checkTcTimeout(Signal* signal){
   const Int32 timeout = stopReq.transactionTimeout;
-  const NDB_TICKS alarm = stopInitiatedTime + (NDB_TICKS)timeout;
-  const NDB_TICKS now = NdbTick_CurrentMillisecond();
-  if((timeout >= 0 && now >= alarm)){
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  if(timeout >= 0 &&
+     NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithTcInSomeMagicWay)
     jam();
     if(stopReq.getSystemStop(stopReq.requestInfo)  || stopReq.singleuser){
@@ -3264,7 +4334,7 @@ void Ndbcntr::execABORT_ALL_CONF(Signal* signal){
     newState.setSingleUser(true);
     newState.setSingleUserApi(c_stopRec.stopReq.singleUserApi);
     updateNodeState(signal, newState);    
-    c_stopRec.stopInitiatedTime = NdbTick_CurrentMillisecond();
+    c_stopRec.stopInitiatedTime = NdbTick_getCurrentTicks();
 
     StopConf * const stopConf = (StopConf *)&signal->theData[0];
     stopConf->senderData = c_stopRec.stopReq.senderData;
@@ -3285,7 +4355,7 @@ void Ndbcntr::execABORT_ALL_CONF(Signal* signal){
 			 StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
       updateNodeState(signal, newState);
   
-      c_stopRec.stopInitiatedTime = NdbTick_CurrentMillisecond();
+      c_stopRec.stopInitiatedTime = NdbTick_getCurrentTicks();
       
       signal->theData[0] = ZSHUTDOWN;
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
@@ -3305,10 +4375,10 @@ void Ndbcntr::execABORT_ALL_REF(Signal* signal){
 void
 Ndbcntr::StopRecord::checkLqhTimeout_1(Signal* signal){
   const Int32 timeout = stopReq.readOperationTimeout;
-  const NDB_TICKS alarm = stopInitiatedTime + (NDB_TICKS)timeout;
-  const NDB_TICKS now = NdbTick_CurrentMillisecond();
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
   
-  if((timeout >= 0 && now >= alarm)){
+  if(timeout >= 0 &&
+     NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithLqhInSomeMagicWay)
     jam();
     
@@ -3365,7 +4435,7 @@ void Ndbcntr::execSTOP_ME_CONF(Signal* signal){
 		     StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
   updateNodeState(signal, newState);
   
-  c_stopRec.stopInitiatedTime = NdbTick_CurrentMillisecond();
+  c_stopRec.stopInitiatedTime = NdbTick_getCurrentTicks();
   signal->theData[0] = ZSHUTDOWN;
   sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
 }
@@ -3373,10 +4443,10 @@ void Ndbcntr::execSTOP_ME_CONF(Signal* signal){
 void
 Ndbcntr::StopRecord::checkLqhTimeout_2(Signal* signal){
   const Int32 timeout = stopReq.operationTimeout; 
-  const NDB_TICKS alarm = stopInitiatedTime + (NDB_TICKS)timeout;
-  const NDB_TICKS now = NdbTick_CurrentMillisecond();
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
 
-  if((timeout >= 0 && now >= alarm)){
+  if(timeout >= 0 &&
+     NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithLqhInSomeMagicWay)
     jam();
     if(StopReq::getPerformRestart(stopReq.requestInfo)){
@@ -3637,12 +4707,9 @@ void Ndbcntr::Missra::sendNextREAD_CONFIG_REQ(Signal* signal){
     
     const BlockReference ref = readConfigOrder[currentBlockIndex];
 
-#if 0 
-    ndbout_c("sending READ_CONFIG_REQ to %s(ref=%x index=%d)", 
-	     getBlockName( refToBlock(ref)),
-	     ref,
-	     currentBlockIndex);
-#endif
+    g_eventLogger->info("Sending READ_CONFIG_REQ to index = %d, name = %s",
+                        currentBlockIndex,
+                        getBlockName(refToBlock(ref)));
     
     /**
      * send delayed so that alloc gets "time-sliced"
@@ -3651,21 +4718,21 @@ void Ndbcntr::Missra::sendNextREAD_CONFIG_REQ(Signal* signal){
                              1, ReadConfigReq::SignalLength);
     return;
   }
-  
+ 
+  g_eventLogger->info("READ_CONFIG_REQ phase completed, this phase is"
+                      " used to read configuration and to calculate"
+                      " various sizes and allocate almost all memory"
+                      " needed by the data node in its lifetime");
   /**
    * Finished...
    */
   currentStartPhase = 0;
-  for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
-    if(ALL_BLOCKS[i].NextSP < currentStartPhase)
-      currentStartPhase = ALL_BLOCKS[i].NextSP;
-  }
-  
   currentBlockIndex = 0;
   sendNextSTTOR(signal);
 }
 
-void Ndbcntr::Missra::execREAD_CONFIG_CONF(Signal* signal){
+void Ndbcntr::Missra::execREAD_CONFIG_CONF(Signal* signal)
+{
   const ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtr();
 
   const Uint32 ref = conf->senderRef;
@@ -3761,6 +4828,126 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
        */
       jam();
       g_eventLogger->info("Start phase %u completed", currentStartPhase);
+      switch (currentStartPhase)
+      {
+        case 0:
+          g_eventLogger->info("Phase 0 has made some file system"
+                              " initialisations");
+          break;
+        case 1:
+          g_eventLogger->info("Phase 1 initialised some variables and"
+                              " included node in cluster, locked memory"
+                              " if configured to do so");
+          break;
+        case 2:
+          switch (cntr.ctypeOfStart)
+          {
+            case NodeState::ST_INITIAL_START:
+            case NodeState::ST_INITIAL_NODE_RESTART:
+              g_eventLogger->info("Phase 2 did more initialisations, master"
+                                  " accepted our start, we initialised the"
+                                  " REDO log");
+              break;
+            case NodeState::ST_SYSTEM_RESTART:
+            case NodeState::ST_NODE_RESTART:
+              g_eventLogger->info("Phase 2 did more initialisations, master"
+                                  " accepted our start, we started REDO log"
+                                  " initialisations");
+              break;
+            default:
+              break;
+          }
+          break;
+        case 3:
+          switch (cntr.ctypeOfStart)
+          {
+            case NodeState::ST_INITIAL_START:
+            case NodeState::ST_SYSTEM_RESTART:
+              g_eventLogger->info("Phase 3 performed local connection setups");
+              break;
+            case NodeState::ST_INITIAL_NODE_RESTART:
+            case NodeState::ST_NODE_RESTART:
+              g_eventLogger->info("Phase 3 locked the data dictionary, "
+                                  "performed local connection setups, we "
+                                  " asked for permission to start our node");
+              break;
+            default:
+              break;
+          }
+          break;
+        case 4:
+          switch (cntr.ctypeOfStart)
+          {
+            case NodeState::ST_SYSTEM_RESTART:
+              g_eventLogger->info("Phase 4 restored all fragments from local"
+                                  " disk up to a consistent global checkpoint"
+                                  " id");
+              break;
+            case NodeState::ST_NODE_RESTART:
+            case NodeState::ST_INITIAL_START:
+            case NodeState::ST_INITIAL_NODE_RESTART:
+              g_eventLogger->info("Phase 4 continued preparations of the REDO"
+                                  " log");
+              break;
+            default:
+              break;
+          }
+          break;
+        case 5:
+          switch (cntr.ctypeOfStart)
+          {
+            case NodeState::ST_INITIAL_NODE_RESTART:
+            case NodeState::ST_NODE_RESTART:
+              g_eventLogger->info("Phase 5 restored local fragments in its"
+                                  " first NDB phase, then copied metadata to"
+                                  " our node, and"
+                                  " then actual data was copied over to our"
+                                  " node, and finally we waited for a local"
+                                  " checkpoint to complete");
+              break;
+            case NodeState::ST_INITIAL_START:
+              g_eventLogger->info("Phase 5 Created the System Table");
+            case NodeState::ST_SYSTEM_RESTART:
+              g_eventLogger->info("Phase 5 waited for local checkpoint to"
+                                  " complete");
+              break;
+            default:
+              break;
+          }
+          break;
+        case 6:
+          g_eventLogger->info("Phase 6 updated blocks about that we've now"
+                              " reached the started state.");
+          break;
+        case 7:
+          g_eventLogger->info("Phase 7 mainly activated the asynchronous"
+                              " change events process, and some other"
+                              " background processes");
+          break;
+        case 8:
+          switch (cntr.ctypeOfStart)
+          {
+            case NodeState::ST_INITIAL_START:
+            case NodeState::ST_SYSTEM_RESTART:
+            {
+              g_eventLogger->info("Phase 8 enabled foreign keys and waited for"
+                                  "all nodes to complete start");
+              break;
+            }
+            default:
+              break;
+          }
+          break;
+        case 9:
+          break;
+        case 101:
+          g_eventLogger->info("Phase 101 was used by SUMA to take over"
+                              " responsibility for sending some of the"
+                              " asynchronous change events");
+          break;
+        default:
+          break;
+      }
 
       signal->theData[0] = NDB_LE_StartPhaseCompleted;
       signal->theData[1] = currentStartPhase;

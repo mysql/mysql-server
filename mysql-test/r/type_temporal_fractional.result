@@ -2535,18 +2535,18 @@ DROP TABLE t1;
 CREATE TABLE t1 (a TIME(-1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
 CREATE TABLE t1 (a TIME(7));
-ERROR 42000: Too big precision 7 specified for column 'a'. Maximum is 6.
+ERROR 42000: Too-big precision 7 specified for 'a'. Maximum is 6.
 CREATE TABLE t1 (a TIME(31));
-ERROR 42000: Too big precision 31 specified for column 'a'. Maximum is 6.
+ERROR 42000: Too-big precision 31 specified for 'a'. Maximum is 6.
 #
 # Testing bad FSPs with TIME functions
 #
 SELECT CURTIME(-1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1)' at line 1
 SELECT CURTIME(7);
-ERROR 42000: Too big precision 7 specified for column 'curtime'. Maximum is 6.
+ERROR 42000: Too-big precision 7 specified for 'curtime'. Maximum is 6.
 SELECT CURTIME(31);
-ERROR 42000: Too big precision 31 specified for column 'curtime'. Maximum is 6.
+ERROR 42000: Too-big precision 31 specified for 'curtime'. Maximum is 6.
 #
 # Testing INSERT, ORDER, KEY, BETWEEN, comparison
 #
@@ -4307,9 +4307,9 @@ Note	1003	/* select#1 */ select cast('10:10:10' as time(6)) AS `CAST('10:10:10' 
 SELECT CAST(1 AS TIME(-1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
 SELECT CAST(1 AS TIME(7));
-ERROR 42000: Too big precision 7 specified for column 'CAST'. Maximum is 6.
+ERROR 42000: Too-big precision 7 specified for 'CAST'. Maximum is 6.
 SELECT CAST(1 AS TIME(31));
-ERROR 42000: Too big precision 31 specified for column 'CAST'. Maximum is 6.
+ERROR 42000: Too-big precision 31 specified for 'CAST'. Maximum is 6.
 #
 # Testing conversion from TIME(6) to INT
 #
@@ -7073,24 +7073,24 @@ DROP TABLE t1;
 CREATE TABLE t1 (a DATETIME(-1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
 CREATE TABLE t1 (a DATETIME(7));
-ERROR 42000: Too big precision 7 specified for column 'a'. Maximum is 6.
+ERROR 42000: Too-big precision 7 specified for 'a'. Maximum is 6.
 CREATE TABLE t1 (a DATETIME(31));
-ERROR 42000: Too big precision 31 specified for column 'a'. Maximum is 6.
+ERROR 42000: Too-big precision 31 specified for 'a'. Maximum is 6.
 #
 # Testing bad FSPs with DATETIME functions
 #
 SELECT SYSDATE(-1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1)' at line 1
 SELECT SYSDATE(7);
-ERROR 42000: Too big precision 7 specified for column 'sysdate'. Maximum is 6.
+ERROR 42000: Too-big precision 7 specified for 'sysdate'. Maximum is 6.
 SELECT SYSDATE(31);
-ERROR 42000: Too big precision 31 specified for column 'sysdate'. Maximum is 6.
+ERROR 42000: Too-big precision 31 specified for 'sysdate'. Maximum is 6.
 SELECT NOW(-1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1)' at line 1
 SELECT NOW(7);
-ERROR 42000: Too big precision 7 specified for column 'now'. Maximum is 6.
+ERROR 42000: Too-big precision 7 specified for 'now'. Maximum is 6.
 SELECT NOW(31);
-ERROR 42000: Too big precision 31 specified for column 'now'. Maximum is 6.
+ERROR 42000: Too-big precision 31 specified for 'now'. Maximum is 6.
 #
 # Testing INSERT, ORDER, KEY, BETWEEN, comparison
 #
@@ -9096,9 +9096,9 @@ Note	1003	/* select#1 */ select cast('10:10:10' as datetime(6)) AS `CAST('10:10:
 SELECT CAST(1 AS DATETIME(-1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
 SELECT CAST(1 AS DATETIME(7));
-ERROR 42000: Too big precision 7 specified for column 'CAST'. Maximum is 6.
+ERROR 42000: Too-big precision 7 specified for 'CAST'. Maximum is 6.
 SELECT CAST(1 AS DATETIME(31));
-ERROR 42000: Too big precision 31 specified for column 'CAST'. Maximum is 6.
+ERROR 42000: Too-big precision 31 specified for 'CAST'. Maximum is 6.
 #
 # Testing conversion from DATETIME(6) to INT
 #
@@ -11898,9 +11898,9 @@ SET time_zone=default;
 CREATE TABLE t1 (a TIMESTAMP(-1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
 CREATE TABLE t1 (a TIMESTAMP(7));
-ERROR 42000: Too big precision 7 specified for column 'a'. Maximum is 6.
+ERROR 42000: Too-big precision 7 specified for 'a'. Maximum is 6.
 CREATE TABLE t1 (a TIMESTAMP(31));
-ERROR 42000: Too big precision 31 specified for column 'a'. Maximum is 6.
+ERROR 42000: Too-big precision 31 specified for 'a'. Maximum is 6.
 #
 # Testing rounding when altering TIMESTAMP(N) to a smaller size
 #

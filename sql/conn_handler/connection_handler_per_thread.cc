@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "sql_class.h"                   // THD
 #include "sql_connect.h"                 // close_connection
 #include "sql_parse.h"                   // do_command
+#include "log.h"                         // Error_log_throttle
 
 
 // Initialize static members
@@ -37,6 +38,16 @@ std::list<Channel_info*> *Per_thread_connection_handler
 mysql_mutex_t Per_thread_connection_handler::LOCK_thread_cache;
 mysql_cond_t Per_thread_connection_handler::COND_thread_cache;
 mysql_cond_t Per_thread_connection_handler::COND_flush_thread_cache;
+
+// Error log throttle for the thread creation failure in add_connection method.
+static
+Error_log_throttle create_thd_err_log_throttle(Log_throttle
+                                               ::LOG_THROTTLE_WINDOW_SIZE,
+                                               sql_print_error,
+                                               "Error log throttle: %10lu"
+                                               " 'Can't create thread to"
+                                               " handle new connection'"
+                                               " error(s) suppressed");
 
 /*
   Number of pthreads currently being woken up to handle new connections.
@@ -81,8 +92,8 @@ void Per_thread_connection_handler::init()
 
   mysql_mutex_init(key_LOCK_thread_cache, &LOCK_thread_cache,
                    MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_thread_cache, &COND_thread_cache, NULL);
-  mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache, NULL);
+  mysql_cond_init(key_COND_thread_cache, &COND_thread_cache);
+  mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache);
   waiting_channel_info_list= new (std::nothrow) std::list<Channel_info*>;
   DBUG_ASSERT(waiting_channel_info_list != NULL);
 }
@@ -397,6 +408,9 @@ handle_error:
   if (error)
   {
     connection_errors_internal++;
+    if (!create_thd_err_log_throttle.log())
+      sql_print_error("Can't create thread to handle new connection(errno= %d)",
+                      error);
     channel_info->send_error_and_close_channel(ER_CANT_CREATE_THREAD,
                                                error, true);
     Connection_handler_manager::dec_connection_count();

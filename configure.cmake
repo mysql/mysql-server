@@ -184,12 +184,39 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
   # stlport libs relative to that location as well.
   GET_FILENAME_COMPONENT(CXX_REALPATH ${CMAKE_CXX_COMPILER} REALPATH)
 
-  SET(STLPORT_SUFFIX "lib/stlport4")
-  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
-    SET(STLPORT_SUFFIX "lib/stlport4/v9")
+  # CC -V yields
+  # CC: Sun C++ 5.13 SunOS_sparc Beta 2014/03/11
+  # CC: Sun C++ 5.11 SunOS_sparc 2010/08/13
+
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_CXX_COMPILER} "-V"
+    OUTPUT_VARIABLE stdout
+    ERROR_VARIABLE  stderr
+    RESULT_VARIABLE result
+  )
+  IF(result)
+    MESSAGE(FATAL_ERROR "Failed to execute ${CMAKE_CXX_COMPILER} -V")
   ENDIF()
-  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-    SET(STLPORT_SUFFIX "lib/stlport4/amd64")
+
+  STRING(REGEX MATCH "CC: Sun C\\+\\+ 5\\.([0-9]+)" VERSION_STRING ${stderr})
+  SET(MINOR_VERSION ${CMAKE_MATCH_1})
+
+  IF(${MINOR_VERSION} EQUAL 13)
+    SET(STLPORT_SUFFIX "lib/compilers/stlport4")
+    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+      SET(STLPORT_SUFFIX "lib/compilers/stlport4/sparcv9")
+    ENDIF()
+    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+      SET(STLPORT_SUFFIX "lib/compilers/stlport4/amd64")
+    ENDIF()
+  ELSE()
+    SET(STLPORT_SUFFIX "lib/stlport4")
+    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+      SET(STLPORT_SUFFIX "lib/stlport4/v9")
+    ENDIF()
+    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+      SET(STLPORT_SUFFIX "lib/stlport4/amd64")
+    ENDIF()
   ENDIF()
 
   FIND_LIBRARY(STL_LIBRARY_NAME
@@ -213,6 +240,8 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
     MESSAGE(STATUS "CXX_PATH ${CXX_PATH}")
     MESSAGE(STATUS "CXX_REALPATH ${CXX_REALPATH}")
     MESSAGE(STATUS "STLPORT_SUFFIX ${STLPORT_SUFFIX}")
+    MESSAGE(STATUS "PATH: ${CXX_PATH}/../${STLPORT_SUFFIX}")
+    MESSAGE(STATUS "PATH: ${CXX_REALPATH}/../../${STLPORT_SUFFIX}")
     MESSAGE(FATAL_ERROR
       "Could not find the required stlport library.")
   ENDIF()
@@ -232,14 +261,6 @@ ENDIF(WITHOUT_DYNAMIC_PLUGINS)
 
 # Large files, common flag
 SET(_LARGEFILE_SOURCE  1)
-
-# If finds the size of a type, set SIZEOF_<type> and HAVE_<type>
-FUNCTION(MY_CHECK_TYPE_SIZE type defbase)
-  CHECK_TYPE_SIZE("${type}" SIZEOF_${defbase})
-  IF(SIZEOF_${defbase})
-    SET(HAVE_${defbase} 1 PARENT_SCOPE)
-  ENDIF()
-ENDFUNCTION()
 
 # Same for structs, setting HAVE_STRUCT_<name> instead
 FUNCTION(MY_CHECK_STRUCT_SIZE type defbase)
@@ -339,7 +360,6 @@ ENDIF()
 INCLUDE (CheckIncludeFiles)
 INCLUDE (CheckIncludeFileCXX)
 
-CHECK_INCLUDE_FILES (sys/types.h HAVE_SYS_TYPES_H)
 CHECK_INCLUDE_FILES (alloca.h HAVE_ALLOCA_H)
 CHECK_INCLUDE_FILES (arpa/inet.h HAVE_ARPA_INET_H)
 CHECK_INCLUDE_FILES (crypt.h HAVE_CRYPT_H)
@@ -347,28 +367,17 @@ CHECK_INCLUDE_FILE_CXX (cxxabi.h HAVE_CXXABI_H)
 CHECK_INCLUDE_FILES (dirent.h HAVE_DIRENT_H)
 CHECK_INCLUDE_FILES (dlfcn.h HAVE_DLFCN_H)
 CHECK_INCLUDE_FILES (execinfo.h HAVE_EXECINFO_H)
-CHECK_INCLUDE_FILES (fcntl.h HAVE_FCNTL_H)
-CHECK_INCLUDE_FILES (fenv.h HAVE_FENV_H)
 CHECK_INCLUDE_FILES (fpu_control.h HAVE_FPU_CONTROL_H)
 CHECK_INCLUDE_FILES (grp.h HAVE_GRP_H)
 CHECK_INCLUDE_FILES (ieeefp.h HAVE_IEEEFP_H)
-CHECK_INCLUDE_FILES (inttypes.h HAVE_INTTYPES_H)
 CHECK_INCLUDE_FILES (langinfo.h HAVE_LANGINFO_H)
 CHECK_INCLUDE_FILES (malloc.h HAVE_MALLOC_H)
-CHECK_INCLUDE_FILES (ndir.h HAVE_NDIR_H)
 CHECK_INCLUDE_FILES (netinet/in.h HAVE_NETINET_IN_H)
 CHECK_INCLUDE_FILES (paths.h HAVE_PATHS_H)
 CHECK_INCLUDE_FILES (poll.h HAVE_POLL_H)
 CHECK_INCLUDE_FILES (pwd.h HAVE_PWD_H)
-CHECK_INCLUDE_FILES (sched.h HAVE_SCHED_H)
-CHECK_INCLUDE_FILES (select.h HAVE_SELECT_H)
-CHECK_INCLUDE_FILES ("sys/types.h;sys/dir.h" HAVE_SYS_DIR_H)
-CHECK_INCLUDE_FILES (sys/ndir.h HAVE_SYS_NDIR_H)
-CHECK_INCLUDE_FILES (stdint.h HAVE_STDINT_H)
-SET(HAVE_STDLIB_H 1)
 CHECK_INCLUDE_FILES (strings.h HAVE_STRINGS_H)
 CHECK_INCLUDE_FILES (synch.h HAVE_SYNCH_H)
-CHECK_INCLUDE_FILES (sysent.h HAVE_SYSENT_H)
 CHECK_INCLUDE_FILES (sys/cdefs.h HAVE_SYS_CDEFS_H)
 CHECK_INCLUDE_FILES (sys/ioctl.h HAVE_SYS_IOCTL_H)
 CHECK_INCLUDE_FILES (sys/malloc.h HAVE_SYS_MALLOC_H)
@@ -377,10 +386,8 @@ CHECK_INCLUDE_FILES (sys/prctl.h HAVE_SYS_PRCTL_H)
 CHECK_INCLUDE_FILES (sys/resource.h HAVE_SYS_RESOURCE_H)
 CHECK_INCLUDE_FILES (sys/select.h HAVE_SYS_SELECT_H)
 CHECK_INCLUDE_FILES (sys/socket.h HAVE_SYS_SOCKET_H)
-CHECK_INCLUDE_FILES (sys/stat.h HAVE_SYS_STAT_H)
 CHECK_INCLUDE_FILES ("curses.h;term.h" HAVE_TERM_H)
 CHECK_INCLUDE_FILES (asm/termbits.h HAVE_ASM_TERMBITS_H)
-CHECK_INCLUDE_FILES (termbits.h HAVE_TERMBITS_H)
 CHECK_INCLUDE_FILES (termios.h HAVE_TERMIOS_H)
 CHECK_INCLUDE_FILES (termio.h HAVE_TERMIO_H)
 CHECK_INCLUDE_FILES (termcap.h HAVE_TERMCAP_H)
@@ -391,14 +398,12 @@ CHECK_INCLUDE_FILES (sys/wait.h HAVE_SYS_WAIT_H)
 CHECK_INCLUDE_FILES (sys/param.h HAVE_SYS_PARAM_H)
 CHECK_INCLUDE_FILES (sys/vadvise.h HAVE_SYS_VADVISE_H)
 CHECK_INCLUDE_FILES (fnmatch.h HAVE_FNMATCH_H)
-SET(HAVE_STDARG_H 1)
 CHECK_INCLUDE_FILES ("stdlib.h;sys/un.h" HAVE_SYS_UN_H)
 CHECK_INCLUDE_FILES (vis.h HAVE_VIS_H)
 CHECK_INCLUDE_FILES (sasl/sasl.h HAVE_SASL_SASL_H)
 
 # For libevent
 CHECK_INCLUDE_FILES(sys/devpoll.h HAVE_DEVPOLL)
-SET(HAVE_SIGNAL_H 1)
 IF(HAVE_DEVPOLL)
   # Duplicate symbols, but keep it to avoid changing libevent code.
   SET(HAVE_SYS_DEVPOLL_H 1)
@@ -419,7 +424,6 @@ CHECK_FUNCTION_EXISTS (directio HAVE_DIRECTIO)
 CHECK_FUNCTION_EXISTS (ftruncate HAVE_FTRUNCATE)
 CHECK_FUNCTION_EXISTS (compress HAVE_COMPRESS)
 CHECK_FUNCTION_EXISTS (crypt HAVE_CRYPT)
-CHECK_FUNCTION_EXISTS (dlerror HAVE_DLERROR)
 CHECK_FUNCTION_EXISTS (dlopen HAVE_DLOPEN)
 CHECK_FUNCTION_EXISTS (fchmod HAVE_FCHMOD)
 CHECK_FUNCTION_EXISTS (fcntl HAVE_FCNTL)
@@ -449,7 +453,6 @@ CHECK_FUNCTION_EXISTS (malloc_info HAVE_MALLOC_INFO)
 CHECK_FUNCTION_EXISTS (memrchr HAVE_MEMRCHR)
 CHECK_FUNCTION_EXISTS (mlock HAVE_MLOCK)
 CHECK_FUNCTION_EXISTS (mlockall HAVE_MLOCKALL)
-CHECK_FUNCTION_EXISTS (mmap HAVE_MMAP)
 CHECK_FUNCTION_EXISTS (mmap64 HAVE_MMAP64)
 CHECK_FUNCTION_EXISTS (poll HAVE_POLL)
 CHECK_FUNCTION_EXISTS (posix_fallocate HAVE_POSIX_FALLOCATE)
@@ -460,7 +463,6 @@ CHECK_FUNCTION_EXISTS (pthread_sigmask HAVE_PTHREAD_SIGMASK)
 CHECK_FUNCTION_EXISTS (readdir_r HAVE_READDIR_R)
 CHECK_FUNCTION_EXISTS (readlink HAVE_READLINK)
 CHECK_FUNCTION_EXISTS (realpath HAVE_REALPATH)
-CHECK_FUNCTION_EXISTS (sched_yield HAVE_SCHED_YIELD)
 CHECK_FUNCTION_EXISTS (setfd HAVE_SETFD)
 CHECK_FUNCTION_EXISTS (sigaction HAVE_SIGACTION)
 CHECK_FUNCTION_EXISTS (sleep HAVE_SLEEP)
@@ -472,9 +474,6 @@ CHECK_FUNCTION_EXISTS (strlcat HAVE_STRLCAT)
 CHECK_FUNCTION_EXISTS (strsignal HAVE_STRSIGNAL)
 CHECK_FUNCTION_EXISTS (fgetln HAVE_FGETLN)
 CHECK_FUNCTION_EXISTS (strsep HAVE_STRSEP)
-SET(HAVE_STRTOK_R 1) # Used by libevent
-SET(HAVE_STRTOLL 1) # Used by libevent
-SET(HAVE_STRDUP 1) # Used by NDB
 CHECK_FUNCTION_EXISTS (tell HAVE_TELL)
 CHECK_FUNCTION_EXISTS (vasprintf HAVE_VASPRINTF)
 CHECK_FUNCTION_EXISTS (memalign HAVE_MEMALIGN)
@@ -499,21 +498,15 @@ CHECK_SYMBOL_EXISTS (timerisset "sys/time.h" HAVE_TIMERISSET)
 
 CHECK_INCLUDE_FILES(sys/time.h HAVE_SYS_TIME_H)
 CHECK_INCLUDE_FILES(sys/times.h HAVE_SYS_TIMES_H)
-CHECK_INCLUDE_FILES(asm/msr.h HAVE_ASM_MSR_H)
-#msr.h has rdtscll()
 
 CHECK_FUNCTION_EXISTS(times HAVE_TIMES)
 CHECK_FUNCTION_EXISTS(gettimeofday HAVE_GETTIMEOFDAY)
-
-CHECK_FUNCTION_EXISTS(rdtscll HAVE_RDTSCLL)
-# I doubt that we'll ever reach the check for this.
 
 
 #
 # Tests for symbols
 #
 
-CHECK_SYMBOL_EXISTS(madvise "sys/mman.h" HAVE_DECL_MADVISE)
 CHECK_SYMBOL_EXISTS(lrand48 "stdlib.h" HAVE_LRAND48)
 CHECK_SYMBOL_EXISTS(TIOCGWINSZ "sys/ioctl.h" GWINSZ_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(FIONREAD "sys/ioctl.h" FIONREAD_IN_SYS_IOCTL)
@@ -522,7 +515,6 @@ CHECK_SYMBOL_EXISTS(SIGEV_THREAD_ID "signal.h;time.h" HAVE_SIGEV_THREAD_ID)
 CHECK_SYMBOL_EXISTS(SIGEV_PORT "signal.h;time.h" HAVE_SIGEV_PORT)
 
 CHECK_SYMBOL_EXISTS(log2  math.h HAVE_LOG2)
-CHECK_SYMBOL_EXISTS(rint  math.h HAVE_RINT)
 
 # isinf() prototype not found on Solaris
 CHECK_CXX_SOURCE_COMPILES(
@@ -531,15 +523,6 @@ int main() {
   isinf(0.0); 
   return 0;
 }" HAVE_ISINF)
-
-
-# fesetround() prototype not found in gcc compatibility file fenv.h
-CHECK_CXX_SOURCE_COMPILES(
-"#include  <fenv.h>
-int main() { 
-  fesetround(FE_TONEAREST);
-  return 0;
-}" HAVE_FESETROUND)
 
 # The results of these four checks are only needed here, not in code.
 CHECK_FUNCTION_EXISTS (timer_create HAVE_TIMER_CREATE)
@@ -572,75 +555,45 @@ TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
 # Tests for type sizes (and presence)
 #
 INCLUDE (CheckTypeSize)
+
 set(CMAKE_REQUIRED_DEFINITIONS ${CMAKE_REQUIRED_DEFINITIONS}
         -D_LARGEFILE_SOURCE -D_LARGE_FILES -D_FILE_OFFSET_BITS=64
         -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS)
-SET(CMAKE_EXTRA_INCLUDE_FILES signal.h)
-MY_CHECK_TYPE_SIZE(sigset_t SIGSET_T)
-IF(NOT SIZEOF_SIGSET_T)
- SET(sigset_t int)
-ENDIF()
-MY_CHECK_TYPE_SIZE(mode_t MODE_T)
-IF(NOT SIZEOF_MODE_T)
- SET(mode_t int)
-ENDIF()
 
+SET(CMAKE_EXTRA_INCLUDE_FILES stdint.h stdio.h sys/types.h)
 
-IF(HAVE_STDINT_H)
-  SET(CMAKE_EXTRA_INCLUDE_FILES stdint.h)
-ENDIF(HAVE_STDINT_H)
+CHECK_TYPE_SIZE("void *"    SIZEOF_VOIDP)
+CHECK_TYPE_SIZE("char *"    SIZEOF_CHARP)
+CHECK_TYPE_SIZE("long"      SIZEOF_LONG)
+CHECK_TYPE_SIZE("short"     SIZEOF_SHORT)
+CHECK_TYPE_SIZE("int"       SIZEOF_INT)
+CHECK_TYPE_SIZE("long long" SIZEOF_LONG_LONG)
+CHECK_TYPE_SIZE("off_t"     SIZEOF_OFF_T)
+CHECK_TYPE_SIZE("time_t"    SIZEOF_TIME_T)
 
-SET(HAVE_VOIDP 1)
-SET(HAVE_CHARP 1)
-SET(HAVE_LONG 1)
+# If finds the size of a type, set SIZEOF_<type> and HAVE_<type>
+FUNCTION(MY_CHECK_TYPE_SIZE type defbase)
+  CHECK_TYPE_SIZE("${type}" SIZEOF_${defbase})
+  IF(SIZEOF_${defbase})
+    SET(HAVE_${defbase} 1 PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
 
-MY_CHECK_TYPE_SIZE("void *" VOIDP)
-MY_CHECK_TYPE_SIZE("char *" CHARP)
-MY_CHECK_TYPE_SIZE(long LONG)
-MY_CHECK_TYPE_SIZE(char CHAR)
-MY_CHECK_TYPE_SIZE(short SHORT)
-MY_CHECK_TYPE_SIZE(int INT)
-MY_CHECK_TYPE_SIZE("long long" LONG_LONG)
-SET(CMAKE_EXTRA_INCLUDE_FILES stdio.h sys/types.h)
-MY_CHECK_TYPE_SIZE(off_t OFF_T)
+# We are only interested in presence for these
 MY_CHECK_TYPE_SIZE(uint UINT)
 MY_CHECK_TYPE_SIZE(ulong ULONG)
 MY_CHECK_TYPE_SIZE(u_int32_t U_INT32_T)
-MY_CHECK_TYPE_SIZE(time_t TIME_T)
-SET (CMAKE_EXTRA_INCLUDE_FILES sys/types.h)
-SET(CMAKE_EXTRA_INCLUDE_FILES)
-IF(HAVE_SYS_SOCKET_H)
-  SET(CMAKE_EXTRA_INCLUDE_FILES sys/socket.h)
-ENDIF(HAVE_SYS_SOCKET_H)
-SET(CMAKE_EXTRA_INCLUDE_FILES)
 
 IF(HAVE_IEEEFP_H)
   SET(CMAKE_EXTRA_INCLUDE_FILES ieeefp.h)
   MY_CHECK_TYPE_SIZE(fp_except FP_EXCEPT)
 ENDIF()
 
+SET(CMAKE_EXTRA_INCLUDE_FILES)
 
 #
 # Code tests
 #
-
-SET(HAVE_GETADDRINFO 1) # Used by libevent
-SET(HAVE_SELECT 1) # Used by NDB/libevent
-
-IF(WIN32)
-  SET(SOCKET_SIZE_TYPE int)
-ELSE()
-  SET(SOCKET_SIZE_TYPE socklen_t)
-ENDIF()
-
-CHECK_CXX_SOURCE_COMPILES("
-#include <pthread.h>
-int main()
-{
-  pthread_yield();
-  return 0;
-}
-" HAVE_PTHREAD_YIELD_ZERO_ARG)
 
 IF(NOT STACK_DIRECTION)
   IF(CMAKE_CROSSCOMPILING)
@@ -667,29 +620,6 @@ CHECK_INCLUDE_FILES("time.h;sys/time.h" TIME_WITH_SYS_TIME)
 CHECK_SYMBOL_EXISTS(O_NONBLOCK "unistd.h;fcntl.h" HAVE_FCNTL_NONBLOCK)
 IF(NOT HAVE_FCNTL_NONBLOCK)
  SET(NO_FCNTL_NONBLOCK 1)
-ENDIF()
-
-#
-# Test for how the C compiler does inline.
-# If both of these tests fail, then there is probably something wrong
-# in the environment (flags and/or compiling and/or linking).
-#
-CHECK_C_SOURCE_COMPILES("
-static inline int foo(){return 0;}
-int main(int argc, char *argv[]){return 0;}"
-                            C_HAS_inline)
-IF(NOT C_HAS_inline)
-  CHECK_C_SOURCE_COMPILES("
-  static __inline int foo(){return 0;}
-  int main(int argc, char *argv[]){return 0;}"
-                            C_HAS___inline)
-  SET(C_INLINE __inline)
-ENDIF()
-
-IF(NOT C_HAS_inline AND NOT C_HAS___inline)
-  MESSAGE(FATAL_ERROR "It seems like ${CMAKE_C_COMPILER} does not support "
-    "inline or __inline. Please verify compiler and flags. "
-    "See CMakeFiles/CMakeError.log for why the test failed to compile/link.")
 ENDIF()
 
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
@@ -756,18 +686,7 @@ int main()
 {
   __builtin_unreachable();
   return 0;
-}" HAVE_BUILTIN_UNREACHABLE_C)
-
-CHECK_CXX_SOURCE_COMPILES("
-int main()
-{
-  __builtin_unreachable();
-  return 0;
-}" HAVE_BUILTIN_UNREACHABLE_CXX)
-
-IF(HAVE_BUILTIN_UNREACHABLE_C AND HAVE_BUILTIN_UNREACHABLE_CXX)
-  SET(HAVE_BUILTIN_UNREACHABLE 1)
-ENDIF()
+}" HAVE_BUILTIN_UNREACHABLE)
 
 CHECK_C_SOURCE_COMPILES("
 int main()
@@ -788,28 +707,6 @@ int main()
   return 0;
 }" HAVE_BUILTIN_STPCPY)
 ENDIF()
-
-CHECK_CXX_SOURCE_COMPILES("
-    #undef inline
-    #if !defined(__osf__) && !defined(_REENTRANT)
-    #define _REENTRANT
-    #endif
-    #include <pthread.h>
-    #include <sys/types.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #include <netdb.h>
-    int main()
-    {
-
-       struct hostent *foo =
-       gethostbyaddr_r((const char *) 0,
-          0, 0, (struct hostent *) 0, (char *) NULL,  0, (int *)0);
-       return 0;
-    }
-  "
-  HAVE_SOLARIS_STYLE_GETHOST)
 
 CHECK_CXX_SOURCE_COMPILES("
   int main()

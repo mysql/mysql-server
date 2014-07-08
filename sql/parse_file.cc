@@ -215,7 +215,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   File handler;
   IO_CACHE file;
   char path[FN_REFLEN+1];	// +1 to put temporary file name for sure
-  int path_end;
+  size_t path_end;
   File_option *param;
   DBUG_ENTER("sql_create_definition_file");
   DBUG_PRINT("enter", ("Dir: %s, file: %s, base 0x%lx",
@@ -719,12 +719,12 @@ File_parser::parse(uchar* base, MEM_ROOT *mem_root,
     {
       File_option *parameter= parameters+first_param,
 	*parameters_end= parameters+required;
-      int len= 0;
+      size_t len= 0;
       for (; parameter < parameters_end; parameter++)
       {
 	len= parameter->name.length;
 	// check length
-	if (len < (end-ptr) && ptr[len] != '=')
+	if (len < static_cast<size_t>(end-ptr) && ptr[len] != '=')
 	  continue;
 	// check keyword
 	if (memcmp(parameter->name.str, ptr, len) == 0)

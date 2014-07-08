@@ -131,7 +131,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   int error;
   const uint format_section_header_size= 8;
   uint format_section_length;
-  uint tablespace_length= 0;
+  size_t tablespace_length= 0;
   DBUG_ENTER("mysql_create_frm");
 
   DBUG_ASSERT(*fn_rext((char*)file_name)); // Check .frm extension
@@ -313,13 +313,13 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 		     create_fields,reclength, data_offset, db_file))
     goto err;
 
-  int2store(buff, create_info->connect_string.length);
+  int2store(buff, static_cast<uint16>(create_info->connect_string.length));
   if (mysql_file_write(file, (const uchar*)buff, 2, MYF(MY_NABP)) ||
       mysql_file_write(file, (const uchar*)create_info->connect_string.str,
                create_info->connect_string.length, MYF(MY_NABP)))
       goto err;
 
-  int2store(buff, str_db_type.length);
+  int2store(buff, static_cast<uint16>(str_db_type.length));
   if (mysql_file_write(file, (const uchar*)buff, 2, MYF(MY_NABP)) ||
       mysql_file_write(file, (const uchar*)str_db_type.str,
                str_db_type.length, MYF(MY_NABP)))
@@ -355,7 +355,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   if (forminfo[46] == (uchar)255)
   {
     uchar comment_length_buff[2];
-    int2store(comment_length_buff,create_info->comment.length);
+    int2store(comment_length_buff, static_cast<uint16>(create_info->comment.length));
     if (mysql_file_write(file, comment_length_buff, 2, MYF(MY_NABP)) ||
         mysql_file_write(file, (uchar*) create_info->comment.str,
                          create_info->comment.length, MYF(MY_NABP)))
@@ -610,7 +610,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
   key_parts=0;
   for (key=keyinfo,end=keyinfo+key_count ; key != end ; key++)
   {
-    int2store(pos, (key->flags ^ HA_NOSAME));
+    int2store(pos, static_cast<uint16>(key->flags ^ HA_NOSAME));
     int2store(pos+2,key->key_length);
     pos[4]= (uchar) key->user_defined_key_parts;
     pos[5]= (uchar) key->algorithm;
@@ -654,7 +654,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
   {
     if (key->flags & HA_USES_COMMENT)
     {
-      int2store(pos, key->comment.length);
+      int2store(pos, static_cast<uint16>(key->comment.length));
       uchar *tmp= (uchar*)my_stpnmov((char*) pos+2,key->comment.str,
                                      key->comment.length);
       pos= tmp;
@@ -686,9 +686,10 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
                         uint info_length, uint screens, uint table_options,
                         ulong data_offset, handler *file)
 {
-  uint length,int_count,int_length,no_empty, int_parts;
+  size_t length;
+  uint int_count, int_length, no_empty, int_parts;
   uint time_stamp_pos,null_fields;
-  ulong reclength, totlength, n_length, com_length;
+  size_t reclength, totlength, n_length, com_length;
   DBUG_ENTER("pack_header");
 
   if (create_fields.elements > MAX_FIELDS)
@@ -736,9 +737,9 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
     length=field->pack_length;
     /* Ensure we don't have any bugs when generating offsets */
     DBUG_ASSERT(reclength == field->offset + data_offset);
-    if ((uint) field->offset+ (uint) data_offset+ length > reclength)
-      reclength=(uint) (field->offset+ data_offset + length);
-    n_length+= (ulong) strlen(field->field_name)+1;
+    if (field->offset + data_offset + length > reclength)
+      reclength= field->offset + data_offset + length;
+    n_length+= strlen(field->field_name) + 1;
     field->interval_id=0;
     field->save_interval= 0;
     if (field->interval)
@@ -769,7 +770,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
         {
           char *dst;
           const char *src= field->save_interval->type_names[pos];
-          uint hex_length;
+          size_t hex_length;
           length= field->save_interval->type_lengths[pos];
           hex_length= length * 2;
           field->interval->type_lengths[pos]= hex_length;
@@ -811,14 +812,14 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   memset(forminfo, 0, 288);
   length=(info_length+create_fields.elements*FCOMP+288+n_length+int_length+
 	  com_length);
-  int2store(forminfo,length);
+  int2store(forminfo, static_cast<uint16>(length));
   forminfo[256] = (uint8) screens;
   int2store(forminfo+258,create_fields.elements);
   int2store(forminfo+260,info_length);
-  int2store(forminfo+262,totlength);
+  int2store(forminfo+262, static_cast<uint16>(totlength));
   int2store(forminfo+264,no_empty);
-  int2store(forminfo+266,reclength);
-  int2store(forminfo+268,n_length);
+  int2store(forminfo+266, static_cast<uint16>(reclength));
+  int2store(forminfo+268, static_cast<uint16>(n_length));
   int2store(forminfo+270,int_count);
   int2store(forminfo+272,int_parts);
   int2store(forminfo+274,int_length);
@@ -826,7 +827,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   int2store(forminfo+278,80);			/* Columns needed */
   int2store(forminfo+280,22);			/* Rows needed */
   int2store(forminfo+282,null_fields);
-  int2store(forminfo+284,com_length);
+  int2store(forminfo+284, static_cast<uint16>(com_length));
   /* Up to forminfo+288 is free to use for additional information */
   DBUG_RETURN(0);
 } /* pack_header */
@@ -883,7 +884,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     buff[0]= (uchar) field->row;
     buff[1]= (uchar) field->col;
     buff[2]= (uchar) field->sc_length;
-    int2store(buff+3, field->length);
+    int2store(buff+3, static_cast<uint16>(field->length));
     /* The +1 is here becasue the col offset in .frm file have offset 1 */
     recpos= field->offset+1 + (uint) data_offset;
     int3store(buff+5,recpos);
@@ -905,7 +906,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     {
       buff[11]= buff[14]= 0;			// Numerical
     }
-    int2store(buff+15, field->comment.length);
+    int2store(buff+15, static_cast<uint16>(field->comment.length));
     comment_length+= field->comment.length;
     set_if_bigger(int_count,field->interval_id);
     if (mysql_file_write(file, buff, FCOMP, MYF_RW))

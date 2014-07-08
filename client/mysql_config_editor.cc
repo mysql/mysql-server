@@ -978,7 +978,7 @@ static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
 
   char *start= NULL, *end= NULL;
   char *search_str;
-  int search_len, shift_len;
+  size_t search_len, shift_len;
   bool option_found= FALSE;
 
   search_str= (char *) my_malloc(PSI_NOT_INSTRUMENTED,

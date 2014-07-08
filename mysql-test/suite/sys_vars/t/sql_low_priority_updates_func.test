@@ -85,9 +85,8 @@ delimiter ;|
 
 --echo ** Connection con0 **
 connection con0;
-
 let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist
-                      WHERE state='Waiting for table level lock' AND
+                      WHERE state='Waiting for table metadata lock' AND
                             info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
 --source include/wait_condition.inc
 
@@ -105,7 +104,7 @@ delimiter ;|
 connection default;
 
 let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist
-                     WHERE state LIKE 'Waiting for table level lock';
+                     WHERE state LIKE 'Waiting for table metadata lock';
 --source include/wait_condition.inc
 UNLOCK TABLES;
 
@@ -161,7 +160,7 @@ delimiter ;|
 connection con0;
 
 let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist
-                      WHERE state='Waiting for table level lock' AND
+                      WHERE state='Waiting for table metadata lock' AND
                             info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
 --source include/wait_condition.inc
 
@@ -179,7 +178,7 @@ delimiter ;|
 connection default;
 
 let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist
-                     WHERE state LIKE 'Waiting for table level lock';
+                     WHERE state LIKE 'Waiting for table metadata lock';
 --source include/wait_condition.inc
 UNLOCK TABLES;
 

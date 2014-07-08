@@ -58,7 +58,7 @@ const char *opt_ndb_table= NULL;
 unsigned int opt_verbose;
 unsigned int opt_hex_format;
 unsigned int opt_progress_frequency;
-NDB_TICKS g_report_next;
+NDB_TICKS g_report_prev;
 Vector<BaseString> g_databases;
 Vector<BaseString> g_tables;
 Vector<BaseString> g_include_tables, g_exclude_tables;
@@ -606,6 +606,7 @@ o verify nodegroup mapping
                                              opt_ndb_nodeid,
                                              opt_nodegroup_map,
                                              opt_nodegroup_map_len,
+                                             ga_nodeId,
                                              ga_nParallelism);
   if (restore == NULL) 
   {
@@ -784,7 +785,7 @@ o verify nodegroup mapping
     for (src = it.first(); src != NULL; src = it.next()) {
       const char * dst = NULL;
       bool r = g_rewrite_databases.get(src, &dst);
-      assert(r && (dst != NULL));
+      require(r && (dst != NULL));
       info << " (" << src << "->" << dst << ")";
     }
     info << endl;
@@ -932,7 +933,7 @@ static void parse_rewrite_database(char * argument)
     const BaseString dst = args[1];
     const bool replace = true;
     bool r = g_rewrite_databases.put(src.c_str(), dst.c_str(), replace);
-    assert(r);
+    require(r);
     return; // ok
   }
 
@@ -1127,8 +1128,7 @@ static void exitHandler(int code)
 
 static void init_progress()
 {
-  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
-  g_report_next = now + opt_progress_frequency;
+  g_report_prev = NdbTick_getCurrentTicks();
 }
 
 static int check_progress()
@@ -1136,11 +1136,11 @@ static int check_progress()
   if (!opt_progress_frequency)
     return 0;
 
-  NDB_TICKS now = NdbTick_CurrentMillisecond() / 1000;
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
   
-  if (now  >= g_report_next)
+  if (NdbTick_Elapsed(g_report_prev, now).seconds() >= opt_progress_frequency)
   {
-    g_report_next = now + opt_progress_frequency;
+    g_report_prev = now;
     return 1;
   }
   return 0;
@@ -1443,14 +1443,22 @@ main(int argc, char** argv)
         if (checkSysTable(metaData, i) &&
             checkDbAndTableName(metaData[i]))
         {
+          TableS & tableS = *metaData[i]; // not const
           for(Uint32 j= 0; j < g_consumers.size(); j++)
           {
-            if (!g_consumers[j]->table_compatible_check(*metaData[i]))
+            if (!g_consumers[j]->table_compatible_check(tableS))
             {
               err << "Restore: Failed to restore data, ";
-              err << metaData[i]->getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
+              err << tableS.getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
               exitHandler(NDBT_FAILED);
             } 
+            if (tableS.m_staging &&
+                !g_consumers[j]->prepare_staging(tableS))
+            {
+              err << "Restore: Failed to restore data, ";
+              err << tableS.getTableName() << " failed to prepare staging table for data conversion ... Exiting " << endl;
+              exitHandler(NDBT_FAILED);
+            }
           } 
         }
       }
@@ -1554,6 +1562,28 @@ main(int argc, char** argv)
       }
     }
     
+    /* move data from staging table to real table */
+    if(_restore_data)
+    {
+      for (i = 0; i < metaData.getNoOfTables(); i++)
+      {
+        const TableS* table = metaData[i];
+        if (table->m_staging)
+        {
+          for(Uint32 j= 0; j < g_consumers.size(); j++)
+          {
+            if (!g_consumers[j]->finalize_staging(*table))
+            {
+              err << "Restore: Failed staging data to table: ";
+              err << table->getTableName() << ". ";
+              err << "Exiting... " << endl;
+              exitHandler(NDBT_FAILED);
+            }
+          }
+        }
+      }
+    }
+
     if(_restore_data)
     {
       for(i = 0; i < metaData.getNoOfTables(); i++)

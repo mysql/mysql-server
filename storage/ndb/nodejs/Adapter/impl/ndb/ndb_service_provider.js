@@ -28,6 +28,7 @@ try {
   var DBConnectionPool = require("./NdbConnectionPool.js").DBConnectionPool;
 }
 catch(e) {
+  console.log(e.stack);
   /* Let unmet module dependencies be caught by loadRequiredModules() */
 }
 
@@ -78,15 +79,6 @@ function registerDefaultTypeConverters(dbConnectionPool) {
   dbConnectionPool.registerTypeConverter("DATE", DateConverter);
   // TODO: converter for Timestamp microseconds <==> JS Date 
 }
-
-
-exports.connectSync = function(properties) {
-  udebug.log("connectSync");
-  var dbconn = new DBConnectionPool(properties);
-  registerDefaultTypeConverters(dbconn);
-  dbconn.connectSync();
-  return dbconn;
-};
 
 
 exports.connect = function(properties, user_callback) {

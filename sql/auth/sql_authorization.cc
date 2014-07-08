@@ -2669,10 +2669,9 @@ show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
   Protocol *protocol= thd->protocol;
   int error= 0;
 
-  for (uint i=0; i < acl_proxy_users.elements; i++)
+  for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
+       proxy != acl_proxy_users->end(); ++proxy)
   {
-    ACL_PROXY_USER *proxy= dynamic_element(&acl_proxy_users, i,
-                                           ACL_PROXY_USER *);
     if (proxy->granted_on(user->host.str, user->user.str))
     {
       String global(buff, buffsize, system_charset_info);
@@ -2900,11 +2899,10 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   }
 
   /* Add database access */
-  for (counter=0 ; counter < acl_dbs.elements ; counter++)
+  for (acl_db= acl_dbs->begin(); acl_db != acl_dbs->end(); ++acl_db)
   {
     const char *user, *host;
 
-    acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
     if (!(user=acl_db->user))
       user= "";
     if (!(host=acl_db->host.get_host()))
@@ -3128,7 +3126,7 @@ end:
 
 bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 {
-  uint counter, revoked, is_proc;
+  uint revoked, is_proc;
   int result;
   ACL_DB *acl_db;
   TABLE_LIST tables[GRANT_TABLES];
@@ -3189,11 +3187,10 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
      */
     do
     {
-      for (counter= 0, revoked= 0 ; counter < acl_dbs.elements ; )
+      for (revoked= 0, acl_db= acl_dbs->begin(); acl_db != acl_dbs->end(); )
       {
         const char *user,*host;
 
-        acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
         if (!(user=acl_db->user))
           user= "";
         if (!(host=acl_db->host.get_host()))
@@ -3206,7 +3203,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
                                 ~(ulong)0, 1))
           {
             /*
-              Don't increment counter as replace_db_table deleted the
+              Don't increment loop variable as replace_db_table deleted the
               current element in acl_dbs.
              */
             revoked= 1;
@@ -3215,13 +3212,14 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
           result= -1; // Something went wrong
           is_user_applied= false;
         }
-        counter++;
+        ++acl_db;
       }
     } while (revoked);
 
     /* Remove column access */
     do
     {
+      uint counter;
       for (counter= 0, revoked= 0 ; counter < column_priv_hash.records ; )
       {
         const char *user,*host;
@@ -3271,6 +3269,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     /* Remove procedure access */
     for (is_proc=0; is_proc<2; is_proc++) do {
       HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
+      uint counter;
       for (counter= 0, revoked= 0 ; counter < hash->records ; )
       {
         const char *user,*host;
@@ -3589,8 +3588,8 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
 static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
                                     const char* db, const char* t_name,
-                                    const char* column, uint col_length,
-                                    const char *priv, uint priv_length,
+                                    const char* column, size_t col_length,
+                                    const char *priv, size_t priv_length,
                                     const char* is_grantable)
 {
   int i= 2;
@@ -3717,10 +3716,9 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
   }
 
   /* check for matching WITH PROXY rights */
-  for (uint i=0; i < acl_proxy_users.elements; i++)
+  for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
+       proxy != acl_proxy_users->end(); ++proxy)
   {
-    ACL_PROXY_USER *proxy= dynamic_element(&acl_proxy_users, i, 
-                                           ACL_PROXY_USER *);
     if (proxy->matches(thd->security_ctx->get_host()->ptr(),
                        thd->security_ctx->user,
                        thd->security_ctx->get_ip()->ptr(),
@@ -3759,7 +3757,6 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
-  uint counter;
   ACL_USER *acl_user;
   ulong want_access;
   char buff[100];
@@ -3773,10 +3770,9 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
     DBUG_RETURN(0);
   mysql_mutex_lock(&acl_cache->lock);
 
-  for (counter=0 ; counter < acl_users.elements ; counter++)
+  for (acl_user= acl_users->begin(); acl_user != acl_users->end(); ++acl_user)
   {
     const char *user,*host, *is_grantable="YES";
-    acl_user=dynamic_element(&acl_users,counter,ACL_USER*);
     if (!(user=acl_user->user))
       user= "";
     if (!(host=acl_user->host.get_host()))
@@ -3834,7 +3830,6 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
-  uint counter;
   ACL_DB *acl_db;
   ulong want_access;
   char buff[100];
@@ -3848,11 +3843,10 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
     DBUG_RETURN(0);
   mysql_mutex_lock(&acl_cache->lock);
 
-  for (counter=0 ; counter < acl_dbs.elements ; counter++)
+  for (acl_db= acl_dbs->begin(); acl_db != acl_dbs->end(); ++acl_db)
   {
     const char *user, *host, *is_grantable="YES";
 
-    acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
     if (!(user=acl_db->user))
       user= "";
     if (!(host=acl_db->host.get_host()))

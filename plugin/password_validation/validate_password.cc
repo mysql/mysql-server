@@ -21,15 +21,6 @@
 #include <fstream>
 
 
-/*  
-  __attribute__(A) needs to be defined for Windows else complier
-  do not recognise it. Argument in plugin_init and plugin_deinit
-  Used in other plugins as well.
-*/
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
-#define __attribute__(A)
-#endif
-
 #define MAX_DICTIONARY_FILE_LENGTH    1024 * 1024
 #define PASSWORD_SCORE                25
 #define MIN_DICTIONARY_WORD_LENGTH    4

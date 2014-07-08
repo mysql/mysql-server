@@ -771,10 +771,10 @@ void XID_STATE::store_xid_info(Protocol *protocol, bool print_xid_as_hex) const
     xid_buf[0]= '0';
     xid_buf[1]= 'x';
 
-    uint xid_str_len= bin_to_hex_str(xid_buf + 2, sizeof(xid_buf) - 2,
-                                     const_cast<char*>(m_xid.data),
-                                     m_xid.gtrid_length +
-                                     m_xid.bqual_length) + 2;
+    size_t xid_str_len= bin_to_hex_str(xid_buf + 2, sizeof(xid_buf) - 2,
+                                       const_cast<char*>(m_xid.data),
+                                       m_xid.gtrid_length +
+                                       m_xid.bqual_length) + 2;
     protocol->store(xid_buf, xid_str_len, &my_charset_bin);
   }
   else
