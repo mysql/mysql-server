@@ -3073,6 +3073,7 @@ connection spj;
 # has a single possible value.
 explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
+
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
 connection spj;
@@ -3090,9 +3091,16 @@ create index i2_3 on t2(a, d, b, e);
 # has a single possible value.
 
 connection spj;
+
+# Turn off condition_fanout_filter to keep "old" QEP
+set optimizer_switch='condition_fanout_filter=off';
+
 explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
+
+# Restore condition_fanout_filter to default value
+set optimizer_switch='condition_fanout_filter=default';
 
 --disable_query_log
 let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
