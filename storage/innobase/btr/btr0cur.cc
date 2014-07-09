@@ -1210,7 +1210,7 @@ retry_page_get:
 			? SYNC_IBUF_TREE_NODE : SYNC_TREE_NODE);
 	}
 
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 	ut_ad(index->id == btr_page_get_index_id(page));
 
 	if (UNIV_UNLIKELY(height == ULINT_UNDEFINED)) {
@@ -2177,7 +2177,7 @@ btr_cur_open_at_index_side_func(
 			continue;
 		}
 
-		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+		ut_ad(fil_page_index_page_check(page));
 		ut_ad(index->id == btr_page_get_index_id(page));
 
 		block->check_index_page_at_flush = TRUE;
@@ -2438,7 +2438,7 @@ btr_cur_open_at_index_side_with_no_latch_func(
 
 		page = buf_block_get_frame(block);
 
-		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+		ut_ad(fil_page_index_page_check(page));
 		ut_ad(index->id == btr_page_get_index_id(page));
 		block->check_index_page_at_flush = TRUE;
 
@@ -2611,7 +2611,7 @@ btr_cur_open_at_rnd_pos_func(
 			continue;
 		}
 
-		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+		ut_ad(fil_page_index_page_check(page));
 		ut_ad(index->id == btr_page_get_index_id(page));
 
 		if (height == ULINT_UNDEFINED) {
@@ -3717,7 +3717,7 @@ btr_cur_update_in_place(
 	      || (flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP))
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
-	ut_ad(fil_page_get_type(btr_cur_get_page(cursor)) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(btr_cur_get_page(cursor)));
 	ut_ad(btr_page_get_index_id(btr_cur_get_page(cursor)) == index->id);
 
 	DBUG_PRINT("ib_cur", ("update-in-place %s (" IB_ID_FMT
@@ -3883,7 +3883,7 @@ btr_cur_optimistic_update(
 	      || (flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP))
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 	ut_ad(btr_page_get_index_id(page) == index->id);
 
 	*offsets = rec_get_offsets(rec, index, *offsets,
@@ -5415,7 +5415,7 @@ btr_estimate_n_rows_in_range_on_level(
 		this is only an estimate. We are sure that a page with
 		page_no exists because InnoDB never frees pages, only
 		reuses them. */
-		if (fil_page_get_type(page) != FIL_PAGE_INDEX
+		if (!fil_page_index_page_check(page)
 		    || btr_page_get_index_id(page) != index->id
 		    || btr_page_get_level_low(page) != level) {
 
@@ -6413,7 +6413,7 @@ btr_store_big_rec_extern_fields(
 	page_zip = buf_block_get_page_zip(rec_block);
 	space_id = rec_block->page.id.space();
 	rec_page_no = rec_block->page.id.page_no();
-	ut_a(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
+	ut_a(fil_page_index_page_check(page_align(rec)));
 
 	if (page_zip) {
 		int	err;
