@@ -28,7 +28,7 @@
    exclusive by design (only one thread reading or writing to this object
    at a time).
  */
-class Session_gtids_ctx
+class Session_consistency_gtids_ctx
 {
 public:
   /**
@@ -73,7 +73,7 @@ private:
    Since this context is valid only for one session, there is no need
    to protect this with locks.
   */
-  Session_gtids_ctx::Ctx_change_listener* listener;
+  Session_consistency_gtids_ctx::Ctx_change_listener* listener;
 
 protected:
 
@@ -85,7 +85,7 @@ protected:
      @param thd the thread context.
      @return true if should collect gtids, false otherwise.
    */
-  inline bool shall_collect(THD* thd);
+  inline bool shall_collect(const THD* thd);
 
   /**
    Auxiliar function that allows notification of ctx change listeners.
@@ -100,26 +100,26 @@ public:
   /**
     Simple constructor.
   */
-  Session_gtids_ctx();
+  Session_consistency_gtids_ctx();
 
   /**
     The destructor. Deletes the m_gtid_set and the sid_map.
   */
-  virtual ~Session_gtids_ctx();
+  virtual ~Session_consistency_gtids_ctx();
 
   /**
    Unregisters the listener. The listener MUST have registered previously.
 
    @param listener a pointer to the listener to register.
   */
-  void register_ctx_change_listener(Session_gtids_ctx::Ctx_change_listener* listener);
+  void register_ctx_change_listener(Session_consistency_gtids_ctx::Ctx_change_listener* listener);
 
   /**
    Registers the listener. The pointer MUST not be NULL.
 
    @param listener a pointer to the listener to register.
    */
-  void unregister_ctx_change_listener(Session_gtids_ctx::Ctx_change_listener* listener);
+  void unregister_ctx_change_listener(Session_consistency_gtids_ctx::Ctx_change_listener* listener);
 
   /**
     This member function MUST return a reference to the set of collected
@@ -137,12 +137,11 @@ public:
      @param thd The thread context.
    * @return true on error, false otherwise.
    */
-  virtual bool notify_after_response_packet(THD* thd);
+  virtual bool notify_after_response_packet(const THD* thd);
 
   /**
-     This function MUST be called when relevant context is propagated throughout
-     the replication protocol. This could mean, for instance, that it has
-     been written to the binary log, thus slaves will get it.
+     This function SHALL be called once the GTID for the given transaction has
+     has been added to GTID_EXECUTED.
 
      This function SHALL store the data if the thd->variables.session_track_gtids
      is set to a value other than NONE.
@@ -150,7 +149,7 @@ public:
      @param thd   The thread context.
      @return true on error, false otherwise.
    */
-  virtual bool notify_after_transaction_replicated(THD *thd);
+  virtual bool notify_after_gtid_executed_update(const THD *thd);
 
   /**
      This function MUST be called after a transaction is committed
@@ -163,12 +162,12 @@ public:
      @param thd    The thread context.
      @return true on error, false otherwise.
    */
-  virtual bool notify_after_transaction_commit(THD* thd);
+  virtual bool notify_after_transaction_commit(const THD* thd);
 
 private:
   // not implemented
-  Session_gtids_ctx(const Session_gtids_ctx& rsc);
-  Session_gtids_ctx& operator=(const Session_gtids_ctx& rsc);
+  Session_consistency_gtids_ctx(const Session_consistency_gtids_ctx& rsc);
+  Session_consistency_gtids_ctx& operator=(const Session_consistency_gtids_ctx& rsc);
 };
 
 /*
@@ -178,7 +177,7 @@ private:
 class Rpl_thd_context
 {
 private:
-  Session_gtids_ctx m_session_gtids_ctx;
+  Session_consistency_gtids_ctx m_session_gtids_ctx;
 
   // make these private
   Rpl_thd_context(const Rpl_thd_context& rsc);
@@ -187,7 +186,7 @@ public:
 
   Rpl_thd_context() { }
 
-  inline Session_gtids_ctx& session_gtids_ctx()
+  inline Session_consistency_gtids_ctx& session_gtids_ctx()
   {
     return m_session_gtids_ctx;
   }
