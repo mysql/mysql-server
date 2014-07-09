@@ -1434,6 +1434,15 @@ NdbEventBuffer::nextEvent()
 
          if (!gci_ops->m_consistent)
            DBUG_RETURN_EVENT(0);
+
+	 if (gci_ops && (gci != gci_ops->m_gci))
+	 {
+           ndbout << "nextEvent: gci " << gci << " "
+                  << " gci_ops->m_gci " << gci_ops->m_gci
+                  << " type " << hex << op->getEventType() << " "
+                  << m_ndb->getNdbObjectName() << endl;
+	 }
+
          assert(gci_ops && (gci == gci_ops->m_gci));
          // to return TE_NUL it should be made into data event
          if (SubTableData::getOperation(data->sdata->requestInfo) ==
