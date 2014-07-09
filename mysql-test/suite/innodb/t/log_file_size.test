@@ -1,10 +1,7 @@
 # Test resizing the InnoDB redo log.
 
 --source include/have_innodb.inc
---source include/have_debug.inc
 
-# Valgrind would complain about memory leaks when we crash on purpose.
---source include/not_valgrind.inc
 # Embedded server does not support crashing
 --source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
@@ -20,12 +17,14 @@ call mtr.add_suppression("InnoDB: New log files created");
 call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
 
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (42);
 
-SET DEBUG='+d,crash_commit_before';
 # Write file to make mysql-test-run.pl restart the server
 --exec echo "restart: --innodb-log-file-size=6M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 0
 --error 2013
-INSERT INTO t1 VALUES (42);
+COMMIT;
 
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -34,12 +33,14 @@ INSERT INTO t1 VALUES (42);
 SELECT * FROM t1;
 
 INSERT INTO t1 VALUES (42);
+BEGIN;
+DELETE FROM t1;
 
-SET DEBUG='+d,crash_commit_before';
 # Write file to make mysql-test-run.pl restart the server
 --exec echo "restart: --innodb-log-files-in-group=3 --innodb-log-file-size=5M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 0
 --error 2013
-DELETE FROM t1;
+COMMIT;
 
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -54,11 +55,14 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 let $args=--loose-console > $SEARCH_FILE 2>&1;
 let crash=$args --innodb-force-recovery-crash;
 
-SET DEBUG='+d,crash_commit_before';
+BEGIN;
+DELETE FROM t1;
+
 # Write file to make mysql-test-run.pl restart the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 0
 --error 2013
-DELETE FROM t1;
+COMMIT;
 
 --error 1
 --exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar

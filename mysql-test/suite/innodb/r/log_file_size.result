@@ -3,21 +3,24 @@ call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
 call mtr.add_suppression("InnoDB: New log files created");
 call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
-SET DEBUG='+d,crash_commit_before';
+BEGIN;
 INSERT INTO t1 VALUES (42);
+COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 SELECT * FROM t1;
 a
 INSERT INTO t1 VALUES (42);
-SET DEBUG='+d,crash_commit_before';
+BEGIN;
 DELETE FROM t1;
+COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 SELECT * FROM t1;
 a
 42
 INSERT INTO t1 VALUES (123);
-SET DEBUG='+d,crash_commit_before';
+BEGIN;
 DELETE FROM t1;
+COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 --innodb-force-recovery-crash=1
 --innodb-force-recovery-crash=3
