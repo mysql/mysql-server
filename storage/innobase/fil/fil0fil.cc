@@ -805,7 +805,9 @@ fil_node_open_file(
 		}
 #endif /* UNIV_HOTBACKUP */
 		ut_a(space->purpose != FIL_TYPE_LOG);
-		ut_a(fil_is_user_tablespace_id(space->id));
+		/* During buf_dblwr_process() we may access undo
+		tablespaces here. */
+		ut_a(fil_is_user_tablespace_id(space->id) || recv_recovery_on);
 
 		/* Read the first page of the tablespace */
 
@@ -830,7 +832,7 @@ fil_node_open_file(
 
 		if (size_bytes < min_size) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The size of single-table tablespace file %s,"
+				"The size of tablespace file %s"
 				" is only " UINT64PF ", should be at least %lu!",
 				node->name, size_bytes, min_size);
 
@@ -5870,7 +5872,6 @@ fil_close(void)
 	mutex_free(&fil_system->mutex);
 
 	ut_free(fil_system);
-
 	fil_system = NULL;
 }
 
