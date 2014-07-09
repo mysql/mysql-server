@@ -3995,7 +3995,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "4.40"
+      "query_cost": "3.40"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -4188,4 +4188,4 @@ x
 drop function func1;
 drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;
 set global big_tables = 0;
-set global internal_tmp_disk_storage_engine = MYISAM;
+set global internal_tmp_disk_storage_engine = INNODB;

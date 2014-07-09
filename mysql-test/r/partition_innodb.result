@@ -1,3 +1,4 @@
+set global internal_tmp_disk_storage_engine = myisam;
 drop table if exists t1, t2;
 #
 # Bug#13694811: THE OPTIMIZER WRONGLY USES THE FIRST
@@ -684,3 +685,4 @@ ERROR HY000: Table definition has changed, please retry transaction
 SELECT b FROM t1 WHERE b = 0;
 ERROR HY000: Table definition has changed, please retry transaction
 DROP TABLE t1;
+set global internal_tmp_disk_storage_engine = INNODB;
