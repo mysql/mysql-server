@@ -452,8 +452,9 @@ fsp_reserve_free_extents(
 			then this can be 0, otherwise it is n_ext */
 	ulint	space,	/*!< in: space id */
 	ulint	n_ext,	/*!< in: number of extents to reserve */
-	ulint	alloc_type,/*!< in: FSP_NORMAL, FSP_UNDO, or FSP_CLEANING */
-	mtr_t*	mtr);	/*!< in: mini-transaction */
+	fsp_reserve_t	alloc_type,
+			/*!< in: page reservation type */
+	mtr_t*	mtr);	/*!< in/out: mini-transaction */
 /**********************************************************************//**
 This function should be used to get information on how much we still
 will be able to insert new data to the database without running out the

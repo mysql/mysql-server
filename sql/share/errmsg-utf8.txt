@@ -7236,6 +7236,8 @@ ER_USER_LOCK_WRONG_NAME 42000
 ER_USER_LOCK_DEADLOCK
   eng "Deadlock found when trying to get user-level lock; try rolling back transaction/releasing locks and restarting lock acquisition."
 
+ER_REPLACE_INACCESSIBLE_ROWS
+  eng "REPLACE cannot be executed as it requires deleting rows that are not in the view"
 #
 #  End of 5.7 error messages.
 #

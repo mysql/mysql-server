@@ -1717,6 +1717,11 @@ dict_fs2utf8(
 	size_t		table_utf8_size)/*!< in: table_utf8 size */
 	__attribute__((nonnull));
 
+/** Resize the hash tables besed on the current buffer pool size. */
+
+void
+dict_resize();
+
 /**********************************************************************//**
 Closes the data dictionary module. */
 

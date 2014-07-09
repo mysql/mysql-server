@@ -462,6 +462,75 @@ lock_sys_create(
 	}
 }
 
+/** Calculates the fold value of a lock: used in migrating the hash table.
+@param[in]	lock	record lock object
+@return	folded value */
+static
+ulint
+lock_rec_lock_fold(
+	const lock_t*	lock)
+{
+	return(lock_rec_fold(lock->un_member.rec_lock.space,
+			     lock->un_member.rec_lock.page_no));
+}
+
+/** Resize the lock hash tables.
+@param[in]	n_cells	number of slots in lock hash table */
+
+void
+lock_sys_resize(
+	ulint	n_cells)
+{
+	hash_table_t*	old_hash;
+
+	lock_mutex_enter();
+
+	old_hash = lock_sys->rec_hash;
+	lock_sys->rec_hash = hash_create(n_cells);
+	HASH_MIGRATE(old_hash, lock_sys->rec_hash, lock_t, hash,
+		     lock_rec_lock_fold);
+	hash_table_free(old_hash);
+
+	old_hash = lock_sys->prdt_hash;
+	lock_sys->prdt_hash = hash_create(n_cells);
+	HASH_MIGRATE(old_hash, lock_sys->prdt_hash, lock_t, hash,
+		     lock_rec_lock_fold);
+	hash_table_free(old_hash);
+
+	old_hash = lock_sys->prdt_page_hash;
+	lock_sys->prdt_page_hash = hash_create(n_cells);
+	HASH_MIGRATE(old_hash, lock_sys->prdt_page_hash, lock_t, hash,
+		     lock_rec_lock_fold);
+	hash_table_free(old_hash);
+
+	/* need to update block->lock_hash_val */
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+		buf_pool_t*	buf_pool = buf_pool_from_array(i);
+
+		buf_pool_mutex_enter(buf_pool);
+		buf_page_t*	bpage;
+		bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
+
+		while (bpage != NULL) {
+			if (buf_page_get_state(bpage)
+			    == BUF_BLOCK_FILE_PAGE) {
+				buf_block_t*	block;
+				block = reinterpret_cast<buf_block_t*>(
+					bpage);
+
+				block->lock_hash_val
+					= lock_rec_hash(
+						bpage->id.space(),
+						bpage->id.page_no());
+			}
+			bpage = UT_LIST_GET_NEXT(LRU, bpage);
+		}
+		buf_pool_mutex_exit(buf_pool);
+	}
+
+	lock_mutex_exit();
+}
+
 /*********************************************************************//**
 Closes the lock system at database shutdown. */
 
@@ -4572,14 +4641,14 @@ private:
 	TrxLockIterator		m_lock_iter;
 };
 
-/*********************************************************************//**
-Prints transaction lock wait and MVCC state. */
-static
+/** Prints transaction lock wait and MVCC state.
+@param[in,out]	file	file where to print
+@param[in]	trx	transaction */
+
 void
 lock_trx_print_wait_and_mvcc_state(
-/*===============================*/
-	FILE*		file,	/*!< in/out: file where to print */
-	const trx_t*	trx)	/*!< in: transaction */
+	FILE*		file,
+	const trx_t*	trx)
 {
 	fprintf(file, "---");
 
@@ -5289,6 +5358,7 @@ lock_rec_insert_check_and_lock(
 	lock_t*		lock;
 	dberr_t		err;
 	ulint		next_rec_heap_no;
+	ibool		inherit_in = *inherit;
 
 	ut_ad(block->frame == page_align(rec));
 	ut_ad(!dict_index_is_online_ddl(index)
@@ -5323,7 +5393,7 @@ lock_rec_insert_check_and_lock(
 
 		lock_mutex_exit();
 
-		if (!dict_index_is_clust(index)) {
+		if (!dict_index_is_clust(index) && inherit_in) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(block,
 					       buf_block_get_page_zip(block),
@@ -5377,7 +5447,7 @@ lock_rec_insert_check_and_lock(
 		err = DB_SUCCESS;
 		/* fall through */
 	case DB_SUCCESS:
-		if (dict_index_is_clust(index)) {
+		if (dict_index_is_clust(index) || !inherit_in) {
 			break;
 		}
 		/* Update the page max trx id field */

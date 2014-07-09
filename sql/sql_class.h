@@ -756,6 +756,7 @@ public:
   { return state == STMT_CONVENTIONAL_EXECUTION; }
 
   inline void* alloc(size_t size) { return alloc_root(mem_root,size); }
+  inline void* alloc(size_t size, MEM_ROOT *mem_root) { return alloc_root(mem_root, size); }
   inline void* calloc(size_t size)
   {
     void *ptr;
@@ -4511,15 +4512,7 @@ public:
   {
     result->abort_result_set(); /* purecov: inspected */
   }
-  void cleanup()
-  {
-    /*
-      Only called for top-level select_results, usually select_send,
-      and for the results of subquery engines
-      (select_<something>_subselect).
-    */
-    DBUG_ASSERT(false); /* purecov: inspected */
-  }
+  void cleanup() {}
   void set_thd(THD *thd_arg)
   {
     /*

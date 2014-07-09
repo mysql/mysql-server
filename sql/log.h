@@ -109,7 +109,6 @@ public:
   }
 };
 
-#ifdef HAVE_MMAP
 class TC_LOG_MMAP: public TC_LOG
 {
 public:                // only to keep Sun Forte on sol9x86 happy
@@ -237,9 +236,6 @@ private:
   */
   friend class TCLogMMapTest;
 };
-#else
-#define TC_LOG_MMAP TC_LOG_DUMMY
-#endif
 
 extern TC_LOG *tc_log;
 extern TC_LOG_MMAP tc_log_mmap;
