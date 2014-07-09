@@ -1,6 +1,8 @@
 
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
+# Valgrind will make the test Timeout so skip it if only in --valgrind mode
+--source include/not_valgrind.inc
 
 #from heap to ondisk
 set @old_heap_size= @@max_heap_table_size;
