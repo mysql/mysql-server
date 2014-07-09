@@ -595,6 +595,23 @@ public:
 
   unsigned m_total_alloc; // total allocated memory
 
+  /**
+   * EB_BufferEvents: m_total_alloc*100/m_max_alloc <= 70
+   * EB_DiscardNewEvents: m_total_alloc*100/m_max_alloc > 70
+   * EB_DiscardEvents: m_total_alloc*100/m_max_alloc > 100
+   */
+  enum EventBufferState
+  {
+    EB_BUFFERINGEVENTS      = 0x1 // Enough alloc'd mem to buffer events
+    ,EB_DISCARDINGNEWEVENTS = 0x2 // Alloc'd mem is running out
+    ,EB_DISCARDINGEVENTS    = 0x3 // Alloc'd mem is used up completely
+  };
+  EventBufferState lastReportedState; // To avoid bursts of reporting
+  EventBufferState event_buffer_state();
+
+  // ceiling for total allocated memory, 0 means unlimited
+  unsigned m_max_alloc;
+
   // threshholds to report status
   unsigned m_free_thresh, m_min_free_thresh, m_max_free_thresh;
   unsigned m_gci_slip_thresh;
@@ -607,6 +624,7 @@ public:
 #endif
 
 private:
+  bool outOfMemory(Uint32 alloc_sz);
   void insert_event(NdbEventOperationImpl* impl,
                     SubTableData &data,
                     LinearSectionPtr *ptr,
@@ -660,6 +678,13 @@ private:
 public:
   void set_total_buckets(Uint32);
 };
+
+inline bool
+NdbEventBuffer::outOfMemory(Uint32 alloc_sz)
+{
+  return (m_max_alloc == 0 ? false :
+          (m_total_alloc + alloc_sz > m_max_alloc));
+}
 
 inline
 NdbEventOperationImpl*

@@ -535,8 +535,7 @@ static PSI_memory_info all_mysys_memory[]=
   { &key_memory_MY_STAT, "MY_STAT", 0},
   { &key_memory_QUEUE, "QUEUE", 0},
   { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0},
-  { &key_memory_TREE, "TREE", 0},
-  { &key_memory_radix_sort, "radix_sort", 0}
+  { &key_memory_TREE, "TREE", 0}
 };
 
 void my_init_mysys_psi_keys()

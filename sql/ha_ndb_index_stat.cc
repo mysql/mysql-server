@@ -25,14 +25,14 @@
 extern struct st_ndb_status g_ndb_status;
 extern native_mutex_t ndbcluster_mutex;
 
+// Implementation still uses its own instance
+extern Ndb_index_stat_thread ndb_index_stat_thread;
+
 /* Implemented in ha_ndbcluster.cc */
 extern bool ndb_index_stat_get_enable(THD *thd);
 extern const char* g_ndb_status_index_stat_status;
 extern long g_ndb_status_index_stat_cache_query;
 extern long g_ndb_status_index_stat_cache_clean;        
-
-// Do we have waiter...
-static bool ndb_index_stat_waiter= false;
 
 // Typedefs for long names 
 typedef NdbDictionary::Table NDBTAB;
@@ -40,11 +40,12 @@ typedef NdbDictionary::Index NDBINDEX;
 
 /** ndb_index_stat_thread */
 Ndb_index_stat_thread::Ndb_index_stat_thread()
-  : running(-1)
+  : Ndb_component("Index Stat"),
+    client_waiting(false)
 {
   native_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
   native_cond_init(&COND);
-  native_cond_init(&COND_ready);
+
   native_mutex_init(&stat_mutex, MY_MUTEX_INIT_FAST);
   native_cond_init(&stat_cond);
 }
@@ -53,9 +54,25 @@ Ndb_index_stat_thread::~Ndb_index_stat_thread()
 {
   native_mutex_destroy(&LOCK);
   native_cond_destroy(&COND);
-  native_cond_destroy(&COND_ready);
+
   native_mutex_destroy(&stat_mutex);
   native_cond_destroy(&stat_cond);
+}
+
+void Ndb_index_stat_thread::do_wakeup()
+{
+  // Wakeup from potential wait
+  log_info("Wakeup");
+
+  wakeup();
+}
+
+void Ndb_index_stat_thread::wakeup()
+{
+  native_mutex_lock(&LOCK);
+  client_waiting= true;
+  native_cond_signal(&COND);
+  native_mutex_unlock(&LOCK);
 }
 
 struct Ndb_index_stat {
@@ -2435,12 +2452,9 @@ Ndb_index_stat_thread::do_run()
   bool have_listener;
   have_listener= false;
 
-  /* Signal successful initialization */
-  native_mutex_lock(&ndb_index_stat_thread.LOCK);
-  ndb_index_stat_thread.running= 1;
-  native_cond_signal(&ndb_index_stat_thread.COND_ready);
-  native_mutex_unlock(&ndb_index_stat_thread.LOCK);
+  log_info("Starting...");
 
+  log_verbose(1, "Wait for server start completed");
   /*
     wait for mysql server to start
   */
@@ -2450,20 +2464,21 @@ Ndb_index_stat_thread::do_run()
     set_timespec(abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
 	                 &abstime);
-    if (ndbcluster_terminating)
+    if (is_stop_requested())
     {
       mysql_mutex_unlock(&LOCK_server_started);
-      native_mutex_lock(&ndb_index_stat_thread.LOCK);
+      native_mutex_lock(&LOCK);
       goto ndb_index_stat_thread_end;
     }
   }
   mysql_mutex_unlock(&LOCK_server_started);
 
+  log_verbose(1, "Wait for cluster to start");
   /*
     Wait for cluster to start
   */
   native_mutex_lock(&ndb_util_thread.LOCK);
-  while (!ndbcluster_terminating && !g_ndb_status.cluster_node_id &&
+  while (!is_stop_requested() && !g_ndb_status.cluster_node_id &&
          (ndbcluster_hton->slot != ~(uint)0))
   {
     /* ndb not connected yet */
@@ -2471,9 +2486,9 @@ Ndb_index_stat_thread::do_run()
   }
   native_mutex_unlock(&ndb_util_thread.LOCK);
 
-  if (ndbcluster_terminating)
+  if (is_stop_requested())
   {
-    native_mutex_lock(&ndb_index_stat_thread.LOCK);
+    native_mutex_lock(&LOCK);
     goto ndb_index_stat_thread_end;
   }
 
@@ -2481,14 +2496,14 @@ Ndb_index_stat_thread::do_run()
   if (!(pr.is_util= new NdbIndexStat))
   {
     sql_print_error("Could not allocate NdbIndexStat is_util object");
-    native_mutex_lock(&ndb_index_stat_thread.LOCK);
+    native_mutex_lock(&LOCK);
     goto ndb_index_stat_thread_end;
   }
 
   if (!pr.init_ndb(g_ndb_cluster_connection))
   {
     // Error already printed
-    native_mutex_lock(&ndb_index_stat_thread.LOCK);
+    native_mutex_lock(&LOCK);
     goto ndb_index_stat_thread_end;
   }
 
@@ -2496,9 +2511,11 @@ Ndb_index_stat_thread::do_run()
   ndb_index_stat_allow(1);
 
   /* Fill in initial status variable */
-  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&stat_mutex);
   glob.set_status();
-  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&stat_mutex);
+
+  log_info("Started");
 
   bool enable_ok;
   enable_ok= false;
@@ -2506,19 +2523,19 @@ Ndb_index_stat_thread::do_run()
   set_timespec(abstime, 0);
   for (;;)
   {
-    native_mutex_lock(&ndb_index_stat_thread.LOCK);
-    if (!ndbcluster_terminating && ndb_index_stat_waiter == false) {
-      int ret= native_cond_timedwait(&ndb_index_stat_thread.COND,
-                                     &ndb_index_stat_thread.LOCK,
+    native_mutex_lock(&LOCK);
+    if (!is_stop_requested() && client_waiting == false) {
+      int ret= native_cond_timedwait(&COND,
+                                     &LOCK,
                                      &abstime);
       const char* reason= ret == ETIMEDOUT ? "timed out" : "wake up";
       (void)reason; // USED
       DBUG_PRINT("index_stat", ("loop: %s", reason));
     }
-    if (ndbcluster_terminating) /* Shutting down server */
+    if (is_stop_requested()) /* Shutting down server */
       goto ndb_index_stat_thread_end;
-    ndb_index_stat_waiter= false;
-    native_mutex_unlock(&ndb_index_stat_thread.LOCK);
+    client_waiting= false;
+    native_mutex_unlock(&LOCK);
 
     if (ndb_index_stat_restart_flag)
     {
@@ -2590,12 +2607,14 @@ Ndb_index_stat_thread::do_run()
     glob.th_enable= enable_ok;
     glob.th_busy= pr.busy;
     glob.th_loop= msecs;
-    native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_lock(&stat_mutex);
     glob.set_status();
-    native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_unlock(&stat_mutex);
   }
 
 ndb_index_stat_thread_end:
+  log_info("Stopping...");
+
   /* Prevent clients */
   ndb_index_stat_allow(0);
 
@@ -2612,13 +2631,12 @@ ndb_index_stat_thread_end:
 
   pr.destroy();
 
-  /* signal termination */
-  ndb_index_stat_thread.running= 0;
-  native_cond_signal(&ndb_index_stat_thread.COND_ready);
-  native_mutex_unlock(&ndb_index_stat_thread.LOCK);
+  native_mutex_unlock(&LOCK);
   DBUG_PRINT("exit", ("ndb_index_stat_thread"));
 
-  DBUG_LEAVE;
+  log_info("Stopped");
+
+  DBUG_VOID_RETURN;
 }
 
 /* Optimizer queries */
@@ -2701,10 +2719,8 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
     count++;
     DBUG_PRINT("index_stat", ("st %s wait_query count:%u",
                               st->id, count));
-    native_mutex_lock(&ndb_index_stat_thread.LOCK);
-    ndb_index_stat_waiter= true;
-    native_cond_signal(&ndb_index_stat_thread.COND);
-    native_mutex_unlock(&ndb_index_stat_thread.LOCK);
+    ndb_index_stat_thread.wakeup();
+
     set_timespec(abstime, 1);
     ret= native_cond_timedwait(&ndb_index_stat_thread.stat_cond,
                                &ndb_index_stat_thread.stat_mutex,
@@ -2777,10 +2793,8 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
     count++;
     DBUG_PRINT("index_stat", ("st %s wait_analyze count:%u",
                               st->id, count));
-    native_mutex_lock(&ndb_index_stat_thread.LOCK);
-    ndb_index_stat_waiter= true;
-    native_cond_signal(&ndb_index_stat_thread.COND);
-    native_mutex_unlock(&ndb_index_stat_thread.LOCK);
+    ndb_index_stat_thread.wakeup();
+
     set_timespec(abstime, 1);
     ret= native_cond_timedwait(&ndb_index_stat_thread.stat_cond,
                                &ndb_index_stat_thread.stat_mutex,

@@ -43,7 +43,7 @@ public:
     m_diag_area(false),
     m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
     m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE),
-    m_flag(flag), m_observe_transmission(false)
+    m_flag(flag), m_observe_transmission(false), m_transmit_started(false)
   {}
 
   ~Binlog_sender() {}
@@ -157,6 +157,11 @@ private:
     transmitting each event. Otherwise, it is false and HOOKs are not called.
   */
   bool m_observe_transmission;
+
+  /* It is true if transmit_start hook is called. If the hook is not called
+   * it will be false.
+   */
+  bool m_transmit_started;
   /*
     It initializes the context, checks if the dump request is valid and
     if binlog status is correct.

@@ -391,7 +391,7 @@ insert into t1 values (1);
 insert into t1 values (1.11);
 --error 1416
 insert into t1 values ("qwerty");
---error 1048
+--error ER_GIS_INVALID_DATA
 insert into t1 values (pointfromtext('point(1,1)'));
 
 drop table t1;
@@ -434,6 +434,7 @@ select
   y(b) IS NULL
 from t1;
 
+--error ER_GIS_INVALID_DATA
 select 
   within(b, b) IS NULL, contains(b, b) IS NULL, overlaps(b, b) IS NULL, 
   equals(b, b) IS NULL, disjoint(b, b) IS NULL, touches(b, b) IS NULL, 
@@ -462,6 +463,7 @@ DROP TABLE t1;
 #
 CREATE TABLE `t1` ( `col9` set('a'), `col89` date);
 INSERT INTO `t1` VALUES ('','0000-00-00');
+--error ER_GIS_INVALID_DATA
 select geomfromtext(col9,col89) as a from t1;
 DROP TABLE t1;
 
@@ -759,8 +761,10 @@ SELECT 1 FROM (SELECT GREATEST(1,GEOMETRYCOLLECTION('00000','00000')) b FROM DUA
 --echo # BUG#51875: crash when loading data into geometry function polyfromwkb
 --echo #
 SET @a=0x00000000030000000100000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
+--error ER_GIS_INVALID_DATA
 SET @a=POLYFROMWKB(@a);
 SET @a=0x00000000030000000000000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
+--error ER_GIS_INVALID_DATA
 SET @a=POLYFROMWKB(@a);
 
 
@@ -881,6 +885,7 @@ DROP TABLE g1;
 CREATE TABLE g1(a TEXT NOT NULL, KEY(a(255)));
 
 INSERT INTO g1 VALUES ('a'),('a');
+--error ER_GIS_INVALID_DATA
 SELECT 1 FROM g1 WHERE a >= ANY
 (SELECT 1 FROM g1 WHERE a = geomfromtext('') OR a) ;
 
@@ -1428,4 +1433,5 @@ DROP DATABASE gis_ogs;
 --echo # Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE
 --echo #
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_Union('', ''), md5(1);

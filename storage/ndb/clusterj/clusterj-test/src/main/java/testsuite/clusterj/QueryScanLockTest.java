@@ -34,7 +34,7 @@ import testsuite.clusterj.model.Employee;
 
 public class QueryScanLockTest extends AbstractQueryTest {
 
-    private static final int numberOfTableScanNoLockThreads = 1;
+    private static final int numberOfTableScanNoLockThreads = 20;
 
     private static final long TWO_SECONDS = 2000L;
 

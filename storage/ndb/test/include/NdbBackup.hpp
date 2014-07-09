@@ -49,6 +49,7 @@ public:
   int checkBackupStatus();
 
   int clearOldBackups();
+  int abort(unsigned _backup_id);
 
 private:
 

@@ -41,6 +41,7 @@
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
 #include "opt_explain.h"
+#include "abstract_query_plan.h"
 #include "sql_join_buffer.h"     // JOIN_CACHE
 #include "sql_optimizer.h"       // JOIN
 #include "sql_tmp_table.h"       // tmp tables
@@ -2067,6 +2068,24 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 
   if (setup_semijoin_dups_elimination(join, options, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
+
+  /**
+   * Push joins to handler(s) whenever possible.
+   * The handlers will inspect the QEP through the
+   * AQP (Abstract Query Plan), and extract from it
+   * whatewer it might implement of pushed execution.
+   * It is the responsibility if the handler to store any
+   * information it need for later execution of pushed queries.
+   *
+   * Currently pushed joins are only implemented by NDB.
+   * It only make sense to try pushing if > 1 non-const tables.
+   */
+  if (!join->plan_is_single_table() && !join->plan_is_const())
+  {
+    const AQP::Join_plan plan(join);
+    if (ha_make_pushed_joins(join->thd, &plan))
+      DBUG_RETURN(TRUE);
+  }
 
   for (uint i= join->const_tables; i < join->tables; i++)
   {

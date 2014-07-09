@@ -202,6 +202,9 @@ ErrorBundle ErrorCodes[] = {
   { 21061, DMEC, SE, "Build foreign key failed in NDB - invalid foreign key version" },
   /* Referential integrity */
   { 21080, HA_ERR_ROW_IS_REFERENCED, SE, "Drop table not allowed in NDB - referenced by foreign key on another table" },
+  /* Drop index */
+  { 21081, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as parent index of a foreign key" },
+  { 21082, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as child index of a foreign key" },
   
   /**
    * Node shutdown
@@ -586,7 +589,7 @@ ErrorBundle ErrorCodes[] = {
   { 1323, DMEC, IE, "1323" },
   { 1324, DMEC, IE, "Backup log buffer full" },
   { 1325, DMEC, IE, "File or scan error" },
-  { 1326, DMEC, IE, "Backup abortet due to node failure" },
+  { 1326, DMEC, IE, "Backup aborted due to node failure" },
   { 1327, DMEC, IE, "1327" },
   
   { 1340, DMEC, IE, "Backup undefined error" },

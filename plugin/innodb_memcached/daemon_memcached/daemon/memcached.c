@@ -32,6 +32,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <dlfcn.h>
 
 #include "memcached_mysql.h"
 

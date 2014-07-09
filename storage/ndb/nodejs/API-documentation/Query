@@ -27,14 +27,20 @@
  *    'skip' value: number of rows to skip from the result; default: 0
  *    'limit' value: number of rows to return; default: a couple of billion
  *
+ * execute() returns a promise.  On success, the promise will be fulfilled 
+ * with a value holding an array of query results.  The optional callback 
+ * an error value and the query results.  Any extra arguments passed after 
+ * the callback will be passed to the callback function verbatim as 
+ * parameters following the results.
+ *
  * The results of the query are returned in the callback.
  * The query is executed in the context of the session's current state:
  * autocommit if a transaction has not been started;
  * default lock mode;
  * the partition key.
- * @return undefined
+ * @return promise
  */
- execute(queryParameters, Function(error, results, ...) callback, ...);
+ execute(queryParameters, [callback], [...]);
 
 /** Count the number of instances filtered by this query.
  * XXX Not implemented in this version. XXX

@@ -974,6 +974,7 @@
 #include "NdbError.hpp"
 #include "NdbDictionary.hpp"
 
+
 class NdbObjectIdMap;
 class NdbOperation;
 class NdbEventOperationImpl;
@@ -1193,6 +1194,12 @@ public:
    * @return 0 if successful, -1 otherwise.
    */
   int init(int maxNoOfTransactions = 4);
+
+  /**
+   * Set/get maximum memory size for event buffer
+   */
+  void set_eventbuf_max_alloc(unsigned sz);
+  unsigned get_eventbuf_max_alloc();
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**

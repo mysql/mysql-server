@@ -103,11 +103,9 @@ max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
   case MYSQL_TYPE_LONG:
     return 11;
 
-#ifdef HAVE_LONG_LONG
   case MYSQL_TYPE_LONGLONG:
     return 20;
 
-#endif
   case MYSQL_TYPE_NULL:
     return 0;
 
@@ -260,11 +258,9 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   case MYSQL_TYPE_LONG:
     length= 4;
     break;
-#ifdef HAVE_LONG_LONG
   case MYSQL_TYPE_LONGLONG:
     length= 8;
     break;
-#endif
   case MYSQL_TYPE_NULL:
     length= 0;
     break;

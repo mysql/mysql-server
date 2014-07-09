@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <assert.h>
 #include <mysql.h>
 #include <mysqld_error.h>
 
@@ -30,15 +29,6 @@
 #include "../../src/ndbapi/NdbQueryOperation.hpp"
 #include <pthread.h>
 #include <NdbTick.h>
-
-
-
-#ifdef NDEBUG
-// Some asserts have side effects, and there is no other error handling anyway.
-#define ASSERT_ALWAYS(cond) if(unlikely(!(cond))){abort();}
-#else
-#define ASSERT_ALWAYS assert
-#endif
 
 #if 0
 /**
@@ -148,40 +138,40 @@ TestThread::TestThread(Ndb_cluster_connection& con,
   m_params(NULL),
   m_ndb(&con, databaseName),
   m_state(State_Active){
-  ASSERT_ALWAYS(m_ndb.init()==0);
-  ASSERT_ALWAYS(pthread_mutex_init(&m_mutex, NULL)==0);
-  ASSERT_ALWAYS(pthread_cond_init(&m_condition, NULL)==0);
-  ASSERT_ALWAYS(pthread_create(&m_posixThread, NULL, callback, this)
+  require(m_ndb.init()==0);
+  require(pthread_mutex_init(&m_mutex, NULL)==0);
+  require(pthread_cond_init(&m_condition, NULL)==0);
+  require(pthread_create(&m_posixThread, NULL, callback, this)
                 ==0);
   NdbDictionary::Dictionary*  const dict = m_ndb.getDictionary();
   m_tab = dict->getTable(tableName);
 
   m_index = dict->getIndex("PRIMARY", tableName);
-  ASSERT_ALWAYS(m_index != NULL);
+  require(m_index != NULL);
 
   /* Create NdbRecord for row. */
   m_resultRec = m_tab->getDefaultRecord();
-  ASSERT_ALWAYS(m_resultRec!=NULL);
+  require(m_resultRec!=NULL);
 
   /* Create NdbRecord for primary key. */
   const NdbDictionary::Column *col1= m_tab->getColumn("a");
-  ASSERT_ALWAYS(col1 != NULL);
+  require(col1 != NULL);
   NdbDictionary::RecordSpecification spec = {
     col1, 0, 0, 0
   };
   
   m_keyRec = dict->createRecord(m_tab, &spec, 1, sizeof spec);
-  ASSERT_ALWAYS(m_keyRec != NULL);
+  require(m_keyRec != NULL);
 
   m_indexRec = m_index->getDefaultRecord();
-  ASSERT_ALWAYS(m_indexRec != NULL);
+  require(m_indexRec != NULL);
 
   // Make SQL connection.
-  ASSERT_ALWAYS(mysql_init(&m_mysql));
+  require(mysql_init(&m_mysql));
   if(!mysql_real_connect(&m_mysql, host, "root", "", "",
                          port, NULL, 0)){
     printMySQLError(m_mysql, "mysql_real_connect() failed:");
-    ASSERT_ALWAYS(false);
+    require(false);
   }
   char text[50];
   sprintf(text, "use %s", databaseName);
@@ -189,44 +179,43 @@ TestThread::TestThread(Ndb_cluster_connection& con,
 }
 
 TestThread::~TestThread(){
-  ASSERT_ALWAYS(pthread_mutex_lock(&m_mutex)==0);
+  require(pthread_mutex_lock(&m_mutex)==0);
   // Tell thread to stop.
   m_state = State_Stopping;
-  ASSERT_ALWAYS(pthread_cond_signal(&m_condition)==0);
+  require(pthread_cond_signal(&m_condition)==0);
   // Wait for thread to stop.
   while(m_state != State_Stopped){
-    ASSERT_ALWAYS(pthread_cond_wait(&m_condition, &m_mutex)==0);
+    require(pthread_cond_wait(&m_condition, &m_mutex)==0);
   }
-  ASSERT_ALWAYS(m_params == NULL);
-  ASSERT_ALWAYS(pthread_mutex_unlock(&m_mutex)==0);
-
-  ASSERT_ALWAYS(pthread_cond_destroy(&m_condition)==0);
-  ASSERT_ALWAYS(pthread_mutex_destroy(&m_mutex)==0);
+  require(m_params == NULL);
+  require(pthread_mutex_unlock(&m_mutex)==0);
+  require(pthread_cond_destroy(&m_condition)==0);
+  require(pthread_mutex_destroy(&m_mutex)==0);
 }
 
 void TestThread::start(const TestParameters& params){
-  ASSERT_ALWAYS(pthread_mutex_lock(&m_mutex)==0);
-  ASSERT_ALWAYS(m_params == NULL);
+  require(pthread_mutex_lock(&m_mutex)==0);
+  require(m_params == NULL);
   m_params = &params;
-  ASSERT_ALWAYS(pthread_cond_signal(&m_condition)==0);
-  ASSERT_ALWAYS(pthread_mutex_unlock(&m_mutex)==0);
+  require(pthread_cond_signal(&m_condition)==0);
+  require(pthread_mutex_unlock(&m_mutex)==0);
 }
 
 void TestThread::run(){
 
-  ASSERT_ALWAYS(pthread_mutex_lock(&m_mutex)==0);
+  require(pthread_mutex_lock(&m_mutex)==0);
   while(true){
     while(m_params==NULL && m_state==State_Active){
       // Wait for a new command from master thread.
-      ASSERT_ALWAYS(pthread_cond_wait(&m_condition, &m_mutex)==0);
+      require(pthread_cond_wait(&m_condition, &m_mutex)==0);
     }
     if(m_state != State_Active){
       // We have been told to stop.
-      ASSERT_ALWAYS(m_state == State_Stopping);
+      require(m_state == State_Stopping);
       m_state = State_Stopped;
       // Wake up master thread and release lock.
-      ASSERT_ALWAYS(pthread_cond_signal(&m_condition)==0);
-      ASSERT_ALWAYS(pthread_mutex_unlock(&m_mutex)==0);
+      require(pthread_cond_signal(&m_condition)==0);
+      require(pthread_mutex_unlock(&m_mutex)==0);
       // Exit thread.
       return;
     }
@@ -241,9 +230,9 @@ void TestThread::run(){
       }
     }
 
-    ASSERT_ALWAYS(m_params != NULL);
+    require(m_params != NULL);
     m_params = NULL;
-    ASSERT_ALWAYS(pthread_cond_signal(&m_condition)==0);
+    require(pthread_cond_signal(&m_condition)==0);
   }
 }
 
@@ -315,7 +304,7 @@ void TestThread::doLinkedAPITest(){
     int res = trans->execute(NoCommit);
     //        if (res != 0)
     //          APIERROR(trans->getNdbError());
-    ASSERT_ALWAYS(res == 0);
+    require(res == 0);
     int cnt=0;
     while(true){
       const NdbQuery::NextResultOutcome outcome 
@@ -323,12 +312,12 @@ void TestThread::doLinkedAPITest(){
       if(outcome ==  NdbQuery::NextResult_scanComplete){
         break;
       }
-      ASSERT_ALWAYS(outcome== NdbQuery::NextResult_gotRow);
+      require(outcome== NdbQuery::NextResult_gotRow);
       cnt++;
       //        if (m_params->m_scanLength==0)
       //          break;
     }
-    ASSERT_ALWAYS(cnt== MAX(1,m_params->m_scanLength));
+    require(cnt== MAX(1,m_params->m_scanLength));
     //      query->close();
     if ((iterNo % 5) == 0) {
       m_ndb.closeTransaction(trans);
@@ -386,9 +375,9 @@ void TestThread::doNonLinkedAPITest(){
                            NULL, // Result mask
                            &bound);
       }
-      ASSERT_ALWAYS(scanOp != NULL);
+      require(scanOp != NULL);
 
-      ASSERT_ALWAYS(trans->execute(NoCommit) == 0);
+      require(trans->execute(NoCommit) == 0);
           
       // Iterate over scan result
       int cnt = 0;
@@ -401,7 +390,7 @@ void TestThread::doNonLinkedAPITest(){
         if(retVal==1){
           break;
         }
-        ASSERT_ALWAYS(retVal== 0);
+        require(retVal== 0);
         //ndbout << "ScanRow: " << scanRow->a << " " << scanRow->b << endl;
         row = *scanRow;
             
@@ -414,15 +403,15 @@ void TestThread::doNonLinkedAPITest(){
                              m_resultRec,
                              reinterpret_cast<char*>(&row),
                              NdbOperation::LM_Dirty);
-          ASSERT_ALWAYS(lookupOp != NULL);
-          ASSERT_ALWAYS(trans->execute(NoCommit) == 0);
+          require(lookupOp != NULL);
+          require(trans->execute(NoCommit) == 0);
           //ndbout << "LookupRow: " << row.a << " " << row.b << endl;
         }
         cnt++;
         //          if (m_params->m_scanLength==0)
         //            break;
       }
-      ASSERT_ALWAYS(cnt== m_params->m_scanLength);
+      require(cnt== m_params->m_scanLength);
       scanOp->close(false,true);
     }else{ 
       // Root is lookup.
@@ -434,8 +423,8 @@ void TestThread::doNonLinkedAPITest(){
                            m_resultRec,
                            reinterpret_cast<char*>(&row),
                            NdbOperation::LM_Dirty);
-        ASSERT_ALWAYS(lookupOp != NULL);
-        ASSERT_ALWAYS(trans->execute(NoCommit) == 0);
+        require(lookupOp != NULL);
+        require(trans->execute(NoCommit) == 0);
       }
     }//if(m_params->m_isScan)
     //      m_ndb.closeTransaction(trans);
@@ -497,11 +486,11 @@ void TestThread::doSQLTest(){
 }
 
 void TestThread::wait(){
-  ASSERT_ALWAYS(pthread_mutex_lock(&m_mutex)==0);
+  require(pthread_mutex_lock(&m_mutex)==0);
   while(m_params!=NULL){
-    ASSERT_ALWAYS(pthread_cond_wait(&m_condition, &m_mutex)==0);
+    require(pthread_cond_wait(&m_condition, &m_mutex)==0);
   }
-  ASSERT_ALWAYS(pthread_mutex_unlock(&m_mutex)==0);
+  require(pthread_mutex_unlock(&m_mutex)==0);
 }
 
 
@@ -509,11 +498,11 @@ void TestThread::wait(){
 
 static void makeDatabase(const char* host, int port, int rowCount){
   MYSQL mysql;
-  ASSERT_ALWAYS(mysql_init(&mysql));
+  require(mysql_init(&mysql));
   if(!mysql_real_connect(&mysql, host, "root", "", "",
                          port, NULL, 0)){
     printMySQLError(mysql, "mysql_real_connect() failed:");
-    ASSERT_ALWAYS(false);
+    require(false);
   }
   char text[200];
   sprintf(text, "create database if not exists %s", databaseName);
@@ -542,14 +531,15 @@ static void printHeading(){
 void runTest(TestThread** threads, int threadCount, 
              TestParameters& param){
   //ndbout << "Doing test " << name << endl;
-  const NDB_TICKS start = NdbTick_CurrentMillisecond();
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
   for(int i = 0; i<threadCount; i++){
     threads[i]->start(param);
   }
   for(int i = 0; i<threadCount; i++){
     threads[i]->wait();
   }
-  const NDB_TICKS duration = NdbTick_CurrentMillisecond() - start;
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  const Uint64 duration = NdbTick_Elapsed(start,now).milliSec();
   ndbout << param.m_useSQL << "; ";
   ndbout << param.m_useLinkedOperations << "; ";
   ndbout << threadCount << "; ";
@@ -666,8 +656,8 @@ int main(int argc, char* argv[]){
   makeDatabase(host, port, 200);
   {
     Ndb_cluster_connection con(connectString);
-    ASSERT_ALWAYS(con.connect(12, 5, 1) == 0);
-    ASSERT_ALWAYS(con.wait_until_ready(30,30) == 0);
+    require(con.connect(12, 5, 1) == 0);
+    require(con.wait_until_ready(30,30) == 0);
 
     const int threadCount = 1;
     threads = new TestThread*[threadCount];

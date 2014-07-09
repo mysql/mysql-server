@@ -3742,20 +3742,21 @@ bool select_dumpvar::send_eof()
 }
 
 
-void thd_increment_bytes_sent(ulong length)
+void thd_increment_bytes_sent(size_t length)
 {
-  THD *thd=current_thd;
-  if (likely(thd != 0))
-  { /* current_thd==0 when close_connection() calls net_send_error() */
+  THD *thd= current_thd;
+  if (likely(thd != NULL))
+  { /* current_thd==NULL when close_connection() calls net_send_error() */
     thd->status_var.bytes_sent+= length;
   }
 }
 
 
-void thd_increment_bytes_received(ulong length)
+void thd_increment_bytes_received(size_t length)
 {
-  if (likely(current_thd != NULL))
-    current_thd->status_var.bytes_received+= length;
+  THD *thd= current_thd;
+  if (likely(thd != NULL))
+    thd->status_var.bytes_received+= length;
 }
 
 

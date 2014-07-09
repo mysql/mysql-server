@@ -513,7 +513,7 @@ Val::cmp(const Val& val2, uint numattrs, uint* num_eq) const
       const uchar* s2 = &val2.c[1];
       const uint l1 = (uint)c[0];
       const uint l2 = (uint)val2.c[0];
-      assert(l1 <= g_charlen && l2 <= g_charlen);
+      require(l1 <= g_charlen && l2 <= g_charlen);
       k = g_cs->coll->strnncollsp(g_cs, s1, l1, s2, l2, 0);
     } else if (! c_null) {
       k = +1;
@@ -777,7 +777,7 @@ verifydata()
     chkrc(key.m_flag == true);
     key.m_flag = -1; // forget
   }
-  assert(count == g_opts.rows);
+  require(count == g_opts.rows);
   ll3("verifydata: " << g_opts.rows << " rows");
   return 0;
 }
@@ -952,7 +952,7 @@ Bnd::cmp(const Key& key) const
     }
     place = 3;
     ret = 0;
-    assert(m_val.m_numattrs == 0);
+    require(m_val.m_numattrs == 0);
   } while (0);
   ll3("bnd: " << *this << " cmp key: " << key
       << " ret: " << ret << " place: " << place);
@@ -1385,7 +1385,7 @@ setbounds(const Rng& rng)
       else if (no == 2)
         addr = ! val.d_null ? (const void*)&val.d : 0;
       else
-        assert(false);
+        require(false);
       ll3("setBound attr:" << no << " type:" << t << " val: " << val);
       chkdb(g_rangescan_op->setBound(no, t, addr) == 0);
     }

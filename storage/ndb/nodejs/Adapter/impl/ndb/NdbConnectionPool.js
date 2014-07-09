@@ -195,36 +195,10 @@ function DBConnectionPool(props) {
 }
 
 
-/* Blocking connect.  
-   SYNC.
-   Returns true on success and false on error.
-*/
-DBConnectionPool.prototype.connectSync = function() {
-  udebug.log("connectSync");
-  var db = this.properties.database;
-  
-  this.ndbConnection = getNdbConnection(this.properties.ndb_connectstring);
-
-  if(this.ndbConnection.connectSync(this.properties)) {
-    this.impl = this.ndbConnection.ndb_cluster_connection;
-
-    /* Start filling the session pool */
-    prefetchSession(this);
-
-    /* Create Async Context */
-    if(this.properties.use_ndb_async_api) {
-      this.asyncNdbContext = this.ndbConnection.getAsyncContext();
-    }
-  }
-    
-  return this.ndbConnection.isConnected;
-};
-
-
 /* Async connect 
 */
 DBConnectionPool.prototype.connect = function(user_callback) {
-  stats.incr([ "connect", "async" ] );
+  stats.incr([ "connect" ]);
   var self = this;
 
   function onConnected(err) {

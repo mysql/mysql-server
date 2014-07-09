@@ -33,25 +33,41 @@ var implementation = function() {
 
 };
 
+implementation.prototype.getDefaultProperties = function(adapter) {
+  return new mynode.ConnectionProperties(adapter);
+};
+
 implementation.prototype.close = function(callback) {
+  JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.close', this);
   this.session.close(callback);
 };
 
 implementation.prototype.initialize = function(options, callback) {
-  JSCRUND.udebug.log_detail('jscrund_mysqljs.initialize', this);
+  JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.initialize', this);
   var impl = this;
   // set up the session
   mynode.openSession(options.properties, options.annotations, function(err, session) {
+    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.initialize callback err:', err);
+    if (err) {
+      console.log(err);
+      process.exit(1);
+    }
     impl.session = session;
     impl.context = session;
-    session.getMapping(options.annotations, function(a,b) { callback(a,b); });
+    callback(err);
   });
 };
 
 implementation.prototype.persist = function(parameters, callback) {
-  JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.insert object:', parameters.object);
-  this.context.persist(parameters.object, function(err) {
-    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.insert callback err:', err);
+  JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.persist object:', parameters.object);
+  // account for object construction
+  //var o = new parameters.object;
+  var o = new parameters.object.constructor();
+  o.init(parameters.object.id);
+  this.context.persist(o, function(err) {
+    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.persist callback err:', err);
+    if (err)
+      console.log(err);
     callback(err);
   });
 };
@@ -60,14 +76,20 @@ implementation.prototype.find = function(parameters, callback) {
   JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.find key:', parameters.key);
   this.context.find(parameters.object.constructor, parameters.key, function(err, found) {
     JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.find callback err:', err);
+    if (err)
+      console.log(err);
+    // account for verification
+    parameters.object.verify(found);
     callback(err);
   });
 };
 
 implementation.prototype.remove = function(parameters, callback) {
-  JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.find key:', parameters.key);
+  JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.remove key:', parameters.key);
   this.context.remove(parameters.object.constructor, parameters.key, function(err) {
     JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.remove callback err:', err);
+    if (err)
+      console.log(err);
     callback(err);
   });
 };
@@ -80,20 +102,35 @@ implementation.prototype.createBatch = function(callback) {
 };
 
 implementation.prototype.executeBatch = function(callback) {
-  JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.begin');
-  this.context.execute(callback);
+  JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.executeBatch');
+  this.context.execute(function(err) {
+    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.executeBatch callback err:', err);
+    if (err)
+      console.log(err);
+    callback(err);
+  });
   this.context = this.session;
 };
 
 implementation.prototype.begin = function(callback) {
   JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.begin');
-  this.session.currentTransaction().begin();
-  callback(null);
+  // begin() signals programming error by exception if no callback provided
+  this.session.currentTransaction().begin(function(err) {
+    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.begin callback err:', err);
+    if (err)
+      console.log(err);
+    callback(err);
+  });
 };
 
 implementation.prototype.commit = function(callback) {
   JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.commit');
-  this.session.currentTransaction().commit(callback);
+  this.session.currentTransaction().commit(function(err) {
+    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.commit callback err:', err);
+    if (err)
+      console.log(err);
+    callback(err);
+  });
 };
 
 exports.implementation = implementation;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -192,7 +192,7 @@ void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
 			 Fix_page* regPagePtr)
 {
   Uint32 free= regPagePtr->free_record(key->m_page_idx);
-  PagePtr pagePtr = { (Page*)regPagePtr, key->m_page_no };
+  PagePtr pagePtr((Page*)regPagePtr, key->m_page_no);
   
   if(free == 1)
   {

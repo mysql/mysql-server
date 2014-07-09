@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -366,6 +366,9 @@ DblqhProxy::execLQHFRAGREQ(Signal* signal)
 {
   LqhFragReq* req = (LqhFragReq*)signal->getDataPtrSend();
   Uint32 instance = getInstanceKey(req->tableId, req->fragId);
+
+  /* Ensure instance hasn't quietly mapped back to proxy! */
+  ndbrequire(signal->getSendersBlockRef() != reference());
 
   // wl4391_todo impl. method that fakes senders block-ref
   sendSignal(numberToRef(DBLQH, instance, getOwnNodeId()),
