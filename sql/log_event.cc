@@ -41,6 +41,7 @@
 #include "rpl_mi.h"
 #include "rpl_filter.h"
 #include "rpl_record.h"
+#include "rpl_mts_submode.h"
 #include "transaction.h"
 #include <my_dir.h>
 #include "rpl_rli_pdb.h"
@@ -459,7 +460,7 @@ static void clear_all_errors(THD *thd, Relay_log_info *rli)
   rli->clear_error();
   if (rli->workers_array_initialized)
   {
-    for(uint i= 0; i<rli->get_worker_count(); i++)
+    for(size_t i= 0; i < rli->get_worker_count(); i++)
     {
       rli->get_worker(i)->clear_error();
     }
@@ -3117,7 +3118,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     {
       // Worker with id 0 to handle serial execution
       if (!ret_worker)
-        ret_worker= *(Slave_worker**) dynamic_array_ptr(&rli->workers, 0);
+        ret_worker= rli->workers.at(0);
       // No need to know a possible error out of synchronization call.
       (void)rli->current_mts_submode-> wait_for_workers_to_finish(rli,
                                                                   ret_worker);
@@ -3414,10 +3415,8 @@ int Log_event::apply_event(Relay_log_info *rli)
         /* all Workers are idle as done through wait_for_workers_to_finish */
         for (uint k= 0; k < rli->curr_group_da.elements; k++)
         {
-          DBUG_ASSERT(!(*(Slave_worker **)
-                        dynamic_array_ptr(&rli->workers, k))->usage_partition);
-          DBUG_ASSERT(!(*(Slave_worker **)
-                        dynamic_array_ptr(&rli->workers, k))->jobs.len);
+          DBUG_ASSERT(!(rli->workers[k]->usage_partition));
+          DBUG_ASSERT(!(rli->workers[k]->jobs.len));
         }
 #endif
       }
