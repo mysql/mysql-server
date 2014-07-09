@@ -808,7 +808,7 @@ SyncDebug::unlock(const latch_t* latch)
 		     it != rend;
 		     ++it) {
 
-			if ((*it)->m_level != latch->m_level) {
+			if (*it != latch) {
 				continue;
 			}
 
