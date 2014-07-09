@@ -288,17 +288,17 @@ performance_schema	(pfs_table_stat).memory	984000
 performance_schema	(pfs_index_stat).size	136
 performance_schema	(pfs_index_stat).count	1000
 performance_schema	(pfs_index_stat).memory	136000
-performance_schema	performance_schema.memory	65781032
+performance_schema	performance_schema.memory	65791592
 select * from performance_schema.memory_summary_global_by_event_name
 where event_name='memory/performance_schema/internal_buffers';
 EVENT_NAME	memory/performance_schema/internal_buffers
 COUNT_ALLOC	62
 COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	65781032
+SUM_NUMBER_OF_BYTES_ALLOC	65791592
 SUM_NUMBER_OF_BYTES_FREE	0
 LOW_COUNT_USED	62
 CURRENT_COUNT_USED	62
 HIGH_COUNT_USED	62
-LOW_NUMBER_OF_BYTES_USED	65781032
-CURRENT_NUMBER_OF_BYTES_USED	65781032
-HIGH_NUMBER_OF_BYTES_USED	65781032
+LOW_NUMBER_OF_BYTES_USED	65791592
+CURRENT_NUMBER_OF_BYTES_USED	65791592
+HIGH_NUMBER_OF_BYTES_USED	65791592
