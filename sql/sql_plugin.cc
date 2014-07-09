@@ -211,7 +211,7 @@ struct st_item_value_holder : public st_mysql_value
 */
 struct st_bookmark
 {
-  uint name_len;
+  size_t name_len;
   int offset;
   uint version;
   char key[1];
@@ -1219,14 +1219,14 @@ uchar *get_bookmark_hash_key(const uchar *buff, size_t *length,
   return (uchar*) var->key;
 }
 
-static inline void convert_dash_to_underscore(char *str, int len)
+static inline void convert_dash_to_underscore(char *str, size_t len)
 {
   for (char *p= str; p <= str+len; p++)
     if (*p == '-')
       *p= '_';
 }
 
-static inline void convert_underscore_to_dash(char *str, int len)
+static inline void convert_underscore_to_dash(char *str, size_t len)
 {
   for (char *p= str; p <= str+len; p++)
     if (*p == '_')
@@ -2136,7 +2136,7 @@ err:
 bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
                               int type, uint state_mask, void *arg)
 {
-  uint idx, total;
+  size_t idx, total;
   st_plugin_int *plugin, **plugins;
   int version=plugin_array_version;
   DBUG_ENTER("plugin_foreach_with_mask");

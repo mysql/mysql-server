@@ -2577,7 +2577,7 @@ void remove_status_vars(SHOW_VAR *list)
   if (status_vars_inited)
   {
     mysql_mutex_lock(&LOCK_status);
-    int a= 0, b= all_status_vars.size(), c= (a+b)/2;
+    size_t a= 0, b= all_status_vars.size(), c= (a+b)/2;
 
     for (; list->name; list++)
     {
@@ -4465,7 +4465,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
      !with_i_schema)
   {
     char path[FN_REFLEN+16];
-    uint path_len;
+    size_t path_len;
     MY_STAT stat_info;
     if (!lookup_field_vals.db_value.str[0])
       DBUG_RETURN(0);

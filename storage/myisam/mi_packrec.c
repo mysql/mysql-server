@@ -1082,7 +1082,7 @@ static void uf_varchar2(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
   else
   {
     ulong length=get_bits(bit_buff,rec->space_length_bits);
-    int2store(to,length);
+    int2store(to, (uint16)length);
     decode_bytes(rec,bit_buff,to+2,to+2+length);
   }
 }

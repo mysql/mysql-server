@@ -1574,7 +1574,7 @@ String *Item_func_left::val_str(String *str)
 
   /* must be longlong to avoid truncation */
   longlong length= args[1]->val_int();
-  uint char_pos;
+  size_t char_pos;
 
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0;

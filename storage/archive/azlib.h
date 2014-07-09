@@ -331,9 +331,9 @@ extern int azclose(azio_stream *file);
    error number (see function gzerror below).
 */
 
-extern int azwrite_frm (azio_stream *s, char *blob, unsigned int length);
+extern int azwrite_frm (azio_stream *s, char *blob, size_t length);
 extern int azread_frm (azio_stream *s, char *blob);
-extern int azwrite_comment (azio_stream *s, char *blob, unsigned int length);
+extern int azwrite_comment (azio_stream *s, char *blob, size_t length);
 extern int azread_comment (azio_stream *s, char *blob);
 
 #ifdef	__cplusplus

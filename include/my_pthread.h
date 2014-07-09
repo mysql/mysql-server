@@ -67,7 +67,7 @@ typedef void * (__cdecl *pthread_handler)(void *);
 
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
 int pthread_attr_init(pthread_attr_t *connect_att);
-int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
+int pthread_attr_setstacksize(pthread_attr_t *connect_att, size_t stack);
 int pthread_attr_getstacksize(pthread_attr_t *connect_att, size_t *stack);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
 
