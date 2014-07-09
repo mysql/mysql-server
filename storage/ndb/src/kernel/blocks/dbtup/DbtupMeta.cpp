@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   CreateTabReq* req = &reqCopy;
 
   TablerecPtr regTabPtr;
+  FragoperrecPtr fragOperPtr;
   regTabPtr.i = req->tableId;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
 
@@ -72,7 +73,6 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
     goto sendref;
   }
 
-  FragoperrecPtr fragOperPtr;
   seizeFragoperrec(fragOperPtr);
   fragOperPtr.p->tableidFrag = regTabPtr.i;
   fragOperPtr.p->attributeCount = req->noOfAttributes;
@@ -716,6 +716,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     return;
   }
   
+  TablerecPtr regTabPtr;
+
 #ifndef VM_TRACE
   // config mismatch - do not crash if release compiled
   if (tableId >= cnoOfTablerec)
@@ -726,7 +728,6 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   }
 #endif
 
-  TablerecPtr regTabPtr;
   regTabPtr.i = tableId;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
 
@@ -2207,7 +2208,6 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
       }
     }
     
-    ArrayPool<Page> *cheat_pool= (ArrayPool<Page>*)&m_global_page_pool;
     for(pos= 0; pos<MAX_FREE_LIST; pos++)
     {
       ndbrequire(alloc_info.m_page_requests[pos].isEmpty());

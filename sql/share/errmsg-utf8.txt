@@ -7168,7 +7168,7 @@ ER_GIS_UNKNOWN_ERROR
 ER_GIS_UNKNOWN_EXCEPTION
   eng "Unknown exception caught in GIS function %s."
 
-ER_GIS_INVALID_DATA
+ER_GIS_INVALID_DATA 22023
   eng "Invalid GIS data provided to function %s."
 
 ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION

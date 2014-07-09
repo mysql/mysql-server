@@ -37,9 +37,13 @@ TableMapping(tableName_or_tableMapping);
  * other nodes on the network, waiting for them to become ready, and making 
  * multiple requests to them. 
  *
- * It returns a SessionFactory in the callback function.  The "implementation" 
- * member of the properties object determines the backend driver implementating
- * the SessionFactory.
+ * This function returns a promise.  On success, the promise will be fulfilled 
+ * with a SessionFactory.  The optional callback receives an error value and a 
+ * SessionFactory.  Any extra arguments passed after the callback function will
+ * be returned to the callback verbatim.
+ *
+ * The "implementation" member of the properties object determines the backend 
+ * driver implementating the SessionFactory.
  *
  * The "mappings" parameter can be used to preload metadata for application 
  * tables and to validate the defind mappings between stored data and 
@@ -53,9 +57,9 @@ TableMapping(tableName_or_tableMapping);
  *  @param properties  properties object describing the session
  *  @param mappings    mappings to validate when connection is made
  *  @param callback    function called after connection is complete.
- *  @return void
+ *  @return a promise
  */
-connect(properties, mappings, Function(err, SessionFactory, ...) callback, ...);
+connect(properties, mappings, [callback], [...]);
 
 
 /**
@@ -63,9 +67,6 @@ connect(properties, mappings, Function(err, SessionFactory, ...) callback, ...);
  * ASYNC
  * 
  * Connect to the data source and get a Session.  
- * This is a "superheavyweight" call:  it could involve connecting to many 
- * other nodes on the network, waiting for them to become ready, and making 
- * multiple requests to them.
  *
  * This is a convenience method. It returns a Session in the callback function.
  * This is equivalent to calling connect and then getSession on the
@@ -82,13 +83,19 @@ connect(properties, mappings, Function(err, SessionFactory, ...) callback, ...);
  * If mappings is undefined, null, or an empty array, no mappings will be 
  * loaded or validated; this means validation is deferred until tables are 
  * used in application code.
+ *
+ * This function returns a promise.  On success, the promise will be fulfilled 
+ * with a Session.  The optional callback receives an error value and a 
+ * Session.  Any extra arguments passed after the callback function will
+ * be returned to the callback verbatim.
+ *
  *  
  *  @param properties  properties object describing the session
  *  @param mappings    mappings to validate when connection is made
  *  @param callback    function called after connection is complete.
- *  @async
+ *  @return a promise
  */
-openSession(Properties, mappings, Function(err, Session, ...) callback, ...);
+openSession(Properties, mappings, [callback], [...]);
 
 
 /** Get all SessionFactories that have been created by this module.

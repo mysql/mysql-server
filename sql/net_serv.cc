@@ -79,13 +79,9 @@ PSI_memory_key key_memory_NET_compress_packet;
 */
 extern void query_cache_insert(const char *packet, ulong length,
                                unsigned pkt_nr);
-#define update_statistics(A) A
-#else /* MYSQL_SERVER */
-#define update_statistics(A)
-#define thd_increment_bytes_sent(N)
-#endif
+extern void thd_increment_bytes_sent(size_t length);
+extern void thd_increment_bytes_received(size_t length);
 
-#ifdef MYSQL_SERVER
 /* Additional instrumentation hooks for the server */
 #include "mysql_com_server.h"
 #endif
@@ -506,7 +502,9 @@ net_write_raw_loop(NET *net, const uchar *buf, size_t count)
 
     count-= sentcnt;
     buf+= sentcnt;
-    update_statistics(thd_increment_bytes_sent(sentcnt));
+#ifdef MYSQL_SERVER
+    thd_increment_bytes_sent(sentcnt);
+#endif
   }
 
   /* On failure, propagate the error code. */
@@ -682,7 +680,9 @@ static my_bool net_read_raw_loop(NET *net, size_t count)
 
     count-= recvcnt;
     buf+= recvcnt;
-    update_statistics(thd_increment_bytes_received(recvcnt));
+#ifdef MYSQL_SERVER
+    thd_increment_bytes_received(recvcnt);
+#endif
   }
 
   /* On failure, propagate the error code. */

@@ -201,11 +201,11 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/ndbmemcache_config.in
 
 # Build sandbox.sh
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/sandbox.sh.in
-               ${CMAKE_CURRENT_SOURCE_DIR}/sandbox.sh)
+               ${CMAKE_CURRENT_BINARY_DIR}/sandbox.sh)
                
 # Build the perl include file used by mtr
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl.in
-               ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl)
+               ${CMAKE_CURRENT_BINARY_DIR}/memcached_path.pl)
 
 # Copy the SQL script into /scripts/ in the build directory.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql
@@ -251,6 +251,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
 else()
   set(FINAL_LINK_FLAGS "")
 endif()
+#  Prepend any link flags required for building shared lib
+set(FINAL_LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${FINAL_LINK_FLAGS}")
 
 set_target_properties(ndb_engine PROPERTIES
                       PREFIX ""
@@ -269,7 +271,8 @@ install(PROGRAMS ${MEMCLIENT} DESTINATION ${INSTALL_BINDIR})
 ###
 SET(MEMCACHE_API_DIR "${INSTALL_MYSQLSHAREDIR}/memcache-api")
 install(DIRECTORY DESTINATION ${MEMCACHE_API_DIR} )
-install(PROGRAMS sandbox.sh DESTINATION  ${MEMCACHE_API_DIR})
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/sandbox.sh 
+        DESTINATION  ${MEMCACHE_API_DIR})
 install(FILES README DESTINATION  ${MEMCACHE_API_DIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
         DESTINATION  ${MEMCACHE_API_DIR})
@@ -279,7 +282,7 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/update_to_1.2.sql
         DESTINATION ${MEMCACHE_API_DIR}/upgrade)
         
 # memcached_path.pl is also installed, for use by installed mtr
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/memcached_path.pl
         DESTINATION ${INSTALL_MYSQLTESTDIR}/lib)
         
 ######################################################## 

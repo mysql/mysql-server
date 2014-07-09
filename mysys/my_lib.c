@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,15 +26,6 @@
 #else
 # define dirent direct
 # define NAMLEN(dirent) (dirent)->d_namlen
-# if defined(HAVE_SYS_NDIR_H)
-#  include <sys/ndir.h>
-# endif
-# if defined(HAVE_SYS_DIR_H)
-#  include <sys/dir.h>
-# endif
-# if defined(HAVE_NDIR_H)
-#  include <ndir.h>
-# endif
 #endif
 
 #if defined(HAVE_READDIR_R)

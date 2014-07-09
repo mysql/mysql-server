@@ -2444,7 +2444,7 @@ sub environment_setup {
 		  ["storage/ndb/ndbapi-examples/ndbapi_simple", "bin"],
 		  "ndbapi_simple", NOT_REQUIRED);
 
-    my $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
+    my $path_ndb_testrun_log= "$opt_vardir/tmp/ndb_testrun.log";
     $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
     $ENV{'NDB_EXAMPLES_OUTPUT'}=      $path_ndb_testrun_log;
   }
@@ -4566,6 +4566,166 @@ sub extract_server_log ($$) {
   return @lines;
 }
 
+# Get a subset of the lines from a log file
+# Returns the first start_lines, and the last end_lines
+# of the file, with a <  Snip  > line in the middle if
+# there is a gap.
+#
+
+sub ndb_get_log_lines( $$$ )
+{
+  my ($log_file_name, $start_lines, $end_lines) = @_;
+
+  my $log_file = IO::File->new($log_file_name)
+    or mtr_error("Could not open file '$log_file_name' for reading: $!");
+
+  my $total_lines = 0;
+
+  # First pass, get number of lines in the file
+  while ( my $line = <$log_file> )
+  {
+    $total_lines = $total_lines + 1;
+  }
+  undef $log_file;
+
+  # Now take the lines we want
+  my @log_lines;
+  my $line_num = 0;
+
+  $log_file = IO::File->new($log_file_name)
+    or mtr_error("Could not open file '$log_file_name' for reading: $!");
+
+  while ( my $line = <$log_file> )
+  {
+    if ($line_num < $start_lines)
+    {
+      # Start lines
+      push(@log_lines, $line);
+    }
+    elsif ($line_num > ($total_lines - $end_lines))
+    {
+      # End lines
+      push(@log_lines, $line);
+    }
+    elsif ($line_num == $start_lines)
+    {
+      # First line in the 'gap'
+      my $gap_text = "<  Snip  >";
+      push(@log_lines, $gap_text);
+    }
+
+    $line_num = $line_num + 1;
+  }
+  undef $log_file;
+
+  return @log_lines;
+}
+
+# Get an ndb crash trace number from a crash trace file name
+#
+
+sub ndb_get_trace_num_from_filename ($) {
+  my $trace_file_fq_name=  shift;
+
+  # Format is : /basepath/ndb_<id>_trace.log.<trace num>[_t<thread_num>]
+  my $trace_file_name = basename($trace_file_fq_name);
+  my @parts = split(/\./, $trace_file_name);
+  my $trace_num_and_thread = $parts[2];
+  if ($trace_num_and_thread eq "next") {
+    $trace_num_and_thread = 0;
+  }
+
+  my @trace_num_and_thread_parts = split(/_/, $trace_num_and_thread);
+  my $trace_num = $trace_num_and_thread_parts[0];
+
+  return $trace_num;
+}
+
+# Return array of lines containing failed ndbd log info
+#
+
+sub ndb_extract_ndbd_log_info($$) {
+  my ($ndbd_log_path, $dump_out_file) = @_;
+
+  my $ndbd_log = "";
+
+  if ($dump_out_file) {
+    my $ndbd_log_file_start_lines = 100;
+    my $ndbd_log_file_end_lines = 200;
+    my $ndbd_log_file_name = "$ndbd_log_path/ndbd.log";
+    my @log_lines = ndb_get_log_lines($ndbd_log_file_name,
+                                      $ndbd_log_file_start_lines,
+                                      $ndbd_log_file_end_lines);
+    $ndbd_log= $ndbd_log .
+      "\nFailed data node output log ($ndbd_log_file_name):\n" .
+      "-----------FAILED DATA NODE OUTPUT LOG START--------\n" .
+      join ("", @log_lines) .
+      "-----------FAILED DATA NODE OUTPUT LOG END----------\n";
+  }
+
+  # For all ndbds, we look for error and trace files
+  #
+  my @ndb_error_files = glob("$ndbd_log_path/ndb_*_error.log");
+  my $num_error_files = scalar @ndb_error_files;
+  if ($num_error_files) {
+    # Found an error file, let's go further
+    if ($num_error_files > 1) {
+      mtr_error("More than one error file found : " . join(" ", @ndb_error_files));
+    }
+
+    my $ndbd_error_file_name = $ndb_error_files[0];
+    my @log_lines = ndb_get_log_lines($ndbd_error_file_name,
+                                      10000, 10000); # Get everything from the error file.
+    $ndbd_log= $ndbd_log .
+      "\nFound data node error log ($ndbd_error_file_name):\n" .
+      "\n-----------DATA NODE ERROR LOG START--------\n". join ("", @log_lines) .
+      "\n-----------DATA NODE ERROR LOG END----------\n";
+
+    my @ndb_trace_files = glob("$ndbd_log_path/ndb_*_trace*");
+    my $num_trace_files = scalar @ndb_trace_files;
+    if ($num_trace_files) {
+      $ndbd_log = $ndbd_log .
+        "\nFound crash trace files :\n  " . join("\n  ", @ndb_trace_files) .
+        "\n\n";
+
+      # Now find most recent set of trace files..
+      my $max_trace_num = 0;
+      foreach my $trace_file (@ndb_trace_files) {
+        my $trace_num = ndb_get_trace_num_from_filename($trace_file);
+        if ($trace_num > $max_trace_num) {
+          $max_trace_num = $trace_num;
+        }
+      }
+
+      $ndbd_log = $ndbd_log . 
+        "\nDumping excerpts from crash number $max_trace_num\n";
+
+      # Now print a chunk of em
+      foreach my $trace_file (@ndb_trace_files) {
+        if (ndb_get_trace_num_from_filename($trace_file) eq $max_trace_num) {
+          my $ndbd_trace_file_start_lines = 2500;
+          my $ndbd_trace_file_end_lines = 0;
+          @log_lines = ndb_get_log_lines($trace_file,
+                                         $ndbd_trace_file_start_lines,
+                                         $ndbd_trace_file_end_lines);
+
+          $ndbd_log= $ndbd_log .
+            "\nData node trace file : $trace_file\n" .
+            "\n-----------DATA NODE TRACE LOG START--------\n". join ("", @log_lines) .
+            "\n-----------DATA NODE TRACE LOG END----------\n";
+        }
+      }
+    }
+    else {
+      $ndbd_log = $ndbd_log . 
+        "\n No trace files! \n";
+    }
+  }
+
+  return $ndbd_log;
+}
+
+
 # Get log from server identified from its $proc object, from named test
 # Return as a single string
 #
@@ -4583,6 +4743,28 @@ sub get_log_from_proc ($$) {
       last;
     }
   }
+
+  # ndbds are started in a directory according to their
+  # MTR process 'ids'.  Their ndbd.log files are
+  # placed in these directories.
+  # Then they allocate a nodeid from mgmd which is really
+  # a race, and choose a datadirectory based on the nodeid
+  # This can mean that they use a different ndbd.X directory
+  # for their ndb_Z_fs files and error + trace log file writing.
+  # This could be worked around by setting the ndbd node ids
+  # up front, but in the meantime, we will attempt to 
+  # find error and trace files here.
+  #
+
+  foreach my $ndbd (ndbds()) {
+    my $ndbd_log_path = $ndbd->value('DataDir');
+
+    my $dump_out_file = ($ndbd->{proc} eq $proc);
+    my $ndbd_log_info = ndb_extract_ndbd_log_info($ndbd_log_path,
+                                                  $dump_out_file);
+    $srv_log = $srv_log . $ndbd_log_info;
+  }
+
   return $srv_log;
 }
 

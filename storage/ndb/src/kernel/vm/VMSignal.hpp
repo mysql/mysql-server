@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,7 +104,6 @@ public:
   Uint32 length() const { return getLength();}
   BlockReference senderBlockRef() const { return getSendersBlockRef();}
 
-private:
   void setLength(Uint32);
   
 public:

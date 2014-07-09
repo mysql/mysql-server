@@ -133,7 +133,7 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   
   initData();
   ctypeOfStart = NodeState::ST_ILLEGAL_TYPE;
-  c_start.m_startTime = NdbTick_CurrentMillisecond();
+  c_start.m_startTime = NdbTick_getCurrentTicks();
   m_cntr_start_conf = false;
 }//Ndbcntr::Ndbcntr()
 

@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
- reserved.
+ Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -17,6 +16,10 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+
+/* configure defines */
+#include <my_config.h>
+
 /* System headers */
 #define __STDC_FORMAT_MACROS 
 #include <unistd.h>
@@ -108,6 +111,8 @@ ndb_async_callback callback_close;    // just call worker_close()
    The next step is a function that conforms to the worker_step signature.
    It must either call yield() or reschedule(), and is also responsible for 
    closing the transaction.  The signature is in ndb_worker.h: 
+
+   FIXME: yield() and reschedule() no longer exist --- what must it do ?????
 
    typedef void worker_step(NdbTransaction *, workitem *);
 */
@@ -407,7 +412,7 @@ op_status_t WorkerStep1::do_write() {
   if(! tx) {
     logger->log(LOG_WARNING, 0, "tx: %s \n", 
                 wqitem->ndb_instance->db->getNdbError().message);
-    DEBUG_ASSERT(false);
+    return op_failed;
   }
   
   if(wqitem->base.verb == OPERATION_REPLACE) {
@@ -529,8 +534,12 @@ bool WorkerStep1::setKeyForReading(Operation &op) {
   
   /* Start a transaction */
   tx = op.startTransaction(wqitem->ndb_instance->db);
-  DEBUG_ASSERT(tx);
-  return true;
+  if(tx) {
+    return true;
+  }
+  logger->log(LOG_WARNING, 0, "tx: %s \n", 
+              wqitem->ndb_instance->db->getNdbError().message);
+  return tx ? true : false;
 }
 
 
@@ -777,7 +786,6 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
    */
   
   const NdbOperation *ndbop1, *ndbop2, *ndbop3;
-  int tx_result = tx->getNdbError().code;
   int r_read = -1;
   int r_insert = -1;
   int r_update = -1;
@@ -799,8 +807,8 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
       r_update = ndbop3->getNdbError().code;
     }
   }
-  DEBUG_PRINT("tx: %d   r_read: %d   r_insert: %d   r_update: %d   create: %d",
-              tx_result, r_read, r_insert, r_update, wqitem->base.math_create);
+  DEBUG_PRINT("r_read: %d   r_insert: %d   r_update: %d   create: %d",
+              r_read, r_insert, r_update, wqitem->base.math_create);
   
   if(r_read == 626 && ! wqitem->base.math_create) {
     /* row did not exist, and create flag was not set */
@@ -915,7 +923,9 @@ void worker_append(NdbTransaction *tx, workitem *item) {
   */  
   Operation readop(item->plan, OP_READ);
   readop.buffer = item->row_buffer_1;
-  assert(readop.nValues() == 1);
+  if(readop.nValues() != 1) {
+    return worker_close(tx, item);
+  }
   readop.getStringValueNoCopy(COL_STORE_VALUE + 0, & current_val, & current_len);
     
   /* Generate a new CAS */
@@ -964,9 +974,7 @@ void worker_append(NdbTransaction *tx, workitem *item) {
     /* Error case; operation has not been built */
     DEBUG_PRINT("NDB operation failed.  workitem %d.%d", item->pipeline->id,
                 item->id);
-    tx->close();
-    // pipeline->scheduler->close(item);
-    workitem_free(item);
+    worker_close(tx, item);
   }
 }
 

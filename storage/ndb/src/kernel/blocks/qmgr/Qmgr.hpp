@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -215,7 +215,7 @@ public:
     FailState failState;
     BlockReference blockRef;
     Uint64 m_secret;
-    Uint64 m_alloc_timeout;
+    NDB_TICKS m_alloc_timeout;
     Uint16 m_failconf_blocks[QMGR_MAX_FAIL_STATE_BLOCKS];
 
     NodeRec() { bzero(m_failconf_blocks, sizeof(m_failconf_blocks)); }
@@ -256,7 +256,7 @@ public:
     Uint8 recvCount;
     NdbNodeBitmask recvMask;	// left to recv
     Uint32 code;		// code field from signal
-    Uint32 failureNr;            // cfailureNr at arbitration start
+    Uint32 failureNr;           // cfailureNr at arbitration start
     Uint32 timeout;             // timeout for CHOOSE state
     NDB_TICKS timestamp;	// timestamp for checking timeouts
 
@@ -267,12 +267,12 @@ public:
     }
 
     inline void setTimestamp() {
-      timestamp = NdbTick_CurrentMillisecond();
+      timestamp = NdbTick_getCurrentTicks();
     }
 
-    inline NDB_TICKS getTimediff() {
-      NDB_TICKS now = NdbTick_CurrentMillisecond();
-      return now < timestamp ? 0 : now - timestamp;
+    inline Uint64 getTimediff() {
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      return NdbTick_Elapsed(timestamp, now).milliSec();
     }
   };
   
@@ -376,7 +376,7 @@ private:
 
   void api_failed(Signal* signal, Uint32 aFailedNode);
   void node_failed(Signal* signal, Uint16 aFailedNode);
-  void checkStartInterface(Signal* signal, Uint64 now);
+  void checkStartInterface(Signal* signal, NDB_TICKS now);
   void failReport(Signal* signal,
                   Uint16 aFailedNode,
                   UintR aSendFailRep,
@@ -396,7 +396,7 @@ private:
   void electionWon(Signal* signal);
   void cmInfoconf010Lab(Signal* signal);
   
-  void apiHbHandlingLab(Signal* signal, Uint64 now);
+  void apiHbHandlingLab(Signal* signal, NDB_TICKS now);
   void timerHandlingLab(Signal* signal);
   void hbReceivedLab(Signal* signal);
   void sendCmRegrefLab(Signal* signal, BlockReference ref, 
@@ -414,7 +414,7 @@ private:
                      Uint16 sourceNode);
   void sendCommitFailReq(Signal* signal);
   void presToConfLab(Signal* signal);
-  void sendSttorryLab(Signal* signal);
+  void sendSttorryLab(Signal* signal, bool first_phase);
   void sttor020Lab(Signal* signal);
   void closeComConfLab(Signal* signal);
   void apiRegReqLab(Signal* signal);
@@ -517,7 +517,7 @@ private:
   Uint32 c_restartPartionedTimeout;
   Uint32 c_restartFailureTimeout;
   Uint32 c_restartNoNodegroupTimeout;
-  Uint64 c_start_election_time;
+  NDB_TICKS c_start_election_time;
 
   Uint16 creadyDistCom;
 
@@ -526,7 +526,6 @@ private:
   Uint16 cnoFailedNodes;
   Uint16 cnoPrepFailedNodes;
   Uint16 cnoCommitFailedNodes;
-  Uint16 cactivateApiCheck;
   Uint16 c_allow_api_connect;
   UintR chbApiDelay;
 
@@ -537,7 +536,6 @@ private:
 
   QmgrState ctoStatus;
   bool cHbSent;
-  NDB_TICKS clatestTransactionCheck;
 
   Timer interface_check_timer;
   Timer hb_check_timer;

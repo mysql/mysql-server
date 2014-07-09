@@ -209,7 +209,7 @@ create table t1 (
   primary key using hash (a)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -226,7 +226,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
 show warnings;
@@ -339,7 +339,7 @@ create table t1 (
   unique key using hash (b, c)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 create table t2 (
   a int not null,
   b int not null,
@@ -356,7 +356,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
 show warnings;
@@ -685,3 +685,108 @@ create table t1 (
 # Fails here with "Table 'test.t1' doesn't exist"
 create table t1(a int primary key) engine = ndb;
 drop table t1, t1_parent;
+
+--echo # bug#17591531 - ERROR ON DROP INDEX WHEN REFERENCING FOREIGN KEYS
+
+create table t1 (
+  a int not null,
+  b int not null,
+  unique key t1x1 (b) using hash,
+  primary key using hash (a)
+) engine=ndb;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  c int not null,
+  key (c),
+  key t2x1 (b),
+  primary key using hash (a),
+  foreign key t2fk1 (b) references t1 (b)
+) engine=ndb;
+
+--echo # try to drop indexes
+--error ER_DROP_INDEX_FK
+alter table t1 drop index t1x1;
+show warnings;
+--error ER_DROP_INDEX_FK
+alter table t2 drop index t2x1;
+show warnings;
+
+insert into t1 values (1,10),(2,20),(3,30);
+insert into t2 values (1,10,100),(2,20,200),(3,30,300);
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 values (4,40,400);
+--error ER_ROW_IS_REFERENCED_2
+delete from t1 where a=1;
+
+drop table t2, t1;
+
+--echo # bug#17232212 - NDB DROP NON-EXISTENT FK SUCCEEDS
+# succeeds silently before fixes
+
+create table t1 (
+  a int primary key
+) engine=ndb;
+
+--echo # algorithm=inplace
+# innodb gives error 1091
+
+create table t2 (
+  a int primary key,
+  b int,
+  c int,
+  key xb (b),
+  key xc (c),
+  foreign key fkb (b) references t1 (a),
+  foreign key fkc (c) references t1 (a)
+) engine=ndb;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+alter table t2
+  drop foreign key nosuchfk,
+  algorithm=inplace;
+
+show create table t2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+alter table t2
+  drop foreign key fkb,
+  drop foreign key nosuchfk,
+  drop foreign key fkc,
+  algorithm=inplace;
+
+show create table t2;
+
+drop table t2;
+
+--echo # algorithm=copy
+# innodb gives non-sense errors 1025 / 152
+
+create table t2 (
+  a int primary key,
+  b int,
+  c int,
+  key xb (b),
+  key xc (c),
+  foreign key fkb (b) references t1 (a),
+  foreign key fkc (c) references t1 (a)
+) engine=ndb;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+alter table t2
+  drop foreign key nosuchfk,
+  algorithm=copy;
+
+show create table t2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+alter table t2
+  drop foreign key fkb,
+  drop foreign key nosuchfk,
+  drop foreign key fkc,
+  algorithm=copy;
+
+show create table t2;
+
+drop table t2, t1;

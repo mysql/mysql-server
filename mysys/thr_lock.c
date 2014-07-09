@@ -333,7 +333,7 @@ void thr_lock_delete(THR_LOCK *lock)
 void thr_lock_info_init(THR_LOCK_INFO *info)
 {
   struct st_my_thread_var *tmp= my_thread_var;
-  info->thread=    tmp->pthread_self;
+  info->thread=    pthread_self();
   info->thread_id= tmp->id;
 }
 

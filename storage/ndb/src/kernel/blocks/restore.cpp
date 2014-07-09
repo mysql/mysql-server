@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,16 +31,24 @@
 #include <dblqh/Dblqh.hpp>
 #include <dbtup/Dbtup.hpp>
 #include <KeyDescriptor.hpp>
+#include <signaldata/DumpStateOrd.hpp>
+
+#include <NdbTick.h>
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 453
-
 
 #define PAGES LCP_RESTORE_BUFFER
 
 Restore::Restore(Block_context& ctx, Uint32 instanceNumber) :
   SimulatedBlock(RESTORE, ctx, instanceNumber),
   m_file_list(m_file_pool),
-  m_file_hash(m_file_pool)
+  m_file_hash(m_file_pool),
+  m_rows_restored(0),
+  m_bytes_restored(0),
+  m_millis_spent(0),
+  m_frags_restored(0)
 {
   BLOCK_CONSTRUCTOR(Restore);
   
@@ -194,8 +202,7 @@ void
 Restore::sendSTTORRY(Signal* signal){
   signal->theData[0] = 0;
   signal->theData[3] = 1;
-  signal->theData[4] = 3;
-  signal->theData[5] = 255; // No more start phases from missra
+  signal->theData[4] = 255; // No more start phases from missra
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : RESTORE_REF;
   sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
 }
@@ -227,6 +234,31 @@ Restore::execCONTINUEB(Signal* signal){
 void
 Restore::execDUMP_STATE_ORD(Signal* signal){
   jamEntry();
+
+  if (signal->theData[0] == DumpStateOrd::RestoreRates)
+  {
+    jam();
+    Uint64 rate = m_bytes_restored * 1000 /
+      (m_millis_spent == 0? 1: m_millis_spent);
+    
+    g_eventLogger->info("LDM instance %u: Restored LCP : %u fragments,"
+                        " %llu rows, " 
+                        "%llu bytes, %llu millis, %llu bytes/s",
+                        instance(),
+                        m_frags_restored, 
+                        m_rows_restored,
+                        m_bytes_restored,
+                        m_millis_spent,
+                        rate);
+    infoEvent("LDM instance %u: Restored LCP : %u fragments, %llu rows, " 
+              "%llu bytes, %llu millis, %llu bytes/s",
+              instance(),
+              m_frags_restored, 
+              m_rows_restored,
+              m_bytes_restored,
+              m_millis_spent,
+              rate);
+  }
 }
 
 void
@@ -287,6 +319,8 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_outstanding_reads = 0;
   file_ptr.p->m_outstanding_operations = 0;
   file_ptr.p->m_rows_restored = 0;
+  file_ptr.p->m_bytes_restored = 0;
+  file_ptr.p->m_restore_start_time = NdbTick_CurrentMillisecond();;
   LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
   LocalDataBuffer<15> columns(m_databuffer_pool, file_ptr.p->m_columns);
 
@@ -345,16 +379,35 @@ Restore::release_file(FilePtr file_ptr)
   LocalDataBuffer<15> columns(m_databuffer_pool, file_ptr.p->m_columns);
 
   List::Iterator it;
-  for(pages.first(it); !it.isNull(); pages.next(it))
+  for (pages.first(it); !it.isNull(); pages.next(it))
   {
-    if(* it.data == RNIL)
+    if (* it.data == RNIL)
       continue;
     m_global_page_pool.release(* it.data);
   }
 
-  ndbout_c("RESTORE table: %d %lld rows applied", 
-	   file_ptr.p->m_table_id,
-	   file_ptr.p->m_rows_restored);
+  {
+    Uint64 millis = NdbTick_CurrentMillisecond() -
+                   file_ptr.p->m_restore_start_time;
+    if (millis == 0)
+      millis = 1;
+    Uint64 bps = file_ptr.p->m_bytes_restored * 1000 / millis;
+
+    g_eventLogger->info("LDM instance %u: Restored T%dF%u LCP %llu rows, "
+                        "%llu bytes, %llu millis, %llu bytes/s)", 
+                        instance(),
+                        file_ptr.p->m_table_id,
+                        file_ptr.p->m_fragment_id,
+                        file_ptr.p->m_rows_restored,
+                        file_ptr.p->m_bytes_restored,
+                        millis,
+                        bps);
+
+    m_rows_restored+= file_ptr.p->m_rows_restored;
+    m_bytes_restored+= file_ptr.p->m_bytes_restored;
+    m_millis_spent+= millis;
+    m_frags_restored++;
+  }
   
   columns.release();
   pages.release();
@@ -437,15 +490,15 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
   do 
   {
     Uint32 left= file_ptr.p->m_bytes_left;
-    if(left < 8)
+    if (left < 8)
     {
       jam();
       /**
-       * Not enought bytes to read header
+       * Not enough bytes to read header
        */
       break;
     }
-    Ptr<GlobalPage> page_ptr, next_page_ptr = { 0, 0 };
+    Ptr<GlobalPage> page_ptr(0,0), next_page_ptr(0,0);
     m_global_page_pool.getPtr(page_ptr, file_ptr.p->m_current_page_ptr_i);
     List::Iterator it;
     
@@ -486,23 +539,20 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
       }
     }
 
-    if(file_ptr.p->m_status & File::FIRST_READ)
+    if (file_ptr.p->m_status & File::FIRST_READ)
     {
       jam();
       len= 3;
       file_ptr.p->m_status &= ~(Uint32)File::FIRST_READ;
     }
     
-    if(4 * len > left)
+    if (4 * len > left)
     {
       jam();
 
       /**
        * Not enought bytes to read "record"
        */
-      ndbout_c("records: %d len: %x left: %d", 
-	       status & File::READING_RECORDS, 4*len, left);
-      
       if (unlikely((status & File:: FILE_THREAD_RUNNING) == 0))
       {
         crash_during_restore(file_ptr, __LINE__, 0);
@@ -664,13 +714,16 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
     return;
   }
   
+  /**
+   * We send an immediate signal to continue the restore, at times this
+   * could lead to burning some extra CPU since we might still wait for
+   * input from the disk reading. This code is however only executed
+   * as part of restarts, so it should be ok to spend some extra CPU
+   * to ensure that restarts are quick.
+   */
   signal->theData[0] = RestoreContinueB::RESTORE_NEXT;
   signal->theData[1] = file_ptr.i;
-
-  if(len)
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-  else
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 }
 
 void

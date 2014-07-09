@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,8 +149,20 @@ protected:
   void addRecSignalImpl(GlobalSignalNumber g, ExecFunction fun, bool f =false);
   void installSimulatedBlockFunctions();
   ExecFunction theExecArray[MAX_GSN+1];
+  void handle_execute_error(GlobalSignalNumber gsn);
 
   void initCommon();
+
+  inline void executeFunction(GlobalSignalNumber gsn,
+                              Signal* signal,
+                              ExecFunction f);
+
+  inline void executeFunction(GlobalSignalNumber gsn,
+                              Signal* signal,
+                              ExecFunction f,
+                              BlockReference ref,
+                              Uint32 len);
+
 public:
   typedef void (SimulatedBlock::* CallbackFunction)(class Signal*,
 						    Uint32 callbackData,
@@ -160,15 +172,19 @@ public:
     Uint32 m_callbackData;
   };
 
-  /**
-   * 
-   */
   inline void executeFunction(GlobalSignalNumber gsn, Signal* signal);
+  inline void executeFunction_async(GlobalSignalNumber gsn, Signal* signal);
 
   /* Multiple block instances */
   Uint32 instance() const {
     return theInstance;
   }
+
+  ExecFunction getExecuteFunction(GlobalSignalNumber gsn)
+  {
+    return theExecArray[gsn];
+  }
+ 
   SimulatedBlock* getInstance(Uint32 instanceNumber) {
     ndbrequire(theInstance == 0); // valid only on main instance
     if (instanceNumber == 0)
@@ -233,6 +249,22 @@ public:
   void synchronize_path(Signal*, const Uint32 blocks[],
                         const Callback&, JobBufferLevel = JBB);
 
+  /**
+   * These methods are used to assist blocks to use the TIME_SIGNAL to
+   * generate drum beats with a regular delay. elapsed_time will report
+   * back the elapsed time since last call but will never report more
+   * than max delay. max_delay = 2 * delay here.
+   */
+  void init_elapsed_time(Signal *signal,
+                         NDB_TICKS &latestTIME_SIGNAL);
+  void sendTIME_SIGNAL(Signal *signal,
+                       const NDB_TICKS currentTime,
+                       Uint32 delay);
+  Uint64 elapsed_time(Signal *signal,
+                      const NDB_TICKS currentTime,
+                      NDB_TICKS &latestTIME_SIGNAL,
+                      Uint32 max_delay);
+
 private:
   struct SyncThreadRecord
   {
@@ -250,6 +282,9 @@ private:
   void execSYNC_PATH_CONF(Signal*);
 public:
   virtual const char* get_filename(Uint32 fd) const { return "";}
+
+  void EXECUTE_DIRECT(ExecFunction f,
+                      Signal *signal);
 protected:
   static Callback TheEmptyCallback;
   void TheNULLCallbackFunction(class Signal*, Uint32, Uint32);
@@ -345,7 +380,11 @@ protected:
 		      Uint32 gsn, 
 		      Signal* signal, 
 		      Uint32 len,
-                      Uint32 givenInstanceNo = ZNIL);
+                      Uint32 givenInstanceNo);
+  void EXECUTE_DIRECT(Uint32 block, 
+		      Uint32 gsn, 
+		      Signal* signal, 
+		      Uint32 len);
   
   class SectionSegmentPool& getSectionSegmentPool();
   void release(SegmentedSectionPtr & ptr);
@@ -556,7 +595,11 @@ protected:
     Uint16 m_messageSize; // Size of each fragment
     Uint32 m_fragmentId;
     union {
-      Ptr<struct SectionSegment> m_segmented;
+      // Similar to Ptr<SectionSegment> but a POD, as needed in a union.
+      struct {
+        SectionSegment* p;
+        Uint32 i;
+      } m_segmented;
       LinearSectionPtr m_linear;
     } m_sectionPtr[3];
     LinearSectionPtr m_theDataSection;
@@ -897,7 +940,9 @@ public:
     DLList<ActiveMutex> m_activeMutexes;
     
     BlockReference reference() const;
-    void progError(int line, int err_code, const char* extra = 0);
+    void progError(int line,
+                   int err_code,
+                   const char* extra = 0) ATTRIBUTE_NORETURN;
   };
   
   friend class MutexManager;
@@ -962,7 +1007,9 @@ protected:
   void execute(Signal* signal, CallbackPtr & cptr, Uint32 returnCode);
   const CallbackEntry& getCallbackEntry(Uint32 ci);
   void sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
-                        CallbackPtr& cptr, Uint32 returnCode);
+                        CallbackPtr& cptr,
+                        Uint32 senderData, Uint32 callbackInfo,
+                        Uint32 returnCode);
   void execCALLBACK_CONF(Signal* signal);
 
   // Variable for storing inserted errors, see pc.H
@@ -1037,14 +1084,63 @@ static void debugOutDefines()
 static void debugOutDefines()
 #endif
 
+inline
+void
+SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
+                                Signal *signal)
+{
+  ExecFunction f = theExecArray[gsn];
+  if (unlikely(gsn > MAX_GSN))
+  {
+    handle_execute_error(gsn);
+    return;
+  }
+  executeFunction(gsn, signal, f);
+}
+
+inline
+void
+SimulatedBlock::executeFunction_async(GlobalSignalNumber gsn,
+                                      Signal *signal)
+{
+  ExecFunction f = theExecArray[gsn];
+#ifdef VM_TRACE
+  clear_global_variables();
+#endif
+  if (unlikely(gsn > MAX_GSN))
+  {
+    handle_execute_error(gsn);
+    return;
+  }
+  executeFunction(gsn, signal, f);
+}
+
+inline
+void
+SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
+                                Signal* signal,
+                                ExecFunction f,
+                                BlockReference ref,
+                                Uint32 len)
+{
+  if (unlikely(gsn > MAX_GSN))
+  {
+    handle_execute_error(gsn);
+    return;
+  }
+  signal->setLength(len);
+  signal->header.theSendersBlockRef = ref;
+  executeFunction(gsn, signal, f);
+}
+
 inline 
 void 
-SimulatedBlock::executeFunction(GlobalSignalNumber gsn, Signal* signal){
-  ExecFunction f = theExecArray[gsn];
-  if(gsn <= MAX_GSN && f != 0){
-#ifdef VM_TRACE
-    clear_global_variables();
-#endif
+SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
+                                Signal* signal,
+                                ExecFunction f)
+{
+  if (likely(f != 0))
+  {
     (this->*f)(signal);
 
     if (unlikely(signal->header.m_noOfSections))
@@ -1053,20 +1149,10 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn, Signal* signal){
     }
     return;
   }
-
   /**
    * This point only passed if an error has occurred
    */
-  char errorMsg[255];
-  if (!(gsn <= MAX_GSN)) {
-    BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d too high)", gsn);
-    ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
-  }
-  if (!(theExecArray[gsn] != 0)) {
-    BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d not added)", gsn);
-    ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
-  }
-  ndbrequire(false);
+  handle_execute_error(gsn);
 }
 
 inline
@@ -1247,15 +1333,23 @@ SimulatedBlock::subTime(Uint32 gsn, Uint64 time){
 
 inline
 void
+SimulatedBlock::EXECUTE_DIRECT(ExecFunction f,
+                               Signal *signal)
+{
+  (this->*f)(signal);
+}
+
+inline
+void
 SimulatedBlock::EXECUTE_DIRECT(Uint32 block, 
 			       Uint32 gsn, 
 			       Signal* signal, 
 			       Uint32 len,
-                               Uint32 givenInstanceNo)
+                               Uint32 instanceNo)
 {
-  signal->setLength(len);
-  SimulatedBlock* b = globalData.getBlock(block);
-  ndbassert(b != 0);
+  SimulatedBlock* rec_block;
+  SimulatedBlock* main_block = globalData.getBlock(block);
+  ndbassert(main_block != 0);
   /**
    * In multithreaded NDB, blocks run in different threads, and EXECUTE_DIRECT
    * (unlike sendSignal) is generally not thread-safe.
@@ -1265,14 +1359,11 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
    * By default instance of sender is used.  This is automatically thread-safe
    * for worker instances (instance != 0).
    */
-  Uint32 instanceNo = givenInstanceNo;
-  if (instanceNo == ZNIL)
-    instanceNo = instance();
-  if (instanceNo != 0)
-    b = b->getInstance(instanceNo);
-  ndbassert(b != 0);
-  ndbassert(givenInstanceNo != ZNIL || b->getThreadId() == getThreadId());
   signal->header.theSendersBlockRef = reference();
+  signal->setLength(len);
+  ndbassert(instanceNo < MaxInstances);
+  rec_block = main_block->getInstance(instanceNo);
+  ndbassert(rec_block != 0);
 #ifdef VM_TRACE
   if(globalData.testOn){
     signal->header.theVerId_signalNumber = gsn;
@@ -1284,20 +1375,83 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
   }
 #endif
 #ifdef VM_TRACE_TIME
-  Uint32 us1, us2;
-  Uint64 ms1, ms2;
-  NdbTick_CurrentMicrosecond(&ms1, &us1);
+  const NDB_TICKS t1 = NdbTick_getCurrentTicks();
   Uint32 tGsn = m_currentGsn;
   b->m_currentGsn = gsn;
 #endif
-  b->executeFunction(gsn, signal);
+  rec_block->executeFunction(gsn, signal);
 #ifdef VM_TRACE_TIME
-  NdbTick_CurrentMicrosecond(&ms2, &us2);
-  Uint64 diff = ms2;
-  diff -= ms1;
-  diff *= 1000000;
-  diff += us2;
-  diff -= us1;
+  const NDB_TICKS t2 = NdbTick_getCurrentTicks();
+  const Uint64 diff NdbTick_Elapsed(t1, t2).microSec();
+  b->addTime(gsn, diff);
+  m_currentGsn = tGsn;
+  subTime(tGsn, diff);
+#endif
+}
+
+/**
+  We implement the normal EXECUTE_DIRECT in a special function
+  since this is performance-critical although it introduces a
+  little bit of code duplication.
+*/
+inline
+void
+SimulatedBlock::EXECUTE_DIRECT(Uint32 block, 
+			       Uint32 gsn, 
+			       Signal* signal, 
+			       Uint32 len)
+{
+  /**
+    globalData.getBlock(block) gives us the pointer to the block of
+    the receiving class, it gives the pointer to instance 0. This
+    instance has all the function pointers that all other instances
+    also have, so we can reuse this block object to get the execute
+    function. This means that we will use less cache lines over the
+    system.
+  */
+  SimulatedBlock* main_block = globalData.getBlock(block);
+  Uint32 instanceNo = instance();
+  BlockReference ref = reference();
+  SimulatedBlock* rec_block;
+  signal->setLength(len);
+  ndbassert(main_block != 0);
+  ndbassert(main_block->theInstance == 0);
+  ndbassert(instanceNo < MaxInstances);
+  rec_block = main_block->theInstanceList[instanceNo];
+  if (unlikely(gsn > MAX_GSN))
+  {
+    handle_execute_error(gsn);
+    return;
+  }
+  ExecFunction f = rec_block->theExecArray[gsn];
+  signal->header.theSendersBlockRef = ref;
+  /**
+   * In this function we only allow function calls within the same thread.
+   *
+   * No InstanceList leads to immediate Segmentation Fault,
+   * so not necessary to check with ndbrequire for this.
+   */
+  ndbassert(rec_block != 0);
+  ndbassert(rec_block->getThreadId() == getThreadId());
+#ifdef VM_TRACE
+  if(globalData.testOn){
+    signal->header.theVerId_signalNumber = gsn;
+    signal->header.theReceiversBlockNumber = numberToBlock(block, instanceNo);
+    globalSignalLoggers.executeDirect(signal->header,
+				      0,        // in
+				      &signal->theData[0],
+                                      globalData.ownId);
+  }
+#endif
+#ifdef VM_TRACE_TIME
+  const NDB_TICKS t1 = NdbTick_getCurrentTicks();
+  Uint32 tGsn = m_currentGsn;
+  b->m_currentGsn = gsn;
+#endif
+  rec_block->executeFunction(gsn, signal, f);
+#ifdef VM_TRACE_TIME
+  const NDB_TICKS t2 = NdbTick_getCurrentTicks();
+  const Uint64 diff = NdbTick_Elapsed(t1,t2).microSec();
   b->addTime(gsn, diff);
   m_currentGsn = tGsn;
   subTime(tGsn, diff);
