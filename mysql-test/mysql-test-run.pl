@@ -639,12 +639,12 @@ sub run_test_server ($$$) {
 	      rmtree($worker_savedir);
 	    }
 	    else {
-	      mtr_report(" - saving '$worker_savedir/' to '$savedir/'");
 	      rename($worker_savedir, $savedir);
               #look for the test.log file and put in savedir
 	      my $logf= "$result->{shortname}" . ".log";
               my $logfilepath= dirname($worker_savedir); 
               move($logfilepath . "/" . $logf, $savedir);
+	      mtr_report(" - the logfile can be found in '$savedir/$logf'");
 	      # Move any core files from e.g. mysqltest
 	      foreach my $coref (glob("core*"), glob("*.dmp"))
 	      {

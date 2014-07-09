@@ -1194,16 +1194,6 @@ innobase_start_or_create_for_mysql(void)
 		srv_use_doublewrite_buf = FALSE;
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Using %s to ref count buffer pool pages",
-#ifdef PAGE_ATOMIC_REF_COUNT
-		"atomics"
-#else
-		"mutexes"
-#endif /* PAGE_ATOMIC_REF_COUNT */
-	);
-
-
 	if (sizeof(ulint) != sizeof(void*)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Size of InnoDB's ulint is %lu, but size of void*"
@@ -1253,7 +1243,7 @@ innobase_start_or_create_for_mysql(void)
 	ib_logf(IB_LOG_LEVEL_INFO, IB_MEMORY_BARRIER_STARTUP_MSG);
 
 #ifndef HAVE_MEMORY_BARRIER
-#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64 || defined __WIN__
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64 || defined _WIN32
 #else
 	ib_logf(IB_LOG_LEVEL_WARN,
 		"MySQL was built without a memory barrier capability on this"
@@ -1380,7 +1370,6 @@ innobase_start_or_create_for_mysql(void)
 	maximum number of threads that can wait in the 'srv_conc array' for
 	their time to enter InnoDB. */
 
-#define BUF_POOL_SIZE_THRESHOLD	(1024 * 1024 * 1024)
 	srv_max_n_threads = 1   /* io_ibuf_thread */
 			    + 1 /* io_log_thread */
 			    + 1 /* lock_wait_timeout_thread */
@@ -1442,6 +1431,19 @@ innobase_start_or_create_for_mysql(void)
 
 		srv_buf_pool_instances = 1;
 	}
+
+	if (srv_buf_pool_chunk_unit * srv_buf_pool_instances
+	    > srv_buf_pool_size) {
+		/* Size unit of buffer pool is larger than srv_buf_pool_size.
+		adjust srv_buf_pool_chunk_unit for srv_buf_pool_size. */
+		srv_buf_pool_chunk_unit
+			= srv_buf_pool_size / srv_buf_pool_instances;
+		if (srv_buf_pool_size % srv_buf_pool_instances != 0) {
+			++srv_buf_pool_chunk_unit;
+		}
+	}
+
+	srv_buf_pool_size = buf_pool_size_align(srv_buf_pool_size);
 
 	srv_boot();
 
@@ -1559,10 +1561,22 @@ innobase_start_or_create_for_mysql(void)
 		unit = 'M';
 	}
 
+	double	chunk_size;
+	char	chunk_unit;
+
+	if (srv_buf_pool_chunk_unit >= 1024 * 1024 * 1024) {
+		chunk_size = srv_buf_pool_chunk_unit / 1024.0 / 1024 / 1024;
+		chunk_unit = 'G';
+	} else {
+		chunk_size = srv_buf_pool_chunk_unit / 1024.0 / 1024;
+		chunk_unit = 'M';
+	}
+
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Initializing buffer pool, total size = %.1f%c,"
-		" instances = %lu",
-		size, unit, srv_buf_pool_instances);
+		" instances = %lu, chunk size = %.1f%c",
+		size, unit, srv_buf_pool_instances,
+		chunk_size, chunk_unit);
 
 	err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
 
@@ -2403,6 +2417,9 @@ files_checked:
 
 		srv_start_state_set(SRV_START_STATE_STAT);
 	}
+
+	/* Create the buffer pool resize thread */
+	os_thread_create(buf_resize_thread, NULL, NULL);
 
 	srv_was_started = TRUE;
 	return(DB_SUCCESS);

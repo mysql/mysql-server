@@ -67,6 +67,7 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 eval DESCRIBE          information_schema.$is_table;
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 eval SHOW CREATE TABLE information_schema.$is_table;
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 eval SHOW COLUMNS FROM information_schema.$is_table;

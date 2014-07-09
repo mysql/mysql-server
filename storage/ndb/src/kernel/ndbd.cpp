@@ -491,7 +491,11 @@ catchsigs(bool foreground){
 #elif defined SIGINFO
     SIGINFO,
 #endif
+#ifdef _WIN32
+    SIGTERM,
+#else
     SIGQUIT,
+#endif
     SIGTERM,
 #ifdef SIGTSTP
     SIGTSTP,
@@ -527,7 +531,11 @@ catchsigs(bool foreground){
   };
 
   static const int signals_ignore[] = {
+#ifdef _WIN32
+    SIGINT
+#else
     SIGPIPE
+#endif
   };
 
   size_t i;

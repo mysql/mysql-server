@@ -219,8 +219,14 @@ enum mlog_id_t {
 	/** note that all buffered log was written since a checkpoint */
 	MLOG_CHECKPOINT = 56,
 
+	/** Create a R-Tree index page */
+	MLOG_PAGE_CREATE_RTREE = 57,
+
+	/** create a R-tree compact page */
+	MLOG_COMP_PAGE_CREATE_RTREE = 58,
+
 	/** biggest value (used in assertions) */
-	MLOG_BIGGEST_TYPE = 56
+	MLOG_BIGGEST_TYPE = 58
 };
 
 /* @} */

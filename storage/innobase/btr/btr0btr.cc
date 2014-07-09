@@ -314,10 +314,10 @@ btr_root_adjust_on_import(
 	page = buf_block_get_frame(block);
 	page_zip = buf_block_get_page_zip(block);
 
-	/* Check that this is a B-tree page and both the PREV and NEXT
-	pointers are FIL_NULL, because the root page does not have any
-	siblings. */
-	if (fil_page_get_type(page) != FIL_PAGE_INDEX
+	/* Check that this is a B-tree or R-tree page and both the PREV
+	and NEXT pointers are FIL_NULL, because the root page does not
+	have any siblings. */
+	if (!fil_page_index_page_check(page)
 	    || fil_page_get_prev(page) != FIL_NULL
 	    || fil_page_get_next(page) != FIL_NULL) {
 
@@ -386,7 +386,8 @@ btr_page_create(
 	if (page_zip) {
 		page_create_zip(block, index, level, 0, NULL, mtr);
 	} else {
-		page_create(block, mtr, dict_table_is_comp(index->table));
+		page_create(block, mtr, dict_table_is_comp(index->table),
+			    dict_index_is_spatial(index));
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, level, mtr);
 	}
@@ -671,7 +672,7 @@ btr_page_free(
 	const page_t*	page	= buf_block_get_frame(block);
 	ulint		level	= btr_page_get_level(page, mtr);
 
-	ut_ad(fil_page_get_type(block->frame) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(block->frame));
 	ut_ad(level != ULINT_UNDEFINED);
 	btr_page_free_low(index, block, level, mtr);
 }
@@ -1028,11 +1029,13 @@ btr_create(
 	} else {
 		if (index != NULL) {
 			page = page_create(block, mtr,
-					   dict_table_is_comp(index->table));
+					   dict_table_is_comp(index->table),
+					   dict_index_is_spatial(index));
 		} else {
 			ut_ad(btr_redo_create_info != NULL);
 			page = page_create(
-				block, mtr, btr_redo_create_info->format_flags);
+				block, mtr, btr_redo_create_info->format_flags,
+				type == DICT_SPATIAL);
 		}
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, 0, mtr);
@@ -1242,7 +1245,8 @@ btr_page_reorganize_low(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(block, mtr, dict_table_is_comp(index->table));
+	page_create(block, mtr, dict_table_is_comp(index->table),
+		    dict_index_is_spatial(index));
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
@@ -1510,7 +1514,8 @@ btr_page_empty(
 	if (page_zip) {
 		page_create_zip(block, index, level, 0, NULL, mtr);
 	} else {
-		page_create(block, mtr, dict_table_is_comp(index->table));
+		page_create(block, mtr, dict_table_is_comp(index->table),
+			    dict_index_is_spatial(index));
 		btr_page_set_level(page, NULL, level, mtr);
 	}
 

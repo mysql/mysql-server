@@ -142,7 +142,11 @@ ignore_signals(void)
 #elif defined SIGINFO
     SIGINFO,
 #endif
+#ifdef _WIN32
+    SIGTERM,
+#else
     SIGQUIT,
+#endif
     SIGTERM,
 #ifdef SIGTSTP
     SIGTSTP,
@@ -169,7 +173,11 @@ ignore_signals(void)
     SIGPOLL,
 #endif
     SIGSEGV,
+#ifdef _WIN32
+    SIGINT,
+#else
     SIGPIPE,
+#endif
 #ifdef SIGTRAP
     SIGTRAP
 #endif
