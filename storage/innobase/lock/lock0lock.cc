@@ -5358,6 +5358,7 @@ lock_rec_insert_check_and_lock(
 	lock_t*		lock;
 	dberr_t		err;
 	ulint		next_rec_heap_no;
+	ibool		inherit_in = *inherit;
 
 	ut_ad(block->frame == page_align(rec));
 	ut_ad(!dict_index_is_online_ddl(index)
@@ -5392,7 +5393,7 @@ lock_rec_insert_check_and_lock(
 
 		lock_mutex_exit();
 
-		if (!dict_index_is_clust(index)) {
+		if (!dict_index_is_clust(index) && inherit_in) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(block,
 					       buf_block_get_page_zip(block),
@@ -5446,7 +5447,7 @@ lock_rec_insert_check_and_lock(
 		err = DB_SUCCESS;
 		/* fall through */
 	case DB_SUCCESS:
-		if (dict_index_is_clust(index)) {
+		if (dict_index_is_clust(index) || !inherit_in) {
 			break;
 		}
 		/* Update the page max trx id field */
