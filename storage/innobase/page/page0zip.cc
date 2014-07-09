@@ -1245,7 +1245,7 @@ page_zip_compress(
 	cmp_per_index_enabled	= srv_cmp_per_index_enabled;
 
 	ut_a(page_is_comp(page));
-	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_a(fil_page_index_page_check(page));
 	ut_ad(page_simple_validate_new((page_t*) page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(!index
@@ -4673,7 +4673,7 @@ page_zip_reorganize(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(block, mtr, TRUE);
+	page_create(block, mtr, TRUE, dict_index_is_spatial(index));
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
