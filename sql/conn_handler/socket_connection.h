@@ -99,7 +99,7 @@ class Mysqld_socket_listener
   struct select_info_t
   {
     fd_set  m_read_fds,m_client_fds;
-    uint m_max_used_connection;
+    my_socket m_max_used_connection;
     select_info_t() : m_max_used_connection(0)
     { FD_ZERO(&m_client_fds); }
   };

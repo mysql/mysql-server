@@ -3985,6 +3985,83 @@ TEST_F(MDLTest, ForceDMLDeadlockWeight)
 }
 
 
+/** Simple MDL_context_visitor which stores pointer to context visited. */
+
+class MDLTestContextVisitor : public MDL_context_visitor
+{
+public:
+  MDLTestContextVisitor() : m_visited_ctx(NULL) { }
+  virtual void visit_context(const MDL_context *ctx)
+  { m_visited_ctx= ctx; }
+  const MDL_context *get_visited_ctx() { return m_visited_ctx; }
+
+private:
+  const MDL_context *m_visited_ctx;
+};
+
+
+/**
+  Test coverage for MDL_context::find_lock_owner() method.
+*/
+
+TEST_F(MDLTest, FindLockOwner)
+{
+  Notification first_grabbed,first_release;
+  Notification second_blocked, second_grabbed, second_release;
+  MDL_thread thread1(table_name1, MDL_EXCLUSIVE,
+                     &first_grabbed, &first_release,
+                     NULL, NULL);
+  MDL_thread thread2(table_name1, MDL_EXCLUSIVE,
+                     &second_grabbed, &second_release,
+                     &second_blocked, NULL);
+  MDL_key mdl_key(MDL_key::TABLE, db_name, table_name1);
+
+  /* There should be no lock owner before we have started any threads. */
+  MDLTestContextVisitor visitor1;
+  EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor1));
+  EXPECT_EQ(NULL, visitor1.get_visited_ctx());
+
+  /*
+    Start the first thread and wait until it grabs the lock.
+    This thread should be found as lock owner.
+  */
+  thread1.start();
+  first_grabbed.wait_for_notification();
+  EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor1));
+  EXPECT_EQ(&thread1.get_mdl_context(), visitor1.get_visited_ctx());
+
+  /*
+    Start the second thread and wait unti it is blocked waiting for the lock.
+    The first thread still should be reported as lock owner.
+  */
+  MDLTestContextVisitor visitor2;
+  thread2.start();
+  second_blocked.wait_for_notification();
+  EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor2));
+  EXPECT_EQ(&thread1.get_mdl_context(), visitor2.get_visited_ctx());
+
+  /*
+    Let the first thread to release lock and wait until the second thread
+    acquires it. The second thread should be reported as lock owner now.
+  */
+  MDLTestContextVisitor visitor3;
+  first_release.notify();
+  second_grabbed.wait_for_notification();
+  EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor3));
+  EXPECT_EQ(&thread2.get_mdl_context(), visitor3.get_visited_ctx());
+
+  /* Release the lock. Wait until both threads have stopped. */
+  second_release.notify();
+  thread1.join();
+  thread2.join();
+
+  /* There should be no lock owners again. */
+  MDLTestContextVisitor visitor4;
+  EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor4));
+  EXPECT_EQ(NULL, visitor4.get_visited_ctx());
+}
+
+
 /** Test class for MDL_key class testing. Doesn't require MDL initialization. */
 
 class MDLKeyTest : public ::testing::Test

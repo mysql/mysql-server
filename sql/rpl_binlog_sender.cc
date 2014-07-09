@@ -235,7 +235,7 @@ void Binlog_sender::run()
   DBUG_VOID_RETURN;
 }
 
-int Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
+my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
 {
   if (unlikely(send_format_description_event(log_cache,
                                              start_pos > BIN_LOG_HEADER_SIZE)))
@@ -618,8 +618,8 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
 {
   DBUG_ENTER("fake_rotate_event");
   const char* p = next_log_file + dirname_length(next_log_file);
-  ulong ident_len = strlen(p);
-  ulong event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN +
+  size_t ident_len = strlen(p);
+  size_t event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN +
     (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
   /* reset transmit packet for the fake rotate event below */
@@ -637,7 +637,7 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
   int4store(header, 0);
   header[EVENT_TYPE_OFFSET] = ROTATE_EVENT;
   int4store(header + SERVER_ID_OFFSET, server_id);
-  int4store(header + EVENT_LEN_OFFSET, event_len);
+  int4store(header + EVENT_LEN_OFFSET, static_cast<uint32>(event_len));
   int4store(header + LOG_POS_OFFSET, 0);
   int2store(header + FLAGS_OFFSET, LOG_EVENT_ARTIFICIAL_F);
 
@@ -650,17 +650,17 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
   DBUG_RETURN(send_packet());
 }
 
-inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, uint32 event_len)
+inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, size_t event_len)
 {
   ha_checksum crc= my_checksum(0L, NULL, 0);
   crc= my_checksum(crc, event_ptr, event_len - BINLOG_CHECKSUM_LEN);
   int4store(event_ptr + event_len - BINLOG_CHECKSUM_LEN, crc);
 }
 
-inline int Binlog_sender::reset_transmit_packet(ushort flags, uint32 event_len)
+inline int Binlog_sender::reset_transmit_packet(ushort flags, size_t event_len)
 {
   DBUG_ENTER("Binlog_sender::reset_transmit_packet");
-  DBUG_PRINT("info", ("event_len: %u, m_packet->alloced_length: %zu",
+  DBUG_PRINT("info", ("event_len: %zu, m_packet->alloced_length: %zu",
                       event_len, m_packet.alloced_length()));
   DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
 
@@ -856,7 +856,7 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
   header[EVENT_TYPE_OFFSET] = HEARTBEAT_LOG_EVENT;
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
-  int4store(header + LOG_POS_OFFSET, log_pos);
+  int4store(header + LOG_POS_OFFSET, static_cast<uint32>(log_pos));
   int2store(header + FLAGS_OFFSET, 0);
   memcpy(header + LOG_EVENT_HEADER_LEN, p, ident_len);
 
@@ -966,7 +966,7 @@ inline bool Binlog_sender::grow_packet(uint32 extra_size)
   /* Grow the buffer if needed. */
   if (needed_buffer_size > cur_buffer_size)
   {
-    uint32 new_buffer_size;
+    size_t new_buffer_size;
     if (calc_buffer_size(cur_buffer_size, needed_buffer_size,
                          PACKET_GROW_FACTOR, &new_buffer_size))
       DBUG_RETURN(true);
@@ -1040,10 +1040,10 @@ inline bool Binlog_sender::shrink_packet()
   DBUG_RETURN(res);
 }
 
-inline bool Binlog_sender::calc_buffer_size(uint32 current_size,
-                                            uint32 min_size,
+inline bool Binlog_sender::calc_buffer_size(size_t current_size,
+                                            size_t min_size,
                                             float factor,
-                                            uint32 *new_val)
+                                            size_t *new_val)
 {
   /* Check that a sane minimum buffer size was requested.  */
   if (min_size < PACKET_MIN_SIZE || min_size > PACKET_MAX_SIZE)
@@ -1057,7 +1057,7 @@ inline bool Binlog_sender::calc_buffer_size(uint32 current_size,
      Also, cap new_size to PACKET_MAX_SIZE (in case
      PACKET_MAX_SIZE < UINT_MAX32).
    */
-  uint32 new_size= static_cast<uint32>(
+  size_t new_size= static_cast<size_t>(
     std::min(static_cast<double>(PACKET_MAX_SIZE),
              static_cast<double>(current_size * factor)));
 

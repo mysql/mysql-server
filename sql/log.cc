@@ -1166,7 +1166,7 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
 
 
 void Query_logger::init_query_log(enum_log_table_type log_type,
-                                  uint log_printer)
+                                  ulonglong log_printer)
 {
   if (log_type == QUERY_LOG_SLOW)
   {

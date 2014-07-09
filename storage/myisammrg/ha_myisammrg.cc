@@ -238,7 +238,7 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   Mrg_child_def *mrg_child_def;
   char          *db;
   char          *table_name;
-  uint          dirlen;
+  size_t        dirlen;
   size_t        db_length;
   size_t        table_name_length;
   char          dir_path[FN_REFLEN];

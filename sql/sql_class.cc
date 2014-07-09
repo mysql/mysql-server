@@ -963,6 +963,7 @@ THD::THD(bool enable_plugins)
   col_access=0;
   is_slave_error= thread_specific_used= FALSE;
   my_hash_clear(&handler_tables_hash);
+  my_hash_clear(&ull_hash);
   tmp_table=0;
   cuted_fields= 0L;
   m_sent_row_count= 0L;
@@ -997,7 +998,6 @@ THD::THD(bool enable_plugins)
   net.vio=0;
 #endif
   client_capabilities= 0;                       // minimalistic client
-  ull=0;
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= 0;
   m_release_resources_done= false;
@@ -1533,6 +1533,8 @@ void THD::cleanup(void)
   if (global_read_lock.is_acquired())
     global_read_lock.unlock_global_read_lock(this);
 
+  mysql_ull_cleanup(this);
+
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
@@ -1540,14 +1542,6 @@ void THD::cleanup(void)
   close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
-
-  if (ull)
-  {
-    mysql_mutex_lock(&LOCK_user_locks);
-    item_user_lock_release(ull);
-    mysql_mutex_unlock(&LOCK_user_locks);
-    ull= NULL;
-  }
 
   /*
     Actions above might generate events for the binary log, so we
@@ -3068,7 +3062,7 @@ bool select_export::send_data(List<Item> &items)
 	  space_inited=1;
 	  memset(space, ' ', sizeof(space));
 	}
-	uint length=item->max_length-used_length;
+	size_t length=item->max_length-used_length;
 	for (; length > sizeof(space) ; length-=sizeof(space))
 	{
 	  if (my_b_write(&cache,(uchar*) space,sizeof(space)))
@@ -4561,9 +4555,14 @@ void THD::leave_locked_tables_mode()
       when leaving LTM.
     */
     global_read_lock.set_explicit_lock_duration(this);
-    /* Also ensure that we don't release metadata locks for open HANDLERs. */
+    /*
+      Also ensure that we don't release metadata locks for open HANDLERs
+      and user-level locks.
+    */
     if (handler_tables_hash.records)
       mysql_ha_set_explicit_lock_duration(this);
+    if (ull_hash.records)
+      mysql_ull_set_explicit_lock_duration(this);
   }
   locked_tables_mode= LTM_NONE;
 }

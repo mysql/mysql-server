@@ -854,7 +854,7 @@ loop:
 		if (!row_merge_write(merge_file[t_ctx.buf_used]->fd,
 				     merge_file[t_ctx.buf_used]->offset++,
 				     block[t_ctx.buf_used])) {
-			error = DB_TEMP_FILE_WRITE_FAILURE;
+			error = DB_TEMP_FILE_WRITE_FAIL;
 			goto func_exit;
 		}
 
@@ -947,7 +947,7 @@ exit:
 				if (!row_merge_write(merge_file[i]->fd,
 						merge_file[i]->offset++,
 						block[i])) {
-					error = DB_TEMP_FILE_WRITE_FAILURE;
+					error = DB_TEMP_FILE_WRITE_FAIL;
 					goto func_exit;
 				}
 
