@@ -300,7 +300,7 @@ private:
   consistency.
 */
 
-class Session_gtids_tracker : public State_tracker, Session_gtids_ctx::Ctx_change_listener
+class Session_gtids_tracker : public State_tracker, Session_consistency_gtids_ctx::Ctx_change_listener
 {
 private:
   void reset();
@@ -309,7 +309,7 @@ private:
 public:
 
   /** Constructor */
-  Session_gtids_tracker() : Session_gtids_ctx::Ctx_change_listener(), encoder(NULL)
+  Session_gtids_tracker() : Session_consistency_gtids_ctx::Ctx_change_listener(), encoder(NULL)
   { }
 
   ~Session_gtids_tracker()

@@ -170,14 +170,15 @@ enum_return_status Gtid_state::update_on_flush(THD *thd)
       if (ret == RETURN_STATUS_OK)
       {
         ret= executed_gtids._add_gtid(g);
-        if (ret == RETURN_STATUS_OK)
-          if ((thd->rpl_thd_ctx.session_gtids_ctx().
-            notify_after_transaction_replicated(thd)))
-            ret= RETURN_STATUS_UNREPORTED_ERROR;
       }
       git.next();
       g= git.get();
     }
+    
+    if (ret == RETURN_STATUS_OK && !thd->owned_gtid_set.is_empty())
+      if ((thd->rpl_thd_ctx.session_gtids_ctx().
+        notify_after_gtid_executed_update(thd)))
+          ret= RETURN_STATUS_UNREPORTED_ERROR;
 #else
     DBUG_ASSERT(0);
 #endif
@@ -188,7 +189,7 @@ enum_return_status Gtid_state::update_on_flush(THD *thd)
     ret= executed_gtids._add_gtid(thd->owned_gtid);
     if (ret == RETURN_STATUS_OK)
        if ((thd->rpl_thd_ctx.session_gtids_ctx().
-         notify_after_transaction_replicated(thd)))
+         notify_after_gtid_executed_update(thd)))
          ret= RETURN_STATUS_UNREPORTED_ERROR;
   }
 
