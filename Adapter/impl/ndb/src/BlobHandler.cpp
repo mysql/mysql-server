@@ -18,7 +18,9 @@
  02110-1301  USA
  */
 
+#include <stdlib.h>
 #include <assert.h>
+
 #include <NdbApi.hpp>
 #include <node_buffer.h>
 
