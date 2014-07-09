@@ -81,8 +81,8 @@ while ($i)
 }
 
 
-#   Check if session_track_gtids can be accessed with and without @@ sign            #
-
+# Check that we can access the variable in its different contexts
+# and that there is only one entry for each
 --let $assert_text= Assert that COUNT(@@session_track_gtids)=1
 --let $assert_cond= COUNT(@@session_track_gtids)=1
 --source include/assert.inc
@@ -91,14 +91,15 @@ while ($i)
 --let $assert_cond= COUNT(@@local.session_track_gtids)=1
 --source include/assert.inc
 
---let $assert_text= Assert that COUNT(@@SESSION.session_track_gtids)=1
---let $assert_cond= COUNT(@@SESSION.session_track_gtids)=1
+--let $assert_text= Assert that COUNT(@@global.session_track_gtids)=1
+--let $assert_cond= COUNT(@@global.session_track_gtids)=1
 --source include/assert.inc
 
---let $assert_text= Assert that COUNT(@@SESSION.session_track_gtids)=1
---let $assert_cond= COUNT(@@GLOBAL.session_track_gtids)=1
+--let $assert_text= Assert that COUNT(@@session.session_track_gtids)=1
+--let $assert_cond= COUNT(@@session.session_track_gtids)=1
 --source include/assert.inc
 
+# Check that the default is set to the correct value
 SET @@GLOBAL.session_track_gtids=DEFAULT;
 --let $val=`SELECT @@GLOBAL.session_track_gtids`
 --let $assert_text= Assert that the global default value is $default_value_global
@@ -107,7 +108,7 @@ SET @@GLOBAL.session_track_gtids=DEFAULT;
 
 SET @@SESSION.session_track_gtids=DEFAULT;
 --let $val=`SELECT @@SESSION.session_track_gtids`
---let $assert_text= Assert that the global default value is $default_value_session
+--let $assert_text= Assert that the session default value is $default_value_session
 --let $assert_cond= `SELECT '$val'='$default_value_session'`
 --source include/assert.inc
 
