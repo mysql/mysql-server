@@ -60,7 +60,6 @@ public:
 		m_type(SRV_NOT_RAW),
 		m_space_id(),
 		m_flags(),
-		m_flushed_lsn(),
 		m_exists(),
 		m_is_valid(),
 		m_first_page_buf(),
@@ -82,7 +81,6 @@ public:
 		m_type(SRV_NOT_RAW),
 		m_space_id(),
 		m_flags(),
-		m_flushed_lsn(),
 		m_exists(),
 		m_is_valid(),
 		m_first_page_buf(),
@@ -103,7 +101,6 @@ public:
 		m_type(file.m_type),
 		m_space_id(file.m_space_id),
 		m_flags(file.m_flags),
-		m_flushed_lsn(file.m_flushed_lsn),
 		m_exists(file.m_exists),
 		m_is_valid(file.m_is_valid),
 		m_first_page_buf(),
@@ -148,7 +145,6 @@ public:
 		m_open_flags = file.m_open_flags;
 		m_space_id = file.m_space_id;
 		m_flags = file.m_flags;
-		m_flushed_lsn = file.m_flushed_lsn;
 		m_last_os_error = 0;
 
 		if (m_filepath != NULL) {
@@ -252,10 +248,12 @@ public:
 	tablespace is opened.  This occurs before the fil_space_t is created
 	so the Space ID found here must not already be open.
 	m_is_valid is set true on success, else false.
+	@param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
+	(only valid for the first file of the system tablespace)
 	@retval DB_SUCCESS on if the datafile is valid
 	@retval DB_CORRUPTION if the datafile is not readable
 	@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
-	dberr_t validate_first_page()
+	dberr_t validate_first_page(lsn_t* flush_lsn = 0)
 		__attribute__((warn_unused_result));
 
 	/** Get Datafile::m_name.
@@ -311,13 +309,6 @@ public:
 	ulint	flags()	const
 	{
 		return(m_flags);
-	}
-
-	/** Get Datafile::m_flushed_lsn.
-	@return m_flushed_lsn */
-	lsn_t	flushed_lsn()	const
-	{
-		return(m_flushed_lsn);
 	}
 
 	/**
@@ -440,9 +431,6 @@ private:
 	If this is a system tablespace, FSP_SPACE_FLAGS are only valid
 	in the first datafile. */
 	ulint			m_flags;
-
-	/** Flushed LSN value. */
-	lsn_t			m_flushed_lsn;
 
 	/** true if file already existed on startup */
 	bool			m_exists;
