@@ -37,7 +37,15 @@ MACRO(CHECK_DTRACE)
  # On FreeBSD, dtrace does not handle userland tracing yet
  IF(DTRACE AND NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD"
      AND NOT BUGGY_GCC_NO_DTRACE_MODULES)
-   SET(ENABLE_DTRACE ON CACHE BOOL "Enable dtrace")
+   # 5.5 not able to do Sun dtrace on linux, just disable it
+   EXECUTE_PROCESS(
+     COMMAND ${DTRACE} -V
+     OUTPUT_VARIABLE out)
+   IF(out MATCHES "Sun D" AND CMAKE_SYSTEM_NAME MATCHES "Linux")
+     SET(ENABLE_DTRACE OFF CACHE BOOL "Sun DTrace on Linux not supported")
+   ELSE()
+     SET(ENABLE_DTRACE ON CACHE BOOL "Enable dtrace")
+   ENDIF()
  ENDIF()
  SET(HAVE_DTRACE ${ENABLE_DTRACE})
  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
