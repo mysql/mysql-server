@@ -3355,7 +3355,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   const char	*key_name;
   Create_field	*sql_field,*dup_field;
   uint		field,null_fields,blob_columns,max_key_length;
-  ulong		record_offset= 0;
+  size_t	record_offset= 0;
   KEY		*key_info;
   KEY_PART_INFO *key_part_info;
   int		field_no,dup_no;
@@ -3792,7 +3792,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   key_number=0;
   for (; (key=key_iterator++) ; key_number++)
   {
-    uint key_length=0;
+    size_t key_length=0;
     Key_part_spec *column;
 
     if (key->name.str == ignore_key)

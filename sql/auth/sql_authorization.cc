@@ -3588,8 +3588,8 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
 static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
                                     const char* db, const char* t_name,
-                                    const char* column, uint col_length,
-                                    const char *priv, uint priv_length,
+                                    const char* column, size_t col_length,
+                                    const char *priv, size_t priv_length,
                                     const char* is_grantable)
 {
   int i= 2;

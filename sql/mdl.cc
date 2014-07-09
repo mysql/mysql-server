@@ -99,7 +99,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
   {0, "Waiting for stored procedure metadata lock", 0},
   {0, "Waiting for trigger metadata lock", 0},
   {0, "Waiting for event metadata lock", 0},
-  {0, "Waiting for commit lock", 0}
+  {0, "Waiting for commit lock", 0},
+  {0, "User lock", 0} /* Be compatible with old status. */
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -133,6 +134,7 @@ public:
   void init();
   void destroy();
 
+  inline MDL_lock *find(LF_PINS *pins, const MDL_key *key, bool *pinned);
   inline MDL_lock *find_or_insert(LF_PINS *pins, const MDL_key *key, bool *pinned);
 
   /**
@@ -506,6 +508,12 @@ public:
       representation to bitmap of lock types.
     */
     bitmap_t (*m_fast_path_granted_bitmap)(const MDL_lock &lock);
+    /**
+      Pointer to a static method which determines if waiting for the lock
+      should be aborted when when connection is lost. NULL if locks of
+      this type don't require such aborts.
+    */
+    bool (*m_needs_connection_check)(const MDL_lock *lock);
   };
 
 public:
@@ -625,6 +633,12 @@ public:
   {
     if (m_strategy->m_notify_conflicting_locks)
       m_strategy->m_notify_conflicting_locks(ctx, this);
+  }
+
+  bool needs_connection_check() const
+  {
+    return m_strategy->m_needs_connection_check ?
+           m_strategy->m_needs_connection_check(this) : false;
   }
 
   bool is_affected_by_max_write_lock_count() const
@@ -792,6 +806,8 @@ public:
 
   inline static MDL_lock *create(const MDL_key *key);
   inline static void destroy(MDL_lock *lock);
+
+  inline MDL_context *get_lock_owner() const;
 
 public:
   /**
@@ -997,6 +1013,15 @@ public:
   }
 
   /**
+    Check if MDL_lock object represents user-level lock, so threads waiting
+    for it need to check if connection is lost and abort waiting when it is.
+  */
+  static bool object_lock_needs_connection_check(const MDL_lock *lock)
+  {
+    return (lock->key.mdl_namespace() == MDL_key::USER_LEVEL_LOCK);
+  }
+
+  /**
     Bitmap with "hog" lock types for object locks.
 
     Locks of these types can easily starve out lower priority locks.
@@ -1147,8 +1172,7 @@ void MDL_map::destroy()
 
 
 /**
-  Find MDL_lock object corresponding to the key, create it
-  if it does not exist.
+  Find MDL_lock object corresponding to the key.
 
   @param[in/out]  pins     LF_PINS to be used for pinning pointers during
                            look-up and returned MDL_lock object.
@@ -1158,13 +1182,12 @@ void MDL_map::destroy()
                                    (i.e. it is an object for GLOBAL or COMMIT
                                    namespaces).
 
-  @retval non-NULL - Success. MDL_lock instance for the key with
-                     locked MDL_lock::m_rwlock.
-  @retval NULL     - Failure (OOM).
+  @retval MY_ERRPTR      - Failure (OOM)
+  @retval other-non-NULL - MDL_lock object found.
+  @retval NULL           - Object not found.
 */
 
-MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
-                                  bool *pinned)
+MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
 {
   MDL_lock *lock;
 
@@ -1189,12 +1212,45 @@ MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
     return lock;
   }
 
-  while ((lock= static_cast<MDL_lock *>(lf_hash_search(&m_locks,
-                                          pins,
-                                          mdl_key->ptr(),
-                                          mdl_key->length()))) == NULL)
+  lock= static_cast<MDL_lock *>(lf_hash_search(&m_locks, pins, mdl_key->ptr(),
+                                          mdl_key->length()));
+
+  if (lock == NULL || lock == MY_ERRPTR)
   {
     lf_hash_search_unpin(pins);
+    return lock;
+  }
+
+  *pinned= true;
+
+  return lock;
+}
+
+
+/**
+  Find MDL_lock object corresponding to the key, create it
+  if it does not exist.
+
+  @param[in/out]  pins     LF_PINS to be used for pinning pointers during
+                           look-up and returned MDL_lock object.
+  @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
+  @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
+                           FALSE - if MDL_lock object doesn't require pinning
+                                   (i.e. it is an object for GLOBAL or COMMIT
+                                   namespaces).
+
+  @retval non-NULL - Success. MDL_lock instance for the key with
+                     locked MDL_lock::m_rwlock.
+  @retval NULL     - Failure (OOM).
+*/
+
+MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
+                                  bool *pinned)
+{
+  MDL_lock *lock;
+
+  while ((lock= find(pins, mdl_key, pinned)) == NULL)
+  {
     /*
       MDL_lock for key isn't present in hash, try to insert new object.
       This can fail due to concurrent inserts.
@@ -1213,12 +1269,9 @@ MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
   }
   if (lock == MY_ERRPTR)
   {
-    lf_hash_search_unpin(pins);
     /* If OOM in lf_hash_search. */
     return NULL;
   }
-
-  *pinned= true;
 
   return lock;
 }
@@ -1633,6 +1686,21 @@ void MDL_ticket::destroy(MDL_ticket *ticket)
 
 uint MDL_ticket::get_deadlock_weight() const
 {
+  /*
+    Waits for user-level locks have lower weight than waits for locks
+    typically acquired by DDL, so we don't abort DDL in case of deadlock
+    involving user-level locks and DDL. Deadlock errors are not normally
+    expected from DDL by users.
+    Waits for user-level locks have higher weight than waits for locks
+    acquired by DML, so we prefer to abort DML in case of deadlock involving
+    user-level locks and DML. User-level locks are explicitly requested by
+    user, so they are probably important for them. Plus users expect
+    deadlocks from DML transactions and for DML statements executed in
+    @@autocommit=1 mode back-off and retry algorithm hides deadlock errors.
+  */
+  if (m_lock->key.mdl_namespace() == MDL_key::USER_LEVEL_LOCK)
+    return DEADLOCK_WEIGHT_ULL;
+
   /*
     Locks higher or equal to MDL_SHARED_UPGRADABLE:
     *) Are typically acquired for DDL and LOCK TABLES statements.
@@ -2136,7 +2204,9 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_scoped_lock_strategy =
     For the same reason, 'm_notify_conflicting_locks' is NULL for scoped locks.
   */
   NULL,
-  &MDL_lock::scoped_lock_fast_path_granted_bitmap
+  &MDL_lock::scoped_lock_fast_path_granted_bitmap,
+  /* Scoped locks never require connection check. */
+  NULL
 };
 
 
@@ -2367,7 +2437,8 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_object_lock_strategy =
   true,
   &MDL_lock::object_lock_needs_notification,
   &MDL_lock::object_lock_notify_conflicting_locks,
-  &MDL_lock::object_lock_fast_path_granted_bitmap
+  &MDL_lock::object_lock_fast_path_granted_bitmap,
+  &MDL_lock::object_lock_needs_connection_check
 };
 
 
@@ -2456,6 +2527,29 @@ MDL_lock::can_grant_lock(enum_mdl_type type_arg,
     }
   }
   return can_grant;
+}
+
+
+/**
+  Return the first MDL_context which owns the lock.
+
+  @return Pointer to the first MDL_context which has acquired the lock
+          NULL if there are no such contexts.
+
+  @note This method works properly only for locks acquired using
+        "slow" path. It won't return context if it has used "fast"
+        path to acquire the lock.
+*/
+
+inline MDL_context *
+MDL_lock::get_lock_owner() const
+{
+  Ticket_iterator it(m_granted);
+  MDL_ticket *ticket;
+
+  if ((ticket= it++))
+    return ticket->get_ctx();
+  return NULL;
 }
 
 
@@ -3435,9 +3529,27 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       if (wait_status != MDL_wait::EMPTY)
         break;
 
+      if (lock->needs_connection_check() && ! m_owner->is_connected())
+      {
+        /*
+          If this is user-level lock and the client is disconnected don't wait
+          forever: assume it's the same as statement being killed (this differs
+          from pre-5.7 where we treat it as timeout, but is more logical).
+          Using MDL_wait::set_status() to set status atomically wastes one
+          condition variable wake up but should happen rarely.
+          We don't want to do this check for all types of metadata locks since
+          in general case we may want to complete wait/operation even when
+          connection is lost (e.g. in case of logging into slow/general log).
+        */
+        if (! m_wait.set_status(MDL_wait::KILLED))
+          wait_status= MDL_wait::KILLED;
+        break;
+      }
+
       mysql_prlock_wrlock(&lock->m_rwlock);
       lock->notify_conflicting_locks(this);
       mysql_prlock_unlock(&lock->m_rwlock);
+
       set_timespec(abs_shortwait, 1);
     }
     if (wait_status == MDL_wait::EMPTY)
@@ -3445,8 +3557,17 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
                                      mdl_request->key.get_wait_state_name());
   }
   else
+  {
+    /*
+      This branch should be never taken for locks requiring checking
+      if connection is alive. Currently such locks also always require
+      notification so we don't check this explicitly, only assert this.
+    */
+    DBUG_ASSERT(! lock->needs_connection_check());
+
     wait_status= m_wait.timed_wait(m_owner, &abs_timeout, TRUE,
                                    mdl_request->key.get_wait_state_name());
+  }
 
   done_waiting_for();
 
@@ -4121,7 +4242,7 @@ void MDL_context::release_lock(MDL_ticket *ticket)
   the corresponding lists, i.e. stored in reverse temporal order.
   This allows to employ this function to:
   - back off in case of a lock conflict.
-  - release all locks in the end of a statment or transaction
+  - release all locks in the end of a statement or transaction
   - rollback to a savepoint.
 */
 
@@ -4272,6 +4393,57 @@ MDL_context::owns_equal_or_stronger_lock(
 
 
 /**
+  Find the first context which owns the lock and inspect it by
+  calling MDL_context_visitor::visit_context() method.
+
+  @return True in case error (e.g. OOM). False otherwise. There
+          is no guarantee that owner was found in either case.
+  @note This method only works properly for locks which were
+        acquired using "slow" path.
+*/
+
+bool MDL_context::find_lock_owner(const MDL_key *mdl_key,
+                                  MDL_context_visitor *visitor)
+{
+  MDL_lock *lock;
+  MDL_context *owner;
+  bool pinned;
+
+  if (fix_pins())
+    return true;
+
+retry:
+  if ((lock= mdl_locks.find(m_pins, mdl_key, &pinned)) == MY_ERRPTR)
+    return true;
+
+  /* No MDL_lock object, no owner, nothing to visit. */
+  if (lock == NULL)
+    return false;
+
+  mysql_prlock_rdlock(&lock->m_rwlock);
+
+  if (lock->m_fast_path_state & MDL_lock::IS_DESTROYED)
+  {
+    mysql_prlock_unlock(&lock->m_rwlock);
+    if (pinned)
+      lf_hash_search_unpin(m_pins);
+    DEBUG_SYNC(get_thd(), "mdl_find_lock_owner_is_destroyed");
+    goto retry;
+  }
+
+  if (pinned)
+    lf_hash_search_unpin(m_pins);
+
+  if ((owner= lock->get_lock_owner()))
+    visitor->visit_context(owner);
+
+  mysql_prlock_unlock(&lock->m_rwlock);
+
+  return false;
+}
+
+
+/**
   Check if we have any pending locks which conflict with existing shared lock.
 
   @pre The ticket must match an acquired lock.
@@ -4284,6 +4456,12 @@ bool MDL_ticket::has_pending_conflicting_lock() const
   return m_lock->has_pending_conflicting_lock(m_type);
 }
 
+/** Return a key identifying this lock. */
+
+const MDL_key *MDL_ticket::get_key() const
+{
+  return &m_lock->key;
+}
 
 /**
   Releases metadata locks that were acquired after a specific savepoint.

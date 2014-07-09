@@ -2965,7 +2965,8 @@ File create_frm(THD *thd, const char *name, const char *db,
   if ((file= mysql_file_create(key_file_frm,
                                name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
-    uint key_length, tmp_key_length, tmp, csid;
+    size_t key_length, tmp_key_length;
+    uint tmp, csid;
     memset(fileinfo, 0, 64);
     /* header */
     fileinfo[0]=(uchar) 254;
@@ -3003,7 +3004,7 @@ File create_frm(THD *thd, const char *name, const char *db,
                                   create_info->extra_size));
     int4store(fileinfo+10,length);
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
-    int2store(fileinfo+14,tmp_key_length);
+    int2store(fileinfo+14, static_cast<uint16>(tmp_key_length));
     int2store(fileinfo+16,reclength);
     int4store(fileinfo+18, static_cast<uint32>(create_info->max_rows));
     int4store(fileinfo+22, static_cast<uint32>(create_info->min_rows));
@@ -3030,7 +3031,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[44]= (uchar) create_info->stats_auto_recalc;
     fileinfo[45]= 0;
     fileinfo[46]= 0;
-    int4store(fileinfo+47, key_length);
+    int4store(fileinfo+47, static_cast<uint32>(key_length));
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
     int4store(fileinfo+55, create_info->extra_size);

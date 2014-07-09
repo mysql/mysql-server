@@ -1236,3 +1236,278 @@ t2c	CREATE TABLE `t2c` (
   KEY `t2a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1,t2,t2c,t2i;
+#
+# Bug #17657223	EXCESSIVE TEMPORARY FILE USAGE IN ALTER TABLE
+#
+SET GLOBAL innodb_monitor_enable = module_ddl;
+create table t1(f1 int not null, f2 blob)engine=innodb;
+insert into t1 values(1, repeat('a',20000));
+# Skip sort
+# Reusing the same pk
+alter table t1 force;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+drop table t1;
+create table t1(f1 int not null, f2 int not null,
+primary key(f1))engine=innodb;
+insert into t1 values(1,2), (3,4);
+# Add Secondary index.
+# Skip temp file usage due to small table size
+alter table t1 add key(f2);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+drop table t1;
+create table t480(a serial)engine=innodb;
+insert into t480
+values(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),
+(),(),(),(),(),(),(),();
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+create table t1(f1 int auto_increment not null,
+f2 char(200) not null, f3 char(200) not null,
+f4 char(200) not null,primary key(f1))engine=innodb;
+insert into t1 select NULL,'aaa','bbb','ccc' from t480;
+insert into t1 select NULL,'aaaa','bbbb','cccc' from t480;
+insert into t1 select NULL,'aaaaa','bbbbb','ccccc' from t480;
+insert into t1 select NULL,'aaaaaa','bbbbbb','cccccc' from t480;
+insert into t1 select NULL,'aaaaaaa','bbbbbbb','ccccccc' from t480;
+insert into t1 select NULL,'aaaaaaaa','bbbbbbbb','cccccccc' from t480;
+select count(*) from t1;
+count(*)
+2880
+# Skip sort
+# Change PK from (f1) to (f1,f2,f3,f4)
+alter table t1 drop primary key, add primary key(f1,f2,f3,f4);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Change PK from (f1,f2,f3,f4) to (f1,f2,added_columns)
+alter table t1 drop primary key,add column f5 int not null,
+add column f6 int not null,add primary key(f1,f2,f5,f6);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Change PK from (f1,f2,f5,f6) to (f1,f2,f5)
+alter table t1 drop column f6;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Reusing the same PK
+alter table t1 add column f6 int;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Reusing the same pk
+alter table t1 drop column f6;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Must sort
+# Change PK from (f1,f2,f5) to (f1,f5)
+alter table t1 drop column f2;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+ddl_sort_file_alter_table	2
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Reusing the same pk
+alter table t1 add column f2n int after f1, drop primary key, add
+primary key (f1,f5,f2n);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Reusing the same pk
+alter table t1 change f5 f2n int not null,change f2n f5 int not null,
+add column f8 int not null;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Change PK from (f1,f4,f2n) to (f1,f4,added_column,f2n)
+alter table t1 add column f7 int, drop primary key,
+add primary key (f1,f5,f7,f2n);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+ddl_sort_file_alter_table	2
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Reusing the same pk
+alter table t1 force;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Reusing the same pk
+alter table t1 row_format=compact;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Reusing the same pk
+alter table t1 engine=innodb;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Optimize table
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+affected rows: 2
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Sort files used for adding secondary index
+alter table t1 drop primary key, add primary key(f1,f5,f7), add index
+i(f3);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+ddl_sort_file_alter_table	2
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# No sort files used for dropping secondary index
+alter table t1 drop primary key, add primary key(f1,f5),drop index i;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Change PK(f1,f5) to (f1,added_columns) and drop f5
+alter table t1 drop primary key, add primary key(f1,f12),
+drop column f5, add column f12 int not null;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Must sort
+# Change PK(f1,f12) to (f1,existing_columns)
+alter table t1 drop primary key, add primary key(f1,f3);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+ddl_sort_file_alter_table	2
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort
+# Change PK(f1,f3) to (f1,added_column,f3,added_column)
+alter table t1 drop primary key, add column f3n int,
+add column f4n int, add primary key(f1,f3n,f3,f4n);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Adding Secondary index alone.
+alter table t1 add key(f1);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+ddl_sort_file_alter_table	2
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Must sort
+# Change PK(f1,f3) to (existing_column,f1)
+alter table t1 drop primary key, add primary key(f4,f1);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+ddl_sort_file_alter_table	3
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort for PK.
+# Change PK(f4,f1) to (added_columns,f4,f1)
+# Secondary index rebuild happens
+alter table t1 drop primary key, add column f5n int,
+add column f6n int, add primary key(f5n,f6n,f4,f1);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+ddl_sort_file_alter_table	2
+SET GLOBAL innodb_monitor_reset = module_ddl;
+# Skip sort for PK.
+# Change PK(f5n,f6n,f4,f1) to
+# (added_columns,f5n,added_column,f6n,f4,f1)
+# Secondary index rebuild happens
+alter table t1 drop primary key, add column f7n int,
+add column f8n int, add primary key(f7n,f5n,f8n,f6n,f4,f1);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+name	count_reset
+ddl_sort_file_alter_table	2
+SET GLOBAL innodb_monitor_reset = module_ddl;
+SET GLOBAL innodb_monitor_disable = module_ddl;
+select count(*) from t1;
+count(*)
+2880
+drop table t1;
+drop table t480;
+SET GLOBAL innodb_monitor_reset = default;
+SET GLOBAL innodb_monitor_enable = default;
+SET GLOBAL innodb_monitor_disable = default;

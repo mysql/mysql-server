@@ -2496,7 +2496,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
                              bool *suppress_warnings)
 {
   uchar buf[1024], *pos= buf;
-  uint report_host_len=0, report_user_len=0, report_password_len=0;
+  size_t report_host_len=0, report_user_len=0, report_password_len=0;
   DBUG_ENTER("register_slave_on_master");
 
   *suppress_warnings= FALSE;
@@ -2504,7 +2504,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
     report_host_len= strlen(report_host);
   if (report_host_len > HOSTNAME_LENGTH)
   {
-    sql_print_warning("The length of report_host is %d. "
+    sql_print_warning("The length of report_host is %zu. "
                       "It is larger than the max length(%d), so this "
                       "slave cannot be registered to the master.",
                       report_host_len, HOSTNAME_LENGTH);
@@ -2515,7 +2515,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
     report_user_len= strlen(report_user);
   if (report_user_len > USERNAME_LENGTH)
   {
-    sql_print_warning("The length of report_user is %d. "
+    sql_print_warning("The length of report_user is %zu. "
                       "It is larger than the max length(%d), so this "
                       "slave cannot be registered to the master.",
                       report_user_len, USERNAME_LENGTH);
@@ -2526,7 +2526,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
     report_password_len= strlen(report_password);
   if (report_password_len > MAX_PASSWORD_LENGTH)
   {
-    sql_print_warning("The length of report_password is %d. "
+    sql_print_warning("The length of report_password is %zu. "
                       "It is larger than the max length(%d), so this "
                       "slave cannot be registered to the master.",
                       report_password_len, MAX_PASSWORD_LENGTH);
@@ -3130,7 +3130,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
 {
   DBUG_ENTER("request_dump");
 
-  const int BINLOG_NAME_INFO_SIZE= strlen(mi->get_master_log_name());
+  const size_t BINLOG_NAME_INFO_SIZE= strlen(mi->get_master_log_name());
   int error= 1;
   size_t command_size= 0;
   enum_server_command command= mi->is_auto_position() ?
@@ -3232,7 +3232,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     int8store(ptr_buffer, 4LL);
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
 
-    int4store(ptr_buffer, encoded_data_size);
+    int4store(ptr_buffer, static_cast<uint32>(encoded_data_size));
     ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
     gtid_executed.encode(ptr_buffer);
     ptr_buffer+= encoded_data_size;
@@ -3251,7 +3251,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     uchar* ptr_buffer= command_buffer;
   
     int4store(ptr_buffer, DBUG_EVALUATE_IF("request_master_log_pos_3", 3,
-                                           mi->get_master_log_pos()));
+                                           static_cast<uint32>(mi->get_master_log_pos())));
     ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
     // See comment regarding binlog_flags above.
     int2store(ptr_buffer, binlog_flags);
@@ -3378,7 +3378,7 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
 */
 static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
 {
-  long sql_delay= rli->get_sql_delay();
+  time_t sql_delay= rli->get_sql_delay();
 
   DBUG_ENTER("sql_delay_event");
   mysql_mutex_assert_owner(&rli->data_lock);
@@ -3394,7 +3394,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
     // The current time.
     time_t now= my_time(0);
     // The time we will have to sleep before executing the event.
-    unsigned long nap_time= 0;
+    time_t nap_time= 0;
     if (sql_delay_end > now)
       nap_time= sql_delay_end - now;
 
@@ -6997,7 +6997,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   ulong err_count=0;
   char llbuff[22];
   char password[MAX_PASSWORD_LENGTH + 1];
-  int password_size= sizeof(password);
+  size_t password_size= sizeof(password);
   DBUG_ENTER("connect_to_master");
   set_slave_max_allowed_packet(thd, mysql);
 #ifndef DBUG_OFF

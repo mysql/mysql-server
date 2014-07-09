@@ -46,6 +46,7 @@ public:
   }
 
   virtual int  is_killed() { return 0; }
+  virtual bool is_connected() { return true; }
   virtual THD* get_thd()   { return NULL; }
   virtual uint get_rand_seed() { return 0; }
 
