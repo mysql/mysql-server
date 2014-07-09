@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
- reserved.
+ Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -17,6 +16,10 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+
+/* configure defines */
+#include <my_config.h>
+
 /* System headers */
 /* C++ files must define __STDC_FORMAT_MACROS in order to get PRIu64 */
 #define __STDC_FORMAT_MACROS 
@@ -52,11 +55,13 @@ void Scheduler_stockholm::init(int my_thread,
 
   /* How many NDB instances are needed per cluster? */
   for(unsigned int c = 0 ; c < conf.nclusters ; c++) {
-    ClusterConnectionPool *pool = conf.getConnectionPoolById(c);
     double total_ndb_objects = conf.figureInFlightTransactions(c);
     cluster[c].nInst = (int) total_ndb_objects / options->nthreads;
+#ifdef DEBUG_OUTPUT
+    ClusterConnectionPool *pool = conf.getConnectionPoolById(c);
     DEBUG_PRINT("cluster %d: %d TPS @ %d usec RTT ==> %d NDB instances.",
                 c, conf.max_tps, pool->usec_rtt, cluster[c].nInst);
+#endif
   }
   
   // Get the ConnQueryPlanSet and NDB instances for each cluster.

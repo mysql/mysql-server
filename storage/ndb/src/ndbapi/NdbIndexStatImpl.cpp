@@ -583,7 +583,8 @@ NdbIndexStatImpl::check_systables(Ndb* ndb)
 NdbIndexStatImpl::Con::Con(NdbIndexStatImpl* impl, Head& head, Ndb* ndb) :
   m_impl(impl),
   m_head(head),
-  m_ndb(ndb)
+  m_ndb(ndb),
+  m_start()
 {
   head.m_indexId = m_impl->m_indexId;
   head.m_indexVersion = m_impl->m_indexVersion;
@@ -598,8 +599,6 @@ NdbIndexStatImpl::Con::Con(NdbIndexStatImpl* impl, Head& head, Ndb* ndb) :
   m_cachePos = 0;
   m_cacheKeyOffset = 0;
   m_cacheValueOffset = 0;
-  m_start.seconds = 0;
-  m_start.micro_seconds = 0;
 }
 
 NdbIndexStatImpl::Con::~Con()
@@ -675,15 +674,14 @@ NdbIndexStatImpl::Con::getNdbIndexScanOperation()
 void
 NdbIndexStatImpl::Con::set_time()
 {
-  NdbTick_getMicroTimer(&m_start);
+  m_start = NdbTick_getCurrentTicks();
 }
 
-NDB_TICKS
+Uint64
 NdbIndexStatImpl::Con::get_time()
 {
-  MicroSecondTimer stop;
-  NdbTick_getMicroTimer(&stop);
-  NDB_TICKS us = NdbTick_getMicrosPassed(m_start, stop);
+  const NDB_TICKS stop = NdbTick_getCurrentTicks();
+  Uint64 us = NdbTick_Elapsed(m_start, stop).microSec();
   return us;
 }
 
@@ -1108,12 +1106,12 @@ NdbIndexStatImpl::read_stat(Ndb* ndb, Head& head)
   if (read_commit(con) == -1)
     return -1;
 
-  NDB_TICKS save_time = con.get_time();
+  Uint64 save_time = con.get_time();
   con.set_time();
 
   if (save_commit(con) == -1)
     return -1;
-  NDB_TICKS sort_time = con.get_time();
+  Uint64 sort_time = con.get_time();
 
   const Cache& c = *m_cacheBuild;
   c.m_save_time = save_time;
@@ -1741,6 +1739,7 @@ NdbIndexStatImpl::cache_hsort_sift(Cache& c, int i, int count)
   }
 }
 
+#ifdef ndb_index_stat_hsort_verify
 // verify heap property
 void
 NdbIndexStatImpl::cache_hsort_verify(Cache& c, int count)
@@ -1760,6 +1759,7 @@ NdbIndexStatImpl::cache_hsort_verify(Cache& c, int count)
     }
   }
 }
+#endif
 
 int
 NdbIndexStatImpl::cache_verify(const Cache& c)
@@ -2144,8 +2144,6 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
   const uint posH2 = stat2.m_pos;
   const uint cnt1 = bound1.m_data.get_cnt();
   const uint cnt2 = bound2.m_data.get_cnt();
-  const int side1 = bound1.m_bound.get_side();
-  const int side2 = bound2.m_bound.get_side();
   const uint mincnt = min(cnt1, cnt2);
   Uint32 numEq = 0; // of bound1,bound2
 
@@ -2201,7 +2199,8 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
         cnt2 == keyAttrs &&
         numEq == keyAttrs) {
       stat.m_rule[0] = "r2.1";
-      assert(side1 == -1 && side2 == +1);
+      assert(bound1.m_bound.get_side() == -1 &&
+             bound2.m_bound.get_side() == +1);
       assert(stat1.m_numEqL < keyAttrs && stat2.m_numEqH < keyAttrs);
       value.m_rir = c.get_rpk(posL1, posH1, keyAttrs - 1);
       for (uint k = 0; k < keyAttrs; k++)
@@ -2229,7 +2228,8 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
         cnt2 == keyAttrs &&
         numEq == keyAttrs) {
       stat.m_rule[0] = "r3.1";
-      assert(side1 == -1 && side2 == +1);
+      assert(bound1.m_bound.get_side() == -1 &&
+             bound2.m_bound.get_side() == +1);
       assert(stat1.m_numEqH == keyAttrs && stat2.m_numEqL == keyAttrs);
       value.m_rir = value2.m_rir - value1.m_rir;
       for (uint k = 0; k < keyAttrs; k++)

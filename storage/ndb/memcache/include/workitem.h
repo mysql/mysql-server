@@ -26,9 +26,14 @@
 #include "ndb_pipeline.h"
 #include "status_block.h"
 
-struct NdbInstance;
-struct QueryPlan;
-struct ExternalValue;
+#ifdef __cplusplus
+#define CPP
+class QueryPlan;
+class ExternalValue;
+class NdbInstance;
+#else
+#define CPP struct
+#endif
 
 typedef struct workitem {
   struct {
@@ -53,11 +58,11 @@ typedef struct workitem {
   uint64_t math_value;         /*! IN: incr initial value; OUT: incr result */
   hash_item * cache_item;      /*! used for write requests */
   ndb_pipeline *pipeline;      /*! pointer back to request pipeline */
-  struct NdbInstance *ndb_instance;
+  CPP NdbInstance *ndb_instance;
                                /*! pointer to ndb instance, if applicable */
   const void *cookie;          /*! memcached's connection cookie */
-  struct QueryPlan *plan;      /*! QueryPlan for resolving this request */
-  struct ExternalValue *ext_val; /*! ExternalValue */
+  CPP QueryPlan *plan;         /*! QueryPlan for resolving this request */
+  CPP ExternalValue *ext_val;  /*! ExternalValue */
   const char *key;             /*! pointer to the key */
   void * next_step;            /*! a worker_step function in ndb_worker.cc */
   status_block *status;        /*! A static status_block in ndb_worker.cc */

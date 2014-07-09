@@ -101,14 +101,14 @@ int runTestApiConnectTimeout(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   mgmd.setConnectString("1.1.1.1");
 
-  NDB_TICKS tstart= NdbTick_CurrentMillisecond();
+  const Uint64 tstart= NdbTick_CurrentMillisecond();
   if (mgmd.connect(0, 0, 0))
   {
     g_err << "Connect to illegal host suceeded" << endl;
     return NDBT_FAILED;
   }
 
-  NDB_TICKS msecs= NdbTick_CurrentMillisecond() - tstart;
+  const Uint64 msecs= NdbTick_CurrentMillisecond() - tstart;
   ndbout << "Took about " << msecs <<" milliseconds"<<endl;
 
   if(msecs > 6000)
@@ -736,8 +736,8 @@ get_nodeid_of_type(NdbMgmd& mgmd, ndb_mgm_node_type type, int *nodeId)
   int noOfNodes = cs->no_of_nodes;
   int randomnode = myRandom48(noOfNodes);
   ndb_mgm_node_state *ns = cs->node_states + randomnode;
-  assert((Uint32)ns->node_type == (Uint32)type);
-  assert(ns->node_id != 0);
+  require((Uint32)ns->node_type == (Uint32)type);
+  require(ns->node_id != 0);
 
   *nodeId = ns->node_id;
   g_info << "Got node id " << *nodeId << " of type " << type << endl;
@@ -1199,8 +1199,8 @@ check_get_nodeid_nodeid1(NdbMgmd& mgmd)
       break;
     }
   }
-  assert(nodeId);
-  assert(nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
+  require(nodeId);
+  require(nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
 
   Properties args, reply;
   args.put("nodeid",nodeId);
@@ -1234,11 +1234,12 @@ check_get_nodeid_wrong_nodetype(NdbMgmd& mgmd)
       break;
     }
   }
-  assert(nodeId && nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
+  require(nodeId);
+  require(nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
 
   nodeType = (nodeType + 1) / NDB_MGM_NODE_TYPE_MAX;
-  assert((int)nodeType >= (int)NDB_MGM_NODE_TYPE_MIN &&
-         (int)nodeType <= (int)NDB_MGM_NODE_TYPE_MAX);
+  require((int)nodeType >= (int)NDB_MGM_NODE_TYPE_MIN &&
+          (int)nodeType <= (int)NDB_MGM_NODE_TYPE_MAX);
 
   Properties args, reply;
   args.put("nodeid",nodeId);
@@ -2542,7 +2543,7 @@ check_set_ports(NdbMgmd& mgmd)
     Vector<BaseString> port_pairs;
     original_values.split(port_pairs, "\n");
     // Remove last empty line
-    assert(port_pairs[port_pairs.size()-1] == "");
+    require(port_pairs[port_pairs.size()-1] == "");
     port_pairs.erase(port_pairs.size()-1);
 
     // Generate new portnumbers
@@ -2599,7 +2600,7 @@ check_set_ports(NdbMgmd& mgmd)
     Vector<BaseString> port_pairs;
     original_values.split(port_pairs, "\n");
     // Remove last empty line
-    assert(port_pairs[port_pairs.size()-1] == "");
+    require(port_pairs[port_pairs.size()-1] == "");
     port_pairs.erase(port_pairs.size()-1);
 
     Properties args;
@@ -2733,7 +2734,7 @@ get_logfilter(NdbMgmd& mgmd,
     return false;
   }
 
-  assert(value);
+  require(value);
   *value = severity_struct.value;
 
   return true;
@@ -3572,6 +3573,34 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+static
+int runTestCreateLogEvent(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+  int loops = ctx->getNumLoops();
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int filter[] = {
+    15, NDB_MGM_EVENT_CATEGORY_BACKUP,
+    0
+  };
+
+  for(int l=0; l<loops; l++)
+  {
+    g_info << "Creating log event handle " << l << endl;
+    NdbLogEventHandle le_handle =
+        ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
+    if (!le_handle)
+      return NDBT_FAILED;
+
+    ndb_mgm_destroy_logevent_handle(&le_handle);
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -3725,6 +3754,9 @@ TESTCASE("TestNdbApiConfig", "")
 TESTCASE("TestSetPorts",
          "Test 'set ports'"){
   INITIALIZER(runTestSetPorts);
+}
+TESTCASE("TestCreateLogEvent", "Test ndb_mgm_create_log_event_handle"){
+  STEPS(runTestCreateLogEvent, 5);
 }
 NDBT_TESTSUITE_END(testMgm);
 

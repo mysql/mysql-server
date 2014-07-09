@@ -82,7 +82,7 @@ var Timer = function() {
 };
 
 Timer.prototype.start = function(mode, operation, numberOfIterations) {
-  console.log('lib.Timer.start', mode, operation, 'iterations:', numberOfIterations);
+  //console.log('lib.Timer.start', mode, operation, 'iterations:', numberOfIterations);
   this.mode = mode;
   this.operation = operation;
   this.numberOfIterations = numberOfIterations;
@@ -90,11 +90,24 @@ Timer.prototype.start = function(mode, operation, numberOfIterations) {
 };
 
 Timer.prototype.stop = function() {
+  function pad(str, count, onRight) {
+    while (str.length < count)
+      str = (onRight ? str + ' ' : ' ' + str);
+    return str;
+  }
+  function rpad12(str) {
+    return pad(str, 12, true);
+  }
+  function lpad6(str) {
+    return pad(str, 6, false);
+  }
   this.interval = Date.now() - this.current;
   this.average = this.interval / this.numberOfIterations;
-  console.log(this.mode, this.operation, 'time:', this.interval, 'ms.', 
-      'average latency:', this.average, 'ms.',
-      'operations per second:', Math.round(this.numberOfIterations * 1000 / this.interval));
+  var ops = Math.round(this.numberOfIterations * 1000 / this.interval);
+  console.log(rpad12(this.mode + ' ' + this.operation),
+              '    time: ' + lpad6(this.interval.toString()) + 'ms',
+              '    avg latency: ' + lpad6(this.average.toFixed(3)) + 'ms',
+              '    ops/s: ' + lpad6(ops.toString()));
 };
 
 exports.SQL = SQL;

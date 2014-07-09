@@ -23,38 +23,54 @@
 
 var spi        = require(spi_module),
     service    = spi.getDBServiceProvider(global.adapter),
-    properties = global.test_conn_properties,
-    udebug     = unified_debug.getLogger("spi/lib.js");
+    properties = global.test_conn_properties;
     
-var spi_test_connection = null;
-var sessionSlot = 0;
+var spi_test_connection = null,
+    sessionSlot = 0;
 
-exports.getConnectionPool = function(userCallback) {
 
+function getConnectionPool(userCallback) {
   function onConnect(err, conn) {
-    udebug.log("getConnectionPool onConnect err:", err);    
     spi_test_connection = conn;
     userCallback(err, conn);
   }
 
   if(spi_test_connection) {
-    udebug.log("getConnectionPool returning established connection");
     userCallback(null, spi_test_connection);
   }
   else {
-    udebug.log("getConnectionPool opening new connection with properties: ", properties);
     service.connect(properties, onConnect);
   }
-};
+}
 
 
-exports.closeConnectionPool = function(callback) {
+function closeConnectionPool(callback) {
   if(spi_test_connection) {
     spi_test_connection.close(callback);
   }
-};
+}
 
-exports.allocateSessionSlot = function() {
+
+function allocateSessionSlot() {
   return sessionSlot++;
-};
+}
 
+
+/** Open a DBSession or fail the test case */
+function fail_openDBSession(testCase, callback) {
+  getConnectionPool(function(error, dbConnectionPool) {
+    if(dbConnectionPool && ! error) {
+      dbConnectionPool.getDBSession(allocateSessionSlot(), callback);
+    } else {
+      testCase.fail(error);
+    }
+  });
+}
+
+
+module.exports = {
+  "allocateSessionSlot" : allocateSessionSlot,
+  "fail_openDBSession"  : fail_openDBSession,
+  "closeConnectionPool" : closeConnectionPool,
+  "getConnectionPool"   : getConnectionPool
+};

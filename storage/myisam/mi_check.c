@@ -4785,10 +4785,8 @@ static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
     case HA_KEYTYPE_ULONG_INT:
     case HA_KEYTYPE_INT24:
     case HA_KEYTYPE_UINT24:
-#ifdef HAVE_LONG_LONG
     case HA_KEYTYPE_LONGLONG:
     case HA_KEYTYPE_ULONGLONG:
-#endif
     case HA_KEYTYPE_FLOAT:
     case HA_KEYTYPE_DOUBLE:
       a= end;

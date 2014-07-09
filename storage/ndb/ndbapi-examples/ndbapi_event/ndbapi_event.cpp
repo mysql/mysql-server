@@ -51,6 +51,8 @@
 
 #include <NdbApi.hpp>
 
+#include <stdlib.h>
+#include <string.h>
 // Used for cout
 #include <stdio.h>
 #include <iostream>

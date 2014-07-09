@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,8 +41,12 @@
 #include "ThreadConfig.hpp"
 #include <signaldata/StartOrd.hpp>
 
+#include <NdbTick.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
+#include <EventLogger.hpp>
+
+extern EventLogger * g_eventLogger;
 
 
 static void dumpJobQueues(void);
@@ -104,7 +108,8 @@ static Uint32 first_receiver_thread_no = 0;
 #define NO_SEND_THREAD (MAX_BLOCK_THREADS + MAX_NDBMT_SEND_THREADS + 1)
 
 /* max signal is 32 words, 7 for signal header and 25 datawords */
-#define MIN_SIGNALS_PER_PAGE (thr_job_buffer::SIZE / 32)
+#define MAX_SIGNAL_SIZE 32
+#define MIN_SIGNALS_PER_PAGE (thr_job_buffer::SIZE / MAX_SIGNAL_SIZE) //255
 
 #if defined(HAVE_LINUX_FUTEX) && defined(NDB_HAVE_XCNG)
 #define USE_FUTEX
@@ -161,10 +166,11 @@ struct thr_wait
  *
  * Returns 'true' if it actually did sleep.
  */
+template<typename T>
 static inline
 bool
 yield(struct thr_wait* wait, const Uint32 nsec,
-      bool (*check_callback)(void *), void *check_arg)
+      bool (*check_callback)(T*), T* check_arg)
 {
   volatile unsigned * val = &wait->m_futex_state;
 #ifndef NDEBUG
@@ -184,7 +190,7 @@ yield(struct thr_wait* wait, const Uint32 nsec,
    * Also need a memory barrier to ensure this extra check is race-free.
    *   but that is already provided by xcng
    */
-  bool waited = (*check_callback)(check_arg);
+  const bool waited = (*check_callback)(check_arg);
   if (waited)
   {
     struct timespec timeout;
@@ -228,10 +234,11 @@ struct thr_wait
   }
 };
 
+template<typename T>
 static inline
 bool
 yield(struct thr_wait* wait, const Uint32 nsec,
-      bool (*check_callback)(void *), void *check_arg)
+      bool (*check_callback)(T*), T* check_arg)
 {
   struct timespec end;
   NdbCondition_ComputeAbsTime(&end, nsec/1000000);
@@ -608,7 +615,27 @@ struct thr_job_queue_head
 struct thr_job_queue
 {
   static const unsigned SIZE = 32;
+  
+  /**
+   * There is a SAFETY limit on free buffers we never allocate,
+   * but may allow these to be implicitly used as a last resort
+   * when job scheduler is really stuck. ('sleeploop 10')
+   */
   static const unsigned SAFETY = 2;
+
+  /**
+   * Some more free buffers are RESERVED to be used to avoid
+   * or resolve circular wait-locks between threads waiting
+   * for buffers to become available.
+   */
+  static const unsigned RESERVED = 4;
+
+  /**
+   * When free buffer count drops below ALMOST_FULL, we
+   * are allowed to start using RESERVED buffers to prevent
+   * circular wait-locks.
+   */
+  static const unsigned ALMOST_FULL = RESERVED + 2;
 
   struct thr_job_buffer* m_buffers[SIZE];
 };
@@ -650,11 +677,44 @@ struct thr_jb_write_state
   /* Thread-local copy of thr_job_queue::m_buffers[m_write_index]. */
   thr_job_buffer *m_write_buffer;
 
-  /* Number of signals inserted since last flush to thr_job_queue. */
+  /**
+    Number of signals inserted since last flush to thr_job_queue.
+    This variable stores the number of pending signals not yet flushed
+    in the lower 16 bits and the number of pending signals before a
+    wakeup is called of the other side in the upper 16 bits. To
+    simplify the code we implement the bit manipulations in the
+    methods below.
+
+    The reason for this optimisation is to minimise use of memory for
+    these variables as they are likely to consume CPU cache memory.
+    It also speeds up some pending signal checks.
+  */
   Uint32 m_pending_signals;
 
-  /* Number of signals inserted since last wakeup */
-  Uint32 m_pending_signals_wakeup;
+  bool has_any_pending_signals() const
+  {
+    return m_pending_signals;
+  }
+  Uint32 get_pending_signals() const
+  {
+    return (m_pending_signals & 0xFFFF);
+  }
+  Uint32 get_pending_signals_wakeup() const
+  {
+    return (m_pending_signals >> 16);
+  }
+  void clear_pending_signals_and_set_wakeup(Uint32 wakeups)
+  {
+    m_pending_signals = (wakeups << 16);
+  }
+  void increment_pending_signals()
+  {
+    m_pending_signals++;
+  }
+  void init_pending_signals()
+  {
+    m_pending_signals = 0;
+  }
 
   /*
    * Is this job buffer open for communication at all?
@@ -723,7 +783,7 @@ struct thr_tq
 {
   static const unsigned SQ_SIZE = 512;
   static const unsigned LQ_SIZE = 512;
-  static const unsigned PAGES = 32 * (SQ_SIZE + LQ_SIZE) / 8192;
+  static const unsigned PAGES = (MAX_SIGNAL_SIZE * (SQ_SIZE + LQ_SIZE)) / 8192;
   
   Uint32 * m_delayed_signals[PAGES];
   Uint32 m_next_free;
@@ -871,16 +931,43 @@ struct thr_data
   unsigned m_thr_no;
 
   /**
+   * Spin time of thread after completing all its work (in microseconds).
+   * We won't go to sleep until we have spun for sufficient time, the aim
+   * is to increase readiness in systems with much CPU resources
+   */
+  unsigned m_spintime;
+
+  /**
+   * Realtime scheduler activated for this thread. This means this
+   * thread will run at a very high priority even beyond the priority
+   * of the OS.
+   */
+  unsigned m_realtime;
+
+  /**
+   * Index of thread locally in Configuration.cpp
+   */
+  unsigned m_thr_index;
+
+  /**
    * max signals to execute per JBB buffer
    */
   unsigned m_max_signals_per_jb;
+
+  /**
+   * Extra JBB signal execute quota allowed to be used to
+   * drain (almost) full in-buffers. Reserved for usage where
+   * we are about to end up in a circular wait-lock between 
+   * threads where none if them will be able to proceed.
+   */
+  unsigned m_max_extra_signals;
 
   /**
    * max signals to execute before recomputing m_max_signals_per_jb
    */
   unsigned m_max_exec_signals;
 
-  Uint64 m_time;
+  NDB_TICKS m_ticks;
   struct thr_tq m_tq;
 
   /*
@@ -992,8 +1079,7 @@ struct trp_callback : public TransporterCallback
   void reset_send_buffer(NodeId node, bool should_be_empty);
 };
 
-extern trp_callback g_trp_callback;             // Forward declaration
-extern struct thr_repository g_thr_repository;
+static struct thr_repository *g_thr_repository = NULL;
 
 struct thr_repository
 {
@@ -1104,6 +1190,7 @@ struct thr_send_thread_instance
   Uint32 m_instance_no;
   Uint32 m_watchdog_counter;
   Uint32 m_awake;
+  Uint32 m_thr_index;
   NdbThread *m_thread;
   thr_wait m_waiter_struct;
   class thread_local_pool<thr_send_page> m_send_buffer_pool;
@@ -1221,14 +1308,13 @@ mt_send_thread_main(void *thr_arg)
     (thr_send_thread_instance*)thr_arg;
 
   Uint32 instance_no = this_send_thread->m_instance_no;
-  ndbout_c("Send thread : %u is started", instance_no);
   g_send_threads->run_send_thread(instance_no);
   return NULL;
 }
 
 thr_send_threads::thr_send_threads()
 {
-  struct thr_repository *rep = &g_thr_repository;
+  struct thr_repository *rep = g_thr_repository;
 
   m_started_threads = FALSE;
   m_first_node = 0;
@@ -1259,6 +1345,8 @@ thr_send_threads::~thr_send_threads()
     /* Ensure thread is woken up to die */
     wakeup(&(m_send_threads[i].m_waiter_struct));
     NdbThread_WaitFor(m_send_threads[i].m_thread, &dummy_return_status);
+    globalEmulatorData.theConfiguration->removeThread(
+      m_send_threads[i].m_thread);
     NdbThread_Destroy(&(m_send_threads[i].m_thread));
   }
 }
@@ -1268,13 +1356,16 @@ thr_send_threads::start_send_threads()
 {
   for (Uint32 i = 0; i < globalData.ndbMtSendThreads; i++)
   {
-    ndbout_c("Start send thread: %u", i);
     m_send_threads[i].m_thread =
       NdbThread_Create(mt_send_thread_main,
                        (void **)&m_send_threads[i],
                        1024*1024,
                        "send thread", //ToDo add number
                        NDB_THREAD_PRIO_MEAN);
+    m_send_threads[i].m_thr_index =
+      globalEmulatorData.theConfiguration->addThread(
+        m_send_threads[i].m_thread,
+        SendThread);
   }
   m_started_threads = TRUE;
 }
@@ -1401,7 +1492,7 @@ thr_send_threads::alert_send_thread(NodeId node)
 
 extern "C"
 bool
-check_available_send_data(void *not_used)
+check_available_send_data(struct thr_data *not_used)
 {
   (void)not_used;
   return !g_send_threads->data_available();
@@ -1410,7 +1501,7 @@ check_available_send_data(void *not_used)
 NodeId
 thr_send_threads::check_and_lock_send_node(NodeId node)
 {
-  thr_repository::send_buffer * sb = g_thr_repository.m_send_buffers+node;
+  thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers+node;
   NodeId in_node = node;
 
   /* We own send_thread_mutex when entering */
@@ -1423,7 +1514,7 @@ thr_send_threads::check_and_lock_send_node(NodeId node)
      */
     insert_node(node);
     node = get_node();
-    sb = g_thr_repository.m_send_buffers+node;
+    sb = g_thr_repository->m_send_buffers+node;
     if (node == in_node)
     {
       /*
@@ -1445,12 +1536,105 @@ int
 thr_send_threads::perform_send(NodeId node, Uint32 instance_no)
 {
   int res;
-  thr_repository::send_buffer * sb = g_thr_repository.m_send_buffers+node;
+  thr_repository::send_buffer * sb = g_thr_repository->m_send_buffers+node;
   sb->m_send_thread = num_threads + instance_no;
   res = globalTransporterRegistry.performSend(node);
   sb->m_send_thread = NO_SEND_THREAD;
   unlock(&sb->m_send_lock);
   return res;
+}
+
+static void
+update_send_sched_config(THRConfigApplier & conf,
+                         unsigned instance_no,
+                         bool & real_time,
+                         Uint64 & spin_time)
+{
+  real_time = conf.do_get_realtime_send(instance_no);
+  spin_time = (Uint64)conf.do_get_spintime_send(instance_no);
+}
+
+static void
+yield_rt_break(NdbThread *thread,
+               enum ThreadTypes type,
+               bool real_time)
+{
+  Configuration * conf = globalEmulatorData.theConfiguration;
+  conf->setRealtimeScheduler(thread,
+                             type,
+                             FALSE,
+                             FALSE);
+  conf->setRealtimeScheduler(thread,
+                             type,
+                             real_time,
+                             FALSE);
+}
+
+static void
+check_real_time_break(NDB_TICKS now,
+                      NDB_TICKS *yield_time,
+                      NdbThread *thread,
+                      enum ThreadTypes type)
+{
+  if (unlikely(NdbTick_Compare(now, *yield_time) < 0))
+  {
+    /**
+     * Timer was adjusted backwards, or the monotonic timer implementation
+     * on this platform is unstable. Best we can do is to restart
+     * RT-yield timers from new current time.
+     */
+    *yield_time = now;
+  }
+
+  const Uint64 micros_passed =
+    NdbTick_Elapsed(*yield_time, now).microSec();
+
+  if (micros_passed > 50000)
+  {
+    /**
+     * Lower scheduling prio to time-sharing mode to ensure that
+     * other threads and processes gets a chance to be scheduled
+     * if we run for an extended time.
+     */
+    yield_rt_break(thread, type, TRUE);
+    *yield_time = now;
+  }
+}
+
+static bool
+check_yield(NDB_TICKS now,
+            NDB_TICKS *start_spin_ticks,
+            Uint64 min_spin_timer) //microseconds
+{
+  assert(min_spin_timer > 0);
+
+  if (!NdbTick_IsValid(*start_spin_ticks))
+  {
+    /**
+     * We haven't started spinning yet, start spin timer.
+     */
+    *start_spin_ticks = now;
+    return false;
+  }
+  if (unlikely(NdbTick_Compare(now, *start_spin_ticks) < 0))
+  {
+    /**
+     * Timer was adjusted backwards, or the monotonic timer implementation
+     * on this platform is unstable. Best we can do is to restart
+     * spin timers from new current time.
+     */
+    *start_spin_ticks = now;
+    return false;
+  }
+
+  /**
+   * We have a minimum spin timer before we go to sleep.
+   * We will go to sleep only if we have spun for longer
+   * time than required by the minimum spin time.
+   */
+  const Uint64 micros_passed =
+    NdbTick_Elapsed(*start_spin_ticks, now).microSec();
+  return (micros_passed >= min_spin_timer);
 }
 
 void
@@ -1506,14 +1690,38 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
   this_send_thread->m_awake = FALSE;
   NdbMutex_Unlock(send_thread_mutex);
 
+  NDB_TICKS start_spin_ticks;
+  NDB_TICKS yield_ticks;
+  bool real_time = false;
+  Uint64 min_spin_timer = 0;
+
+  NdbTick_Invalidate(&start_spin_ticks);
+  yield_ticks = NdbTick_getCurrentTicks();
+  THRConfigApplier & conf = globalEmulatorData.theConfiguration->m_thr_config;
+  update_send_sched_config(conf, instance_no, real_time, min_spin_timer);
+
   while (globalData.theRestartFlag != perform_stop)
   {
     this_send_thread->m_watchdog_counter = 1;
 
-    /* Yield for a maximum of 1ms */
-    const Uint32 wait = 1000000;
-    yield(&this_send_thread->m_waiter_struct, wait,
-          check_available_send_data, NULL);
+    if (real_time)
+    {
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      check_real_time_break(now,
+                            &yield_ticks,
+                            this_send_thread->m_thread,
+                            SendThread);
+    }
+    if (min_spin_timer == 0 ||
+        check_yield(NdbTick_getCurrentTicks(),
+                    &start_spin_ticks,
+                    min_spin_timer))
+    {
+      /* Yield for a maximum of 1ms */
+      const Uint32 wait = 1000000;
+      yield(&this_send_thread->m_waiter_struct, wait,
+            check_available_send_data, (struct thr_data*)NULL);
+    }
 
     NdbMutex_Lock(send_thread_mutex);
     this_send_thread->m_awake = TRUE;
@@ -1536,7 +1744,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
       /* Release chunk-wise to decrease pressure on spin lock */
       this_send_thread->m_watchdog_counter = 3;
       this_send_thread->m_send_buffer_pool.
-        release_chunk(g_thr_repository.m_mm, RG_TRANSPORTER_BUFFERS);
+        release_chunk(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
 
       NdbMutex_Lock(send_thread_mutex);
       if (res && !data_available(node))
@@ -1732,7 +1940,7 @@ scan_queue(struct thr_data* selfptr, Uint32 cnt, Uint32 end, Uint32* ptr)
     {
       Uint32 idx = val >> 16;
       Uint32 buf = idx >> 8;
-      Uint32 pos = 32 * (idx & 0xFF);
+      Uint32 pos = MAX_SIGNAL_SIZE * (idx & 0xFF);
 
       Uint32* page = * (pages + buf);
 
@@ -1792,20 +2000,88 @@ handle_time_wrap(struct thr_data* selfptr)
   }
 }
 
+/**
+ * FUNCTION: scan_time_queues(), scan_time_queues_impl(),
+ *           scan_time_queues_backtick()
+ *
+ * scan_time_queues() Implements the part we want to be inlined
+ * into the scheduler loops, while *_impl() & *_backtick() is
+ * the more unlikely part we don't call unless the timer has 
+ * ticked backward or forward more than 1ms since last 'scan_time.
+ * 
+ * Check if any delayed signals has expired and should be sent now.
+ * The time_queues will be checked every time we detect a change
+ * in current time of >= 1ms. If idle we will sleep for max 10ms
+ * before rechecking the time_queue.
+ *
+ * However, some situations need special attention:
+ * - Even if we prefer monotonic timers, they are not available, or
+ *   implemented in our abstraction layer, for all platforms.
+ *   A non-monotonic timer may leap when adjusted by the user, both
+ *   forward or backwards.
+ * - Early implementation of monotonic timers had bugs where time 
+ *   could jump. Similar problems has been reported for several VMs.
+ * - There might be CPU contention or system swapping where we might 
+ *   sleep for significantly longer that 10ms, causing long forward 
+ *   leaps in perceived time.
+ *
+ * In order to adapt to this non-perfect clock behaviour, the
+ * scheduler has its own 'm_ticks' which is the current time
+ * as perceived by the scheduler. On entering this function, 'now'
+ * is the 'real' current time fetched from NdbTick_getCurrentTime().
+ * 'selfptr->m_ticks' is the previous tick seen by the scheduler,
+ * and as such is the timestamp which reflects the current time
+ * as seen by the timer queues.
+ *
+ * Normally only a few milliseconds will elapse between each ticks
+ * as seen by the diff between 'now' and 'selfthr->m_ticks'.
+ * However, if there are larger leaps in the current time,
+ * we breaks this up in several small(20ms) steps
+ * by gradually increasing schedulers 'm_ticks' time. This ensure
+ * that delayed signals will arrive in correct relative order, 
+ * and repeated signals (pace signals) are received with
+ * the expected frequence. However, each individual signal may
+ * be delayed or arriving to fast. Where excact timing is critical,
+ * these signals should do their own time calculation by reading 
+ * the clock, instead of trusting that the signal is delivered as
+ * specified by the 'delay' argument
+ *
+ * If there are leaps larger than 1500ms, we try a hybrid
+ * solution by moving the 'm_ticks' forward, close to the
+ * actuall current time, then continue as above from that
+ * point in time. A 'time leap Warning' will also be printed
+ * in the logs.
+ */
 static
-void
-scan_time_queues_impl(struct thr_data* selfptr, NDB_TICKS now)
+Uint32
+scan_time_queues_impl(struct thr_data* selfptr, Uint32 diff)
 {
-  struct thr_tq * tq = &selfptr->m_tq;
-  NDB_TICKS last = selfptr->m_time;
+  NDB_TICKS last = selfptr->m_ticks;
+  Uint32 step = diff;
 
+  if (unlikely(diff > 20))     // Break up into max 20ms steps
+  {
+    if (unlikely(diff > 1500)) // Time leaped more than 1500ms
+    {
+      /**
+       * There was a long leap in the time since last checking
+       * of the time_queues. The clock could have been adjusted, or we
+       * are CPU starved. Anyway, we can never make up for the lost 
+       * CPU cycles, so we forget about them and start fresh from 
+       * a point in time 1000ms behind our current time.
+       */
+      g_eventLogger->warning("thr: %u: Overslept %u ms, expected ~10ms",
+                             selfptr->m_thr_no, diff);
+    
+      last = NdbTick_AddMilliseconds(last, diff-1000);
+    }
+    step = 20;  // Max expire intervall handled is 20ms 
+  }
+
+  struct thr_tq * tq = &selfptr->m_tq;
   Uint32 curr = tq->m_current_time;
   Uint32 cnt0 = tq->m_cnt[0];
   Uint32 cnt1 = tq->m_cnt[1];
-
-  assert(now > last);
-  Uint64 diff = now - last;
-  Uint32 step = (Uint32)((diff > 20) ? 20 : diff);
   Uint32 end = (curr + step);
   if (end >= 32767)
   {
@@ -1821,15 +2097,57 @@ scan_time_queues_impl(struct thr_data* selfptr, NDB_TICKS now)
   tq->m_current_time = end;
   tq->m_cnt[0] = cnt0 - tmp0;
   tq->m_cnt[1] = cnt1 - tmp1;
-  selfptr->m_time = last + step;
+  selfptr->m_ticks = NdbTick_AddMilliseconds(last, step);
+  return (diff - step);
+}
+
+/**
+ * Clock has ticked backwards. We try to handle this
+ * as best we can.
+ */
+static
+void
+scan_time_queues_backtick(struct thr_data* selfptr, NDB_TICKS now)
+{
+  const NDB_TICKS last = selfptr->m_ticks;
+  assert(NdbTick_Compare(now, last) < 0);
+
+  const Uint64 backward = NdbTick_Elapsed(now, last).milliSec();
+
+  /**
+   * Silently ignore sub millisecond backticks.
+   * Such 'noise' is unfortunately common, even for monotonic timers.
+   */
+  if (backward > 0)
+  {
+    g_eventLogger->warning("thr: %u Time ticked backwards %llu ms.",
+		           selfptr->m_thr_no, backward);
+
+    /* Long backticks should never happen for monotonic timers */
+    assert(backward < 100 || !NdbTick_IsMonotonic()); 
+
+    /* Accept new time as current */
+    selfptr->m_ticks = now;
+  }
 }
 
 static inline
-void
+Uint32
 scan_time_queues(struct thr_data* selfptr, NDB_TICKS now)
 {
-  if (selfptr->m_time != now)
-    scan_time_queues_impl(selfptr, now);
+  const NDB_TICKS last = selfptr->m_ticks;
+  if (unlikely(NdbTick_Compare(now, last) < 0))
+  {
+    scan_time_queues_backtick(selfptr, now);
+    return 0;
+  }
+
+  const Uint32 diff = (Uint32)NdbTick_Elapsed(last, now).milliSec();
+  if (unlikely(diff > 0))
+  {
+    return scan_time_queues_impl(selfptr, diff);
+  }
+  return 0;
 }
 
 static
@@ -1842,13 +2160,13 @@ get_free_slot(struct thr_repository* rep,
   struct thr_tq * tq = &selfptr->m_tq;
   Uint32 idx = tq->m_next_free;
 retry:
-  Uint32 buf = idx >> 8;
-  Uint32 pos = idx & 0xFF;
 
   if (idx != RNIL)
   {
+    Uint32 buf = idx >> 8;
+    Uint32 pos = idx & 0xFF;
     Uint32* page = * (tq->m_delayed_signals + buf);
-    Uint32* ptr = page + (32 * pos);
+    Uint32* ptr = page + (MAX_SIGNAL_SIZE * pos);
     tq->m_next_free = * ptr;
     * idxptr = idx;
     return ptr;
@@ -1862,17 +2180,14 @@ retry:
       struct thr_job_buffer *jb = seize_buffer(rep, thr_no, false);
       Uint32 * page = reinterpret_cast<Uint32*>(jb);
       tq->m_delayed_signals[i] = page;
-
-      ndbout_c("saving %p at %p (%d)", page, tq->m_delayed_signals+i, i);
-
       /**
        * Init page
        */
-      for (Uint32 j = 0; j<255; j ++)
+      for (Uint32 j = 0; j < MIN_SIGNALS_PER_PAGE; j ++)
       {
-	page[j * 32] = (i << 8) + (j + 1);
+	page[j * MAX_SIGNAL_SIZE] = (i << 8) + (j + 1);
       }
-      page[255*32] = RNIL;
+      page[MIN_SIGNALS_PER_PAGE*MAX_SIGNAL_SIZE] = RNIL;
       idx = (i << 8);
       goto retry;
     }
@@ -1884,7 +2199,7 @@ retry:
 void
 senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
 {
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
   struct thr_data* selfptr = &rep->m_thread[thr_no].m_thr_data;
   assert(pthread_equal(selfptr->m_thr_id, pthread_self()));
   unsigned siglen = (sizeof(*s) >> 2) + s->theLength + s->m_noOfSections;
@@ -1979,8 +2294,7 @@ flush_write_state_self(thr_job_queue_head *q_head, thr_jb_write_state *w)
    */
   w->m_write_buffer->m_len = w->m_write_pos;
   q_head->m_write_index = w->m_write_index;
-  w->m_pending_signals_wakeup = 0;
-  w->m_pending_signals = 0;
+  w->init_pending_signals();
 }
 
 static inline
@@ -1988,6 +2302,7 @@ void
 flush_write_state_other(thr_data *dstptr, thr_job_queue_head *q_head,
                         thr_jb_write_state *w)
 {
+  Uint32 pending_signals_saved;
   /*
    * Two write memory barriers here, as assigning m_len may make signal data
    * available to other threads, and assigning m_write_index may make new
@@ -2003,16 +2318,26 @@ flush_write_state_other(thr_data *dstptr, thr_job_queue_head *q_head,
   wmb();
   q_head->m_write_index = w->m_write_index;
 
-  w->m_pending_signals_wakeup += w->m_pending_signals;
-  w->m_pending_signals = 0;
+  pending_signals_saved = w->get_pending_signals_wakeup();
+  pending_signals_saved += w->get_pending_signals();
 
-  if (w->m_pending_signals_wakeup >= MAX_SIGNALS_BEFORE_WAKEUP)
+  if (pending_signals_saved >= MAX_SIGNALS_BEFORE_WAKEUP)
   {
-    w->m_pending_signals_wakeup = 0;
+    w->init_pending_signals();
     wakeup(&(dstptr->m_waiter));
+  }
+  else
+  {
+    w->clear_pending_signals_and_set_wakeup(pending_signals_saved);
   }
 }
 
+/**
+  This function is used when we need to send signal immediately
+  due to the flush limit being reached. We don't know whether
+  signal is to ourselves in this case and we act dependent on who
+  is the receiver of the signal.
+*/
 static inline
 void
 flush_write_state(const thr_data *selfptr, thr_data *dstptr,
@@ -2028,53 +2353,89 @@ flush_write_state(const thr_data *selfptr, thr_data *dstptr,
   }
 }
 
-
-static
+/**
+  This function is used when we are called from flush_jbb_write_state
+  where we know that the receiver should wakeup to receive the signals
+  we're sending.
+*/
+static inline
 void
-flush_jbb_write_state(thr_data *selfptr)
+flush_write_state_other_wakeup(thr_data *dstptr,
+                               thr_job_queue_head *q_head,
+                               thr_jb_write_state *w)
 {
-  Uint32 thr_count = g_thr_repository.m_thread_count;
-  Uint32 self = selfptr->m_thr_no;
+  /*
+   * We already did a memory barrier before the loop calling this
+   * function to ensure the buffer is properly seen by receiving
+   * thread.
+   */
+  w->m_write_buffer->m_len = w->m_write_pos;
+  wmb();
+  q_head->m_write_index = w->m_write_index;
 
-  thr_jb_write_state *w = selfptr->m_write_states;
-  thr_data_aligned *thr_align_ptr = g_thr_repository.m_thread;
-  for (Uint32 thr_no = 0; thr_no < thr_count; thr_no++, thr_align_ptr++, w++)
+  w->init_pending_signals();
+  wakeup(&(dstptr->m_waiter));
+}
+
+/**
+  This function is used when we need to send immediately, e.g. due to
+  the priority of the signal or as a crashing signal. We don't know
+  the receiver so check if it is to ourselves or to other thread.
+*/
+static inline
+void
+flush_write_state_wakeup(const thr_data *selfptr,
+                         thr_data *dstptr,
+                         thr_job_queue_head *q_head,
+                         thr_jb_write_state *w)
+{
+  if (dstptr == selfptr)
   {
-    if (w->m_pending_signals || w->m_pending_signals_wakeup)
-    {
-      struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
-      w->m_pending_signals_wakeup = MAX_SIGNALS_BEFORE_WAKEUP;
-      thr_job_queue_head *q_head = thrptr->m_in_queue_head + self;
-      flush_write_state(selfptr, thrptr, q_head, w);
-    }
+    flush_write_state_self(q_head, w);
+  }
+  else
+  {
+    wmb();
+    flush_write_state_other_wakeup(dstptr, q_head, w);
   }
 }
 
 static
 void
-dumpJobQueues(void)
+flush_jbb_write_state(thr_data *selfptr)
 {
-  BaseString tmp;
-  const struct thr_repository* rep = &g_thr_repository;
-  for (unsigned from = 0; from<num_threads; from++)
-  {
-    for (unsigned to = 0; to<num_threads; to++)
-    {
-      const thr_data_aligned *thr_align_ptr = rep->m_thread + to;
-      const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
-      const thr_job_queue_head *q_head = thrptr->m_in_queue_head + from;
+  Uint32 thr_count = g_thr_repository->m_thread_count;
+  Uint32 self = selfptr->m_thr_no;
 
-      unsigned used = q_head->used();
-      if (used > 0)
-      {
-        tmp.appfmt(" job buffer %d --> %d, used %d\n",
-                   from, to, used);
-      }
-    }
-  }
-  if (!tmp.empty())
+  thr_jb_write_state *w = selfptr->m_write_states + self;
+  thr_data_aligned *thr_align_ptr = g_thr_repository->m_thread;
+
+  /**
+    We start by flushing to ourselves, this requires no extra memory
+    barriers and ensures that we can proceed in the loop knowing that
+    we will only send to remote threads.
+
+    After this we will insert a memory barrier before we start updating
+    the m_len variable that makes other threads see our signals that
+    we're sending to them. We need the memory barrier to ensure that the
+    buffers are seen properly updated by the remote thread when they see
+    the pointer to them.
+  */
+  if (w->has_any_pending_signals())
   {
-    ndbout_c("Dumping non-empty job queues:\n%s", tmp.c_str());
+    flush_write_state_self(selfptr->m_in_queue_head + self, w);
+  }
+  wmb();
+  w = selfptr->m_write_states;
+  thr_jb_write_state *w_end = selfptr->m_write_states + thr_count;
+  for (; w < w_end; thr_align_ptr++, w++)
+  {
+    if (w->has_any_pending_signals())
+    {
+      struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
+      thr_job_queue_head *q_head = thrptr->m_in_queue_head + self;
+      flush_write_state_other_wakeup(thrptr, q_head, w);
+    }
   }
 }
 
@@ -2089,10 +2450,8 @@ dumpJobQueues(void)
  * 'full' condition before going to sleep.
  */
 static bool
-check_recv_queue(void *arg)
+check_recv_queue(thr_job_queue_head *q_head)
 {
-  thr_job_queue_head *q_head = static_cast<thr_job_queue_head*>(arg);
-
   const Uint32 minfree = (1024 + MIN_SIGNALS_PER_PAGE - 1)/MIN_SIGNALS_PER_PAGE;
   /**
    * NOTE: m_read_index is read wo/ lock (and updated by different thread)
@@ -2159,6 +2518,26 @@ compute_free_buffers_in_queue(const thr_job_queue_head *q_head)
     return free - (1 + thr_job_queue::SAFETY);
 }
 
+static
+Uint32
+compute_min_free_out_buffers(Uint32 thr_no)
+{
+  Uint32 minfree = thr_job_queue::SIZE;
+  const struct thr_repository* rep = g_thr_repository;
+  const struct thr_data_aligned *thr_align_ptr = rep->m_thread;
+
+  for (unsigned i = 0; i<num_threads; i++, thr_align_ptr++)
+  {
+    const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
+    const thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
+    unsigned free = compute_free_buffers_in_queue(q_head);
+
+    if (free < minfree)
+      minfree = free;
+  }
+  return minfree;
+}
+
 /**
  * Compute max signals that thr_no can execute wo/ risking
  *   job-buffer-full
@@ -2178,57 +2557,48 @@ compute_free_buffers_in_queue(const thr_job_queue_head *q_head)
  */
 static
 Uint32
-compute_max_signals_to_execute(Uint32 thr_no)
+compute_max_signals_to_execute(Uint32 min_free_buffers)
 {
-  Uint32 minfree = thr_job_queue::SIZE;
-  const struct thr_repository* rep = &g_thr_repository;
-  const struct thr_data_aligned *thr_align_ptr = rep->m_thread;
-
-  for (unsigned i = 0; i<num_threads; i++, thr_align_ptr++)
-  {
-    const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
-    const thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
-    unsigned free = compute_free_buffers_in_queue(q_head);
-
-    if (free < minfree)
-      minfree = free;
-  }
-
-  if (minfree > 0)
-  {
-    return (3 + (minfree) * MIN_SIGNALS_PER_PAGE) / 4;
-  }
-  else
-  {
-    return 0;
-  }
+  return ((min_free_buffers * MIN_SIGNALS_PER_PAGE) + 3) / 4;
 }
 
-//#define NDBMT_RAND_YIELD
-#ifdef NDBMT_RAND_YIELD
-static Uint32 g_rand_yield = 0;
 static
 void
-rand_yield(Uint32 limit, void* ptr0, void * ptr1)
+dumpJobQueues(void)
 {
-  return;
-  UintPtr tmp = UintPtr(ptr0) + UintPtr(ptr1);
-  Uint8* tmpptr = (Uint8*)&tmp;
-  Uint32 sum = g_rand_yield;
-  for (Uint32 i = 0; i<sizeof(tmp); i++)
-    sum = 33 * sum + tmpptr[i];
-
-  if ((sum % 100) < limit)
+  BaseString tmp;
+  const struct thr_repository* rep = g_thr_repository;
+  for (unsigned from = 0; from<num_threads; from++)
   {
-    g_rand_yield++;
-    sched_yield();
+    for (unsigned to = 0; to<num_threads; to++)
+    {
+      const thr_data_aligned *thr_align_ptr = rep->m_thread + to;
+      const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
+      const thr_job_queue_head *q_head = thrptr->m_in_queue_head + from;
+
+      const unsigned used = q_head->used();
+      if (used > 0)
+      {
+        tmp.appfmt(" job buffer %d --> %d, used %d",
+                   from, to, used);
+        unsigned free = compute_free_buffers_in_queue(q_head);
+        if (free <= 0)
+        {
+          tmp.appfmt(" FULL!");
+        }
+        else if (free <= thr_job_queue::RESERVED)
+        {
+          tmp.appfmt(" HIGH LOAD (free:%d)", free);
+        }
+        tmp.appfmt("\n");
+      }
+    }
+  }
+  if (!tmp.empty())
+  {
+    ndbout_c("Dumping non-empty job queues:\n%s", tmp.c_str());
   }
 }
-#else
-static inline void rand_yield(Uint32 limit, void* ptr0, void * ptr1) {}
-#endif
-
-
 
 void
 trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
@@ -2253,7 +2623,7 @@ trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
   signal.theData[2] = (Uint32)(bytes/count);
   signal.header.theVerId_signalNumber = GSN_EVENT_REP;
   signal.header.theReceiversBlockNumber = CMVMI;
-  sendlocal(g_thr_repository.m_send_buffers[nodeId].m_send_thread,
+  sendlocal(g_thr_repository->m_send_buffers[nodeId].m_send_thread,
             &signalT.header, signalT.theData, NULL);
 }
 
@@ -2272,7 +2642,7 @@ void
 trp_callback::lock_transporter(NodeId node)
 {
   Uint32 recv_thread_idx = mt_get_recv_thread_idx(node);
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
   /**
    * Note: take the send lock _first_, so that we will not hold the receive
    * lock while blocking on the send lock.
@@ -2290,7 +2660,7 @@ void
 trp_callback::unlock_transporter(NodeId node)
 {
   Uint32 recv_thread_idx = mt_get_recv_thread_idx(node);
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
   unlock(&rep->m_receive_lock[recv_thread_idx]);
   unlock(&rep->m_send_buffers[node].m_send_lock);
 }
@@ -2298,7 +2668,7 @@ trp_callback::unlock_transporter(NodeId node)
 int
 mt_checkDoJob(Uint32 recv_thread_idx)
 {
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
 
   /**
    * Return '1' if we are not allowed to receive more signals
@@ -2331,7 +2701,7 @@ link_thread_send_buffers(thr_repository::send_buffer * sb, Uint32 node)
 {
   Uint32 ri[MAX_BLOCK_THREADS];
   Uint32 wi[MAX_BLOCK_THREADS];
-  thr_send_queue * src = g_thr_repository.m_thread_send_buffers[node];
+  thr_send_queue *src = g_thr_repository->m_thread_send_buffers[node];
   for (unsigned thr = 0; thr < num_threads; thr++)
   {
     ri[thr] = sb->m_read_index[thr];
@@ -2400,7 +2770,7 @@ Uint32
 trp_callback::get_bytes_to_send_iovec(NodeId node,
                                       struct iovec *dst, Uint32 max)
 {
-  thr_repository::send_buffer * sb = g_thr_repository.m_send_buffers + node;
+  thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers + node;
 
   Uint32 bytes = link_thread_send_buffers(sb, node);
   if (max == 0 || bytes == 0)
@@ -2442,7 +2812,12 @@ release_list(thread_local_pool<thr_send_page>* pool,
 
 /**
  * pack thr_send_pages for a particular send-buffer <em>db</em>
- *   release pages (local) to <em>pool<em>
+ * release pages (local) to <em>pool</em>
+ *
+ * We're using a very simple algorithm that packs two neighbour
+ * pages into one page if possible, if not possible we simply
+ * move on. This guarantees that pages will at least be full to
+ * 50% fill level which should be sufficient for our needs here.
  *
  * can only be called with sb->m_lock held
  */
@@ -2463,6 +2838,11 @@ pack_sb_pages(thread_local_pool<thr_send_page>* pool,
     assert(next->m_start == 0); // only first page should have half sent bytes
     if (next->m_bytes <= curr_free)
     {
+      /**
+       * There is free space in the current page and it is sufficient to
+       * store the entire next-page. Copy from next page to current page
+       * and update current page and release next page to local pool.
+       */
       thr_send_page * save = next;
       memcpy(curr->m_data + (curr->m_bytes + curr->m_start),
              next->m_data,
@@ -2477,6 +2857,7 @@ pack_sb_pages(thread_local_pool<thr_send_page>* pool,
     }
     else
     {
+      /* Not enough free space in current, move to next page */
       curr = next;
       curr_free = curr->max_bytes() - (curr->m_bytes + curr->m_start);
     }
@@ -2492,23 +2873,10 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
 {
   assert(bytes);
 
-  Uint32 remain = bytes;
-  thr_send_page * prev = 0;
-  thr_send_page * curr = sb->m_buffer.m_first_page;
-
-  assert(sb->m_bytes >= bytes);
-  while (remain && remain >= curr->m_bytes)
-  {
-    remain -= curr->m_bytes;
-    prev = curr;
-    curr = curr->m_next;
-  }
-
-  Uint32 total_bytes = sb->m_bytes;
-  if (total_bytes == bytes)
+  if (sb->m_bytes == bytes)
   {
     /**
-     * Every thing was released
+     * Every thing was released, release the pages in the local pool
      */
     release_list(pool, sb->m_buffer.m_first_page, sb->m_buffer.m_last_page);
     sb->m_buffer.m_first_page = 0;
@@ -2516,10 +2884,33 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
     sb->m_bytes = 0;
     return 0;
   }
-  else if (remain)
+
+  /* Not all data was sent, handle this */
+  Uint32 remain = bytes;
+  thr_send_page * prev = 0;
+  thr_send_page * curr = sb->m_buffer.m_first_page;
+
+  assert(sb->m_bytes > bytes);
+  while (remain && remain >= curr->m_bytes)
   {
     /**
-     * Half a page was released
+     * Calculate new current page such that we can release the
+     * pages that have been completed and update the state of
+     * the new current page
+     */
+    remain -= curr->m_bytes;
+    prev = curr;
+    curr = curr->m_next;
+  }
+
+  if (remain)
+  {
+    /**
+     * Not all pages was fully sent and we stopped in the middle of
+     * a page
+     *
+     * Update state of new current page and release any pages
+     * that have already been sent
      */
     curr->m_start += remain;
     assert(curr->m_bytes > remain);
@@ -2532,13 +2923,15 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
   else
   {
     /**
-     * X full page(s) was released
+     * We sent a couple of full pages and the sending stopped at a
+     * page boundary, so we only need to release the sent pages
+     * and update the new current page.
      */
     if (prev)
     {
       release_list(pool, sb->m_buffer.m_first_page, prev);
     }
-    else
+    else if (bytes > 0)
     {
       pool->release_local(sb->m_buffer.m_first_page);
     }
@@ -2550,8 +2943,8 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
 
   /**
    * Since not all bytes were sent...
-   *   spend the time to try to pack the pages
-   *   possibly releasing send-buffer
+   * spend the time to try to pack the pages
+   * possibly releasing send-buffer
    */
   pack_sb_pages(pool, sb);
 
@@ -2561,19 +2954,21 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
 Uint32
 trp_callback::bytes_sent(NodeId node, Uint32 bytes)
 {
-  thr_repository::send_buffer * sb = g_thr_repository.m_send_buffers+node;
+  thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers+node;
   Uint32 thr_no = sb->m_send_thread;
   assert(thr_no != NO_SEND_THREAD);
   if (!is_send_thread(thr_no))
   {
-    thr_data * thrptr = &g_thr_repository.m_thread[thr_no].m_thr_data;
+    thr_data * thrptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
     return ::bytes_sent(&thrptr->m_send_buffer_pool,
-                        sb, bytes);
+                        sb,
+                        bytes);
   }
   else
   {
     return ::bytes_sent(g_send_threads->get_send_buffer_pool(thr_no),
-                        sb, bytes);
+                        sb,
+                        bytes);
   }
 }
 
@@ -2582,7 +2977,7 @@ trp_callback::has_data_to_send(NodeId node)
 {
   return true;
 
-  thr_repository::send_buffer * sb = g_thr_repository.m_send_buffers + node;
+  thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers + node;
   Uint32 thr_no = sb->m_send_thread;
   assert(thr_no != NO_SEND_THREAD);
   assert(!is_send_thread(thr_no));
@@ -2590,15 +2985,15 @@ trp_callback::has_data_to_send(NodeId node)
   if (sb->m_bytes > 0 || sb->m_force_send)
     return true;
 
-  thr_send_queue * dst = g_thr_repository.m_thread_send_buffers[node]+thr_no;
+  thr_send_queue *dst = g_thr_repository->m_thread_send_buffers[node]+thr_no;
   return sb->m_read_index[thr_no] != dst->m_write_index;
 }
 
 void
 trp_callback::reset_send_buffer(NodeId node, bool should_be_empty)
 {
-  struct thr_repository *rep = &g_thr_repository;
-  thr_repository::send_buffer * sb = g_thr_repository.m_send_buffers+node;
+  struct thr_repository *rep = g_thr_repository;
+  thr_repository::send_buffer * sb = rep->m_send_buffers+node;
   struct iovec v[32];
 
   thread_local_pool<thr_send_page> pool(&rep->m_sb_pool, 0);
@@ -2645,7 +3040,7 @@ static void try_send(thr_data *, Uint32); // prototype
 void
 pack_send_buffer(thr_data *selfptr, Uint32 node)
 {
-  thr_repository* rep = &g_thr_repository;
+  thr_repository* rep = g_thr_repository;
   thr_repository::send_buffer* sb = rep->m_send_buffers+node;
   thread_local_pool<thr_send_page>* pool = &selfptr->m_send_buffer_pool;
 
@@ -2658,19 +3053,20 @@ pack_send_buffer(thr_data *selfptr, Uint32 node)
   unlock(&sb->m_send_lock);
 
   /**
-   * release buffers prior to checking m_force_send
+   * release buffers from local pool to global pool prior to checking
+   * m_force_send
    */
   pool->release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
 
   /**
    * After having locked/unlock m_send_lock
-   *   "protocol" dictates that we must check the m_force_send
+   * "protocol" dictates that we must check the m_force_send
    */
 
   /**
    * We need a memory barrier here to prevent race between clearing lock
-   *   and reading of m_force_send.
-   *   CPU can reorder the load to before the clear of the lock
+   * and reading of m_force_send.
+   * CPU can reorder the load to before the clear of the lock
    */
   mb();
   if (sb->m_force_send)
@@ -2679,6 +3075,23 @@ pack_send_buffer(thr_data *selfptr, Uint32 node)
   }
 }
 
+/**
+  Pack send buffers to make memory available to other threads. The signals
+  sent uses often one page per signal which means that most pages are very
+  unpacked. In some situations this means that we can run out of send buffers
+  and still have massive amounts of free space. We solve this by calling
+  this function in a number of critical places.
+
+  We call this from the main loop in the block threads when we fail to
+  allocate enough send buffers. We also call the node local pack_send_buffer
+  function when we fail to send all data to one specific node immediately.
+  This ensures that we won't get pages allocated with lots of free spaces
+  when we use the send threads. The send threads will use the pack_send_buffer
+  from the bytes_sent function which is a callback from the transporter.
+
+  We also call the local pack_send_buffer when the buffer of pages in
+  flush_send_buffer is full.
+*/
 static
 void
 pack_send_buffers(thr_data* selfptr)
@@ -2700,7 +3113,7 @@ flush_send_buffer(thr_data* selfptr, Uint32 node)
 {
   Uint32 thr_no = selfptr->m_thr_no;
   thr_send_buffer * src = selfptr->m_send_buffers + node;
-  thr_repository* rep = &g_thr_repository;
+  thr_repository* rep = g_thr_repository;
 
   if (src->m_first_page == 0)
   {
@@ -2735,7 +3148,7 @@ flush_send_buffer(thr_data* selfptr, Uint32 node)
 bool
 mt_send_handle::forceSend(NodeId nodeId)
 {
-  struct thr_repository *rep = &g_thr_repository;
+  struct thr_repository *rep = g_thr_repository;
   struct thr_data *selfptr = m_selfptr;
   struct thr_repository::send_buffer * sb = rep->m_send_buffers + nodeId;
 
@@ -2777,7 +3190,7 @@ static
 void
 try_send(thr_data * selfptr, Uint32 node)
 {
-  struct thr_repository *rep = &g_thr_repository;
+  struct thr_repository *rep = g_thr_repository;
   struct thr_repository::send_buffer * sb = rep->m_send_buffers + node;
 
   do
@@ -2863,7 +3276,7 @@ do_send(struct thr_data* selfptr, bool must_send)
   Uint32 i;
   Uint32 count = selfptr->m_pending_send_count;
   Uint8 *nodes = selfptr->m_pending_send_nodes;
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
 
   if (count == 0)
   {
@@ -2883,9 +3296,16 @@ do_send(struct thr_data* selfptr, bool must_send)
 
     if (g_send_threads)
     {
+      /**
+       * We're using send threads, in this case we simply alert any send
+       * thread to take over the actual sending of the signals. In this case
+       * we will never have any failures. So we simply need to flush buffers
+       * leave over to the send thread
+       */
       g_send_threads->alert_send_thread(node);
       continue;
     }
+    /* We're not using send threads */
     thr_repository::send_buffer * sb = rep->m_send_buffers + node;
 
     /**
@@ -2989,7 +3409,7 @@ mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
       try_send(m_selfptr, node);
   }
 
-  if ((p = m_selfptr->m_send_buffer_pool.seize(g_thr_repository.m_mm,
+  if ((p = m_selfptr->m_send_buffer_pool.seize(g_thr_repository->m_mm,
                                                RG_TRANSPORTER_BUFFERS)) != 0)
   {
     p->m_bytes = 0;
@@ -3040,7 +3460,7 @@ insert_signal(thr_job_queue *q, thr_job_queue_head *h,
   const Uint32 *p= secPtr;
   for (Uint32 i = 0; i < sh->m_noOfSections; i++)
     w->m_write_buffer->m_data[write_pos++] = *p++;
-  w->m_pending_signals++;
+  w->increment_pending_signals();
 
 #if SIZEOF_CHARP == 8
   /* Align to 8-byte boundary, to ensure aligned copies. */
@@ -3052,7 +3472,7 @@ insert_signal(thr_job_queue *q, thr_job_queue_head *h,
    * current buffer in the queue, so one insert is always possible without
    * adding a new buffer.
    */
-  if (likely(write_pos + 32 <= thr_job_buffer::SIZE))
+  if (likely(write_pos + MAX_SIGNAL_SIZE <= thr_job_buffer::SIZE))
   {
     w->m_write_pos = write_pos;
     return false;
@@ -3137,10 +3557,9 @@ read_jba_state(thr_data *selfptr)
 
 /* Check all job queues, return true only if all are empty. */
 static bool
-check_queues_empty(void *arg)
+check_queues_empty(thr_data *selfptr)
 {
-  thr_data *selfptr = static_cast<thr_data *>(arg);
-  Uint32 thr_count = g_thr_repository.m_thread_count;
+  Uint32 thr_count = g_thr_repository->m_thread_count;
   bool empty = read_jba_state(selfptr);
   if (!empty)
     return false;
@@ -3193,7 +3612,7 @@ execute_signals(thr_data *selfptr,
       {
         /* Move to next buffer. */
         read_index = (read_index + 1) % thr_job_queue::SIZE;
-        release_buffer(&g_thr_repository, selfptr->m_thr_no, read_buffer);
+        release_buffer(g_thr_repository, selfptr->m_thr_no, read_buffer);
         read_buffer = q->m_buffers[read_index];
         read_pos = 0;
         read_end = read_buffer->m_len;
@@ -3263,7 +3682,7 @@ execute_signals(thr_data *selfptr,
     }
 #endif
 
-    block->executeFunction(gsn, sig);
+    block->executeFunction_async(gsn, sig);
   }
 
   return num_signals;
@@ -3273,7 +3692,7 @@ static
 Uint32
 run_job_buffers(thr_data *selfptr, Signal *sig, Uint32 *signalIdCounter)
 {
-  Uint32 thr_count = g_thr_repository.m_thread_count;
+  Uint32 thr_count = g_thr_repository->m_thread_count;
   Uint32 signal_count = 0;
   Uint32 perjb = selfptr->m_max_signals_per_jb;
 
@@ -3302,9 +3721,53 @@ run_job_buffers(thr_data *selfptr, Signal *sig, Uint32 *signalIdCounter)
                                       max_prioA, signalIdCounter);
     }
 
+    /**
+     * Contended queues get an extra execute quota:
+     *
+     * If we didn't get a max 'perjb' quota, our out buffers
+     * are about to fill up. This thread is thus effectively
+     * slowed down in order to let other threads consume from
+     * our out buffers. Eventually, when 'perjb==0', we will
+     * have to wait/sleep for buffers to become available.
+     * 
+     * This can bring is into a circular wait-lock, where
+     * threads are stalled due to full out buffers. The same
+     * thread may also have full in buffers, thus blocking other
+     * threads from progressing. This could bring us into a 
+     * circular wait-lock, where no threads are able to progress.
+     * The entire scheduler will then be stuck.
+     *
+     * We try to avoid this situation by reserving some
+     * 'm_max_extra_signals' which are only used to consume
+     * from 'almost full' in-buffers. We will then reduce the
+     * risk of ending up in the above wait-lock.
+     *
+     * Exclude receiver threads, as there can't be a
+     * circular wait between recv-thread and workers.
+     */
+    Uint32 extra = 0;
+
+    if (perjb < MAX_SIGNALS_PER_JB)  //Job buffer contention
+    {
+      const Uint32 free = compute_free_buffers_in_queue(head);
+      if (free <= thr_job_queue::ALMOST_FULL)
+      {
+        if (selfptr->m_max_extra_signals > MAX_SIGNALS_PER_JB - perjb)
+	{
+          extra = MAX_SIGNALS_PER_JB - perjb;
+        }
+        else
+	{
+          extra = selfptr->m_max_extra_signals;
+          selfptr->m_max_exec_signals = 0; //Force recalc
+        }
+        selfptr->m_max_extra_signals -= extra;
+      }
+    }
+
     /* Now execute prio B signals from one thread. */
     signal_count += execute_signals(selfptr, queue, head, read_state,
-                                    sig, perjb, signalIdCounter);
+                                    sig, perjb+extra, signalIdCounter);
   }
 
   return signal_count;
@@ -3344,7 +3807,7 @@ add_thr_map(Uint32 main, Uint32 instance, Uint32 thr_no)
   Uint32 block = numberToBlock(main, instance);
 
   require(thr_no < num_threads);
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
   struct thr_data* thr_ptr = &rep->m_thread[thr_no].m_thr_data;
 
   /* Add to list. */
@@ -3547,9 +4010,11 @@ init_thread(thr_data *selfptr)
   }
 
   conf.appendInfo(tmp,
-                  selfptr->m_instance_list, selfptr->m_instance_count);
+                  selfptr->m_instance_list,
+                  selfptr->m_instance_count);
   int res = conf.do_bind(selfptr->m_thread,
-                         selfptr->m_instance_list, selfptr->m_instance_count);
+                         selfptr->m_instance_list,
+                         selfptr->m_instance_count);
   if (res < 0)
   {
     tmp.appfmt("err: %d ", -res);
@@ -3558,6 +4023,10 @@ init_thread(thr_data *selfptr)
   {
     tmp.appfmt("OK ");
   }
+  selfptr->m_realtime = conf.do_get_realtime(selfptr->m_instance_list,
+                                             selfptr->m_instance_count);
+  selfptr->m_spintime = conf.do_get_spintime(selfptr->m_instance_list,
+                                             selfptr->m_instance_count);
 
   selfptr->m_thr_id = pthread_self();
 
@@ -3601,7 +4070,7 @@ aligned_signal(unsigned char signal_buf[SIGBUF_SIZE], unsigned thr_no)
  * Array of pointers to TransporterReceiveHandleKernel
  *   these are not used "in traffic"
  */
-TransporterReceiveHandleKernel *
+static TransporterReceiveHandleKernel *
   g_trp_receive_handle_ptr[MAX_NDBMT_RECEIVE_THREADS];
 
 /**
@@ -3609,13 +4078,47 @@ TransporterReceiveHandleKernel *
  */
 static NodeId g_node_to_recv_thr_map[MAX_NODES];
 
+/**
+ * We use this method both to initialise the realtime variable
+ * and also for updating it. Currently there is no method to
+ * update it, but it's likely that we will soon invent one and
+ * thus the code is prepared for this case.
+ */
+static void
+update_rt_config(struct thr_data *selfptr,
+                 bool & real_time,
+                 enum ThreadTypes type)
+{
+  bool old_real_time = real_time;
+  real_time = selfptr->m_realtime;
+  if (old_real_time == true && real_time == false)
+  {
+    yield_rt_break(selfptr->m_thread,
+                   type,
+                   false);
+  }
+}
+
+/**
+ * We use this method both to initialise the spintime variable
+ * and also for updating it. Currently there is no method to
+ * update it, but it's likely that we will soon invent one and
+ * thus the code is prepared for this case.
+ */
+static void
+update_spin_config(struct thr_data *selfptr,
+                   Uint64 & min_spin_timer)
+{
+  min_spin_timer = selfptr->m_spintime;
+}
+
 extern "C"
 void *
 mt_receiver_thread_main(void *thr_arg)
 {
   unsigned char signal_buf[SIGBUF_SIZE];
   Signal *signal;
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
   struct thr_data* selfptr = (struct thr_data *)thr_arg;
   unsigned thr_no = selfptr->m_thr_no;
   Uint32& watchDogCounter = selfptr->m_watchdog_counter;
@@ -3623,9 +4126,15 @@ mt_receiver_thread_main(void *thr_arg)
   const Uint32 recv_thread_idx = thr_no - first_receiver_thread_no;
   bool has_received = false;
   int cnt = 0;
+  bool real_time = false;
+  Uint64 min_spin_timer;
+  NDB_TICKS start_spin_ticks;
+  NDB_TICKS yield_ticks;
 
   init_thread(selfptr);
   signal = aligned_signal(signal_buf, thr_no);
+  update_rt_config(selfptr, real_time, ReceiveThread);
+  update_spin_config(selfptr, min_spin_timer);
 
   /**
    * Object that keeps track of our pollReceive-state
@@ -3639,6 +4148,10 @@ mt_receiver_thread_main(void *thr_arg)
    */
   g_trp_receive_handle_ptr[recv_thread_idx] = &recvdata;
 
+  NdbTick_Invalidate(&start_spin_ticks);
+  NDB_TICKS now = NdbTick_getCurrentTicks();
+  selfptr->m_ticks = yield_ticks = now;
+
   while (globalData.theRestartFlag != perform_stop)
   {
     if (cnt == 0)
@@ -3650,8 +4163,8 @@ mt_receiver_thread_main(void *thr_arg)
 
     watchDogCounter = 2;
 
-    NDB_TICKS now = NdbTick_CurrentMillisecond();
-    scan_time_queues(selfptr, now);
+    now = NdbTick_getCurrentTicks();
+    const Uint32 lagging_timers = scan_time_queues(selfptr, now);
 
     Uint32 sum = run_job_buffers(selfptr, signal, &thrSignalId);
 
@@ -3665,8 +4178,32 @@ mt_receiver_thread_main(void *thr_arg)
 
     watchDogCounter = 7;
 
+    if (real_time)
+    {
+      check_real_time_break(now,
+                            &yield_ticks,
+                            selfptr->m_thread,
+                            ReceiveThread);
+    }
+
+    /**
+     * Only allow to sleep in pollReceive when:
+     * 1) We are not lagging behind in handling timer events.
+     * 2) There are no 'min_spin' configured or min_spin has elapsed
+     */
+    Uint32 delay = 0;
+
+    if (lagging_timers == 0 &&       // 1)
+        (min_spin_timer == 0 ||      // 2)
+         check_yield(now,
+                     &start_spin_ticks,
+                     min_spin_timer)))
+    {
+      delay = 1;
+    }
+
     has_received = false;
-    if (globalTransporterRegistry.pollReceive(1, recvdata))
+    if (globalTransporterRegistry.pollReceive(delay, recvdata))
     {
       watchDogCounter = 8;
       lock(&rep->m_receive_lock[recv_thread_idx]);
@@ -3720,7 +4257,7 @@ sendpacked(struct thr_data* thr_ptr, Signal* signal)
     // wl4391_todo remove useless assert
     assert(b != 0 && b->getThreadId() == thr_ptr->m_thr_no);
     /* b->send_at_job_buffer_end(); */
-    b->executeFunction(GSN_SEND_PACKED, signal);
+    b->executeFunction_async(GSN_SEND_PACKED, signal);
   }
 }
 
@@ -3732,10 +4269,9 @@ sendpacked(struct thr_data* thr_ptr, Signal* signal)
  * is still full, return true if so.
  */
 static bool
-check_congested_job_queue(void *arg)
+check_congested_job_queue(thr_job_queue_head *waitfor)
 {
-  const thr_job_queue_head *waitfor = static_cast<thr_job_queue_head*>(arg);
-  return (compute_free_buffers_in_queue(waitfor) == 0);
+  return (compute_free_buffers_in_queue(waitfor) <= thr_job_queue::RESERVED);
 }
 
 /**
@@ -3747,7 +4283,7 @@ static struct thr_data*
 get_congested_job_queue(const thr_data *selfptr)
 {
   const Uint32 thr_no = selfptr->m_thr_no;
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
   struct thr_data_aligned *thr_align_ptr = rep->m_thread;
   struct thr_data *waitfor = NULL;
 
@@ -3756,7 +4292,7 @@ get_congested_job_queue(const thr_data *selfptr)
     struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
     thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
 
-    if (compute_free_buffers_in_queue(q_head) == 0)
+    if (compute_free_buffers_in_queue(q_head) <= thr_job_queue::RESERVED)
     {
       if (thrptr != selfptr)  // Don't wait on myself (yet)
         return thrptr;
@@ -3765,6 +4301,37 @@ get_congested_job_queue(const thr_data *selfptr)
     }
   }
   return waitfor;             // Possibly 'thrptr == selfptr'
+}
+
+/**
+ * has_full_in_queues()
+ *
+ * Avoid circular waits between block-threads:
+ * A thread is not allowed to sleep due to full
+ * 'out' job-buffers if there are other threads
+ * already having full 'in' job buffers sent to
+ * this thread.
+ *
+ * run_job_buffers() has reserved a 'm_max_extra_signals'
+ * quota which will be used to drain these 'full_in_queues'.
+ * So we should allow it to be.
+ *
+ * Returns 'true' if any in-queues to this thread are full
+ */
+static
+bool
+has_full_in_queues(struct thr_data* selfptr)
+{
+  thr_job_queue_head *head = selfptr->m_in_queue_head;
+
+  for (Uint32 thr_no = 0; thr_no < num_threads; thr_no++, head++)
+  {
+    if (compute_free_buffers_in_queue(head) <= thr_job_queue::RESERVED)
+    {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -3783,7 +4350,7 @@ get_congested_job_queue(const thr_data *selfptr)
  *
  *   Assumption: each signal may send *at most* 4 signals
  *     - this assumption is made the same in ndbd and ndbmtd and is
- *       mostly followed by block-code, although not it all places :-(
+ *       mostly followed by block-code, although not in all places :-(
  *
  *   This function return true, if it it slept
  *     (i.e that it concluded that it could not execute *any* signals, wo/
@@ -3796,14 +4363,21 @@ update_sched_config(struct thr_data* selfptr, Uint32 pending_send)
   Uint32 sleeploop = 0;
   Uint32 thr_no = selfptr->m_thr_no;
 loop:
-  Uint32 tmp = compute_max_signals_to_execute(thr_no);
-  Uint32 perjb = tmp / g_thr_repository.m_thread_count;
+  Uint32 minfree = compute_min_free_out_buffers(thr_no);
+  Uint32 reserved = (minfree > thr_job_queue::RESERVED)
+                   ? thr_job_queue::RESERVED
+                   : minfree;
+
+  Uint32 avail = compute_max_signals_to_execute(minfree - reserved);
+  Uint32 perjb = (avail + g_thr_repository->m_thread_count - 1) /
+                  g_thr_repository->m_thread_count;
 
   if (perjb > MAX_SIGNALS_PER_JB)
     perjb = MAX_SIGNALS_PER_JB;
 
-  selfptr->m_max_exec_signals = tmp;
+  selfptr->m_max_exec_signals = avail;
   selfptr->m_max_signals_per_jb = perjb;
+  selfptr->m_max_extra_signals = compute_max_signals_to_execute(reserved);
 
   if (unlikely(perjb == 0))
   {
@@ -3813,7 +4387,9 @@ loop:
        * we've slept for 10ms...try running anyway
        */
       selfptr->m_max_signals_per_jb = 1;
-      ndbout_c("%u - sleeploop 10!!", selfptr->m_thr_no);
+      ndbout_c("thr_no:%u - sleeploop 10!! "
+               "(Worker thread blocked (>= 10ms) by slow consumer threads)",
+               selfptr->m_thr_no);
       return true;
     }
 
@@ -3822,9 +4398,10 @@ loop:
     {
       goto loop;
     }
-    else if (waitthr == selfptr)         // Avoid self-wait
+    else if (has_full_in_queues(selfptr) &&
+             selfptr->m_max_extra_signals > 0)
     {
-      selfptr->m_max_signals_per_jb = 1; // Proceed slowly
+      /* 'extra_signals' used to drain 'full_in_queues'. */
       return sleeploop > 0;
     }
 
@@ -3881,7 +4458,19 @@ mt_job_thread_main(void *thr_arg)
   Uint32 loops = 0;
   Uint32 maxloops = 10;/* Loops before reading clock, fuzzy adapted to 1ms freq. */
   Uint32 waits = 0;
-  NDB_TICKS now = selfptr->m_time;
+
+  NDB_TICKS start_spin_ticks;
+  NDB_TICKS yield_ticks;
+
+  Uint64 min_spin_timer;
+  bool real_time = false;
+
+  update_rt_config(selfptr, real_time, BlockThread);
+  update_spin_config(selfptr, min_spin_timer);
+
+  NdbTick_Invalidate(&start_spin_ticks);
+  NDB_TICKS now = NdbTick_getCurrentTicks();
+  selfptr->m_ticks = start_spin_ticks = yield_ticks = now;
 
   while (globalData.theRestartFlag != perform_stop)
   { 
@@ -3894,7 +4483,7 @@ mt_job_thread_main(void *thr_arg)
      * and if this doesnt work pack buffers before start to execute signals
      */
     watchDogCounter = 11;
-    if (!selfptr->m_send_buffer_pool.fill(g_thr_repository.m_mm,
+    if (!selfptr->m_send_buffer_pool.fill(g_thr_repository->m_mm,
                                           RG_TRANSPORTER_BUFFERS,
                                           THR_SEND_BUFFER_PRE_ALLOC))
     {
@@ -3902,7 +4491,7 @@ mt_job_thread_main(void *thr_arg)
     }
 
     watchDogCounter = 2;
-    scan_time_queues(selfptr, now);
+    const Uint32 lagging_timers = scan_time_queues(selfptr, now);
 
     Uint32 sum = run_job_buffers(selfptr, signal, &thrSignalId);
     
@@ -3915,6 +4504,7 @@ mt_job_thread_main(void *thr_arg)
       watchDogCounter = 6;
       flush_jbb_write_state(selfptr);
       send_sum += sum;
+      NdbTick_Invalidate(&start_spin_ticks);
 
       if (send_sum > MAX_SIGNALS_BEFORE_SEND)
       {
@@ -3928,7 +4518,11 @@ mt_job_thread_main(void *thr_arg)
         do_flush(selfptr);
       }
     }
-    else
+    /**
+     * Scheduler is not allowed to yield until its internal
+     * time has caught up on real time.
+     */
+    else if (lagging_timers == 0)
     {
       /* No signals processed, prepare to sleep to wait for more */
       if ((pending_send + send_sum) > 0)
@@ -3940,16 +4534,26 @@ mt_job_thread_main(void *thr_arg)
 
       if (pending_send == 0)
       {
-        bool waited = yield(&selfptr->m_waiter, nowait, check_queues_empty,
-                            selfptr);
-        if (waited)
+        if (min_spin_timer == 0 ||
+            check_yield(now,
+                        &start_spin_ticks,
+                        min_spin_timer))
         {
-          waits++;
-          /* Update current time after sleeping */
-          now = NdbTick_CurrentMillisecond();
-          selfptr->m_stat.m_wait_cnt += waits;
-          selfptr->m_stat.m_loop_cnt += loops;
-          waits = loops = 0;
+          bool waited = yield(&selfptr->m_waiter,
+                              nowait,
+                              check_queues_empty,
+                              selfptr);
+          if (waited)
+          {
+            waits++;
+            /* Update current time after sleeping */
+            now = NdbTick_getCurrentTicks();
+            yield_ticks = now;
+            NdbTick_Invalidate(&start_spin_ticks);
+            selfptr->m_stat.m_wait_cnt += waits;
+            selfptr->m_stat.m_loop_cnt += loops;
+            waits = loops = 0;
+          }
         }
       }
     }
@@ -3963,10 +4567,13 @@ mt_job_thread_main(void *thr_arg)
       if (update_sched_config(selfptr, pending_send + send_sum))
       {
         /* Update current time after sleeping */
-        now = NdbTick_CurrentMillisecond();
+        now = NdbTick_getCurrentTicks();
         selfptr->m_stat.m_wait_cnt += waits;
         selfptr->m_stat.m_loop_cnt += loops;
         waits = loops = 0;
+        NdbTick_Invalidate(&start_spin_ticks);
+        update_rt_config(selfptr, real_time, BlockThread);
+        update_spin_config(selfptr, min_spin_timer);
       }
     }
     else
@@ -3980,8 +4587,15 @@ mt_job_thread_main(void *thr_arg)
      */
     if (loops > maxloops)
     {
-      now = NdbTick_CurrentMillisecond();
-      Uint64 diff = now - selfptr->m_time;
+      now = NdbTick_getCurrentTicks();
+      if (real_time)
+      {
+        check_real_time_break(now,
+                              &yield_ticks,
+                              selfptr->m_thread,
+                              BlockThread);
+      }
+      const Uint64 diff = NdbTick_Elapsed(selfptr->m_ticks, now).milliSec();
 
       /* Adjust 'maxloop' to achieve clock reading frequency of 1ms */
       if (diff < 1)
@@ -4017,7 +4631,7 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
     MAX_SIGNALS_BEFORE_FLUSH_OTHER;
 
   Uint32 dst = block2ThreadId(block, instance);
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
   assert(pthread_equal(selfptr->m_thr_id, pthread_self()));
   struct thr_data *dstptr = &rep->m_thread[dst].m_thr_data;
@@ -4033,8 +4647,10 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
   {
     selfptr->m_next_buffer = seize_buffer(rep, self, false);
   }
-  if (w->m_pending_signals >= MAX_SIGNALS_BEFORE_FLUSH)
+  if (w->get_pending_signals() >= MAX_SIGNALS_BEFORE_FLUSH)
+  {
     flush_write_state(selfptr, dstptr, h, w);
+  }
 }
 
 void
@@ -4045,7 +4661,7 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   Uint32 instance = blockToInstance(s->theReceiversBlockNumber);
 
   Uint32 dst = block2ThreadId(block, instance);
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
   assert(s->theVerId_signalNumber == GSN_START_ORD ||
          pthread_equal(selfptr->m_thr_id, pthread_self()));
@@ -4066,11 +4682,9 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   thr_job_buffer *buffer = q->m_buffers[index];
   w.m_write_buffer = buffer;
   w.m_write_pos = buffer->m_len;
-  w.m_pending_signals = 0;
-  w.m_pending_signals_wakeup = MAX_SIGNALS_BEFORE_WAKEUP;
   bool buf_used = insert_signal(q, h, &w, true, s, data, secPtr,
                                 selfptr->m_next_buffer);
-  flush_write_state(selfptr, dstptr, h, &w);
+  flush_write_state_wakeup(selfptr, dstptr, h, &w);
 
   unlock(&dstptr->m_jba_write_lock);
 
@@ -4088,7 +4702,7 @@ mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                const Uint32 * data, NodeId nodeId,
                const LinearSectionPtr ptr[3])
 {
-  thr_repository *rep = &g_thr_repository;
+  thr_repository *rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
   SendStatus ss;
 
@@ -4106,7 +4720,7 @@ mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                class SectionSegmentPool *thePool,
                const SegmentedSectionPtr ptr[3])
 {
-  thr_repository *rep = &g_thr_repository;
+  thr_repository *rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self].m_thr_data;
   SendStatus ss;
 
@@ -4130,7 +4744,7 @@ void
 sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
 {
   SignalT<StopForCrash::SignalLength> signalT;
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
   /* As this signal will be the last one executed by the other thread, it does
      not matter which buffer we use in case the current buffer is filled up by
      the STOP_FOR_CRASH signal; the data in it will never be read.
@@ -4165,11 +4779,9 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   thr_job_buffer *buffer = q->m_buffers[index];
   w.m_write_buffer = buffer;
   w.m_write_pos = buffer->m_len;
-  w.m_pending_signals = 0;
-  w.m_pending_signals_wakeup = MAX_SIGNALS_BEFORE_WAKEUP;
   insert_signal(q, h, &w, true, &signalT.header, signalT.theData, NULL,
                 &dummy_buffer);
-  flush_write_state(selfptr, dstptr, h, &w);
+  flush_write_state_wakeup(selfptr, dstptr, h, &w);
 
   unlock(&dstptr->m_jba_write_lock);
 }
@@ -4285,6 +4897,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_thr_no = thr_no;
   selfptr->m_max_signals_per_jb = MAX_SIGNALS_PER_JB;
   selfptr->m_max_exec_signals = 0;
+  selfptr->m_max_extra_signals = 0;
   selfptr->m_first_free = 0;
   selfptr->m_first_unused = 0;
   
@@ -4348,8 +4961,7 @@ thr_init2(struct thr_repository* rep, struct thr_data *selfptr,
     selfptr->m_write_states[i].m_write_pos = 0;
     selfptr->m_write_states[i].m_write_buffer =
       rep->m_thread[i].m_thr_data.m_in_queue[thr_no].m_buffers[0];
-    selfptr->m_write_states[i].m_pending_signals = 0;
-    selfptr->m_write_states[i].m_pending_signals_wakeup = 0;
+    selfptr->m_write_states[i].init_pending_signals();
   }    
 }
 
@@ -4595,10 +5207,13 @@ compute_jb_pages(struct EmulatorData * ed)
 
 ThreadConfig::ThreadConfig()
 {
+  g_thr_repository = new thr_repository();
 }
 
 ThreadConfig::~ThreadConfig()
 {
+  delete g_thr_repository;
+  g_thr_repository = NULL;
 }
 
 /*
@@ -4618,21 +5233,8 @@ ThreadConfig::init()
 
   ndbout << "NDBMT: number of block threads=" << num_threads << endl;
 
-  ::rep_init(&g_thr_repository, num_threads,
+  ::rep_init(g_thr_repository, num_threads,
              globalEmulatorData.m_mem_manager);
-}
-
-static
-void
-setcpuaffinity(struct thr_repository* rep)
-{
-  THRConfigApplier & conf = globalEmulatorData.theConfiguration->m_thr_config;
-  conf.create_cpusets();
-  if (conf.getInfoMessage())
-  {
-    printf("%s", conf.getInfoMessage());
-    fflush(stdout);
-  }
 }
 
 /**
@@ -4675,15 +5277,13 @@ assign_receiver_threads(void)
 }
 
 void
-ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
+ThreadConfig::ipControlLoop(NdbThread* pThis)
 {
   unsigned int thr_no;
-  struct thr_repository* rep = &g_thr_repository;
+  struct thr_repository* rep = g_thr_repository;
 
-  /**
-   * assign threads to CPU's
-   */
-  setcpuaffinity(rep);
+  rep->m_thread[first_receiver_thread_no].m_thr_data.m_thr_index =
+    globalEmulatorData.theConfiguration->addThread(pThis, ReceiveThread);
 
   if (globalData.ndbMtSendThreads)
   {
@@ -4707,7 +5307,7 @@ ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
    */
   for (thr_no = 0; thr_no < num_threads; thr_no++)
   {
-    rep->m_thread[thr_no].m_thr_data.m_time = NdbTick_CurrentMillisecond();
+    rep->m_thread[thr_no].m_thr_data.m_ticks = NdbTick_getCurrentTicks();
 
     if (thr_no == first_receiver_thread_no)
       continue;                 // Will run in the main thread.
@@ -4719,30 +5319,38 @@ ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
     if (thr_no < first_receiver_thread_no)
     {
       /* Start block threads */
-      rep->m_thread[thr_no].m_thr_data.m_thread =
+      struct NdbThread *thread_ptr =
         NdbThread_Create(mt_job_thread_main,
                          (void **)(rep->m_thread + thr_no),
                          1024*1024,
                          "execute thread", //ToDo add number
                          NDB_THREAD_PRIO_MEAN);
-      require(rep->m_thread[thr_no].m_thr_data.m_thread != NULL);
+      require(thread_ptr != NULL);
+      rep->m_thread[thr_no].m_thr_data.m_thr_index =
+        globalEmulatorData.theConfiguration->addThread(thread_ptr,
+                                                       BlockThread);
+      rep->m_thread[thr_no].m_thr_data.m_thread = thread_ptr;
     }
     else
     {
       /* Start a receiver thread, also block thread for TRPMAN */
-      rep->m_thread[thr_no].m_thr_data.m_thread =
+      struct NdbThread *thread_ptr =
         NdbThread_Create(mt_receiver_thread_main,
                          (void **)(&rep->m_thread[thr_no].m_thr_data),
                          1024*1024,
                          "receive thread", //ToDo add number
                          NDB_THREAD_PRIO_MEAN);
-      require(rep->m_thread[thr_no].m_thr_data.m_thread != NULL);
+      require(thread_ptr != NULL);
+      globalEmulatorData.theConfiguration->addThread(thread_ptr,
+                                                     ReceiveThread);
+      rep->m_thread[thr_no].m_thr_data.m_thread = thread_ptr;
     }
   }
 
   /* Now run the main loop for first receiver thread directly. */
   rep->m_thread[first_receiver_thread_no].m_thr_data.m_thread = pThis;
-  mt_receiver_thread_main(&(rep->m_thread[first_receiver_thread_no].m_thr_data));
+  mt_receiver_thread_main(
+    &(rep->m_thread[first_receiver_thread_no].m_thr_data));
 
   /* Wait for all threads to shutdown. */
   for (thr_no = 0; thr_no < num_threads; thr_no++)
@@ -4752,6 +5360,8 @@ ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
     void *dummy_return_status;
     NdbThread_WaitFor(rep->m_thread[thr_no].m_thr_data.m_thread,
                       &dummy_return_status);
+    globalEmulatorData.theConfiguration->removeThread(
+      rep->m_thread[thr_no].m_thr_data.m_thread);
     NdbThread_Destroy(&(rep->m_thread[thr_no].m_thr_data.m_thread));
   }
 
@@ -4759,7 +5369,9 @@ ThreadConfig::ipControlLoop(NdbThread* pThis, Uint32 thread_index)
   if (g_send_threads)
   {
     delete g_send_threads;
+    g_send_threads = NULL;
   }
+  globalEmulatorData.theConfiguration->removeThread(pThis);
 }
 
 int
@@ -4829,7 +5441,7 @@ FastScheduler::traceDumpGetJam(Uint32 thr_no,
   thrdTheEmulatedJamIndex = 0;
 #else
   const EmulatedJamBuffer *jamBuffer =
-    &g_thr_repository.m_thread[thr_no].m_thr_data.m_jam;
+    &g_thr_repository->m_thread[thr_no].m_thr_data.m_jam;
   thrdTheEmulatedJam = jamBuffer->theEmulatedJam;
   thrdTheEmulatedJamIndex = jamBuffer->theEmulatedJamIndex;
 #endif
@@ -4861,8 +5473,8 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
   /* The selfptr might be NULL, or pointer to thread that crashed. */
 
   Uint32 waitFor_count = 0;
-  NdbMutex_Lock(&g_thr_repository.stop_for_crash_mutex);
-  g_thr_repository.stopped_threads = 0;
+  NdbMutex_Lock(&g_thr_repository->stop_for_crash_mutex);
+  g_thr_repository->stopped_threads = 0;
 
   for (Uint32 thr_no = 0; thr_no < num_threads; thr_no++)
   {
@@ -4878,26 +5490,26 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
   }
 
   static const Uint32 max_wait_seconds = 2;
-  NDB_TICKS start = NdbTick_CurrentMillisecond();
-  while (g_thr_repository.stopped_threads < waitFor_count)
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
+  while (g_thr_repository->stopped_threads < waitFor_count)
   {
-    NdbCondition_WaitTimeout(&g_thr_repository.stop_for_crash_cond,
-                             &g_thr_repository.stop_for_crash_mutex,
+    NdbCondition_WaitTimeout(&g_thr_repository->stop_for_crash_cond,
+                             &g_thr_repository->stop_for_crash_mutex,
                              10);
-    NDB_TICKS now = NdbTick_CurrentMillisecond();
-    if (now > start + max_wait_seconds * 1000)
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    if (NdbTick_Elapsed(start,now).seconds() > max_wait_seconds)
       break;                    // Give up
   }
-  if (g_thr_repository.stopped_threads < waitFor_count)
+  if (g_thr_repository->stopped_threads < waitFor_count)
   {
     if (nst != NST_ErrorInsert)
     {
       nst = NST_Watchdog; // Make this abort fast
     }
     ndbout_c("Warning: %d thread(s) did not stop before starting crash dump.",
-             waitFor_count - g_thr_repository.stopped_threads);
+             waitFor_count - g_thr_repository->stopped_threads);
   }
-  NdbMutex_Unlock(&g_thr_repository.stop_for_crash_mutex);
+  NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
 
   /* Now we are ready (or as ready as can be) for doing crash dump. */
 }
@@ -4908,10 +5520,10 @@ void mt_execSTOP_FOR_CRASH()
   const thr_data *selfptr = reinterpret_cast<const thr_data *>(value);
   require(selfptr != NULL);
 
-  NdbMutex_Lock(&g_thr_repository.stop_for_crash_mutex);
-  g_thr_repository.stopped_threads++;
-  NdbCondition_Signal(&g_thr_repository.stop_for_crash_cond);
-  NdbMutex_Unlock(&g_thr_repository.stop_for_crash_mutex);
+  NdbMutex_Lock(&g_thr_repository->stop_for_crash_mutex);
+  g_thr_repository->stopped_threads++;
+  NdbCondition_Signal(&g_thr_repository->stop_for_crash_cond);
+  NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
 
   /* ToDo: is this correct? */
   globalEmulatorData.theWatchDog->unregisterWatchedThread(selfptr->m_thr_no);
@@ -4924,7 +5536,7 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
 {
   void *value= NdbThread_GetTlsKey(NDB_THREAD_TLS_THREAD);
   thr_data *selfptr = reinterpret_cast<thr_data *>(value);
-  const thr_repository *rep = &g_thr_repository;
+  const thr_repository *rep = g_thr_repository;
   /*
    * The selfptr might be NULL, or pointer to thread that is doing the crash
    * jump.
@@ -5091,8 +5703,8 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
     SignalT<25> signal;
     const SignalHeader *s = signalSequence[seq_end].ptr;
     unsigned siglen = (sizeof(*s)>>2) + s->theLength;
-    if (siglen > 25)
-      siglen = 25;              // Sanity check
+    if (siglen > MAX_SIGNAL_SIZE)
+      siglen = MAX_SIGNAL_SIZE;              // Sanity check
     memcpy(&signal.header, s, 4*siglen);
     // instance number in trace file is confusing if not MT LQH
     if (globalData.ndbMtLqhWorkers == 0)
@@ -5148,13 +5760,13 @@ FastScheduler::traceDumpGetCurrentThread()
 void
 mt_section_lock()
 {
-  lock(&(g_thr_repository.m_section_lock));
+  lock(&(g_thr_repository->m_section_lock));
 }
 
 void
 mt_section_unlock()
 {
-  unlock(&(g_thr_repository.m_section_lock));
+  unlock(&(g_thr_repository->m_section_lock));
 }
 
 void
@@ -5165,13 +5777,13 @@ mt_mem_manager_init()
 void
 mt_mem_manager_lock()
 {
-  lock(&(g_thr_repository.m_mem_manager_lock));
+  lock(&(g_thr_repository->m_mem_manager_lock));
 }
 
 void
 mt_mem_manager_unlock()
 {
-  unlock(&(g_thr_repository.m_mem_manager_lock));
+  unlock(&(g_thr_repository->m_mem_manager_lock));
 }
 
 Vector<mt_lock_stat> g_locks;
@@ -5206,6 +5818,7 @@ register_lock(const void * ptr, const char * name)
   g_locks.push_back(ln);
 }
 
+#if defined(NDB_HAVE_XCNG) && defined(NDB_USE_SPINLOCK)
 static
 mt_lock_stat *
 lookup_lock(const void * ptr)
@@ -5219,6 +5832,7 @@ lookup_lock(const void * ptr)
 
   return 0;
 }
+#endif
 
 Uint32
 mt_get_thread_references_for_blocks(const Uint32 blocks[], Uint32 threadId,
@@ -5256,7 +5870,7 @@ void
 mt_wakeup(class SimulatedBlock* block)
 {
   Uint32 thr_no = block->getThreadId();
-  struct thr_data *thrptr = &g_thr_repository.m_thread[thr_no].m_thr_data;
+  struct thr_data *thrptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
   wakeup(&thrptr->m_waiter);
 }
 
@@ -5265,7 +5879,7 @@ void
 mt_assert_own_thread(SimulatedBlock* block)
 {
   Uint32 thr_no = block->getThreadId();
-  struct thr_data *thrptr = &g_thr_repository.m_thread[thr_no].m_thr_data;
+  struct thr_data *thrptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
 
   if (unlikely(pthread_equal(thrptr->m_thr_id, pthread_self()) == 0))
   {
@@ -5281,7 +5895,7 @@ Uint32
 mt_get_blocklist(SimulatedBlock * block, Uint32 arr[], Uint32 len)
 {
   Uint32 thr_no = block->getThreadId();
-  struct thr_data *thr_ptr = &g_thr_repository.m_thread[thr_no].m_thr_data;
+  struct thr_data *thr_ptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
 
   for (Uint32 i = 0; i < thr_ptr->m_instance_count; i++)
   {
@@ -5296,7 +5910,7 @@ mt_get_thr_stat(class SimulatedBlock * block, ndb_thr_stat* dst)
 {
   bzero(dst, sizeof(* dst));
   Uint32 thr_no = block->getThreadId();
-  struct thr_data *selfptr = &g_thr_repository.m_thread[thr_no].m_thr_data;
+  struct thr_data *selfptr = &g_thr_repository->m_thread[thr_no].m_thr_data;
 
   THRConfigApplier & conf = globalEmulatorData.theConfiguration->m_thr_config;
   dst->thr_no = thr_no;
@@ -5323,9 +5937,7 @@ mt_get_trp_receive_handle(unsigned instance)
 /**
  * Global data
  */
-struct thr_repository g_thr_repository;
-
-struct trp_callback g_trp_callback;
+static struct trp_callback g_trp_callback;
 
 TransporterRegistry globalTransporterRegistry(&g_trp_callback, NULL,
                                               false);

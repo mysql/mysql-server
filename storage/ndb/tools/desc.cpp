@@ -108,7 +108,7 @@ int main(int argc, char** argv){
 
   Ndb MyNdb(&con, _dbname);
   if(MyNdb.init() != 0){
-    ERR(MyNdb.getNdbError());
+    NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -146,7 +146,7 @@ void desc_AutoGrowSpecification(struct NdbDictionary::AutoGrowSpecification ags)
 int desc_logfilegroup(Ndb *myndb, char* name)
 {
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
-  assert(dict);
+  require(dict);
   NdbDictionary::LogfileGroup lfg= dict->getLogfileGroup(name);
   NdbError err= dict->getNdbError();
   if( (int) err.classification != (int) ndberror_cl_none)
@@ -168,7 +168,7 @@ int desc_logfilegroup(Ndb *myndb, char* name)
 int desc_tablespace(Ndb *myndb, char* name)
 {
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
-  assert(dict);
+  require(dict);
   NdbDictionary::Tablespace ts= dict->getTablespace(name);
   NdbError err= dict->getNdbError();
   if ((int) err.classification != (int) ndberror_cl_none)
@@ -189,7 +189,7 @@ int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
   Ndb_cluster_connection_node_iter iter;
 
-  assert(dict);
+  require(dict);
 
   con.init_get_next_node(iter);
 
@@ -224,7 +224,7 @@ int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
 {
   unsigned id;
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
-  assert(dict);
+  require(dict);
   Ndb_cluster_connection_node_iter iter;
 
   con.init_get_next_node(iter);
@@ -446,7 +446,7 @@ void print_part_info(Ndb* pNdb, NdbDictionary::Table const* pTab)
 int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char* name)
 {
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
-  assert(dict);
+  require(dict);
 
   NdbDictionary::HashMap hm;
   if (dict->getHashMap(hm, name) == 0)

@@ -876,6 +876,23 @@ typedef struct st_print_event_info
      False, otherwise.
    */
   bool skipped_event_in_transaction;
+
+  /* true if gtid_next is set with a value */
+  bool is_gtid_next_set;
+
+  /*
+    Determines if the current value of gtid_next needs to be restored
+    to AUTOMATIC if the binary log would end after the current event.
+
+    If the log ends after a transaction, then this should be false.
+    If the log ends in the middle of a transaction, then this should
+    be true; this can happen for relay logs where transactions are
+    split over multiple logs.
+
+    Set to true initially, and after a Gtid_log_event is processed.
+    Set to false if is_gtid_next_set is true.
+   */
+  bool is_gtid_next_valid;
 } PRINT_EVENT_INFO;
 #endif
 
@@ -5139,9 +5156,9 @@ public:
   /// Return true if this is the last group of the transaction, else false.
   bool get_commit_flag() const { return commit_flag; }
 
-private:
   /// string holding the text "SET @@GLOBAL.GTID_NEXT = '"
   static const char *SET_STRING_PREFIX;
+private:
   /// Length of SET_STRING_PREFIX
   static const size_t SET_STRING_PREFIX_LENGTH= 26;
   /// The maximal length of the entire "SET ..." query.

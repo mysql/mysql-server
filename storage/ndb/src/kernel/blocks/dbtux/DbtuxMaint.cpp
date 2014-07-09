@@ -59,7 +59,6 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   TuxMaintReq reqCopy = *sig;
   TuxMaintReq* const req = &reqCopy;
   const Uint32 opCode = req->opInfo & 0xFF;
-  const Uint32 opFlag = req->opInfo >> 8;
   // get the index
   ndbrequire(indexPtr.p->m_tableId == req->tableId);
   // get base fragment id and extra bits
@@ -84,6 +83,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   }
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
+    const Uint32 opFlag = req->opInfo >> 8;
     debugOut << "opCode=" << dec << opCode;
     debugOut << " opFlag=" << dec << opFlag;
     debugOut << " tableId=" << dec << req->tableId;

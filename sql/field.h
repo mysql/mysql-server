@@ -2090,7 +2090,6 @@ public:
 };
 
 
-#ifdef HAVE_LONG_LONG
 class Field_longlong :public Field_num {
 public:
   static const int PACK_LENGTH= 8;
@@ -2158,7 +2157,6 @@ public:
     return unsigned_flag ? 0xFFFFFFFFFFFFFFFFULL : 0x7FFFFFFFFFFFFFFFULL;
   }
 };
-#endif
 
 
 class Field_float :public Field_real {
@@ -3178,9 +3176,7 @@ public:
                                        0, NONE, field_name_arg, 0)
     {}
   enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
-#ifdef HAVE_LONG_LONG
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
-#endif
   using Field_temporal_with_date_and_time::store; // Make -Woverloaded-virtual
   type_conversion_status store(longlong nr, bool unsigned_val);
   type_conversion_status store_packed(longlong nr);

@@ -375,18 +375,15 @@ SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(
 AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal)))
 GEOMETRYCOLLECTION(LINESTRING(10 15,20 15),POLYGON((25 0,0 15,30 15,22 10,25 0)))
 SELECT AsText(ST_Symdifference(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))) FROM gis_geometrycollection WHERE fid=110;
-AsText(ST_Symdifference(g,GeomFromText('POLYGON((11 15,19 15,11 15))')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_intersection.
 #linestring,multipolygon
 SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15))),((25 0,0 15,25 0))')));
-AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15))),((25 0,0 15,25 0))')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_intersection.
 SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems)));
 AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems)))
 GEOMETRYCOLLECTION(LINESTRING(10 15,11 15),POLYGON((25 0,15 5,5 0,8.870967741935484 9.677419354838708,0 15,11 15,15 25,19 15,30 15,22 10,25 0)),LINESTRING(19 15,20 15))
 SELECT AsText(ST_Symdifference(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))) FROM gis_geometrycollection WHERE fid=110;
-AsText(ST_Symdifference(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_intersection.
 #linestring,geometrycollection
 SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems)));
 AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems)))
@@ -783,48 +780,36 @@ AsText(ST_Symdifference(fid,NULL))
 NULL
 SELECT AsText(ST_Symdifference(fid,GeomFromText(@star_top))) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-AsText(ST_Symdifference(fid,GeomFromText(@star_top)))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_symdifference.
 SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),fid)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-AsText(ST_Symdifference(GeomFromText(@star_of_elems),fid))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_symdifference.
 SELECT AsText(ST_Symdifference(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Symdifference(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Symdifference(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Symdifference(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Symdifference(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)')))' at line 1
 SELECT AsText(ST_Symdifference(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Symdifference(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Symdifference(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Symdifference(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')))' at line 1
 SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Symdifference(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Symdifference(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Symdifference(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Symdifference(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))' at line 1
 SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Symdifference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
-AsText(ST_Symdifference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Symdifference(,));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
 SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),));

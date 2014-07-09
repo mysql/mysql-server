@@ -241,7 +241,7 @@ t1	CREATE TABLE `t1` (
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `total` bigint(20) unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   `u` int(11) DEFAULT NULL,
@@ -344,7 +344,7 @@ t1	CREATE TABLE `t1` (
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `total` bigint(20) unsigned NOT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 STOP SLAVE;
@@ -640,7 +640,7 @@ t1	CREATE TABLE `t1` (
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `total` bigint(20) unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   `u` int(11) DEFAULT NULL,
@@ -743,7 +743,7 @@ t1	CREATE TABLE `t1` (
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `total` bigint(20) unsigned NOT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 STOP SLAVE;

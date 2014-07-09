@@ -202,9 +202,9 @@ FileLogHandler::setParam(const BaseString &param, const BaseString &value){
 
 bool FileLogHandler::getParams(BaseString &config)
 {
-  config.assfmt("FILE:filename=%s,maxsize=%lu,maxfiles=%u",
+  config.assfmt("FILE:filename=%s,maxsize=%llu,maxfiles=%u",
                 m_pLogFile->getName(),
-                m_maxFileSize,
+                (Uint64)m_maxFileSize,
                 m_maxNoFiles);
   return true;
 }
