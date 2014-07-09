@@ -3077,18 +3077,15 @@ recv_init_crash_recovery_spaces(void)
 	return(DB_SUCCESS);
 }
 
-/********************************************************//**
-Recovers from a checkpoint. When this function returns, the database is able
-to start processing of new user transactions, but the function
-recv_recovery_from_checkpoint_finish should be called later to complete
-the recovery and free the resources used in it.
+/** Start recovering from a redo log checkpoint.
+@see recv_recovery_from_checkpoint_finish
+@param[in]	flush_lsn	FIL_PAGE_FILE_FLUSH_LSN
+of first system tablespace page
 @return error code or DB_SUCCESS */
 
 dberr_t
 recv_recovery_from_checkpoint_start(
-/*================================*/
-	lsn_t	min_flushed_lsn,/*!< in: min flushed lsn from data files */
-	lsn_t	max_flushed_lsn)/*!< in: max flushed lsn from data files */
+	lsn_t	flush_lsn)
 {
 	log_group_t*	group;
 	log_group_t*	max_cp_group;
@@ -3217,33 +3214,27 @@ recv_recovery_from_checkpoint_start(
 	there is something wrong we will print a message to the
 	user about recovery: */
 
-	if (checkpoint_lsn != max_flushed_lsn
-	    || checkpoint_lsn != min_flushed_lsn) {
+	if (checkpoint_lsn != flush_lsn) {
 
-		if (checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT
-		    < max_flushed_lsn) {
+		if (checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT < flush_lsn) {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"The log sequence number in the ibdata files is"
-				" higher than the log sequence number in the"
-				" ib_logfiles! Are you sure you are using the"
-				" right ib_logfiles to start up the database."
+				" Are you sure you are using the"
+				" right ib_logfiles to start up the database?"
 				" Log sequence number in the ib_logfiles is"
-				" " LSN_PF ", log sequence numbers stamped to"
-				" ibdata file headers are between"
-				" " LSN_PF " and " LSN_PF ".",
-				checkpoint_lsn,
-				min_flushed_lsn,
-				max_flushed_lsn);
+				" " LSN_PF ", less than the"
+				" log sequence number in the"
+				" first system tablespace file header,"
+				" " LSN_PF ".",
+				checkpoint_lsn, flush_lsn);
 		}
 
 		if (!recv_needed_recovery) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"The log sequence numbers " LSN_PF " and"
-				" " LSN_PF " in ibdata files do not match"
+				"The log sequence number " LSN_PF
+				" in the system tablespace does not match"
 				" the log sequence number " LSN_PF
 				" in the ib_logfiles!",
-				min_flushed_lsn,
-				max_flushed_lsn,
+				flush_lsn,
 				checkpoint_lsn);
 
 			if (srv_read_only_mode) {
@@ -3349,12 +3340,10 @@ recv_recovery_from_checkpoint_start(
 	return(DB_SUCCESS);
 }
 
-/********************************************************//**
-Completes recovery from a checkpoint. */
+/** Complete recovery from a checkpoint. */
 
 void
 recv_recovery_from_checkpoint_finish(void)
-/*======================================*/
 {
 	/* Make sure that the recv_writer thread is done. This is
 	required because it grabs various mutexes and we want to
