@@ -3393,7 +3393,7 @@ static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
        "internal_tmp_disk_storage_engine",
        "The default storage engine for on-disk internal tmp table",
        GLOBAL_VAR(internal_tmp_disk_storage_engine), CMD_LINE(OPT_ARG),
-       internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_MYISAM));
+       internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_INNODB));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
        "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",

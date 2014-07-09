@@ -2,6 +2,10 @@
 --source include/have_partition.inc
 --source include/have_innodb.inc
 
+let $internal_se = `select @@internal_tmp_disk_storage_engine`;
+set global internal_tmp_disk_storage_engine = myisam;
+
+
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
@@ -760,3 +764,5 @@ SELECT b FROM t1 WHERE b = 0;
 SELECT b FROM t1 WHERE b = 0;
 --disconnect con1
 DROP TABLE t1;
+
+eval set global internal_tmp_disk_storage_engine = $internal_se;
