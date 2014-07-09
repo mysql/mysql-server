@@ -658,7 +658,7 @@ The following options may be given as the first argument:
  --performance-schema-max-file-instances=# 
  Maximum number of instrumented files. Use 0 to disable,
  -1 for automated sizing.
- --performance-schema-max-index-stat=#
+ --performance-schema-max-index-stat=# 
  Maximum number of statistics collected for indexes.
  --performance-schema-max-memory-classes=# 
  Maximum number of memory pool instruments.
@@ -698,7 +698,7 @@ The following options may be given as the first argument:
  --performance-schema-max-table-instances=# 
  Maximum number of instrumented tables. Use 0 to disable,
  -1 for automated sizing.
- --performance-schema-max-table-stat=#
+ --performance-schema-max-table-stat=# 
  Maximum number of statistics collected for tables.
  --performance-schema-max-thread-classes=# 
  Maximum number of thread instruments.
