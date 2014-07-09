@@ -300,6 +300,8 @@ int toku_txn_abort_txn(struct tokutxn *txn,
 int toku_txn_abort_with_lsn(struct tokutxn *txn, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
+int toku_txn_discard_txn(struct tokutxn *txn);
+
 void toku_txn_prepare_txn (struct tokutxn *txn, TOKU_XA_XID *xid);
 // Effect: Do the internal work of preparing a transaction (does not log the prepare record).
 
