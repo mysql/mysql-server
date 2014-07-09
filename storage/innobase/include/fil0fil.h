@@ -920,13 +920,35 @@ fil_page_get_type(
 	const byte*	page);	/*!< in: file page */
 
 /*******************************************************************//**
-Returns true if a single-table tablespace is being deleted.
-@return true if being deleted */
+Returns true if a single-table tablespace is redo skipped.
+@return true if redo skipped */
 
 bool
 fil_tablespace_is_being_deleted(
 /*============================*/
 	ulint		id);	/*!< in: space id */
+
+#ifdef UNIV_DEBUG
+/** Increase redo skipped of a tablespace.
+@param[in]	id	space id */
+void
+fil_space_inc_redo_skipped_count(
+	ulint		id);
+
+/** Decrease redo skipped of a tablespace.
+@param[in]	id	space id */
+void
+fil_space_dec_redo_skipped_count(
+	ulint		id);
+
+/*******************************************************************//**
+Check whether a single-table tablespace is redo skipped.
+@return true if redo skipped */
+bool
+fil_space_is_redo_skipped(
+/*======================*/
+	ulint		id);	/*!< in: space id */
+#endif
 
 /********************************************************************//**
 Delete the tablespace file and any related files like .cfg.

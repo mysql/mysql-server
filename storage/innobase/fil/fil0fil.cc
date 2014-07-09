@@ -222,6 +222,12 @@ struct fil_space_t {
 				/*!< this is set to true when we prepare to
 				truncate a single-table tablespace and its
 				.ibd file */
+#ifdef UNIV_DEBUG
+	ulint		redo_skipped_count;
+				/*!< reference count for operations who want
+				to skip redo log in the file space in order
+				to make fsp_space_modify_check pass. */
+#endif
 	fil_type_t	purpose;/*!< purpose */
 	UT_LIST_BASE_NODE_T(fil_node_t) chain;
 				/*!< base node for the file chain */
@@ -3052,6 +3058,71 @@ fil_tablespace_is_being_deleted(
 
 	return(is_being_deleted);
 }
+
+#ifdef UNIV_DEBUG
+/** Increase redo skipped count for a tablespace.
+@param[in]	id	space id */
+void
+fil_space_inc_redo_skipped_count(
+	ulint		id)
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(id);
+
+	ut_a(space != NULL);
+
+	space->redo_skipped_count++;
+
+	mutex_exit(&fil_system->mutex);
+}
+
+/** Decrease redo skipped count for a tablespace.
+@param[in]	id	space id */
+void
+fil_space_dec_redo_skipped_count(
+	ulint		id)
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(id);
+
+	ut_a(space != NULL);
+	ut_a(space->redo_skipped_count > 0);
+
+	space->redo_skipped_count--;
+
+	mutex_exit(&fil_system->mutex);
+}
+
+/**
+Check whether a single-table tablespace is redo skipped.
+@param[in]	id	space id
+@return true if redo skipped */
+bool
+fil_space_is_redo_skipped(
+	ulint		id)
+{
+	fil_space_t*	space;
+	bool		is_redo_skipped;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(id);
+
+	ut_a(space != NULL);
+
+	is_redo_skipped = space->redo_skipped_count > 0;
+
+	mutex_exit(&fil_system->mutex);
+
+	return(is_redo_skipped);
+}
+#endif
 
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
