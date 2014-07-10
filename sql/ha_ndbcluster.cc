@@ -1358,21 +1358,22 @@ void ha_ndbcluster::set_rec_per_key()
   DBUG_VOID_RETURN;
 }
 
-ha_rows ha_ndbcluster::records()
+int ha_ndbcluster::records(ha_rows* num_rows)
 {
   DBUG_ENTER("ha_ndbcluster::records");
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
-                      ((const NDBTAB *)m_table)->getTableId(),
+                      m_table->getTableId(),
                       m_table_info->no_uncommitted_rows_count));
 
-  if (update_stats(table->in_use, 1) == 0)
+  int error = update_stats(table->in_use, 1);
+  if (error != 0)
   {
-    DBUG_RETURN(stats.records);
+    *num_rows = HA_POS_ERROR;
+    DBUG_RETURN(error);
   }
-  else
-  {
-    DBUG_RETURN(HA_POS_ERROR);
-  }
+
+  *num_rows = stats.records;
+  DBUG_RETURN(0);
 }
 
 void ha_ndbcluster::no_uncommitted_rows_execute_failure()
@@ -1388,7 +1389,7 @@ void ha_ndbcluster::no_uncommitted_rows_update(int c)
   struct Ndb_local_table_statistics *local_info= m_table_info;
   local_info->no_uncommitted_rows_count+= c;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
-                      ((const NDBTAB *)m_table)->getTableId(),
+                      m_table->getTableId(),
                       local_info->no_uncommitted_rows_count));
   DBUG_VOID_RETURN;
 }
