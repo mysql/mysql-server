@@ -60,6 +60,9 @@ for my $i (1..9)
   }
 }
 
+# Tell the vm to put temporary files in $MYSQLTEST_VARDIR/tmp
+$jvm_opts .= " -Djava.io.tmpdir=$MYSQLTEST_VARDIR/tmp";
+
 if ($ENV{MTR_CLASSPATH})
 {
   $java_classpath .= "$sep$ENV{MTR_CLASSPATH}"
