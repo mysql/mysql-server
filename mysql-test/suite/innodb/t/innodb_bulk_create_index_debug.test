@@ -3,6 +3,7 @@
 #
 
 # Test Restart & Crash Recovery.
+-- source include/big_test.inc
 
 # Test Row Format: REDUNDANT.
 let $row_format = REDUNDANT;

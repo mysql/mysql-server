@@ -33,6 +33,7 @@ call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received w
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Slave SQL: Coordinator thread of multi-threaded slave is exiting seeing a failed Worker to apply an event");
 call mtr.add_suppression("Slave worker thread has failed to apply an event");
+call mtr.add_suppression("Slave SQL.*Duplicate entry .6. for key .PRIMARY.* Error_code: 1062");
 
 *** Testing schema A->B->C->D->A ***
 
@@ -75,7 +76,6 @@ include/start_slave.inc
 INSERT INTO t1 VALUES(6,'C',2);
 lock table t1 write  /* must block B_2^6 coming */;
 INSERT INTO t1(b,c) VALUES('B',2);
-call mtr.add_suppression("Slave SQL.*Duplicate entry .6. for key .PRIMARY.* Error_code: 1062");
 unlock tables;
 include/wait_for_slave_sql_error.inc [errno=1062]
 INSERT INTO t1(b,c) VALUES('A',2);

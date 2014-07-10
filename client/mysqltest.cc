@@ -818,13 +818,6 @@ public:
         perror("fwrite");
       }
     }
-
-    if (!lines)
-    {
-      fprintf(stderr,
-              "\nMore results from queries before failure can be found in %s\n",
-              m_file_name);
-    }
     fflush(stderr);
 
     DBUG_VOID_RETURN;

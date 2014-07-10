@@ -4121,6 +4121,7 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
 
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 {
+  DBUG_ENTER("thd_mark_transaction_to_rollback");
   DBUG_ASSERT(thd);
   /*
     The parameter "all" has type int since the function is defined
@@ -4130,6 +4131,7 @@ extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
     specifically.
   */
   thd->mark_transaction_to_rollback((all != 0));
+  DBUG_VOID_RETURN;
 }
 
 extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)

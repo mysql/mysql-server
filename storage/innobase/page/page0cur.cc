@@ -1015,7 +1015,7 @@ page_cur_insert_rec_low(
 	page = page_align(current_rec);
 	ut_ad(dict_table_is_comp(index->table)
 	      == (ibool) !!page_is_comp(page));
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
 	      || recv_recovery_is_on()
 	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index)));
@@ -1235,7 +1235,7 @@ page_cur_direct_insert_rec_low(
 	ut_ad(dict_table_is_comp(index->table)
 	      == (ibool) !!page_is_comp(page));
 
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
 	      == index->id);
@@ -1452,7 +1452,7 @@ page_cur_insert_rec_zip(
 	page = page_cur_get_page(cursor);
 	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(page_is_comp(page));
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
 	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index))
 	      || recv_recovery_is_on());
@@ -2266,7 +2266,7 @@ page_cur_delete_rec(
 	current_rec = cursor->rec;
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
 	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index))
 	      || recv_recovery_is_on());
