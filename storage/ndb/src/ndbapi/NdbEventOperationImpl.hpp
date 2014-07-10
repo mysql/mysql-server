@@ -523,6 +523,16 @@ public:
 
   int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
   int flushIncompleteEvents(Uint64 gci);
+
+  void free_consumed_event_data();
+  void move_head_event_data_item_to_used_data_queue(EventBufData *data);
+
+  /* Remove gci_ops belonging to epochs less than firstKeepGci from
+   * m_gci_ops list. gci = UINT_MAX64 means remove all gci_ops from the list.
+   */
+  EventBufData_list::Gci_ops* remove_consumed_gci_ops(Uint64 firstKeepGci);
+
+ // dequeue event data from event queue and give it for consumption
   NdbEventOperation *nextEvent();
   bool isConsistent(Uint64& gci);
   bool isConsistentGCI(Uint64 gci);
@@ -674,6 +684,10 @@ private:
   Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> m_alive_node_bit_mask;
 
   void handle_change_nodegroup(const SubGcpCompleteRep*);
+  /* Adds a dummy event data and a dummy gci_op list
+   * to an empty bucket and moves these to m_complete_data.
+   */
+  void complete_empty_bucket_using_exceptional_event(Uint64 gci, Uint32 type);
 
 public:
   void set_total_buckets(Uint32);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -135,6 +135,8 @@ DynArr256Pool::DynArr256Pool()
   m_first_free = RNIL;
   m_last_free = RNIL;
   m_memroot = 0;
+  m_inuse_nodes = 0;
+  m_pg_count = 0;
 }
 
 void
@@ -179,6 +181,12 @@ DA256Page::get(Uint32 node, Uint32 idx, Uint32 type_id, Uint32*& val_ptr) const
   Uint32 magic = *magic_ptr;
 
   return ((magic & (1 << p)) && (magic >> 16) == type_id);
+}
+
+Uint32 DynArr256::Head::getByteSize() const
+{
+  assert(m_no_of_nodes >= 0);
+  return static_cast<Uint32>(m_no_of_nodes) * sizeof(DA256Node);
 }
 
 static const Uint32 g_max_sizes[5] = { 0, 256, 65536, 16777216, 4294967295U };
@@ -281,6 +289,7 @@ DynArr256::set(Uint32 pos)
       {
 	return 0;
       }
+      m_head.m_no_of_nodes++;
       * retVal = ptrI;
     }
     
@@ -376,6 +385,7 @@ DynArr256::expand(Uint32 pos)
     Uint32 ptrI = m_pool.seize();
     if (unlikely(ptrI == RNIL))
       goto err;
+    m_head.m_no_of_nodes++;
     alloc[idx++] = ptrI;
   }
   
@@ -396,6 +406,9 @@ DynArr256::expand(Uint32 pos)
 err:
   for (i = 0; i<idx; i++)
     m_pool.release(alloc[i]);
+
+  m_head.m_no_of_nodes -= idx;
+  assert(m_head.m_no_of_nodes >= 0);
   return false;
 }
 
@@ -466,6 +479,8 @@ DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
       iter.m_ptr_i[iter.m_sz] = is_value ? RNIL : *refPtr;
       m_pool.release(m_head.m_ptr_i);
       m_head.m_sz --;
+      m_head.m_no_of_nodes--;
+      assert(m_head.m_no_of_nodes >= 0);
       m_head.m_ptr_i = iter.m_ptr_i[iter.m_sz];
       if (is_value)
         return 1;
@@ -478,6 +493,8 @@ DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
         if (ptrI != RNIL)
         {
           m_pool.release(ptrI);
+          m_head.m_no_of_nodes--;
+          assert(m_head.m_no_of_nodes >= 0);
           *refPtr = iter.m_ptr_i[iter.m_sz+1] = RNIL;
         }
       }
@@ -635,6 +652,7 @@ DynArr256Pool::seize()
     if (likely((page = (DA256Page*)m_ctx.alloc_page(type_id, &page_no)) != 0))
     {
       initpage(page, page_no, type_id);
+      m_pg_count++;
 #ifdef UNIT_TEST
       allocatedpages++;
       if (allocatedpages - releasedpages > maxallocatedpages)
@@ -660,6 +678,7 @@ DynArr256Pool::seize()
     Uint32 next_page = ((DA256Free*)(page->m_nodes + last_free))->m_next_free;
     if (likely(seizenode(page, idx, type_id)))
     {
+      m_inuse_nodes++;
       if (page->is_full())
       {
         assert(m_first_free == ff);
@@ -699,6 +718,7 @@ DynArr256Pool::release(Uint32 ptrI)
   Uint32 last_free = page->last_free();
   if (likely(releasenode(page, page_idx, type_id)))
   {
+    m_inuse_nodes--;
     ptr->m_magic = type_id;
     if (last_free > 29)
     { // Add last to page free list
@@ -723,6 +743,7 @@ DynArr256Pool::release(Uint32 ptrI)
       Uint32 nextpage = ((DA256Free*)(page->m_nodes + last_free))->m_next_free;
       Uint32 prevpage = ((DA256Free*)(page->m_nodes + last_free))->m_prev_free;
       m_ctx.release_page(type_id, page_no);
+      m_pg_count--;
 #ifdef UNIT_TEST
       releasedpages ++;
 #endif
@@ -752,6 +773,19 @@ DynArr256Pool::release(Uint32 ptrI)
   }
   require(false);
 }
+
+const DynArr256Pool::Info
+DynArr256Pool::getInfo() const
+{
+  Info info;
+  info.pg_count = m_pg_count;
+  info.pg_byte_sz = static_cast<Uint32>(sizeof(DA256Page));
+  info.inuse_nodes = m_inuse_nodes;
+  info.node_byte_sz = static_cast<Uint32>(sizeof(DA256Node));
+  info.nodes_per_page = 30;
+  
+  return info;
+};
 
 #ifdef UNIT_TEST
 

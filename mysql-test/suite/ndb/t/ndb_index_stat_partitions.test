@@ -37,6 +37,7 @@ INSERT INTO t1(I,J,L) SELECT I,5,I FROM t1 ORDER BY K;
 INSERT INTO t1(I,J,L) SELECT I,6,I FROM t1 ORDER BY K;
 INSERT INTO t1(I,J,L) SELECT I,7,I FROM t1 ORDER BY K;
 INSERT INTO t1(I,J,L) SELECT I,8,I FROM t1 ORDER BY K;
+INSERT INTO t1(I,J,L) SELECT I,9,I FROM t1 ORDER BY K;
 
 select i, count(*) from t1 group by 1 order by 1;
 select l, count(*) from t1 group by 1 order by 1;
