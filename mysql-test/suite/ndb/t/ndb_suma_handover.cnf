@@ -1,0 +1,17 @@
+!include include/default_mysqld.cnf
+!include include/default_ndbd.cnf
+
+[cluster_config.1]
+NoOfReplicas=                  2
+ndbd=,,,
+ndb_mgmd=
+mysqld=
+ndbapi=,,,,
+RestartSubscriberConnectTimeout=25000
+
+[mysqld]
+ndbcluster
+ndb-cluster-connection-pool=5
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring

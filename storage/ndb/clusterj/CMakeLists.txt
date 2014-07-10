@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ CREATE_MANIFEST(clusterj_manifest.mf ${CLUSTERJ_EXPORTS} clusterj)
 
 CREATE_JAR(clusterj
   MERGE_JARS ${JARS}
-  MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/clusterj_manifest.mf
+  MANIFEST ${CMAKE_CURRENT_BINARY_DIR}/clusterj_manifest.mf
   DEPENDENCIES ${DEP} )
 
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${JAVA_NDB_VERSION}.jar
@@ -64,14 +64,14 @@ SET(CLUSTERJ_PROJECTS api core jdbc jpatest openjpa test tie unit)
 IF(WIN32)
 
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/pom.xml.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/pom.xml
-    @ONLY NEWLINE_STYLE WIN32)
+                 ${CMAKE_CURRENT_BINARY_DIR}/pom.xml
+                 @ONLY NEWLINE_STYLE WIN32)
 
   FOREACH(CLUSTERJ_PROJECT ${CLUSTERJ_PROJECTS}) 
     # build all the pom.xml for windows
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/clusterj-${CLUSTERJ_PROJECT}/pom.xml.in
-                 ${CMAKE_CURRENT_SOURCE_DIR}/clusterj-${CLUSTERJ_PROJECT}/pom.xml
-                 @ONLY NEWLINE_STYLE WIN32)
+                   ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${CLUSTERJ_PROJECT}/pom.xml
+                   @ONLY NEWLINE_STYLE WIN32)
   ENDFOREACH(CLUSTERJ_PROJECT in CLUSTERJ_PROJECTS)
 
   # build the mvn_install_ndbjtie for windows
@@ -82,23 +82,23 @@ IF(WIN32)
 ELSE(WIN32)
 
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/pom.xml.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/pom.xml
-    @ONLY NEWLINE_STYLE UNIX)
+                 ${CMAKE_CURRENT_BINARY_DIR}/pom.xml
+                 @ONLY NEWLINE_STYLE UNIX)
 
   FOREACH(CLUSTERJ_PROJECT ${CLUSTERJ_PROJECTS}) 
     # build the pom.xml for *nix
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/clusterj-${CLUSTERJ_PROJECT}/pom.xml.in
-                 ${CMAKE_CURRENT_SOURCE_DIR}/clusterj-${CLUSTERJ_PROJECT}/pom.xml
-                 @ONLY NEWLINE_STYLE UNIX)
+                   ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${CLUSTERJ_PROJECT}/pom.xml
+                   @ONLY NEWLINE_STYLE UNIX)
   ENDFOREACH(CLUSTERJ_PROJECT in CLUSTERJ_PROJECTS)
 
   # build the mvn_install_ndbjtie for *nix
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mvn_install_ndbjtie.sh.in
-                 ${CMAKE_CURRENT_SOURCE_DIR}/mvn_install_ndbjtie.sh
+                 ${CMAKE_CURRENT_BINARY_DIR}/mvn_install_ndbjtie.sh
                  @ONLY NEWLINE_STYLE UNIX)
 
   ADD_CUSTOM_TARGET(mvn_install_ndbjtie ALL
-    chmod a+x "${CMAKE_CURRENT_SOURCE_DIR}/mvn_install_ndbjtie.sh"
+    chmod a+x "${CMAKE_CURRENT_BINARY_DIR}/mvn_install_ndbjtie.sh"
     || echo "") # don't break the build if file was deleted)
 
 ENDIF(WIN32)

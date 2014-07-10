@@ -11,8 +11,8 @@ insert into t3 values (1,10), (2,10), (3,30), (4, 30);
 insert into t4 values (1,10), (2,10), (3,30), (4, 30);
 explain select * from t2 where p NOT IN (select p from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-2	DEPENDENT SUBQUERY	t1	p0,p1	unique_subquery	PRIMARY	PRIMARY	4	func	#	#	NULL
+1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+2	DEPENDENT SUBQUERY	t1	p0,p1,p2,p3,p4,p5,p6,p7	unique_subquery	PRIMARY	PRIMARY	4	func	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`p`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`p`) in t1 on PRIMARY)))))
 select * from t2 where p NOT IN (select p from t1) order by p;
@@ -21,8 +21,8 @@ p	u	o
 5	5	5
 explain select * from t2 where p NOT IN (select u from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-2	DEPENDENT SUBQUERY	t1	p0,p1	unique_subquery	u	u	4	func	#	#	NULL
+1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+2	DEPENDENT SUBQUERY	t1	p0,p1,p2,p3,p4,p5,p6,p7	unique_subquery	u	u	4	func	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`p`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`p`) in t1 on u)))))
 select * from t2 where p NOT IN (select u from t1) order by p;
@@ -31,8 +31,8 @@ p	u	o
 5	5	5
 explain select * from t2 where p NOT IN (select o from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-2	DEPENDENT SUBQUERY	t1	p0,p1	index_subquery	o	o	4	func	#	#	NULL
+1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+2	DEPENDENT SUBQUERY	t1	p0,p1,p2,p3,p4,p5,p6,p7	index_subquery	o	o	4	func	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`p`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`p`) in t1 on o)))))
 select * from t2 where p NOT IN (select o from t1) order by p;
@@ -41,8 +41,8 @@ p	u	o
 5	5	5
 explain select * from t2 where p NOT IN (select p+0 from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-2	SUBQUERY	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+2	SUBQUERY	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`p`,`test`.`t2`.`p` in ( <materialize> (/* select#2 */ select (`test`.`t1`.`p` + 0) from `test`.`t1` where 1 ), <primary_index_lookup>(`test`.`t2`.`p` in <temporary table> on <auto_key> where ((`test`.`t2`.`p` = `materialized-subquery`.`p+0`)))))))
 select * from t2 where p NOT IN (select p+0 from t1) order by p;
@@ -163,8 +163,8 @@ FROM v AS table1
 WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM i as table1s)
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	table1s	p0,p1	ALL	col_int_key	NULL	NULL	NULL	15	100.00	Using where with pushed condition (`test`.`table1s`.`col_int_key` is not null); Start temporary
-1	SIMPLE	table1	p0,p1	ref	col_int_key	col_int_key	5	test.table1s.col_int_key	1	100.00	End temporary
+1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ALL	col_int_key	NULL	NULL	NULL	15	100.00	Using where with pushed condition (`test`.`table1s`.`col_int_key` is not null); Start temporary
+1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ref	col_int_key	col_int_key	5	test.table1s.col_int_key	1	100.00	End temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`table1`.`pk` AS `pk`,`test`.`table1`.`col_int_key` AS `col_int_key` from `test`.`v` `table1` semi join (`test`.`i` `table1s`) where (`test`.`table1`.`col_int_key` = `test`.`table1s`.`col_int_key`)
