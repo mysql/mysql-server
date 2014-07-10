@@ -195,32 +195,6 @@ ostream &operator<<(ostream &os, const Gen_spaces &gen)
   return os << gen.m_spaces;
 }
 
-class Log_buff : public stringbuf
-{
-public:
-    Log_buff(ostream &str, string &logc)
-      :m_os(str),m_logc(logc.substr(0,7)), m_enabled(true)
-  {}
-  void set_log_class(string &s) { m_logc= s; }
-  void enabled(bool s) { m_enabled= s; }
-  virtual int sync()
-  {
-    string out(str());
-    if (m_enabled && out.length() > 0)
-    {
-      m_os << Datetime() << "[" << m_logc << "]"
-           << Gen_spaces(8-m_logc.length()) << out;
-    }
-    str("");
-    m_os.flush();
-    return 0;
-  }
-private:
-  ostream &m_os;
-  string m_logc;
-  bool m_enabled;
-};
-
 class Log : public ostream
 {
 public:
@@ -229,7 +203,34 @@ public:
   {}
   void enabled(bool s) { m_buffer.enabled(s); }
 private:
-    Log_buff m_buffer;
+
+  class Log_buff : public stringbuf
+  {
+  public:
+    Log_buff(ostream &str, string &logc)
+      :m_os(str),m_logc(logc), m_enabled(true)
+    {}
+    void set_log_class(string &s) { m_logc= s; }
+    void enabled(bool s) { m_enabled= s; }
+    virtual int sync()
+    {
+      string out(str());
+      if (m_enabled && out.length() > 0)
+      {
+        m_os << Datetime() << "[" << m_logc << "]"
+          << Gen_spaces(8-m_logc.length()) << out;
+      }
+      str("");
+      m_os.flush();
+      return 0;
+    }
+  private:
+    ostream &m_os;
+    string m_logc;
+    bool m_enabled;
+  };
+
+  Log_buff m_buffer;
 };
 
 Log info(cout,"NOTE");
