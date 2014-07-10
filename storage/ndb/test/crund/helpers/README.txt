@@ -1,6 +1,6 @@
 
-Martin's Little Helpers
------------------------
+Helpers
+-------
 
 A collection of C++ utility classes useful for benchmarking:
 
@@ -16,28 +16,28 @@ A collection of C++ utility classes useful for benchmarking:
 - HrtProfiler.java	simple utility for manual Java code instrumentation
 
 
-How to Install:
----------------
+How to build:
+-------------
 
 0) Required: [g]make, JDK, C/C++ compiler
 
 1) Edit the file ../env.properties
 
-    Configure the property: JAVA_INCLUDEOPTS
+    Configure the properties: JAVA_INCLUDEOPT0, JAVA_INCLUDEOPT1
 
 2) Edit the file ./src/utils/Makefile
 
-    Configure the macro: DDEFINES
+    Uncomment/configure macro:
 
-    MacOS X:
-    DDEFINES    = \
-                 -DHRT_REALTIME_METHOD=HRT_USE_GETTIMEOFDAY \
-                 -DHRT_CPUTIME_METHOD=HRT_USE_GETRUSAGE \
-
-    Linux (try compiling with these methods for higher clock resolution):
-    DDEFINES    = \
+    Linux, or for best clock resolution:
+    TDEFINES    = \
                  -DHRT_REALTIME_METHOD=HRT_USE_CLOCK_GETTIME \
                  -DHRT_CPUTIME_METHOD=HRT_USE_CLOCK_GETTIME \
+
+    Generic Unix, MacOS X:
+    TDEFINES    = \
+                 -DHRT_REALTIME_METHOD=HRT_USE_GETTIMEOFDAY \
+                 -DHRT_CPUTIME_METHOD=HRT_USE_GETRUSAGE \
 
     LDLIBS	= -lrt
 
