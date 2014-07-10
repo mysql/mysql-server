@@ -336,7 +336,7 @@ static int tokudb_init_func(void *p) {
 
 #if TOKUDB_CHECK_JEMALLOC
     if (tokudb_check_jemalloc && dlsym(RTLD_DEFAULT, "mallctl") == NULL) {
-        sql_print_error("%s not initialized because jemalloc is not loaded", tokudb_hton_name);
+        sql_print_error("%s is not initialized because jemalloc is not loaded", tokudb_hton_name);
         goto error;
     }
 #endif
@@ -597,8 +597,35 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
     if (db_env) {
         if (tokudb_init_flags & DB_INIT_LOG)
             tokudb_cleanup_log_files();
-        error = db_env->close(db_env, 0);       // Error is logged
-        assert(error==0);
+#if TOKU_INCLUDE_XA
+        long total_prepared = 0; // count the total number of prepared txn's that we discard
+        while (1) {
+            // get xid's 
+            const long n_xid = 1;
+            TOKU_XA_XID xids[n_xid];
+            long n_prepared = 0;
+            error = db_env->txn_xa_recover(db_env, xids, n_xid, &n_prepared, total_prepared == 0 ? DB_FIRST : DB_NEXT);
+            assert(error == 0);
+            if (n_prepared == 0) 
+                break;
+            // discard xid's
+            for (long i = 0; i < n_xid; i++) {
+                DB_TXN *txn = NULL;
+                error = db_env->get_txn_from_xid(db_env, &xids[i], &txn);
+                assert(error == 0);
+                error = txn->discard(txn, 0);
+                assert(error == 0);
+            }
+            total_prepared += n_prepared;
+        }
+#endif
+        error = db_env->close(db_env, total_prepared > 0 ? TOKUFT_DIRTY_SHUTDOWN : 0);
+#if TOKU_INCLUDE_XA
+        if (error != 0 && total_prepared > 0) {
+            sql_print_error("%s: %ld prepared txns still live, please shutdown, error %d", tokudb_hton_name, total_prepared, error);
+        } else
+#endif
+        assert(error == 0);
         db_env = NULL;
     }
 
@@ -690,7 +717,7 @@ static void commit_txn_with_progress(DB_TXN* txn, uint32_t flags, THD* thd) {
     info.thd = thd;
     int r = txn->commit_with_progress(txn, flags, txn_progress_func, &info);
     if (r != 0) {
-        sql_print_error("tried committing transaction %p and got error code %d", txn, r);
+        sql_print_error("%s: tried committing transaction %p and got error code %d", tokudb_hton_name, txn, r);
     }
     assert(r == 0);
     thd_proc_info(thd, orig_proc_info);
@@ -702,7 +729,7 @@ static void abort_txn_with_progress(DB_TXN* txn, THD* thd) {
     info.thd = thd;
     int r = txn->abort_with_progress(txn, txn_progress_func, &info);
     if (r != 0) {
-        sql_print_error("tried aborting transaction %p and got error code %d", txn, r);
+        sql_print_error("%s: tried aborting transaction %p and got error code %d", tokudb_hton_name, txn, r);
     }
     assert(r == 0);
     thd_proc_info(thd, orig_proc_info);
@@ -801,7 +828,7 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_DBUG_RETURN(r);
 }
 
-static int tokudb_xa_recover(handlerton* hton, XID*  xid_list, uint  len) {
+static int tokudb_xa_recover(handlerton* hton, XID* xid_list, uint len) {
     TOKUDB_DBUG_ENTER("");
     int r = 0;
     if (len == 0 || xid_list == NULL) {
@@ -1202,7 +1229,7 @@ static void tokudb_handle_fatal_signal(handlerton *hton __attribute__ ((__unused
 #endif
 
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer) {
-    sql_print_error("%s:  %s", db_errpfx, buffer);
+    sql_print_error("%s: %s", db_errpfx, buffer);
 }
 
 static void tokudb_cleanup_log_files(void) {
@@ -1955,7 +1982,7 @@ static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, cons
         }
         // dump to stderr
         if (lock_timeout_debug & 2) {
-            TOKUDB_TRACE("%s", log_str.c_ptr());
+            sql_print_error("%s: %s", tokudb_hton_name, log_str.c_ptr());
         }
     }
 }
