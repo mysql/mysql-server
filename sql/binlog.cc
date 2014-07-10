@@ -6701,10 +6701,24 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     my_stat(log_name, &s, MYF(0));
     binlog_size= s.st_size;
 
+    /*
+      If the binary log was not properly closed it means that the server
+      may have crashed. In that case, we need to call MYSQL_BIN_LOG::recover
+      to:
+
+        a) collect logged XIDs;
+        b) complete the 2PC of the pending XIDs;
+        c) collect the last valid position.
+
+      Therefore, we do need to iterate over the binary log, even if
+      total_ha_2pc == 1, to find the last valid group of events written.
+      Later we will take this value and truncate the log if need be.
+    */
     if ((ev= Log_event::read_log_event(&log, 0, &fdle,
                                        opt_master_verify_checksum)) &&
         ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
-        ev->flags & LOG_EVENT_BINLOG_IN_USE_F)
+        (ev->flags & LOG_EVENT_BINLOG_IN_USE_F ||
+         DBUG_EVALUATE_IF("eval_force_bin_log_recovery", true, false)))
     {
       sql_print_information("Recovering after a crash using %s", opt_name);
       valid_pos= my_b_tell(&log);
@@ -7779,7 +7793,13 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
     delete ev;
   }
 
-  if (ha_recover(&xids))
+  /*
+    Call ha_recover if and only if there is a registered engine that
+    does 2PC, otherwise in DBUG builds calling ha_recover directly
+    will result in an assert. (Production builds would be safe since
+    ha_recover returns right away if total_ha_2pc <= opt_log_bin.)
+   */
+  if (total_ha_2pc > 1 && ha_recover(&xids))
     goto err2;
 
   free_root(&mem_root, MYF(0));

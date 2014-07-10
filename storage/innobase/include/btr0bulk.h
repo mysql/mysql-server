@@ -31,11 +31,6 @@ Created 03/11/2014 Shaohua Wang
 
 #include <vector>
 
-#ifdef UNIV_DEBUG
-/** Print bulk load performance data.*/
-#define BULK_LOAD_PFS_PRINT
-#endif /* UNIV_DEBUG */
-
 /** Innodb B-tree index fill factor for bulk load. */
 extern	long	innobase_fill_factor;
 

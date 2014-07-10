@@ -46,11 +46,120 @@ Created 10/25/1995 Heikki Tuuri
 // Forward declaration
 struct trx_t;
 class truncate_t;
-struct fil_space_t;
 struct btr_create_t;
 class page_id_t;
 
 typedef std::list<const char*> space_name_list_t;
+
+/** File types */
+enum fil_type_t {
+	/** temporary tablespace (temporary undo log or tables) */
+	FIL_TYPE_TEMPORARY,
+	/** a tablespace that is being imported (no logging until finished) */
+	FIL_TYPE_IMPORT = FIL_TYPE_TEMPORARY,
+	/** persistent tablespace (for system, undo log or tables) */
+	FIL_TYPE_TABLESPACE,
+	/** redo log covering changes to files of FIL_TYPE_TABLESPACE */
+	FIL_TYPE_LOG
+};
+
+/** Tablespace or log data space */
+struct fil_space_t {
+	char*		name;	/*!< Tablespace name */
+	ulint		id;	/*!< space id */
+	int64_t		tablespace_version;
+				/*!< in DISCARD/IMPORT this timestamp
+				is used to check if we should ignore
+				an insert buffer merge request for a
+				page because it actually was for the
+				previous incarnation of the space */
+	lsn_t		max_lsn;
+				/*!< LSN of the most recent fil_names_dirty().
+				Reset to 0 by fil_names_clear().
+				Protected by log_sys->mutex and
+				sometimes by fil_system->mutex:
+
+				Updates from nonzero to nonzero
+				are only protected by log_sys->mutex.
+
+				Updates between 0 and nonzero are
+				protected by log_sys->mutex and
+				fil_system->mutex.
+
+				If and only if this is nonzero, the
+				tablespace will be in named_spaces,
+				which is protected by fil_system->mutex. */
+	bool		stop_ios;/*!< true if we want to rename the
+				.ibd file of tablespace and want to
+				stop temporarily posting of new i/o
+				requests on the file */
+	bool		stop_new_ops;
+				/*!< we set this true when we start
+				deleting a single-table tablespace.
+				When this is set following new ops
+				are not allowed:
+				* read IO request
+				* ibuf merge
+				* file flush
+				Note that we can still possibly have
+				new write operations because we don't
+				check this flag when doing flush
+				batches. */
+	bool		is_being_truncated;
+				/*!< this is set to true when we prepare to
+				truncate a single-table tablespace and its
+				.ibd file */
+#ifdef UNIV_DEBUG
+	ulint		redo_skipped_count;
+				/*!< reference count for operations who want
+				to skip redo log in the file space in order
+				to make fsp_space_modify_check pass. */
+#endif
+	fil_type_t	purpose;/*!< purpose */
+	UT_LIST_BASE_NODE_T(fil_node_t) chain;
+				/*!< base node for the file chain */
+	ulint		size;	/*!< space size in pages; 0 if a single-table
+				tablespace whose size we do not know yet;
+				last incomplete megabytes in data files may be
+				ignored if space == 0 */
+	ulint		flags;	/*!< tablespace flags; see
+				fsp_flags_is_valid(),
+				page_size_t(ulint) (constructor) */
+	ulint		n_reserved_extents;
+				/*!< number of reserved free extents for
+				ongoing operations like B-tree page split */
+	ulint		n_pending_flushes; /*!< this is positive when flushing
+				the tablespace to disk; dropping of the
+				tablespace is forbidden if this is positive */
+	ulint		n_pending_ops;/*!< this is positive when we
+				have pending operations against this
+				tablespace. The pending operations can
+				be ibuf merges or lock validation code
+				trying to read a block.
+				Dropping of the tablespace is forbidden
+				if this is positive */
+	hash_node_t	hash;	/*!< hash chain node */
+	hash_node_t	name_hash;/*!< hash chain the name_hash table */
+#ifndef UNIV_HOTBACKUP
+	rw_lock_t	latch;	/*!< latch protecting the file space storage
+				allocation */
+#endif /* !UNIV_HOTBACKUP */
+	UT_LIST_NODE_T(fil_space_t) unflushed_spaces;
+				/*!< list of spaces with at least one unflushed
+				file we have written to */
+	UT_LIST_NODE_T(fil_space_t) named_spaces;
+				/*!< list of spaces for which MLOG_FILE_NAME
+				records have been issued */
+	bool		is_in_unflushed_spaces;
+				/*!< true if this space is currently in
+				unflushed_spaces */
+	UT_LIST_NODE_T(fil_space_t) space_list;
+				/*!< list of all spaces */
+	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
+};
+
+/** Value of fil_space_t::magic_n */
+#define	FIL_SPACE_MAGIC_N	89472
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and mysqlbackup it is not the default
@@ -71,18 +180,6 @@ extern const char* dot_ext[];
 
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
-
-/** File types */
-enum fil_type_t {
-	/** temporary tablespace (temporary undo log or tables) */
-	FIL_TYPE_TEMPORARY,
-	/** a tablespace that is being imported (no logging until finished) */
-	FIL_TYPE_IMPORT = FIL_TYPE_TEMPORARY,
-	/** persistent tablespace (for system, undo log or tables) */
-	FIL_TYPE_TABLESPACE,
-	/** redo log covering changes to files of FIL_TYPE_TABLESPACE */
-	FIL_TYPE_LOG
-};
 
 /** 'null' (undefined) page offset in the context of file spaces */
 #define	FIL_NULL	ULINT32_UNDEFINED
@@ -174,6 +271,7 @@ extern fil_addr_t	fil_addr_null;
 
 /** File page types (values of FIL_PAGE_TYPE) @{ */
 #define FIL_PAGE_INDEX		17855	/*!< B-tree node */
+#define FIL_PAGE_RTREE		17854	/*!< B-tree node */
 #define FIL_PAGE_UNDO_LOG	2	/*!< Undo log page */
 #define FIL_PAGE_INODE		3	/*!< Index node */
 #define FIL_PAGE_IBUF_FREE_LIST	4	/*!< Insert buffer free list */
@@ -190,6 +288,15 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_ZBLOB2
 					/*!< Last page type */
 /* @} */
+
+/** macro to check whether the page type is index (Btree or Rtree) type */
+#define fil_page_type_is_index(page_type)                          \
+        (page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_RTREE)
+
+/** Check whether the page is index page (either regular Btree index or Rtree
+index */
+#define fil_page_index_page_check(page)                         \
+        fil_page_type_is_index(fil_page_get_type(page))
 
 #ifndef UNIV_INNOCHECKSUM
 
