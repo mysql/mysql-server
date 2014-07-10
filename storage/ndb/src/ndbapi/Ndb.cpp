@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -739,7 +739,8 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
 }
 
 NdbTransaction*
-Ndb::startTransaction(const NdbDictionary::Table* table, Uint32 partitionId)
+Ndb::startTransaction(const NdbDictionary::Table* table,
+                      Uint32 partitionId)
 {
   DBUG_ENTER("Ndb::startTransaction");
   DBUG_PRINT("enter", 
@@ -761,6 +762,29 @@ Ndb::startTransaction(const NdbDictionary::Table* table, Uint32 partitionId)
     theImpl->incClientStat(TransStartCount, 1);
 
     NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
+    DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
+                       (long) trans,
+                       (long) (trans ? trans->getTransactionId() : 0)));
+    DBUG_RETURN(trans);
+  }
+  DBUG_RETURN(NULL);
+}
+
+NdbTransaction*
+Ndb::startTransaction(Uint32 nodeId,
+                      Uint32 instanceId)
+{
+  DBUG_ENTER("Ndb::startTransaction");
+  DBUG_PRINT("enter", 
+             ("nodeId: %u instanceId: %u", nodeId, instanceId));
+  if (theInitState == Initialised) 
+  {
+    theError.code = 0;
+    checkFailedNode();
+
+    theImpl->incClientStat(TransStartCount, 1);
+
+    NdbTransaction *trans= startTransactionLocal(0, nodeId, instanceId);
     DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
                        (long) trans,
                        (long) (trans ? trans->getTransactionId() : 0)));
@@ -894,11 +918,13 @@ NdbTransaction*
 Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId, Uint32 instance)
 {
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   char buf[255];
   const char* val = NdbEnv_GetEnv("NDB_TRANSACTION_NODE_ID", buf, 255);
   if(val != 0){
     nodeId = atoi(val);
   }
+#endif
 #endif
 
   DBUG_ENTER("Ndb::startTransactionLocal");
@@ -1722,6 +1748,29 @@ int Ndb::setSchemaName(const char * a_schema_name)
 }
 // </internal>
  
+const char* Ndb::getNdbObjectName() const
+{
+  return theImpl->m_ndbObjectName.c_str();
+}
+
+int Ndb::setNdbObjectName(const char *name)
+{
+  if (!theImpl->m_ndbObjectName.empty())
+  {
+    theError.code = 4121;
+    return -1; // Cannot set twice
+  }
+
+  if (theInitState != NotInitialised)
+  {
+    theError.code = 4122;
+    return -1; // Should be set before init() is called
+  }
+
+  theImpl->m_ndbObjectName.assign(name);
+  return 0;
+}
+
 const char * Ndb::getDatabaseName() const
 {
   return getCatalogName();

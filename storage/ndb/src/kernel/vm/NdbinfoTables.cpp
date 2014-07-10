@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -273,6 +273,50 @@ DECLARE_NDBINFO_TABLE(MEMBERSHIP, 13) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(DICT_OBJ_INFO, 7) =
+{ { "dict_obj_info", 7, 0, "Dictionary object info" },
+  {
+    {"type",             Ndbinfo::Number,      "Type of dict object"},
+    {"id",               Ndbinfo::Number,      "Object identity"},
+    {"version",          Ndbinfo::Number,      "Object version"},
+    {"state",            Ndbinfo::Number,      "Object state"},
+    {"parent_obj_type",  Ndbinfo::Number,      "Parent object type" },
+    {"parent_obj_id",    Ndbinfo::Number,      "Parent object id" },
+    {"fq_name",          Ndbinfo::String,      "Fully qualified object name"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(FRAG_MEM_USE, 15) =
+{ { "frag_mem_use", 15, 0, "Per fragment space information" },
+  {
+    {"node_id",                  Ndbinfo::Number,    "node id"},
+    {"block_instance",           Ndbinfo::Number,    "LDM instance number"},
+    {"table_id",                 Ndbinfo::Number,    "Table identity"},
+    {"fragment_num",             Ndbinfo::Number,    "Fragment number"},
+    {"rows",                     Ndbinfo::Number64,  "Number of rows in table"},
+    {"fixed_elem_alloc_bytes",   Ndbinfo::Number64,
+     "Number of bytes allocated for fixed-sized elements"},
+    {"fixed_elem_free_bytes",    Ndbinfo::Number64,
+     "Free bytes in fixed-size element pages"},
+    {"fixed_elem_count",         Ndbinfo::Number64,  
+     "Number of fixed size elements in use"},
+    {"fixed_elem_size_bytes",    Ndbinfo::Number,
+     "Length of each fixed sized element in bytes"},
+    {"var_elem_alloc_bytes",     Ndbinfo::Number64,
+     "Number of bytes allocated for var-size elements"},
+    {"var_elem_free_bytes",      Ndbinfo::Number64,
+     "Free bytes in var-size element pages"},
+    {"var_elem_count",           Ndbinfo::Number64,
+     "Number of var size elements in use"},
+    {"tuple_l2pmap_alloc_bytes", Ndbinfo::Number64, 
+     "Bytes in logical to physical page map for tuple store"},
+    {"hash_index_l2pmap_alloc_bytes",  Ndbinfo::Number64,  
+     "Bytes in logical to physical page map for the hash index"},
+    {"hash_index_alloc_bytes",   Ndbinfo::Number64,  "Bytes in linear hash map"}
+  }
+};
+
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -297,7 +341,9 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(THREADSTAT),
   DBINFOTBL(TRANSACTIONS),
   DBINFOTBL(OPERATIONS),
-  DBINFOTBL(MEMBERSHIP)
+  DBINFOTBL(MEMBERSHIP),
+  DBINFOTBL(DICT_OBJ_INFO),
+  DBINFOTBL(FRAG_MEM_USE)
 };
 
 static int no_ndbinfo_tables =
