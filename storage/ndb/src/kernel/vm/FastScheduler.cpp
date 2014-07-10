@@ -134,6 +134,7 @@ FastScheduler::doJob()
           }//if
         }
 #endif
+        b->jamBuffer()->markEndOfSigExec();
         b->executeFunction_async(reg_gsn, signal);
 #ifdef VM_TRACE_TIME
 	const NDB_TICKS t2 = NdbTick_getCurrentTicks();

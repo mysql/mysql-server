@@ -1,10 +1,10 @@
 == 1 ==
 ndb_mgmd,3,localhost mysqld,49,localhost mysqld,16,localhost mysqld,32,localhost mysqld,48,localhost mysqld,63,localhost mysqld,127,localhost mysqld,192,localhost mysqld,228,localhost mysqld,229,localhost mysqld,230,localhost mysqld,231,localhost mysqld,232,localhost mysqld,233,localhost mysqld,255,localhost ndbd,1,localhost ndbd,2,localhost
 == 2 ==
-1,localhost,20971520,5242880 2,localhost,20971520,5242880
+1,localhost,20971520,8388608 2,localhost,20971520,8388608
 == 3 ==
-1 localhost 20971520 5242880
-2 localhost 20971520 5242880
+1 localhost 20971520 8388608
+2 localhost 20971520 8388608
 == 4 ==
 1 2
 == 5 ==
@@ -54,3 +54,5 @@ Assigning LQH threads round robin to CPU(s) and other threads will share CPU 0
 6,, 7,, 1,0-3,ldm={count=4} 2,4-8,ldm={count=4,cpubind=0-3} 3,,ldm={count=4} 4,0-3,main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=1},recv={cpubind=0},rep={cpubind=0} 5,,ldm,ldm
 == 22 == bug14555359
 3,ndb_mgmd,1048576 4,mysqld,2097152 5,mysqld,0 1,ndbd,3145728 2,ndbd,4194304
+== 23 == bug18366909
+1,localhost,,0 2,localhost,12345,1

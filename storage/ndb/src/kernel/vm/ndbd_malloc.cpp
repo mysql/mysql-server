@@ -15,8 +15,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <ndb_global.h>
 #include "ndbd_malloc.hpp"
+#include <my_sys.h>
+#include <ndb_global.h>
 #include <NdbMem.h>
 #include <NdbThread.h>
 #include <NdbOut.hpp>
@@ -43,6 +44,14 @@ struct AllocTouchMem
   void *p;
   Uint32 index;
 };
+
+
+// Enable/disable debug check for reads from uninitialized memory.
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+const bool debugUinitMemUse = true;
+#else
+const bool debugUinitMemUse = false;
+#endif
 
 extern "C"
 void*
@@ -84,6 +93,24 @@ touch_mem(void* arg)
     if (i % NUM_PAGES_BETWEEN_WATCHDOG_SETS == 0)
     {
       /* Roughly every 120 ms we come here in worst case */
+      *(touch_mem_ptr->watchCounter) = 9;
+    }
+    if (debugUinitMemUse)
+    {
+      const unsigned char* end = p + sz;
+      const size_t size = MIN(TOUCH_PAGE_SIZE, end - ptr);
+      /*
+        Initialize the memory to something likely to trigger access violations 
+        if used as a pointer or array index, to make it easier to detect use of 
+        uninitialized memory. See also TRASH macro.
+       */
+      MEM_CHECK_ADDRESSABLE(ptr, size);
+      memset(ptr, 0xfb, size);
+      /*
+        Mark memory as being undefined for valgrind, so that valgrind may
+        know that reads from this memory is an error.
+       */
+      MEM_UNDEFINED(ptr, size);
       *(touch_mem_ptr->watchCounter) = 9;
     }
   }
