@@ -620,7 +620,7 @@ int remove_info(Master_info* mi)
   mi->rli->clear_error();
   if (mi->rli->workers_array_initialized)
   {
-    for(uint i= 0; i < mi->rli->get_worker_count(); i++)
+    for(size_t i= 0; i < mi->rli->get_worker_count(); i++)
     {
       mi->rli->get_worker(i)->clear_error();
     }
@@ -4843,8 +4843,10 @@ int mts_recovery_groups(Relay_log_info *rli)
   bool flag_group_seen_begin= FALSE;
   uint recovery_group_cnt= 0;
   bool not_reached_commit= true;
-  DYNAMIC_ARRAY above_lwm_jobs;
-  Slave_job_group job_worker;
+
+  // Value-initialization, to avoid compiler warnings on push_back.
+  Slave_job_group job_worker= Slave_job_group();
+
   IO_CACHE log;
   File file;
   LOG_INFO linfo;
@@ -4881,9 +4883,9 @@ int mts_recovery_groups(Relay_log_info *rli)
     Gathers information on valuable workers and stores it in 
     above_lwm_jobs in asc ordered by the master binlog coordinates.
   */
-  my_init_dynamic_array(&above_lwm_jobs, sizeof(Slave_job_group),
-                        rli->recovery_parallel_workers,
-                        rli->recovery_parallel_workers);
+  Prealloced_array<Slave_job_group, 16, true>
+    above_lwm_jobs(PSI_NOT_INSTRUMENTED);
+  above_lwm_jobs.reserve(rli->recovery_parallel_workers);
 
   for (uint id= 0; id < rli->recovery_parallel_workers; id++)
   {
@@ -4909,7 +4911,7 @@ int mts_recovery_groups(Relay_log_info *rli)
       job_worker.checkpoint_log_pos= worker->checkpoint_master_log_pos;
       job_worker.checkpoint_log_name= worker->checkpoint_master_log_name;
 
-      insert_dynamic(&above_lwm_jobs, (uchar*) &job_worker);
+      above_lwm_jobs.push_back(job_worker);
     }
     else
     {
@@ -4940,22 +4942,23 @@ int mts_recovery_groups(Relay_log_info *rli)
   */
   DBUG_ASSERT(!rli->recovery_groups_inited);
 
-  if (above_lwm_jobs.elements != 0)
+  if (!above_lwm_jobs.empty())
   {
     bitmap_init(groups, NULL, MTS_MAX_BITS_IN_GROUP, FALSE);
     rli->recovery_groups_inited= true;
     bitmap_clear_all(groups);
   }
   rli->mts_recovery_group_cnt= 0;
-  for (uint it_job= 0; it_job < above_lwm_jobs.elements; it_job++)
+  for (Slave_job_group *jg= above_lwm_jobs.begin();
+       jg != above_lwm_jobs.end(); ++jg)
   {
-    Slave_worker *w= ((Slave_job_group *)
-                      dynamic_array_ptr(&above_lwm_jobs, it_job))->worker;
+    Slave_worker *w= jg->worker;
     LOG_POS_COORD w_last= { const_cast<char*>(w->get_group_master_log_name()),
                             w->get_group_master_log_pos() };
     bool checksum_detected= FALSE;
 
-    sql_print_information("Slave: MTS group recovery relay log info based on Worker-Id %lu, "
+    sql_print_information("Slave: MTS group recovery relay log info based on "
+                          "Worker-Id %lu, "
                           "group_relay_log_name %s, group_relay_log_pos %llu "
                           "group_master_log_name %s, group_master_log_pos %llu",
                           w->id,
@@ -5102,13 +5105,12 @@ int mts_recovery_groups(Relay_log_info *rli)
 
 err:
   
-  for (uint it_job= 0; it_job < above_lwm_jobs.elements; it_job++)
+  for (Slave_job_group *jg= above_lwm_jobs.begin();
+       jg != above_lwm_jobs.end(); ++jg)
   {
-    get_dynamic(&above_lwm_jobs, (uchar *) &job_worker, it_job);
-    delete job_worker.worker;
+    delete jg->worker;
   }
 
-  delete_dynamic(&above_lwm_jobs);
   if (rli->recovery_groups_inited && rli->mts_recovery_group_cnt == 0)
   {
     bitmap_free(groups);
@@ -5210,10 +5212,10 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   /* TODO: 
      to turn the least occupied selection in terms of jobs pieces
   */
-  for (uint i= 0; i < rli->workers.elements; i++)
+  for (Slave_worker **it= rli->workers.begin();
+       it != rli->workers.begin(); ++it)
   {
-    Slave_worker *w_i;
-    get_dynamic(&rli->workers, (uchar *) &w_i, i);
+    Slave_worker *w_i= *it;
     rli->least_occupied_workers[w_i->id]= w_i->jobs.len;
   };
   std::sort(rli->least_occupied_workers.begin(),
@@ -5306,7 +5308,13 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
     error= 1;
     goto err;
   }
-  set_dynamic(&rli->workers, (uchar*) &w, i);
+
+  // We assume that workers are added in sequential order here.
+  DBUG_ASSERT(i == rli->workers.size());
+  if (i >= rli->workers.size())
+    rli->workers.resize(i+1);
+  rli->workers[i]= w;
+
   w->currently_executing_gtid.clear();
   if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
       (error= mysql_thread_create(key_thread_slave_worker, &th,
@@ -5333,11 +5341,11 @@ err:
   {
     delete w;
     /*
-      Any failure after dynarray inserted must follow with deletion
+      Any failure after array inserted must follow with deletion
       of just created item.
     */
-    if (rli->workers.elements == i + 1)
-      delete_dynamic_element(&rli->workers, i);
+    if (rli->workers.size() == i + 1)
+      rli->workers.erase(i);
   }
   return error;
 }
@@ -5361,7 +5369,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
 
   if (n == 0 && rli->mts_recovery_group_cnt == 0)
   {
-    reset_dynamic(&rli->workers);
+    rli->workers.clear();
     goto end;
   }
 
@@ -5461,7 +5469,6 @@ err:
 */
 void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 {
-  int i;
   THD *thd= rli->info_thd;
 
   if (!*mts_inited) 
@@ -5498,34 +5505,34 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     */
     (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
   }
-  for (i= rli->workers.elements - 1; i >= 0; i--)
+  if (!rli->workers.empty())
   {
-    Slave_worker *w;
-    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
-    
-    mysql_mutex_lock(&w->jobs_lock);
-    
-    if (w->running_status != Slave_worker::RUNNING)
+    for (int i= static_cast<int>(rli->workers.size()) - 1; i >= 0; i--)
     {
+      Slave_worker *w= rli->workers[i];
+
+      mysql_mutex_lock(&w->jobs_lock);
+
+      if (w->running_status != Slave_worker::RUNNING)
+      {
+        mysql_mutex_unlock(&w->jobs_lock);
+        continue;
+      }
+
+      w->running_status= Slave_worker::KILLED;
+      mysql_cond_signal(&w->jobs_cond);
+
       mysql_mutex_unlock(&w->jobs_lock);
-      continue;
+
+      sql_print_information("Notifying Worker %lu to exit, thd %p", w->id,
+                            w->info_thd);
     }
-
-    w->running_status= Slave_worker::KILLED;
-    mysql_cond_signal(&w->jobs_cond);
-
-    mysql_mutex_unlock(&w->jobs_lock);
-
-    sql_print_information("Notifying Worker %lu to exit, thd %p", w->id,
-                          w->info_thd);
   }
-
   thd_proc_info(thd, "Waiting for workers to exit");
 
-  for (uint i= 0; i < rli->workers.elements; i++)
+  for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
   {
-    Slave_worker *w= NULL;
-    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
+    Slave_worker *w= *it;
 
     /*
       Make copies for reporting through the performance schema tables.
@@ -5549,10 +5556,9 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     rli->workers_copy_pfs.push_back(worker_copy);
   }
 
-  for (i= rli->workers.elements - 1; i >= 0; i--)
+  while (!rli->workers.empty())
   {
-    Slave_worker *w= NULL;
-    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
+    Slave_worker *w= rli->workers.back();
 
     mysql_mutex_lock(&w->jobs_lock);
     while (w->running_status != Slave_worker::NOT_RUNNING)
@@ -5571,7 +5577,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     // Free the current submode object
     delete w->current_mts_submode;
     w->current_mts_submode= 0;
-    delete_dynamic_element(&rli->workers, i);
+    rli->workers.pop_back();
     delete w;
   }
 
@@ -5734,7 +5740,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   rli->clear_error();
   if (rli->workers_array_initialized)
   {
-    for(uint i= 0; i<rli->get_worker_count(); i++)
+    for(size_t i= 0; i<rli->get_worker_count(); i++)
     {
       rli->get_worker(i)->clear_error();
     }
@@ -9026,7 +9032,7 @@ bool change_master(THD* thd, Master_info* mi)
     mi->rli->clear_error();
     if (mi->rli->workers_array_initialized)
     {
-      for(uint i= 0; i < mi->rli->get_worker_count(); i++)
+      for(size_t i= 0; i < mi->rli->get_worker_count(); i++)
       {
         mi->rli->get_worker(i)->clear_error();
       }

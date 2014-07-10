@@ -145,6 +145,9 @@ extern os_event_t	srv_error_event;
 /** The buffer pool dump/load thread waits on this event. */
 extern os_event_t	srv_buf_dump_event;
 
+/** The buffer pool resize thread waits on this event. */
+extern os_event_t	srv_buf_resize_event;
+
 /** The buffer pool dump/load file name */
 #define SRV_BUF_DUMP_FILENAME_DEFAULT	"ib_buffer_pool"
 extern char*		srv_buf_dump_filename;
@@ -269,7 +272,9 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern my_bool	srv_load_corrupted;
 
+#define SRV_BUF_POOL_MIN_SIZE	(5 * 1024 * 1024UL)
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
+extern ulong	srv_buf_pool_chunk_unit;/*!< requested unit size of chunks in bytes */
 #define SRV_BUF_POOL_INSTANCES_NOT_SET	0
 extern ulong	srv_buf_pool_instances; /*!< requested number of buffer pool instances */
 extern ulong	srv_n_page_hash_locks;	/*!< number of locks to
@@ -279,6 +284,8 @@ extern ulong	srv_LRU_scan_depth;	/*!< Scan depth for LRU
 extern ulong	srv_flush_neighbors;	/*!< whether or not to flush
 					neighbors of a block */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
+extern ulint	srv_buf_pool_base_size;	/*!< current size as scaling factor
+					for the other components */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulong	srv_buf_pool_dump_pct;	/*!< dump that may % of each buffer
 					pool during BP dump */
@@ -289,6 +296,8 @@ extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;
 extern ulint	srv_n_read_io_threads;
 extern ulint	srv_n_write_io_threads;
+
+extern uint	srv_change_buffer_max_size;
 
 /* Number of IO operations per second the server can do */
 extern ulong    srv_io_capacity;
@@ -359,6 +368,9 @@ extern ibool	srv_error_monitor_active;
 
 /* TRUE during the lifetime of the buffer pool dump/load thread */
 extern ibool	srv_buf_dump_thread_active;
+
+/* true during the lifetime of the buffer pool resize thread */
+extern bool	srv_buf_resize_thread_active;
 
 /* TRUE during the lifetime of the stats thread */
 extern ibool	srv_dict_stats_thread_active;
@@ -778,6 +790,7 @@ struct export_var_t{
 	ulint innodb_data_reads;		/*!< I/O read requests */
 	char  innodb_buffer_pool_dump_status[512];/*!< Buf pool dump status */
 	char  innodb_buffer_pool_load_status[512];/*!< Buf pool load status */
+	char  innodb_buffer_pool_resize_status[512];/*!< Buf pool resize status */
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
 	ulint innodb_buffer_pool_bytes_data;	/*!< File bytes used */

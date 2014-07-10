@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ public:
 
   /* returns the least occupied worker. Should be extended in the derieved class  */
   virtual Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
-                                                  DYNAMIC_ARRAY *ws,
+                                                  Slave_worker_array *ws,
                                                   Log_event *ev)= 0;
   /* wait for slave workers to finish */
   virtual int wait_for_workers_to_finish(Relay_log_info *rli,
@@ -76,7 +76,8 @@ public:
   void detach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
   Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
-                                          DYNAMIC_ARRAY *ws, Log_event *ev);
+                                          Slave_worker_array *ws,
+                                          Log_event *ev);
   int wait_for_workers_to_finish(Relay_log_info  *rli,
                                  Slave_worker *ignore= NULL);
   ~Mts_submode_database(){}
@@ -137,7 +138,8 @@ public:
   void detach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);
   Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
-                                          DYNAMIC_ARRAY *ws, Log_event *ev);
+                                          Slave_worker_array *ws,
+                                          Log_event *ev);
   /* Sets the force new group variable */
   inline void start_new_group(){force_new_group= true;}
   int wait_for_workers_to_finish(Relay_log_info  *rli,

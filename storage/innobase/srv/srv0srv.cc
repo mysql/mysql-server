@@ -79,6 +79,8 @@ ibool	srv_error_monitor_active = FALSE;
 
 ibool	srv_buf_dump_thread_active = FALSE;
 
+bool	srv_buf_resize_thread_active = false;
+
 ibool	srv_dict_stats_thread_active = FALSE;
 
 const char*	srv_main_thread_op_info = "";
@@ -189,8 +191,11 @@ srv_printf_innodb_monitor() will request mutex acquisition
 with mutex_enter(), which will wait until it gets the mutex. */
 #define MUTEX_NOWAIT(mutex_skipped)	((mutex_skipped) < MAX_MUTEX_NOWAIT)
 
-/* requested size in kilobytes */
+/* requested size in bytes */
 ulint	srv_buf_pool_size	= ULINT_MAX;
+/** Requested buffer pool chunk size. Each buffer pool instance consists
+of one or more chunks. */
+ulong	srv_buf_pool_chunk_unit;
 /* requested number of buffer pool instances */
 ulong	srv_buf_pool_instances;
 /* number of locks to protect buf_pool->page_hash */
@@ -200,7 +205,9 @@ ulong	srv_LRU_scan_depth	= 1024;
 /** whether or not to flush neighbors of a block */
 ulong	srv_flush_neighbors	= 1;
 /* previously requested size */
-ulint	srv_buf_pool_old_size;
+ulint	srv_buf_pool_old_size	= 0;
+/* current size as scaling factor for the other components */
+ulint	srv_buf_pool_base_size	= 0;
 /* current size in kilobytes */
 ulint	srv_buf_pool_curr_size	= 0;
 /* dump that may % of each buffer pool during BP dump */
@@ -220,6 +227,10 @@ my_bool	srv_random_read_ahead	= FALSE;
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
 ulong	srv_read_ahead_threshold	= 56;
+
+/** Maximum on-disk size of change buffer in terms of percentage
+of the buffer pool. */
+uint	srv_change_buffer_max_size = CHANGE_BUFFER_DEFAULT_SIZE;
 
 /* This parameter is used to throttle the number of insert buffers that are
 merged in a batch. By increasing this parameter on a faster disk you can
@@ -532,6 +543,9 @@ os_event_t	srv_error_event;
 
 /** Event to signal the buffer pool dump/load thread */
 os_event_t	srv_buf_dump_event;
+
+/** Event to signal the buffer pool resize thread */
+os_event_t	srv_buf_resize_event;
 
 /** The buffer pool dump/load file name */
 char*	srv_buf_dump_filename;
@@ -898,6 +912,8 @@ srv_init(void)
 		UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
 	}
 
+	srv_buf_resize_event = os_event_create(0);
+
 	/* page_zip_stat_per_index_mutex is acquired from:
 	1. page_zip_compress() (after SYNC_FSP)
 	2. page_zip_decompress()
@@ -947,6 +963,8 @@ srv_free(void)
 		os_event_destroy(srv_buf_dump_event);
 		os_event_destroy(buf_flush_event);
 	}
+
+	os_event_destroy(srv_buf_resize_event);
 
 	trx_i_s_cache_free(trx_i_s_cache);
 
@@ -1154,7 +1172,9 @@ srv_printf_innodb_monitor(
 	      "-------------------------------------\n", file);
 	ibuf_print(file);
 
+	rw_lock_s_lock(&btr_search_latch);
 	ha_print_info(file, btr_search_sys->hash_index);
+	rw_lock_s_unlock(&btr_search_latch);
 
 	fprintf(file,
 		"%.2f hash searches/s, %.2f non-hash searches/s\n",
@@ -1710,7 +1730,11 @@ srv_any_background_threads_are_active(void)
 	const char*	thread_active = NULL;
 
 	if (srv_read_only_mode) {
-		return(NULL);
+		if (srv_buf_resize_thread_active) {
+			thread_active = "buf_resize_thread";
+		}
+		os_event_set(srv_buf_resize_event);
+		return(thread_active);
 	} else if (srv_error_monitor_active) {
 		thread_active = "srv_error_monitor_thread";
 	} else if (lock_sys->timeout_thread_active) {
@@ -1719,6 +1743,8 @@ srv_any_background_threads_are_active(void)
 		thread_active = "srv_monitor_thread";
 	} else if (srv_buf_dump_thread_active) {
 		thread_active = "buf_dump_thread";
+	} else if (srv_buf_resize_thread_active) {
+		thread_active = "buf_resize_thread";
 	} else if (srv_dict_stats_thread_active) {
 		thread_active = "dict_stats_thread";
 	}
@@ -1728,6 +1754,7 @@ srv_any_background_threads_are_active(void)
 	os_event_set(srv_buf_dump_event);
 	os_event_set(lock_sys->timeout_event);
 	os_event_set(dict_stats_event);
+	os_event_set(srv_buf_resize_event);
 
 	return(thread_active);
 }

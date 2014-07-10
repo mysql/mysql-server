@@ -799,7 +799,7 @@ buf_flush_init_for_writing(
 		ut_ad(ut_is_2pow(size));
 		ut_ad(size <= UNIV_ZIP_SIZE_MAX);
 
-		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
+		switch (fil_page_get_type(page)) {
 		case FIL_PAGE_TYPE_ALLOCATED:
 		case FIL_PAGE_INODE:
 		case FIL_PAGE_IBUF_BITMAP:
@@ -811,6 +811,7 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
 		case FIL_PAGE_INDEX:
+		case FIL_PAGE_RTREE:
 
 			buf_flush_update_zip_checksum(
 				page_zip->data, size, newest_lsn);
@@ -1492,12 +1493,19 @@ buf_flush_LRU_list_batch(
 	ulint		count = 0;
 	ulint		free_len = UT_LIST_GET_LEN(buf_pool->free);
 	ulint		lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
+	ulint		withdraw_depth = 0;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
+	if (buf_pool->curr_size < buf_pool->old_size
+	    && buf_pool->withdraw_target > 0) {
+		withdraw_depth = buf_pool->withdraw_target
+				 - UT_LIST_GET_LEN(buf_pool->withdraw);
+	}
+
 	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 	     bpage != NULL && count + evict_count < max
-	     && free_len < srv_LRU_scan_depth
+	     && free_len < srv_LRU_scan_depth + withdraw_depth
 	     && lru_len > BUF_LRU_MIN_LEN;
 	     ++scanned,
 	     bpage = buf_pool->lru_hp.get()) {
@@ -1785,6 +1793,8 @@ buf_flush_start(
 
 	buf_pool->init_flush[flush_type] = TRUE;
 
+	os_event_reset(buf_pool->no_flush[flush_type]);
+
 	buf_pool_mutex_exit(buf_pool);
 
 	return(TRUE);
@@ -1815,7 +1825,11 @@ buf_flush_end(
 
 	buf_pool_mutex_exit(buf_pool);
 
-	buf_dblwr_flush_buffered_writes();
+	if (!srv_read_only_mode) {
+		buf_dblwr_flush_buffered_writes();
+	} else {
+		os_aio_simulated_wake_handler_threads();
+	}
 }
 
 /******************************************************************//**
@@ -1849,28 +1863,27 @@ buf_flush_wait_batch_end(
 	}
 }
 
-/*******************************************************************//**
-Do flushing batch of a given type.
+/** Do flushing batch of a given type.
 NOTE: The calling thread is not allowed to own any latches on pages!
-@return true if a batch was queued successfully. false if another batch
-of same type was already running. */
-static
+@param[in,out]	buf_pool	buffer pool instance
+@param[in]	type		flush type
+@param[in]	min_n		wished minimum mumber of blocks flushed
+(it is not guaranteed that the actual number is that big, though)
+@param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
+oldest_modification is smaller than this should be flushed (if their number
+does not exceed min_n), otherwise ignored
+@param[out]	n_processed	the number of pages which were processed is
+passed back to caller. Ignored if NULL
+@retval true	if a batch was queued successfully.
+@retval false	if another batch of same type was already running. */
+
 bool
 buf_flush_do_batch(
-/*===============*/
-	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
-	buf_flush_t	type,		/*!< in: flush type */
-	ulint		min_n,		/*!< in: wished minimum mumber of blocks
-					flushed (it is not guaranteed that the
-					actual number is that big, though) */
-	lsn_t		lsn_limit,	/*!< in the case BUF_FLUSH_LIST all
-					blocks whose oldest_modification is
-					smaller than this should be flushed
-					(if their number does not exceed
-					min_n), otherwise ignored */
-	ulint*		n_processed)	/*!< out: the number of pages
-					which were processed is passed
-					back to caller. Ignored if NULL */
+	buf_pool_t*	buf_pool,
+	buf_flush_t	type,
+	ulint		min_n,
+	lsn_t		lsn_limit,
+	ulint*		n_processed)
 {
 	ulint		page_count;
 
@@ -2083,7 +2096,7 @@ ulint
 buf_flush_LRU_list(
 	buf_pool_t*	buf_pool)
 {
-	ulint	scan_depth;
+	ulint	scan_depth, withdraw_depth;
 	ulint	n_flushed = 0;
 
 	ut_ad(buf_pool);
@@ -2092,9 +2105,20 @@ buf_flush_LRU_list(
 	We cap it with current LRU size. */
 	buf_pool_mutex_enter(buf_pool);
 	scan_depth = UT_LIST_GET_LEN(buf_pool->LRU);
+	if (buf_pool->curr_size < buf_pool->old_size
+	    && buf_pool->withdraw_target > 0) {
+		withdraw_depth = buf_pool->withdraw_target
+				 - UT_LIST_GET_LEN(buf_pool->withdraw);
+	} else {
+		withdraw_depth = 0;
+	}
 	buf_pool_mutex_exit(buf_pool);
 
-	scan_depth = ut_min(srv_LRU_scan_depth, scan_depth);
+	if (withdraw_depth > srv_LRU_scan_depth) {
+		scan_depth = ut_min(withdraw_depth, scan_depth);
+	} else {
+		scan_depth = ut_min(srv_LRU_scan_depth, scan_depth);
+	}
 
 	/* Currently one of page_cleaners is the only thread
 	that can trigger an LRU flush at the same time.

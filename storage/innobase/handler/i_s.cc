@@ -59,8 +59,11 @@ struct buf_page_desc_t{
 	ulint		type_value;	/*!< Page type or page state */
 };
 
+/** R-tree index page */
+#define	I_S_PAGE_TYPE_RTREE		(FIL_PAGE_TYPE_LAST + 1)
+
 /** Change buffer B-tree page */
-#define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 1)
+#define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 2)
 
 /** Any states greater than I_S_PAGE_TYPE_IBUF would be treated as
 unknown. */
@@ -85,6 +88,7 @@ static buf_page_desc_t	i_s_page_type[] = {
 	{"BLOB", FIL_PAGE_TYPE_BLOB},
 	{"COMPRESSED_BLOB", FIL_PAGE_TYPE_ZBLOB},
 	{"COMPRESSED_BLOB2", FIL_PAGE_TYPE_ZBLOB2},
+	{"RTREE_INDEX", I_S_PAGE_TYPE_RTREE},
 	{"IBUF_INDEX", I_S_PAGE_TYPE_IBUF},
 	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN}
 };
@@ -5355,14 +5359,14 @@ i_s_innodb_set_page_type(
 	ulint		page_type,	/*!< in: page type */
 	const byte*	frame)		/*!< in: buffer frame */
 {
-	if (page_type == FIL_PAGE_INDEX) {
+	if (fil_page_type_is_index(page_type)) {
 		const page_t*	page = (const page_t*) frame;
 
 		page_info->index_id = btr_page_get_index_id(page);
 
-		/* FIL_PAGE_INDEX is a bit special, its value
-		is defined as 17855, so we cannot use FIL_PAGE_INDEX
-		to index into i_s_page_type[] array, its array index
+		/* FIL_PAGE_INDEX and FIL_PAGE_RTREE are a bit special,
+		their values are defined as 17855 and 17854, so we cannot
+		use them to index into i_s_page_type[] array, its array index
 		in the i_s_page_type[] array is I_S_PAGE_TYPE_INDEX
 		(1) for index pages or I_S_PAGE_TYPE_IBUF for
 		change buffer index pages */
@@ -5370,6 +5374,8 @@ i_s_innodb_set_page_type(
 		    == static_cast<index_id_t>(DICT_IBUF_ID_MIN
 					       + IBUF_SPACE_ID)) {
 			page_info->page_type = I_S_PAGE_TYPE_IBUF;
+		} else if (page_type == FIL_PAGE_RTREE) {
+			page_info->page_type = I_S_PAGE_TYPE_RTREE;
 		} else {
 			page_info->page_type = I_S_PAGE_TYPE_INDEX;
 		}
@@ -5504,7 +5510,8 @@ i_s_innodb_fill_buffer_pool(
 
 	/* Go through each chunk of buffer pool. Currently, we only
 	have one single chunk for each buffer pool */
-	for (ulint n = 0; n < buf_pool->n_chunks; n++) {
+	for (ulint n = 0;
+	     n < ut_min(buf_pool->n_chunks, buf_pool->n_chunks_new); n++) {
 		const buf_block_t*	block;
 		ulint			n_blocks;
 		buf_page_info_t*	info_buffer;

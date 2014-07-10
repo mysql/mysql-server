@@ -1859,8 +1859,6 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
 
 ulong tc_log_page_waits= 0;
 
-#ifdef HAVE_MMAP
-
 #define TC_LOG_HEADER_SIZE (sizeof(tc_log_magic)+1)
 
 static const char tc_log_magic[]={(char) 254, 0x23, 0x05, 0x74};
@@ -2310,7 +2308,6 @@ err1:
                   "--tc-heuristic-recover={commit|rollback}");
   return 1;
 }
-#endif
 
 TC_LOG *tc_log;
 TC_LOG_DUMMY tc_log_dummy;
