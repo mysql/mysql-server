@@ -18,8 +18,8 @@
  02110-1301  USA
  */
 
-#include <node.h>
 #include <NdbApi.hpp>
+#include <node.h>
 
 using namespace v8;
 

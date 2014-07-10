@@ -37,7 +37,7 @@ protected:
   NdbBlob * ndbBlob;
   BlobHandler * next;
   char * content;
-  uint64_t length;
+  unsigned long long length;
   int columnId;
   int fieldNumber;
 };
