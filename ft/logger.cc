@@ -309,32 +309,40 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create)
 //            so it will always be clean (!h->dirty) when about to be closed.
 //            Rollback log can only be closed when there are no open transactions,
 //            so it will always be empty (no data blocks) when about to be closed.
-void toku_logger_close_rollback(TOKULOGGER logger) {
+void toku_logger_close_rollback_check_empty(TOKULOGGER logger, bool clean_shutdown) {
     CACHEFILE cf = logger->rollback_cachefile;  // stored in logger at rollback cachefile open
     if (cf) {
         FT_HANDLE ft_to_close;
         {   //Find "brt"
             logger->rollback_cache.destroy();
             FT CAST_FROM_VOIDP(ft, toku_cachefile_get_userdata(cf));
-            //Verify it is safe to close it.
-            assert(!ft->h->dirty);  //Must not be dirty.
-            toku_free_unused_blocknums(ft->blocktable, ft->h->root_blocknum);
-            //Must have no data blocks (rollback logs or otherwise).
-            toku_block_verify_no_data_blocks_except_root(ft->blocktable, ft->h->root_blocknum);
-            assert(!ft->h->dirty);
+            if (clean_shutdown) {
+                //Verify it is safe to close it.
+                assert(!ft->h->dirty);  //Must not be dirty.
+                toku_free_unused_blocknums(ft->blocktable, ft->h->root_blocknum);
+                //Must have no data blocks (rollback logs or otherwise).
+                toku_block_verify_no_data_blocks_except_root(ft->blocktable, ft->h->root_blocknum);
+                assert(!ft->h->dirty);
+            } else {
+                ft->h->dirty = 0;
+            }
             ft_to_close = toku_ft_get_only_existing_ft_handle(ft);
-            {
+            if (clean_shutdown) {
                 bool is_empty;
                 is_empty = toku_ft_is_empty_fast(ft_to_close);
                 assert(is_empty);
+                assert(!ft->h->dirty); // it should not have been dirtied by the toku_ft_is_empty test.
             }
-            assert(!ft->h->dirty); // it should not have been dirtied by the toku_ft_is_empty test.
         }
 
         toku_ft_handle_close(ft_to_close);
         //Set as dealt with already.
         logger->rollback_cachefile = NULL;
     }
+}
+
+void toku_logger_close_rollback(TOKULOGGER logger) {
+    toku_logger_close_rollback_check_empty(logger, true);
 }
 
 // No locks held on entry

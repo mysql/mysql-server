@@ -93,8 +93,7 @@ PATENT RIGHTS GRANT:
 #include "log-internal.h"
 #include "rollback-apply.h"
 
-static void
-poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t stall_for_checkpoint) {
+static void poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t stall_for_checkpoint) {
     if (txn->progress_poll_fun) {
         TOKU_TXN_PROGRESS_S progress = {
             .entries_total     = txn->roll_info.num_rollentries,
@@ -125,17 +124,14 @@ int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn) {
     return r;
 }
 
-int
-note_ft_used_in_txns_parent(const FT &ft, uint32_t UU(index), TOKUTXN const child);
-int
-note_ft_used_in_txns_parent(const FT &ft, uint32_t UU(index), TOKUTXN const child) {
+int note_ft_used_in_txns_parent(const FT &ft, uint32_t UU(index), TOKUTXN const child);
+int note_ft_used_in_txns_parent(const FT &ft, uint32_t UU(index), TOKUTXN const child) {
     TOKUTXN parent = child->parent;
     toku_txn_maybe_note_ft(parent, ft);
     return 0;
 }
 
-static int
-apply_txn(TOKUTXN txn, LSN lsn, apply_rollback_item func) {
+static int apply_txn(TOKUTXN txn, LSN lsn, apply_rollback_item func) {
     int r = 0;
     // do the commit/abort calls and free everything
     // we do the commit/abort calls in reverse order too.
@@ -303,3 +299,9 @@ int toku_rollback_abort(TOKUTXN txn, LSN lsn) {
     assert(r==0);
     return r;
 }
+
+int toku_rollback_discard(TOKUTXN txn) {
+    txn->roll_info.current_rollback = ROLLBACK_NONE;
+    return 0;
+}
+

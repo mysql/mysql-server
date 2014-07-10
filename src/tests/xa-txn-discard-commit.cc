@@ -1,8 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef ROLLBACK_APPLY_H
-#define ROLLBACK_APPLY_H
-
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -91,14 +88,109 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+#include "test.h"
 
+// Verify that a commit of a prepared txn in recovery retains a db created by it. 
+// A checkpoint is taken between the db creation and the txn prepare.
 
-typedef int(*apply_rollback_item)(TOKUTXN txn, struct roll_entry *item, LSN lsn);
-int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn);
-int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn);
+static void create_foo(DB_ENV *env, DB_TXN *txn) {
+    int r;
+    DB *db;
+    r = db_create(&db, env, 0);
+    CKERR(r);
+    r = db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE,  S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
+    r = db->close(db, 0);
+    CKERR(r);
+}
 
-int toku_rollback_commit(TOKUTXN txn, LSN lsn);
-int toku_rollback_abort(TOKUTXN txn, LSN lsn);
-int toku_rollback_discard(TOKUTXN txn);
+static void check_foo(DB_ENV *env) {
+    int r;
+    DB *db;
+    r = db_create(&db, env, 0);
+    CKERR(r);
+    r = db->open(db, nullptr, "foo.db", 0, DB_BTREE, 0, 0);
+    CKERR(r);
+    r = db->close(db, 0);
+    CKERR(r);
+}
 
-#endif // ROLLBACK_APPLY_H
+static void create_prepared_txn(void) {
+    int r;
+
+    DB_ENV *env = nullptr;
+    r = db_env_create(&env, 0);
+    CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, 
+                  DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE, 
+                  S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
+
+    DB_TXN *txn = nullptr;
+    r = env->txn_begin(env, nullptr, &txn, 0);
+    CKERR(r);
+
+    create_foo(env, txn);
+
+    r = env->txn_checkpoint(env, 0, 0, 0);
+    CKERR(r);
+
+    TOKU_XA_XID xid = { 0x1234, 8, 9 };
+    for (int i = 0; i < 8+9; i++) {
+        xid.data[i] = i;
+    }
+    r = txn->xa_prepare(txn, &xid);
+    CKERR(r);
+
+    // discard the txn so that we can close the env and run xa recovery later
+    r = txn->discard(txn, 0);
+    CKERR(r);
+
+    r = env->close(env, TOKUFT_DIRTY_SHUTDOWN);
+    CKERR(r);
+}
+
+static void run_xa_recovery(void) {
+    int r;
+
+    DB_ENV *env;
+    r = db_env_create(&env, 0);
+    CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, 
+                  DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE | DB_RECOVER,
+                  S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
+
+    // get prepared xid
+    long count;
+    TOKU_XA_XID xid;
+    r = env->txn_xa_recover(env, &xid, 1, &count, DB_FIRST);
+    CKERR(r);
+
+    // commit it
+    DB_TXN *txn = nullptr;
+    r = env->get_txn_from_xid(env, &xid, &txn);
+    CKERR(r);
+    r = txn->commit(txn, 0);
+    CKERR(r);
+
+    check_foo(env);
+
+    r = env->close(env, 0);
+    CKERR(r);
+}
+
+int test_main (int argc, char *const argv[]) {
+    default_parse_args(argc, argv);
+
+    // init the env directory
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    int r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);   
+    CKERR(r);
+
+    // run the test
+    create_prepared_txn();
+    run_xa_recovery();
+
+    return 0;
+}

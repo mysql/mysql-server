@@ -1117,6 +1117,12 @@ static int
 env_close(DB_ENV * env, uint32_t flags) {
     int r = 0;
     const char * err_msg = NULL;
+    bool clean_shutdown = true;
+
+    if (flags & TOKUFT_DIRTY_SHUTDOWN) {
+        clean_shutdown = false;
+        flags &= ~TOKUFT_DIRTY_SHUTDOWN;
+    }
 
     most_recent_env = NULL; // Set most_recent_env to NULL so that we don't have a dangling pointer (and if there's an error, the toku assert code would try to look at the env.)
 
@@ -1157,22 +1163,27 @@ env_close(DB_ENV * env, uint32_t flags) {
     if (env->i->cachetable) {
         toku_cachetable_minicron_shutdown(env->i->cachetable);
         if (env->i->logger) {
-            CHECKPOINTER cp = toku_cachetable_get_checkpointer(env->i->cachetable);
-            r = toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
-            if (r) {
-                err_msg = "Cannot close environment (error during checkpoint)\n";
-                toku_ydb_do_error(env, r, "%s", err_msg);
-                goto panic_and_quit_early;
+            CHECKPOINTER cp = nullptr;
+            if (clean_shutdown) {
+                cp = toku_cachetable_get_checkpointer(env->i->cachetable);
+                r = toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
+                if (r) {
+                    err_msg = "Cannot close environment (error during checkpoint)\n";
+                    toku_ydb_do_error(env, r, "%s", err_msg);
+                    goto panic_and_quit_early;
+                }
             }
-            toku_logger_close_rollback(env->i->logger);
-            //Do a second checkpoint now that the rollback cachefile is closed.
-            r = toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
-            if (r) {
-                err_msg = "Cannot close environment (error during checkpoint)\n";
-                toku_ydb_do_error(env, r, "%s", err_msg);
-                goto panic_and_quit_early;
+            toku_logger_close_rollback_check_empty(env->i->logger, clean_shutdown);
+            if (clean_shutdown) {
+                //Do a second checkpoint now that the rollback cachefile is closed.
+                r = toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
+                if (r) {
+                    err_msg = "Cannot close environment (error during checkpoint)\n";
+                    toku_ydb_do_error(env, r, "%s", err_msg);
+                    goto panic_and_quit_early;
+                }
+                toku_logger_shutdown(env->i->logger); 
             }
-            toku_logger_shutdown(env->i->logger); 
         }
         toku_cachetable_close(&env->i->cachetable);
     }

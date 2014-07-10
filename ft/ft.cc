@@ -309,14 +309,16 @@ static void ft_close(CACHEFILE cachefile, int fd, void *header_v, bool oplsn_val
         }
     }
     if (ft->h->dirty) {               // this is the only place this bit is tested (in currentheader)
-        if (logger) { //Rollback cachefile MUST NOT BE CLOSED DIRTY
-                      //It can be checkpointed only via 'checkpoint'
-            assert(logger->rollback_cachefile != cachefile);
+        bool do_checkpoint = true;
+        if (logger && logger->rollback_cachefile == cachefile) {
+            do_checkpoint = false;
         }
-        ft_begin_checkpoint(lsn, header_v);
-        ft_checkpoint(cachefile, fd, ft);
-        ft_end_checkpoint(cachefile, fd, header_v);
-        assert(!ft->h->dirty); // dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
+        if (do_checkpoint) {
+            ft_begin_checkpoint(lsn, header_v);
+            ft_checkpoint(cachefile, fd, ft);
+            ft_end_checkpoint(cachefile, fd, header_v);
+            assert(!ft->h->dirty); // dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
+        }
     }
 }
 

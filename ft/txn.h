@@ -154,6 +154,8 @@ int toku_txn_abort_txn(TOKUTXN txn,
 int toku_txn_abort_with_lsn(TOKUTXN txn, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
+int toku_txn_discard_txn(TOKUTXN);
+
 void toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xid);
 // Effect: Do the internal work of preparing a transaction (does not log the prepare record).
 

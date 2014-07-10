@@ -291,6 +291,7 @@ static void print_defines (void) {
     printf("#define DB_IS_HOT_INDEX 0x00100000\n"); // private tokudb
     printf("#define DBC_DISABLE_PREFETCHING 0x20000000\n"); // private tokudb
     printf("#define DB_UPDATE_CMP_DESCRIPTOR 0x40000000\n"); // private tokudb
+    printf("#define TOKUFT_DIRTY_SHUTDOWN %x\n", 1<<31);
 
     {
         //dbt flags
@@ -570,6 +571,7 @@ static void print_db_txn_struct (void) {
     STRUCT_SETUP(DB_TXN, api_internal,"void *%s");
     STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, uint32_t)");
     STRUCT_SETUP(DB_TXN, prepare,     "int (*%s) (DB_TXN*, uint8_t gid[DB_GID_SIZE])");
+    STRUCT_SETUP(DB_TXN, discard,     "int (*%s) (DB_TXN*, uint32_t)");
     STRUCT_SETUP(DB_TXN, id,          "uint32_t (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, mgrp,        "DB_ENV *%s /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/");
     STRUCT_SETUP(DB_TXN, parent,      "DB_TXN *%s");

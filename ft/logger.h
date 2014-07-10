@@ -112,6 +112,7 @@ int toku_logger_close(TOKULOGGER *loggerp);
 void toku_logger_initialize_rollback_cache(TOKULOGGER logger, FT ft);
 int toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create);
 void toku_logger_close_rollback(TOKULOGGER logger);
+void toku_logger_close_rollback_check_empty(TOKULOGGER logger, bool clean_shutdown);
 bool toku_logger_rollback_is_open (TOKULOGGER); // return true iff the rollback is open.
 
 void toku_logger_fsync (TOKULOGGER logger);
