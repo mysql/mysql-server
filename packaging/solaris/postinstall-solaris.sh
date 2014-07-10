@@ -81,6 +81,7 @@ if [ -n "$INSTALL" ] ; then
     cd "$mybasedir"
     bin/mysql_install_db \
 	  --user=mysql \
+	  --insecure \
 	  --basedir="$mybasedir" \
 	  --datadir=$mydatadir
   )
@@ -109,7 +110,7 @@ cp -f "$mystart1.in" "$mystart.in" || exit 1
 
 # We rewrite some scripts
 
-for script in "$mystart" "$mystart1" "$myinstdb" ; do
+for script in "$mystart" "$mystart1"; do
   script_in="$script.in"
   sed -e "s,@basedir@,$mybasedir,g" \
       -e "s,@datadir@,$mydatadir,g" "$script_in" > "$script"
