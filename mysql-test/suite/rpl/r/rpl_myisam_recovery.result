@@ -1,0 +1,24 @@
+include/master-slave.inc
+Warnings:
+Error	1286	Unknown storage engine 'InnoDB'
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Info table is not ready to be used. Table 'mysql.slave_.*_info' cannot be opened.");
+call mtr.add_suppression("Gtid table is not ready to be used. Table 'mysql.gtid_executed' cannot be opened.");
+CREATE TABLE t1(c1 INT) engine=MyISAM;
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+[connection master]
+include/stop_dump_threads.inc
+[connection slave]
+include/rpl_restart_server.inc [server_number=2 parameters: --debug=+d,eval_force_bin_log_recovery --skip-slave-start]
+[connection slave]
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/rpl_end.inc

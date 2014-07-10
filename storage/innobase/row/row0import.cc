@@ -472,7 +472,7 @@ protected:
 	@return true if it is a root page */
 	bool is_root_page(const page_t* page) const UNIV_NOTHROW
 	{
-		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+		ut_ad(fil_page_index_page_check(page));
 
 		return(mach_read_from_4(page + FIL_PAGE_NEXT) == FIL_NULL
 		       && mach_read_from_4(page + FIL_PAGE_PREV) == FIL_NULL);
@@ -707,7 +707,7 @@ FetchIndexRootPages::operator() (
 		err = DB_CORRUPTION;
 	} else if (page_type == FIL_PAGE_TYPE_XDES) {
 		err = set_current_xdes(block->page.id.page_no(), page);
-	} else if (page_type == FIL_PAGE_INDEX
+	} else if (fil_page_index_page_check(page)
 		   && !is_free(block->page.id.page_no())
 		   && is_root_page(page)) {
 
@@ -1961,6 +1961,7 @@ PageConverter::update_page(
 		return(update_header(block));
 
 	case FIL_PAGE_INDEX:
+	case FIL_PAGE_RTREE:
 		/* We need to decompress the contents into block->frame
 		before we can do any thing with Btree pages. */
 
@@ -2090,7 +2091,8 @@ PageConverter::operator() (
 		out the descriptor contents and not block->frame for compressed
 		pages. */
 
-		if (!is_compressed_table() || page_type == FIL_PAGE_INDEX) {
+		if (!is_compressed_table()
+		    || fil_page_type_is_index(page_type)) {
 
 			buf_flush_init_for_writing(
 				!is_compressed_table()
