@@ -20,6 +20,23 @@ CREATE TEMPORARY TABLE `t1` (
 
 USE ndbinfo;
 
+# Current usage may vary. Therefor the test only checks that if falls in the 
+# <0%,5%> range.
+SELECT node_id, memory_type, used>0 AND used < total/20 AS used_ok, 
+  used_pages>0 AND used_pages < total_pages/20 AS used_pages_ok, 
+  total, total_pages 
+  FROM ndbinfo.memoryusage WHERE memory_type="Long message buffer"
+  ORDER BY node_id;
+
+# Current usage may vary. Therefor the test only checks that if falls in the 
+# <0%,5%> range.
+SELECT node_id, block_number, block_instance, pool_name, 
+  used>0 AND used < total/20 AS used_ok, 
+  total, high>=used AND high < total/20 AS high_ok, entry_size, config_param1, 
+  config_param2, config_param3, config_param4  
+  FROM ndbinfo.ndb$pools WHERE pool_name="Long message buffer"
+  ORDER BY node_id;
+
 SHOW CREATE TABLE ndb$tables;
 
 SELECT * FROM ndb$tables;
@@ -280,5 +297,179 @@ DROP TABLE ndb$does_not_exist_in_ndb;
 set @@global.ndbinfo_offline = FALSE;
 
 eval $q1;
+
+#
+# Bug#17018500 BOGUS DEFINER VALUE FOR NDBINFO VIEWS REPORTED
+#              IN INFORMATION_SCHEMA.VIEW
+#
+--echo Verify there are no ndbinfo views without 'root@localhost' as definer
+select table_schema, table_name, definer from information_schema.views
+  where table_schema = 'ndbinfo' and
+        definer != 'root@localhost';
+
+# ################################
+# Test memory_per_fragment table.
+# ################################
+
+# A helper table for populating t1.
+create table numbers(
+  i int
+); 
+
+insert into numbers values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1(
+  a int not null primary key,
+  b int not null,
+  c1 char(255),
+  vc1 varchar(1024),
+  tx1 text
+)engine=ndbcluster;
+
+# Popultate t1 with 1000 rows, including som sizable varsize data.
+insert into t1 select x1.i+x2.i*10+x3.i*100, x1.i-x2.i*10-x3.i*100, repeat('x', 1+x1.i), repeat('y', 1000+x1.i), repeat('z', x1.i*100) from numbers as x1, numbers as x2, numbers as x3;
+
+drop table numbers;
+
+# Create some extra indexes to test different schema object types.
+create index ix1 on t1(c1);
+create unique index ix2 on t1(b) using hash;
+
+# The table id of 't1' may vary from run to run. We need to make sure that the
+# output from the subsequent tests does not depend on the numrical value of 
+# that table id.
+set @t1_id = (select cast(id as signed integer) from ndbinfo.ndb$dict_obj_info where fq_name REGEXP "def/t1$");
+
+
+# Test the dict_obj_info table. Replace table id of t1 in 'fq_name' values that
+# contain it (index and blob table names do), since the table id may vary 
+# between runs.
+select type, state, parent_obj_type, replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name, if(parent_obj_id=@t1_id, "child_of_t1", if(parent_obj_id=0, "root", "error!")) as  nesting from ndbinfo.ndb$dict_obj_info where id >= @t1_id and type <= 6 order by type, id;
+
+# Disable query log while defining the view below, since view definition
+# conatins the table id of t1, which may vary between runs.
+disable_query_log;
+let $t1_id = query_get_value(select @t1_id as id, id, 1);
+
+# Create som views that we reuse after modifying t1 below.
+# This one sums usage counts for all fragments of each table.
+# Some values, such as fixed_elem_free_rows and fixed_elem_count for ordered 
+# indexes may vary depending on the number of fragments and other factors. 
+# These are therefore not returned directly, but used in calculations that 
+# should provide stable results.
+eval create view sum_per_tab as 
+select replace(fq_name, cast($t1_id as char(10)), "<t1 id>") as fq_name, 
+parent_fq_name, type, 
+if (type="Ordered index", 
+-(round(sum(fixed_elem_count)/165)), 
+    sum(fixed_elem_count)) as fixed_elem_count,
+max(fixed_elem_size_bytes) as fixed_elem_size_bytes,
+round(sum(fixed_elem_alloc_bytes/fixed_elem_size_bytes)
+  /sum(fixed_elem_count+fixed_elem_free_rows),1) as fixed_elem_alloc_ok,
+sum(fixed_elem_free_bytes/fixed_elem_size_bytes) = 
+   sum(fixed_elem_free_rows) as fixed_elem_free_bytes_ok,
+sum(var_elem_count) as var_elem_count,
+sum(var_elem_alloc_bytes) >= sum(var_elem_free_bytes) as var_bytes_ok
+from ndbinfo.memory_per_fragment
+where table_id >= $t1_id
+group by table_id order by table_id;
+
+enable_query_log;
+
+
+# Sum usage counts for all fragments of all tables.
+create view frag_sum as 
+select 
+sum(fixed_elem_alloc_bytes) as fixed_elem_alloc_bytes,
+sum(var_elem_alloc_bytes) as var_elem_alloc_bytes,
+sum(hash_index_alloc_bytes) as hash_index_alloc_bytes
+from ndbinfo.memory_per_fragment;
+
+# Sum pool values across all block instances.
+# 'Data memory' appears twice in 'pools' therefore a 'where' clause is needed.
+create view pool_sum as
+select pool_name, block_number, max(entry_size) * sum(used) as used_bytes 
+from  ndbinfo.ndb$pools where pool_name <> "Data memory" 
+or block_number=249 group by pool_name, block_number;
+
+# Check that the combined size of all L2PMap nodes equals the total size
+# of the allocated L2PMap pages minus a small (<1%) page overhead.
+create view check_l2pmap_pools as 
+select min(floor(1000*nodes.total*nodes.entry_size/
+           (pages.used*pages.entry_size))) as l2pmap_ratio 
+from ndbinfo.ndb$pools as pages join ndbinfo.ndb$pools as nodes 
+where pages.node_id=nodes.node_id 
+and pages.block_instance=nodes.block_instance 
+and pages.block_number=nodes.block_number
+and pages.pool_name="L2PMap pages" 
+and nodes.pool_name="L2PMap nodes";
+
+create view l2p_frag_sum as
+select sum(tuple_l2pmap_alloc_bytes) as l2p_sum, 'TUP' as block 
+from ndbinfo.ndb$frag_mem_use 
+union 
+select sum(hash_index_l2pmap_alloc_bytes) as l2p_sum, 'ACC' as block 
+from ndbinfo.ndb$frag_mem_use;
+
+# Check that we get the same result from the common pool as when we add up
+# the values for each fragment.
+
+select used_bytes - hash_index_alloc_bytes from pool_sum, frag_sum 
+where pool_name='Index memory';
+
+select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+  from pool_sum, frag_sum 
+  where pool_name='Data memory';
+
+select l2p_sum-used_bytes from l2p_frag_sum, pool_sum 
+  where pool_name='L2PMap nodes' and ((block='ACC' and block_number=248) or 
+                                      (block='TUP' and block_number=249));
+
+select * from check_l2pmap_pools;
+
+select * from sum_per_tab;
+
+# Now delete som scattered rows and check memory usage again.
+delete from t1 where a%10=0;
+
+select used_bytes - hash_index_alloc_bytes from pool_sum, frag_sum 
+where pool_name='Index memory';
+
+select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+  from pool_sum, frag_sum 
+  where pool_name='Data memory';
+
+select l2p_sum-used_bytes from l2p_frag_sum, pool_sum 
+  where pool_name='L2PMap nodes' and ((block='ACC' and block_number=248) or 
+                                      (block='TUP' and block_number=249));
+
+select * from check_l2pmap_pools;
+
+select * from sum_per_tab;
+
+# Now update some var-sized fields and check memory usage again.
+update t1 set vc1=repeat('x', a%300), tx1=repeat('y', a*2);
+
+select used_bytes - hash_index_alloc_bytes from pool_sum, frag_sum 
+where pool_name='Index memory';
+
+select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+  from pool_sum, frag_sum 
+  where pool_name='Data memory';
+
+select l2p_sum-used_bytes from l2p_frag_sum, pool_sum 
+  where pool_name='L2PMap nodes' and ((block='ACC' and block_number=248) or 
+                                      (block='TUP' and block_number=249));
+
+select * from check_l2pmap_pools;
+
+select * from sum_per_tab;
+
+drop table t1;
+drop view l2p_frag_sum;
+drop view check_l2pmap_pools;
+drop view sum_per_tab;
+drop view pool_sum;
+drop view frag_sum; 
 
 --source ndbinfo_drop.inc

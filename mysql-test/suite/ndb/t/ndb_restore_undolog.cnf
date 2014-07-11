@@ -1,0 +1,18 @@
+!include ../my.cnf
+
+[cluster_config]
+#######
+#
+# Temporary workaraound for Bug#18466451:
+# 'NDB_RESTORE' CRASH WHEN RESTORING INTO A CONFIG 
+#  WITH DIFFERENT NUMBER OF LDM's
+#
+# Remove this .cnf file when bug#18466451 has been fixed
+#
+# Has to restore into a config having the same
+# number of (default) partitions as the backup
+# image being restored. So we have to override LDM-count
+# for this test in order to get the same number
+# of partitions as present in backup image.
+##
+ThreadConfig=ldm={count=1}

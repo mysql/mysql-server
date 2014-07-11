@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ protected:
   Uint32 c_workers;
   // no gaps - extra worker has index c_lqhWorkers (not MaxLqhWorkers)
   SimulatedBlock* c_worker[MaxWorkers];
+  Uint32 c_anyWorkerCounter;
 
   virtual SimulatedBlock* newWorker(Uint32 instanceNo) = 0;
   virtual void loadWorkers();
@@ -93,6 +94,22 @@ protected:
     ndbrequire(ino != 0);
     return ino - 1;
   }
+
+  // Get a worker index - will balance round robin across
+  // workers over time.
+  Uint32 getAnyWorkerIndex()
+  {
+    return (c_anyWorkerCounter++) % c_workers;
+  }
+
+  // Statelessly forward a signal (including any sections) 
+  // to the worker with the supplied index.
+  void forwardToWorkerIndex(Signal* signal, Uint32 index);
+  
+  // Statelessly forward the signal (including any sections)
+  // to one of the workers, load balancing.
+  // Requires no arrival order constraints between signals.
+  void forwardToAnyWorker(Signal* signal);
 
   // support routines and classes ("Ss" = signal state)
 

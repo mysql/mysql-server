@@ -212,7 +212,7 @@ public:
     OS_COMMITTED = 5,
     OS_COMPLETING = 6,
     OS_COMPLETED = 7,
-    OS_RESTART = 8,
+
     OS_ABORTING = 9,
     OS_ABORT_SENT = 10,
     OS_TAKE_OVER = 11,
@@ -444,7 +444,7 @@ public:
     /**
      * Used for scrapping in case of node failure
      */
-    Uint32 nodeId;
+    NodeId nodeId;
 
     /**
      * Trigger type, defines what the trigger is used for
@@ -1071,8 +1071,6 @@ public:
   /* THIS RECORD CONTAINS ALIVE-STATUS ON ALL NODES IN THE*/
   /* SYSTEM                                               */
   /********************************************************/
-  /*       THIS RECORD IS ALIGNED TO BE 128 BYTES.        */
-  /********************************************************/
   struct HostRecord {
     struct PackedWordsContainer lqh_pack[MAX_NDBMT_LQH_THREADS+1];
     struct PackedWordsContainer packTCKEYCONF;
@@ -1165,7 +1163,7 @@ public:
     ScanFragRec(){ 
       stopFragTimer();
       lqhBlockref = 0;
-      scanFragState = IDLE;
+      scanFragState = COMPLETED;
       scanRec = RNIL;
     }
     /**
@@ -1407,11 +1405,14 @@ public:
     Uint8 takeOverProcState[MAX_NDB_NODES];
     UintR completedTakeOver;
     UintR currentHashIndexTakeOver;
+    Uint32 maxInstanceId;
+    bool   takeOverFailed;
+    bool   handledOneTransaction;
+    Uint32 takeOverInstanceId;
     FailState failStatus;
     Uint16 queueIndex;
     Uint16 takeOverNode;
-  }; /* p2c: size = 64 bytes */
-  
+  };
   typedef Ptr<TcFailRecord> TcFailRecordPtr;
 
 public:
@@ -1508,7 +1509,7 @@ private:
   void execCREATE_TAB_REQ(Signal* signal);
   void execPREP_DROP_TAB_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
-  void checkWaitDropTabFailedLqh(Signal*, Uint32 nodeId, Uint32 tableId);
+  void checkWaitDropTabFailedLqh(Signal*, NodeId nodeId, Uint32 tableId);
   void execALTER_TAB_REQ(Signal* signal);
   void set_timeout_value(Uint32 timeOut);
   void set_appl_timeout_value(Uint32 timeOut);
@@ -1529,7 +1530,7 @@ private:
   void releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord*);
   void TCKEY_abort(Signal* signal, int place);
   void copyFromToLen(UintR* sourceBuffer, UintR* destBuffer, UintR copyLen);
-  void reportNodeFailed(Signal* signal, Uint32 nodeId);
+  void reportNodeFailed(Signal* signal, NodeId nodeId);
   void sendPackedTCKEYCONF(Signal* signal,
                            HostRecord * ahostptr,
                            UintR hostId);
@@ -1545,6 +1546,12 @@ private:
                        Uint32 firstTcConnect, Uint32 lastTcConnect);
   Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass);
 
+/**
+ * These use modulo 2 hashing, so these need to be a number which is 2^n.
+ */
+#define TC_FAIL_HASH_SIZE 4096
+#define TRANSID_FAIL_HASH_SIZE 1024
+
   void sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord *);
   void sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord *);
   void routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord *, 
@@ -1556,15 +1563,53 @@ private:
   void timeOutFoundFragLab(Signal* signal, Uint32 TscanConPtr);
   void timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr);
   int  releaseAndAbort(Signal* signal);
-  void findApiConnectFail(Signal* signal);
-  void findTcConnectFail(Signal* signal, Uint32 instanceKey);
-  void initApiConnectFail(Signal* signal);
-  void initTcConnectFail(Signal* signal, Uint32 instanceKey);
+
+  void releaseMarker(ApiConnectRecord * const regApiPtr);
+
+  Uint32 get_transid_fail_bucket(Uint32 transid1);
+  void insert_transid_fail_hash(Uint32 transid1);
+  void remove_from_transid_fail_hash(Signal *signal, Uint32 transid1);
+  Uint32 get_tc_fail_bucket(Uint32 transid1, Uint32 tcOprec);
+  void insert_tc_fail_hash(Uint32 transid1, Uint32 tcOprec);
+  void remove_transaction_from_tc_fail_hash(Signal *signal);
+
   void initTcFail(Signal* signal);
   void releaseTakeOver(Signal* signal);
   void setupFailData(Signal* signal);
-  void updateApiStateFail(Signal* signal);
-  void updateTcStateFail(Signal* signal, Uint32 instanceKey);
+  bool findApiConnectFail(Signal* signal, Uint32 transid1, Uint32 transid2);
+  void initApiConnectFail(Signal* signal,
+                          Uint32 transid1,
+                          Uint32 transid2,
+                          LqhTransConf::OperationStatus transStatus,
+                          Uint32 reqinfo,
+                          BlockReference applRef,
+                          Uint64 gci,
+                          NodeId nodeId);
+  void updateApiStateFail(Signal* signal,
+                          Uint32 transid1,
+                          Uint32 transid2,
+                          LqhTransConf::OperationStatus transStatus,
+                          Uint32 reqinfo,
+                          BlockReference applRef,
+                          Uint64 gci,
+                          NodeId nodeId);
+  bool findTcConnectFail(Signal* signal,
+                         Uint32 transid1,
+                         Uint32 transid2,
+                         Uint32 tcOprec);
+  void initTcConnectFail(Signal* signal,
+                         Uint32 instanceKey,
+                         Uint32 tcOprec,
+                         Uint32 reqinfo,
+                         LqhTransConf::OperationStatus transStatus,
+                         NodeId nodeId);
+  void updateTcStateFail(Signal* signal,
+                         Uint32 instanceKey,
+                         Uint32 tcOprec,
+                         Uint32 reqinfo,
+                         LqhTransConf::OperationStatus transStatus,
+                         NodeId nodeId);
+
   void handleApiFailState(Signal* signal, UintR anApiConnectptr);
   void handleFailedApiNode(Signal* signal,
                            UintR aFailedNode,
@@ -1810,12 +1855,16 @@ private:
   void packLqhkeyreq040Lab(Signal* signal,
                            BlockReference TBRef);
   void returnFromQueuedDeliveryLab(Signal* signal);
-  void startTakeOverLab(Signal* signal);
+  void startTakeOverLab(Signal* signal,
+                        Uint32 instanceId,
+                        Uint32 failedNodeId);
   void toCompleteHandlingLab(Signal* signal);
   void toCommitHandlingLab(Signal* signal);
   void toAbortHandlingLab(Signal* signal);
   void abortErrorLab(Signal* signal);
-  void nodeTakeOverCompletedLab(Signal* signal);
+  void nodeTakeOverCompletedLab(Signal* signal,
+                                NodeId nodeId,
+                                Uint32 maxInstanceId);
   void ndbsttorry010Lab(Signal* signal);
   void commit020Lab(Signal* signal);
   void complete010Lab(Signal* signal);
@@ -1844,7 +1893,7 @@ private:
   void timeOutLoopStartLab(Signal* signal, Uint32 apiConnectPtr);
   void initialiseRecordsLab(Signal* signal, UintR Tdata0, Uint32, Uint32);
   void tckeyreq020Lab(Signal* signal);
-  void intstartphase1x010Lab(Signal* signal);
+  void intstartphase1x010Lab(Signal* signal, NodeId nodeId);
   void startphase1x010Lab(Signal* signal);
 
   void lqhKeyConf_checkTransactionState(Signal * signal,
@@ -2074,23 +2123,13 @@ private:
   UintR capiConnectClosing[MAX_NODES];
   UintR con_lineNodes;
 
-  UintR treqinfo;
-  UintR ttransid1;
-  UintR ttransid2;
-
   UintR tabortInd;
 
-  NodeId tnodeid;
   BlockReference tblockref;
 
-  LqhTransConf::OperationStatus ttransStatus;
-  UintR ttcOprec;
-  NodeId tfailedNodeId;
   Uint8 tcurrentReplicaNo;
   Uint8 tpad1;
 
-  Uint64 tgci;
-  UintR tapplRef;
   UintR tapplOprec;
 
   UintR tindex;
@@ -2105,8 +2144,8 @@ private:
   UintR tconfig1;
   UintR tconfig2;
 
-  UintR ctransidFailHash[512];
-  UintR ctcConnectFailHash[1024];
+  UintR ctransidFailHash[TRANSID_FAIL_HASH_SIZE];
+  UintR ctcConnectFailHash[TC_FAIL_HASH_SIZE];
 
   /**
    * Commit Ack handling
@@ -2152,9 +2191,9 @@ private:
                         Uint32 instanceKey,
 			Uint32 transid1, 
 			Uint32 transid2);
-  void removeMarkerForFailedAPI(Signal* signal, Uint32 nodeId, Uint32 bucket);
+  void removeMarkerForFailedAPI(Signal* signal, NodeId nodeId, Uint32 bucket);
 
-  bool getAllowStartTransaction(Uint32 nodeId, Uint32 table_single_user_mode) const {
+  bool getAllowStartTransaction(NodeId nodeId, Uint32 table_single_user_mode) const {
     if (unlikely(getNodeState().getSingleUserMode()))
     {
       if (getNodeState().getSingleUserApi() == nodeId || table_single_user_mode)
