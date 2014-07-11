@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -65,7 +65,6 @@ public class JpaAB extends CrundLoad {
         CrundDriver.parseArguments(args);
         final CrundDriver driver = new CrundDriver();
         final CrundLoad load = new JpaAB(driver);
-        driver.addLoad(load);
         driver.run();
         System.out.println();
         System.out.println("JpaAB.main(): done.");
