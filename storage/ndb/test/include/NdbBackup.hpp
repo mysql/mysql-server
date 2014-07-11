@@ -34,7 +34,7 @@ public:
 	    unsigned int user_backup_id= 0,
 	    unsigned int logtype= 0);
   int start() { unsigned unused =0; return start(unused); }
-  int restore(unsigned _backup_id);
+  int restore(unsigned _backup_id, bool restore_meta = true);
 
   int NFMaster(NdbRestarter& _restarter);
   int NFMasterAsSlave(NdbRestarter& _restarter);

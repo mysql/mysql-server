@@ -904,6 +904,12 @@ struct DictForeignKeyInfo
   static const SimpleProperties::SP2StructMapping Mapping[];
 };
 
+void
+ndbout_print(const DictForeignKeyInfo::ForeignKey& fk, char* buf, size_t sz);
+
+class NdbOut&
+operator<<(class NdbOut& out, const DictForeignKeyInfo::ForeignKey& fk);
+
 #define DFKIMAP(x, y, z) \
   { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 

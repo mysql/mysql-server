@@ -910,6 +910,115 @@ flush logs;
 drop table test.t3;
 drop table test.t4;
 drop table test.t5;
+Show a simple row-level delete-delete conflict
+PRIMARY:
+insert into test.t1 values (77, "A good year");
+select * from test.t1 order by a;
+a	b
+1	11
+2	2000
+3	3
+4	4
+5	5
+6	6
+77	A good year
+SECONDARY:
+stop slave;
+PRIMARY:
+Primary Delete
+delete from test.t1 where a=77;
+Show Primary contents
+select * from test.t1 order by a;
+a	b
+1	11
+2	2000
+3	3
+4	4
+5	5
+6	6
+SECONDARY:
+select * from test.t1 order by a;
+a	b
+1	11
+2	222
+3	3
+4	4
+5	5
+6	6
+77	A good year
+Secondary Delete->Insert in separate transactions
+and potentially different epochs
+Delete part with related transaction op
+begin;
+delete from test.t1 where a=77;
+insert into test.t1 values (73, "A superb year");
+commit;
+Unrelated transaction from Secondary
+begin;
+insert into test.t1 values (84, "A good vintage");
+commit;
+Optionally flush logs
+Following Insert from Secondary - potentially in different epoch
+begin;
+insert into test.t1 values (77, "Exceptional");
+insert into test.t1 values (80, "Poor");
+commit;
+Show Secondary contents
+select * from test.t1 order by a;
+a	b
+1	11
+2	222
+3	3
+4	4
+5	5
+6	6
+73	A superb year
+77	Exceptional
+80	Poor
+84	A good vintage
+Allow propagation to Primary
+PRIMARY:
+Expect:
+- Delete-Delete conflict did not result in rejection of Secondary transaction
+Therefore related row from Secondary Deleting transaction (73) is present
+- Unrelated transaction from Secondary (84) is present
+- Following insert on delete-delete conflict row (77) is not in conflict,
+so both it and the related row from the same transaction (80) are present
+
+select * from test.t1 order by a;
+a	b
+1	11
+2	2000
+3	3
+4	4
+5	5
+6	6
+73	A superb year
+77	Exceptional
+80	Poor
+84	A good vintage
+ndb_conflict_trans_row_reject_count
+0
+ndb_conflict_trans_reject_count
+0
+Now sync with Secondary to show divergence
+start slave;
+SECONDARY:
+Expect:
+- Primary delete of row 77 took out the newly inserted row 77 
+- Otherwise Secondary is as before
+
+select * from test.t1 order by a;
+a	b
+1	11
+2	222
+3	3
+4	4
+5	5
+6	6
+73	A superb year
+80	Poor
+84	A good vintage
 drop table mysql.ndb_replication;
 drop table test.t1;
 drop table test.t2;
