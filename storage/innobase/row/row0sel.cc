@@ -4167,8 +4167,14 @@ row_search_no_mvcc(
 		captured while SELECT statement started execution. */
 		{
 			trx_id_t	trx_id;
-			trx_id = row_get_rec_trx_id(
-				result_rec, clust_index, offsets);
+
+			ulint		len;
+			ulint		trx_id_off = rec_get_nth_field_offs(
+				offsets, clust_index->n_uniq, &len);
+
+			ut_ad(len == DATA_TRX_ID_LEN);
+
+			trx_id = trx_read_trx_id(result_rec + trx_id_off);
 			if (trx_id > index->trx_id) {
 				/* This row was recently added skip it from
 				SELECT view. */
