@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -528,7 +528,7 @@ Properties::writeUnicodeEsc(streambuf& os, wchar_t c)
                                   '\x34', '\x35', '\x36', '\x37',
                                   '\x38', '\x39', '\x41', '\x42',
                                   '\x43', '\x44', '\x45', '\x46' }; // '0'..'F'
-    for (unsigned int i = w * 8 - 4; i >= 0; i -= 4) {
+    for (int i = w * 8 - 4; i >= 0; i -= 4) {
         writeChar(os, ascii[(c>>i) & 0xF]);
     }
 }

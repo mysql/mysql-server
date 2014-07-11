@@ -1179,10 +1179,12 @@ void Aggregator_distinct::endup()
         sum->count= table->file->stats.records;
       else
       {
-        // index must be closed before records() is called
+        // index must be closed before ha_records() is called
         if (table->file->inited)
           table->file->ha_index_or_rnd_end();
-        sum->count= table->file->records();
+        ha_rows num_rows= 0;
+        table->file->ha_records(&num_rows);
+        sum->count= static_cast<longlong>(num_rows);
       }
       endup_done= TRUE;
     }

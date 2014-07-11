@@ -2024,9 +2024,11 @@ TransporterFacade::get_an_alive_node()
   DBUG_ENTER("TransporterFacade::get_an_alive_node");
   DBUG_PRINT("enter", ("theStartNodeId: %d", theStartNodeId));
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   const char* p = NdbEnv_GetEnv("NDB_ALIVE_NODE_ID", (char*)0, 0);
   if (p != 0 && *p != 0)
     DBUG_RETURN(atoi(p));
+#endif
 #endif
   NodeId i;
   for (i = theStartNodeId; i < MAX_NDB_NODES; i++) {

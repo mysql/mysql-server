@@ -37,10 +37,6 @@ Created 1/20/1994 Heikki Tuuri
 #include "hb_univ.i"
 #endif /* UNIV_HOTBACKUP */
 
-#ifndef UNIV_DEBUG
-# define UNIV_DEBUG
-#endif /* UNIV_DEBUG */
-
 /* aux macros to convert M into "123" (string) if M is defined like
 #define M 123 */
 #define _IB_TO_STR(s)	#s

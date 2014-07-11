@@ -569,6 +569,7 @@ struct SumaContinueB
     ,API_FAIL_SUBSCRIPTION = 6
     ,SUB_STOP_REQ = 7
     ,RETRY_DICT_LOCK = 8
+    ,HANDOVER_WAIT_TIMEOUT = 9
   };
 };
 
