@@ -24,6 +24,10 @@
 #include <string.h>
 #include <math.h>
 
+#ifdef WIN32
+#include <float.h>
+#endif
+
 #include "adapter_global.h"
 #include "NdbTypeEncoders.h"
 #include "js_wrapper_macros.h"

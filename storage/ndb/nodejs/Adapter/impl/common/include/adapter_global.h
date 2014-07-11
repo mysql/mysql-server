@@ -27,12 +27,16 @@
 
 #ifdef WIN32
 
+#include <malloc.h>
+
 #define __func__ __FUNCTION__
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 #define snprintf _snprintf
 #define strtoll _strtoi64
 #define strtoull _strtoui64
+#define isfinite _finite
+#define rint(X) floor(.5+X)
 
 #else
 #include <unistd.h>
