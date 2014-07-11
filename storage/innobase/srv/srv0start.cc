@@ -1280,8 +1280,6 @@ innobase_start_or_create_for_mysql(void)
 	srv_is_being_started = true;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
 
-	ut_new_boot();
-
 #ifdef _WIN32
 	switch (os_get_os_version()) {
 	case OS_WIN95:

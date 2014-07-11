@@ -3001,6 +3001,10 @@ innobase_init(
 
 	os_innodb_umask = (ulint) my_umask;
 
+	/* Setup the memory alloc/free tracing mechanisms before calling
+	any functions that could possibly allocate memory. */
+	ut_new_boot();
+
 	/* First calculate the default path for innodb_data_home_dir etc.,
 	in case the user has not given any value.
 
