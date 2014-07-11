@@ -138,8 +138,8 @@ InnoDB:
 /** Map used for default performance schema keys, based on file name of the
 caller. The key is the file name of the caller and the value is a pointer
 to a PSI_memory_key variable to be passed to performance schema methods. */
-typedef std::map<const char*, PSI_memory_key*,
-		ut_strcmp_functor>	mem_keys_auto_t;
+typedef std::map<const char*, PSI_memory_key*, ut_strcmp_functor>
+	mem_keys_auto_t;
 
 /** Map of filename/pfskey, used for tracing allocations that have not
 provided a manually created pfs key. This map is only ever modified (bulk
