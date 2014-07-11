@@ -501,7 +501,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
               "rows": 16,
               "examined_rows": 16,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 656,
+              "sort_buffer_size": 37232,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -1190,7 +1190,7 @@ ORDER BY cc	{
               "rows": 132,
               "examined_rows": 132,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 109488,
+              "sort_buffer_size": 262144,
               "sort_mode": "<sort_key, packed_additional_fields>"
             } /* filesort_summary */
           },
@@ -1237,7 +1237,7 @@ ORDER BY cc	{
               "rows": 66,
               "examined_rows": 66,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 77144,
+              "sort_buffer_size": 261872,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
