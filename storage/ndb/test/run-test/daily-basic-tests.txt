@@ -1,4 +1,4 @@
-# Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1147,6 +1147,11 @@ cmd: test_event
 args: -n Bug12598496 T1
 
 #
+max-time: 1000
+cmd: test_event
+args: -n Bug18703871 T1
+
+#
 max-time: 600
 cmd: test_event_merge
 args: --no-implicit-nulls --separate-events --blob-version 1
@@ -1160,6 +1165,11 @@ args: --no-implicit-nulls --separate-events
 max-time: 600
 cmd: test_event_merge
 args: --no-implicit-nulls --no-multiops --blob-version 1
+
+#
+max-time: 1000
+cmd: test_event
+args: -n NextEventRemoveInconsisEvent T1
 
 #
 max-time: 600
@@ -1526,7 +1536,7 @@ args: -n Bug33793 T1
 #args: -n Bug34216 -l 10 T1 I3 D2
 #
 # Bug18408711 added on 17.04.2014
-#max-time: 1200
+#max-time: 1800
 #cmd: testNodeRestart
 #args: -n mixedmultiop T1 I2 I3 D2
 #
@@ -2082,4 +2092,16 @@ args: -n FK_TRANS2 T1
 max-time : 300
 cmd: testDict
 args: -n FK_Bug18069680 T1
+
+max-time : 600
+cmd: testNodeRestart
+args: -n Bug16895311 T1
+
+max-time : 600
+cmd: testNodeRestart
+args: -n Bug18044717 T1
+
+max-time: 600
+cmd: atrt-testBackup
+args: -n Bug17882305 T1
 
