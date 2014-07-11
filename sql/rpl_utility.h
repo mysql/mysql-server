@@ -27,7 +27,6 @@
 #endif
 #include "mysql_com.h"
 #include <hash.h>
-#include "prealloced_array.h"
 
 
 class Relay_log_info;
@@ -472,7 +471,7 @@ namespace {
 class Deferred_log_events
 {
 private:
-  Prealloced_array<Log_event*, 32, true> m_array;
+  DYNAMIC_ARRAY array;
 
 public:
   Deferred_log_events(Relay_log_info *rli);
