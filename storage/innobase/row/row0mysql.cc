@@ -1358,7 +1358,7 @@ row_insert_for_mysql_using_cursor(
 	appends row-id to make the record unique. */
 	dict_index_t*	clust_index = dict_table_get_first_index(node->table);
 
-	if (dict_index_is_auto_gen_clust(clust_index)) {
+	if (!dict_index_is_unique(clust_index)) {
 		dict_sys_write_row_id(
 			node->row_id_buf,
 			dict_table_get_next_table_sess_row_id(node->table));
@@ -2014,7 +2014,7 @@ row_update_for_mysql_using_cursor(
 
 	/* Step-1: Update row-id column if table has auto-generated index.
 	Every update will result in update of auto-generated index. */
-	if (dict_index_is_auto_gen_clust(dict_table_get_first_index(table))) {
+	if (!dict_index_is_unique(dict_table_get_first_index(table))) {
 		/* Update the row_id column. */
 		dfield_t*	row_id_field;
 
