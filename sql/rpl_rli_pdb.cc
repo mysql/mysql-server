@@ -800,6 +800,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                db_worker_hash_entry **ptr_entry,
                                bool need_temp_tables, Slave_worker *last_worker)
 {
+  uint i;
   Slave_worker_array *workers= &rli->workers;
 
   /*
@@ -825,10 +826,10 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
 
   // Search in CGAP
-  for (db_worker_hash_entry **it= rli->curr_group_assigned_parts.begin();
-       it != rli->curr_group_assigned_parts.end(); ++it)
+  for (i= 0; i < rli->curr_group_assigned_parts.elements; i++)
   {
-    entry= *it;
+    entry= * (db_worker_hash_entry **)
+      dynamic_array_ptr(&rli->curr_group_assigned_parts, i);
     if ((uchar) entry->db_len != dblength)
       continue;
     else
@@ -964,7 +965,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       PSI_stage_info old_stage;
 
       DBUG_ASSERT(last_worker != NULL &&
-                  rli->curr_group_assigned_parts.size() > 0);
+                  rli->curr_group_assigned_parts.elements > 0);
 
       // future assignenment and marking at the same time
       entry->worker= last_worker;
@@ -1028,7 +1029,7 @@ err:
   {
     DBUG_PRINT("info",
                ("Updating %s with worker %lu", entry->db, entry->worker->id));
-    rli->curr_group_assigned_parts.push_back(entry);
+    insert_dynamic(&rli->curr_group_assigned_parts, (uchar*) &entry);
     *ptr_entry= entry;
   }
   DBUG_RETURN(entry ? entry->worker : NULL);
