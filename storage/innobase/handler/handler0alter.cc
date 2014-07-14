@@ -5273,6 +5273,26 @@ innobase_update_foreign_cache(
 				 DICT_ERR_IGNORE_NONE,
 				 fk_tables);
 
+	if (err == DB_CANNOT_ADD_CONSTRAINT) {
+		/* It is possible there are existing foreign key are
+		loaded with "foreign_key checks" off,
+		so let's retry the loading with charset_check is off */
+		err = dict_load_foreigns(user_table->name,
+					 ctx->col_names, false, false,
+					 DICT_ERR_IGNORE_NONE,
+					 fk_tables);
+
+		/* The load with "charset_check" off is successful, warn
+		the user that the foreign key has loaded with mis-matched
+		charset */
+		if (err == DB_SUCCESS) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Foreign key constraints for table '%s'"
+				" are loaded with charset check off",
+				user_table->name);
+		}
+	}
+
 	ut_ad(fk_tables.empty());
 
 	DBUG_RETURN(err);
