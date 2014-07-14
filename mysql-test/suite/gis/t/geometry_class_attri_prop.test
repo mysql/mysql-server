@@ -437,7 +437,9 @@ select count(dimension(g)) FROM gis_geometry;
 ############################################################################################
 
 --echo #Checking the Envelope function for all the spatial objects
+--error ER_GIS_INVALID_DATA
 select fid, AsText(Envelope(g)), GeometryType(g) FROM gis_geometry where g is not NULL;
+--error ER_GIS_INVALID_DATA
 select count(AsText(Envelope(g))) FROM gis_geometry;
 
 ############################################################################################
@@ -519,6 +521,7 @@ END |
 delimiter ;|
 
 --echo #call the proc
+--error ER_GIS_INVALID_DATA
 CALL envelope;
 
 delimiter |;
@@ -670,6 +673,7 @@ Select sum(GeometryType(g)) from gis_geometry;
 Select sum(SRID(g)) from gis_geometry;
 Select sum(X(g)) from gis_geometry;
 Select sum(Dimension(g)) from gis_geometry;
+--error ER_GIS_INVALID_DATA
 Select sum(Envelope(g)) from gis_geometry;
 Select sum(IsSimple(g)) from gis_geometry;
 Select sum(IsClosed(g)) from gis_geometry;
@@ -679,6 +683,7 @@ Select min(GeometryType(g)) from gis_geometry;
 Select min(SRID(g)) from gis_geometry;
 Select min(X(g)) from gis_geometry;
 Select min(Dimension(g)) from gis_geometry;
+--error ER_GIS_INVALID_DATA
 Select min(AsText(Envelope(g))) from gis_geometry;
 Select min(IsSimple(g)) from gis_geometry;
 Select min(IsClosed(g)) from gis_geometry;
@@ -688,6 +693,7 @@ Select max(GeometryType(g)) from gis_geometry;
 Select max(SRID(g)) from gis_geometry;
 Select max(X(g)) from gis_geometry;
 Select max(Dimension(g)) from gis_geometry;
+--error ER_GIS_INVALID_DATA
 Select max(AsText(Envelope(g))) from gis_geometry;
 Select max(IsSimple(g)) from gis_geometry;
 Select max(IsClosed(g)) from gis_geometry;
@@ -697,6 +703,7 @@ Select std(GeometryType(g)) from gis_geometry;
 Select std(SRID(g)) from gis_geometry;
 Select std(X(g)) from gis_geometry;
 Select std(Dimension(g)) from gis_geometry;
+--error ER_GIS_INVALID_DATA
 Select std(AsText(Envelope(g))) from gis_geometry;
 Select std(IsSimple(g)) from gis_geometry;
 Select std(IsClosed(g)) from gis_geometry;
@@ -706,6 +713,7 @@ Select count(distinct(GeometryType(g))) from gis_geometry;
 Select count(distinct(SRID(g))) from gis_geometry;
 Select count(distinct(X(g))) from gis_geometry;
 Select count(distinct(Dimension(g))) from gis_geometry;
+--error ER_GIS_INVALID_DATA
 Select count(distinct(AsText(Envelope(g)))) from gis_geometry;
 Select count(distinct(IsSimple(g))) from gis_geometry;
 Select count(distinct(IsClosed(g))) from gis_geometry;
@@ -715,6 +723,7 @@ Select avg(GeometryType(g)) from gis_geometry;
 Select avg(SRID(g)) from gis_geometry;
 Select avg(X(g)) from gis_geometry;
 Select avg(Dimension(g)) from gis_geometry;
+--error ER_GIS_INVALID_DATA
 Select avg(AsText(Envelope(g))) from gis_geometry;
 Select avg(IsSimple(g)) from gis_geometry;
 Select avg(IsClosed(g)) from gis_geometry;
