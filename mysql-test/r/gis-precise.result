@@ -626,8 +626,7 @@ POLYGON((0 0,30 0,30 30,1 0,0 0))
 select area(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))))));
 ERROR 22023: Invalid GIS data provided to function st_area.
 select astext(envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
-astext(envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))))
-POLYGON((0 0,30 0,30 30,0 30,0 0))
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select astext(centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
 ERROR 22023: Invalid GIS data provided to function st_centroid.
 select astext(convexhull(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
@@ -920,6 +919,17 @@ POINT(0 0)
 SELECT ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(0 -0)'))) =ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(-0 0)'))) ;
 ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(0 -0)'))) =ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(-0 0)')))
 1
+#
+# Bug #19142227   ENVELOPE() SPATIAL ANALYSIS FUNCTION ACCEPTS INVALID POLYGONS AS THE ARGUMENT
+#
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN

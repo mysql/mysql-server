@@ -742,39 +742,13 @@ Select Dimension(0x0103000000020000000103000000020000000500000000000000000000000
 ERROR HY000: Geometry byte string must be little endian.
 #Checking the Envelope for the Polygon and the MulytiPolygon class 
 select fid,AsText(Envelope(g)) from gis_polygon where g is not NULL;
-fid	AsText(Envelope(g))
-301	POLYGON((10 10,20 10,20 20,10 20,10 10))
-302	POLYGON((0 0,50 0,50 50,0 50,0 0))
-303	POLYGON((0 0,30 0,30 30,0 30,0 0))
-304	POLYGON((10 10,20 10,20 20,10 20,10 10))
-305	POLYGON((0 0,50 0,50 50,0 50,0 0))
-306	POLYGON((0 0,30 0,30 30,0 30,0 0))
-307	POLYGON((0 0,0 0,0 0,0 0,0 0))
-308	POLYGON((0 0,0 0,0 0,0 0,0 0))
-309	POLYGON((0 0,0 0,0 0,0 0,0 0))
-310	POLYGON((1 1,1 1,1 1,1 1,1 1))
-311	POLYGON((1 1,1 1,1 1,1 1,1 1))
-312	POLYGON((0 0,90 0,90 90,0 90,0 0))
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select count(AsText(Envelope(g))) FROM gis_polygon;
-count(AsText(Envelope(g)))
-12
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select fid,AsText(Envelope(g)) from gis_multi_polygon where g is not NULL;
-fid	AsText(Envelope(g))
-601	POLYGON((28 0,84 0,84 42,28 42,28 0))
-602	POLYGON((28 0,84 0,84 42,28 42,28 0))
-603	POLYGON((0 0,3 0,3 3,0 3,0 0))
-604	POLYGON((28 0,84 0,84 42,28 42,28 0))
-605	POLYGON((28 0,84 0,84 42,28 42,28 0))
-606	POLYGON((0 0,3 0,3 3,0 3,0 0))
-607	POLYGON((0 0,0 0,0 0,0 0,0 0))
-608	POLYGON((0 0,0 0,0 0,0 0,0 0))
-609	POLYGON((0 0,0 0,0 0,0 0,0 0))
-610	POLYGON((0 0,0 0,0 0,0 0,0 0))
-611	POLYGON((0 0,0 0,0 0,0 0,0 0))
-612	POLYGON((0 0,0 0,0 0,0 0,0 0))
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select count(AsText(Envelope(g))) FROM gis_multi_polygon;
-count(AsText(Envelope(g)))
-12
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 #Checking the Envelope of some random Polygon and MultiPolygon.
 Select AsText(Envelope(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))')));
 AsText(Envelope(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))')))
@@ -843,15 +817,13 @@ ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 Select AsText(Envelope(PolyFromText('POLYGON((0.1 b, a -0, -0 ë,0.1 b), (0.1 b, a -0, -0 ë,0.1 b))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 Select AsText(Envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b')))))));
-AsText(Envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b')))))))
-POLYGON((0 0,0.1 0,0.1 0,0 0,0 0))
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 Select AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.1 b, a -0, -0 ë,0.1 b),(0.1 b, a -0, -0 ë,0.1 b)),((0.1 b, a -0, -0 ë,0.1 b)))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 Select AsText(Envelope(MPolyFromText('MULTIPOLYGON(((0.1 b, a -0, -0 ë,0.1 b),(0.1 b, a -0, -0 ë,0.1 b)),((0.1 b, a -0, -0 ë,0.1 b)))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 Select AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b'))))))));
-AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b'))))))))
-POLYGON((0 0,0.1 0,0.1 0,0 0,0 0))
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 Select AsText(Envelope(PolygonFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))')));
 AsText(Envelope(PolygonFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))')))
 POLYGON((0.9999 0,634736.736354 0,634736.736354 7654.24251,0.9999 7654.24251,0.9999 0))
@@ -898,20 +870,15 @@ Select AsText(Envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point('.', '.'), Poi
 AsText(Envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point('-0000', '-.999999999'),Point(0, 0))))))) = AsText(Envelope(PolygonFromText('POLYGON((0.1 0, 1 1, 2 2,0.1 0))')))
 0
 Select AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0)))))))) = AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë'))))))));
-AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0)))))))) = AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë'))))))))
-0
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 Select AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0)))))))) = AsText(Envelope(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))')));
-AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0)))))))) = AsText(Envelope(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))')))
-0
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 Select AsText(Envelope(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))'))) = AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë'))))))));
-AsText(Envelope(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))'))) = AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë'))))))))
-0
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 Select AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')));
-AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')))
-1
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 Select AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Envelope(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))')));
-AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Envelope(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))')))
-1
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 #Invalid WKB data
 Select AsText(Envelope(0x000000000200000001000000050000000000000000000000000000000000000000000000004014000000000000401400000000000040140000000000004014000000000000000000000000000000000000000000000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
@@ -2202,11 +2169,9 @@ select SUM(Dimension(g)) FROM gis_multi_polygon;
 SUM(Dimension(g))
 24
 select SUM(AsText(Envelope(g))) FROM gis_polygon;
-SUM(AsText(Envelope(g)))
-0
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select SUM(AsText(Envelope(g))) FROM gis_multi_polygon;
-SUM(AsText(Envelope(g)))
-0
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select SUM(IsSimple(g)) FROM gis_polygon;
 SUM(IsSimple(g))
 8
@@ -2256,11 +2221,9 @@ select MIN(Dimension(g)) FROM gis_multi_polygon;
 MIN(Dimension(g))
 2
 select MIN(AsText(Envelope(g))) FROM gis_polygon;
-MIN(AsText(Envelope(g)))
-POLYGON((0 0,0 0,0 0,0 0,0 0))
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select MIN(AsText(Envelope(g))) FROM gis_multi_polygon;
-MIN(AsText(Envelope(g)))
-POLYGON((0 0,0 0,0 0,0 0,0 0))
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select MIN(IsSimple(g)) FROM gis_polygon;
 MIN(IsSimple(g))
 0
@@ -2310,11 +2273,9 @@ select MAX(Dimension(g)) FROM gis_multi_polygon;
 MAX(Dimension(g))
 2
 select MAX(AsText(Envelope(g))) FROM gis_polygon;
-MAX(AsText(Envelope(g)))
-POLYGON((10 10,20 10,20 20,10 20,10 10))
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select MAX(AsText(Envelope(g))) FROM gis_multi_polygon;
-MAX(AsText(Envelope(g)))
-POLYGON((28 0,84 0,84 42,28 42,28 0))
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select MAX(IsSimple(g)) FROM gis_polygon;
 MAX(IsSimple(g))
 1
@@ -2364,11 +2325,9 @@ select STD(Dimension(g)) FROM gis_multi_polygon;
 STD(Dimension(g))
 0
 select STD(AsText(Envelope(g))) FROM gis_polygon;
-STD(AsText(Envelope(g)))
-0
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select STD(AsText(Envelope(g))) FROM gis_multi_polygon;
-STD(AsText(Envelope(g)))
-0
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select STD(IsSimple(g)) FROM gis_polygon;
 STD(IsSimple(g))
 0.4714045207910317
@@ -2418,11 +2377,9 @@ select AVG(Dimension(g)) FROM gis_multi_polygon;
 AVG(Dimension(g))
 2.0000
 select AVG(AsText(Envelope(g))) FROM gis_polygon;
-AVG(AsText(Envelope(g)))
-0
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select AVG(AsText(Envelope(g))) FROM gis_multi_polygon;
-AVG(AsText(Envelope(g)))
-0
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select AVG(IsSimple(g)) FROM gis_polygon;
 AVG(IsSimple(g))
 0.6667
@@ -2472,11 +2429,9 @@ select COUNT(DISTINCT(Dimension(g))) FROM gis_multi_polygon;
 COUNT(DISTINCT(Dimension(g)))
 1
 select COUNT(DISTINCT(AsText(Envelope(g)))) FROM gis_polygon;
-COUNT(DISTINCT(AsText(Envelope(g))))
-6
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select COUNT(DISTINCT(AsText(Envelope(g)))) FROM gis_multi_polygon;
-COUNT(DISTINCT(AsText(Envelope(g))))
-3
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select COUNT(DISTINCT(IsSimple(g))) FROM gis_polygon;
 COUNT(DISTINCT(IsSimple(g)))
 2

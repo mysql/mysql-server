@@ -142,6 +142,7 @@ SELECT AsText(Envelope(g)) FROM gis_geometrycollection WHERE fid=114;
 --echo #------------------------------------------------------------------------------------
 SELECT AsText(Envelope(GeomFromText(@star)));
 SELECT AsText(Envelope(GeomFromText(@star_elem_vertical)));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5))')));
 SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,0 5,5 5))')));
 SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')));
@@ -156,6 +157,7 @@ SELECT AsText(Envelope(g)) FROM gis_geometrycollection WHERE fid=100;
 --echo # multipolygon
 --echo #------------------------------------------------------------------------------------
 SELECT AsText(Envelope(GeomFromText(@star_of_elems)));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)))')));
 SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')));
 SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
@@ -232,6 +234,7 @@ SELECT AsText(ST_Envelope(g)) FROM gis_geometrycollection WHERE fid=114;
 --echo #------------------------------------------------------------------------------------
 SELECT AsText(ST_Envelope(GeomFromText(@star)));
 SELECT AsText(ST_Envelope(GeomFromText(@star_elem_vertical)));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,5 5))')));
 SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 5,5 5))')));
 SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0))')));
@@ -246,6 +249,7 @@ SELECT AsText(ST_Envelope(g)) FROM gis_geometrycollection WHERE fid=100;
 --echo # multipolygon
 --echo #------------------------------------------------------------------------------------
 SELECT AsText(ST_Envelope(GeomFromText(@star_of_elems)));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)))')));
 SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')));
 SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
