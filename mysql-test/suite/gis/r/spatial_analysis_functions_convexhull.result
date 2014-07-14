@@ -73,7 +73,7 @@ AsText(ConvexHull(GeomFromText('POINT(1e308 -1e308)')))
 POINT(1e308 -1e308)
 SELECT AsText(ConvexHull(GeomFromText('POINT(-0.0000 0.000001)')));
 AsText(ConvexHull(GeomFromText('POINT(-0.0000 0.000001)')))
-POINT(-0 0.000001)
+POINT(0 0.000001)
 SELECT AsText(ConvexHull(g)) FROM gis_geometrycollection WHERE fid=105;
 AsText(ConvexHull(g))
 POINT(15 10)
@@ -313,7 +313,7 @@ AsText(ST_ConvexHull(GeomFromText('POINT(1e308 -1e308)')))
 POINT(1e308 -1e308)
 SELECT AsText(ST_ConvexHull(GeomFromText('POINT(-0.0000 0.000001)')));
 AsText(ST_ConvexHull(GeomFromText('POINT(-0.0000 0.000001)')))
-POINT(-0 0.000001)
+POINT(0 0.000001)
 SELECT AsText(ST_ConvexHull(g)) FROM gis_geometrycollection WHERE fid=105;
 AsText(ST_ConvexHull(g))
 POINT(15 10)

@@ -551,6 +551,7 @@ in  ('1','2');
 
 --echo #
 --echo # Bug #19204199  DISTANCE() AND ENVELOPE() FUNCTIONS RETURN WRONG RESULT
+--echo #
 SELECT ST_Distance(ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GeomFromText('LINESTRING(5 0,10 0)'));
 SELECT ST_Distance(ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20),GEOMETRYCOLLECTION())'),ST_GeomFromText('multipoint(5 0,10 0)'));
 SELECT ST_Distance(ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,10 10,20 20))'),ST_GeomFromText('LINESTRING(5 0,10 0)'));
@@ -567,6 +568,20 @@ SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),
 
 SELECT ST_intersects(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GeomFromText('GEOMETRYCOLLECTION()'));
 SELECT ST_disjoint(ST_GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GeomFromText('GEOMETRYCOLLECTION()'));
+
+
+--echo #
+--echo # Bug #19133043  REPRESENTATION OF THE SAME POINT GEOMETRY ISSUE WITH SPATIAL ANALYSIS FUNCTIONS
+--echo #
+SELECT ST_AsText(ST_Envelope(ST_GeomFromText('POINT(-0 0)')));
+
+SELECT ST_AsText(ST_Envelope(ST_GeomFromText('POINT(0 -0)')));
+
+SELECT ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(0 -0)')));
+
+SELECT ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(-0 0)')));
+
+SELECT ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(0 -0)'))) =ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(-0 0)'))) ;
 
 
 --source include/gis_debug.inc

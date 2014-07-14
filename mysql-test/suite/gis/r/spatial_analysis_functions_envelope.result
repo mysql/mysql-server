@@ -73,7 +73,7 @@ AsText(Envelope(GeomFromText('POINT(1e308 -1e308)')))
 POLYGON((1e308 -1e308,1e308 -1e308,1e308 -1e308,1e308 -1e308,1e308 -1e308))
 SELECT AsText(Envelope(GeomFromText('POINT(-0.0000 0.000001)')));
 AsText(Envelope(GeomFromText('POINT(-0.0000 0.000001)')))
-POLYGON((-0 0.000001,-0 0.000001,-0 0.000001,-0 0.000001,-0 0.000001))
+POLYGON((0 0.000001,0 0.000001,0 0.000001,0 0.000001,0 0.000001))
 SELECT AsText(Envelope(g)) FROM gis_geometrycollection WHERE fid=105;
 AsText(Envelope(g))
 POLYGON((15 10,15 10,15 10,15 10,15 10))
@@ -289,7 +289,7 @@ AsText(ST_Envelope(GeomFromText('POINT(1e308 -1e308)')))
 POLYGON((1e308 -1e308,1e308 -1e308,1e308 -1e308,1e308 -1e308,1e308 -1e308))
 SELECT AsText(ST_Envelope(GeomFromText('POINT(-0.0000 0.000001)')));
 AsText(ST_Envelope(GeomFromText('POINT(-0.0000 0.000001)')))
-POLYGON((-0 0.000001,-0 0.000001,-0 0.000001,-0 0.000001,-0 0.000001))
+POLYGON((0 0.000001,0 0.000001,0 0.000001,0 0.000001,0 0.000001))
 SELECT AsText(ST_Envelope(g)) FROM gis_geometrycollection WHERE fid=105;
 AsText(ST_Envelope(g))
 POLYGON((15 10,15 10,15 10,15 10,15 10))
