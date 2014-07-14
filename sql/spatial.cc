@@ -3296,12 +3296,28 @@ bool Gis_geometry_collection::get_mbr(MBR *mbr, wkb_parser *wkb) const
   if (wkb->scan_non_zero_uint4(&n_objects))
     return true;
 
+  bool found_one= false;
   while (n_objects--)
   {
     if (!(geom= scan_header_and_create(wkb, &buffer)) ||
         geom->get_mbr(mbr, wkb))
+    {
+      /*
+        An empty collection should be simply skipped, it may contain a tree
+        of empty collections which is still empty. 
+      */
+      if (geom->get_type() == wkb_geometrycollection)
+        continue;
       return true;
+    }
+
+    // Now we've found a solid component and updated the mbr.
+    found_one= true;
   }
+
+  /* An collection containing only a few empty collections, the MBR is NULL. */
+  if (!found_one)
+    return true;
   return false;
 }
 

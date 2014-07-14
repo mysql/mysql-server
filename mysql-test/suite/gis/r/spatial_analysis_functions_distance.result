@@ -5,6 +5,7 @@ SHOW VARIABLES LIKE '%engine%';
 Variable_name	Value
 default_storage_engine	MyISAM
 default_tmp_storage_engine	MyISAM
+internal_tmp_disk_storage_engine	MYISAM
 #Creating the spatial Geometry object
 USE test;
 DROP TABLE IF EXISTS gis_geometrycollection;
@@ -2502,13 +2503,13 @@ SELECT Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 
 ERROR 22023: Invalid GIS data provided to function st_distance.
 SELECT Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
-0
+NULL
 SELECT Distance(GeomFromText('POINT(10 10)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 Distance(GeomFromText('POINT(10 10)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
-0
+NULL
 SELECT Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('POINT(10 10)'));
 Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('POINT(10 10)'))
-0
+NULL
 SELECT Distance(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT Distance(GeomFromText(@star_of_elems),);
@@ -2574,13 +2575,13 @@ SELECT ST_Distance(GeomFromText('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,
 ERROR 22023: Invalid GIS data provided to function st_distance.
 SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 ST_Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
-0
+NULL
 SELECT ST_Distance(GeomFromText('POINT(10 10)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 ST_Distance(GeomFromText('POINT(10 10)'),GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
-0
+NULL
 SELECT ST_Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('POINT(10 10)'));
 ST_Distance(GeomFromText('GEOMETRYCOLLECTION()'),GeomFromText('POINT(10 10)'))
-0
+NULL
 SELECT ST_Distance(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_Distance(GeomFromText(@star_of_elems),);
