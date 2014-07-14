@@ -3637,6 +3637,10 @@ execute_signals(thr_data *selfptr,
     NDB_PREFETCH_READ (read_buffer->m_data + read_pos + 16);
     NDB_PREFETCH_WRITE ((Uint32 *)&sig->header + 16);
 
+#ifdef VM_TRACE
+    /* Find reading / propagation of junk */
+    sig->garbage_register();
+#endif
     /* Now execute the signal. */
     SignalHeader* s =
       reinterpret_cast<SignalHeader*>(read_buffer->m_data + read_pos);
