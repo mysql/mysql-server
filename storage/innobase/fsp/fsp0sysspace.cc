@@ -496,86 +496,72 @@ SysTablespace::open_file(
 	return(err);
 }
 
-/** Read the flushed lsn values and check the header flags in each datafile
-for this tablespace.  Save the minimum and maximum flushed lsn values.
+/** Check the tablespace header for this tablespace.
+@param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 @return DB_SUCCESS or error code */
 
 dberr_t
-SysTablespace::read_lsn_and_check_flags()
+SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 {
 	dberr_t	err;
 
 	/* Only relevant for the system tablespace. */
 	ut_ad(space_id() == TRX_SYS_SPACE);
 
-	files_t::iterator begin = m_files.begin();
-	files_t::iterator end = m_files.end();
-	for (files_t::iterator it = begin; it != end; ++it) {
+	files_t::iterator it = m_files.begin();
+	ut_a(it->m_exists);
 
-		ut_a(it->m_exists);
-
-		if (it->m_handle == OS_FILE_CLOSED) {
-			err = it->open_or_create(
-				m_ignore_read_only ?
-				false : srv_read_only_mode);
-			if (err != DB_SUCCESS) {
-				return(err);
-			}
-		}
-
-		err = it->read_first_page(
+	if (it->m_handle == OS_FILE_CLOSED) {
+		err = it->open_or_create(
 			m_ignore_read_only ?
 			false : srv_read_only_mode);
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
-
-		/* Check tablespace attributes only for first file.
-		The FSP_SPACE_ID and other fields in files greater
-		than ibdata1 are unreliable. */
-		if (it == begin) {
-			ut_a(it->order() == 0);
-
-			set_flags(it->m_flags);
-
-			buf_dblwr_init_or_load_pages(
-				it->handle(), it->filepath());
-
-			/* Check the contents of the first page of the
-			first datafile. */
-			for (int retry = 0; retry < 2; ++retry) {
-				err = it->validate_first_page();
-				if (err != DB_SUCCESS
-				    && (retry == 1
-					|| it->restore_from_doublewrite(0)
-					!= DB_SUCCESS)) {
-
-					it->close();
-					return(err);
-				}
-			}
-
-			/* Make sure the tablespace space ID matches the
-			space ID on the first page of the first datafile. */
-			if (space_id() != it->m_space_id) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"The %s data file '%s' has the wrong"
-					" space ID. It should be %lu,"
-					" but %lu was found",
-					name(), it->name(),
-					space_id(), it->m_space_id);
-				it->close();
-				return(err);
-			}
-
-		}
-
-		it->close();
-
-		set_min_flushed_lsn(it->flushed_lsn());
-		set_max_flushed_lsn(it->flushed_lsn());
 	}
 
+	err = it->read_first_page(
+		m_ignore_read_only ?
+		false : srv_read_only_mode);
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	ut_a(it->order() == 0);
+
+	set_flags(it->m_flags);
+
+	buf_dblwr_init_or_load_pages(
+		it->handle(), it->filepath());
+
+	/* Check the contents of the first page of the
+	first datafile. */
+	for (int retry = 0; retry < 2; ++retry) {
+		err = it->validate_first_page(flushed_lsn);
+		if (err != DB_SUCCESS
+		    && (retry == 1
+			|| it->restore_from_doublewrite(0)
+			!= DB_SUCCESS)) {
+
+			it->close();
+			return(err);
+		}
+	}
+
+	/* Make sure the tablespace space ID matches the
+	space ID on the first page of the first datafile. */
+	if (space_id() != it->m_space_id) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The %s data file '%s' has the wrong"
+			" space ID. It should be %lu,"
+			" but %lu was found",
+			name(), it->name(),
+			space_id(), it->m_space_id);
+		it->close();
+		return(err);
+	}
+
+	it->close();
 	return(DB_SUCCESS);
 }
 
@@ -821,19 +807,17 @@ SysTablespace::check_file_spec(
 	return(err);
 }
 
-/** Opens or Creates the data files if they do not exist.
-@param[in]  is_temp		Whether this is a temporary tablespace
-@param[out] sum_new_sizes	Sum of sizes of the new files added.
-@param[out] min_lsn		Minimum flushed LSN among all datafiles.
-@param[out] max_lsn		Maximum flushed LSN among all datafiles.
+/** Open or create the data files
+@param[in]  is_temp		whether this is a temporary tablespace
+@param[out] sum_new_sizes	sum of sizes of the new files added
+@param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
 @return DB_SUCCESS or error code */
 
 dberr_t
 SysTablespace::open_or_create(
 	bool	is_temp,
 	ulint*	sum_new_sizes,
-	lsn_t*	min_lsn,
-	lsn_t*	max_lsn)
+	lsn_t*	flush_lsn)
 {
 	dberr_t		err	= DB_SUCCESS;
 	fil_space_t*	space	= NULL;
@@ -891,15 +875,13 @@ SysTablespace::open_or_create(
 #endif /* !NO_FALLOCATE && UNIV_LINUX*/
 	}
 
-	if (create_new_db && min_lsn != NULL && max_lsn != NULL) {
+	if (create_new_db && flush_lsn) {
 		/* Validate the header page in the first datafile
 		and read LSNs fom the others. */
-		err = read_lsn_and_check_flags();
+		err = read_lsn_and_check_flags(flush_lsn);
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
-		*min_lsn = min_flushed_lsn();
-		*max_lsn = max_flushed_lsn();
 	}
 
 	/* We can close the handles now and open the tablespace

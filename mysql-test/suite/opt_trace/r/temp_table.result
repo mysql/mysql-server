@@ -128,11 +128,11 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
-                "row_length": 1054,
-                "key_length": 1040,
+                "row_length": 1058,
+                "key_length": 8,
                 "unique_constraint": true,
-                "location": "disk (MyISAM)",
-                "record_format": "packed"
+                "location": "memory (heap)",
+                "row_limit_estimate": 991
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -152,7 +152,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
             "filesort_priority_queue_optimization": {
               "limit": 3,
               "rows_estimate": 18,
-              "row_size": 1042,
+              "row_size": 1044,
               "memory_available": 262144,
               "chosen": true
             } /* filesort_priority_queue_optimization */,
@@ -162,7 +162,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
               "rows": 4,
               "examined_rows": 8,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 4200,
+              "sort_buffer_size": 4208,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -471,17 +471,17 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             } /* creating_tmp_table */
           },
           {
-            "converting_tmp_table_to_myisam": {
+            "converting_tmp_table_to_ondisk": {
               "cause": "memory_table_size_exceeded",
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
                 "row_length": 1050,
                 "key_length": 13,
                 "unique_constraint": false,
-                "location": "disk (MyISAM)",
+                "location": "disk (TMP_TABLE_ENGINE)",
                 "record_format": "packed"
               } /* tmp_table_info */
-            } /* converting_tmp_table_to_myisam */
+            } /* converting_tmp_table_to_ondisk */
           },
           {
             "filesort_information": [
@@ -617,17 +617,17 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
         "select#": 1,
         "steps": [
           {
-            "converting_tmp_table_to_myisam": {
+            "converting_tmp_table_to_ondisk": {
               "cause": "memory_table_size_exceeded",
               "tmp_table_info": {
                 "table": "`information_schema`.`innodb_buffer_page`",
                 "row_length": 6852,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "disk (MyISAM)",
+                "location": "disk (TMP_TABLE_ENGINE)",
                 "record_format": "packed"
               } /* tmp_table_info */
-            } /* converting_tmp_table_to_myisam */
+            } /* converting_tmp_table_to_ondisk */
           }
         ] /* steps */
       } /* join_execution */
@@ -1130,17 +1130,17 @@ ORDER BY cc	{
               "select#": 2,
               "steps": [
                 {
-                  "converting_tmp_table_to_myisam": {
+                  "converting_tmp_table_to_ondisk": {
                     "cause": "memory_table_size_exceeded",
                     "tmp_table_info": {
                       "table": "intermediate_tmp_table",
                       "row_length": 757,
                       "key_length": 757,
                       "unique_constraint": false,
-                      "location": "disk (MyISAM)",
+                      "location": "disk (TMP_TABLE_ENGINE)",
                       "record_format": "packed"
                     } /* tmp_table_info */
-                  } /* converting_tmp_table_to_myisam */
+                  } /* converting_tmp_table_to_ondisk */
                 }
               ] /* steps */
             } /* join_execution */
@@ -1157,17 +1157,17 @@ ORDER BY cc	{
               "select#": "fake",
               "steps": [
                 {
-                  "converting_tmp_table_to_myisam": {
+                  "converting_tmp_table_to_ondisk": {
                     "cause": "memory_table_size_exceeded",
                     "tmp_table_info": {
                       "table": " `tt`",
                       "row_length": 757,
                       "key_length": 0,
                       "unique_constraint": false,
-                      "location": "disk (MyISAM)",
+                      "location": "disk (TMP_TABLE_ENGINE)",
                       "record_format": "packed"
                     } /* tmp_table_info */
-                  } /* converting_tmp_table_to_myisam */
+                  } /* converting_tmp_table_to_ondisk */
                 }
               ] /* steps */
             } /* join_execution */
@@ -1207,17 +1207,17 @@ ORDER BY cc	{
             } /* creating_tmp_table */
           },
           {
-            "converting_tmp_table_to_myisam": {
+            "converting_tmp_table_to_ondisk": {
               "cause": "memory_table_size_exceeded",
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
                 "row_length": 1507,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "disk (MyISAM)",
+                "location": "disk (TMP_TABLE_ENGINE)",
                 "record_format": "packed"
               } /* tmp_table_info */
-            } /* converting_tmp_table_to_myisam */
+            } /* converting_tmp_table_to_ondisk */
           },
           {
             "filesort_information": [

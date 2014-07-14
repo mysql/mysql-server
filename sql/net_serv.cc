@@ -385,7 +385,7 @@ net_write_command(NET *net,uchar command,
     } while (length >= MAX_PACKET_LENGTH);
     len=length;         /* Data left to be written */
   }
-  int3store(buff,length);
+  int3store(buff, static_cast<uint>(length));
   buff[3]= (uchar) net->pkt_nr++;
   rc= MY_TEST(net_write_buff(net, buff, header_size) ||
               (head_len && net_write_buff(net, header, head_len)) ||
@@ -568,9 +568,9 @@ compress_packet(NET *net, const uchar *packet, size_t *length)
   }
 
   /* Length of the compressed (original) packet. */
-  int3store(&compr_packet[NET_HEADER_SIZE], compr_length);
+  int3store(&compr_packet[NET_HEADER_SIZE], static_cast<uint>(compr_length));
   /* Length of this packet. */
-  int3store(compr_packet, *length);
+  int3store(compr_packet, static_cast<uint>(*length));
   /* Packet number. */
   compr_packet[3]= (uchar) (net->compress_pkt_nr++);
 
@@ -934,7 +934,7 @@ my_net_read(NET *net)
     }
     for (;;)
     {
-      ulong packet_len;
+      size_t packet_len;
 
       if (buf_length - start_of_packet >= NET_HEADER_SIZE)
       {
@@ -949,11 +949,16 @@ my_net_read(NET *net)
         {
           if (multi_byte_packet)
           {
+            /* 
+              It's never the buffer on the first loop iteration that will have
+              multi_byte_packet on.
+              Thus there shall never be a non-zero first_packet_offset here.
+            */
+            DBUG_ASSERT(first_packet_offset == 0);
             /* Remove packet header for second packet */
-            memmove(net->buff + first_packet_offset + start_of_packet,
-              net->buff + first_packet_offset + start_of_packet +
-              NET_HEADER_SIZE,
-              buf_length - start_of_packet);
+            memmove(net->buff + start_of_packet,
+              net->buff + start_of_packet + NET_HEADER_SIZE,
+              buf_length - start_of_packet - NET_HEADER_SIZE);
             start_of_packet += read_length;
             buf_length -= NET_HEADER_SIZE;
           }

@@ -128,7 +128,7 @@ my_error_innodb(
 	case DB_OUT_OF_FILE_SPACE:
 		my_error(ER_RECORD_FILE_FULL, MYF(0), table);
 		break;
-	case DB_TEMP_FILE_WRITE_FAILURE:
+	case DB_TEMP_FILE_WRITE_FAIL:
 		my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
 		break;
 	case DB_TOO_BIG_INDEX_COL:
@@ -183,6 +183,24 @@ innobase_fulltext_exist(
 		if (table->key_info[i].flags & HA_FULLTEXT) {
 			return(true);
 		}
+	}
+
+	return(false);
+}
+
+/** Determine if spatial indexes exist in a given table.
+@param table MySQL table
+@return whether spatial indexes exist on the table */
+static
+bool
+innobase_spatial_exist(
+/*===================*/
+	const   TABLE*  table)
+{
+	for (uint i = 0; i < table->s->keys; i++) {
+	       if (table->key_info[i].flags & HA_SPATIAL) {
+		       return(true);
+	       }
 	}
 
 	return(false);
@@ -457,9 +475,10 @@ ha_innobase::check_if_supported_inplace_alter(
 	} else if (((ha_alter_info->handler_flags
 		     & Alter_inplace_info::ADD_PK_INDEX)
 		    || innobase_need_rebuild(ha_alter_info))
-		   && (innobase_fulltext_exist(altered_table)
-		       || (prebuilt->table->flags2
-			   & DICT_TF2_FTS_HAS_DOC_ID))) {
+		   && ((innobase_fulltext_exist(altered_table)
+		        || (prebuilt->table->flags2
+			    & DICT_TF2_FTS_HAS_DOC_ID))
+		       || innobase_spatial_exist(altered_table))) {
 		/* Refuse to rebuild the table online, if
 		fulltext indexes are to survive the rebuild,
 		or if the table contains a hidden FTS_DOC_ID column. */
@@ -471,8 +490,16 @@ ha_innobase::check_if_supported_inplace_alter(
 				ER_INNODB_FT_LIMIT);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
-		ha_alter_info->unsupported_reason = innobase_get_err_msg(
-			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS);
+
+		if (innobase_spatial_exist(altered_table)) {
+			ha_alter_info->unsupported_reason =
+				innobase_get_err_msg(
+				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS);
+		} else {
+			ha_alter_info->unsupported_reason =
+				innobase_get_err_msg(
+				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS);
+		}
 	} else if ((ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_INDEX)) {
 		/* Building a full-text index requires a lock.
@@ -2062,6 +2089,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	ulonglong	max_autoinc;
 	/** temporary table name to use for old table when renaming tables */
 	const char*	tmp_name;
+	/** whether the order of the clustered index is unchanged */
+	bool		skip_pk_sort;
 
 	ha_innobase_inplace_ctx(row_prebuilt_t*& prebuilt_arg,
 				dict_index_t** drop_arg,
@@ -2095,7 +2124,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 		sequence(prebuilt->trx->mysql_thd,
 			 autoinc_col_min_value_arg, autoinc_col_max_value_arg),
 		max_autoinc (0),
-		tmp_name (0)
+		tmp_name (0),
+		skip_pk_sort(false)
 	{
 #ifdef UNIV_DEBUG
 		for (ulint i = 0; i < num_to_add_index; i++) {
@@ -2601,6 +2631,91 @@ innobase_get_col_names(
 	DBUG_RETURN(cols);
 }
 
+/** Determine whether both the indexes have same set of primary key
+fields arranged in the same order.
+@param[in]	col_map		mapping of old column numbers to new ones
+@param[in]	ha_alter_info	Data used during in-place alter
+@param[in]	old_clust_index	index to be compared
+@param[in]	new_clust_index index to be compared
+@retval true if both indexes have same order.
+@retval false. */
+static __attribute__((warn_unused_result))
+bool
+innobase_pk_order_preserved(
+	const ulint*		col_map,
+	const dict_index_t*	old_clust_index,
+	const dict_index_t*	new_clust_index)
+{
+	ulint	old_n_fields
+		= dict_index_get_n_ordering_defined_by_user(
+			old_clust_index);
+	ulint	new_n_fields
+		= dict_index_get_n_ordering_defined_by_user(
+			new_clust_index);
+
+	ut_ad(dict_index_is_clust(old_clust_index));
+	ut_ad(dict_index_is_clust(new_clust_index));
+	ut_ad(old_clust_index->table != new_clust_index->table);
+	ut_ad(col_map != NULL);
+
+	if (old_n_fields == 0) {
+		/* There was no PRIMARY KEY in the table.
+		If there is no PRIMARY KEY after the ALTER either,
+		no sorting is needed. */
+		return(new_n_fields == old_n_fields);
+	}
+
+	/* DROP PRIMARY KEY is only allowed in combination with
+	ADD PRIMARY KEY. */
+	ut_ad(new_n_fields > 0 || old_n_fields == 0);
+
+	ulint old_field = 0;
+	ulint new_field = 0;
+	ulint old_n_cols = dict_table_get_n_cols(old_clust_index->table);
+	bool pk_col_dropped = false;
+
+	/* Sorting will not be needed when the PRIMARY KEY
+	column list is being appended to or newly added columns
+	are being added to the PRIMARY KEY. */
+	while (old_field < old_n_fields && new_field < new_n_fields) {
+		ulint old_col_no =
+			old_clust_index->fields[old_field].col->ind;
+		ulint new_col_no =
+			new_clust_index->fields[new_field].col->ind;
+		ut_ad(new_col_no != ULINT_UNDEFINED);
+
+		old_col_no = col_map[old_col_no];
+
+		if (old_col_no == new_col_no) {
+			if (pk_col_dropped) {
+				/* Dropping columns in the middle
+				requires sorting. */
+				return(false);
+			}
+
+			old_field++;
+			new_field++;
+		} else if (old_col_no == ULINT_UNDEFINED) {
+			pk_col_dropped = true;
+			old_field++;
+		} else {
+			/* Check whether column in new table is
+			an existing column or newly added */
+			for (ulint k = 0; k < old_n_cols; k++) {
+				if (col_map[k] == new_col_no) {
+				/* Changing the order of existing
+				columns in the PRIMARY KEY requires
+				sorting. */
+					return(false);
+				}
+			}
+
+			new_field++;
+		}
+	}
+
+	return(true);
+}
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -3029,22 +3144,28 @@ prepare_inplace_alter_table_dict(
 			error = DB_OUT_OF_MEMORY;
 			goto error_handling;);
 
-	if (new_clustered && ctx->online) {
-		/* Allocate a log for online table rebuild. */
-		dict_index_t* clust_index = dict_table_get_first_index(
+	if (new_clustered) {
+		dict_index_t*	clust_index = dict_table_get_first_index(
 			user_table);
+		dict_index_t*	new_clust_index = dict_table_get_first_index(
+			ctx->new_table);
+		ctx->skip_pk_sort = innobase_pk_order_preserved(
+			ctx->col_map, clust_index, new_clust_index);
 
-		rw_lock_x_lock(&clust_index->lock);
-		bool ok = row_log_allocate(
-			clust_index, ctx->new_table,
-			!(ha_alter_info->handler_flags
-			  & Alter_inplace_info::ADD_PK_INDEX),
-			ctx->add_cols, ctx->col_map);
-		rw_lock_x_unlock(&clust_index->lock);
+		if (ctx->online) {
+			/* Allocate a log for online table rebuild. */
+			rw_lock_x_lock(&clust_index->lock);
+			bool ok = row_log_allocate(
+				clust_index, ctx->new_table,
+				!(ha_alter_info->handler_flags
+				  & Alter_inplace_info::ADD_PK_INDEX),
+				ctx->add_cols, ctx->col_map);
+			rw_lock_x_unlock(&clust_index->lock);
 
-		if (!ok) {
-			error = DB_OUT_OF_MEMORY;
-			goto error_handling;
+			if (!ok) {
+				error = DB_OUT_OF_MEMORY;
+				goto error_handling;
+			}
 		}
 	}
 
@@ -4208,7 +4329,7 @@ ok_exit:
 		ctx->online,
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
-		ctx->add_autoinc, ctx->sequence);
+		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort);
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
@@ -5151,6 +5272,26 @@ innobase_update_foreign_cache(
 				 ctx->col_names, false, true,
 				 DICT_ERR_IGNORE_NONE,
 				 fk_tables);
+
+	if (err == DB_CANNOT_ADD_CONSTRAINT) {
+		/* It is possible there are existing foreign key are
+		loaded with "foreign_key checks" off,
+		so let's retry the loading with charset_check is off */
+		err = dict_load_foreigns(user_table->name,
+					 ctx->col_names, false, false,
+					 DICT_ERR_IGNORE_NONE,
+					 fk_tables);
+
+		/* The load with "charset_check" off is successful, warn
+		the user that the foreign key has loaded with mis-matched
+		charset */
+		if (err == DB_SUCCESS) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Foreign key constraints for table '%s'"
+				" are loaded with charset check off",
+				user_table->name);
+		}
+	}
 
 	ut_ad(fk_tables.empty());
 

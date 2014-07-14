@@ -24,6 +24,7 @@ WHERE TABLE_NAME like "%infoschema_buffer_test%"
 and PAGE_STATE="file_page" and INDEX_NAME = "idx" and PAGE_TYPE="index";
 TABLE_NAME	INDEX_NAME	NUMBER_RECORDS	DATA_SIZE	PAGE_STATE	PAGE_TYPE
 `test`.`infoschema_buffer_test`	idx	2	32	FILE_PAGE	INDEX
+`test`.`infoschema_buffer_test`	idx	2	32	FILE_PAGE	INDEX
 DROP TABLE infoschema_buffer_test;
 SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE

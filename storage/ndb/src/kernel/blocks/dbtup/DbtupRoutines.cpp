@@ -1824,7 +1824,7 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
                                Uint32* updateBuffer,
                                Tablerec* const regTabPtr)
 {
-  Uint32 keyReadBuffer[MAX_KEY_SIZE_IN_WORDS];
+  Uint32 keyReadBuffer[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   TableDescriptor* attr_descr = req_struct->attr_descr;
   AttributeHeader ahIn(*updateBuffer);
   Uint32 attributeId = ahIn.getAttributeId();

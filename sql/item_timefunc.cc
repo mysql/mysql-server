@@ -176,7 +176,7 @@ static DATE_TIME_FORMAT time_24hrs_format= {{0}, '\0', 0,
 */
 
 static bool extract_date_time(DATE_TIME_FORMAT *format,
-			      const char *val, uint length, MYSQL_TIME *l_time,
+                              const char *val, size_t length, MYSQL_TIME *l_time,
                               timestamp_type cached_timestamp_type,
                               const char **sub_pattern_end,
                               const char *date_time_type)
