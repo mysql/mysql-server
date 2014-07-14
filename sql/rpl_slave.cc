@@ -3579,7 +3579,9 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
         if (rli->mts_group_status == Relay_log_info::MTS_END_GROUP)
         {
           // CGAP cleanup
-          rli->curr_group_assigned_parts.clear();
+          for (uint i= rli->curr_group_assigned_parts.elements; i > 0; i--)
+            delete_dynamic_element(&rli->
+                                   curr_group_assigned_parts, i - 1);
           // reset the B-group and Gtid-group marker
           rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
           if (is_mts_db_partitioned(rli)||
@@ -3595,17 +3597,16 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
         ev->mts_group_idx= rli->gaq->assigned_group_index;
 
         bool append_item_to_jobs_error= false;
-        if (rli->curr_group_da.size() > 0)
+        if (rli->curr_group_da.elements > 0)
         {
           /*
             the current event sorted out which partion the current group
             belongs to. It's time now to processed deferred array events.
           */
-          for (Log_event **it= rli->curr_group_da.begin();
-               it != rli->curr_group_da.end(); ++it)
+          for (uint i= 0; i < rli->curr_group_da.elements; i++)
           { 
             Slave_job_item da_item;
-            da_item.data= (*it);
+            get_dynamic(&rli->curr_group_da, (uchar*) &da_item.data, i);
             DBUG_PRINT("mts", ("Assigning job %llu to worker %lu",
                       ((Log_event* )da_item.data)->log_pos, w->id));
             static_cast<Log_event*>(da_item.data)->mts_group_idx=
@@ -3615,8 +3616,14 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
             if (append_item_to_jobs_error)
               delete static_cast<Log_event*>(da_item.data);
           }
-          rli->curr_group_da.clear();
-          rli->curr_group_da.shrink_to_fit();
+          if (rli->curr_group_da.elements > rli->curr_group_da.max_element)
+          {
+            // reallocate to less mem
+            rli->curr_group_da.elements= rli->curr_group_da.max_element;
+            rli->curr_group_da.max_element= 0;
+            freeze_size(&rli->curr_group_da); // restores max_element
+          }
+          rli->curr_group_da.elements= 0;
         }
         if (append_item_to_jobs_error)
           DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR);
@@ -5375,8 +5382,12 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   */
   rli->init_workers(max(n, rli->recovery_parallel_workers));
 
+  // CGAP dynarray holds id:s of partitions of the Current being executed Group
+  my_init_dynamic_array(&rli->curr_group_assigned_parts,
+                        sizeof(db_worker_hash_entry*),
+                        SLAVE_INIT_DBS_IN_GROUP, 1);
   rli->last_assigned_worker= NULL;     // associated with curr_group_assigned
-
+  my_init_dynamic_array(&rli->curr_group_da, sizeof(Log_event*), 8, 2);
   // Least_occupied_workers array to hold items size of Slave_jobs_queue::len
   rli->least_occupied_workers.resize(n); 
 
@@ -5590,8 +5601,11 @@ end:
   rli->least_occupied_workers.clear();
 
   // Destroy buffered events of the current group prior to exit.
-  delete_container_pointers(rli->curr_group_da);
+  for (uint i= 0; i < rli->curr_group_da.elements; i++)
+    delete *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, i);
+  delete_dynamic(&rli->curr_group_da);             // GCDA
 
+  delete_dynamic(&rli->curr_group_assigned_parts); // GCAP
   rli->deinit_workers();
   rli->workers_array_initialized= false;
   rli->slave_parallel_workers= 0;
