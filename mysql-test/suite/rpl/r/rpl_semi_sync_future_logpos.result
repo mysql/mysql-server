@@ -27,5 +27,6 @@ CHANGE MASTER TO MASTER_LOG_FILE=FILE,  MASTER_LOG_POS= POS, MASTER_AUTO_POSITIO
 include/start_slave.inc
 [connection master]
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 include/uninstall_semisync.inc
 include/rpl_end.inc
