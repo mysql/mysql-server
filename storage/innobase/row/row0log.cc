@@ -66,6 +66,9 @@ enum row_op {
 /** Log block for modifications during online ALTER TABLE */
 struct row_log_buf_t {
 	byte*		block;	/*!< file block buffer */
+	ut_new_pfx_t	block_pfx; /*!< opaque descriptor of "block". Set
+				by ut_allocator::allocate_large() and fed to
+				ut_allocator::deallocate_large(). */
 	mrec_buf_t	buf;	/*!< buffer for accessing a record
 				that spans two blocks */
 	ulint		blocks; /*!< current position in blocks */
@@ -74,7 +77,6 @@ struct row_log_buf_t {
 				the start of the row_log_table log;
 				0 for row_log_online_op() and
 				row_log_apply(). */
-	ulint		size;	/*!< allocated size of block */
 };
 
 /** Tracks BLOB allocation during online ALTER TABLE */
@@ -221,13 +223,15 @@ row_log_block_allocate(
 {
 	DBUG_ENTER("row_log_block_allocate");
 	if (log_buf.block == NULL) {
-		log_buf.size = srv_sort_buf_size;
-		log_buf.block = (byte*) os_mem_alloc_large(&log_buf.size);
-		DBUG_EXECUTE_IF("simulate_row_log_allocation_failure",
-			if (log_buf.block)
-				os_mem_free_large(log_buf.block, log_buf.size);
-			log_buf.block = NULL;);
-		if (!log_buf.block) {
+		DBUG_EXECUTE_IF(
+			"simulate_row_log_allocation_failure",
+			DBUG_RETURN(false);
+		);
+
+		log_buf.block = ut_allocator<byte>(mem_key_row_log_buf)
+			.allocate_large(srv_sort_buf_size, &log_buf.block_pfx);
+
+		if (log_buf.block == NULL) {
 			DBUG_RETURN(false);
 		}
 	}
@@ -243,7 +247,8 @@ row_log_block_free(
 {
 	DBUG_ENTER("row_log_block_free");
 	if (log_buf.block != NULL) {
-		os_mem_free_large(log_buf.block, log_buf.size);
+		ut_allocator<byte>(mem_key_row_log_buf).deallocate_large(
+			log_buf.block, &log_buf.block_pfx);
 		log_buf.block = NULL;
 	}
 	DBUG_VOID_RETURN;

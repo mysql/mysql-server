@@ -41,6 +41,7 @@ Completed by Sunny Bains and Marko Makela
 #include "handler0alter.h"
 #include "btr0bulk.h"
 #include "fsp0sysspace.h"
+#include "ut0new.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -3835,7 +3836,7 @@ row_merge_build_indexes(
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
-	ulint			block_size;
+	ut_new_pfx_t		block_pfx;
 	ulint			i;
 	ulint			j;
 	dberr_t			error;
@@ -3855,9 +3856,11 @@ row_merge_build_indexes(
 	/* Allocate memory for merge file data structure and initialize
 	fields */
 
-	block_size = 3 * srv_sort_buf_size;
-	block = static_cast<row_merge_block_t*>(
-		os_mem_alloc_large(&block_size));
+	ut_allocator<row_merge_block_t>	alloc(mem_key_row_merge_sort);
+
+	/* This will allocate "3 * srv_sort_buf_size" elements of type
+	row_merge_block_t. The latter is defined as byte. */
+	block = alloc.allocate_large(3 * srv_sort_buf_size, &block_pfx);
 
 	if (block == NULL) {
 		DBUG_RETURN(DB_OUT_OF_MEMORY);
@@ -4089,7 +4092,8 @@ func_exit:
 	}
 
 	ut_free(merge_files);
-	os_mem_free_large(block, block_size);
+
+	alloc.deallocate_large(block, &block_pfx);
 
 	DICT_TF2_FLAG_UNSET(new_table, DICT_TF2_FTS_ADD_DOC_ID);
 
