@@ -69,6 +69,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0checksum.h"
 #include "sync0sync.h"
 #include "buf0dump.h"
+#include "ut0new.h"
 
 #include <new>
 #include <map>
@@ -1222,8 +1223,8 @@ buf_chunk_init(
 
 	DBUG_EXECUTE_IF("ib_buf_chunk_init_fails", return(NULL););
 
-	chunk->mem_size = mem_size;
-	chunk->mem = os_mem_alloc_large(&chunk->mem_size);
+	chunk->mem = buf_pool->allocator.allocate_large(mem_size,
+							&chunk->mem_pfx);
 
 	if (UNIV_UNLIKELY(chunk->mem == NULL)) {
 
@@ -1240,7 +1241,7 @@ buf_chunk_init(
 	it is bigger, we may allocate more blocks than requested. */
 
 	frame = (byte*) ut_align(chunk->mem, UNIV_PAGE_SIZE);
-	chunk->size = chunk->mem_size / UNIV_PAGE_SIZE
+	chunk->size = chunk->mem_pfx.m_size / UNIV_PAGE_SIZE
 		- (frame != chunk->mem);
 
 	/* Subtract the space needed for block descriptors. */
@@ -1438,6 +1439,8 @@ buf_pool_init_instance(
 
 	mutex_create("buf_pool_zip", &buf_pool->zip_mutex);
 
+	new(&buf_pool->allocator) ut_allocator<char>(mem_key_buf_buf_pool);
+
 	buf_pool_mutex_enter(buf_pool);
 
 	if (buf_pool_size > 0) {
@@ -1482,7 +1485,8 @@ buf_pool_init_instance(
 #endif /* UNIV_SYNC_DEBUG */
 					}
 
-					os_mem_free_large(chunk->mem, chunk->mem_size);
+					buf_pool->allocator.deallocate_large(
+						chunk->mem, &chunk->mem_pfx);
 				}
 				ut_free(buf_pool->chunks);
 				buf_pool_mutex_exit(buf_pool);
@@ -1609,7 +1613,8 @@ buf_pool_free_instance(
 # endif /* UNIV_SYNC_DEBUG */
 		}
 
-		os_mem_free_large(chunk->mem, chunk->mem_size);
+		buf_pool->allocator.deallocate_large(
+			chunk->mem, &chunk->mem_pfx);
 	}
 
 	for (ulint i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; ++i) {
@@ -1620,6 +1625,8 @@ buf_pool_free_instance(
 	ha_clear(buf_pool->page_hash);
 	hash_table_free(buf_pool->page_hash);
 	hash_table_free(buf_pool->zip_hash);
+
+	buf_pool->allocator.~ut_allocator();
 }
 
 /********************************************************************//**
@@ -2453,8 +2460,8 @@ withdraw_retry:
 #endif /* UNIV_SYNC_DEBUG */
 				}
 
-				os_mem_free_large(chunk->mem,
-						  chunk->mem_size);
+				buf_pool->allocator.deallocate_large(
+					chunk->mem, &chunk->mem_pfx);
 
 				sum_freed += chunk->size;
 
