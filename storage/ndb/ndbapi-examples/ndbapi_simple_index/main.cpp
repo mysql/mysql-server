@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,9 @@
 //    8    18
 //    9     9
 
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <NdbApi.hpp>
@@ -87,7 +90,7 @@ int main(int argc, char** argv)
 			     0, mysqld_sock, 0) )
       MYSQLERROR(mysql);
 
-    mysql_query(&mysql, "CREATE DATABASE ndb_examples_1");
+    mysql_query(&mysql, "CREATE DATABASE ndb_examples");
     if (mysql_query(&mysql, "USE ndb_examples") != 0) MYSQLERROR(mysql);
 
     while (mysql_query(&mysql, 
@@ -258,11 +261,13 @@ int main(int argc, char** argv)
     
       if(myTransaction->execute( NdbTransaction::Commit,
                                  NdbOperation::AbortOnError ) == -1)
+      {
 	if (i == 3) {
 	  std::cout << "Detected that deleted tuple doesn't exist!\n";
 	} else {
 	  APIERROR(myTransaction->getNdbError());
 	}
+      }
     
       if (i != 3) {
 	printf(" %2d    %2d\n", i, myRecAttr->u_32_value());

@@ -30,6 +30,9 @@
 #include "consumer_printer.hpp"
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
+#define TMP_TABLE_PREFIX "#sql"
+#define TMP_TABLE_PREFIX_LEN 4
+
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;
 extern FilteredNdbOut debug;
@@ -88,6 +91,7 @@ static bool ga_restore = false;
 static bool ga_print = false;
 static bool ga_skip_table_check = false;
 static bool ga_exclude_missing_columns = false;
+static bool opt_exclude_intermediate_sql_tables = true;
 static int _print = 0;
 static int _print_meta = 0;
 static int _print_data = 0;
@@ -277,6 +281,11 @@ static struct my_option my_long_options[] =
     (uchar**) &ga_exclude_missing_columns,
     (uchar**) &ga_exclude_missing_columns, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "exclude-intermediate-sql-tables", NDB_OPT_NOSHORT,
+    "Do not restore intermediate tables with #sql-prefixed names",
+    (uchar**) &opt_exclude_intermediate_sql_tables,
+    (uchar**) &opt_exclude_intermediate_sql_tables, 0,
+    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
   { "disable-indexes", NDB_OPT_NOSHORT,
     "Disable indexes and foreign keys",
     (uchar**) &ga_disable_indexes,
@@ -1036,6 +1045,17 @@ static bool check_include_exclude(BaseString database, BaseString table)
   return do_include;
 }
 
+static bool
+check_intermediate_sql_table(const char *table_name)
+{
+  BaseString tbl(table_name);
+  Vector<BaseString> fields;
+  tbl.split(fields, "/");
+  if((fields.size() == 3) && !fields[2].empty() && strncmp(fields[2].c_str(), TMP_TABLE_PREFIX, TMP_TABLE_PREFIX_LEN) == 0) 
+    return true;  
+  return false;
+}
+  
 static inline bool
 checkDoRestore(const TableS* table)
 {
@@ -1065,6 +1085,11 @@ checkDbAndTableName(const TableS* table)
   if (table->isBroken())
     return false;
 
+  const char *table_name = getTableName(table);
+  if(opt_exclude_intermediate_sql_tables && (check_intermediate_sql_table(table_name) == true)) {
+    return false;
+  }
+
   // If new options are given, ignore the old format
   if (opt_include_tables || g_exclude_tables.size() > 0 ||
       opt_include_databases || opt_exclude_databases ) {
@@ -1078,8 +1103,6 @@ checkDbAndTableName(const TableS* table)
     g_databases.push_back("TEST_DB");
 
   // Filter on the main table name for indexes and blobs
-  const char *table_name= getTableName(table);
-
   unsigned i;
   for (i= 0; i < g_databases.size(); i++)
   {

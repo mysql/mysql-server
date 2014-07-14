@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,10 +22,22 @@ newdir="$outdir/xxx"
 dstdir="$outdir/$1"
 out="$newdir/out.txt"
 
-if [ $# -ne 1 ] ; then
+if [ $# -ne 1 ] || [[ "$1" = *"help" ]] ; then
     echo "usage: $0 <run.c++crund|run.jcrund|...>"
     exit 1
 fi
+
+driver=$1
+case $driver in
+    run.c++crund|run.jcrund)
+	;;
+    "")
+	echo "missing argument: <driver>"; exit 1
+	;;
+    *)
+	echo "unknown <driver>: $driver"; exit 1
+	;;
+esac
 
 if [ -d "$newdir" ] ; then
     echo "dir already exists: $newdir"
@@ -54,11 +66,17 @@ echo "" | tee -a "$out"
 ./mysql.sh -v < ../src/crund_schema.sql 2>&1 | tee -a "$out"
 
 echo "RUNNING CRUND ..." | tee -a "$out"
-if [[ "$1" = "run.c++"* ]] ; then
-    ( cd .. ; make $1 ) >> "$out" 2>&1
-elif [[ "$1" = "run.j"* ]] ; then
-    ( cd .. ; ant $1 ) >> "$out" 2>&1
-fi
+case $driver in
+    run.c++crund)
+	( cd .. ; make run.crund ) >> "$out" 2>&1
+	;;
+    run.jcrund)
+	( cd .. ; ant run.crund.opt ) >> "$out" 2>&1
+	;;
+    *)
+	echo "unknown <driver>: $driver" | tee -a "$out"
+	;;
+esac
 echo "... DONE CRUND" | tee -a "$out"
 
 sleep 6

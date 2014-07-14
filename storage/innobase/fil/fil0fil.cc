@@ -174,99 +174,6 @@ struct fil_node_t {
 /** Value of fil_node_t::magic_n */
 #define	FIL_NODE_MAGIC_N	89389
 
-/** Tablespace or log data space: let us call them by a common name space */
-struct fil_space_t {
-	char*		name;	/*!< space name = the path to the first file in
-				it */
-	ulint		id;	/*!< space id */
-	int64_t		tablespace_version;
-				/*!< in DISCARD/IMPORT this timestamp
-				is used to check if we should ignore
-				an insert buffer merge request for a
-				page because it actually was for the
-				previous incarnation of the space */
-	lsn_t		max_lsn;
-				/*!< LSN of the most recent fil_names_dirty().
-				Reset to 0 by fil_names_clear().
-				Protected by log_sys->mutex and
-				sometimes by fil_system->mutex:
-
-				Updates from nonzero to nonzero
-				are only protected by log_sys->mutex.
-
-				Updates between 0 and nonzero are
-				protected by log_sys->mutex and
-				fil_system->mutex.
-
-				If and only if this is nonzero, the
-				tablespace will be in named_spaces,
-				which is protected by fil_system->mutex. */
-	bool		stop_ios;/*!< true if we want to rename the
-				.ibd file of tablespace and want to
-				stop temporarily posting of new i/o
-				requests on the file */
-	bool		stop_new_ops;
-				/*!< we set this true when we start
-				deleting a single-table tablespace.
-				When this is set following new ops
-				are not allowed:
-				* read IO request
-				* ibuf merge
-				* file flush
-				Note that we can still possibly have
-				new write operations because we don't
-				check this flag when doing flush
-				batches. */
-	bool		is_being_truncated;
-				/*!< this is set to true when we prepare to
-				truncate a single-table tablespace and its
-				.ibd file */
-	fil_type_t	purpose;/*!< purpose */
-	UT_LIST_BASE_NODE_T(fil_node_t) chain;
-				/*!< base node for the file chain */
-	ulint		size;	/*!< space size in pages; 0 if a single-table
-				tablespace whose size we do not know yet;
-				last incomplete megabytes in data files may be
-				ignored if space == 0 */
-	ulint		flags;	/*!< tablespace flags; see
-				fsp_flags_is_valid(),
-				page_size_t(ulint) (constructor) */
-	ulint		n_reserved_extents;
-				/*!< number of reserved free extents for
-				ongoing operations like B-tree page split */
-	ulint		n_pending_flushes; /*!< this is positive when flushing
-				the tablespace to disk; dropping of the
-				tablespace is forbidden if this is positive */
-	ulint		n_pending_ops;/*!< this is positive when we
-				have pending operations against this
-				tablespace. The pending operations can
-				be ibuf merges or lock validation code
-				trying to read a block.
-				Dropping of the tablespace is forbidden
-				if this is positive */
-	hash_node_t	hash;	/*!< hash chain node */
-	hash_node_t	name_hash;/*!< hash chain the name_hash table */
-#ifndef UNIV_HOTBACKUP
-	rw_lock_t	latch;	/*!< latch protecting the file space storage
-				allocation */
-#endif /* !UNIV_HOTBACKUP */
-	UT_LIST_NODE_T(fil_space_t) unflushed_spaces;
-				/*!< list of spaces with at least one unflushed
-				file we have written to */
-	UT_LIST_NODE_T(fil_space_t) named_spaces;
-				/*!< list of spaces for which MLOG_FILE_NAME
-				records have been issued */
-	bool		is_in_unflushed_spaces;
-				/*!< true if this space is currently in
-				unflushed_spaces */
-	UT_LIST_NODE_T(fil_space_t) space_list;
-				/*!< list of all spaces */
-	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
-};
-
-/** Value of fil_space_t::magic_n */
-#define	FIL_SPACE_MAGIC_N	89472
-
 /** The tablespace memory cache; also the totality of logs (the log
 data space) is stored here; below we talk about tablespaces, but also
 the ib_logfiles form a 'space' and it is handled here */
@@ -798,7 +705,9 @@ fil_node_open_file(
 		}
 #endif /* UNIV_HOTBACKUP */
 		ut_a(space->purpose != FIL_TYPE_LOG);
-		ut_a(fil_is_user_tablespace_id(space->id));
+		/* During buf_dblwr_process() we may access undo
+		tablespaces here. */
+		ut_a(fil_is_user_tablespace_id(space->id) || recv_recovery_on);
 
 		/* Read the first page of the tablespace */
 
@@ -823,7 +732,7 @@ fil_node_open_file(
 
 		if (size_bytes < min_size) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The size of single-table tablespace file %s,"
+				"The size of tablespace file %s"
 				" is only " UINT64PF ", should be at least %lu!",
 				node->name, size_bytes, min_size);
 
@@ -1880,20 +1789,14 @@ fil_set_max_space_id_if_bigger(
 	mutex_exit(&fil_system->mutex);
 }
 
-/****************************************************************//**
-Writes the flushed lsn and the latest archived log number to the page header
-of the first page of a data file of the system tablespace (space 0),
-which is uncompressed. */
-static __attribute__((warn_unused_result))
+/** Write the flushed LSN to the page header of the first page in the
+system tablespace.
+@param[in]	lsn	flushed LSN
+@return DB_SUCCESS or error number */
+
 dberr_t
-fil_write_lsn_and_arch_no_to_file(
-/*==============================*/
-	ulint	space,		/*!< in: space to write to */
-	ulint	sum_of_sizes,	/*!< in: combined size of previous files
-				in space, in database pages */
-	lsn_t	lsn,		/*!< in: lsn to write */
-	ulint	arch_log_no __attribute__((unused)))
-				/*!< in: archived log number to write */
+fil_write_flushed_lsn(
+	lsn_t	lsn)
 {
 	byte*	buf1;
 	byte*	buf;
@@ -1902,7 +1805,7 @@ fil_write_lsn_and_arch_no_to_file(
 	buf1 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 	buf = static_cast<byte*>(ut_align(buf1, UNIV_PAGE_SIZE));
 
-	const page_id_t	page_id(space, sum_of_sizes);
+	const page_id_t	page_id(TRX_SYS_SPACE, 0);
 
 	err = fil_read(page_id, univ_page_size, 0, univ_page_size.physical(),
 		       buf);
@@ -1912,67 +1815,13 @@ fil_write_lsn_and_arch_no_to_file(
 
 		err = fil_write(page_id, univ_page_size, 0,
 				univ_page_size.physical(), buf);
+
+		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 	}
 
 	::ut_free(buf1);
 
 	return(err);
-}
-
-/****************************************************************//**
-Writes the flushed lsn and the latest archived log number to the page
-header of the first page of each data file in the system tablespace.
-@return DB_SUCCESS or error number */
-
-dberr_t
-fil_write_flushed_lsn_to_data_files(
-/*================================*/
-	lsn_t	lsn,		/*!< in: lsn to write */
-	ulint	arch_log_no)	/*!< in: latest archived log file number */
-{
-	mutex_enter(&fil_system->mutex);
-
-	for (fil_space_t* space = UT_LIST_GET_FIRST(fil_system->space_list);
-	     space != NULL;
-	     space = UT_LIST_GET_NEXT(space_list, space)) {
-
-		/* We only write the lsn to all existing data files which have
-		been open during the lifetime of the mysqld process; they are
-		represented by the space objects in the tablespace memory
-		cache. Note that all data files in the system tablespace 0
-		and the UNDO log tablespaces (if separate) are always open. */
-
-		if (space->purpose == FIL_TYPE_TABLESPACE
-		    && !fil_is_user_tablespace_id(space->id)) {
-			ulint	sum_of_sizes = 0;
-
-			for (fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
-			     node != NULL;
-			     node = UT_LIST_GET_NEXT(chain, node)) {
-
-				dberr_t		err;
-
-				mutex_exit(&fil_system->mutex);
-
-				err = fil_write_lsn_and_arch_no_to_file(
-					space->id, sum_of_sizes, lsn,
-					arch_log_no);
-
-				if (err != DB_SUCCESS) {
-
-					return(err);
-				}
-
-				mutex_enter(&fil_system->mutex);
-
-				sum_of_sizes += node->size;
-			}
-		}
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-	return(DB_SUCCESS);
 }
 
 /*================ SINGLE-TABLE TABLESPACES ==========================*/
@@ -3112,6 +2961,71 @@ fil_tablespace_is_being_deleted(
 	return(is_being_deleted);
 }
 
+#ifdef UNIV_DEBUG
+/** Increase redo skipped count for a tablespace.
+@param[in]	id	space id */
+void
+fil_space_inc_redo_skipped_count(
+	ulint		id)
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(id);
+
+	ut_a(space != NULL);
+
+	space->redo_skipped_count++;
+
+	mutex_exit(&fil_system->mutex);
+}
+
+/** Decrease redo skipped count for a tablespace.
+@param[in]	id	space id */
+void
+fil_space_dec_redo_skipped_count(
+	ulint		id)
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(id);
+
+	ut_a(space != NULL);
+	ut_a(space->redo_skipped_count > 0);
+
+	space->redo_skipped_count--;
+
+	mutex_exit(&fil_system->mutex);
+}
+
+/**
+Check whether a single-table tablespace is redo skipped.
+@param[in]	id	space id
+@return true if redo skipped */
+bool
+fil_space_is_redo_skipped(
+	ulint		id)
+{
+	fil_space_t*	space;
+	bool		is_redo_skipped;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(id);
+
+	ut_a(space != NULL);
+
+	is_redo_skipped = space->redo_skipped_count > 0;
+
+	mutex_exit(&fil_system->mutex);
+
+	return(is_redo_skipped);
+}
+#endif
+
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
@@ -3901,26 +3815,25 @@ fil_open_single_table_tablespace(
 			" multiple places;", tablename);
 		if (df_default.is_open()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Default location; %s, LSN=" LSN_PF
+				"Default location; %s"
 				", Space ID=%lu, Flags=%lu",
 				df_default.filepath(),
-				df_default.flushed_lsn(),
 				(ulong) df_default.space_id(),
 				(ulong) df_default.flags());
 		}
 		if (df_remote.is_open()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Remote location; %s, LSN=" LSN_PF
+				"Remote location; %s"
 				", Space ID=%lu, Flags=%lu",
-				df_remote.filepath(), df_remote.flushed_lsn(),
+				df_remote.filepath(),
 				(ulong) df_remote.space_id(),
 				(ulong) df_remote.flags());
 		}
 		if (df_dict.is_open()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Dictionary location; %s, LSN=" LSN_PF
+				"Dictionary location; %s"
 				", Space ID=%lu, Flags=%lu",
-				df_dict.filepath(), df_dict.flushed_lsn(),
+				df_dict.filepath(),
 				(ulong) df_dict.space_id(),
 				(ulong) df_dict.flags());
 		}
@@ -5859,7 +5772,6 @@ fil_close(void)
 	mutex_free(&fil_system->mutex);
 
 	::ut_free(fil_system);
-
 	fil_system = NULL;
 }
 

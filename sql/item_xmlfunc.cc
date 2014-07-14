@@ -1302,7 +1302,7 @@ MY_XPATH_FUNC *
 my_xpath_function(const char *beg, const char *end)
 {
   MY_XPATH_FUNC *k, *function_names;
-  uint length= end-beg;
+  size_t length= end-beg;
   switch (length)
   {
     case 1: return 0;

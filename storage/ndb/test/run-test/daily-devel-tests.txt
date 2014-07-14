@@ -1,4 +1,4 @@
-# Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,11 +15,11 @@
 #
 # BACKUP
 #
-max-time: 500
+max-time: 900
 cmd: testNdbApi
 args: -n MaxOperations T1 T6 T13 
 
-max-time: 1500
+max-time: 2500
 cmd: testDict
 args: -n CreateTableWhenDbIsFull T6 
 
@@ -36,7 +36,7 @@ args: -n Mix -l 300 -r 15 T1
 # SYSTEM RESTARTS
 #
 #
-max-time: 1500
+max-time: 14400
 cmd: testSystemRestart
 args: -n SR_FULLDB T6 
 
@@ -47,7 +47,7 @@ max-time: 2500
 cmd: testNodeRestart
 args: -l 1 -n MixedPkReadPkUpdate 
 
-max-time: 2500
+max-time: 5000
 cmd: testNodeRestart
 args: -n FullDb T6 T13 
 
@@ -69,12 +69,12 @@ cmd: testIndex
 args: -n NFNR3_O T6 T13 
 
 # dict trans
-max-time: 1800
+max-time: 3600
 cmd: testDict
 args: -n SchemaTrans -l 1
 
 # LCP Frag watchdog
-max-time: 600
+max-time: 900
 cmd: testNodeRestart
 args: -n LCPScanFragWatchdog T2
 
@@ -104,7 +104,7 @@ cmd: testScan
 args: -n ScanUpdateRestart D1 D2
 
 # Bug18408731 added on 17.04.2014
-max-time: 600
+max-time: 900
 cmd: testScan
 args: -n ScanRead40 -l 100 T1 D1 D2
 
@@ -124,7 +124,7 @@ cmd: testScan
 args: -n Bug12324191 T1 T6 T13
 
 # Bug18408747 added on 17.04.2014
-max-time: 500
+max-time: 900
 cmd: testScan
 args: -n ScanReadError5021 T1 D1 D2
 
@@ -154,7 +154,7 @@ cmd: testNodeRestart
 args: -n Bug27003 T1
 
 # Bug18408719 added on 17.04.2014
-max-time: 2500
+max-time: 1800
 cmd: testIndex
 args: -n NFNR1_O T6 T13
 
@@ -204,17 +204,17 @@ cmd: testFK
 args: -n Cascade10 T1
 
 # Bug18408671 added on 17.04.2014
-max-time : 300
+max-time : 500
 cmd: testDict
 args: -n FK_SRNR1 T1
 
 # Bug18408666 added on 17.04.2014
-max-time : 300
+max-time : 500
 cmd: testDict
 args: -n FK_SRNR2 T1
 
 # Bug18408665 added on 17.04.2014
-max-time: 1500
+max-time: 2500
 cmd: testBasic
 args: -n Fill T6
 
@@ -239,12 +239,12 @@ cmd: testNodeRestart
 args: -n Bug16766493 D1
 
 # Bug18408693 added on 17.04.2014
-max-time: 3600
+max-time: 5000
 cmd: testNodeRestart
 args: -l 1 -n RestartNFDuringNR T6 T13
 
 # Bug18408711 added on 17.04.2014
-max-time: 1200
+max-time: 1800
 cmd: testNodeRestart
 args: -n mixedmultiop T1 I2 I3 D2
 
@@ -301,7 +301,7 @@ cmd: testDict
 args: -n Bug53944 T1
 
 # Bug18408700 added on 17.04.2014
-max-time: 1000
+max-time: 1500
 cmd: testNdbApi
 args: -n Bug44065_org
 
@@ -316,22 +316,22 @@ cmd: testSystemRestart
 args: -n SR_DD_1 D1
 
 # Bug18401499 added on 17.04.2014
-max-time: 1500
+max-time: 2000
 cmd: testSystemRestart
 args: -n SR_DD_1b D1
 
 # Bug18401521 added on 17.04.2014
-max-time: 1500
+max-time: 2000
 cmd: testSystemRestart
 args: -n SR_DD_1b D2
 
 # Bug18401529 added on 17.04.2014
-max-time: 1500
+max-time: 2000
 cmd: testSystemRestart
 args: -n SR_DD_1b_LCP D1
 
 # Bug18401375 added on 17.04.2014
-max-time: 1500
+max-time: 2000
 cmd: testSystemRestart
 args: -n SR_DD_1b_LCP D2
 
@@ -341,7 +341,7 @@ cmd: testSystemRestart
 args: -n Bug45154 D1
 
 # Bug18401154 added on 17.04.2014
-max-time: 600
+max-time: 900
 cmd: testSystemRestart
 args: -n to D2
 
@@ -372,12 +372,12 @@ cmd: testNodeRestart
 args: -n Bug41295 T1
 
 # Bug18379632 added on 17.04.2014
-max-time: 1200
+max-time: 1800
 cmd: testNodeRestart
 args: -n Bug34216 -l 10 T1 I3 D2
 
 # Bug18379486 added on 17.04.2014
-max-time: 600
+max-time: 1500
 cmd: testRedo
 args: -n RestartFD -l 2 T1
 
@@ -418,17 +418,17 @@ cmd: test_event
 args: -l 10 -n Bug27169 T1
 
 # Bug18401553 added on 17.04.2014
-max-time: 7200
+max-time: 3600
 cmd: testTransactions
 args:
 
 # Bug18401623 added on 17.04.2014
-max-time: 5000
+max-time: 3000
 cmd: testOIBasic
 args: -case abcdefz
 
 # Bug18401543 added on 17.04.2014
-max-time: 1500
+max-time: 2000
 cmd: testDict
 args: -l 25 -n DictRestart T1
 
@@ -463,7 +463,7 @@ cmd: testSystemRestart
 args: -n SR_DD_3 D1
 
 # Bug18408638 added on 17.04.2014
-max-time: 600
+max-time: 900
 cmd: testNodeRestart
 args: -n pnr_lcp T1
 
@@ -493,7 +493,7 @@ cmd: testNodeRestart
 args: -n Bug16007980 T1
 
 # Bug18401826 added on 17.04.2014
-max-time: 600
+max-time: 900
 cmd: testNodeRestart
 args: -n Bug34702 T1
 

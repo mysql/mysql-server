@@ -24,7 +24,7 @@ if ($dir_bin =~ m|/usr/|) {
     $dir_docs = glob "$dir_docs/MySQL-server*";
     if (! -d "$dir_docs") {
       # If not it might be ULN so try that
-      $dir_docs = glob "$dir_bin/share/doc/mysql-community-server*";
+      $dir_docs = glob "$dir_bin/share/doc/mysql-*-server*";
     }
   }
 } elsif ($dir_bin =~ m|/usr$|) {
@@ -38,7 +38,7 @@ if ($dir_bin =~ m|/usr/|) {
     $dir_docs = glob "$dir_docs/MySQL-server*";
     if (! -d "$dir_docs") {
       # If not it might be ULN so try that
-      $dir_docs = glob "$dir_bin/share/doc/mysql-community-server*";
+      $dir_docs = glob "$dir_bin/share/doc/mysql-*-server*";
     }
   }
 } else {

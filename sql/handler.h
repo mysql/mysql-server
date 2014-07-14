@@ -349,6 +349,7 @@ enum enum_alter_inplace_result {
 #define HA_LEX_CREATE_TMP_TABLE	1
 #define HA_LEX_CREATE_IF_NOT_EXISTS 2
 #define HA_LEX_CREATE_TABLE_LIKE 4
+#define HA_LEX_CREATE_INTERNAL_TMP_TABLE 8
 #define HA_OPTION_NO_CHECKSUM	(1L << 17)
 #define HA_OPTION_NO_DELAY_KEY_WRITE (1L << 18)
 #define HA_MAX_REC_LENGTH	65535U
@@ -2328,11 +2329,54 @@ public:
 
   virtual bool is_fatal_error(int error);
 
+protected:
   /**
     Number of rows in table. It will only be called if
     (table_flags() & (HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT)) != 0
+    @param[out]  num_rows number of rows in table.
+    @retval 0 for OK, one of the HA_xxx values in case of error.
   */
-  virtual ha_rows records() { return stats.records; }
+  virtual int records(ha_rows *num_rows)
+  {
+    *num_rows= stats.records;
+    return 0;
+  }
+
+public:
+ /**
+   Public function wrapping the actual handler call, and doing error checking.
+    @param[out]  num_rows number of rows in table.
+    @retval 0 for OK, one of the HA_xxx values in case of error.
+ */
+  int ha_records(ha_rows *num_rows)
+  {
+    int error= records(num_rows);
+    // A return value of HA_POS_ERROR was previously used to indicate error.
+    if (error != 0)
+      DBUG_ASSERT(*num_rows == HA_POS_ERROR);
+    if (*num_rows == HA_POS_ERROR)
+      DBUG_ASSERT(error != 0);
+    if (error != 0)
+    {
+      /*
+        ha_innobase::records may have rolled back internally.
+        In this case, thd_mark_transaction_to_rollback() will have been called.
+        For the errors below, we need to abort right away.
+      */
+      switch (error) {
+      case HA_ERR_LOCK_DEADLOCK:
+      case HA_ERR_LOCK_TABLE_FULL:
+      case HA_ERR_LOCK_WAIT_TIMEOUT:
+      case HA_ERR_QUERY_INTERRUPTED:
+        print_error(error, MYF(0));
+        return error;
+      default:
+        return error;
+      }
+    }
+    return 0;
+  }
+
   /**
     Return upper bound of current number of records in the table
     (max. of how many records one will retrieve when doing a full table scan)
