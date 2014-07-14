@@ -782,10 +782,10 @@ extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
                                size_t count);
 
 /* Wait a given number of microseconds */
-static inline void my_sleep(ulong m_seconds)
+static inline void my_sleep(time_t m_seconds)
 {
 #if defined(_WIN32)
-  Sleep(m_seconds/1000+1);      /* Sleep() has millisecond arg */
+  Sleep((DWORD)m_seconds/1000+1);      /* Sleep() has millisecond arg */
 #else
   struct timeval t;
   t.tv_sec=  m_seconds / 1000000L;
@@ -828,7 +828,6 @@ extern my_bool my_gethwaddr(uchar *to);
 #define MAP_FAILED       ((void *)-1)
 #define MS_SYNC          0x0000
 
-#define HAVE_MMAP
 void *my_mmap(void *, size_t, int, int, int, my_off_t);
 int my_munmap(void *, size_t);
 #endif

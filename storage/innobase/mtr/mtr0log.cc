@@ -145,7 +145,8 @@ mlog_parse_nbytes(
 	ib_uint64_t	dval;
 
 	ut_a(type <= MLOG_8BYTES);
-	ut_a(!page || !page_zip || fil_page_get_type(page) != FIL_PAGE_INDEX);
+	ut_a(!page || !page_zip
+	     || !fil_page_index_page_check(page));
 
 	if (end_ptr < ptr + 2) {
 
@@ -386,7 +387,9 @@ mlog_parse_string(
 	ulint	offset;
 	ulint	len;
 
-	ut_a(!page || !page_zip || fil_page_get_type(page) != FIL_PAGE_INDEX);
+	ut_a(!page || !page_zip
+	     || (fil_page_get_type(page) != FIL_PAGE_INDEX
+		 && fil_page_get_type(page) != FIL_PAGE_RTREE));
 
 	if (end_ptr < ptr + 4) {
 

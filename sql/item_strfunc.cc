@@ -1447,6 +1447,14 @@ String *Item_func_insert::val_str(String *str)
 
   null_value=0;
   res=args[0]->val_str(str);
+  // TODO: After fixing Bug#11765149, pls remove the following changes
+  // Copy result to avoid destroying constants
+  if (res && (res!= str))
+  {
+    str->set(*res, 0, res->length());
+    res= str;
+  }
+
   res2=args[3]->val_str(&tmp_value);
   start= args[1]->val_int() - 1;
   length= args[2]->val_int();
@@ -1493,7 +1501,6 @@ String *Item_func_insert::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto null;
   }
-  res=copy_if_not_alloced(str,res,res->length());
   res->replace((uint32) start,(uint32) length,*res2);
   return res;
 null:
@@ -1574,7 +1581,7 @@ String *Item_func_left::val_str(String *str)
 
   /* must be longlong to avoid truncation */
   longlong length= args[1]->val_int();
-  uint char_pos;
+  size_t char_pos;
 
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0;
@@ -3238,6 +3245,14 @@ String *Item_func_rpad::val_str(String *str)
     rpad->set_charset(&my_charset_bin);
   }
 
+  if (use_mb(rpad->charset()))
+  {
+    // This will chop off any trailing illegal characters from rpad.
+    String *well_formed_pad= args[2]->check_well_formed_result(rpad, false);
+    if (!well_formed_pad)
+      goto err;
+  }
+
   res_char_length= res->numchars();
 
   if (count <= static_cast<longlong>(res_char_length))
@@ -3343,6 +3358,14 @@ String *Item_func_lpad::val_str(String *str)
   {
     res->set_charset(&my_charset_bin);
     pad->set_charset(&my_charset_bin);
+  }
+
+  if (use_mb(pad->charset()))
+  {
+    // This will chop off any trailing illegal characters from pad.
+    String *well_formed_pad= args[2]->check_well_formed_result(pad, false);
+    if (!well_formed_pad)
+      goto err;
   }
 
   res_char_length= res->numchars();

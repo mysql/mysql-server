@@ -124,6 +124,8 @@ struct st_ndb_status {
   long pushed_queries_dropped;
   long pushed_queries_executed;
   long pushed_reads;
+  long long last_commit_epoch_server;
+  long long last_commit_epoch_session;
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
   long long api_client_stats[Ndb::NumClientStatistics];
@@ -201,7 +203,7 @@ private:
 
 public:
   bool get_error_message(int error, String *buf);
-  ha_rows records();
+  virtual int records(ha_rows *num_rows);
   ha_rows estimate_rows_upper_bound()
     { return HA_POS_ERROR; }
   int info(uint);

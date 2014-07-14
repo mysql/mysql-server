@@ -38,7 +38,7 @@ static my_bool win32_init_tcp_ip();
 #define SCALE_USEC      10000
 
 my_bool my_init_done= 0;
-ulong   my_thread_stack_size= 65536;
+ulong  my_thread_stack_size= 65536;
 
 static ulong atoi_octal(const char *str)
 {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,11 +222,13 @@ NdbColumnImpl::init(Type t)
     m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
     m_blobVersion = NDB_BLOB_V2;
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
     if (NdbEnv_GetEnv("NDB_DEFAULT_BLOB_V1", (char *)0, 0)) {
       m_length = 4;
       m_arrayType = NDB_ARRAYTYPE_FIXED;
       m_blobVersion = NDB_BLOB_V1;
     }
+#endif
 #endif
     break;
   case Time:
@@ -287,8 +289,10 @@ NdbColumnImpl::init(Type t)
   m_dynamic = false;
   m_indexSourced= false;
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   if(NdbEnv_GetEnv("NDB_DEFAULT_DISK", (char *)0, 0))
     m_storageType = NDB_STORAGETYPE_DISK;
+#endif
 #endif
 }
 
@@ -867,13 +871,13 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
 int
 NdbTableImpl::assign(const NdbTableImpl& org)
 {
-  DBUG_ENTER("NdbColumnImpl::assign");
+  DBUG_ENTER("NdbTableImpl::assign");
   DBUG_PRINT("info", ("this: %p  &org: %p", this, &org));
   m_primaryTableId = org.m_primaryTableId;
   if (!m_internalName.assign(org.m_internalName) ||
       updateMysqlName())
   {
-    return -1;
+    DBUG_RETURN(-1);
   }
   m_externalName.assign(org.m_externalName);
   m_frm.assign(org.m_frm.get_data(), org.m_frm.length());
@@ -881,6 +885,17 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_range.assign(org.m_range);
 
   m_fragmentType = org.m_fragmentType;
+  if (m_fragmentType == NdbDictionary::Object::HashMapPartition)
+  {
+    m_hash_map_id = org.m_hash_map_id;
+    m_hash_map_version = org.m_hash_map_version;
+    m_hash_map.assign(org.m_hash_map);
+  }
+  else
+  {
+    m_hash_map_id = RNIL;
+    m_hash_map_version = ~0;
+  }
   /*
     m_columnHashMask, m_columnHash, m_hashValueMask, m_hashpointerValue
     is state calculated by computeAggregates and buildColumnHash
@@ -897,14 +912,14 @@ NdbTableImpl::assign(const NdbTableImpl& org)
     if (col == NULL)
     {
       errno = ENOMEM;
-      return -1;
+      DBUG_RETURN(-1);
     }
     const NdbColumnImpl * iorg = org.m_columns[i];
     (* col) = (* iorg);
     if (m_columns.push_back(col))
     {
       delete col;
-      return -1;
+      DBUG_RETURN(-1);
     }
   }
 
@@ -3467,6 +3482,16 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
       goto invalid_alter_table;
     AlterTableReq::setAddFragFlag(change_mask, true);
   }
+  else
+  { // Changing hash map only supported if adding fragments
+    if (impl.m_fragmentType == NdbDictionary::Object::HashMapPartition &&
+        (impl.m_hash_map_id != old_impl.m_hash_map_id ||
+         impl.m_hash_map_version != old_impl.m_hash_map_version))
+    {
+      goto invalid_alter_table;
+    }
+  }
+
 
   /*
     Check for new columns.
@@ -8718,6 +8743,8 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
                             NdbDictObjectImpl* obj,
                             Uint32 flags)
 {
+  DBUG_ENTER("NdbDictInterface::create_fk");
+
   DictForeignKeyInfo::ForeignKey fk; fk.init();
   BaseString::snprintf(fk.Name, sizeof(fk.Name),
                        "%s", src.getName());
@@ -8757,6 +8784,28 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
   for (unsigned i = 0; i < src.m_child_columns.size(); i++)
     fk.ChildColumns[i] = src.m_child_columns[i];
   fk.ChildColumnsLength = 4 * src.m_child_columns.size(); // bytes :(
+
+#ifndef DBUG_OFF
+  {
+    char buf[2048];
+    ndbout_print(fk, buf, sizeof(buf));
+    DBUG_PRINT("info", ("FK: %s", buf));
+  }
+#endif
+
+  {
+    // don't allow slash in fk name
+    if (strchr(fk.Name, '/') != 0)
+    {
+      m_error.code = 21090;
+      DBUG_RETURN(-1);
+    }
+    // enforce format <parentid>/<childid>/name
+    char buf[MAX_TAB_NAME_SIZE];
+    BaseString::snprintf(buf, sizeof(buf), "%u/%u/%s",
+                         fk.ParentTableId, fk.ChildTableId, fk.Name);
+    strcpy(fk.Name, buf);
+  }
 
   SimpleProperties::UnpackStatus s;
   UtilBufferWriter w(m_buffer);
@@ -8807,7 +8856,7 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
     obj->m_version = data[1];
   }
 
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 void

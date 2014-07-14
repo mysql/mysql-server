@@ -880,6 +880,8 @@ bool Aggregator_distinct::setup(THD *thd)
       return TRUE;
     table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
     table->no_rows=1;
+    if (table->hash_field)
+      table->file->ha_index_init(0, 0);
 
     if (table->s->db_type() == heap_hton)
     {
@@ -1038,7 +1040,10 @@ void Aggregator_distinct::clear()
     if (!tree && table)
     {
       table->file->extra(HA_EXTRA_NO_CACHE);
+      table->file->ha_index_or_rnd_end();
       table->file->ha_delete_all_rows();
+      if (table->hash_field)
+        table->file->ha_index_init(0, 0);
       table->file->extra(HA_EXTRA_WRITE_CACHE);
     }
   }
@@ -1100,6 +1105,9 @@ bool Aggregator_distinct::add()
       */
       return tree->unique_add(table->record[0] + table->s->null_bytes);
     }
+
+    if (!check_unique_constraint(table, 0))
+      return false;
     if ((error= table->file->ha_write_row(table->record[0])) &&
         !table->file->is_ignorable_error(error))
       return TRUE;
@@ -1167,7 +1175,17 @@ void Aggregator_distinct::endup()
     {
       /* there were blobs */
       table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-      sum->count= table->file->stats.records;
+      if (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT)
+        sum->count= table->file->stats.records;
+      else
+      {
+        // index must be closed before ha_records() is called
+        if (table->file->inited)
+          table->file->ha_index_or_rnd_end();
+        ha_rows num_rows= 0;
+        table->file->ha_records(&num_rows);
+        sum->count= static_cast<longlong>(num_rows);
+      }
       endup_done= TRUE;
     }
   }
@@ -1552,6 +1570,8 @@ Aggregator_distinct::~Aggregator_distinct()
   }
   if (table)
   {
+    if (table->file)
+      table->file->ha_index_or_rnd_end();
     free_tmp_table(table->in_use, table);
     table=NULL;
   }
