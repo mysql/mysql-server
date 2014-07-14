@@ -471,7 +471,9 @@ Select Dimension(0x0000000007000000030000000001402400000000000040240000000000000
 ############################################################################################
 
 --echo #Checking the Envelope for the geometrycollection class 
+--error ER_GIS_INVALID_DATA
 select fid,AsText(Envelope(g)) from gis_geometrycollection where g is not NULL;
+--error ER_GIS_INVALID_DATA
 select count(AsText(Envelope(g))) FROM gis_geometrycollection;
 
 

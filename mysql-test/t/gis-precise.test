@@ -402,6 +402,7 @@ select AsText(GeometryFromWKB(AsWKB(GeometryCollection(POINT(0, 0),
 select astext(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))));
 --error ER_GIS_INVALID_DATA
 select area(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))))));
+--error ER_GIS_INVALID_DATA
 select astext(envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
 --error ER_GIS_INVALID_DATA
 select astext(centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
@@ -582,6 +583,18 @@ SELECT ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(0 -0)')));
 SELECT ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(-0 0)')));
 
 SELECT ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(0 -0)'))) =ST_AsText(ST_ConvexHull(ST_GeomFromText('POINT(-0 0)'))) ;
+
+--echo #
+--echo # Bug #19142227   ENVELOPE() SPATIAL ANALYSIS FUNCTION ACCEPTS INVALID POLYGONS AS THE ARGUMENT
+--echo #
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
 
 
 --source include/gis_debug.inc

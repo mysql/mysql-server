@@ -696,11 +696,15 @@ Select Dimension(0x0103000000020000000103000000020000000500000000000000000000000
 ############################################################################################
 
 --echo #Checking the Envelope for the Polygon and the MulytiPolygon class 
+--error ER_GIS_INVALID_DATA
 select fid,AsText(Envelope(g)) from gis_polygon where g is not NULL;
+--error ER_GIS_INVALID_DATA
 select count(AsText(Envelope(g))) FROM gis_polygon;
 
 
+--error ER_GIS_INVALID_DATA
 select fid,AsText(Envelope(g)) from gis_multi_polygon where g is not NULL;
+--error ER_GIS_INVALID_DATA
 select count(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 
@@ -758,6 +762,7 @@ Select AsText(Envelope(PolygonFromText('POLYGON((0.1 b, a -0, -0 ë,0.1 b ))')))
 Select AsText(Envelope(PolyFromText('POLYGON((0.1 b, a -0, -0 ë,0.1 b), (0.1 b, a -0, -0 ë,0.1 b))')));
 
 --disable_warnings
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b')))))));
 
 --enable_warnings
@@ -768,6 +773,7 @@ Select AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.1 b, a -0, -0 ë,0
 Select AsText(Envelope(MPolyFromText('MULTIPOLYGON(((0.1 b, a -0, -0 ë,0.1 b),(0.1 b, a -0, -0 ë,0.1 b)),((0.1 b, a -0, -0 ë,0.1 b)))')));
 
 --disable_warnings
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b'))))))));
 
 --enable_warnings
@@ -832,14 +838,19 @@ Select AsText(Envelope(PolygonFromText('POLYGON((. ., 1 ~, ^ -000011111,. .))'))
 
 Select AsText(Envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point('-0000', '-.999999999'),Point(0, 0))))))) = AsText(Envelope(PolygonFromText('POLYGON((0.1 0, 1 1, 2 2,0.1 0))')));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0)))))))) = AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë'))))))));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0)))))))) = AsText(Envelope(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))')));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))'))) = AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë'))))))));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Envelope(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))')));
 
 --enable_warnings
@@ -2070,8 +2081,10 @@ select SUM(Dimension(g)) FROM gis_polygon;
 
 select SUM(Dimension(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select SUM(AsText(Envelope(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select SUM(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 select SUM(IsSimple(g)) FROM gis_polygon;
@@ -2114,8 +2127,10 @@ select MIN(Dimension(g)) FROM gis_polygon;
 
 select MIN(Dimension(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MIN(AsText(Envelope(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MIN(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 select MIN(IsSimple(g)) FROM gis_polygon;
@@ -2158,8 +2173,10 @@ select MAX(Dimension(g)) FROM gis_polygon;
 
 select MAX(Dimension(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MAX(AsText(Envelope(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MAX(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 select MAX(IsSimple(g)) FROM gis_polygon;
@@ -2202,8 +2219,10 @@ select STD(Dimension(g)) FROM gis_polygon;
 
 select STD(Dimension(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select STD(AsText(Envelope(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select STD(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 select STD(IsSimple(g)) FROM gis_polygon;
@@ -2246,8 +2265,10 @@ select AVG(Dimension(g)) FROM gis_polygon;
 
 select AVG(Dimension(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select AVG(AsText(Envelope(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select AVG(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 select AVG(IsSimple(g)) FROM gis_polygon;
@@ -2290,8 +2311,10 @@ select COUNT(DISTINCT(Dimension(g))) FROM gis_polygon;
 
 select COUNT(DISTINCT(Dimension(g))) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select COUNT(DISTINCT(AsText(Envelope(g)))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select COUNT(DISTINCT(AsText(Envelope(g)))) FROM gis_multi_polygon;
 
 select COUNT(DISTINCT(IsSimple(g))) FROM gis_polygon;

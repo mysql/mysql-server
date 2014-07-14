@@ -353,6 +353,13 @@ String *Item_func_envelope::val_str(String *str)
     return error_str();
   }
 
+  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
+      geom->normalize_ring_order() == NULL)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
   srid= uint4korr(swkb->ptr());
   str->set_charset(&my_charset_bin);
   str->length(0);
