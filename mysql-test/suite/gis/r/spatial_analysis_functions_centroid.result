@@ -73,7 +73,7 @@ AsText(Centroid(GeomFromText('POINT(1e308 -1e308)')))
 POINT(1e308 -1e308)
 SELECT AsText(Centroid(GeomFromText('POINT(-0.0000 0.000001)')));
 AsText(Centroid(GeomFromText('POINT(-0.0000 0.000001)')))
-POINT(-0 0.000001)
+POINT(0 0.000001)
 SELECT AsText(Centroid(g)) FROM gis_geometrycollection WHERE fid=105;
 AsText(Centroid(g))
 POINT(15 10)
@@ -295,7 +295,7 @@ AsText(ST_Centroid(GeomFromText('POINT(1e308 -1e308)')))
 POINT(1e308 -1e308)
 SELECT AsText(ST_Centroid(GeomFromText('POINT(-0.0000 0.000001)')));
 AsText(ST_Centroid(GeomFromText('POINT(-0.0000 0.000001)')))
-POINT(-0 0.000001)
+POINT(0 0.000001)
 SELECT AsText(ST_Centroid(g)) FROM gis_geometrycollection WHERE fid=105;
 AsText(ST_Centroid(g))
 POINT(15 10)
