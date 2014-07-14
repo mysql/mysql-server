@@ -784,6 +784,67 @@ runBug16656639(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+int makeTmpTable(NdbDictionary::Table& tab, const char *name)
+{
+  tab.setName(name);
+  tab.setLogging(true);
+  {
+    NdbDictionary::Column col("_id");
+    col.setType(NdbDictionary::Column::Unsigned);
+    col.setPrimaryKey(true);
+    tab.addColumn(col);
+  }
+  NdbError error;
+  return tab.validate(error);
+} 
+
+int
+runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbBackup backup;
+  NdbDictionary::Table tab;
+  const char *tablename = "#sql-dummy"; 
+  
+  Ndb* const ndb = GETNDB(step);
+  NdbDictionary::Dictionary* const dict = ndb->getDictionary();
+
+  // create "#sql-dummy" table
+  if(makeTmpTable(tab, tablename) == -1) {
+    g_err << "Validation of #sql table failed" << endl;
+    return NDBT_FAILED;
+  }
+  if (dict->createTable(tab) == -1) {
+    g_err << "Failed to create #sql table." << endl;
+    return NDBT_FAILED;
+  }
+
+  // start backup which will contain "#sql-dummy"
+  g_err << "Starting backup." << endl;
+  unsigned backupId = 0;
+  if (backup.start(backupId, 2, 0, 1) == -1) {
+    g_err << "Failed to start backup." << endl;
+    return NDBT_FAILED;
+  }
+
+  // drop "#sql-dummy"
+  if (dict->dropTable(tablename) == -1) {
+    g_err << "Failed to drop #sql-dummy table." << endl;
+    return NDBT_FAILED;
+  }
+
+  // restore from backup, data only.
+  // backup contains data for #sql-dummy, which should 
+  // cause an error as the table doesn't exist, but will 
+  // not cause an error as the default value for 
+  // --exclude-intermediate-sql-tables is 1
+  if (backup.restore(backupId, false) != 0) {
+    g_err << "Failed to restore from backup." << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}   
 NDBT_TESTSUITE(testBackup);
 TESTCASE("BackupOne", 
 	 "Test that backup and restore works on one table \n"
@@ -924,6 +985,10 @@ TESTCASE("Bug14019036", "")
 TESTCASE("Bug16656639", "")
 {
   INITIALIZER(runBug16656639);
+}
+TESTCASE("Bug17882305", "")
+{
+  INITIALIZER(runBug17882305);
 }
 NDBT_TESTSUITE_END(testBackup);
 

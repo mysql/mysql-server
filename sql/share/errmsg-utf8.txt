@@ -7238,6 +7238,9 @@ ER_USER_LOCK_DEADLOCK
 
 ER_REPLACE_INACCESSIBLE_ROWS
   eng "REPLACE cannot be executed as it requires deleting rows that are not in the view"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS
+  eng "Do not support online operation on table with GIS index"
 #
 #  End of 5.7 error messages.
 #
