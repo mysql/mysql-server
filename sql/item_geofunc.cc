@@ -7523,13 +7523,25 @@ double Item_func_distance::val_real()
         }
         else if (min_distance > dist)
           min_distance= dist;
+
+        isdone= true;
       }
     }
 
-    if (min_distance == DBL_MAX)
-      min_distance= 0;
-    distance= min_distance;
-    isdone= true;
+    /*
+      If at least one of the collections is empty, we have NULL result. 
+    */
+    if (!inited)
+    {
+      null_value= true;
+      isdone= true;
+    }
+    else
+    {
+      if (min_distance == DBL_MAX)
+        min_distance= 0;
+      distance= min_distance;
+    }
   }
 
 error:
