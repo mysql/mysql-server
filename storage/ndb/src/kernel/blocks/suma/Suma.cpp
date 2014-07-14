@@ -63,6 +63,7 @@
 
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 
 #include <ndb_version.h>
 #include <EventLogger.hpp>
@@ -250,8 +251,12 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   m_out_of_buffer_gci = 0;
   m_missing_data = false;
 
-  c_startup.m_wait_handover= false; 
+  c_startup.m_wait_handover= false;
+  c_startup.m_forced_disconnect_attempted = false;
   c_failedApiNodes.clear();
+  c_startup.m_wait_handover_timeout_ms = 120000; /* Default for old MGMD */
+  ndb_mgm_get_int_parameter(p, CFG_DB_AT_RESTART_SUBSCRIBER_CONNECT_TIMEOUT,
+                            &c_startup.m_wait_handover_timeout_ms);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -347,11 +352,37 @@ Suma::execSTTOR(Signal* signal) {
     if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
 	m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
     {
+      jam();
       /**
        * Handover code here
        */
       c_startup.m_wait_handover= true;
       check_start_handover(signal);
+      if (c_startup.m_wait_handover)
+      {
+        jam();
+        /**
+         * Handover is waiting for some Api connections,
+         * We don't want to wait indefinitely
+         */
+        NdbTick_Invalidate(&c_startup.m_wait_handover_message_expire);
+        if (c_startup.m_wait_handover_timeout_ms == 0)
+        {
+          jam();
+          /* Unlimited wait */
+          g_eventLogger->info("Suma: handover waiting until all subscribers connected");
+          NdbTick_Invalidate(&c_startup.m_wait_handover_expire);
+        }
+        else
+        {
+          jam();
+          /* Bounded wait */
+          NDB_TICKS now = NdbTick_getCurrentTicks();
+          g_eventLogger->info("Suma: handover waiting up to %ums for all subscribers to connect", c_startup.m_wait_handover_timeout_ms);
+          c_startup.m_wait_handover_expire = NdbTick_AddMilliseconds(now, c_startup.m_wait_handover_timeout_ms);
+        }
+        check_wait_handover_timeout(signal);
+      }
       DBUG_VOID_RETURN;
     }
   }
@@ -779,6 +810,163 @@ Suma::check_start_handover(Signal* signal)
 }
 
 void
+Suma::check_wait_handover_timeout(Signal* signal)
+{
+  jam();
+  if (c_startup.m_wait_handover)
+  {
+    jam();
+    /* Still waiting */
+
+    /* Send CONTINUEB for next check... */
+    signal->theData[0] = SumaContinueB::HANDOVER_WAIT_TIMEOUT;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
+
+    /* Now check whether we should do something more */
+    NDB_TICKS now = NdbTick_getCurrentTicks();
+    if(NdbTick_IsValid(c_startup.m_wait_handover_expire))
+    {
+      jam();
+
+      /* Wait is bounded... has it expired? */
+      if (NdbTick_Compare(c_startup.m_wait_handover_expire, now) >= 0)
+      {
+        jam();
+
+        /* Not expired, consider a log message, then wait some more */
+        check_wait_handover_message(now);
+        return;
+      }
+
+      /* Wait time has expired */
+      NdbTick_Invalidate(&c_startup.m_wait_handover_expire);
+
+      NodeBitmask subscribers_not_connected;
+      subscribers_not_connected.assign(c_subscriber_nodes);
+      subscribers_not_connected.bitANDC(c_connected_nodes);
+
+      if(!subscribers_not_connected.isclear())
+      {
+        jam();
+        if (!c_startup.m_forced_disconnect_attempted)
+        {
+          // Disconnect API nodes subscribing but not connected
+          jam();
+          Uint32 nodeId = 0;
+          while((nodeId = subscribers_not_connected.find_next(nodeId + 1)) < MAX_NODES)
+          {
+            jam();
+            // Disconnecting node
+            signal->theData[0] = NDB_LE_SubscriptionStatus;
+            signal->theData[1] = 3; // NOTCONNECTED;
+            signal->theData[2] = nodeId;
+            signal->theData[3] = (c_startup.m_wait_handover_timeout_ms + 999) / 1000;
+            sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
+
+            // Same message to data node log file
+            LogLevel ll;
+            ll.setLogLevel(LogLevel::llError, 15);
+            g_eventLogger->log(NDB_LE_SubscriptionStatus,
+                               signal->theData,
+                               signal->getLength(),
+                               getOwnNodeId(),
+                               &ll);
+
+            /**
+             * Force API_FAILREQ
+             */
+            if (ERROR_INSERTED(13048))
+            {
+              g_eventLogger->info("Skipping forced disconnect of %u",
+                                  nodeId);
+            }
+            else
+            {
+              signal->theData[0] = nodeId;
+              sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
+            }
+          }
+
+          /* Restart timing checks, but if we expire again
+           * then we will shut down
+           */
+          c_startup.m_forced_disconnect_attempted = true;
+
+          NDB_TICKS now = NdbTick_getCurrentTicks();
+          c_startup.m_wait_handover_expire = NdbTick_AddMilliseconds(now, c_startup.m_wait_handover_timeout_ms);
+        }
+        else
+        {
+          jam();
+          /* We already tried forcing a disconnect, and it failed
+           * to get all subscribers connected.  Shutdown
+           */
+          g_eventLogger->critical("Failed to establish direct connection to all subscribers, shutting down.  (%s)",
+                                  BaseString::getPrettyTextShort(subscribers_not_connected).c_str());
+          CRASH_INSERTION(13048);
+          progError(__LINE__,
+                    NDBD_EXIT_GENERIC,
+                    "Failed to establish direct connection to all subscribers");
+        }
+      }
+      else
+      {
+        /* Why are we waiting if there are no disconnected subscribers? */
+        g_eventLogger->critical("Subscriber nodes : %s", BaseString::getPrettyTextShort(c_subscriber_nodes).c_str());
+        g_eventLogger->critical("Connected nodes  : %s", BaseString::getPrettyTextShort(c_connected_nodes).c_str());
+        ndbrequire(false);
+      }
+    }
+    else
+    {
+      /* Unbounded wait, display message */
+      check_wait_handover_message(now);
+    }
+  }
+}
+
+void
+Suma::check_wait_handover_message(NDB_TICKS now)
+{
+  jam();
+
+  NodeBitmask subscribers_not_connected;
+  subscribers_not_connected.assign(c_subscriber_nodes);
+  subscribers_not_connected.bitANDC(c_connected_nodes);
+
+  if (!NdbTick_IsValid(c_startup.m_wait_handover_message_expire) ||   // First time
+      NdbTick_Compare(c_startup.m_wait_handover_message_expire, now) < 0)  // Time is up
+  {
+    jam();
+    if (NdbTick_IsValid(c_startup.m_wait_handover_expire))
+    {
+      /* Bounded wait */
+      ndbassert(NdbTick_Compare(c_startup.m_wait_handover_expire, now) >= 0);
+      NdbDuration time_left = NdbTick_Elapsed(now, c_startup.m_wait_handover_expire);
+      Uint64 milliseconds_left = time_left.milliSec();
+      g_eventLogger->info("Start phase 101 waiting %us for absent subscribers to connect : %s",
+                          (unsigned)((milliseconds_left + 999) / 1000),
+                          BaseString::getPrettyTextShort(subscribers_not_connected).c_str());
+      if (milliseconds_left > 0)
+      { // Plan next message on next even 10s multiple before wait handover expire
+        c_startup.m_wait_handover_message_expire = NdbTick_AddMilliseconds(now, (milliseconds_left - 1) % 10000 + 1);
+      }
+      else
+      {
+        c_startup.m_wait_handover_message_expire = now;
+      }
+    }
+    else
+    {
+      /* Unbounded wait, show progress */
+      g_eventLogger->info("Start phase 101 waiting for absent subscribers to connect : %s",
+                          BaseString::getPrettyTextShort(subscribers_not_connected).c_str());
+      c_startup.m_wait_handover_message_expire = NdbTick_AddMilliseconds(now, 10000);
+    }
+  }
+}
+
+void
 Suma::send_handover_req(Signal* signal, Uint32 type)
 {
   jam();
@@ -869,6 +1057,10 @@ Suma::execCONTINUEB(Signal* signal){
   case SumaContinueB::RETRY_DICT_LOCK:
     jam();
     send_dict_lock_req(signal, signal->theData[1]);
+    return;
+  case SumaContinueB::HANDOVER_WAIT_TIMEOUT:
+    jam();
+    check_wait_handover_timeout(signal);
     return;
   }
 }
@@ -1797,13 +1989,14 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     infoEvent("-- End dump of pending subscribers --");
   }
 
-  if (tCase == 7019 && signal->getLength() == 2)
+  if (tCase == DumpStateOrd::DihTcSumaNodeFailCompleted &&
+      signal->getLength() == 2)
   {
     jam();
     Uint32 nodeId = signal->theData[1];
     if (nodeId < MAX_NODES)
     {
-      warningEvent(" Suma 7019 %u line: %u", nodeId,
+      warningEvent(" Suma %u %u line: %u", tCase, nodeId,
                    c_failedApiNodesState[nodeId]);
       warningEvent("   c_connected_nodes.get(): %u",
                    c_connected_nodes.get(nodeId));
@@ -1816,7 +2009,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     }
     else
     {
-      warningEvent(" SUMP: dump-7019 to unknown node: %u", nodeId);
+      warningEvent(" SUMA: dump-%u to unknown node: %u", tCase, nodeId);
     }
   }
 }
@@ -6033,6 +6226,7 @@ Suma::execSTOP_ME_REQ(Signal* signal)
   ndbrequire(refToNode(req.senderRef) == getOwnNodeId());
   ndbrequire(c_shutdown.m_wait_handover == false);
   c_shutdown.m_wait_handover = true;
+  NdbTick_Invalidate(&c_startup.m_wait_handover_expire);
   c_shutdown.m_senderRef = req.senderRef;
   c_shutdown.m_senderData = req.senderData;
 

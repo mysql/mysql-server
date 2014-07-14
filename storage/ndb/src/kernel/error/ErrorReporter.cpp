@@ -408,34 +408,41 @@ dumpJam(FILE *jamStream,
 	const JamEvent thrdTheEmulatedJam[]) {
 #ifndef NO_EMULATED_JAM   
   // print header
-  const int maxaddr = 9;
+  const Uint32 maxCols = 9;
   fprintf(jamStream, "JAM CONTENTS up->down left->right\n");
   fprintf(jamStream, "%-20s ", "SOURCE FILE");
-  for (int i = 0; i < maxaddr; i++)
+  for (Uint32 i = 0; i < maxCols; i++)
     fprintf(jamStream, "LINE  ");
   fprintf(jamStream, "\n");
 
-  const int first = thrdTheEmulatedJamIndex;	// oldest
+  const Uint32 first = thrdTheEmulatedJamIndex;	// oldest
 
   // loop over all entries
-  int cntaddr = 0;
+  Uint32 col = 0;
   Uint32 fileId = ~0;
-  int cnt, idx;
-  for (cnt = 0, idx = first; cnt < EMULATED_JAM_SIZE; cnt++, idx++) {
+  bool newSig = false;
+  for (Uint32 cnt = 0; cnt < EMULATED_JAM_SIZE; cnt++)
+  {
     globalData.incrementWatchDogCounter(4);	// watchdog not to kill us ?
-    if (idx >= EMULATED_JAM_SIZE)
-      idx = 0;
-    const JamEvent aJamEvent = thrdTheEmulatedJam[idx];
+    const JamEvent aJamEvent =
+      thrdTheEmulatedJam[(cnt+first)%EMULATED_JAM_SIZE];
+    
     if (!aJamEvent.isEmpty())
     {
-      if (aJamEvent.getFileId() != fileId) {
+      // Mark starting point of execution of a new signal.
+      if (newSig)
+      {
+        fprintf(jamStream, "\n---> signal");
+        col = 0;
+        fileId = ~0;
+      }
+      if (aJamEvent.getFileId() != fileId)
+      {
         fileId = aJamEvent.getFileId();
-        if (cnt > 0)
-	  fprintf(jamStream, "\n");
         const char* const fileName = aJamEvent.getFileName();
         if (fileName != NULL)
         {
-          fprintf(jamStream, "%-20s ", fileName);
+          fprintf(jamStream, "\n%-20s ", fileName);
         }
         else
         {
@@ -443,16 +450,17 @@ dumpJam(FILE *jamStream,
            * Getting here indicates that there is a JAM_FILE_ID without a
            * corresponding entry in jamFileNames.
            */
-          fprintf(jamStream, "unknown_file_%05u   ", fileId);
+          fprintf(jamStream, "\nunknown_file_%05u   ", fileId);
         }
-        cntaddr = 0;
+        col = 0;
       }
-      if (cntaddr == maxaddr) {
+      else if (col==0)
+      {
         fprintf(jamStream, "\n%-20s ", "");
-        cntaddr = 0;
       }
       fprintf(jamStream, "%05u ", aJamEvent.getLineNo());
-      cntaddr++;
+      col = (col+1) % maxCols;
+      newSig = aJamEvent.isEndOfSig();
     }
   }
   fprintf(jamStream, "\n");

@@ -61,5 +61,6 @@ eval CHANGE MASTER TO MASTER_LOG_FILE='$master_binlog', MASTER_LOG_POS=$binlog_p
 
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
 --source include/uninstall_semisync.inc
 --source include/rpl_end.inc

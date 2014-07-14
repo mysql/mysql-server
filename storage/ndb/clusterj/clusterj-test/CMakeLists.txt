@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ CREATE_MANIFEST(manifest.mf ${CLUSTERJ_TEST_EXPORTS} clusterj-test)
 
 CREATE_JAR(clusterj-test ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
-  MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/manifest.mf
+  MANIFEST ${CMAKE_CURRENT_BINARY_DIR}/manifest.mf
   DEPENDENCIES clusterj.jar
   EXTRA_FILES src/main/resources/META-INF
               src/main/resources/schema.sql
