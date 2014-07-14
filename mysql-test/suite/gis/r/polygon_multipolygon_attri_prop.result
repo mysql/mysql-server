@@ -1501,7 +1501,7 @@ Select AsText(ExteriorRing(PolyFromText('POLYGON((0.1 b, a -0, -0 ë,0.1 b), (0.
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 Select AsText(ExteriorRing(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b')))))));
 AsText(ExteriorRing(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b')))))))
-LINESTRING(0.1 0,0 -0,-0 0,0.1 0)
+LINESTRING(0.1 0,0 0,0 0,0.1 0)
 Select AsText(ExteriorRing(PolygonFromText('POLYGON((-2 -2, -2 2, 2 -2, 2 2, -2 -2))')));
 AsText(ExteriorRing(PolygonFromText('POLYGON((-2 -2, -2 2, 2 -2, 2 2, -2 -2))')))
 LINESTRING(-2 -2,-2 2,2 -2,2 2,-2 -2)
