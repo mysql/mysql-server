@@ -28,6 +28,9 @@ Created 1/20/1994 Heikki Tuuri
 
 /* Do not include univ.i because univ.i includes this. */
 
+#include <ostream>
+#include <sstream>
+
 #ifndef UNIV_INNOCHECKSUM
 
 #include "db0err.h"
@@ -43,8 +46,6 @@ Created 1/20/1994 Heikki Tuuri
 #endif /* MYSQL_SERVER */
 
 #include <stdarg.h>
-#include <ostream>
-#include <sstream>
 
 /** Index name prefix in fast index creation */
 #define	TEMP_INDEX_PREFIX	'\377'
@@ -256,6 +257,18 @@ ut_difftime(
 @param[in]	n	number
 @return nonzero if n is zero or a power of two; zero otherwise */
 #define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n) - 1)))
+
+/** Functor that compares two C strings. Can be used as a comparator for
+e.g. std::map that uses char* as keys. */
+struct ut_strcmp_functor
+{
+	bool operator()(
+		const char*	a,
+		const char*	b) const
+	{
+		return(strcmp(a, b) < 0);
+	}
+};
 
 /**********************************************************//**
 Prints a timestamp to a file. */
@@ -496,6 +509,8 @@ ut_strerr(
 /*======*/
 	dberr_t	num);	/*!< in: error number */
 
+#endif /* !UNIV_INNOCHECKSUM */
+
 namespace ib {
 
 /** This is a wrapper class, used to print any unsigned integer type
@@ -584,23 +599,9 @@ public:
 
 } // namespace ib
 
-/** Functor that compares two C strings. Can be used as a comparator for
-e.g. std::map that uses char* as keys. */
-struct ut_strcmp_functor
-{
-	bool operator()(
-		const char*	a,
-		const char*	b) const
-	{
-		return(strcmp(a, b) < 0);
-	}
-};
-
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"
 #endif
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 #endif
 

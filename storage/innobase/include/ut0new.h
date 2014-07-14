@@ -132,8 +132,10 @@ InnoDB:
 
 #include "univ.i"
 
+#include "os0proc.h" /* os_mem_alloc_large() */
 #include "os0thread.h" /* os_thread_sleep() */
 #include "ut0mem.h" /* OUT_OF_MEMORY_MSG */
+#include "ut0ut.h" /* ut_strcmp_functor */
 
 /** Map used for default performance schema keys, based on file name of the
 caller. The key is the file name of the caller and the value is a pointer
@@ -150,9 +152,12 @@ extern mem_keys_auto_t	mem_keys_auto;
 
 /** Keys for registering allocations with performance schema.
 Keep this list alphabetically sorted. */
+extern PSI_memory_key	mem_key_buf_buf_pool;
 extern PSI_memory_key	mem_key_dict_stats_index_map_t;
 extern PSI_memory_key	mem_key_dict_stats_n_diff_on_level;
 extern PSI_memory_key	mem_key_other;
+extern PSI_memory_key	mem_key_row_log_buf;
+extern PSI_memory_key	mem_key_row_merge_sort;
 extern PSI_memory_key	mem_key_std;
 extern PSI_memory_key	mem_key_sync_debug_latches;
 extern PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
@@ -171,9 +176,12 @@ ut0new.h and ut0new.cc */
 
 /** Keys for registering allocations with performance schema.
 Keep this list alphabetically sorted. */
+PSI_memory_key	mem_key_buf_buf_pool;
 PSI_memory_key	mem_key_dict_stats_index_map_t;
 PSI_memory_key	mem_key_dict_stats_n_diff_on_level;
 PSI_memory_key	mem_key_other;
+PSI_memory_key	mem_key_row_log_buf;
+PSI_memory_key	mem_key_row_merge_sort;
 PSI_memory_key	mem_key_std;
 PSI_memory_key	mem_key_sync_debug_latches;
 PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
@@ -191,9 +199,12 @@ the list below:
    then mem_key_other is used.
 NOTE: keep this list alphabetically sorted. */
 PSI_memory_info	pfs_info[] = {
+	{&mem_key_buf_buf_pool, "buf_buf_pool", 0},
 	{&mem_key_dict_stats_index_map_t, "dict_stats_index_map_t", 0},
 	{&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0},
 	{&mem_key_other, "other", 0},
+	{&mem_key_row_log_buf, "row_log_buf", 0},
+	{&mem_key_row_merge_sort, "row_merge_sort", 0},
 	{&mem_key_std, "std", 0},
 	{&mem_key_sync_debug_latches, "sync_debug_latches", 0},
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
@@ -665,6 +676,54 @@ public:
 		}
 
 		deallocate(ptr);
+	}
+
+	/** Allocate a large chunk of memory that can hold 'n_elements'
+	objects of type 'T' and trace the allocation.
+	@param[in]	n_elements	number of elements
+	@param[out]	pfx		storage for the description of the
+	allocated memory. The caller must provide space for this one and keep
+	it until the memory is no longer needed and then pass it to
+	deallocate_large().
+	@return pointer to the allocated memory */
+	pointer
+	allocate_large(
+		size_type	n_elements,
+		ut_new_pfx_t*	pfx)
+	{
+		if (n_elements == 0) {
+			return(NULL);
+		}
+
+		if (n_elements > max_size()) {
+			return(NULL);
+		}
+
+		size_t	n_bytes = n_elements * sizeof(T);
+
+		pointer	ptr = reinterpret_cast<pointer>(
+			os_mem_alloc_large(&n_bytes));
+
+		if (ptr != NULL) {
+			allocate_trace(n_bytes, NULL, pfx);
+		}
+
+		return(ptr);
+	}
+
+	/** Free a memory allocated by allocate_large() and trace the
+	deallocation.
+	@param[in,out]	ptr	pointer to memory to free
+	@param[in]	pfx	descriptor of the memory, as returned by
+	allocate_large(). */
+	void
+	deallocate_large(
+		void*			ptr,
+		const ut_new_pfx_t*	pfx)
+	{
+		deallocate_trace(pfx);
+
+		os_mem_free_large(ptr, pfx->m_size);
 	}
 
 	/** Get the performance schema key to use for tracing allocations.
