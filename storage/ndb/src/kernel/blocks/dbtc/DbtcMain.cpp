@@ -9426,6 +9426,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
     {
       maxInstanceId = 0;
     }
+    ndbassert(maxInstanceId < NDBMT_MAX_BLOCK_INSTANCES);
     /* A node has reported one phase of take over handling as completed. */
     nodeTakeOverCompletedLab(signal, nodeId, maxInstanceId);
     return;
@@ -9609,6 +9610,14 @@ void Dbtc::nodeTakeOverCompletedLab(Signal* signal,
 
   CRASH_INSERTION(8061);
 
+  if (unlikely(maxInstanceId >= NDBMT_MAX_BLOCK_INSTANCES))
+  {
+    /**
+     * bug# 19193927 : LQH sends junk max instance id
+     * Bug is fixed, but handle upgrade
+     */
+    maxInstanceId = NDBMT_MAX_BLOCK_INSTANCES - 1;
+  }
   if (tcNodeFailptr.p->maxInstanceId < maxInstanceId)
   {
     jam();
