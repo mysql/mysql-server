@@ -47,6 +47,7 @@ Created June 2005 by Marko Makela
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
 #endif /* !UNIV_HOTBACKUP */
+#include "srv0srv.h"
 
 #ifndef UNIV_HOTBACKUP
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
