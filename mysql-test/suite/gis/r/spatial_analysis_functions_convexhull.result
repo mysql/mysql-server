@@ -65,6 +65,9 @@ POINT(15 10)
 SELECT AsText(ConvexHull(GeomFromText(@star_top)));
 AsText(ConvexHull(GeomFromText(@star_top)))
 POINT(15 25)
+SELECT AsText(ConvexHull(ST_GeomFromText('POINT(-0 0)')));
+AsText(ConvexHull(ST_GeomFromText('POINT(-0 0)')))
+POINT(0 0)
 SELECT AsText(ConvexHull(GeomFromText('POINT(2.34 -2.34)')));
 AsText(ConvexHull(GeomFromText('POINT(2.34 -2.34)')))
 POINT(2.34 -2.34)
@@ -305,6 +308,9 @@ POINT(15 10)
 SELECT AsText(ST_ConvexHull(GeomFromText(@star_top)));
 AsText(ST_ConvexHull(GeomFromText(@star_top)))
 POINT(15 25)
+SELECT AsText(ST_ConvexHull(ST_GeomFromText('POINT(-0 0)')));
+AsText(ST_ConvexHull(ST_GeomFromText('POINT(-0 0)')))
+POINT(0 0)
 SELECT AsText(ST_ConvexHull(GeomFromText('POINT(2.34 -2.34)')));
 AsText(ST_ConvexHull(GeomFromText('POINT(2.34 -2.34)')))
 POINT(2.34 -2.34)

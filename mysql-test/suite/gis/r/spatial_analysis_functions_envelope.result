@@ -65,6 +65,9 @@ POLYGON((15 10,15 10,15 10,15 10,15 10))
 SELECT AsText(Envelope(GeomFromText(@star_top)));
 AsText(Envelope(GeomFromText(@star_top)))
 POLYGON((15 25,15 25,15 25,15 25,15 25))
+SELECT AsText(Envelope(ST_GeomFromText('POINT(-0 0)')));
+AsText(Envelope(ST_GeomFromText('POINT(-0 0)')))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
 SELECT AsText(Envelope(GeomFromText('POINT(2.34 -2.34)')));
 AsText(Envelope(GeomFromText('POINT(2.34 -2.34)')))
 POLYGON((2.34 -2.34,2.34 -2.34,2.34 -2.34,2.34 -2.34,2.34 -2.34))
@@ -240,6 +243,12 @@ POLYGON((0 0,10 0,10 10,0 10,0 0))
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')));
 AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10),GEOMETRYCOLLECTION())')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10),GEOMETRYCOLLECTION())')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
 AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
 POLYGON((0 0,15 0,15 15,0 15,0 0))
@@ -279,6 +288,9 @@ POLYGON((15 10,15 10,15 10,15 10,15 10))
 SELECT AsText(ST_Envelope(GeomFromText(@star_top)));
 AsText(ST_Envelope(GeomFromText(@star_top)))
 POLYGON((15 25,15 25,15 25,15 25,15 25))
+SELECT AsText(ST_Envelope(ST_GeomFromText('POINT(-0 0)')));
+AsText(ST_Envelope(ST_GeomFromText('POINT(-0 0)')))
+POLYGON((0 0,0 0,0 0,0 0,0 0))
 SELECT AsText(ST_Envelope(GeomFromText('POINT(2.34 -2.34)')));
 AsText(ST_Envelope(GeomFromText('POINT(2.34 -2.34)')))
 POLYGON((2.34 -2.34,2.34 -2.34,2.34 -2.34,2.34 -2.34,2.34 -2.34))
@@ -457,6 +469,12 @@ POLYGON((0 0,10 0,10 10,0 10,0 0))
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
 AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
 POLYGON((0 0,15 0,15 15,0 15,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10),GEOMETRYCOLLECTION())')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10),GEOMETRYCOLLECTION())')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
 AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')))
 POLYGON((0 0,15 0,15 15,0 15,0 0))
@@ -829,6 +847,16 @@ SELECT AsText(Envelope(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))')))' at line 1
 SELECT AsText(Envelope(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((10 10)))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION()')));
 AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION()')))
 NULL
@@ -879,6 +907,16 @@ SELECT AsText(ST_Envelope(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))')))' at line 1
 SELECT AsText(ST_Envelope(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((10 10)))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION()')));
 AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION()')))
 NULL

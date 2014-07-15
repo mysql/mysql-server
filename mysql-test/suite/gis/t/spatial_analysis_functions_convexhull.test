@@ -105,6 +105,7 @@ SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
 --echo #------------------------------------------------------------------------------------
 SELECT AsText(ConvexHull(GeomFromText(@star_center)));
 SELECT AsText(ConvexHull(GeomFromText(@star_top)));
+SELECT AsText(ConvexHull(ST_GeomFromText('POINT(-0 0)')));
 SELECT AsText(ConvexHull(GeomFromText('POINT(2.34 -2.34)')));
 SELECT AsText(ConvexHull(GeomFromText('POINT(1e308 -1e308)')));
 SELECT AsText(ConvexHull(GeomFromText('POINT(-0.0000 0.000001)')));
@@ -203,6 +204,7 @@ SELECT AsText(ConvexHull(g)) FROM gis_geometrycollection WHERE fid=115;
 --echo #------------------------------------------------------------------------------------
 SELECT AsText(ST_ConvexHull(GeomFromText(@star_center)));
 SELECT AsText(ST_ConvexHull(GeomFromText(@star_top)));
+SELECT AsText(ST_ConvexHull(ST_GeomFromText('POINT(-0 0)')));
 SELECT AsText(ST_ConvexHull(GeomFromText('POINT(2.34 -2.34)')));
 SELECT AsText(ST_ConvexHull(GeomFromText('POINT(1e308 -1e308)')));
 SELECT AsText(ST_ConvexHull(GeomFromText('POINT(-0.0000 0.000001)')));

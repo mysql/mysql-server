@@ -105,6 +105,7 @@ SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
 --echo #------------------------------------------------------------------------------------
 SELECT AsText(Envelope(GeomFromText(@star_center)));
 SELECT AsText(Envelope(GeomFromText(@star_top)));
+SELECT AsText(Envelope(ST_GeomFromText('POINT(-0 0)')));
 SELECT AsText(Envelope(GeomFromText('POINT(2.34 -2.34)')));
 SELECT AsText(Envelope(GeomFromText('POINT(1e308 -1e308)')));
 SELECT AsText(Envelope(GeomFromText('POINT(-0.0000 0.000001)')));
@@ -178,6 +179,8 @@ SELECT AsText(Envelope(GeomFromText(@star_collection_elems)));
 SELECT AsText(Envelope(GeomFromText(@star_collection_multilinestr)));
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')));
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10))')));
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10),GEOMETRYCOLLECTION())')));
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')));
@@ -197,6 +200,7 @@ SELECT AsText(Envelope(g)) FROM gis_geometrycollection WHERE fid=115;
 --echo #------------------------------------------------------------------------------------
 SELECT AsText(ST_Envelope(GeomFromText(@star_center)));
 SELECT AsText(ST_Envelope(GeomFromText(@star_top)));
+SELECT AsText(ST_Envelope(ST_GeomFromText('POINT(-0 0)')));
 SELECT AsText(ST_Envelope(GeomFromText('POINT(2.34 -2.34)')));
 SELECT AsText(ST_Envelope(GeomFromText('POINT(1e308 -1e308)')));
 SELECT AsText(ST_Envelope(GeomFromText('POINT(-0.0000 0.000001)')));
@@ -271,6 +275,8 @@ SELECT AsText(ST_Envelope(GeomFromText(@star_collection_multilinestr)));
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))')));
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10))')));
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10),GEOMETRYCOLLECTION())')));
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10),LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0),(10 10,10 15,15 15,10 10)))')));
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))')));
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0)))))')));
@@ -466,6 +472,16 @@ SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))')));
 SELECT AsText(Envelope(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
 --error ER_GIS_INVALID_DATA
 SELECT AsText(Envelope(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((10 10)))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION()')));
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
@@ -508,6 +524,16 @@ SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))')));
 SELECT AsText(ST_Envelope(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
 --error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Envelope(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((10 10)))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION()')));
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
