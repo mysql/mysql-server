@@ -120,8 +120,7 @@ FUNCTION(DTRACE_INSTRUMENT target)
     ELSEIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
       # dtrace on Linux runs gcc and uses flags from environment
       SET(CFLAGS_SAVED $ENV{CFLAGS})
-      STRING(REGEX REPLACE "-W[A-Za-z0-9-]*" "" C_FLAGS "${CMAKE_C_FLAGS}")
-      SET(ENV{CFLAGS} ${C_FLAGS})
+      SET(ENV{CFLAGS} ${CMAKE_C_FLAGS})
       SET(outfile "${CMAKE_BINARY_DIR}/probes_mysql.o")
       # Systemtap object
       EXECUTE_PROCESS(
