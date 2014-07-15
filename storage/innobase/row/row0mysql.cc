@@ -777,7 +777,7 @@ row_create_prebuilt(
 			ut_a(temp_index->n_user_defined_cols
 						== MAX_REF_PARTS););
 		uint temp_len = 0;
-		for (int i = 0; i < temp_index->n_uniq; i++) {
+		for (uint i = 0; i < temp_index->n_uniq; i++) {
 			if (temp_index->fields[i].col->mtype == DATA_INT) {
 				temp_len +=
 					temp_index->fields[i].fixed_len;
