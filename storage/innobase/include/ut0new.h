@@ -326,12 +326,14 @@ ut_new_boot()
 
 #endif /* ut0new_cc */
 
-#ifdef UNIV_PFS_MEMORY
 
 /** A structure that holds the necessary data for performance schema
 accounting. An object of this type is put in front of each allocated block
 of memory. This is because the data is needed even when freeing the memory. */
 struct ut_new_pfx_t {
+
+#ifdef UNIV_PFS_MEMORY
+
 	/** Performance schema key. Assigned to a name at startup via
 	PSI_MEMORY_CALL(register_memory)() and later used for accounting
 	allocations and deallocations with
@@ -339,14 +341,14 @@ struct ut_new_pfx_t {
 	PSI_MEMORY_CALL(memory_free)(key, size). */
 	PSI_memory_key	m_key;
 
+#endif /* UNIV_PFS_MEMORY */
+
 	/** Size of the allocated block in bytes, including this prepended
 	aux structure. For example if InnoDB code requests to allocate
 	100 bytes, and sizeof(ut_new_pfx_t) is 16, then 116 bytes are
 	allocated in total and m_size will be 116. */
 	size_t		m_size;
 };
-
-#endif /* UNIV_PFS_MEMORY */
 
 /** Allocator class for allocating memory from inside std::* containers. */
 template <class T>
@@ -364,11 +366,11 @@ public:
 	explicit
 	ut_allocator(
 		PSI_memory_key	key = PSI_NOT_INSTRUMENTED)
-#ifdef UNIV_PFS_MEMORY
 		:
+#ifdef UNIV_PFS_MEMORY
 		m_key(key),
-		m_max_retries(60)
 #endif /* UNIV_PFS_MEMORY */
+		m_max_retries(60)
 	{
 	}
 
@@ -376,10 +378,8 @@ public:
 	template <class U>
 	ut_allocator(
 		const ut_allocator<U>&	other)
-#ifdef UNIV_PFS_MEMORY
 		:
 		m_max_retries(60)
-#endif /* UNIV_PFS_MEMORY */
 	{
 #ifdef UNIV_PFS_MEMORY
 		m_key = other.get_mem_key(NULL);
@@ -678,6 +678,8 @@ public:
 		deallocate(ptr);
 	}
 
+#endif /* UNIV_PFS_MEMORY */
+
 	/** Allocate a large chunk of memory that can hold 'n_elements'
 	objects of type 'T' and trace the allocation.
 	@param[in]	n_elements	number of elements
@@ -704,9 +706,13 @@ public:
 		pointer	ptr = reinterpret_cast<pointer>(
 			os_mem_alloc_large(&n_bytes));
 
+#ifdef UNIV_PFS_MEMORY
 		if (ptr != NULL) {
 			allocate_trace(n_bytes, NULL, pfx);
 		}
+#else
+		pfx->m_size = n_bytes;
+#endif /* UNIV_PFS_MEMORY */
 
 		return(ptr);
 	}
@@ -721,10 +727,14 @@ public:
 		void*			ptr,
 		const ut_new_pfx_t*	pfx)
 	{
+#ifdef UNIV_PFS_MEMORY
 		deallocate_trace(pfx);
+#endif /* UNIV_PFS_MEMORY */
 
 		os_mem_free_large(ptr, pfx->m_size);
 	}
+
+#ifdef UNIV_PFS_MEMORY
 
 	/** Get the performance schema key to use for tracing allocations.
 	@param[in]	file	file name of the caller or NULL if unknown
@@ -834,10 +844,12 @@ private:
 	/** Performance schema key. */
 	PSI_memory_key		m_key;
 
+#endif /* UNIV_PFS_MEMORY */
+
+private:
+
 	/** Maximum number of retries to allocate memory. */
 	const size_t	m_max_retries;
-
-#endif /* UNIV_PFS_MEMORY */
 };
 
 /** Compare two allocators of the same type.
