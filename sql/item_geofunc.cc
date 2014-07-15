@@ -393,6 +393,14 @@ String *Item_func_centroid::val_str(String *str)
   }
 
   str->set_charset(&my_charset_bin);
+
+  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
+      geom->normalize_ring_order() == NULL)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
   null_value= bg_centroid<bgcs::cartesian>(geom, str);
   if (null_value)
     return error_str();
@@ -610,7 +618,7 @@ public:
 
 
 template <typename Coordsys>
-bool geometry_collection_centroid(Geometry *geom,
+bool geometry_collection_centroid(const Geometry *geom,
                                   typename BG_models<double, Coordsys>::
                                   Point &respt)
 {
@@ -664,20 +672,12 @@ bool geometry_collection_centroid(Geometry *geom,
 
 
 template <typename Coordsys>
-bool Item_func_centroid::bg_centroid(Geometry *geom, String *ptwkb)
+bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
 {
   typename BG_models<double, Coordsys>::Point respt;
 
   // Release last call's result buffer.
   bg_resbuf_mgr.free_result_buffer();
-
-  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
-      geom->normalize_ring_order() == NULL)
-  {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    null_value= true;
-    return null_value;
-  }
 
   try
   {
@@ -774,6 +774,14 @@ String *Item_func_convex_hull::val_str(String *str)
   DBUG_ASSERT(geom->get_coordsys() == Geometry::cartesian);
   str->set_charset(&my_charset_bin);
   str->length(0);
+
+  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
+      geom->normalize_ring_order() == NULL)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
   null_value= bg_convex_hull<bgcs::cartesian>(geom, str);
   if (null_value)
     return error_str();
@@ -785,7 +793,7 @@ String *Item_func_convex_hull::val_str(String *str)
 
 
 template <typename Coordsys>
-bool Item_func_convex_hull::bg_convex_hull(Geometry *geom, String *res_hull)
+bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom, String *res_hull)
 {
   typename BG_models<double, Coordsys>::Polygon hull;
   typename BG_models<double, Coordsys>::Linestring line_hull;
@@ -793,14 +801,6 @@ bool Item_func_convex_hull::bg_convex_hull(Geometry *geom, String *res_hull)
 
   // Release last call's result buffer.
   bg_resbuf_mgr.free_result_buffer();
-
-  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
-      geom->normalize_ring_order() == NULL)
-  {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    null_value= true;
-    return null_value;
-  }
 
   try
   {
@@ -847,7 +847,7 @@ bool Item_func_convex_hull::bg_convex_hull(Geometry *geom, String *res_hull)
     }
 
     /*
-      From now on we don't have to consider linear hulls, it's impossible.
+      From here on we don't have to consider linear hulls, it's impossible.
 
       In theory we can use above multipoint to get convex hull for all 7 types
       of geometries, however we'd better use BG standard logic for each type,
@@ -860,14 +860,14 @@ bool Item_func_convex_hull::bg_convex_hull(Geometry *geom, String *res_hull)
     {
     case Geometry::wkb_point:
       {
-        DBUG_ASSERT(geom->has_geom_header_space());
+        /*
+          A point's convex hull is the point itself, directly use the point's
+          WKB buffer, set its header info correctly. 
+        */
+        DBUG_ASSERT(geom->get_ownmem() == false &&
+                    geom->has_geom_header_space());
         char *p= geom->get_cptr() - GEOM_HEADER_SIZE;
         write_geometry_header(p, geom->get_srid(), geom->get_geotype());
-        /*
-          In this case no need to hold buffer in bg_resbuf_mgr because the
-          buffer is taken over by our caller Item node.
-        */
-        geom->set_ownmem(false);
         return false;
       }
       break;
@@ -7299,18 +7299,11 @@ double Item_func_y::val_real()
 
 
 template <typename Coordsys>
-double Item_func_area::bg_area(Geometry *geom, bool *isdone)
+double Item_func_area::bg_area(const Geometry *geom, bool *isdone)
 {
   double res= 0;
 
   *isdone= false;
-  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
-      geom->normalize_ring_order() == NULL)
-  {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    null_value= true;
-  }
-
   try
   {
     switch (geom->get_type())
@@ -7354,6 +7347,14 @@ double Item_func_area::bg_area(Geometry *geom, bool *isdone)
              i != bggc.get_geometries().end(); ++i)
         {
           isdone2= false;
+          if ((*i)->get_geotype() != Geometry::wkb_geometrycollection &&
+              (*i)->normalize_ring_order() == NULL)
+          {
+            my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+            null_value= true;
+            return 0;
+          }
+
           res+= bg_area<Coordsys>(*i, &isdone2);
           if (!isdone2 || null_value)
             return res;
@@ -7399,6 +7400,14 @@ double Item_func_area::val_real()
     return error_real();
   }
   DBUG_ASSERT(geom->get_coordsys() == Geometry::cartesian);
+
+  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
+      geom->normalize_ring_order() == NULL)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+  }
+
   res= bg_area<bgcs::cartesian>(geom, &isdone);
 
   // Had error in bg_area.
@@ -7495,8 +7504,16 @@ double Item_func_distance::val_real()
   {
     my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
              g1->get_srid(), g2->get_srid());
-    null_value= true;
-    goto exit;
+    DBUG_RETURN(error_real());
+  }
+
+  if ((g1->get_geotype() != Geometry::wkb_geometrycollection &&
+       g1->normalize_ring_order() == NULL) ||
+      (g2->get_geotype() != Geometry::wkb_geometrycollection &&
+       g2->normalize_ring_order() == NULL))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(error_real());
   }
 
   if (g1->get_type() != Geometry::wkb_geometrycollection &&
@@ -7505,7 +7522,7 @@ double Item_func_distance::val_real()
   else
   {
     BG_geometry_collection bggc1, bggc2;
-    bool inited= false, isdone2= false;
+    bool inited= false, isdone2= false, all_normalized= false;
     double min_distance= DBL_MAX, dist;
 
     bggc1.fill(g1);
@@ -7514,10 +7531,27 @@ double Item_func_distance::val_real()
          i= bggc1.get_geometries().begin();
          i != bggc1.get_geometries().end(); ++i)
     {
+      /* Normalize polygon rings, do only once for each component. */
+      if ((*i)->get_geotype() != Geometry::wkb_geometrycollection &&
+          (*i)->normalize_ring_order() == NULL)
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+        DBUG_RETURN(error_real());
+      }
+
       for (BG_geometry_collection::Geometry_list::iterator
            j= bggc2.get_geometries().begin();
            j != bggc2.get_geometries().end(); ++j)
       {
+        /* Normalize polygon rings, do only once for each component. */
+        if (!all_normalized &&
+            (*j)->get_geotype() != Geometry::wkb_geometrycollection &&
+            (*j)->normalize_ring_order() == NULL)
+        {
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          DBUG_RETURN(error_real());
+        }
+
         dist= bg_distance<bgcs::cartesian>(*i, *j, &isdone2);
         if (!isdone2 && !null_value)
           goto old_algo;
@@ -7533,6 +7567,8 @@ double Item_func_distance::val_real()
 
         isdone= true;
       }
+
+      all_normalized= true;
     }
 
     /*
@@ -7702,7 +7738,7 @@ mem_error:
 
 template <typename Coordsys>
 double Item_func_distance::
-distance_point_geometry(Geometry *g1, Geometry *g2, bool *isdone)
+distance_point_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
 {
   double res= 0;
   *isdone= false;
@@ -7772,7 +7808,7 @@ distance_point_geometry(Geometry *g1, Geometry *g2, bool *isdone)
 
 template <typename Coordsys>
 double Item_func_distance::
-distance_multipoint_geometry(Geometry *g1, Geometry *g2,
+distance_multipoint_geometry(const Geometry *g1, const Geometry *g2,
                              bool *isdone)
 {
   double res= 0;
@@ -7839,7 +7875,7 @@ distance_multipoint_geometry(Geometry *g1, Geometry *g2,
 
 template <typename Coordsys>
 double Item_func_distance::
-distance_linestring_geometry(Geometry *g1, Geometry *g2,
+distance_linestring_geometry(const Geometry *g1, const Geometry *g2,
                              bool *isdone)
 {
   double res= 0;
@@ -7868,7 +7904,7 @@ distance_linestring_geometry(Geometry *g1, Geometry *g2,
 
 template <typename Coordsys>
 double Item_func_distance::
-distance_multilinestring_geometry(Geometry *g1, Geometry *g2,
+distance_multilinestring_geometry(const Geometry *g1, const Geometry *g2,
                                   bool *isdone)
 {
   double res= 0;
@@ -7897,7 +7933,7 @@ distance_multilinestring_geometry(Geometry *g1, Geometry *g2,
 
 template <typename Coordsys>
 double Item_func_distance::
-distance_polygon_geometry(Geometry *g1, Geometry *g2, bool *isdone)
+distance_polygon_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
 {
   double res= 0;
   *isdone= false;
@@ -7925,7 +7961,7 @@ distance_polygon_geometry(Geometry *g1, Geometry *g2, bool *isdone)
 
 template <typename Coordsys>
 double Item_func_distance::
-distance_multipolygon_geometry(Geometry *g1, Geometry *g2,
+distance_multipolygon_geometry(const Geometry *g1, const Geometry *g2,
                                bool *isdone)
 {
   double res= 0;
@@ -7953,23 +7989,14 @@ distance_multipolygon_geometry(Geometry *g1, Geometry *g2,
 
 
 template <typename Coordsys>
-double Item_func_distance::bg_distance(Geometry *g1,
-                                       Geometry *g2, bool *isdone)
+double Item_func_distance::bg_distance(const Geometry *g1,
+                                       const Geometry *g2, bool *isdone)
 {
   double res= 0;
   *isdone= false;
 
   try
   {
-    if ((g1->get_geotype() != Geometry::wkb_geometrycollection &&
-         g1->normalize_ring_order() == NULL) ||
-        (g2->get_geotype() != Geometry::wkb_geometrycollection &&
-         g2->normalize_ring_order() == NULL))
-    {
-      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-      null_value= true;
-      return res;
-    }
 
     switch (g1->get_type())
     {
