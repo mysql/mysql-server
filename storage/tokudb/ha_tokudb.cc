@@ -4371,7 +4371,7 @@ static bool index_key_is_null(TABLE *table, uint keynr, const uchar *key, uint k
 //      error otherwise
 //
 int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%p %u", key, key_len);
     int error = 0;
     DBT start_key, end_key;
     THD* thd = ha_thd();
@@ -4395,7 +4395,7 @@ int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
 
     range_lock_grabbed = true;
     range_lock_grabbed_null = index_key_is_null(table, tokudb_active_index, key, key_len);
-    doing_bulk_fetch = (thd_sql_command(thd) == SQLCOM_SELECT);
+    doing_bulk_fetch = thd_sql_command(thd) == SQLCOM_SELECT || thd_sql_command(thd) == SQLCOM_CREATE_TABLE;
     bulk_fetch_iteration = 0;
     rows_fetched_using_bulk_fetch = 0;
     error = 0;
@@ -5698,7 +5698,7 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
     // at this point, determine if we will be doing bulk fetch
     // as of now, only do it if we are doing a select
     //
-    doing_bulk_fetch = (thd_sql_command(thd) == SQLCOM_SELECT);
+    doing_bulk_fetch = thd_sql_command(thd) == SQLCOM_SELECT || thd_sql_command(thd) == SQLCOM_CREATE_TABLE;
     bulk_fetch_iteration = 0;
     rows_fetched_using_bulk_fetch = 0;
 
