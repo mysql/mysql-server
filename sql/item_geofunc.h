@@ -244,7 +244,7 @@ class Item_func_centroid: public Item_geometry_func
   BG_result_buf_mgr bg_resbuf_mgr;
 
   template <typename Coordsys>
-  bool bg_centroid(Geometry *geom, String *ptwkb);
+  bool bg_centroid(const Geometry *geom, String *ptwkb);
 public:
   Item_func_centroid(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
   const char *func_name() const { return "st_centroid"; }
@@ -257,7 +257,7 @@ class Item_func_convex_hull: public Item_geometry_func
   BG_result_buf_mgr bg_resbuf_mgr;
 
   template <typename Coordsys>
-  bool bg_convex_hull(Geometry *geom, String *wkb);
+  bool bg_convex_hull(const Geometry *geom, String *wkb);
 public:
   Item_func_convex_hull(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
   const char *func_name() const { return "st_convex_hull"; }
@@ -752,7 +752,7 @@ class Item_func_area: public Item_real_func
   String value;
 
   template <typename Coordsys>
-  double bg_area(Geometry *geom, bool *isdone);
+  double bg_area(const Geometry *geom, bool *isdone);
 public:
   Item_func_area(const POS &pos, Item *a): Item_real_func(pos, a) {}
   double val_real();
@@ -800,25 +800,25 @@ class Item_func_distance: public Item_real_func
   Gcalc_scan_iterator scan_it;
 
   template <typename Coordsys>
-  double bg_distance(Geometry *g1, Geometry *g2, bool *isdone);
+  double bg_distance(const Geometry *g1, const Geometry *g2, bool *isdone);
   template <typename Coordsys>
-  double distance_point_geometry(Geometry *g1, Geometry *g2,
+  double distance_point_geometry(const Geometry *g1, const Geometry *g2,
                                  bool *isdone);
   template <typename Coordsys>
-  double distance_multipoint_geometry(Geometry *g1, Geometry *g2,
+  double distance_multipoint_geometry(const Geometry *g1, const Geometry *g2,
                                       bool *isdone);
   template <typename Coordsys>
-  double distance_linestring_geometry(Geometry *g1, Geometry *g2,
+  double distance_linestring_geometry(const Geometry *g1, const Geometry *g2,
                                       bool *isdone);
   template <typename Coordsys>
-  double distance_multilinestring_geometry(Geometry *g1,
-                                           Geometry *g2,
+  double distance_multilinestring_geometry(const Geometry *g1,
+                                           const Geometry *g2,
                                            bool *isdone);
   template <typename Coordsys>
-  double distance_polygon_geometry(Geometry *g1, Geometry *g2,
+  double distance_polygon_geometry(const Geometry *g1, const Geometry *g2,
                                    bool *isdone);
   template <typename Coordsys>
-  double distance_multipolygon_geometry(Geometry *g1, Geometry *g2,
+  double distance_multipolygon_geometry(const Geometry *g1, const Geometry *g2,
                                         bool *isdone);
 
 public:
