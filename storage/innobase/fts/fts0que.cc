@@ -430,7 +430,7 @@ fts_query_lcs(
 	ulint	r = len_p1;
 	ulint	c = len_p2;
 	ulint	size = (r + 1) * (c + 1) * sizeof(ulint);
-	ulint*	table = (ulint*) ut_malloc(size);
+	ulint*	table = (ulint*) ut_malloc_nokey(size);
 
 	/* Traverse the table backwards, from the last row to the first and
 	also from the last column to the first. We compute the smaller
@@ -517,7 +517,7 @@ fts_tolower(
 	ulint		len)		/*!< in: src string length */
 {
 	fts_string_t	str;
-	byte*		lc_str = ut_malloc(len + 1);
+	byte*		lc_str = ut_malloc_nokey(len + 1);
 
 	str.f_len = len;
 	str.f_str = lc_str;
@@ -2990,7 +2990,7 @@ fts_query_execute(
 
 /*****************************************************************//**
 Create a wildcard string. It's the responsibility of the caller to
-free the byte* pointer. It's allocated using ut_malloc().
+free the byte* pointer. It's allocated using ut_malloc_nokey().
 @return ptr to allocated memory */
 static
 byte*
@@ -3011,7 +3011,7 @@ fts_query_get_token(
 
 	if (node->term.wildcard) {
 
-		token->f_str = static_cast<byte*>(ut_malloc(str_len + 2));
+		token->f_str = static_cast<byte*>(ut_malloc_nokey(str_len + 2));
 		token->f_len = str_len + 1;
 
 		memcpy(token->f_str, node->term.ptr->str, str_len);
@@ -3675,7 +3675,8 @@ fts_query_prepare_result(
 	bool			result_is_null = false;
 
 	if (result == NULL) {
-		result = static_cast<fts_result_t*>(ut_zalloc(sizeof(*result)));
+		result = static_cast<fts_result_t*>(
+			ut_zalloc_nokey(sizeof(*result)));
 
 		result->rankings_by_id = rbt_create(
 			sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
@@ -3799,7 +3800,8 @@ fts_query_get_result(
 		result = fts_query_prepare_result(query, result);
 	} else {
 		/* Create an empty result instance. */
-		result = static_cast<fts_result_t*>(ut_zalloc(sizeof(*result)));
+		result = static_cast<fts_result_t*>(
+			ut_zalloc_nokey(sizeof(*result)));
 	}
 
 	return(result);
@@ -3967,7 +3969,7 @@ fts_query_str_preprocess(
 	the ut_malloc'ed result and so remember to free it before return. */
 
 	str_len = query_len * charset->casedn_multiply + 1;
-	str_ptr = static_cast<byte*>(ut_malloc(str_len));
+	str_ptr = static_cast<byte*>(ut_malloc_nokey(str_len));
 
 	*result_len = innobase_fts_casedn_str(
 		charset, const_cast<char*>(reinterpret_cast<const char*>(
@@ -4140,7 +4142,7 @@ fts_query(
 	the ut_malloc'ed result and so remember to free it before return. */
 
 	lc_query_str_len = query_len * charset->casedn_multiply + 1;
-	lc_query_str = static_cast<byte*>(ut_malloc(lc_query_str_len));
+	lc_query_str = static_cast<byte*>(ut_malloc_nokey(lc_query_str_len));
 
 	result_len = innobase_fts_casedn_str(
 		charset, (char*) query_str, query_len,
@@ -4203,7 +4205,7 @@ fts_query(
 	} else {
 		/* still return an empty result set */
 		*result = static_cast<fts_result_t*>(
-			ut_zalloc(sizeof(**result)));
+			ut_zalloc_nokey(sizeof(**result)));
 	}
 
 	ut_free(lc_query_str);

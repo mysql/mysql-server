@@ -175,7 +175,7 @@ struct TrxFactory {
 		trx->xid = new (std::nothrow) xid_t();
 
 		trx->detailed_error = reinterpret_cast<char*>(
-			ut_zalloc(MAX_DETAILED_ERROR_LEN));
+			ut_zalloc_nokey(MAX_DETAILED_ERROR_LEN));
 
 		trx->lock.lock_heap = mem_heap_create_typed(
 			1024, MEM_HEAP_FOR_LOCK_HEAP);
@@ -191,7 +191,7 @@ struct TrxFactory {
 
 		/* Explicitly call the constructor of the already
 		allocated object. trx_t objects are allocated by
-		ut_zalloc() in Pool::Pool() which would not call
+		ut_zalloc_nokey() in Pool::Pool() which would not call
 		the constructors of the trx_t members. */
 		new(&trx->mod_tables) trx_mod_tables_t();
 

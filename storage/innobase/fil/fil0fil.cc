@@ -624,7 +624,7 @@ fil_node_create(
 		return(NULL);
 	}
 
-	node = static_cast<fil_node_t*>(ut_zalloc(sizeof(fil_node_t)));
+	node = static_cast<fil_node_t*>(ut_zalloc_nokey(sizeof(fil_node_t)));
 
 	node->name = mem_strdup(name);
 
@@ -712,7 +712,7 @@ fil_node_open_file(
 
 		/* Read the first page of the tablespace */
 
-		buf2 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+		buf2 = static_cast<byte*>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
 		/* Align the memory for file i/o if we might have O_DIRECT
 		set */
 		page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
@@ -1266,7 +1266,7 @@ fil_space_create(
 		return(NULL);
 	}
 
-	space = static_cast<fil_space_t*>(ut_zalloc(sizeof(*space)));
+	space = static_cast<fil_space_t*>(ut_zalloc_nokey(sizeof(*space)));
 
 	space->id = id;
 	space->name = mem_strdup(name);
@@ -1606,7 +1606,7 @@ fil_init(
 	ut_a(max_n_open > 0);
 
 	fil_system = static_cast<fil_system_t*>(
-		ut_zalloc(sizeof(*fil_system)));
+		ut_zalloc_nokey(sizeof(*fil_system)));
 
 	mutex_create("fil_system", &fil_system->mutex);
 
@@ -1803,7 +1803,7 @@ fil_write_flushed_lsn(
 	byte*	buf;
 	dberr_t	err;
 
-	buf1 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+	buf1 = static_cast<byte*>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
 	buf = static_cast<byte*>(ut_align(buf1, UNIV_PAGE_SIZE));
 
 	const page_id_t	page_id(TRX_SYS_SPACE, 0);
@@ -1908,7 +1908,7 @@ fil_create_directory_for_tablename(
 	len = ::strlen(fil_path_to_mysql_datadir);
 	namend = strchr(name, '/');
 	ut_a(namend);
-	path = static_cast<char*>(ut_malloc(len + (namend - name) + 2));
+	path = static_cast<char*>(ut_malloc_nokey(len + (namend - name) + 2));
 
 	memcpy(path, fil_path_to_mysql_datadir, len);
 	path[len] = '/';
@@ -2140,7 +2140,7 @@ fil_recreate_tablespace(
 		byte*	buf;
 		page_t*	page;
 
-		buf = static_cast<byte*>(ut_zalloc(3 * UNIV_PAGE_SIZE));
+		buf = static_cast<byte*>(ut_zalloc_nokey(3 * UNIV_PAGE_SIZE));
 
 		/* Align the memory for file i/o */
 		page = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
@@ -2387,7 +2387,7 @@ fil_op_log_parse_or_replay(
 				new_name, OS_PATH_SEPARATOR);
 			ut_a(namend);
 			char*		dir	= static_cast<char*>(
-				ut_malloc(namend - new_name + 1));
+				ut_malloc_nokey(namend - new_name + 1));
 
 			memcpy(dir, new_name, namend - new_name);
 			dir[namend - new_name] = 0;
@@ -3158,7 +3158,7 @@ fil_make_filepath(
 	ulint	suffix_len	= ::strlen(suffix);
 	ulint	full_len	= path_len + 1 + name_len + suffix_len + 1;
 
-	char*	full_name = static_cast<char*>(ut_malloc(full_len));
+	char*	full_name = static_cast<char*>(ut_malloc_nokey(full_len));
 	if (full_name == NULL) {
 		return NULL;
 	}
@@ -3536,7 +3536,7 @@ fil_create_new_single_table_tablespace(
 	with zeros from the call of os_file_set_size(), until a buffer pool
 	flush would write to it. */
 
-	buf2 = static_cast<byte*>(ut_malloc(3 * UNIV_PAGE_SIZE));
+	buf2 = static_cast<byte*>(ut_malloc_nokey(3 * UNIV_PAGE_SIZE));
 	/* Align the memory for file i/o if we might have O_DIRECT set */
 	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
 
@@ -3969,7 +3969,7 @@ fil_make_ibbackup_old_name(
 	char*	path;
 	ulint	len	= ::strlen(name);
 
-	path = static_cast<char*>(ut_malloc(len + (15 + sizeof suffix)));
+	path = static_cast<char*>(ut_malloc_nokey(len + (15 + sizeof suffix)));
 
 	memcpy(path, name, len);
 	memcpy(path + len, suffix, (sizeof suffix) - 1);
@@ -4561,7 +4561,8 @@ fil_write_zeros(
 	ut_a(len > 0);
 
 	ulint	n_bytes = ut_min(1024 * 1024, len);
-	byte*	ptr = reinterpret_cast<byte*>(ut_zalloc(n_bytes + page_size));
+	byte*	ptr = reinterpret_cast<byte*>(ut_zalloc_nokey(n_bytes
+							      + page_size));
 	byte*	buf = reinterpret_cast<byte*>(ut_align(ptr, page_size));
 
 	os_offset_t		offset = start;
@@ -4797,7 +4798,7 @@ fil_extend_tablespaces_to_stored_len(void)
 	dberr_t		error;
 	bool		success;
 
-	buf = ut_malloc(UNIV_PAGE_SIZE);
+	buf = ut_malloc_nokey(UNIV_PAGE_SIZE);
 
 	mutex_enter(&fil_system->mutex);
 
@@ -5583,7 +5584,7 @@ fil_flush_file_spaces(
 	on a space that was just removed from the list by fil_flush().
 	Thus, the space could be dropped and the memory overwritten. */
 	space_ids = static_cast<ulint*>(
-		ut_malloc(n_space_ids * sizeof *space_ids));
+		ut_malloc_nokey(n_space_ids * sizeof *space_ids));
 
 	n_space_ids = 0;
 
@@ -6007,7 +6008,7 @@ fil_tablespace_iterate(
 	/* The block we will use for every physical page */
 	buf_block_t*	block;
 
-	block = reinterpret_cast<buf_block_t*>(ut_zalloc(sizeof(*block)));
+	block = reinterpret_cast<buf_block_t*>(ut_zalloc_nokey(sizeof(*block)));
 
 	mutex_create("buf_block_mutex", &block->mutex);
 
@@ -6016,7 +6017,7 @@ fil_tablespace_iterate(
 	We allocate an extra page in case it is a compressed table. One
 	page is to ensure alignement. */
 
-	void*	page_ptr = ut_malloc(3 * UNIV_PAGE_SIZE);
+	void*	page_ptr = ut_malloc_nokey(3 * UNIV_PAGE_SIZE);
 	byte*	page = static_cast<byte*>(ut_align(page_ptr, UNIV_PAGE_SIZE));
 
 	fil_buf_block_init(block, page);
@@ -6049,7 +6050,7 @@ fil_tablespace_iterate(
 
 		/** Add an extra page for compressed page scratch area. */
 
-		void*	io_buffer = ut_malloc(
+		void*	io_buffer = ut_malloc_nokey(
 			(2 + iter.n_io_buffers) * UNIV_PAGE_SIZE);
 
 		iter.io_buffer = static_cast<byte*>(

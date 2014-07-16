@@ -31,7 +31,7 @@ Created 2007/03/16/03 Sunny Bains
 
 #ifdef UNIV_PFS_MEMORY
 
-#define malloc(A)	ut_malloc(A)
+#define malloc(A)	ut_malloc_nokey(A)
 #define free(A)		ut_free(A)
 #define realloc(P, A)	ut_realloc(P, A)
 

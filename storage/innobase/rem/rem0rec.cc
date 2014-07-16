@@ -1503,7 +1503,7 @@ rec_copy_prefix_to_buf_old(
 	if ((*buf == NULL) || (*buf_size < prefix_len)) {
 		ut_free(*buf);
 		*buf_size = prefix_len;
-		*buf = static_cast<byte*>(ut_malloc(prefix_len));
+		*buf = static_cast<byte*>(ut_malloc_nokey(prefix_len));
 	}
 
 	ut_memcpy(*buf, rec - area_start, prefix_len);
@@ -1627,7 +1627,7 @@ rec_copy_prefix_to_buf(
 	if ((*buf == NULL) || (*buf_size < prefix_len)) {
 		ut_free(*buf);
 		*buf_size = prefix_len;
-		*buf = static_cast<byte*>(ut_malloc(prefix_len));
+		*buf = static_cast<byte*>(ut_malloc_nokey(prefix_len));
 	}
 
 	memcpy(*buf, lens + 1, prefix_len);

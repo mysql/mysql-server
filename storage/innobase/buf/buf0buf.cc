@@ -1449,7 +1449,7 @@ buf_pool_init_instance(
 		chunk_size = srv_buf_pool_chunk_unit;
 
 		buf_pool->chunks =
-			reinterpret_cast<buf_chunk_t*>(ut_zalloc(
+			reinterpret_cast<buf_chunk_t*>(ut_zalloc_nokey(
 				buf_pool->n_chunks * sizeof(*chunk)));
 		buf_pool->chunks_old = NULL;
 
@@ -1531,13 +1531,13 @@ buf_pool_init_instance(
 		buf_pool->no_flush[i] = os_event_create(0);
 	}
 
-	buf_pool->watch = (buf_page_t*) ut_zalloc(
+	buf_pool->watch = (buf_page_t*) ut_zalloc_nokey(
 		sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
 	for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
 		buf_pool->watch[i].buf_pool_index = buf_pool->instance_no;
 	}
 
-	/* All fields are initialized by ut_zalloc(). */
+	/* All fields are initialized by ut_zalloc_nokey(). */
 
 	buf_pool->try_LRU_scan = TRUE;
 
@@ -1650,7 +1650,7 @@ buf_pool_init(
 	buf_pool_withdrawing = false;
 	buf_withdraw_clock = 0;
 
-	buf_pool_ptr = (buf_pool_t*) ut_zalloc(
+	buf_pool_ptr = (buf_pool_t*) ut_zalloc_nokey(
 		n_instances * sizeof *buf_pool_ptr);
 
 	buf_chunk_map_reg = new buf_pool_chunk_map_t();
@@ -2488,7 +2488,7 @@ withdraw_retry:
 			buf_chunk_t*	new_chunks;
 			new_chunks =
 				reinterpret_cast<buf_chunk_t*>(
-					ut_zalloc(
+					ut_zalloc_nokey(
 						buf_pool->n_chunks_new
 						* sizeof(*chunk)));
 
@@ -6028,9 +6028,9 @@ buf_print_instance(
 	size = buf_pool->curr_size;
 
 	index_ids = static_cast<index_id_t*>(
-		ut_malloc(size * sizeof *index_ids));
+		ut_malloc_nokey(size * sizeof *index_ids));
 
-	counts = static_cast<ulint*>(ut_malloc(sizeof(ulint) * size));
+	counts = static_cast<ulint*>(ut_malloc_nokey(sizeof(ulint) * size));
 
 	buf_pool_mutex_enter(buf_pool);
 	buf_flush_list_mutex_enter(buf_pool);
@@ -6590,7 +6590,7 @@ buf_print_io(
 	one extra buf_pool_info_t, the last one stores
 	aggregated/total values from all pools */
 	if (srv_buf_pool_instances > 1) {
-		pool_info = (buf_pool_info_t*) ut_zalloc((
+		pool_info = (buf_pool_info_t*) ut_zalloc_nokey((
 			srv_buf_pool_instances + 1) * sizeof *pool_info);
 
 		pool_info_total = &pool_info[srv_buf_pool_instances];
@@ -6599,7 +6599,7 @@ buf_print_io(
 
 		pool_info_total = pool_info =
 			static_cast<buf_pool_info_t*>(
-				ut_zalloc(sizeof *pool_info));
+				ut_zalloc_nokey(sizeof *pool_info));
 	}
 
 	for (i = 0; i < srv_buf_pool_instances; i++) {

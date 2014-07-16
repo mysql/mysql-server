@@ -579,7 +579,7 @@ mem_strdup(
 	const char*	str)	/*!< in: string to be copied */
 {
 	ulint	len = strlen(str) + 1;
-	return(static_cast<char*>(memcpy(ut_malloc(len), str, len)));
+	return(static_cast<char*>(memcpy(ut_malloc_nokey(len), str, len)));
 }
 
 /**********************************************************************//**
@@ -592,7 +592,7 @@ mem_strdupl(
 	const char*	str,	/*!< in: string to be copied */
 	ulint		len)	/*!< in: length of str, in bytes */
 {
-	char*	s = static_cast<char*>(ut_malloc(len + 1));
+	char*	s = static_cast<char*>(ut_malloc_nokey(len + 1));
 	s[len] = 0;
 	return(static_cast<char*>(memcpy(s, str, len)));
 }

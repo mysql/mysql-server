@@ -334,7 +334,7 @@ row_merge_buf_create_low(
 	buf->index = index;
 	buf->max_tuples = max_tuples;
 	buf->tuples = static_cast<mtuple_t*>(
-		ut_malloc(2 * max_tuples * sizeof *buf->tuples));
+		ut_malloc_nokey(2 * max_tuples * sizeof *buf->tuples));
 	buf->tmp_tuples = buf->tuples + max_tuples;
 
 	return(buf);
@@ -533,8 +533,8 @@ row_merge_buf_add(
 					continue;
 				}
 
-				ptr = ut_malloc(sizeof(*doc_item)
-						+ field->len);
+				ptr = ut_malloc_nokey(sizeof(*doc_item)
+						      + field->len);
 
 				doc_item = static_cast<fts_doc_item_t*>(ptr);
 				value = static_cast<byte*>(ptr)
@@ -1429,7 +1429,7 @@ row_merge_read_clustered_index(
 	/* Create and initialize memory for record buffers */
 
 	merge_buf = static_cast<row_merge_buf_t**>(
-		ut_malloc(n_index * sizeof *merge_buf));
+		ut_malloc_nokey(n_index * sizeof *merge_buf));
 
 	for (ulint i = 0; i < n_index; i++) {
 		if (index[i]->type & DICT_FTS) {
@@ -1472,7 +1472,8 @@ row_merge_read_clustered_index(
 		spatial_heap = mem_heap_create(100);
 
 		spatial_dtuple_info = static_cast<index_tuple_info_t**>(
-			ut_malloc(num_spatial * sizeof(*spatial_dtuple_info)));
+			ut_malloc_nokey(num_spatial
+					* sizeof(*spatial_dtuple_info)));
 
 		for (ulint i = 0; i < n_index; i++) {
 			if (dict_index_is_spatial(index[i])) {
@@ -1503,7 +1504,7 @@ row_merge_read_clustered_index(
 		do not violate the added NOT NULL constraints. */
 
 		nonnull = static_cast<ulint*>(
-			ut_malloc(dict_table_get_n_cols(new_table)
+			ut_malloc_nokey(dict_table_get_n_cols(new_table)
 				  * sizeof *nonnull));
 
 		for (ulint i = 0; i < dict_table_get_n_cols(old_table); i++) {
@@ -2582,7 +2583,7 @@ row_merge_sort(
 	}
 
 	/* "run_offset" records each run's first offset number */
-	run_offset = (ulint*) ut_malloc(file->offset * sizeof(ulint));
+	run_offset = (ulint*) ut_malloc_nokey(file->offset * sizeof(ulint));
 
 	/* This tells row_merge() where to start for the first round
 	of merge. */
@@ -3869,7 +3870,7 @@ row_merge_build_indexes(
 	trx_start_if_not_started_xa(trx, true);
 
 	merge_files = static_cast<merge_file_t*>(
-		ut_malloc(n_indexes * sizeof *merge_files));
+		ut_malloc_nokey(n_indexes * sizeof *merge_files));
 
 	/* Initialize all the merge file descriptors, so that we
 	don't call row_merge_file_destroy() on uninitialized
@@ -3901,8 +3902,9 @@ row_merge_build_indexes(
 			fts_sort_idx = row_merge_create_fts_sort_index(
 				indexes[i], old_table, &opt_doc_id_size);
 
-			row_merge_dup_t* dup = static_cast<row_merge_dup_t*>(
-				ut_malloc(sizeof *dup));
+			row_merge_dup_t*	dup
+				= static_cast<row_merge_dup_t*>(
+					ut_malloc_nokey(sizeof *dup));
 			dup->index = fts_sort_idx;
 			dup->table = table;
 			dup->col_map = col_map;
