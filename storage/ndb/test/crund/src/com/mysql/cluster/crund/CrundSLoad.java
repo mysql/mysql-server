@@ -22,10 +22,10 @@ import com.mysql.cluster.crund.CrundDriver.XMode;
 abstract class CrundSLoad extends Load {
     // resources
     protected final CrundDriver driver;
-    protected String name;
 
     public CrundSLoad(CrundDriver driver) {
         this.driver = driver;
+        driver.addLoad(this);
     }
 
     // ----------------------------------------------------------------------
@@ -34,10 +34,6 @@ abstract class CrundSLoad extends Load {
 
     abstract protected void initProperties();
     abstract protected void printProperties();
-
-    public String getName() {
-        return name;
-    }
 
     public void init() throws Exception {
         initProperties();
@@ -70,7 +66,7 @@ abstract class CrundSLoad extends Load {
         for (int i = 0; i < nOps; i++)
             id[i] = i * 2;
 
-        for (XMode m : driver.xMode) {
+        for (XMode m : driver.xModes) {
             clearPersistenceContext();
             runInsert(m, id);
             clearPersistenceContext();
@@ -80,7 +76,7 @@ abstract class CrundSLoad extends Load {
             clearPersistenceContext();
             runDelete(m, id);
         }
-        // failing fast, not yet using driver.failOnError, driver.logError()
+        // XXX failing fast, not yet using driver.failOnError, driver.logError()
         //driver.abortIfErrors();
     }
 

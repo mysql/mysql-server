@@ -18,14 +18,6 @@ connection ddl;
 --source ndbinfo_create.inc
 
 connection spj;
-# Remember all SPJ conters when test started.
-# Will report and compare the diff. at end of entire test
-create temporary table spj_counts_at_startup 
-       select counter_name, sum(val) as val 
-       from ndbinfo.counters 
-       where block_name='DBSPJ' 
-       group by counter_name;
-
 # Save old mysqld counter values.
 create temporary table server_counts_at_startup
        select * from information_schema.global_status 
@@ -51,7 +43,8 @@ create table t1 (
   c int not null,
   d int not null,
   primary key (`a`,`b`)
-) engine=ndbcluster;
+) engine=ndbcluster
+partition by key() partitions 8;
 
 connection spj;
 insert into t1 values
@@ -356,6 +349,7 @@ from t1
   straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
   straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b;
 
+--replace_column 10 # 11 #
 explain extended
 select *
 from t1
@@ -434,6 +428,7 @@ connection spj;
 set ndb_join_pushdown=true;
 
 # Table scan
+--replace_column 10 # 11 #
 explain extended select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -445,6 +440,7 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.d = 3;
 
 # Ordered index scan
+--replace_column 10 # 11 #
 explain extended select * 
 from t1 
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
@@ -456,6 +452,7 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a > 2 and t1.d = 3;
 
 # Sorted scan of ordered index.
+--replace_column 10 # 11 #
 explain extended select * 
 from t1 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
 where t1.d = 3 
@@ -894,6 +891,7 @@ explain extended
     y.a=x.d and y.b=x.b;
 
 # 'open' range:
+--replace_column 10 # 11 #
 explain extended 
   select * from t1 x, t1 y where
     (x.a >= 2 or x.a < 3) and
@@ -1194,6 +1192,7 @@ insert into t1 select 1, x1.a * 10+x2.a, 1, 1 from tx as x1 cross join tx as x2;
 --error 0,1193
 set global debug='+d,max_64rows_in_spj_batches';
 
+--replace_column 10 # 11 #
 explain select count(*) from t1 as x1
   join t1 as x2 on x2.a = x1.c and x1.b < 2 
   join t1 as x3 on x3.a = x1.d;
@@ -1429,12 +1428,14 @@ where y.a3=x.d3 and y.b3=x.b3 and
       t1.a = z2.d3;
 
 # Table expressions wo/ parent-child linkage should *not* be executes as a pushed join:
+--replace_column 10 # 11 #
 explain extended
 select straight_join * from t1 x, t1 y where y.a=0x1f and x.b = 0x1f;
 select straight_join * from t1 x, t1 y where y.a=0x1f and x.b = 0x1f;
 
 # NOTE: Due to constValue replacement in equality sets, query below are
 # effectively the same as the one above. -> Don't push either
+--replace_column 10 # 11 #
 explain extended
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
@@ -1832,6 +1833,7 @@ select straight_join *
   from t3 as x join t3 as y on x.b3 = y.b3
   where y.d3 = 0x2f;
 
+--replace_column 10 # 11 #
 explain extended
 select straight_join * 
   from t3 as x join t3 as y on x.c3 = y.c3
@@ -1861,6 +1863,7 @@ select straight_join *
 
 
 ## Not pushable as 'not null' is actually not a single const value
+--replace_column 10 # 11 #
 explain extended
 select straight_join * 
   from t3 as x join t3 as y on x.b3 = y.b3
@@ -1964,6 +1967,7 @@ connection ddl;
 drop index b3 on t3;
 
 connection spj;
+--replace_column 10 # 11 #
 execute stmt1;
 
 # Then recreate it -> original query plan
@@ -2053,7 +2057,7 @@ select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
 join t1 as t3 on t3.a = t2.a
-join t1 as t4 on t4.a = t3.b;
+join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL, pushdown=off */;
 
 set ndb_join_pushdown=true;
 
@@ -2062,13 +2066,13 @@ select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
 join t1 as t3 on t3.a = t2.a
-join t1 as t4 on t4.a = t3.b;
+join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL, pushdown=on */;
 --sorted_result
 select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
 join t1 as t3 on t3.a = t2.a
-join t1 as t4 on t4.a = t3.b;
+join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL, pushdown=on */;
 
 ## Test subquery execution where 'Full scan on null key' strategy requires
 ## table scan execution in addition to the key lookup which was prepared
@@ -2089,6 +2093,7 @@ xor c > 5;
 ## to 't1.b' should not be pushed as outer referrences are outside
 ## the scope of our JOIN_TAB's
 ##############
+--replace_column 10 # 11 #
 explain extended
 select t1.a, (select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.b) from t1;
 --sorted_result
@@ -2110,11 +2115,11 @@ insert into t2 values(1,1), (2,2), (3,3), (4,4);
 explain extended
 select * from t1, t2, t1 as t3
 where t2.a = t1.b
-  and t3.a = t2.b;
+  and t3.a = t2.b /* mixed engines */;
 --sorted_result
 select * from t1, t2, t1 as t3
 where t2.a = t1.b
-  and t3.a = t2.b;
+  and t3.a = t2.b /* mixed engines */;
 
 connection ddl;
 drop table t1, t2;
@@ -2783,11 +2788,13 @@ create temporary table old_count
        group by counter_name;
 
 connection ddl;
+# Specify number of partition to be independent of configured #LDM's
 create table t1 (a int not null, 
                  b int not null,
-       		 c int not null,
-		 primary key(a)) 
-		 engine = ndb;
+                 c int not null,
+                 primary key(a)) 
+                 engine = ndb
+                 partition by key() partitions 8;
 
 connection spj;
 # We use key values that have the same representation in little and big endian.
@@ -2851,6 +2858,7 @@ let $spj_lookups = query_get_value(select sum(val) as Value from ndbinfo.counter
 
 # Root scan should give only one tuple if scan filter is pushed. 
 # Therefore only one lookup on 'y'.
+--replace_column 10 # 11 #
 explain extended select * from t1 x, t1 y where x.b=y.a and x.c=4;
 
 select * from t1 x, t1 y where x.b=y.a and x.c=4;
@@ -2861,6 +2869,7 @@ select * from t1 x, t1 y where x.b=y.a and x.c=4;
 
 # Lookup on y should only give one result tuple if filter is pushed.
 # This should give 3 lookups on 'y' and 1 on 'z', 4 in all.
+--replace_column 10 # 11 #
 explain extended select * from t1 x, t1 y, t1 z where x.b=y.a and y.c=4 and y.b=z.a;
 
 select * from t1 x, t1 y, t1 z where x.b=y.a and y.c=4 and y.b=z.a;
@@ -3011,7 +3020,7 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 
 # Should not give pruned scan. There will be two sets of bounds that have
 # different distribution keys (t1.a=10 and t1.a=12). 
-
+--replace_column 10 # 11 #
 explain extended select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 
@@ -3064,6 +3073,7 @@ connection spj;
 # has a single possible value.
 explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
+
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
 connection spj;
@@ -3081,9 +3091,16 @@ create index i2_3 on t2(a, d, b, e);
 # has a single possible value.
 
 connection spj;
+
+# Turn off condition_fanout_filter to keep "old" QEP
+set optimizer_switch='condition_fanout_filter=off';
+
 explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
+
+# Restore condition_fanout_filter to default value
+set optimizer_switch='condition_fanout_filter=default';
 
 --disable_query_log
 let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
@@ -3174,7 +3191,8 @@ connection spj;
 insert into t1 values (0,1,10,20);
 insert into t1 values (1,2,20,30);
 insert into t1 values (2,3,30,40);
-      
+
+--replace_column 10 # 11 #
 explain extended select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
 --sorted_result
 select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
@@ -3396,6 +3414,7 @@ select straight_join count(*) from t1 as x1
 # we had to force the child scan to be non-bushy (serialized by
 # adding artificial parent dependencies)
 # 
+--replace_column 10 # 11 #
 explain extended select straight_join count(*) from t1 as x1 
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.b = x1.a
@@ -3614,6 +3633,7 @@ select straight_join count(*) from t1 as x0
 
 let $scan_rows = query_get_value(select sum(val) as Value from ndbinfo.counters where block_name='DBSPJ' and counter_name='LOCAL_RANGE_SCANS_SENT', Value, 1);
 
+--replace_column 10 # 11 #
 explain select straight_join count(*) from t1 as x1  
    join t1 as x2 on x1.c=x2.a and x2.d=2
    join t3 as x3 on x1.d=x3.a;  
@@ -3622,9 +3642,16 @@ select straight_join count(*) from t1 as x1
    join t1 as x2 on x1.c=x2.a and x2.d=2
    join t3 as x3 on x1.d=x3.a;
 
---disable_query_log
---eval select sum(val) - $scan_rows as Local_range_scans from ndbinfo.counters where block_name='DBSPJ' and counter_name='LOCAL_RANGE_SCANS_SENT';
---enable_query_log
+#####
+# Bug #18175080 
+# INCORRECT 'LOCAL_RANGE_SCAN' REPORTED FROM NDB_JOIN_PUSHDOWN_*.TEST
+#
+# Reported local_range_scan was not deterministic, so had
+# to disable this subtest.
+#
+#--disable_query_log
+#--eval select sum(val) - $scan_rows as Local_range_scans from ndbinfo.counters where block_name='DBSPJ' and counter_name='LOCAL_RANGE_SCANS_SENT';
+#--enable_query_log
 
 --error 0,1193
 set global debug=@save_debug;
@@ -3645,7 +3672,7 @@ create table t1(
        b int not null,
        c int not null,
        primary key (a,b,c))
-engine = ndb partition by key (b);
+engine = ndb partition by key (b) partitions 8;
 
 connection spj;
 insert into t1(a,b,c,d,e,f) values
@@ -3666,6 +3693,7 @@ let $const_pruned_range = query_get_value(select sum(val) as Value from ndbinfo.
 
 set ndb_join_pushdown=on;
 
+--replace_column 10 # 11 #
 explain extended
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
@@ -3673,21 +3701,21 @@ select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 connection ddl;
-alter table t1 partition by key (a);
+alter table t1 partition by key (a) partitions 8;
 
 connection spj;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 connection ddl;
-alter table t1 partition by key (a,b);
+alter table t1 partition by key (a,b) partitions 8;
 
 connection spj;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 connection ddl;
-alter table t1 partition by key (b,a);
+alter table t1 partition by key (b,a) partitions 8;
 
 connection spj;
 --sorted_result
@@ -3697,14 +3725,14 @@ select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 # const pruned testcase 
 #########
 connection ddl;
-alter table t1 partition by key (b);
+alter table t1 partition by key (b) partitions 8;
 
 connection spj;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
 
 connection ddl;
-alter table t1 partition by key (a);
+alter table t1 partition by key (a) partitions 8;
 
 connection spj;
 --sorted_result
@@ -3713,7 +3741,7 @@ select straight_join * from t1 x, t1 y where y.a=0 and y.b=x.e;
 
 # Non-const pruned as both partition keys are not const
 connection ddl;
-alter table t1 partition by key (a,b);
+alter table t1 partition by key (a,b) partitions 8;
 
 connection spj;
 --sorted_result
@@ -3729,10 +3757,11 @@ select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
 ##########
 connection ddl;
 alter table t1 drop primary key, add primary key using hash (d,b,a,c);
-alter table t1 partition by key (b);
+alter table t1 partition by key (b) partitions 8;
 create index ix1 on t1(b,d,a);
 
 connection spj;
+--replace_column 10 # 11 #
 explain extended
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
@@ -3744,7 +3773,7 @@ insert into t1(a,b,c,d,e,f) values
  (9, 9, 0, 1,  2,    null);
 
 connection ddl;
-alter table t1 partition by key (b);
+alter table t1 partition by key (b) partitions 8;
 
 connection spj;
 --sorted_result
@@ -3813,6 +3842,7 @@ insert into t values
   (7,4), (8,4);
 
 connection spj;
+--replace_column 10 # 11 #
 explain extended
 select distinct straight_join table1.pk FROM 
    t as table1  join
@@ -3844,6 +3874,7 @@ create table t (b int, a int, primary key (a,b)) engine=ndb;
 connection spj;
 insert into t values(0,0);
 
+--replace_column 10 # 11 #
 explain extended
 select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
 select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
@@ -3865,6 +3896,7 @@ create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
 connection spj;
 insert into t values (1,3), (3,6), (6,9), (9,1);
 
+--replace_column 10 # 11 #
 explain extended
 select * from t as t1 join t as t2
   on t1.pk2 = t2.pk1 
@@ -3980,6 +4012,96 @@ select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 
 connection ddl;
 drop table t1;
+
+########################
+# Bug#17845161  'CORRUPT KEY IN TC, UNABLE TO XFRM'
+# 
+# Created an incorrect lookup key when a varchar()
+# in the key was NULL
+
+connection ddl;
+CREATE TABLE t1 (
+  id int NOT NULL AUTO_INCREMENT,
+  t2_id int,
+  PRIMARY KEY (id)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+CREATE TABLE t2 (
+  id int NOT NULL AUTO_INCREMENT,
+  t3_id varchar(20) DEFAULT NULL,
+  PRIMARY KEY (id)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+CREATE TABLE t3 (
+  id varchar(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+CREATE TABLE t4 (
+  pk int NOT NULL,
+  id varchar(20) NOT NULL,
+  PRIMARY KEY (pk),
+  UNIQUE KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+
+connection spj;
+INSERT INTO t1 VALUES (20, NULL);
+INSERT INTO t1 VALUES (23, 24);
+
+INSERT INTO t2 VALUES (24, NULL);
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+ WHERE t1.id = 20;
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+ WHERE t1.id = 20;
+
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+ WHERE t1.id = 23;
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t3 ON t3.id = t2.t3_id
+ WHERE t1.id = 23;
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t4 ON t4.id = t2.t3_id
+ WHERE t1.id = 23;
+SELECT *
+  FROM t1
+       INNER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t4 ON t4.id = t2.t3_id
+ WHERE t1.id = 23;
+
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM t1
+       LEFT OUTER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t2 as t3 ON t3.id = t1.t2_id;
+--sorted_result
+SELECT *
+  FROM t1
+       LEFT OUTER JOIN t2 ON t2.id = t1.t2_id
+       LEFT OUTER JOIN t2 as t3 ON t3.id = t1.t2_id;
+
+connection ddl;
+DROP TABLE t1,t2,t3,t4;
 
 #######################################
 # Some tests for nested left joins.
@@ -4119,6 +4241,7 @@ insert into t1 values ('b','b','b','x','x','x','x','x','x','x','x','x','x','x','
 
 insert into t1 values ('c','c','c','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
 
+--replace_column 10 # 11 #
 explain select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
 
 select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
@@ -4140,6 +4263,7 @@ connection spj;
 insert into t1 values (0x4f, 0x4f, 0x4f, 0x4f);
 
 # Prune key depends on parent row.
+--replace_column 10 # 11 #
 explain select * from t1 as x1 
 	join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
 	join t1 as x3 on x3.a=x2.d and x3.b=x1.d and x3.c=x2.c;
@@ -4149,6 +4273,7 @@ select * from t1 as x1
 	join t1 as x3 on x3.a=x2.c and x3.b=x1.d and x3.c=x2.c;
 
 # Prune key is fixed.
+--replace_column 10 # 11 #
 explain select * from t1 as x1 
 	join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
 	join t1 as x3 on x3.a=x2.d and x3.b=x1.d and x3.c=0x4f;
@@ -4267,6 +4392,7 @@ insert into t(i,j,k) values
 --error 0,1193
 set global debug='+d,max_4rows_in_spj_batches';
 
+--replace_column 10 # 11 #
 explain
 select straight_join count(*) from 
   t as t1
@@ -4349,7 +4475,7 @@ drop table t1;
 
 connection ddl;
 CREATE TABLE table1 (
-  col_int_unique int(11) DEFAULT NULL,
+  col_int_unique int(11), 
   PRIMARY KEY (col_int_unique)
 ) ENGINE=ndbcluster;
 
@@ -4483,40 +4609,64 @@ set global debug=@save_debug;
 connection ddl;
 drop table t1;
 
+##############
+# 16999886 ORDER BY DOESN'T WORK WITH JOIN
+# (Limited to pushed join + DESC order only)
+
+connection ddl;
+CREATE TABLE ndb_order_test (
+  node_id int(10) unsigned NOT NULL,
+  user_id int(10) unsigned NOT NULL,
+  sort_number int(10) unsigned NOT NULL,
+  KEY node_id (node_id,sort_number)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+
+CREATE TABLE ndb_user_test (
+  user_id int(10) unsigned NOT NULL AUTO_INCREMENT,
+  name varchar(20) NOT NULL,
+  PRIMARY KEY (user_id)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8 AUTO_INCREMENT=2;
+
+
+connection spj;
+INSERT INTO ndb_order_test (node_id, user_id, sort_number) VALUES
+(68, 1, 1398029),
+(68, 1, 549053);
+
+INSERT INTO ndb_user_test (user_id, name) VALUES
+(1, 'Shawn');
+
+
+EXPLAIN 
+SELECT *
+ FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+ WHERE node_id = 68
+ ORDER BY sort_number DESC;
+
+SELECT *
+ FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+ WHERE node_id = 68
+ ORDER BY sort_number DESC;
+
+EXPLAIN 
+SELECT *
+ FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+ WHERE node_id = 68
+ ORDER BY sort_number ASC;
+
+SELECT *
+ FROM ndb_order_test JOIN ndb_user_test USING (user_id)
+ WHERE node_id = 68
+ ORDER BY sort_number ASC;
+
+connection ddl;
+DROP TABLE ndb_order_test, ndb_user_test;
+
 ########################################
-# Verify DBSPJ counters for entire test:
+# Verify counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
 
-# Get new counter values.
 connection spj;
-create temporary table spj_counts_at_end
-       select counter_name, sum(val) as val 
-       from ndbinfo.counters 
-       where block_name='DBSPJ' 
-       group by counter_name;
-
-connection spj;
-# Compute & report the difference.
-# Any change in SPJ counters will indicate a change in pushability which
-# should be verifyed.
-# - LOCAL/REMOTE counts can not be directly compared as they depends on 
-#    data distribution, and which TC used for the test.
-# - SCAN_BATCHES_RETURNED also seems to vary with a small delta - also assumed to be due to data distribution
---sorted_result
-select spj_counts_at_end.counter_name, spj_counts_at_end.val - spj_counts_at_startup.val 
-       from spj_counts_at_end, spj_counts_at_startup 
-       where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
-       and spj_counts_at_end.counter_name not in 
-       ('READS_NOT_FOUND',
-        'LOCAL_READS_SENT',
-        'REMOTE_READS_SENT',
-        'LOCAL_RANGE_SCANS_SENT',
-        'REMOTE_RANGE_SCANS_SENT',
-        'SCAN_ROWS_RETURNED',
-        'SCAN_BATCHES_RETURNED');
-
-drop table spj_counts_at_startup;
-drop table spj_counts_at_end;
 
 # Calculate the change in mysqld counters.
 select new.variable_name, new.variable_value - old.variable_value

@@ -19,19 +19,7 @@
 #
 
 integer.cpp: .*control reaches end of non-void function.*: 1288-1427
-DictTabInfo.cpp : .*invalid access to non-static.*
-DictTabInfo.cpp : .*macro was used incorrectly.*
-DbdihMain.cpp : .*unused variable.* : 6666-7013
-DbtupExecQuery.cpp : .*unused variable.* : 1823
-kernel_types.h : .*only defines private constructors and has no friends.* : 51
-Dbtup.hpp:   .*only defines private constructors and has no friends.*
-diskpage.hpp:   .*only defines private constructors and has no friends.*
-tuppage.hpp:   .*only defines private constructors and has no friends.*
-NdbScanOperation.cpp: .*unused variable '__align'.* : 1190-1200
 sql_yacc.cc : .*label 'yyerrlab1' defined but not used.*
-kernel_types.h : .*'struct Local_key' only defines private constructors and has no friends.*
-lgman.hpp : .*'struct Lgman::Buffer_idx' only defines private constructors and has no friends.*
-SchemaFile.hpp : .*'struct SchemaFile::TableEntry' only defines private constructors and has no friends.*
 sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
 
 #
@@ -81,8 +69,6 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 # The following should be fixed by the ndb team
 #
 .*/ndb/.* : .*used uninitialized in this function.*
-.*/ndb/.* : .*unused variable.*
-.*/ndb/.* : .*defined but not used.*
 
 #
 # Unexplanable (?) stuff

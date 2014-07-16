@@ -313,10 +313,10 @@ btr_root_adjust_on_import(
 	page = buf_block_get_frame(block);
 	page_zip = buf_block_get_page_zip(block);
 
-	/* Check that this is a B-tree page and both the PREV and NEXT
-	pointers are FIL_NULL, because the root page does not have any
-	siblings. */
-	if (fil_page_get_type(page) != FIL_PAGE_INDEX
+	/* Check that this is a B-tree or R-tree page and both the PREV
+	and NEXT pointers are FIL_NULL, because the root page does not
+	have any siblings. */
+	if (!fil_page_index_page_check(page)
 	    || fil_page_get_prev(page) != FIL_NULL
 	    || fil_page_get_next(page) != FIL_NULL) {
 
@@ -385,7 +385,8 @@ btr_page_create(
 	if (page_zip) {
 		page_create_zip(block, index, level, 0, NULL, mtr);
 	} else {
-		page_create(block, mtr, dict_table_is_comp(index->table));
+		page_create(block, mtr, dict_table_is_comp(index->table),
+			    dict_index_is_spatial(index));
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, level, mtr);
 	}
@@ -670,7 +671,7 @@ btr_page_free(
 	const page_t*	page	= buf_block_get_frame(block);
 	ulint		level	= btr_page_get_level(page, mtr);
 
-	ut_ad(fil_page_get_type(block->frame) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(block->frame));
 	ut_ad(level != ULINT_UNDEFINED);
 	btr_page_free_low(index, block, level, mtr);
 }
@@ -1027,11 +1028,13 @@ btr_create(
 	} else {
 		if (index != NULL) {
 			page = page_create(block, mtr,
-					   dict_table_is_comp(index->table));
+					   dict_table_is_comp(index->table),
+					   dict_index_is_spatial(index));
 		} else {
 			ut_ad(btr_redo_create_info != NULL);
 			page = page_create(
-				block, mtr, btr_redo_create_info->format_flags);
+				block, mtr, btr_redo_create_info->format_flags,
+				type == DICT_SPATIAL);
 		}
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, 0, mtr);
@@ -1241,7 +1244,8 @@ btr_page_reorganize_low(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(block, mtr, dict_table_is_comp(index->table));
+	page_create(block, mtr, dict_table_is_comp(index->table),
+		    dict_index_is_spatial(index));
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
@@ -1509,7 +1513,8 @@ btr_page_empty(
 	if (page_zip) {
 		page_create_zip(block, index, level, 0, NULL, mtr);
 	} else {
-		page_create(block, mtr, dict_table_is_comp(index->table));
+		page_create(block, mtr, dict_table_is_comp(index->table),
+			    dict_index_is_spatial(index));
 		btr_page_set_level(page, NULL, level, mtr);
 	}
 
@@ -2313,7 +2318,7 @@ btr_insert_into_right_sibling(
 	ulint		flags,
 	btr_cur_t*	cursor,
 	ulint**		offsets,
-	mem_heap_t**	heap,
+	mem_heap_t*	heap,
 	const dtuple_t*	tuple,
 	ulint		n_ext,
 	mtr_t*		mtr)
@@ -2322,13 +2327,13 @@ btr_insert_into_right_sibling(
 	page_t*		page = buf_block_get_frame(block);
 	ulint		next_page_no = btr_page_get_next(page, mtr);
 
-	ut_ad(mtr_memo_contains_flagged(mtr,
-					dict_index_get_lock(cursor->index),
-					MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK)
-	      || dict_table_is_intrinsic(cursor->index->table));
+	ut_ad(dict_table_is_intrinsic(cursor->index->table)
+	      || mtr_memo_contains_flagged(
+			mtr, dict_index_get_lock(cursor->index),
+			MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_is_block_fix(
 		mtr, block, MTR_MEMO_PAGE_X_FIX, cursor->index->table));
-	ut_ad(*heap);
+	ut_ad(heap);
 
 	if (next_page_no == FIL_NULL || !page_rec_is_supremum(
 			page_rec_get_next(btr_cur_get_rec(cursor)))) {
@@ -2341,6 +2346,7 @@ btr_insert_into_right_sibling(
 	page_t*		next_page;
 	btr_cur_t	next_father_cursor;
 	rec_t*		rec = NULL;
+	ulint		max_size;
 
 	const ulint	space = block->page.id.space();
 
@@ -2349,6 +2355,8 @@ btr_insert_into_right_sibling(
 		RW_X_LATCH, cursor->index, mtr);
 	next_page = buf_block_get_frame(next_block);
 
+	bool	is_leaf = page_is_leaf(next_page);
+
 	btr_page_get_father(
 		cursor->index, next_block, mtr, &next_father_cursor);
 
@@ -2356,12 +2364,43 @@ btr_insert_into_right_sibling(
 		next_block, cursor->index, tuple, PAGE_CUR_LE,
 		&next_page_cursor);
 
+	max_size = page_get_max_insert_size_after_reorganize(next_page, 1);
+
+	/* Extends gap lock for the next page */
+	if (!dict_table_is_locking_disabled(cursor->index->table)) {
+		lock_update_split_left(next_block, block);
+	}
+
 	rec = page_cur_tuple_insert(
-		&next_page_cursor, tuple, cursor->index, offsets, heap,
+		&next_page_cursor, tuple, cursor->index, offsets, &heap,
 		n_ext, mtr);
 
 	if (rec == NULL) {
+		if (is_leaf
+		    && next_block->page.size.is_compressed()
+		    && !dict_index_is_clust(cursor->index)
+		    && !dict_table_is_temporary(cursor->index->table)) {
+			/* Reset the IBUF_BITMAP_FREE bits, because
+			page_cur_tuple_insert() will have attempted page
+			reorganize before failing. */
+			ibuf_reset_free_bits(next_block);
+		}
 		return(NULL);
+	}
+
+	if (is_leaf
+	    && !dict_index_is_clust(cursor->index)
+	    && !dict_table_is_temporary(cursor->index->table)) {
+		/* Update the free bits of the B-tree page in the
+		insert buffer bitmap. */
+
+		if (next_block->page.size.is_compressed()) {
+			ibuf_update_free_bits_zip(next_block, mtr);
+		} else {
+			ibuf_update_free_bits_if_full(
+				next_block, max_size,
+				rec_offs_size(*offsets) + PAGE_DIR_SLOT_SIZE);
+		}
 	}
 
 	ibool	compressed;
@@ -2388,7 +2427,7 @@ btr_insert_into_right_sibling(
 
 	dtuple_t*	node_ptr = dict_index_build_node_ptr(
 		cursor->index, rec, next_block->page.id.page_no(),
-		*heap, level);
+		heap, level);
 
 	btr_insert_on_non_leaf_level(
 		flags, cursor->index, level + 1, node_ptr, mtr);
@@ -2484,7 +2523,7 @@ func_start:
 
 	/* try to insert to the next page if possible before split */
 	rec = btr_insert_into_right_sibling(
-		flags, cursor, offsets, heap, tuple, n_ext, mtr);
+		flags, cursor, offsets, *heap, tuple, n_ext, mtr);
 
 	if (rec != NULL) {
 		return(rec);

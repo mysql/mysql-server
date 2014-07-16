@@ -248,13 +248,13 @@ HugoQueryBuilder::isAncestor(const Op& parent, const Op& child) const
 {
   int pi = parent.m_idx;
   int ci = child.m_idx;
-  assert(ci != pi);
+  require(ci != pi);
 
   while (ci != 0)
   {
     if (m_query[ci].m_parent == pi)
       return true;
-    assert(m_query[ci].m_parent != -1);
+    require(m_query[ci].m_parent != -1);
     ci = m_query[m_query[ci].m_parent].m_idx;
   }
   return false;
@@ -411,7 +411,7 @@ HugoQueryBuilder::createLink(NdbQueryBuilder& builder,
 
 found:
   NdbQueryOperand * ret = builder.linkedValue(op.m_op, col->getName());
-  assert(ret);
+  require(ret);
   return ret;
 }
 
@@ -584,7 +584,7 @@ HugoQueryBuilder::createQuery(bool takeOwnership)
       clearOption(O_UNIQUE_INDEX);
     }
     const NdbQueryOperationDef * rootOp = createOp(*builder);
-    assert(rootOp != 0);
+    require(rootOp != 0);
     m_options = save;
   }
 

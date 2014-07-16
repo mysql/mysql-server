@@ -74,3 +74,22 @@ set foreign_key_checks=1;
 truncate table t1;
 set foreign_key_checks=0;
 drop table t1, t2;
+create table t1 (
+a1 int primary key,
+b1 int not null,
+c1 int not null,
+key (b1,c1)
+) engine engine;
+create table t2 (
+a2 int primary key auto_increment,
+b2 int not null,
+c2 int not null
+) engine engine;
+alter table t2
+add constraint foreign key fk1 (b2,c2) references t1 (c1,b1);
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
+insert into t1 (a1,b1,c1) values
+(1,11,12),(2,21,22),(3,31,32);
+insert into t2 (b2,c2)
+select c1, b1 from t1;
+drop table t2,t1;

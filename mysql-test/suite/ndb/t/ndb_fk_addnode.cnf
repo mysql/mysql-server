@@ -1,0 +1,41 @@
+!include include/default_mysqld.cnf
+!include include/default_ndbd.cnf
+
+[cluster_config]
+#######
+# Default number of partitions depends on number of
+# LDM threads. So we have to override LDM-count
+# for this test in order to get a predictable number
+# of partitions when no partition-spec is part of
+# the create / alter table stmt.
+#
+ThreadConfig=ldm={count=1}
+
+[cluster_config.1]
+NoOfReplicas=                  2
+ndbd=,,,
+ndb_mgmd=
+mysqld=,
+ndbapi=,,,,,,,,,,,
+
+[mysqld]
+# Make all mysqlds use cluster
+ndbcluster
+ndb-wait-connected=20
+ndb-wait-setup=60
+ndb-cluster-connection-pool=3
+ndb-extra-logging=99
+
+[cluster_config.ndbd.3.1]
+Nodegroup=65536
+
+[cluster_config.ndbd.4.1]
+Nodegroup=65536
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
+MASTER_MYPORT=                 @mysqld.1.1.port
+MASTER_MYPORT1=                @mysqld.2.1.port
+
+NDB_BACKUP_DIR=                @cluster_config.ndbd.1.1.BackupDataDir
+

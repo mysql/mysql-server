@@ -395,7 +395,8 @@ struct dict_sync_check : public sync_check_functor_t {
 			&& latch.m_level != SYNC_DICT_OPERATION
 			&& latch.m_level != SYNC_FTS_CACHE
 			/* This only happens in recv_apply_hashed_log_recs. */
-			&& latch.m_level != SYNC_RECV_WRITER)) {
+			&& latch.m_level != SYNC_RECV_WRITER
+			&& latch.m_level != SYNC_NO_ORDER_CHECK)) {
 
 			m_result = true;
 

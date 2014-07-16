@@ -34,6 +34,7 @@ Created 10/13/2010 Jimmy Yang
 #include "fts0types.h"
 #include "fts0priv.h"
 #include "row0merge.h"
+#include "btr0bulk.h"
 
 /** This structure defineds information the scan thread will fetch
 and put to the linked list for parallel tokenization/sort threads
@@ -123,13 +124,16 @@ typedef struct fts_tokenize_ctx fts_tokenize_ctx_t;
 /** Structure stores information needed for the insertion phase of FTS
 parallel sort. */
 struct fts_psort_insert {
-	trx_t*		trx;		/*!< Transaction used for insertion */
-	que_t**		ins_graph;	/*!< insert graph */
-	fts_table_t	fts_table;	/*!< auxiliary table */
 	CHARSET_INFO*	charset;	/*!< charset info */
 	mem_heap_t*	heap;		/*!< heap */
 	ibool		opt_doc_id_size;/*!< Whether to use smaller (4 bytes)
 					integer for Doc ID */
+	BtrBulk*	btr_bulk;	/*!< Bulk load instance */
+	dtuple_t*	tuple;		/*!< Tuple to insert */
+
+#ifdef UNIV_DEBUG
+	ulint		aux_index_id;	/*!< Auxiliary index id */
+#endif
 };
 
 typedef struct fts_psort_insert	fts_psort_insert_t;

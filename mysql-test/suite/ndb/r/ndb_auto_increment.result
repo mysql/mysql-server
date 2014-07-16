@@ -122,6 +122,8 @@ a
 16
 17
 insert ignore into t1 values (15), (NULL);
+Warnings:
+Warning	1062	Duplicate entry '15' for key 'PRIMARY'
 select * from t1 order by a;
 a
 4
@@ -527,11 +529,25 @@ PRIMARY KEY (id),
 UNIQUE KEY uk_t1_data (data)
 ) ENGINE = NDB;
 INSERT IGNORE INTO t1 (data) VALUES (6),(6),(6),(6),(6),(6),(6);
+Warnings:
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
 SELECT id FROM t1;
 id
 1
 DELETE from t1;
 INSERT IGNORE INTO t1 (data) VALUES (6),(6),(6),(6),(6),(6),(6);
+Warnings:
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
+Warning	1062	Duplicate entry '6' for key 'uk_t1_data'
 SELECT id from t1;
 id
 3

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 
 #if defined(_LIBCPP_VERSION)
 #include <unordered_map>
-#elif defined(__GNUC__) && __GNUC__ > 3
+#elif defined(__GNUC__)
 #include <tr1/unordered_map>
 #elif defined(_WIN32)
 #include <hash_map>
@@ -35,7 +35,7 @@ struct MyHashMap
 {
 #if defined(_LIBCPP_VERSION)
   typedef std::unordered_map<K, T> Type;
-#elif defined(__GNUC__) && __GNUC__ > 3
+#elif defined(__GNUC__)
   typedef std::tr1::unordered_map<K, T> Type;
 #elif defined(_WIN32)
   typedef stdext::hash_map<K, T> Type;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,10 +65,10 @@ struct st_conflict_fn_arg_def
 /* What type of operation was issued */
 enum enum_conflicting_op_type
 {                /* NdbApi          */
-  WRITE_ROW,     /* insert (!write) */
-  UPDATE_ROW,    /* update          */
-  DELETE_ROW,    /* delete          */
-  REFRESH_ROW    /* refresh         */
+  WRITE_ROW   = 1, /* insert (!write) */
+  UPDATE_ROW  = 2, /* update          */
+  DELETE_ROW  = 3, /* delete          */
+  REFRESH_ROW = 4  /* refresh         */
 };
 
 /*
@@ -111,17 +111,21 @@ struct st_conflict_fn_def
 /* What sort of conflict was found */
 enum enum_conflict_cause
 {
-  ROW_ALREADY_EXISTS,   /* On insert */
-  ROW_DOES_NOT_EXIST,   /* On Update, Delete */
-  ROW_IN_CONFLICT,      /* On Update, Delete */
-  TRANS_IN_CONFLICT     /* Any of above, or implied by transaction */
+  ROW_ALREADY_EXISTS = 1, /* On insert */
+  ROW_DOES_NOT_EXIST = 2, /* On Update, Delete */
+  ROW_IN_CONFLICT    = 3, /* On Update, Delete */
+  TRANS_IN_CONFLICT  = 4  /* Any of above, or implied by transaction */
 };
 
 /* NdbOperation custom data which points out handler and record. */
 struct Ndb_exceptions_data {
   struct NDB_SHARE* share;
   const NdbRecord* key_rec;
-  const uchar* row;
+  const NdbRecord* data_rec;
+  const uchar* old_row;
+  const uchar* new_row;
+  my_bitmap_map* bitmap_buf; /* Buffer for write_set */
+  MY_BITMAP* write_set;
   enum_conflicting_op_type op_type;
   Uint64 trans_id;
 };
@@ -138,6 +142,14 @@ enum enum_conflict_fn_table_flags
 */
 static const int NDB_MAX_KEY_PARTS = MAX_REF_PARTS;
 
+
+#define NDB_EXCEPTIONS_TABLE_COLUMN_PREFIX "NDB$"
+#define NDB_EXCEPTIONS_TABLE_OP_TYPE "NDB$OP_TYPE"
+#define NDB_EXCEPTIONS_TABLE_CONFLICT_CAUSE "NDB$CFT_CAUSE"
+#define NDB_EXCEPTIONS_TABLE_ORIG_TRANSID "NDB$ORIG_TRANSID"
+#define NDB_EXCEPTIONS_TABLE_COLUMN_OLD_SUFFIX "$OLD"
+#define NDB_EXCEPTIONS_TABLE_COLUMN_NEW_SUFFIX "$NEW"
+
 /**
    ExceptionsTableWriter
 
@@ -146,9 +158,17 @@ static const int NDB_MAX_KEY_PARTS = MAX_REF_PARTS;
 */
 class ExceptionsTableWriter
 {
+typedef enum column_version {
+  DEFAULT = 0,
+  OLD = 1,
+  NEW = 2
+} COLUMN_VERSION;
+
 public:
   ExceptionsTableWriter()
-    :m_pk_cols(0), m_ex_tab(NULL), m_count(0)
+    : m_pk_cols(0), m_cols(0), m_xcols(0), m_ex_tab(NULL),
+    m_count(0), m_extended(false), m_op_type_pos(0), m_conflict_cause_pos(0),
+    m_orig_transid_pos(0)
   {};
 
   ~ExceptionsTableWriter()
@@ -193,19 +213,96 @@ public:
   */
   int writeRow(NdbTransaction* trans,
                const NdbRecord* keyRecord,
+               const NdbRecord* dataRecord,
                uint32 server_id,
                uint32 master_server_id,
                uint64 master_epoch,
-               const uchar* rowPtr,
+               const uchar* oldRowPtr,
+               const uchar* newRowPtr,
+               enum_conflicting_op_type op_type,
+               enum_conflict_cause conflict_cause,
+               uint64 orig_transid,
+               const MY_BITMAP *write_set,
                NdbError& err);
 
 private:
+  /* Help methods for checking exception table definition */
+  bool check_mandatory_columns(const NdbDictionary::Table* exceptionsTable);
+  bool check_pk_columns(const NdbDictionary::Table* mainTable,
+                        const NdbDictionary::Table* exceptionsTable,
+                        int &k);
+  bool check_optional_columns(const NdbDictionary::Table* mainTable,
+                              const NdbDictionary::Table* exceptionsTable,
+                              char* msg_buf,
+                              uint msg_buf_len,
+                              const char** msg,
+                              int &k,
+                              char *error_details,
+                              uint error_details_len);
+
   /* info about original table */
   uint8 m_pk_cols;
-  uint16 m_key_attrids[ NDB_MAX_KEY_PARTS ];
+  uint16 m_cols;
+  /* Specifies if a column in the original table is nullable */
+  bool m_col_nullable[ NDB_MAX_ATTRIBUTES_IN_TABLE ];
 
+  /* info about exceptions table */
+  uint16 m_xcols;
   const NdbDictionary::Table *m_ex_tab;
   uint32 m_count;
+  /*
+    Extension tables can be extended with optional fields
+    NDB@OPT_TYPE
+   */
+  bool m_extended;
+  uint32 m_op_type_pos;
+  uint32 m_conflict_cause_pos;
+  uint32 m_orig_transid_pos;
+
+  /*
+    Mapping of where the referenced primary key fields are
+    in the original table. Doesn't have to include all fields.
+  */
+  uint16 m_key_attrids[ NDB_MAX_KEY_PARTS ];
+  /* Mapping of pk columns in original table to conflict table */
+  int m_key_data_pos[ NDB_MAX_KEY_PARTS ];
+  /* Mapping of non-pk columns in original table to conflict table */
+  int m_data_pos[ NDB_MAX_ATTRIBUTES_IN_TABLE ];
+  /* Specifies what version of a column is reference (before- or after-image) */
+  COLUMN_VERSION m_column_version[ NDB_MAX_ATTRIBUTES_IN_TABLE ];
+
+  /*
+    has_prefix_ci
+
+    Return true if a column has a specific prefix.
+  */
+  bool has_prefix_ci(const char *col_name, const char *prefix, CHARSET_INFO *cs);
+
+/*
+  has_suffix_ci
+  
+  Return true if a column has a specific suffix
+  and sets the column_real_name to the column name
+  without the suffix.
+*/
+bool has_suffix_ci(const char *col_name,
+                   const char *suffix,
+                   CHARSET_INFO *cs,
+                   char *col_name_real);
+
+/*
+  find_column_name_ci
+
+  Search for column_name in table and
+  return true if found. Also return what
+  position column was found in pos and possible
+  position in the primary key in key_pos.
+ */
+bool find_column_name_ci(CHARSET_INFO *cs,
+                         const char *col_name,
+                         const NdbDictionary::Table* table,
+                         int *pos,
+                         int *no_key_cols);
 };
 
 typedef struct st_ndbcluster_conflict_fn_share {
@@ -222,6 +319,21 @@ typedef struct st_ndbcluster_conflict_fn_share {
 
 /* HAVE_NDB_BINLOG */
 #endif
+
+/**
+ * enum_slave_conflict_role
+ *
+ * These are the roles the Slave can play
+ * in asymmetric conflict algorithms
+ */
+
+enum enum_slave_conflict_role
+{
+  SCR_NONE = 0,
+  SCR_SECONDARY = 1,
+  SCR_PRIMARY = 2,
+  SCR_PASS = 3
+};
 
 enum enum_slave_trans_conflict_apply_state
 {
@@ -257,7 +369,13 @@ struct st_ndb_slave_state
 {
   /* Counter values for current slave transaction */
   Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
+  
+  /* Track the current epoch from the immediate master,
+   * and whether we've committed it
+   */
   Uint64 current_master_server_epoch;
+  bool current_master_server_epoch_committed;
+  
   Uint64 current_max_rep_epoch;
   uint8 conflict_flags; /* enum_slave_conflict_flags */
     /* Transactional conflict detection */
@@ -265,6 +383,9 @@ struct st_ndb_slave_state
   Uint32 current_trans_row_conflict_count;
   Uint32 current_trans_row_reject_count;
   Uint32 current_trans_in_conflict_count;
+
+  /* Last conflict epoch */
+  Uint64 last_conflicted_epoch;
 
   /* Cumulative counter values */
   Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
@@ -302,16 +423,23 @@ struct st_ndb_slave_state
   void atBeginTransConflictHandling();
   void atEndTransConflictHandling();
 
-  void atTransactionCommit();
+  void atTransactionCommit(Uint64 epoch);
   void atTransactionAbort();
   void atResetSlave();
 
-  void atApplyStatusWrite(Uint32 master_server_id,
-                          Uint32 row_server_id,
-                          Uint64 row_epoch,
-                          bool is_row_server_id_local);
+  int atApplyStatusWrite(Uint32 master_server_id,
+                         Uint32 row_server_id,
+                         Uint64 row_epoch,
+                         bool is_row_server_id_local);
+  bool verifyNextEpoch(Uint64 next_epoch,
+                       Uint32 master_server_id) const;
 
   void resetPerAttemptCounters();
+
+  static
+  bool checkSlaveConflictRoleChange(enum_slave_conflict_role old_role,
+                                    enum_slave_conflict_role new_role,
+                                    const char** failure_cause);
 
   st_ndb_slave_state();
 };

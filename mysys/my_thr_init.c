@@ -30,8 +30,8 @@ mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open,
               THR_LOCK_myisam_mmap;
 
 mysql_cond_t  THR_COND_threads;
-uint            THR_thread_count= 0;
-uint 		my_thread_end_wait_time= 5;
+static uint   THR_thread_count= 0;
+static uint   my_thread_end_wait_time= 5;
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 native_mutexattr_t my_fast_mutexattr;
 #endif
@@ -287,7 +287,6 @@ my_bool my_thread_init(void)
     goto end;
   }
   set_mysys_var(tmp);
-  tmp->pthread_self= pthread_self();
   mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend);
 

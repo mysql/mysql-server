@@ -810,10 +810,9 @@ InitConfigFileParser::load_mycnf_groups(Vector<struct my_option> & options,
 Config *
 InitConfigFileParser::parse_mycnf() 
 {
-  int i;
   Config * res = 0;
   Vector<struct my_option> options;
-  for(i = 0; i<ConfigInfo::m_NoOfParams; i++)
+  for(int i = 0 ; i < ConfigInfo::m_NoOfParams ; ++ i)
   {
     {
       struct my_option opt;
@@ -918,16 +917,15 @@ InitConfigFileParser::parse_mycnf()
   {
     struct sect { struct my_option* src; const char * name; } sections[] = 
       {
-	{ ndb_mgmd, "MGM" }
-	,{ ndbd, "DB" }
-	,{ mysqld, "API" }
-	,{ api, "API" }
-	,{ 0, 0 }, { 0, 0 }
+	{ ndb_mgmd, "MGM" },
+	{ ndbd, "DB" },
+	{ mysqld, "API" },
+	{ api, "API" }
       };
-    
-    for(i = 0; sections[i].src; i++)
+
+    for(unsigned i = 0; i + 1 < NDB_ARRAY_SIZE(sections) ; i++)
     {
-      for(int j = i + 1; sections[j].src; j++)
+      for(unsigned j = i + 1; j < NDB_ARRAY_SIZE(sections) ; j++)
       {
 	if (sections[j].src->app_type < sections[i].src->app_type)
 	{
@@ -940,7 +938,7 @@ InitConfigFileParser::parse_mycnf()
     
     ctx.type = InitConfigFileParser::Section;
     ctx.m_sectionLineno  = ctx.m_lineno;      
-    for(i = 0; sections[i].src; i++)
+    for(unsigned i = 0; i < NDB_ARRAY_SIZE(sections) ; i++)
     {
       if (sections[i].src->app_type)
       {
@@ -1017,7 +1015,7 @@ InitConfigFileParser::parse_mycnf()
   res = run_config_rules(ctx);
 
 end:
-  for(i = 0; options[i].name; i++)
+  for(int i = 0; options[i].name; i++)
     free(options[i].value);
 
   return res;

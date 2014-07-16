@@ -335,17 +335,21 @@ if(timeoutMillis > 0) {
 
 /** Open a session or fail the test case */
 global.fail_openSession = function(testCase, callback) {
-  if (arguments.length !== 2) {
-    throw new Error('Fatal internal exception: fail_openSession must have 2 parameters: testCase, callback');
+  var promise;
+  if (arguments.length === 0) {
+    throw new Error('Fatal internal exception: fail_openSession must have  1 or 2 parameters: testCase, callback');
   }
   var properties = global.test_conn_properties;
   var mappings = testCase.mappings;
-  mynode.openSession(properties, mappings, function(err, session) {
-    if (err) {
+  promise = mynode.openSession(properties, mappings, function(err, session) {
+    if (callback && err) {
       testCase.fail(err);
       return;
     }
     testCase.session = session;
+    if (typeof callback !== 'function') {
+      return;
+    }
     try {
       callback(session, testCase);
     }
@@ -354,5 +358,6 @@ global.fail_openSession = function(testCase, callback) {
       testCase.stack = e.stack;
       testCase.failOnError();
     }
- });
+  });
+  return promise;
 };
