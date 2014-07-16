@@ -6,6 +6,7 @@
 --source include/master-slave.inc
 
 connection slave;
+--let $saved_log_error_verbosity=`SELECT @@global.log_error_verbosity`
 set @saved_slave_type_conversions = @@global.slave_type_conversions;
 CREATE TABLE type_conversions (
        TestNo INT AUTO_INCREMENT PRIMARY KEY,
@@ -31,6 +32,16 @@ SELECT @@global.slave_type_conversions;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY,NONEXISTING_BIT';
 SELECT @@global.slave_type_conversions;
 
+# Disabling warnings to not flood the error log, otherwise it might
+# cause sporadic test failures during the 'check warnings' stage because
+# the log would be too large and the platform to slow to parse it in
+# time. The errors are still logged to the error log, but hoepfully,
+# the amount of warnings that we are removing from the log is good 
+# enough to make the test less vulnerable.
+SET @@global.log_error_verbosity=1;
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
 # Checking strict interpretation of type conversions
 connection slave;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS='';
@@ -50,6 +61,10 @@ source extra/rpl_tests/type_conversions.test;
 connection slave;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
 source extra/rpl_tests/type_conversions.test;
+
+# reinstate the log_error_verbosity value
+--replace_result $saved_log_error_verbosity SAVED_LOG_ERROR_VERBOSITY
+--eval SET @@global.log_error_verbosity= $saved_log_error_verbosity
 
 connection slave;
 --echo **** Result of conversions ****
