@@ -118,7 +118,7 @@ for truncate (action is never aborted). */
 my_bool	srv_undo_truncate = FALSE;
 
 /** Maximum size of undo tablespace. */
-ulong	srv_max_undo_log_size;
+unsigned long long	srv_max_undo_log_size;
 
 /** UNDO logs that are not redo logged.
 These logs reside in the temp tablespace.*/
