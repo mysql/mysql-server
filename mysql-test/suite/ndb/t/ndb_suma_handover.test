@@ -1,0 +1,31 @@
+--source include/have_ndb.inc
+--source suite/ndb/t/have_ndb_error_insert.inc
+
+call mtr.add_suppression(".*Node failure caused abort of transaction.*");
+
+# Restart half cluster, but without starting nodes
+--exec $NDB_MGM --no-defaults --verbose=0 -e "2 restart -n"
+--exec $NDB_MGM --no-defaults --verbose=0 -e "4 restart -n"
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --not-started --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
+
+# Discard one CONNECT_REP in QMGR from an API node
+--exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "2 error 941"
+
+# Start cluster
+--exec $NDB_MGM --no-defaults --verbose=0 -e "all start"
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
+
+# TODO : Check for Binlog gap? Increase in connection count in SHOW ENGINE NDB STATUS?
+
+# Restart half cluster, but without starting nodes
+--exec $NDB_MGM --no-defaults --verbose=0 -e "2 restart -n"
+--exec $NDB_MGM --no-defaults --verbose=0 -e "4 restart -n"
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --not-started --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
+
+# Now discard one CONNECT_REP, and cause disconnect part to fail
+--exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "2 error 941"
+--exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "2 error 13048"
+
+# Start cluster, should cause node 2 to fail
+--exec $NDB_MGM --no-defaults --verbose=0 -e "all start"
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT

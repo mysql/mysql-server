@@ -1,0 +1,50 @@
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+# my.cnf -- MySQL Server configuration file (options case-sensitive)
+
+[client]
+
+[mysql_cluster]
+
+ndb-connectstring=127.0.0.1
+
+[mysqld]
+# ndb<=7.1: enable innodb plugin
+ignore-builtin-innodb
+plugin-load=innodb=ha_innodb_plugin.so
+
+server-id=0
+skip-slave-start
+
+# maximum size of one packet or any generated/intermediate string
+# should be as big as the largest BLOB you want to use. The protocol limit
+# for max_allowed_packet is 1GB. The value should be a multiple of 1024;
+# nonmultiples are rounded down to the nearest multiple.
+#
+# caught java.sql.BatchUpdateException: Packet for query is too large (1062229 > 1048576). You can change this value on the server by setting the max_allowed_packet' variable.
+# java.sql.BatchUpdateException: Packet for query is too large (1062229 > 1048576). You can change this value on the server by setting the max_allowed_packet' variable.
+max_allowed_packet=16M
+
+#slave-allow-batching
+ndb-batch-size=1000000
+
+ndb-use-exact-count=0
+ndb-index-stat-enable=0
+ndb-force-send=1
+# ndb<=7.2: enable condition pushdown
+engine-condition-pushdown=1
+
+ndbcluster

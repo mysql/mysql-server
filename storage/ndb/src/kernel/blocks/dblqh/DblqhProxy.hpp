@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -310,7 +310,8 @@ protected:
      * Is this entry valid, or has it been made obsolete by
      *   a new LQH_TRANSREQ (i.e a new TC-failure)
      */
-    bool m_valid; 
+    bool m_valid;
+    Uint32 m_maxInstanceId;
     LqhTransReq m_req;
     LqhTransConf m_conf; // latest conf
     Ss_LQH_TRANSREQ() {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -486,6 +486,9 @@ public class NdbRecordImpl {
       byteBuffer.limit(offset + actualLength);
 
       String result = Utility.decode(byteBuffer, storeColumn.getCharsetNumber(), bufferManager);
+      if(prefixLength == 0) {
+          result = result.trim();
+      }
       byteBuffer.limit(bufferSize);
       byteBuffer.position(0);
       return result;

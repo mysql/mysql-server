@@ -429,6 +429,9 @@ ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 ALTER TABLE tab MODIFY COLUMN c2 GEOMETRY NOT NULL;
 ALTER TABLE tab MODIFY COLUMN c3 POLYGON NOT NULL;
 ALTER TABLE tab MODIFY COLUMN c4 POINT NOT NULL;
+ALTER TABLE tab add COLUMN c7 POINT NOT NULL;
+ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INPLACE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED.
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
@@ -437,6 +440,7 @@ tab	CREATE TABLE `tab` (
   `c3` polygon NOT NULL,
   `c4` point NOT NULL,
   `c5` geometry NOT NULL,
+  `c7` point NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
@@ -472,6 +476,7 @@ tab	CREATE TABLE `tab` (
   `c3` point NOT NULL,
   `c4` geometry NOT NULL,
   `c5` geometry NOT NULL,
+  `c7` point NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
@@ -522,6 +527,7 @@ tab	CREATE TABLE `tab` (
   `c3` linestring NOT NULL,
   `c4` polygon NOT NULL,
   `c5` geometry NOT NULL,
+  `c7` point NOT NULL,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),

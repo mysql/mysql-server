@@ -13,20 +13,20 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Next QMGR 938
+Next QMGR 942
 Next NDBCNTR 1004
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4039
 Next DBLQH 5075
 Next DBDICT 6216
-Next DBDIH 7236
+Next DBDIH 7237
 Next DBTC 8108
 Next CMVMI 9000
 Next BACKUP 10042
 Next DBUTIL 11002
 Next DBTUX 12010
-Next SUMA 13048
+Next SUMA 13049
 Next LGMAN 15001
 Next TSMAN 16001
 Next DBSPJ 17000
@@ -205,6 +205,10 @@ And crash when all have "not" been sent
 7214: in GCP_TCFINISHED kill specified node
 
 7215: set c_fragments_per_node = 1 (needs to be done at startup)
+
+7236: while doing LCP init, delay the last CONTINUEB with ZINIT_LCP so
+      that all the tables are TLS_ACTIVE but the global c_lcpStatus.lcpState 
+      is not yet changed from LCP_INIT_TABLES to LCP_STATUS_ACTIVE. 
 
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------

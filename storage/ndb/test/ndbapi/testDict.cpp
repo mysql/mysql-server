@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -192,33 +192,75 @@ int runDropTheTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+/*******
+ * Precondition: 
+ *    'DataMemory' has been filled until insertion failed
+ *    due to 'DbIsFull'. The table 'TRANSACTION' should
+ *    not exist in the DB
+ *
+ * Test:
+ *    Creation of the (empty) table 'TRANSACTION'
+ *    should succeed even if 'DbIsFull'. However, 
+ *    insertion of the first row should fail.
+ *
+ * Postcond:
+ *    The created table 'TRANSACTION is removed.
+ *    DataMemory is still full.
+ */
 int runCreateTableWhenDbIsFull(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
   int result = NDBT_OK;
   const char* tabName = "TRANSACTION"; //Use a util table
-  
+
+  // Precondition is that 'DataMemory' filled to max.
+  // So we skip test if a DiskStorage table was filled
+  for (Uint32 i = 0; i<(Uint32)ctx->getTab()->getNoOfColumns(); i++)
+  {
+    if (ctx->getTab()->getColumn(i)->getStorageType() == 
+        NdbDictionary::Column::StorageTypeDisk)
+    {
+      ndbout << "Skip test for *disk* tables" << endl;
+      return NDBT_OK;
+    }
+  }
+
   const NdbDictionary::Table* pTab = NDBT_Tables::getTable(tabName);
-  if (pTab != NULL){
+  while (pTab != NULL){ //Always 'break' without looping
     ndbout << "|- " << tabName << endl;
     
     // Verify that table is not in db     
     if (NDBT_Table::discoverTableFromDb(pNdb, tabName) != NULL){
       ndbout << tabName << " was found in DB"<< endl;
-      return NDBT_FAILED;
+      result = NDBT_FAILED;
+      break;
     }
 
-    // Try to create table in db
-    if (NDBT_Tables::createTable(pNdb, pTab->getName()) == 0){
+    // Create (empty) table in db, should succeed even if 'DbIsFull'
+    if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0){
+      ndbout << tabName << " was not created when DB is full"<< endl;
       result = NDBT_FAILED;
+      break;
     }
 
-    // Verify that table is in db     
-    if (NDBT_Table::discoverTableFromDb(pNdb, tabName) != NULL){
-      ndbout << tabName << " was found in DB"<< endl;
+    // Verify that table is now in db     
+    if (NDBT_Table::discoverTableFromDb(pNdb, tabName) == NULL){
+      ndbout << tabName << " was not visible in DB"<< endl;
       result = NDBT_FAILED;
+      break;
     }
+
+    // As 'DbIsFull', insert of a single record should fail
+    HugoOperations hugoOps(*pTab);
+    CHECK(hugoOps.startTransaction(pNdb) == 0);  
+    CHECK(hugoOps.pkInsertRecord(pNdb, 1) == 0);
+    CHECK(hugoOps.execute_Commit(pNdb) != 0); //Should fail
+    CHECK(hugoOps.closeTransaction(pNdb) == 0);  
+
+    break;
   }
 
+  // Drop table (if exist, so we dont care about errors)
+  pNdb->getDictionary()->dropTable(tabName);
   return result;
 }
 
@@ -2156,13 +2198,14 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
   tab.setFragmentType(NdbDictionary::Object::FragAllLarge);
 
   int errNo = 0;
+#ifdef NDB_USE_GET_ENV
   char buf[100];
   if (NdbEnv_GetEnv("ERRNO", buf, sizeof(buf)))
   {
     errNo = atoi(buf);
     ndbout_c("Using errno: %u", errNo);
   }
-
+#endif
   const NdbDictionary::Table* origTab= ctx->getTab();
   HugoCalculator calc(*origTab);
 
@@ -4289,6 +4332,7 @@ struct ST_Obj {
   char dbname[ST_MAX_NAME_SIZE];
   char name[ST_MAX_NAME_SIZE];
   int id;
+  enum { Skip = 0xFFFF }; // mark ignored objects in List
   bool create; // true/false = create/drop prepared or committed
   bool commit;
   bool exists() const { // visible to trans
@@ -5018,23 +5062,102 @@ st_set_create_tab(ST_Con& c, ST_Tab& tab, bool create)
 static bool
 st_known_type(const NdbDictionary::Dictionary::List::Element& element)
 {
-  switch (element.type) {
-  case NdbDictionary::Object::UserTable:
-    require(element.database != 0);
-    if (strcmp(element.database, "mysql") == 0)
-      break;
-    if (strncmp(element.name, "NDB$BLOB", 8) == 0)
-      break;
-    return true;
-  case NdbDictionary::Object::UniqueHashIndex:
-  case NdbDictionary::Object::OrderedIndex:
-  case NdbDictionary::Object::HashIndexTrigger:
-  case NdbDictionary::Object::IndexTrigger:
-    return true;
-  default:
-    break;
+  return element.id != ST_Obj::Skip;
+}
+
+static int
+st_find_object(const NdbDictionary::Dictionary::List& list,
+               NdbDictionary::Object::Type type, int id)
+{
+  int n;
+  for (n = 0; n < (int)list.count; n++) {
+    const NdbDictionary::Dictionary::List::Element& element =
+      list.elements[n];
+    if (element.type == type && (int)element.id == id)
+      return n;
   }
-  return false;
+  return -1;
+}
+
+// filter out irrelevant by whatever means (we need listObjects2)
+static int
+st_list_objects(ST_Con& c, NdbDictionary::Dictionary::List& list)
+{
+  g_info << "st_list_objects" << endl;
+  int keep[256];
+  memset(keep, 0, sizeof(keep));
+  chk2(c.dic->listObjects(list) == 0, c.dic->getNdbError());
+  int n;
+  // tables
+  for (n = 0; n < (int)list.count; n++) {
+    const NdbDictionary::Dictionary::List::Element& element =
+      list.elements[n];
+    if (element.type == NdbDictionary::Object::UserTable) {
+      int i;
+      for (i = 0; i < c.tabcount; i++) {
+        const ST_Tab& tab = c.tab(i);
+        if (strcmp(element.name, tab.name) == 0)
+          keep[n]++;
+      }
+    }
+    require(keep[n] <= 1);
+  }
+  // indexes
+  for (n = 0; n < (int)list.count; n++) {
+    const NdbDictionary::Dictionary::List::Element& element =
+      list.elements[n];
+    if (element.type == NdbDictionary::Object::UniqueHashIndex ||
+        element.type == NdbDictionary::Object::OrderedIndex) {
+      int i, j;
+      for (i = 0; i < c.tabcount; i++) {
+        const ST_Tab& tab = c.tab(i);
+        for (j = 0; j < tab.indcount; j++) {
+          const ST_Ind& ind = tab.ind(j);
+          if (strcmp(element.name, ind.name) == 0)
+            keep[n]++;
+        }
+      }
+    }
+    require(keep[n] <= 1);
+  }
+  // triggers
+  for (n = 0; n < (int)list.count; n++) {
+    const NdbDictionary::Dictionary::List::Element& element =
+      list.elements[n];
+    if (element.type == NdbDictionary::Object::HashIndexTrigger) {
+      int id, n2;
+      chk2(sscanf(element.name, "NDB$INDEX_%d_UI", &id) == 1,
+           element.name);
+      n2 = st_find_object(list, NdbDictionary::Object::UniqueHashIndex, id);
+      chk2(n2 >= 0, element.name);
+      if (keep[n2])
+        keep[n]++;
+    }
+    if (element.type == NdbDictionary::Object::IndexTrigger) {
+      int id, n2;
+      chk2(sscanf(element.name, "NDB$INDEX_%d_CUSTOM", &id) == 1,
+           element.name);
+      n2 = st_find_object(list, NdbDictionary::Object::OrderedIndex, id);
+      chk2(n2 >= 0, element.name);
+      if (keep[n2])
+        keep[n]++;
+    }
+    require(keep[n] <= 1);
+  }
+  // mark ignored
+  for (n = 0; n < (int)list.count; n++) {
+    NdbDictionary::Dictionary::List::Element& element =
+      list.elements[n];
+    g_info << "id=" << element.id << " type=" << element.type
+           << " name=" << element.name << " keep=" << keep[n] << endl;
+    if (!keep[n]) {
+      require(element.id != ST_Obj::Skip);
+      element.id = ST_Obj::Skip;
+    }
+  }
+  return 0;
+err:
+  return -1;
 }
 
 static bool
@@ -5131,7 +5254,7 @@ static int
 st_verify_list(ST_Con& c)
 {
   NdbDictionary::Dictionary::List list;
-  chk2(c.dic->listObjects(list) == 0, c.dic->getNdbError());
+  chk1(st_list_objects(c, list) == 0);
   int i, j, k, n;
   // us vs list
   for (i = 0; i < c.tabcount; i++) {
@@ -5185,7 +5308,7 @@ st_wait_idle(ST_Con& c)
   int milli_sleep = 1000;
   while (count++ < max_count) {
     NdbDictionary::Dictionary::List list;
-    chk2(c.dic->listObjects(list) == 0, c.dic->getNdbError());
+    chk1(st_list_objects(c, list) == 0);
     bool ok = true;
     int n;
     for (n = 0; n < (int)list.count; n++) {
@@ -7236,6 +7359,7 @@ static int st_random_seed = -1;
 int
 runSchemaTrans(NDBT_Context* ctx, NDBT_Step* step)
 {
+#ifdef NDB_USE_GET_ENV
   { const char* env = NdbEnv_GetEnv("NDB_TEST_DBUG", 0, 0);
     if (env != 0 && env[0] != 0) // e.g. d:t:L:F:o,ndb_test.log
       DBUG_PUSH(env);
@@ -7254,7 +7378,7 @@ runSchemaTrans(NDBT_Context* ctx, NDBT_Step* step)
     if (env != 0)
       st_random_seed = atoi(env);
   }
-
+#endif
   if (st_test_case != 0 && strcmp(st_test_case, "?") == 0) {
     int i;
     ndbout << "case func+arg desc" << endl;
@@ -7318,13 +7442,14 @@ runFailCreateHashmap(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
 
   int errNo = 0;
+#ifdef NDB_USE_GET_ENV
   char buf[100];
   if (NdbEnv_GetEnv("ERRNO", buf, sizeof(buf)))
   {
     errNo = atoi(buf);
     ndbout_c("Using errno: %u", errNo);
   }
-  
+#endif 
   const int loops = ctx->getNumLoops();
   int result = NDBT_OK;
 
@@ -7433,13 +7558,14 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
   int nodeId = restarter.getMasterNodeId();
 
   int errNo = 0;
+#ifdef NDB_USE_GET_ENV
   char buf[100];
   if (NdbEnv_GetEnv("ERRNO", buf, sizeof(buf)))
   {
     errNo = atoi(buf);
     ndbout_c("Using errno: %u", errNo);
   }
-
+#endif
   // ordered index on first few columns
   NdbDictionary::Index idx("X");
   idx.setTable(tab.getName());
@@ -9286,11 +9412,13 @@ runWL946(NDBT_Context* ctx, NDBT_Step* step)
   const int records = ctx->getNumRecords();
   bool keep_table = false; // keep table and data
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("KEEP_TABLE_WL946", (char*)0, 0);
     if (p != 0 && strchr("1Y", p[0]) != 0)
       keep_table = true;
   }
+#endif
 #endif
   int result = NDBT_OK;
 
@@ -10574,27 +10702,33 @@ fk_env_options(Fkdef& d)
 {
   // random seed
   int seed = (int)getpid();
+#ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("RANDOM_SEED", (char*)0, 0);
     if (p != 0)
       seed = atoi(p);
   }
+#endif
   myRandom48Init(seed);
   g_err << "random seed: " << seed << endl;
   // create no FKs at all
   d.nokeys = false;
+#ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("FK_NOKEYS", (char*)0, 0);
     if (p != 0 && strchr("1Y", p[0]) != 0)
       d.nokeys = true;
   }
+#endif
   // do not drop objects at end
   d.nodrop = false;
+#ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("FK_NODROP", (char*)0, 0);
     if (p != 0 && strchr("1Y", p[0]) != 0)
       d.nodrop = true;
   }
+#endif
 }
 
 int
