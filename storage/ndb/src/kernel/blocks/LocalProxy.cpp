@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   for (i = 0; i < MaxWorkers; i++)
     c_worker[i] = 0;
 
+  c_anyWorkerCounter = 0;
   c_typeOfStart = NodeState::ST_ILLEGAL_TYPE;
   c_masterNodeId = ZNIL;
 
@@ -303,6 +304,37 @@ LocalProxy::loadWorkers()
 
     mt_add_thr_map(number(), instanceNo);
   }
+}
+
+void
+LocalProxy::forwardToWorkerIndex(Signal* signal, Uint32 index)
+{
+  jam();
+  /**
+   * We statelessly forward to one of our 
+   * workers, including any sections that 
+   * might be attached.
+   */
+  BlockReference destRef = workerRef(index);
+  SectionHandle sh(this, signal);
+  
+  sendSignal(destRef,
+             signal->header.theVerId_signalNumber,
+             signal,
+             signal->getLength(),
+             JBB,
+             &sh);
+};
+
+void
+LocalProxy::forwardToAnyWorker(Signal* signal)
+{
+  jam();
+
+  /* Won't work for fragmented signals */
+  ndbassert(signal->header.m_fragmentInfo == 0);
+
+  forwardToWorkerIndex(signal, getAnyWorkerIndex());
 }
 
 // GSN_READ_CONFIG_REQ

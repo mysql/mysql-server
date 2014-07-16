@@ -1,5 +1,5 @@
 ndbd(s)
-id=1	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, Master)
+id=1	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)
 id=2	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0)
 ndb_mgmd(s)
 id=3	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
@@ -173,6 +173,9 @@ Severities enabled: INFO WARNING ERROR CRITICAL ALERT
 Invalid severity level: bogus1
 # Should list default
 Severities enabled: INFO WARNING ERROR CRITICAL ALERT 
+# Bug 11752837: start backup wait started should not print completion logs
+Waiting for started, this may take several minutes
+Node 1: Backup 1 started from node 3
 # Bug 16585455: start backup with backup ID out of range
 Invalid command: BACKUP 201303271430 WAIT COMPLETED
 Backup ID out of range [1 - 4294967294]

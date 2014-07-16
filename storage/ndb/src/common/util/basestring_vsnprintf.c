@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 /* define on IRIX to get posix compliant vsnprintf */
 #define _XOPEN_SOURCE 500
 #endif
+
+#include <ndb_global.h>
 #include <stdio.h>
 #include <basestring_vsnprintf.h>
 
@@ -32,23 +34,6 @@ basestring_snprintf(char *str, size_t size, const char *format, ...)
   va_end(ap);
   return(ret);
 }
-
-#ifdef SNPRINTF_RETURN_TRUNC
-static int
-vsnprintf_doubling(size_t size, const char *format, va_list ap)
-{
-  char *buf = 0;
-  int ret = -1;
-
-  while (ret < 0 || ret >= (int)size)
-  {
-    buf = realloc(buf, size*=2);
-    ret = vsnprintf(buf, size, format, ap);
-  }
-  free(buf);
-  return ret;
-}
-#endif
 
 int
 basestring_vsnprintf(char *str, size_t size, const char *format, va_list ap)
@@ -68,15 +53,7 @@ basestring_vsnprintf(char *str, size_t size, const char *format, va_list ap)
     return ret;
   // otherwise, more than size chars are needed
   return _vscprintf(format, ap);
-#endif
-#ifdef SNPRINTF_RETURN_TRUNC
-  {
-    char buf[512];
-    ret = vsnprintf(buf, sizeof(buf), format, ap);
-    if (ret >= 0 && ret < sizeof(buf))
-      return ret;
-    ret = vsnprintf_doubling(sizeof(buf), format, ap);
-  }
-#endif
+#else
   return ret;
+#endif
 }

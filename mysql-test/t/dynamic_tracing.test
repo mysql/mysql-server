@@ -42,7 +42,7 @@
         if ($ret != 0)
         {
           $mysqld_has_dtrace_probes = 1;
-          $command = "\$MYSQL_TEST_DIR/std_data/dtrace.d ";
+          $command = "dtrace -s \$MYSQL_TEST_DIR/std_data/dtrace.d ";
         }
       }
     }

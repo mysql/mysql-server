@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -20,10 +20,9 @@
 #include "binlog.h"
 
 
-Group_cache::Group_cache()
+Group_cache::Group_cache(): m_groups(PSI_NOT_INSTRUMENTED)
 {
   DBUG_ENTER("Group_cache::Group_cache");
-  my_init_dynamic_array(&groups, sizeof(Cached_group), 8, 8);
   DBUG_VOID_RETURN;
 }
 
@@ -31,7 +30,6 @@ Group_cache::Group_cache()
 Group_cache::~Group_cache()
 {
   DBUG_ENTER("Group_cache::~Group_cache");
-  delete_dynamic(&groups);
   DBUG_VOID_RETURN;
 }
 
@@ -39,7 +37,7 @@ Group_cache::~Group_cache()
 void Group_cache::clear()
 {
   DBUG_ENTER("Group_cache::clear");
-  groups.elements= 0;
+  m_groups.clear();
   DBUG_VOID_RETURN;
 }
 

@@ -320,7 +320,7 @@ int table_events_waits_common::make_socket_object_columns(PFS_events_waits *wait
                                    safe_socket->m_addr_len);
 
     /* Convert port number to a string (length includes ':') */
-    int port_len= int10_to_str(port, (port_str+1), 10) - port_str + 1;
+    size_t port_len= int10_to_str(port, (port_str+1), 10) - port_str + 1;
 
     /* OBJECT NAME */
     m_row.m_object_name_length= ip_len + port_len;
@@ -404,6 +404,12 @@ int table_events_waits_common::make_metadata_lock_object_columns(PFS_events_wait
       m_row.m_object_type_length= 6;
       m_row.m_object_schema_length= 0;
       m_row.m_object_name_length= 0;
+      break;
+    case MDL_key::USER_LEVEL_LOCK:
+      m_row.m_object_type= "USER LEVEL LOCK";
+      m_row.m_object_type_length= 15;
+      m_row.m_object_schema_length= 0;
+      m_row.m_object_name_length= mdl->name_length();
       break;
     case MDL_key::NAMESPACE_END:
     default:

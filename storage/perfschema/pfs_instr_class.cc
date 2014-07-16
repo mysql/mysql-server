@@ -1342,7 +1342,7 @@ PFS_transaction_class *sanitize_transaction_class(PFS_transaction_class *unsafe)
 
 static void set_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 {
-  int len;
+  size_t len;
   KEY *key_info= share->key_info;
   PFS_table_key *pfs_key= pfs->m_keys;
   PFS_table_key *pfs_key_last= pfs->m_keys + share->keys;
@@ -1362,7 +1362,7 @@ static void set_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 
 static int compare_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 {
-  uint len;
+  size_t len;
   KEY *key_info= share->key_info;
   PFS_table_key *pfs_key= pfs->m_keys;
   PFS_table_key *pfs_key_last= pfs->m_keys + share->keys;
@@ -1408,9 +1408,9 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
   }
 
   const char *schema_name= share->db.str;
-  uint schema_name_length= share->db.length;
+  size_t schema_name_length= share->db.length;
   const char *table_name= share->table_name.str;
-  uint table_name_length= share->table_name.length;
+  size_t table_name_length= share->table_name.length;
 
   set_table_share_key(&key, temporary,
                       schema_name, schema_name_length,

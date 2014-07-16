@@ -159,7 +159,6 @@ position and fetch next or fetch prev must not be tried to the cursor!
 				Note: if this is != 0, then prebuilt must has a
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
-@param[in,out]	session		session handler
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
 UNIV_INLINE
@@ -169,8 +168,7 @@ row_search_for_mysql(
 	ulint			mode,
 	row_prebuilt_t*		prebuilt,
 	ulint			match_mode,
-	ulint			direction,
-	innodb_session_t*	session = NULL)
+	ulint			direction)
 	__attribute__((warn_unused_result));
 
 /** Searches for rows in the database using cursor.
@@ -190,7 +188,6 @@ The cursor is an iterator over the table/index.
 				Note: if this is != 0, then prebuilt must has a
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
-@param[in,out]	session		session handler
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -199,8 +196,7 @@ row_search_no_mvcc(
 	ulint			mode,
 	row_prebuilt_t*		prebuilt,
 	ulint			match_mode,
-	ulint			direction,
-	innodb_session_t*	session)
+	ulint			direction)
 	__attribute__((warn_unused_result));
 
 /** Searches for rows in the database using cursor.

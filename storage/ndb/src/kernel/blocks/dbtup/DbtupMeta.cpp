@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   CreateTabReq* req = &reqCopy;
 
   TablerecPtr regTabPtr;
+  FragoperrecPtr fragOperPtr;
   regTabPtr.i = req->tableId;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
 
@@ -72,7 +73,6 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
     goto sendref;
   }
 
-  FragoperrecPtr fragOperPtr;
   seizeFragoperrec(fragOperPtr);
   fragOperPtr.p->tableidFrag = regTabPtr.i;
   fragOperPtr.p->attributeCount = req->noOfAttributes;
@@ -716,6 +716,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     return;
   }
   
+  TablerecPtr regTabPtr;
+
 #ifndef VM_TRACE
   // config mismatch - do not crash if release compiled
   if (tableId >= cnoOfTablerec)
@@ -726,7 +728,6 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   }
 #endif
 
-  TablerecPtr regTabPtr;
   regTabPtr.i = tableId;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
 
@@ -801,10 +802,13 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_lcp_keep_list_tail.setNull();
   regFragPtr.p->noOfPages = 0;
   regFragPtr.p->noOfVarPages = 0;
+  regFragPtr.p->m_varWordsFree = 0;
   regFragPtr.p->m_max_page_no = 0;
   regFragPtr.p->m_free_page_id_list = FREE_PAGE_RNIL;
   ndbrequire(regFragPtr.p->m_page_map.isEmpty());
   regFragPtr.p->m_restore_lcp_id = RNIL;
+  regFragPtr.p->m_fixedElemCount = 0;
+  regFragPtr.p->m_varElemCount = 0;
   for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
     ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
 
@@ -2207,7 +2211,6 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
       }
     }
     
-    ArrayPool<Page> *cheat_pool= (ArrayPool<Page>*)&m_global_page_pool;
     for(pos= 0; pos<MAX_FREE_LIST; pos++)
     {
       ndbrequire(alloc_info.m_page_requests[pos].isEmpty());
@@ -2674,6 +2677,43 @@ Dbtup::get_frag_info(Uint32 tableId, Uint32 fragId, Uint32* maxPage)
   }
 
   return true;
+}
+
+const Dbtup::FragStats
+Dbtup::get_frag_stats(Uint32 fragId) const
+{
+  jam();
+  ndbrequire(fragId < cnoOfFragrec);
+  Ptr<Fragrecord> fragptr;
+  fragptr.i = fragId;
+  ptrAss(fragptr, fragrecord);
+  TablerecPtr tabPtr;
+  tabPtr.i = fragptr.p->fragTableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  
+  const Uint32 fixedWords = tabPtr.p->m_offsets[MM].m_fix_header_size;
+  FragStats fs;
+  fs.fixedRecordBytes       = static_cast<Uint32>(fixedWords * sizeof(Uint32));
+  fs.pageSizeBytes          = File_formats::NDB_PAGE_SIZE; /* 32768 */
+  // Round downwards.
+  fs.fixedSlotsPerPage      = Tup_fixsize_page::DATA_WORDS / fixedWords;
+
+  fs.fixedMemoryAllocPages  = fragptr.p->noOfPages;
+  fs.varMemoryAllocPages    = fragptr.p->noOfVarPages;
+  fs.varMemoryFreeBytes     = fragptr.p->m_varWordsFree * sizeof(Uint32);
+  // Amount of free memory should not exceed allocated memory.
+  ndbassert(fs.varMemoryFreeBytes <=
+            fs.varMemoryAllocPages*File_formats::NDB_PAGE_SIZE);
+  fs.fixedElemCount         = fragptr.p->m_fixedElemCount;
+  // Memory in use should not exceed allocated memory.
+  ndbassert(fs.fixedElemCount*fs.fixedRecordBytes <=
+            fs.fixedMemoryAllocPages*File_formats::NDB_PAGE_SIZE);
+  fs.varElemCount           = fragptr.p->m_varElemCount;
+  // Each row must has a fixed part and may have a var-sized part.
+  ndbassert(fs.varElemCount <= fs.fixedElemCount);
+  fs.logToPhysMapAllocBytes = fragptr.p->m_page_map.getByteSize();
+
+  return fs;
 }
 
 void

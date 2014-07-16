@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1400,7 +1400,7 @@ NDBT_Tables::tableWithPkSize(const char* _nam, Uint32 pkSize){
 const NdbDictionary::Table* 
 NDBT_Tables::getTable(int _num){
   // Get table at pos _num
-  assert(_num < numTestTables);
+  require(_num < numTestTables);
   return test_tables[_num];
 }
 
@@ -1446,6 +1446,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
 
   int res;
   Uint32 mb = 8;
+#ifdef NDB_USE_GET_ENV
   {
     char buf[256];
     if (NdbEnv_GetEnv("UNDOBUFFER", buf, sizeof(buf)))
@@ -1454,6 +1455,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       ndbout_c("Using %umb dd-undo-buffer", mb);
     }
   }
+#endif
 
   NdbDictionary::LogfileGroup lg = pDict->getLogfileGroup("DEFAULT-LG");
   if (strcmp(lg.getName(), "DEFAULT-LG") != 0)
@@ -1471,6 +1473,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
   mb = 96;
   Uint32 files = 13;
 
+#ifdef NDB_USE_GET_ENV
   {
     char buf[256];
     if (NdbEnv_GetEnv("UNDOSIZE", buf, sizeof(buf)))
@@ -1479,7 +1482,6 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       ndbout_c("Using %umb dd-undo", mb);
     }
   }
-  
   {
     char buf[256];
     if (NdbEnv_GetEnv("UNDOFILES", buf, sizeof(buf)))
@@ -1488,6 +1490,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       ndbout_c("Using max %u dd-undo files", files);
     }
   }
+#endif 
   
   Uint32 sz = 32;
   while (mb > files * sz)
@@ -1529,6 +1532,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
   }
 
   mb = 128;
+#ifdef NDB_USE_GET_ENV
   {
     char buf[256];
     if (NdbEnv_GetEnv("DATASIZE", buf, sizeof(buf)))
@@ -1537,9 +1541,11 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       ndbout_c("Using %umb dd-data", mb);
     }
   }
+#endif 
   
   sz = 64;
   files = 13;
+#ifdef NDB_USE_GET_ENV
   {
     char buf[256];
     if (NdbEnv_GetEnv("DATAFILES", buf, sizeof(buf)))
@@ -1548,6 +1554,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       ndbout_c("Using max %u dd-data files", files);
     }
   }
+#endif 
   
   while (mb > files * sz)
     sz += 32;
@@ -1601,7 +1608,7 @@ NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp,
     {
       NdbError error;
       int ret = tmpTab.validate(error);
-      assert(ret == 0);
+      require(ret == 0);
     }
     if(f != 0 && f(pNdb, tmpTab, 0, arg))
     {

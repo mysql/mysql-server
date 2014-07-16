@@ -41,8 +41,6 @@ static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 
 	/* Interface function from MI_INFO */
 
-#ifdef HAVE_MMAP
-
 /*
   Create mmaped area for MyISAM handler
 
@@ -139,7 +137,6 @@ void mi_remap_file(MI_INFO *info, my_off_t size)
     mi_dynmap_file(info, size);
   }
 }
-#endif
 
 
 /*

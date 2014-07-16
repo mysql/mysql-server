@@ -259,6 +259,30 @@ TEST_F(BoundedQueueTest, PushAndPopKeepSmallest)
 }
 
 
+static void my_string_ptr_sort(uchar *base, uint items, size_t size)
+{
+#if INT_MAX > 65536L
+  uchar **ptr=0;
+
+  if (radixsort_is_appliccable(items, size) &&
+      (ptr= (uchar**) my_malloc(PSI_NOT_INSTRUMENTED,
+                                items*sizeof(char*),MYF(0))))
+  {
+    radixsort_for_str_ptr((uchar**) base,items,size,ptr);
+    my_free(ptr);
+  }
+  else
+#endif
+  {
+    if (size && items)
+    {
+      my_qsort2(base,items, sizeof(uchar*), get_ptr_compare(size),
+                (void*) &size);
+    }
+  }
+}
+
+
 /*
   Verifies that push, with bounded size, followed by sort() works.
  */

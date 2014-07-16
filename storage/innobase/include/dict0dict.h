@@ -1717,6 +1717,11 @@ dict_fs2utf8(
 	size_t		table_utf8_size)/*!< in: table_utf8 size */
 	__attribute__((nonnull));
 
+/** Resize the hash tables besed on the current buffer pool size. */
+
+void
+dict_resize();
+
 /**********************************************************************//**
 Closes the data dictionary module. */
 
@@ -1853,7 +1858,7 @@ dict_disable_redo_if_temporary(
 @return next table local row-id. */
 UNIV_INLINE
 row_id_t
-dict_table_get_table_sess_row_id(
+dict_table_get_next_table_sess_row_id(
 	dict_table_t*		table);
 
 /** Get table session trx-id and increment the trx-id counter for next use.
@@ -1861,8 +1866,16 @@ dict_table_get_table_sess_row_id(
 @return next table local trx-id. */
 UNIV_INLINE
 trx_id_t
-dict_table_get_table_sess_trx_id(
+dict_table_get_next_table_sess_trx_id(
 	dict_table_t*		table);
+
+/** Get current session trx-id.
+@param[in]	table	table handler
+@return table local trx-id. */
+UNIV_INLINE
+trx_id_t
+dict_table_get_curr_table_sess_trx_id(
+	const dict_table_t*	table);
 
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**

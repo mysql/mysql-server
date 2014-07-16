@@ -425,7 +425,7 @@ flexHammerThread(void* pArg)
 	  tMyOpType = otDelete;
 	  break;
 	default:
-	  assert(false);
+	  require(false);
 	  break;
 	} // switch
 	    
@@ -483,7 +483,7 @@ flexHammerThread(void* pArg)
 	    check = pMyOperation[count_tables]->deleteTuple();
 	    break;
 	  default:
-	    assert(false);
+	    require(false);
 	    break;
 	  } // switch
 	  if (check == -1) {
@@ -526,7 +526,7 @@ flexHammerThread(void* pArg)
 	  case otDelete:			// Delete Case
 	    break;
 	  default:
-	    assert(false);
+	    require(false);
 	    break;
 	  } // switch
 	  if (check == -1 && tTmp == NULL && tMyOpType != otDelete) {

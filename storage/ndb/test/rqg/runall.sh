@@ -88,7 +88,7 @@ gensql=${RQG_HOME}/gensql.pl
 gendata=${RQG_HOME}/gendata.pl
 ecp="set optimizer_switch = 'engine_condition_pushdown=on';"
 
-dsn=dbi:mysql:host=${host}:port=${port}:user=root:database=${pre}_myisam
+dsn=dbi:mysql:host=${host}:port=${port}:user=root:database=${pre}_innodb
 mysqltest="$MYSQLINSTALL/bin/mysqltest -uroot --host=${host} --port=${port}"
 mysql="$MYSQLINSTALL/bin/mysql --host=${host} --port=${port}"
 
@@ -100,8 +100,8 @@ charset_spec="character set latin1 collate latin1_bin"
 export RQG_HOME
 if [ "$load" ]
 then
-	$mysql -uroot -e "drop database if exists ${pre}_myisam; drop database if exists ${pre}_ndb"
-	$mysql -uroot -e "create database ${pre}_myisam ${charset_spec}; create database ${pre}_ndb ${charset_spec}"
+	$mysql -uroot -e "drop database if exists ${pre}_innodb; drop database if exists ${pre}_ndb"
+	$mysql -uroot -e "create database ${pre}_innodb ${charset_spec}; create database ${pre}_ndb ${charset_spec}"
 	${gendata} --dsn=$dsn ${data}
 cat > /tmp/sproc.$$ <<EOF
 DROP PROCEDURE IF EXISTS copydb;
@@ -326,7 +326,7 @@ BEGIN
 END
 \G
 
-CALL copydb('${pre}_ndb', '${pre}_myisam', 'ndb')\G
+CALL copydb('${pre}_ndb', '${pre}_innodb', 'ndb')\G
 CALL analyzedb('${pre}_ndb')\G
 
 ##CALL alterengine('${pre}_ndb', 'ndb')\G
@@ -362,7 +362,7 @@ EOF
     export NDB_JOIN_PUSHDOWN
     for t in 1
     do
-	$mysqltest ${pre}_myisam < $tmp >> ${opre}.$no.myisam.$i.txt
+	$mysqltest ${pre}_innodb < $tmp >> ${opre}.$no.innodb.$i.txt
     done
 
     for t in 1
@@ -407,9 +407,9 @@ run_all() {
 
     NDB_JOIN_PUSHDOWN=off
     export NDB_JOIN_PUSHDOWN
-    echo "- run myisam"
-    $mysqltest ${pre}_myisam < $file > ${opre}_myisam.out
-    md5_myisam=`md5sum ${opre}_myisam.out | awk '{ print $1;}'`
+    echo "- run innodb"
+    $mysqltest ${pre}_innodb < $file > ${opre}_innodb.out
+    md5_innodb=`md5sum ${opre}_innodb.out | awk '{ print $1;}'`
 
     echo "- run ndb without push"
     NDB_JOIN_PUSHDOWN=off
@@ -423,14 +423,14 @@ run_all() {
     $mysqltest ${pre}_ndb < $file > ${opre}_ndbpush.out
     md5_ndbpush=`md5sum ${opre}_ndbpush.out | awk '{ print $1;}'`
 
-    if [ "$md5_myisam" != "$md5_ndb" ] || [ "$md5_myisam" != "$md5_ndbpush" ]
+    if [ "$md5_innodb" != "$md5_ndb" ] || [ "$md5_innodb" != "$md5_ndbpush" ]
     then
-	echo "md5 missmatch: $md5_myisam $md5_ndb $md5_ndbpush"
+	echo "md5 missmatch: $md5_innodb $md5_ndb $md5_ndbpush"
 	echo "locating failing query(s)"
 	locate_query $file
     fi
 
-    rm ${opre}_myisam.out ${opre}_ndb.out ${opre}_ndbpush.out
+    rm ${opre}_innodb.out ${opre}_ndb.out ${opre}_ndbpush.out
 }
 
 i=0

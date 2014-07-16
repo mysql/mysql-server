@@ -31,6 +31,7 @@
 -- echo # ========== parameters.1 ==========
 USE INFORMATION_SCHEMA;
 --replace_result ENGINE=MyISAM "" ENGINE=MARIA "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
+--replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 
 SHOW CREATE TABLE INFORMATION_SCHEMA.PARAMETERS;
 
 # embedded server does not display privileges

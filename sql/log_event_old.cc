@@ -1402,7 +1402,7 @@ Old_rows_log_event::~Old_rows_log_event()
 }
 
 
-int Old_rows_log_event::get_data_size()
+size_t Old_rows_log_event::get_data_size()
 {
   uchar buf[sizeof(m_width)+1];
   uchar *end= net_store_length(buf, (m_width + 7) / 8);

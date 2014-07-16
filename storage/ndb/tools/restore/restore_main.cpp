@@ -30,6 +30,9 @@
 #include "consumer_printer.hpp"
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
+#define TMP_TABLE_PREFIX "#sql"
+#define TMP_TABLE_PREFIX_LEN 4
+
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;
 extern FilteredNdbOut debug;
@@ -58,7 +61,7 @@ const char *opt_ndb_table= NULL;
 unsigned int opt_verbose;
 unsigned int opt_hex_format;
 unsigned int opt_progress_frequency;
-NDB_TICKS g_report_next;
+NDB_TICKS g_report_prev;
 Vector<BaseString> g_databases;
 Vector<BaseString> g_tables;
 Vector<BaseString> g_include_tables, g_exclude_tables;
@@ -88,6 +91,7 @@ static bool ga_restore = false;
 static bool ga_print = false;
 static bool ga_skip_table_check = false;
 static bool ga_exclude_missing_columns = false;
+static bool opt_exclude_intermediate_sql_tables = true;
 static int _print = 0;
 static int _print_meta = 0;
 static int _print_data = 0;
@@ -277,6 +281,11 @@ static struct my_option my_long_options[] =
     (uchar**) &ga_exclude_missing_columns,
     (uchar**) &ga_exclude_missing_columns, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "exclude-intermediate-sql-tables", NDB_OPT_NOSHORT,
+    "Do not restore intermediate tables with #sql-prefixed names",
+    (uchar**) &opt_exclude_intermediate_sql_tables,
+    (uchar**) &opt_exclude_intermediate_sql_tables, 0,
+    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
   { "disable-indexes", NDB_OPT_NOSHORT,
     "Disable indexes and foreign keys",
     (uchar**) &ga_disable_indexes,
@@ -606,6 +615,7 @@ o verify nodegroup mapping
                                              opt_ndb_nodeid,
                                              opt_nodegroup_map,
                                              opt_nodegroup_map_len,
+                                             ga_nodeId,
                                              ga_nParallelism);
   if (restore == NULL) 
   {
@@ -784,7 +794,7 @@ o verify nodegroup mapping
     for (src = it.first(); src != NULL; src = it.next()) {
       const char * dst = NULL;
       bool r = g_rewrite_databases.get(src, &dst);
-      assert(r && (dst != NULL));
+      require(r && (dst != NULL));
       info << " (" << src << "->" << dst << ")";
     }
     info << endl;
@@ -932,7 +942,7 @@ static void parse_rewrite_database(char * argument)
     const BaseString dst = args[1];
     const bool replace = true;
     bool r = g_rewrite_databases.put(src.c_str(), dst.c_str(), replace);
-    assert(r);
+    require(r);
     return; // ok
   }
 
@@ -1035,6 +1045,17 @@ static bool check_include_exclude(BaseString database, BaseString table)
   return do_include;
 }
 
+static bool
+check_intermediate_sql_table(const char *table_name)
+{
+  BaseString tbl(table_name);
+  Vector<BaseString> fields;
+  tbl.split(fields, "/");
+  if((fields.size() == 3) && !fields[2].empty() && strncmp(fields[2].c_str(), TMP_TABLE_PREFIX, TMP_TABLE_PREFIX_LEN) == 0) 
+    return true;  
+  return false;
+}
+  
 static inline bool
 checkDoRestore(const TableS* table)
 {
@@ -1064,6 +1085,11 @@ checkDbAndTableName(const TableS* table)
   if (table->isBroken())
     return false;
 
+  const char *table_name = getTableName(table);
+  if(opt_exclude_intermediate_sql_tables && (check_intermediate_sql_table(table_name) == true)) {
+    return false;
+  }
+
   // If new options are given, ignore the old format
   if (opt_include_tables || g_exclude_tables.size() > 0 ||
       opt_include_databases || opt_exclude_databases ) {
@@ -1077,8 +1103,6 @@ checkDbAndTableName(const TableS* table)
     g_databases.push_back("TEST_DB");
 
   // Filter on the main table name for indexes and blobs
-  const char *table_name= getTableName(table);
-
   unsigned i;
   for (i= 0; i < g_databases.size(); i++)
   {
@@ -1127,8 +1151,7 @@ static void exitHandler(int code)
 
 static void init_progress()
 {
-  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
-  g_report_next = now + opt_progress_frequency;
+  g_report_prev = NdbTick_getCurrentTicks();
 }
 
 static int check_progress()
@@ -1136,11 +1159,11 @@ static int check_progress()
   if (!opt_progress_frequency)
     return 0;
 
-  NDB_TICKS now = NdbTick_CurrentMillisecond() / 1000;
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
   
-  if (now  >= g_report_next)
+  if (NdbTick_Elapsed(g_report_prev, now).seconds() >= opt_progress_frequency)
   {
-    g_report_next = now + opt_progress_frequency;
+    g_report_prev = now;
     return 1;
   }
   return 0;
@@ -1443,14 +1466,22 @@ main(int argc, char** argv)
         if (checkSysTable(metaData, i) &&
             checkDbAndTableName(metaData[i]))
         {
+          TableS & tableS = *metaData[i]; // not const
           for(Uint32 j= 0; j < g_consumers.size(); j++)
           {
-            if (!g_consumers[j]->table_compatible_check(*metaData[i]))
+            if (!g_consumers[j]->table_compatible_check(tableS))
             {
               err << "Restore: Failed to restore data, ";
-              err << metaData[i]->getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
+              err << tableS.getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
               exitHandler(NDBT_FAILED);
             } 
+            if (tableS.m_staging &&
+                !g_consumers[j]->prepare_staging(tableS))
+            {
+              err << "Restore: Failed to restore data, ";
+              err << tableS.getTableName() << " failed to prepare staging table for data conversion ... Exiting " << endl;
+              exitHandler(NDBT_FAILED);
+            }
           } 
         }
       }
@@ -1554,6 +1585,28 @@ main(int argc, char** argv)
       }
     }
     
+    /* move data from staging table to real table */
+    if(_restore_data)
+    {
+      for (i = 0; i < metaData.getNoOfTables(); i++)
+      {
+        const TableS* table = metaData[i];
+        if (table->m_staging)
+        {
+          for(Uint32 j= 0; j < g_consumers.size(); j++)
+          {
+            if (!g_consumers[j]->finalize_staging(*table))
+            {
+              err << "Restore: Failed staging data to table: ";
+              err << table->getTableName() << ". ";
+              err << "Exiting... " << endl;
+              exitHandler(NDBT_FAILED);
+            }
+          }
+        }
+      }
+    }
+
     if(_restore_data)
     {
       for(i = 0; i < metaData.getNoOfTables(); i++)

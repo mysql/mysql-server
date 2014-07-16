@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,10 +20,14 @@
 #include <signaldata/AttrInfo.hpp>
 
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
 #include <NdbEnv.h>
 #define INT_DEBUG(x) \
   { const char* tmp = NdbEnv_GetEnv("INT_DEBUG", (char*)0, 0); \
   if (tmp != 0 && strlen(tmp) != 0) { ndbout << "INT:"; ndbout_c x; } }
+#else
+#define INT_DEBUG(x)
+#endif
 #else
 #define INT_DEBUG(x)
 #endif
@@ -73,7 +77,7 @@ NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (tNdbColumnImpl == NULL)
       goto inc_check_error1;
     if ((tNdbColumnImpl->getInterpretableType() != true) ||
@@ -132,7 +136,7 @@ NdbOperation::write_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (tNdbColumnImpl == NULL)
       goto write_attr_check_error1;
     if ((tNdbColumnImpl->getInterpretableType() == false) ||
@@ -183,7 +187,7 @@ NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (tNdbColumnImpl == NULL)
       goto read_attr_check_error1;
     if (tNdbColumnImpl->getInterpretableType() == false)
@@ -232,7 +236,7 @@ NdbOperation::initial_interpreterCheck()
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (theStatus == ExecInterpretedValue) {
       return 0; // Simply continue with interpretation
     } else if (theStatus == GetValue) {
@@ -262,7 +266,7 @@ NdbOperation::labelCheck()
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (theStatus == ExecInterpretedValue) {
       return 0; // Simply continue with interpretation
     } else if (theStatus == GetValue) {
@@ -294,7 +298,7 @@ NdbOperation::intermediate_interpreterCheck()
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (theStatus == ExecInterpretedValue) {
       return 0; // Simply continue with interpretation
     } else if (theStatus == SubroutineExec) {

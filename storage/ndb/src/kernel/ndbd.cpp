@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,9 @@ systemInfo(const Configuration & config, const LogLevel & logLevel)
   }
 #elif defined NDB_SOLARIS
   // Search for at max 16 processors among the first 256 processor ids
-  processor_info_t pinfo; memset(&pinfo, 0, sizeof(pinfo));
+  processor_info_t pinfo;
+
+  memset(&pinfo, 0, sizeof(pinfo));
   int pid = 0;
   while(processors < 16 && pid < 256){
     if(!processor_info(pid++, &pinfo))
@@ -91,6 +93,79 @@ systemInfo(const Configuration & config, const LogLevel & logLevel)
   }
 }
 
+static
+Uint64
+parse_size(const char * src)
+{
+  Uint64 num = 0;
+  char * endptr = 0;
+  num = strtoll(src, &endptr, 10);
+
+  if (endptr)
+  {
+    switch(* endptr){
+    case 'k':
+    case 'K':
+      num *= 1024;
+      break;
+    case 'm':
+    case 'M':
+      num *= 1024;
+      num *= 1024;
+      break;
+    case 'g':
+    case 'G':
+      num *= 1024;
+      num *= 1024;
+      num *= 1024;
+      break;
+    }
+  }
+  return num;
+}
+
+/*
+  Return the value given by specified key in semicolon separated list
+  of name=value and name:value pairs which is found before first
+  name:value pair
+
+  i.e list looks like
+    [name1=value1][;name2=value2][;name3:value3][;name4:value4][;name5=value5]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    searches this part of list
+
+  the function will terminate it's search when first name:value pair
+  is found
+
+  NOTE! This is anlogue to how the InitialLogFileGroup and
+  InitialTablespace strings are parsed in NdbCntrMain.cpp
+*/
+
+static void
+parse_key_value_before_filespecs(const char *src,
+                                 const char* key, Uint64& value)
+{
+  const size_t keylen = strlen(key);
+  BaseString arg(src);
+  Vector<BaseString> list;
+  arg.split(list, ";");
+
+  for (unsigned i = 0; i < list.size(); i++)
+  {
+    list[i].trim();
+    if (strncasecmp(list[i].c_str(), key, keylen) == 0)
+    {
+      // key found, save its value
+      value = parse_size(list[i].c_str() + keylen);
+    }
+
+    if (strchr(list[i].c_str(), ':'))
+    {
+      // found name:value pair, look no further
+      return;
+    }
+  }
+}
 
 Uint32
 compute_acc_32kpages(const ndb_mgm_configuration_iterator * p)
@@ -286,8 +361,48 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
+  Uint32 undopages = 0;
+  {
+    /**
+     * Request extra undo buffer memory to be allocated when
+     * InitialLogFileGroup is specifed in config.
+     *
+     *  - Use default size or the value specified by the
+     *    undo_buffer_size= key.
+     *
+     * Note! The default value should be aligned with code in NdbCntrMain.cpp
+     * which does the full parse of InitialLogFileGroup. This code only peeks
+     * at the undo_buffer_size value
+     *
+     */
+    Uint32 dl = 0;
+    ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl);
+
+    if (dl == 0)
+    {
+      const char * lgspec = 0;
+      if (!ndb_mgm_get_string_parameter(p, CFG_DB_DD_LOGFILEGROUP_SPEC,
+                                        &lgspec))
+      {
+        Uint64 undo_buffer_size = 64 * 1024 * 1024; // Default
+        parse_key_value_before_filespecs(lgspec,
+                                         "undo_buffer_size=",
+                                         undo_buffer_size);
+
+        undopages = Uint32(undo_buffer_size / GLOBAL_PAGE_SIZE);
+        g_eventLogger->info("reserving %u extra pages for undo buffer memory",
+                            undopages);
+        Resource_limit rl;
+        rl.m_min = undopages;
+        rl.m_max = 0;
+        rl.m_resource_id = RG_DISK_OPERATIONS;
+        ed.m_mem_manager->set_resource_limit(rl);
+      }
+    }
+  }
+
   Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
-    pgman_pages + stpages;
+    pgman_pages + stpages + undopages;
 
   if (sum)
   {
@@ -489,7 +604,11 @@ catchsigs(bool foreground){
 #elif defined SIGINFO
     SIGINFO,
 #endif
+#ifdef _WIN32
+    SIGTERM,
+#else
     SIGQUIT,
+#endif
     SIGTERM,
 #ifdef SIGTSTP
     SIGTSTP,
@@ -525,7 +644,11 @@ catchsigs(bool foreground){
   };
 
   static const int signals_ignore[] = {
+#ifdef _WIN32
+    SIGINT
+#else
     SIGPIPE
+#endif
   };
 
   size_t i;
@@ -615,6 +738,21 @@ ndbd_run(bool foreground, int report_fd,
     }
   }
 
+  if (initialstart)
+  {
+    g_eventLogger->info("Performing partial initial start of this Cluster");
+  }
+  else if (initial)
+  {
+    g_eventLogger->info(
+      "Initial start of data node, ignoring any info on disk");
+  }
+  else
+  {
+    g_eventLogger->info(
+      "Normal start of data node using checkpoint and log info if existing");
+  }
+
   globalEmulatorData.create();
 
   Configuration* theConfig = globalEmulatorData.theConfiguration;
@@ -624,9 +762,22 @@ ndbd_run(bool foreground, int report_fd,
     ndbd_exit(-1);
   }
 
+  /**
+    Read the configuration from the assigned management server (could be
+    a set of management servers, normally when we arrive here we have
+    already assigned the nodeid, either by the operator or by the angel
+    process.
+  */
   theConfig->fetch_configuration(connect_str, force_nodeid, bind_address,
                                  allocated_nodeid, connect_retries,
                                  connect_delay);
+
+  /**
+    Set the NDB DataDir, this is where we will locate log files and data
+    files unless specifically configured to be elsewhere.
+  */
+  g_eventLogger->info("Changing directory to '%s'",
+                      NdbConfig_get_path(NULL));
 
   if (NdbDir::chdir(NdbConfig_get_path(NULL)) != 0)
   {
@@ -637,13 +788,24 @@ ndbd_run(bool foreground, int report_fd,
 
   theConfig->setupConfiguration();
 
+
+  /**
+    Printout various information about the threads in the
+    run-time environment
+  */
   if (get_multithreaded_config(globalEmulatorData))
     ndbd_exit(-1);
-
   systemInfo(* theConfig, * theConfig->m_logLevel);
 
+  /**
+    Start the watch-dog thread before we start allocating memory.
+    Allocation of memory can be a very time-consuming process.
+    The watch-dog will have a special timeout for the phase where
+    we allocate memory.
+  */
   NdbThread* pWatchdog = globalEmulatorData.theWatchDog->doStart();
 
+  g_eventLogger->info("Memory Allocation for global memory pools Starting");
   {
     /*
      * Memory allocation can take a long time for large memory.
@@ -657,7 +819,14 @@ ndbd_run(bool foreground, int report_fd,
       ndbd_exit(1);
     globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
   }
+  g_eventLogger->info("Memory Allocation for global memory pools Completed");
 
+  /**
+    Initialise the data of the run-time environment, this prepares the
+    data setup for the various threads that need to communicate using
+    our internal memory. The threads haven't started yet, but as soon as
+    they start they will be ready to communicate.
+  */
   globalEmulatorData.theThreadConfig->init();
 
 #ifdef VM_TRACE
@@ -693,18 +862,18 @@ ndbd_run(bool foreground, int report_fd,
   NdbMem_Free(signal_log_name);
 #endif
 
+  /** Create all the blocks used by the run-time environment. */
+  g_eventLogger->info("Loading blocks for data node run-time environment");
   // Load blocks (both main and workers)
   globalEmulatorData.theSimBlockList->load(globalEmulatorData);
-
-  // Set thread concurrency for Solaris' light weight processes
-  int status;
-  status = NdbThread_SetConcurrencyLevel(30);
-  assert(status == 0);
 
   catchsigs(foreground);
 
   /**
-   * Do startup
+   * Send the start signal to the CMVMI block. The start will however
+   * not start until we have started the thread that runs the CMVMI
+   * block. As soon as this thread starts it will find the signal
+   * there to execute and we can start executing signals.
    */
   switch(globalData.theRestartFlag){
   case initial_state:
@@ -718,41 +887,77 @@ ndbd_run(bool foreground, int report_fd,
     assert("Illegal state globalData.theRestartFlag" == 0);
   }
 
+  /**
+    Before starting the run-time environment we also need to activate the
+    send and receive services. We need for some cases to prepare some data
+    in the TransporterRegistry before we start the communication service.
+    The connection to the management server is reused as a connection to
+    the management server node.
+    The final steps is to start the client connections, these are all the
+    nodes that we need to be client in the communication setup. Then start
+    the socket server where other nodes can connect to us for those nodes
+    where our node is the server part of the connection. The logic is that
+    the node with the lower nodeid is the server and the other one the client,
+    this can be changed by the configuration. This is implemented by the
+    management server in the function fixPortNumber.
+  */
+  g_eventLogger->info("Starting Sending and Receiving services");
   globalTransporterRegistry.startSending();
   globalTransporterRegistry.startReceiving();
   if (!globalTransporterRegistry.start_service(*globalEmulatorData.m_socket_server)){
     ndbout_c("globalTransporterRegistry.start_service() failed");
     ndbd_exit(-1);
   }
-
   // Re-use the mgm handle as a transporter
   if(!globalTransporterRegistry.connect_client(
 		 theConfig->get_config_retriever()->get_mgmHandlePtr()))
       ERROR_SET(fatal, NDBD_EXIT_CONNECTION_SETUP_FAILED,
                 "Failed to convert mgm connection to a transporter",
                 __FILE__);
-
   NdbThread* pTrp = globalTransporterRegistry.start_clients();
   if (pTrp == 0)
   {
     ndbout_c("globalTransporterRegistry.start_clients() failed");
     ndbd_exit(-1);
   }
-
   NdbThread* pSockServ = globalEmulatorData.m_socket_server->startServer();
 
+  /**
+    Report the new threads started, there is one thread started now to handle
+    the watchdog, one to handle the socket server part and one to regularly
+    attempt to connect as client to other nodes.
+  */
   globalEmulatorData.theConfiguration->addThread(pTrp, SocketClientThread);
   globalEmulatorData.theConfiguration->addThread(pWatchdog, WatchDogThread);
   globalEmulatorData.theConfiguration->addThread(pSockServ, SocketServerThread);
 
-  //  theConfig->closeConfiguration();
+  g_eventLogger->info("Starting the data node run-time environment");
   {
+    /**
+      We have finally arrived at the point where we start the run-time
+      environment, in this method we will create the needed threads.
+      We still have two different ThreadConfig objects, one to run
+      ndbd (the single threaded variant of the data node process) and
+      one to run ndbmtd (the multithreaded variant of the data node
+      process).
+
+      Mostly the ndbmtd should be used, but there could still be
+      cases where someone prefers the single-threaded variant since
+      this can provide lower latency if throughput isn't an issue.
+    */
     NdbThread *pThis = NdbThread_CreateObject(0);
-    Uint32 inx = globalEmulatorData.theConfiguration->addThread(pThis,
-                                                                MainThread);
-    globalEmulatorData.theThreadConfig->ipControlLoop(pThis, inx);
-    globalEmulatorData.theConfiguration->removeThreadId(inx);
+    globalEmulatorData.theThreadConfig->ipControlLoop(pThis);
   }
+  g_eventLogger->info("The data node run-time environment has been stopped");
+
+  /**
+    The data node process is stopping, we remove the watchdog thread, the
+    socket server and socket client thread from the list of running
+    threads.
+  */
+  globalEmulatorData.theConfiguration->removeThread(pWatchdog);
+  globalEmulatorData.theConfiguration->removeThread(pTrp);
+  globalEmulatorData.theConfiguration->removeThread(pSockServ);
   NdbShutdown(0, NST_Normal);
 
   ndbd_exit(0);

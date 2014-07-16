@@ -32,7 +32,19 @@ extern "C" void* runClusterMgr_C(void * me);
 
 
 /**
- * @class ClusterMgr
+  @class ClusterMgr
+  This class runs a heart beat protocol between nodes, to detect if remote
+  nodes are reachable or not. This protocol is needed because the underlying
+  transporter connection may need a long time (or even forever) to detect 
+  node or network failure. (TCP typically gives up retransmission after about
+  20 minutes). 
+  Therefore API_REGREQ signal are sent on regular intervals. If more than 
+  three signals are unanswered (by API_REGCONF) the node is presumed dead or
+  unreachable, and the transporter is disconnected.
+  This class handles heart beat between the following types of node pairs: 
+  API-DB, MGMD-DB and MGMD-MGMD, where DB means data node. There is another
+  heart beat mechanism between pairs of data nodes, using the CM_HEARTBEAT
+  signal.
  */
 class ClusterMgr : public trp_client
 {
@@ -61,10 +73,22 @@ public:
   void unlock() { trp_client::unlock();NdbMutex_Unlock(clusterMgrThreadMutex); }
 
 private:
+  // 100ms is the smallest heart beat interval supported.
+  static const Uint32  minHeartBeatInterval = 100;
+
   void startup();
   void threadMain();
   
   int  theStop;
+  /**
+   * We could end up in a situation where signals are delayed for more
+   * than 100 ms, either due to slow operation or due to that we're
+   * closing the TransporterFacade object. To avoid sending more than
+   * signal to ourself in these cases we add this boolean variable to
+   * indicate if we already sent a signal to ourself, this signal will
+   * eventually arrive since it's a local signal within the same process.
+  */
+  bool m_sent_API_REGREQ_to_myself;
   class TransporterFacade & theFacade;
   class ArbitMgr * theArbitMgr;
 
@@ -111,6 +135,11 @@ private:
    */
   NdbMutex*     clusterMgrThreadMutex;
 
+  /**
+    The rate (in milliseconds) at which this node expects to receive 
+    API_REGREQ heartbeat messages.
+   */
+  Uint32 m_hbFrequency;
   /**
    * Signals received
    */
@@ -214,7 +243,7 @@ private:
   struct ArbitSignal {
     GlobalSignalNumber gsn;
     ArbitSignalData data;
-    NDB_TICKS timestamp;
+    NDB_TICKS startticks;
 
     ArbitSignal() {}
 
@@ -227,12 +256,12 @@ private:
     }
 
     inline void setTimestamp() {
-      timestamp = NdbTick_CurrentMillisecond();
+      startticks = NdbTick_getCurrentTicks();
     }
 
-    inline NDB_TICKS getTimediff() {
-      NDB_TICKS now = NdbTick_CurrentMillisecond();
-      return now < timestamp ? 0 : now - timestamp;
+    inline Uint64 getTimediff() {
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      return NdbTick_Elapsed(startticks,now).milliSec();
     }
   };
 

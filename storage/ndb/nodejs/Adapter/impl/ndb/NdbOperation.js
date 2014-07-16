@@ -23,9 +23,10 @@
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
-  QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
-prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
-//   getBoundHelper = require("./IndexBounds.js").getBoundHelper, 
+    QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
+    prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
+    getIndexBounds = require("../common/IndexBounds.js").getIndexBounds,
+    markQuery     = require("../common/IndexBounds.js").markQuery,
     stats         = stats_module.getWriter(["spi","ndb","DBOperation"]),
     index_stats   = stats_module.getWriter(["spi","ndb","key_access"]),
     COMMIT        = adapter.ndbapi.Commit,
@@ -34,6 +35,7 @@ prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
     constants     = adapter.impl,
     OpHelper      = constants.OpHelper,
     ScanHelper    = constants.Scan.helper,
+    BoundHelper   = constants.IndexBound.helper,
     opcodes       = doc.OperationCodes,
     udebug        = unified_debug.getLogger("NdbOperation.js");
 
@@ -101,9 +103,10 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   }
   
   /* NDB Impl-specific properties */
+  this.error        = null;
   this.query        = null;
-  this.ndbop        = null;
-  this.autoinc      = null;
+  this.ndbScanOp    = null;
+  this.needAutoInc   = false;
   this.buffers      = { 'row' : null, 'key' : null  };
   this.columnMask   = [];
   this.scan         = {};
@@ -128,28 +131,56 @@ function releaseKeyBuffer(op) {
   }
 }
 
-function encodeKeyBuffer(op) {
-  udebug.log("encodeKeyBuffer with keys", op.keys);
-  var i, offset, value, nfields, col;
-  var record = op.index.record;
 
-  nfields = op.indexHandler.getMappedFieldCount();
-  col = op.indexHandler.getColumnMetadata();
+function encodeFieldsInBuffer(fields, nfields, metadata, 
+                              ndbRecord, buffer, definedColumnList) {
+  var i, value, err, errors, offset;
+  errors = {};
   for(i = 0 ; i < nfields ; i++) {
-    value = op.keys[i];
-    if(value !== null) {
-      record.setNotNull(i, op.buffers.key);
-      offset = record.getColumnOffset(i);
-      if(col.typeConverter && col.typeConverter.ndb) {
-        value = col.typeConverter.ndb.toDB(value);
+    value = fields[i];
+    if(typeof value !== 'undefined') {
+      definedColumnList.push(metadata[i].columnNumber);
+      offset = ndbRecord.getColumnOffset(i);
+      if(value === null) {
+        ndbRecord.setNull(i, buffer);
       }
-      adapter.impl.encoderWrite(col[i], value, op.buffers.key, offset);
-    }
-    else {
-      udebug.log("encodeKeyBuffer ", i, "NULL.");
-      record.setNull(i, op.buffers.key);
+      else {
+        ndbRecord.setNotNull(i, buffer);
+        if(metadata[i].typeConverter && metadata[i].typeConverter.ndb) {
+          value = metadata[i].typeConverter.ndb.toDB(value);
+        }
+        err = adapter.impl.encoderWrite(metadata[i], value, buffer, offset);
+        if(err) { 
+          udebug.log("encoderWrite:", err);
+          errors[metadata[i].name] = err;
+        }
+      }
     }
   }
+  return Object.keys(errors).length ? errors : null;
+}
+
+
+function encodeKeyBuffer(op) {
+  return encodeFieldsInBuffer(op.keys, 
+                              op.indexHandler.getMappedFieldCount(),
+                              op.indexHandler.getColumnMetadata(),
+                              op.index.record,
+                              op.buffers.key, []);
+}
+
+
+/* encode indexBounds into Buffer formatted for indexRecord.
+   Returns buffer if values were encoded,
+   or null if first index column value was infinite.
+*/
+function encodeBounds(key, nfields, dbIndexHandler, buffer) {  
+  if(nfields == 0) {
+    return null;
+  }
+  encodeFieldsInBuffer(key, nfields, dbIndexHandler.getColumnMetadata(), 
+                       dbIndexHandler.dbIndex.record, buffer, []);
+  return buffer;
 }
 
 
@@ -164,33 +195,12 @@ function releaseRowBuffer(op) {
 
 function encodeRowBuffer(op) {
   udebug.log("encodeRowBuffer");
-  var i, offset, value, err, errors, record, nfields, col;
-  errors = {};
-  record = op.tableHandler.dbTable.record;
-  nfields = op.tableHandler.getMappedFieldCount();
-  udebug.log("encodeRowBuffer nfields", nfields);
-  col = op.tableHandler.getColumnMetadata();
-  
-  for(i = 0 ; i < nfields ; i++) {  
-    value = op.tableHandler.get(op.values, i);
-    if(value === null) {
-      record.setNull(i, op.buffers.row);
-    }
-    else if(typeof value !== 'undefined') {
-      record.setNotNull(i, op.buffers.row);
-      op.columnMask.push(col[i].columnNumber);
-      offset = record.getColumnOffset(i);
-      if(col[i].typeConverter && col[i].typeConverter.ndb) {
-        value = col[i].typeConverter.ndb.toDB(value);
-      }
-      err = adapter.impl.encoderWrite(col[i], value, op.buffers.row, offset);
-      if(err) { 
-        udebug.log("encoderWrite:", err);
-        errors[col[i].name] = err;
-      }
-    }
-  }
-  return Object.keys(errors).length ? errors : null;
+  return encodeFieldsInBuffer(op.tableHandler.getFields(op.values),
+                              op.tableHandler.getMappedFieldCount(),
+                              op.tableHandler.getColumnMetadata(),
+                              op.tableHandler.dbTable.record,
+                              op.buffers.row,
+                              op.columnMask);
 }
 
 function HelperSpec() {
@@ -198,13 +208,16 @@ function HelperSpec() {
 }
 
 HelperSpec.prototype.clear = function() {
-  this[OpHelper.row_buffer]  = null;
-  this[OpHelper.key_buffer]  = null;
-  this[OpHelper.row_record]  = null;
-  this[OpHelper.key_record]  = null;
-  this[OpHelper.lock_mode]   = null;
-  this[OpHelper.column_mask] = null;
-  this[OpHelper.value_obj]   = null;
+  this[0] = null;  // row_buffer
+  this[1] = null;  // key_buffer
+  this[2] = null;  // row_record
+  this[3] = null;  // key_record
+  this[4] = null;  // lock_mode
+  this[5] = null;  // column_mask
+  this[6] = null;  // value_obj
+  this[7] = null;  // opcode
+  this[8] = null;  // is_value_obj
+  this[9] = null;  // is_valid
 };
 
 var helperSpec = new HelperSpec();
@@ -226,56 +239,142 @@ ScanHelperSpec.prototype.clear = function() {
 
 var scanSpec = new ScanHelperSpec();
 
+function BoundHelperSpec() {
+  this[BoundHelper.low_key]        = null;
+  this[BoundHelper.low_key_count]  = 0;
+  this[BoundHelper.low_inclusive]  = true;
+  this[BoundHelper.high_key]       = null;
+  this[BoundHelper.high_key_count] = 0;
+  this[BoundHelper.high_inclusive] = true;
+  this[BoundHelper.range_no]       = 0;
+}
 
-DBOperation.prototype.prepare = function(ndbTransaction) {
+/* Create part of of a bound spec 
+*/
+BoundHelperSpec.prototype.buildPartialSpec = function(isLow, bound, 
+                                                      dbIndexHandler, buffer) {
+  var base, nparts, i;
+
+  function countFiniteKeyParts(key) {
+    for(i = 0; i < key.length ; i++) {
+      if((key[i] == Infinity) || (key[i] == -Infinity)) { break; }
+    }
+    return i;
+  }
+
+  base = isLow ? BoundHelper.low_key : BoundHelper.high_key;
+  nparts = countFiniteKeyParts(bound.key);
+  if(nparts) {
+    this[base    ] = encodeBounds(bound.key, nparts, dbIndexHandler, buffer);
+    this[base + 1] = nparts;
+    this[base + 2] = bound.inclusive;
+  }
+};
+
+BoundHelperSpec.prototype.setLow = function(bound, dbIndexHandler, buffer) {
+  this.buildPartialSpec(true, bound.low, dbIndexHandler, buffer);
+};
+
+BoundHelperSpec.prototype.setHigh = function(bound, dbIndexHandler, buffer) {
+  this.buildPartialSpec(false, bound.high, dbIndexHandler, buffer);
+};
+
+
+/* Takes an array of IndexBounds;
+   Returns an array of BoundHelpers which will be used to build NdbIndexBounds.
+   Builds a buffer of encoded parameters used in index bounds and 
+   stores a reference to it in op.scan.
+*/
+DBOperation.prototype.buildBoundHelpers = function(indexBounds) {
+  var dbIndexHandler, bound, sz, n, helper, allHelpers, mainBuffer, offset, i;
+  dbIndexHandler = this.indexHandler;
+  sz = dbIndexHandler.dbIndex.record.getBufferSize();
+  n  = indexBounds.length;
+  if(sz && n) {
+    allHelpers = [];
+    mainBuffer = new Buffer(sz * n * 2);
+    offset = 0;
+    this.scan.bound_param_buffer = mainBuffer; // maintain a reference!
+    for(i = 0 ; i < n ; i++) {
+      bound = indexBounds[i];
+      helper = new BoundHelperSpec();
+      helper.setLow(bound, dbIndexHandler, mainBuffer.slice(offset, offset+sz));
+      offset += sz;
+      helper.setHigh(bound, dbIndexHandler, mainBuffer.slice(offset, offset+sz));
+      offset += sz;
+      helper[BoundHelper.range_no] = i;  
+      allHelpers.push(helper);
+    }
+  }
+  
+  this.scan.index_bound_helpers = allHelpers;  // maintain a reference 
+  return allHelpers;
+};
+
+
+DBOperation.prototype.buildOpHelper = function(helper) {
   var code = this.opcode;
   var isVOwrite = (this.values && adapter.impl.isValueObject(this.values));
   var error = null;
-
-  /* There is one global helperSpec */
-  helperSpec.clear();
 
   /* All operations but insert use a key. */
   if(code !== 2) {
     allocateKeyBuffer(this);
     encodeKeyBuffer(this);
-    helperSpec[OpHelper.key_record]  = this.index.record;
-    helperSpec[OpHelper.key_buffer]  = this.buffers.key;
+    helper[OpHelper.key_record]  = this.index.record;
+    helper[OpHelper.key_buffer]  = this.buffers.key;
   }
   
   /* If this is an update-after-read operation on a Value Object, 
      DBOperationHelper only needs the VO.
   */
   if(isVOwrite) {
-    helperSpec[OpHelper.value_obj] = this.values;
+    helper[OpHelper.value_obj] = this.values;
   }  
   else {
     /* All non-VO operations get a row record */
-    helperSpec[OpHelper.row_record] = this.tableHandler.dbTable.record;
+    helper[OpHelper.row_record] = this.tableHandler.dbTable.record;
     
     /* All but delete get an allocated row buffer, and column mask */
     if(code !== 16) {
       allocateRowBuffer(this);
-      helperSpec[OpHelper.row_buffer]  = this.buffers.row;
-      helperSpec[OpHelper.column_mask] = this.columnMask;
+      helper[OpHelper.row_buffer]  = this.buffers.row;
+      helper[OpHelper.column_mask] = this.columnMask;
 
       /* Read gets a lock mode; 
          writes get the data encoded into the row buffer. */
       if(code === 1) {
-        helperSpec[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
+        helper[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
       }
       else { 
-        error = encodeRowBuffer(this);
+        this.error = encodeRowBuffer(this);
       }
     }
   }
-  
-  /* Use the HelperSpec and opcode to build the NdbOperation */
-  this.ndbop = 
-    adapter.impl.DBOperationHelper(helperSpec, code, ndbTransaction, isVOwrite);
-  this.state = doc.OperationStates[1];  // PREPARED
-  return error;
+
+  helper[OpHelper.opcode]       = code;
+  helper[OpHelper.is_value_obj] = isVOwrite;
+  helper[OpHelper.is_valid]     = this.error ? false : true;
 };
+
+
+function prepareOperations(ndbTransaction, dbOperationList) {
+  var n, length, specs, pendingOpSet;
+  length = dbOperationList.length;
+  if(length == 1) {
+    specs = [ helperSpec ];  /* Reuse the global helperSpec */
+    helperSpec.clear();
+    dbOperationList[0].buildOpHelper(helperSpec);
+  }
+  else {
+    specs = new Array(length);
+    for(n = 0 ; n < dbOperationList.length ; n++) {
+      specs[n] = new HelperSpec();
+      dbOperationList[n].buildOpHelper(specs[n], ndbTransaction);
+    }
+  }
+  return adapter.impl.DBOperationHelper(length, specs, ndbTransaction);
+}
 
 
 /* Prepare a scan operation.
@@ -288,9 +387,9 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
 */
 DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   var opcode = 33;  // How to tell from operation?
-  var boundHelper = null;
+  var indexBounds = null;
   var execQueue = this.transaction.dbSession.execQueue;
-  var scanHelper, apiCall;
+  var scanHelper, apiCall, boundsHelpers, dbIndex;
  
   /* There is one global ScanHelperSpec */
   scanSpec.clear();
@@ -298,12 +397,20 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   scanSpec[ScanHelper.table_record] = this.query.dbTableHandler.dbTable.record;
 
   if(this.query.queryType == 2) {  /* Index Scan */
-    scanSpec[ScanHelper.index_record] = this.query.dbIndexHandler.dbIndex.record;
-//    boundHelper = getBoundHelper(this.query, this.params);
-//    if(boundHelper) {
-//      scanHelper[bounds] = adapter.impl.IndexBound.create(boundHelper);
-//      this.scan.bounds = scanHelper[bounds];
-//    }
+    dbIndex = this.query.dbIndexHandler.dbIndex;
+    scanSpec[ScanHelper.index_record] = dbIndex.record;
+    indexBounds = getIndexBounds(this.query, dbIndex, this.params);
+    if(indexBounds.length) {
+      boundsHelpers = this.buildBoundHelpers(indexBounds);
+      scanSpec[ScanHelper.bounds] = [];
+      if(indexBounds.length > 1) {
+        scanSpec[ScanHelper.flags] |= constants.Scan.flags.SF_MultiRange;
+      }
+      boundsHelpers.forEach(function(helper) {
+        var b = adapter.impl.IndexBound.create(helper);
+        scanSpec[ScanHelper.bounds].push(b);
+      });
+    }
   }
 
   scanSpec[ScanHelper.lock_mode] = constants.LockModes[this.lockMode];
@@ -313,7 +420,7 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
     if(this.params.order.toLocaleLowerCase() == 'desc') {
       flags |= constants.Scan.flags.SF_Descending;
     }
-    scanSpec[ScanHelper.flags] = flags;  
+    scanSpec[ScanHelper.flags] |= flags;  
   }
 
   if(this.query.ndbFilterSpec) {
@@ -450,7 +557,7 @@ function getScanResults(scanop, userCallback) {
   function fetch() {
     buffer = new Buffer(recordSize);
     results.push(new ResultConstructor(buffer));  // Optimistic
-    fetchResults(dbSession, scanop.ndbop, buffer);
+    fetchResults(dbSession, scanop.ndbScanOp, buffer);
   }
 
   /* <0: ERROR, 0: RESULTS_READY, 1: SCAN_FINISHED, 2: CACHE_EMPTY */
@@ -462,22 +569,15 @@ function getScanResults(scanop, userCallback) {
 
     if(status < 0) { // error
       udebug.log("scan gather() error", status, error);
-      if(error && error.ndb_error && error.ndb_error.code == 274) {
-        // fetch();
-      }
-      else {
-        scanop.result.success = false;
-        scanop.result.error = error;
-        postScanCallback.arg0 = error;
-        return postScanCallback;
-      }
+      postScanCallback.arg0 = error;
+      return postScanCallback;
     }
     
     /* Gather more results. */
     while(status === 0 && results.length < maxRow) {
       udebug.log("gather() 0 Result_Ready");
       buffer = new Buffer(recordSize);
-      status = scanop.ndbop.nextResult(buffer);
+      status = scanop.ndbScanOp.nextResult(buffer);
       if(status === 0) {
         results.push(new ResultConstructor(buffer));
       }
@@ -493,7 +593,7 @@ function getScanResults(scanop, userCallback) {
       /* Now remove the rows that should have been skipped 
          (fixme: do something more efficient) */
       for(i = 0 ; i < nSkip ; i++) results.shift();
-    
+
       udebug.log("gather() 1 End_Of_Scan.  Final length:", results.length);
       scanop.result.success = true;
       scanop.result.value = results;
@@ -508,18 +608,23 @@ function getScanResults(scanop, userCallback) {
 }
 
 
-function buildOperationResult(transactionHandler, op, execMode) {
+function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
   udebug.log("buildOperationResult");
-  var op_ndb_error, result_code;
-  
-  if(! op.ndbop) {
+  var result_code;
+
+  /* TRUE from getOperationError() means "NdbOperation is null"  */
+  if(op_ndb_error === true) {
     op.result.success = false;
     op.result.error = new IndirectError(transactionHandler.error);
     return;
   }
-  
-  op_ndb_error = op.ndbop.getNdbError();
-  result_code = op_ndb_error.code;
+
+  if(op_ndb_error === null) {   /* null means "No Error" */
+    result_code = 0;
+  }
+  else {
+    result_code = op_ndb_error.code;
+  }
 
   if(execMode !== ROLLBACK) {
     /* Error Handling */
@@ -565,16 +670,23 @@ function buildOperationResult(transactionHandler, op, execMode) {
   udebug.log_detail("buildOperationResult finished:", op.result);
 }
 
-function completeExecutedOps(dbTxHandler, execMode, operationsList) {
-  udebug.log("completeExecutedOps mode:", execMode, 
-             "operations: ", operationsList.length);
-  var op;
-  while(op = operationsList.shift()) {
-    assert(op.state === "PREPARED");
+function completeExecutedOps(dbTxHandler, execMode, operations) {
+  /* operations is an object: 
+     {
+        "operationList"       : operationList,
+        "pendingOperationSet" : pendingOpsSet
+      };
+  */
+  udebug.log("completeExecutedOps mode:", execMode,
+             "operations: ", operations.operationList.length);
+  var n, op, op_err;
+  for(n = 0 ; n < operations.operationList.length ; n++) {
+    op = operations.operationList[n];
 
     if(! op.isScanOperation()) {
+      op_err = operations.pendingOperationSet.getOperationError(n);
       releaseKeyBuffer(op);
-      buildOperationResult(dbTxHandler, op, execMode);
+      buildOperationResult(dbTxHandler, op, op_err, execMode);
       releaseRowBuffer(op);
     }
 
@@ -655,6 +767,10 @@ function newInsertOperation(tx, tableHandler, row) {
   var op = new DBOperation(opcodes.OP_INSERT, tx, null, tableHandler);
 // Test row for VO?
   op.values = row;
+  if (typeof row[op.tableHandler.autoIncFieldName] === 'undefined') {
+    // we need autoincrement services because the user did not supply the value for the autoincrement column
+    op.needAutoInc = true;
+  }
   return op;
 }
 
@@ -707,3 +823,4 @@ exports.newWriteOperation   = newWriteOperation;
 exports.newScanOperation    = newScanOperation;
 exports.completeExecutedOps = completeExecutedOps;
 exports.getScanResults      = getScanResults;
+exports.prepareOperations   = prepareOperations;

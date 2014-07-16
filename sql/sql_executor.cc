@@ -59,8 +59,6 @@ static enum_nested_loop_state
 end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 end_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
-static enum_nested_loop_state
-end_unique_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr);
 
 static int join_read_system(JOIN_TAB *tab);
@@ -381,7 +379,7 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
       copy_sum_funcs(sum_funcs_end[i+1], sum_funcs_end[i]);
       if ((write_error= table_arg->file->ha_write_row(table_arg->record[0])))
       {
-	if (create_myisam_from_heap(thd, table_arg, 
+  if (create_ondisk_from_heap(thd, table_arg, 
                                     tmp_table_param.start_recinfo,
                                     &tmp_table_param.recinfo,
                                     write_error, FALSE, NULL))
@@ -603,14 +601,17 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
         DBUG_RETURN(NESTED_LOOP_OK);
     }
     fill_record(thd, table->field, sjm->sj_nest->nested_join->sj_inner_exprs,
-                NULL, NULL);
+                (table->hash_field ?
+                    &table->hash_field_bitmap : NULL), NULL);
     if (thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+    if (!check_unique_constraint(table, 0))
+      DBUG_RETURN(NESTED_LOOP_OK);
     if ((error= table->file->ha_write_row(table->record[0])))
     {
-      /* create_myisam_from_heap will generate error if needed */
+      /* create_ondisk_from_heap will generate error if needed */
       if (!table->file->is_ignorable_error(error) &&
-          create_myisam_from_heap(thd, table,
+          create_ondisk_from_heap(thd, table,
                                   sjm->table_param.start_recinfo, 
                                   &sjm->table_param.recinfo, error,
                                   TRUE, NULL))
@@ -777,15 +778,10 @@ void setup_tmptable_write_func(JOIN_TAB *tab)
       Note for MyISAM tmp tables: if uniques is true keys won't be
       created.
     */
-    if (table->s->keys && !table->s->uniques)
+    if (table->s->keys)
     {
       DBUG_PRINT("info",("Using end_update"));
       op->set_write_func(end_update);
-    }
-    else
-    {
-      DBUG_PRINT("info",("Using end_unique_update"));
-      op->set_write_func(end_unique_update);
     }
   }
   else if (join->sort_and_group && !tmp_tbl->precomputed_group_by)
@@ -1388,6 +1384,8 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     }
   }
 
+  if (!check_unique_constraint(sjtbl->tmp_table, 0))
+      DBUG_RETURN(1);
   error= sjtbl->tmp_table->file->ha_write_row(sjtbl->tmp_table->record[0]);
   if (error)
   {
@@ -1398,7 +1396,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
       Other error than duplicate error: Attempt to create a temporary table.
     */
     bool is_duplicate;
-    if (create_myisam_from_heap(thd, sjtbl->tmp_table,
+    if (create_ondisk_from_heap(thd, sjtbl->tmp_table,
                                 sjtbl->start_recinfo, &sjtbl->recinfo,
                                 error, TRUE, &is_duplicate))
       DBUG_RETURN(-1);
@@ -2424,12 +2422,15 @@ join_materialize_semijoin(JOIN_TAB *tab)
   */
   last->next_select= end_sj_materialize;
   last->sj_mat_exec= sjm; // TODO: This violates comment for sj_mat_exec!
-
+  if (tab->table->hash_field)
+    tab->table->file->ha_index_init(0, 0);
   int rc;
   if ((rc= sub_select(tab->join, first, false)) < 0)
     DBUG_RETURN(rc);
   if ((rc= sub_select(tab->join, first, true)) < 0)
     DBUG_RETURN(rc);
+  if (tab->table->hash_field)
+    tab->table->file->ha_index_or_rnd_end();
 
   last->next_select= NULL;
   last->sj_mat_exec= NULL;
@@ -2971,8 +2972,205 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
+static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
+{
+  DBUG_ASSERT(field);
+  /*
+    Records are different when:
+    1) NULL flags aren't the same
+    2) length isn't the same
+    3) data isn't the same
+    */
+  if (field->is_real_null() != field->is_real_null(diff))   // 1
+    return true;
+  // Trailing space can't be skipped and length is different
+  if (!field->is_text_key_type() &&
+      field->data_length() != field->data_length(diff))     // 2
+    return true;
 
-	/* ARGSUSED */
+    if (field->cmp_max(field->ptr, field->ptr + diff,       // 3
+                       field->data_length()))
+      return true;
+
+    return false;
+}
+
+/**
+  Compare GROUP BY in from tmp table's record[0] and record[1]
+  
+  @returns
+    true  records are different
+    false records are the same
+*/
+
+bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
+{
+  my_ptrdiff_t diff= rec1 - rec0;
+
+  for (ORDER *grp= group; grp; grp= grp->next)
+  {
+    Item *item= *(grp->item);
+    Field *field= item->get_tmp_table_field();
+    if (cmp_field_value(field, diff))
+      return true;
+  }
+  return false;
+}
+
+
+/**
+  Compare GROUP BY in from tmp table's record[0] and record[1]
+  
+  @returns
+    true  records are different
+    false records are the same
+*/
+
+bool table_rec_cmp(TABLE *table, int hidden_field_count)
+{
+  my_ptrdiff_t diff= table->record[1] - table->record[0];
+
+  int field_count= table->s->fields - 1;
+
+  for (int i= hidden_field_count; i < field_count ; i++)
+  {
+    Field *field= table->field[i];
+    if (cmp_field_value(field, diff))
+      return true;
+  }
+  return false;
+}
+
+
+/**
+  Generate hash for a field
+
+  @returns generated hash
+*/
+
+ulonglong unique_hash(Field *field, ulonglong *hash_val)
+{
+  uchar *pos, *end;
+  ulong seed1=0, seed2= 4;
+  ulonglong crc= *hash_val;
+
+  if (field->is_null())
+  {
+    /*
+      Change crc in a way different from an empty string or 0.
+      (This is an optimisation;  The code will work even if
+      this isn't done)
+    */
+    crc=((crc << 8) + 511+
+         (crc >> (8*sizeof(ha_checksum)-8)));
+    goto finish;
+  }
+
+  field->get_ptr(&pos);
+  end= pos + field->data_length();
+  if (field->key_type() == HA_KEYTYPE_TEXT ||
+      field->key_type() == HA_KEYTYPE_VARTEXT1 ||
+      field->key_type() == HA_KEYTYPE_VARTEXT2)
+  {
+    field->charset()->coll->hash_sort(field->charset(), (const uchar*) pos,
+                                      field->data_length(), &seed1, &seed2);
+    crc^= seed1;
+  }
+  else
+    while (pos != end)
+      crc=((crc << 8) +
+           (((uchar)  *(uchar*) pos++))) +
+        (crc >> (8*sizeof(ha_checksum)-8));
+finish:
+  *hash_val= crc;
+  return crc;
+}
+
+
+/* Generate hash for unique constraint according to group-by list */
+
+ulonglong unique_hash_group(ORDER *group)
+{
+  ulonglong crc= 0;
+  Field *field;
+
+  for (ORDER *ord= group; ord ; ord= ord->next)
+  {
+    Item *item= *(ord->item);
+    field= item->get_tmp_table_field();
+    DBUG_ASSERT(field);
+    unique_hash(field, &crc);
+  }
+
+  return crc;
+}
+
+
+/* Generate hash for unique_constraint according to fields list */
+
+ulonglong unique_hash_fields(Field **fields, int start, int field_count)
+{
+  ulonglong crc= 0;
+
+  for (int i= start; i < field_count ; i++)
+    unique_hash(fields[i], &crc);
+
+  return crc;
+}
+
+
+/**
+  Check unique_constraint.
+
+  @details Calculates record's hash and checks whether the record given in
+  table->record[0] is already present in the tmp table.
+
+  @param tab JOIN_TAB of tmp table to check
+
+  @notes This function assumes record[0] is already filled by the caller.
+  Depending on presence of table->group, it's or full list of table's fields
+  are used to calculate hash.
+
+  @returns
+    false same record was found
+    true  record wasn't found
+*/
+
+bool check_unique_constraint(TABLE *table, int hidden_field_count)
+{
+  ulonglong hash;
+
+  if (!table->hash_field)
+    return true;
+
+  if (table->no_keyread)
+    return true;
+
+  if (table->group)
+    hash= unique_hash_group(table->group);
+  else
+    hash= unique_hash_fields(table->field, hidden_field_count, table->s->fields - 1);
+  table->hash_field->store(hash, true);
+  int res= table->file->ha_index_read_map(table->record[1],
+                                          (uchar*)table->hash_field->ptr,
+                                          HA_WHOLE_KEY,
+                                          HA_READ_KEY_EXACT);
+  while (!res)
+  {
+    // Check whether records are the same.
+    if (!(table->distinct ?
+          table_rec_cmp(table, hidden_field_count) :
+          group_rec_cmp(table->group, table->record[0], table->record[1])))
+      return false; // skip it
+    res= table->file->ha_index_next_same(table->record[1],
+                                         (uchar*)table->hash_field->ptr,
+                                         sizeof(hash));
+  }
+  return true;
+}
+
+
+  /* ARGSUSED */
 static enum_nested_loop_state
 end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 {
@@ -2994,14 +3192,18 @@ end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     {
       int error;
       join->found_records++;
+
+      if (!check_unique_constraint(table, join_tab->tmp_table_param->hidden_field_count))
+        goto end; // skip it
+
       if ((error=table->file->ha_write_row(table->record[0])))
       {
         if (table->file->is_ignorable_error(error))
 	  goto end;
-	if (create_myisam_from_heap(join->thd, table,
+	if (create_ondisk_from_heap(join->thd, table,
                                     join_tab->tmp_table_param->start_recinfo,
                                     &join_tab->tmp_table_param->recinfo,
-				    error, TRUE, NULL))
+                                    error, TRUE, NULL))
 	  DBUG_RETURN(NESTED_LOOP_ERROR);        // Not a table_is_full error
 	table->s->uniques=0;			// To ensure rows are the same
       }
@@ -3021,6 +3223,7 @@ end:
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
+
 /* ARGSUSED */
 /** Group by searching after group record and updating it if possible. */
 
@@ -3028,8 +3231,9 @@ static enum_nested_loop_state
 end_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 {
   TABLE *const table= join_tab->table;
-  ORDER   *group;
-  int	  error;
+  ORDER *group;
+  int error;
+  bool group_found= false;
   DBUG_ENTER("end_update");
 
   if (end_of_records)
@@ -3043,25 +3247,50 @@ end_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   join->found_records++;
   copy_fields(join_tab->tmp_table_param);	// Groups are copied twice.
   /* Make a key of group index */
-  for (group=table->group ; group ; group=group->next)
+  if (join_tab->table->hash_field)
   {
-    Item *item= *group->item;
-    item->save_org_in_field(group->field);
-    /* Store in the used key if the field was 0 */
-    if (item->maybe_null)
-      group->buff[-1]= (char) group->field->is_null();
+    /*
+      We need to call to copy_funcs here in order to get correct value for
+      hash_field. However, this call isn't needed so early when hash_field
+      isn't used as it would cause unnecessary additional evaluation of
+      functions to be copied when 2nd and further records in group are
+      found.
+    */
+    if (copy_funcs(join_tab->tmp_table_param->items_to_copy, join->thd))
+      DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
+    if (!check_unique_constraint(table,
+             join_tab->tmp_table_param->hidden_field_count))
+      group_found= true;
   }
-  if (!table->file->ha_index_read_map(table->record[1],
-                                      join_tab->tmp_table_param->group_buff,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
-  {						/* Update old record */
-    restore_record(table,record[1]);
-    update_tmptable_sum_func(join->sum_funcs,table);
+  else
+  {
+    for (group=table->group ; group ; group=group->next)
+    {
+      Item *item= *group->item;
+      item->save_org_in_field(group->field);
+      /* Store in the used key if the field was 0 */
+      if (item->maybe_null)
+        group->buff[-1]= (char) group->field->is_null();
+    }
+    const uchar *key= join_tab->tmp_table_param->group_buff;
+    if (!table->file->ha_index_read_map(table->record[1],
+                                        key,
+                                        HA_WHOLE_KEY,
+                                        HA_READ_KEY_EXACT))
+      group_found= true;
+  }
+  if (group_found)
+  {
+    /* Update old record */
+    restore_record(table, record[1]);
+    update_tmptable_sum_func(join->sum_funcs, table);
     if ((error=table->file->ha_update_row(table->record[1],
                                           table->record[0])))
     {
-      table->file->print_error(error,MYF(0));	/* purecov: inspected */
+      // Old and new records are the same, ok to ignore
+      if (error == HA_ERR_RECORD_IS_THE_SAME)
+        DBUG_RETURN(NESTED_LOOP_OK);
+      table->file->print_error(error, MYF(0));   /* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
     }
     DBUG_RETURN(NESTED_LOOP_OK);
@@ -3072,23 +3301,27 @@ end_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     We can't copy all data as the key may have different format
     as the row data (for example as with VARCHAR keys)
   */
-  KEY_PART_INFO *key_part;
-  for (group=table->group,key_part=table->key_info[0].key_part;
-       group ;
-       group=group->next,key_part++)
+  if (!(join_tab->table->hash_field))
   {
-    if (key_part->null_bit)
-      memcpy(table->record[0]+key_part->offset, group->buff, 1);
+    KEY_PART_INFO *key_part;
+    for (group= table->group, key_part= table->key_info[0].key_part;
+         group;
+         group= group->next, key_part++)
+    {
+      if (key_part->null_bit)
+        memcpy(table->record[0] + key_part->offset, group->buff, 1);
+    }
+    /* See comment on copy_funcs above. */
+    if (copy_funcs(join_tab->tmp_table_param->items_to_copy, join->thd))
+      DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
   }
   init_tmptable_sum_functions(join->sum_funcs);
-  if (copy_funcs(join_tab->tmp_table_param->items_to_copy, join->thd))
-    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
   if ((error=table->file->ha_write_row(table->record[0])))
   {
-    if (create_myisam_from_heap(join->thd, table,
+    if (create_ondisk_from_heap(join->thd, table,
                                 join_tab->tmp_table_param->start_recinfo,
                                 &join_tab->tmp_table_param->recinfo,
-				error, FALSE, NULL))
+                                error, FALSE, NULL))
       DBUG_RETURN(NESTED_LOOP_ERROR);            // Not a table_is_full error
     /* Change method to update rows */
     if ((error= table->file->ha_index_init(0, 0)))
@@ -3096,58 +3329,8 @@ end_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       table->file->print_error(error, MYF(0));
       DBUG_RETURN(NESTED_LOOP_ERROR);
     }
-    ((QEP_tmp_table*)join_tab->op)->set_write_func(end_unique_update);
   }
   join_tab->send_records++;
-  DBUG_RETURN(NESTED_LOOP_OK);
-}
-
-
-/** Like end_update, but this is done with unique constraints instead of keys.  */
-
-static enum_nested_loop_state
-end_unique_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
-{
-  TABLE *table= join_tab->table;
-  int	  error;
-  DBUG_ENTER("end_unique_update");
-
-  if (end_of_records)
-    DBUG_RETURN(NESTED_LOOP_OK);
-  if (join->thd->killed)			// Aborted by user
-  {
-    join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED);             /* purecov: inspected */
-  }
-
-  init_tmptable_sum_functions(join->sum_funcs);
-  copy_fields(join_tab->tmp_table_param);		// Groups are copied twice.
-  if (copy_funcs(join_tab->tmp_table_param->items_to_copy, join->thd))
-    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
-
-  if (!(error=table->file->ha_write_row(table->record[0])))
-    join_tab->send_records++;			// New group
-  else
-  {
-    if ((int) table->file->get_dup_key(error) < 0)
-    {
-      table->file->print_error(error,MYF(0));	/* purecov: inspected */
-      DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
-    }
-    if (table->file->ha_rnd_pos(table->record[1], table->file->dup_ref))
-    {
-      table->file->print_error(error,MYF(0));	/* purecov: inspected */
-      DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
-    }
-    restore_record(table,record[1]);
-    update_tmptable_sum_func(join->sum_funcs,table);
-    if ((error=table->file->ha_update_row(table->record[1],
-                                          table->record[0])))
-    {
-      table->file->print_error(error,MYF(0));	/* purecov: inspected */
-      DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
-    }
-  }
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
@@ -3203,7 +3386,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 	{
           int error= table->file->ha_write_row(table->record[0]);
           if (error &&
-              create_myisam_from_heap(join->thd, table,
+              create_ondisk_from_heap(join->thd, table,
                                       join_tab->tmp_table_param->start_recinfo,
                                       &join_tab->tmp_table_param->recinfo,
                                       error, FALSE, NULL))
@@ -3493,7 +3676,7 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     if (!found)
       break;					// End of file
     /* Restart search on next row */
-    error=file->restart_rnd_next(record,file->ref);
+    error=file->ha_rnd_pos(record, file->ref);
   }
 
   file->extra(HA_EXTRA_NO_CACHE);
@@ -4235,8 +4418,10 @@ QEP_tmp_table::prepare_tmp_table()
     empty_record(table);
   }
   /* If it wasn't already, start index scan for grouping using table index. */
-  if (!table->file->inited && table->group &&
-      join_tab->tmp_table_param->sum_func_count && table->s->keys)
+  if (!table->file->inited &&
+      ((table->group &&
+        join_tab->tmp_table_param->sum_func_count && table->s->keys) ||
+       join_tab->table->hash_field))
     rc= table->file->ha_index_init(0, 0);
   else
   {
@@ -4264,8 +4449,8 @@ enum_nested_loop_state
 QEP_tmp_table::put_record(bool end_of_records)
 {
   // Lasy tmp table creation/initialization
-  if (!join_tab->table->file->inited)
-    prepare_tmp_table();
+  if (!join_tab->table->file->inited && prepare_tmp_table())
+    return NESTED_LOOP_ERROR;
   enum_nested_loop_state rc= (*write_func)(join_tab->join, join_tab,
                                            end_of_records);
   return rc;

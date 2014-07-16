@@ -124,6 +124,8 @@ struct st_ndb_status {
   long pushed_queries_dropped;
   long pushed_queries_executed;
   long pushed_reads;
+  long long last_commit_epoch_server;
+  long long last_commit_epoch_session;
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
   long long api_client_stats[Ndb::NumClientStatistics];
@@ -201,7 +203,7 @@ private:
 
 public:
   bool get_error_message(int error, String *buf);
-  ha_rows records();
+  virtual int records(ha_rows *num_rows);
   ha_rows estimate_rows_upper_bound()
     { return HA_POS_ERROR; }
   int info(uint);
@@ -347,7 +349,7 @@ static void set_tabname(const char *pathname, char *tabname);
   /*
    * Internal to ha_ndbcluster, used by C functions
    */
-  int ndb_err(NdbTransaction*, bool have_lock= FALSE);
+  int ndb_err(NdbTransaction*);
 
   my_bool register_query_cache_table(THD *thd, char *table_key,
                                      uint key_length,
@@ -383,8 +385,10 @@ private:
 #ifdef HAVE_NDB_BINLOG
   int prepare_conflict_detection(enum_conflicting_op_type op_type,
                                  const NdbRecord* key_rec,
+                                 const NdbRecord* data_rec,
                                  const uchar* old_data,
                                  const uchar* new_data,
+                                 const MY_BITMAP *write_set,
                                  NdbTransaction* trans,
                                  NdbInterpretedCode* code,
                                  NdbOperation::OperationOptions* options,
@@ -475,7 +479,7 @@ private:
 
   int ndb_optimize_table(THD* thd, uint delay);
 
-  int alter_frm(THD *thd, const char *file, class NDB_ALTER_DATA *alter_data);
+  int alter_frm(const char *file, class NDB_ALTER_DATA *alter_data);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
@@ -699,7 +703,7 @@ private:
   NdbIndexScanOperation *m_multi_cursor;
   Ndb *get_ndb(THD *thd) const;
 
-  int update_stats(THD *thd, bool do_read_stat, bool have_lock= FALSE,
+  int update_stats(THD *thd, bool do_read_stat,
                    uint part_id= ~(uint)0);
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
 };
@@ -710,8 +714,5 @@ extern int ndbcluster_terminating;
 
 #include "ndb_util_thread.h"
 extern Ndb_util_thread ndb_util_thread;
-
-#include "ha_ndb_index_stat.h"
-extern Ndb_index_stat_thread ndb_index_stat_thread;
 
 int ndb_to_mysql_error(const NdbError *ndberr);

@@ -444,9 +444,10 @@ bool executeTransaction(TransNdb* transNdbRef)
     Uint32 tKey[2];
     tKey[0] = startKey;
     tKey[1] = threadBase;
-    MyTrans = aNdbObject->startTransaction((Uint32)0, //Priority
-                                         (const char*)&tKey[0],   //Main PKey
-                                         (Uint32)8);           //Key Length
+    MyTrans = aNdbObject->startTransaction(
+                     (const NdbDictionary::Table *)0, //No table used here
+                     (const char*)&tKey[0],           //Main PKey
+                     (Uint32)8);                      //Key Length
   } else {
    MyTrans = aNdbObject->startTransaction();
   }//if

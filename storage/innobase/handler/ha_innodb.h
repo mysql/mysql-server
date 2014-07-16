@@ -174,7 +174,7 @@ class ha_innobase: public handler
 
 	void position(uchar *record);
 
-	ha_rows records();
+	virtual int records(ha_rows* num_rows);
 
 	ha_rows records_in_range(
 		uint			inx,
@@ -460,13 +460,6 @@ private:
 
 	uchar*		m_upd_buf;	/*!< buffer used in updates */
 	ulint		m_upd_buf_size;	/*!< the size of upd_buf in bytes */
-	uchar		m_srch_key_val1[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
-	uchar		m_srch_key_val2[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
-					/*!< buffers used in converting
-					search key values from MySQL format
-					to InnoDB format. For each column
-					2 bytes are used to store length,
-					hence MAX_REF_PARTS*2. */
 	Table_flags	m_int_table_flags;
 	uint		m_primary_key;
 	bool		m_start_of_scan;/*!< this is set to 1 when we are

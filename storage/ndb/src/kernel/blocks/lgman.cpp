@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -30,6 +30,7 @@
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/DbinfoScan.hpp>
+#include <signaldata/CallbackSignal.hpp>
 #include "dbtup/Dbtup.hpp"
 
 #include <EventLogger.hpp>
@@ -104,6 +105,7 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_END_LCP_CONF, &Lgman::execEND_LCP_CONF);
 
   addRecSignal(GSN_GET_TABINFOREQ, &Lgman::execGET_TABINFOREQ);
+  addRecSignal(GSN_CALLBACK_ACK, &Lgman::execCALLBACK_ACK);
 
   m_last_lsn = 1;
   m_logfile_group_hash.setSize(10);
@@ -218,13 +220,8 @@ Lgman::sendSTTORRY(Signal* signal)
 {
   signal->theData[0] = 0;
   signal->theData[3] = 1;
-  signal->theData[4] = 2;
-  signal->theData[5] = 3;
-  signal->theData[6] = 4;
-  signal->theData[7] = 5;
-  signal->theData[8] = 6;
-  signal->theData[9] = 255; // No more start phases from missra
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 10, JBB);
+  signal->theData[4] = 255; // No more start phases from missra
+  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
 }
 
 void
@@ -263,6 +260,7 @@ Lgman::execCONTINUEB(Signal* signal){
     break;
   }
   case LgmanContinueB::FIND_LOG_HEAD:
+  {
     jam();
     Ptr<Logfile_group> ptr;
     if(ptrI != RNIL)
@@ -277,6 +275,7 @@ Lgman::execCONTINUEB(Signal* signal){
       init_run_undo_log(signal);
     }
     break;
+  }
   case LgmanContinueB::EXECUTE_UNDO_RECORD:
     jam();
     execute_undo_record(signal);
@@ -1204,7 +1203,9 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
 {
   Uint32 pages= (((bytes + 3) >> 2) + File_formats::NDB_PAGE_SIZE_WORDS - 1)
     / File_formats::NDB_PAGE_SIZE_WORDS;
+#if defined VM_TRACE || defined ERROR_INSERT
   Uint32 requested= pages;
+#endif
   {
     Page_map map(m_data_buffer_pool, ptr.p->m_buffer_pages);
     while(pages)
@@ -1521,7 +1522,8 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
     removed= true;
     Uint32 block = waiter.p->m_block;
     CallbackPtr & callback = waiter.p->m_callback;
-    sendCallbackConf(signal, block, callback, logfile_group_id);
+    sendCallbackConf(signal, block, callback, logfile_group_id,
+                     LgmanContinueB::PROCESS_LOG_SYNC_WAITERS, 0);
     
     list.releaseFirst(/* waiter */);
   }
@@ -1547,7 +1549,7 @@ Lgman::get_log_buffer(Ptr<Logfile_group> ptr, Uint32 sz)
   page=m_shared_page_pool.getPtr(ptr.p->m_pos[PRODUCER].m_current_pos.m_ptr_i);
   
   Uint32 total_free= ptr.p->m_free_buffer_words;
-  assert(total_free >= sz);
+  ndbrequire(total_free >= sz);
   Uint32 pos= ptr.p->m_pos[PRODUCER].m_current_pos.m_idx;
   Uint32 free= File_formats::UNDO_PAGE_WORDS - pos;
 
@@ -1885,6 +1887,19 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
   }
 }
 
+/*
+ * Overloaded UNDO buffer creates waiters for buffer space.
+ * As in direct return from Logfile_client::get_log_buffer()
+ * the FREE_BUFFER_MARGIN allows for a possible NOOP entry
+ * when the logged entry does not fit on current page.
+ *
+ * In non-MT case the entry is added in same time-slice.
+ * In MT case callback is via signals.  Here the problem is
+ * that we cannot account for multiple NOOP entries created
+ * in non-deterministic order.  So we serialize processing
+ * to one entry at a time via CALLBACK_ACK signals.  This all
+ * happens in memory at commit and should not have major impact.
+ */
 void
 Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
 {
@@ -1912,7 +1927,8 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
     Uint32 block = waiter.p->m_block;
     CallbackPtr & callback = waiter.p->m_callback;
     ptr.p->m_callback_buffer_words += sz;
-    sendCallbackConf(signal, block, callback, logfile_group_id);
+    sendCallbackConf(signal, block, callback, logfile_group_id,
+                     LgmanContinueB::PROCESS_LOG_BUFFER_WAITERS, 0);
 
     list.releaseFirst(/* waiter */);
   }
@@ -1921,15 +1937,44 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   {
     jam();
     ptr.p->m_state |= Logfile_group::LG_WAITERS_THREAD;
-    signal->theData[0] = LgmanContinueB::PROCESS_LOG_BUFFER_WAITERS;
-    signal->theData[1] = ptr.i;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    // continue via CALLBACK_ACK
   }
   else
   {
     jam();
     ptr.p->m_state &= ~(Uint32)Logfile_group::LG_WAITERS_THREAD;
   }
+}
+
+void
+Lgman::execCALLBACK_ACK(Signal* signal)
+{
+  BlockReference senderRef = signal->getSendersBlockRef();
+  BlockNumber senderBlock = refToMain(senderRef);
+
+  const CallbackAck* ack = (const CallbackAck*)signal->getDataPtr();
+  Uint32 logfile_group_id = ack->senderData;
+  Uint32 callbackInfo = ack->callbackInfo;
+
+  Ptr<Logfile_group> ptr;
+  ndbrequire(m_logfile_group_hash.find(ptr, logfile_group_id));
+
+  // using ContinueB as convenience
+
+  switch (callbackInfo) {
+  case LgmanContinueB::PROCESS_LOG_BUFFER_WAITERS:
+    jam();
+    ndbrequire(senderBlock == DBTUP || senderBlock == LGMAN);
+    break;
+  // no PROCESS_LOG_SYNC_WAITERS yet (or ever)
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  signal->theData[0] = callbackInfo;
+  signal->theData[1] = ptr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 }
 
 #define REALLY_SLOW_FS 0

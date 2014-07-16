@@ -1113,7 +1113,7 @@ bool rsa_auth_status()
 
 
 /* the packet format is described in send_change_user_packet() */
-static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
+static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
 {
   NET *net= mpvio->net;
 
