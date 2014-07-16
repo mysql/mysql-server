@@ -42,8 +42,11 @@ SET @@GLOBAL.innodb_max_undo_log_size=1073741824;
 SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
 --echo 1 Expected
 
+SET @@GLOBAL.innodb_max_undo_log_size=18446744073709551615;
+SELECT @@GLOBAL.innodb_max_undo_log_size;
+--echo 18446744073709551615 Expected
 
-
+SET @@GLOBAL.innodb_max_undo_log_size=1073741824;
 
 --echo '#---------------------BS_STVARS_035_03----------------------#'
 #################################################################
