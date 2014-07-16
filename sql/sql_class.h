@@ -756,7 +756,6 @@ public:
   { return state == STMT_CONVENTIONAL_EXECUTION; }
 
   inline void* alloc(size_t size) { return alloc_root(mem_root,size); }
-  inline void* alloc(size_t size, MEM_ROOT *mem_root) { return alloc_root(mem_root, size); }
   inline void* calloc(size_t size)
   {
     void *ptr;
