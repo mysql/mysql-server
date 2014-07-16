@@ -80,7 +80,8 @@ PageBulk::init()
 					NULL, mtr);
 		} else {
 			page_create(new_block, mtr,
-				    dict_table_is_comp(m_index->table));
+				    dict_table_is_comp(m_index->table),
+				    dict_index_is_spatial(m_index));
 			btr_page_set_level(new_page, NULL, m_level, mtr);
 		}
 

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +27,11 @@ static const char *datadir_path= 0;
 const char *
 NdbConfig_get_path(int *_len)
 {
+#ifdef NDB_USE_GET_ENV
   const char *path= NdbEnv_GetEnv("NDB_HOME", 0, 0);
+#else
+  const char *path = NULL;
+#endif
   int path_len= 0;
   if (path)
     path_len= (int)strlen(path);

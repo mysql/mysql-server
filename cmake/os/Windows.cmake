@@ -50,14 +50,14 @@ ELSE()
 ENDIF()
 
 # Target Windows 7 / Windows Server 2008 R2 or later, i.e _WIN32_WINNT_WIN7
-ADD_DEFINITIONS("-D_WIN32_WINNT=0x0601")
+ADD_DEFINITIONS(-D_WIN32_WINNT=0x0601)
 SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -D_WIN32_WINNT=0x0601")
 
 # Speed up build process excluding unused header files
-ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN -DNOGDI")
+ADD_DEFINITIONS(-DWIN32_LEAN_AND_MEAN -DNOGDI)
 
 # We want to use std::min/std::max, not the windows.h macros
-ADD_DEFINITIONS("-DNOMINMAX")
+ADD_DEFINITIONS(-DNOMINMAX)
   
 IF(MSVC)
   # Enable debug info also in Release build,

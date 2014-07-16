@@ -748,3 +748,135 @@ t2	CREATE TABLE `t2` (
  CONSTRAINT `fkc` FOREIGN KEY(`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table t2, t1;
+# bug#18662582 - NDB_FK_DISABLE.TEST FAILS TO DROP FOREIGN KEY
+create table t1 (
+a int, primary key using hash (a)
+) engine = ndb;
+create table t2 (
+a int, primary key using hash (a)
+) engine = ndb;
+alter table t2 add constraint fkname foreign key (a) references t1 (a);
+create table t3 (
+a int, primary key using hash (a)
+) engine = ndb;
+alter table t3 add constraint fkname foreign key (a) references t2 (a);
+alter table t2 algorithm=inplace, drop foreign key nosuchfk;
+ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
+alter table t2 algorithm=inplace, drop foreign key fkname;
+alter table t3 algorithm=inplace, drop foreign key fkname;
+drop table t1, t2, t3;
+create table t1 (
+a int, primary key using hash (a)
+) engine = ndb;
+create table t2 (
+a int, primary key using hash (a)
+) engine = ndb;
+alter table t2 add constraint fkname foreign key (a) references t1 (a);
+create table t3 (
+a int, primary key using hash (a)
+) engine = ndb;
+alter table t3 add constraint fkname foreign key (a) references t2 (a);
+alter table t2 algorithm=copy, drop foreign key nosuchfk;
+ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
+alter table t2 algorithm=copy, drop foreign key fkname;
+alter table t3 algorithm=copy, drop foreign key fkname;
+drop table t1, t2, t3;
+# bug#18824753 - NDB_RESTORE FAILS WITH FKS WITH SAME NAME
+create table t1 (a int primary key) engine=ndb;
+create table t2 (a int primary key) engine=ndb;
+create table t3 (a int primary key) engine=ndb;
+create table t4 (a int primary key) engine=ndb;
+alter table t2
+add constraint foreign key myfk (a) references t1 (a);
+alter table t4
+add constraint foreign key myfk (a) references t3 (a);
+alter table t4
+add constraint foreign key `11/22/myfk` (a) references t3 (a);
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21090 'Create foreign key failed in NDB - name contains invalid character (/)' from NDB
+Error	1215	Cannot add foreign key constraint
+# run backup
+drop table t2, t1;
+drop table t4, t3;
+# run restore meta
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+ CONSTRAINT `myfk` FOREIGN KEY(`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+ CONSTRAINT `myfk` FOREIGN KEY(`a`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table t2, t1;
+drop table t4, t3;
+# bug18825966 - ADDING FK TO TABLE WITH DATA GIVES INTERNAL ERROR 208
+create table t1 (
+c0 int,
+c1 int,
+primary key using hash (c1)
+) engine=ndb;
+create table t2 (
+c0 int,
+primary key using hash (c0)
+) engine=ndb;
+insert into t1 (c1) values (1);
+insert into t2 (c0) values (1);
+alter table t2 add constraint foreign key fk (c0) references t1 (c1);
+drop table t2, t1;
+create table t1 (
+c0 int,
+c1 int,
+c2 int,
+c3 int,
+c4 int,
+c5 int,
+primary key (c2,c5)
+) engine=ndb;
+create table t2 (
+c0 int,
+c1 int,
+c2 int,
+c3 int,
+c4 int,
+c5 int,
+primary key (c1,c4)
+) engine=ndb;
+insert into t1 (c2,c5) values (1,10),(2,20),(3,30);
+insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
+alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
+insert into t2 (c1,c4) values (4,40);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+drop table t2, t1;
+create table t1 (
+c0 int,
+c1 int,
+c2 int not null,
+c3 int,
+c4 int,
+c5 int not null,
+primary key (c0),
+unique key using hash (c2,c5)
+) engine=ndb;
+create table t2 (
+c0 int,
+c1 int,
+c2 int,
+c3 int,
+c4 int,
+c5 int,
+primary key (c1,c4)
+) engine=ndb;
+insert into t1 (c0,c2,c5) values (1,1,10),(2,2,20),(3,3,30);
+insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
+alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
+insert into t2 (c1,c4) values (4,40);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+drop table t2, t1;

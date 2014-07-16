@@ -3794,10 +3794,13 @@ bool subselect_hash_sj_engine::exec()
 
     if (!(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
     {
-      // index must be closed before records() is called
+      // index must be closed before ha_records() is called
       if (table->file->inited)
         table->file->ha_index_or_rnd_end();
-      table->file->stats.records= table->file->records();
+      ha_rows num_rows= 0;
+      table->file->ha_records(&num_rows);
+      table->file->stats.records= num_rows;
+      res= thd->is_error();
     }
 
     /* Set tmp_param only if its usable, i.e. tmp_param->copy_field != NULL. */

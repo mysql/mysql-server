@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,9 +27,15 @@
 #include <NdbSleep.h>
 #include "ObjectMap.hpp"
 #include "NdbUtil.hpp"
+#include <NdbEnv.h>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
+
+#ifdef VM_TRACE
+static bool g_first_create_ndb = true;
+static bool g_force_short_signals = false;
+#endif
 
 Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
 	  const char* aDataBase , const char* aSchema)
@@ -223,9 +229,19 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 			NDB_SYSTEM_SCHEMA, table_name_separator);
 
   forceShortRequests = false;
-  const char* f= getenv("NDB_FORCE_SHORT_REQUESTS");
-  if (f != 0 && *f != 0 && *f != '0' && *f != 'n' && *f != 'N')
-    forceShortRequests = true;
+
+#ifdef VM_TRACE
+  if (g_first_create_ndb)
+  {
+    g_first_create_ndb = false;
+    const char* f= NdbEnv_GetEnv("NDB_FORCE_SHORT_REQUESTS", (char*)0, 0);
+    if (f != 0 && *f != 0 && *f != '0' && *f != 'n' && *f != 'N')
+    {
+      g_force_short_signals = true;
+    }
+  }
+  forceShortRequests = g_force_short_signals;
+#endif
 
   for (i = 0; i < Ndb::NumClientStatistics; i++)
     clientStats[i] = 0;
