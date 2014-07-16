@@ -239,7 +239,7 @@ extern ulint	srv_undo_tablespaces_open;
 extern ulong	srv_undo_logs;
 
 /** Maximum size of undo tablespace. */
-extern ulong	srv_max_undo_log_size;
+extern unsigned long long	srv_max_undo_log_size;
 
 /** Rate at which UNDO records should be purged. */
 extern ulong	srv_purge_rseg_truncate_frequency;
