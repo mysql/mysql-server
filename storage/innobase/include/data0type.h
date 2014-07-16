@@ -83,12 +83,13 @@ Currently, geometry data is stored in the standard Well-Known Binary(WKB)
 format (http://www.opengeospatial.org/standards/sfa), and we still use BLOB
 as underlying datatype  */
 #define DATA_GEOMETRY	14	/* geometry datatype. */
+#define DATA_LE_INT	15	/* integer in little endian format. */
 
 #define DATA_MTYPE_MAX	63	/* dtype_store_for_order_and_null_size()
 				requires the values are <= 63 */
 
 #define DATA_MTYPE_CURRENT_MIN	DATA_VARCHAR	/* minimum value of mtype */
-#define DATA_MTYPE_CURRENT_MAX	DATA_GEOMETRY	/* maximum value of mtype */
+#define DATA_MTYPE_CURRENT_MAX	DATA_LE_INT	/* maximum value of mtype */
 /*-------------------------------------------*/
 /* The 'PRECISE TYPE' of a column */
 /*

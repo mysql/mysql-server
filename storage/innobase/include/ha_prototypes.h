@@ -146,22 +146,6 @@ innobase_mysql_print_thd(
 	uint	max_query_len);	/*!< in: max query length to print, or 0 to
 				   use the default max length */
 
-/**************************************************************//**
-Converts a MySQL type to an InnoDB type. Note that this function returns
-the 'mtype' of InnoDB. InnoDB differentiates between MySQL's old <= 4.1
-VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'.
-@return DATA_BINARY, DATA_VARCHAR, ... */
-
-ulint
-get_innobase_type_from_mysql_type(
-/*==============================*/
-	ulint*		unsigned_flag,	/*!< out: DATA_UNSIGNED if an
-					'unsigned type';
-					at least ENUM and SET,
-					and unsigned integer
-					types are 'unsigned types' */
-	const void*	field);		/*!< in: MySQL Field */
-
 /******************************************************************//**
 Get the variable length bounds of the given character set. */
 

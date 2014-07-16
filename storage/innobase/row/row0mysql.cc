@@ -871,7 +871,8 @@ row_create_prebuilt(
 						== MAX_REF_PARTS););
 		uint temp_len = 0;
 		for (int i = 0; i < temp_index->n_uniq; i++) {
-			if (temp_index->fields[i].col->mtype == DATA_INT) {
+			ulint type = temp_index->fields[i].col->mtype;
+			if (type == DATA_INT || type == DATA_LE_INT) {
 				temp_len +=
 					temp_index->fields[i].fixed_len;
 			}
@@ -1379,6 +1380,75 @@ row_explicit_rollback(
 	return(err);
 }
 
+/** Convert a row in the MySQL format to a row in the Innobase format.
+This is specialized function used for intrinsic table as it retains
+all columns in litte-endian format.
+@param[in/out]	row		row where field values are copied.	
+@param[in]	prebuilt	prebuilt handler
+@param[in]	mysql_rec	row in mysql format. */
+static
+void
+row_mysql_to_innobase(
+	dtuple_t*		row,
+	row_prebuilt_t*		prebuilt,
+	const byte*		mysql_rec)
+{
+	ut_ad(dict_table_is_intrinsic(prebuilt->table));
+
+	const byte*		ptr = mysql_rec;
+
+	for (ulint i = 0; i < prebuilt->n_template; i++) {
+		const mysql_row_templ_t*	templ;
+		dfield_t*			dfield;
+
+		templ = prebuilt->mysql_template + i;
+		dfield = dtuple_get_nth_field(row, i);
+
+		/* Check if column has null value. */
+		if (templ->mysql_null_bit_mask != 0) {
+			if (mysql_rec[templ->mysql_null_byte_offset]
+			    & (byte) (templ->mysql_null_bit_mask)) {
+				dfield_set_null(dfield);
+				continue;
+			}
+		}
+
+		/* Extract the column value. */
+		ptr = mysql_rec + templ->mysql_col_offset;
+		const dtype_t*	dtype = dfield_get_type(dfield);
+		ulint		col_len = templ->mysql_col_len;
+
+		ut_ad(dtype->mtype == DATA_LE_INT
+		      || dtype->mtype == DATA_CHAR
+		      || dtype->mtype == DATA_MYSQL
+		      || dtype->mtype == DATA_VARCHAR
+		      || dtype->mtype == DATA_VARMYSQL
+		      || dtype->mtype == DATA_BINARY
+		      || dtype->mtype == DATA_FIXBINARY
+		      || dtype->mtype == DATA_FLOAT
+		      || dtype->mtype == DATA_DOUBLE
+		      || dtype->mtype == DATA_DECIMAL
+		      || dtype->mtype == DATA_BLOB);
+
+#ifdef UNIV_DEBUG
+		if (dtype_get_mysql_type(dtype) == DATA_MYSQL_TRUE_VARCHAR) {
+			ut_ad(templ->mysql_length_bytes > 0);	
+		}
+#endif /* UNIV_DEBUG */
+
+		/* For now varchar field this has to be always 0 so
+		memcpy of 0 bytes shouldn't affect the original col_len. */
+		memcpy(&col_len, ptr, templ->mysql_length_bytes); 
+		ptr += templ->mysql_length_bytes;
+
+		if (dtype->mtype == DATA_BLOB) {
+			ptr = row_mysql_read_blob_ref(&col_len, ptr, col_len);
+		}
+
+		dfield_set_data(dfield, ptr, col_len);
+	}
+}
+
 /** Does an insert for MySQL using cursor interface.
 Cursor interface is low level interface that directly interacts at
 Storage Level by-passing all the locking and transaction semantics.
@@ -1403,7 +1473,7 @@ row_insert_for_mysql_using_cursor(
 	thr = que_fork_get_first_thr(prebuilt->ins_graph);
 
 	/* Step-2: Convert row from MySQL row format to InnoDB row format. */
-	row_mysql_convert_row_to_innobase(node->row, prebuilt, mysql_rec);
+	row_mysql_to_innobase(node->row, prebuilt, mysql_rec);
 
 	/* Step-3: If an explicit clustered index is not specified then InnoDB
 	appends row-id to make the record unique. */

@@ -401,6 +401,7 @@ dtype_sql_name(
 
 	switch (mtype) {
 	case DATA_INT:
+	case DATA_LE_INT:
 		switch (len) {
 		case 1:
 			ut_snprintf(name, name_sz, "TINYINT");
@@ -508,6 +509,7 @@ dtype_get_fixed_size_low(
 	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_INT:
+	case DATA_LE_INT:
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
 		return(len);
@@ -586,6 +588,7 @@ dtype_get_min_size_low(
 	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_INT:
+	case DATA_LE_INT:
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
 		return(len);
@@ -636,6 +639,7 @@ dtype_get_max_size_low(
 	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_INT:
+	case DATA_LE_INT:
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
 	case DATA_MYSQL:
