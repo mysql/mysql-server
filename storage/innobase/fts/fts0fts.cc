@@ -1355,7 +1355,7 @@ fts_cache_node_add_positions(
 			new_size = (ulint)(1.2 * new_size);
 		}
 
-		ilist = static_cast<byte*>(ut_malloc(new_size));
+		ilist = static_cast<byte*>(ut_malloc_nokey(new_size));
 		ptr = ilist + node->ilist_size;
 
 		node->ilist_size_alloc = new_size;
@@ -2515,7 +2515,7 @@ fts_get_max_cache_size(
 	information is used by the callback that reads the value. */
 	value.f_n_char = 0;
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = ut_malloc(value.f_len + 1);
+	value.f_str = ut_malloc_nokey(value.f_len + 1);
 
 	error = fts_config_get_value(
 		trx, fts_table, FTS_MAX_CACHE_SIZE_IN_MB, &value);
@@ -2584,7 +2584,7 @@ fts_get_total_word_count(
 	information is used by the callback that reads the value. */
 	value.f_n_char = 0;
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
+	value.f_str = static_cast<byte*>(ut_malloc_nokey(value.f_len + 1));
 
 	error = fts_config_get_index_value(
 		trx, index, FTS_TOTAL_WORD_COUNT, &value);

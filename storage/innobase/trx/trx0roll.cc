@@ -483,7 +483,8 @@ trx_savepoint_for_mysql(
 
 	/* Create a new savepoint and add it as the last in the list */
 
-	savep = static_cast<trx_named_savept_t*>(ut_malloc(sizeof(*savep)));
+	savep = static_cast<trx_named_savept_t*>(
+		ut_malloc_nokey(sizeof(*savep)));
 
 	savep->name = mem_strdup(savepoint_name);
 

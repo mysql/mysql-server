@@ -3299,7 +3299,7 @@ i_s_fts_index_cache_fill_one_index(
 	index_charset = index_cache->charset;
 	conv_str.f_len = system_charset_info->mbmaxlen
 		* FTS_MAX_WORD_LEN_IN_CHAR;
-	conv_str.f_str = static_cast<byte*>(ut_malloc(conv_str.f_len));
+	conv_str.f_str = static_cast<byte*>(ut_malloc_nokey(conv_str.f_len));
 	conv_str.f_n_char = 0;
 
 	/* Go through each word in the index cache */
@@ -3778,7 +3778,7 @@ i_s_fts_index_table_fill_one_index(
 	index_charset = fts_index_get_charset(index);
 	conv_str.f_len = system_charset_info->mbmaxlen
 		* FTS_MAX_WORD_LEN_IN_CHAR;
-	conv_str.f_str = static_cast<byte*>(ut_malloc(conv_str.f_len));
+	conv_str.f_str = static_cast<byte*>(ut_malloc_nokey(conv_str.f_len));
 	conv_str.f_n_char = 0;
 
 	/* Iterate through each auxiliary table as described in
@@ -4875,7 +4875,7 @@ i_s_innodb_buffer_stats_fill_table(
 		DBUG_RETURN(0);
 	}
 
-	pool_info = (buf_pool_info_t*) ut_zalloc(
+	pool_info = (buf_pool_info_t*) ut_zalloc_nokey(
 		srv_buf_pool_instances *  sizeof *pool_info);
 
 	/* Walk through each buffer pool */

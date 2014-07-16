@@ -3419,7 +3419,7 @@ row_add_table_to_background_drop_list(
 	}
 
 	drop = static_cast<row_mysql_drop_t*>(
-		ut_malloc(sizeof(row_mysql_drop_t)));
+		ut_malloc_nokey(sizeof(row_mysql_drop_t)));
 
 	drop->table_name = mem_strdup(name);
 
@@ -5397,7 +5397,7 @@ row_scan_index_for_mysql(
 	}
 
 	ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
-	buf = static_cast<byte*>(ut_malloc(bufsize));
+	buf = static_cast<byte*>(ut_malloc_nokey(bufsize));
 	heap = mem_heap_create(100);
 
 	cnt = 1000;

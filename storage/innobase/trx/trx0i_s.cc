@@ -337,7 +337,7 @@ table_cache_create_empty_row(
 		chunk = &table_cache->chunks[i];
 
 		got_bytes = req_bytes;
-		chunk->base = ut_malloc(req_bytes);
+		chunk->base = ut_malloc_nokey(req_bytes);
 
 		got_rows = got_bytes / table_cache->row_size;
 

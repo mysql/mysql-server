@@ -797,7 +797,7 @@ os_file_opendir(
 	as we will skip over the '.' and '..' entries anyway. */
 
 	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
-		ut_malloc(sizeof(WIN32_FIND_DATA)));
+		ut_malloc_nokey(sizeof(WIN32_FIND_DATA)));
 
 	dir = FindFirstFile((LPCTSTR) path, lpFindFileData);
 
@@ -875,7 +875,7 @@ os_file_readdir_next_file(
 	BOOL			ret;
 
 	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
-		ut_malloc(sizeof(WIN32_FIND_DATA)));
+		ut_malloc_nokey(sizeof(WIN32_FIND_DATA)));
 next_file:
 	ret = FindNextFile(dir, lpFindFileData);
 
@@ -977,7 +977,7 @@ next_file:
 	strcpy(info->name, ent->d_name);
 
 	full_path = static_cast<char*>(
-		ut_malloc(strlen(dirname) + strlen(ent->d_name) + 10));
+		ut_malloc_nokey(strlen(dirname) + strlen(ent->d_name) + 10));
 
 	sprintf(full_path, "%s/%s", dirname, ent->d_name);
 
@@ -2109,7 +2109,7 @@ os_file_set_size(
 	/* Write up to 1 megabyte at a time. */
 	buf_size = ut_min(64, (ulint) (size / UNIV_PAGE_SIZE))
 		* UNIV_PAGE_SIZE;
-	buf2 = static_cast<byte*>(ut_malloc(buf_size + UNIV_PAGE_SIZE));
+	buf2 = static_cast<byte*>(ut_malloc_nokey(buf_size + UNIV_PAGE_SIZE));
 
 	/* Align the buffer for possible raw i/o */
 	buf = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
@@ -3264,7 +3264,7 @@ os_file_make_new_pathname(
 
 	/* allocate a new path and move the old directory path to it. */
 	new_path_len = dir_len + strlen(base_name) + sizeof "/.ibd";
-	new_path = static_cast<char*>(ut_malloc(new_path_len));
+	new_path = static_cast<char*>(ut_malloc_nokey(new_path_len));
 	memcpy(new_path, old_path, dir_len);
 
 	ut_snprintf(new_path + dir_len,
@@ -3588,7 +3588,7 @@ os_aio_native_aio_supported(void)
 
 	memset(&io_event, 0x0, sizeof(io_event));
 
-	byte*	buf = static_cast<byte*>(ut_malloc(UNIV_PAGE_SIZE * 2));
+	byte*	buf = static_cast<byte*>(ut_malloc_nokey(UNIV_PAGE_SIZE * 2));
 	byte*	ptr = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
 
 	struct iocb	iocb;
@@ -3663,7 +3663,7 @@ os_aio_array_create(
 	ut_a(n > 0);
 	ut_a(n_segments > 0);
 
-	array = static_cast<os_aio_array_t*>(ut_zalloc(sizeof(*array)));
+	array = static_cast<os_aio_array_t*>(ut_zalloc_nokey(sizeof(*array)));
 
 	mutex_create("os_aio_mutex", &array->mutex);
 
@@ -3676,10 +3676,11 @@ os_aio_array_create(
 	array->n_segments = n_segments;
 
 	array->slots = static_cast<os_aio_slot_t*>(
-		ut_zalloc(n * sizeof(*array->slots)));
+		ut_zalloc_nokey(n * sizeof(*array->slots)));
 
 #ifdef _WIN32
-	array->handles = static_cast<HANDLE*>(ut_malloc(n * sizeof(HANDLE)));
+	array->handles = static_cast<HANDLE*>(
+		ut_malloc_nokey(n * sizeof(HANDLE)));
 #endif /* _WIN32 */
 
 #if defined(LINUX_NATIVE_AIO)
@@ -3696,7 +3697,7 @@ os_aio_array_create(
 	per segment in the array. */
 
 	array->aio_ctx = static_cast<io_context**>(
-		ut_malloc(n_segments * sizeof(*array->aio_ctx)));
+		ut_malloc_nokey(n_segments * sizeof(*array->aio_ctx)));
 
 	for (ulint i = 0; i < n_segments; ++i) {
 		if (!os_aio_linux_create_io_ctx(n/n_segments,
@@ -3713,7 +3714,7 @@ os_aio_array_create(
 
 	/* Initialize the event array. One event per slot. */
 	io_event = static_cast<struct io_event*>(
-		ut_zalloc(n * sizeof(*io_event)));
+		ut_zalloc_nokey(n * sizeof(*io_event)));
 
 	array->aio_events = io_event;
 
@@ -3883,7 +3884,8 @@ os_aio_init(
 	os_aio_validate();
 
 	os_aio_segment_wait_events = static_cast<os_event_t*>(
-		ut_malloc(n_segments * sizeof *os_aio_segment_wait_events));
+		ut_malloc_nokey(n_segments
+				* sizeof *os_aio_segment_wait_events));
 
 	for (ulint i = 0; i < n_segments; ++i) {
 		os_aio_segment_wait_events[i] = os_event_create(0);
@@ -5349,7 +5351,7 @@ consecutive_loop:
 		combined_buf2 = NULL;
 	} else {
 		combined_buf2 = static_cast<byte*>(
-			ut_malloc(total_len + UNIV_PAGE_SIZE));
+			ut_malloc_nokey(total_len + UNIV_PAGE_SIZE));
 
 		ut_a(combined_buf2);
 

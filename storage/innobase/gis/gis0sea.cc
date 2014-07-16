@@ -942,7 +942,7 @@ rtr_create_rtr_info(
 	index = index ? index : cursor->index;
 	ut_ad(index);
 
-	rtr_info = static_cast<rtr_info_t*>(ut_zalloc(sizeof(*rtr_info)));
+	rtr_info = static_cast<rtr_info_t*>(ut_zalloc_nokey(sizeof(*rtr_info)));
 
 	rtr_info->allocated = true;
 	rtr_info->cursor = cursor;
@@ -1495,7 +1495,9 @@ rtr_non_leaf_insert_stack_push(
 	btr_pcur_t*	my_cursor;
 	ulint		page_no = block->page.id.page_no();
 
-	my_cursor = static_cast<btr_pcur_t*>(ut_malloc(sizeof(*my_cursor)));
+	my_cursor = static_cast<btr_pcur_t*>(
+		ut_malloc_nokey(sizeof(*my_cursor)));
+
 	btr_pcur_init(my_cursor);
 
 	page_cur_position(rec, block, btr_pcur_get_page_cur(my_cursor));

@@ -1456,7 +1456,7 @@ innobase_start_or_create_for_mysql(void)
 		if (srv_innodb_status) {
 
 			srv_monitor_file_name = static_cast<char*>(
-				ut_malloc(
+				ut_malloc_nokey(
 					strlen(fil_path_to_mysql_datadir)
 					+ 20 + sizeof "/innodb_status."));
 

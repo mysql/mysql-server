@@ -109,7 +109,7 @@ ib_heap_allocator_free(
 }
 
 /********************************************************************
-Wrapper around ut_malloc(). */
+Wrapper around ut_malloc_nokey(). */
 UNIV_INLINE
 void*
 ib_ut_malloc(
@@ -117,7 +117,7 @@ ib_ut_malloc(
 	ib_alloc_t*	allocator UNIV_UNUSED,	/* in: allocator */
 	ulint		size)			/* in: size in bytes */
 {
-	return(ut_malloc(size));
+	return(ut_malloc_nokey(size));
 }
 
 /********************************************************************
@@ -155,7 +155,7 @@ ib_ut_allocator_create(void)
 {
 	ib_alloc_t*	ib_ut_alloc;
 
-	ib_ut_alloc = (ib_alloc_t*) ut_malloc(sizeof(*ib_ut_alloc));
+	ib_ut_alloc = (ib_alloc_t*) ut_malloc_nokey(sizeof(*ib_ut_alloc));
 
 	ib_ut_alloc->arg = NULL;
 	ib_ut_alloc->mem_release = ib_ut_free;
@@ -397,7 +397,7 @@ ib_vector_free(
 	ib_vector_t*	vec)		/* in, own: vector */
 {
 	/* Currently we only support two types of allocators, heap
-	and ut_malloc(), when the heap is freed all the elements are
+	and ut_malloc_nokey(), when the heap is freed all the elements are
 	freed too. With ut allocator, we need to free the elements,
 	the vector instance and the allocator separately. */
 

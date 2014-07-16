@@ -346,7 +346,7 @@ public:
 
 
 		ulint	sz = UNIV_PAGE_SIZE;
-		void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+		void*	buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 		if (buf == 0) {
 			os_file_close(handle);
 			return(DB_OUT_OF_MEMORY);
@@ -374,7 +374,7 @@ public:
 				ut_ad(err == DB_FAIL);
 				ut_free(buf);
 				sz *= 2;
-				buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+				buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 				DBUG_EXECUTE_IF("ib_err_trunc_oom_logging",
 						ut_free(buf);
 						buf = 0;);
@@ -594,7 +594,7 @@ TruncateLogParser::parse(
 	}
 
 	ulint	sz = UNIV_PAGE_SIZE;
-	void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+	void*	buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 	if (buf == 0) {
 		os_file_close(handle);
 		return(DB_OUT_OF_MEMORY);
@@ -641,7 +641,7 @@ TruncateLogParser::parse(
 
 			sz *= 2;
 
-			buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+			buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 
 			if (buf == 0) {
 				os_file_close(handle);

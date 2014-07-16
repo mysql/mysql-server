@@ -2491,7 +2491,7 @@ row_log_table_apply_ops(
 
 	UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
-	offsets = static_cast<ulint*>(ut_malloc(i * sizeof *offsets));
+	offsets = static_cast<ulint*>(ut_malloc_nokey(i * sizeof *offsets));
 	offsets[0] = i;
 	offsets[1] = dict_index_get_n_fields(index);
 
@@ -2872,7 +2872,7 @@ row_log_allocate(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-	log = (row_log_t*) ut_malloc(sizeof *log);
+	log = (row_log_t*) ut_malloc_nokey(sizeof *log);
 	if (!log) {
 		DBUG_RETURN(false);
 	}
@@ -3325,7 +3325,7 @@ row_log_apply_ops(
 	ut_ad(index->online_log);
 	UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
-	offsets = static_cast<ulint*>(ut_malloc(i * sizeof *offsets));
+	offsets = static_cast<ulint*>(ut_malloc_nokey(i * sizeof *offsets));
 	offsets[0] = i;
 	offsets[1] = dict_index_get_n_fields(index);
 

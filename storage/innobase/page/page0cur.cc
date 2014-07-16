@@ -923,7 +923,7 @@ page_cur_parse_insert_rec(
 		buf = buf1;
 	} else {
 		buf = static_cast<byte*>(
-			ut_malloc(mismatch_index + end_seg_len));
+			ut_malloc_nokey(mismatch_index + end_seg_len));
 	}
 
 	/* Build the inserted record to buf */

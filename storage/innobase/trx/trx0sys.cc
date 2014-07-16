@@ -540,7 +540,7 @@ trx_sys_create(void)
 {
 	ut_ad(trx_sys == NULL);
 
-	trx_sys = static_cast<trx_sys_t*>(ut_zalloc(sizeof(*trx_sys)));
+	trx_sys = static_cast<trx_sys_t*>(ut_zalloc_nokey(sizeof(*trx_sys)));
 
 	mutex_create("trx_sys", &trx_sys->mutex);
 

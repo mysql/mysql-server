@@ -6148,7 +6148,7 @@ ha_innobase::build_template(
 
 	if (!prebuilt->mysql_template) {
 		prebuilt->mysql_template = (mysql_row_templ_t*)
-			ut_malloc(n_fields * sizeof(mysql_row_templ_t));
+			ut_malloc_nokey(n_fields * sizeof(mysql_row_templ_t));
 	}
 
 	prebuilt->template_type = whole_row

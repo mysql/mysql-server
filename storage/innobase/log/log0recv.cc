@@ -366,7 +366,7 @@ recv_sys_create(void)
 		return;
 	}
 
-	recv_sys = static_cast<recv_sys_t*>(ut_zalloc(sizeof(*recv_sys)));
+	recv_sys = static_cast<recv_sys_t*>(ut_zalloc_nokey(sizeof(*recv_sys)));
 
 	mutex_create("recv_sys", &recv_sys->mutex);
 	mutex_create("recv_writer", &recv_sys->writer_mutex);
@@ -533,7 +533,8 @@ recv_sys_init(
 		recv_n_pool_free_frames = 512;
 	}
 
-	recv_sys->buf = static_cast<byte*>(ut_malloc(RECV_PARSING_BUF_SIZE));
+	recv_sys->buf = static_cast<byte*>(
+		ut_malloc_nokey(RECV_PARSING_BUF_SIZE));
 	recv_sys->len = 0;
 	recv_sys->recovered_offset = 0;
 
@@ -544,7 +545,7 @@ recv_sys_init(
 	recv_sys->apply_batch_on = FALSE;
 
 	recv_sys->last_block_buf_start = static_cast<byte*>(
-		ut_malloc(2 * OS_FILE_LOG_BLOCK_SIZE));
+		ut_malloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
 
 	recv_sys->last_block = static_cast<byte*>(ut_align(
 		recv_sys->last_block_buf_start, OS_FILE_LOG_BLOCK_SIZE));
@@ -1628,7 +1629,7 @@ recv_recover_page_func(
 			/* We have to copy the record body to a separate
 			buffer */
 
-			buf = static_cast<byte*>(ut_malloc(recv->len));
+			buf = static_cast<byte*>(ut_malloc_nokey(recv->len));
 
 			recv_data_copy_to_buf(buf, recv);
 		} else {
@@ -3502,7 +3503,7 @@ recv_reset_log_files_for_backup(
 	*/
 	ut_a(log_dir_len + strlen(ib_logfile_basename) + 11  < sizeof(name));
 
-	buf = ut_zalloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+	buf = ut_zalloc_nokey(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
 
 	for (i = 0; i < n_log_files; i++) {
 
