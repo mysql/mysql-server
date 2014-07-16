@@ -1877,7 +1877,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list,
   null_pack_length= (null_count + 7)/8;
   share->reclength= record_length + null_pack_length;
   share->rec_buff_length= ALIGN_SIZE(share->reclength + 1);
-  table->record[0]= (uchar*) thd->alloc(share->rec_buff_length, mem_root);
+  table->record[0]= (uchar*) alloc_root(mem_root, share->rec_buff_length);
   if (!table->record[0])
     goto error;
 
