@@ -178,14 +178,14 @@ public:
 
 	/** Erase the element pointed by given iterator.
 	@param[in]	iterator	iterator */
-	void erase(iterator it)
+	void erase(iterator& it)
 	{
 		m_rsegs.erase(it);
 	}
 
 	/** Number of registered rsegs.
 	@return size of rseg list. */
-	ulint size()
+	ulint size() const
 	{
 		return(m_rsegs.size());
 	}
