@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -60,7 +60,7 @@ struct Pool {
 
 		ut_a(m_start == 0);
 
-		m_start = reinterpret_cast<Element*>(ut_zalloc(m_size));
+		m_start = reinterpret_cast<Element*>(ut_zalloc_nokey(m_size));
 
 		m_last = m_start;
 

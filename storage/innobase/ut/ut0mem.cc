@@ -135,7 +135,7 @@ ut_str3cat(
 	ulint	s2_len = strlen(s2);
 	ulint	s3_len = strlen(s3);
 
-	s = static_cast<char*>(ut_malloc(s1_len + s2_len + s3_len + 1));
+	s = static_cast<char*>(ut_malloc_nokey(s1_len + s2_len + s3_len + 1));
 
 	memcpy(s, s1, s1_len);
 	memcpy(s + s1_len, s2, s2_len);
@@ -175,7 +175,7 @@ ut_strreplace(
 	}
 
 	new_str = static_cast<char*>(
-		ut_malloc(str_len + count * len_delta + 1));
+		ut_malloc_nokey(str_len + count * len_delta + 1));
 
 	ptr = new_str;
 

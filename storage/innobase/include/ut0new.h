@@ -991,10 +991,14 @@ ut_delete_array(
 	 	static_cast<void*>(_p); \
 	 })
 
-#define ut_malloc(n_bytes) \
+#define ut_malloc(n_bytes, key)	ut_malloc_low(n_bytes, false, key)
+
+#define ut_zalloc(n_bytes, key)	ut_malloc_low(n_bytes, true, key)
+
+#define ut_malloc_nokey(n_bytes) \
 	ut_malloc_low(n_bytes, false, PSI_NOT_INSTRUMENTED)
 
-#define ut_zalloc(n_bytes) \
+#define ut_zalloc_nokey(n_bytes) \
 	ut_malloc_low(n_bytes, true, PSI_NOT_INSTRUMENTED)
 
 #define ut_realloc(ptr, n_bytes) \
@@ -1019,9 +1023,13 @@ ut_delete_array(
 
 #define UT_DELETE_ARRAY(ptr)		delete[] ptr
 
-#define ut_malloc(n_bytes) 		::malloc(n_bytes)
+#define ut_malloc(n_bytes, key)		::malloc(n_bytes)
 
-#define ut_zalloc(n_bytes)		::calloc(1, n_bytes)
+#define ut_zalloc(n_bytes, key)		::calloc(1, n_bytes)
+
+#define ut_malloc_nokey(n_bytes)	::malloc(n_bytes)
+
+#define ut_zalloc_nokey(n_bytes)	::calloc(1, n_bytes)
 
 #define ut_realloc(ptr, n_bytes)	::realloc(ptr, n_bytes)
 

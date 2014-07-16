@@ -1175,10 +1175,6 @@ sync_array_init(
 
 	sync_array_size = srv_sync_array_size;
 
-	/* We have to use ut_malloc() because the mutex infrastructure
-	hasn't been initialised yet. It is required by ut_malloc() and
-	the heap functions. */
-
 	sync_wait_array = new(std::nothrow) sync_array_t*[sync_array_size];
 
 	ulint	n_slots = 1 + (n_threads - 1) / sync_array_size;

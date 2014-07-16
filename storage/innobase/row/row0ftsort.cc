@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -199,7 +199,7 @@ row_fts_psort_info_init(
 
 	block_size = 3 * srv_sort_buf_size;
 
-	*psort = psort_info = static_cast<fts_psort_t*>(ut_zalloc(
+	*psort = psort_info = static_cast<fts_psort_t*>(ut_zalloc_nokey(
 		 fts_sort_pll_degree * sizeof *psort_info));
 
 	if (!psort_info) {
@@ -209,7 +209,7 @@ row_fts_psort_info_init(
 
 	/* Common Info for all sort threads */
 	common_info = static_cast<fts_psort_common_t*>(
-		ut_malloc(sizeof *common_info));
+		ut_malloc_nokey(sizeof *common_info));
 
 	if (!common_info) {
 		ut_free(dup);
@@ -237,7 +237,7 @@ row_fts_psort_info_init(
 
 			psort_info[j].merge_file[i] =
 				 static_cast<merge_file_t*>(
-					ut_zalloc(sizeof(merge_file_t)));
+					ut_zalloc_nokey(sizeof(merge_file_t)));
 
 			if (!psort_info[j].merge_file[i]) {
 				ret = FALSE;
@@ -254,7 +254,7 @@ row_fts_psort_info_init(
 
 			/* Need to align memory for O_DIRECT write */
 			psort_info[j].block_alloc[i] =
-				static_cast<row_merge_block_t*>(ut_malloc(
+				static_cast<row_merge_block_t*>(ut_malloc_nokey(
 					block_size + 1024));
 
 			psort_info[j].merge_block[i] =
@@ -279,7 +279,7 @@ row_fts_psort_info_init(
 	/* Initialize merge_info structures parallel merge and insert
 	into auxiliary FTS tables (FTS_INDEX_TABLE) */
 	*merge = merge_info = static_cast<fts_psort_t*>(
-		ut_malloc(FTS_NUM_AUX_INDEX * sizeof *merge_info));
+		ut_malloc_nokey(FTS_NUM_AUX_INDEX * sizeof *merge_info));
 
 	for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
 
@@ -389,7 +389,7 @@ row_merge_fts_doc_add_word_for_parser(
 
 	ut_ad(boolean_info->position >= 0);
 
-	ptr = static_cast<byte*>(ut_malloc(sizeof(row_fts_token_t)
+	ptr = static_cast<byte*>(ut_malloc_nokey(sizeof(row_fts_token_t)
 			+ sizeof(fts_string_t) + str.f_len));
 	fts_token = reinterpret_cast<row_fts_token_t*>(ptr);
 	fts_token->text = reinterpret_cast<fts_string_t*>(

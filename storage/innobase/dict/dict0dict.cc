@@ -949,7 +949,7 @@ void
 dict_init(void)
 /*===========*/
 {
-	dict_sys = static_cast<dict_sys_t*>(ut_zalloc(sizeof(*dict_sys)));
+	dict_sys = static_cast<dict_sys_t*>(ut_zalloc_nokey(sizeof(*dict_sys)));
 
 	UT_LIST_INIT(dict_sys->table_LRU, &dict_table_t::table_LRU);
 	UT_LIST_INIT(dict_sys->table_non_LRU, &dict_table_t::table_LRU);
@@ -3124,7 +3124,7 @@ dict_index_build_internal_clust(
 
 	/* Remember the table columns already contained in new_index */
 	indexed = static_cast<ibool*>(
-		ut_zalloc(table->n_cols * sizeof *indexed));
+		ut_zalloc_nokey(table->n_cols * sizeof *indexed));
 
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -3210,7 +3210,7 @@ dict_index_build_internal_non_clust(
 
 	/* Remember the table columns already contained in new_index */
 	indexed = static_cast<ibool*>(
-		ut_zalloc(table->n_cols * sizeof *indexed));
+		ut_zalloc_nokey(table->n_cols * sizeof *indexed));
 
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -4150,7 +4150,7 @@ dict_strip_comments(
 
 	DBUG_PRINT("dict_strip_comments", ("%s", sql_string));
 
-	str = static_cast<char*>(ut_malloc(sql_length + 1));
+	str = static_cast<char*>(ut_malloc_nokey(sql_length + 1));
 
 	sptr = sql_string;
 	ptr = str;

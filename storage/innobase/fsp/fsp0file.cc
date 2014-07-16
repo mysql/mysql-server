@@ -242,7 +242,7 @@ void
 Datafile::set_filepath(const char* filepath)
 {
 	free_filepath();
-	m_filepath = static_cast<char*>(ut_malloc(::strlen(filepath) + 1));
+	m_filepath = static_cast<char*>(ut_malloc_nokey(strlen(filepath) + 1));
 	::strcpy(m_filepath, filepath);
 	set_filename();
 }
@@ -274,7 +274,7 @@ Datafile::read_first_page(bool read_only_mode)
 	}
 
 	m_first_page_buf = static_cast<byte*>
-		(ut_malloc(2 * UNIV_PAGE_SIZE));
+		(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
 
 	/* Align the memory for a possible read from a raw device */
 
@@ -566,7 +566,7 @@ Datafile::find_space_id()
 		ib_logf(IB_LOG_LEVEL_INFO, "Page size:%lu Pages to analyze:"
 			"%lu", page_size, page_count);
 
-		byte* buf = static_cast<byte*>(ut_malloc(2*page_size));
+		byte* buf = static_cast<byte*>(ut_malloc_nokey(2*page_size));
 		byte* page = static_cast<byte*>(ut_align(buf, page_size));
 
 		for (ulint j = 0; j < page_count; ++j) {
@@ -895,7 +895,8 @@ RemoteDatafile::read_link_file(
 
 	file = fopen(*link_filepath, "r+b");
 	if (file) {
-		filepath = static_cast<char*>(ut_malloc(OS_FILE_MAX_PATH));
+		filepath = static_cast<char*>(
+			ut_malloc_nokey(OS_FILE_MAX_PATH));
 
 		os_file_read_string(file, filepath, OS_FILE_MAX_PATH);
 		fclose(file);
