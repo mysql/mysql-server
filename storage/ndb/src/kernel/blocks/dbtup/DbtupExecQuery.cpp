@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2008 MySQL AB
-
+/*
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #define DBTUP_C
@@ -4176,12 +4176,13 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
     Local_key tmp = *key;
     PagePtr pagePtr;
 
-    Uint32 err;
-    pagePtr.i = allocFragPage(&err, tablePtr.p, fragPtr.p, tmp.m_page_no);
+    pagePtr.i = getRealpidCheck(fragPtr.p, tmp.m_page_no);
     if (unlikely(pagePtr.i == RNIL))
     {
-      return -(int)err;
+      jam();
+      return 0;
     }
+
     c_page_pool.getPtr(pagePtr);
     
     Tuple_header* ptr = (Tuple_header*)
@@ -4207,12 +4208,15 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
 
   Local_key tmp = *key;
   
-  Uint32 err;
   PagePtr pagePtr;
-  pagePtr.i = allocFragPage(&err, tablePtr.p, fragPtr.p, tmp.m_page_no);
+  pagePtr.i = getRealpidCheck(fragPtr.p, tmp.m_page_no);
   if (unlikely(pagePtr.i == RNIL))
-    return -(int)err;
-  
+  {
+    jam();
+    dst[0] = 0;
+    return 0;
+  }
+
   c_page_pool.getPtr(pagePtr);
   KeyReqStruct req_struct(this);
   Uint32* ptr= ((Fix_page*)pagePtr.p)->get_ptr(key->m_page_idx, 0);
