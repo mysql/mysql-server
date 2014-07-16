@@ -458,7 +458,7 @@ int Gtid_state::init()
 
 int Gtid_state::save(THD *thd)
 {
-  DBUG_ENTER("Gtid_state::save_gtid_into_table");
+  DBUG_ENTER("Gtid_state::save(THD *thd)");
   DBUG_ASSERT(gtid_table_persistor != NULL);
   DBUG_ASSERT(!thd->owned_gtid.is_null());
   int error= 0;
