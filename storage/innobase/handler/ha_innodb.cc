@@ -4507,8 +4507,8 @@ innobase_match_index_columns(
 
 		/* Need to translate to InnoDB column type before
 		comparison. */
-		col_type = get_innobase_type_from_mysql_type(&is_unsigned,
-							     key_part->field);
+		col_type = get_innobase_type_from_mysql_type(
+			&is_unsigned, key_part->field, index_info->table);
 
 		/* Ignore InnoDB specific system columns. */
 		while (mtype == DATA_SYS) {
@@ -5491,12 +5491,13 @@ VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'.
 ulint
 get_innobase_type_from_mysql_type(
 /*==============================*/
-	ulint*		unsigned_flag,	/*!< out: DATA_UNSIGNED if an
-					'unsigned type';
-					at least ENUM and SET,
-					and unsigned integer
-					types are 'unsigned types' */
-	const void*	f)		/*!< in: MySQL Field */
+	ulint*			unsigned_flag,	/*!< out: DATA_UNSIGNED if an
+						'unsigned type';
+						at least ENUM and SET,
+						and unsigned integer
+						types are 'unsigned types' */
+	const void*		f,		/*!< in: MySQL Field */
+	const dict_table_t*	table)		/*!< in: table handler */
 {
 	const class Field* field = reinterpret_cast<const class Field*>(f);
 
@@ -5528,7 +5529,9 @@ get_innobase_type_from_mysql_type(
 						flag set to zero, even though
 						internally this is an unsigned
 						integer type */
-		return(DATA_INT);
+
+		return((table && dict_table_is_intrinsic(table))
+		       ? DATA_LE_INT : DATA_INT);
 	}
 
 	switch (field->type()) {
@@ -5564,7 +5567,8 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_DATE:
 	case MYSQL_TYPE_YEAR:
 	case MYSQL_TYPE_NEWDATE:
-		return(DATA_INT);
+		return((table && dict_table_is_intrinsic(table))
+		       ? DATA_LE_INT : DATA_INT);
 	case MYSQL_TYPE_TIME:
 	case MYSQL_TYPE_DATETIME:
 	case MYSQL_TYPE_TIMESTAMP:
@@ -6044,6 +6048,8 @@ build_template_field(
 	if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
 		templ->mysql_length_bytes = (ulint)
 			(((Field_varstring*) field)->length_bytes);
+	} else {
+		templ->mysql_length_bytes = 0;
 	}
 
 	templ->charset = dtype_get_charset_coll(col->prtype);
@@ -8666,6 +8672,9 @@ create_table_def(
 	for (i = 0; i < n_cols; i++) {
 		Field*	field = form->field[i];
 
+		col_type = get_innobase_type_from_mysql_type(
+			&unsigned_type, field, table);
+
 		/* Generate a unique column name by pre-pending table-name for
 		intrinsic tables. For other tables (including normal
 		temporary) column names are unique. If not, MySQL layer will
@@ -8684,9 +8693,6 @@ create_table_def(
 			ut_snprintf(field_name, sizeof(field_name),
 				    "%s", field->field_name);
 		}
-
-		col_type = get_innobase_type_from_mysql_type(&unsigned_type,
-							     field);
 
 		if (!col_type) {
 			push_warning_printf(
@@ -8964,7 +8970,7 @@ found:
 		}
 
 		col_type = get_innobase_type_from_mysql_type(
-			&is_unsigned, key_part->field);
+			&is_unsigned, key_part->field, handler);
 
 		if (DATA_LARGE_MTYPE(col_type)
 		    || (key_part->length < field->pack_length()
@@ -8978,6 +8984,7 @@ found:
 				prefix_len = key_part->length;
 				break;
 			case DATA_INT:
+			case DATA_LE_INT:
 			case DATA_FLOAT:
 			case DATA_DOUBLE:
 			case DATA_DECIMAL:
