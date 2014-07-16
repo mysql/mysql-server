@@ -7509,7 +7509,8 @@ ha_innobase::index_read(
 
 		row_sel_convert_mysql_key_to_innobase(
 			prebuilt->search_tuple,
-			srch_key_val1, sizeof(srch_key_val1),
+			prebuilt->srch_key_val1,
+			prebuilt->srch_key_val_len,
 			index,
 			(byte*) key_ptr,
 			(ulint) key_len,
@@ -10883,7 +10884,8 @@ ha_innobase::records_in_range(
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_start,
-				srch_key_val1, sizeof(srch_key_val1),
+				prebuilt->srch_key_val1,
+				prebuilt->srch_key_val_len,
 				index,
 				(byte*) (min_key ? min_key->key :
 					 (const uchar*) 0),
@@ -10895,7 +10897,8 @@ ha_innobase::records_in_range(
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end,
-				srch_key_val2, sizeof(srch_key_val2),
+				prebuilt->srch_key_val2,
+				prebuilt->srch_key_val_len,
 				index,
 				(byte*) (max_key ? max_key->key :
 					 (const uchar*) 0),

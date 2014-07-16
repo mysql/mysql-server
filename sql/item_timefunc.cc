@@ -830,6 +830,37 @@ bool Item_temporal_func::check_precision()
   return false;
 }
 
+/**
+  Appends function name with argument list or fractional seconds part
+  to the String str.
+
+  @param[in/out]  str         String to which the func_name and decimals/
+                              argument list should be appended.
+  @param[in]      query_type  Query type
+
+*/
+
+void Item_temporal_func::print(String *str, enum_query_type query_type)
+{
+  str->append(func_name());
+  str->append('(');
+
+  // When the functions have arguments specified
+  if (arg_count)
+    print_args(str, 0, query_type);
+  else if (decimals)
+  {
+    /*
+      For temporal functions like NOW, CURTIME and SYSDATE which can specify
+      fractional seconds part.
+    */
+    str_value.set_int(decimals, unsigned_flag, &my_charset_bin);
+    str->append(str_value);
+  }
+
+  str->append(')');
+}
+
 
 type_conversion_status
 Item_temporal_hybrid_func::save_in_field(Field *field, bool no_conversions)
