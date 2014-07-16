@@ -1344,7 +1344,7 @@ thd_to_innodb_session(
 		return(innodb_session);
 	}
 
-	innodb_session = new (std::nothrow) innodb_session_t();
+	innodb_session = UT_NEW_NOKEY(innodb_session_t());
 	return(innodb_session);
 }
 
@@ -4012,7 +4012,7 @@ innobase_close_connection(
 	}
 
 	if (thd_to_innodb_session(thd) != NULL) {
-		delete thd_to_innodb_session(thd);
+		UT_DELETE(thd_to_innodb_session(thd));
 		thd_to_innodb_session(thd) = NULL;
 	}
 

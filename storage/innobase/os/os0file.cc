@@ -731,7 +731,7 @@ os_io_init_simple(void)
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
 	for (ulint i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
-		os_file_seek_mutexes[i] = new(std::nothrow) SysMutex();
+		os_file_seek_mutexes[i] = UT_NEW_NOKEY(SysMutex());
 		mutex_create("os_file_seek_mutex", os_file_seek_mutexes[i]);
 	}
 }
@@ -3924,7 +3924,7 @@ os_aio_free(void)
 #ifndef UNIV_HOTBACKUP
 	for (ulint i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
 		mutex_free(os_file_seek_mutexes[i]);
-		delete os_file_seek_mutexes[i];
+		UT_DELETE(os_file_seek_mutexes[i]);
 	}
 #endif /* !UNIV_HOTBACKUP */
 

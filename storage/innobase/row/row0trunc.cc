@@ -268,8 +268,8 @@ public:
 			+ strlen(TruncateLogger::s_log_prefix)
 			+ strlen(TruncateLogger::s_log_ext);
 
-		m_log_file_name = new (std::nothrow) char[log_file_name_buf_sz];
-		if (m_log_file_name == 0) {
+		m_log_file_name = UT_NEW_ARRAY_NOKEY(char, log_file_name_buf_sz);
+		if (m_log_file_name == NULL) {
 			return(DB_OUT_OF_MEMORY);
 		}
 		memset(m_log_file_name, 0, log_file_name_buf_sz);
@@ -304,7 +304,7 @@ public:
 			bool exist;
 			os_file_delete_if_exists(
 				innodb_log_file_key, m_log_file_name, &exist);
-			delete[] m_log_file_name;
+			UT_DELETE_ARRAY(m_log_file_name);
 			m_log_file_name = NULL;
 		}
 	}
@@ -540,8 +540,8 @@ TruncateLogParser::scan(
 
 			/* Construct file name by appending directory path */
 			ulint	sz = dir_len + 22 + 22 + 1 + ext_len + prefix_len;
-			char*	log_file_name = new (std::nothrow) char[sz];
-			if (log_file_name == 0) {
+			char*	log_file_name = UT_NEW_ARRAY_NOKEY(char, sz);
+			if (log_file_name == NULL) {
 				err = DB_OUT_OF_MEMORY;
 				break;
 			}
@@ -622,8 +622,8 @@ TruncateLogParser::parse(
 		}
 
 		if (truncate == NULL) {
-			truncate = new (std::nothrow) truncate_t(log_file_name);
-			if (truncate == 0) {
+			truncate = UT_NEW_NOKEY(truncate_t(log_file_name));
+			if (truncate == NULL) {
 				os_file_close(handle);
 				err = DB_OUT_OF_MEMORY;
 				break;
@@ -646,8 +646,8 @@ TruncateLogParser::parse(
 			if (buf == 0) {
 				os_file_close(handle);
 				err = DB_OUT_OF_MEMORY;
-				delete truncate;
-				truncate = 0;
+				UT_DELETE(truncate);
+				truncate = NULL;
 				break;
 			}
 
@@ -696,7 +696,7 @@ TruncateLogParser::scan_and_parse(
 	     it != end;
 	     ++it) {
 		if (*it != NULL) {
-			delete[] (*it);
+			UT_DELETE_ARRAY(*it);
 		}
 	}
 	log_files.clear();
@@ -1180,10 +1180,10 @@ row_truncate_complete(
 		DBUG_EXECUTE_IF("ib_trunc_crash_after_log_checkpoint",
 				DBUG_SUICIDE(););
 
-		if (logger) {
+		if (logger != NULL) {
 			logger->done();
-			delete logger;
-			logger = 0;
+			UT_DELETE(logger);
+			logger = NULL;
 		}
 	}
 
@@ -1836,7 +1836,7 @@ row_truncate_table_for_mysql(
 			}
 		}
 
-		logger = new TruncateLogger(table, flags, new_id);
+		logger = UT_NEW_NOKEY(TruncateLogger(table, flags, new_id));
 
 		err = logger->init();
 		if (err != DB_SUCCESS) {
@@ -2125,7 +2125,7 @@ truncate_t::fixup_tables()
 	for (ulint i = 0; i < s_tables.size(); ++i) {
 		os_file_delete(
 			innodb_log_file_key, s_tables[i]->m_log_file_name);
-		delete s_tables[i];
+		UT_DELETE(s_tables[i]);
 	}
 
 	s_tables.clear();
@@ -2478,9 +2478,9 @@ truncate_t::index_t::set(
 
 	/* See requirements of page_zip_fields_encode for size. */
 	ulint	encoded_buf_size = (m_n_fields + 1) * 2;
-	byte*	encoded_buf = new (std::nothrow) byte[encoded_buf_size];
+	byte*	encoded_buf = UT_NEW_ARRAY_NOKEY(byte, encoded_buf_size);
 
-	if (encoded_buf == 0) {
+	if (encoded_buf == NULL) {
 		return(DB_OUT_OF_MEMORY);
 	}
 
@@ -2494,7 +2494,7 @@ truncate_t::index_t::set(
 	/* NUL terminate the encoded data */
 	m_fields.push_back(0);
 
-	delete[] encoded_buf;
+	UT_DELETE_ARRAY(encoded_buf);
 
 	return(DB_SUCCESS);
 }

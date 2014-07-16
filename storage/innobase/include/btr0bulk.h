@@ -243,7 +243,7 @@ public:
 	~BtrBulk()
 	{
 		mem_heap_free(m_heap);
-		delete m_page_bulks;
+		UT_DELETE(m_page_bulks);
 
 #ifdef UNIV_DEBUG
 		fil_space_dec_redo_skipped_count(m_index->space);
@@ -257,7 +257,7 @@ public:
 		ut_ad(m_heap == NULL);
 		m_heap = mem_heap_create(1000);
 
-		m_page_bulks = new page_bulk_vector();
+		m_page_bulks = UT_NEW_NOKEY(page_bulk_vector());
 	}
 
 	/** Insert a tuple

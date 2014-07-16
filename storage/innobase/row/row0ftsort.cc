@@ -1622,7 +1622,7 @@ row_fts_merge_insert(
 	aux_index->is_redo_skipped = index->is_redo_skipped;
 
 	/* Create bulk load instance */
-	ins_ctx.btr_bulk = new BtrBulk(aux_index, trx->id);
+	ins_ctx.btr_bulk = UT_NEW_NOKEY(BtrBulk(aux_index, trx->id));
 	ins_ctx.btr_bulk->init();
 
 	/* Create tuple for insert */
@@ -1747,7 +1747,7 @@ exit:
 	mem_heap_free(tuple_heap);
 
 	error = ins_ctx.btr_bulk->finish(error);
-	delete ins_ctx.btr_bulk;
+	UT_DELETE(ins_ctx.btr_bulk);
 
 	trx_free_for_background(trx);
 
