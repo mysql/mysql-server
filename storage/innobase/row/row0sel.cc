@@ -2696,13 +2696,12 @@ row_sel_convert_mysql_key_to_innobase(
 		/* Storing may use at most data_len bytes of buf */
 
 		if (UNIV_LIKELY(!is_null)) {
-			ut_a(buf + data_len <= original_buf + buf_len);
-			row_mysql_store_col_in_innobase_format(
-				dfield, buf,
-				FALSE, /* MySQL key value format col */
-				key_ptr + data_offset, data_len,
-				dict_table_is_comp(index->table));
-			buf += data_len;
+			buf = row_mysql_store_col_in_innobase_format(
+					dfield, buf,
+					FALSE, /* MySQL key value format col */
+					key_ptr + data_offset, data_len,
+					dict_table_is_comp(index->table));
+			ut_a(buf <= original_buf + buf_len);
 		}
 
 		key_ptr += data_field_len;
@@ -2741,9 +2740,6 @@ row_sel_convert_mysql_key_to_innobase(
 		field++;
 		dfield++;
 	}
-
-	DBUG_EXECUTE_IF("innodb_srch_key_buffer_full",
-		ut_a(buf == (original_buf + buf_len)););
 
 	ut_a(buf <= original_buf + buf_len);
 
@@ -3978,7 +3974,6 @@ The cursor is an iterator over the table/index.
 				Note: if this is != 0, then prebuilt must has a
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
-@param[in,out]	session		session handler
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -3987,8 +3982,7 @@ row_search_no_mvcc(
 	ulint			mode,
 	row_prebuilt_t*		prebuilt,
 	ulint			match_mode,
-	ulint			direction,
-	innodb_session_t*	session)
+	ulint			direction)
 {
 	dict_index_t*	index		= prebuilt->index;
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
@@ -4077,8 +4071,8 @@ row_search_no_mvcc(
 		index->last_sel_cur->release();
 
 		/* Capture table snapshot in form of trx-id. */
-		index->trx_id = session->get_table_curr_sess_trx_id(
-			index->table->name);
+		index->trx_id = dict_table_get_curr_table_sess_trx_id(
+			index->table);
 
 		/* Fresh search commences. */
 		mtr_start(mtr);
@@ -4924,7 +4918,7 @@ wrong_offs:
 
 	/* Calculate the 'offsets' associated with 'rec' */
 
-	ut_ad(fil_page_get_type(btr_pcur_get_page(pcur)) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(btr_pcur_get_page(pcur)));
 	ut_ad(btr_page_get_index_id(btr_pcur_get_page(pcur)) == index->id);
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
@@ -5900,7 +5894,7 @@ rec_loop:
 		goto next_rec;
 	}
 
-	ut_ad(fil_page_get_type(btr_pcur_get_page(pcur)) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(btr_pcur_get_page(pcur)));
 	ut_ad(btr_page_get_index_id(btr_pcur_get_page(pcur)) == index->id);
 
 	if (rec_get_deleted_flag(rec, comp)) {

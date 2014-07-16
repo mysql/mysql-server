@@ -1,0 +1,66 @@
+###############################################################################
+# Bug#17453826:ASSERSION ERROR WHEN SETTING FUTURE BINLOG FILE/POS WITH
+# SEMISYNC
+#
+# Problem:
+# ========
+# When DMLs are in progress on the master, stopping a slave and setting ahead
+# binlog name/pos will cause an asssert on the master.
+#
+# Test:
+# =====
+# Do DMLs on the master and on the slave do a stop slave. Execute change master
+# to a future binlog file name and position which doesn't exist. Master should
+# not assert.
+###############################################################################
+--source include/have_semisync_plugin.inc
+--source include/master-slave.inc
+--source include/install_semisync.inc
+
+call mtr.add_suppression("Timeout waiting for reply of binlog*");
+call mtr.add_suppression("Read semi-sync reply network error");
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (a INT);
+--let $binlog_pos= query_get_value("SHOW MASTER STATUS", Position, 1)
+--let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+--send INSERT INTO t1 VALUES(0)
+
+--source include/rpl_connection_master1.inc
+--let $status_var= rpl_semi_sync_master_wait_sessions
+--let $status_var_value= 1
+--source include/wait_for_status_var.inc
+
+--source include/rpl_connection_slave.inc
+CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000002', MASTER_LOG_POS=4, MASTER_AUTO_POSITION=0;
+START SLAVE;
+--let $slave_io_errno=1236
+--source include/wait_for_slave_io_error.inc
+
+--source include/rpl_connection_master.inc
+--reap
+INSERT INTO t1 VALUES (20);
+
+# Since dump thread has exited and no slaves are connected, master_clients
+# must be zero.
+--source include/rpl_connection_master.inc
+--let $master_clients=[show status like "Rpl_semi_sync_master_clients", Value, 1]
+--let assert_cond= $master_clients = 0
+--let assert_text= semi sync master clients should be 0.
+--source include/assert.inc
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--replace_regex /MASTER_LOG_FILE=[^,]+/MASTER_LOG_FILE=FILE/ /MASTER_LOG_POS=[0-9]+/ MASTER_LOG_POS= POS/
+eval CHANGE MASTER TO MASTER_LOG_FILE='$master_binlog', MASTER_LOG_POS=$binlog_pos, MASTER_AUTO_POSITION=0;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/uninstall_semisync.inc
+--source include/rpl_end.inc

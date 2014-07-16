@@ -3,6 +3,13 @@
 #
 #
 
+if ($extended_exceptions_table)
+{
+call mtr.add_suppression("NDB Slave: exceptions table .* has suspicious definition .*");
+}
+
+if (!$extended_exceptions_table)
+{
 create table `test`.`t1$EX`
   (server_id int unsigned,
    master_server_id int unsigned,
@@ -11,7 +18,23 @@ create table `test`.`t1$EX`
    a int not null,
    d int,
    primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
-
+}
+if ($extended_exceptions_table)
+{
+create table `test`.`t1$EX`
+  (ndb$server_id int unsigned,
+   ndb$master_server_id int unsigned,
+   ndb$master_epoch bigint unsigned,
+   ndb$count int unsigned,
+   a int not null,
+   b$old varchar(255),
+   b$new varchar(255),
+   d int,
+   ndb$op_type           enum('write_row','update_row', 'delete_row') not null,
+   ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_conflict','trans_in_conflict') not null,
+   ndb$orig_transid      bigint unsigned not null,
+   primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count)) engine ndb;
+}
 
 --echo Create table
 create table test.t1(a int primary key, b varchar(255)) engine = ndb;

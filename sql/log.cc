@@ -1166,7 +1166,7 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
 
 
 void Query_logger::init_query_log(enum_log_table_type log_type,
-                                  uint log_printer)
+                                  ulonglong log_printer)
 {
   if (log_type == QUERY_LOG_SLOW)
   {
@@ -1859,8 +1859,6 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
 
 ulong tc_log_page_waits= 0;
 
-#ifdef HAVE_MMAP
-
 #define TC_LOG_HEADER_SIZE (sizeof(tc_log_magic)+1)
 
 static const char tc_log_magic[]={(char) 254, 0x23, 0x05, 0x74};
@@ -2310,7 +2308,6 @@ err1:
                   "--tc-heuristic-recover={commit|rollback}");
   return 1;
 }
-#endif
 
 TC_LOG *tc_log;
 TC_LOG_DUMMY tc_log_dummy;

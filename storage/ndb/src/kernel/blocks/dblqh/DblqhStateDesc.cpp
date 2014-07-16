@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@ struct ndbkernel_state_desc g_dblqh_tcconnect_state_desc[] =
   SDESC(WAIT_TUPKEYINFO, "", ""),
   SDESC(WAIT_ATTR, "WaitData", ""),
   SDESC(WAIT_TUP, "WaitTup", ""),
-  SDESC(STOPPED, "Stopped", ""),
   SDESC(LOG_QUEUED, "LogPrepare", ""),
   SDESC(PREPARED, "Prepared", ""),
   SDESC(LOG_COMMIT_WRITTEN_WAIT_SIGNAL, "", ""),
@@ -39,7 +38,6 @@ struct ndbkernel_state_desc g_dblqh_tcconnect_state_desc[] =
 
   // Commit in progress states
   /* -------------------------------------------------------------------- */
-  SDESC(COMMIT_STOPPED, "CommittingStopped", ""),
   SDESC(LOG_COMMIT_QUEUED, "Committing", ""),
   SDESC(COMMIT_QUEUED, "Committing", ""),
   SDESC(COMMITTED, "Committed", ""),
@@ -50,7 +48,6 @@ struct ndbkernel_state_desc g_dblqh_tcconnect_state_desc[] =
   /* -------------------------------------------------------------------- */
   SDESC(WAIT_ACC_ABORT, "Aborting", ""),
   SDESC(ABORT_QUEUED, "Aborting", ""),
-  SDESC(ABORT_STOPPED, "AbortingStopped", ""),
   SDESC(WAIT_AI_AFTER_ABORT, "Aborting", ""),
   SDESC(LOG_ABORT_QUEUED, "Aborting", ""),
   SDESC(WAIT_TUP_TO_ABORT, "Aborting", ""),
@@ -60,14 +57,6 @@ struct ndbkernel_state_desc g_dblqh_tcconnect_state_desc[] =
   /* -------------------------------------------------------------------- */
   SDESC(WAIT_SCAN_AI, "Scanning", ""),
   SDESC(SCAN_STATE_USED, "Scanning", ""),
-  SDESC(SCAN_FIRST_STOPPED, "Scanning", ""),
-  SDESC(SCAN_CHECK_STOPPED, "Scanning", ""),
-  SDESC(SCAN_STOPPED, "ScanningStopped", ""),
-  SDESC(SCAN_RELEASE_STOPPED, "ScanningStopped", ""),
-  SDESC(SCAN_CLOSE_STOPPED, "ScanningStopped", ""),
-  SDESC(COPY_CLOSE_STOPPED, "ScanningStopped", ""),
-  SDESC(COPY_FIRST_STOPPED, "ScanningStopped", ""),
-  SDESC(COPY_STOPPED, "ScanningStopped", ""),
   SDESC(SCAN_TUPKEY, "Scanning", ""),
   SDESC(COPY_TUPKEY, "NodeRecoveryScanning", ""),
 

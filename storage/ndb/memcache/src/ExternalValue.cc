@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
- reserved.
+ Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -18,6 +17,7 @@
  02110-1301  USA
  */
 
+#include <my_config.h>
 #include <arpa/inet.h>
 #include <assert.h>
 #include <NdbApi.hpp>

@@ -201,6 +201,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||
               !thd->mdl_context.has_locks() ||
               thd->handler_tables_hash.records ||
+              thd->ull_hash.records ||
               thd->global_read_lock.is_acquired());
 
   /*

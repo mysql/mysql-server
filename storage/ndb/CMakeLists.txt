@@ -105,6 +105,9 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_local_schema.cc
   ../../sql/ndb_repl_tab.cc
   ../../sql/ndb_conflict.cc
+  ../../sql/ndb_tdc.cc
+  ../../sql/ndb_log.cc
+  ../../sql/ndb_binlog_thread.cc
 )
 
 # Include directories used when building ha_ndbcluster
@@ -323,6 +326,12 @@ OPTION(WITH_NDB_NODEJS
 IF(WITH_NDB_NODEJS)
   ADD_SUBDIRECTORY(nodejs)
 ENDIF(WITH_NDB_NODEJS)
+
+OPTION(WITH_NDBAPI_EXAMPLES "Build the NdbApi example programs" OFF)
+IF(WITH_NDBAPI_EXAMPLES)
+  MESSAGE(STATUS "Building the NdbApi example programs")
+  ADD_SUBDIRECTORY(ndbapi-examples)
+ENDIF()
 
 IF(WITHOUT_PARTITION_STORAGE_ENGINE)
   MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")

@@ -57,6 +57,13 @@ void
 lock_sys_create(
 /*============*/
 	ulint	n_cells);	/*!< in: number of slots in lock hash table */
+/** Resize the lock hash table.
+@param[in]	n_cells	number of slots in lock hash table */
+
+void
+lock_sys_resize(
+	ulint	n_cells);
+
 /*********************************************************************//**
 Closes the lock system at database shutdown. */
 
@@ -681,6 +688,16 @@ lock_print_info_summary(
 	FILE*	file,	/*!< in: file where to print */
 	ibool   nowait)	/*!< in: whether to wait for the lock mutex */
 	__attribute__((warn_unused_result));
+
+/** Prints transaction lock wait and MVCC state.
+@param[in,out]	file	file where to print
+@param[in]	trx	transaction */
+
+void
+lock_trx_print_wait_and_mvcc_state(
+	FILE*		file,
+	const trx_t*	trx);
+
 /*********************************************************************//**
 Prints info of locks for each transaction. This function assumes that the
 caller holds the lock mutex and more importantly it will release the lock

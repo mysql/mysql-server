@@ -131,6 +131,38 @@ set foreign_key_checks=0;
 
 drop table t1, t2;
 
+#
+# Test fk referencing columns in reverse order to existing index
+#  - should return an error saying "missing index for constraint .."
+#
+# NOTE! column order does not matter if parent index is unique
+#
+--replace_result $engine engine
+eval create table t1 (
+  a1 int primary key,
+  b1 int not null,
+  c1 int not null,
+  key (b1,c1)
+) engine $engine;
+
+--replace_result $engine engine
+eval create table t2 (
+  a2 int primary key auto_increment,
+  b2 int not null,
+  c2 int not null
+) engine $engine;
+
+--error ER_FK_NO_INDEX_PARENT
+alter table t2
+  add constraint foreign key fk1 (b2,c2) references t1 (c1,b1);
+
+insert into t1 (a1,b1,c1) values
+  (1,11,12),(2,21,22),(3,31,32);
+
+insert into t2 (b2,c2)
+  select c1, b1 from t1;
+
+drop table t2,t1;
 
 #
 # Test n

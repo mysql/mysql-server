@@ -119,7 +119,7 @@ typedef struct st_time_zone_info
   uint leapcnt;  // Number of leap-second corrections
   uint timecnt;  // Number of transitions between time types
   uint typecnt;  // Number of local time types
-  uint charcnt;  // Number of characters used for abbreviations
+  size_t charcnt;// Number of characters used for abbreviations
   uint revcnt;   // Number of transition descr. for TIME->my_time_t conversion
   /* The following are dynamical arrays are allocated in MEM_ROOT */
   my_time_t *ats;       // Times of transitions between time types
@@ -224,7 +224,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
         ttisgmtcnt)                             /* ttisgmts */
       return 1;
 #ifdef ABBR_ARE_USED
-    uint abbrs_buf_len= sp->charcnt+1;
+    size_t abbrs_buf_len= sp->charcnt+1;
 #endif
 
     if (!(tzinfo_buf= (char *)alloc_root(storage,

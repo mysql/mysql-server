@@ -702,7 +702,7 @@ public:
   inline int get_max_index() const
   {
     global_lock->assert_some_lock();
-    return array.elements - 1;
+    return static_cast<int>(m_array.size() - 1);
   }
   /**
     Grows the array so that the given index fits.
@@ -727,13 +727,13 @@ private:
   {
     global_lock->assert_some_lock();
     DBUG_ASSERT(n <= get_max_index());
-    Mutex_cond *ret= *dynamic_element(&array, n, Mutex_cond **);
+    Mutex_cond *ret= m_array[n];
     DBUG_ASSERT(ret);
     return ret;
   }
   /// Read-write lock that protects updates to the number of elements.
   mutable Checkable_rwlock *global_lock;
-  DYNAMIC_ARRAY array;
+  Prealloced_array<Mutex_cond*, 8, true> m_array;
 };
 
 
@@ -1031,7 +1031,7 @@ public:
   {
     if (sid_lock)
       sid_lock->assert_some_lock();
-    return intervals.elements;
+    return static_cast<rpl_sidno>(m_intervals.size());
   }
   /**
     Allocates space for all sidnos up to the given sidno in the array of intervals.
@@ -1274,7 +1274,7 @@ public:
     { p= const_cast<Interval_p *>(&gtid_set->free_intervals); }
     /// Reset this iterator.
     inline void init(Gtid_set_p gtid_set, rpl_sidno sidno)
-    { p= dynamic_element(&gtid_set->intervals, sidno - 1, Interval_p *); }
+    { p= const_cast<Interval_p *>(&gtid_set->m_intervals[sidno - 1]); }
     /// Advance current_elem one step.
     inline void next()
     {
@@ -1685,7 +1685,7 @@ private:
     Array where the N'th element contains the head pointer to the
     intervals of SIDNO N+1.
   */
-  DYNAMIC_ARRAY intervals;
+  Prealloced_array<Interval*, 8, true> m_intervals;
   /// Linked list of free intervals.
   Interval *free_intervals;
   /// Linked list of chunks.
@@ -1843,7 +1843,7 @@ public:
   rpl_sidno get_max_sidno() const
   {
     sid_lock->assert_some_lock();
-    return sidno_to_hash.elements;
+    return static_cast<rpl_sidno>(sidno_to_hash.size());
   }
 
   /**
@@ -1966,7 +1966,7 @@ private:
   {
     DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
     sid_lock->assert_some_lock();
-    return *dynamic_element(&sidno_to_hash, sidno - 1, HASH **);
+    return sidno_to_hash[sidno - 1];
   }
   /**
     Returns the Node for the given HASH and GNO, or NULL if the GNO
@@ -1986,7 +1986,7 @@ private:
   /// Return true iff this Owned_gtids object contains the given group.
   bool contains_gtid(const Gtid &gtid) const { return get_node(gtid) != NULL; }
   /// Growable array of hashes.
-  DYNAMIC_ARRAY sidno_to_hash;
+  Prealloced_array<HASH*, 8, true> sidno_to_hash;
 
 public:
   /**
@@ -2753,7 +2753,7 @@ public:
   /// Removes all groups from this cache.
   void clear();
   /// Return the number of groups in this group cache.
-  inline int get_n_groups() const { return groups.elements; }
+  inline int get_n_groups() const { return static_cast<int>(m_groups.size()); }
   /// Return true iff the group cache contains zero groups.
   inline bool is_empty() const { return get_n_groups() == 0; }
   /**
@@ -2901,12 +2901,12 @@ public:
   inline Cached_group *get_unsafe_pointer(int index) const
   {
     DBUG_ASSERT(index >= 0 && index < get_n_groups());
-    return dynamic_element(&groups, index, Cached_group *);
+    return const_cast<Cached_group*>(&m_groups[index]);
   }
 
 private:
   /// List of all groups in this cache, of type Cached_group.
-  DYNAMIC_ARRAY groups;
+  Prealloced_array<Cached_group, 8, true> m_groups;
 
   /**
     Return a pointer to the last group, or NULL if this Group_cache is
@@ -2924,10 +2924,12 @@ private:
   */
   Cached_group *allocate_group()
   {
-    Cached_group *ret= (Cached_group *)alloc_dynamic(&groups);
-    if (ret == NULL)
+    if (m_groups.push_back(Cached_group()))
+    {
       BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
-    return ret;
+      return NULL;
+    }
+    return &m_groups.back();
   }
 
   /**

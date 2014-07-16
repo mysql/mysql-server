@@ -247,9 +247,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_COPY_STATEREQ               175
 #define GSN_COPY_TABCONF                176
 #define GSN_COPY_TABREQ                 177
-#define GSN_CREATE_FRAGCONF             178
-#define GSN_CREATE_FRAGREF              179
-#define GSN_CREATE_FRAGREQ              180
+#define GSN_UPDATE_FRAG_STATECONF       178
+#define GSN_UPDATE_FRAG_STATEREF        179
+#define GSN_UPDATE_FRAG_STATEREQ        180
 #define GSN_DEBUG_SIG                   181
 #define GSN_DIH_SCAN_TAB_REQ            182
 #define GSN_DIH_SCAN_TAB_REF            183

@@ -91,6 +91,28 @@ buf_flush_page_try(
 	buf_block_t*	block)		/*!< in/out: buffer control block */
 	__attribute__((warn_unused_result));
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+/** Do flushing batch of a given type.
+NOTE: The calling thread is not allowed to own any latches on pages!
+@param[in,out]	buf_pool	buffer pool instance
+@param[in]	type		flush type
+@param[in]	min_n		wished minimum mumber of blocks flushed
+(it is not guaranteed that the actual number is that big, though)
+@param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
+oldest_modification is smaller than this should be flushed (if their number
+does not exceed min_n), otherwise ignored
+@param[out]	n_processed	the number of pages which were processed is
+passed back to caller. Ignored if NULL
+@retval true	if a batch was queued successfully.
+@retval false	if another batch of same type was already running. */
+
+bool
+buf_flush_do_batch(
+	buf_pool_t*	buf_pool,
+	buf_flush_t	type,
+	ulint		min_n,
+	lsn_t		lsn_limit,
+	ulint*		n_processed);
+
 /*******************************************************************//**
 This utility flushes dirty blocks from the end of the flush list of
 all buffer pool instances.

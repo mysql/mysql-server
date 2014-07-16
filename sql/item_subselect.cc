@@ -3077,6 +3077,10 @@ bool subselect_indexsubquery_engine::exec()
   int error;
   bool null_finding= 0;
   TABLE *table= tab->table;
+  uchar *key;
+  uint key_length;
+  key_part_map key_parts_map;
+  ulonglong tmp_hash;
   // 'tl' is NULL if this is a tmp table created by subselect_hash_sj_engine.
   TABLE_LIST *tl= table->pos_in_table_list;
   Item_in_subselect *const item_in= static_cast<Item_in_subselect*>(item);
@@ -3106,6 +3110,7 @@ bool subselect_indexsubquery_engine::exec()
 
   /* Copy the ref key and check for nulls... */
   bool require_scan, convert_error;
+  hash= 0;
   copy_ref_key(&require_scan, &convert_error);
   if (convert_error)
     DBUG_RETURN(0);
@@ -3122,9 +3127,27 @@ bool subselect_indexsubquery_engine::exec()
     (void) report_handler_error(table, error);
     DBUG_RETURN(true);
   }
+  if (table->hash_field)
+  {
+    /*
+      Create key of proper endianness, hash_field->ptr can't be use directly
+      as it will be overwritten during read.
+    */
+    table->hash_field->store(hash, true);
+    memcpy(&tmp_hash, table->hash_field->ptr, sizeof(ulonglong));
+    key= (uchar*)&tmp_hash;
+    key_length= sizeof(hash);
+    key_parts_map= 1;
+  }
+  else
+  {
+    key= tab->ref.key_buff;
+    key_length= tab->ref.key_length;
+    key_parts_map= make_prev_keypart_map(tab->ref.key_parts);
+  }
   error= table->file->ha_index_read_map(table->record[0],
-                                        tab->ref.key_buff,
-                                        make_prev_keypart_map(tab->ref.key_parts),
+                                        key,
+                                        key_parts_map,
                                         HA_READ_KEY_EXACT);
   if (error &&
       error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -3155,8 +3178,8 @@ bool subselect_indexsubquery_engine::exec()
         if (unique)
           break;
         error= table->file->ha_index_next_same(table->record[0],
-                                              tab->ref.key_buff,
-                                              tab->ref.key_length);
+                                               key,
+                                               key_length);
         if (error && error != HA_ERR_END_OF_FILE)
         {
           error= report_handler_error(table, error);
@@ -3501,6 +3524,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   KEY           *tmp_key; /* The only index on the temporary table. */
   uint          tmp_key_parts; /* Number of keyparts in tmp_key. */
   Item_in_subselect *item_in= (Item_in_subselect *) item;
+  uint key_length;
 
   DBUG_ENTER("subselect_hash_sj_engine::setup");
 
@@ -3522,37 +3546,26 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
 
   tmp_table= tmp_result_sink->table;
   tmp_key= tmp_table->key_info;
-  tmp_key_parts= tmp_key->user_defined_key_parts;
-
-  /*
-     If the subquery has blobs, or the total key lenght is bigger than some
-     length, then the created index cannot be used for lookups and we
-     can't use hash semi join. If this is the case, delete the temporary
-     table since it will not be used, and tell the caller we failed to
-     initialize the engine.
-  */
-  if (tmp_table->s->keys == 0)
+  if (tmp_table->hash_field)
   {
-    DBUG_ASSERT(tmp_table->s->db_type() == myisam_hton);
-    DBUG_ASSERT(
-      tmp_table->s->uniques ||
-      tmp_table->key_info->key_length >= tmp_table->file->max_key_length() ||
-      tmp_table->key_info->user_defined_key_parts >
-      tmp_table->file->max_key_parts());
-    free_tmp_table(thd, tmp_table);
-    delete result;
-    result= NULL;
-    DBUG_RETURN(TRUE);
+    tmp_key_parts= tmp_columns->elements;
+    key_length= ALIGN_SIZE(tmp_table->s->reclength);
   }
+  else
+  {
+    tmp_key_parts= tmp_key->user_defined_key_parts;
+    key_length= ALIGN_SIZE(tmp_key->key_length) * 2;
+  }
+
   result= tmp_result_sink;
 
   /*
-    Make sure there is only one index on the temp table, and it doesn't have
-    the extra key part created when s->uniques > 0.
+    Make sure there is only one index on the temp table.
   */
-  DBUG_ASSERT(tmp_table->s->keys == 1 &&
-              tmp_columns->elements == tmp_key_parts);
-
+  DBUG_ASSERT(tmp_columns->elements == tmp_table->s->fields ||
+              // Unique constraint is used and a hash field was added
+              (tmp_table->hash_field &&
+               tmp_columns->elements == (tmp_table->s->fields - 1)));
   /* 2. Create/initialize execution related objects. */
 
   /*
@@ -3566,10 +3579,11 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   if (tmp_tab == NULL)
     DBUG_RETURN(TRUE);
   tmp_tab->table= tmp_table;
+  tmp_table->reginfo.join_tab= tmp_tab;
   tmp_tab->ref.key= 0; /* The only temp table index. */
   tmp_tab->ref.key_length= tmp_key->key_length;
   if (!(tmp_tab->ref.key_buff=
-        (uchar*) thd->calloc(ALIGN_SIZE(tmp_key->key_length) * 2)) ||
+        (uchar*) thd->calloc(key_length)) ||
       !(tmp_tab->ref.key_copy=
         (store_key**) thd->alloc((sizeof(store_key*) * tmp_key_parts))) ||
       !(tmp_tab->ref.items=
@@ -3619,11 +3633,12 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     Item_func_eq *eq_cond; 
     /* Item for the corresponding field from the materialized temp table. */
     Item_field *right_col_item;
-    const bool nullable= key_parts[part_no].field->real_maybe_null();
+    Field *field= tmp_table->field[part_no];
+    const bool nullable= field->real_maybe_null();
     tmp_tab->ref.items[part_no]= item_in->left_expr->element_index(part_no);
 
     if (!(right_col_item= new Item_field(thd, context, 
-                                         key_parts[part_no].field)) ||
+                                         field)) ||
         !(eq_cond= new Item_func_eq(tmp_tab->ref.items[part_no],
                                     right_col_item)) ||
         ((Item_cond_and*)cond)->add(eq_cond))
@@ -3633,18 +3648,27 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
       DBUG_RETURN(TRUE);
     }
 
-    tmp_tab->ref.key_copy[part_no]= 
-      new store_key_item(thd, key_parts[part_no].field,
-                         /* TODO:
-                            the NULL byte is taken into account in
-                            key_parts[part_no].store_length, so instead of
-                            cur_ref_buff + test(maybe_null), we could
-                            use that information instead.
-                         */
-                         cur_ref_buff + (nullable ? 1 : 0),
-                         nullable ? cur_ref_buff : 0,
-                         key_parts[part_no].length,
-                         tmp_tab->ref.items[part_no]);
+    if (tmp_table->hash_field)
+      tmp_tab->ref.key_copy[part_no]= 
+        new store_key_hash_item(thd, field,
+                           cur_ref_buff,
+                           0,
+                           field->pack_length(),
+                           tmp_tab->ref.items[part_no],
+                           &hash);
+    else
+      tmp_tab->ref.key_copy[part_no]= 
+        new store_key_item(thd, field,
+                           /* TODO:
+                              the NULL byte is taken into account in
+                              key_parts[part_no].store_length, so instead of
+                              cur_ref_buff + test(maybe_null), we could
+                              use that information instead.
+                           */
+                           cur_ref_buff + (nullable ? 1 : 0),
+                           nullable ? cur_ref_buff : 0,
+                           key_parts[part_no].length,
+                           tmp_tab->ref.items[part_no]);
     if (nullable &&          // nullable column in tmp table,
         // and UNKNOWN should not be interpreted as FALSE
         !item_in->is_top_level_item())
@@ -3661,7 +3685,10 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
       mat_table_has_nulls= NEX_IRRELEVANT_OR_FALSE;
     }
 
-    cur_ref_buff+= key_parts[part_no].store_length;
+    if (tmp_table->hash_field)
+      cur_ref_buff+= field->pack_length();
+    else
+      cur_ref_buff+= key_parts[part_no].store_length;
   }
   tmp_tab->ref.key_err= 1;
   tmp_tab->ref.key_parts= tmp_key_parts;
@@ -3764,6 +3791,17 @@ bool subselect_hash_sj_engine::exec()
 
     // Calculate row count:
     table->file->info(HA_STATUS_VARIABLE);
+
+    if (!(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
+    {
+      // index must be closed before ha_records() is called
+      if (table->file->inited)
+        table->file->ha_index_or_rnd_end();
+      ha_rows num_rows= 0;
+      table->file->ha_records(&num_rows);
+      table->file->stats.records= num_rows;
+      res= thd->is_error();
+    }
 
     /* Set tmp_param only if its usable, i.e. tmp_param->copy_field != NULL. */
     tmp_param= &(item_in->unit->outer_select()->join->tmp_table_param);

@@ -1,5 +1,5 @@
-/** **/
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2003, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -379,6 +379,7 @@ struct Fragmentrec {
     Uint32 fragmentid;
     Uint32 myfid;
   };
+  Uint32 tupFragptr;
   Uint32 roothashcheck;
   Uint32 noOfElements;
   Uint32 m_commit_count;
@@ -515,6 +516,9 @@ struct Fragmentrec {
 //-----------------------------------------------------------------------------
   Uint8 dirRangeFull;
 
+  // Number of Page8 pages allocated for the hash index.
+  Int32 m_noOfAllocatedPages;
+
 public:
   Uint32 getPageNumber(Uint32 bucket_number) const;
   Uint32 getPageIndex(Uint32 bucket_number) const;
@@ -522,6 +526,7 @@ public:
 };
 
   typedef Ptr<Fragmentrec> FragmentrecPtr;
+  void set_tup_fragptr(Uint32 fragptr, Uint32 tup_fragptr);
 
 /* --------------------------------------------------------------------------------- */
 /* OPERATIONREC                                                                      */
@@ -657,7 +662,13 @@ public:
   class Dblqh* c_lqh;
 
   void execACCMINUPDATE(Signal* signal);
+  void execREAD_PSEUDO_REQ(Signal* signal);
+  // Get the size of the logical to physical page map, in bytes.
+  Uint32 getL2PMapAllocBytes(Uint32 fragId) const;
   void removerow(Uint32 op, const Local_key*);
+
+  // Get the size of the linear hash map in bytes.
+  Uint64 getLinHashByteSize(Uint32 fragId) const;
 
 private:
   BLOCK_DEFINES(Dbacc);
@@ -670,7 +681,6 @@ private:
   void execSHRINKCHECK2(Signal* signal);
   void execACC_OVER_REC(Signal* signal);
   void execNEXTOPERATION(Signal* signal);
-  void execREAD_PSEUDO_REQ(Signal* signal);
 
   // Received signals
   void execSTTOR(Signal* signal);
@@ -741,7 +751,11 @@ private:
 #else
   bool validate_lock_queue(OperationrecPtr) { return true;}
 #endif
-  
+  /**
+    Return true if the sum of per fragment pages counts matches the total
+    page count (cnoOfAllocatedPages). Used for consistency checks. 
+   */
+  bool validatePageCount() const;
 public:  
   void execACCKEY_ORD(Signal* signal, Uint32 opPtrI);
   void startNext(Signal* signal, OperationrecPtr lastOp);

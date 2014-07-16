@@ -1278,7 +1278,7 @@ row_truncate_fts(
 			table_name);
 	} else {
 
-		ut_ad(!trx_is_started(trx));
+		ut_ad(trx_is_started(trx));
 	}
 
 	return(err);
