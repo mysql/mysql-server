@@ -121,11 +121,7 @@ FUNCTION(DTRACE_INSTRUMENT target)
       # dtrace on Linux runs gcc and uses flags from environment
       SET(CFLAGS_SAVED $ENV{CFLAGS})
       STRING(REGEX REPLACE "-W[A-Za-z0-9-]*" "" C_FLAGS "${CMAKE_C_FLAGS}")
-      GET_PROPERTY(compile_definitions DIRECTORY PROPERTY COMPILE_DEFINITIONS)
-      FOREACH( def ${compile_definitions} )
-        SET(COMP_DEFS "${COMP_DEFS} -D${def}")
-      ENDFOREACH()
-      SET(ENV{CFLAGS} "${C_FLAGS} ${COMP_DEFS}")
+      SET(ENV{CFLAGS} ${C_FLAGS})
       SET(outfile "${CMAKE_BINARY_DIR}/probes_mysql.o")
       # Systemtap object
       EXECUTE_PROCESS(
