@@ -25,7 +25,6 @@
 #include "binlog.h"                      /* MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
 #include<vector>
-#include "rpl_mts_submode.h"
 #include "prealloced_array.h"
 
 struct RPL_TABLE_LIST;
@@ -33,6 +32,8 @@ class Master_info;
 class Mts_submode;
 class Commit_order_manager;
 extern uint sql_slave_skip_counter;
+
+typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
 
 /*******************************************************************************
 Replication SQL Thread
@@ -521,7 +522,8 @@ public:
     W  - Worker;
     WQ - Worker Queue containing event assignments
   */
-  DYNAMIC_ARRAY workers; // number's is determined by global slave_parallel_workers
+  // number's is determined by global slave_parallel_workers
+  Slave_worker_array workers;
 
   /*
     For the purpose of reporting the worker status in performance schema table,
@@ -644,28 +646,26 @@ public:
   /* end of MTS statistics */
 
   /* Returns the number of elements in workers array/vector. */
-  inline uint get_worker_count()
+  inline size_t get_worker_count()
   {
     if (workers_array_initialized)
-      return workers.elements;
+      return workers.size();
     else
-      return static_cast<uint>(workers_copy_pfs.size());
+      return workers_copy_pfs.size();
   }
 
   /*
     Returns a pointer to the worker instance at index n in workers
     array/vector.
   */
-  Slave_worker* get_worker(uint n)
+  Slave_worker* get_worker(size_t n)
   {
     if (workers_array_initialized)
     {
-      if (n >= workers.elements)
+      if (n >= workers.size())
         return NULL;
 
-      Slave_worker *ret_worker;
-      get_dynamic(&workers, (uchar *) &ret_worker, n);
-      return ret_worker;
+      return workers[n];
     }
     else if (workers_copy_pfs.size())
     {
@@ -709,7 +709,7 @@ public:
   {
     bool ret= (slave_parallel_workers > 0) && !is_mts_recovery();
 
-    DBUG_ASSERT(!ret || workers.elements > 0);
+    DBUG_ASSERT(!ret || !workers.empty());
 
     return ret;
   }

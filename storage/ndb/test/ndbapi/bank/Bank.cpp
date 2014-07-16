@@ -172,16 +172,16 @@ int Bank::performTransactionImpl1(int fromAccountId,
   if( pTrans == NULL ) {
     const NdbError err = m_ndb.getNdbError();
     if (err.status == NdbError::TemporaryError){
-      ERR(err);
+      NDB_ERR(err);
       return NDBT_TEMPORARY;
     }
-    ERR(err);
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
   Uint64 currTime;
   if (prepareGetCurrTimeOp(pTrans, currTime) != NDBT_OK){
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -191,35 +191,35 @@ int Bank::performTransactionImpl1(int fromAccountId,
    */
   NdbOperation* pOp = pTrans->getNdbOperation("ACCOUNT");
   if (pOp == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp->readTupleExclusive();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp->equal("ACCOUNT_ID", fromAccountId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   NdbRecAttr* balanceFromRec = pOp->getValue("BALANCE");
   if( balanceFromRec ==NULL ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   NdbRecAttr* fromAccountTypeRec = pOp->getValue("ACCOUNT_TYPE");
   if( fromAccountTypeRec == NULL ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -229,35 +229,35 @@ int Bank::performTransactionImpl1(int fromAccountId,
    */
   NdbOperation* pOp6 = pTrans->getNdbOperation("ACCOUNT");
   if (pOp6 == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp6->readTupleExclusive();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp6->equal("ACCOUNT_ID", toAccountId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   NdbRecAttr* balanceToRec = pOp6->getValue("BALANCE");
   if( balanceToRec == NULL ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* toAccountTypeRec = pOp6->getValue("ACCOUNT_TYPE");
   if( toAccountTypeRec == NULL ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -267,10 +267,10 @@ int Bank::performTransactionImpl1(int fromAccountId,
     const NdbError err = pTrans->getNdbError();
     m_ndb.closeTransaction(pTrans);    
     if (err.status == NdbError::TemporaryError){
-      ERR(err);
+      NDB_ERR(err);
       return NDBT_TEMPORARY;
     }
-    ERR(err);
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -295,28 +295,28 @@ int Bank::performTransactionImpl1(int fromAccountId,
    */
   NdbOperation* pOp2 = pTrans->getNdbOperation("ACCOUNT");
   if (pOp2 == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp2->updateTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp2->equal("ACCOUNT_ID", fromAccountId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp2->setValue("BALANCE", balanceFrom - amount);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -326,28 +326,28 @@ int Bank::performTransactionImpl1(int fromAccountId,
    */
   NdbOperation* pOp3 = pTrans->getNdbOperation("ACCOUNT");
   if (pOp3 == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp3->updateTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp3->equal("ACCOUNT_ID", toAccountId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp3->setValue("BALANCE", balanceTo + amount);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -357,63 +357,63 @@ int Bank::performTransactionImpl1(int fromAccountId,
    */
   NdbOperation* pOp4 = pTrans->getNdbOperation("TRANSACTION");
   if (pOp4 == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp4->insertTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp4->equal("TRANSACTION_ID", transId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp4->equal("ACCOUNT", fromAccountId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp4->setValue("ACCOUNT_TYPE", fromAccountType);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp4->setValue("OTHER_ACCOUNT", toAccountId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp4->setValue("TRANSACTION_TYPE", WithDrawal);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp4->setValue("TIME", currTime);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp4->setValue("AMOUNT", amount);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -423,63 +423,63 @@ int Bank::performTransactionImpl1(int fromAccountId,
    */
   NdbOperation* pOp5 = pTrans->getNdbOperation("TRANSACTION");
   if (pOp5 == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp5->insertTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp5->equal("TRANSACTION_ID", transId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp5->equal("ACCOUNT", toAccountId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp5->setValue("ACCOUNT_TYPE", toAccountType);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp5->setValue("OTHER_ACCOUNT", fromAccountId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp5->setValue("TRANSACTION_TYPE", Deposit);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp5->setValue("TIME", currTime);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp5->setValue("AMOUNT", amount);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -489,10 +489,10 @@ int Bank::performTransactionImpl1(int fromAccountId,
     const NdbError err = pTrans->getNdbError();
     m_ndb.closeTransaction(pTrans);    
     if (err.status == NdbError::TemporaryError){
-      ERR(err);
+      NDB_ERR(err);
       return NDBT_TEMPORARY;
     }
-    ERR(err);
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -510,13 +510,15 @@ int Bank::performMakeGLs(int yield){
   int yieldCounter = 0;
 
   while (1){
-    // Counters to keep tracck of how many
+    // Counters to keep track of how many
     // GLs should be made before performing a validation
     counter = 0;
     maxCounter = 50 + myRandom48(100);
     
     /** 
-     * Validate GLs and Transactions for previous days
+     * Validate GLs and Transactions for previous days.
+     * Temporary 'validate' errors are ignored as they
+     * will be retried in next round anyway.
      *
      */
     result = performValidateGLs();
@@ -525,9 +527,12 @@ int Bank::performMakeGLs(int yield){
 	g_err << "performValidateGLs verification failed" << endl;
 	return NDBT_FAILED;
       }
-      g_info << "performValidateGLs failed: " << result << endl;
-      return NDBT_FAILED;
-      continue;
+      else if (result != NDBT_TEMPORARY){
+        g_err << "performValidateGLs failed: " << result << endl;
+        return NDBT_FAILED;
+      }
+      g_info << "performValidateGLs skipped after temporary failure"
+             << endl;
     }
 
     result = performValidatePurged();
@@ -536,8 +541,12 @@ int Bank::performMakeGLs(int yield){
 	g_err << "performValidatePurged verification failed" << endl;
 	return NDBT_FAILED;
       }
-      g_info << "performValidatePurged failed" << endl;
-      return NDBT_FAILED;
+      else if (result != NDBT_TEMPORARY){
+        g_err << "performValidatePurged failed: " << result << endl;
+        return NDBT_FAILED;
+      }
+      g_info << "performValidatePurged skipped after temporary failure"
+             << endl;
     }
 
     while (1){
@@ -573,7 +582,7 @@ int Bank::performMakeGLs(int yield){
 	counter++;
 	if (performMakeGL(lastGLTime) != NDBT_OK){
 	  g_info << "performMakeGL failed" << endl;
-	// Break out of inner while loop
+	  // Break out of inner while loop
 	  break;
 	}
 	
@@ -613,16 +622,23 @@ int Bank::performValidateAllGLs(){
     
     /** 
      * Validate GLs and Transactions for previous days
-     * Set age so that ALL GL's are validated
+     * Set age so that ALL GL's are validated.
+     *
+     * If we encounter a temporary failure, verification
+     * is retried. Other errors are thrown as real errors.
      */
     int age = 100000;
     result = performValidateGLs(age);
     if (result != NDBT_OK){
-      if (result == VERIFICATION_FAILED){
-	g_err << "performValidateGLs verification failed" << endl;
-	return NDBT_FAILED;
+      if (result == NDBT_TEMPORARY){
+        g_info << "performValidateGLs, retry after temporary failure"
+               << endl;
+        continue;
       }
-      g_err << "performValidateGLs failed: " << result << endl;
+      if (result == VERIFICATION_FAILED)
+	g_err << "performValidateGLs verification failed" << endl;
+      else
+        g_err << "performValidateGLs failed: " << result << endl;
       return NDBT_FAILED;
     }
 
@@ -632,11 +648,16 @@ int Bank::performValidateAllGLs(){
      */
     result = performValidatePurged();
     if (result != NDBT_OK){
-      if (result == VERIFICATION_FAILED){
-	g_err << "performValidatePurged verification failed" << endl;
-	return NDBT_FAILED;
+
+      if (result == NDBT_TEMPORARY){
+        g_info << "performValidatePurged, retry after temporary failure"
+               << endl;
+        continue;
       }
-      g_err << "performValidatePurged failed" << endl;
+      if (result == VERIFICATION_FAILED)
+	g_err << "performValidatePurged verification failed" << endl;
+      else
+        g_err << "performValidatePurged failed: " << result << endl;
       return NDBT_FAILED;
     }
     return NDBT_OK;
@@ -654,34 +675,44 @@ int Bank::findLastGL(Uint64 &lastTime){
    */
   NdbConnection* pScanTrans = m_ndb.startTransaction();
   if (pScanTrans == NULL) {
-    ERR(m_ndb.getNdbError());
+    const NdbError err = m_ndb.getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
       
   NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("GL");	
   if (pOp == NULL) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   if( pOp->readTuples() ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* timeRec = pOp->getValue("TIME");
   if( timeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   check = pScanTrans->execute(NoCommit);
   if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -700,8 +731,13 @@ int Bank::findLastGL(Uint64 &lastTime){
     eof = pOp->nextResult();
   }
   if (eof == -1) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -720,7 +756,12 @@ int Bank::performMakeGL(Uint64 time){
   // Start transaction    
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL){
-    ERR(m_ndb.getNdbError());
+    const NdbError err = m_ndb.getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
   for (int i = 0; i < getNumAccountTypes(); i++){
@@ -733,8 +774,13 @@ int Bank::performMakeGL(Uint64 time){
   }
   // Execute transaction    
   if( pTrans->execute(Commit) == -1 ) {
-    ERR(pTrans->getNdbError());
-    m_ndb.closeTransaction(pTrans);
+    const NdbError err = pTrans->getNdbError();
+    m_ndb.closeTransaction(pTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }    
   m_ndb.closeTransaction(pTrans);      
@@ -761,104 +807,114 @@ int Bank::performMakeGLForAccountType(NdbConnection* pTrans,
   // records still exist
   NdbOperation* pOp = pTrans->getNdbOperation("GL");
   if (pOp == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
     
   check = pOp->insertTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
       
   check = pOp->equal("TIME", glTime);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp->equal("ACCOUNT_TYPE", accountTypeId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp->setValue("BALANCE", balance);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp->setValue("DEPOSIT_COUNT", depositCount);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp->setValue("DEPOSIT_SUM", depositSum);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp->setValue("WITHDRAWAL_COUNT", withdrawalCount);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp->setValue("WITHDRAWAL_SUM", withdrawalSum);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp->setValue("PURGED", purged);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
       
   check = pTrans->execute(NoCommit);
   if( check == -1 ) {
-    ERR(pOp->getNdbError());
+    const NdbError err = pOp->getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
 
   // Read previous GL record to get old balance
   NdbOperation* pOp2 = pTrans->getNdbOperation("GL");
   if (pOp2 == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
     
   check = pOp2->readTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
       
   check = pOp2->equal("TIME", glTime-1);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp2->equal("ACCOUNT_TYPE", accountTypeId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   NdbRecAttr* oldBalanceRec = pOp2->getValue("BALANCE");
   if( oldBalanceRec == NULL ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pTrans->execute(NoCommit);
   if( check == -1 ) {
-    ERR(pOp2->getNdbError());
+    const NdbError err = pOp2->getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }    
 
@@ -892,68 +948,73 @@ int Bank::performMakeGLForAccountType(NdbConnection* pTrans,
 
   NdbOperation* pOp3 = pTrans->getNdbOperation("GL");
   if (pOp3 == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
     
   check = pOp3->updateTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
       
   check = pOp3->equal("TIME", glTime);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp3->equal("ACCOUNT_TYPE", accountTypeId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp3->setValue("BALANCE", balance);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp3->setValue("DEPOSIT_COUNT", depositCount);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp3->setValue("DEPOSIT_SUM", depositSum);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp3->setValue("WITHDRAWAL_COUNT", withdrawalCount);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp3->setValue("WITHDRAWAL_SUM", withdrawalSum);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp3->setValue("PURGED", purged);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   // Execute transaction    
   check = pTrans->execute(NoCommit);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    const NdbError err = pTrans->getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }    
 
@@ -978,55 +1039,65 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
     
   NdbConnection* pScanTrans = m_ndb.startTransaction();
   if (pScanTrans == NULL) {
-    ERR(m_ndb.getNdbError());
+    const NdbError err = m_ndb.getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
       
   NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("TRANSACTION");
   if (pOp == NULL) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   if( pOp->readTuplesExclusive()) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
   if( accountTypeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* timeRec = pOp->getValue("TIME");
   if( timeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* transTypeRec = pOp->getValue("TRANSACTION_TYPE");
   if( transTypeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* amountRec = pOp->getValue("AMOUNT");
   if( amountRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   check = pScanTrans->execute(NoCommit);
   if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -1050,7 +1121,7 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
 	withdrawalSum += amount;
 	balance -= amount;
       } else {	  
-	assert(transType == Deposit);
+	require(transType == Deposit);
 	depositCount++;
 	depositSum += amount;
 	balance += amount;
@@ -1062,15 +1133,25 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
     if ((rows % 100) == 0){
       // "refresh" ownner transaction every 100th row
       if (pTrans->refresh() == -1) {
-	ERR(pTrans->getNdbError());
+        const NdbError err = pTrans->getNdbError();
+        if (err.status == NdbError::TemporaryError){
+          NDB_ERR(err);
+          return NDBT_TEMPORARY;
+        }
+        NDB_ERR(err)
 	return NDBT_FAILED;
       }
     }
 
   }
   if (eof == -1) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -1130,82 +1211,92 @@ int Bank::performValidateGL(Uint64 glTime){
     */
    NdbConnection* pScanTrans = m_ndb.startTransaction();
    if (pScanTrans == NULL) {
-     ERR(m_ndb.getNdbError());
+     const NdbError err = m_ndb.getNdbError();
+     if (err.status == NdbError::TemporaryError){
+       NDB_ERR(err);
+       return NDBT_TEMPORARY;
+     }
+     NDB_ERR(err);
      return NDBT_FAILED;
    }
    
    NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("GL");	
    if (pOp == NULL) {
-     ERR(pScanTrans->getNdbError());
+     NDB_ERR(pScanTrans->getNdbError());
      m_ndb.closeTransaction(pScanTrans);
      return NDBT_FAILED;
    }
    
    if( pOp->readTuples() ) {
-     ERR(pScanTrans->getNdbError());
+     NDB_ERR(pScanTrans->getNdbError());
      m_ndb.closeTransaction(pScanTrans);
      return NDBT_FAILED;
    }
    
    NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
    if( accountTypeRec ==NULL ) {
-     ERR(pScanTrans->getNdbError());
+     NDB_ERR(pScanTrans->getNdbError());
      m_ndb.closeTransaction(pScanTrans);
      return NDBT_FAILED;
    }
 
   NdbRecAttr* timeRec = pOp->getValue("TIME");
   if( timeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* purgedRec = pOp->getValue("PURGED");
   if( purgedRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* balanceRec = pOp->getValue("BALANCE");
   if( balanceRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* depositSumRec = pOp->getValue("DEPOSIT_SUM");
   if( depositSumRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* depositCountRec = pOp->getValue("DEPOSIT_COUNT");
   if( depositCountRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* withdrawalSumRec = pOp->getValue("WITHDRAWAL_SUM");
   if( withdrawalSumRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
   NdbRecAttr* withdrawalCountRec = pOp->getValue("WITHDRAWAL_COUNT");
   if( withdrawalCountRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   check = pScanTrans->execute(NoCommit);
   if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
 
@@ -1274,10 +1365,10 @@ int Bank::performValidateGL(Uint64 glTime){
 		  << "dep count :   " << depositCount << "!="<<dcount<<endl;
 	    result = VERIFICATION_FAILED;
 	  }
-	    }	  
+	}	  
 
       } else {
-	assert(purged == 1);
+	require(purged == 1);
 	// If purged == 1 then there should be NO transactions with 
 	// TIME == glTime and ACCOUNT_TYPE == account_type
 	
@@ -1303,8 +1394,13 @@ int Bank::performValidateGL(Uint64 glTime){
     eof = pOp->nextResult();
   }
   if (eof == -1) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -1329,43 +1425,53 @@ int Bank::getBalanceForGL(const Uint64 glTime,
 
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL) {
-    ERR(m_ndb.getNdbError());
+    const NdbError err = m_ndb.getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
   
   NdbOperation* pOp = pTrans->getNdbOperation("GL");
   if (pOp == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
     
   check = pOp->readTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
       
   check = pOp->equal("TIME", glTime);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp->equal("ACCOUNT_TYPE", accountTypeId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   NdbRecAttr* balanceRec = pOp->getValue("BALANCE");
   if( balanceRec == NULL ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pTrans->execute(Commit);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    const NdbError err = pTrans->getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   } 
 
@@ -1389,40 +1495,45 @@ int Bank::getOldestPurgedGL(const Uint32 accountType,
   {
     pScanTrans = m_ndb.startTransaction();
     if (pScanTrans == NULL) {
-      ERR(m_ndb.getNdbError());
+      const NdbError err = m_ndb.getNdbError();
+      if (err.status == NdbError::TemporaryError){
+        NDB_ERR(err);
+        return NDBT_TEMPORARY;
+      }
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
     
     NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("GL");	
     if (pOp == NULL) {
-      ERR(pScanTrans->getNdbError());
+      NDB_ERR(pScanTrans->getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
     }
     
     if( pOp->readTuples() ) {
-      ERR(pScanTrans->getNdbError());
+      NDB_ERR(pScanTrans->getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
     }
     
     NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
     if( accountTypeRec ==NULL ) {
-      ERR(pScanTrans->getNdbError());
+      NDB_ERR(pScanTrans->getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
     }
     
     NdbRecAttr* timeRec = pOp->getValue("TIME");
     if( timeRec ==NULL ) {
-      ERR(pScanTrans->getNdbError());
+      NDB_ERR(pScanTrans->getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
     }
     
     NdbRecAttr* purgedRec = pOp->getValue("PURGED");
     if( purgedRec ==NULL ) {
-      ERR(pScanTrans->getNdbError());
+      NDB_ERR(pScanTrans->getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
     }
@@ -1430,7 +1541,7 @@ int Bank::getOldestPurgedGL(const Uint32 accountType,
     check = pScanTrans->execute(NoCommit);
     if( check == -1 ) {
       NdbError err = pScanTrans->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       m_ndb.closeTransaction(pScanTrans);
       if (err.status == NdbError::TemporaryError)
       {
@@ -1461,7 +1572,7 @@ int Bank::getOldestPurgedGL(const Uint32 accountType,
     if (eof == -1) 
     {
       NdbError err = pScanTrans->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       m_ndb.closeTransaction(pScanTrans);
       
       if (err.status == NdbError::TemporaryError)
@@ -1489,48 +1600,58 @@ int Bank::getOldestNotPurgedGL(Uint64 &oldest,
    */
   NdbConnection* pScanTrans = m_ndb.startTransaction();
   if (pScanTrans == NULL) {
-    ERR(m_ndb.getNdbError());
+    const NdbError err = m_ndb.getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
       
   NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("GL");	
   if (pOp == NULL) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   if( pOp->readTuples() ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
   if( accountTypeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* timeRec = pOp->getValue("TIME");
   if( timeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* purgedRec = pOp->getValue("PURGED");
   if( purgedRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   check = pScanTrans->execute(NoCommit);
   if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -1556,8 +1677,13 @@ int Bank::getOldestNotPurgedGL(Uint64 &oldest,
     eof = pOp->nextResult();
   }
   if (eof == -1) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -1583,40 +1709,45 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
     loop++;
     pScanTrans = m_ndb.startTransaction();
     if (pScanTrans == NULL) {
-      ERR(m_ndb.getNdbError());
+      const NdbError err = m_ndb.getNdbError();
+      if (err.status == NdbError::TemporaryError){
+        NDB_ERR(err);
+        return NDBT_TEMPORARY;
+      }
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
     
     NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("TRANSACTION");
     if (pOp == NULL) {
-      ERR(pScanTrans->getNdbError());
+      NDB_ERR(pScanTrans->getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
     }
     
     if( pOp->readTuples() ) {
-      ERR(pScanTrans->getNdbError());
+      NDB_ERR(pScanTrans->getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
     }
     
     NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
     if( accountTypeRec ==NULL ) {
-      ERR(pScanTrans->getNdbError());
+      NDB_ERR(pScanTrans->getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
     }
     
     NdbRecAttr* timeRec = pOp->getValue("TIME");
     if( timeRec ==NULL ) {
-      ERR(pScanTrans->getNdbError());
+      NDB_ERR(pScanTrans->getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
     }
     
     NdbRecAttr* transactionIdRec = pOp->getValue("TRANSACTION_ID");
     if( transactionIdRec ==NULL ) {
-      ERR(pScanTrans->getNdbError());
+      NDB_ERR(pScanTrans->getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
     }
@@ -1624,7 +1755,7 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
     check = pScanTrans->execute(NoCommit);   
     if( check == -1 ) {
       NdbError err = pScanTrans->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       m_ndb.closeTransaction(pScanTrans);
 
       if (err.status == NdbError::TemporaryError)
@@ -1658,7 +1789,7 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
     }
     if (eof == -1) {
       NdbError err = pScanTrans->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       m_ndb.closeTransaction(pScanTrans);
       
       if (err.status == NdbError::TemporaryError)
@@ -1764,46 +1895,56 @@ int Bank::purgeTransactions(const Uint64 glTime,
   g_info << "purgeTransactions: " << glTime << ", "<<accountTypeId<<endl;
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL){
-    ERR(m_ndb.getNdbError());
+    const NdbError err = m_ndb.getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
 
   // Start by updating the GL record with purged = 1, use NoCommit
   NdbOperation* pOp = pTrans->getNdbOperation("GL");
   if (pOp == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
     
   check = pOp->updateTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
       
   check = pOp->equal("TIME", glTime);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   check = pOp->equal("ACCOUNT_TYPE", accountTypeId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   Uint32 purged = 1;
   check = pOp->setValue("PURGED", purged);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
 
   // Execute transaction    
   check = pTrans->execute(NoCommit);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    const NdbError err = pTrans->getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }    
 
@@ -1821,7 +1962,12 @@ int Bank::purgeTransactions(const Uint64 glTime,
 
   check = pTrans->execute(Commit);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    const NdbError err = pTrans->getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   } 
 
@@ -1837,41 +1983,51 @@ int Bank::findTransactionsToPurge(const Uint64 glTime,
   
   NdbConnection* pScanTrans = m_ndb.startTransaction();
   if (pScanTrans == NULL) {
-    ERR(m_ndb.getNdbError());
+    const NdbError err = m_ndb.getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
       
   NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("TRANSACTION");	
   if (pOp == NULL) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   if( pOp->readTuplesExclusive() ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* timeRec = pOp->getValue("TIME");
   if( timeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
   if( accountTypeRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   check = pScanTrans->execute(NoCommit);   
   if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -1890,7 +2046,7 @@ int Bank::findTransactionsToPurge(const Uint64 glTime,
       // One record found
       check = pOp->deleteCurrentTuple(pTrans);
       if (check == -1){
-	ERR(m_ndb.getNdbError());
+	NDB_ERR(m_ndb.getNdbError());
 	m_ndb.closeTransaction(pScanTrans);
 	return NDBT_FAILED;
       }
@@ -1898,16 +2054,26 @@ int Bank::findTransactionsToPurge(const Uint64 glTime,
       // Execute transaction    
       check = pTrans->execute(NoCommit);
       if( check == -1 ) {
-	ERR(pTrans->getNdbError());
-	m_ndb.closeTransaction(pScanTrans);
-	return NDBT_FAILED;
+        const NdbError err = pTrans->getNdbError();
+        m_ndb.closeTransaction(pScanTrans);    
+        if (err.status == NdbError::TemporaryError){
+          NDB_ERR(err);
+          return NDBT_TEMPORARY;
+        }
+        NDB_ERR(err);
+        return NDBT_FAILED;
       }       
     }
     eof = pOp->nextResult();
   }
   if (eof == -1) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -1952,7 +2118,7 @@ int Bank::readSystemValue(SystemValueId sysValId, Uint64 & value){
     pTrans = m_ndb.startTransaction();
     if (pTrans == NULL)
     {
-      ERR(m_ndb.getNdbError());
+      NDB_ERR(m_ndb.getNdbError());
       if(m_ndb.getNdbError().status == NdbError::TemporaryError)
       {
 	NdbSleep_MilliSleep(50);
@@ -1964,7 +2130,7 @@ int Bank::readSystemValue(SystemValueId sysValId, Uint64 & value){
     int result;
     if ((result= prepareReadSystemValueOp(pTrans, sysValId, value)) != NDBT_OK)
     {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       m_ndb.closeTransaction(pTrans);
       return result;
     }
@@ -1973,7 +2139,7 @@ int Bank::readSystemValue(SystemValueId sysValId, Uint64 & value){
     if( check == -1 ) {
       NdbError err = pTrans->getNdbError();
       m_ndb.closeTransaction(pTrans);
-      ERR(err);
+      NDB_ERR(err);
       if(err.status == NdbError::TemporaryError)
       {
 	NdbSleep_MilliSleep(50);
@@ -2023,42 +2189,52 @@ int Bank::writeSystemValue(SystemValueId sysValId, Uint64 value){
     
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL){
-    ERR(m_ndb.getNdbError());
+    const NdbError err = m_ndb.getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
   NdbOperation* pOp = pTrans->getNdbOperation("SYSTEM_VALUES");
   if (pOp == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
     
   check = pOp->insertTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
       
   check = pOp->equal("SYSTEM_VALUES_ID", sysValId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp->setValue("VALUE", value);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pTrans->execute(Commit);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
-    m_ndb.closeTransaction(pTrans);
+    const NdbError err = pTrans->getNdbError();
+    m_ndb.closeTransaction(pTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -2089,7 +2265,7 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
     
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL){
-    ERR(m_ndb.getNdbError());
+    NDB_ERR(m_ndb.getNdbError());
     if (m_ndb.getNdbError().status == NdbError::TemporaryError)
       DBUG_RETURN(NDBT_TEMPORARY);
     DBUG_RETURN(NDBT_FAILED);
@@ -2097,7 +2273,7 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
     
   NdbOperation* pOp = pTrans->getNdbOperation("SYSTEM_VALUES");
   if (pOp == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
@@ -2105,28 +2281,28 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
   check = pOp->readTupleExclusive();
   //  check = pOp->readTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pOp->equal("SYSTEM_VALUES_ID", sysValId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
     
   NdbRecAttr* valueRec = pOp->getValue("VALUE");
   if( valueRec ==NULL ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pTrans->execute(NoCommit);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     if (pTrans->getNdbError().status == NdbError::TemporaryError)
     {
       m_ndb.closeTransaction(pTrans);
@@ -2141,56 +2317,61 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
     
   NdbOperation* pOp2 = pTrans->getNdbOperation("SYSTEM_VALUES");
   if (pOp2 == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pOp2->updateTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pOp2->equal("SYSTEM_VALUES_ID", sysValId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pOp2->setValue("VALUE", value);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
 
   check = pTrans->execute(NoCommit);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
-    m_ndb.closeTransaction(pTrans);
+    const NdbError err = pTrans->getNdbError();
+    m_ndb.closeTransaction(pTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     DBUG_RETURN(NDBT_FAILED);
   }
 
   NdbOperation* pOp3 = pTrans->getNdbOperation("SYSTEM_VALUES");
   if (pOp3 == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
 
   check = pOp3->readTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
     
   check = pOp3->equal("SYSTEM_VALUES_ID", sysValId);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
@@ -2198,14 +2379,14 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
   // Read new value
   NdbRecAttr* valueNewRec = pOp3->getValue("VALUE");
   if( valueNewRec ==NULL ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);
   }
 
   check = pTrans->execute(Commit);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     if (pTrans->getNdbError().status == NdbError::TemporaryError)
     {
       m_ndb.closeTransaction(pTrans);
@@ -2244,7 +2425,7 @@ int Bank::increaseSystemValue2(SystemValueId sysValId, Uint64 &value){
     
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL){
-    ERR(m_ndb.getNdbError());
+    NDB_ERR(m_ndb.getNdbError());
     if(m_ndb.getNdbError().status == NdbError::TemporaryError)
       return NDBT_TEMPORARY;
     return NDBT_FAILED;
@@ -2252,21 +2433,21 @@ int Bank::increaseSystemValue2(SystemValueId sysValId, Uint64 &value){
     
   NdbOperation* pOp = pTrans->getNdbOperation("SYSTEM_VALUES");
   if (pOp == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp->interpretedUpdateTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   check = pOp->equal("SYSTEM_VALUES_ID", sysValId );
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -2274,21 +2455,21 @@ int Bank::increaseSystemValue2(SystemValueId sysValId, Uint64 &value){
   Uint32 valToIncWith = 1;
   check = pOp->incValue("VALUE", valToIncWith);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* valueRec = pOp->getValue("VALUE");
   if( valueRec == NULL ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     m_ndb.closeTransaction(pTrans);
     return NDBT_FAILED;
   }
   
   check = pTrans->execute(Commit);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     if(pTrans->getNdbError().status == NdbError::TemporaryError)
     {
       m_ndb.closeTransaction(pTrans);
@@ -2361,41 +2542,56 @@ int Bank::getSumAccounts(Uint32 &sumAccounts,
   int check;    
   NdbConnection* pScanTrans = m_ndb.startTransaction();
   if (pScanTrans == NULL) {
-    ERR(m_ndb.getNdbError());
+    const NdbError err = m_ndb.getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
 
   NdbScanOperation* pOp = pScanTrans->getNdbScanOperation("ACCOUNT");	
   if (pOp == NULL) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   if( pOp->readTuplesExclusive() ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   NdbRecAttr* balanceRec = pOp->getValue("BALANCE");
   if( balanceRec ==NULL ) {
-    ERR(pScanTrans->getNdbError());
+    NDB_ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
   }
 
   check = pScanTrans->execute(NoCommit);   
   if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
 
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL) {
-    ERR(m_ndb.getNdbError());
+    const NdbError err = m_ndb.getNdbError();
     m_ndb.closeTransaction(pScanTrans);
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }   
 
@@ -2414,7 +2610,7 @@ int Bank::getSumAccounts(Uint32 &sumAccounts,
     // Take over the operation so that the lock is kept in db
     NdbOperation* pLockOp = pOp->updateCurrentTuple(pTrans);
     if (pLockOp == NULL){
-      ERR(m_ndb.getNdbError());
+      NDB_ERR(m_ndb.getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       m_ndb.closeTransaction(pTrans);
       return NDBT_FAILED;
@@ -2423,7 +2619,7 @@ int Bank::getSumAccounts(Uint32 &sumAccounts,
     Uint32 illegalBalance = 99;
     check = pLockOp->setValue("BALANCE", illegalBalance);
     if( check == -1 ) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       m_ndb.closeTransaction(pTrans);
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
@@ -2432,18 +2628,28 @@ int Bank::getSumAccounts(Uint32 &sumAccounts,
     // Execute transaction    
     check = pTrans->execute(NoCommit);
     if( check == -1 ) {
-      ERR(pTrans->getNdbError());
+      const NdbError err = pTrans->getNdbError();
       m_ndb.closeTransaction(pScanTrans);
       m_ndb.closeTransaction(pTrans);
+      if (err.status == NdbError::TemporaryError){
+        NDB_ERR(err);
+        return NDBT_TEMPORARY;
+      }
+      NDB_ERR(err);
       return NDBT_FAILED;
     }       
 
     eof = pOp->nextResult();
   }
   if (eof == -1) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
+    const NdbError err = pScanTrans->getNdbError();
+    m_ndb.closeTransaction(pScanTrans);    
     m_ndb.closeTransaction(pTrans);
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
 
@@ -2452,9 +2658,14 @@ int Bank::getSumAccounts(Uint32 &sumAccounts,
   // Rollback transaction    
   check = pTrans->execute(Rollback);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    const NdbError err = pTrans->getNdbError();
     m_ndb.closeTransaction(pScanTrans);
     m_ndb.closeTransaction(pTrans);
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
+      return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }       
     

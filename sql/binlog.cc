@@ -2975,7 +2975,7 @@ err:
       to the client side.
      */
     thd->clear_error();
-    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disc is full or "
+    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
              "file system is read only while opening the binlog. Aborting the "
              "server");
     thd->protocol->end_statement();
@@ -3793,7 +3793,7 @@ err:
       to the client side.
      */
     thd->clear_error();
-    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disc is full or "
+    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
              "file system is read only while opening the binlog. Aborting the "
              "server");
     thd->protocol->end_statement();
@@ -4894,7 +4894,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
 
   for (;;)
   {
-    uint length;
+    size_t length;
 
     if ((length=my_b_gets(&purge_index_file, log_info.log_file_name,
                           FN_REFLEN)) <= 1)
@@ -5436,7 +5436,7 @@ end:
         to the client side.
        */
       thd->clear_error();
-      my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disc is full or "
+      my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
                "file system is read only while rotating the binlog. Aborting "
                "the server");
       thd->protocol->end_statement();
@@ -6051,8 +6051,10 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
   if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     DBUG_RETURN(ER_ERROR_ON_WRITE);
   size_t length = my_b_bytes_in_cache(cache);
-  uint group, carry, hdr_offs;
-  ulong remains= 0; // part of unprocessed yet netto length of the event
+  uint group;
+  size_t carry;
+  size_t hdr_offs;
+  size_t remains= 0; // part of unprocessed yet netto length of the event
   long val;
   ulong end_log_pos_inc= 0; // each event processed adds BINLOG_CHECKSUM_LEN 2 t
   uint pc_offset= LOG_EVENT_HEADER_LEN + cache->commit_seq_offset;
@@ -6745,10 +6747,24 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     my_stat(log_name, &s, MYF(0));
     binlog_size= s.st_size;
 
+    /*
+      If the binary log was not properly closed it means that the server
+      may have crashed. In that case, we need to call MYSQL_BIN_LOG::recover
+      to:
+
+        a) collect logged XIDs;
+        b) complete the 2PC of the pending XIDs;
+        c) collect the last valid position.
+
+      Therefore, we do need to iterate over the binary log, even if
+      total_ha_2pc == 1, to find the last valid group of events written.
+      Later we will take this value and truncate the log if need be.
+    */
     if ((ev= Log_event::read_log_event(&log, 0, &fdle,
                                        opt_master_verify_checksum)) &&
         ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
-        ev->flags & LOG_EVENT_BINLOG_IN_USE_F)
+        (ev->flags & LOG_EVENT_BINLOG_IN_USE_F ||
+         DBUG_EVALUATE_IF("eval_force_bin_log_recovery", true, false)))
     {
       sql_print_information("Recovering after a crash using %s", opt_name);
       valid_pos= my_b_tell(&log);
@@ -7564,7 +7580,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   /*
      The group commit Leader may have to wait for follower whose transaction
      is not ready to be preempted. Initially the status is pessimistic.
-     Preemption guarding logics is necessary only when DBUG_ON is set.
+     Preemption guarding logics is necessary only when !DBUG_OFF is set.
      It won't be required for the dbug-off case as long as the follower won't
      execute any thread-specific write access code in this method, which is
      the case as of current.
@@ -7867,7 +7883,13 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
     delete ev;
   }
 
-  if (ha_recover(&xids))
+  /*
+    Call ha_recover if and only if there is a registered engine that
+    does 2PC, otherwise in DBUG builds calling ha_recover directly
+    will result in an assert. (Production builds would be safe since
+    ha_recover returns right away if total_ha_2pc <= opt_log_bin.)
+   */
+  if (total_ha_2pc > 1 && ha_recover(&xids))
     goto err2;
 
   free_root(&mem_root, MYF(0));
@@ -9028,7 +9050,7 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
 }
 
 /* Declare in unnamed namespace. */
-CPP_UNNAMED_NS_START
+namespace {
 
   /**
      Class to handle temporary allocation of memory for row data.
@@ -9150,7 +9172,7 @@ CPP_UNNAMED_NS_START
     uchar *m_ptr[2];
   };
 
-CPP_UNNAMED_NS_END
+} // namespace
 
 int THD::binlog_write_row(TABLE* table, bool is_trans, 
                           uchar const *record,
@@ -9432,7 +9454,7 @@ THD::binlog_row_event_extra_data_eq(const uchar* a,
                    a[EXTRA_ROW_INFO_LEN_OFFSET]) == 0)));
 }
 
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
 static const char *
 show_query_type(THD::enum_binlog_query_type qtype)
 {

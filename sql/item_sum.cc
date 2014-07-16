@@ -880,6 +880,8 @@ bool Aggregator_distinct::setup(THD *thd)
       return TRUE;
     table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
     table->no_rows=1;
+    if (table->hash_field)
+      table->file->ha_index_init(0, 0);
 
     if (table->s->db_type() == heap_hton)
     {
@@ -1038,7 +1040,10 @@ void Aggregator_distinct::clear()
     if (!tree && table)
     {
       table->file->extra(HA_EXTRA_NO_CACHE);
+      table->file->ha_index_or_rnd_end();
       table->file->ha_delete_all_rows();
+      if (table->hash_field)
+        table->file->ha_index_init(0, 0);
       table->file->extra(HA_EXTRA_WRITE_CACHE);
     }
   }
@@ -1100,6 +1105,9 @@ bool Aggregator_distinct::add()
       */
       return tree->unique_add(table->record[0] + table->s->null_bytes);
     }
+
+    if (!check_unique_constraint(table, 0))
+      return false;
     if ((error= table->file->ha_write_row(table->record[0])) &&
         !table->file->is_ignorable_error(error))
       return TRUE;
@@ -1167,7 +1175,17 @@ void Aggregator_distinct::endup()
     {
       /* there were blobs */
       table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-      sum->count= table->file->stats.records;
+      if (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT)
+        sum->count= table->file->stats.records;
+      else
+      {
+        // index must be closed before ha_records() is called
+        if (table->file->inited)
+          table->file->ha_index_or_rnd_end();
+        ha_rows num_rows= 0;
+        table->file->ha_records(&num_rows);
+        sum->count= static_cast<longlong>(num_rows);
+      }
       endup_done= TRUE;
     }
   }
@@ -1552,6 +1570,8 @@ Aggregator_distinct::~Aggregator_distinct()
   }
   if (table)
   {
+    if (table->file)
+      table->file->ha_index_or_rnd_end();
     free_tmp_table(table->in_use, table);
     table=NULL;
   }
@@ -3141,7 +3161,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
   uchar *key= (uchar *) key_arg;
   String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
-  uint old_length= result->length();
+  size_t old_length= result->length();
 
   if (item->no_appended)
     item->no_appended= FALSE;
@@ -3187,7 +3207,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
     int well_formed_error;
     const CHARSET_INFO *cs= item->collation.collation;
     const char *ptr= result->ptr();
-    uint add_length;
+    size_t add_length;
     /*
       It's ok to use item->result.length() as the fourth argument
       as this is never used to limit the length of the data.
@@ -3520,12 +3540,13 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   null_value= 1;
   max_length= thd->variables.group_concat_max_len;
 
-  uint32 offset;
+  size_t offset;
   if (separator->needs_conversion(separator->length(), separator->charset(),
                                   collation.collation, &offset))
   {
-    uint32 buflen= collation.collation->mbmaxlen * separator->length();
-    uint errors, conv_length;
+    size_t buflen= collation.collation->mbmaxlen * separator->length();
+    uint errors;
+    size_t conv_length;
     char *buf;
     String *new_separator;
 

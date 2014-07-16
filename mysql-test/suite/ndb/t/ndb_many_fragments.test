@@ -50,10 +50,12 @@ let $query =
 ;
 
 set ndb_join_pushdown = false;
+--replace_column 10 # 11 #
 eval explain $query;
 eval $query;
 
 set ndb_join_pushdown = true;
+--replace_column 10 # 11 #
 eval explain $query;
 eval $query;
 

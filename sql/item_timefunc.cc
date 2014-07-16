@@ -176,7 +176,7 @@ static DATE_TIME_FORMAT time_24hrs_format= {{0}, '\0', 0,
 */
 
 static bool extract_date_time(DATE_TIME_FORMAT *format,
-			      const char *val, uint length, MYSQL_TIME *l_time,
+                              const char *val, size_t length, MYSQL_TIME *l_time,
                               timestamp_type cached_timestamp_type,
                               const char **sub_pattern_end,
                               const char *date_time_type)
@@ -828,6 +828,37 @@ bool Item_temporal_func::check_precision()
     return true;
   }
   return false;
+}
+
+/**
+  Appends function name with argument list or fractional seconds part
+  to the String str.
+
+  @param[in/out]  str         String to which the func_name and decimals/
+                              argument list should be appended.
+  @param[in]      query_type  Query type
+
+*/
+
+void Item_temporal_func::print(String *str, enum_query_type query_type)
+{
+  str->append(func_name());
+  str->append('(');
+
+  // When the functions have arguments specified
+  if (arg_count)
+    print_args(str, 0, query_type);
+  else if (decimals)
+  {
+    /*
+      For temporal functions like NOW, CURTIME and SYSDATE which can specify
+      fractional seconds part.
+    */
+    str_value.set_int(decimals, unsigned_flag, &my_charset_bin);
+    str->append(str_value);
+  }
+
+  str->append(')');
 }
 
 
@@ -3159,7 +3190,7 @@ String *Item_func_get_format::val_str_ascii(String *str)
   const char *format_name;
   KNOWN_DATE_TIME_FORMAT *format;
   String *val= args[0]->val_str_ascii(str);
-  ulong val_len;
+  size_t val_len;
 
   if ((null_value= args[0]->null_value))
     return 0;    
@@ -3225,7 +3256,7 @@ void Item_func_get_format::print(String *str, enum_query_type query_type)
     Format specifiers supported by this function should be in sync with
     specifiers supported by extract_date_time() function.
 */
-void Item_func_str_to_date::fix_from_format(const char *format, uint length)
+void Item_func_str_to_date::fix_from_format(const char *format, size_t length)
 {
   const char *time_part_frms= "HISThiklrs";
   const char *date_part_frms= "MVUXYWabcjmvuxyw";

@@ -4465,22 +4465,25 @@ void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc)
   return;
 }
 
-void pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
+PSI_stage_progress*
+pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
 {
   ulonglong timer_value= 0;
 
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
-    return;
+    return NULL;
 
   /* Always update column threads.processlist_state. */
   pfs_thread->m_stage= key;
+  /* Default value when the stage is not instrumented for progress */
+  pfs_thread->m_stage_progress= NULL;
 
   if (! flag_global_instrumentation)
-    return;
+    return NULL;
 
   if (flag_thread_instrumentation && ! pfs_thread->m_enabled)
-    return;
+    return NULL;
 
   PFS_events_stages *pfs= & pfs_thread->m_stage_current;
   PFS_events_waits *child_wait= & pfs_thread->m_events_waits_stack[0];
@@ -4531,10 +4534,10 @@ void pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
 
   PFS_stage_class *new_klass= find_stage_class(key);
   if (unlikely(new_klass == NULL))
-    return;
+    return NULL;
 
   if (! new_klass->m_enabled)
-    return;
+    return NULL;
 
   pfs->m_class= new_klass;
   if (new_klass->m_timed)
@@ -4563,6 +4566,25 @@ void pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
     child_wait->m_event_id= pfs->m_event_id;
     child_wait->m_event_type= EVENT_TYPE_STAGE;
   }
+
+  if (new_klass->is_progress())
+  {
+    pfs_thread->m_stage_progress= & pfs->m_progress;
+    pfs->m_progress.m_work_completed= 0;
+    pfs->m_progress.m_work_estimated= 0;
+  }
+
+  return pfs_thread->m_stage_progress;
+}
+
+PSI_stage_progress*
+pfs_get_current_stage_progress_v1()
+{
+  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
+  if (unlikely(pfs_thread == NULL))
+    return NULL;
+
+  return pfs_thread->m_stage_progress;
 }
 
 void pfs_end_stage_v1()
@@ -4574,6 +4596,7 @@ void pfs_end_stage_v1()
     return;
 
   pfs_thread->m_stage= 0;
+  pfs_thread->m_stage_progress= NULL;
 
   if (! flag_global_instrumentation)
     return;
@@ -6571,6 +6594,7 @@ PSI_v1 PFS_v1=
   pfs_start_file_close_wait_v1,
   pfs_end_file_close_wait_v1,
   pfs_start_stage_v1,
+  pfs_get_current_stage_progress_v1,
   pfs_end_stage_v1,
   pfs_get_thread_statement_locker_v1,
   pfs_refine_statement_v1,

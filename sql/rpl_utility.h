@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -372,12 +372,16 @@ public:
     @param[out] tmp_table_var Pointer to temporary table for holding
     conversion table.
 
+    @param mem_root mem_root from which memory should be allocated.
+    Default value is NULL and thread's mem_root will be considered in
+    that case.
+
     @retval 1  if the table definition is not compatible with @c table
     @retval 0  if the table definition is compatible with @c table
   */
 #ifndef MYSQL_CLIENT
   bool compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
-                      TABLE **conv_table_var) const;
+                      TABLE **conv_table_var, MEM_ROOT* mem_root= NULL) const;
 
   /**
    Create a virtual in-memory temporary table structure.
@@ -397,11 +401,15 @@ public:
    @param thd Thread to allocate memory from.
    @param rli Relay log info structure, for error reporting.
    @param target_table Target table for fields.
+   @param mem_root mem_root from which memory should be allocated.
+   Default value is NULL and thread's mem_root will be considered in
+   that case.
 
    @return A pointer to a temporary table with memory allocated in the
    thread's memroot, NULL if the table could not be created
    */
-  TABLE *create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *target_table) const;
+  TABLE *create_conversion_table(THD *thd, Relay_log_info *rli, TABLE
+                                 *target_table, MEM_ROOT *mem_root= NULL) const;
 #endif
 
 
@@ -431,7 +439,7 @@ struct RPL_TABLE_LIST
 
 
 /* Anonymous namespace for template functions/classes */
-CPP_UNNAMED_NS_START
+namespace {
 
   /*
     Smart pointer that will automatically call my_afree (a macro) when
@@ -458,7 +466,7 @@ CPP_UNNAMED_NS_START
     Obj* get() { return m_ptr; }
   };
 
-CPP_UNNAMED_NS_END
+} // namespace
 
 class Deferred_log_events
 {

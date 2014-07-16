@@ -423,7 +423,7 @@ for synchronization */
 # define IB_MEMORY_BARRIER_STARTUP_MSG \
 	"Solaris memory ordering functions are used for memory barrier"
 
-#elif defined(HAVE_WINDOWS_MM_FENCE)
+#elif defined(HAVE_WINDOWS_MM_FENCE) && defined(_WIN64)
 # define HAVE_MEMORY_BARRIER
 # include <mmintrin.h>
 # define os_rmb	_mm_lfence()
@@ -437,14 +437,6 @@ for synchronization */
 # define IB_MEMORY_BARRIER_STARTUP_MSG \
 	"Memory barrier is not used"
 #endif
-
-/* internal counter for innodb_sync_spin_loops is adjusted
-because memory barrier is more expensive than an empty loop. */
-#ifdef HAVE_MEMORY_BARRIER
-# define SPIN_WAIT_INCREMENT 2
-#else
-# define SPIN_WAIT_INCREMENT 1
-#endif /* HAVE_MEMORY_BARRIER */
 
 #ifndef UNIV_NONINL
 #include "os0atomic.ic"

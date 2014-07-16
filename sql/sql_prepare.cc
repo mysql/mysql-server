@@ -832,7 +832,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
     {
       const CHARSET_INFO *fromcs= thd->variables.character_set_client;
       const CHARSET_INFO *tocs= thd->variables.collation_connection;
-      uint32 dummy_offset;
+      size_t dummy_offset;
 
       param->value.cs_info.character_set_of_placeholder= fromcs;
       param->value.cs_info.character_set_client= fromcs;
@@ -2297,7 +2297,7 @@ static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len)
     bool needs_conversion;
     user_var_entry *entry;
     String *var_value= &str;
-    uint32 unused;
+    size_t unused;
     size_t len;
     /*
       Convert @var contents to string in connection character set. Although
@@ -2531,6 +2531,8 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     NOTE: We should reset whole table list here including all tables added
     by prelocking algorithm (it is not a problem for substatements since
     they have their own table list).
+    Another note: this loop uses query_tables so does not see TABLE_LISTs
+    which represent join nests.
   */
   for (TABLE_LIST *tables= lex->query_tables;
        tables;
@@ -3131,18 +3133,17 @@ Execute_sql_statement::execute_server_code(THD *thd)
 
   parent_locker= thd->m_statement_psi;
   thd->m_statement_psi= NULL;
+
   /*
     Rewrite first (if needed); execution might replace passwords
     with hashes in situ without flagging it, and then we'd make
     a hash of that hash.
   */
   rewrite_query_if_needed(thd);
+  log_execute_line(thd);
+
   error= mysql_execute_command(thd) ;
   thd->m_statement_psi= parent_locker;
-
-  /* report error issued during command execution */
-  if (error == 0)
-    log_execute_line(thd);
 
 end:
   lex_end(thd->lex);
@@ -4006,12 +4007,28 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                              1);
       parent_locker= thd->m_statement_psi;
       thd->m_statement_psi= NULL;
+
       /*
+        Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
+        prepared statements this causes two records to be output:
+
+        Query       EXECUTE <statement name>
+        Execute     <statement SQL text>
+
+        This is considered user-friendly, since in the
+        second log entry we output values of parameter markers.
+
+        Rewriting/password obfuscation:
+
+        - Any passwords in the "Execute" line should be substituted with
+        their hashes, or a notice.
+
         Rewrite first (if needed); execution might replace passwords
         with hashes in situ without flagging it, and then we'd make
         a hash of that hash.
       */
       rewrite_query_if_needed(thd);
+      log_execute_line(thd);
 
       error= mysql_execute_command(thd);
       thd->m_statement_psi= parent_locker;
@@ -4057,25 +4074,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     else
       thd->protocol->send_out_parameters(&this->lex->param_list);
   }
-
-  /*
-    Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
-    prepared statements this causes two records to be output:
-
-    Query       EXECUTE <statement name>
-    Execute     <statement SQL text>
-
-    This is considered user-friendly, since in the
-    second log entry we output values of parameter markers.
-
-    Rewriting/password obfuscation:
-
-    - Any passwords in the "Execute" line should be substituted with
-      their hashes, or a notice.
-
-  */
-  if (error == 0)
-    log_execute_line(thd);
 
   flags&= ~ (uint) IS_IN_USE;
   return error;

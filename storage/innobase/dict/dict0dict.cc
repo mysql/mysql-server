@@ -4644,8 +4644,11 @@ col_loop1:
 	std::pair<dict_foreign_set::iterator, bool>	ret
 		= local_fk_set.insert(foreign);
 
-	ut_a(ret.second);	/* second is true if the insertion
-				took place */
+	if (!ret.second) {
+		/* A duplicate foreign key name has been found */
+		dict_foreign_free(foreign);
+		return(DB_CANNOT_ADD_CONSTRAINT);
+	}
 
 	foreign->foreign_table = table;
 	foreign->foreign_table_name = mem_heap_strdup(
@@ -5564,6 +5567,11 @@ dict_find_table_by_space(
 
 	ut_ad(space_id > 0);
 
+	if (dict_sys == NULL) {
+		/* This could happen when it's in redo processing. */
+		return(NULL);
+	}
+
 	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 	num_item =  UT_LIST_GET_LEN(dict_sys->table_LRU);
 
@@ -6252,6 +6260,54 @@ dict_fs2utf8(
 		ut_snprintf(table_utf8, table_utf8_size, "%s%s",
 			    srv_mysql50_table_name_prefix, table);
 	}
+}
+
+/** Resize the hash tables besed on the current buffer pool size. */
+
+void
+dict_resize()
+{
+	dict_table_t*	table;
+
+	mutex_enter(&dict_sys->mutex);
+
+	/* all table entries are in table_LRU and table_non_LRU lists */
+	hash_table_free(dict_sys->table_hash);
+	hash_table_free(dict_sys->table_id_hash);
+
+	dict_sys->table_hash = hash_create(
+		buf_pool_get_curr_size()
+		/ (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
+
+	dict_sys->table_id_hash = hash_create(
+		buf_pool_get_curr_size()
+		/ (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		ulint	fold = ut_fold_string(table->name);
+		ulint	id_fold = ut_fold_ull(table->id);
+
+		HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash,
+			    fold, table);
+
+		HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
+			    id_fold, table);
+	}
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		ulint	fold = ut_fold_string(table->name);
+		ulint	id_fold = ut_fold_ull(table->id);
+
+		HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash,
+			    fold, table);
+
+		HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
+			    id_fold, table);
+	}
+
+	mutex_exit(&dict_sys->mutex);
 }
 
 /**********************************************************************//**

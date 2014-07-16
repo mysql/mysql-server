@@ -37,8 +37,7 @@ template class CountingPool<record, RecordPool<record, WOPool> >;
 
 TAPTEST(CountingPool)
 {
-  Pool_context pc = test_context(100);
-
+  (void)test_context(100);
   // Only compile test. See template instantiations above.
 
   OK(true);

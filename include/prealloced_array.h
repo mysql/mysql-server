@@ -373,6 +373,20 @@ public:
   }
 
   /**
+    Requests the container to reduce its capacity to fit its size.
+   */
+  void shrink_to_fit()
+  {
+    // Cannot shrink the pre-allocated array.
+    if (m_array_ptr == cast_rawbuff())
+      return;
+    // No point in swapping.
+    if (size() == capacity())
+      return;
+    Prealloced_array(m_psi_key, begin(), end()).swap(*this);
+  }
+
+  /**
     Resizes the container so that it contains n elements.
 
     If n is smaller than the current container size, the content is

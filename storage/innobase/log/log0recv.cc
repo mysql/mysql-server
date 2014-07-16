@@ -59,7 +59,7 @@ Created 9/20/1997 Heikki Tuuri
 # include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
 /** This is set to FALSE if the backup was originally taken with the
-ibbackup --include regexp option: then we do not want to create tables in
+mysqlbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
 ibool	recv_replay_file_ops	= TRUE;
 #endif /* !UNIV_HOTBACKUP */
@@ -721,7 +721,7 @@ recv_find_max_checkpoint(
 				DBUG_PRINT("ib_log",
 					   ("invalid checkpoint,"
 					    " group " ULINTPF " at " ULINTPF
-					    ", checksum %#x",
+					    ", checksum %x",
 					    group->id, field,
 					    (unsigned) mach_read_from_4(
 						    LOG_CHECKPOINT_CHECKSUM_1
@@ -1111,7 +1111,7 @@ recv_parse_or_apply_log_rec_body(
 		ptr = mlog_parse_nbytes(type, ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_REC_INSERT: case MLOG_COMP_REC_INSERT:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
@@ -1125,7 +1125,7 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_REC_CLUST_DELETE_MARK: case MLOG_COMP_REC_CLUST_DELETE_MARK:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
@@ -1139,7 +1139,7 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_COMP_REC_SEC_DELETE_MARK:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 		/* This log record type is obsolete, but we process it for
 		backward compatibility with MySQL 5.0.3 and 5.0.4. */
 		ut_a(!page || page_is_comp(page));
@@ -1150,12 +1150,12 @@ recv_parse_or_apply_log_rec_body(
 		}
 		/* Fall through */
 	case MLOG_REC_SEC_DELETE_MARK:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 		ptr = btr_cur_parse_del_mark_set_sec_rec(ptr, end_ptr,
 							 page, page_zip);
 		break;
 	case MLOG_REC_UPDATE_IN_PLACE: case MLOG_COMP_REC_UPDATE_IN_PLACE:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
@@ -1170,7 +1170,7 @@ recv_parse_or_apply_log_rec_body(
 		break;
 	case MLOG_LIST_END_DELETE: case MLOG_COMP_LIST_END_DELETE:
 	case MLOG_LIST_START_DELETE: case MLOG_COMP_LIST_START_DELETE:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
@@ -1185,7 +1185,7 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_LIST_END_COPY_CREATED: case MLOG_COMP_LIST_END_COPY_CREATED:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
@@ -1201,7 +1201,7 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_PAGE_REORGANIZE:
 	case MLOG_COMP_PAGE_REORGANIZE:
 	case MLOG_ZIP_PAGE_REORGANIZE:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
@@ -1219,7 +1219,11 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_PAGE_CREATE: case MLOG_COMP_PAGE_CREATE:
 		/* Allow anything in page_type when creating a page. */
 		ut_a(!page_zip);
-		page_parse_create(block, type == MLOG_COMP_PAGE_CREATE);
+		page_parse_create(block, type == MLOG_COMP_PAGE_CREATE, false);
+		break;
+	case MLOG_PAGE_CREATE_RTREE: case MLOG_COMP_PAGE_CREATE_RTREE:
+		page_parse_create(block, type == MLOG_COMP_PAGE_CREATE_RTREE,
+				  true);
 		break;
 	case MLOG_UNDO_INSERT:
 		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
@@ -1244,7 +1248,7 @@ recv_parse_or_apply_log_rec_body(
 						 page, mtr);
 		break;
 	case MLOG_REC_MIN_MARK: case MLOG_COMP_REC_MIN_MARK:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 		/* On a compressed page, MLOG_COMP_REC_MIN_MARK
 		will be followed by MLOG_COMP_REC_DELETE
 		or MLOG_ZIP_WRITE_HEADER(FIL_PAGE_PREV, FIL_NULL)
@@ -1255,7 +1259,7 @@ recv_parse_or_apply_log_rec_body(
 			page, mtr);
 		break;
 	case MLOG_REC_DELETE: case MLOG_COMP_REC_DELETE:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
@@ -1281,17 +1285,17 @@ recv_parse_or_apply_log_rec_body(
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 		ptr = page_zip_parse_write_node_ptr(ptr, end_ptr,
 						    page, page_zip);
 		break;
 	case MLOG_ZIP_WRITE_BLOB_PTR:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 		ptr = page_zip_parse_write_blob_ptr(ptr, end_ptr,
 						    page, page_zip);
 		break;
 	case MLOG_ZIP_WRITE_HEADER:
-		ut_ad(!page || page_type == FIL_PAGE_INDEX);
+		ut_ad(!page || fil_page_type_is_index(page_type));
 		ptr = page_zip_parse_write_header(ptr, end_ptr,
 						  page, page_zip);
 		break;
@@ -1694,7 +1698,7 @@ recv_recover_page_func(
 	}
 
 #ifdef UNIV_ZIP_DEBUG
-	if (fil_page_get_type(page) == FIL_PAGE_INDEX) {
+	if (fil_page_index_page_checke(page)) {
 		page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
 
 		ut_a(!page_zip
@@ -2020,7 +2024,7 @@ recv_apply_log_recs_for_backup(void)
 
 			/* Extend the tablespace's last file if the page_no
 			does not fall inside its bounds; we assume the last
-			file is auto-extending, and ibbackup copied the file
+			file is auto-extending, and mysqlbackup copied the file
 			when it still was smaller */
 
 			success = fil_extend_space_to_desired_size(
@@ -2218,7 +2222,7 @@ recv_report_corrupt_log(
 	ulint	space,	/*!< in: space id, this may also be garbage */
 	ulint	page_no)/*!< in: page number, this may also be garbage */
 {
-	ib_logf(IB_LOG_LEVEL_INFO,
+	ib_logf(IB_LOG_LEVEL_ERROR,
 		"############### CORRUPT LOG RECORD FOUND ##################");
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Log record type %d, page " ULINTPF ":" ULINTPF "."
@@ -2232,25 +2236,25 @@ recv_report_corrupt_log(
 		(ulong) (ptr - recv_sys->buf),
 		(ulong) recv_previous_parsed_rec_offset);
 
-	if ((ulint)(ptr - recv_sys->buf + 100)
-	    > recv_previous_parsed_rec_offset
-	    && (ulint)(ptr - recv_sys->buf + 100
-		       - recv_previous_parsed_rec_offset)
-	    < 200000) {
-		fputs("InnoDB: Hex dump of corrupt log starting"
-		      " 100 bytes before the start\n"
-		      "InnoDB: of the previous log rec,\n"
-		      "InnoDB: and ending 100 bytes after the start"
-		      " of the corrupt rec:\n",
-		      stderr);
+	ut_ad(ptr <= recv_sys->buf + recv_sys->len);
 
-		ut_print_buf(stderr,
-			     recv_sys->buf
-			     + recv_previous_parsed_rec_offset - 100,
-			     ptr - recv_sys->buf + 200
-			     - recv_previous_parsed_rec_offset);
-		putc('\n', stderr);
-	}
+	const ulint	limit	= 100;
+	const ulint	before
+		= std::min(recv_previous_parsed_rec_offset, limit);
+	const ulint	after
+		= std::min(recv_sys->len - (ptr - recv_sys->buf), limit);
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Hex dump starting " ULINTPF " bytes before and ending "
+		ULINTPF " bytes after the corrupted record:",
+		before, after);
+
+	ut_print_buf(stderr,
+		     recv_sys->buf
+		     + recv_previous_parsed_rec_offset - before,
+		     ptr - recv_sys->buf + before + after
+		     - recv_previous_parsed_rec_offset);
+	putc('\n', stderr);
 
 #ifndef UNIV_HOTBACKUP
 	if (!srv_force_recovery) {
@@ -3077,18 +3081,15 @@ recv_init_crash_recovery_spaces(void)
 	return(DB_SUCCESS);
 }
 
-/********************************************************//**
-Recovers from a checkpoint. When this function returns, the database is able
-to start processing of new user transactions, but the function
-recv_recovery_from_checkpoint_finish should be called later to complete
-the recovery and free the resources used in it.
+/** Start recovering from a redo log checkpoint.
+@see recv_recovery_from_checkpoint_finish
+@param[in]	flush_lsn	FIL_PAGE_FILE_FLUSH_LSN
+of first system tablespace page
 @return error code or DB_SUCCESS */
 
 dberr_t
 recv_recovery_from_checkpoint_start(
-/*================================*/
-	lsn_t	min_flushed_lsn,/*!< in: min flushed lsn from data files */
-	lsn_t	max_flushed_lsn)/*!< in: max flushed lsn from data files */
+	lsn_t	flush_lsn)
 {
 	log_group_t*	group;
 	log_group_t*	max_cp_group;
@@ -3152,17 +3153,17 @@ recv_recovery_from_checkpoint_start(
 		if (srv_read_only_mode) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot restore from ibbackup, InnoDB running"
-				" in read-only mode!");
+				"Cannot restore from mysqlbackup, InnoDB"
+				" running in read-only mode!");
 
 			return(DB_ERROR);
 		}
 
-		/* This log file was created by ibbackup --restore: print
+		/* This log file was created by mysqlbackup --restore: print
 		a note to the user about it */
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"The log file was created by ibbackup --apply-log"
+			"The log file was created by mysqlbackup --apply-log"
 			" at %s. The following crash recovery is part of a"
 			" normal restore.",
 			log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP);
@@ -3197,7 +3198,7 @@ recv_recovery_from_checkpoint_start(
 
 	if (recv_sys->mlog_checkpoint_lsn == 0) {
 		if (group->scanned_lsn != checkpoint_lsn) {
-			ib_logf(IB_LOG_LEVEL_INFO,
+			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Ignoring the redo log due to"
 				" missing MLOG_CHECKPOINT"
 				" between the checkpoint " LSN_PF " and"
@@ -3217,33 +3218,27 @@ recv_recovery_from_checkpoint_start(
 	there is something wrong we will print a message to the
 	user about recovery: */
 
-	if (checkpoint_lsn != max_flushed_lsn
-	    || checkpoint_lsn != min_flushed_lsn) {
+	if (checkpoint_lsn != flush_lsn) {
 
-		if (checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT
-		    < max_flushed_lsn) {
+		if (checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT < flush_lsn) {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"The log sequence number in the ibdata files is"
-				" higher than the log sequence number in the"
-				" ib_logfiles! Are you sure you are using the"
-				" right ib_logfiles to start up the database."
+				" Are you sure you are using the"
+				" right ib_logfiles to start up the database?"
 				" Log sequence number in the ib_logfiles is"
-				" " LSN_PF ", log sequence numbers stamped to"
-				" ibdata file headers are between"
-				" " LSN_PF " and " LSN_PF ".",
-				checkpoint_lsn,
-				min_flushed_lsn,
-				max_flushed_lsn);
+				" " LSN_PF ", less than the"
+				" log sequence number in the"
+				" first system tablespace file header,"
+				" " LSN_PF ".",
+				checkpoint_lsn, flush_lsn);
 		}
 
 		if (!recv_needed_recovery) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"The log sequence numbers " LSN_PF " and"
-				" " LSN_PF " in ibdata files do not match"
+				"The log sequence number " LSN_PF
+				" in the system tablespace does not match"
 				" the log sequence number " LSN_PF
 				" in the ib_logfiles!",
-				min_flushed_lsn,
-				max_flushed_lsn,
+				flush_lsn,
 				checkpoint_lsn);
 
 			if (srv_read_only_mode) {
@@ -3349,12 +3344,10 @@ recv_recovery_from_checkpoint_start(
 	return(DB_SUCCESS);
 }
 
-/********************************************************//**
-Completes recovery from a checkpoint. */
+/** Complete recovery from a checkpoint. */
 
 void
 recv_recovery_from_checkpoint_finish(void)
-/*======================================*/
 {
 	/* Make sure that the recv_writer thread is done. This is
 	required because it grabs various mutexes and we want to

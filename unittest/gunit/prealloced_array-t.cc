@@ -405,6 +405,42 @@ TEST_F(PreallocedArrayTest, NoMemLeaksStdSwap)
   EXPECT_EQ(p2, array1.begin());
 }
 
+TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitMalloc)
+{
+  Prealloced_array<IntWrap, 1, false> array1(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array1.push_back(IntWrap(ix));
+  IntWrap *p1= array1.begin();
+  array1.shrink_to_fit();
+  EXPECT_EQ(42U, array1.size());
+  EXPECT_EQ(42U, array1.capacity());
+  EXPECT_NE(p1, array1.begin());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitSameSize)
+{
+  Prealloced_array<IntWrap, 10, false> array1(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array1.push_back(IntWrap(ix));
+  for (int ix= 0; array1.size() != array1.capacity(); ++ix)
+    array1.push_back(IntWrap(ix));
+  IntWrap *p1= array1.begin();
+  array1.shrink_to_fit();
+  EXPECT_EQ(p1, array1.begin());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitPrealloc)
+{
+  Prealloced_array<IntWrap, 100, false> array1(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array1.push_back(IntWrap(ix));
+  IntWrap *p1= array1.begin();
+  array1.shrink_to_fit();
+  EXPECT_EQ(42U, array1.size());
+  EXPECT_EQ(100U, array1.capacity());
+  EXPECT_EQ(p1, array1.begin());
+}
+
 /*
   A simple class to verify that Prealloced_array also works for
   classes which have their own operator new/delete.

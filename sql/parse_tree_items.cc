@@ -382,7 +382,7 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res)
       Let us add this item to list of all Item_trigger_field objects
       in trigger.
     */
-    lex->sphead->m_trg_table_fields.link_in_list(
+    lex->sphead->m_cur_instr_trig_field_items.link_in_list(
       trg_fld, &trg_fld->next_trg_field);
 
     *res= trg_fld;

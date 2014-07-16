@@ -1,3 +1,4 @@
+call mtr.add_suppression("Can't create thread to");
 SET @old_debug= @@GLOBAL.debug;
 SET @orig_max_connections= @@global.max_connections;
 connect  con1, localhost, root,,mysql;

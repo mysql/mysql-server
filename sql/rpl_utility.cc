@@ -103,11 +103,9 @@ max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
   case MYSQL_TYPE_LONG:
     return 11;
 
-#ifdef HAVE_LONG_LONG
   case MYSQL_TYPE_LONGLONG:
     return 20;
 
-#endif
   case MYSQL_TYPE_NULL:
     return 0;
 
@@ -260,11 +258,9 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   case MYSQL_TYPE_LONG:
     length= 4;
     break;
-#ifdef HAVE_LONG_LONG
   case MYSQL_TYPE_LONGLONG:
     length= 8;
     break;
-#endif
   case MYSQL_TYPE_NULL:
     length= 0;
     break;
@@ -421,7 +417,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
   case MYSQL_TYPE_VARCHAR:
     {
       const CHARSET_INFO *cs= str->charset();
-      uint32 length=
+      size_t length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "varchar(%u)", metadata);
       str->length(length);
@@ -432,7 +428,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
     {
       const CHARSET_INFO *cs= str->charset();
       int bit_length= 8 * (metadata >> 8) + (metadata & 0xFF);
-      uint32 length=
+      size_t length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "bit(%d)", bit_length);
       str->length(length);
@@ -442,7 +438,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
   case MYSQL_TYPE_DECIMAL:
     {
       const CHARSET_INFO *cs= str->charset();
-      uint32 length=
+      size_t length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "decimal(%d,?)", metadata);
       str->length(length);
@@ -452,7 +448,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
   case MYSQL_TYPE_NEWDECIMAL:
     {
       const CHARSET_INFO *cs= str->charset();
-      uint32 length=
+      size_t length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "decimal(%d,%d)", metadata >> 8, metadata & 0xff);
       str->length(length);
@@ -504,7 +500,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
       */
       const CHARSET_INFO *cs= str->charset();
       uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
-      uint32 length=
+      size_t length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "char(%d)", bytes / field_cs->mbmaxlen);
       str->length(length);
@@ -857,14 +853,23 @@ can_convert_field_to(Field *field,
   @param tmp_table_var[out]
   Virtual temporary table for performing conversions, if necessary.
 
+  @param mem_root [in]
+  mem_root from which memory should be allocated.
+  Default value is NULL and thread's mem_root will be considered in
+  that case.
+
   @retval true Master table is compatible with slave table.
   @retval false Master table is not compatible with slave table.
 */
 bool
 table_def::compatible_with(THD *thd, Relay_log_info *rli,
-                           TABLE *table, TABLE **conv_table_var)
+                           TABLE *table, TABLE **conv_table_var,
+                           MEM_ROOT *mem_root /*default = NULL*/)
   const
 {
+  /* If mem_root provided is NULL, use it from thd's mem_root. */
+  if (mem_root == NULL)
+    mem_root= thd->mem_root;
   /*
     We only check the initial columns for the tables.
   */
@@ -892,7 +897,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
           This will create the full table with all fields. This is
           necessary to ge the correct field lengths for the record.
         */
-        tmp_table= create_conversion_table(thd, rli, table);
+        tmp_table= create_conversion_table(thd, rli, table, mem_root);
         if (tmp_table == NULL)
             return false;
         /*
@@ -962,9 +967,13 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
   conversion table.
  */
 
-TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *target_table) const
+TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
+                                          TABLE *target_table,
+                                          MEM_ROOT *mem_root /*default = NULL */) const
 {
   DBUG_ENTER("table_def::create_conversion_table");
+  if (mem_root == NULL)
+    mem_root= thd->mem_root;
 
   List<Create_field> field_list;
   TABLE *conv_table= NULL;
@@ -989,8 +998,8 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
   for (uint col= 0 ; col < cols_to_create; ++col)
   {
     Create_field *field_def=
-      (Create_field*) alloc_root(thd->mem_root, sizeof(Create_field));
-    if (field_list.push_back(field_def))
+      (Create_field*) alloc_root(mem_root, sizeof(Create_field));
+    if (field_list.push_back(field_def, mem_root))
       DBUG_RETURN(NULL);
 
     uint decimals= 0;
@@ -1057,7 +1066,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     field_def->interval= interval;
   }
 
-  conv_table= create_virtual_tmp_table(thd, field_list);
+  conv_table= create_virtual_tmp_table(thd, field_list, mem_root);
 
 err:
   if (conv_table == NULL)

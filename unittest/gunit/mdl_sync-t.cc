@@ -635,5 +635,62 @@ TEST_F(MDLSyncTest, PriorityDeadlock2)
 }
 
 
+/** Dummy MDL_context_visitor which does nothing. */
+
+class MDLSyncContextVisitor : public MDL_context_visitor
+{
+public:
+  virtual void visit_context(const MDL_context *ctx) { };
+};
+
+
+/*
+  Checks that MDL_context::find_lock_owner() correctly handles MDL_lock
+  objects which already have been marked as destroyed but still present
+  in MDL_map.
+*/
+
+TEST_F(MDLSyncTest, IsDestroyedFindLockOwner)
+{
+  MDLSyncThread thread1("table", MDL_EXCLUSIVE,
+                        "mdl_remove_random_unused_after_is_destroyed_set "
+                        "SIGNAL marked WAIT_FOR resume_removal",
+                        NULL, NULL);
+  MDL_key mdl_key(MDL_key::TABLE, "db", "table");
+  MDLSyncContextVisitor dummy_visitor;
+
+  /*
+    Start a thread which acquires X lock on a table and immediately releases
+    it. As result the MDL_lock object for the table becomes unused and
+    attempt to destroy this unused object is made. MDL_lock is marked
+    as destroyed, but the thread hits sync point before the object is
+    removed from the MDL_map hash.
+  */
+  thread1.start();
+
+  /* Wait until MDL_lock object is marked as destroyed. */
+  Mock_error_handler error_handler(m_thd, 0);
+  EXPECT_FALSE(debug_sync_set_action(m_thd, "now WAIT_FOR marked"));
+  /* The above should not generate warnings about timeouts. */
+  EXPECT_EQ(0, error_handler.handle_called());
+
+  /*
+    Ensure that once MDL_context::find_lock_owner() sees object marked
+    as destroyed it resumes the above thread.
+  */
+  EXPECT_FALSE(debug_sync_set_action(m_thd, "mdl_find_lock_owner_is_destroyed SIGNAL resume_removal"));
+  EXPECT_EQ(0, error_handler.handle_called());
+
+  /*
+    MDL_context::find_lock_owner() should see MDL_lock object which is
+    marked as destroyed and unblock thread performing its destruction.
+  */
+  EXPECT_FALSE(m_thd->mdl_context.find_lock_owner(&mdl_key, &dummy_visitor));
+
+  /* Check that thread performing destruction of MDL_lock object has finished. */
+  thread1.join();
+}
+
+
 }
 #endif

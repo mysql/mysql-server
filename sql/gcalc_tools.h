@@ -88,7 +88,7 @@ public:
   int single_shape_op(shape_type shape_kind, gcalc_shape_info *si);
   void add_operation(op_type operation, uint32 n_operands);
   void add_not_operation(op_type operation, uint32 n_operands);
-  uint32 get_next_operation_pos() { return function_buffer.length(); }
+  size_t get_next_operation_pos() { return function_buffer.length(); }
   /**
     Read operand number from the given position and add more operands.
   */
@@ -182,7 +182,7 @@ class Gcalc_result_receiver
   uint32 n_holes;
 
   Gcalc_function::shape_type cur_shape;
-  uint32 shape_pos;
+  size_t shape_pos;
   double first_x, first_y, prev_x, prev_y;
   double shape_area;
 public:
@@ -210,11 +210,11 @@ public:
   void reset();
 
   const char *result() { return buffer.ptr(); }
-  uint length() { return buffer.length(); }
+  size_t length() { return buffer.length(); }
   int get_nshapes() { return n_shapes; }
   int get_nholes() { return n_holes; }
   int get_result_typeid();
-  uint32 position() { return buffer.length(); }
+  size_t position() { return buffer.length(); }
   int reorder_chunks(chunk_info *chunks, int nchunks);
 };
 

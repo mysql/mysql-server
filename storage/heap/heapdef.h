@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,10 @@
 /* This file is included in all heap-files */
 
 #include <my_base.h>			/* This includes global */
-C_MODE_START
 #include <my_pthread.h>
 #include "heap.h"			/* Structs & some defines */
 #include "my_tree.h"
+C_MODE_START
 
 /*
   When allocating keys /rows in the internal block structure, do it

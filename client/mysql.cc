@@ -80,8 +80,6 @@ extern "C" {
 #if defined(HAVE_TERMIOS_H)
 #include <termios.h>
 #include <unistd.h>
-#elif defined(HAVE_TERMBITS_H)
-#include <termbits.h>
 #elif defined(HAVE_ASM_TERMBITS_H) && (!defined __GLIBC__ || !(__GLIBC__ > 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ > 0))
 #include <asm/termbits.h>		// Standard linux
 #endif
@@ -1124,7 +1122,7 @@ static void initialize_readline (char *name);
 
 static COMMANDS *find_command(char *name);
 static COMMANDS *find_command(char cmd_name);
-static bool add_line(String &buffer, char *line, ulong line_length,
+static bool add_line(String &buffer, char *line, size_t line_length,
                      char *in_string, bool *ml_comment, bool truncated);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
@@ -1410,9 +1408,7 @@ int main(int argc,char *argv[])
   if (opt_outfile)
     end_tee();
   mysql_end(0);
-#ifndef _lint
   DBUG_RETURN(0);				// Keep compiler happy
-#endif
 }
 
 void mysql_end(int sig)
@@ -2443,7 +2439,7 @@ static COMMANDS *find_command(char *name)
 }
 
 
-static bool add_line(String &buffer, char *line, ulong line_length,
+static bool add_line(String &buffer, char *line, size_t line_length,
                      char *in_string, bool *ml_comment, bool truncated)
 {
   uchar inchar;
@@ -3249,7 +3245,7 @@ static void get_current_db()
  The different commands
 ***************************************************************************/
 
-int mysql_real_query_for_lazy(const char *buf, int length)
+int mysql_real_query_for_lazy(const char *buf, size_t length)
 {
   for (uint retry=0;; retry++)
   {
@@ -3845,10 +3841,10 @@ print_table_data(MYSQL_RES *result)
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
       size_t name_length= strlen(field->name);
-      uint numcells= charset_info->cset->numcells(charset_info,
-                                                  field->name,
-                                                  field->name + name_length);
-      uint display_length= field->max_length + name_length - numcells;
+      size_t numcells= charset_info->cset->numcells(charset_info,
+                                                    field->name,
+                                                    field->name + name_length);
+      size_t display_length= field->max_length + name_length - numcells;
       tee_fprintf(PAGER, " %-*s |",
                   min<int>(display_length, MAX_COLUMN_LENGTH),
                   field->name);

@@ -694,7 +694,7 @@ public:
                              const char *data, uint32 data_len);
   static Geometry *construct(Geometry_buffer *buffer, const String *str)
   {
-    return construct(buffer, str->ptr(), str->length());
+    return construct(buffer, str->ptr(), static_cast<uint32>(str->length()));
   }
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
 				   Gis_read_stream *trs, String *wkt,
@@ -2406,7 +2406,7 @@ public:
       exception now. We do so nonetheless for potential mis-use of exceptions
       in futher code.
     */
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
     try
     {
 #endif
@@ -2414,7 +2414,7 @@ public:
         return;
       if (m_geo_vect != NULL)
         clear_wkb_data();
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
     }
     catch (...)
     {
@@ -2855,7 +2855,7 @@ public:
       memset((get_cptr() + get_nbytes() - sublen), 0xff, sublen);
       set_nbytes(get_nbytes() - sublen);
 
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
       bool rsz_ret= m_geo_vect->resize(sz);
       DBUG_ASSERT(rsz_ret == false);
 #else
@@ -3085,7 +3085,7 @@ public:
           // component can be a multipoint/multilinestring/multipolygon or a
           // geometrycollection. And multipoint components are already supported
           // so not forbidding them here.
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
           Geometry::wkbType veci_gt= veci->get_geotype();
 #endif
           DBUG_ASSERT(veci_gt != wkb_geometrycollection &&

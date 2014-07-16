@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,6 +107,7 @@ public:
     LqhDumpLcpState = 2303,
     LqhErrorInsert5042 = 2315,
     LqhDumpPoolLevels = 2353,
+    LqhReportCopyInfo = 2354,
 
     AccDumpOneScanRec = 2400,
     AccDumpAllScanRec = 2401,
@@ -165,13 +166,23 @@ public:
     DihAllAllowNodeStart = 7016,
     DihMinTimeBetweenLCP = 7017,
     DihMaxTimeBetweenLCP = 7018,
-    // Checks whether add frag failure was cleaned up.
-    // Should NOT be used while commands involving addFragReq
-    // are being performed
-    DihAddFragFailCleanedUp = 7019,
+    // Check if blocks are done with handling the failure of another node.
+    DihTcSumaNodeFailCompleted = 7019, // DIH+TC+SUMA
     // 7020
     // 7021
+    // 7022
+    // 7023
+    /*
+      Checks whether add frag failure was cleaned up.
+      Should NOT be used while commands involving addFragReq
+      are being performed.
+      NB: This value is only intended for use in test cases. If used 
+      interactively, it is likely to crash the node. It should therefore
+      *not* be described in end-user documentation.
+    */
+    DihAddFragFailCleanedUp = 7024,
     DihDumpPageRecInfo = 7032,
+    DihFragmentsPerNode = 7033,
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,
@@ -198,7 +209,9 @@ public:
     SchemaResourceCheckLeak = 4001, // check same as snapshot
 
     TcResourceSnapshot = 2553,
-    TcResourceCheckLeak = 2554
+    TcResourceCheckLeak = 2554,
+
+    RestoreRates = 30000
   };
 public:
   

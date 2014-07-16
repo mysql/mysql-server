@@ -4891,7 +4891,7 @@ size_number:
             uint text_shift_number= 0;
             longlong prefix_number;
             char *start_ptr= $1.str;
-            uint str_len= $1.length;
+            size_t str_len= $1.length;
             char *end_ptr= start_ptr + str_len;
             int error;
             prefix_number= my_strtoll10(start_ptr, &end_ptr, &error);
@@ -6502,7 +6502,8 @@ spatial_type:
         | GEOMETRYCOLLECTION  { $$= Field::GEOM_GEOMETRYCOLLECTION; }
         | POINT_SYM
           {
-            Lex->length= (char*)"25";
+            Lex->length= const_cast<char*>(STRINGIFY_ARG
+                                           (MAX_LEN_GEOM_POINT_FIELD));
             $$= Field::GEOM_POINT;
           }
         | MULTIPOINT          { $$= Field::GEOM_MULTIPOINT; }
@@ -11470,7 +11471,7 @@ opt_profile_args:
   | FOR_SYM QUERY_SYM NUM
     {
       int error;
-      Lex->query_id= my_strtoll10($3.str, NULL, &error);
+      Lex->query_id= static_cast<my_thread_id>(my_strtoll10($3.str, NULL, &error));
       if (error != 0)
         MYSQL_YYABORT;
     }

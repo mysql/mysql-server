@@ -38,7 +38,7 @@ execute dump_hosts;
 # The main thread does not count for BY_ACCOUNT / BY_HOST.
 # The user thread does count for BY_ACCOUNT, BY_HOST
 #
-# Each get_lock() causes 1 wait/synch/mutex/sql/LOCK_user_locks
+# Each uuid_short() causes 1 wait/synch/mutex/sql/LOCK_uuid_generator
 #
 # To avoid noise from main, the background threads are disabled.
 
@@ -82,8 +82,8 @@ execute dump_hosts;
 
 --connection con1
 
-select get_lock("marker", 10);
-select release_lock("marker");
+select uuid_short() <> 1;
+select uuid_short() <> 1;
 start transaction;
 insert into test.t1 values ("marker");
 commit;
@@ -169,8 +169,8 @@ execute dump_hosts;
 
 --connection con2
 
-select get_lock("marker", 10);
-select release_lock("marker");
+select uuid_short() <> 1;
+select uuid_short() <> 1;
 start transaction;
 insert into test.t1 values ("marker");
 commit;
@@ -252,8 +252,8 @@ execute dump_hosts;
 
 --connection con3
 
-select get_lock("marker", 10);
-select release_lock("marker");
+select uuid_short() <> 1;
+select uuid_short() <> 1;
 start transaction;
 insert into test.t1 values ("marker");
 commit;
@@ -335,8 +335,8 @@ execute dump_hosts;
 
 --connection con4
 
-select get_lock("marker", 10);
-select release_lock("marker");
+select uuid_short() <> 1;
+select uuid_short() <> 1;
 start transaction;
 insert into test.t1 values ("marker");
 commit;

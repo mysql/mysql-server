@@ -879,16 +879,14 @@ buf_read_recv_pages(
 			}
 		}
 
-		if ((i + 1 == n_stored) && sync) {
-			buf_read_page_low(&err, true, BUF_READ_ANY_PAGE,
-					  cur_page_id, page_size, TRUE,
-					  tablespace_version);
-		} else {
-			buf_read_page_low(&err, false, BUF_READ_ANY_PAGE
-					  | OS_AIO_SIMULATED_WAKE_LATER,
-					  cur_page_id, page_size, TRUE,
-					  tablespace_version);
-		}
+		const bool	read_sync	= sync && i + 1 == n_stored;
+		const ulint	mode		= read_sync
+			? BUF_READ_ANY_PAGE
+			: BUF_READ_ANY_PAGE | OS_AIO_SIMULATED_WAKE_LATER;
+
+		buf_read_page_low(&err, read_sync, mode,
+				  cur_page_id, page_size, TRUE,
+				  tablespace_version);
 	}
 
 	os_aio_simulated_wake_handler_threads();

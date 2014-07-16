@@ -383,6 +383,8 @@ struct TTASFutexMutex {
 		them up. Reset the lock state to unlocked so that waiting
 		threads can test for success. */
 
+		os_rmb;
+
 		if (state() == MUTEX_STATE_WAITERS) {
 
 			m_lock_word = MUTEX_STATE_UNLOCKED;
@@ -440,8 +442,6 @@ private:
 	@return the lock state. */
 	lock_word_t state() const UNIV_NOTHROW
 	{
-		os_rmb;
-
 		/** Try and force a memory read. */
 		const volatile void*	p = &m_lock_word;
 
@@ -502,7 +502,9 @@ private:
 	@return value of lock word before locking. */
 	lock_word_t ttas(ulint max_spins, ulint max_delay) UNIV_NOTHROW
 	{
-		for (ulint i = 0; i < max_spins; i += SPIN_WAIT_INCREMENT) {
+		os_rmb;
+
+		for (ulint i = 0; i < max_spins; ++i) {
 
 			if (!is_locked()) {
 				lock_word_t	lock = trylock();
@@ -620,8 +622,6 @@ struct TTASMutex {
 	/** @return the lock state. */
 	lock_word_t state() const UNIV_NOTHROW
 	{
-		os_rmb;
-
 		/** Try and force a memory read. */
 		const volatile void*	p = &m_lock_word;
 
@@ -631,7 +631,6 @@ struct TTASMutex {
 	/** @return true if locked by some thread */
 	bool is_locked() const UNIV_NOTHROW
 	{
-		os_rmb;
 		return(m_lock_word != MUTEX_STATE_UNLOCKED);
 	}
 
@@ -661,11 +660,12 @@ private:
 	@param max_delay	max delay per spin */
 	void ttas(ulint max_spins, ulint max_delay) UNIV_NOTHROW
 	{
+		os_rmb;
+
 		do {
 			ulint	i;
 
-			for (i = 0; !is_locked() && i < max_spins;
-			     i += SPIN_WAIT_INCREMENT) {
+			for (i = 0; !is_locked() && i < max_spins; ++i) {
 
 				ut_delay(ut_rnd_interval(0, max_delay));
 			}
@@ -792,8 +792,6 @@ struct TTASEventMutex {
 	@return the lock state. */
 	lock_word_t state() const UNIV_NOTHROW
 	{
-		os_rmb;
-
 		/** Try and force a memory read. */
 		const volatile void*	p = &m_lock_word;
 
@@ -810,7 +808,6 @@ struct TTASEventMutex {
 	/** @return true if locked by some thread */
 	bool is_locked() const UNIV_NOTHROW
 	{
-		os_rmb;
 		return(m_lock_word != MUTEX_STATE_UNLOCKED);
 	}
 
@@ -855,7 +852,7 @@ private:
 
 			ut_delay(ut_rnd_interval(0, max_delay));
 
-			i += SPIN_WAIT_INCREMENT;
+			++i;
 		}
 
 		return(i);
@@ -881,6 +878,8 @@ private:
 		ulint		line) UNIV_NOTHROW
 	{
 		ulint	n_spins = 0;
+
+		os_rmb;
 
 		for (;;) {
 

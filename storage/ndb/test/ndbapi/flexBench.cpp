@@ -908,7 +908,7 @@ static void* flexBenchThread(void* pArg)
                                                pAttrSet[countTables]);
 	  break;
 	default:
-	  assert(false);
+	  require(false);
 	}//switch
 
 	if (pOps[countTables] == NULL) {
@@ -945,7 +945,7 @@ static void* flexBenchThread(void* pArg)
 	  }//if
 	  break;
 	default:
-	  assert(false);
+	  require(false);
 	}//switch
       }//if
       tSpecialTrans = 0;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <ndb_global.h>
 #include <NdbRestarter.hpp>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
@@ -199,7 +200,7 @@ NdbRestarter::getNextMasterNodeId(int nodeId){
       break;
     }
   }
-  assert(i < ndbNodes.size());
+  require(i < ndbNodes.size());
   if (i == ndbNodes.size())
     return -1;
 
@@ -460,7 +461,7 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
         g_info<< ", start_phase=" << ndbNode->start_phase;
       g_info << endl;
 
-      assert(ndbNode != NULL);
+      require(ndbNode != NULL);
 
       if(_status == NDB_MGM_NODE_STATUS_STARTING && 
 	 ((ndbNode->node_status == NDB_MGM_NODE_STATUS_STARTING && 

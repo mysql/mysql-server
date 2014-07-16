@@ -25,7 +25,7 @@ create table t2 (a int primary key) engine=memory;
 insert into t2 select a from t1;
 
 --echo the left join below should result in scanning t2 and do pk lookups in t1
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select if(isnull(t1.a),t2.a,NULL) missed, count(*) rows from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
 --echo the result rows with missed equal to NULL should count all rows (160000)
 --echo the other rows are the failed lookups and there should not be any such

@@ -70,7 +70,7 @@ exports.ConnectionProperties = function(nameOrProperties) {
 
 exports.connect = function(properties, annotations, user_callback) {
   var context = new userContext.UserContext(arguments, 3, 2, null, null);
-  context.connect();
+  return context.connect();
 };
 
 exports.getConnectionKey = function(properties) {
@@ -90,7 +90,7 @@ exports.newConnection = function(connectionKey) {
 
 exports.openSession = function() {
   var context = new userContext.UserContext(arguments, 3, 2, null, null);
-  context.openSession();
+  return context.openSession();
 };
 
 

@@ -93,7 +93,7 @@ partition_info *partition_info::get_clone()
 */
 
 bool partition_info::add_named_partition(const char *part_name,
-                                         uint length)
+                                         size_t length)
 {
   HASH *part_name_hash;
   PART_NAME_DEF *part_def;
@@ -145,7 +145,7 @@ bool partition_info::add_named_partition(const char *part_name,
 */
 
 bool partition_info::set_named_partition_bitmap(const char *part_name,
-                                                uint length)
+                                                size_t length)
 {
   DBUG_ENTER("partition_info::set_named_partition_bitmap");
   bitmap_clear_all(&read_partitions);

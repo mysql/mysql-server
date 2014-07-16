@@ -1027,7 +1027,7 @@ bool Protocol::store(I_List<i_string>* str_list)
 {
   char buf[256];
   String tmp(buf, sizeof(buf), &my_charset_bin);
-  uint32 len;
+  size_t len;
   I_List_iterator<i_string> it(*str_list);
   i_string* s;
 
@@ -1267,7 +1267,7 @@ bool Protocol_text::store(MYSQL_TIME *tm, uint decimals)
   field_pos++;
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  uint length= my_datetime_to_str(tm, buff, decimals);
+  size_t length= my_datetime_to_str(tm, buff, decimals);
   return net_store_data((uchar*) buff, length);
 }
 
@@ -1293,7 +1293,7 @@ bool Protocol_text::store_time(MYSQL_TIME *tm, uint decimals)
   field_pos++;
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  uint length= my_time_to_str(tm, buff, decimals);
+  size_t length= my_time_to_str(tm, buff, decimals);
   return net_store_data((uchar*) buff, length);
 }
 
@@ -1501,7 +1501,7 @@ bool Protocol_binary::store(Field *field)
 bool Protocol_binary::store(MYSQL_TIME *tm, uint precision)
 {
   char buff[12],*pos;
-  uint length;
+  size_t length;
   field_pos++;
   pos= buff+1;
 
@@ -1535,7 +1535,7 @@ bool Protocol_binary::store_date(MYSQL_TIME *tm)
 bool Protocol_binary::store_time(MYSQL_TIME *tm, uint precision)
 {
   char buff[13], *pos;
-  uint length;
+  size_t length;
   field_pos++;
   pos= buff+1;
   pos[0]= tm->neg ? 1 : 0;

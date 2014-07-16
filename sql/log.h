@@ -109,7 +109,6 @@ public:
   }
 };
 
-#ifdef HAVE_MMAP
 class TC_LOG_MMAP: public TC_LOG
 {
 public:                // only to keep Sun Forte on sol9x86 happy
@@ -237,9 +236,6 @@ private:
   */
   friend class TCLogMMapTest;
 };
-#else
-#define TC_LOG_MMAP TC_LOG_DUMMY
-#endif
 
 extern TC_LOG *tc_log;
 extern TC_LOG_MMAP tc_log_mmap;
@@ -636,7 +632,7 @@ private:
      @param log_type     QUERY_LOG_SLOW or QUERY_LOG_GENERAL
      @param log_printer  Bitmap of LOG_NONE, LOG_FILE, LOG_TABLE
   */
-  void init_query_log(enum_log_table_type log_type, uint log_printer);
+  void init_query_log(enum_log_table_type log_type, ulonglong log_printer);
 
 public:
   Query_logger()
@@ -1043,19 +1039,17 @@ public:
     The summary states the number of queries that were qualified for
     inclusion in the log, but were not printed because of the rate-limiting.
 
-    @param thd                 The THD that tries to log the statement.
-    @retval false              Logging was not supressed, no summary needed.
-    @retval true               Logging was supressed; a summary was printed.
+    @retval false              Logging was not suppressed, no summary needed.
+    @retval true               Logging was suppressed; a summary was printed.
   */
-  bool flush(THD *thd);
+  bool flush();
 
   /**
     Top-level function.
-    @param thd                 The THD that tries to log the statement.
-    @retval true               Logging should be supressed.
-    @retval false              Logging should not be supressed.
+    @retval true               Logging should be suppressed.
+    @retval false              Logging should not be suppressed.
   */
-  bool log(THD *thd);
+  bool log();
 };
 
 

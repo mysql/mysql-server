@@ -1011,6 +1011,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
       pfs->m_command= 0;
       pfs->m_start_time= 0;
       pfs->m_stage= 0;
+      pfs->m_stage_progress= NULL;
       pfs->m_processlist_info[0]= '\0';
       pfs->m_processlist_info_length= 0;
 
@@ -1258,7 +1259,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   char dirbuffer[FN_REFLEN];
   size_t dirlen;
   const char *normalized_filename;
-  int normalized_length;
+  size_t normalized_length;
 
   dirlen= dirname_length(safe_filename);
   if (dirlen == 0)

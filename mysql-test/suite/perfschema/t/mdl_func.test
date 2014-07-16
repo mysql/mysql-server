@@ -328,7 +328,7 @@ execute dump_waits_current;
 execute dump_waits_history_long;
 --horizontal_results
 
---connection con2
+--connection con1
 
 UNLOCK TABLES;
 
@@ -367,6 +367,82 @@ execute dump_waits_history_long;
 
 --connection con1
 COMMIT;
+
+--connection default
+
+TRUNCATE TABLE performance_schema.events_waits_history_long;
+TRUNCATE TABLE performance_schema.events_waits_history;
+TRUNCATE TABLE performance_schema.events_waits_current;
+
+--connection con1
+
+SELECT GET_LOCK('test', 0);
+
+--connection default
+
+echo "---- Marker 13 ----";
+
+--vertical_results
+execute dump_metadata_locks;
+execute dump_table_handles;
+execute dump_waits_current;
+execute dump_waits_history_long;
+--horizontal_results
+
+--connection con2
+
+--send SELECT GET_LOCK('test', 120);
+
+--connection default
+
+let $wait_condition=
+  select count(*) = 1 from performance_schema.events_waits_current
+  where event_name = 'wait/lock/metadata/sql/mdl'
+  and object_name = 'test';
+--source include/wait_condition.inc
+
+echo "---- Marker 14 ----";
+
+--vertical_results
+execute dump_metadata_locks;
+execute dump_table_handles;
+execute dump_waits_current;
+execute dump_waits_history_long;
+--horizontal_results
+
+--connection con1
+
+SELECT RELEASE_LOCK('test');
+
+--connection con2
+
+--reap
+
+--connection default
+
+echo "---- Marker 15 ----";
+
+--vertical_results
+execute dump_metadata_locks;
+execute dump_table_handles;
+execute dump_waits_current;
+execute dump_waits_history_long;
+--horizontal_results
+
+--connection con2
+
+SELECT RELEASE_LOCK('test');
+
+--connection default
+
+echo "---- Marker 16 ----";
+
+--vertical_results
+execute dump_metadata_locks;
+execute dump_table_handles;
+execute dump_waits_current;
+execute dump_waits_history_long;
+--horizontal_results
 
 # Cleanup
 

@@ -86,7 +86,6 @@ extern PSI_memory_key key_memory_QUEUE;
 extern PSI_memory_key key_memory_DYNAMIC_STRING;
 extern PSI_memory_key key_memory_TREE;
 extern PSI_memory_key key_memory_defaults;
-extern PSI_memory_key key_memory_radix_sort;
 
 #ifdef _WIN32
 extern PSI_memory_key key_memory_win_SECURITY_ATTRIBUTES;
