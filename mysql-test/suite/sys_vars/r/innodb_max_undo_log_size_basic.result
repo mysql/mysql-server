@@ -9,6 +9,12 @@ SELECT COUNT(@@GLOBAL.innodb_max_undo_log_size);
 COUNT(@@GLOBAL.innodb_max_undo_log_size)
 1
 1 Expected
+SET @@GLOBAL.innodb_max_undo_log_size=18446744073709551615;
+SELECT @@GLOBAL.innodb_max_undo_log_size;
+@@GLOBAL.innodb_max_undo_log_size
+18446744073709551615
+18446744073709551615 Expected
+SET @@GLOBAL.innodb_max_undo_log_size=1073741824;
 '#---------------------BS_STVARS_035_03----------------------#'
 SELECT @@GLOBAL.innodb_max_undo_log_size = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
