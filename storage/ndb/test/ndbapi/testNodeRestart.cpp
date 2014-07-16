@@ -30,6 +30,8 @@
 #include <NdbMem.h>
 #include <my_sys.h>
 #include <ndb_rand.h>
+#include <BlockNumbers.h>
+
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -2544,9 +2546,10 @@ runPnr(NDBT_Context* ctx, NDBT_Step* step)
 int
 runCreateBigTable(NDBT_Context* ctx, NDBT_Step* step)
 {
+  const char * prefix = ctx->getProperty("PREFIX", "");
   NdbDictionary::Table tab = *ctx->getTab();
   BaseString tmp;
-  tmp.assfmt("_%s", tab.getName());
+  tmp.assfmt("%s_%s", prefix, tab.getName());
   tab.setName(tmp.c_str());
   
   NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
@@ -2586,9 +2589,10 @@ runCreateBigTable(NDBT_Context* ctx, NDBT_Step* step)
 int
 runDropBigTable(NDBT_Context* ctx, NDBT_Step* step)
 {
+  const char * prefix = ctx->getProperty("PREFIX", "");
   NdbDictionary::Table tab = *ctx->getTab();
   BaseString tmp;
-  tmp.assfmt("_%s", tab.getName());
+  tmp.assfmt("%s_%s", prefix, tab.getName());
   GETNDB(step)->getDictionary()->dropTable(tmp.c_str());
   return NDBT_OK;
 }
@@ -5129,9 +5133,185 @@ runMasterFailSlowLCP(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
-
   ndbout_c("Done");
   return NDBT_OK;
+}
+
+/*
+ Check that create big table and delete rows followed by node
+ restart does not leak memory.
+
+ See bugs,
+ Bug #18683398 MEMORY LEAK DURING ROLLING RESTART
+ Bug #18731008 NDB : AVOID MAPPING EMPTY PAGES DUE TO DELETES DURING NR
+ */
+int
+runDeleteRestart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+
+  if (runCreateBigTable(ctx, step) != NDBT_OK)
+  {
+    return NDBT_FAILED;
+  }
+
+  res.getNumDbNodes(); // will force it to connect...
+
+  /**
+   * Get memory usage
+   */
+  struct ndb_mgm_events * time0 =
+    ndb_mgm_dump_events(res.handle, NDB_LE_MemoryUsage, 0, 0);
+  if (!time0)
+  {
+    ndbout_c("ERROR: failed to fetch report!");
+    return NDBT_FAILED;;
+  }
+
+  printf("memory usage:\n");
+  Uint32 t0_minpages = ~Uint32(0);
+  Uint32 t0_maxpages = 0;
+  for (int i = 0; i < time0->no_of_events; i++)
+  {
+    if (time0->events[i].MemoryUsage.block != DBTUP)
+      continue;
+
+    printf("node %u pages: %u\n",
+           time0->events[i].source_nodeid,
+           time0->events[i].MemoryUsage.pages_used);
+
+    if (time0->events[i].MemoryUsage.pages_used < t0_minpages)
+      t0_minpages = time0->events[i].MemoryUsage.pages_used;
+    if (time0->events[i].MemoryUsage.pages_used > t0_maxpages)
+      t0_maxpages = time0->events[i].MemoryUsage.pages_used;
+  }
+
+  /**
+   * Stop one node
+   */
+  int node = res.getNode(NdbRestarter::NS_RANDOM);
+  ndbout_c("node: %d", node);
+  if (res.restartOneDbNode(node,
+                           /** initial */ false,
+                           /** nostart */ true,
+                           /** abort   */ true))
+    return NDBT_FAILED;
+
+  if (res.waitNodesNoStart(&node, 1))
+    return NDBT_FAILED;
+
+  /**
+   * Then clear table it...
+   */
+  {
+    BaseString name;
+    name.assfmt("_%s", ctx->getTab()->getName());
+    const NdbDictionary::Table * pTab = pDict->getTable(name.c_str());
+    UtilTransactions trans(* pTab);
+    trans.clearTable(GETNDB(step));
+  }
+
+  /**
+   * Create a new big table...
+   */
+  ctx->setProperty("PREFIX", "2");
+  if (runCreateBigTable(ctx, step) != NDBT_OK)
+    return NDBT_FAILED;
+
+  /**
+   * Then start node
+   */
+  res.startNodes(&node, 1);
+  res.waitClusterStarted();
+
+  /**
+   * Get memory usage
+   */
+  struct ndb_mgm_events * time1 =
+    ndb_mgm_dump_events(res.handle, NDB_LE_MemoryUsage, 0, 0);
+  if (!time1)
+  {
+    ndbout_c("ERROR: failed to fetch report!");
+    return NDBT_FAILED;;
+  }
+
+  printf("memory usage:\n");
+  Uint32 t1_minpages = ~Uint32(0);
+  Uint32 t1_maxpages = 0;
+  for (int i = 0; i < time1->no_of_events; i++)
+  {
+    if (time1->events[i].MemoryUsage.block != DBTUP)
+      continue;
+
+    printf("node %u pages: %u\n",
+           time1->events[i].source_nodeid,
+           time1->events[i].MemoryUsage.pages_used);
+
+    if (time1->events[i].MemoryUsage.pages_used < t1_minpages)
+      t1_minpages = time1->events[i].MemoryUsage.pages_used;
+    if (time1->events[i].MemoryUsage.pages_used > t1_maxpages)
+      t1_maxpages = time1->events[i].MemoryUsage.pages_used;
+  }
+
+  { // Drop table 1
+    BaseString name;
+    name.assfmt("_%s", ctx->getTab()->getName());
+    pDict->dropTable(name.c_str());
+  }
+
+  { // Drop table 2
+    BaseString name;
+    name.assfmt("2_%s", ctx->getTab()->getName());
+    pDict->dropTable(name.c_str());
+  }
+
+  /**
+   * Verification...
+   *   each node should have roughly the same now as before
+   */
+  bool ok = true;
+  int maxpctdiff = 10;
+  for (int i = 0; i < time0->no_of_events; i++)
+  {
+    if (time0->events[i].MemoryUsage.block != DBTUP)
+      continue;
+
+    unsigned node = time0->events[i].source_nodeid;
+    for (int j = 0; j < time1->no_of_events; j++)
+    {
+      if (time1->events[j].MemoryUsage.block != DBTUP)
+        continue;
+
+      if (time1->events[j].source_nodeid != node)
+        continue;
+
+      int diff =
+        time0->events[i].MemoryUsage.pages_used -
+        time1->events[j].MemoryUsage.pages_used;
+
+      if (diff < 0)
+        diff = -diff;
+
+      int diffpct = (100 * diff) / time0->events[i].MemoryUsage.pages_used;
+      ndbout_c("node %u pages %u - %u => diff pct: %u%% (max: %u) => %s",
+               node,
+               time0->events[i].MemoryUsage.pages_used,
+               time1->events[j].MemoryUsage.pages_used,
+               diffpct,
+               maxpctdiff,
+               diffpct <= maxpctdiff ? "OK" : "FAIL");
+
+      if (diffpct > maxpctdiff)
+        ok = false;
+      break;
+    }
+  }
+
+  free(time0);
+  free(time1);
+
+  return ok ? NDBT_OK : NDBT_FAILED;
 }
 
 int master_err[] =
@@ -6927,7 +7107,12 @@ TESTCASE("Bug18044717",
 {
   INITIALIZER(runBug18044717);
 }
-
+TESTCASE("DeleteRestart",
+         "Check that create big table and delete rows followed by "
+         "node restart does not leak memory")
+{
+  INITIALIZER(runDeleteRestart);
+}
 NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){
