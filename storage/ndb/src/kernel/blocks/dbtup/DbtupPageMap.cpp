@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -110,7 +110,9 @@ Uint32
 Dbtup::getRealpidCheck(Fragrecord* regFragPtr, Uint32 logicalPageId) 
 {
   DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
-  Uint32 * ptr = map.get(2 * logicalPageId);
+  // logicalPageId might not be mapped yet,
+  // get_dirty returns NULL also in debug in this case.
+  Uint32 * ptr = map.get_dirty(2 * logicalPageId);
   if (likely(ptr != 0))
   {
     Uint32 val = * ptr;
