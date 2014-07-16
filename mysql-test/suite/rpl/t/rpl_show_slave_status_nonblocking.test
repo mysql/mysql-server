@@ -28,7 +28,6 @@ END|
 
 delimiter ;|
 
-
 --echo #######################################################################
 --echo # Testing if a user without REPLICATION CLIENT and SUPER privilege can
 --echo # execute SHOW SLAVE STATUS NONBLOCKING.
@@ -62,7 +61,6 @@ SHOW SLAVE STATUS NONBLOCKING;
 --connection slave
 --disconnect user2
 DROP USER 'mysqltest_2'@'localhost';
-
 
 --echo #######################################################################
 --echo # Stress test that executes nearly in parallel SSS NONBLOCKING and STOP
