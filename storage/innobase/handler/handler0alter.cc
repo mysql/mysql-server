@@ -47,6 +47,7 @@ Smart ALTER TABLE
 #include "pars0pars.h"
 #include "row0sel.h"
 #include "ha_innodb.h"
+#include "ut0new.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE
@@ -3351,7 +3352,7 @@ err_exit:
 	trx_free_for_mysql(ctx->trx);
 	trx_commit_for_mysql(ctx->prebuilt->trx);
 
-	delete ctx;
+	UT_DELETE(ctx);
 	ha_alter_info->handler_ctx = NULL;
 
 	/* There might be work for utility threads.*/
@@ -4137,15 +4138,16 @@ err_exit:
 
 		if (heap) {
 			ha_alter_info->handler_ctx
-				= new ha_innobase_inplace_ctx(
-					prebuilt,
-					drop_index, n_drop_index,
-					rename_index, n_rename_index,
-					drop_fk, n_drop_fk,
-					add_fk, n_add_fk,
-					ha_alter_info->online,
-					heap, indexed_table,
-					col_names, ULINT_UNDEFINED, 0, 0);
+				= UT_NEW_NOKEY(ha_innobase_inplace_ctx(
+						prebuilt,
+						drop_index, n_drop_index,
+						rename_index, n_rename_index,
+						drop_fk, n_drop_fk,
+						add_fk, n_add_fk,
+						ha_alter_info->online,
+						heap, indexed_table,
+						col_names, ULINT_UNDEFINED, 0,
+						0));
 		}
 
 func_exit:
@@ -4243,7 +4245,7 @@ found_col:
 	DBUG_ASSERT(user_thd == prebuilt->trx->mysql_thd);
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 
-	ha_alter_info->handler_ctx = new ha_innobase_inplace_ctx(
+	ha_alter_info->handler_ctx = UT_NEW_NOKEY(ha_innobase_inplace_ctx(
 		prebuilt,
 		drop_index, n_drop_index,
 		rename_index, n_rename_index,
@@ -4252,7 +4254,7 @@ found_col:
 		heap, prebuilt->table, col_names,
 		add_autoinc_col_no,
 		ha_alter_info->create_info->auto_increment_value,
-		autoinc_col_max_value);
+		autoinc_col_max_value));
 
 	DBUG_RETURN(prepare_inplace_alter_table_dict(
 			    ha_alter_info, altered_table, table,

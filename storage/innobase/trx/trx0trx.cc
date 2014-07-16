@@ -172,7 +172,7 @@ struct TrxFactory {
 
 		trx->dict_operation_lock_mode = 0;
 
-		trx->xid = new (std::nothrow) xid_t();
+		trx->xid = UT_NEW_NOKEY(xid_t());
 
 		trx->detailed_error = reinterpret_cast<char*>(
 			ut_zalloc_nokey(MAX_DETAILED_ERROR_LEN));
@@ -224,7 +224,7 @@ struct TrxFactory {
 
 		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-		delete trx->xid;
+		UT_DELETE(trx->xid);
 		ut_free(trx->detailed_error);
 
 		mutex_free(&trx->mutex);

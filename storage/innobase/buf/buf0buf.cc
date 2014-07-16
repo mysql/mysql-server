@@ -1653,7 +1653,7 @@ buf_pool_init(
 	buf_pool_ptr = (buf_pool_t*) ut_zalloc_nokey(
 		n_instances * sizeof *buf_pool_ptr);
 
-	buf_chunk_map_reg = new buf_pool_chunk_map_t();
+	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
 
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_t*	ptr	= &buf_pool_ptr[i];
@@ -1690,7 +1690,7 @@ buf_pool_free(
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
 
-	delete buf_chunk_map_reg;
+	UT_DELETE(buf_chunk_map_reg);
 	buf_chunk_map_reg = buf_chunk_map_ref = NULL;
 
 	ut_free(buf_pool_ptr);
@@ -2427,7 +2427,7 @@ withdraw_retry:
 		hash_lock_x_all(buf_pool->page_hash);
 	}
 
-	buf_chunk_map_reg = new buf_pool_chunk_map_t();
+	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
 
 	/* add/delete chunks */
 	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
@@ -2617,7 +2617,7 @@ withdraw_retry:
 		}
 	}
 
-	delete chunk_map_old;
+	UT_DELETE(chunk_map_old);
 	buf_pool_resizing = false;
 
 	/* Normalize other components, if the new size is too different */

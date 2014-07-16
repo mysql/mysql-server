@@ -901,7 +901,7 @@ pointer must be passed to UT_DELETE() when no longer needed.
 	 	} \
 	 /* ut_allocator::construct() can't be used for classes with disabled
 	 copy constructors, thus we use placement new here directly. */ \
-	 	_p != NULL ? (new(_p) expr) : NULL; \
+	 	_p != NULL ? (::new(_p) expr) : NULL; \
 	 })
 
 /** Allocate, trace the allocation and construct an object.
