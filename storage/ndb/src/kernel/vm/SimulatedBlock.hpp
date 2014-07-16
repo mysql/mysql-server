@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SIMULATEDBLOCK_H
 #define SIMULATEDBLOCK_H
@@ -1377,6 +1377,10 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 #define RSS_OP_SNAPSHOT(x) Uint32 rss_##x
 #define RSS_OP_SNAPSHOT_SAVE(x) rss_##x = x
 #define RSS_OP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x)
+
+#define RSS_DA256_SNAPSHOT(x) Uint32 rss_##x
+#define RSS_DA256_SNAPSHOT_SAVE(x) rss_##x = x.m_high_pos
+#define RSS_DA256_SNAPSHOT_CHECK(x) ndbrequire(x.m_high_pos <= rss_##x)
 #else
 #define RSS_AP_SNAPSHOT(x) struct rss_dummy0_##x { int dummy; }
 #define RSS_AP_SNAPSHOT_SAVE(x)
@@ -1395,6 +1399,9 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 #define RSS_OP_SNAPSHOT_SAVE(x)
 #define RSS_OP_SNAPSHOT_CHECK(x)
 
+#define RSS_DA256_SNAPSHOT(x)
+#define RSS_DA256_SNAPSHOT_SAVE(x)
+#define RSS_DA256_SNAPSHOT_CHECK(x)
 #endif
 
 struct Hash2FragmentMap
