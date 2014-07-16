@@ -26,6 +26,7 @@ Created 2012-09-23 Sunny Bains
 #include "os0event.h"
 #include "ut0mutex.h"
 #include "ha_prototypes.h"
+#include "ut0new.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -618,7 +619,7 @@ os_event_create(
 						event, if NULL the event
 						is created without a name */
 {
-	return(new(std::nothrow) os_event(name));
+	return(UT_NEW_NOKEY(os_event(name)));
 }
 
 /**
@@ -708,9 +709,9 @@ os_event_destroy(
 	os_event_t&	event)			/*!< in/own: event to free */
 
 {
-	if (event != 0) {
-		delete event;
-		event = 0;
+	if (event != NULL) {
+		UT_DELETE(event);
+		event = NULL;
 	}
 }
 

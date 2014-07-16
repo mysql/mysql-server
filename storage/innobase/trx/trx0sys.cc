@@ -548,7 +548,7 @@ trx_sys_create(void)
 	UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);
 	UT_LIST_INIT(trx_sys->mysql_trx_list, &trx_t::mysql_trx_list);
 
-	trx_sys->mvcc = new(std::nothrow) MVCC(1024);
+	trx_sys->mvcc = UT_NEW_NOKEY(MVCC(1024));
 
 	new(&trx_sys->rw_trx_ids) trx_ids_t(ut_allocator<trx_id_t>(
 			mem_key_trx_sys_t_rw_trx_ids));
@@ -1212,7 +1212,7 @@ trx_sys_close(void)
 		}
 	}
 
-	delete trx_sys->mvcc;
+	UT_DELETE(trx_sys->mvcc);
 
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);

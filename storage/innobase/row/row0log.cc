@@ -1262,8 +1262,8 @@ row_log_table_blob_free(
 
 	page_no_map*	blobs	= index->online_log->blobs;
 
-	if (!blobs) {
-		index->online_log->blobs = blobs = new page_no_map();
+	if (blobs == NULL) {
+		index->online_log->blobs = blobs = UT_NEW_NOKEY(page_no_map());
 	}
 
 #ifdef UNIV_DEBUG
@@ -2913,13 +2913,13 @@ row_log_free(
 {
 	MONITOR_ATOMIC_DEC(MONITOR_ONLINE_CREATE_INDEX);
 
-	delete log->blobs;
+	UT_DELETE(log->blobs);
 	row_log_block_free(log->tail);
 	row_log_block_free(log->head);
 	row_merge_file_destroy_low(log->fd);
 	mutex_free(&log->mutex);
 	ut_free(log);
-	log = 0;
+	log = NULL;
 }
 
 /******************************************************//**

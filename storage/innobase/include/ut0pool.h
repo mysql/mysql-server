@@ -297,9 +297,9 @@ private:
 
 			ut_ad(n_pools == m_pools.size());
 
-			pool = new (std::nothrow) PoolType(m_size);
+			pool = UT_NEW_NOKEY(PoolType(m_size));
 
-			if (pool != 0) {
+			if (pool != NULL) {
 
 				ut_ad(n_pools <= m_pools.size());
 
@@ -338,7 +338,7 @@ private:
 		for (it = m_pools.begin(); it != end; ++it) {
 			PoolType*	pool = *it;
 
-			delete pool;
+			UT_DELETE(pool);
 		}
 
 		m_pools.clear();

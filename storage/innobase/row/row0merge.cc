@@ -64,13 +64,13 @@ public:
 	{
 		m_heap = heap;
 		m_index = index;
-		m_dtuple_vec = new(std::nothrow)idx_tuple_vec();
+		m_dtuple_vec = UT_NEW_NOKEY(idx_tuple_vec());
 	}
 
 	/** destructor */
 	~index_tuple_info_t()
 	{
-		delete m_dtuple_vec;
+		UT_DELETE(m_dtuple_vec);
 	}
 
 	/** Get the index object
@@ -1478,8 +1478,10 @@ row_merge_read_clustered_index(
 		for (ulint i = 0; i < n_index; i++) {
 			if (dict_index_is_spatial(index[i])) {
 				spatial_dtuple_info[count]
-					= new(std::nothrow)index_tuple_info_t(
-						spatial_heap, index[i]);
+					= UT_NEW_NOKEY(
+						index_tuple_info_t(
+							spatial_heap,
+							index[i]));
 				count++;
 			}
 		}
@@ -1568,7 +1570,7 @@ row_merge_read_clustered_index(
 				"ib_purge_on_create_index_page_switch",
 				dbug_run_purge = true;);
 
-			if (spatial_dtuple_info) {
+			if (spatial_dtuple_info != NULL) {
 				bool	mtr_committed = false;
 
 				for (ulint j = 0; j < num_spatial; j++) {
@@ -1945,8 +1947,9 @@ write_buffers:
 					}
 
 					if (clust_btr_bulk == NULL) {
-						clust_btr_bulk = new BtrBulk(
-							index[i], trx->id);
+						clust_btr_bulk = UT_NEW_NOKEY(
+							BtrBulk(index[i],
+								trx->id));
 						clust_btr_bulk->init();
 					}
 
@@ -1957,7 +1960,7 @@ write_buffers:
 					if (row == NULL) {
 						err = clust_btr_bulk->finish(
 							err);
-						delete clust_btr_bulk;
+						UT_DELETE(clust_btr_bulk);
 					}
 
 					if (row != NULL) {
@@ -2198,9 +2201,9 @@ wait_again:
 
 	btr_pcur_close(&pcur);
 
-	if (spatial_dtuple_info) {
+	if (spatial_dtuple_info != NULL) {
 		for (ulint i = 0; i < num_spatial; i++) {
-			delete spatial_dtuple_info[i];
+			UT_DELETE(spatial_dtuple_info[i]);
 		}
 		ut_free(spatial_dtuple_info);
 

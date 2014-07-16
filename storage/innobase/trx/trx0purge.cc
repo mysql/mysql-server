@@ -263,7 +263,7 @@ trx_purge_sys_create(
 
 	purge_sys->view_active = true;
 
-	purge_sys->rseg_iter = new TrxUndoRsegsIterator(purge_sys);
+	purge_sys->rseg_iter = UT_NEW_NOKEY(TrxUndoRsegsIterator(purge_sys));
 }
 
 /************************************************************************
@@ -299,7 +299,7 @@ trx_purge_sys_close(void)
 
 	purge_sys->event = NULL;
 
-	delete purge_sys->rseg_iter;
+	UT_DELETE(purge_sys->rseg_iter);
 
 	ut_free(purge_sys);
 

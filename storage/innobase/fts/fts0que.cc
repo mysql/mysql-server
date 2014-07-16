@@ -3858,8 +3858,8 @@ fts_query_free(
 		rbt_free(query->word_map);
 	}
 
-	if (query->word_vector) {
-		delete query->word_vector;
+	if (query->word_vector != NULL) {
+		UT_DELETE(query->word_vector);
 	}
 
 	if (query->heap) {
@@ -4083,7 +4083,7 @@ fts_query(
 
 	query.word_map = rbt_create_arg_cmp(
 		sizeof(fts_string_t), innobase_fts_text_cmp, charset);
-	query.word_vector = new word_vector_t;
+	query.word_vector = UT_NEW_NOKEY(word_vector_t());
 	query.error = DB_SUCCESS;
 
 	/* Setup the RB tree that will be used to collect per term
