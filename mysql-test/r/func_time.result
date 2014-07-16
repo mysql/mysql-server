@@ -1796,3 +1796,31 @@ Warning	1292	Truncated incorrect time value: '18446744073709551615:49:00.1234567
 # Bug#14042545 ASSERTION FAILED: DEC <= 6 IN MY_USECONDS_TO_STR()
 #
 DO is_used_lock(ifnull(now(), CASE 1 WHEN 1 THEN NULL END));
+#
+# BUG#18675237  NOW() : MISSING FRACTIONAL SECONDS FROM A VIEW
+#
+SET @@TIMESTAMP= UNIX_TIMESTAMP('2014-05-27 10:20:30.123456');
+CREATE VIEW v1 AS SELECT NOW(6), CURTIME(4), LOCALTIME(3), CURRENT_TIME(2),
+CURRENT_TIMESTAMP(0), LOCALTIMESTAMP(1), UTC_TIME(4), UTC_TIMESTAMP(4);
+# After the patch, the decimal value is printed for the temporal
+# functions. 
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select now(6) AS `NOW(6)`,curtime(4) AS `CURTIME(4)`,now(3) AS `LOCALTIME(3)`,curtime(2) AS `CURRENT_TIME(2)`,now() AS `CURRENT_TIMESTAMP(0)`,now(1) AS `LOCALTIMESTAMP(1)`,utc_time(4) AS `UTC_TIME(4)`,utc_timestamp(4) AS `UTC_TIMESTAMP(4)`	latin1	latin1_swedish_ci
+# After the patch, the fractional seconds are displayed.
+SELECT * FROM v1;
+NOW(6)	CURTIME(4)	LOCALTIME(3)	CURRENT_TIME(2)	CURRENT_TIMESTAMP(0)	LOCALTIMESTAMP(1)	UTC_TIME(4)	UTC_TIMESTAMP(4)
+2014-05-27 10:20:30.123456	10:20:30.1234	2014-05-27 10:20:30.123	10:20:30.12	2014-05-27 10:20:30	2014-05-27 10:20:30.1	07:20:30.1234	2014-05-27 07:20:30.1234
+#Adding separate case for SYSDATE, since its value cannot
+#be fixed and varies with every run.
+CREATE VIEW v2 AS SELECT LOCATE(".", SYSDATE(6)) != 0;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (locate('.',sysdate(6)) <> 0) AS `LOCATE(".", SYSDATE(6)) != 0`	latin1	latin1_swedish_ci
+#After the patch, will return the value as '1'(Condition is true).
+SELECT * FROM v2;
+LOCATE(".", SYSDATE(6)) != 0
+1
+# Cleanup
+DROP VIEW v1, v2;
+SET @@TIMESTAMP= DEFAULT;

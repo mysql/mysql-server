@@ -4632,7 +4632,7 @@ ibuf_merge_or_delete_for_page(
 		rw_lock_x_lock_move_ownership(&(block->lock));
 		page_zip = buf_block_get_page_zip(block);
 
-		if (fil_page_get_type(block->frame) != FIL_PAGE_INDEX
+		if (!fil_page_index_page_check(block->frame)
 		    || !page_is_leaf(block->frame)) {
 
 			page_t*	bitmap_page;

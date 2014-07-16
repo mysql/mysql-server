@@ -912,6 +912,14 @@ struct row_prebuilt_t {
 
 	innodb_session_t*
 			session;	/*!< InnoDB session handler. */
+	byte*		srch_key_val1;  /*!< buffer used in converting
+					search key values from MySQL format
+					to InnoDB format.*/
+	byte*		srch_key_val2;  /*!< buffer used in converting
+					search key values from MySQL format
+					to InnoDB format.*/
+	uint		srch_key_val_len; /*!< Size of search key */
+
 };
 
 /** Callback for row_mysql_sys_index_iterate() */

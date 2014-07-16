@@ -1632,9 +1632,10 @@ int ha_myisammrg::check(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
-ha_rows ha_myisammrg::records()
+int ha_myisammrg::records(ha_rows *num_rows)
 {
-  return myrg_records(file);
+  *num_rows= myrg_records(file);
+  return 0;
 }
 
 

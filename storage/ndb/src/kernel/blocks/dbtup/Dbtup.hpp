@@ -622,8 +622,12 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   STATIC_CONST( FREE_PAGE_RNIL = RNIL + 1 );
 
 struct Fragrecord {
+  // Number of allocated pages for fixed-sized data.
   Uint32 noOfPages;
+  // Number of allocated pages for var-sized data.
   Uint32 noOfVarPages;
+  // No of allocated but unused words for var-sized fields.
+  Uint64 m_varWordsFree;
 
   Uint32 m_max_page_no;
   Uint32 m_free_page_id_list;
@@ -657,9 +661,24 @@ struct Fragrecord {
   Uint32 m_tablespace_id;
   Uint32 m_logfile_group_id;
   Disk_alloc_info m_disk_alloc_info;
+  // Number of fixed-seize tuple parts (which equals the tuple count).
+  Uint64 m_fixedElemCount;
+  /**
+    Number of variable-size tuple parts, i.e. the number of tuples that has
+    one or more non-NULL varchar/varbinary or blob fields. (The first few bytes
+    of a blob is stored like that, the rest in a blob table.)
+  */
+  Uint64 m_varElemCount;
+
+  // Consistency check.
+  bool verifyVarSpace() const
+  {
+    return (m_varWordsFree < Uint64(1)<<60) && //Underflow.
+      m_varWordsFree * sizeof(Uint32) <=
+      noOfVarPages * File_formats::NDB_PAGE_SIZE;
+  }
 };
 typedef Ptr<Fragrecord> FragrecordPtr;
-
 
 struct Operationrec {
   /*
@@ -1719,7 +1738,41 @@ public:
   void nr_delete_log_buffer_callback(Signal*, Uint32 op, Uint32 page);
 
   bool get_frag_info(Uint32 tableId, Uint32 fragId, Uint32* maxPage);
+
   void execSTORED_PROCREQ(Signal* signal);
+
+
+  // Statistics about fragment memory usage.
+  struct FragStats
+  {
+    // Size of fixed-size part of record.
+    Uint32 fixedRecordBytes;
+    // Page size (32k, see File_formats::NDB_PAGE_SIZE).
+    Uint32 pageSizeBytes;
+    // Number of fixed-size parts that fits in each page.
+    Uint32 fixedSlotsPerPage;
+    // Number of pages allocated for storing fixed-size parts.
+    Uint64 fixedMemoryAllocPages;
+    // Number of pages allocated for storing var-size parts.
+    Uint64 varMemoryAllocPages;
+    /** 
+      Number of bytes for storing var-size parts that are allocated but not yet 
+      used.
+    */
+    Uint64 varMemoryFreeBytes;
+    // Number of fixed-size elements (i.e. number of rows.)
+    Uint64 fixedElemCount;
+    /**
+      Number of var-size elements. There will be one for each row that has at
+      least one non-null var-size field (varchar/varbinary/blob).
+     */
+    Uint64 varElemCount;
+    // Size of the page map (DynArr256) that maps from logical to physical pages.
+    Uint64 logToPhysMapAllocBytes;
+  };
+
+  const FragStats get_frag_stats(Uint32 fragId) const;
+
 private:
   BLOCK_DEFINES(Dbtup);
 
