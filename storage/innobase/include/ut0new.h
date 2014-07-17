@@ -704,7 +704,7 @@ public:
 		size_t	n_bytes = n_elements * sizeof(T);
 
 		pointer	ptr = reinterpret_cast<pointer>(
-			os_mem_alloc_large(&n_bytes));
+			os_mem_alloc_large(static_cast<ulint*>(&n_bytes)));
 
 #ifdef UNIV_PFS_MEMORY
 		if (ptr != NULL) {
