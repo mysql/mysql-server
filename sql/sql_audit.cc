@@ -353,7 +353,7 @@ int initialize_audit_plugin(st_plugin_int *plugin)
     return 1;
   }
   
-  if (plugin->plugin->init && plugin->plugin->init(NULL))
+  if (plugin->plugin->init && plugin->plugin->init(plugin))
   {
     sql_print_error("Plugin '%s' init function returned error.",
                     plugin->name.str);
