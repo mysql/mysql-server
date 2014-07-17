@@ -40,3 +40,18 @@ v1a	Hello
 v2a	World
 v3a	65
 v4a	NULL
+set @blob_under_16_bits=repeat("a", 65000);
+set @blob_under_24_bits=repeat("a", 1000000);
+select length(@blob_under_16_bits);
+length(@blob_under_16_bits)
+65000
+select length(@blob_under_24_bits);
+length(@blob_under_24_bits)
+1000000
+select variable_name, length(variable_value)
+from performance_schema.user_variables_by_thread
+where VARIABLE_NAME like "blob%"
+  order by VARIABLE_NAME;
+variable_name	length(variable_value)
+blob_under_16_bits	65000
+blob_under_24_bits	1000000

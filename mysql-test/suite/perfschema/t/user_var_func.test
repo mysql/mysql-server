@@ -30,3 +30,19 @@ select VARIABLE_NAME, VARIABLE_VALUE
   from performance_schema.user_variables_by_thread
   order by VARIABLE_NAME;
 
+# Make sure large values are not truncated
+set @blob_under_16_bits=repeat("a", 65000);
+set @blob_under_24_bits=repeat("a", 1000000);
+
+# Not testable because of limitation on max_allowed_packet
+# set @blob_under_32_bits=repeat("a", 20000000);
+
+select length(@blob_under_16_bits);
+select length(@blob_under_24_bits);
+# select length(@blob_under_32_bits);
+
+select variable_name, length(variable_value)
+  from performance_schema.user_variables_by_thread
+  where VARIABLE_NAME like "blob%"
+  order by VARIABLE_NAME;
+
