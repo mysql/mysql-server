@@ -1951,6 +1951,11 @@ void kill_zombie_dump_threads(String *slave_uuid)
       it will be slow because it will iterate through the list
       again. We just to do kill the thread ourselves.
     */
+    if (log_warnings > 1)
+      sql_print_information("While initializing dump thread for slave with "
+                            "UUID <%s>, found a zombie dump thread with "
+                            "the same UUID. Master is killing the zombie dump "
+                            "thread.", slave_uuid->c_ptr());
     tmp->awake(THD::KILL_QUERY);
     mysql_mutex_unlock(&tmp->LOCK_thd_data);
   }
