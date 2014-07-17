@@ -292,7 +292,7 @@ namespace undo {
 		DDL truncate log)
 		@param	space_id	space id of the undo tablespace to check
 		@return true if fix up is needed else false */
-		bool needs_fix_up(ulint	space_id)
+		bool needs_fix_up(ulint	space_id) const
 		{
 			return(is_log_present(space_id));
 		}
