@@ -2311,7 +2311,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.user_variables_by_thread("
   "THREAD_ID BIGINT unsigned not null,"
   "VARIABLE_NAME VARCHAR(64) not null,"
-  "VARIABLE_VALUE BLOB"
+  "VARIABLE_VALUE LONGBLOB"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

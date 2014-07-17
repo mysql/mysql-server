@@ -57,39 +57,38 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd)
 
   uint index= 0;
 
-  do
+  for (;;)
   {
     User_variable pfs_uvar;
 
     sql_uvar= reinterpret_cast<user_var_entry*> (my_hash_element(& thd->user_vars, index));
-    if (sql_uvar != NULL)
+    if (sql_uvar == NULL)
+      break;
+
+    /* Copy VARIABLE_NAME */
+    const char *name= sql_uvar->entry_name.ptr();
+    size_t name_length= sql_uvar->entry_name.length();
+    DBUG_ASSERT(name_length <= sizeof(pfs_uvar.m_name));
+    pfs_uvar.m_name.make_row(name, name_length);
+
+    /* Copy VARIABLE_VALUE */
+    my_bool null_value;
+    String *str_value;
+    String str_buffer;
+    uint decimals= 0;
+    str_value= sql_uvar->val_str(& null_value, & str_buffer, decimals);
+    if (str_value != NULL)
     {
-      /* Copy VARIABLE_NAME */
-      const char *name= sql_uvar->entry_name.ptr();
-      size_t name_length= sql_uvar->entry_name.length();
-      DBUG_ASSERT(name_length <= sizeof(pfs_uvar.m_name));
-      pfs_uvar.m_name.make_row(name, name_length);
-
-      /* Copy VARIABLE_VALUE */
-      my_bool null_value;
-      String *str_value;
-      String str_buffer;
-      uint decimals= 0;
-      str_value= sql_uvar->val_str(& null_value, & str_buffer, decimals);
-      if (str_value != NULL)
-      {
-        pfs_uvar.m_value.make_row(str_value->ptr(), str_value->length());
-      }
-      else
-      {
-        pfs_uvar.m_value.make_row(NULL, 0);
-      }
-
-      m_vector.push_back(pfs_uvar);
+      pfs_uvar.m_value.make_row(str_value->ptr(), str_value->length());
     }
+    else
+    {
+      pfs_uvar.m_value.make_row(NULL, 0);
+    }
+
+    m_vector.push_back(pfs_uvar);
     index++;
   }
-  while (sql_uvar != NULL);
 }
 
 THR_LOCK table_uvar_by_thread::m_table_lock;
@@ -108,7 +107,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("VARIABLE_VALUE") },
-    { C_STRING_WITH_LEN("blob") },
+    { C_STRING_WITH_LEN("longblob") },
     { NULL, 0}
   }
 };
