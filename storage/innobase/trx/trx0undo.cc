@@ -2096,7 +2096,8 @@ trx_undo_free_prepared(
 
 bool
 trx_undo_truncate_tablespace(
-	UndoTruncate*	undo_trunc)
+	undo::Truncate*	undo_trunc)
+
 {
 	bool	success = true;
 	ulint	space_id = undo_trunc->get_marked_space_id();
@@ -2140,10 +2141,10 @@ trx_undo_truncate_tablespace(
 		ut_a(UT_LIST_GET_LEN(rseg->update_undo_list) == 0);
 		ut_a(UT_LIST_GET_LEN(rseg->insert_undo_list) == 0);
 
-		trx_undo_t*	undo;
 		trx_undo_t*	next_undo;
 
-		for (undo = UT_LIST_GET_FIRST(rseg->update_undo_cached);
+		for (trx_undo_t* undo =
+			UT_LIST_GET_FIRST(rseg->update_undo_cached);
 		     undo != NULL;
 		     undo = next_undo) {
 
@@ -2153,7 +2154,8 @@ trx_undo_truncate_tablespace(
 			trx_undo_mem_free(undo);
 		}
 
-		for (undo = UT_LIST_GET_FIRST(rseg->insert_undo_cached);
+		for (trx_undo_t* undo =
+			UT_LIST_GET_FIRST(rseg->insert_undo_cached);
 		     undo != NULL;
 		     undo = next_undo) {
 

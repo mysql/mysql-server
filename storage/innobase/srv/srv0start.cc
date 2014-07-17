@@ -758,13 +758,12 @@ srv_undo_tablespaces_init(
 						tablespaces successfully
 						discovered and opened */
 {
-	ulint		i;
-	dberr_t		err = DB_SUCCESS;
-	ulint		prev_space_id = 0;
-	ulint		n_undo_tablespaces;
-	ulint		undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
-	typedef		std::vector<ulint> undo_spaces_t;
-	undo_spaces_t	fix_up_undo_spaces;
+	ulint			i;
+	dberr_t			err = DB_SUCCESS;
+	ulint			prev_space_id = 0;
+	ulint			n_undo_tablespaces;
+	ulint			undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
+	undo::undo_spaces_t	fix_up_undo_spaces;
 
 	*n_opened = 0;
 
@@ -815,7 +814,7 @@ srv_undo_tablespaces_init(
 		server crashed while truncate was active on UNDO tablespace.*/
 		for (i = 0; i < n_undo_tablespaces; ++i) {
 
-			UndoTruncate	undo_trunc;
+			undo::Truncate	undo_trunc;
 
 			if (undo_trunc.needs_fix_up(undo_tablespace_ids[i])) {
 
@@ -974,12 +973,12 @@ srv_undo_tablespaces_init(
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 		sys_header = trx_sysf_get(&mtr);
 
-		for (undo_spaces_t::const_iterator it
+		for (undo::undo_spaces_t::const_iterator it
 			= fix_up_undo_spaces.begin();
 		     it != fix_up_undo_spaces.end();
 		     ++it) {
 
-			UndoTruncate::add_space_to_trunc_list(*it);
+			undo::Truncate::add_space_to_trunc_list(*it);
 
 			fsp_header_init(
 				*it, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
@@ -998,12 +997,12 @@ srv_undo_tablespaces_init(
 				}
 			}
 
-			UndoTruncate::clear_trunc_list();
+			undo::Truncate::clear_trunc_list();
 		}
 		mtr_commit(&mtr);
 
 		/* Step-2: Flush the dirty pages from the buffer pool. */
-		for (undo_spaces_t::const_iterator it
+		for (undo::undo_spaces_t::const_iterator it
 			= fix_up_undo_spaces.begin();
 		     it != fix_up_undo_spaces.end();
 		     ++it) {
@@ -1018,7 +1017,7 @@ srv_undo_tablespaces_init(
 				*it, BUF_REMOVE_FLUSH_WRITE, &trx);
 
 			/* Remove the DDL log file now. */
-			UndoTruncate	undo_trunc;
+			undo::Truncate	undo_trunc;
 			undo_trunc.done_logging(*it);
 		}
 	}
