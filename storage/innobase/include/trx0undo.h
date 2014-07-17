@@ -370,7 +370,9 @@ trx_undo_free_prepared(
 	UNIV_COLD __attribute__((nonnull));
 
 /* Forward declaration. */
-class UndoTruncate;
+namespace undo {
+	class Truncate;
+};
 
 /** Truncate UNDO tablespace, reinitialize header and rseg.
 @param[in]	undo_trunc	UNDO tablespace handler
@@ -378,7 +380,7 @@ class UndoTruncate;
 
 bool
 trx_undo_truncate_tablespace(
-	UndoTruncate*	undo_trunc);
+	undo::Truncate*	undo_trunc);
 
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
