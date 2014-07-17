@@ -2200,8 +2200,7 @@ buf_LRU_block_remove_hashed(
 			ut_a(!zip || bpage->oldest_modification == 0);
 			ut_ad(bpage->size.is_compressed());
 
-			switch (UNIV_EXPECT(fil_page_get_type(page),
-					    FIL_PAGE_INDEX)) {
+			switch (fil_page_get_type(page)) {
 			case FIL_PAGE_TYPE_ALLOCATED:
 			case FIL_PAGE_INODE:
 			case FIL_PAGE_IBUF_BITMAP:
@@ -2221,6 +2220,7 @@ buf_LRU_block_remove_hashed(
 			case FIL_PAGE_TYPE_ZBLOB2:
 				break;
 			case FIL_PAGE_INDEX:
+			case FIL_PAGE_RTREE:
 #ifdef UNIV_ZIP_DEBUG
 				ut_a(page_zip_validate(
 					     &bpage->zip, page,

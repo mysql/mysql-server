@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,6 +85,7 @@ void test()
         assert (p.size() == 1);
         Properties::const_iterator e = p.begin();
         //wcout << e->first << " => " << e->second << endl;
+        (void)e;
         assert (e->first == k);
         assert (e->second == v);
         p.clear();
@@ -103,6 +104,7 @@ void test()
         assert (p.size() == 1);
         Properties::const_iterator e = p.begin();
         //wcout << e->first << " => " << e->second << endl;
+        (void)e;
         assert (e->first == k);
         assert (e->second == w);
         p.clear();
@@ -126,6 +128,7 @@ void test()
         assert (p.size() == 1);
         Properties::const_iterator e = p.begin();
         //wcout << e->first << " => " << e->second << endl;
+        (void)e;
         assert (e->first == k);
         assert (e->second == v);
         p.clear();
