@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -320,6 +320,21 @@ typedef struct st_ndbcluster_conflict_fn_share {
 /* HAVE_NDB_BINLOG */
 #endif
 
+/**
+ * enum_slave_conflict_role
+ *
+ * These are the roles the Slave can play
+ * in asymmetric conflict algorithms
+ */
+
+enum enum_slave_conflict_role
+{
+  SCR_NONE = 0,
+  SCR_SECONDARY = 1,
+  SCR_PRIMARY = 2,
+  SCR_PASS = 3
+};
+
 enum enum_slave_trans_conflict_apply_state
 {
   /* Normal with optional row-level conflict detection */
@@ -354,7 +369,13 @@ struct st_ndb_slave_state
 {
   /* Counter values for current slave transaction */
   Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
+  
+  /* Track the current epoch from the immediate master,
+   * and whether we've committed it
+   */
   Uint64 current_master_server_epoch;
+  bool current_master_server_epoch_committed;
+  
   Uint64 current_max_rep_epoch;
   uint8 conflict_flags; /* enum_slave_conflict_flags */
     /* Transactional conflict detection */
@@ -362,6 +383,9 @@ struct st_ndb_slave_state
   Uint32 current_trans_row_conflict_count;
   Uint32 current_trans_row_reject_count;
   Uint32 current_trans_in_conflict_count;
+
+  /* Last conflict epoch */
+  Uint64 last_conflicted_epoch;
 
   /* Cumulative counter values */
   Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
@@ -399,16 +423,23 @@ struct st_ndb_slave_state
   void atBeginTransConflictHandling();
   void atEndTransConflictHandling();
 
-  void atTransactionCommit();
+  void atTransactionCommit(Uint64 epoch);
   void atTransactionAbort();
   void atResetSlave();
 
-  void atApplyStatusWrite(Uint32 master_server_id,
-                          Uint32 row_server_id,
-                          Uint64 row_epoch,
-                          bool is_row_server_id_local);
+  int atApplyStatusWrite(Uint32 master_server_id,
+                         Uint32 row_server_id,
+                         Uint64 row_epoch,
+                         bool is_row_server_id_local);
+  bool verifyNextEpoch(Uint64 next_epoch,
+                       Uint32 master_server_id) const;
 
   void resetPerAttemptCounters();
+
+  static
+  bool checkSlaveConflictRoleChange(enum_slave_conflict_role old_role,
+                                    enum_slave_conflict_role new_role,
+                                    const char** failure_cause);
 
   st_ndb_slave_state();
 };

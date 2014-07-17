@@ -185,42 +185,42 @@ INSERT INTO t1 (a ,b ,c) VALUES
 (NULL , '1', 'test');
 explain select count(a) from t1 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	index	NULL	PRIMARY	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `count(a)` from `test`.`t1` group by `test`.`t1`.`a`
 explain select count(a) from t1 FORCE INDEX FOR GROUP BY (PRIMARY) group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	index	NULL	PRIMARY	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `count(a)` from `test`.`t1` FORCE INDEX FOR GROUP BY (PRIMARY) group by `test`.`t1`.`a`
 explain select count(b) from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	index	NULL	b	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	b	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t1`.`b`) AS `count(b)` from `test`.`t1` group by `test`.`t1`.`b`
 explain select count(b) from t1 FORCE INDEX FOR GROUP BY (b) group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	index	NULL	b	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	b	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t1`.`b`) AS `count(b)` from `test`.`t1` FORCE INDEX FOR GROUP BY (`b`) group by `test`.`t1`.`b`
 explain select distinct a from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1`
 explain select distinct a from t1 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	index	NULL	PRIMARY	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 explain select distinct b from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	index	NULL	b	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	b	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`b` AS `b` from `test`.`t1`
 explain select distinct b from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	index	NULL	b	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	b	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`b`
 select count(a) from t1 group by a;
@@ -315,88 +315,228 @@ insert into t1 values
 ('11',2,'11'), ('12',3,'12'), ('13',1,'13'), ('14',2,'14'), ('15',3,'15'),
 ('16',1,'16'), ('17',2,'17'), ('x',3,'x'), ('y',1,'y'), ('z',2,'z'),
 ('1000',3,'1000'), ('2000',3,'2000'), ('10000',3,'10000');
+insert into t1 select concat(vc, '-0'), i, concat(vc2,'-0') from t1;
+insert into t1 select concat(vc, '-1'), i, concat(vc2,'-1') from t1;
+insert into t1 select concat('#-', vc), 0, concat('2-',vc2) from t1;
+insert into t1 select concat('$-', vc), 0, concat('3-',vc2) from t1;
+insert into t1 select concat('%-', vc), 0, concat('4-',vc2) from t1;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+As testcase for bug#58280, query should 'index_merge i1,i2'
 explain
 select i,vc from t1
 where i>=1 or vc > '0';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1	ALL	PRIMARY,i1,i2	NULL	NULL	NULL	#	#	Using where with pushed condition ((`test`.`t1`.`i` >= 1) or (`test`.`t1`.`vc` > '0'))
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index_merge	PRIMARY,i1,i2	i1,i2	5,18	NULL	#	#	Using sort_union(i1,i2); Using where with pushed condition ((`test`.`t1`.`i` >= 1) or (`test`.`t1`.`vc` > '0'))
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`vc` AS `vc` from `test`.`t1` where ((`test`.`t1`.`i` >= 1) or (`test`.`t1`.`vc` > '0'))
 select i,vc from t1
 where i>=1 or vc > '0';
 i	vc
 1	1
+1	1-0
+1	1-0-1
+1	1-1
 1	10
+1	10-0
+1	10-0-1
+1	10-1
 1	13
+1	13-0
+1	13-0-1
+1	13-1
 1	16
+1	16-0
+1	16-0-1
+1	16-1
 1	4
+1	4-0
+1	4-0-1
+1	4-1
 1	7
+1	7-0
+1	7-0-1
+1	7-1
 1	y
+1	y-0
+1	y-0-1
+1	y-1
 2	11
+2	11-0
+2	11-0-1
+2	11-1
 2	14
+2	14-0
+2	14-0-1
+2	14-1
 2	17
+2	17-0
+2	17-0-1
+2	17-1
 2	2
+2	2-0
+2	2-0-1
+2	2-1
 2	5
+2	5-0
+2	5-0-1
+2	5-1
 2	8
+2	8-0
+2	8-0-1
+2	8-1
 2	z
+2	z-0
+2	z-0-1
+2	z-1
 3	1000
+3	1000-0
+3	1000-0-1
+3	1000-1
 3	10000
+3	10000-0
+3	10000-0-1
+3	10000-1
 3	12
+3	12-0
+3	12-0-1
+3	12-1
 3	15
+3	15-0
+3	15-0-1
+3	15-1
 3	2000
+3	2000-0
+3	2000-0-1
+3	2000-1
 3	3
+3	3-0
+3	3-0-1
+3	3-1
 3	6
+3	6-0
+3	6-0-1
+3	6-1
 3	9
+3	9-0
+3	9-0-1
+3	9-1
 3	x
+3	x-0
+3	x-0-1
+3	x-1
 create table t2(vc varchar(16), i int, vc2 varchar(1024)
 , KEY i1(i)
 , KEY i2(vc)
 )  ENGINE=ndbcluster;
-insert into t2 values
-('1',1,'1'), ('2',2,'2'), ('3',3,'3'), ('4',1,'4'), ('5',2,'5'),
-('6',3,'6'), ('7',1,'7'), ('8',2,'8'), ('9',3,'9'), ('10',1,'10'), 
-('11',2,'11'), ('12',3,'12'), ('13',1,'13'), ('14',2,'14'), ('15',3,'15'),
-('16',1,'16'), ('17',2,'17'), ('x',3,'x'), ('y',1,'y'), ('z',2,'z'),
-('1000',3,'1000'), ('2000',3,'2000'), ('10000',3,'10000');
+insert into t2 select * from t1;
 analyze table t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
+As testcase for bug#58280, query should 'index_merge i1,i2'
 explain
 select i,vc from t2
 where i>=1 or vc > '0';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1	ALL	i1,i2	NULL	NULL	NULL	#	#	Using where with pushed condition ((`test`.`t2`.`i` >= 1) or (`test`.`t2`.`vc` > '0'))
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	index_merge	i1,i2	i1,i2	5,19	NULL	#	#	Using sort_union(i1,i2); Using where with pushed condition ((`test`.`t2`.`i` >= 1) or (`test`.`t2`.`vc` > '0'))
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`vc` AS `vc` from `test`.`t2` where ((`test`.`t2`.`i` >= 1) or (`test`.`t2`.`vc` > '0'))
 select i,vc from t2
 where i>=1 or vc > '0';
 i	vc
 1	1
+1	1-0
+1	1-0-1
+1	1-1
 1	10
+1	10-0
+1	10-0-1
+1	10-1
 1	13
+1	13-0
+1	13-0-1
+1	13-1
 1	16
+1	16-0
+1	16-0-1
+1	16-1
 1	4
+1	4-0
+1	4-0-1
+1	4-1
 1	7
+1	7-0
+1	7-0-1
+1	7-1
 1	y
+1	y-0
+1	y-0-1
+1	y-1
 2	11
+2	11-0
+2	11-0-1
+2	11-1
 2	14
+2	14-0
+2	14-0-1
+2	14-1
 2	17
+2	17-0
+2	17-0-1
+2	17-1
 2	2
+2	2-0
+2	2-0-1
+2	2-1
 2	5
+2	5-0
+2	5-0-1
+2	5-1
 2	8
+2	8-0
+2	8-0-1
+2	8-1
 2	z
+2	z-0
+2	z-0-1
+2	z-1
 3	1000
+3	1000-0
+3	1000-0-1
+3	1000-1
 3	10000
+3	10000-0
+3	10000-0-1
+3	10000-1
 3	12
+3	12-0
+3	12-0-1
+3	12-1
 3	15
+3	15-0
+3	15-0-1
+3	15-1
 3	2000
+3	2000-0
+3	2000-0-1
+3	2000-1
 3	3
+3	3-0
+3	3-0-1
+3	3-1
 3	6
+3	6-0
+3	6-0-1
+3	6-1
 3	9
+3	9-0
+3	9-0-1
+3	9-1
 3	x
+3	x-0
+3	x-0-1
+3	x-1
 drop table t1, t2;
 CREATE TABLE inleveroverzicht (
 id int(11) NOT NULL auto_increment,
