@@ -3275,9 +3275,13 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
   /* Check if eof packet */
   if (len < 8 && mysql->net.read_pos[0] == 254)
   {
-    sql_print_information("Slave: received end packet from server, apparent "
-                          "master shutdown: %s",
-                     mysql_error(mysql));
+     sql_print_information("Slave: received end packet from server due to dump "
+                           "thread being killed on master. Dump threads are "
+                           "killed for example during master shutdown, "
+                           "explicitly by a user, or when the master receives "
+                           "a binlog send request from a duplicate server "
+                           "UUID <%s> : Error %s", ::server_uuid,
+                           mysql_error(mysql));
      DBUG_RETURN(packet_error);
   }
 
