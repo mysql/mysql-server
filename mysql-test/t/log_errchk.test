@@ -1,0 +1,65 @@
+#
+--source include/not_windows.inc
+--source include/force_restart.inc
+--source include/not_embedded.inc
+
+# 
+# Bug#14757009 : WHEN THE GENERAL_LOG IS A SOCKET AND THE READER GOES AWAY,
+#                MYSQL QUITS WORKING.
+#
+call mtr.add_suppression("Could not open");
+
+--let $gen_log_file= $MYSQLTEST_VARDIR/tmp/general_log.fifo
+--let $slow_query_log_file= $MYSQLTEST_VARDIR/tmp/slow_log.fifo
+--let GREP_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+
+--exec mkfifo $gen_log_file
+--exec mkfifo $slow_query_log_file
+
+--echo # Case 1: Setting fife file to general_log_file and slow_query_log_file
+--echo #         system variable.
+# Only regular files can be set to general log. Setting fifo file to general log
+# reports an error.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL general_log_file="$gen_log_file";
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL slow_query_log_file="$slow_query_log_file";
+
+--echo # Case 2: Starting server with fifo file as general log file
+--echo #         and slow query log file.
+# Restart server with fifo file as general log file.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 60
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --general-log-file=$gen_log_file --slow-query-log-file=$slow_query_log_file" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+# With fix error should be reported in the error log file if file is not a
+# regular file.
+--perl
+  my $file= $ENV{'GREP_FILE'};
+  my $pattern= "Turning logging off for the whole duration";
+  open(FILE, "$file") or die("Unable to open $file: $!\n");
+  my $count = 0;
+  while (<FILE>) {
+    if ($_ =~ m/$pattern/) {
+      $count++;
+      break;
+    }
+  }
+  if ($count >= 2){
+    print "Setting fifo file as general log file and slow query log failed.\n";
+  } else {
+    print "test failed.\n";
+  }
+  close(FILE);
+EOF
+
+# Cleanup
+--remove_file $gen_log_file
+--remove_file $slow_query_log_file
