@@ -3318,7 +3318,7 @@ bool Gis_geometry_collection::get_mbr(MBR *mbr, wkb_parser *wkb) const
         An empty collection should be simply skipped, it may contain a tree
         of empty collections which is still empty. 
       */
-      if (geom->get_type() == wkb_geometrycollection)
+      if (geom != NULL && geom->get_type() == wkb_geometrycollection)
         continue;
       return true;
     }
