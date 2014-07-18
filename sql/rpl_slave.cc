@@ -4456,19 +4456,23 @@ log space");
         }
       DBUG_EXECUTE_IF("stop_io_after_reading_gtid_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == GTID_LOG_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_query_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == QUERY_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
+      );
+      DBUG_EXECUTE_IF("stop_io_after_reading_user_var_log_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == USER_VAR_EVENT)
+          thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_xid_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == XID_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_write_rows_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == WRITE_ROWS_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
       );
     }
   }

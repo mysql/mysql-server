@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -465,12 +465,15 @@ public:
 
     @param[out] binlog_file_name, the file name of oldest binary log found
     @param[in]  gtid_set, the given gtid set
+    @param[out] first_gtid, the first GTID information from the binary log
+                file returned at binlog_file_name
     @param[out] errmsg, the error message outputted, which is left untouched
                 if the function returns false
     @return false on success, true on error.
   */
   bool find_first_log_not_in_gtid_set(char *binlog_file_name,
                                       const Gtid_set *gtid_set,
+                                      Gtid *first_gtid,
                                       const char **errmsg);
 
   /**
