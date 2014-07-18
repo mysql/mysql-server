@@ -419,14 +419,19 @@ public:
 		size_type	n_elements,
 		const_pointer	hint = NULL,
 		const char*	file = NULL,
-		bool		set_to_zero = false)
+		bool		set_to_zero = false,
+		bool		throw_on_error = true)
 	{
 		if (n_elements == 0) {
 			return(NULL);
 		}
 
 		if (n_elements > max_size()) {
-			throw(std::bad_alloc());
+			if (throw_on_error) {
+				throw(std::bad_alloc());
+			} else {
+				return(NULL);
+			}
 		}
 
 		void*			ptr;
@@ -459,7 +464,11 @@ public:
 				<< " seconds. OS error: " << strerror(errno)
 				<< " (" << errno << "). " << OUT_OF_MEMORY_MSG;
 			/* not reached */
-			throw std::bad_alloc();
+			if (throw_on_error) {
+				throw(std::bad_alloc());
+			} else {
+				return(NULL);
+			}
 		}
 
 #ifdef UNIV_PFS_MEMORY
@@ -559,14 +568,7 @@ public:
 		}
 
 		if (ptr == NULL) {
-			try {
-				/* allocate() must throw an exception upon
-				allocation failure to conform to the
-				standard. */
-				return(allocate(n_elements, NULL, file));
-			} catch (...) {
-				return(NULL);
-			}
+			return(allocate(n_elements, NULL, file, false, false));
 		}
 
 		if (n_elements > max_size()) {
@@ -624,15 +626,11 @@ public:
 		size_type	n_elements,
 		const char*	file)
 	{
-		T*	p;
+		T*	p = allocate(n_elements, NULL, file, false, false);
 
-		try {
-			p = allocate(n_elements, NULL, file);
-		} catch (...) {
+		if (p == NULL) {
 			return(NULL);
 		}
-
-		ut_ad(p != NULL);
 
 		T*	first = p;
 
@@ -883,7 +881,7 @@ Use this macro instead of 'new' within InnoDB.
 For example: instead of
 	Foo*	f = new Foo(args);
 use:
-	Foo*	f = UT_NEW(Foo(args), mem_key_btr0btr);
+	Foo*	f = UT_NEW(Foo(args), mem_key_some);
 Upon failure to allocate the memory, this macro may return NULL. It
 will not throw exceptions. After successfull allocation the returned
 pointer must be passed to UT_DELETE() when no longer needed.
@@ -891,18 +889,11 @@ pointer must be passed to UT_DELETE() when no longer needed.
 @param[in]	key	performance schema memory tracing key
 @return pointer to the created object or NULL */
 #define UT_NEW(expr, key) \
-	({ \
-		char*	_p; \
-	 	try { \
-	 		_p = ut_allocator<char>(key).allocate( \
-				sizeof expr, NULL, __FILE__); \
-	 	} catch (...) { \
-	 		_p = NULL; \
-	 	} \
-	 /* ut_allocator::construct() can't be used for classes with disabled
-	 copy constructors, thus we use placement new here directly. */ \
-	 	_p != NULL ? (::new(_p) expr) : NULL; \
-	 })
+	/* Placement new will return NULL and not attempt to construct an
+	object if the passed in pointer is NULL, e.g. if allocate() has
+	failed to allocate memory and has returned NULL. */ \
+	::new(ut_allocator<byte>(key).allocate( \
+		sizeof expr, NULL, __FILE__, false, false)) expr
 
 /** Allocate, trace the allocation and construct an object.
 Use this macro instead of 'new' within InnoDB and instead of UT_NEW()
@@ -979,31 +970,25 @@ ut_delete_array(
 	ut_allocator<T>().delete_array(ptr);
 }
 
-#define ut_malloc_low(n_bytes, set_to_zero, key) \
-	({ \
-		byte*	_p; \
-	 	try { \
-	 		_p = ut_allocator<byte>(key).allocate( \
-				n_bytes, NULL, __FILE__, set_to_zero); \
-	 	} catch (...) { \
-	 		_p = NULL; \
-	 	} \
-	 	static_cast<void*>(_p); \
-	 })
+#define ut_malloc(n_bytes, key)		static_cast<void*>( \
+	ut_allocator<byte>(key).allocate( \
+		n_bytes, NULL, __FILE__, false, false))
 
-#define ut_malloc(n_bytes, key)	ut_malloc_low(n_bytes, false, key)
+#define ut_zalloc(n_bytes, key)		static_cast<void*>( \
+	ut_allocator<byte>(key).allocate( \
+		n_bytes, NULL, __FILE__, true, false))
 
-#define ut_zalloc(n_bytes, key)	ut_malloc_low(n_bytes, true, key)
+#define ut_malloc_nokey(n_bytes)	static_cast<void*>( \
+	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).allocate( \
+		n_bytes, NULL, __FILE__, false, false))
 
-#define ut_malloc_nokey(n_bytes) \
-	ut_malloc_low(n_bytes, false, PSI_NOT_INSTRUMENTED)
+#define ut_zalloc_nokey(n_bytes)	static_cast<void*>( \
+	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).allocate( \
+		n_bytes, NULL, __FILE__, true, false))
 
-#define ut_zalloc_nokey(n_bytes) \
-	ut_malloc_low(n_bytes, true, PSI_NOT_INSTRUMENTED)
-
-#define ut_realloc(ptr, n_bytes) \
-	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).reallocate(ptr, n_bytes, \
-							    __FILE__)
+#define ut_realloc(ptr, n_bytes)	static_cast<void*>( \
+	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).reallocate( \
+		ptr, n_bytes, __FILE__))
 
 #define ut_free(ptr)	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).deallocate(ptr)
 
