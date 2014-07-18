@@ -868,6 +868,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   mysql_cond_t *log_cond;
   uint8 current_checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
   Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
+  Gtid first_gtid;
 
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
@@ -949,8 +950,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   {
     if (using_gtid_protocol)
     {
+      first_gtid.clear();
       if (mysql_bin_log.find_first_log_not_in_gtid_set(name,
                                                        slave_gtid_executed,
+                                                       &first_gtid,
                                                        &errmsg))
       {
          my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
@@ -1180,6 +1183,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                                               log_file_name,
                                               &is_active_binlog)))
     {
+      time_t created;
       DBUG_PRINT("info", ("read_log_event returned 0 on line %d", __LINE__));
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
@@ -1232,6 +1236,33 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
           GOTO_ERR;
         }
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
+
+        created= uint4korr(packet->ptr()+LOG_EVENT_MINIMAL_HEADER_LEN+
+                           ST_CREATED_OFFSET+ev_offset);
+
+        if (using_gtid_protocol && created > 0)
+        {
+          if (first_gtid.sidno >= 1 && first_gtid.gno >= 1 &&
+              slave_gtid_executed->contains_gtid(first_gtid.sidno,
+                                                 first_gtid.gno))
+          {
+            /*
+              As we are skipping at least the first transaction of the binlog,
+              we must clear the "created" field of the FD event (set it to 0)
+              to avoid cleaning up temp tables on slave.
+            */
+            DBUG_PRINT("info",("setting 'created' to 0 before sending FD event"));
+            int4store((char*) packet->ptr()+LOG_EVENT_MINIMAL_HEADER_LEN+
+                      ST_CREATED_OFFSET+ev_offset, (ulong) 0);
+
+            /* Fix the checksum due to latest changes in header */
+            if (current_checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
+                current_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF)
+              fix_checksum(packet, ev_offset);
+
+            first_gtid.clear();
+          }
+        }
         /*
           Fixes the information on the checksum algorithm when a new
           format description is read. Notice that this only necessary
