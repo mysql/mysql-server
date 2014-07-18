@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 #include "ft/serialize/block_table.h"
 
 size_t toku_serialize_ft_size(struct ft_header *h);
-void toku_serialize_ft_to(int fd, struct ft_header *h, struct block_table *blocktable, CACHEFILE cf);
+void toku_serialize_ft_to(int fd, struct ft_header *h, block_table *bt, CACHEFILE cf);
 void toku_serialize_ft_to_wbuf(struct wbuf *wbuf, struct ft_header *h, DISKOFF translation_location_on_disk, DISKOFF translation_size_on_disk);
 void toku_serialize_descriptor_contents_to_fd(int fd, DESCRIPTOR desc, DISKOFF offset);
 void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, DESCRIPTOR desc);

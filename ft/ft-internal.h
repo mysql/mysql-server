@@ -225,7 +225,7 @@ struct ft {
     // These are not read-only:
 
     // protected by blocktable lock
-    struct block_table blocktable;
+    block_table blocktable;
 
     // protected by atomic builtins
     STAT64INFO_S in_memory_stats;
