@@ -12,7 +12,7 @@
 # [--let $slave_timeout= NUMBER]
 # [--let $slave_error_param= [Slave_SQL_Errno | Slave_IO_Errno]]
 # [--let $rpl_debug= 1]
-# --source include/slave_wait_param.inc
+# --source include/wait_for_slave_param.inc
 #
 # Parameters:
 #

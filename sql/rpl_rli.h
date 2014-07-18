@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -710,13 +710,16 @@ public:
      Replication is inside a group if either:
      - The OPTION_BEGIN flag is set, meaning we're inside a transaction
      - The RLI_IN_STMT flag is set, meaning we're inside a statement
+     - There is an GTID owned by the thd, meaning we've passed a SET GTID_NEXT
 
      @retval true Replication thread is currently inside a group
      @retval false Replication thread is currently not inside a group
    */
   bool is_in_group() const {
     return (info_thd->variables.option_bits & OPTION_BEGIN) ||
-      (m_flags & (1UL << IN_STMT));
+      (m_flags & (1UL << IN_STMT)) ||
+      /* If a SET GTID_NEXT was issued we are inside of a group */
+      info_thd->owned_gtid.sidno;
   }
 
   int count_relay_log_space();
