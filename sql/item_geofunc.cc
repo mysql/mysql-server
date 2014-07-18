@@ -7522,7 +7522,7 @@ double Item_func_distance::val_real()
   else
   {
     BG_geometry_collection bggc1, bggc2;
-    bool inited= false, isdone2= false, all_normalized= false;
+    bool initialized= false, isdone2= false, all_normalized= false;
     double min_distance= DBL_MAX, dist;
 
     bggc1.fill(g1);
@@ -7557,10 +7557,11 @@ double Item_func_distance::val_real()
           goto old_algo;
         if (null_value)
           goto error;
-        if (!inited)
+        if (!initialized)
         {
+          DBUG_ASSERT(dist <= DBL_MAX);
           min_distance= dist;
-          inited= true;
+          initialized= true;
         }
         else if (min_distance > dist)
           min_distance= dist;
@@ -7569,19 +7570,21 @@ double Item_func_distance::val_real()
       }
 
       all_normalized= true;
+      if (!initialized)
+        break;                                  // bggc2 is empty.
     }
 
     /*
       If at least one of the collections is empty, we have NULL result. 
     */
-    if (!inited)
+    if (!initialized)
     {
       null_value= true;
       isdone= true;
     }
     else
     {
-      if (min_distance == DBL_MAX)
+      if (min_distance >= DBL_MAX)
         min_distance= 0;
       distance= min_distance;
     }

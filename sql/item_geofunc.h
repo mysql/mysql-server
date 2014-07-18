@@ -824,7 +824,20 @@ class Item_func_distance: public Item_real_func
 public:
   Item_func_distance(const POS &pos, Item *a, Item *b)
     : Item_real_func(pos, a, b)
-  {}
+  {
+    /*
+      Either operand can be an empty geometry collection, and it's meaningless
+      for a distance between them. 
+    */
+    maybe_null= true;
+  }
+
+  void fix_length_and_dec()
+  {
+    Item_real_func::fix_length_and_dec();
+    maybe_null= true;
+  }
+
   double val_real();
   const char *func_name() const { return "st_distance"; }
 };
