@@ -713,10 +713,6 @@ struct log_t{
 					owning the log mutex, but NOTE that
 					to set this event, the
 					thread MUST own the log mutex! */
-	ibool		one_flushed;	/*!< during a flush, this is
-					first FALSE and becomes TRUE
-					when one log group has been
-					written or flushed */
 	ulint		n_log_ios;	/*!< number of log i/os initiated thus
 					far */
 	ulint		n_log_ios_old;	/*!< number of log i/o's at the
