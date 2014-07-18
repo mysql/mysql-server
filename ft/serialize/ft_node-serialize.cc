@@ -97,6 +97,7 @@ PATENT RIGHTS GRANT:
 #include "ft/node.h"
 #include "ft/logger/log-internal.h"
 #include "ft/txn/rollback.h"
+#include "ft/serialize/block_allocator.h"
 #include "ft/serialize/block_table.h"
 #include "ft/serialize/compress.h"
 #include "ft/serialize/ft_node-serialize.h"
@@ -141,18 +142,19 @@ struct toku_thread_pool *get_ft_pool(void) {
     return ft_pool;
 }
 
-void 
-toku_ft_serialize_layer_init(void) {
+void toku_ft_serialize_layer_init(void) {
     num_cores = toku_os_get_number_active_processors();
-    int r = toku_thread_pool_create(&ft_pool, num_cores); lazy_assert_zero(r);
+    int r = toku_thread_pool_create(&ft_pool, num_cores);
+    lazy_assert_zero(r);
+    block_allocator::maybe_initialize_trace();
 }
 
-void
-toku_ft_serialize_layer_destroy(void) {
+void toku_ft_serialize_layer_destroy(void) {
     toku_thread_pool_destroy(&ft_pool);
+    block_allocator::maybe_close_trace();
 }
 
-enum {FILE_CHANGE_INCREMENT = (16<<20)};
+enum { FILE_CHANGE_INCREMENT = (16 << 20) };
 
 static inline uint64_t 
 alignup64(uint64_t a, uint64_t b) {
