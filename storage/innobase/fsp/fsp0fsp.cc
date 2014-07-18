@@ -660,7 +660,9 @@ fsp_init_file_page_low(
 	block->check_index_page_at_flush = FALSE;
 #endif /* !UNIV_HOTBACKUP */
 
-	memset(page, 0, UNIV_PAGE_SIZE);
+	if (!fsp_is_system_temporary(block->page.id.space())) {
+		memset(page, 0, UNIV_PAGE_SIZE);
+	}
 	mach_write_to_4(page + FIL_PAGE_OFFSET, block->page.id.page_no());
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
 			block->page.id.space());
