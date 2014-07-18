@@ -1,0 +1,27 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/stop_slave_sql.inc
+# Saving master position to use on UNTIL clause of START SLAVE
+[connection master]
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+COMMIT;
+include/sync_slave_io_with_master.inc
+# Start SQL thread until it executed the CREATE TABLE
+START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE = "MASTER_FILE", MASTER_LOG_POS = MASTER_POS;
+# Wait until SQL thread reaches last master binlog file
+include/wait_for_slave_param.inc [Relay_Master_Log_File]
+# Wait until SQL thread reaches desired master binlog position
+include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+# If the desired position was reached, SQL thread should stop.
+include/wait_for_slave_sql_to_stop.inc
+include/assert.inc [t1 should be replicated]
+include/start_slave_sql.inc
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc
