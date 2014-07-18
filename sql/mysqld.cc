@@ -832,12 +832,7 @@ void copy_global_thread_list(std::set<THD*> *new_copy)
 {
   mysql_mutex_assert_owner(&LOCK_thd_remove);
   mysql_mutex_lock(&LOCK_thread_count);
-  try {
-    *new_copy= *global_thread_list;
-  }
-  catch (std::bad_alloc &ba)
-  {
-  }
+  *new_copy= *global_thread_list;
   mysql_mutex_unlock(&LOCK_thread_count);
 }
 
