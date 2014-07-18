@@ -1348,6 +1348,16 @@ int main(int argc,char *argv[])
             << " to (" << pwd->pw_uid << ", " << pwd->pw_gid << ")"
             << endl;
     }
+    if (seteuid(pwd->pw_uid) != 0)
+    {
+      warning << "Failed to set effective user id to " << pwd->pw_uid
+              << ". Install might fail." << endl;
+    }
+    if (setegid(pwd->pw_uid) != 0)
+    {
+      warning << "Failed to set effective group id to " << pwd->pw_gid
+              << ". Install might fail." << endl;
+    }
   }
   else
     opt_euid= 0;
@@ -1371,9 +1381,6 @@ int main(int argc,char *argv[])
   if (basedir.length() > 0)
   command_line.push_back(string("--basedir=")
     .append(basedir));
-  if (opt_euid)
-    command_line.push_back(string(" --user=")
-      .append(create_string(opt_euid)));
 
   // DEBUG
   //mysqld_exec.append("\"").insert(0, "gnome-terminal -e \"gdb --args ");
