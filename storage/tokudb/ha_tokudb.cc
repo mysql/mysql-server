@@ -5628,8 +5628,8 @@ cleanup:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
-int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_key) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+int ha_tokudb::prelock_range(const key_range *start_key, const key_range *end_key) {
+    TOKUDB_HANDLER_DBUG_ENTER("%p %p", start_key, end_key);
     THD* thd = ha_thd(); 
 
     int error = 0;
@@ -5710,7 +5710,7 @@ cleanup:
 // Forward scans use read_range_first()/read_range_next().
 //
 int ha_tokudb::prepare_range_scan( const key_range *start_key, const key_range *end_key) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%p %p", start_key, end_key);
     int error = prelock_range(start_key, end_key);
     if (!error) {
         range_lock_grabbed = true;
@@ -5724,7 +5724,7 @@ int ha_tokudb::read_range_first(
     bool eq_range, 
     bool sorted) 
 {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%p %p %u %u", start_key, end_key, eq_range, sorted);
     int error = prelock_range(start_key, end_key);
     if (error) { goto cleanup; }
     range_lock_grabbed = true;
