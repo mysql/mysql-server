@@ -105,10 +105,10 @@ ftnode_get_key_and_fullhash(
     void* extra)
 {
     FT ft = (FT) extra;
-    BLOCKNUM name;
-    toku_allocate_blocknum(ft->blocktable, &name, ft);
-    *cachekey = name;
-    *fullhash = toku_cachetable_hash(ft->cf, name);
+    BLOCKNUM blocknum;
+    ft->blocktable.allocate_blocknum(&blocknum, ft);
+    *cachekey = blocknum;
+    *fullhash = toku_cachetable_hash(ft->cf, blocknum);
 }
 
 void
@@ -116,7 +116,7 @@ cachetable_put_empty_node_with_dep_nodes(
     FT ft,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
-    BLOCKNUM* name, //output
+    BLOCKNUM* blocknum, //output
     uint32_t* fullhash, //output
     FTNODE* result)
 {
@@ -138,7 +138,7 @@ cachetable_put_empty_node_with_dep_nodes(
         num_dependent_nodes,
         dependent_pairs,
         dependent_dirty_bits,
-        name,
+        blocknum,
         fullhash,
         toku_ftnode_save_ct_pair);
     *result = new_node;
@@ -154,13 +154,13 @@ create_new_ftnode_with_dep_nodes(
     FTNODE* dependent_nodes)
 {
     uint32_t fullhash = 0;
-    BLOCKNUM name;
+    BLOCKNUM blocknum;
 
     cachetable_put_empty_node_with_dep_nodes(
         ft,
         num_dependent_nodes,
         dependent_nodes,
-        &name,
+        &blocknum,
         &fullhash,
         result);
 
@@ -171,7 +171,7 @@ create_new_ftnode_with_dep_nodes(
 
     toku_initialize_empty_ftnode(
         *result,
-        name,
+        blocknum,
         height,
         n_children,
         ft->h->layout_version,

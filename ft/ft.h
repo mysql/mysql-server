@@ -111,6 +111,9 @@ void toku_ft_destroy_reflock(FT ft);
 void toku_ft_grab_reflock(FT ft);
 void toku_ft_release_reflock(FT ft);
 
+void toku_ft_lock(struct ft *ft);
+void toku_ft_unlock(struct ft *ft);
+
 void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn);
 void toku_ft_free (FT ft);
 

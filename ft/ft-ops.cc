@@ -1927,7 +1927,7 @@ static void push_something_in_subtree(
 
         {
             const BLOCKNUM child_blocknum = BP_BLOCKNUM(subtree_root, childnum);
-            toku_verify_blocknum_allocated(ft->blocktable, child_blocknum);
+            ft->blocktable.verify_blocknum_allocated(child_blocknum);
             const uint32_t child_fullhash = toku_cachetable_hash(ft->cf, child_blocknum);
 
             FTNODE child;
@@ -3088,10 +3088,11 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
         toku_txn_maybe_note_ft(txn, ft);
     }
 
-    //Opening an ft may restore to previous checkpoint.         Truncate if necessary.
+    // Opening an ft may restore to previous checkpoint.
+    // Truncate if necessary.
     {
         int fd = toku_cachefile_get_fd (ft->cf);
-        toku_maybe_truncate_file_on_open(ft->blocktable, fd);
+        ft->blocktable.maybe_truncate_file_on_open(fd);
     }
 
     r = 0;
@@ -4528,17 +4529,15 @@ toku_dump_ftnode (FILE *file, FT_HANDLE ft_handle, BLOCKNUM blocknum, int depth,
     return result;
 }
 
-int toku_dump_ft (FILE *f, FT_HANDLE ft_handle) {
-    int r;
-    assert(ft_handle->ft);
-    toku_dump_translation_table(f, ft_handle->ft->blocktable);
-    {
-        uint32_t fullhash = 0;
-        CACHEKEY root_key;
-        toku_calculate_root_offset_pointer(ft_handle->ft, &root_key, &fullhash);
-        r = toku_dump_ftnode(f, ft_handle, root_key, 0, 0, 0);
-    }
-    return r;
+int toku_dump_ft(FILE *f, FT_HANDLE ft_handle) {
+    FT ft = ft_handle->ft;
+    invariant_notnull(ft);
+    ft->blocktable.dump_translation_table(f);
+
+    uint32_t fullhash = 0;
+    CACHEKEY root_key;
+    toku_calculate_root_offset_pointer(ft_handle->ft, &root_key, &fullhash);
+    return toku_dump_ftnode(f, ft_handle, root_key, 0, 0, 0);
 }
 
 int toku_ft_layer_init(void) {
@@ -4630,18 +4629,15 @@ void toku_ft_unlink(FT_HANDLE handle) {
     toku_cachefile_unlink_on_close(cf);
 }
 
-int
-toku_ft_get_fragmentation(FT_HANDLE ft_handle, TOKU_DB_FRAGMENTATION report) {
-    int r;
-
+int toku_ft_get_fragmentation(FT_HANDLE ft_handle, TOKU_DB_FRAGMENTATION report) {
     int fd = toku_cachefile_get_fd(ft_handle->ft->cf);
     toku_ft_lock(ft_handle->ft);
 
     int64_t file_size;
-    r = toku_os_get_file_size(fd, &file_size);
-    if (r==0) {
+    int r = toku_os_get_file_size(fd, &file_size);
+    if (r == 0) {
         report->file_size_bytes = file_size;
-        toku_block_table_get_fragmentation_unlocked(ft_handle->ft->blocktable, report);
+        ft_handle->ft->blocktable.get_fragmentation_unlocked(report);
     }
     toku_ft_unlock(ft_handle->ft);
     return r;

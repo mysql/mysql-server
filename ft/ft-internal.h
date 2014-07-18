@@ -101,6 +101,7 @@ PATENT RIGHTS GRANT:
 #include "ft/ft.h"
 #include "ft/ft-ops.h"
 #include "ft/node.h"
+#include "ft/serialize/block_table.h"
 #include "ft/txn/rollback.h"
 
 // Symbol TOKUDB_REVISION is not defined by fractal-tree makefiles, so
@@ -111,7 +112,6 @@ PATENT RIGHTS GRANT:
 #error
 #endif
 
-struct block_table;
 struct ft_search;
 
 enum { FT_DEFAULT_FANOUT = 16 };
@@ -225,7 +225,7 @@ struct ft {
     // These are not read-only:
 
     // protected by blocktable lock
-    struct block_table *blocktable;
+    struct block_table blocktable;
 
     // protected by atomic builtins
     STAT64INFO_S in_memory_stats;

@@ -161,12 +161,12 @@ deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, int layout_ve
 }
 
 static int
-deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_version) {
+deserialize_descriptor_from(int fd, block_table *bt, DESCRIPTOR desc, int layout_version) {
     int r = 0;
     DISKOFF offset;
     DISKOFF size;
-    unsigned char *dbuf = NULL;
-    toku_get_descriptor_offset_size(bt, &offset, &size);
+    unsigned char *dbuf = nullptr;
+    bt->get_descriptor_offset_size(&offset, &size);
     memset(desc, 0, sizeof(*desc));
     if (size > 0) {
         lazy_assert(size>=4); //4 for checksum
@@ -274,11 +274,10 @@ int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
             assert(readsz <= (ssize_t)size_to_read);
         }
         // Create table and read in data.
-        r = toku_blocktable_create_from_buffer(fd,
-                                               &ft->blocktable,
-                                               translation_address_on_disk,
-                                               translation_size_on_disk,
-                                               tbuf);
+        r = ft->blocktable.create_from_buffer(fd,
+                                              translation_address_on_disk,
+                                              translation_size_on_disk,
+                                              tbuf);
         toku_free(tbuf);
         if (r != 0) {
             goto exit;
@@ -426,7 +425,7 @@ int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     }
 
     invariant((uint32_t) ft->layout_version_read_from_disk == version);
-    r = deserialize_descriptor_from(fd, ft->blocktable, &ft->descriptor, version);
+    r = deserialize_descriptor_from(fd, &ft->blocktable, &ft->descriptor, version);
     if (r != 0) {
         goto exit;
     }
@@ -804,18 +803,20 @@ void toku_serialize_ft_to_wbuf (
     lazy_assert(wbuf->ndone == wbuf->size);
 }
 
-void toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFILE cf) {
+void toku_serialize_ft_to(int fd, FT_HEADER h, block_table *bt, CACHEFILE cf) {
     lazy_assert(h->type==FT_CHECKPOINT_INPROGRESS);
     struct wbuf w_translation;
     int64_t size_translation;
     int64_t address_translation;
 
-    //Must serialize translation first, to get address,size for header.
-    toku_serialize_translation_to_wbuf(blocktable, fd, &w_translation,
-                                               &address_translation,
-                                               &size_translation);
-    assert(size_translation == w_translation.ndone); // the bytes written are the size
-    assert(w_translation.size % 512 == 0);           // the number of bytes available in the buffer is 0 mod 512, and those last bytes are all initialized.
+    // Must serialize translation first, to get address,size for header.
+    bt->serialize_translation_to_wbuf(fd, &w_translation,
+                                      &address_translation,
+                                      &size_translation);
+    assert(size_translation == w_translation.ndone);
+
+    // the number of bytes available in the buffer is 0 mod 512, and those last bytes are all initialized.
+    assert(w_translation.size % 512 == 0);
 
     struct wbuf w_main;
     size_t size_main       = toku_serialize_ft_size(h);

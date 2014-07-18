@@ -98,7 +98,7 @@ PATENT RIGHTS GRANT:
 
 static void rollback_unpin_remove_callback(CACHEKEY* cachekey, bool for_checkpoint, void* extra) {
     FT CAST_FROM_VOIDP(ft, extra);
-    toku_free_blocknum(ft->blocktable, cachekey, ft, for_checkpoint);
+    ft->blocktable.free_blocknum(cachekey, ft, for_checkpoint);
 }
 
 void toku_rollback_log_unpin_and_remove(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
@@ -216,7 +216,7 @@ static void rollback_log_create (
     CACHEFILE cf = txn->logger->rollback_cachefile;
     FT CAST_FROM_VOIDP(ft, toku_cachefile_get_userdata(cf));
     rollback_initialize_for_txn(log, txn, previous);
-    toku_allocate_blocknum(ft->blocktable, &log->blocknum, ft);
+    ft->blocktable.allocate_blocknum(&log->blocknum, ft);
     const uint32_t hash = toku_cachetable_hash(ft->cf, log->blocknum);
     *result = log;
     toku_cachetable_put(cf, log->blocknum, hash,

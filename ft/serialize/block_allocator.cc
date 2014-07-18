@@ -114,7 +114,7 @@ static inline bool ba_trace_enabled() {
 #endif
 }
 
-void block_allocator::create(uint64_t reserve_at_beginning, uint64_t alignment) {
+void block_allocator::_create_internal(uint64_t reserve_at_beginning, uint64_t alignment) {
     // the alignment must be at least 512 and aligned with 512 to work with direct I/O
     assert(alignment >= 512 && (alignment % 512) == 0);
 
@@ -127,7 +127,10 @@ void block_allocator::create(uint64_t reserve_at_beginning, uint64_t alignment) 
     _strategy = BA_STRATEGY_FIRST_FIT;
 
     VALIDATE();
+}
 
+void block_allocator::create(uint64_t reserve_at_beginning, uint64_t alignment) {
+    _create_internal(reserve_at_beginning, alignment);
     if (ba_trace_enabled()) {
         fprintf(stderr, "ba_trace_create %p\n", this);
     }
@@ -161,41 +164,6 @@ void block_allocator::grow_blocks_array() {
     grow_blocks_array_by(1);
 }
 
-void block_allocator::merge_blockpairs_into(uint64_t d, struct blockpair dst[],
-                                            uint64_t s, const struct blockpair src[])
-{
-    uint64_t tail = d+s;
-    while (d > 0 && s > 0) {
-        struct blockpair       *dp = &dst[d - 1];
-        struct blockpair const *sp = &src[s - 1];
-        struct blockpair       *tp = &dst[tail - 1];
-        assert(tail > 0);
-        if (dp->offset > sp->offset) {
-            *tp = *dp;
-            d--;
-            tail--;
-        } else {
-            *tp = *sp;
-            s--;
-            tail--;
-        }
-    }
-    while (d > 0) {
-        struct blockpair *dp = &dst[d - 1];
-        struct blockpair *tp = &dst[tail - 1];
-        *tp = *dp;
-        d--;
-        tail--;
-    }
-    while (s > 0) {
-        struct blockpair const *sp = &src[s - 1];
-        struct blockpair       *tp = &dst[tail - 1];
-        *tp = *sp;
-        s--;
-        tail--;
-    }
-}
-
 int block_allocator::compare_blockpairs(const void *av, const void *bv) {
     const struct blockpair *a = (const struct blockpair *) av;
     const struct blockpair *b = (const struct blockpair *) bv;
@@ -208,30 +176,25 @@ int block_allocator::compare_blockpairs(const void *av, const void *bv) {
     }
 }
 
-// See the documentation in block_allocator.h
-void block_allocator::alloc_blocks_at(uint64_t n_blocks, struct blockpair pairs[]) {
-    VALIDATE();
-    qsort(pairs, n_blocks, sizeof(*pairs), compare_blockpairs);
-    for (uint64_t i = 0; i < n_blocks; i++) {
-        assert(pairs[i].offset >= _reserve_at_beginning);
-        assert(pairs[i].offset % _alignment == 0);
-        _n_bytes_in_use += pairs[i].size;
+void block_allocator::create_from_blockpairs(uint64_t reserve_at_beginning, uint64_t alignment,
+                                             struct blockpair *pairs, uint64_t n_blocks) {
+    _create_internal(reserve_at_beginning, alignment);
+
+    for (uint64_t i = 0; i < _n_blocks; i++) {
         // Allocator does not support size 0 blocks. See block_allocator_free_block.
         invariant(pairs[i].size > 0);
+        invariant(pairs[i].offset >= _reserve_at_beginning);
+        invariant(pairs[i].offset % _alignment == 0);
+
+        _n_bytes_in_use += pairs[i].size;
     }
-    grow_blocks_array_by(n_blocks);
-    merge_blockpairs_into(_n_blocks, _blocks_array, n_blocks, pairs);
-    _n_blocks += n_blocks;
+    _n_blocks = n_blocks;
+
+    grow_blocks_array_by(_n_blocks);
+    memcpy(_blocks_array, pairs, _n_blocks * sizeof(struct blockpair));
+    qsort(_blocks_array, _n_blocks, sizeof(struct blockpair), compare_blockpairs);
+
     VALIDATE();
-}
-
-void block_allocator::alloc_block_at(uint64_t size, uint64_t offset) {
-    struct blockpair p(offset, size);
-
-    // Just do a linear search for the block.
-    // This data structure is a sorted array (no gaps or anything), so the search isn't really making this any slower than the insertion.
-    // To speed up the insertion when opening a file, we provide the block_allocator_alloc_blocks_at function.
-    alloc_blocks_at(1, &p);
 }
 
 // Effect: align a value by rounding up.

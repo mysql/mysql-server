@@ -1338,7 +1338,7 @@ maybe_merge_pinned_nodes(
 
 static void merge_remove_key_callback(BLOCKNUM *bp, bool for_checkpoint, void *extra) {
     FT ft = (FT) extra;
-    toku_free_blocknum(ft->blocktable, bp, ft, for_checkpoint);
+    ft->blocktable.free_blocknum(bp, ft, for_checkpoint);
 }
 
 //
@@ -1517,7 +1517,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
 
     // get the child into memory
     BLOCKNUM targetchild = BP_BLOCKNUM(parent, childnum);
-    toku_verify_blocknum_allocated(ft->blocktable, targetchild);
+    ft->blocktable.verify_blocknum_allocated(targetchild);
     uint32_t childfullhash = compute_child_fullhash(ft->cf, parent, childnum);
     FTNODE child;
     struct ftnode_fetch_extra bfe;
