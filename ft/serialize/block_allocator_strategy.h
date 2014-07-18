@@ -100,6 +100,10 @@ public:
     first_fit(struct block_allocator::blockpair *blocks_array,
               uint64_t n_blocks, uint64_t size, uint64_t alignment);
 
+    static struct block_allocator::blockpair *
+    best_fit(struct block_allocator::blockpair *blocks_array,
+              uint64_t n_blocks, uint64_t size, uint64_t alignment);
+
 private:
     // Effect: align a value by rounding up.
     static inline uint64_t _align(uint64_t value, uint64_t ba_alignment) {

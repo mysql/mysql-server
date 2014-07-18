@@ -102,3 +102,25 @@ block_allocator_strategy::first_fit(struct block_allocator::blockpair *blocks_ar
     }
     return nullptr;
 }
+
+// Best fit block allocation
+struct block_allocator::blockpair *
+block_allocator_strategy::best_fit(struct block_allocator::blockpair *blocks_array,
+                                    uint64_t n_blocks, uint64_t size, uint64_t alignment) {
+    struct block_allocator::blockpair *best_bp = nullptr;
+    uint64_t best_hole_size = 0;
+    for (uint64_t blocknum = 0; blocknum + 1 < n_blocks; blocknum++) {
+        // Consider the space after blocknum
+        struct block_allocator::blockpair *bp = &blocks_array[blocknum];
+        uint64_t possible_offset = _align(bp->offset + bp->size, alignment);
+        if (possible_offset + size <= bp[1].offset) {
+            // It fits here. Is it the best fit?
+            uint64_t hole_size = (bp[1].offset - possible_offset) + size;
+            if (best_bp == nullptr || hole_size < best_hole_size) {
+                best_hole_size = hole_size;
+                best_bp = bp;
+            }
+        }
+    }
+    return best_bp;
+}

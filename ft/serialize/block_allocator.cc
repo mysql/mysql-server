@@ -153,6 +153,7 @@ void block_allocator::create(uint64_t reserve_at_beginning, uint64_t alignment) 
     _create_internal(reserve_at_beginning, alignment);
     if (ba_trace_file != nullptr) {
         fprintf(ba_trace_file, "ba_trace_create %p\n", this);
+        fflush(ba_trace_file);
     }
 }
 
@@ -161,6 +162,7 @@ void block_allocator::destroy() {
 
     if (ba_trace_file != nullptr) {
         fprintf(ba_trace_file, "ba_trace_destroy %p\n", this);
+        fflush(ba_trace_file);
     }
 }
 
@@ -226,6 +228,8 @@ block_allocator::choose_block_to_alloc_after(size_t size) {
     switch (_strategy) {
     case BA_STRATEGY_FIRST_FIT:
         return block_allocator_strategy::first_fit(_blocks_array, _n_blocks, size, _alignment);
+    case BA_STRATEGY_BEST_FIT:
+        return block_allocator_strategy::best_fit(_blocks_array, _n_blocks, size, _alignment);
     default:
         abort();
     }
@@ -287,6 +291,7 @@ done:
     if (ba_trace_file != nullptr) {
         fprintf(ba_trace_file, "ba_trace_alloc %p %lu %lu\n",
                 this, static_cast<unsigned long>(size), static_cast<unsigned long>(*offset));
+        fflush(ba_trace_file);
     }
 }
 
@@ -333,7 +338,7 @@ void block_allocator::free_block(uint64_t offset) {
     if (ba_trace_file != nullptr) {
         fprintf(ba_trace_file, "ba_trace_free %p %lu\n",
                 this, static_cast<unsigned long>(offset));
-                
+        fflush(ba_trace_file);
     }
 }
 

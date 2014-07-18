@@ -125,7 +125,8 @@ public:
     static const size_t BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE = BLOCK_ALLOCATOR_HEADER_RESERVE * 2;
 
     enum allocation_strategy {
-        BA_STRATEGY_FIRST_FIT = 1
+        BA_STRATEGY_FIRST_FIT = 1,
+        BA_STRATEGY_BEST_FIT
     };
 
     struct blockpair {
