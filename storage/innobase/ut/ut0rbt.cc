@@ -23,6 +23,8 @@ Red-Black tree implementation
 Created 2007-03-20 Sunny Bains
 ***********************************************************************/
 
+#include "univ.i"
+
 #include "ut0new.h"
 #include "ut0rbt.h"
 
