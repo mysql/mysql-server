@@ -1328,61 +1328,6 @@ int main(int argc,char *argv[])
     umask(old_mask);
   }
 
-  if (opt_euid && geteuid() == 0)
-  {
-    struct passwd *pwd;
-    info << "Setting file ownership to " << opt_euid
-         << endl;
-    pwd= getpwnam(opt_euid);   /* Try getting UID for username */
-    if (pwd == NULL)
-    {
-      error << "Failed to verify user id '" << opt_euid
-            << "'. Does it exist?" << endl;
-      return 1;
-    }
-    if (chown(data_directory.to_str().c_str(), pwd->pw_uid, pwd->pw_gid) != 0)
-    {
-      error << "Failed to set file ownership for "
-            << data_directory.to_str()
-            << " to (" << pwd->pw_uid << ", " << pwd->pw_gid << ")"
-            << endl;
-    }
-    if (seteuid(pwd->pw_uid) != 0)
-    {
-      warning << "Failed to set effective user id to " << pwd->pw_uid
-              << ". Install might fail." << endl;
-    }
-    if (setegid(pwd->pw_uid) != 0)
-    {
-      warning << "Failed to set effective group id to " << pwd->pw_gid
-              << ". Install might fail." << endl;
-    }
-  }
-  else
-    opt_euid= 0;
-  vector<string> command_line;
-  if (opt_defaults == FALSE && opt_defaults_file == NULL)
-    command_line.push_back(string("--no-defaults"));
-  if (opt_defaults_file != NULL)
-    command_line.push_back(string("--defaults-file=")
-      .append(opt_defaults_file));
-  if (opt_def_extra_file != NULL)
-    command_line.push_back(string("--defaults-extra-file=")
-      .append(opt_def_extra_file));
-  command_line.push_back(string("--bootstrap"));
-  command_line.push_back(string("--datadir=")
-    .append(data_directory.to_str()));
-  command_line.push_back(string("--lc-messages-dir=")
-    .append(language_directory.to_str()));
-  command_line.push_back(string("--lc-messages=")
-    .append(create_string(opt_lang)));
-  if (basedir.length() > 0)
-  command_line.push_back(string("--basedir=")
-    .append(basedir));
-
-  // DEBUG
-  //mysqld_exec.append("\"").insert(0, "gnome-terminal -e \"gdb --args ");
-
   /* Generate a random password is no password was found previously */
   if (password.length() == 0 && !opt_insecure)
   {
@@ -1409,6 +1354,60 @@ int main(int argc,char *argv[])
     }
   }
 
+  if (opt_euid && geteuid() == 0)
+  {
+    struct passwd *pwd;
+    info << "Setting file ownership to " << opt_euid
+         << endl;
+    pwd= getpwnam(opt_euid);   /* Try getting UID for username */
+    if (pwd == NULL)
+    {
+      error << "Failed to verify user id '" << opt_euid
+            << "'. Does it exist?" << endl;
+      return 1;
+    }
+    if (chown(data_directory.to_str().c_str(), pwd->pw_uid, pwd->pw_gid) != 0)
+    {
+      error << "Failed to set file ownership for "
+            << data_directory.to_str()
+            << " to (" << pwd->pw_uid << ", " << pwd->pw_gid << ")"
+            << endl;
+    }
+    if (seteuid(pwd->pw_uid) != 0)
+    {
+      warning << "Failed to set effective user id to " << pwd->pw_uid
+              << endl;
+    }
+    if (setegid(pwd->pw_gid) != 0)
+    {
+      warning << "Failed to set effective group id to " << pwd->pw_gid
+              << endl;
+    }
+  }
+  else
+    opt_euid= 0;
+  vector<string> command_line;
+  if (opt_defaults == FALSE && opt_defaults_file == NULL)
+    command_line.push_back(string("--no-defaults"));
+  if (opt_defaults_file != NULL)
+    command_line.push_back(string("--defaults-file=")
+      .append(opt_defaults_file));
+  if (opt_def_extra_file != NULL)
+    command_line.push_back(string("--defaults-extra-file=")
+      .append(opt_def_extra_file));
+  command_line.push_back(string("--bootstrap"));
+  command_line.push_back(string("--datadir=")
+    .append(data_directory.to_str()));
+  command_line.push_back(string("--lc-messages-dir=")
+    .append(language_directory.to_str()));
+  command_line.push_back(string("--lc-messages=")
+    .append(create_string(opt_lang)));
+  if (basedir.length() > 0)
+  command_line.push_back(string("--basedir=")
+    .append(basedir));
+
+  // DEBUG
+  //mysqld_exec.append("\"").insert(0, "gnome-terminal -e \"gdb --args ");
 
   string ssl_type;
   string ssl_cipher;
