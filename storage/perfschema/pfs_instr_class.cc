@@ -106,18 +106,18 @@ ulong statement_class_lost= 0;
 ulong table_share_max= 0;
 /** Number of table share lost. @sa table_share_array */
 ulong table_share_lost= 0;
-/** Size of the table stat array. @sa table_stat_array */
-ulong table_stat_max= 0;
-/** Number of table stat lost. @sa table_stat_array */
-ulong table_stat_lost= 0;
-/** boolean value to indicate if stat array is full. @sa table_stat_full */
-ulong table_stat_full= false;
-/** Size of the index stat array. @sa index_stat_array */
-ulong index_stat_max= 0;
-/** Number of index stat lost. @sa index_stat_array */
-ulong index_stat_lost= 0;
-/** boolean value to indicate if stat array is full. @sa index_stat_full */
-ulong index_stat_full= false;
+/** Size of the table stat array. @sa table_share_lock_stat_array */
+ulong table_share_lock_stat_max= 0;
+/** Number of table stat lost. @sa table_share_lock_stat_array */
+ulong table_share_lock_stat_lost= 0;
+/** boolean value to indicate if stat array is full. @sa table_share_lock_stat_full */
+ulong table_share_lock_stat_full= false;
+/** Size of the index stat array. @sa table_share_index_stat_array */
+ulong table_share_index_stat_max= 0;
+/** Number of index stat lost. @sa table_share_index_stat_array */
+ulong table_share_index_stat_lost= 0;
+/** boolean value to indicate if stat array is full. @sa table_share_index_stat_full */
+ulong table_share_index_stat_full= false;
 /** Size of the socket class array. @sa socket_class_array */
 ulong socket_class_max= 0;
 /** Number of socket class lost. @sa socket_class_array */
@@ -159,17 +159,17 @@ PFS_table_share *table_share_array= NULL;
 
 /**
   Table statistics instance array.
-  @sa table_stat_max
-  @sa table_stat_lost
+  @sa table_share_lock_stat_max
+  @sa table_share_lock_stat_lost
 */
-PFS_table_stat *table_stat_array= NULL;
+PFS_table_share_lock *table_share_lock_stat_array= NULL;
 
 /**
   Index statistics instance array.
-  @sa index_stat_max
-  @sa index_stat_lost
+  @sa table_share_index_stat_max
+  @sa table_share_index_stat_lost
 */
-PFS_table_io_stat *index_stat_array= NULL;
+PFS_table_share_index *table_share_index_stat_array= NULL;
 
 PFS_ALIGNED PFS_single_stat global_idle_stat;
 PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
@@ -534,62 +534,63 @@ void PFS_table_share::refresh_setup_object_flags(PFS_thread *thread)
 }
 
 /**
-  Initialize the table stat buffer.
-  @param table_stat_sizing           max number of table statistics
+  Initialize the table lock stat buffer.
+  @param table_stat_sizing           max number of table lock statistics
   @return 0 on success
 */
-int init_table_stat(uint table_stat_sizing)
+int init_table_share_lock_stat(uint table_stat_sizing)
 {
   int result= 0;
-  table_stat_max= table_stat_sizing;
-  table_stat_lost= 0;
+  table_share_lock_stat_max= table_stat_sizing;
+  table_share_lock_stat_lost= 0;
 
-  if (table_stat_max > 0)
+  if (table_share_lock_stat_max > 0)
   {
-    table_stat_array= PFS_MALLOC_ARRAY(table_stat_max, PFS_table_stat,
+    table_share_lock_stat_array= PFS_MALLOC_ARRAY(table_share_lock_stat_max,
+                                       PFS_table_share_lock,
                                        MYF(MY_ZEROFILL));
-    if (unlikely(table_stat_array == NULL))
+    if (unlikely(table_share_lock_stat_array == NULL))
       result= 1;
   }
   else
-    table_stat_array= NULL;
+    table_share_lock_stat_array= NULL;
 
   return result;
 }
 
-PFS_table_stat*
-get_table_stat(PFS_table_share *share)
+PFS_table_share_lock*
+get_table_share_lock_stat(PFS_table_share *share)
 {
-  if (table_stat_array == NULL || table_stat_max == 0)
+  if (table_share_lock_stat_array == NULL || table_share_lock_stat_max == 0)
   {
-    table_stat_lost++;
+    table_share_lock_stat_lost++;
     return NULL;
   }
  
-  PFS_table_stat *pfs= NULL;
+  PFS_table_share_lock *pfs= NULL;
   static uint PFS_ALIGNED table_stat_monotonic_index= 0;
   ulong index= 0;
   ulong attempts= 0;
   pfs_dirty_state dirty_state;
 
-  if(table_stat_full)
+  if(table_share_lock_stat_full)
   {
-    table_stat_lost++;
+    table_share_lock_stat_lost++;
     return NULL;
   }
 
   /* Create a new record in table stat array. */
-  while (++attempts <= table_stat_max)
+  while (++attempts <= table_share_lock_stat_max)
   {
-    index= PFS_atomic::add_u32(& table_stat_monotonic_index, 1) % table_stat_max;
-    pfs= table_stat_array + index;
+    index= PFS_atomic::add_u32(& table_stat_monotonic_index, 1) % table_share_lock_stat_max;
+    pfs= table_share_lock_stat_array + index;
 
     if (pfs->m_lock.is_free())
     {
       if (pfs->m_lock.free_to_dirty(& dirty_state))
       {
         /* Reset the stats. */
-        pfs->fast_reset();
+        pfs->m_stat.reset();
 
         /* Use this stat buffer. */
         pfs->m_lock.dirty_to_allocated(& dirty_state);
@@ -597,85 +598,87 @@ get_table_stat(PFS_table_share *share)
       }
     }
   }
-  table_stat_lost++;
-  table_stat_full= true;
+  table_share_lock_stat_lost++;
+  table_share_lock_stat_full= true;
   return NULL;
 }
 
-void release_table_stat(PFS_table_stat *pfs)
+void release_table_share_lock_stat(PFS_table_share_lock *pfs)
 {
   pfs->m_lock.allocated_to_free();
-  table_stat_full= false;
+  table_share_lock_stat_full= false;
   return;
 }
 
 /** Cleanup the table stat buffers. */
-void cleanup_table_stat(void)
+void cleanup_table_share_lock_stat(void)
 {
-  pfs_free(table_stat_array);
-  table_stat_array= NULL;
-  table_stat_max= 0;
+  pfs_free(table_share_lock_stat_array);
+  table_share_lock_stat_array= NULL;
+  table_share_lock_stat_max= 0;
 }
 
 /**
-  Initialize the index stat buffer.
+  Initialize table index stat buffer.
   @param index_stat_sizing           max number of index statistics
   @return 0 on success
 */
-int init_index_stat(uint index_stat_sizing)
+int init_table_share_index_stat(uint index_stat_sizing)
 {
   int result= 0;
-  index_stat_max= index_stat_sizing;
-  table_stat_lost= 0;
+  table_share_index_stat_max= index_stat_sizing;
+  table_share_lock_stat_lost= 0;
 
-  if (index_stat_max > 0)
+  if (table_share_index_stat_max > 0)
   {
-    index_stat_array= PFS_MALLOC_ARRAY(index_stat_max, PFS_table_io_stat,
+    table_share_index_stat_array= PFS_MALLOC_ARRAY(table_share_index_stat_max,
+                                       PFS_table_share_index,
                                        MYF(MY_ZEROFILL));
-    if (unlikely(index_stat_array == NULL))
+    if (unlikely(table_share_index_stat_array == NULL))
       result= 1;
   }
   else
-    index_stat_array= NULL;
+    table_share_index_stat_array= NULL;
 
   return result;
 }
 
-PFS_table_io_stat*
-get_index_stat(PFS_table_io_stat **stat)
+PFS_table_share_index*
+get_table_share_index_stat(PFS_table_share_index **stat)
 {
   if(*stat)
     return *stat;
 
-  if (index_stat_array == NULL || index_stat_max == 0)
+  if (table_share_index_stat_array == NULL || table_share_index_stat_max == 0)
   {
-    index_stat_lost++;
+    table_share_index_stat_lost++;
     return NULL;
   }
  
-  PFS_table_io_stat *pfs= NULL;
+  PFS_table_share_index *pfs= NULL;
   static uint PFS_ALIGNED index_stat_monotonic_index= 0;
   ulong index= 0;
   ulong attempts= 0;
   pfs_dirty_state dirty_state;
 
-  if(index_stat_full)
+  if(table_share_index_stat_full)
   {
-    index_stat_lost++;
+    table_share_index_stat_lost++;
     return NULL;
   }
 
   /* Create a new record in index stat array. */
-  while (++attempts <= index_stat_max)
+  while (++attempts <= table_share_index_stat_max)
   {
-    index= PFS_atomic::add_u32(& index_stat_monotonic_index, 1) % index_stat_max;
-    pfs= index_stat_array + index;
+    index= PFS_atomic::add_u32(& index_stat_monotonic_index, 1) % table_share_index_stat_max;
+    pfs= table_share_index_stat_array + index;
 
     if (pfs->m_lock.is_free())
     {
       if (pfs->m_lock.free_to_dirty(& dirty_state))
       {
-        /* TODO : mayank, Reset the stats. */
+        /* Reset the stats. */
+        pfs->m_stat.reset();
 
         /* Use this stat buffer. */
         pfs->m_lock.dirty_to_allocated(& dirty_state);
@@ -684,26 +687,24 @@ get_index_stat(PFS_table_io_stat **stat)
       }
     }
   }
-  index_stat_lost++;
-  index_stat_full= true;
+  table_share_index_stat_lost++;
+  table_share_index_stat_full= true;
   return NULL;
 }
 
-void release_index_stat(PFS_table_io_stat *pfs)
+void release_table_share_index_stat(PFS_table_share_index *pfs)
 {
-  if(!pfs->m_lock.is_populated())
-    printf("HERE\n");
   pfs->m_lock.allocated_to_free();
-  table_stat_full= false;
+  table_share_index_stat_full= false;
   return;
 }
 
 /** Cleanup the table stat buffers. */
-void cleanup_index_stat(void)
+void cleanup_table_share_index_stat(void)
 {
-  pfs_free(index_stat_array);
-  index_stat_array= NULL;
-  index_stat_max= 0;
+  pfs_free(table_share_index_stat_array);
+  table_share_index_stat_array= NULL;
+  table_share_index_stat_max= 0;
 }
 /**
   Initialize the file class buffer.
@@ -1636,8 +1637,7 @@ search:
     {
       set_keys(pfs, share);
       /* FIXME: aggregate to table_share sink ? */
-      if(pfs->m_table_stat)
-        pfs->m_table_stat->fast_reset();
+      pfs->m_table_stat.fast_reset();
     }
     lf_hash_search_unpin(pins);
     return pfs;
@@ -1678,12 +1678,14 @@ search:
       pfs->init_refcount();
       set_keys(pfs, share);
 
+      pfs->initialize_index_stat();
+
       int res;
       pfs->m_lock.dirty_to_allocated(& dirty_state);
       res= lf_hash_insert(&table_share_hash, pins, &pfs);
       if (likely(res == 0))
       {
-        pfs->m_table_stat= NULL;
+        pfs->m_lock_stat= NULL;
         return pfs;
       }
 
@@ -1714,34 +1716,65 @@ search:
 void PFS_table_share::aggregate_io(void)
 {
   uint safe_key_count= sanitize_index_count(m_key_count);
-  PFS_table_io_stat **from_stat;
-  PFS_table_io_stat **from_stat_last;
+  PFS_table_share_index **from_stat;
+  PFS_table_share_index **from_stat_last;
   PFS_table_io_stat sum_io;
 
-  if(m_table_stat == NULL)
-    return;
-
   /* Aggregate stats for each index, if any */
-  from_stat= & m_table_stat->m_index_stat[0];
+  from_stat= & m_index_stat[0];
   from_stat_last= from_stat + safe_key_count;
   for ( ; from_stat < from_stat_last ; from_stat++)
-    sum_io.aggregate(*from_stat);
+    if(*from_stat)
+      sum_io.aggregate(& (*from_stat)->m_stat);
 
   /* Aggregate stats for the table */
-  sum_io.aggregate(m_table_stat->m_index_stat[MAX_INDEXES]);
+  if(m_index_stat[MAX_INDEXES])
+    sum_io.aggregate(& m_index_stat[MAX_INDEXES]->m_stat);
 
   /* Add this table stats to the global sink. */
   global_table_io_stat.aggregate(& sum_io);
-  m_table_stat->fast_reset_io();
+  //TODO : mayank, Do we need to reset each and every stat of index array now ? 
+}
+
+void PFS_table_share::sum_io(PFS_single_stat *result, uint key_count)
+{
+  PFS_table_share_index **stat;
+  PFS_table_share_index **stat_last;
+
+  DBUG_ASSERT(key_count <= MAX_INDEXES);
+
+  /* Sum stats for each index, if any */
+  stat= & m_index_stat[0];
+  stat_last= stat + key_count;
+  for ( ; stat < stat_last ; stat++)
+    if(*stat)
+      (*stat)->m_stat.sum(result);
+
+  /* Sum stats for the table */
+  if(m_index_stat[MAX_INDEXES])
+    m_index_stat[MAX_INDEXES]->m_stat.sum(result);
+}
+
+void PFS_table_share::sum_lock(PFS_single_stat *result)
+{
+  if(m_lock_stat)
+    m_lock_stat->m_stat.sum(result);
+}
+
+void PFS_table_share::sum(PFS_single_stat *result, uint key_count)
+{
+  sum_io(result, key_count);
+  sum_lock(result);
 }
 
 void PFS_table_share::aggregate_lock(void)
 {
-  if(m_table_stat == NULL)
-    return;
-
-  global_table_lock_stat.aggregate(& m_table_stat->m_lock_stat);
-  m_table_stat->fast_reset_lock();
+  if(m_lock_stat)
+  {
+    global_table_lock_stat.aggregate(& m_lock_stat->m_stat);
+    //TODO: mayank, Is following reset necessary?
+    m_lock_stat->m_stat.reset();
+  }
 }
 
 void release_table_share(PFS_table_share *pfs)
@@ -1779,8 +1812,10 @@ void drop_table_share(PFS_thread *thread,
     PFS_table_share *pfs= *entry;
     lf_hash_delete(&table_share_hash, pins,
                    pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
-    if (pfs->m_table_stat)
-       release_table_stat(pfs->m_table_stat);
+    if (pfs->m_lock_stat)
+       release_table_share_lock_stat(pfs->m_lock_stat);
+    //TODO: mayank. We need to release all index stats for this table_share?
+    
     pfs->m_lock.allocated_to_free();
   }
 
