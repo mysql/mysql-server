@@ -2537,6 +2537,26 @@ pfs_start_rwlock_wait_v1(PSI_rwlock_locker_state *state,
   DBUG_ASSERT(pfs_rwlock != NULL);
   DBUG_ASSERT(pfs_rwlock->m_class != NULL);
 
+  /* Operations supported for READ WRITE LOCK */
+
+  DBUG_ASSERT(   pfs_rwlock->m_class->is_shared_exclusive()
+              || (op == PSI_RWLOCK_READLOCK)
+              || (op == PSI_RWLOCK_WRITELOCK)
+              || (op == PSI_RWLOCK_TRYREADLOCK)
+              || (op == PSI_RWLOCK_TRYWRITELOCK)
+             );
+
+  /* Operations supported for SHARED EXCLUSIVE LOCK */
+
+  DBUG_ASSERT(   ! pfs_rwlock->m_class->is_shared_exclusive()
+              || (op == PSI_RWLOCK_SHAREDLOCK)
+              || (op == PSI_RWLOCK_SHAREDEXCLUSIVELOCK)
+              || (op == PSI_RWLOCK_EXCLUSIVELOCK)
+              || (op == PSI_RWLOCK_TRYSHAREDLOCK)
+              || (op == PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK)
+              || (op == PSI_RWLOCK_TRYEXCLUSIVELOCK)
+             );
+
   if (! pfs_rwlock->m_enabled)
     return NULL;
 
