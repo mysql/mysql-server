@@ -317,26 +317,6 @@ unlocking, not the corresponding function. */
 #define rw_lock_s_unlock(L)		rw_lock_s_unlock_gen(L, 0)
 #define rw_lock_x_unlock(L)		rw_lock_x_unlock_gen(L, 0)
 
-#ifdef NEVER
-/* TODO: PFS doesn't treat the new lock state for now. */
-#define rw_lock_sx_lock(L)					\
-	rw_lock_sx_lock_func((L), 0, __FILE__, __LINE__)
-#define rw_lock_sx_lock_inline(M, P, F, L)			\
-	rw_lock_sx_lock_func((M), (P), (F), (L))
-#define rw_lock_sx_lock_gen(M, P)				\
-	rw_lock_sx_lock_func((M), (P), __FILE__, __LINE__)
-#define rw_lock_sx_lock_nowait(M, P)				\
-	rw_lock_sx_lock_low((M), (P), __FILE__, __LINE__)
-
-#ifdef UNIV_SYNC_DEBUG
-# define rw_lock_sx_unlock(L)		rw_lock_sx_unlock_func(0, L)
-# define rw_lock_sx_unlock_gen(L, P)	rw_lock_sx_unlock_func(P, L)
-#else /* UNIV_SYNC_DEBUG */
-# define rw_lock_sx_unlock(L)		rw_lock_sx_unlock_func(L)
-# define rw_lock_sx_unlock_gen(L, P)	rw_lock_sx_unlock_func(L)
-#endif /* UNIV_SYNC_DEBUG */
-#endif
-
 /******************************************************************//**
 Creates, or rather, initializes an rw-lock object in a specified memory
 location (which must be appropriately aligned). The rw-lock is initialized
