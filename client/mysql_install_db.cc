@@ -1329,6 +1329,32 @@ int main(int argc,char *argv[])
     umask(old_mask);
   }
 
+  /* Generate a random password is no password was found previously */
+  if (password.length() == 0 && !opt_insecure)
+  {
+    Path randpwdfile;
+    if (opt_randpwdfile != 0)
+    {
+      randpwdfile.qpath(opt_randpwdfile);
+    }
+    else
+    {
+      randpwdfile.get_homedir();
+      randpwdfile.filename(default_randpwfile);
+    }
+    info << "Generating random password to "
+         << randpwdfile << "...";
+    generate_password(&password,12);
+    if (generate_password_file(randpwdfile, adminuser, adminhost,
+                               password) != ALL_OK)
+    {
+      error << "Can't create password file "
+            << randpwdfile
+            << endl;
+      return 1;
+    }
+  }
+
   if (opt_euid && geteuid() == 0)
   {
     struct passwd *pwd;
@@ -1351,12 +1377,12 @@ int main(int argc,char *argv[])
     if (seteuid(pwd->pw_uid) != 0)
     {
       warning << "Failed to set effective user id to " << pwd->pw_uid
-              << ". Install might fail." << endl;
+              << endl;
     }
-    if (setegid(pwd->pw_uid) != 0)
+    if (setegid(pwd->pw_gid) != 0)
     {
       warning << "Failed to set effective group id to " << pwd->pw_gid
-              << ". Install might fail." << endl;
+              << endl;
     }
   }
   else
@@ -1384,33 +1410,6 @@ int main(int argc,char *argv[])
 
   // DEBUG
   //mysqld_exec.append("\"").insert(0, "gnome-terminal -e \"gdb --args ");
-
-  /* Generate a random password is no password was found previously */
-  if (password.length() == 0 && !opt_insecure)
-  {
-    Path randpwdfile;
-    if (opt_randpwdfile != 0)
-    {
-      randpwdfile.qpath(opt_randpwdfile);
-    }
-    else
-    {
-      randpwdfile.get_homedir();
-      randpwdfile.filename(default_randpwfile);
-    }
-    info << "Generating random password to "
-         << randpwdfile << "...";
-    generate_password(&password,12);
-    if (generate_password_file(randpwdfile, adminuser, adminhost,
-                               password) != ALL_OK)
-    {
-      error << "Can't create password file "
-            << randpwdfile
-            << endl;
-      return 1;
-    }
-  }
-
 
   string ssl_type;
   string ssl_cipher;
