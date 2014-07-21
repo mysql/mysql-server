@@ -67,6 +67,9 @@ int gcs_after_recovery(Server_state_param *param)
 
 int gcs_before_server_shutdown(Server_state_param *param)
 {
+  if (is_gcs_rpl_running())
+    stop_gcs_rpl();
+
   return 0;
 }
 
