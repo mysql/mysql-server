@@ -4622,12 +4622,15 @@ void mysql_close_free(MYSQL *mysql)
 */
 static void mysql_prune_stmt_list(MYSQL *mysql)
 {
-  LIST *element= mysql->stmts;
-  LIST *pruned_list= 0;
+  LIST *pruned_list= NULL;
 
-  for (; element; element= element->next)
+  while(mysql->stmts)
   {
-    MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
+    LIST *element= mysql->stmts;
+    MYSQL_STMT *stmt;
+
+    mysql->stmts= list_delete(element, element);
+    stmt= (MYSQL_STMT *) element->data;
     if (stmt->state != MYSQL_STMT_INIT_DONE)
     {
       stmt->mysql= 0;
