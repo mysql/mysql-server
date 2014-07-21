@@ -799,7 +799,7 @@ buf_flush_init_for_writing(
 		ut_ad(ut_is_2pow(size));
 		ut_ad(size <= UNIV_ZIP_SIZE_MAX);
 
-		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
+		switch (fil_page_get_type(page)) {
 		case FIL_PAGE_TYPE_ALLOCATED:
 		case FIL_PAGE_INODE:
 		case FIL_PAGE_IBUF_BITMAP:
@@ -811,6 +811,7 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
 		case FIL_PAGE_INDEX:
+		case FIL_PAGE_RTREE:
 
 			buf_flush_update_zip_checksum(
 				page_zip->data, size, newest_lsn);

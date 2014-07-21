@@ -949,11 +949,16 @@ my_net_read(NET *net)
         {
           if (multi_byte_packet)
           {
+            /* 
+              It's never the buffer on the first loop iteration that will have
+              multi_byte_packet on.
+              Thus there shall never be a non-zero first_packet_offset here.
+            */
+            DBUG_ASSERT(first_packet_offset == 0);
             /* Remove packet header for second packet */
-            memmove(net->buff + first_packet_offset + start_of_packet,
-              net->buff + first_packet_offset + start_of_packet +
-              NET_HEADER_SIZE,
-              buf_length - start_of_packet);
+            memmove(net->buff + start_of_packet,
+              net->buff + start_of_packet + NET_HEADER_SIZE,
+              buf_length - start_of_packet - NET_HEADER_SIZE);
             start_of_packet += read_length;
             buf_length -= NET_HEADER_SIZE;
           }

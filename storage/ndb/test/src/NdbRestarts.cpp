@@ -708,6 +708,7 @@ int restartNFDuringNR(F_ARGS safety){
   if(_restarter.getNumDbNodes() < 4)
     return NDBT_OK;
 
+#ifdef NDB_USE_GET_ENV
   char buf[256];
   if(NdbEnv_GetEnv("USER", buf, 256) == 0 || strcmp(buf, "ejonore") != 0)
     return NDBT_OK;
@@ -750,7 +751,7 @@ int restartNFDuringNR(F_ARGS safety){
     CHECK(_restarter.waitClusterStarted() == 0,
 	  "waitClusterStarted failed");
   }
-
+#endif
   return NDBT_OK;
 }
 

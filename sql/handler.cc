@@ -3832,6 +3832,9 @@ void handler::print_error(int error, myf errflag)
     my_error(ER_TABLE_CORRUPT, errflag, table_share->db.str,
              table_share->table_name.str);
     DBUG_VOID_RETURN;
+  case HA_ERR_QUERY_INTERRUPTED:
+    textno= ER_QUERY_INTERRUPTED;
+    break;
   default:
     {
       /* The error was "unknown" to this function.

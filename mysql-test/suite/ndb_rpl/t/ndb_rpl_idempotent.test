@@ -78,6 +78,8 @@ eval CHANGE MASTER TO
 
 source include/check_slave_no_error.inc;
 
+call mtr.add_suppression("NDB Slave : At SQL thread start applying epoch .*");
+
 # start the slave again
 # -> same events should have been applied again
 # e.g. inserting rows that already there
@@ -206,9 +208,8 @@ source include/check_slave_no_error.inc;
 
 # Add a suppression for the warning that will appear in the
 # Slave's .err file
-insert into mtr.test_suppressions values
-  ("Slave: Table \'t2\' already exists .*"),
-  ("Slave SQL: Error \'Table \'t2\' already exists\' .*");
+call mtr.add_suppression("Slave: Table \'t2\' already exists .*");
+call mtr.add_suppression("Slave SQL: Error \'Table \'t2\' already exists\' .*");
 
 
 START SLAVE;

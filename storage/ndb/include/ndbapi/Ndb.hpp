@@ -1144,6 +1144,29 @@ public:
 #endif
 
   /**
+   * Get the name of the Ndb object.
+   * If no name is given, it will return 0.
+   **/
+  const char* getNdbObjectName () const;
+
+  /**
+   * Set a human readable name optionally to identify an
+   * Ndb object for debugging purpose. Setting should be done
+   * after creating the Ndb object, but before the object is
+   * initialised with init().
+   * 1) Setting the name more than once will fail and return 4014.
+   * 2) Setting the name after init will return give error 4015.
+   *
+   * It is recommended to use the reference (ndbObject->getReference())
+   * followed by the name (if given) in printouts
+   * of the user applications subscribing events.
+   * This will make tracing event handling between a subscribing user app
+   * and the ndb engine easier, since the reference correlates the app's
+   * ndb object, event buffer and the ndb engine (Suma block).
+   */
+  int setNdbObjectName(const char *name);
+
+  /**
    * The current database name can be fetched by getDatabaseName.
    *
    * @return the current database name
@@ -1493,6 +1516,16 @@ public:
    */
   NdbTransaction* startTransaction(const NdbDictionary::Table* table,
                                    Uint32 partitionId);
+  /**
+   * Start a transaction on a specified node id and instance id.
+   * Mostly intended for test cases, but can also be useful on
+   * heterogenous cluster installations.
+   * 
+   * As in all startTransaction variants the nodeId and instanceId is
+   * merely a hint and if the node is down another TC will be used
+   * instead.
+   */
+  NdbTransaction* startTransaction(Uint32 nodeId, Uint32 instanceId);
 
   /**
    * Compute distribution hash value given table/keys
