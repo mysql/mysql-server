@@ -3354,9 +3354,13 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
   /* Check if eof packet */
   if (len < 8 && mysql->net.read_pos[0] == 254)
   {
-    sql_print_information("Slave: received end packet from server, apparent "
-                          "master shutdown: %s",
-                     mysql_error(mysql));
+     sql_print_information("Slave: received end packet from server due to dump "
+                           "thread being killed on master. Dump threads are "
+                           "killed for example during master shutdown, "
+                           "explicitly by a user, or when the master receives "
+                           "a binlog send request from a duplicate server "
+                           "UUID <%s> : Error %s", ::server_uuid,
+                           mysql_error(mysql));
      DBUG_RETURN(packet_error);
   }
 
@@ -4535,19 +4539,23 @@ log space");
         }
       DBUG_EXECUTE_IF("stop_io_after_reading_gtid_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == GTID_LOG_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_query_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == QUERY_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
+      );
+      DBUG_EXECUTE_IF("stop_io_after_reading_user_var_log_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == USER_VAR_EVENT)
+          thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_xid_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == XID_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_write_rows_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == WRITE_ROWS_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
       );
     }
   }
