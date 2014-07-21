@@ -246,6 +246,49 @@ runInsertOne(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+/**
+ * Insert error 5083 in DBLQH that puts operation into LOG_QUEUED state and puts
+ * the operation in the REDO log queue. After a while it will be timed out and
+ * the abort code will handle it, the runLoadTableFail method will then abort and
+ * be assumed to be ok, so as long as the node doesn't crash we're passing the
+ * test case and also the operation should be aborted.
+ *
+ * If this test case is run on 7.2 it will simply be the same as Fill since we
+ * don't queue REDO log operations but rather abort it immediately. So it will
+ * pass as well but won't test the desired functionality.
+ */
+int runLoadTableFail(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int records = 16;
+  int res;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  res = hugoTrans.loadTable(GETNDB(step), records, 64, true, 0, true, true);
+  if (res == 266 || /* Timeout when REDO logging queueing active (or not) */
+      res == 0)     /* No error when not REDO logging active and no error insert */
+  {
+    ndbout << "res = " << res << endl;
+    return NDBT_OK;
+  }
+  /* All other error variants are errors in this case */
+  return NDBT_FAILED;
+}
+
+int
+insertError5083(NDBT_Context* ctx, NDBT_Step* step)
+{
+   NdbRestarter restarter;
+   restarter.insertErrorInAllNodes(5083);
+   return 0;
+}
+
+int
+clearError5083(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  restarter.insertErrorInAllNodes(0);
+  return 0;
+}
+
 static
 int
 readOneNoCommit(Ndb* pNdb, NdbConnection* pTrans, 
@@ -3840,6 +3883,13 @@ TESTCASE("BugXXX","")
 TESTCASE("Bug16834333","")
 {
   INITIALIZER(runBug16834333);
+}
+TESTCASE("FillQueueREDOLog",
+         "Verify that we can handle a REDO log queue situation")
+{
+  INITIALIZER(insertError5083);
+  STEP(runLoadTableFail);
+  FINALIZER(clearError5083);
 }
 NDBT_TESTSUITE_END(testBasic);
 

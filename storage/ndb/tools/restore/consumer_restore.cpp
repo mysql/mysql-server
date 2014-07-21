@@ -2845,7 +2845,7 @@ BackupRestore::endOfTablesFK()
     Vector<BaseString> splitname;
     BaseString tmpname(fkinfo.getName());
     int n = tmpname.split(splitname, "/");
-    // XXX wtf
+    // may get these from ndbapi-created FKs prior to bug#18824753
     if (n == 1)
       fkname = splitname[0].c_str();
     else if (n == 3)
@@ -2861,6 +2861,9 @@ BackupRestore::endOfTablesFK()
     const NdbDictionary::Index* pInd = 0;
     const NdbDictionary::Table* cTab = 0;
     const NdbDictionary::Index* cInd = 0;
+    // parent and child info - db.table.index
+    char pInfo[512] = "?";
+    char cInfo[512] = "?";
     {
       BaseString db_name, dummy2, table_name;
       if (!dissect_table_name(fkinfo.getParentTable(),
@@ -2891,6 +2894,9 @@ BackupRestore::endOfTablesFK()
           return false;
         }
       }
+      BaseString::snprintf(pInfo, sizeof(pInfo), "%s.%s.%s",
+          db_name.c_str(), table_name.c_str(),
+          pInd ? pInd->getName() : "PK");
     }
     {
       BaseString db_name, dummy2, table_name;
@@ -2922,6 +2928,9 @@ BackupRestore::endOfTablesFK()
           return false;
         }
       }
+      BaseString::snprintf(cInfo, sizeof(cInfo), "%s.%s.%s",
+          db_name.c_str(), table_name.c_str(),
+          cInd ? cInd->getName() : "PK");
     }
 
     // define the fk
@@ -2973,18 +2982,15 @@ BackupRestore::endOfTablesFK()
     if (dict->createForeignKey(fk) != 0)
     {
       err << "Failed to create foreign key " << fkname
-          << " parent " << pTab->getName()
-          << "." << (pInd ? pInd->getName() : "PRIMARY")
-          << " child " << cTab->getName()
-          << "." << (cInd ? cInd->getName() : "PRIMARY")
+          << " parent " << pInfo
+          << " child " << cInfo
           << ": " << dict->getNdbError() << endl;
       return false;
     }
     info << "Successfully created foreign key " << fkname
-         << " parent " << pTab->getName()
-         << "." << (pInd ? pInd->getName() : "PRIMARY")
-         << " child " << cTab->getName()
-         << "." << (cInd ? cInd->getName() : "PRIMARY") << endl;
+         << " parent " << pInfo
+         << " child " << cInfo
+         << endl;
   }
   info << "Create foreign keys done" << endl;
   return true;

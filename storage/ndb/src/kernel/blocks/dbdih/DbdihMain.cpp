@@ -6618,19 +6618,15 @@ void Dbdih::removeNodeFromTable(Signal* signal,
    * The table is participating in an LCP currently
    *   and we removed some replicas that should have been checkpointed
    */
-  ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE);
   ndbrequire(tabPtr.p->tabLcpStatus == TabRecord::TLS_ACTIVE);
   
-  /**
-   * Save the table
-   */
   tabPtr.p->tabCopyStatus = TabRecord::CS_REMOVE_NODE;
   tabPtr.p->tabUpdateState = TabRecord::US_REMOVE_NODE;
   tabPtr.p->tabRemoveNode = nodeId;
   signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
   signal->theData[1] = tabPtr.i;
   sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-  
+    
   if (noOfRemainingLcpReplicas == 0)
   {
     jam();
@@ -11438,6 +11434,13 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
    * No more tables
    */
   jam();
+  if (ERROR_INSERTED(7236))
+  {
+    // delay 20s before completing last CONTINUEB(ZINIT_LCP)
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20000, 3);
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
 
   c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
 
@@ -15871,6 +15874,7 @@ void Dbdih::initRestartInfo(Signal* signal)
 
   Uint32 startGci = 1;
 #ifndef DBUG_OFF
+#ifdef NDB_USE_GET_ENV
   {
     char envBuf[256];
     const char* v = NdbEnv_GetEnv("NDB_START_GCI",
@@ -15884,6 +15888,7 @@ void Dbdih::initRestartInfo(Signal* signal)
                startGci);
     }
   }
+#endif
 #endif
 
   m_micro_gcp.m_old_gci = Uint64(startGci) << 32;
@@ -16542,7 +16547,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
  */
 void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
 {
-  jamEntry();
+  jamNoBlock();
   CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
 
   bool direct = (sd->requestType & CheckNodeGroups::Direct);
@@ -16550,25 +16555,25 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   switch(sd->requestType & ~CheckNodeGroups::Direct){
   case CheckNodeGroups::ArbitCheck:{
     ok = true;
-    jam();
+    jamNoBlock();
     unsigned missall = 0;
     unsigned haveall = 0;
     for (Uint32 i = 0; i < cnoOfNodeGroups; i++) {
-      jam();
+      jamNoBlock();
       NodeGroupRecordPtr ngPtr;
       ngPtr.i = c_node_groups[i];
       ptrAss(ngPtr, nodeGroupRecord);
       Uint32 count = 0;
       for (Uint32 j = 0; j < ngPtr.p->nodeCount; j++) {
-	jam();
+	jamNoBlock();
 	Uint32 nodeId = ngPtr.p->nodesInGroup[j];
 	if (sd->mask.get(nodeId)) {
-	  jam();
+	  jamNoBlock();
 	  count++;
 	}//if
       }//for
       if (count == 0) {
-	jam();
+	jamNoBlock();
 	missall++;
       }//if
       if (count == ngPtr.p->nodeCount) {
@@ -16577,13 +16582,13 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     }//for
 
     if (missall) {
-      jam();
+      jamNoBlock();
       sd->output = CheckNodeGroups::Lose;
     } else if (haveall) {
-      jam();
+      jamNoBlock();
       sd->output = CheckNodeGroups::Win;
     } else {
-      jam();
+      jamNoBlock();
       sd->output = CheckNodeGroups::Partitioning;
     }//if
   }
@@ -16609,17 +16614,17 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     ngPtr.i = ng;
     if (ngPtr.i != RNIL)
     {
-      jam();
+      jamNoBlock();
       ptrAss(ngPtr, nodeGroupRecord);
       for (Uint32 j = 0; j < ngPtr.p->nodeCount; j++) {
-        jam();
+        jamNoBlock();
         sd->mask.set(ngPtr.p->nodesInGroup[j]);
       }
     }
     break;
   }
   case CheckNodeGroups::GetDefaultFragments:
-    jam();
+    jamNoBlock();
     ok = true;
     sd->output = (cnoOfNodeGroups + sd->extraNodeGroups)
       * getFragmentsPerNode() * cnoReplicas;
@@ -18176,9 +18181,11 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
-  if(arg == 7019 && signal->getLength() == 2 &&
+  if(arg == DumpStateOrd::DihTcSumaNodeFailCompleted &&
+     signal->getLength() == 2 &&
      signal->theData[1] < MAX_NDB_NODES)
   {
+    jam();
     char buf2[8+1];
     NodeRecordPtr nodePtr;
     nodePtr.i = signal->theData[1];
@@ -18549,6 +18556,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
    */
   if (arg == DumpStateOrd::DihAddFragFailCleanedUp && signal->length() == 2)
   {
+    jam();
     TabRecordPtr tabPtr;
     tabPtr.i = signal->theData[1];
     if (tabPtr.i >= ctabFileSize)
@@ -18556,10 +18564,20 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
-    if (tabPtr.p->m_new_map_ptr_i != RNIL)
+    if (tabPtr.p->m_new_map_ptr_i == RNIL)
+    {
+      jam();
+      infoEvent("DIH : Add frag fail clean up ok for table %u", tabPtr.i);
+    }
+    else
     {
       jam();
       warningEvent("new_map_ptr_i to table id %d is not NIL", tabPtr.i);
+      /*
+        This ndbrequire is needed by the runFailAddPartition() test case.
+        This dump code is *not* intended for interactive usage, as the node
+        is likely to crash.
+      */
       ndbrequire(false);
     }
   }

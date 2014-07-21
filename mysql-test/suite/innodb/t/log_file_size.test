@@ -6,6 +6,8 @@
 --source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
+# innodb-force-recovery-crash needs debug
+--source include/have_debug.inc
 
 if (`SELECT @@innodb_log_file_size = 1048576`) {
   --skip Test requires innodb_log_file_size>1M.

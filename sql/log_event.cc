@@ -41,6 +41,7 @@
 #include "rpl_mi.h"
 #include "rpl_filter.h"
 #include "rpl_record.h"
+#include "rpl_mts_submode.h"
 #include "transaction.h"
 #include <my_dir.h>
 #include "rpl_rli_pdb.h"
@@ -459,7 +460,7 @@ static void clear_all_errors(THD *thd, Relay_log_info *rli)
   rli->clear_error();
   if (rli->workers_array_initialized)
   {
-    for(uint i= 0; i<rli->get_worker_count(); i++)
+    for(size_t i= 0; i < rli->get_worker_count(); i++)
     {
       rli->get_worker(i)->clear_error();
     }
@@ -878,6 +879,9 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   server_id= thd->server_id;
   unmasked_server_id= server_id;
   when= thd->start_time;
+#ifdef HAVE_REPLICATION
+  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
+#endif //HAVE_REPLICATION
 }
 
 /**
@@ -902,6 +906,9 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
   when.tv_sec=  0;
   when.tv_usec= 0;
   log_pos=	0;
+#ifdef HAVE_REPLICATION
+  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
+#endif //HAVE_REPLICATION
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -919,7 +926,11 @@ Log_event::Log_event(const char* buf,
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
+#ifdef HAVE_REPLICATION
+  init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
+#endif //HAVE_REPLICATION
 #endif
+
   when.tv_sec= uint4korr(buf);
   when.tv_usec= 0;
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
@@ -3107,7 +3118,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     {
       // Worker with id 0 to handle serial execution
       if (!ret_worker)
-        ret_worker= *(Slave_worker**) dynamic_array_ptr(&rli->workers, 0);
+        ret_worker= rli->workers.at(0);
       // No need to know a possible error out of synchronization call.
       (void)rli->current_mts_submode-> wait_for_workers_to_finish(rli,
                                                                   ret_worker);
@@ -3404,10 +3415,8 @@ int Log_event::apply_event(Relay_log_info *rli)
         /* all Workers are idle as done through wait_for_workers_to_finish */
         for (uint k= 0; k < rli->curr_group_da.elements; k++)
         {
-          DBUG_ASSERT(!(*(Slave_worker **)
-                        dynamic_array_ptr(&rli->workers, k))->usage_partition);
-          DBUG_ASSERT(!(*(Slave_worker **)
-                        dynamic_array_ptr(&rli->workers, k))->jobs.len);
+          DBUG_ASSERT(!(rli->workers[k]->usage_partition));
+          DBUG_ASSERT(!(rli->workers[k]->jobs.len));
         }
 #endif
       }
@@ -11373,8 +11382,13 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         DBUG_ASSERT(ptr->m_tabledef_valid);
         TABLE *conv_table;
+        /*
+          Use special mem_root 'Log_event::m_event_mem_root' while doing
+          compatiblity check (i.e., while creating temporary table)
+         */
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
-                                             ptr->table, &conv_table))
+                                             ptr->table,
+                                             &conv_table,&m_event_mem_root))
         {
           DBUG_PRINT("debug", ("Table: %s.%s is not compatible with master",
                                ptr->table->s->db.str,
@@ -13765,7 +13779,33 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     truncated transaction and move on.
   */
   if (thd->owned_gtid.sidno)
+  {
+    /*
+      Slave will execute this code if a previous Gtid_log_event was applied
+      but the GTID wasn't consumed yet (the transaction was not committed
+      nor rolled back).
+      On a client session we cannot do consecutive SET GTID_NEXT without
+      a COMMIT or a ROLLBACK in the middle.
+      Applying this event without rolling back the current transaction may
+      lead to problems, as a "BEGIN" event following this GTID will
+      implicitly commit the "partial transaction" and will consume the
+      GTID. If this "partial transaction" was left in the relay log by the
+      IO thread restarting in the middle of a transaction, you could have
+      the partial transaction being logged with the GTID on the slave,
+      causing data corruption on replication.
+    */
+    if (thd->get_transaction()->is_active(Transaction_ctx::SESSION))
+    {
+      /* This is not an error (XA is safe), just an information */
+      rli->report(INFORMATION_LEVEL, 0,
+                  "Rolling back unfinished transaction (no COMMIT "
+                  "or ROLLBACK in relay log). A probable cause is partial "
+                  "transaction left on relay log because of restarting IO "
+                  "thread with auto-positioning protocol.");
+      const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 1);
+    }
     gtid_state->update_on_rollback(thd);
+  }
 
   if (spec.type == ANONYMOUS_GROUP)
   {
