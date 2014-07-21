@@ -3998,49 +3998,43 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker)
   PFS_single_stat *stat;
   PFS_table_io_stat *table_io_stat;
 
-  uint flags= state->m_flags;
-
   DBUG_ASSERT((state->m_index < table->m_share->m_key_count) ||
               (state->m_index == MAX_INDEXES));
 
-  table_io_stat= table->m_table_stat.m_index_stat[state->m_index];
-  if(table_io_stat == NULL)
-    table->m_table_stat.m_index_stat[state->m_index]= get_index_stat(&table_io_stat);
+  table_io_stat= & table->m_table_stat.m_index_stat[state->m_index];
+  table_io_stat->m_has_data= true;
 
-  if(table_io_stat)
+  switch (state->m_io_operation)
   {
-    table_io_stat->m_has_data= true;
+  case PSI_TABLE_FETCH_ROW:
+    stat= & table_io_stat->m_fetch;
+    break;
+  case PSI_TABLE_WRITE_ROW:
+    stat= & table_io_stat->m_insert;
+    break;
+  case PSI_TABLE_UPDATE_ROW:
+    stat= & table_io_stat->m_update;
+    break;
+  case PSI_TABLE_DELETE_ROW:
+    stat= & table_io_stat->m_delete;
+    break;
+  default:
+    DBUG_ASSERT(false);
+    stat= NULL;
+    break;
+  }
 
-    switch (state->m_io_operation)
-    {
-    case PSI_TABLE_FETCH_ROW:
-      stat= & table_io_stat->m_fetch;
-      break;
-    case PSI_TABLE_WRITE_ROW:
-      stat= & table_io_stat->m_insert;
-      break;
-    case PSI_TABLE_UPDATE_ROW:
-      stat= & table_io_stat->m_update;
-      break;
-    case PSI_TABLE_DELETE_ROW:
-      stat= & table_io_stat->m_delete;
-      break;
-    default:
-      DBUG_ASSERT(false);
-      stat= NULL;
-      break;
-    }
+  uint flags= state->m_flags;
 
-    if (flags & STATE_FLAG_TIMED)
-    {
-      timer_end= state->m_timer();
-      wait_time= timer_end - state->m_timer_start;
-      stat->aggregate_value(wait_time);
-    }
-    else
-    {
-      stat->aggregate_counted();
-    }
+  if (flags & STATE_FLAG_TIMED)
+  {
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+    stat->aggregate_value(wait_time);
+  }
+  else
+  {
+    stat->aggregate_counted();
   }
 
   if (flags & STATE_FLAG_THREAD)

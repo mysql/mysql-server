@@ -1688,28 +1688,28 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     case 201: 
       name= "(pfs_table_stat).size";
-      size= sizeof(PFS_table_stat);
+      size= sizeof(PFS_table_share_lock);
       break;
     case 202:
       name= "(pfs_table_stat).count";
-      size= table_stat_max;
+      size= table_share_lock_stat_max;
       break;
     case 203:
       name= "(pfs_table_stat).memory";
-      size= table_stat_max * sizeof(PFS_table_stat);
+      size= table_share_lock_stat_max * sizeof(PFS_table_share_lock);
       total_memory+= size;
       break;
     case 204: 
       name= "(pfs_index_stat).size";
-      size= sizeof(PFS_table_io_stat);
+      size= sizeof(PFS_table_share_index);
       break;
     case 205:
       name= "(pfs_index_stat).count";
-      size= index_stat_max;
+      size= table_share_index_stat_max;
       break;
     case 206:
       name= "(pfs_index_stat).memory";
-      size= index_stat_max * sizeof(PFS_table_io_stat);
+      size= table_share_index_stat_max * sizeof(PFS_table_share_index);
       total_memory+= size;
       break;
     /*
