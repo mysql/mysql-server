@@ -2696,13 +2696,12 @@ row_sel_convert_mysql_key_to_innobase(
 		/* Storing may use at most data_len bytes of buf */
 
 		if (UNIV_LIKELY(!is_null)) {
-			ut_a(buf + data_len <= original_buf + buf_len);
-			row_mysql_store_col_in_innobase_format(
-				dfield, buf,
-				FALSE, /* MySQL key value format col */
-				key_ptr + data_offset, data_len,
-				dict_table_is_comp(index->table));
-			buf += data_len;
+			buf = row_mysql_store_col_in_innobase_format(
+					dfield, buf,
+					FALSE, /* MySQL key value format col */
+					key_ptr + data_offset, data_len,
+					dict_table_is_comp(index->table));
+			ut_a(buf <= original_buf + buf_len);
 		}
 
 		key_ptr += data_field_len;
@@ -2741,9 +2740,6 @@ row_sel_convert_mysql_key_to_innobase(
 		field++;
 		dfield++;
 	}
-
-	DBUG_EXECUTE_IF("innodb_srch_key_buffer_full",
-		ut_a(buf == (original_buf + buf_len)););
 
 	ut_a(buf <= original_buf + buf_len);
 
@@ -4923,7 +4919,7 @@ wrong_offs:
 
 	/* Calculate the 'offsets' associated with 'rec' */
 
-	ut_ad(fil_page_get_type(btr_pcur_get_page(pcur)) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(btr_pcur_get_page(pcur)));
 	ut_ad(btr_page_get_index_id(btr_pcur_get_page(pcur)) == index->id);
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
@@ -5899,7 +5895,7 @@ rec_loop:
 		goto next_rec;
 	}
 
-	ut_ad(fil_page_get_type(btr_pcur_get_page(pcur)) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(btr_pcur_get_page(pcur)));
 	ut_ad(btr_page_get_index_id(btr_pcur_get_page(pcur)) == index->id);
 
 	if (rec_get_deleted_flag(rec, comp)) {

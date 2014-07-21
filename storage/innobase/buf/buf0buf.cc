@@ -1005,6 +1005,7 @@ buf_page_print(
 	switch (fil_page_get_type(read_buf)) {
 		index_id_t	index_id;
 	case FIL_PAGE_INDEX:
+	case FIL_PAGE_RTREE:
 		index_id = btr_page_get_index_id(read_buf);
 		fprintf(stderr,
 			"InnoDB: Page may be an index page where"
@@ -3485,6 +3486,7 @@ buf_zip_decompress(
 
 	switch (fil_page_get_type(frame)) {
 	case FIL_PAGE_INDEX:
+	case FIL_PAGE_RTREE:
 		if (page_zip_decompress(&block->page.zip,
 					block->frame, TRUE)) {
 			return(TRUE);
@@ -5249,6 +5251,7 @@ buf_page_monitor(
 		ulint	level;
 
 	case FIL_PAGE_INDEX:
+	case FIL_PAGE_RTREE:
 		level = btr_page_get_level_low(frame);
 
 		/* Check if it is an index page for insert buffer */
@@ -5457,6 +5460,10 @@ buf_page_io_complete(
 				bpage->id.page_no());
 		}
 
+		DBUG_EXECUTE_IF("set_dict_sys_to_null",
+				dict_sys = NULL;
+				goto corrupt;);
+
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 		if (buf_page_is_corrupted(true, frame, bpage->size,
@@ -5509,6 +5516,10 @@ corrupt:
 				    && buf_mark_space_corrupt(bpage)) {
 					return(false);
 				} else {
+					DBUG_EXECUTE_IF(
+						"set_dict_sys_to_null",
+						DBUG_SUICIDE(););
+
 					ib_logf(IB_LOG_LEVEL_FATAL,
 						"Aborting because of a"
 						" corrupt database page.");
@@ -6054,7 +6065,7 @@ buf_print_instance(
 		for (; n_blocks--; block++) {
 			const buf_frame_t* frame = block->frame;
 
-			if (fil_page_get_type(frame) == FIL_PAGE_INDEX) {
+			if (fil_page_index_page_check(frame)) {
 
 				id = btr_page_get_index_id(frame);
 

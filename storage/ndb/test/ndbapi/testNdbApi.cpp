@@ -221,9 +221,9 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
   HugoOperations hugoOps(*pTab);
 
   bool endTest = false;
-  while (!endTest && result == NDBT_OK){
+  while (!endTest){
     int errors = 0;
-    int maxErrors = 5;
+    const int maxErrors = 5;
 
     maxOpsLimit = l*1000;    
        
@@ -233,40 +233,48 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
     }
     
     int i = 0;
-    while (errors < maxErrors){
-      
-      if(hugoOps.pkReadRecord(pNdb,1, 1) != NDBT_OK){
-	errors++;
-	continue;
-      }
-	        
+    do
+    {
       i++;      
 
-      if (i >= maxOpsLimit){
-	errors = maxErrors;
+      const int rowNo = (i % 256);
+      if(hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK){
+        errors++;
+        if (errors >= maxErrors){
+          result = NDBT_FAILED;
+          maxOpsLimit = i;
+        }
       }
-	
-    }
+
+      // Avoid Transporter overload by executing after max 1000 ops.
+      int execResult = 0;
+      if (i >= maxOpsLimit)
+        execResult = hugoOps.execute_Commit(pNdb); //Commit after last op
+      else if ((i%1000) == 0)
+        execResult = hugoOps.execute_NoCommit(pNdb);
+      else
+        continue;
+
+      switch(execResult){
+      case NDBT_OK:
+        break;
+
+      default:
+        result = NDBT_FAILED;
+        // Fallthrough to '233' which also terminate test, but not 'FAILED'
+      case 233:  // Out of operation records in transaction coordinator  
+        // OK - end test
+        endTest = true;
+        maxOpsLimit = i;
+        break;
+      }
+    } while (i < maxOpsLimit);
 
     ndbout << i << " operations used" << endl;
 
-    int execResult = hugoOps.execute_Commit(pNdb);
-    switch(execResult){
-    case NDBT_OK:
-      break;
-    case 233: // Out of operation records in transaction coordinator      
-      // OK - end test
-      endTest = true;
-      break;
-    default:
-      result = NDBT_FAILED;
-      break;
-    }
-    
     hugoOps.closeTransaction(pNdb);
 
     l++;
-
   }
 
   delete pNdb;

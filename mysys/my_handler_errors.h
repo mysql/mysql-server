@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_HANDLER_ERRORS_INCLUDED
 #define MYSYS_MY_HANDLER_ERRORS_INCLUDED
 
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,7 +98,8 @@ static const char *handler_error_messages[]=
   "Foreign key cascade delete/update exceeds max depth",
   "Required Create option missing",
   "Out of memory in storage engine",
-  "Table corrupted"
+  "Table corrupted",
+  "Query interrupted"
 };
 
 extern void my_handler_error_register(void);

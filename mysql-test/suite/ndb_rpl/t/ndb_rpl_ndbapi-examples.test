@@ -1,0 +1,26 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+-- source include/have_ndbapi_examples.inc
+-- source suite/ndb_rpl/ndb_master-slave.inc
+
+# Connect using socket to the MySQL Server which mysqltest currently
+# is connected to
+let MASTER_MYSOCK=`select @@socket`;
+
+# Setup path for log file
+let NDB_EXAMPLES_OUTPUT=$MYSQLTEST_VARDIR/log/ndbapi_examples.log;
+
+--echo Running ndbapi_simple_dual
+--exec $NDB_EXAMPLES_DIR/ndb_ndbapi_simple_dual $MASTER_MYSOCK "$NDB_CONNECTSTRING" $SLAVE_MYSOCK "$NDB_CONNECTSTRING_SLAVE" >> $NDB_EXAMPLES_OUTPUT
+
+--echo Running mgmapi_logevent
+--exec $NDB_EXAMPLES_DIR/ndb_mgmapi_logevent "$NDB_CONNECTSTRING" "$NDB_CONNECTSTRING_SLAVE" 1 >> $NDB_EXAMPLES_OUTPUT
+
+drop database ndb_examples;
+
+--source include/rpl_end.inc

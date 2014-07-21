@@ -1497,7 +1497,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     Check if FT index can be used to retrieve result in the required order.
     It is possible if ordering is on the first non-constant table.
   */
-  if (tab->join->simple_order)
+  if (tab->join->order && tab->join->simple_order)
   {
     /*
       Check if ORDER is DESC, ORDER BY is a single MATCH function.

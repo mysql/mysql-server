@@ -3245,6 +3245,14 @@ String *Item_func_rpad::val_str(String *str)
     rpad->set_charset(&my_charset_bin);
   }
 
+  if (use_mb(rpad->charset()))
+  {
+    // This will chop off any trailing illegal characters from rpad.
+    String *well_formed_pad= args[2]->check_well_formed_result(rpad, false);
+    if (!well_formed_pad)
+      goto err;
+  }
+
   res_char_length= res->numchars();
 
   if (count <= static_cast<longlong>(res_char_length))
@@ -3350,6 +3358,14 @@ String *Item_func_lpad::val_str(String *str)
   {
     res->set_charset(&my_charset_bin);
     pad->set_charset(&my_charset_bin);
+  }
+
+  if (use_mb(pad->charset()))
+  {
+    // This will chop off any trailing illegal characters from pad.
+    String *well_formed_pad= args[2]->check_well_formed_result(pad, false);
+    if (!well_formed_pad)
+      goto err;
   }
 
   res_char_length= res->numchars();
