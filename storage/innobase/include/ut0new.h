@@ -153,6 +153,15 @@ environment, thus it is not protected by any latch. */
 extern mem_keys_auto_t	mem_keys_auto;
 
 /** Keys for registering allocations with performance schema.
+mem_key_other and mem_key_std are special in the following way (see also
+ut_allocator::get_mem_key()):
+* If the caller has not provided a key and the file name of the caller is
+  unknown, then mem_key_std will be used. This happens only when called from
+  within std::* containers.
+* If the caller has not provided a key and the file name of the caller is
+  known, but is not amongst the listed names in auto_names[] (see ut_new_boot())
+  then mem_key_other will be used. Generally this should not happen and if it
+  happens then that means that the list in auto_names[] needs to be extended.
 Keep this list alphabetically sorted. */
 extern PSI_memory_key	mem_key_buf_buf_pool;
 extern PSI_memory_key	mem_key_dict_stats_index_map_t;
@@ -197,8 +206,8 @@ the list below:
 2. Without a specified key, allocations from inside std::* containers use
    mem_key_std
 3. Without a specified key, allocations from outside std::* pick up the key
-   based on the file name, and if file name is not found in the list below
-   then mem_key_other is used.
+   based on the file name, and if file name is not found in auto_names[] (in
+   ut_new_boot()) then mem_key_other is used.
 NOTE: keep this list alphabetically sorted. */
 PSI_memory_info	pfs_info[] = {
 	{&mem_key_buf_buf_pool, "buf_buf_pool", 0},
@@ -785,9 +794,8 @@ public:
 		memcpy(keyname, beg, len);
 		keyname[len] = '\0';
 
-		mem_keys_auto_t::const_iterator	el;
-
-		el = mem_keys_auto.find(keyname);
+		mem_keys_auto_t::const_iterator	el
+			= mem_keys_auto.find(keyname);
 
 		if (el != mem_keys_auto.end()) {
 			return(*(el->second));
@@ -819,6 +827,15 @@ private:
 	/** Trace a memory allocation.
 	After the accounting, the data needed for tracing the deallocation
 	later is written into 'pfx'.
+	The PFS event name is picked on the following criteria:
+	1. If key (!= PSI_NOT_INSTRUMENTED) has been specified when constructing
+	   this ut_allocator object, then the name associated with that key will
+	   be used (this is the recommended approach for new code)
+	2. Otherwise, if "file" is NULL, then the name associated with
+	   mem_key_std will be used
+	3. Otherwise, if an entry is found in mem_keys_auto, that corresponds to
+	   "file", that will be used (see ut_new_boot() and auto_names[])
+	4. Otherwise, the name associated with mem_key_other will be used.
 	@param[in]	size	number of bytes that were allocated
 	@param[in]	file	file name of the caller or NULL if unknown
 	@param[out]	pfx	placeholder to store the info which will be
