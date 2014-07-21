@@ -116,7 +116,13 @@ INSERT INTO t1 VALUES (6);
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 
+--let $gcs_node_state= ONLINE
+--source include/rpl_gcs_wait_for_node_state.inc
+
 --source include/uninstall_gcs_replication.inc
+
+#cleanup
+drop table t1;
 
 --connection server1
 --echo server1

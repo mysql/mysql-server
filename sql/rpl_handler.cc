@@ -212,7 +212,8 @@ void delegates_destroy()
      deinitialize the plugin, which will try to lock the Delegate in
      order to remove the observers.
   */                                                                    \
-  plugin_unlock_list(0, &plugins[0], plugins.size());
+  if (!plugins.empty())                                                 \
+    plugin_unlock_list(0, &plugins[0], plugins.size());
 
 
 int Trans_delegate::before_commit(THD *thd, bool all,

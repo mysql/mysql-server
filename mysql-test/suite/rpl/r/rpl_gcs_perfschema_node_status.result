@@ -39,7 +39,9 @@ server2
 [ The value of Transactions_in_queue should be 2 when the applier has not processed the transaction queue ]
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
+include/rpl_gcs_wait_for_node_state.inc
 include/uninstall_gcs_replication.inc
+drop table t1;
 server1
 include/assert.inc [The value of group name should be 8a84f397-aaa4-18df-89ab-c70aa9823561]
 include/assert.inc [The value of node_id should be equal to server UUID after starting gcs]
