@@ -139,7 +139,9 @@ InnoDB:
 
 /** Map used for default performance schema keys, based on file name of the
 caller. The key is the file name of the caller and the value is a pointer
-to a PSI_memory_key variable to be passed to performance schema methods. */
+to a PSI_memory_key variable to be passed to performance schema methods.
+We use ut_strcmp_functor because by default std::map will compare the pointers
+themselves (cont char*) and not do strcmp(). */
 typedef std::map<const char*, PSI_memory_key*, ut_strcmp_functor>
 	mem_keys_auto_t;
 
@@ -303,9 +305,14 @@ ut_new_boot()
 	static PSI_memory_info	pfs_info_auto[n_auto_names];
 
 	for (size_t i = 0; i < n_auto_names; i++) {
-		mem_keys_auto.insert(
+		const std::pair<mem_keys_auto_t::iterator, bool>	ret
+			= mem_keys_auto.insert(
 			mem_keys_auto_t::value_type(auto_names[i],
 						    &auto_keys[i]));
+
+		/* ret.second is true if new element has been inserted */
+		ut_ad(ret.second);
+
 		/* e.g. "btr0btr" */
 		pfs_info_auto[i].m_name = auto_names[i];
 
@@ -451,9 +458,8 @@ public:
 
 			if (ptr == NULL) {
 				os_thread_sleep(1000000 /* 1 second */);
+				retries++;
 			}
-
-			retries++;
 		} while (ptr == NULL && retries < m_max_retries);
 
 		if (ptr == NULL) {
@@ -590,9 +596,8 @@ public:
 
 			if (pfx_new == NULL) {
 				os_thread_sleep(1000000 /* 1 second */);
+				retries++;
 			}
-
-			retries++;
 		} while (pfx_new == NULL && retries < m_max_retries);
 
 		if (pfx_new == NULL) {
