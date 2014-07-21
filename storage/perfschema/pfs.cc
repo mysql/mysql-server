@@ -1548,9 +1548,67 @@ void pfs_register_rwlock_v1(const char *category,
                             PSI_rwlock_info_v1 *info,
                             int count)
 {
-  REGISTER_BODY_V1(PSI_rwlock_key,
-                   rwlock_instrument_prefix,
-                   register_rwlock_class)
+  PSI_rwlock_key key;
+  char rw_formatted_name[PFS_MAX_INFO_NAME_LENGTH];
+  char sx_formatted_name[PFS_MAX_INFO_NAME_LENGTH];
+  size_t rw_prefix_length;
+  size_t sx_prefix_length;
+  size_t len;
+  size_t full_length;
+
+  DBUG_ASSERT(category != NULL);
+  DBUG_ASSERT(info != NULL);
+  if (build_prefix(&rwlock_instrument_prefix, category,
+                   rw_formatted_name, &rw_prefix_length) ||
+      build_prefix(&sxlock_instrument_prefix, category,
+                   sx_formatted_name, &sx_prefix_length) ||
+      ! pfs_initialized)
+  {
+    for (; count>0; count--, info++)
+      *(info->m_key)= 0;
+    return ;
+  }
+
+  for (; count>0; count--, info++)
+  {
+    DBUG_ASSERT(info->m_key != NULL);
+    DBUG_ASSERT(info->m_name != NULL);
+    len= strlen(info->m_name);
+
+    if (info->m_flags & PSI_RWLOCK_FLAG_SX)
+    {
+      full_length= sx_prefix_length + len;
+      if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
+      {
+        memcpy(sx_formatted_name + sx_prefix_length, info->m_name, len);
+        key= register_rwlock_class(sx_formatted_name, (uint)full_length, info->m_flags);
+      }
+      else
+      {
+        pfs_print_error("REGISTER_BODY_V1: (sx) name too long <%s> <%s>\n",
+                        category, info->m_name);
+        key= 0;
+      }
+    }
+    else
+    {
+      full_length= rw_prefix_length + len;
+      if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
+      {
+        memcpy(rw_formatted_name + rw_prefix_length, info->m_name, len);
+        key= register_rwlock_class(rw_formatted_name, (uint)full_length, info->m_flags);
+      }
+      else
+      {
+        pfs_print_error("REGISTER_BODY_V1: (rw) name too long <%s> <%s>\n",
+                        category, info->m_name);
+        key= 0;
+      }
+    }
+
+    *(info->m_key)= key;
+  }
+  return;
 }
 
 /**
