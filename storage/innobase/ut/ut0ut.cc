@@ -882,7 +882,7 @@ ut_strerr(
 		return("Table is corrupted");
 	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
 		return("Too many words in a FTS phrase or proximity search");
-	case DB_ABORTED:
+	case DB_FORCED_ABORT:
 		return("Transaction aborted by another higher priority "
 		       "transaction");
 

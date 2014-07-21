@@ -139,7 +139,7 @@ lock_prdt_has_to_wait(
 	ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 
 	if (trx != lock2->trx
-	    && !lock_mode_compatible(static_cast<enum lock_mode>(
+	    && !lock_mode_compatible(static_cast<lock_mode>(
 			             LOCK_MODE_MASK & type_mode),
 				     lock_get_mode(lock2))) {
 
@@ -219,7 +219,7 @@ lock_prdt_has_lock(
 		    && !lock_get_wait(lock)
 		    && lock_mode_stronger_or_eq(
 			    lock_get_mode(lock),
-			    static_cast<enum lock_mode>(
+			    static_cast<lock_mode>(
 				    precise_mode & LOCK_MODE_MASK))) {
 			if (lock->type_mode & LOCK_PRDT_PAGE) {
 				return(lock);
@@ -545,9 +545,9 @@ lock_prdt_insert_check_and_lock(
 
 		trx_mutex_enter(trx);
 
-		err = rec_lock.add_to_waitq(wait_for);
-
 		lock_prdt_set_prdt(lock, prdt);
+
+		err = rec_lock.add_to_waitq(wait_for);
 
 		trx_mutex_exit(trx);
 
@@ -815,7 +815,7 @@ lock_prdt_lock(
 	buf_block_t*	block,	/*!< in/out: buffer block of rec */
 	lock_prdt_t*	prdt,	/*!< in: Predicate for the lock */
 	dict_index_t*	index,	/*!< in: secondary index */
-	enum lock_mode	mode,	/*!< in: mode of the lock which
+	lock_mode	mode,	/*!< in: mode of the lock which
 				the read cursor should set on
 				records: LOCK_S or LOCK_X; the
 				latter is possible in
@@ -854,7 +854,7 @@ lock_prdt_lock(
 
 	if (lock == NULL) {
 
-		RecLock	rec_lock(index, block, LOCK_PRDT_PAGE, prdt_mode);
+		RecLock	rec_lock(index, block, PRDT_HEAPNO, prdt_mode);
 
 		lock = rec_lock.create(trx, false);
 
@@ -963,6 +963,7 @@ lock_place_prdt_page_lock(
 		trx_mutex_enter(trx);
 
 		/* Find a matching record lock owned by this transaction. */
+
 		while (lock != NULL && lock->trx != trx) {
 
 			lock = lock_rec_get_next_on_page_const(lock);

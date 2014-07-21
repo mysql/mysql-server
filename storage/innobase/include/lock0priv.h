@@ -685,7 +685,7 @@ private:
 		size_t	n_bytes;
 
 		if (mode & LOCK_PREDICATE) {
-			ulint	tmp = UNIV_WORD_SIZE - 1;
+			const ulint	align = UNIV_WORD_SIZE - 1;
 
 			/* We will attach the predicate structure
 			after lock. Make sure the memory is
@@ -693,7 +693,7 @@ private:
 			will align it with MEM_SPACE_NEEDED
 			anyway. */
 
-			n_bytes = (1 + sizeof(lock_prdt_t) + tmp) & ~tmp;
+			n_bytes = (1 + sizeof(lock_prdt_t) + align) & ~align;
 
 			/* This should hold now */
 

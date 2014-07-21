@@ -64,7 +64,8 @@ enum dberr_t {
 					which is referenced */
 	DB_CANNOT_ADD_CONSTRAINT,	/*!< adding a foreign key constraint
 					to a table failed */
-	DB_CORRUPTION,			/*!< data structure corruption noticed */
+	DB_CORRUPTION,			/*!< data structure corruption
+					noticed */
 	DB_CANNOT_DROP_CONSTRAINT,	/*!< dropping a foreign key constraint
 					from a table failed */
 	DB_NO_SAVEPOINT,		/*!< no savepoint exists with the given
@@ -135,7 +136,7 @@ enum dberr_t {
 	DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
 					/*< Too many words in a phrase */
 
-	DB_ABORTED,			/*!< Transaction was forced to rollback
+	DB_FORCED_ABORT,		/*!< Transaction was forced to rollback
 					by a higher priority transaction */
 
 	DB_TABLESPACE_TRUNCATED,	/*!< tablespace was truncated */

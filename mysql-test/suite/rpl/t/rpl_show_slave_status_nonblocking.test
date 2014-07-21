@@ -13,7 +13,7 @@
 
 --echo [connection slave]
 --connection slave
-
+--let $saved_log_error_verbosity= `SELECT @@global.log_error_verbosity`
 
 --echo #######################################################################
 --echo # SHOW SLAVE STATUS NONBLOCKING is not allowed within a function.
@@ -27,7 +27,6 @@ BEGIN
 END|
 
 delimiter ;|
-
 
 --echo #######################################################################
 --echo # Testing if a user without REPLICATION CLIENT and SUPER privilege can
@@ -43,7 +42,6 @@ SHOW SLAVE STATUS NONBLOCKING;
 --connection slave
 --disconnect user1
 DROP USER 'mysqltest_1'@'localhost';
-
 
 --echo #######################################################################
 --echo # Testing if a user with REPLICATION CLIENT privilege can execute
@@ -63,7 +61,6 @@ SHOW SLAVE STATUS NONBLOCKING;
 --connection slave
 --disconnect user2
 DROP USER 'mysqltest_2'@'localhost';
-
 
 --echo #######################################################################
 --echo # Stress test that executes nearly in parallel SSS NONBLOCKING and STOP
@@ -85,7 +82,13 @@ while (!$done)
   --send SHOW SLAVE STATUS NONBLOCKING
 
   --connection slave1
+  # Disabling warnings to not flood the error log, otherwise it might
+  # cause sporadic test failures during the 'check warnings' stage because
+  # the log would be too large and the platform to slow to parse it in
+  # time.
+  SET global log_error_verbosity=1;
   STOP SLAVE;
+  --eval SET global log_error_verbosity=$saved_log_error_verbosity
 
   --connection slave
   # SHOW SLAVE STATUS NONBLOCKING output doesn't matter for this test, only
@@ -93,7 +96,13 @@ while (!$done)
   --reap
   --source include/wait_for_slave_to_stop.inc
 
+  # Disabling warnings to not flood the error log, otherwise it might
+  # cause sporadic test failures during the 'check warnings' stage because
+  # the log would be too large and the platform to slow to parse it in
+  # time.
+  SET global log_error_verbosity=1;
   --source include/start_slave.inc
+  --eval SET global log_error_verbosity=$saved_log_error_verbosity
   --dec $max_iterations
 
   --inc $iteration
@@ -110,6 +119,5 @@ while (!$done)
 --let $include_silent= 0
 --enable_result_log
 --enable_query_log
-
 
 --source include/rpl_end.inc

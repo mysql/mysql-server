@@ -1540,7 +1540,7 @@ convert_error_code_to_mysql(
 	case DB_RECORD_NOT_FOUND:
 		return(HA_ERR_NO_ACTIVE_RECORD);
 
-	case DB_ABORTED:
+	case DB_FORCED_ABORT:
 	case DB_DEADLOCK:
 		/* Since we rolled back the whole transaction, we must
 		tell it also to MySQL so that MySQL knows to empty the
@@ -3799,7 +3799,7 @@ innobase_rollback(
 
 			trx->state = TRX_STATE_NOT_STARTED;
 
-			error = DB_ABORTED;
+			error = DB_FORCED_ABORT;
 		}
 
 		trx_deregister_from_2pc(trx);
@@ -3808,7 +3808,7 @@ innobase_rollback(
 
 		if (trx_in_innodb.is_aborted()) {
 
-			error = DB_ABORTED;
+			error = DB_FORCED_ABORT;
 		}
 	}
 
@@ -4083,7 +4083,7 @@ void
 innobase_kill_connection(
 /*======================*/
 	handlerton*    hton,   /*!< in:  innobase handlerton */
-	THD*    	thd)    /*!< in: handle to the MySQL thread being
+	THD*		thd)    /*!< in: handle to the MySQL thread being
 				killed */
 {
 	DBUG_ENTER("innobase_kill_connection");
@@ -4161,7 +4161,8 @@ ha_innobase::table_flags() const
 /*============================*/
 {
 	/* Need to use tx_isolation here since table flags is (also)
-	called before m_prebuilt is inited. */
+	called before prebuilt is inited. */
+
 	ulong const	tx_isolation = thd_tx_isolation(ha_thd());
 
 	if (tx_isolation <= ISO_READ_COMMITTED) {
@@ -4891,7 +4892,7 @@ ha_innobase::open(
 
 	m_user_thd = NULL;
 
-	if (!(share = get_share(name))) {
+	if (!(m_share = get_share(name))) {
 
 		DBUG_RETURN(1);
 	}
@@ -5028,7 +5029,7 @@ ha_innobase::open(
 			" for the table exists. %s",
 			norm_name, TROUBLESHOOTING_MSG);
 
-		free_share(share);
+		free_share(m_share);
 		my_errno = ENOENT;
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -5072,7 +5073,7 @@ table_opened:
 	}
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
-		free_share(share);
+		free_share(m_share);
 		my_errno = ENOENT;
 
 		dict_table_close(ib_table, FALSE, FALSE);
@@ -5087,9 +5088,10 @@ table_opened:
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
 	m_primary_key = table->s->primary_key;
+
 	key_used_on_scan = m_primary_key;
 
-	if (!innobase_build_index_translation(table, ib_table, share)) {
+	if (!innobase_build_index_translation(table, ib_table, m_share)) {
 		  sql_print_error("Build InnoDB index translation table for"
 				  " Table %s failed", name);
 	}
@@ -5212,7 +5214,7 @@ table_opened:
 	stats.block_size = UNIV_PAGE_SIZE;
 
 	/* Init table lock structure */
-	thr_lock_data_init(&share->lock, &m_lock, NULL);
+	thr_lock_data_init(&m_share->lock, &m_lock, NULL);
 
 	if (m_prebuilt->table) {
 		/* We update the highest file format in the system table
@@ -5321,7 +5323,7 @@ ha_innobase::close()
 		m_upd_buf_size = 0;
 	}
 
-	free_share(share);
+	free_share(m_share);
 
 	MONITOR_INC(MONITOR_TABLE_CLOSE);
 
@@ -6545,7 +6547,7 @@ ha_innobase::write_row(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback( ht, m_user_thd, false));
+		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	/* Step-1: Validation checks before we commence write_row operation. */
@@ -7103,7 +7105,7 @@ ha_innobase::update_row_low(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback( ht, m_user_thd, false));
+		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	ut_a(m_prebuilt->trx == trx);
@@ -7771,7 +7773,7 @@ ha_innobase::innobase_get_index(
 
 		key = table->key_info + keynr;
 
-		index = innobase_index_lookup(share, keynr);
+		index = innobase_index_lookup(m_share, keynr);
 
 		if (index != NULL) {
 			ut_a(ut_strcmp(index->name, key->name) == 0);
@@ -7779,7 +7781,7 @@ ha_innobase::innobase_get_index(
 			/* Can't find index with keynr in the translation
 			table. Only print message if the index translation
 			table exists */
-			if (share->idx_trans_tbl.index_mapping) {
+			if (m_share->idx_trans_tbl.index_mapping) {
 				sql_print_warning("InnoDB could not find"
 						  " index %s key no %u for"
 						  " table %s through its"
@@ -11836,7 +11838,7 @@ ha_innobase::info_low(
 
 		if (err_index) {
 			errkey = innobase_get_mysql_key_number_for_index(
-					share, table, ib_table, err_index);
+					m_share, table, ib_table, err_index);
 		} else {
 			errkey = (unsigned int) (
 				(m_prebuilt->trx->error_key_num
