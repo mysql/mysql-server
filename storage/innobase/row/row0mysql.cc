@@ -729,7 +729,8 @@ handle_new_error:
 		}
 		/* MySQL will roll back the latest SQL statement */
 		break;
-	case DB_LOCK_WAIT:
+	case DB_LOCK_WAIT: {
+
 		lock_wait_suspend_thread(thr);
 
 		if (trx->error_state != DB_SUCCESS) {
@@ -741,6 +742,7 @@ handle_new_error:
 		*new_err = err;
 
 		return(true);
+	}
 
 	case DB_DEADLOCK:
 	case DB_LOCK_TABLE_FULL:
@@ -2548,7 +2550,7 @@ row_delete_all_rows(
 
 	/* Step-1: Now truncate all the indexes and re-create them.
 	Note: This is ddl action even though delete all rows is
-	dml action. Any error during this action is ir-reversible. */
+	DML action. Any error during this action is ir-reversible. */
 	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 	     index != NULL && err == DB_SUCCESS;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
@@ -3124,13 +3126,15 @@ error_handling:
 
 		trx->error_state = DB_SUCCESS;
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
 		row_drop_table_for_mysql(table_name, trx, FALSE, true, handler);
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -3226,13 +3230,15 @@ row_table_add_foreign_constraints(
 
 		trx->error_state = DB_SUCCESS;
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
 		row_drop_table_for_mysql(name, trx, FALSE, true, handler);
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -3969,7 +3975,8 @@ row_drop_table_for_mysql(
 	}
 
 	/* This function is called recursively via fts_drop_tables(). */
-	if (trx->state == TRX_STATE_NOT_STARTED) {
+	if (!trx_is_started(trx)) {
+
 		if (!dict_table_is_temporary(table)) {
 			trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
 		} else {
@@ -4364,8 +4371,10 @@ row_drop_table_for_mysql(
 
 		if (dict_table_has_fts_index(table)
 		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+
 			ut_ad(table->n_ref_count == 0);
-			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+			ut_ad(trx_is_started(trx));
+
 			err = fts_drop_tables(trx, table);
 
 			if (err != DB_SUCCESS) {
@@ -4532,7 +4541,9 @@ funct_exit:
 	ut_free(filepath);
 
 	if (locked_dictionary) {
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -5211,7 +5222,9 @@ row_rename_table_for_mysql(
 			/* If the first fts_rename fails, the trx would
 			be rolled back and committed, we can't use it any more,
 			so we have to start a new background trx here. */
+
 			ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+
 			trx_bg->op_info = "Revert the failing rename"
 					  " for fts aux tables";
 			trx_bg->dict_operation_lock_mode = RW_X_LATCH;
