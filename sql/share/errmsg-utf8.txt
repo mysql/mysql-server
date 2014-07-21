@@ -7241,6 +7241,13 @@ ER_REPLACE_INACCESSIBLE_ROWS
 
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS
   eng "Do not support online operation on table with GIS index"
+
+ER_GTID_MODE_OFF
+  eng "Cannot %s when GTID_MODE = OFF."
+
+ER_UNSUPPORTED_BY_REPLICATION_THREAD
+  eng "Cannot %s from a replication slave thread."
+
 #
 #  End of 5.7 error messages.
 #

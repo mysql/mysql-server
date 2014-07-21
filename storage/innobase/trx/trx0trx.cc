@@ -269,6 +269,8 @@ struct TrxFactory {
 
 		trx->lock.table_pool.~lock_pool_t();
 
+		trx->lock.table_locks.~lock_pool_t();
+
 		trx->kill.~trx_list_t();
 	}
 
@@ -416,11 +418,6 @@ trx_create_low()
 
 	/* Remember to free the vector explicitly in trx_free(). */
 	trx->autoinc_locks = ib_vector_create(alloc, sizeof(void**), 4);
-
-	/* Remember to free the vector explicitly in trx_free(). */
-	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 32);
-
-	alloc = ib_heap_allocator_create(heap);
 
 	/* Should have been either just initialized or .clear()ed by
 	trx_free(). */
