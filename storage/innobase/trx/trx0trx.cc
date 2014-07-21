@@ -198,6 +198,8 @@ struct TrxFactory {
 
 		new(&trx->lock.table_pool) lock_pool_t();
 
+		new(&trx->lock.table_locks) lock_pool_t();
+
 		lock_trx_alloc_locks(trx);
 	}
 
@@ -259,11 +261,14 @@ struct TrxFactory {
 	@return true if all OK */
 	static bool debug(const trx_t* trx)
 	{
+		ut_a(trx->error_state == DB_SUCCESS);
+
 		ut_a(trx->magic_n == TRX_MAGIC_N);
 
 		ut_ad(!trx->read_only);
 
-		ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+		ut_ad(trx->state == TRX_STATE_NOT_STARTED
+		      || trx->state == TRX_STATE_FORCED_ROLLBACK);
 
 		ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
 
@@ -283,7 +288,7 @@ struct TrxFactory {
 
 		ut_ad(trx->autoinc_locks == NULL);
 
-		ut_ad(trx->lock.table_locks == NULL);
+		ut_ad(trx->lock.table_locks.empty());
 
 		return(true);
 	}
@@ -395,8 +400,6 @@ trx_create_low()
 
 	alloc = ib_heap_allocator_create(heap);
 
-	trx->lock.table_locks = ib_vector_create(alloc, sizeof(void**), 32);
-
 	/* Should have been either just initialized or .clear()ed by
 	trx_free(). */
 	ut_a(trx->mod_tables.size() == 0);
@@ -421,13 +424,6 @@ trx_free(trx_t*& trx)
 		/* We allocated a dedicated heap for the vector. */
 		ib_vector_free(trx->autoinc_locks);
 		trx->autoinc_locks = NULL;
-	}
-
-	if (trx->lock.table_locks != NULL) {
-		ut_ad(ib_vector_is_empty(trx->lock.table_locks));
-		/* We allocated a dedicated heap for the vector. */
-		ib_vector_free(trx->lock.table_locks);
-		trx->lock.table_locks = NULL;
 	}
 
 	trx->mod_tables.clear();
@@ -571,7 +567,7 @@ trx_free_prepared(
 	/* Note: This vector is not guaranteed to be empty because the
 	transaction was never committed and therefore lock_trx_release()
 	was not called. */
-	ib_vector_reset(trx->lock.table_locks);
+	trx->lock.table_locks.clear();
 
 	trx_free(trx);
 }
@@ -773,6 +769,7 @@ trx_resurrect_insert(
 	start time here.*/
 	if (trx->state == TRX_STATE_ACTIVE
 	    || trx->state == TRX_STATE_PREPARED) {
+
 		trx->start_time = ut_time();
 	}
 
@@ -808,6 +805,9 @@ trx_resurrect_update_in_prepared_state(
 			" prepared state.", trx_get_id_for_print(trx));
 
 		if (srv_force_recovery == 0) {
+
+			ut_ad(trx->state != TRX_STATE_FORCED_ROLLBACK);
+
 			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
 				++trx_sys->n_prepared_trx;
 				++trx_sys->n_prepared_recovered_trx;
@@ -1186,16 +1186,16 @@ trx_start_low(
 	trx_t*	trx,		/*!< in: transaction */
 	bool	read_write)	/*!< in: true if read-write transaction */
 {
+	ut_ad(!trx->in_rollback);
+	ut_ad(!trx->is_recovered);
+	ut_ad(trx->start_line != 0);
+	ut_ad(trx->start_file != 0);
+	ut_ad(trx->roll_limit == 0);
+	ut_ad(trx->error_state == DB_SUCCESS);
 	ut_ad(trx->rsegs.m_redo.rseg == NULL);
 	ut_ad(trx->rsegs.m_noredo.rseg == NULL);
-
-	ut_ad(trx->start_file != 0);
-	ut_ad(trx->start_line != 0);
-	ut_ad(!trx->is_recovered);
 	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-	ut_ad(trx->roll_limit == 0);
-	ut_ad(!trx->in_rollback);
 
 	/* Check whether it is an AUTOCOMMIT SELECT */
 	trx->auto_commit = (trx->api_trx && trx->api_auto_commit)
@@ -1219,7 +1219,7 @@ trx_start_low(
 	trx->no = TRX_ID_MAX;
 
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
-	ut_a(ib_vector_is_empty(trx->lock.table_locks));
+	ut_a(trx->lock.table_locks.empty());
 
 	/* If this transaction came from trx_allocate_for_mysql(),
 	trx->in_mysql_trx_list would hold. In that case, the trx->state
@@ -1314,6 +1314,8 @@ trx_start_low(
 	} else {
 		trx->start_time = ut_time();
 	}
+
+	ut_a(trx->error_state == DB_SUCCESS);
 
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
@@ -1767,6 +1769,9 @@ trx_commit_in_memory(
 		}
 
 		MONITOR_INC(MONITOR_TRX_NL_RO_COMMIT);
+
+		trx->state = TRX_STATE_NOT_STARTED;
+
 	} else {
 
 		lock_trx_release_locks(trx);
@@ -1823,8 +1828,6 @@ trx_commit_in_memory(
 		}
 	}
 
-	trx->state = TRX_STATE_NOT_STARTED;
-
 	if (mtr != NULL) {
 		if (trx->rsegs.m_redo.insert_undo != NULL) {
 			trx_undo_insert_cleanup(&trx->rsegs.m_redo, false);
@@ -1880,23 +1883,27 @@ trx_commit_in_memory(
 		trx->commit_lsn = lsn;
 	}
 
-	/* undo_no is non-zero if we're doing the final commit. */
-	bool			not_rollback = trx->undo_no != 0;
 	/* Free all savepoints, starting from the first. */
 	trx_named_savept_t*	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
+
 	trx_roll_savepoints_free(trx, savep);
 
         if (trx->fts_trx != NULL) {
-                trx_finalize_for_fts(trx, not_rollback);
+                trx_finalize_for_fts(trx, trx->undo_no != 0);
         }
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
+
+	trx->state = TRX_STATE_NOT_STARTED;
 
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
 	hold for recovered transactions or system transactions. */
 	assert_trx_is_free(trx);
+
 	trx_init(trx);
+
+	ut_a(trx->error_state == DB_SUCCESS);
 }
 
 /****************************************************************//**
@@ -1975,7 +1982,9 @@ trx_commit_low(
 		serialised = false;
 	}
 
-	DEBUG_SYNC_C("before_trx_state_committed_in_memory");
+	if (trx->mysql_thd != NULL) {
+		DEBUG_SYNC_C("before_trx_state_committed_in_memory");
+	}
 
 	trx_commit_in_memory(trx, mtr, serialised);
 }
@@ -2089,10 +2098,14 @@ trx_commit_or_rollback_prepare(
 
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
+
 		trx_start_low(trx, true);
 		/* fall through */
+
 	case TRX_STATE_ACTIVE:
 	case TRX_STATE_PREPARED:
+
 		/* If the trx is in a lock wait state, moves the waiting
 		query thread to the suspended state */
 
@@ -2107,6 +2120,7 @@ trx_commit_or_rollback_prepare(
 
 		ut_a(trx->lock.n_active_thrs == 1);
 		return;
+
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		break;
 	}
@@ -2198,6 +2212,8 @@ trx_commit_for_mysql(
 
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
+
 		/* Update the info whether we should skip XA steps that eat
 		CPU time.
 
@@ -2272,13 +2288,14 @@ trx_mark_sql_stat_end(
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		break;
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
 		trx->undo_no = 0;
 		trx->undo_rseg_space = 0;
 		/* fall through */
 	case TRX_STATE_ACTIVE:
 		trx->last_sql_stat_start.least_undo_no = trx->undo_no;
 
-		if (trx->fts_trx) {
+		if (trx->fts_trx != NULL) {
 			fts_savepoint_laststmt_refresh(trx);
 		}
 
@@ -2322,6 +2339,9 @@ trx_print_low(
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
 		fputs(", not started", f);
+		goto state_ok;
+	case TRX_STATE_FORCED_ROLLBACK:
+		fputs(", forced rollback", f);
 		goto state_ok;
 	case TRX_STATE_ACTIVE:
 		fprintf(f, ", ACTIVE %lu sec",
@@ -2496,6 +2516,7 @@ trx_assert_started(
 		return(TRUE);
 
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
 		break;
 	}
 
@@ -2510,11 +2531,11 @@ have edited non-transactional tables are considered heavier than ones
 that have not.
 @return TRUE if weight(a) >= weight(b) */
 
-ibool
+bool
 trx_weight_ge(
 /*==========*/
-	const trx_t*	a,	/*!< in: the first transaction to be compared */
-	const trx_t*	b)	/*!< in: the second transaction to be compared */
+	const trx_t*	a,	/*!< in: transaction to be compared */
+	const trx_t*	b)	/*!< in: transaction to be compared */
 {
 	ibool	a_notrans_edit;
 	ibool	b_notrans_edit;
@@ -2829,6 +2850,7 @@ trx_start_if_not_started_xa_low(
 {
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
 
 		/* Update the info whether we should skip XA steps
 		that eat CPU time.
@@ -2876,13 +2898,18 @@ trx_start_if_not_started_low(
 {
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
+
 		trx_start_low(trx, read_write);
 		return;
+
 	case TRX_STATE_ACTIVE:
+
 		if (read_write && trx->id == 0 && !trx->read_only) {
 			trx_set_rw_mode(trx);
 		}
 		return;
+
 	case TRX_STATE_PREPARED:
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		break;
@@ -2936,6 +2963,8 @@ trx_start_for_ddl_low(
 {
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
+
 		/* Flag this transaction as a dictionary operation, so that
 		the data dictionary will be locked in crash recovery. */
 
@@ -2951,6 +2980,7 @@ trx_start_for_ddl_low(
 		return;
 
 	case TRX_STATE_ACTIVE:
+
 		/* We have this start if not started idiom, therefore we
 		can't add stronger checks here. */
 		trx->ddl = true;
@@ -2958,6 +2988,7 @@ trx_start_for_ddl_low(
 		ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
 		ut_ad(trx->will_lock > 0);
 		return;
+
 	case TRX_STATE_PREPARED:
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		break;
