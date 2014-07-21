@@ -1616,32 +1616,35 @@ void ha_partition::cleanup_new_partition(uint part_count)
       file++;
       part_count--;
     }
-    /*
-      Remove m_added_file partitions from m_new_file since they are already
-      cleaned up.
-    */
-    file= m_new_file;
-    handler **new_file= file;
-    while (*file)
+    if (m_new_file && m_added_file)
     {
-      handler **added_file;
-      for (added_file= m_added_file; *added_file; added_file++)
+      /*
+        Remove m_added_file partitions from m_new_file since they are already
+        cleaned up.
+      */
+      file= m_new_file;
+      handler **new_file= file;
+      while (*file)
       {
-        if (*added_file == *file)
+        handler **added_file;
+        for (added_file= m_added_file; *added_file; added_file++)
         {
-          /* Skip this since it is already cleaned up. */
-          file++;
-          break;
+          if (*added_file == *file)
+          {
+            /* Skip this since it is already cleaned up. */
+            file++;
+            break;
+          }
         }
+        if (*added_file)
+        {
+          /* Check next file. */
+          continue;
+        }
+        *(new_file++)= *(file++);
       }
-      if (*added_file)
-      {
-        /* Check next file. */
-        continue;
-      }
-      *(new_file++)= *(file++);
+      *new_file= NULL;
     }
-    *new_file= NULL;
     m_added_file= NULL;
   }
   DBUG_VOID_RETURN;
