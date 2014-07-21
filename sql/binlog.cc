@@ -6452,14 +6452,6 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
         write_error=1;				// Don't give more errors
         goto err;
       }
-
-      global_sid_lock->rdlock();
-      if (gtid_state->update_on_flush(thd) != RETURN_STATUS_OK)
-      {
-        global_sid_lock->unlock();
-        goto err;
-      }
-      global_sid_lock->unlock();
     }
     update_thd_next_event_pos(thd);
   }
@@ -7421,10 +7413,13 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     dec_prep_xids(thd);
 
   /*
-    Remove committed GTID from owned_gtids, it was already logged on
-    MYSQL_BIN_LOG::write_cache().
+    Gtid is added to gtid_state.executed_gtids and removed from owned_gtids
+    on update_on_commit().
   */
-  gtid_state->update_on_commit(thd);
+  if (thd->commit_error == THD::CE_NONE)
+    gtid_state->update_on_commit(thd);
+  else
+    gtid_state->update_on_rollback(thd);
 
   DBUG_ASSERT(thd->commit_error || !thd->get_transaction()->m_flags.run_hooks);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
