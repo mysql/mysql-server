@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 if [ "$MYSQL_HOME" = "" ] ; then
   source ../env.properties
   echo MYSQL_HOME=$MYSQL_HOME
+  PATH="$MYSQL_LIBEXEC:$MYSQL_BIN:$PATH"
 fi
 
 #set -x
@@ -28,8 +29,8 @@ mysock="/tmp/mysql.sock"
 #mysock="$mylogdir/mysql.sock"
 
 echo shut down mysqld...
-#"$MYSQL_BIN/mysqladmin" shutdown
-"$MYSQL_BIN/mysqladmin" --socket="$mysock" shutdown
+#"mysqladmin" shutdown
+"mysqladmin" --socket="$mysock" shutdown
 
 # need some extra time
 for ((i=0; i<5; i++)) ; do printf "." ; sleep 1 ; done ; echo

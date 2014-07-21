@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -144,5 +144,5 @@ public:
   TABLE *table_ptr() { return table; }
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
-  ha_rows records();
+  virtual int records(ha_rows *num_rows);
 };

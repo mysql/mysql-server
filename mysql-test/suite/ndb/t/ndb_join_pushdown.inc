@@ -18,14 +18,6 @@ connection ddl;
 --source ndbinfo_create.inc
 
 connection spj;
-# Remember all SPJ conters when test started.
-# Will report and compare the diff. at end of entire test
-create temporary table spj_counts_at_startup 
-       select counter_name, sum(val) as val 
-       from ndbinfo.counters 
-       where block_name='DBSPJ' 
-       group by counter_name;
-
 # Save old mysqld counter values.
 create temporary table server_counts_at_startup
        select * from information_schema.global_status 
@@ -51,7 +43,8 @@ create table t1 (
   c int not null,
   d int not null,
   primary key (`a`,`b`)
-) engine=ndbcluster;
+) engine=ndbcluster
+partition by key() partitions 8;
 
 connection spj;
 insert into t1 values
@@ -2064,23 +2057,22 @@ select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
 join t1 as t3 on t3.a = t2.a
-join t1 as t4 on t4.a = t3.b;
+join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL, pushdown=off */;
 
 set ndb_join_pushdown=true;
 
---replace_column 10 # 11 #
 explain extended
 select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
 join t1 as t3 on t3.a = t2.a
-join t1 as t4 on t4.a = t3.b;
+join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL, pushdown=on */;
 --sorted_result
 select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
 join t1 as t3 on t3.a = t2.a
-join t1 as t4 on t4.a = t3.b;
+join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL, pushdown=on */;
 
 ## Test subquery execution where 'Full scan on null key' strategy requires
 ## table scan execution in addition to the key lookup which was prepared
@@ -2123,11 +2115,11 @@ insert into t2 values(1,1), (2,2), (3,3), (4,4);
 explain extended
 select * from t1, t2, t1 as t3
 where t2.a = t1.b
-  and t3.a = t2.b;
+  and t3.a = t2.b /* mixed engines */;
 --sorted_result
 select * from t1, t2, t1 as t3
 where t2.a = t1.b
-  and t3.a = t2.b;
+  and t3.a = t2.b /* mixed engines */;
 
 connection ddl;
 drop table t1, t2;
@@ -2796,11 +2788,13 @@ create temporary table old_count
        group by counter_name;
 
 connection ddl;
+# Specify number of partition to be independent of configured #LDM's
 create table t1 (a int not null, 
                  b int not null,
-       		 c int not null,
-		 primary key(a)) 
-		 engine = ndb;
+                 c int not null,
+                 primary key(a)) 
+                 engine = ndb
+                 partition by key() partitions 8;
 
 connection spj;
 # We use key values that have the same representation in little and big endian.
@@ -3079,6 +3073,7 @@ connection spj;
 # has a single possible value.
 explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
+
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
 connection spj;
@@ -3096,9 +3091,16 @@ create index i2_3 on t2(a, d, b, e);
 # has a single possible value.
 
 connection spj;
+
+# Turn off condition_fanout_filter to keep "old" QEP
+set optimizer_switch='condition_fanout_filter=off';
+
 explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
+
+# Restore condition_fanout_filter to default value
+set optimizer_switch='condition_fanout_filter=default';
 
 --disable_query_log
 let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
@@ -3670,7 +3672,7 @@ create table t1(
        b int not null,
        c int not null,
        primary key (a,b,c))
-engine = ndb partition by key (b);
+engine = ndb partition by key (b) partitions 8;
 
 connection spj;
 insert into t1(a,b,c,d,e,f) values
@@ -3699,21 +3701,21 @@ select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 connection ddl;
-alter table t1 partition by key (a);
+alter table t1 partition by key (a) partitions 8;
 
 connection spj;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 connection ddl;
-alter table t1 partition by key (a,b);
+alter table t1 partition by key (a,b) partitions 8;
 
 connection spj;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 connection ddl;
-alter table t1 partition by key (b,a);
+alter table t1 partition by key (b,a) partitions 8;
 
 connection spj;
 --sorted_result
@@ -3723,14 +3725,14 @@ select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 # const pruned testcase 
 #########
 connection ddl;
-alter table t1 partition by key (b);
+alter table t1 partition by key (b) partitions 8;
 
 connection spj;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
 
 connection ddl;
-alter table t1 partition by key (a);
+alter table t1 partition by key (a) partitions 8;
 
 connection spj;
 --sorted_result
@@ -3739,7 +3741,7 @@ select straight_join * from t1 x, t1 y where y.a=0 and y.b=x.e;
 
 # Non-const pruned as both partition keys are not const
 connection ddl;
-alter table t1 partition by key (a,b);
+alter table t1 partition by key (a,b) partitions 8;
 
 connection spj;
 --sorted_result
@@ -3755,7 +3757,7 @@ select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
 ##########
 connection ddl;
 alter table t1 drop primary key, add primary key using hash (d,b,a,c);
-alter table t1 partition by key (b);
+alter table t1 partition by key (b) partitions 8;
 create index ix1 on t1(b,d,a);
 
 connection spj;
@@ -3771,7 +3773,7 @@ insert into t1(a,b,c,d,e,f) values
  (9, 9, 0, 1,  2,    null);
 
 connection ddl;
-alter table t1 partition by key (b);
+alter table t1 partition by key (b) partitions 8;
 
 connection spj;
 --sorted_result
@@ -4661,39 +4663,10 @@ connection ddl;
 DROP TABLE ndb_order_test, ndb_user_test;
 
 ########################################
-# Verify DBSPJ counters for entire test:
+# Verify counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
 
-# Get new counter values.
 connection spj;
-create temporary table spj_counts_at_end
-       select counter_name, sum(val) as val 
-       from ndbinfo.counters 
-       where block_name='DBSPJ' 
-       group by counter_name;
-
-connection spj;
-# Compute & report the difference.
-# Any change in SPJ counters will indicate a change in pushability which
-# should be verifyed.
-# - LOCAL/REMOTE counts can not be directly compared as they depends on 
-#    data distribution, and which TC used for the test.
-# - SCAN_BATCHES_RETURNED also seems to vary with a small delta - also assumed to be due to data distribution
---sorted_result
-select spj_counts_at_end.counter_name, spj_counts_at_end.val - spj_counts_at_startup.val 
-       from spj_counts_at_end, spj_counts_at_startup 
-       where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
-       and spj_counts_at_end.counter_name not in 
-       ('READS_NOT_FOUND',
-        'LOCAL_READS_SENT',
-        'REMOTE_READS_SENT',
-        'LOCAL_RANGE_SCANS_SENT',
-        'REMOTE_RANGE_SCANS_SENT',
-        'SCAN_ROWS_RETURNED',
-        'SCAN_BATCHES_RETURNED');
-
-drop table spj_counts_at_startup;
-drop table spj_counts_at_end;
 
 # Calculate the change in mysqld counters.
 select new.variable_name, new.variable_value - old.variable_value

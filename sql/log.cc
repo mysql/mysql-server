@@ -310,6 +310,7 @@ bool File_query_log::open()
   my_off_t pos= 0;
   const char *log_name= NULL;
   char buff[FN_REFLEN];
+  MY_STAT f_stat;
   DBUG_ENTER("File_query_log::open");
 
   if (m_log_type == QUERY_LOG_SLOW)
@@ -329,6 +330,10 @@ bool File_query_log::open()
   }
 
   fn_format(log_file_name, name, mysql_data_home, "", 4);
+
+  /* File is regular writable file */
+  if (my_stat(log_file_name, &f_stat, MYF(0)) && !MY_S_ISREG(f_stat.st_mode))
+    goto err;
 
   db[0]= 0;
 
