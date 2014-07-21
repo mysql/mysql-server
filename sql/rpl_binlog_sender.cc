@@ -237,8 +237,23 @@ void Binlog_sender::run()
 
 my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
 {
-  if (unlikely(send_format_description_event(log_cache,
-                                             start_pos > BIN_LOG_HEADER_SIZE)))
+  /*
+    If we are skipping the beginning of the binlog file based on the position
+    asked by the slave, we must clear the log_pos and the created flag of the
+    Format_description_log_event to be sent.
+  */
+  bool clear_log_pos= start_pos > BIN_LOG_HEADER_SIZE;
+  /*
+    As when using GTID protocol the slave don't ask for a position, we will
+    clear the log_pos and the created flag of the Format_description_log_event
+    just if we are skipping at least the first GTID of the binlog file.
+  */
+  if (m_using_gtid_protocol)
+  {
+    clear_log_pos= m_gtid_clear_fd_created_flag;
+  }
+
+  if (unlikely(send_format_description_event(log_cache, clear_log_pos)))
     return 1;
 
   if (start_pos == BIN_LOG_HEADER_SIZE)
@@ -529,8 +544,10 @@ int Binlog_sender::check_start_file()
   }
   else if (m_using_gtid_protocol)
   {
+    Gtid first_gtid= {0, 0};
     if (mysql_bin_log.find_first_log_not_in_gtid_set(index_entry_name,
                                                      m_exclude_gtid,
+                                                     &first_gtid,
                                                      &errmsg))
     {
       set_fatal_error(errmsg);
@@ -544,6 +561,14 @@ int Binlog_sender::check_start_file()
       dump binglogs.
     */
     m_check_previous_gtid_event= false;
+    /*
+      If we are skipping at least the first transaction of the binlog,
+      we must clear the "created" field of the FD event (set it to 0)
+      to avoid cleaning up temp tables on slave.
+    */
+    m_gtid_clear_fd_created_flag= (first_gtid.sidno >= 1 &&
+                                   first_gtid.gno >= 1 &&
+                                   m_exclude_gtid->contains_gtid(first_gtid));
   }
 
   /*
