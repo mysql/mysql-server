@@ -383,6 +383,110 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
     }
     break;
   }
+  case Ndbinfo::DICT_OBJ_INFO_TABLEID:
+  {
+    jam();
+    if (c_masterNodeId != getOwnNodeId())
+    {
+      jam();
+      break;
+    }
+    DictObjectName_hash::Iterator iter;
+    bool done = false;
+    const Uint32 nextBucket = cursor->data[0];
+    
+    if (nextBucket == 0)
+    {
+      // Start from the beginning.
+      jam();
+      done = !c_obj_name_hash.first(iter);
+    }
+    else
+    {
+      // Continue from where the last batch ended.
+      jam();
+      done = !c_obj_name_hash.next(nextBucket, iter);
+    }
+    
+    while (!done)
+    {
+      jam();
+      ListTablesData ltd;
+      Uint32 version, parentObjType, parentObjId;
+      
+      ndbrequire(buildListTablesData(*iter.curr.p,
+                                     RNIL,
+                                     ltd,
+                                     version,
+                                     parentObjType,
+                                     parentObjId));
+      
+      LocalRope name(c_rope_pool, iter.curr.p->m_name);
+      char nameBuff[PATH_MAX];
+      name.copy(nameBuff);
+      ndbassert(strlen(nameBuff) < PATH_MAX);
+
+      /*
+        Try to find the parent of blob tables. Blob tables are named 
+        <db name>/def/NDB$BLOB_<parent obj id>_<parent column num>
+       */
+      if (DictTabInfo::isTable(ltd.getTableType()) && parentObjId == 0)
+      {
+        jam();
+        const char* const blobNamePrefix = "/NDB$BLOB_";
+        const char* const blobNameStart = strstr(nameBuff, blobNamePrefix);
+        
+        if (blobNameStart != NULL)
+        {
+          jam();
+          char* parentIdEnd = NULL;
+          const long long num =
+            strtoll(blobNameStart+strlen(blobNamePrefix), &parentIdEnd, 10);
+          ndbassert(num > 0);
+          ndbassert(num < UINT_MAX32);
+          ndbassert(*parentIdEnd == '_');
+          
+          parentObjId = static_cast<Uint32>(num);
+          parentObjType = ltd.getTableType(); // System or user table.
+        }
+      }
+      
+      Ndbinfo::Row row(signal, req);
+      
+      /* Write values */
+      row.write_uint32(ltd.getTableType());
+      row.write_uint32(ltd.getTableId());
+      row.write_uint32(version);
+      row.write_uint32(ltd.getTableState());
+      row.write_uint32(parentObjType);
+      row.write_uint32(parentObjId);
+      row.write_string(nameBuff); /* FQ name */
+      
+      ndbinfo_send_row(signal, req, row, rl);
+
+      const Uint32 oldBucket = iter.bucket;
+      done = !c_obj_name_hash.next(iter);
+      
+      if (!done)
+      {
+        jam();
+        const bool onBucketBoundary = (iter.bucket != oldBucket);
+
+        /*
+          Ensure that we send all the entries in the current hash bucket before
+          ending the batch, since we use the bucket number to indicate where
+          the next batch should start.
+        */
+        if (onBucketBoundary && rl.need_break(req))
+        {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, iter.bucket);
+          return;
+        }
+      }
+    }
+    break;
+  }
   default:
     break;
   }
@@ -2566,6 +2670,8 @@ Dbdict::check_read_obj(Uint32 objId, Uint32 transId)
 Uint32
 Dbdict::check_read_obj(SchemaFile::TableEntry* te, Uint32 transId)
 {
+  D("check_read_obj" << V(*te) << V(transId));
+
   if (te->m_tableState == SchemaFile::SF_UNUSED)
   {
     jam();
@@ -2601,18 +2707,29 @@ Dbdict::check_read_obj(SchemaFile::TableEntry* te, Uint32 transId)
 
 
 Uint32
-Dbdict::check_write_obj(Uint32 objId, Uint32 transId)
+Dbdict::check_write_obj(Uint32 objId, Uint32 transId,
+                       SchemaFile::EntryState op)
 {
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   if (objId < (NDB_SF_PAGE_ENTRIES * xsf->noOfPages))
   {
     jam();
     SchemaFile::TableEntry* te = getTableEntry(xsf, objId);
+    D("check_write_obj" << V(op) << V(*te) << V(transId));
 
     if (te->m_tableState == SchemaFile::SF_UNUSED)
     {
       jam();
       return GetTabInfoRef::TableNotDefined;
+    }
+
+    // bug#18766430 - detect double drop earlier
+    // TODO: detect other incompatible ops at this stage
+    if (te->m_tableState == SchemaFile::SF_DROP &&
+        op == SchemaFile::SF_DROP)
+    {
+      jam();
+      return DropTableRef::ActiveSchemaTrans;
     }
 
     if (te->m_transId == 0 || te->m_transId == transId)
@@ -2631,7 +2748,7 @@ Dbdict::check_write_obj(Uint32 objId, Uint32 transId,
                         SchemaFile::EntryState op,
                         ErrorInfo& error)
 {
-  Uint32 err = check_write_obj(objId, transId);
+  Uint32 err = check_write_obj(objId, transId, op);
   if (err)
   {
     jam();
@@ -2885,9 +3002,13 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     while (objs.releaseFirst());
   }
 
+  bool use_get_env = false;
+#ifdef NDB_USE_GET_ENV
+  use_get_env = true;
+#endif
   unsigned trace = 0;
   char buf[100];
-  if (NdbEnv_GetEnv("DICT_TRACE", buf, sizeof(buf)))
+  if (use_get_env && NdbEnv_GetEnv("DICT_TRACE", buf, sizeof(buf)))
   {
     jam();
     g_trace = (unsigned)atoi(buf);
@@ -8752,6 +8873,20 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       c_fragDataLen = sizeof(Uint16)*count;
     }
   }
+  else if (AlterTableReq::getReorgFragFlag(impl_req->changeMask))
+  { // Reorg without adding fragments are not supported
+    jam();
+    setError(error, AlterTableRef::UnsupportedChange, __LINE__);
+    return;
+  }
+
+  if (tablePtr.p->hashMapObjectId != newTablePtr.p->hashMapObjectId &&
+      !AlterTableReq::getReorgFragFlag(impl_req->changeMask))
+  { // Change in hashmap without reorg is not supported
+    jam();
+    setError(error, AlterTableRef::UnsupportedChange, __LINE__);
+    return;
+  }
 
   D("alterTable_parse " << V(newTablePtr.i) << hex << V(newTablePtr.p->tableVersion));
 
@@ -10816,6 +10951,277 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
 	     OldListTablesConf::HeaderLength + pos, JBB);
 }
 
+bool Dbdict::buildListTablesData(const DictObject& dictObject,
+                                 Uint32 parentTableId,
+                                 ListTablesData& ltd,
+                                 Uint32& objectVersion,
+                                 Uint32& parentObjectType,
+                                 Uint32& parentObjectId)
+{
+  jam();
+  const XSchemaFile* const xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
+  const Uint32 type = dictObject.m_type;
+
+  objectVersion = 0;
+  parentObjectType = 0;
+  parentObjectId = 0;
+
+  if (DictTabInfo::isTable(type) || DictTabInfo::isIndex(type))
+  {
+    jam();
+    TableRecordPtr tablePtr;
+    c_tableRecordPool_.getPtr(tablePtr, dictObject.m_object_ptr_i);
+    
+    if (parentTableId != RNIL && parentTableId != tablePtr.p->primaryTableId)
+    {
+      jam();
+      return false;
+    }
+    
+    ltd.requestData = 0; // clear
+    ltd.setTableId(dictObject.m_id); // id
+    ltd.setTableType(type); // type
+    objectVersion = tablePtr.p->tableVersion;
+    
+    // state
+
+    if(DictTabInfo::isTable(type)){
+      ndbassert(!tablePtr.p->isIndex());
+      const SchemaFile::TableEntry* const te
+        = getTableEntry(xsf, dictObject.m_id);
+      switch(te->m_tableState){
+      case SchemaFile::SF_CREATE:
+        jam();
+        ltd.setTableState(DictTabInfo::StateBuilding);
+        break;
+      case SchemaFile::SF_ALTER:
+        jam();
+        ltd.setTableState(DictTabInfo::StateOnline);
+        break;
+      case SchemaFile::SF_DROP:
+        jam();
+        ltd.setTableState(DictTabInfo::StateDropping);
+        break;
+      case SchemaFile::SF_IN_USE:
+        {
+          if (tablePtr.p->m_read_locked)
+          {
+            jam();
+            ltd.setTableState(DictTabInfo::StateBackup);
+          }
+          else
+          {
+            jam();
+            ltd.setTableState(DictTabInfo::StateOnline);
+          }
+	  break;
+        }
+      default:
+        jam();
+        ltd.setTableState(DictTabInfo::StateBroken);
+        break;
+      }
+      /* Don't know about 'parent' objects for normal tables,
+       * have no visibility of blobs at this layer
+       */
+    }
+    else
+    {
+      ndbassert(tablePtr.p->isIndex());
+
+      switch (tablePtr.p->indexState) {
+      case TableRecord::IS_OFFLINE:
+        jam();
+        ltd.setTableState(DictTabInfo::StateOffline);
+        break;
+      case TableRecord::IS_BUILDING:
+        jam();
+        ltd.setTableState(DictTabInfo::StateBuilding);
+        break;
+      case TableRecord::IS_DROPPING:
+        jam();
+        ltd.setTableState(DictTabInfo::StateDropping);
+        break;
+      case TableRecord::IS_ONLINE:
+        jam();
+        ltd.setTableState(DictTabInfo::StateOnline);
+        break;
+      default:
+        jam();
+        ltd.setTableState(DictTabInfo::StateBroken);
+        break;
+      }
+
+      ndbrequire(tablePtr.p->primaryTableId != RNIL);
+      TableRecordPtr primTablePtr;
+      ndbrequire(find_object(primTablePtr, tablePtr.p->primaryTableId));
+      parentObjectType = primTablePtr.p->tableType;
+      parentObjectId = primTablePtr.p->tableId;
+    }
+    // Logging status
+    if (! (tablePtr.p->m_bits & TableRecord::TR_Logged)) {
+      jam();
+      ltd.setTableStore(DictTabInfo::StoreNotLogged);
+    } else {
+      ltd.setTableStore(DictTabInfo::StorePermanent);
+    }
+    // Temporary status
+    if (tablePtr.p->m_bits & TableRecord::TR_Temporary) {
+      jam();
+      ltd.setTableTemp(NDB_TEMP_TAB_TEMPORARY);
+    } else {
+      ltd.setTableTemp(NDB_TEMP_TAB_PERMANENT);
+    }
+  }
+  if(DictTabInfo::isTrigger(type)){
+    jam();
+    TriggerRecordPtr triggerPtr;
+    const bool ok = find_object(triggerPtr, dictObject.m_id);
+
+    if (parentTableId != RNIL &&
+        parentTableId != triggerPtr.p->tableId)
+    {
+      jam();
+      return false;
+    }
+
+    ltd.requestData = 0;
+    ltd.setTableId(dictObject.m_id);
+    ltd.setTableType(type);
+    if (!ok)
+    {
+      jam();
+      ltd.setTableState(DictTabInfo::StateBroken);
+    }
+    else
+    {
+      switch (triggerPtr.p->triggerState) {
+      case TriggerRecord::TS_DEFINING:
+        jam();
+        ltd.setTableState(DictTabInfo::StateBuilding);
+        break;
+      case TriggerRecord::TS_OFFLINE:
+        jam();
+        ltd.setTableState(DictTabInfo::StateOffline);
+        break;
+      case TriggerRecord::TS_ONLINE:
+        jam();
+        ltd.setTableState(DictTabInfo::StateOnline);
+        break;
+      default:
+        jam();
+        ltd.setTableState(DictTabInfo::StateBroken);
+        break;
+      }
+    }
+    ltd.setTableStore(DictTabInfo::StoreNotLogged);
+
+    objectVersion = 1;  /* No object version for triggers */
+
+    switch (TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo))
+    {
+    case TriggerType::FK_PARENT:
+    case TriggerType::FK_CHILD:
+      {
+        // Foreign key triggers are children of the FK definition.
+        jam();
+        Ptr<ForeignKeyRec> fk_ptr;
+        ndbrequire(find_object(fk_ptr, triggerPtr.p->indexId));
+        parentObjectType = DictTabInfo::ForeignKey;
+        parentObjectId = fk_ptr.p->m_fk_id;
+      }
+      break;
+
+    default:
+      {
+        jam();
+        TableRecordPtr myTabPtr;
+        const Uint32 parentId = (triggerPtr.p->indexId == RNIL ?
+                                 triggerPtr.p->tableId:
+                                 triggerPtr.p->indexId);
+        ndbrequire(find_object(myTabPtr, parentId));
+        parentObjectType = myTabPtr.p->tableType;
+        parentObjectId = myTabPtr.p->tableId;
+      }
+      break;
+    }
+  } // if(DictTabInfo::isTrigger(type))
+  if (DictTabInfo::isFilegroup(type)){
+    jam();
+
+    if (parentTableId != RNIL)
+      return false;
+
+    ltd.requestData = 0;
+    ltd.setTableId(dictObject.m_id);
+    ltd.setTableType(type); // type
+    ltd.setTableState(DictTabInfo::StateOnline);
+
+    FilegroupPtr fg_ptr;
+    ndbrequire(find_object(fg_ptr, dictObject.m_id));
+    objectVersion = fg_ptr.p->m_version;
+  }
+  if (DictTabInfo::isFile(type)){
+    jam();
+
+    if (parentTableId != RNIL)
+      return false;
+
+    ltd.requestData = 0;
+    ltd.setTableId(dictObject.m_id);
+    ltd.setTableType(type); // type
+    ltd.setTableState(DictTabInfo::StateOnline);
+
+    FilePtr file_ptr;
+    ndbrequire(find_object(file_ptr, dictObject.m_id));
+    objectVersion = file_ptr.p->m_version;
+    FilegroupPtr fg_ptr;
+    ndbrequire(find_object(fg_ptr, file_ptr.p->m_filegroup_id));
+    parentObjectType = fg_ptr.p->m_type;
+    parentObjectId = fg_ptr.p->key;
+  }
+  if (DictTabInfo::isHashMap(type))
+  {
+    jam();
+
+    if (parentTableId != RNIL)
+      return false;
+
+    ltd.requestData = 0;
+    ltd.setTableId(dictObject.m_id);
+    ltd.setTableType(type); // type
+    ltd.setTableState(DictTabInfo::StateOnline);
+
+    HashMapRecordPtr hm_ptr;
+    ndbrequire(find_object(hm_ptr, dictObject.m_id));
+    objectVersion = hm_ptr.p->m_object_version;
+  }
+
+  if (DictTabInfo::isForeignKey(type))
+  {
+    jam();
+
+    Ptr<ForeignKeyRec> fk_ptr;
+    ndbrequire(find_object(fk_ptr, dictObject.m_id));
+
+    if (parentTableId != RNIL &&
+        parentTableId != fk_ptr.p->m_parentTableId &&
+        parentTableId != fk_ptr.p->m_parentIndexId &&
+        parentTableId != fk_ptr.p->m_childTableId  &&
+        parentTableId != fk_ptr.p->m_childIndexId)
+      return false;
+
+    ltd.requestData = 0;
+    ltd.setTableId(dictObject.m_id);
+    ltd.setTableType(type); // type
+    ltd.setTableState(DictTabInfo::StateOnline);
+    objectVersion = fk_ptr.p->m_version;
+  }
+
+  jam();
+  return true;
+}
+
 void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
 {
   Uint32 senderRef  = req->senderRef;
@@ -10826,7 +11232,6 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
   const bool reqListNames = req->getListNames();
   const bool reqListIndexes = req->getListIndexes();
   const bool reqListDependent = req->getListDependent();
-  XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   NodeReceiverGroup rg(senderRef);
 
   DictObjectName_hash::Iterator iter;
@@ -10851,7 +11256,6 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     two signal segments and send it in one long fragmented
     signal
    */
-  ListTablesData ltd;
   const Uint32 listTablesDataSizeInWords = (sizeof(ListTablesData) + 3) / 4;
   char tname[PATH_MAX];
   SimplePropertiesSectionWriter tableDataWriter(* this);
@@ -10874,173 +11278,37 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     if (reqListIndexes && !DictTabInfo::isIndex(type))
       goto flush;
 
-    if (DictTabInfo::isTable(type) || DictTabInfo::isIndex(type)){
-      TableRecordPtr tablePtr;
-      c_tableRecordPool_.getPtr(tablePtr, iter.curr.p->m_object_ptr_i);
+    ListTablesData ltd;
+    Uint32 objectVersion, parentObjectType, parentObjectId; /* Unused */
 
-      if(reqListIndexes && (reqTableId != tablePtr.p->primaryTableId))
-	goto flush;
-
-      if (reqListDependent && (reqTableId != tablePtr.p->primaryTableId))
-        goto flush;
-
-      ltd.requestData = 0; // clear
-      ltd.setTableId(iter.curr.p->m_id); // id
-      ltd.setTableType(type); // type
-      // state
-
-      if(DictTabInfo::isTable(type)){
-        SchemaFile::TableEntry * te = getTableEntry(xsf, iter.curr.p->m_id);
-        switch(te->m_tableState){
-        case SchemaFile::SF_CREATE:
-          jam();
-          ltd.setTableState(DictTabInfo::StateBuilding);
-          break;
-        case SchemaFile::SF_ALTER:
-          jam();
-          ltd.setTableState(DictTabInfo::StateOnline);
-          break;
-        case SchemaFile::SF_DROP:
-          jam();
-	  ltd.setTableState(DictTabInfo::StateDropping);
-          break;
-        case SchemaFile::SF_IN_USE:
-        {
-          if (tablePtr.p->m_read_locked)
-          {
-            jam();
-            ltd.setTableState(DictTabInfo::StateBackup);
-          }
-          else
-          {
-            jam();
-            ltd.setTableState(DictTabInfo::StateOnline);
-          }
-	  break;
-        }
-	default:
-	  ltd.setTableState(DictTabInfo::StateBroken);
-	  break;
-	}
-      }
-      if (tablePtr.p->isIndex()) {
-	switch (tablePtr.p->indexState) {
-	case TableRecord::IS_OFFLINE:
-	  ltd.setTableState(DictTabInfo::StateOffline);
-	  break;
-	case TableRecord::IS_BUILDING:
-	  ltd.setTableState(DictTabInfo::StateBuilding);
-	  break;
-	case TableRecord::IS_DROPPING:
-	  ltd.setTableState(DictTabInfo::StateDropping);
-	  break;
-	case TableRecord::IS_ONLINE:
-	  ltd.setTableState(DictTabInfo::StateOnline);
-	  break;
-	default:
-	  ltd.setTableState(DictTabInfo::StateBroken);
-	  break;
-	}
-      }
-      // Logging status
-      if (! (tablePtr.p->m_bits & TableRecord::TR_Logged)) {
-	ltd.setTableStore(DictTabInfo::StoreNotLogged);
-      } else {
-	ltd.setTableStore(DictTabInfo::StorePermanent);
-      }
-      // Temporary status
-      if (tablePtr.p->m_bits & TableRecord::TR_Temporary) {
-	ltd.setTableTemp(NDB_TEMP_TAB_TEMPORARY);
-      } else {
-	ltd.setTableTemp(NDB_TEMP_TAB_PERMANENT);
-      }
-    }
-    if(DictTabInfo::isTrigger(type)){
-      TriggerRecordPtr triggerPtr;
-      bool ok = find_object(triggerPtr, iter.curr.p->m_id);
-
-      if (reqListDependent && (reqTableId != triggerPtr.p->tableId))
-        goto flush;
-
-      ltd.requestData = 0;
-      ltd.setTableId(iter.curr.p->m_id);
-      ltd.setTableType(type);
-      if (!ok)
-      {
-        ltd.setTableState(DictTabInfo::StateBroken);
-      }
-      else
-      {
-        switch (triggerPtr.p->triggerState) {
-        case TriggerRecord::TS_DEFINING:
-          ltd.setTableState(DictTabInfo::StateBuilding);
-          break;
-        case TriggerRecord::TS_OFFLINE:
-          ltd.setTableState(DictTabInfo::StateOffline);
-          break;
-        case TriggerRecord::TS_ONLINE:
-          ltd.setTableState(DictTabInfo::StateOnline);
-          break;
-        default:
-          ltd.setTableState(DictTabInfo::StateBroken);
-          break;
-        }
-      }
-      ltd.setTableStore(DictTabInfo::StoreNotLogged);
-    }
-    if (DictTabInfo::isFilegroup(type)){
-      jam();
-
-      if (reqListDependent)
-        goto flush;
-
-      ltd.requestData = 0;
-      ltd.setTableId(iter.curr.p->m_id);
-      ltd.setTableType(type); // type
-      ltd.setTableState(DictTabInfo::StateOnline);  // XXX todo
-    }
-    if (DictTabInfo::isFile(type)){
-      jam();
-
-      if (reqListDependent)
-        goto flush;
-
-      ltd.requestData = 0;
-      ltd.setTableId(iter.curr.p->m_id);
-      ltd.setTableType(type); // type
-      ltd.setTableState(DictTabInfo::StateOnline); // XXX todo
-    }
-    if (DictTabInfo::isHashMap(type))
+    if (reqListDependent || reqListIndexes)
     {
-      jam();
-
-      if (reqListDependent)
+      // Check if current object depends on reqTableId.
+      if (!buildListTablesData(*iter.curr.p, 
+                               reqTableId,
+                               ltd, 
+                               objectVersion, 
+                               parentObjectType, 
+                               parentObjectId))
+      {
+        jam();
         goto flush;
-
-      ltd.setTableId(iter.curr.p->m_id);
-      ltd.setTableType(type); // type
-      ltd.setTableState(DictTabInfo::StateOnline); // XXX todo
+      }
+      // A table should not depend on anything.
+      ndbassert(!DictTabInfo::isTable(type));
     }
-
-    if (DictTabInfo::isForeignKey(type))
+    else
     {
-      jam();
-
-      Ptr<ForeignKeyRec> fk_ptr;
-      ndbrequire(find_object(fk_ptr, iter.curr.p->m_id));
-
-      if (reqListDependent &&
-          (reqTableId != fk_ptr.p->m_parentTableId &&
-           reqTableId != fk_ptr.p->m_parentIndexId &&
-           reqTableId != fk_ptr.p->m_childTableId  &&
-           reqTableId != fk_ptr.p->m_childIndexId ))
-        goto flush;
-
-      ltd.requestData = 0;
-      ltd.setTableId(iter.curr.p->m_id);
-      ltd.setTableType(type); // type
-      ltd.setTableState(DictTabInfo::StateOnline); // XXX todo
+      const bool found = buildListTablesData(*iter.curr.p, 
+                                             RNIL,
+                                             ltd, 
+                                             objectVersion, 
+                                             parentObjectType, 
+                                             parentObjectId);
+      (void)found;
+      ndbassert(found);
     }
+
     tableDataWriter.putWords((Uint32 *) &ltd, listTablesDataSizeInWords);
     count++;
 
@@ -24682,6 +24950,8 @@ Dbdict::createFK_parse(Signal* signal, bool master,
     return;
   }
 
+  D("FK: " << fk);
+
   /**
    * validate
    */
@@ -30468,6 +30738,7 @@ Dbdict::trans_log_schema_op(SchemaOpPtr op_ptr,
 
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   SchemaFile::TableEntry * oldEntry = getTableEntry(xsf, objectId);
+  D("trans_log_schema_op" << V(*oldEntry) << V(*newEntry));
 
   if (oldEntry->m_transId != 0)
   {

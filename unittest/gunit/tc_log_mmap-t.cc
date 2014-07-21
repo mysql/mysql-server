@@ -145,6 +145,7 @@ public:
 
   ~TC_Log_MMap_thread()
   {
+    initializer->TearDown();
     delete initializer;
   }
 
