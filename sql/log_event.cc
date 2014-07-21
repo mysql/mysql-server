@@ -13779,7 +13779,33 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     truncated transaction and move on.
   */
   if (thd->owned_gtid.sidno)
+  {
+    /*
+      Slave will execute this code if a previous Gtid_log_event was applied
+      but the GTID wasn't consumed yet (the transaction was not committed
+      nor rolled back).
+      On a client session we cannot do consecutive SET GTID_NEXT without
+      a COMMIT or a ROLLBACK in the middle.
+      Applying this event without rolling back the current transaction may
+      lead to problems, as a "BEGIN" event following this GTID will
+      implicitly commit the "partial transaction" and will consume the
+      GTID. If this "partial transaction" was left in the relay log by the
+      IO thread restarting in the middle of a transaction, you could have
+      the partial transaction being logged with the GTID on the slave,
+      causing data corruption on replication.
+    */
+    if (thd->get_transaction()->is_active(Transaction_ctx::SESSION))
+    {
+      /* This is not an error (XA is safe), just an information */
+      rli->report(INFORMATION_LEVEL, 0,
+                  "Rolling back unfinished transaction (no COMMIT "
+                  "or ROLLBACK in relay log). A probable cause is partial "
+                  "transaction left on relay log because of restarting IO "
+                  "thread with auto-positioning protocol.");
+      const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 1);
+    }
     gtid_state->update_on_rollback(thd);
+  }
 
   if (spec.type == ANONYMOUS_GROUP)
   {
