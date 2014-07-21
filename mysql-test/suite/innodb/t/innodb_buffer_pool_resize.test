@@ -1,8 +1,7 @@
 #
 # WL6117 : Resize the InnoDB Buffer Pool Online
 #
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
+
 --source include/have_innodb.inc
 --source include/big_test.inc
 
