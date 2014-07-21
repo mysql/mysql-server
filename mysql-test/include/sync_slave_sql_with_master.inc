@@ -13,6 +13,7 @@
 # [--let $use_gtids= 1]
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
+# [--let $wait_for_executed_gtid_set= 1]
 # --source include/sync_slave_io_with_master.inc
 #
 # Must be called on the master. Will change connection to the slave.
@@ -32,7 +33,17 @@
 #
 #   $rpl_debug
 #      See include/rpl_init.inc
-
+#
+#   $ignore_gtids_on_sync
+#     Forces the use of master file and position, even if $use_gtids is set.
+#     This might be used if the slave will not have all the GTIDs of the
+#     master but have to read and apply all master events to the end.
+#
+#   $wait_for_executed_gtid_set
+#      This option makes the test use WAIT_FOR_EXECUTED_GTID_SET instead of
+#      WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. This options also requires
+#      $use_gtids and !$ignore_gtids_on_sync to be set.
+#
 
 --let $include_filename= sync_slave_sql_with_master.inc
 --source include/begin_include_file.inc
