@@ -1242,7 +1242,7 @@ innobase_start_or_create_for_mysql(void)
 	ib_logf(IB_LOG_LEVEL_INFO, IB_MEMORY_BARRIER_STARTUP_MSG);
 
 #ifndef HAVE_MEMORY_BARRIER
-#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64 || defined __WIN__
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64 || defined _WIN32
 #else
 	ib_logf(IB_LOG_LEVEL_WARN,
 		"MySQL was built without a memory barrier capability on this"

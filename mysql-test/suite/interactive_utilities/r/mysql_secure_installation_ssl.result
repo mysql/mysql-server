@@ -1,0 +1,117 @@
+SET old_passwords=2;
+SELECT plugin into @plugin from mysql.user where user= 'root' and host='localhost';
+SELECT password_last_changed into @plc from mysql.user where user= 'root' and host='localhost';
+SELECT password into @pwd from mysql.user where user= 'root' and host='localhost';
+SELECT authentication_string into @auth_str from mysql.user where user= 'root' and host='localhost';
+update mysql.user set plugin= 'sha256_password', authentication_string= PASSWORD('123') where user='root' and host='localhost';
+FLUSH PRIVILEGES;
+call mtr.add_suppression("Dictionary file not specified");
+mysql_secure_installation: [Warning] Using a password on the command line interface can be insecure.
+
+Securing the MySQL server deployment.
+
+
+VALIDATE PASSWORD PLUGIN can be used to test passwords
+and improve security. It checks the strength of password
+and allows the users to set only those passwords which are
+secure enough. Would you like to setup VALIDATE PASSWORD plugin?
+
+Press y|Y for Yes, any other key for No: Using existing root password.
+Change the root password? (Press y|Y for Yes, any other key for No) : 
+ ... skipping.
+By default, a MySQL installation has an anonymous user,
+allowing anyone to log into MySQL without having to have
+a user account created for them. This is intended only for
+testing, and to make the installation go a bit smoother.
+You should remove them before moving into a production
+environment.
+
+Remove anonymous users? (Press y|Y for Yes, any other key for No) : 
+ ... skipping.
+
+
+Normally, root should only be allowed to connect from
+'localhost'. This ensures that someone cannot guess at
+the root password from the network.
+
+Disallow root login remotely? (Press y|Y for Yes, any other key for No) : 
+ ... skipping.
+By default, MySQL comes with a database named 'test' that
+anyone can access. This is also intended only for testing,
+and should be removed before moving into a production
+environment.
+
+
+Remove test database and access to it? (Press y|Y for Yes, any other key for No) : 
+ ... skipping.
+Reloading the privilege tables will ensure that all changes
+made so far will take effect immediately.
+
+Reload privilege tables now? (Press y|Y for Yes, any other key for No) : Execution number 1 was successful
+mysql_secure_installation: [Warning] Using a password on the command line interface can be insecure.
+
+Securing the MySQL server deployment.
+
+
+VALIDATE PASSWORD PLUGIN can be used to test passwords
+and improve security. It checks the strength of password
+and allows the users to set only those passwords which are
+secure enough. Would you like to setup VALIDATE PASSWORD plugin?
+
+Press y|Y for Yes, any other key for No: 
+There are three levels of password validation policy:
+
+LOW    Length >= 8
+MEDIUM Length >= 8, numeric, mixed case, and special characters
+STRONG Length >= 8, numeric, mixed case, special characters and dictionary                  file
+
+Please enter 0 = LOW, 1 = MEDIUM and 2 = STRONG: Using existing root password.
+
+Estimated strength of the password: 0 
+Change the root password? (Press y|Y for Yes, any other key for No) : 
+New password: 
+
+Re-enter new password: 
+
+Estimated strength of the password: 100 
+Do you wish to continue with the password provided?(Press y|Y for Yes, any other key for No) : By default, a MySQL installation has an anonymous user,
+allowing anyone to log into MySQL without having to have
+a user account created for them. This is intended only for
+testing, and to make the installation go a bit smoother.
+You should remove them before moving into a production
+environment.
+
+Remove anonymous users? (Press y|Y for Yes, any other key for No) : Success.
+
+
+Normally, root should only be allowed to connect from
+'localhost'. This ensures that someone cannot guess at
+the root password from the network.
+
+Disallow root login remotely? (Press y|Y for Yes, any other key for No) : Success.
+
+By default, MySQL comes with a database named 'test' that
+anyone can access. This is also intended only for testing,
+and should be removed before moving into a production
+environment.
+
+
+Remove test database and access to it? (Press y|Y for Yes, any other key for No) :  - Dropping test database...
+Success.
+
+ - Removing privileges on test database...
+Success.
+
+Reloading the privilege tables will ensure that all changes
+made so far will take effect immediately.
+
+Reload privilege tables now? (Press y|Y for Yes, any other key for No) : INSERT INTO mysql.user SELECT LOWER(@@hostname),'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL;
+REPLACE INTO mysql.user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
+REPLACE INTO mysql.user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
+REPLACE INTO mysql.user VALUES ('::1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
+INSERT INTO mysql.db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
+INSERT INTO mysql.db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
+UNINSTALL PLUGIN validate_password;
+UPDATE mysql.user SET password=@pwd, password_last_changed=@plc, authentication_string=@auth_str, plugin= @plugin;
+FLUSH PRIVILEGES;
+CREATE DATABASE test;

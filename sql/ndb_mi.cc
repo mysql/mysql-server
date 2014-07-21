@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,6 +106,11 @@ void ndb_mi_set_relay_log_trans_retries(ulong number)
 #else
   active_mi->rli->trans_retries = number;
 #endif
+}
+
+bool ndb_mi_get_slave_sql_running()
+{
+  return active_mi->rli->slave_running;
 }
 
 /* #ifdef HAVE_NDB_BINLOG */
