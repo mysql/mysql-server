@@ -810,7 +810,7 @@ lock_rec_has_to_wait(
 				it is assumed that this has a lock bit
 				set on the same record as in the new
 				lock we are setting */
-	bool 		lock_is_on_supremum) 
+	bool		lock_is_on_supremum)
 				/*!< in: TRUE if we are setting the
 				lock on the 'supremum' record of an
 				index page: we know then that the lock
@@ -1319,7 +1319,7 @@ lock_rec_other_trx_holds_expl(
 		}
 
 		mutex_exit(&trx_sys->mutex);
-        }
+	}
 
 	lock_mutex_exit();
 
@@ -1665,7 +1665,7 @@ RecLock::rollback_blocking_trx(lock_t* lock) const
 	ut_ad(lock->trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
 	lock->trx->lock.was_chosen_as_deadlock_victim = true;
- 
+
 	lock_cancel_waiting_and_release(lock);
 }
 
@@ -1751,7 +1751,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for)
 }
 
 /**
-Setup the requesting transaction state for lock grant 
+Setup the requesting transaction state for lock grant
 @param[in,out] lock		Lock for which to change state */
 void
 RecLock::set_wait_state(lock_t* lock)
@@ -2142,8 +2142,8 @@ lock_rec_lock_slow(
 
 	if (lock_rec_has_expl(mode, block, heap_no, trx)) {
 
-		/* The trx already has a strong enough lock on rec:
-		do nothing */
+		/* The trx already has a strong enough lock on rec: do
+		nothing */
 
 		err = DB_SUCCESS;
 
@@ -3195,7 +3195,7 @@ lock_update_merge_right(
 	ulint   space = left_block->page.id.space();
 	ulint   page_no = left_block->page.id.page_no();
 	ut_ad(lock_rec_get_first_on_page_addr(
-                lock_sys->prdt_page_hash, space, page_no) == NULL);
+			lock_sys->prdt_page_hash, space, page_no) == NULL);
 #endif /* UNIV_DEBUG */
 
 	lock_rec_free_all_from_discard_page(left_block);
@@ -3324,7 +3324,7 @@ lock_update_merge_left(
 	ulint	space = right_block->page.id.space();
 	ulint	page_no = right_block->page.id.page_no();
 	lock_t*	lock_test = lock_rec_get_first_on_page_addr(
-                lock_sys->prdt_page_hash, space, page_no);
+		lock_sys->prdt_page_hash, space, page_no);
 	ut_ad(!lock_test);
 #endif /* UNIV_DEBUG */
 

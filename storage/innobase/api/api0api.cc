@@ -3142,7 +3142,7 @@ ib_cursor_set_lock_mode(
 
 	if (err == DB_SUCCESS) {
 		prebuilt->select_lock_type = (lock_mode) ib_lck_mode;
-		ut_a(!trx_is_started(prebuilt->trx));
+		ut_a(trx_is_started(prebuilt->trx));
 	}
 
 	return(err);

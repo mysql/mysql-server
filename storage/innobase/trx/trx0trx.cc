@@ -277,6 +277,8 @@ struct TrxFactory {
 	@return true if all OK */
 	static bool debug(const trx_t* trx)
 	{
+		ut_a(trx->error_state == DB_SUCCESS);
+
 		ut_a(trx->magic_n == TRX_MAGIC_N);
 
 		ut_ad(!trx->read_only);
@@ -1338,6 +1340,8 @@ trx_start_low(
 		trx->start_time = ut_time();
 	}
 
+	ut_a(trx->error_state == DB_SUCCESS);
+
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
 
@@ -1942,7 +1946,10 @@ trx_commit_in_memory(
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
 	hold for recovered transactions or system transactions. */
 	assert_trx_is_free(trx);
+
 	trx_init(trx);
+
+	ut_a(trx->error_state == DB_SUCCESS);
 }
 
 /****************************************************************//**

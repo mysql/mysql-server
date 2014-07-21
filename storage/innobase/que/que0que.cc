@@ -1224,8 +1224,6 @@ que_eval_sql(
 		mutex_exit(&dict_sys->mutex);
 	}
 
-	ut_a(graph);
-
 	graph->trx = trx;
 	trx->graph = NULL;
 
@@ -1244,6 +1242,8 @@ que_eval_sql(
 	if (reserve_dict_mutex) {
 		mutex_exit(&dict_sys->mutex);
 	}
+
+	ut_a(trx->error_state != 0);
 
 	DBUG_RETURN(trx->error_state);
 }
