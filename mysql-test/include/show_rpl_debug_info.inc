@@ -135,6 +135,7 @@ while ($_rpl_server)
 
 --echo rand_seed: '$rand_seed' _rand_state: '$_rand_state'
 --echo extra debug info if any: '$extra_debug_info'
+--echo rpl_topology=$rpl_topology
 if ($extra_debug_eval)
 {
   --let $eval_expr= $extra_debug_eval
