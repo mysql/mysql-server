@@ -968,7 +968,7 @@ lock_rec_reset_nth_bit(
 /** Reset the nth bit of a record lock.
 @param[in,out]	lock record lock
 @param[in] i	index of the bit that will be reset
-@param[in] type	whether the lock is in wait mode  */
+@param[in] type	whether the lock is in wait mode */
 
 void
 lock_rec_trx_wait(
@@ -1592,27 +1592,6 @@ RecLock::check_deadlock_result(const trx_t* victim_trx, lock_t* lock)
 }
 
 /**
-Do any post lock wait checks here
-@return DB_LOCK_WAIT */
-dberr_t
-RecLock::commit(lock_t* lock)
-{
-	ut_ad(lock_mutex_own());
-	ut_ad(m_trx == lock->trx);
-	ut_ad(trx_mutex_own(m_trx));
-
-	DBUG_PRINT("ib_lock", ("wait for trx " TRX_ID_FMT
-			       " in index %s of table %s",
-			       trx_get_id_for_print(m_trx),
-			       m_index->name,
-			       m_index->table_name));
-
-	MONITOR_INC(MONITOR_LOCKREC_WAIT);
-
-	return(DB_LOCK_WAIT);
-}
-
-/**
 Check and resolve any deadlocks
 @param[in, out] lock		The lock being acquired
 @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
@@ -1652,7 +1631,7 @@ RecLock::deadlock_check(lock_t* lock)
 
 		set_wait_state(lock);
 
-		commit(lock);
+		MONITOR_INC(MONITOR_LOCKREC_WAIT);
 	}
 
 	return(err);
@@ -3202,8 +3181,8 @@ lock_update_merge_right(
 #ifdef UNIV_DEBUG
 	/* there should exist no page lock on the left page,
 	otherwise, it will be blocked from merge */
-	ulint   space = left_block->page.id.space();
-	ulint   page_no = left_block->page.id.page_no();
+	ulint	space = left_block->page.id.space();
+	ulint	page_no = left_block->page.id.page_no();
 	ut_ad(lock_rec_get_first_on_page_addr(
 			lock_sys->prdt_page_hash, space, page_no) == NULL);
 #endif /* UNIV_DEBUG */
@@ -4246,7 +4225,7 @@ lock_release(
 		}
 
 		if (count == LOCK_RELEASE_INTERVAL) {
-			/* Release the  mutex for a while, so that we
+			/* Release the mutex for a while, so that we
 			do not monopolize it */
 
 			lock_mutex_exit();
@@ -4510,7 +4489,7 @@ lock_remove_all_on_table(
 	lock_mutex_exit();
 }
 
-/*===================== VALIDATION AND DEBUGGING  ====================*/
+/*===================== VALIDATION AND DEBUGGING ====================*/
 
 /*********************************************************************//**
 Prints info of a table lock. */
@@ -4693,7 +4672,7 @@ ibool
 lock_print_info_summary(
 /*====================*/
 	FILE*	file,	/*!< in: file where to print */
-	ibool   nowait)	/*!< in: whether to wait for the lock mutex */
+	ibool	nowait)	/*!< in: whether to wait for the lock mutex */
 {
 	/* if nowait is FALSE, wait on the lock mutex,
 	otherwise return immediately if fail to obtain the
@@ -4803,7 +4782,7 @@ class TrxLockIterator {
 public:
 	TrxLockIterator() { rewind(); }
 
-	/** Get the m_index(th) lock  of a transaction.
+	/** Get the m_index(th) lock of a transaction.
 	@return current lock or 0 */
 	const lock_t* current(const trx_t* trx) const
 	{
@@ -7159,7 +7138,7 @@ DeadlockChecker::select_victim() const
 
 	if (trx_weight_ge(m_wait_lock->trx, m_start)) {
 
-		/* The joining  transaction is 'smaller',
+		/* The joining transaction is 'smaller',
 		choose it as the victim and roll it back. */
 
 		return(m_start);
