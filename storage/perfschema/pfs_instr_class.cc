@@ -1850,7 +1850,10 @@ void drop_table_share(PFS_thread *thread,
     lf_hash_delete(&table_share_hash, pins,
                    pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
     if (pfs->m_lock_stat)
+    {
        release_table_share_lock_stat(pfs->m_lock_stat);
+       pfs->m_lock_stat= NULL;
+    }
     //TODO: mayank. Do we need to release all index stats for this table_share?
     release_table_share_indexes_stat(pfs);
     
