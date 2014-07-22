@@ -2012,11 +2012,12 @@ static Sys_var_ulong Sys_metadata_locks_hash_instances(
        VALID_RANGE(1, 1024), DEFAULT(8), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
-static Sys_var_ulong Sys_pseudo_thread_id(
+// relies on DBUG_ASSERT(sizeof(my_thread_id) == 4);
+static Sys_var_uint Sys_pseudo_thread_id(
        "pseudo_thread_id",
        "This variable is for internal server use",
        SESSION_ONLY(pseudo_thread_id),
-       NO_CMD_LINE, VALID_RANGE(0, ULONG_MAX), DEFAULT(0),
+       NO_CMD_LINE, VALID_RANGE(0, UINT_MAX32), DEFAULT(0),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
        ON_CHECK(check_has_super));
 
@@ -4684,7 +4685,7 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
     DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     global_sid_lock->wrlock();
     DBUG_ASSERT(gtid_state->get_owned_gtids()->
-                thread_owns_anything(thd->thread_id));
+                thread_owns_anything(thd->thread_id()));
 #else
     global_sid_lock->rdlock();
 #endif
