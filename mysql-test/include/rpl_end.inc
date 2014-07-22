@@ -99,9 +99,14 @@ if (!$rpl_skip_sync)
 
 # mtr configures server 2 to be a slave before it runs the test. We
 # have to restore that state now, so we change topology to 1->2.
+#TODO: may be better to do like this
+# --source for_each_connection.inc
+#  restore gtid_state
 --let $use_gtids= 0
 --source include/rpl_change_topology.inc
---let $rpl_topology= none
+
+--let $rpl_topology=none
+--source include/rpl_change_topology.inc
 
 # Restore the server state by deleting all channels
 if ($rpl_multi_source)
