@@ -20,6 +20,12 @@
 # --source include/rpl_end.inc
 #
 # Parameters:
+#   $rpl_skip_sync
+#     By default, all slaves are synced using rpl_sync.inc. Set this
+#     option to 1 to disable this behavior (note that you must
+#     manually sync all servers in this case). Normally you want to
+#     sync, but you need to disable sync if you use multi-source.
+#
 #   $rpl_only_running_threads
 #     If one or both of the IO and SQL threads is stopped, sync and
 #     stop only the threads that are running.  See
@@ -80,7 +86,11 @@ while ($_rpl_server)
   --dec $_rpl_server
 }
 
---source include/rpl_sync.inc
+if (!$rpl_skip_sync)
+{
+  --source include/rpl_sync.inc
+}
+
 --source include/rpl_stop_slaves.inc
 
 # mtr configures server 2 to be a slave before it runs the test. We
