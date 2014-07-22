@@ -10521,6 +10521,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   uint part;
   bool create_err= FALSE;
   COST_VECT cost;
+  uint max_used_key_len;
 
   old_root= thd->mem_root;
   /* The following call may change thd->mem_root */
@@ -10538,7 +10539,6 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   if (quick->init())
     goto err;
   quick->records= records;
-  quick->max_used_key_length= ref->key_parts;
 
   if ((cp_buffer_from_ref(thd, table, ref) && thd->is_fatal_error) ||
       !(range= new(alloc) QUICK_RANGE()))
@@ -10553,7 +10553,8 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   if (!(quick->key_parts=key_part=(KEY_PART *)
 	alloc_root(&quick->alloc,sizeof(KEY_PART)*ref->key_parts)))
     goto err;
-
+  
+  max_used_key_len=0;
   for (part=0 ; part < ref->key_parts ;part++,key_part++)
   {
     key_part->part=part;
@@ -10562,7 +10563,12 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     key_part->store_length= key_info->key_part[part].store_length;
     key_part->null_bit=     key_info->key_part[part].null_bit;
     key_part->flag=         (uint8) key_info->key_part[part].key_part_flag;
+
+    max_used_key_len +=key_info->key_part[part].store_length; 
   }
+
+  quick->max_used_key_length= max_used_key_len;
+
   if (insert_dynamic(&quick->ranges,(uchar*)&range))
     goto err;
 
@@ -11759,18 +11765,24 @@ void QUICK_ROR_UNION_SELECT::add_keys_and_lengths(String *key_names,
 
 void QUICK_RANGE_SELECT::add_used_key_part_to_set(MY_BITMAP *col_set)
 {
-  for (uint i=0; i < max_used_key_length; i++)
+  uint key_len;
+  KEY_PART *part= key_parts;
+  for (key_len=0; key_len < max_used_key_length; 
+       key_len += (part++)->store_length)
   {
-    bitmap_set_bit(col_set, key_parts[i].field->field_index);
+    bitmap_set_bit(col_set, part->field->field_index);
   }
 }
 
 
 void QUICK_GROUP_MIN_MAX_SELECT::add_used_key_part_to_set(MY_BITMAP *col_set)
 {
-  for (uint i=0; i < max_used_key_length; i++)
+  uint key_len;
+  KEY_PART_INFO *part= index_info->key_part;
+  for (key_len=0; key_len < max_used_key_length; 
+       key_len += (part++)->store_length)
   {
-    bitmap_set_bit(col_set, index_info->key_part[i].field->field_index);
+    bitmap_set_bit(col_set, part->field->field_index);
   }
 }
 
