@@ -148,22 +148,12 @@ static_assert(block_allocator::BLOCK_ALLOCATOR_HEADER_RESERVE * 2 ==
 
 // does NOT initialize the block allocator: the caller is responsible
 void block_table::_create_internal() {
+    memset(&_current, 0, sizeof(struct translation));
+    memset(&_inprogress, 0, sizeof(struct translation));
+    memset(&_checkpointed, 0, sizeof(struct translation));
     memset(&_mutex, 0, sizeof(_mutex));
     toku_mutex_init(&_mutex, nullptr);
     nb_mutex_init(&_safe_file_size_lock);
-
-    _checkpointed.type = TRANSLATION_CHECKPOINTED;
-    _checkpointed.smallest_never_used_blocknum = make_blocknum(RESERVED_BLOCKNUMS);
-    _checkpointed.length_of_array = _checkpointed.smallest_never_used_blocknum.b;
-    _checkpointed.blocknum_freelist_head = freelist_null;
-    XMALLOC_N(_checkpointed.length_of_array, _checkpointed.block_translation);
-    for (int64_t i = 0; i < _checkpointed.length_of_array; i++) {
-        _checkpointed.block_translation[i].size = 0;
-        _checkpointed.block_translation[i].u.diskoff = diskoff_unused;
-    }
-
-    // we just created a default checkpointed, now copy it to current.  
-    _copy_translation(&_current, &_checkpointed, TRANSLATION_CURRENT);
 }
 
 // Fill in the checkpointed translation from buffer, and copy checkpointed to current.
@@ -217,6 +207,19 @@ void block_table::create() {
     // Does not initialize the block allocator
     _create_internal();
 
+    _checkpointed.type = TRANSLATION_CHECKPOINTED;
+    _checkpointed.smallest_never_used_blocknum = make_blocknum(RESERVED_BLOCKNUMS);
+    _checkpointed.length_of_array = _checkpointed.smallest_never_used_blocknum.b;
+    _checkpointed.blocknum_freelist_head = freelist_null;
+    XMALLOC_N(_checkpointed.length_of_array, _checkpointed.block_translation);
+    for (int64_t i = 0; i < _checkpointed.length_of_array; i++) {
+        _checkpointed.block_translation[i].size = 0;
+        _checkpointed.block_translation[i].u.diskoff = diskoff_unused;
+    }
+
+    // we just created a default checkpointed, now copy it to current.  
+    _copy_translation(&_current, &_checkpointed, TRANSLATION_CURRENT);
+
     // Create an empty block allocator.
     _bt_block_allocator.create(block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE,
                                block_allocator::BLOCK_ALLOCATOR_ALIGNMENT);
@@ -263,22 +266,25 @@ void block_table::maybe_truncate_file_on_open(int fd) {
     _mutex_unlock();
 }
 
-void block_table::_copy_translation(struct translation * dst, struct translation * src, enum translation_type newtype) {
-    paranoid_invariant(src->length_of_array >= src->smallest_never_used_blocknum.b); //verify invariant
-    paranoid_invariant(newtype==TRANSLATION_DEBUG ||
-                       (src->type == TRANSLATION_CURRENT      && newtype == TRANSLATION_INPROGRESS) ||
-                       (src->type == TRANSLATION_CHECKPOINTED && newtype == TRANSLATION_CURRENT));
+void block_table::_copy_translation(struct translation *dst, struct translation *src, enum translation_type newtype) {
+    // We intend to malloc a fresh block, so the incoming translation should be empty
+    invariant_null(dst->block_translation);
+
+    invariant(src->length_of_array >= src->smallest_never_used_blocknum.b);
+    invariant(newtype == TRANSLATION_DEBUG ||
+              (src->type == TRANSLATION_CURRENT && newtype == TRANSLATION_INPROGRESS) ||
+              (src->type == TRANSLATION_CHECKPOINTED && newtype == TRANSLATION_CURRENT));
     dst->type = newtype;
     dst->smallest_never_used_blocknum = src->smallest_never_used_blocknum;
-    dst->blocknum_freelist_head       = src->blocknum_freelist_head; 
-    // destination btt is of fixed size.  Allocate+memcpy the exact length necessary.
-    dst->length_of_array              = dst->smallest_never_used_blocknum.b;
+    dst->blocknum_freelist_head = src->blocknum_freelist_head; 
+
+    // destination btt is of fixed size. Allocate + memcpy the exact length necessary.
+    dst->length_of_array = dst->smallest_never_used_blocknum.b;
     XMALLOC_N(dst->length_of_array, dst->block_translation);
-    memcpy(dst->block_translation,
-           src->block_translation,
-           dst->length_of_array * sizeof(*dst->block_translation));
-    //New version of btt is not yet stored on disk.
-    dst->block_translation[RESERVED_BLOCKNUM_TRANSLATION].size      = 0;
+    memcpy(dst->block_translation, src->block_translation, dst->length_of_array * sizeof(*dst->block_translation));
+
+    // New version of btt is not yet stored on disk.
+    dst->block_translation[RESERVED_BLOCKNUM_TRANSLATION].size = 0;
     dst->block_translation[RESERVED_BLOCKNUM_TRANSLATION].u.diskoff = diskoff_unused;
 }
 
@@ -338,11 +344,12 @@ void block_table::_maybe_optimize_translation(struct translation *t) {
 // block table must be locked by caller of this function
 void block_table::note_start_checkpoint_unlocked() {
     toku_mutex_assert_locked(&_mutex);
-    // Copy current translation to inprogress translation.
-    paranoid_invariant(_inprogress.block_translation == NULL);
-    //We're going to do O(n) work to copy the translation, so we
-    //can afford to do O(n) work by optimizing the translation
+
+    // We're going to do O(n) work to copy the translation, so we
+    // can afford to do O(n) work by optimizing the translation
     _maybe_optimize_translation(&_current);
+
+    // Copy current translation to inprogress translation.
     _copy_translation(&_inprogress, &_current, TRANSLATION_INPROGRESS);
 
     _checkpoint_skipped = false;
