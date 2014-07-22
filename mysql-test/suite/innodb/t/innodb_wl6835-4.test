@@ -27,7 +27,7 @@ SELECT c3, c2 FROM t1 WHERE c1=0 LOCK IN SHARE MODE;
 --echo
 --echo # On connection 3
 --connection con3
-START TRANSACTION HIGH_PRIORITY;
+--source include/start_transaction_high_prio.inc
 UPDATE t1 SET c1=3 WHERE c1=0;
 COMMIT;
 
