@@ -282,6 +282,7 @@ btr_cur_latch_leaves(
 	case BTR_MODIFY_TREE:
 		/* x-latch also brothers from left to right */
 		left_page_no = btr_page_get_prev(page, mtr);
+		mode = latch_mode;
 
 		if (left_page_no != FIL_NULL) {
 			get_block = btr_block_get(
