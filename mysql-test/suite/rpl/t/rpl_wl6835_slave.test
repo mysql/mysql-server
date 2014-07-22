@@ -4,8 +4,22 @@
 #
 # Outcome: SigCon must abort, SQLThread must commit.
 
+# no need to rerun this test three times
+--source include/have_binlog_format_mixed.inc
+
+--source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+SET GLOBAL DEBUG="+d,dbug_set_high_prio_sql_thread";
+
+# now applier thread starts with high prio due
+# since we are now setting the internal flag
+--source include/stop_slave_sql.inc
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
 
 ####### MASTER #######
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -79,5 +93,11 @@ COMMIT;
 # Clean up.
 --connection master
 DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+# resetting the applier thread
+--source include/stop_slave_sql.inc
+SET GLOBAL DEBUG="-d,dbug_set_high_prio_sql_thread";
+--source include/start_slave_sql.inc
 
 --source include/rpl_end.inc
