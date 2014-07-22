@@ -343,11 +343,6 @@ public:
   /** Number of indexes. */
   uint m_key_count;
 
-  /** Table statistics. */
-  PFS_table_stat m_table_stat;
-  /** Index names. */
-  PFS_table_key m_keys[MAX_INDEXES];
-
   /** Table locks statistics. */
   PFS_table_share_lock *m_lock_stat;
   /** Table indexes' stats. */

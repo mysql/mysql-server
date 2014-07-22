@@ -1576,9 +1576,8 @@ void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
 
   /* Aggregate stats for the table */
   to_stat= & table_share->m_index_stat[MAX_INDEXES];
-  get_table_share_index_stat(to_stat);
   from_stat= & table_stat->m_index_stat[MAX_INDEXES];
-  if(*to_stat)
+  if (get_table_share_index_stat(to_stat))
     (*to_stat)->m_stat.aggregate(from_stat);
 
   table_stat->fast_reset_io();

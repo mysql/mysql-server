@@ -55,6 +55,8 @@ Pfs_instr_config_array *pfs_instr_config_array= NULL;
 
 static void configure_instr_class(PFS_instr_class *entry);
 
+static void release_table_share_indexes_stat(PFS_table_share *pfs);
+
 static void init_instr_class(PFS_instr_class *klass,
                              const char *name,
                              uint name_length,
@@ -1543,39 +1545,63 @@ static void set_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 {
   size_t len;
   KEY *key_info= share->key_info;
-  PFS_table_key *pfs_key= pfs->m_keys;
-  PFS_table_key *pfs_key_last= pfs->m_keys + share->keys;
+//  PFS_table_key *pfs_key= pfs->m_keys;
+//  PFS_table_key *pfs_key_last= pfs->m_keys + share->keys;
   pfs->m_key_count= share->keys;
 
-  for ( ; pfs_key < pfs_key_last; pfs_key++, key_info++)
+  PFS_table_share_index **pfs_index_stat= pfs->m_index_stat;
+  PFS_table_share_index **pfs_index_stat_last= pfs->m_index_stat + share->keys;
+
+//  for ( ; pfs_key < pfs_key_last ; pfs_key++, key_info++)
+  for ( ; pfs_index_stat < pfs_index_stat_last ; key_info++, pfs_index_stat++)
   {
     len= strlen(key_info->name);
-    memcpy(pfs_key->m_name, key_info->name, len);
-    pfs_key->m_name_length= len;
+//    memcpy(pfs_key->m_name, key_info->name, len);
+//    pfs_key->m_name_length= len;
+
+    if (get_table_share_index_stat(pfs_index_stat))
+    {
+      memcpy((*pfs_index_stat)->m_key.m_name, key_info->name, len);
+      (*pfs_index_stat)->m_key.m_name_length= len;
+    }
   }
 
-  pfs_key_last= pfs->m_keys + MAX_INDEXES;
-  for ( ; pfs_key < pfs_key_last; pfs_key++)
-    pfs_key->m_name_length= 0;
+  pfs_index_stat_last= pfs->m_index_stat + MAX_INDEXES;
+//  for ( ; pfs_key < pfs_key_last; pfs_key++, pfs_index_stat++)
+  for ( ; pfs_index_stat < pfs_index_stat_last; pfs_index_stat++)
+  {
+//    pfs_key->m_name_length= 0;
+    *pfs_index_stat= NULL;
+  }
 }
 
 static int compare_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 {
   size_t len;
   KEY *key_info= share->key_info;
-  PFS_table_key *pfs_key= pfs->m_keys;
-  PFS_table_key *pfs_key_last= pfs->m_keys + share->keys;
+//  PFS_table_key *pfs_key= pfs->m_keys;
+//  PFS_table_key *pfs_key_last= pfs->m_keys + share->keys;
+
+  PFS_table_share_index **pfs_index_stat= pfs->m_index_stat;
+  PFS_table_share_index **pfs_index_stat_end= pfs->m_index_stat + share->keys;
 
   if (pfs->m_key_count != share->keys)
     return 1;
 
-  for ( ; pfs_key < pfs_key_last; pfs_key++, key_info++)
+//  for ( ; pfs_key < pfs_key_last ; pfs_key++, key_info++)
+  for ( ; pfs_index_stat < pfs_index_stat_end ; pfs_index_stat++, key_info++)
   {
+    if (*pfs_index_stat == NULL)
+      continue;
     len= strlen(key_info->name);
-    if (len != pfs_key->m_name_length)
+//    if (len != pfs_key->m_name_length)
+//      return 1;
+    if (len != (*pfs_index_stat)->m_key.m_name_length)
       return 1;
 
-    if (memcmp(pfs_key->m_name, key_info->name, len) != 0)
+//    if (memcmp(pfs_key->m_name, key_info->name, len) != 0)
+//      return 1;
+    if (memcmp((*pfs_index_stat)->m_key.m_name, key_info->name, len) != 0)
       return 1;
   }
 
@@ -1635,9 +1661,12 @@ search:
     pfs->inc_refcount() ;
     if (compare_keys(pfs, share) != 0)
     {
+      if (pfs->m_lock_stat)
+        pfs->m_lock_stat->m_stat.reset();
+      //TODO: mayank. Do we need to release all index stats for this table_share?
+      //release_table_share_indexes_stat(pfs);
+
       set_keys(pfs, share);
-      /* FIXME: aggregate to table_share sink ? */
-      pfs->m_table_stat.fast_reset();
     }
     lf_hash_search_unpin(pins);
     return pfs;
@@ -1676,16 +1705,17 @@ search:
       pfs->m_enabled= enabled;
       pfs->m_timed= timed;
       pfs->init_refcount();
+      if (pfs->m_lock_stat)
+        pfs->m_lock_stat->m_stat.reset();
+      //TODO: mayank. Do we need to release all index stats for this table_share?
+      //release_table_share_indexes_stat(pfs);
       set_keys(pfs, share);
-
-      pfs->initialize_index_stat();
 
       int res;
       pfs->m_lock.dirty_to_allocated(& dirty_state);
       res= lf_hash_insert(&table_share_hash, pins, &pfs);
       if (likely(res == 0))
       {
-        pfs->m_lock_stat= NULL;
         return pfs;
       }
 
@@ -1733,7 +1763,14 @@ void PFS_table_share::aggregate_io(void)
 
   /* Add this table stats to the global sink. */
   global_table_io_stat.aggregate(& sum_io);
-  //TODO : mayank, Do we need to reset each and every stat of index array now ? 
+
+  /* Reset each and every stat of index array. */
+  int count= MAX_INDEXES;
+  do{
+      if(m_index_stat[count])
+        m_index_stat[count]->m_stat.reset();
+      count--;
+    }while(count >= 0);
 }
 
 void PFS_table_share::sum_io(PFS_single_stat *result, uint key_count)
@@ -1772,7 +1809,7 @@ void PFS_table_share::aggregate_lock(void)
   if(m_lock_stat)
   {
     global_table_lock_stat.aggregate(& m_lock_stat->m_stat);
-    //TODO: mayank, Is following reset necessary?
+    /* Reset lock stat. */
     m_lock_stat->m_stat.reset();
   }
 }
@@ -1814,7 +1851,8 @@ void drop_table_share(PFS_thread *thread,
                    pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
     if (pfs->m_lock_stat)
        release_table_share_lock_stat(pfs->m_lock_stat);
-    //TODO: mayank. We need to release all index stats for this table_share?
+    //TODO: mayank. Do we need to release all index stats for this table_share?
+    release_table_share_indexes_stat(pfs);
     
     pfs->m_lock.allocated_to_free();
   }
@@ -1822,6 +1860,19 @@ void drop_table_share(PFS_thread *thread,
   lf_hash_search_unpin(pins);
 }
 
+static void release_table_share_indexes_stat(PFS_table_share *pfs)
+{
+  int count= MAX_INDEXES;
+  do{
+      if(pfs->m_index_stat[count])
+      {
+        release_table_share_index_stat(pfs->m_index_stat[count]);
+        pfs->m_index_stat[count]= NULL;
+      }
+      count--;
+    }while(count >= 0);
+} 
+  
 /**
   Sanitize an unsafe table_share pointer.
   @param unsafe The possibly corrupt pointer.
