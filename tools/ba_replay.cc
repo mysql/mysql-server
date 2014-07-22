@@ -316,6 +316,8 @@ static const char *strategy_str(block_allocator::allocation_strategy strategy) {
     switch (strategy) {
     case block_allocator::allocation_strategy::BA_STRATEGY_FIRST_FIT:
         return "first-fit";
+    case block_allocator::allocation_strategy::BA_STRATEGY_BEST_FIT:
+        return "best-fit";
     default:
         abort();
     }
