@@ -214,7 +214,7 @@ extern native_mutexattr_t my_errorcheck_mutexattr;
 #define ESRCH 1
 #endif
 
-typedef ulong my_thread_id;
+typedef uint32 my_thread_id;
 
 extern my_bool my_thread_global_init(void);
 extern void my_thread_global_reinit(void);

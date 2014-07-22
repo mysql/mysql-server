@@ -59,7 +59,7 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
   DBUG_ASSERT(!executed_gtids.contains_gtid(gtid));
   DBUG_PRINT("info", ("group=%d:%lld", gtid.sidno, gtid.gno));
   DBUG_ASSERT(thd->owned_gtid.sidno == 0);
-  if (owned_gtids.add_gtid_owner(gtid, thd->thread_id) != RETURN_STATUS_OK)
+  if (owned_gtids.add_gtid_owner(gtid, thd->thread_id()) != RETURN_STATUS_OK)
     goto err2;
   if (thd->get_gtid_next_list() != NULL)
   {
@@ -371,10 +371,10 @@ int Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* timeo
   DBUG_ENTER("Gtid_state::wait_for_gtid");
   int error= 0;
   PSI_stage_info old_stage;
-  DBUG_PRINT("info", ("SIDNO=%d GNO=%lld owner(sidno,gno)=%lu thread_id=%lu",
+  DBUG_PRINT("info", ("SIDNO=%d GNO=%lld owner(sidno,gno)=%u thread_id=%u",
                       gtid.sidno, gtid.gno,
-                      owned_gtids.get_owner(gtid), thd->thread_id));
-  DBUG_ASSERT(owned_gtids.get_owner(gtid) != thd->thread_id);
+                      owned_gtids.get_owner(gtid), thd->thread_id()));
+  DBUG_ASSERT(owned_gtids.get_owner(gtid) != thd->thread_id());
   sid_locks.enter_cond(thd, gtid.sidno,
                        &stage_waiting_for_gtid_to_be_written_to_binary_log,
                        &old_stage);

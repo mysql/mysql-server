@@ -624,6 +624,8 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   }
 
   end= my_stpnmov(end, server_version, SERVER_VERSION_LENGTH) + 1;
+
+  DBUG_ASSERT(sizeof(my_thread_id) == 4);
   int4store((uchar*) end, mpvio->thread_id);
   end+= 4;
 
@@ -2114,7 +2116,7 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->mem_root= thd->mem_root;
   mpvio->scramble= thd->scramble;
   mpvio->rand= &thd->rand;
-  mpvio->thread_id= thd->thread_id;
+  mpvio->thread_id= thd->thread_id();
   mpvio->server_status= &thd->server_status;
   mpvio->net= &thd->net;
   mpvio->ip= (char *) thd->security_ctx->get_ip()->ptr();
