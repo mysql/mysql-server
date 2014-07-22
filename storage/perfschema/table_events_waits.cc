@@ -236,14 +236,17 @@ int table_events_waits_common::make_table_object_columns(PFS_events_waits *wait)
     /* INDEX NAME */
     safe_index= wait->m_index;
     uint safe_key_count= sanitize_index_count(safe_table_share->m_key_count);
-    if (safe_index < safe_key_count)
+    if (safe_index < safe_key_count && safe_table_share->m_index_stat[safe_index] != NULL)
     {
-      PFS_table_key *key= & safe_table_share->m_keys[safe_index];
-      m_row.m_index_name_length= key->m_name_length;
+//      PFS_table_key *key= & safe_table_share->m_keys[safe_index];
+      PFS_table_share_index *index_stat= safe_table_share->m_index_stat[safe_index];
+//      m_row.m_index_name_length= key->m_name_length;
+      m_row.m_index_name_length= index_stat->m_key.m_name_length;
       if (unlikely((m_row.m_index_name_length == 0) ||
                    (m_row.m_index_name_length > sizeof(m_row.m_index_name))))
         return 1;
-      memcpy(m_row.m_index_name, key->m_name, m_row.m_index_name_length);
+//      memcpy(m_row.m_index_name, key->m_name, m_row.m_index_name_length);
+      memcpy(m_row.m_index_name, index_stat->m_key.m_name, m_row.m_index_name_length);
     }
     else
       m_row.m_index_name_length= 0;
