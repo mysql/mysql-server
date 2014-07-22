@@ -587,7 +587,7 @@ public:
 	@param[in]	n_elements	new number of elements to allocate
 	@param[in]	file		file name of the caller
 	@return newly allocated memory */
-	void*
+	pointer
 	reallocate(
 		void*		ptr,
 		size_type	n_elements,
