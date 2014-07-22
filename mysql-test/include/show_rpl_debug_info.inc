@@ -90,7 +90,8 @@ while ($_rpl_server)
   SELECT @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_EXECUTED, @@SESSION.GTID_OWNED;
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
-  query_vertical SHOW SLAVE STATUS;
+  --echo **** In multisource replication, information on all channels ****
+  query_vertical SHOW SLAVE STATUS
   --echo
   --echo **** SHOW MASTER STATUS on $CURRENT_CONNECTION ****
   query_vertical SHOW MASTER STATUS;

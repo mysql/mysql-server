@@ -58,6 +58,10 @@
 
 if (!$rpl_skip_sync)
 {
+  if ($rpl_multi_source)
+  {
+    --die ERROR IN TEST: When $rpl_multi_source=1, rpl_reset.inc requires $rpl_skip_sync=1 (and instead of relying on rpl_reset.inc calling rpl_sync.inc for you, you must manually sync all servers using sync_slave_sql_with_master.inc or equivalent).
+  }
   --source include/rpl_sync.inc
 }
 

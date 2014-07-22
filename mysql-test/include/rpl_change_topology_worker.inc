@@ -93,8 +93,10 @@ if (!$_rctw_skip)
   }
 
   --replace_regex /[0-9]{4}/####/
-  eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rctw_port, MASTER_USER = 'root', $_rctw_position MASTER_CONNECT_RETRY = 1;
+  eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rctw_port, MASTER_USER = 'root', $_rctw_position MASTER_CONNECT_RETRY = 1 $rpl_for_channel_clause;
 }
+
+# TODO: have to change this for new syntax
 
 if ($_rctw_skip)
 {
@@ -113,7 +115,7 @@ if (!$_rctw_skip)
 {
   # This un-configures the server so that it's not a slave.
   # After BUG#28796, such configuration is not possible any more.
-  #CHANGE MASTER TO MASTER_HOST = '';
+  #CHANGE MASTER TO MASTER_HOST = '' $rpl_for_channel_clause;
 }
 
 

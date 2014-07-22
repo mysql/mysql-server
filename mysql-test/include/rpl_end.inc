@@ -88,6 +88,10 @@ while ($_rpl_server)
 
 if (!$rpl_skip_sync)
 {
+  if ($rpl_multi_source)
+  {
+    --die ERROR IN TEST: When $rpl_multi_source=1, rpl_end.inc requires $rpl_skip_sync=1 (and instead of relying on rpl_reset.inc calling rpl_sync.inc for you, you must manually sync all servers using sync_slave_sql_with_master.inc or equivalent).
+  }
   --source include/rpl_sync.inc
 }
 
@@ -98,6 +102,15 @@ if (!$rpl_skip_sync)
 --let $use_gtids= 0
 --source include/rpl_change_topology.inc
 --let $rpl_topology= none
+
+# Restore the server state by deleting all channels
+if ($rpl_multi_source)
+{
+ --let $rpl_reset_slave_all= 1
+ --let $rpl_source_file= include/rpl_reset_slave_worker.inc
+ --source include/rpl_for_each_connection.inc
+ --let $rpl_reset_slave_all= 0
+}
 
 
 --connection default

@@ -43,6 +43,7 @@
 #
 #    [--let $rpl_server_count= 7]
 #    --let $rpl_topology= 1->2->3->1->4, 2->5, 6->7
+#    [--let $rpl_multi_source= 1]
 #    [--let $rpl_extra_connections_per_server= 1]
 #    [--let $rpl_check_server_ids= 1]
 #    [--let $rpl_skip_change_master= 1]
@@ -67,6 +68,14 @@
 #      This file will configure S(i+1) to be a slave of S(i).  If you
 #      want to specify the empty topology (no server replicates at
 #      all), you have to set $rpl_topology=none.
+#
+#    $rpl_multi_source
+#      By default, multi-source topologies are not allowed, and the
+#      default channel is used always.  To enable multi-source, set
+#      $rpl_multi_source=1.  Then, the empty channel is never used,
+#      and the channel for connecting to server N is named
+#      'channel_N'.  However, rpl_sync.inc is not usable in this case,
+#      and rpl_end.inc must be used with the parameter.
 #
 #    $rpl_extra_connections_per_server
 #      By default, this script creates connections server_N and
