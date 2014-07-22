@@ -959,7 +959,7 @@ void block_table::get_fragmentation_unlocked(TOKU_DB_FRAGMENTATION report) {
 
     struct translation *checkpointed = &_checkpointed;
     for (int64_t i = 0; i < checkpointed->length_of_array; i++) {
-        struct block_translation_pair *pair = &_checkpointed.block_translation[i];
+        struct block_translation_pair *pair = &checkpointed->block_translation[i];
         if (pair->size > 0 && !(i < current->length_of_array &&
                                 current->block_translation[i].size > 0 &&
                                 current->block_translation[i].u.diskoff == pair->u.diskoff)) {
@@ -970,7 +970,7 @@ void block_table::get_fragmentation_unlocked(TOKU_DB_FRAGMENTATION report) {
 
     struct translation *inprogress = &_inprogress;
     for (int64_t i = 0; i < inprogress->length_of_array; i++) {
-        struct block_translation_pair *pair = &_inprogress.block_translation[i];
+        struct block_translation_pair *pair = &inprogress->block_translation[i];
         if (pair->size > 0 && !(i < current->length_of_array &&
                                 current->block_translation[i].size > 0 &&
                                 current->block_translation[i].u.diskoff == pair->u.diskoff) &&
