@@ -435,7 +435,7 @@ struct RecID {
 	ib_uint32_t		m_page_no;
 
 	/**
-	Heap number with the page */
+	Heap number within the page */
 	ib_uint32_t		m_heap_no;
 
 	/**
@@ -543,7 +543,6 @@ public:
 	transaction (cannot rollback) then jump ahead in the record lock wait
 	queue and if the transaction at the head of the queue is itself waiting
 	roll it back. 
-	@param[out] lock		The new lock to create
 	@param[in, out] wait_for	The lock that the the joining
 					transaction is waiting for
 	@param[in] prdt			Predicate [optional]
@@ -634,7 +633,8 @@ private:
 	/**
 	Add the lock to the record lock hash and the transaction's lock list
 	@param[in,out] lock	Newly created record lock to add to the
-				rec hash and the transaction lock list */
+				rec hash and the transaction lock list
+	@param[in] add_to_hash	If the lock should be added to the hash table */
 	void lock_add(lock_t* lock, bool add_to_hash);
 
 	/**
@@ -653,11 +653,6 @@ private:
 	@param[in,out] lock		Lock being requested
 	@return DB_LOCK_WAIT, DB_DEADLOCK or DB_SUCCESS_LOCKED_REC */
 	dberr_t check_deadlock_result(const trx_t* victim_trx, lock_t* lock);
-
-	/**
-	Do any post lock wait checks here
-	@return DB_LOCK_WAIT */
-	dberr_t commit(lock_t* lock);
 
 	/**
 	Setup the context from the requirements */
@@ -684,7 +679,7 @@ private:
 	}
 
 	/**
-	Calculate the record lock physical size required.
+	Calculate the record lock physical size required for a predicate lock.
 	@param[in] mode For predicate locks the lock mode
 	@return the size of the lock data structure required in bytes */
 	static size_t lock_size(ulint mode)
@@ -720,7 +715,7 @@ private:
 	}
 
 	/**
-	Calculate the record lock physical size required.
+	Calculate the record lock physical size required, non-predicate lock.
 	@param[in] page		For non-predicate locks the buffer page
 	@return the size of the lock data structure required in bytes */
 	static size_t lock_size(const page_t* page)
@@ -733,7 +728,8 @@ private:
 	}
 
 	/**
-	@return true if the requested lock mode is for a predicate lock */
+	@return true if the requested lock mode is for a predicate
+		or page lock */
 	static bool is_predicate_lock(ulint mode)
 	{
 		return(mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
