@@ -137,21 +137,6 @@ InnoDB:
 #include "ut0mem.h" /* OUT_OF_MEMORY_MSG */
 #include "ut0ut.h" /* ut_strcmp_functor */
 
-/** Map used for default performance schema keys, based on file name of the
-caller. The key is the file name of the caller and the value is a pointer
-to a PSI_memory_key variable to be passed to performance schema methods.
-We use ut_strcmp_functor because by default std::map will compare the pointers
-themselves (cont char*) and not do strcmp(). */
-typedef std::map<const char*, PSI_memory_key*, ut_strcmp_functor>
-	mem_keys_auto_t;
-
-/** Map of filename/pfskey, used for tracing allocations that have not
-provided a manually created pfs key. This map is only ever modified (bulk
-insert) at startup in a single-threaded environment by ut_new_boot().
-Later it is only read (only std::map::find() is called) from multithreaded
-environment, thus it is not protected by any latch. */
-extern mem_keys_auto_t	mem_keys_auto;
-
 /** Keys for registering allocations with performance schema.
 mem_key_other and mem_key_std are special in the following way (see also
 ut_allocator::get_mem_key()):
@@ -172,6 +157,25 @@ extern PSI_memory_key	mem_key_row_merge_sort;
 extern PSI_memory_key	mem_key_std;
 extern PSI_memory_key	mem_key_sync_debug_latches;
 extern PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
+
+#ifdef UNIV_PFS_MEMORY
+
+/** Map used for default performance schema keys, based on file name of the
+caller. The key is the file name of the caller and the value is a pointer
+to a PSI_memory_key variable to be passed to performance schema methods.
+We use ut_strcmp_functor because by default std::map will compare the pointers
+themselves (cont char*) and not do strcmp(). */
+typedef std::map<const char*, PSI_memory_key*, ut_strcmp_functor>
+	mem_keys_auto_t;
+
+/** Map of filename/pfskey, used for tracing allocations that have not
+provided a manually created pfs key. This map is only ever modified (bulk
+insert) at startup in a single-threaded environment by ut_new_boot().
+Later it is only read (only std::map::find() is called) from multithreaded
+environment, thus it is not protected by any latch. */
+extern mem_keys_auto_t	mem_keys_auto;
+
+#endif /* UNIV_PFS_MEMORY */
 
 /** Setup the internal objects needed for UT_NEW() to operate.
 This must be called before the first call to UT_NEW(). */
@@ -221,12 +225,16 @@ PSI_memory_info	pfs_info[] = {
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
 };
 
+#ifdef UNIV_PFS_MEMORY
+
 /** Map of filename/pfskey, used for tracing allocations that have not
 provided a manually created pfs key. This map is only ever modified (bulk
 insert) at startup in a single-threaded environment by ut_new_boot().
 Later it is only read (only std::map::find() is called) from multithreaded
 environment, thus it is not protected by any latch. */
 mem_keys_auto_t	mem_keys_auto;
+
+#endif /* UNIV_PFS_MEMORY */
 
 /** Setup the internal objects needed for UT_NEW() to operate.
 This must be called before the first call to UT_NEW(). */
