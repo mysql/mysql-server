@@ -24,6 +24,12 @@
 #     stop only the threads that are running.  See
 #     include/rpl_sync.inc and include/stop_slave.inc for details.
 #
+#   $rpl_skip_sync
+#     By default, all slaves are synced using rpl_sync.inc. Set this
+#     option to 1 to disable this behavior (note that you must
+#     manually sync all servers in this case). Normally you want to
+#     sync, but you need to disable sync if you use multi-source.
+#
 #   $rpl_debug
 #     See include/rpl_init.inc
 #
@@ -52,7 +58,10 @@ if (!$rpl_debug)
 }
 
 # Sync
---source include/rpl_sync.inc
+if (!$rpl_skip_sync)
+{
+  --source include/rpl_sync.inc
+}
 
 # STOP SLAVE
 --source include/rpl_stop_slaves.inc
