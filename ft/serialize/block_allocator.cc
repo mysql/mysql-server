@@ -100,7 +100,7 @@ PATENT RIGHTS GRANT:
 #include "ft/serialize/block_allocator.h"
 #include "ft/serialize/block_allocator_strategy.h"
 
-#if 0
+#if TOKU_DEBUG_PARANOID
 #define VALIDATE() validate()
 #else
 #define VALIDATE()
@@ -180,19 +180,18 @@ void block_allocator::create_from_blockpairs(uint64_t reserve_at_beginning, uint
                                              struct blockpair *pairs, uint64_t n_blocks) {
     _create_internal(reserve_at_beginning, alignment);
 
-    for (uint64_t i = 0; i < _n_blocks; i++) {
-        // Allocator does not support size 0 blocks. See block_allocator_free_block.
-        invariant(pairs[i].size > 0);
-        invariant(pairs[i].offset >= _reserve_at_beginning);
-        invariant(pairs[i].offset % _alignment == 0);
-
-        _n_bytes_in_use += pairs[i].size;
-    }
     _n_blocks = n_blocks;
-
     grow_blocks_array_by(_n_blocks);
     memcpy(_blocks_array, pairs, _n_blocks * sizeof(struct blockpair));
     qsort(_blocks_array, _n_blocks, sizeof(struct blockpair), compare_blockpairs);
+    for (uint64_t i = 0; i < _n_blocks; i++) {
+        // Allocator does not support size 0 blocks. See block_allocator_free_block.
+        invariant(_blocks_array[i].size > 0);
+        invariant(_blocks_array[i].offset >= _reserve_at_beginning);
+        invariant(_blocks_array[i].offset % _alignment == 0);
+
+        _n_bytes_in_use += _blocks_array[i].size;
+    }
 
     VALIDATE();
 }
