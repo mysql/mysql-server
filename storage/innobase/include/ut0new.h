@@ -138,6 +138,8 @@ InnoDB:
 #include "ut0ut.h" /* ut_strcmp_functor */
 
 /** Keys for registering allocations with performance schema.
+Pointers to these variables are supplied to PFS code via the pfs_info[]
+array and the PFS code initializes them via PSI_MEMORY_CALL(register_memory)().
 mem_key_other and mem_key_std are special in the following way (see also
 ut_allocator::get_mem_key()):
 * If the caller has not provided a key and the file name of the caller is
