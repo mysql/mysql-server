@@ -125,12 +125,12 @@ performance_schema	(pfs_file_handle).memory	262144
 performance_schema	events_waits_summary_by_thread_by_event_name.size	32
 performance_schema	events_waits_summary_by_thread_by_event_name.count	192000
 performance_schema	events_waits_summary_by_thread_by_event_name.memory	6144000
-performance_schema	(pfs_table_share).size	12992
+performance_schema	(pfs_table_share).size	1024
 performance_schema	(pfs_table_share).count	12500
-performance_schema	(pfs_table_share).memory	162400000
-performance_schema	(pfs_table).size	1088
+performance_schema	(pfs_table_share).memory	12800000
+performance_schema	(pfs_table).size	9216
 performance_schema	(pfs_table).count	800
-performance_schema	(pfs_table).memory	870400
+performance_schema	(pfs_table).memory	7372800
 performance_schema	setup_actors.size	256
 performance_schema	setup_actors.count	100
 performance_schema	setup_actors.memory	25600
@@ -282,23 +282,23 @@ performance_schema	events_transactions_summary_by_user_by_event_name.memory	8800
 performance_schema	events_transactions_summary_by_host_by_event_name.size	88
 performance_schema	events_transactions_summary_by_host_by_event_name.count	100
 performance_schema	events_transactions_summary_by_host_by_event_name.memory	8800
-performance_schema	(pfs_table_stat).size	984
+performance_schema	(pfs_table_stat).size	328
 performance_schema	(pfs_table_stat).count	1000
-performance_schema	(pfs_table_stat).memory	984000
-performance_schema	(pfs_index_stat).size	136
+performance_schema	(pfs_table_stat).memory	328000
+performance_schema	(pfs_index_stat).size	336
 performance_schema	(pfs_index_stat).count	1000
-performance_schema	(pfs_index_stat).memory	136000
-performance_schema	performance_schema.memory	406636264
+performance_schema	(pfs_index_stat).memory	336000
+performance_schema	performance_schema.memory	263082664
 select * from performance_schema.memory_summary_global_by_event_name
 where event_name='memory/performance_schema/internal_buffers';
 EVENT_NAME	memory/performance_schema/internal_buffers
 COUNT_ALLOC	62
 COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	406636264
+SUM_NUMBER_OF_BYTES_ALLOC	263082664
 SUM_NUMBER_OF_BYTES_FREE	0
 LOW_COUNT_USED	62
 CURRENT_COUNT_USED	62
 HIGH_COUNT_USED	62
-LOW_NUMBER_OF_BYTES_USED	406636264
-CURRENT_NUMBER_OF_BYTES_USED	406636264
-HIGH_NUMBER_OF_BYTES_USED	406636264
+LOW_NUMBER_OF_BYTES_USED	263082664
+CURRENT_NUMBER_OF_BYTES_USED	263082664
+HIGH_NUMBER_OF_BYTES_USED	263082664
