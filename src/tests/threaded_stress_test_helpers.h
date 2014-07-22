@@ -1077,6 +1077,16 @@ static int UU() keyrange_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), voi
     return r;
 }
 
+static int UU() frag_op(DB_TXN *UU(txn), ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
+    int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
+    DB *db = arg->dbp[db_index];
+
+    TOKU_DB_FRAGMENTATION_S frag;
+    int r = db->get_fragmentation(db, &frag);
+    invariant_zero(r);
+    return r;
+}
+
 static void UU() get_key_after_bytes_callback(const DBT *UU(end_key), uint64_t UU(skipped), void *UU(extra)) {
     // nothing
 }
