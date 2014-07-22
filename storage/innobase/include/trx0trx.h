@@ -806,7 +806,7 @@ owning thread. This flag is relevant only if TRX_FORCE_ROLLBACK
 is set.  */
 static const ib_uint32_t TRX_FORCE_ROLLBACK_ASYNC = 1 << 29;
 
-/** State of the forced rollback. This flag is only only if
+/** State of the forced rollback. This flag is only if
 TRX_FORCE_ROLLBACK is set */
 static const ib_uint32_t TRX_FORCE_ROLLBACK_COMPLETE = 1 << 30;
 
