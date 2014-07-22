@@ -85,9 +85,9 @@ while ($_rpl_server)
 
 # mtr configures server 2 to be a slave before it runs the test. We
 # have to restore that state now, so we change topology to 1->2.
---let $rpl_topology= none
 --let $use_gtids= 0
 --source include/rpl_change_topology.inc
+--let $rpl_topology= none
 
 
 --connection default
@@ -110,6 +110,7 @@ while ($_rpl_server)
 }
 
 --let $rpl_inited= 0
+--let $_rpl_server_count=
 
 # Do not restore connection, because we have disconnected it.
 --let $skip_restore_connection= 1

@@ -46,37 +46,26 @@
 --let $include_filename= rpl_reset.inc
 --source include/begin_include_file.inc
 
-
 if (!$rpl_debug)
 {
   --disable_query_log
 }
 
-
+# Sync
 --source include/rpl_sync.inc
 
+# STOP SLAVE
+--source include/rpl_stop_slaves.inc
 
-if ($rpl_debug)
-{
-  --echo ---- Stop and reset all servers ----
-}
---let $_rpl_server= $rpl_server_count
-while ($_rpl_server)
-{
-  --let $rpl_connection_name= server_$_rpl_server
-  --source include/rpl_connection.inc
+# RESET SLAVE
+--let $rpl_source_file= include/rpl_reset_slave_worker.inc
+--source include/rpl_for_each_connection.inc
 
-  # Check if this server is configured to have a master
-  if (`SELECT SUBSTRING('$rpl_master_list', 1 + ($_rpl_server - 1) * $rpl_server_count_length, $rpl_server_count_length) != ''`)
-  {
-    --source include/stop_slave.inc
-    RESET SLAVE;
-  }
-  RESET MASTER;
-  --dec $_rpl_server
-}
+# RESET MASTER
+--let $rpl_source_file= include/rpl_reset_master_worker.inc
+--source include/rpl_for_each_server.inc
 
-
+# START SLAVE
 if (!$rpl_no_start_slave)
 {
   --source include/rpl_start_slaves.inc
