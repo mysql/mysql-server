@@ -73,12 +73,12 @@ private:
    Since this context is valid only for one session, there is no need
    to protect this with locks.
   */
-  Session_consistency_gtids_ctx::Ctx_change_listener* listener;
+  Session_consistency_gtids_ctx::Ctx_change_listener* m_listener;
 
 protected:
 
   /*
-     Auxiliar function to determine if GTID collection should take place
+     Auxiliary function to determine if GTID collection should take place
      when it is invoked. It takes into consideration the gtid_mode and
      the current session context.
 
@@ -88,11 +88,11 @@ protected:
   inline bool shall_collect(const THD* thd);
 
   /**
-   Auxiliar function that allows notification of ctx change listeners.
+   Auxiliary function that allows notification of ctx change listeners.
    */
   inline void notify_ctx_change_listener()
   {
-    listener->notify_session_gtids_ctx_change();
+    m_listener->notify_session_gtids_ctx_change();
   }
 
 public:
@@ -107,18 +107,18 @@ public:
   */
   virtual ~Session_consistency_gtids_ctx();
 
+    /**
+   Registers the listener. The pointer MUST not be NULL.
+
+   @param listener a pointer to the listener to register.
+   */
+  void register_ctx_change_listener(Session_consistency_gtids_ctx::Ctx_change_listener* listener);
+
   /**
    Unregisters the listener. The listener MUST have registered previously.
 
    @param listener a pointer to the listener to register.
   */
-  void register_ctx_change_listener(Session_consistency_gtids_ctx::Ctx_change_listener* listener);
-
-  /**
-   Registers the listener. The pointer MUST not be NULL.
-
-   @param listener a pointer to the listener to register.
-   */
   void unregister_ctx_change_listener(Session_consistency_gtids_ctx::Ctx_change_listener* listener);
 
   /**
@@ -127,7 +127,7 @@ public:
 
     @return the set of collected GTIDs so far.
    */
-  inline Gtid_set* state() { return this->m_gtid_set; }
+  inline Gtid_set* state() { return m_gtid_set; }
 
   /**
      This function MUST be called after the response packet is set to the

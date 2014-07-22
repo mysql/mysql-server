@@ -9,5 +9,4 @@
 --source include/have_debug.inc
 
 # the actual test
---let $has_gtids=1
 --source suite/binlog/include/binlog_gtid_mix_response_packet.inc

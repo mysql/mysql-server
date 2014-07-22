@@ -221,7 +221,24 @@ class Session_gtids_ctx_encoder
 public:
   Session_gtids_ctx_encoder() {}
   virtual ~Session_gtids_ctx_encoder() {};
+
+  /*
+   This function SHALL encode the collected GTIDs into the buffer.
+   @param thd The session context.
+   @param buf The buffer that SHALL contain the encoded data.
+   @return false if the contents were successfully encoded, true otherwise.
+           if the return value is true, then the contents of the buffer is 
+           undefined.
+   */
   virtual bool encode(THD *thd, String& buf)= 0;
+
+  /*
+   This function SHALL return the encoding specification used in the
+   packet sent to the client. The format of the encoded data will differ
+   according to the specification set here.
+
+   @return the encoding specification code.
+   */
   virtual ulonglong encoding_specification()= 0;
 private:
   // not implemented
@@ -304,18 +321,19 @@ class Session_gtids_tracker : public State_tracker, Session_consistency_gtids_ct
 {
 private:
   void reset();
-  Session_gtids_ctx_encoder* encoder;
+  Session_gtids_ctx_encoder* m_encoder;
 
 public:
 
   /** Constructor */
-  Session_gtids_tracker() : Session_consistency_gtids_ctx::Ctx_change_listener(), encoder(NULL)
+  Session_gtids_tracker() : Session_consistency_gtids_ctx::Ctx_change_listener(),
+          m_encoder(NULL)
   { }
 
   ~Session_gtids_tracker()
   {
-    if (this->encoder)
-      delete encoder;
+    if (m_encoder)
+      delete m_encoder;
   }
 
   bool enable(THD *thd)
@@ -1128,6 +1146,13 @@ void store_lenenc_string(String &to, const char *from, size_t length)
 
 bool Session_gtids_tracker::update(THD *thd)
 {
+  /*
+    We are updating this using the previous value. No change needed.
+    Bailing out.
+  */
+  if (m_enabled == (thd->variables.session_track_gtids != OFF))
+    return false;
+
   m_enabled= (thd->variables.session_track_gtids != OFF)? true: false;
   if (m_enabled)
   {
@@ -1135,7 +1160,7 @@ bool Session_gtids_tracker::update(THD *thd)
     thd->rpl_thd_ctx.session_gtids_ctx().register_ctx_change_listener(this);
 
     // instantiate the encoder if needed
-    if (encoder == NULL)
+    if (m_encoder == NULL)
     {
       /*
        TODO: in the future, there can be a variable to control which
@@ -1146,17 +1171,17 @@ bool Session_gtids_tracker::update(THD *thd)
 
        Right now, by default we instantiate the encoder that has.
       */
-      encoder= new Session_gtids_ctx_encoder_string();
+      m_encoder= new Session_gtids_ctx_encoder_string();
     }
   }
-  else if (!m_enabled)  // break the bridge between tracker and collector
+  else // break the bridge between tracker and collector
   {
     /* No need to listen to gtids context state changes */
     thd->rpl_thd_ctx.session_gtids_ctx().unregister_ctx_change_listener(this);
 
     // delete the encoder (just to free memory)
-    delete this->encoder; // if not tracking, delete the encoder
-    this->encoder= NULL;
+    delete m_encoder; // if not tracking, delete the encoder
+    m_encoder= NULL;
   }
   return false;
 }
@@ -1177,7 +1202,7 @@ bool Session_gtids_tracker::update(THD *thd)
 
 bool Session_gtids_tracker::store(THD *thd, String &buf)
 {
-  if (encoder->encode(thd, buf))
+  if (m_encoder->encode(thd, buf))
     return true;
   if (!buf.is_empty())
     reset();
