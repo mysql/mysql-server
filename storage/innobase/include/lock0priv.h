@@ -546,19 +546,28 @@ public:
 	@param[out] lock		The new lock to create
 	@param[in, out] wait_for	The lock that the the joining
 					transaction is waiting for
+	@param[in] prdt			Predicate [optional]
 	@return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
 		DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
 		there was a deadlock, but another transaction was chosen
 		as a victim, and we got the lock immediately: no need to
 		wait then */
-	dberr_t add_to_waitq(const lock_t* wait_for);
+	dberr_t add_to_waitq(
+		const lock_t*	wait_for,
+		const lock_prdt_t*
+				prdt = NULL);
 
 	/**
 	Create a lock for a transaction that.
 	@param[in, out] trx		Transaction requesting the new lock
 	@param[in] owns_trx_mutex	true if caller owns the trx_t::mutex
+	@param[in] prdt			Predicate lock (optional)
 	@return new lock instance */
-	lock_t* create(trx_t* trx, bool owns_trx_mutex);
+	lock_t* create(
+		trx_t*		trx,
+		bool		owns_trx_mutex,
+		const lock_prdt_t*
+				prdt = NULL);
 
 	/**
 	Create the lock instance
@@ -582,8 +591,12 @@ private:
 	itself waiting roll it back.
 	@param[in, out] wait_for	The lock that the the joining
 					transaction is waiting for
+	@param[in] prdt			Predicate for the predicate lock
 	@return NULL if the lock was granted */
-	lock_t* enqueue_priority(const lock_t* wait_for);
+	lock_t* enqueue_priority(
+		const lock_t*	wait_for,
+		const lock_prdt_t*
+				prdt);
 
 	/*
 	@return the record lock size in bytes */
