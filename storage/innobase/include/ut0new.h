@@ -395,11 +395,11 @@ public:
 	ut_allocator(
 		const ut_allocator<U>&	other)
 		:
+#ifdef UNIV_PFS_MEMORY
+		m_key(other.get_mem_key(NULL)),
+#endif /* UNIV_PFS_MEMORY */
 		m_max_retries(60)
 	{
-#ifdef UNIV_PFS_MEMORY
-		m_key = other.get_mem_key(NULL);
-#endif /* UNIV_PFS_MEMORY */
 	}
 
 	/** Assignment operator, not used, thus disabled. */
@@ -862,14 +862,14 @@ private:
 	}
 
 	/** Performance schema key. */
-	PSI_memory_key		m_key;
+	const PSI_memory_key	m_key;
 
 #endif /* UNIV_PFS_MEMORY */
 
 private:
 
 	/** Maximum number of retries to allocate memory. */
-	const size_t	m_max_retries;
+	const size_t		m_max_retries;
 };
 
 /** Compare two allocators of the same type.
