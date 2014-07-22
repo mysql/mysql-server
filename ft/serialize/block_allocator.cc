@@ -106,12 +106,32 @@ PATENT RIGHTS GRANT:
 #define VALIDATE()
 #endif
 
-static inline bool ba_trace_enabled() {
-#if 0
-    return true;
-#else
-    return false;
-#endif
+static FILE *ba_trace_file = nullptr;
+
+void block_allocator::maybe_initialize_trace(void) {
+    const char *ba_trace_path = getenv("TOKU_BA_TRACE_PATH");        
+    if (ba_trace_path != nullptr) {
+        ba_trace_file = toku_os_fopen(ba_trace_path, "w");
+        if (ba_trace_file == nullptr) {
+            fprintf(stderr, "tokuft: error: block allocator trace path found in environment (%s), "
+                            "but it could not be opened for writing (errno %d)\n",
+                            ba_trace_path, get_maybe_error_errno());
+        } else {
+            fprintf(stderr, "tokuft: block allocator tracing enabled, path: %s\n", ba_trace_path);
+        }
+    }
+}
+
+void block_allocator::maybe_close_trace() {
+    if (ba_trace_file != nullptr) {
+        int r = toku_os_fclose(ba_trace_file);
+        if (r != 0) {
+            fprintf(stderr, "tokuft: error: block allocator trace file did not close properly (r %d, errno %d)\n",
+                            r, get_maybe_error_errno());
+        } else {
+            fprintf(stderr, "tokuft: block allocator tracing finished, file closed successfully\n");
+        }
+    }
 }
 
 void block_allocator::_create_internal(uint64_t reserve_at_beginning, uint64_t alignment) {
@@ -131,16 +151,16 @@ void block_allocator::_create_internal(uint64_t reserve_at_beginning, uint64_t a
 
 void block_allocator::create(uint64_t reserve_at_beginning, uint64_t alignment) {
     _create_internal(reserve_at_beginning, alignment);
-    if (ba_trace_enabled()) {
-        fprintf(stderr, "ba_trace_create %p\n", this);
+    if (ba_trace_file != nullptr) {
+        fprintf(ba_trace_file, "ba_trace_create %p\n", this);
     }
 }
 
 void block_allocator::destroy() {
     toku_free(_blocks_array);
 
-    if (ba_trace_enabled()) {
-        fprintf(stderr, "ba_trace_destroy %p\n", this);
+    if (ba_trace_file != nullptr) {
+        fprintf(ba_trace_file, "ba_trace_destroy %p\n", this);
     }
 }
 
@@ -264,8 +284,8 @@ done:
     _n_blocks++;
     VALIDATE();
 
-    if (ba_trace_enabled()) {
-        fprintf(stderr, "ba_trace_alloc %p %lu %lu\n",
+    if (ba_trace_file != nullptr) {
+        fprintf(ba_trace_file, "ba_trace_alloc %p %lu %lu\n",
                 this, static_cast<unsigned long>(size), static_cast<unsigned long>(*offset));
     }
 }
@@ -282,11 +302,11 @@ int64_t block_allocator::find_block(uint64_t offset) {
     uint64_t lo = 0;
     uint64_t hi = _n_blocks;
     while (1) {
-        assert(lo<hi); // otherwise no such block exists.
-        uint64_t mid = (lo+hi)/2;
+        assert(lo < hi); // otherwise no such block exists.
+        uint64_t mid = (lo + hi) / 2;
         uint64_t thisoff = _blocks_array[mid].offset;
         if (thisoff < offset) {
-            lo = mid+1;
+            lo = mid + 1;
         } else if (thisoff > offset) {
             hi = mid;
         } else {
@@ -305,13 +325,13 @@ void block_allocator::free_block(uint64_t offset) {
     int64_t bn = find_block(offset);
     assert(bn >= 0); // we require that there is a block with that offset.
     _n_bytes_in_use -= _blocks_array[bn].size;
-    memmove(&_blocks_array[bn], &_blocks_array[bn +1 ],
+    memmove(&_blocks_array[bn], &_blocks_array[bn + 1],
             (_n_blocks - bn - 1) * sizeof(struct blockpair));
     _n_blocks--;
     VALIDATE();
 
-    if (ba_trace_enabled()) {
-        fprintf(stderr, "ba_trace_free %p %lu\n",
+    if (ba_trace_file != nullptr) {
+        fprintf(ba_trace_file, "ba_trace_free %p %lu\n",
                 this, static_cast<unsigned long>(offset));
                 
     }

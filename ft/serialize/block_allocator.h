@@ -215,6 +215,14 @@ public:
     //  report->checkpoint_bytes_additional is ignored on return
     void get_statistics(TOKU_DB_FRAGMENTATION report);
 
+    // Block allocator tracing.
+    // - Enabled by setting TOKU_BA_TRACE_PATH to the file that the trace file
+    //   should be written to.
+    // - Trace may be replayed by ba_trace_replay tool in tools/ directory
+    //   eg: "cat mytracefile | ba_trace_replay"
+    static void maybe_initialize_trace();
+    static void maybe_close_trace();
+
 private:
     void _create_internal(uint64_t reserve_at_beginning, uint64_t alignment);
     void grow_blocks_array_by(uint64_t n_to_add);
