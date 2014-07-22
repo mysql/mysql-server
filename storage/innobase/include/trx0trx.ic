@@ -64,8 +64,7 @@ trx_state_eq(
 
 		ut_ad(!trx->in_rw_trx_list);
 
-		return(state == TRX_STATE_NOT_STARTED
-		       || state == TRX_STATE_FORCED_ROLLBACK);
+		return(true);
 	}
 	ut_error;
 #endif /* UNIV_DEBUG */
