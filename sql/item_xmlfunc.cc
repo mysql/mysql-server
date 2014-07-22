@@ -2358,6 +2358,12 @@ static int my_xpath_parse_MultiplicativeExpr(MY_XPATH *xpath)
 */
 static int my_xpath_parse_UnaryExpr(MY_XPATH *xpath)
 {
+  THD *thd= current_thd;
+  uchar stack_top;
+
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, &stack_top))
+    return 0;
+
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_MINUS))
     return my_xpath_parse_UnionExpr(xpath);
   if (!my_xpath_parse_UnaryExpr(xpath))
