@@ -26,6 +26,7 @@
 #
 # [--let $rpl_server_count= 7]
 # --let $rpl_topology= 1->2->3->1->4, 2->5, 6->7
+# [--let $rpl_multi_source= 1]
 # [--let $use_gtids= 1]
 # [--let $rpl_skip_change_master= 1]
 # [--let $rpl_master_log_file= 1:master-bin.000001,3:master-bin.000003]
@@ -73,7 +74,8 @@
 #     changed the topology without invoking the scripts or if you want
 #     to set some other parameters of CHANGE MASTER.
 #
-#   $rpl_server_count, $rpl_topology, $rpl_debug, $rpl_skip_change_master
+#   $rpl_server_count, $rpl_topology, $rpl_debug,
+#   $rpl_skip_change_master, $rpl_multi_source
 #     See include/rpl_init.inc
 #
 #
@@ -174,10 +176,13 @@ while ($_rpl_topology)
   # Get 's2' from 's1->s2'
   --let $_rpl_slave= `SELECT RPAD(SUBSTRING('$_rpl_master_slave', LENGTH('$_rpl_master') + 3), $rpl_server_count_length, ' ')`
   # Check that s2 does not have another master.
-  if (`SELECT LOCATE('s$_rpl_slave ', '$rpl_connection_list') != 0`)
+  if (!$rpl_multi_source)
   {
-    --echo ERROR IN TEST: Server '$_rpl_slave' has more than one master in topology '$rpl_topology'
-    --die ERROR IN TEST: found a server with more than one master in the $rpl_topology variable
+    if (`SELECT LOCATE('s$_rpl_slave ', '$rpl_connection_list') != 0`)
+    {
+      --echo ERROR IN TEST: Server '$_rpl_slave' has more than one master in topology '$rpl_topology'
+      --die ERROR IN TEST: found a server with more than one master in the $rpl_topology variable
+    }
   }
   # Append 'm<s1> s<s2> ' to $rpl_connection_list
   --let $_rpl_new_connection= m$_rpl_master s$_rpl_slave$_rpl_space
@@ -191,11 +196,8 @@ if ($rpl_debug)
   --echo new \$rpl_connection_count = '$rpl_connection_count'
 }
 
-#--echo RPL_CHANGE_TOPOLOGY
-
 if (!$rpl_skip_change_master)
 {
-#  -- echo RPL_SKIP_CHANGE_MASTER
   if ($rpl_debug)
   {
     --echo ---- Execute CHANGE MASTER on all servers ----
