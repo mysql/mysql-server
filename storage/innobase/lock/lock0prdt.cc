@@ -455,13 +455,7 @@ lock_prdt_add_to_queue(
 
 	RecLock	rec_lock(index, block, PRDT_HEAPNO, type_mode);
 
-	lock = rec_lock.create(trx, caller_owns_trx_mutex);
-
-	if (type_mode & LOCK_PREDICATE) {
-		lock_prdt_set_prdt(lock, prdt);
-	}
-
-	return(lock);
+	return(rec_lock.create(trx, caller_owns_trx_mutex, prdt));
 }
 
 /*********************************************************************//**
@@ -545,9 +539,7 @@ lock_prdt_insert_check_and_lock(
 
 		trx_mutex_enter(trx);
 
-		lock_prdt_set_prdt(lock, prdt);
-
-		err = rec_lock.add_to_waitq(wait_for);
+		err = rec_lock.add_to_waitq(wait_for, prdt);
 
 		trx_mutex_exit(trx);
 
@@ -857,10 +849,6 @@ lock_prdt_lock(
 		RecLock	rec_lock(index, block, PRDT_HEAPNO, prdt_mode);
 
 		lock = rec_lock.create(trx, false);
-
-		if (prdt_mode & LOCK_PREDICATE) {
-			lock_prdt_set_prdt(lock, prdt);
-		}
 
 		status = LOCK_REC_SUCCESS_CREATED;
 

@@ -1526,7 +1526,7 @@ Create a new request
 @param[in] owns_trx_mutex	true if caller owns the trx_t::mutex
 @return a new lock instance */
 lock_t*
-RecLock::create(trx_t* trx, bool owns_trx_mutex)
+RecLock::create(trx_t* trx, bool owns_trx_mutex, const lock_prdt_t* prdt)
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(owns_trx_mutex == trx_mutex_own(trx));
@@ -1534,6 +1534,11 @@ RecLock::create(trx_t* trx, bool owns_trx_mutex)
 	/* Create the explicit lock instance and initialise it. */
 
 	lock_t*	lock = lock_alloc(trx, m_index, m_mode, m_rec_id, m_size);
+
+	if (prdt != NULL && (m_mode & LOCK_PREDICATE)) {
+
+		lock_prdt_set_prdt(lock, prdt);
+	}
 
 	/* Ensure that another transaction doesn't access the trx
 	lock state and lock data structures while we are adding the
@@ -1779,11 +1784,16 @@ roll it back.
 				waiting for
 @return NULL if the lock was granted */
 lock_t*
-RecLock::enqueue_priority(const lock_t* wait_for)
+RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 {
 	/* Create the explicit lock instance and initialise it. */
 
 	lock_t*	lock = lock_alloc(m_trx, m_index, m_mode, m_rec_id, m_size);
+
+	if (prdt != NULL && (m_mode & LOCK_PREDICATE)) {
+
+		lock_prdt_set_prdt(lock, prdt);
+	}
 
 	trx_mutex_enter(wait_for->trx);
 
@@ -1848,7 +1858,7 @@ queue is itself waiting roll it back, also do a deadlock check and resolve.
 	as a victim, and we got the lock immediately: no need to
 	wait then */
 dberr_t
-RecLock::add_to_waitq(const lock_t* wait_for)
+RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(m_trx == thr_get_trx(m_thr));
@@ -1870,7 +1880,7 @@ RecLock::add_to_waitq(const lock_t* wait_for)
 	if (victim_trx == m_trx || victim_trx == NULL) {
 
 		/* Ensure that the wait flag is not set. */
-		lock = create(m_trx, true);
+		lock = create(m_trx, true, prdt);
 
 		/* If a high priority transaction has been selected as
 		a victim there is nothing we can do. */
@@ -1896,7 +1906,7 @@ RecLock::add_to_waitq(const lock_t* wait_for)
 			return(DB_DEADLOCK);
 		}
 
-	} else if ((lock = enqueue_priority(wait_for)) == NULL) {
+	} else if ((lock = enqueue_priority(wait_for, prdt)) == NULL) {
 
 		/* Lock was granted */
 		return(DB_SUCCESS);
