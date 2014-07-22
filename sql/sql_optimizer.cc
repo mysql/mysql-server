@@ -6807,21 +6807,49 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
        Item_direct_view_ref::fix_fields.
     */
 
-    for (uint i= 0; i < in_subq_pred->left_expr->cols(); i++)
+    if (in_subq_pred->left_expr->type() == Item::SUBSELECT_ITEM)
     {
-      nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr->
-                                            element_index(i));
-      nested_join->sj_inner_exprs.push_back(subq_lex->ref_pointer_array[i]);
+      List<Item> ref_list;
+      uint i;
 
-      Item_func_eq *item_eq= 
-        new Item_func_eq(in_subq_pred->left_expr->element_index(i), 
-                         subq_lex->ref_pointer_array[i]);
+      Item *header= subq_lex->ref_pointer_array[0];
+      for (i= 1; i < in_subq_pred->left_expr->cols(); i++)
+      {
+        ref_list.push_back(subq_lex->ref_pointer_array[i]);
+      }
+
+      Item_row *right_expr= new Item_row(header, ref_list);
+
+      nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr);
+      nested_join->sj_inner_exprs.push_back(right_expr);
+      Item_func_eq *item_eq=
+        new Item_func_eq(in_subq_pred->left_expr,
+                         right_expr);
       if (item_eq == NULL)
         DBUG_RETURN(TRUE);
 
       sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
       if (sj_nest->sj_on_expr == NULL)
         DBUG_RETURN(TRUE);
+    }
+    else
+    {
+      for (uint i= 0; i < in_subq_pred->left_expr->cols(); i++)
+      {
+        nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr->
+                                              element_index(i));
+        nested_join->sj_inner_exprs.push_back(subq_lex->ref_pointer_array[i]);
+
+        Item_func_eq *item_eq= 
+          new Item_func_eq(in_subq_pred->left_expr->element_index(i), 
+                           subq_lex->ref_pointer_array[i]);
+        if (item_eq == NULL)
+          DBUG_RETURN(TRUE);
+
+        sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
+        if (sj_nest->sj_on_expr == NULL)
+          DBUG_RETURN(TRUE);
+      }
     }
     /* Fix the created equality and AND */
 
