@@ -19,7 +19,7 @@
 #include "rpl_context.h"
 
 Session_consistency_gtids_ctx::Session_consistency_gtids_ctx() : m_sid_map(NULL),
-        m_gtid_set(NULL), listener(NULL) { }
+        m_gtid_set(NULL), m_listener(NULL) { }
 
 Session_consistency_gtids_ctx::~Session_consistency_gtids_ctx()
 {
@@ -40,7 +40,7 @@ inline bool Session_consistency_gtids_ctx::shall_collect(const THD* thd)
 {
   return  gtid_mode == GTID_MODE_ON &&
           /* if there is no listener/tracker, then there is no reason to collect */
-          this->listener != NULL &&
+          m_listener != NULL &&
           /* ROLLBACK statements may end up calling trans_commit_stmt */
           thd->lex->sql_command != SQLCOM_ROLLBACK &&
           thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT;
@@ -68,7 +68,7 @@ bool Session_consistency_gtids_ctx::notify_after_transaction_commit(const THD* t
     global_sid_lock->unlock();
 
     if (!res)
-      this->notify_ctx_change_listener();
+      notify_ctx_change_listener();
   }
 
   DBUG_RETURN(res);
@@ -111,7 +111,7 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
     }
 
     if (added)
-      this->notify_ctx_change_listener();
+      notify_ctx_change_listener();
   }
   DBUG_RETURN(res);
 }
@@ -133,11 +133,11 @@ void
 Session_consistency_gtids_ctx::register_ctx_change_listener(
               Session_consistency_gtids_ctx::Ctx_change_listener* listener)
 {
-  DBUG_ASSERT(this->listener == NULL || this->listener == listener);
-  if (this->listener == NULL)
+  DBUG_ASSERT(m_listener == NULL || m_listener == listener);
+  if (m_listener == NULL)
   {
     DBUG_ASSERT(m_sid_map == NULL && m_gtid_set == NULL);
-    this->listener= listener;
+    m_listener= listener;
     m_sid_map= new Sid_map(NULL);
     m_gtid_set= new Gtid_set(m_sid_map);
   }
@@ -146,7 +146,7 @@ Session_consistency_gtids_ctx::register_ctx_change_listener(
 void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
              Session_consistency_gtids_ctx::Ctx_change_listener* listener)
 {
-  DBUG_ASSERT(this->listener == listener || this->listener == NULL);
+  DBUG_ASSERT(m_listener == listener || m_listener == NULL);
 
   if (m_gtid_set)
     delete m_gtid_set;
@@ -154,7 +154,7 @@ void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
   if (m_sid_map)
     delete m_sid_map;
 
-  this->listener= NULL;
+  m_listener= NULL;
   m_gtid_set= NULL;
   m_sid_map= NULL;
 }

@@ -1,18 +1,12 @@
 #
 # WL#6972: Collect GTIDs to include in the protocol's OK packet
-#
 
-# need debug build to access the special session status var
---source include/have_debug.inc
-
-#
 # The test goes like this:
 # 1. Statements are executed and depending whether they are
 #    updates or not, they get GTID assigned
-# 2. After each statement, we check the content of the
-#    session status var Session_track_gtids_saved
-# 3. Then compare it against one is expecting the outcome to
-#    be
+# 2. After each statement, we track the contents of the return packet.
+#    They are saved to the result file.
+#
 #
 # Scenarios tested:
 # 1. DDL
@@ -27,12 +21,6 @@
 
 --let $uuid= `SELECT @@server_uuid`
 --let $i=3
-
-if (`SELECT '$has_gtids' <> '0' and '$has_gtids' <> '1'`)
-{
-  --echo Must set \$has_gtids={1|0} (\$has_gtids=$has_gtids)
-  --die
-}
 
 --enable_session_track_info
 
@@ -67,7 +55,7 @@ while($i)
   INSERT INTO t1 VALUES (2);
   CREATE TABLE t2 (c1 INT) Engine=InnoDB;
 
-  # RO transaction
+  # Testing RO transaction following a RW transaction
 
   # transaction $uuid:5
   INSERT INTO t2 VALUES (1);

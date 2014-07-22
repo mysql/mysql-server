@@ -12,5 +12,4 @@
 --source include/have_debug.inc
 
 # the actual negative test
---let $has_gtids=0
 --source suite/binlog/include/binlog_gtid_mix_response_packet.inc
