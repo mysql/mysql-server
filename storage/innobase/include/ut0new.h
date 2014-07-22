@@ -423,7 +423,13 @@ public:
 	size_type
 	max_size() const
 	{
-		return(std::numeric_limits<size_type>::max() / sizeof(T));
+		const size_type	s_max = std::numeric_limits<size_type>::max();
+
+#ifdef UNIV_PFS_MEMORY
+		return((s_max - sizeof(ut_new_pfx_t)) / sizeof(T));
+#else
+		return(s_max / sizeof(T));
+#endif /* UNIV_PFS_MEMORY */
 	}
 
 	/** Allocate a chunk of memory that can hold 'n_elements' objects of
