@@ -642,6 +642,9 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   /* Temporary set for register_used_fields and register_field_in_read_map */
   sort_form->read_set= &sort_form->tmp_set;
   register_used_fields(param);
+  if (quick_select)
+    select->quick->add_used_key_part_to_set(sort_form->read_set);
+
   Item *sort_cond= !select ?  
                      0 : !select->pre_idx_push_select_cond ? 
                            select->cond : select->pre_idx_push_select_cond;

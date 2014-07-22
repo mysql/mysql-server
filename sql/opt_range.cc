@@ -10538,6 +10538,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   if (quick->init())
     goto err;
   quick->records= records;
+  quick->max_used_key_length= ref->key_parts;
 
   if ((cp_buffer_from_ref(thd, table, ref) && thd->is_fatal_error) ||
       !(range= new(alloc) QUICK_RANGE()))
@@ -10547,7 +10548,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   range->min_length= range->max_length= ref->key_length;
   range->min_keypart_map= range->max_keypart_map=
     make_prev_keypart_map(ref->key_parts);
-  range->flag= (ref->key_length == key_info->key_length ? EQ_RANGE : 0);
+  range->flag= EQ_RANGE;
 
   if (!(quick->key_parts=key_part=(KEY_PART *)
 	alloc_root(&quick->alloc,sizeof(KEY_PART)*ref->key_parts)))
@@ -11752,6 +11753,60 @@ void QUICK_ROR_UNION_SELECT::add_keys_and_lengths(String *key_names,
       key_names->append(',');
     }
     quick->add_keys_and_lengths(key_names, used_lengths);
+  }
+}
+
+
+void QUICK_RANGE_SELECT::add_used_key_part_to_set(MY_BITMAP *col_set)
+{
+  for (uint i=0; i < max_used_key_length; i++)
+  {
+    bitmap_set_bit(col_set, key_parts[i].field->field_index);
+  }
+}
+
+
+void QUICK_GROUP_MIN_MAX_SELECT::add_used_key_part_to_set(MY_BITMAP *col_set)
+{
+  for (uint i=0; i < max_used_key_length; i++)
+  {
+    bitmap_set_bit(col_set, index_info->key_part[i].field->field_index);
+  }
+}
+
+
+void QUICK_ROR_INTERSECT_SELECT::add_used_key_part_to_set(MY_BITMAP *col_set)
+{
+  List_iterator_fast<QUICK_SELECT_WITH_RECORD> it(quick_selects);
+  QUICK_SELECT_WITH_RECORD *quick;
+  while ((quick= it++))
+  {
+    quick->quick->add_used_key_part_to_set(col_set);
+  }
+}
+
+
+void QUICK_INDEX_SORT_SELECT::add_used_key_part_to_set(MY_BITMAP *col_set)
+{
+  QUICK_RANGE_SELECT *quick;
+  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+  while ((quick= it++))
+  {
+    quick->add_used_key_part_to_set(col_set);
+  }
+  if (pk_quick_select)
+    pk_quick_select->add_used_key_part_to_set(col_set);
+}
+
+
+void QUICK_ROR_UNION_SELECT::add_used_key_part_to_set(MY_BITMAP *col_set)
+{
+  QUICK_SELECT_I *quick;
+  List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
+
+  while ((quick= it++))
+  {
+    quick->add_used_key_part_to_set(col_set);
   }
 }
 
