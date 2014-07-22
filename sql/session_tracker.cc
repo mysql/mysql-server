@@ -227,7 +227,7 @@ public:
    @param thd The session context.
    @param buf The buffer that SHALL contain the encoded data.
    @return false if the contents were successfully encoded, true otherwise.
-           if the return value is true, then the contents of the buffer is 
+           if the return value is true, then the contents of the buffer is
            undefined.
    */
   virtual bool encode(THD *thd, String& buf)= 0;

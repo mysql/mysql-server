@@ -174,7 +174,7 @@ enum_return_status Gtid_state::update_on_flush(THD *thd)
       git.next();
       g= git.get();
     }
-    
+
     if (ret == RETURN_STATUS_OK && !thd->owned_gtid_set.is_empty())
       if ((thd->rpl_thd_ctx.session_gtids_ctx().
         notify_after_gtid_executed_update(thd)))
