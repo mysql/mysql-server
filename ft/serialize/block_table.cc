@@ -882,6 +882,8 @@ int block_table::iterate(enum translation_type type,
     }
 
     struct translation fakecurrent;
+    memset(&fakecurrent, 0, sizeof(struct translation));
+
     struct translation *t = &fakecurrent;
     if (r == 0) {
         _mutex_lock();
