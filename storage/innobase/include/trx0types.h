@@ -40,12 +40,31 @@ Created 3/26/1996 Heikki Tuuri
 
 /** maximum length that a formatted trx_t::id could take, not including
 the terminating NUL character. */
-#define TRX_ID_MAX_LEN		17
+static const ulint TRX_ID_MAX_LEN = 17;
 
 /** Space id of the transaction system page (the system tablespace) */
-#define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
+static const ulint TRX_SYS_SPACE = 0;
+
 /** Page number of the transaction system page */
-#define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
+#define TRX_SYS_PAGE_NO		FSP_TRX_SYS_PAGE_NO
+
+/** Random value to check for corruption of trx_t */
+static const ulint TRX_MAGIC_N = 91118598;
+
+/** Was the transaction rolled back asynchronously or by the
+owning thread. This flag is relevant only if TRX_FORCE_ROLLBACK
+is set.  */
+static const ib_uint32_t TRX_FORCE_ROLLBACK_ASYNC = 1 << 29;
+
+/** State of the forced rollback. This flag is only if
+TRX_FORCE_ROLLBACK is set */
+static const ib_uint32_t TRX_FORCE_ROLLBACK_COMPLETE = 1 << 30;
+
+/** Mark the transaction for forced rollback */
+static const ib_uint32_t TRX_FORCE_ROLLBACK = 1 << 31;
+
+/** For masking out the above three flags */
+static const ib_uint32_t TRX_FORCE_ROLLBACK_MASK = 0x1FFFFFFF;
 
 /** Transaction execution states when trx->state == TRX_STATE_ACTIVE */
 enum trx_que_t {

@@ -58,7 +58,7 @@ trx_state_eq(
 	case TRX_STATE_NOT_STARTED:
 	case TRX_STATE_FORCED_ROLLBACK:
 
-		/* These states is not allowed for running transactions. */
+		/* These states are not allowed for running transactions. */
 		ut_a(state == TRX_STATE_NOT_STARTED
 		     || state == TRX_STATE_FORCED_ROLLBACK);
 
