@@ -1026,17 +1026,17 @@ ut_delete_array(
 
 /* Fallbacks when memory tracing is disabled at compile time. */
 
-#define UT_NEW(expr, key)		new(std::nothrow) expr
-#define UT_NEW_NOKEY(expr)		new(std::nothrow) expr
-#define UT_DELETE(ptr)			delete ptr
+#define UT_NEW(expr, key)		::new(std::nothrow) expr
+#define UT_NEW_NOKEY(expr)		::new(std::nothrow) expr
+#define UT_DELETE(ptr)			::delete ptr
 
 #define UT_NEW_ARRAY(type, n_elements, key) \
-	new(std::nothrow) type[n_elements]
+	::new(std::nothrow) type[n_elements]
 
 #define UT_NEW_ARRAY_NOKEY(type, n_elements) \
-	new(std::nothrow) type[n_elements]
+	::new(std::nothrow) type[n_elements]
 
-#define UT_DELETE_ARRAY(ptr)		delete[] ptr
+#define UT_DELETE_ARRAY(ptr)		::delete[] ptr
 
 #define ut_malloc(n_bytes, key)		::malloc(n_bytes)
 
