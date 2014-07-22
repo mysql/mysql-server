@@ -412,12 +412,6 @@ public:
 	{
 	}
 
-	/** Assignment operator, not used, thus disabled. */
-	template <class U>
-	ut_allocator&
-	operator=(
-		const ut_allocator<U>&);
-
 	/** Return the maximum number of objects that can be allocated by
 	this allocator. */
 	size_type
@@ -883,6 +877,12 @@ private:
 #endif /* UNIV_PFS_MEMORY */
 
 private:
+
+	/** Assignment operator, not used, thus disabled (private). */
+	template <class U>
+	void
+	operator=(
+		const ut_allocator<U>&);
 
 	/** Maximum number of retries to allocate memory. */
 	const size_t		m_max_retries;
