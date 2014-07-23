@@ -4043,6 +4043,12 @@ static inline char* process_get_command(conn *c, token_t *tokens, size_t ntokens
     token_t *key_token = &tokens[KEY_TOKEN];
     assert(c != NULL);
 
+    /* We temporarily block the mgets commands till wl6650 checked in. */
+    if ((key_token + 1)->length > 0) {
+	out_string(c, "We temporarily don't support multiple get option.");
+	return NULL;
+    }
+
     do {
         while(key_token->length != 0) {
 
