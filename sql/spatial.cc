@@ -3080,8 +3080,8 @@ const Geometry::Class_info *Gis_multi_polygon::get_class_info() const
 
 
 /**
-  Append geometry into geometry collection.
-  @param geo geometry to be appended.
+  Append geometry into geometry collection which can be empty.
+  @param geo geometry to be appended, it can't be empty.
   @param gcbuf this geometry collection's data buffer, it's of GEOMETRY format
          and is a separate String buffer.
   @return false if no error, otherwise true.
@@ -3091,11 +3091,22 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
                                               String *gcbuf)
 {
   uint32 collection_len= gcbuf->length(), geo_len= geo->get_data_size();
-  DBUG_ASSERT(get_data_size() == collection_len - GEOM_HEADER_SIZE);
-  if (gcbuf->reserve(geo_len + WKB_HEADER_SIZE))
+  if (geo_len == GET_SIZE_ERROR)
+    return true;
+  DBUG_ASSERT(collection_len == 0 ||
+              get_data_size() == collection_len - GEOM_HEADER_SIZE);
+  if (gcbuf->reserve((collection_len == 0 ? GEOM_HEADER_SIZE + 4 : 0) +
+                     geo_len + WKB_HEADER_SIZE))
     return true;
 
   char *ptr= const_cast<char *>(gcbuf->ptr()), *start;
+  uint32 extra= 0;
+  if (collection_len == 0)
+  {
+    collection_len= GEOM_HEADER_SIZE + 4;
+    extra= GEOM_HEADER_SIZE;
+    write_geometry_header(ptr, geo->get_srid(), wkb_geometrycollection, 0);
+  }
 
   // Skip GEOMETRY header.
   ptr+= GEOM_HEADER_SIZE;
@@ -3106,23 +3117,124 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
   ptr= write_wkb_header(ptr, geo->get_type());
   memcpy(ptr, geo->get_data_ptr(), geo_len);
   gcbuf->length(collection_len + geo_len + WKB_HEADER_SIZE);
-  set_data_ptr(start, collection_len + geo_len - SRID_SIZE);
+  set_data_ptr(start, extra + collection_len + geo_len - SRID_SIZE);
   return false;
+}
+
+
+/**
+  Append geometry into geometry collection, which can be empty. This object
+  must be created from default constructor or below one:
+  Gis_geometry_collection(srid_t srid, wkbType gtype,
+                          const String *gbuf,
+                          String *gcbuf);
+
+  @param srid srid of geometry to be appended.
+  @param gtype type of geometry to be appended.
+  @param gbuf WKB data of geometry to be appended, gbuf->ptr isn't NULL and
+         points right after the WKB header, this buffer can't be empty.
+  @param gcbuf this geometry collection's data buffer, it's of GEOMETRY format
+         and is a separate String buffer.
+  @return false if no error, otherwise true.
+
+ */
+bool Gis_geometry_collection::append_geometry(srid_t srid, wkbType gtype,
+                                              const String *gbuf, String *gcbuf)
+{
+  DBUG_ASSERT(gbuf != NULL && gbuf->ptr() != NULL && gbuf->length() > 0);
+
+  uint32 collection_len= gcbuf->length(), geo_len= gbuf->length();
+  DBUG_ASSERT(collection_len == 0 ||
+              get_data_size() == collection_len - GEOM_HEADER_SIZE);
+  if (gcbuf->reserve((collection_len == 0 ? GEOM_HEADER_SIZE + 4 : 0) +
+                     geo_len + WKB_HEADER_SIZE))
+    return true;
+
+  char *ptr= const_cast<char *>(gcbuf->ptr()), *start;
+  uint32 extra= 0;
+  if (collection_len == 0)
+  {
+    collection_len= GEOM_HEADER_SIZE + 4;
+    extra= GEOM_HEADER_SIZE;
+    write_geometry_header(ptr, srid, wkb_geometrycollection, 0);
+  }
+  else if (srid != get_srid())
+    return true;
+
+  // Skip GEOMETRY header.
+  ptr+= GEOM_HEADER_SIZE;
+  start= ptr;
+
+  int4store(ptr, uint4korr(ptr) + 1);           // Increment object count.
+  ptr+= collection_len - GEOM_HEADER_SIZE;
+  ptr= write_wkb_header(ptr, gtype);
+  memcpy(ptr, gbuf->ptr(), geo_len);
+  gcbuf->length(collection_len + geo_len + WKB_HEADER_SIZE);
+  set_data_ptr(start, extra + collection_len + geo_len - SRID_SIZE);
+  return false;
+}
+
+
+/**
+  Create a geometry collection from a single geometry, and the created object
+  refers to position right after the WKB header inside the 'gcbuf' buffer.
+  @param srid the SRID of the first geometry to put into this
+              geometry collection. Its SRID is used as the SRID of this
+              geometry collection.
+  @param gtype the type of the first geometry to put into this object.
+  @param gbuf stores the WKB data of the first geometry to put into this object,
+              not including its WKB header. if gbuf is NULL or gbuf->ptr is
+              NULL, the created geometry collection is empty.
+  @param gcbuf this geometry collection's data buffer in GEOMETRY format.
+ */
+Gis_geometry_collection::Gis_geometry_collection(srid_t srid, wkbType gtype,
+                                                 const String *gbuf,
+                                                 String *gcbuf)
+  : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), srid)
+{
+  uint32 geo_len= gbuf ? gbuf->length() : 0, total_len= 0;
+  DBUG_ASSERT((gbuf == NULL || (gbuf->ptr() == NULL && gbuf->length() == 0)) ||
+              (gbuf->ptr() != NULL && gbuf->length() > 0));
+  total_len= geo_len + sizeof(uint32)/*NUM-objs*/ +
+    SRID_SIZE + WKB_HEADER_SIZE + (geo_len > 0 ? WKB_HEADER_SIZE : 0);
+
+  // Reserve 512 bytes extra space for geometries to be appended later,
+  // to avoid some reallocations.
+  if (gcbuf->reserve(total_len + 512))
+    my_error(ER_OUTOFMEMORY, total_len + 512);
+
+  char *ptr= gcbuf->c_ptr(), *start;
+  start= ptr + GEOM_HEADER_SIZE;
+
+  ptr= write_geometry_header(ptr, srid,
+                             Geometry::wkb_geometrycollection, geo_len ? 1 : 0);
+  if (geo_len > 0)
+  {
+    ptr= write_wkb_header(ptr, gtype);
+    memcpy(ptr, gbuf->ptr(), geo_len);
+  }
+
+  gcbuf->length(total_len);
+  set_data_ptr(start, total_len - GEOM_HEADER_SIZE);
+  set_srid(srid);
+  has_geom_header_space(true);
 }
 
 
 /**
   Create a geometry collection from a single geometry, and this object refer
   to position right after the WKB header inside the 'gcbuf' buffer.
-  @param geo the first geometry to put into this geometry collection. Its SRID
-         is used as the SRID of this geometry collection.
+  @param geo the first valid geometry to put into this geometry collection.
+         Its SRID is used as the SRID of this geometry collection. It must be
+         a valid geometry.
   @param gcbuf this geometry collection's data buffer in GEOMETRY format.
  */
 Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
   : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), geo->get_srid())
 {
+  DBUG_ASSERT(geo != NULL && geo->get_ptr() != NULL);
   uint32 geo_len= geo->get_data_size(), total_len= 0;
-
+  DBUG_ASSERT(geo_len != GET_SIZE_ERROR);
   total_len= geo_len + sizeof(uint32)/*NUM-objs*/ +
     SRID_SIZE + WKB_HEADER_SIZE * 2;
 

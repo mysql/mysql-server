@@ -548,10 +548,13 @@ class Geometry_grouper : public WKB_scanner_event_handler
 
   typedef Gis_wkb_vector<Base_type> Group_type;
   Group_type *m_group;
+  Gis_geometry_collection *m_collection;
+  String *m_gcbuf;
   Geometry::wkbType m_target_type;
 
 public:
-  Geometry_grouper(Group_type *out) :m_group(out)
+  Geometry_grouper(Group_type *out)
+    :m_group(out), m_collection(NULL), m_gcbuf(NULL)
   {
     switch (out->get_type())
     {
@@ -568,6 +571,16 @@ public:
       DBUG_ASSERT(false);
       break;
     }
+  }
+
+  /*
+    Group polygons and multipolygons into a geometry collection. 
+  */ 
+  Geometry_grouper(Gis_geometry_collection *out, String *gcbuf)
+    :m_group(NULL), m_collection(out), m_gcbuf(gcbuf)
+  {
+    m_target_type= Geometry::wkb_polygon;
+    DBUG_ASSERT(out != NULL && gcbuf != NULL);
   }
 
 
@@ -602,16 +615,29 @@ public:
       We only group independent geometries, points in linestrings or polygons
       are not independent, nor are linestrings in polygons.
      */
-    if ((m_target_type == Geometry::wkb_point &&
-         (ptype == Geometry::wkb_geometrycollection ||
-          ptype == Geometry::wkb_multipoint)) ||
-        (m_target_type == Geometry::wkb_linestring &&
-         (ptype == Geometry::wkb_geometrycollection ||
-          ptype == Geometry::wkb_multilinestring)) ||
-        m_target_type == Geometry::wkb_polygon)
+    if (m_target_type == geotype && m_group != NULL &&
+        ((m_target_type == Geometry::wkb_point &&
+          (ptype == Geometry::wkb_geometrycollection ||
+           ptype == Geometry::wkb_multipoint)) ||
+         (m_target_type == Geometry::wkb_linestring &&
+          (ptype == Geometry::wkb_geometrycollection ||
+           ptype == Geometry::wkb_multilinestring)) ||
+         (m_target_type == Geometry::wkb_polygon &&
+          (ptype == Geometry::wkb_geometrycollection ||
+           ptype == Geometry::wkb_multipolygon))))
     {
       Base_type g(wkb_start, len, Geometry::Flags_t(m_target_type, 0), 0);
       m_group->push_back(g);
+      DBUG_ASSERT(m_collection == NULL && m_gcbuf == NULL);
+    }
+
+    if (m_collection != NULL && (geotype == Geometry::wkb_polygon ||
+                                 geotype == Geometry::wkb_multipolygon))
+    {
+      DBUG_ASSERT(m_group == NULL && m_gcbuf != NULL);
+      String str(static_cast<const char *>(wkb_start), len, &my_charset_bin);
+      m_collection->append_geometry(m_collection->get_srid(), geotype,
+                                    &str, m_gcbuf);
     }
   }
 };
@@ -7469,6 +7495,52 @@ longlong Item_func_srid::val_int()
 }
 
 
+/**
+  Compact a geometry collection, making all its points/multipoints into a
+  single multipoint object, and all its linestrings/multilinestrings into a
+  single multilinestring object; leave polygons and multipolygons as they were.
+
+  @param g the input geometry collection.
+  @param gbuf the place to create the new result geometry collection.
+  @param str the String buffer to hold data of the result geometry collection.
+ */
+static const Geometry *
+compact_collection(const Geometry *g, Geometry_buffer *gbuf, String *str)
+{
+  if (g->get_geotype() != Geometry::wkb_geometrycollection)
+    return g;
+
+  uint32 wkb_len, wkb_len0;
+  char *wkb_start= g->get_cptr();
+
+  wkb_len= wkb_len0= g->get_data_size();
+  typename BG_models<double, bgcs::cartesian>::Multilinestring mls;
+  Geometry_grouper<typename BG_models<double, bgcs::cartesian>::Linestring>
+    ls_grouper(&mls);
+  wkb_scanner(wkb_start, &wkb_len,
+              Geometry::wkb_geometrycollection, false, &ls_grouper);
+
+  typename BG_models<double, bgcs::cartesian>::Multipoint mpts;
+  wkb_len= wkb_len0;
+  Geometry_grouper<typename BG_models<double, bgcs::cartesian>::Point>
+    pt_grouper(&mpts);
+  wkb_scanner(wkb_start, &wkb_len,
+              Geometry::wkb_geometrycollection, false, &pt_grouper);
+
+  Gis_geometry_collection *ret= new (gbuf) Gis_geometry_collection();
+  wkb_len= wkb_len0;
+  Geometry_grouper<typename BG_models<double, bgcs::cartesian>::Polygon>
+    mplgn_grouper(ret, str);
+  wkb_scanner(wkb_start, &wkb_len,
+              Geometry::wkb_geometrycollection, false, &mplgn_grouper);
+
+  ret->append_geometry(&mls, str);
+  ret->append_geometry(&mpts, str);
+
+  return ret;
+}
+
+
 double Item_func_distance::val_real()
 {
   bool cur_point_edge, isdone= false;
@@ -7524,9 +7596,15 @@ double Item_func_distance::val_real()
     BG_geometry_collection bggc1, bggc2;
     bool initialized= false, isdone2= false, all_normalized= false;
     double min_distance= DBL_MAX, dist;
+    String gcstr1, gcstr2;
+    Geometry_buffer buf1, buf2;
+    const Geometry *g11, *g22;
 
-    bggc1.fill(g1);
-    bggc2.fill(g2);
+    g11= compact_collection(g1, &buf1, &gcstr1);
+    g22= compact_collection(g2, &buf2, &gcstr2);
+
+    bggc1.fill(g11);
+    bggc2.fill(g22);
     for (BG_geometry_collection::Geometry_list::iterator
          i= bggc1.get_geometries().begin();
          i != bggc1.get_geometries().end(); ++i)
