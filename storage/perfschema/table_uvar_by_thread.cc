@@ -31,7 +31,6 @@
 #include "sql_class.h"
 #include "mysqld_thd_manager.h"
 
-
 class Find_thd_user_var : public Find_THD_Impl
 {
 public:
@@ -61,19 +60,36 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd)
 
   m_pfs= pfs;
   m_thread_internal_id= pfs->m_thread_internal_id;
-  m_vector.reserve(thd->user_vars.records);
+  m_array.reserve(thd->user_vars.records);
 
   user_var_entry *sql_uvar;
 
   uint index= 0;
+  User_variable empty;
 
   for (;;)
   {
-    User_variable pfs_uvar;
-
     sql_uvar= reinterpret_cast<user_var_entry*> (my_hash_element(& thd->user_vars, index));
     if (sql_uvar == NULL)
       break;
+
+    /*
+      m_array is a container of objects (not pointers)
+
+      Naive code can:
+      - build locally a new entry
+      - add it to the container
+      but this causes useless object construction, destruction, and deep copies.
+
+      What we do here:
+      - add a dummy (empty) entry
+      - the container does a deep copy on something empty,
+        so that there is nothing to copy.
+      - get a reference to the entry added in the container
+      - complete -- in place -- the entry initialization
+    */
+    m_array.push_back(empty);
+    User_variable & pfs_uvar= m_array.back();
 
     /* Copy VARIABLE_NAME */
     const char *name= sql_uvar->entry_name.ptr();
@@ -96,7 +112,6 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd)
       pfs_uvar.m_value.make_row(NULL, 0);
     }
 
-    m_vector.push_back(pfs_uvar);
     index++;
   }
 }
