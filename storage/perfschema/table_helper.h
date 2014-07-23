@@ -620,6 +620,13 @@ struct PFS_memory_stat_row
 
 struct PFS_variable_name_row
 {
+public:
+  PFS_variable_name_row()
+  {
+    m_str[0]= '\0';
+    m_length= 0;
+  }
+
   void make_row(const char* str, uint length);
 
   char m_str[64];
@@ -629,6 +636,20 @@ struct PFS_variable_name_row
 struct PFS_variable_value_row
 {
 public:
+  PFS_variable_value_row()
+    : m_value(NULL), m_value_length(0)
+  {}
+
+  PFS_variable_value_row(const PFS_variable_value_row& rhs)
+  {
+    make_row(rhs.m_value, rhs.m_value_length);
+  }
+
+  ~PFS_variable_value_row()
+  {
+    clear();
+  }
+
   void make_row(const char* val, size_t length);
 
   const char *get_value() const
