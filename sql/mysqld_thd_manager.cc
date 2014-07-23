@@ -289,25 +289,6 @@ THD* Global_THD_manager::find_thd(Find_THD_Impl *func)
 }
 
 
-THD* Global_THD_manager::inspect_thd(THD *thd, Find_THD_Impl *func)
-{
-  Find_THD find_thd(func);
-  mysql_mutex_lock(&LOCK_thd_list);
-  THD_array::const_iterator it=
-    std::find(thd_list.begin(), thd_list.end(), thd);
-  THD* ret= NULL;
-  if (it != thd_list.end())
-  {
-    ret= *it;
-    DBUG_ASSERT(ret == thd);
-    if (!find_thd(ret))
-      ret= NULL;
-  }
-  mysql_mutex_unlock(&LOCK_thd_list);
-  return ret;
-}
-
-
 void inc_thread_created()
 {
   Global_THD_manager::get_instance()->inc_thread_created();
