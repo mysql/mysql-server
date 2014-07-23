@@ -26,6 +26,27 @@
 #include <NodeBitmask.hpp>
 #include <NdbEnv.h>
 
+extern my_bool opt_core;
+
+#define DBG(x) \
+  do { g_info << x << " at line " << __LINE__ << endl; } while (0)
+
+#define CHK1(b, e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << endl; \
+    if (opt_core) abort(); \
+    return NDBT_FAILED; \
+  }
+
+#define CHK2(b, e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    if (opt_core) abort(); \
+    return NDBT_FAILED; \
+  }
+
 static int runLongSignalMemorySnapshot(NDBT_Context* ctx, NDBT_Step* step);
 
 /**
@@ -504,6 +525,7 @@ createIDX(NdbDictionary::Dictionary * dict,
             pIdx.addIndexColumn(indexes[i]->getColumn(c)->getName());
           }
 
+          DBG("CREATE index " << pIdx.getName());
           if (dict->createIndex(pIdx) != 0)
           {
             ndbout << "FAILED! to create OI " << tmp.c_str() << endl;
@@ -589,6 +611,7 @@ createIDX(NdbDictionary::Dictionary * dict,
       }
     }
 
+    DBG("CREATE index " << pIdx.getName());
     if (dict->createIndex(pIdx) != 0)
     {
       ndbout << "FAILED! to create UI " << tmp.c_str() << endl;
@@ -791,8 +814,14 @@ createFK(NdbDictionary::Dictionary * dict,
 
   if (dict->createForeignKey(ndbfk) == 0)
   {
+    // bug#19122346 TODO: provide new NdbDictionary methods
+    char fullname[MAX_TAB_NAME_SIZE];
+    sprintf(fullname, "%d/%d/%s", pParent->getObjectId(), pChild->getObjectId(),
+                                  ndbfk.getName());
     NdbDictionary::ForeignKey * get = new NdbDictionary::ForeignKey();
-    dict->getForeignKey(* get, ndbfk.getName());
+    DBG("CREATE fk " << fullname);
+    CHK2(dict->getForeignKey(* get, fullname) == 0,
+         fullname << ": " << dict->getNdbError());
     fks.push_back(get);
     return NDBT_OK;
   }
@@ -800,6 +829,7 @@ createFK(NdbDictionary::Dictionary * dict,
 
   if (1)
   {
+    ndbout << "DESC " << pChild->getName() << endl;
     dict->print(ndbout, * pChild);
   }
 
@@ -852,6 +882,7 @@ runCreateRandom(NDBT_Context* ctx, NDBT_Step* step)
 
   if (1)
   {
+    ndbout << "DESC " << pTab->getName() << endl;
     dict->print(ndbout, * pTab);
   }
 
@@ -865,25 +896,29 @@ runCleanupTable(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   const char * tableName = ctx->getTab()->getName();
 
-  ndbout << "cleanup(" << tableName << ")..." << flush;
+  ndbout << "cleanup " << tableName << endl;
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
   while (fks.size() > tableFKs)
   {
     unsigned last = fks.size() - 1;
-    dict->dropForeignKey(* fks[last]);
+    DBG("DROP fk " << fks[last]->getName());
+    CHK2(dict->dropForeignKey(* fks[last]) == 0,
+        fks[last]->getName() << ": " << dict->getNdbError());
     delete fks[last];
     fks.erase(last);
   }
-  ndbout << "FK done..." << flush;
+  ndbout << "FK done" << endl;
 
   while (indexes.size() > tableIndexes)
   {
     unsigned last = indexes.size() - 1;
-    dict->dropIndex(indexes[last]->getName(), tableName);
+    DBG("DROP index " << indexes[last]->getName());
+    CHK2(dict->dropIndex(indexes[last]->getName(), tableName) == 0,
+        indexes[last]->getName() << ": " << dict->getNdbError());
     indexes.erase(last);
   }
 
-  ndbout << "indexes done..." << endl;
+  ndbout << "indexes done" << endl;
 
   return NDBT_OK;
 }
@@ -1037,8 +1072,19 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Table child(* pTab);
   child.setName(childname.c_str());
 
-  (void)dict->dropTable(child.getName());
+  if (dict->getTable(child.getName()) == 0)
+  {
+    CHK2(dict->getNdbError().code == 723,
+         child.getName() << ": " << dict->getNdbError());
+  }
+  else
+  {
+    DBG("DROP old table" << child.getName());
+    CHK2(dict->dropTable(child.getName()) == 0,
+         child.getName() << ": " << dict->getNdbError());
+  }
 
+  DBG("CREATE table " << child.getName());
   int res = dict->createTable(child);
   if (res != 0)
   {
@@ -1069,6 +1115,7 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
         {
           copy.addColumn(idx->getColumn(j)->getName());
         }
+        DBG("CREATE index " << copy.getName());
         if (dict->createIndex(copy) != 0)
         {
           ndbout << __LINE__ << ": " << dict->getNdbError() << endl;
@@ -1096,6 +1143,7 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
 
   if (1)
   {
+    ndbout << "DESC " << pChild->getName() << endl;
     dict->print(ndbout, * pChild);
   }
 
@@ -1269,7 +1317,9 @@ runDropCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
   BaseString childname;
   childname.assfmt("%s_CHILD", pTab->getName());
 
-  pNdb->getDictionary()->dropTable(childname.c_str());
+  DBG("DROP table " << childname.c_str());
+  CHK2(pNdb->getDictionary()->dropTable(childname.c_str()) == 0,
+       pNdb->getDictionary()->getNdbError());
 
   return NDBT_OK;
 }
@@ -1419,8 +1469,8 @@ TESTCASE("Cascade1",
   INITIALIZER(runDiscoverTable);
   INITIALIZER(runCreateCascadeChild);
   STEPS(runMixedCascade, 1);
-  VERIFIER(runDropCascadeChild);
   VERIFIER(runCleanupTable);
+  VERIFIER(runDropCascadeChild);
 }
 TESTCASE("Cascade10",
 	 "")
@@ -1428,8 +1478,8 @@ TESTCASE("Cascade10",
   INITIALIZER(runDiscoverTable);
   INITIALIZER(runCreateCascadeChild);
   STEPS(runMixedCascade, 10);
-  VERIFIER(runDropCascadeChild);
   VERIFIER(runCleanupTable);
+  VERIFIER(runDropCascadeChild);
 }
 TESTCASE("CascadeError",
 	 "")
@@ -1438,8 +1488,8 @@ TESTCASE("CascadeError",
   INITIALIZER(runDiscoverTable);
   INITIALIZER(runCreateCascadeChild);
   INITIALIZER(runTransError);
-  VERIFIER(runDropCascadeChild);
   VERIFIER(runCleanupTable);
+  VERIFIER(runDropCascadeChild);
 }
 NDBT_TESTSUITE_END(testFK);
 
