@@ -6429,10 +6429,13 @@ fts_rename_aux_tables_to_hex_format(
 
 	if (error != DB_SUCCESS) {
 		ut_ad(count != ib_vector_size(tables));
+
 		/* If rename fails, thr trx would be rolled back, we can't
 		use it any more, we'll start a new background trx to do
 		the reverting. */
-		ut_a(trx->state == TRX_STATE_NOT_STARTED);
+
+		ut_ad(!trx_is_started(trx));
+
 		bool not_rename = false;
 
 		/* Try to revert those succesful rename operations

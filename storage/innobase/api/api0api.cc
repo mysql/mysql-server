@@ -624,9 +624,10 @@ ib_trx_commit(
 	ib_trx_t	ib_trx)		/*!< in: trx handle */
 {
 	ib_err_t	err = DB_SUCCESS;
-	trx_t*		trx = (trx_t*) ib_trx;
+	trx_t*		trx = reinterpret_cast<trx_t*>(ib_trx);
 
-	if (trx->state == TRX_STATE_NOT_STARTED) {
+	if (!trx_is_started(trx)) {
+
 		return(err);
 	}
 
@@ -1291,7 +1292,7 @@ ib_insert_query_graph_create(
 	ib_qry_node_t*	node = &q_proc->node;
 	trx_t*		trx = cursor->prebuilt->trx;
 
-	ut_a(trx->state != TRX_STATE_NOT_STARTED);
+	ut_a(trx_is_started(trx));
 
 	if (node->ins == NULL) {
 		dtuple_t*	row;
@@ -1415,7 +1416,7 @@ ib_update_vector_create(
 	ib_qry_grph_t*	grph = &q_proc->grph;
 	ib_qry_node_t*	node = &q_proc->node;
 
-	ut_a(trx->state != TRX_STATE_NOT_STARTED);
+	ut_a(trx_is_started(trx));
 
 	if (node->upd == NULL) {
 		node->upd = static_cast<upd_node_t*>(
@@ -1598,7 +1599,7 @@ ib_execute_update_query_graph(
 	ib_qry_proc_t*	q_proc = &cursor->q_proc;
 
 	/* The transaction must be running. */
-	ut_a(trx->state != TRX_STATE_NOT_STARTED);
+	ut_a(trx_is_started(trx));
 
 	node = q_proc->node.upd;
 
@@ -1843,7 +1844,7 @@ ib_cursor_read_row(
 	ib_tuple_t*	tuple = (ib_tuple_t*) ib_tpl;
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 
-	ut_a(cursor->prebuilt->trx->state != TRX_STATE_NOT_STARTED);
+	ut_a(trx_is_started(cursor->prebuilt->trx));
 
 	/* When searching with IB_EXACT_MATCH set, row_search_for_mysql()
 	will not position the persistent cursor but will copy the record
@@ -3064,7 +3065,7 @@ ib_table_lock(
 	ib_qry_proc_t	q_proc;
 	trx_t*		trx = (trx_t*) ib_trx;
 
-	ut_a(trx->state != TRX_STATE_NOT_STARTED);
+	ut_ad(trx_is_started(trx));
 
 	table = ib_open_table_by_id(table_id, FALSE);
 
@@ -3141,8 +3142,8 @@ ib_cursor_set_lock_mode(
 	}
 
 	if (err == DB_SUCCESS) {
-		prebuilt->select_lock_type = (enum lock_mode) ib_lck_mode;
-		ut_a(prebuilt->trx->state != TRX_STATE_NOT_STARTED);
+		prebuilt->select_lock_type = (lock_mode) ib_lck_mode;
+		ut_a(trx_is_started(prebuilt->trx));
 	}
 
 	return(err);
@@ -3385,8 +3386,7 @@ ib_table_truncate(
 	}
 
 	if (trunc_err == DB_SUCCESS) {
-		ut_a(static_cast<trx_t*>(ib_trx)->state
-		     == TRX_STATE_NOT_STARTED);
+		ut_a(!trx_is_started(static_cast<trx_t*>(ib_trx)));
 
 		err = ib_trx_release(ib_trx);
 		ut_a(err == DB_SUCCESS);
