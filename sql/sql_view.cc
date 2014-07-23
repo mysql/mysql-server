@@ -39,8 +39,7 @@
 
 const LEX_STRING view_type= { C_STRING_WITH_LEN("VIEW") };
 
-static int mysql_register_view(THD *thd, TABLE_LIST *view,
-			       enum_view_create_mode mode);
+static int mysql_register_view(THD *, TABLE_LIST *, enum_view_create_mode);
 
 /*
   Make a unique name for an anonymous view column
@@ -670,7 +669,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   res= mysql_register_view(thd, view, mode);
 
-  if (mysql_bin_log.is_open())
+  if (!res && mysql_bin_log.is_open())
   {
     String buff;
     const LEX_STRING command[3]=

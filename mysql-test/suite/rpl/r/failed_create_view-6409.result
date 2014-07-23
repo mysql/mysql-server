@@ -1,0 +1,15 @@
+create table v1 (a int);
+include/master-slave.inc
+[connection master]
+create table t1 (a int);
+create view v1 as select * from t1;
+ERROR 42S01: Table 'v1' already exists
+show tables;
+Tables_in_test
+t1
+v1
+show tables;
+Tables_in_test
+t1
+drop table if exists t1, v1;
+include/rpl_end.inc
