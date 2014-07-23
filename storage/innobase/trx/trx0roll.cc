@@ -50,7 +50,7 @@ Created 3/26/1996 Heikki Tuuri
 
 /** This many pages must be undone before a truncate is tried within
 rollback */
-#define TRX_ROLL_TRUNC_THRESHOLD	1
+static const ulint TRX_ROLL_TRUNC_THRESHOLD = 1;
 
 /** In crash recovery, the current trx to be rolled back; NULL otherwise */
 static const trx_t*	trx_roll_crash_recv_trx	= NULL;
@@ -211,6 +211,7 @@ trx_rollback_for_mysql(
 
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
 		ut_ad(trx->in_mysql_trx_list);
 		return(DB_SUCCESS);
 
@@ -251,7 +252,9 @@ trx_rollback_last_sql_stat_for_mysql(
 
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
 		return(DB_SUCCESS);
+
 	case TRX_STATE_ACTIVE:
 		assert_trx_nonlocking_or_in_list(trx);
 
@@ -260,7 +263,7 @@ trx_rollback_last_sql_stat_for_mysql(
 		err = trx_rollback_to_savepoint(
 			trx, &trx->last_sql_stat_start);
 
-		if (trx->fts_trx) {
+		if (trx->fts_trx != NULL) {
 			fts_savepoint_rollback_last_stmt(trx);
 		}
 
@@ -271,6 +274,7 @@ trx_rollback_last_sql_stat_for_mysql(
 		trx->op_info = "";
 
 		return(err);
+
 	case TRX_STATE_PREPARED:
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		/* The statement rollback is only allowed on an ACTIVE
@@ -430,14 +434,20 @@ trx_rollback_to_savepoint_for_mysql(
 
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
+
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Transaction has a savepoint %s"
 			" though it is not started",
 			ut_get_name(trx, FALSE, savep->name).c_str());
+
 		return(DB_ERROR);
+
 	case TRX_STATE_ACTIVE:
+
 		return(trx_rollback_to_savepoint_for_mysql_low(
 				trx, savep, mysql_binlog_cache_pos));
+
 	case TRX_STATE_PREPARED:
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		/* The savepoint rollback is only allowed on an ACTIVE
@@ -713,6 +723,7 @@ trx_rollback_resurrected(
 	case TRX_STATE_PREPARED:
 		return(FALSE);
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
 		break;
 	}
 

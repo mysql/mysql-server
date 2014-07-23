@@ -1103,7 +1103,8 @@ row_truncate_rollback(
 
 		if (has_internal_doc_id) {
 
-			ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+			ut_ad(!trx_is_started(trx));
+
 			table_id_t      id = table->id;
 
 			table->id = new_id;
@@ -1111,7 +1112,8 @@ row_truncate_rollback(
 			fts_drop_tables(trx, table);
 
 			table->id = id;
-			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+
+			ut_ad(trx_is_started(trx));
 
 			trx_commit_for_mysql(trx);
 		}
@@ -1213,7 +1215,8 @@ row_truncate_complete(
 	the dict operation flags. */
 	trx->ddl = false;
 	trx->dict_operation = TRX_DICT_OP_NONE;
-	ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+
+	ut_ad(!trx_is_started(trx));
 
 	srv_wake_master_thread();
 
@@ -1274,7 +1277,8 @@ row_truncate_fts(
 			"Unable to truncate FTS index for table %s",
 			table_name);
 	} else {
-		ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+
+		ut_ad(trx_is_started(trx));
 	}
 
 	return(err);
@@ -1430,9 +1434,12 @@ row_truncate_update_system_tables(
 	} else {
 		/* Drop the old FTS index */
 		if (has_internal_doc_id) {
-			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+
+			ut_ad(trx_is_started(trx));
+
 			fts_drop_tables(trx, table);
-			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+
+			ut_ad(trx_is_started(trx));
 		}
 
 		DBUG_EXECUTE_IF("ib_trunc_crash_after_fts_drop",
@@ -2012,7 +2019,8 @@ row_truncate_table_for_mysql(
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
 
-	if (trx->state != TRX_STATE_NOT_STARTED) {
+	if (trx_is_started(trx)) {
+
 		trx_commit_for_mysql(trx);
 	}
 
