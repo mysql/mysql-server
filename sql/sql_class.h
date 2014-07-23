@@ -2448,7 +2448,24 @@ public:
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
   pthread_t  real_id;                           /* For debugging */
-  my_thread_id  thread_id;
+  /**
+    This counter is 32 bit because of the client protocol.
+
+    @note It is not meant to be used for pthread_self(), see @real_id for this.
+
+    @note Set to reserved_thread_id on initialization. This is a magic
+    value that is only to be used for temporary THDs not present in
+    the global THD list.
+  */
+private:
+  my_thread_id  m_thread_id;
+public:
+  /**
+    Assign a value to m_thread_id by calling
+    Global_THD_manager::get_new_thread_id().
+  */
+  void set_new_thread_id();
+  my_thread_id thread_id() const { return m_thread_id; }
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
@@ -2745,7 +2762,7 @@ public:
     The THD dtor is effectively split in two:
       THD::release_resources() and ~THD().
 
-    We want to minimize the time we hold LOCK_thd_count,
+    We want to minimize the time we hold LOCK_thd_list,
     so when destroying a global thread, do:
 
     thd->release_resources()

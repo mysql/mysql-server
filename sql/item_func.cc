@@ -4583,7 +4583,7 @@ public:
 
   void visit_context(const MDL_context *ctx)
   {
-    m_owner_id= ctx->get_owner()->get_thd()->thread_id;
+    m_owner_id= ctx->get_owner()->get_thd()->thread_id();
   }
 
   my_thread_id get_owner_id() const { return m_owner_id; }
@@ -5293,7 +5293,7 @@ void Item_func_set_user_var::cleanup()
 
 bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
 {
-  if (entry && thd->thread_id == entry_thread_id)
+  if (entry && thd->thread_id() == entry_thread_id)
   {} // update entry->update_query_id for PS
   else
   {
@@ -5306,7 +5306,7 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
       entry_thread_id= 0;
       return TRUE;
     }
-    entry_thread_id= thd->thread_id;
+    entry_thread_id= thd->thread_id();
   }
   /* 
     Remember the last query which updated it, this way a query can later know

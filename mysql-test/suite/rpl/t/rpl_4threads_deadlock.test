@@ -74,7 +74,7 @@ while ($iter)
 
   # Thread 4
   --connection master3
-  SET DEBUG_SYNC='processlist_after_LOCK_thd_count_before_LOCK_thd_data SIGNAL parked3 WAIT_FOR go_parked3';
+  SET DEBUG_SYNC='processlist_after_LOCK_thd_list_before_LOCK_thd_data SIGNAL parked3 WAIT_FOR go_parked3';
   if ($iter == 1)
   {
     --let $query=SHOW PROCESSLIST
