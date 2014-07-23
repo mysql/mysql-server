@@ -9781,6 +9781,7 @@ struct Fkdef {
   };
   struct Key : Ob {
     char keyname[strmax];
+    char fullname[20 + strmax]; // bug#19122346
     // 0-parent 1-child
     const Tab* tab0;
     const Tab* tab1;
@@ -10167,7 +10168,8 @@ fk_create_key(Fkdef& d, Ndb* pNdb, int k)
     CHK2(pDic->createForeignKey(key) == 0, pDic->getNdbError());
     {
       NdbDictionary::ForeignKey key;
-      CHK2(pDic->getForeignKey(key, dk.keyname) == 0, pDic->getNdbError());
+      sprintf(dk.fullname, "%d/%d/%s", dt0.id, dt1.id, dk.keyname);
+      CHK2(pDic->getForeignKey(key, dk.fullname) == 0, pDic->getNdbError());
       require(!dk.retrieved);
       dk.retrieved = true;
       dk.id = key.getObjectId();
@@ -10301,15 +10303,15 @@ fk_verify_key(const Fkdef& d, Ndb* pNdb, int k)
   do
   {
     const Fkdef::Key& dk = d.key[k];
-    g_info << "verify key " << dk.keyname << endl;
+    g_info << "verify key " << dk.fullname << endl;
     NdbDictionary::ForeignKey key;
-    CHK2(pDic->getForeignKey(key, dk.keyname) == 0, pDic->getNdbError());
+    CHK2(pDic->getForeignKey(key, dk.fullname) == 0, pDic->getNdbError());
     int id = key.getObjectId();
     int version = key.getObjectVersion();
     require(dk.retrieved);
     CHK2(dk.id == id, dk.id << " != " << id);
     CHK2(dk.version == version, dk.version << " != " << version);
-    CHK1(strcmp(dk.keyname, key.getName()) == 0);
+    CHK2(strcmp(dk.fullname, key.getName()) == 0, dk.fullname << " != " << key.getName());
 #if 0 // can add more checks
     const Fkdef::Tab& dt0 = *dk.tab0;
     const Fkdef::Tab& dt1 = *dk.tab1;
@@ -10505,7 +10507,7 @@ fk_verify_list(Fkdef& d, Ndb* pNdb, bool ignore_keys)
     for (int k = 0; k < d.nkey; k++) {
       const Fkdef::Key& dk = d.key[k];
       CHK2(fk_find_element(list1, NdbDictionary::Object::ForeignKey,
-           "", dk.keyname), dk.keyname);
+           "", dk.fullname), dk.fullname);
       // could also check FK triggers..
     }
     CHK1(result == NDBT_OK);
@@ -10532,23 +10534,7 @@ fk_drop_table(Fkdef& d, Ndb* pNdb, int i, bool force)
       break;
     }
     // all indexes are dropped by ndb api
-    for (int k = 0; k < dt.nind; k++)
-    {
-      Fkdef::Ind& di = dt.ind[k];
-      di.retrieved = false;
-      di.pInd = 0;
-    }
     // all related FKs child/parent are dropped by ndb api
-    for (int k = 0; k < d.nkey; k++)
-    {
-      Fkdef::Key& dk = d.key[k];
-      if (dk.tab0 == &dt || dk.tab1 == &dt)
-      {
-        dk.retrieved = false;
-      }
-    }
-    dt.retrieved = false;
-    dt.pTab = 0;
   }
   while (0);
   return result;
@@ -10573,10 +10559,10 @@ fk_drop_key(Fkdef& d, Ndb* pNdb, int k, bool force)
   do
   {
     Fkdef::Key& dk = d.key[k];
-    g_info << "drop key " << dk.keyname
+    g_info << "drop key " << dk.fullname
            << (force ? " (force)" : "") << endl;
     NdbDictionary::ForeignKey key;
-    if (pDic->getForeignKey(key, dk.keyname) != 0)
+    if (pDic->getForeignKey(key, dk.fullname) != 0)
     {
       const NdbError& err = pDic->getNdbError();
       CHK2(force, err);
@@ -10584,7 +10570,6 @@ fk_drop_key(Fkdef& d, Ndb* pNdb, int k, bool force)
       break;
     }
     CHK2(pDic->dropForeignKey(key) == 0, pDic->getNdbError());
-    dk.retrieved = false;
   }
   while (0);
   return result;
@@ -10612,6 +10597,29 @@ fk_drop_all(Fkdef& d, Ndb* pNdb, bool force)
   }
   while (0);
   return result;
+}
+
+// commit drop
+
+// just reset all retrieved
+static void
+fk_dropped_all(Fkdef& d)
+{
+  for (int i = 0; i < d.ntab; i++)
+  {
+    Fkdef::Tab& dt = d.tab[i];
+    dt.retrieved = false;
+    for (int k = 0; k < dt.nind; k++)
+    {
+      Fkdef::Ind& di = dt.ind[k];
+      di.retrieved = false;
+    }
+  }
+  for (int k = 0; k < d.nkey; k++)
+  {
+    Fkdef::Key& dk = d.key[k];
+    dk.retrieved = false;
+  }
 }
 
 // for FK_Bug18069680
@@ -10935,6 +10943,8 @@ runFK_Bug18069680(NDBT_Context* ctx, NDBT_Step* step)
 
       CHK1(fk_drop_indexes_under(d, pNdb) == NDBT_OK);
       CHK1(fk_drop_tables(d, pNdb, false) == NDBT_OK);
+
+      fk_dropped_all(d);
     }
     CHK1(result == NDBT_OK);
   }
