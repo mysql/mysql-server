@@ -1836,6 +1836,28 @@ public:
   void fix_length_and_dec() { max_length=21; maybe_null=1;}
 };
 
+/**
+  This class is used for implementing the new wait_for_executed_gtid_set
+  function and the functions related to them. This new function is independent
+  of the slave threads.
+*/
+class Item_wait_for_executed_gtid_set :public Item_int_func
+{
+  typedef Item_int_func super;
+
+  String value;
+public:
+  Item_wait_for_executed_gtid_set(const POS &pos, Item *a) :Item_int_func(pos, a) {}
+  Item_wait_for_executed_gtid_set(const POS &pos, Item *a, Item *b)
+    :Item_int_func(pos, a, b)
+  {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
+  longlong val_int();
+  const char *func_name() const { return "wait_for_executed_gtid_set"; }
+  void fix_length_and_dec() { max_length= 21; maybe_null= 1; }
+};
+
 class Item_master_gtid_set_wait :public Item_int_func
 {
   typedef Item_int_func super;

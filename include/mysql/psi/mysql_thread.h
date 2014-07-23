@@ -1289,7 +1289,7 @@ static inline int inline_mysql_thread_create(
   return result;
 }
 
-static inline void inline_mysql_thread_set_psi_id(ulong id)
+static inline void inline_mysql_thread_set_psi_id(my_thread_id id)
 {
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_id)(psi, id);

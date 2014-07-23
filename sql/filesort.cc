@@ -509,11 +509,11 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
 
     if (thd->is_fatal_error)
       sql_print_information("%s, host: %s, user: %s, "
-                            "thread: %lu, error: %s, query: %-.4096s",
+                            "thread: %u, error: %s, query: %-.4096s",
                             msg,
                             thd->security_ctx->host_or_ip,
                             &thd->security_ctx->priv_user[0],
-                            thd->thread_id,
+                            thd->thread_id(),
                             cause,
                             thd->query().str);
   }
