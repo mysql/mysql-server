@@ -1808,5 +1808,38 @@ EXECUTE stmt;
 DROP TABLE t1, t2;
 DROP VIEW v2;
 
+--echo #
+--echo # MDEV-6289 : Unexpected results when querying information_schema
+--echo #
+CREATE TABLE t1 (
+  id int(11) unsigned NOT NULL AUTO_INCREMENT,
+  db varchar(254) NOT NULL DEFAULT '',
+  PRIMARY KEY (id),
+  UNIQUE KEY db (db)
+) DEFAULT CHARSET=utf8;
+INSERT INTO t1 (db) VALUES ('mysqltest1'),('mysqltest2'),('mysqltest3'),('mysqltest4');
+
+--disable_warnings
+drop database if exists mysqltest1;
+drop database if exists mysqltest2;
+drop database if exists mysqltest3;
+drop database if exists mysqltest4;
+--enable_warnings
+create database mysqltest1;
+create database mysqltest2;
+create database mysqltest3;
+create database mysqltest4;
+
+SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.SCHEMATA) ORDER BY db DESC;
+
+EXPLAIN EXTENDED
+SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.SCHEMATA) ORDER BY db DESC;
+
+drop table t1;
+drop database mysqltest1;
+drop database mysqltest2;
+drop database mysqltest3;
+drop database mysqltest4;
+
 --echo # End of 5.5 tests
 

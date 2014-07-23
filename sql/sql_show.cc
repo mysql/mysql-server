@@ -7708,8 +7708,9 @@ bool get_schema_tables_result(JOIN *join,
   Warnings_only_error_handler err_handler;
   thd->push_internal_handler(&err_handler);
   old_proc_info= thd_proc_info(thd, "Filling schema table");
-
-  for (JOIN_TAB *tab= first_linear_tab(join, WITH_CONST_TABLES); 
+  
+  JOIN_TAB *tab;
+  for (tab= first_linear_tab(join, WITHOUT_BUSH_ROOTS, WITH_CONST_TABLES);
        tab; 
        tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {

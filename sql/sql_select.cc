@@ -1332,7 +1332,8 @@ JOIN::optimize()
     Perform the optimization on fields evaluation mentioned above
     for all on expressions.
   */
-  for (JOIN_TAB *tab= first_linear_tab(this, WITHOUT_CONST_TABLES); tab;
+  JOIN_TAB *tab;
+  for (tab= first_linear_tab(this, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES); tab;
        tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
   {
     if (*tab->on_expr_ref)
@@ -1355,7 +1356,7 @@ JOIN::optimize()
     Perform the optimization on fields evaliation mentioned above
     for all used ref items.
   */
-  for (JOIN_TAB *tab= first_linear_tab(this, WITHOUT_CONST_TABLES); tab;
+  for (tab= first_linear_tab(this, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES); tab;
        tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
   {
     uint key_copy_index=0;
@@ -1980,7 +1981,8 @@ bool JOIN::setup_subquery_caches()
     if (conds)
       conds= conds->transform(&Item::expr_cache_insert_transformer,
                               (uchar*) thd);
-    for (JOIN_TAB *tab= first_linear_tab(this, WITHOUT_CONST_TABLES); 
+    JOIN_TAB *tab;
+    for (tab= first_linear_tab(this, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES);
          tab; tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
     {
       if (tab->select_cond)
@@ -2143,7 +2145,8 @@ JOIN::reinit()
   /* need to reset ref access state (see join_read_key) */
   if (join_tab)
   {
-    for (JOIN_TAB *tab= first_linear_tab(this, WITH_CONST_TABLES); tab; 
+    JOIN_TAB *tab;
+    for (tab= first_linear_tab(this, WITH_BUSH_ROOTS, WITH_CONST_TABLES); tab;
          tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
     {
       tab->ref.key_err= TRUE;
@@ -2907,8 +2910,9 @@ JOIN::destroy()
   {
     if (join_tab != tmp_join->join_tab)
     {
-      for (JOIN_TAB *tab= first_linear_tab(this, WITH_CONST_TABLES); tab; 
-           tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
+      JOIN_TAB *tab;
+      for (tab= first_linear_tab(this, WITH_BUSH_ROOTS, WITH_CONST_TABLES);
+           tab; tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
       {
 	tab->cleanup();
       }
@@ -7520,14 +7524,24 @@ JOIN_TAB *next_top_level_tab(JOIN *join, JOIN_TAB *tab)
 }
 
 
-JOIN_TAB *first_linear_tab(JOIN *join, enum enum_with_const_tables const_tbls)
+JOIN_TAB *first_linear_tab(JOIN *join,
+                           enum enum_with_bush_roots include_bush_roots,
+                           enum enum_with_const_tables const_tbls)
 {
   JOIN_TAB *first= join->join_tab;
   if (const_tbls == WITHOUT_CONST_TABLES)
     first+= join->const_tables;
-  if (first < join->join_tab + join->top_join_tab_count)
-    return first;
-  return NULL; /* All tables were const tables */
+
+  if (first >= join->join_tab + join->top_join_tab_count)
+    return NULL; /* All are const tables */
+
+  if (first->bush_children && include_bush_roots == WITHOUT_BUSH_ROOTS)
+  {
+    /* This JOIN_TAB is a SJM nest; Start from first table in nest */
+    return first->bush_children->start;
+  }
+
+  return first;
 }
 
 
@@ -8364,9 +8378,10 @@ inline void add_cond_and_fix(THD *thd, Item **e1, Item *e2)
 
 static void add_not_null_conds(JOIN *join)
 {
+  JOIN_TAB *tab;
   DBUG_ENTER("add_not_null_conds");
   
-  for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
+  for (tab= first_linear_tab(join, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES);
        tab; 
        tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
@@ -8537,7 +8552,7 @@ make_outerjoin_info(JOIN *join)
     tab->table->pos_in_table_list being set.
   */
   JOIN_TAB *tab;
-  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
+  for (tab= first_linear_tab(join, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES);
        tab; 
        tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
@@ -8549,7 +8564,7 @@ make_outerjoin_info(JOIN *join)
     }
   }
 
-  for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); tab; 
+  for (JOIN_TAB *tab= first_linear_tab(join, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES); tab; 
        tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     TABLE *table= tab->table;
@@ -9309,7 +9324,7 @@ bool generate_derived_keys(DYNAMIC_ARRAY *keyuse_array)
 void JOIN::drop_unused_derived_keys()
 {
   JOIN_TAB *tab;
-  for (tab= first_linear_tab(this, WITHOUT_CONST_TABLES); 
+  for (tab= first_linear_tab(this, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES); 
        tab; 
        tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
   {
@@ -9997,7 +10012,7 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
   JOIN_TAB *tab;
   JOIN_TAB *prev_tab;
 
-  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
+  for (tab= first_linear_tab(join, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES); 
        tab; 
        tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
@@ -10005,7 +10020,7 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
   }
 
   uint idx= join->const_tables;
-  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
+  for (tab= first_linear_tab(join, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES); 
        tab; 
        tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
@@ -10099,7 +10114,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->partial_join_cardinality= 1; 
 
   JOIN_TAB *prev_tab= NULL;
-  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES), i= join->const_tables; 
+  i= join->const_tables;
+  for (tab= first_linear_tab(join, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES);
        tab; 
        prev_tab=tab, tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
@@ -10124,7 +10140,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   check_join_cache_usage_for_tables(join, options, no_jbuf_after);
   
   JOIN_TAB *first_tab;
-  for (tab= first_tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
+  for (tab= first_tab= first_linear_tab(join, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES); 
        tab; 
        tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
@@ -10800,7 +10816,8 @@ void JOIN::cleanup(bool full)
     }
     if (full)
     {
-      JOIN_TAB *sort_tab= first_linear_tab(this, WITHOUT_CONST_TABLES);
+      JOIN_TAB *sort_tab= first_linear_tab(this, WITH_BUSH_ROOTS, 
+                                           WITHOUT_CONST_TABLES);
       if (pre_sort_join_tab)
       {
         if (sort_tab && sort_tab->select == pre_sort_join_tab->select)
@@ -10847,7 +10864,7 @@ void JOIN::cleanup(bool full)
     }
     else
     {
-      for (tab= first_linear_tab(this, WITH_CONST_TABLES); tab;
+      for (tab= first_linear_tab(this, WITH_BUSH_ROOTS, WITH_CONST_TABLES); tab;
            tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
       {
 	if (tab->table)
@@ -11009,7 +11026,9 @@ only_eq_ref_tables(JOIN *join,ORDER *order,table_map tables)
 
 static void update_depend_map(JOIN *join)
 {
-  for (JOIN_TAB *join_tab= first_linear_tab(join, WITH_CONST_TABLES); join_tab;
+  JOIN_TAB *join_tab;
+  for (join_tab= first_linear_tab(join, WITH_BUSH_ROOTS, WITH_CONST_TABLES); 
+       join_tab;
        join_tab= next_linear_tab(join, join_tab, WITH_BUSH_ROOTS))
   {
     TABLE_REF *ref= &join_tab->ref;

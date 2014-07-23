@@ -3200,8 +3200,9 @@ int subselect_single_select_engine::exec()
         pushed down into the subquery. Those optimizations are ref[_or_null]
         acceses. Change them to be full table scans.
       */
-      for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); tab;
-           tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
+      JOIN_TAB *tab;
+      for (tab= first_linear_tab(join, WITH_BUSH_ROOTS, WITHOUT_CONST_TABLES);
+           tab; tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
       {
         if (tab && tab->keyuse)
         {

@@ -673,7 +673,8 @@ multi_delete::initialize_tables(JOIN *join)
 
   walk= delete_tables;
 
-  for (JOIN_TAB *tab= first_linear_tab(join, WITH_CONST_TABLES); 
+  for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_BUSH_ROOTS, 
+                                       WITH_CONST_TABLES); 
        tab; 
        tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
