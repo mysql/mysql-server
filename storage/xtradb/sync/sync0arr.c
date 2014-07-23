@@ -467,8 +467,10 @@ static
 void
 sync_array_cell_print(
 /*==================*/
-	FILE*		file,	/*!< in: file where to print */
-	sync_cell_t*	cell)	/*!< in: sync cell */
+	FILE*		file,		/*!< in: file where to print */
+	sync_cell_t*	cell,		/*!< in: sync cell */
+	os_thread_id_t* reserver)	/*!< out: write reserver or
+					0 */
 {
 	mutex_t*	mutex = NULL;
 	rw_lock_t*	rwlock = NULL;
@@ -538,6 +540,8 @@ sync_array_cell_print(
 					writer == RW_LOCK_EX
 					? " exclusive\n"
 					: " wait exclusive\n");
+
+				*reserver = rwlock->writer_thread;
 			}
 
 			fprintf(file,
@@ -573,7 +577,6 @@ sync_array_cell_print(
 	}
 }
 
-#ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 Looks for a cell with the given thread id.
 @return	pointer to cell or NULL if not found */
@@ -600,6 +603,8 @@ sync_array_find_thread(
 
 	return(NULL);	/* Not found */
 }
+
+#ifdef UNIV_SYNC_DEBUG
 
 /******************************************************************//**
 Recursion step for deadlock detection.
@@ -972,6 +977,7 @@ sync_array_print_long_waits(
 
 		double	diff;
 		void*	wait_object;
+		os_thread_id_t reserver=0;
 
 		cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
 
@@ -987,8 +993,29 @@ sync_array_print_long_waits(
 		if (diff > SYNC_ARRAY_TIMEOUT) {
 			fputs("InnoDB: Warning: a long semaphore wait:\n",
 			      stderr);
-			sync_array_cell_print(stderr, cell);
+			sync_array_cell_print(stderr, cell, &reserver);
 			noticed = TRUE;
+		} else {
+			fputs("InnoDB: Warning: semaphore wait:\n",
+			      stderr);
+			sync_array_cell_print(stderr, cell, &reserver);
+		}
+
+		/* Try to output cell information for writer recursive way */
+		while (reserver != 0) {
+			sync_cell_t* reserver_wait;
+
+			reserver_wait = sync_array_find_thread(sync_primary_wait_array, reserver);
+
+			if (reserver_wait &&
+			    reserver_wait->wait_object != NULL &&
+			    reserver_wait->waiting) {
+				fputs("InnoDB: Warning: Writer thread is waiting this semaphore:\n",
+				      stderr);
+				sync_array_cell_print(stderr, reserver_wait, &reserver);
+			} else {
+				reserver = 0;
+			}
 		}
 
 		if (diff > fatal_timeout) {
@@ -1050,6 +1077,7 @@ sync_array_output_info(
 	sync_cell_t*	cell;
 	ulint		count;
 	ulint		i;
+	os_thread_id_t  r;
 
 	fprintf(file,
 		"OS WAIT ARRAY INFO: reservation count %ld, signal count %ld\n",
@@ -1061,9 +1089,9 @@ sync_array_output_info(
 
 		cell = sync_array_get_nth_cell(arr, i);
 
-	if (cell->wait_object != NULL) {
-		count++;
-			sync_array_cell_print(file, cell);
+		if (cell->wait_object != NULL) {
+			count++;
+			sync_array_cell_print(file, cell, &r);
 		}
 
 		i++;
