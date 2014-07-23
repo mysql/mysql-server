@@ -2646,7 +2646,7 @@ bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   {
     ltime->time_type= MYSQL_TIMESTAMP_TIME;
     ltime->hour+= (ltime->month * 32 + ltime->day) * 24;
-    ltime->month= ltime->day= 0;
+    ltime->year= ltime->month= ltime->day= 0;
     if (adjust_time_range_with_warn(ltime,
                                     min(decimals, TIME_SECOND_PART_DIGITS)))
       return (null_value= true);

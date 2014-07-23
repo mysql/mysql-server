@@ -2389,3 +2389,18 @@ c1	c2
 9923-03-10 22:47:10.0	NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '2000000000000000000.0'
+#
+# MDEV-5750 Assertion `ltime->year == 0' fails on a query with EXTRACT DAY_MINUTE and TIME column
+#
+CREATE TABLE t1 ( d DATE, t TIME );
+INSERT INTO t1 VALUES ('2008-12-05','22:34:09'),('2005-03-27','14:26:02');
+SELECT EXTRACT(DAY_MINUTE FROM GREATEST(t,d)), GREATEST(t,d) FROM t1;
+EXTRACT(DAY_MINUTE FROM GREATEST(t,d))	GREATEST(t,d)
+342259	838:59:59
+342259	838:59:59
+Warnings:
+Warning	1292	Truncated incorrect time value: '9336:00:00'
+Warning	1292	Truncated incorrect time value: '9336:00:00'
+Warning	1292	Truncated incorrect time value: '2952:00:00'
+Warning	1292	Truncated incorrect time value: '2952:00:00'
+DROP TABLE t1;
