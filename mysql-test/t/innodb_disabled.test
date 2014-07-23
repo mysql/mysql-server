@@ -1,0 +1,54 @@
+# This test makes sure that there is no way to disable InnoDB in 5.7.
+# In other words: even though --skip-innodb (or --innodb=OFF) is specified,
+# InnoDB is still enabled.
+
+# Just for consistency.
+--source include/have_innodb.inc
+
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN= The use of InnoDB is mandatory since MySQL 5\.7\. The former options like .* are ignored\.
+# >= 7 because
+# - We have 7 server startup options which cause one warning in server error
+#   log per option.
+# - It cannot be excluded that
+#   - some MTR run setup goes with additional options causing more of such
+#     warnings. Example:
+#        ./mtr --mysqld=--innodb innodb_disabled -> 1 + 7 warnings
+#   - at runtime several tests use such options
+#     Example:
+#        ./mtr <execute somehow many tests>
+#        ...
+#        test A uses "--innodb" and causes a server restart --> 1 warning
+#        ...
+#        innodb_disabled --> 7 warnings more
+#
+--let MINIMUM_MATCHES= 7
+eval CALL mtr.add_suppression("$SEARCH_PATTERN");
+
+SELECT support FROM INFORMATION_SCHEMA.ENGINES WHERE engine = 'innodb';
+
+# In case of the embedded server the server error log will not contain
+# the warnings.
+if (`select version() like '%embedded%' = 1`)
+{
+exit;
+}
+perl;
+    use strict;
+    my $search_file=     $ENV{'SEARCH_FILE'}     or die "SEARCH_FILE not set";
+    my $search_pattern=  $ENV{'SEARCH_PATTERN'}  or die "SEARCH_PATTERN not set";
+    my $minimum_matches= $ENV{'MINIMUM_MATCHES'} or die "MINIMUM_MATCHES not set";
+    open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
+    read(FILE, my $file_content, 10000000, 0);
+    close(FILE);
+    my $file_content1= $file_content;
+    my $count = ( $file_content1 =~ s{$search_pattern}{}gm );
+    if ( not $count >= $minimum_matches ) {
+       die("# ERROR: The file '$search_file' does not contain \n".
+           "#        the expected pattern '$search_pattern' often enough.\n".
+           "#        Found: $count    Expected: >= $minimum_matches\n".
+           "# File content begin ===========\n$file_content\n".
+           "# File content end   ===========\n");
+    }
+EOF
+

@@ -236,6 +236,34 @@ TEST_F(PreallocedArrayTest, InsertUnique)
   }
 }
 
+TEST_F(PreallocedArrayTest, EraseUnique)
+{
+  for (int ix= 0; ix < 20; ++ix)
+    int_10.push_back(ix);
+
+  // The array should be sorted by default.
+  for (int ix= 0; ix < 20; ++ix)
+    EXPECT_EQ(ix, int_10[ix]);
+
+  // Now remove all even numbers.
+  for (int ix= 0; ix < 10; ++ix)
+    EXPECT_EQ(1U, int_10.erase_unique(2 * ix));
+
+  // 10 numbers should remain.
+  EXPECT_EQ(10U, int_10.size());
+
+  // Removing non-existing numbers should return 0.
+  for (int ix= 0; ix < 10; ++ix)
+    EXPECT_EQ(0U, int_10.erase_unique(2 * ix));
+
+  // 10 numbers should still remain.
+  EXPECT_EQ(10U, int_10.size());
+
+  // The array should still be sorted and contain odd numbers.
+  for (int ix= 0; ix < 10; ++ix)
+    EXPECT_EQ(2 * ix + 1, int_10[ix]);
+}
+
 /*
   A simple class for testing that object copying and destruction is done
   properly when we have to expand the array a few times,

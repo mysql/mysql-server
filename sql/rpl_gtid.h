@@ -19,7 +19,6 @@
 #ifndef RPL_GTID_H_INCLUDED
 #define RPL_GTID_H_INCLUDED
 
-
 #include <m_string.h>
 #include <mysqld_error.h>
 #include <my_global.h>
@@ -28,7 +27,6 @@
 #endif
 #include "prealloced_array.h"
 #include <list>
-
 
 /**
   Report an error from code that can be linked into either the server
@@ -683,15 +681,49 @@ public:
     sid_lock will be released, whereas the mutex will be released
     during the wait and (atomically) re-acquired when the wait ends.
   */
-  inline void wait(int n) const
+  inline void wait(const THD* thd, int n) const
   {
     DBUG_ENTER("Mutex_cond_array::wait");
     Mutex_cond *mutex_cond= get_mutex_cond(n);
     global_lock->unlock();
-    mysql_mutex_assert_owner(&mutex_cond->mutex);
-    mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
-    mysql_mutex_assert_owner(&mutex_cond->mutex);
+    if (!check_thd_killed(thd))
+    {
+      mysql_mutex_assert_owner(&mutex_cond->mutex);
+      mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
+      mysql_mutex_assert_owner(&mutex_cond->mutex);
+    }
     DBUG_VOID_RETURN;
+  }
+
+  /**
+    Wait for signal on the n'th condition variable.
+
+    The caller must hold the read lock or write lock on sid_lock, as
+    well as the nth mutex lock, before invoking this function.  The
+    sid_lock will be released, whereas the mutex will be released
+    during the wait and (atomically) re-acquired when the wait ends
+    or the timeout is reached.
+
+    @param[in] n - Sidno to wait for.
+    @param[in] abstime - pointer to the absolute wating time
+
+    @retval - 0 - success
+             !=0 - failure
+  */
+  inline int wait(const THD* thd, int sidno, struct timespec* abstime) const
+  {
+    DBUG_ENTER("Mutex_cond_array::wait");
+    int error= 0;
+    Mutex_cond *mutex_cond= get_mutex_cond(sidno);
+    global_lock->unlock();
+    if (!check_thd_killed(thd))
+    {
+      mysql_mutex_assert_owner(&mutex_cond->mutex);
+      error= mysql_cond_timedwait(&mutex_cond->cond,
+                                  &mutex_cond->mutex, abstime);
+      mysql_mutex_assert_owner(&mutex_cond->mutex);
+    }
+    DBUG_RETURN(error);
   }
 #ifndef MYSQL_CLIENT
   /// Execute THD::enter_cond for the n'th condition variable.
@@ -715,6 +747,15 @@ public:
     @return RETURN_OK or RETURN_REPORTED_ERROR
   */
   enum_return_status ensure_index(int n);
+  /**
+    This function is used to check whether the given thd is killed
+    or not.
+
+    @param[in] thd -  The thread object
+    @retval true  - thread is killed
+            false - thread not killed
+  */
+  bool check_thd_killed(const THD* thd) const;
 private:
   /// A mutex/cond pair.
   struct Mutex_cond
@@ -1873,7 +1914,7 @@ public:
           p+= global_sid_map->sidno_to_sid(sidno).to_string(p);
           printed_sid= true;
         }
-        p+= sprintf(p, ":%lld#%lu", node->gno, node->owner);
+        p+= sprintf(p, ":%lld#%u", node->gno, node->owner);
       }
     }
     *p= 0;
@@ -2176,19 +2217,6 @@ public:
   */
   enum_return_status acquire_ownership(THD *thd, const Gtid &gtid);
   /**
-    Update the state after the given thread has flushed cache to binlog.
-
-    This will:
-     - release ownership of all GTIDs owned by the THD;
-     - add all GTIDs in the Group_cache to
-       executed_gtids;
-     - send a broadcast on the condition variable for every sidno for
-       which we released ownership.
-
-    @param thd Thread for which owned groups are updated.
-  */
-  enum_return_status update_on_flush(THD *thd);
-  /**
     Remove the GTID owned by thread from owned GTIDs, stating that
     thd->owned_gtid was committed.
 
@@ -2242,8 +2270,13 @@ public:
 
     @param thd THD object of the caller.
     @param g Gtid to wait for.
+    @param timeout - pointer to the absolute timeout to wait for.
+
+    @retval  0 - success
+             !=0 timeout or some failure.
   */
-  void wait_for_gtid(THD *thd, const Gtid &gtid);
+  int wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* timeout= NULL);
+
 #endif // ifndef MYSQL_CLIENT
 #ifdef HAVE_GTID_NEXT_LIST
   /**
@@ -2278,6 +2311,25 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status ensure_sidno();
+
+  /**
+    This function is used to wait for a given gtid until it is logged.
+
+    @param thd     - global thread pointer.
+    @param Gtid    - Pointer to the Gtid set which gets updated.
+    @param timeout - Timeout value for which wait should be done in
+                     millisecond.
+
+    @return 0 - success
+            1 - timeout
+
+    For all other cases we will throw corresponding error messages using the
+    my_error(ER_*, MYF(0)) call and return with value of -1.
+
+   */
+#ifdef MYSQL_SERVER
+  int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
+#endif
   /**
     Adds the given Gtid_set that contains the groups in the given
     string to lost_gtids and executed_gtids, since lost_gtids must
@@ -2289,7 +2341,7 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
    */
   enum_return_status add_lost_gtids(const char *text);
-  /// Return a pointer to the Gtid_set that contains the logged groups.
+  /// Return a pointer to the Gtid_set that contains the lost groups.
   const Gtid_set *get_lost_gtids() const { return &lost_gtids; }
   /*
     Return a pointer to the Gtid_set that contains the stored groups
@@ -2450,11 +2502,17 @@ private:
   /**
     Remove the GTID owned by thread from owned GTIDs.
 
-    @param thd Thread for which owned groups are updated.
-    @param is_commit send a broadcast on the condition variable for
-           every sidno for which we released ownership.
+    This will:
+
+    - release ownership of all GTIDs owned by the THD;
+    - add all GTIDs in the Group_cache to executed_gtids is only done if the
+      is_commit flag is set.
+    - send a broadcast on the condition variable for every sidno for
+      which we released ownership.
+
+    @param[in] thd - Thread for which owned groups are updated.
   */
-  void update_owned_gtids_impl(THD *thd, bool is_commit);
+  void update_gtids_impl(THD *thd, bool is_commit);
 
 
   /// Read-write lock that protects updates to the number of SIDs.

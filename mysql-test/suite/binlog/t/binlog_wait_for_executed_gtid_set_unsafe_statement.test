@@ -1,0 +1,23 @@
+# WL#7796 - WAIT_FOR_EXECUTED_GTID_SET
+#
+# This test confirms that the statement WAIT_FOR_EXECUTED_GTID_SET is unsafe
+# and it should generate the proper warnings.
+#
+
+call mtr.add_suppression("Unsafe statement written to the binary log using*");
+--source include/have_log_bin.inc
+--source include/have_binlog_format_statement.inc
+--source include/have_gtid.inc
+--let $master_uuid= `SELECT @@SERVER_UUID`
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+# WAIT_FOR_EXECUTED_GTID_SET is unsafe since
+CREATE TABLE wait_for_executed_gtid_set(i INT);
+--replace_result $master_uuid MASTER_UUID
+--eval INSERT INTO wait_for_executed_gtid_set (SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:1', 10000))
+
+# CLEANUP
+DROP TABLE t1;
+DROP TABLE wait_for_executed_gtid_set;
