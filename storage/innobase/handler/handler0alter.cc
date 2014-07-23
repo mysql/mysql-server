@@ -5230,13 +5230,15 @@ innobase_update_foreign_try(
 
 /** Update the foreign key constraint definitions in the data dictionary cache
 after the changes to data dictionary tables were committed.
-@param ctx In-place ALTER TABLE context
-@return InnoDB error code (should always be DB_SUCCESS) */
+@param ctx	In-place ALTER TABLE context
+@param user_thd	MySQL connection
+@return		InnoDB error code (should always be DB_SUCCESS) */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 innobase_update_foreign_cache(
 /*==========================*/
-	ha_innobase_inplace_ctx*	ctx)
+	ha_innobase_inplace_ctx*	ctx,
+	THD*				user_thd)
 {
 	dict_table_t*	user_table;
 	dberr_t		err = DB_SUCCESS;
@@ -5296,7 +5298,10 @@ innobase_update_foreign_cache(
 		the user that the foreign key has loaded with mis-matched
 		charset */
 		if (err == DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_WARN,
+			push_warning_printf(
+				user_thd,
+				Sql_condition::SL_WARNING,
+				ER_ALTER_INFO,
 				"Foreign key constraints for table '%s'"
 				" are loaded with charset check off",
 				user_table->name);
@@ -6247,12 +6252,12 @@ ha_innobase::commit_inplace_alter_table(
 			/* Rename the tablespace files. */
 			commit_cache_rebuild(ctx);
 
-			error = innobase_update_foreign_cache(ctx);
+			error = innobase_update_foreign_cache(ctx, m_user_thd);
 			if (error != DB_SUCCESS) {
 				goto foreign_fail;
 			}
 		} else {
-			error = innobase_update_foreign_cache(ctx);
+			error = innobase_update_foreign_cache(ctx, m_user_thd);
 
 			if (error != DB_SUCCESS) {
 foreign_fail:
