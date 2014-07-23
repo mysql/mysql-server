@@ -64,6 +64,60 @@ insert into t3 select * from t;
 select count(*) from t1;
 count(*)
 8388608
+select count(*) from t1;
+count(*)
+8388608
+select count(*) from t1;
+count(*)
+8388608
+select count(*) from t1;
+count(*)
+8388608
+select count(*) from t1;
+count(*)
+8388608
+select count(*) from t1;
+count(*)
+8388608
+select count(*) from t1;
+count(*)
+8388608
+select count(*) from t1;
+count(*)
+8388608
+select count(*) from t1;
+count(*)
+8388608
+select count(*) from t1;
+count(*)
+8388608
+select count(*) from t2;
+count(*)
+8388608
+select count(*) from t2;
+count(*)
+8388608
+select count(*) from t2;
+count(*)
+8388608
+select count(*) from t2;
+count(*)
+8388608
+select count(*) from t2;
+count(*)
+8388608
+select count(*) from t2;
+count(*)
+8388608
+select count(*) from t2;
+count(*)
+8388608
+select count(*) from t2;
+count(*)
+8388608
+select count(*) from t2;
+count(*)
+8388608
 select count(*) from t2;
 count(*)
 8388608
@@ -71,14 +125,122 @@ count(*)
 select count(*) from t3;
 count(*)
 8388608
+select count(*) from t3;
+count(*)
+8388608
+select count(*) from t3;
+count(*)
+8388608
+select count(*) from t3;
+count(*)
+8388608
+select count(*) from t3;
+count(*)
+8388608
+select count(*) from t3;
+count(*)
+8388608
+select count(*) from t3;
+count(*)
+8388608
+select count(*) from t3;
+count(*)
+8388608
+select count(*) from t3;
+count(*)
+8388608
+select count(*) from t3;
+count(*)
+8388608
 1
+select count(*) from t1 where num>7000000;
+count(*)
+1847274
+select count(*) from t1 where num>7000000;
+count(*)
+1847274
+select count(*) from t1 where num>7000000;
+count(*)
+1847274
+select count(*) from t1 where num>7000000;
+count(*)
+1847274
+select count(*) from t1 where num>7000000;
+count(*)
+1847274
+select count(*) from t1 where num>7000000;
+count(*)
+1847274
+select count(*) from t1 where num>7000000;
+count(*)
+1847274
+select count(*) from t1 where num>7000000;
+count(*)
+1847274
+select count(*) from t1 where num>7000000;
+count(*)
+1847274
 select count(*) from t1 where num>7000000;
 count(*)
 1847274
 select count(*) from t2 where num>7000000;
 count(*)
 1847274
+select count(*) from t2 where num>7000000;
+count(*)
+1847274
+select count(*) from t2 where num>7000000;
+count(*)
+1847274
+select count(*) from t2 where num>7000000;
+count(*)
+1847274
+select count(*) from t2 where num>7000000;
+count(*)
+1847274
+select count(*) from t2 where num>7000000;
+count(*)
+1847274
+select count(*) from t2 where num>7000000;
+count(*)
+1847274
+select count(*) from t2 where num>7000000;
+count(*)
+1847274
+select count(*) from t2 where num>7000000;
+count(*)
+1847274
+select count(*) from t2 where num>7000000;
+count(*)
+1847274
 1
+select count(*) from t3 where num>7000000;
+count(*)
+1847274
+select count(*) from t3 where num>7000000;
+count(*)
+1847274
+select count(*) from t3 where num>7000000;
+count(*)
+1847274
+select count(*) from t3 where num>7000000;
+count(*)
+1847274
+select count(*) from t3 where num>7000000;
+count(*)
+1847274
+select count(*) from t3 where num>7000000;
+count(*)
+1847274
+select count(*) from t3 where num>7000000;
+count(*)
+1847274
+select count(*) from t3 where num>7000000;
+count(*)
+1847274
+select count(*) from t3 where num>7000000;
+count(*)
+1847274
 select count(*) from t3 where num>7000000;
 count(*)
 1847274
