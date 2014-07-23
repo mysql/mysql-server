@@ -1099,8 +1099,8 @@ public:
 
   virtual void operator()(THD *killing_thd)
   {
-    DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
-                       killing_thd->thread_id));
+    DBUG_PRINT("quit",("Informing thread %u that it's time to die",
+                       killing_thd->thread_id()));
     if (!m_kill_dump_threads_flag)
     {
       // We skip slave threads & scheduler on this first loop through.
@@ -1154,7 +1154,7 @@ public:
     if (closing_thd->vio_ok())
     {
       sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
-                        closing_thd->thread_id,
+                        closing_thd->thread_id(),
                         (closing_thd->main_security_ctx.user ?
                          closing_thd->main_security_ctx.user : ""));
       close_connection(closing_thd);
@@ -2736,7 +2736,7 @@ int init_common_variables()
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();      // Set tzname
 
-  max_system_variables.pseudo_thread_id= (ulong)~0;
+  max_system_variables.pseudo_thread_id= (my_thread_id) ~0;
   server_start_time= flush_status_time= my_time(0);
 
   rpl_filter= new Rpl_filter;

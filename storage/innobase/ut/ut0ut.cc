@@ -882,6 +882,9 @@ ut_strerr(
 		return("Table is corrupted");
 	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
 		return("Too many words in a FTS phrase or proximity search");
+	case DB_FORCED_ABORT:
+		return("Transaction aborted by another higher priority "
+		       "transaction");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
