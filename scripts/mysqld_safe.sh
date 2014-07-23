@@ -190,16 +190,6 @@ shell_quote_string() {
 }
 
 parse_arguments() {
-  # We only need to pass arguments through to the server if we don't
-  # handle them here.  So, we collect unrecognized options (passed on
-  # the command line) into the args variable.
-  pick_args=
-  if test "$1" = PICK-ARGS-FROM-ARGV
-  then
-    pick_args=1
-    shift
-  fi
-
   for arg do
     # the parameter after "=", or the whole $arg if no match
     val=`echo "$arg" | sed -e 's;^--[^=]*=;;'`
@@ -256,11 +246,10 @@ parse_arguments() {
       --help) usage ;;
 
       *)
-        if test -n "$pick_args"
-        then
-          append_arg_to_args "$arg"
-        fi
-        ;;
+        case "$unrecognized_handling" in
+          collect) append_arg_to_args "$arg" ;;
+          complain) log_error "unknown option '$arg'" ;;
+        esac
     esac
   done
 }
@@ -517,8 +506,16 @@ then
   SET_USER=0
 fi
 
+# If arguments come from [mysqld_safe] section of my.cnf
+# we complain about unrecognized options
+unrecognized_handling=complain
 parse_arguments `$print_defaults $defaults --loose-verbose mysqld_safe safe_mysqld mariadb_safe`
-parse_arguments PICK-ARGS-FROM-ARGV "$@"
+
+# We only need to pass arguments through to the server if we don't
+# handle them here.  So, we collect unrecognized options (passed on
+# the command line) into the args variable.
+unrecognized_handling=collect
+parse_arguments "$@"
 
 
 #
