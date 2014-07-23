@@ -36,18 +36,28 @@
 
 struct User_variable
 {
+public:
+  User_variable()
+  {}
+
+  User_variable(const User_variable& uv)
+    : m_name(uv.m_name), m_value(uv.m_value)
+  {}
+
+  ~User_variable()
+  {}
+
   PFS_variable_name_row m_name;
   PFS_variable_value_row m_value;
-
-  void clear()
-  { m_value.clear(); }
 };
 
 class User_variables
 {
+  typedef Prealloced_array<User_variable, 500, false> User_variable_array;
+
 public:
   User_variables()
-    : m_pfs(NULL), m_thread_internal_id(0), m_vector()
+    : m_pfs(NULL), m_thread_internal_id(0), m_array(PSI_INSTRUMENT_ME)
   {
   }
 
@@ -55,15 +65,7 @@ public:
   {
     m_pfs= NULL;
     m_thread_internal_id= 0;
-
-    int i;
-    int begin= 0;
-    int end= m_vector.size();
-    for (i= begin; i<end; i++)
-    {
-      m_vector[i].clear();
-    }
-    m_vector.clear();
+    m_array.clear();
   }
 
   void materialize(PFS_thread *pfs, THD *thd);
@@ -80,17 +82,17 @@ public:
 
   const User_variable *get(uint index) const
   {
-    if (index >= m_vector.size())
+    if (index >= m_array.size())
       return NULL;
 
-    const User_variable *p= m_vector.data();
-    return & p[index];
+    const User_variable *p= & m_array.at(index);
+    return p;
   }
 
 private:
   PFS_thread *m_pfs;
   ulonglong m_thread_internal_id;
-  std::vector<User_variable> m_vector;
+  User_variable_array m_array;
 };
 
 /**
