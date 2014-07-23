@@ -10526,23 +10526,7 @@ fk_drop_table(Fkdef& d, Ndb* pNdb, int i, bool force)
       break;
     }
     // all indexes are dropped by ndb api
-    for (int k = 0; k < dt.nind; k++)
-    {
-      Fkdef::Ind& di = dt.ind[k];
-      di.retrieved = false;
-      di.pInd = 0;
-    }
     // all related FKs child/parent are dropped by ndb api
-    for (int k = 0; k < d.nkey; k++)
-    {
-      Fkdef::Key& dk = d.key[k];
-      if (dk.tab0 == &dt || dk.tab1 == &dt)
-      {
-        dk.retrieved = false;
-      }
-    }
-    dt.retrieved = false;
-    dt.pTab = 0;
   }
   while (0);
   return result;
@@ -10578,7 +10562,6 @@ fk_drop_key(Fkdef& d, Ndb* pNdb, int k, bool force)
       break;
     }
     CHK2(pDic->dropForeignKey(key) == 0, pDic->getNdbError());
-    dk.retrieved = false;
   }
   while (0);
   return result;
@@ -10606,6 +10589,29 @@ fk_drop_all(Fkdef& d, Ndb* pNdb, bool force)
   }
   while (0);
   return result;
+}
+
+// commit drop
+
+// just reset all retrieved
+static void
+fk_dropped_all(Fkdef& d)
+{
+  for (int i = 0; i < d.ntab; i++)
+  {
+    Fkdef::Tab& dt = d.tab[i];
+    dt.retrieved = false;
+    for (int k = 0; k < dt.nind; k++)
+    {
+      Fkdef::Ind& di = dt.ind[k];
+      di.retrieved = false;
+    }
+  }
+  for (int k = 0; k < d.nkey; k++)
+  {
+    Fkdef::Key& dk = d.key[k];
+    dk.retrieved = false;
+  }
 }
 
 // for FK_Bug18069680
@@ -10923,6 +10929,8 @@ runFK_Bug18069680(NDBT_Context* ctx, NDBT_Step* step)
 
       CHK1(fk_drop_indexes_under(d, pNdb) == NDBT_OK);
       CHK1(fk_drop_tables(d, pNdb, false) == NDBT_OK);
+
+      fk_dropped_all(d);
     }
     CHK1(result == NDBT_OK);
   }
