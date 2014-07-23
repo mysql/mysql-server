@@ -1,17 +1,17 @@
 TokuDB
 ======
 
-TokuDB is a high-performance, transactional storage engine for MySQL and
+TokuDB is a high-performance, write optimized, transactional storage engine for MySQL and
 MariaDB.  For more details, see our [product page][products].
 
-This repository contains the MySQL plugin that uses the [TokuKV][tokukv]
+This repository contains the MySQL plugin that uses the [TokuFT][tokuft]
 core.
 
 There are also patches to the MySQL and MariaDB kernels, available in our
 forks of [mysql][mysql] and [mariadb][mariadb].
 
 [products]: http://www.tokutek.com/products/tokudb-for-mysql/
-[tokukv]: http://github.com/Tokutek/ft-index
+[tokuft]: http://github.com/Tokutek/ft-index
 [mysql]: http://github.com/Tokutek/mysql
 [mariadb]: http://github.com/Tokutek/mariadb
 
