@@ -6996,9 +6996,8 @@ daemon_memcached_make_option(char* option, int* option_argc,
 		num_arg++;
 	}
 
-	free(my_str);
-
-	my_str = option;
+	/* reset my_str, since strtok_r could alter it */
+	strncpy(my_str, option, strlen(option));
 
 	*option_argv = (char**) malloc((num_arg + 1)
 				       * sizeof(**option_argv));
@@ -7006,7 +7005,7 @@ daemon_memcached_make_option(char* option, int* option_argc,
 	for (opt_str = strtok_r(my_str, sep, &last);
 	     opt_str;
 	     opt_str = strtok_r(NULL, sep, &last)) {
-		(*option_argv)[i] = my_strdupl(opt_str, strlen(opt_str));
+		(*option_argv)[i] = opt_str;
 		i++;
 	}
 

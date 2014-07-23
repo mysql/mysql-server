@@ -3979,21 +3979,21 @@ ER_ERROR_DURING_CHECKPOINT
         swe "Fick fel %d vid CHECKPOINT"
         ukr "Отримано помилку %d під час CHECKPOINT"
 ER_NEW_ABORTING_CONNECTION 08S01 
-        cze "Spojení %ld do databáze: '%-.192s' uživatel: '%-.48s' stroj: '%-.64s' (%-.64s) bylo přerušeno"
-        dan "Afbrød forbindelsen %ld til databasen '%-.192s' bruger: '%-.48s' vært: '%-.64s' (%-.64s)"
-        nla "Afgebroken verbinding %ld naar db: '%-.192s' gebruiker: '%-.48s' host: '%-.64s' (%-.64s)"
-        eng "Aborted connection %ld to db: '%-.192s' user: '%-.48s' host: '%-.64s' (%-.64s)"
-        est "Ühendus katkestatud %ld andmebaas: '%-.192s' kasutaja: '%-.48s' masin: '%-.64s' (%-.64s)"
-        fre "Connection %ld avortée vers la bd: '%-.192s' utilisateur: '%-.48s' hôte: '%-.64s' (%-.64s)"
-        ger "Abbruch der Verbindung %ld zur Datenbank '%-.192s'. Benutzer: '%-.48s', Host: '%-.64s' (%-.64s)"
-        ita "Interrotta la connessione %ld al db: ''%-.192s' utente: '%-.48s' host: '%-.64s' (%-.64s)"
-        jpn "接続 %ld が中断されました。データベース: '%-.192s' ユーザー: '%-.48s' ホスト: '%-.64s' (%-.64s)"
-        por "Conexão %ld abortada para banco de dados '%-.192s' - usuário '%-.48s' - 'host' '%-.64s' ('%-.64s')"
-        rus "Прервано соединение %ld к базе данных '%-.192s' пользователя '%-.48s' с хоста '%-.64s' (%-.64s)"
-        serbian "Prekinuta konekcija broj %ld ka bazi: '%-.192s' korisnik je bio: '%-.48s' a host: '%-.64s' (%-.64s)"
-        spa "Abortada conexión %ld para db: '%-.192s' usuario: '%-.48s' servidor: '%-.64s' (%-.64s)"
-        swe "Avbröt länken för tråd %ld till db '%-.192s', användare '%-.48s', host '%-.64s' (%-.64s)"
-        ukr "Перервано з'єднання %ld до бази данних: '%-.192s' користувач: '%-.48s' хост: '%-.64s' (%-.64s)"
+        cze "Spojení %u do databáze: '%-.192s' uživatel: '%-.48s' stroj: '%-.64s' (%-.64s) bylo přerušeno"
+        dan "Afbrød forbindelsen %u til databasen '%-.192s' bruger: '%-.48s' vært: '%-.64s' (%-.64s)"
+        nla "Afgebroken verbinding %u naar db: '%-.192s' gebruiker: '%-.48s' host: '%-.64s' (%-.64s)"
+        eng "Aborted connection %u to db: '%-.192s' user: '%-.48s' host: '%-.64s' (%-.64s)"
+        est "Ühendus katkestatud %u andmebaas: '%-.192s' kasutaja: '%-.48s' masin: '%-.64s' (%-.64s)"
+        fre "Connection %u avortée vers la bd: '%-.192s' utilisateur: '%-.48s' hôte: '%-.64s' (%-.64s)"
+        ger "Abbruch der Verbindung %u zur Datenbank '%-.192s'. Benutzer: '%-.48s', Host: '%-.64s' (%-.64s)"
+        ita "Interrotta la connessione %u al db: ''%-.192s' utente: '%-.48s' host: '%-.64s' (%-.64s)"
+        jpn "接続 %u が中断されました。データベース: '%-.192s' ユーザー: '%-.48s' ホスト: '%-.64s' (%-.64s)"
+        por "Conexão %u abortada para banco de dados '%-.192s' - usuário '%-.48s' - 'host' '%-.64s' ('%-.64s')"
+        rus "Прервано соединение %u к базе данных '%-.192s' пользователя '%-.48s' с хоста '%-.64s' (%-.64s)"
+        serbian "Prekinuta konekcija broj %u ka bazi: '%-.192s' korisnik je bio: '%-.48s' a host: '%-.64s' (%-.64s)"
+        spa "Abortada conexión %u para db: '%-.192s' usuario: '%-.48s' servidor: '%-.64s' (%-.64s)"
+        swe "Avbröt länken för tråd %u till db '%-.192s', användare '%-.48s', host '%-.64s' (%-.64s)"
+        ukr "Перервано з'єднання %u до бази данних: '%-.192s' користувач: '%-.48s' хост: '%-.64s' (%-.64s)"
 ER_DUMP_NOT_IMPLEMENTED  
         cze "Handler tabulky nepodporuje binární dump"
         dan "Denne tabeltype unserstøtter ikke binært tabeldump"
@@ -7244,6 +7244,12 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS
 
 ER_ILLEGAL_USER_VAR 42000 S1009
   eng "User variable name '%-.100s' is illegal"
+
+ER_GTID_MODE_OFF
+  eng "Cannot %s when GTID_MODE = OFF."
+
+ER_UNSUPPORTED_BY_REPLICATION_THREAD
+  eng "Cannot %s from a replication slave thread."
 
 #
 #  End of 5.7 error messages.
