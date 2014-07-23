@@ -1099,8 +1099,8 @@ public:
 
   virtual void operator()(THD *killing_thd)
   {
-    DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
-                       killing_thd->thread_id));
+    DBUG_PRINT("quit",("Informing thread %u that it's time to die",
+                       killing_thd->thread_id()));
     if (!m_kill_dump_threads_flag)
     {
       // We skip slave threads & scheduler on this first loop through.
@@ -1154,7 +1154,7 @@ public:
     if (closing_thd->vio_ok())
     {
       sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
-                        closing_thd->thread_id,
+                        closing_thd->thread_id(),
                         (closing_thd->main_security_ctx.user ?
                          closing_thd->main_security_ctx.user : ""));
       close_connection(closing_thd);
@@ -2736,7 +2736,7 @@ int init_common_variables()
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();      // Set tzname
 
-  max_system_variables.pseudo_thread_id= (ulong)~0;
+  max_system_variables.pseudo_thread_id= (my_thread_id) ~0;
   server_start_time= flush_status_time= my_time(0);
 
   rpl_filter= new Rpl_filter;
@@ -5656,6 +5656,14 @@ struct my_option my_long_options[]=
    "Multiple --plugin-load-add are supported.",
    0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+
+  {"innodb", OPT_SKIP_INNODB,
+   "Deprecated option. Provided for backward compatibility only. "
+   "The option has no effect on the server behaviour. InnoDB is always enabled. "
+   "The option will be removed in a future release.",
+   0, 0, 0, GET_BOOL, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
+
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7115,6 +7123,11 @@ pfs_error:
   case OPT_MDL_HASH_INSTANCES:
     push_deprecated_warn_no_replacement(NULL,
                                         "--metadata_locks_hash_instances");
+    break;
+  case OPT_SKIP_INNODB:
+    sql_print_warning("The use of InnoDB is mandatory since MySQL 5.7. "
+                      "The former options like '--innodb=0/1/OFF/ON' or "
+                      "'--skip-innodb' are ignored.");
     break;
   }
   return 0;

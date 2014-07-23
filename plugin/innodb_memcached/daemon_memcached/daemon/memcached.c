@@ -4044,6 +4044,12 @@ static inline char* process_get_command(conn *c, token_t *tokens, size_t ntokens
     token_t *key_token = &tokens[KEY_TOKEN];
     assert(c != NULL);
 
+    /* We temporarily block the mgets commands till wl6650 checked in. */
+    if ((key_token + 1)->length > 0) {
+	out_string(c, "We temporarily don't support multiple get option.");
+	return NULL;
+    }
+
     do {
         while(key_token->length != 0) {
 
@@ -6996,9 +7002,8 @@ daemon_memcached_make_option(char* option, int* option_argc,
 		num_arg++;
 	}
 
-	free(my_str);
-
-	my_str = option;
+	/* reset my_str, since strtok_r could alter it */
+	strncpy(my_str, option, strlen(option));
 
 	*option_argv = (char**) malloc((num_arg + 1)
 				       * sizeof(**option_argv));
@@ -7006,7 +7011,7 @@ daemon_memcached_make_option(char* option, int* option_argc,
 	for (opt_str = strtok_r(my_str, sep, &last);
 	     opt_str;
 	     opt_str = strtok_r(NULL, sep, &last)) {
-		(*option_argv)[i] = my_strdupl(opt_str, strlen(opt_str));
+		(*option_argv)[i] = opt_str;
 		i++;
 	}
 
