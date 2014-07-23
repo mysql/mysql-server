@@ -3261,11 +3261,16 @@ uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
                                            nparts, left_endpoint,
                                            include_endpoint)));
 
-  if (!left_endpoint)
+  if (!left_endpoint && list_index < part_info->num_list_values)
   {
-    /* Set the end after this list tuple if not already after the last. */
-    if (list_index < part_info->num_parts)
-      list_index++;
+    /*
+      Set the end after this list tuple if it is not already after the last
+      and it matches.  ???
+    */
+    int cmp = cmp_rec_and_tuple_prune(list_col_array + list_index*num_columns,
+                                      nparts, left_endpoint, include_endpoint);
+    if (cmp >= 0)
+       list_index++;
   }
 
   DBUG_RETURN(list_index);

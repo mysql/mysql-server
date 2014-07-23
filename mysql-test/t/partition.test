@@ -2780,3 +2780,45 @@ select * from t1 where hours_worked_per_week = 40 and weeks_worked_last_year = 5
 select * from t1 IGNORE INDEX(dob, weeks_worked_last_year, hours_worked_per_week) where hours_worked_per_week = 40 and weeks_worked_last_year = 52 and dob < '1949-11-21';
 
 drop table t1;
+
+--echo #
+--echo # MDEV-6322: The PARTITION engine can return wrong query results
+--echo #
+CREATE TABLE t1 (
+  CustomerID varchar(5) DEFAULT NULL,
+  CompanyName varchar(40) DEFAULT NULL,
+  ContactName varchar(30) DEFAULT NULL,
+  ContactTitle varchar(30) DEFAULT NULL,
+  Address varchar(60) DEFAULT NULL,
+  City varchar(15) DEFAULT NULL,
+  Region varchar(15) DEFAULT NULL,
+  PostalCode varchar(10) DEFAULT NULL,
+  Country varchar(15) NOT NULL,
+  Phone varchar(24) DEFAULT NULL,
+  Fax varchar(24) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+PARTITION BY LIST  COLUMNS(Country)
+(PARTITION p1 VALUES IN ('Germany','Austria','Switzerland','Poland'),
+ PARTITION p2 VALUES IN ('USA','Canada','Mexico'),
+ PARTITION p3 VALUES IN ('Spain','Portugal','Italy'),
+ PARTITION p4 VALUES IN ('UK','Ireland'),
+ PARTITION p5 VALUES IN ('France','Belgium'),
+ PARTITION p6 VALUES IN ('Sweden','Finland','Denmark','Norway'),
+  PARTITION p7 VALUES IN ('Venezuela','Argentina','Brazil')
+);
+
+INSERT INTO t1 (CustomerID, City, Country) VALUES 
+('ANATR','México D.F','Mexico'),
+('ANTON','México D.F','Mexico'),
+('BOTTM','Tsawassen','Canada'),
+('CENTC','México D.F','Mexico'),
+('GREAL','Eugene','USA'),
+('HUNGC','Elgin','USA'),
+('LAUGB','Vancouver','Canada'),
+('LAZYK','Walla Walla','USA'),
+('LETSS','San Francisco','USA'),
+('LONEP','Portland','USA');
+
+SELECT * FROM t1 WHERE Country = 'USA';
+DROP TABLE t1;
+

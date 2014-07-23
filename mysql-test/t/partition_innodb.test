@@ -763,5 +763,32 @@ drop table t3;
 
 drop table t1,t2;
 
+--echo #
+--echo # MySQL Bug#71095: Wrong results with PARTITION BY LIST COLUMNS()
+--echo #
+create table t1(c1 int, c2 int, c3 int, c4 int,
+primary key(c1,c2)) engine=InnoDB
+partition by list columns(c2)
+(partition p1 values in (1,2) engine=InnoDB,
+partition p2 values in (3,4) engine=InnoDB);
+
+insert into t1 values (1,1,1,1),(2,3,1,1);
+select * from t1 where c1=2 and c2=3;
+drop table t1;
+
+--echo #
+--echo # MySQL Bug#72803: Wrong "Impossible where" with LIST partitioning
+--echo #  also MDEV-6240: Wrong "Impossible where" with LIST partitioning
+--echo #
+CREATE TABLE t1 ( d DATE) ENGINE = InnoDB
+PARTITION BY LIST COLUMNS (d)
+(
+  PARTITION p0 VALUES IN ('1990-01-01','1991-01-01'),
+  PARTITION p1 VALUES IN ('1981-01-01')
+);
+
+INSERT INTO t1 (d) VALUES ('1991-01-01');
+SELECT *  FROM t1 WHERE d = '1991-01-01';
+DROP TABLE t1;
 
 set global default_storage_engine=default;
