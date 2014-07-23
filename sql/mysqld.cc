@@ -5656,6 +5656,14 @@ struct my_option my_long_options[]=
    "Multiple --plugin-load-add are supported.",
    0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+
+  {"innodb", OPT_SKIP_INNODB,
+   "Deprecated option. Provided for backward compatibility only. "
+   "The option has no effect on the server behaviour. InnoDB is always enabled. "
+   "The option will be removed in a future release.",
+   0, 0, 0, GET_BOOL, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
+
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7115,6 +7123,11 @@ pfs_error:
   case OPT_MDL_HASH_INSTANCES:
     push_deprecated_warn_no_replacement(NULL,
                                         "--metadata_locks_hash_instances");
+    break;
+  case OPT_SKIP_INNODB:
+    sql_print_warning("The use of InnoDB is mandatory since MySQL 5.7. "
+                      "The former options like '--innodb=0/1/OFF/ON' or "
+                      "'--skip-innodb' are ignored.");
     break;
   }
   return 0;
