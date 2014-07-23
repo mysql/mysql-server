@@ -35,14 +35,24 @@
 class Find_thd_user_var : public Find_THD_Impl
 {
 public:
+  Find_thd_user_var(THD *unsafe_thd)
+    : m_unsafe_thd(unsafe_thd)
+  {}
+
   virtual bool operator()(THD *thd)
   {
+    if (thd != m_unsafe_thd)
+      return false;
+
     if (thd->user_vars.records == 0)
       return false;
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
     return true;
   }
+
+private:
+  THD *m_unsafe_thd;
 };
 
 void User_variables::materialize(PFS_thread *pfs, THD *thd)
@@ -215,8 +225,8 @@ int table_uvar_by_thread::materialize(PFS_thread *thread)
   if (unsafe_thd == NULL)
     return 1;
 
-  Find_thd_user_var finder;
-  THD *safe_thd= Global_THD_manager::get_instance()->inspect_thd(unsafe_thd, &finder);
+  Find_thd_user_var finder(unsafe_thd);
+  THD *safe_thd= Global_THD_manager::get_instance()->find_thd(&finder);
   if (safe_thd == NULL)
     return 1;
 
