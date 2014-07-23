@@ -2391,7 +2391,7 @@ public:
       memcpy(m_ptr, v.get_ptr(), v.get_nbytes());
       /*
         The extra 2 bytes makes the buffer usable by get_nbytes_free.
-        It's hard to know how many more space will be needed so let's 
+        It's hard to know how many more space will be needed so let's
         allocate more later.
       */
       get_cptr()[get_nbytes()]= '\xff';
@@ -3619,8 +3619,12 @@ public:
     set_bg_adapter(false);
   }
   Gis_geometry_collection(Geometry *geo, String *gcbuf);
+  Gis_geometry_collection(srid_t srid, wkbType gtype, const String *gbuf,
+                          String *gcbuf);
   virtual ~Gis_geometry_collection() {}       /* Remove gcc warning */
   bool append_geometry(const Geometry *geo, String *gcbuf);
+  bool append_geometry(srid_t srid, wkbType gtype,
+                       const String *gbuf, String *gcbuf);
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
