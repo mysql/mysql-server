@@ -702,9 +702,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag)
 void *create_embedded_thd(int client_flag)
 {
   THD * thd= new THD;
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
-  thd->thread_id= thd->variables.pseudo_thread_id;
+  thd->set_new_thread_id();
 
   thd->thread_stack= (char*) &thd;
   if (thd->store_globals())
@@ -735,7 +733,7 @@ void *create_embedded_thd(int client_flag)
   thd->first_data= 0;
   thd->data_tail= &thd->first_data;
   memset(&thd->net, 0, sizeof(thd->net));
-  thd_manager->add_thd(thd);
+  Global_THD_manager::get_instance()->add_thd(thd);
   thd->mysys_var= 0;
   return thd;
 err:

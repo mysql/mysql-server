@@ -2302,10 +2302,10 @@ bool mysql_explain_unit(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
 class Find_thd_query_lock: public Find_THD_Impl
 {
 public:
-  Find_thd_query_lock(ulong value): m_id(value) {}
+  Find_thd_query_lock(my_thread_id value): m_id(value) {}
   virtual bool operator()(THD *thd)
   {
-    if (thd->thread_id == m_id)
+    if (thd->thread_id() == m_id)
     {
       mysql_mutex_lock(&thd->LOCK_thd_data);
       mysql_mutex_lock(&thd->LOCK_query_plan);
@@ -2314,7 +2314,7 @@ public:
     return false;
   }
 private:
-  ulong m_id;
+  my_thread_id m_id;
 };
 
 

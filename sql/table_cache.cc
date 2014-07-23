@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -182,9 +182,9 @@ void Table_cache::print_tables()
     TABLE *entry;
     while ((entry= it++))
     {
-      printf("%-14.14s %-32s%6ld%8ld%6d  %s\n",
+      printf("%-14.14s %-32s%6ld%8u%6d  %s\n",
              entry->s->db.str, entry->s->table_name.str, entry->s->version,
-             entry->in_use->thread_id, entry->db_stat ? 1 : 0,
+             entry->in_use->thread_id(), entry->db_stat ? 1 : 0,
              lock_descriptions[(int)entry->reginfo.lock_type]);
     }
     it.init(el->free_tables);

@@ -2022,8 +2022,7 @@ public:
       if(!memcmp(m_log_name, linfo->log_file_name, m_log_name_len))
       {
         sql_print_warning("file %s was not purged because it was being read"
-                          "by thread number %llu", m_log_name,
-                          (ulonglong)thd->thread_id);
+                          "by thread number %u", m_log_name, thd->thread_id());
         m_count++;
       }
     }
@@ -3067,8 +3066,13 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   this object.
   @param prev_gtids If not NULL, then the GTIDs from the
   Previous_gtids_log_events are stored in this object.
+  @param first_gtid If not NULL, then the first GTID information from the
+  file will be stored in this object.
   @param last_gtid If not NULL, then the last GTID information from the
   file will be stored in this object.
+  @param sid_map The sid_map object to use in the rpl_sidno generation
+  of the Gtid_log_event. If lock is needed in the sid_map, the caller
+  must hold it.
   @param verify_checksum Set to true to verify event checksums.
 
   @retval GOT_GTIDS The file was successfully read and it contains
@@ -3087,7 +3091,9 @@ enum enum_read_gtids_from_binlog_status
 { GOT_GTIDS, GOT_PREVIOUS_GTIDS, NO_GTIDS, ERROR, TRUNCATED };
 static enum_read_gtids_from_binlog_status
 read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
-                       Gtid_set *prev_gtids, Gtid *last_gtid,
+                       Gtid_set *prev_gtids, Gtid *first_gtid,
+                       Gtid *last_gtid,
+                       Sid_map* sid_map,
                        bool verify_checksum)
 {
   DBUG_ENTER("read_gtids_from_binlog");
@@ -3103,6 +3109,20 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
 
   File file;
   IO_CACHE log;
+
+  /*
+    We assert here that both all_gtids and prev_gtids, if specified,
+    uses the same sid_map as the one passed as a parameter. This is just
+    to ensure that, if the sid_map needed some lock and was locked by
+    the caller, the lock applies to all the GTID sets this function is
+    dealing with.
+  */
+#ifndef DBUG_OFF
+  if (all_gtids)
+    DBUG_ASSERT(all_gtids->get_sid_map() == sid_map);
+  if (prev_gtids)
+    DBUG_ASSERT(prev_gtids->get_sid_map() == sid_map);
+#endif
 
   const char *errmsg= NULL;
   if ((file= open_binlog_file(&log, filename, &errmsg)) < 0)
@@ -3124,6 +3144,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
   Log_event *ev= NULL;
   enum_read_gtids_from_binlog_status ret= NO_GTIDS;
   bool done= false;
+  bool seen_first_gtid= false;
   while (!done &&
          (ev= Log_event::read_log_event(&log, 0, fd_ev_p, verify_checksum)) !=
          NULL)
@@ -3187,21 +3208,24 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
           ret= GOT_GTIDS;
       }
       /*
-        When all_gtids==NULL, we just check if the binary log contains
-        at least one Gtid_log_event, so that we can distinguish the
-        return values GOT_GTID and GOT_PREVIOUS_GTIDS. We don't need
-        to read anything else from the binary log.
-        But if last_gtid is requested (i.e., NOT NULL), we should continue to
-        read all gtids. Otherwise, we are done.
+        When all_gtids, first_gtid and last_gtid are all NULL,
+        we just check if the binary log contains at least one Gtid_log_event,
+        so that we can distinguish the return values GOT_GTID and
+        GOT_PREVIOUS_GTIDS. We don't need to read anything else from the
+        binary log.
+        If all_gtids or last_gtid is requested (i.e., NOT NULL), we should
+        continue to read all gtids.
+        If just first_gtid was requested, we will be done after storing this
+        Gtid_log_event info on it.
       */
-      if (all_gtids == NULL && last_gtid == NULL)
+      if (all_gtids == NULL && first_gtid == NULL && last_gtid == NULL)
       {
         ret= GOT_GTIDS, done= true;
       }
       else
       {
         Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
-        rpl_sidno sidno= gtid_ev->get_sidno(false/*false=don't need lock*/);
+        rpl_sidno sidno= gtid_ev->get_sidno(sid_map);
         if (sidno < 0)
           ret= ERROR, done= true;
         else
@@ -3216,6 +3240,17 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
             DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
                                 filename, sidno, gtid_ev->get_gno()));
           }
+
+          /* If the first GTID was requested, stores it */
+          if (first_gtid && !seen_first_gtid)
+          {
+            first_gtid->set(sidno, gtid_ev->get_gno());
+            seen_first_gtid= true;
+            /* If the first_gtid was the only thing requested, we are done */
+            if (all_gtids == NULL && last_gtid == NULL)
+              ret= GOT_GTIDS, done= true;
+          }
+
           if (last_gtid)
             last_gtid->set(sidno, gtid_ev->get_gno());
         }
@@ -3259,6 +3294,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
 
 bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
                                                    const Gtid_set *gtid_set,
+                                                   Gtid *first_gtid,
                                                    const char **errmsg)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::gtid_read_start_binlog");
@@ -3304,6 +3340,8 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     subset of the given gtid set. Since every binary log begins with
     a Previous_gtids_log_event, that contains all GTIDs in all
     previous binary logs.
+    We also ask for the first GTID in the binary log to know if we
+    should send the FD event with the "created" field cleared or not.
   */
   DBUG_PRINT("info", ("Iterating backwards through binary logs, and reading "
                       "only the Previous_gtids_log_event, to find the first "
@@ -3316,7 +3354,9 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     DBUG_PRINT("info", ("Read Previous_gtids_log_event from filename='%s'",
                         filename));
     switch (read_gtids_from_binlog(filename, NULL, &binlog_previous_gtid_set,
-                                 NULL, opt_master_verify_checksum))
+                                   first_gtid, NULL/* last_gtid */,
+                                   binlog_previous_gtid_set.get_sid_map(),
+                                   opt_master_verify_checksum))
     {
     case ERROR:
       *errmsg= "Error reading header of binary log while looking for "
@@ -3403,6 +3443,13 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
   list<string>::reverse_iterator rit;
   bool reached_first_file= false;
 
+  /* Initialize the sid_map to be used in read_gtids_from_binlog */
+  Sid_map *sid_map= NULL;
+  if (all_gtids)
+    sid_map= all_gtids->get_sid_map();
+  else if (lost_gtids)
+    sid_map= lost_gtids->get_sid_map();
+
   for (error= find_log_pos(&linfo, NULL, false/*need_lock_index=false*/); !error;
        error= find_next_log(&linfo, false/*need_lock_index=false*/))
   {
@@ -3436,8 +3483,8 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
                           filename, got_gtids, reached_first_file));
       switch (read_gtids_from_binlog(filename, got_gtids ? NULL : all_gtids,
                                      reached_first_file ? lost_gtids : NULL,
-                                     last_gtid,
-                                     verify_checksum))
+                                     NULL/* first_gtid */, last_gtid,
+                                     sid_map, verify_checksum))
       {
       case ERROR:
         error= 1;
@@ -3459,8 +3506,9 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     {
       const char *filename= it->c_str();
       DBUG_PRINT("info", ("filename='%s'", filename));
-      switch (read_gtids_from_binlog(filename, NULL, lost_gtids, NULL,
-                                     verify_checksum))
+      switch (read_gtids_from_binlog(filename, NULL, lost_gtids,
+                                     NULL/* first_gtid */, NULL/* last_gtid */,
+                                     sid_map, verify_checksum))
       {
       case ERROR:
         error= 1;
@@ -5366,7 +5414,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     /* reopen the binary log file. */
     file_to_open= new_name_ptr;
     error= open_binlog(old_name, new_name_ptr,
-                       max_size, true,
+                       max_size, true/*null_created_arg=true*/,
                        false/*need_lock_index=false*/,
                        true/*need_sid_lock=true*/,
                        extra_description_event);
@@ -6403,14 +6451,6 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
         write_error=1;				// Don't give more errors
         goto err;
       }
-
-      global_sid_lock->rdlock();
-      if (gtid_state->update_on_flush(thd) != RETURN_STATUS_OK)
-      {
-        global_sid_lock->unlock();
-        goto err;
-      }
-      global_sid_lock->unlock();
     }
     update_thd_next_event_pos(thd);
   }
@@ -7138,8 +7178,8 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
 #endif
   for (THD *head= first ; head ; head = head->next_to_commit)
   {
-    DBUG_PRINT("debug", ("Thread ID: %lu, commit_error: %d, flags.pending: %s",
-                         head->thread_id, head->commit_error,
+    DBUG_PRINT("debug", ("Thread ID: %u, commit_error: %d, flags.pending: %s",
+                         head->thread_id(), head->commit_error,
                          YESNO(head->get_transaction()->m_flags.pending)));
     /*
       If flushing failed, set commit_error for the session, skip the
@@ -7372,15 +7412,18 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     dec_prep_xids(thd);
 
   /*
-    Remove committed GTID from owned_gtids, it was already logged on
-    MYSQL_BIN_LOG::write_cache().
+    Gtid is added to gtid_state.executed_gtids and removed from owned_gtids
+    on update_on_commit().
   */
-  gtid_state->update_on_commit(thd);
+  if (thd->commit_error == THD::CE_NONE)
+    gtid_state->update_on_commit(thd);
+  else
+    gtid_state->update_on_rollback(thd);
 
   DBUG_ASSERT(thd->commit_error || !thd->get_transaction()->m_flags.run_hooks);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
-  DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
-                        thd->thread_id, thd->commit_error));
+  DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d",
+                        thd->thread_id(), thd->commit_error));
   return thd->commit_error;
 }
 
@@ -7498,9 +7541,9 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   thd->get_transaction()->m_flags.ready_preempt= 0;
 #endif
 
-  DBUG_PRINT("enter", ("flags.pending: %s, commit_error: %d, thread_id: %lu",
+  DBUG_PRINT("enter", ("flags.pending: %s, commit_error: %d, thread_id: %u",
                        YESNO(thd->get_transaction()->m_flags.pending),
-                       thd->commit_error, thd->thread_id));
+                       thd->commit_error, thd->thread_id()));
 
   DEBUG_SYNC(thd, "bgc_before_flush_stage");
 
@@ -7536,8 +7579,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
 #endif
   if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, NULL, &LOCK_log))
   {
-    DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
-                          thd->thread_id, thd->commit_error));
+    DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d",
+                          thd->thread_id(), thd->commit_error));
     DBUG_RETURN(finish_commit(thd));
   }
 
@@ -7580,8 +7623,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
 
   if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue, &LOCK_log, &LOCK_sync))
   {
-    DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
-                          thd->thread_id, thd->commit_error));
+    DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d",
+                          thd->thread_id(), thd->commit_error));
     DBUG_RETURN(finish_commit(thd));
   }
 
@@ -7628,8 +7671,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     if (change_stage(thd, Stage_manager::COMMIT_STAGE,
                      final_queue, &LOCK_sync, &LOCK_commit))
     {
-      DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
-                            thd->thread_id, thd->commit_error));
+      DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d",
+                            thd->thread_id(), thd->commit_error));
       DBUG_RETURN(finish_commit(thd));
     }
     THD *commit_queue= stage_manager.fetch_queue_for(Stage_manager::COMMIT_STAGE);
