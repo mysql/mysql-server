@@ -734,7 +734,7 @@ int Gtid_table_persistor::delete_all(TABLE *table)
 pthread_handler_t compress_gtid_table(void *p_thd)
 {
   THD *thd=(THD*) p_thd;
-  mysql_thread_set_psi_id(thd->thread_id);
+  mysql_thread_set_psi_id(thd->thread_id());
   my_thread_init();
   DBUG_ENTER("compress_gtid_table");
   init_thd(&thd);
@@ -794,8 +794,9 @@ void create_compress_gtid_table_thread()
                     "it is failed to allocate the THD.");
     return;
   }
-  thd->thread_id=
-    thd->variables.pseudo_thread_id= (unsigned long) pthread_self();
+
+  thd->set_new_thread_id();
+
   THD_CHECK_SENTRY(thd);
 
   if (pthread_attr_init(&attr))

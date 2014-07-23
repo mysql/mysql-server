@@ -1796,6 +1796,19 @@ protected:
   virtual ~Create_func_master_pos_wait() {}
 };
 
+class Create_func_executed_gtid_set_wait : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_executed_gtid_set_wait s_singleton;
+
+protected:
+  Create_func_executed_gtid_set_wait() {}
+  virtual ~Create_func_executed_gtid_set_wait() {}
+};
+
 class Create_func_master_gtid_set_wait : public Create_native_func
 {
 public:
@@ -4381,6 +4394,44 @@ Create_func_master_gtid_set_wait::create_native(THD *thd, LEX_STRING name,
   return func;
 }
 
+Create_func_executed_gtid_set_wait Create_func_executed_gtid_set_wait::s_singleton;
+
+Item*
+Create_func_executed_gtid_set_wait::create_native(THD *thd, LEX_STRING name,
+                                                  PT_item_list *item_list)
+
+{
+  Item *func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  POS pos;
+  switch (arg_count) {
+  case 1:
+  {
+    Item *param_1= item_list->pop_front();
+    func= new (thd->mem_root) Item_wait_for_executed_gtid_set(pos, param_1);
+    break;
+  }
+  case 2:
+  {
+    Item *param_1= item_list->pop_front();
+    Item *param_2= item_list->pop_front();
+    func= new (thd->mem_root) Item_wait_for_executed_gtid_set(pos, param_1, param_2);
+    break;
+  }
+  default:
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    break;
+  }
+  }
+
+  return func;
+}
+
 Create_func_md5 Create_func_md5::s_singleton;
 
 Item*
@@ -5311,6 +5362,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("SLEEP") }, BUILDER(Create_func_sleep)},
   { { C_STRING_WITH_LEN("SOUNDEX") }, BUILDER(Create_func_soundex)},
   { { C_STRING_WITH_LEN("SPACE") }, BUILDER(Create_func_space)},
+  { { C_STRING_WITH_LEN("WAIT_FOR_EXECUTED_GTID_SET") }, BUILDER(Create_func_executed_gtid_set_wait)},
   { { C_STRING_WITH_LEN("WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS") }, BUILDER(Create_func_master_gtid_set_wait)},
   { { C_STRING_WITH_LEN("SQRT") }, BUILDER(Create_func_sqrt)},
   { { C_STRING_WITH_LEN("SRID") }, GEOM_BUILDER(Create_func_srid)},

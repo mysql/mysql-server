@@ -1,0 +1,53 @@
+# ==== Purpose ====
+#
+# Verify if the temporary tables will still be present on the slave after
+# restarting only the IO thread when using the GTID AUTO_POSITION protocol.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# Bug#18472603 SQL THREAD COMMITS PARTIAL TRANSACTION WITH GTID AND AUTO
+#              POSITIONING ENABLED
+#
+--source include/have_binlog_format_statement.inc
+--source include/have_innodb.inc
+--source include/have_gtid.inc
+--let $use_gtids= 1
+--source include/master-slave.inc
+
+--echo # Initial setup
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE temp_t1 (c1 INT) ENGINE=InnoDB;
+
+--echo # Insert the data in the master
+BEGIN;
+INSERT INTO temp_t1 VALUES (1);
+COMMIT;
+
+BEGIN;
+INSERT INTO t1 VALUES ((SELECT COUNT(*) FROM temp_t1));
+COMMIT;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--echo # Stop the IO thread
+--source include/stop_slave_io.inc
+--echo # Restart IO thread
+--source include/start_slave_io.inc
+
+--echo # Do one more insert on master and then sync slave with master
+--source include/rpl_connection_master.inc
+BEGIN;
+INSERT INTO t1 VALUES ((SELECT COUNT(*) FROM temp_t1));
+COMMIT;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Now compare master and slave's t1 table data
+--source include/rpl_connection_master.inc
+--let diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+--echo # Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1, temp_t1;
+--source include/rpl_end.inc
