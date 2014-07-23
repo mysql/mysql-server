@@ -52,6 +52,7 @@ public:
       think placing 2-3 component items in item (as it done for function
   */
   Item_row(const POS &pos, Item *head, List<Item> &tail);
+  Item_row(Item *head, List<Item> &tail);
   Item_row(Item_row *item):
     Item(),
     items(item->items),
