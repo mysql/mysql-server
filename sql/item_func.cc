@@ -4211,6 +4211,64 @@ longlong Item_master_pos_wait::val_int()
   return event_count;
 }
 
+bool Item_wait_for_executed_gtid_set::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  /*
+    It is unsafe because the return value depends on timing. If the timeout
+    happens, the return value is different from the one in which the function
+    returns with success.
+  */
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  pc->thd->lex->safe_to_cache_query= false;
+  return false;
+}
+
+/**
+  Wait until the given gtid_set is found in the executed gtid_set independent
+  of the slave threads.
+*/
+longlong Item_wait_for_executed_gtid_set::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD* thd= current_thd;
+  String *gtid= args[0]->val_str(&value);
+  int result= 0;
+
+  null_value= 0;
+
+  if (gtid_mode == 0)
+  {
+    my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
+    null_value= 1;
+    return result;
+  }
+
+  if (gtid == NULL)
+  {
+    my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
+    null_value= 1;
+    return result;
+  }
+
+  // Since the function is independent of the slave threads we need to return
+  // with null value being set to 1.
+  if (thd->slave_thread)
+  {
+    null_value= 1;
+    return result;
+  }
+
+  longlong timeout= (arg_count== 2) ? args[1]->val_int() : 0;
+  result= gtid_state->wait_for_gtid_set(thd, gtid, timeout);
+  if (result == -1)
+    null_value= 1;
+  return result;
+}
+
 bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -4525,7 +4583,7 @@ public:
 
   void visit_context(const MDL_context *ctx)
   {
-    m_owner_id= ctx->get_owner()->get_thd()->thread_id;
+    m_owner_id= ctx->get_owner()->get_thd()->thread_id();
   }
 
   my_thread_id get_owner_id() const { return m_owner_id; }
@@ -5235,7 +5293,7 @@ void Item_func_set_user_var::cleanup()
 
 bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
 {
-  if (entry && thd->thread_id == entry_thread_id)
+  if (entry && thd->thread_id() == entry_thread_id)
   {} // update entry->update_query_id for PS
   else
   {
@@ -5248,7 +5306,7 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
       entry_thread_id= 0;
       return TRUE;
     }
-    entry_thread_id= thd->thread_id;
+    entry_thread_id= thd->thread_id();
   }
   /* 
     Remember the last query which updated it, this way a query can later know

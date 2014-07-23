@@ -302,7 +302,7 @@ C_MODE_END
 
 typedef struct st_debug_lock
 {
-  ulong thread_id;
+  my_thread_id thread_id;
   char table_name[FN_REFLEN];
   bool waiting;
   const char *lock_text;
@@ -347,7 +347,7 @@ static void push_locks_into_array(Saved_locks_array *ar, THR_LOCK_DATA *data,
     if (table && table->s->tmp_table == NO_TMP_TABLE)
     {
       TABLE_LOCK_INFO table_lock_info;
-      table_lock_info.thread_id= table->in_use->thread_id;
+      table_lock_info.thread_id= table->in_use->thread_id();
       memcpy(table_lock_info.table_name, table->s->table_cache_key.str,
 	     table->s->table_cache_key.length);
       table_lock_info.table_name[strlen(table_lock_info.table_name)]='.';
@@ -411,7 +411,7 @@ static void display_table_locks(void)
   Saved_locks_array::iterator it;
   for (it= saved_table_locks.begin(); it != saved_table_locks.end(); ++it)
   {
-    printf("%-8ld%-28.28s%-22s%s\n",
+    printf("%-8u%-28.28s%-22s%s\n",
 	   it->thread_id,
            it->table_name,
            it->lock_text,
