@@ -1,0 +1,4 @@
+include/master-slave.inc
+[connection master]
+kill user test2@nohost;
+include/rpl_end.inc
