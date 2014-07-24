@@ -536,25 +536,26 @@ public:
 		}
 
 		void*	ptr;
-		size_t	retries = 0;
 		size_t	total_bytes = n_elements * sizeof(T);
 
 #ifdef UNIV_PFS_MEMORY
 		total_bytes += sizeof(ut_new_pfx_t);
 #endif /* UNIV_PFS_MEMORY */
 
-		do {
+		for (size_t retries = 1; ; retries++) {
+
 			if (set_to_zero) {
 				ptr = calloc(1, total_bytes);
 			} else {
 				ptr = malloc(total_bytes);
 			}
 
-			if (ptr == NULL) {
-				os_thread_sleep(1000000 /* 1 second */);
-				retries++;
+			if (ptr != NULL || retries >= m_max_retries) {
+				break;
 			}
-		} while (ptr == NULL && retries < m_max_retries);
+
+			os_thread_sleep(1000000 /* 1 second */);
+		}
 
 		if (ptr == NULL) {
 			ib::fatal()
@@ -677,22 +678,23 @@ public:
 
 		ut_new_pfx_t*	pfx_old;
 		ut_new_pfx_t*	pfx_new;
-		size_t		retries = 0;
 		size_t		total_bytes;
 
 		pfx_old = reinterpret_cast<ut_new_pfx_t*>(ptr) - 1;
 
 		total_bytes = n_elements * sizeof(T) + sizeof(ut_new_pfx_t);
 
-		do {
+		for (size_t retries = 1; ; retries++) {
+
 			pfx_new = static_cast<ut_new_pfx_t*>(
 				realloc(pfx_old, total_bytes));
 
-			if (pfx_new == NULL) {
-				os_thread_sleep(1000000 /* 1 second */);
-				retries++;
+			if (pfx_new != NULL || retries >= m_max_retries) {
+				break;
 			}
-		} while (pfx_new == NULL && retries < m_max_retries);
+
+			os_thread_sleep(1000000 /* 1 second */);
+		}
 
 		if (pfx_new == NULL) {
 			ib::fatal()
