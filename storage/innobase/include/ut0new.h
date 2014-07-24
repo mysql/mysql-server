@@ -535,9 +535,9 @@ public:
 			}
 		}
 
-		void*			ptr;
-		size_t			retries = 0;
-		size_t			total_bytes = n_elements * sizeof(T);
+		void*	ptr;
+		size_t	retries = 0;
+		size_t	total_bytes = n_elements * sizeof(T);
 
 #ifdef UNIV_PFS_MEMORY
 		total_bytes += sizeof(ut_new_pfx_t);
@@ -587,7 +587,7 @@ public:
 	@param[in]	n_elements	number of elements allocated (unused) */
 	void
 	deallocate(
-		void*		ptr,
+		pointer		ptr,
 		size_type	n_elements = 0)
 	{
 		if (ptr == NULL) {
@@ -595,7 +595,7 @@ public:
 		}
 
 #ifdef UNIV_PFS_MEMORY
-		ut_new_pfx_t*	pfx = static_cast<ut_new_pfx_t*>(ptr) - 1;
+		ut_new_pfx_t*	pfx = reinterpret_cast<ut_new_pfx_t*>(ptr) - 1;
 
 		deallocate_trace(pfx);
 
@@ -663,7 +663,7 @@ public:
 		const char*	file)
 	{
 		if (n_elements == 0) {
-			deallocate(ptr);
+			deallocate(static_cast<pointer>(ptr));
 			return(NULL);
 		}
 
@@ -1077,7 +1077,8 @@ ut_delete_array(
 	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).reallocate( \
 		ptr, n_bytes, __FILE__))
 
-#define ut_free(ptr)	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).deallocate(ptr)
+#define ut_free(ptr)	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).deallocate( \
+	reinterpret_cast<byte*>(ptr))
 
 #else /* UNIV_PFS_MEMORY */
 
