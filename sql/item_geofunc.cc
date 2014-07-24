@@ -39,12 +39,6 @@
 #include "set_var.h"
 #include <m_ctype.h>
 #include "parse_tree_helpers.h"
-
-
-Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
-  :Item_str_func(pos, list)
-{}
-
 #include "spatial.h"
 #include "gis_bg_traits.h"
 #include <boost/geometry/geometry.hpp>
@@ -88,6 +82,10 @@ namespace bgcs= boost::geometry::cs;
 template <typename Point_range>
 static bool is_colinear(const Point_range &ls);
 
+
+Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
+  :Item_str_func(pos, list)
+{}
 
 
 Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
