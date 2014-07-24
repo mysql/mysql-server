@@ -314,7 +314,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     {
         DISKOFF offset;
         DISKOFF size;
-        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false);
+        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false, 0);
         assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         ft_h->blocktable.translate_blocknum_to_offset_size(b, &offset, &size);
@@ -447,7 +447,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     {
         DISKOFF offset;
         DISKOFF size;
-        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false);
+        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false, 0);
         assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         ft_h->blocktable.translate_blocknum_to_offset_size(b, &offset, &size);
@@ -573,7 +573,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     {
         DISKOFF offset;
         DISKOFF size;
-        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false);
+        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false, 0);
         assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         ft_h->blocktable.translate_blocknum_to_offset_size(b, &offset, &size);
@@ -708,7 +708,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
     {
         DISKOFF offset;
         DISKOFF size;
-        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false);
+        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false, 0);
         assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         ft_h->blocktable.translate_blocknum_to_offset_size(b, &offset, &size);
@@ -844,7 +844,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
     {
         DISKOFF offset;
         DISKOFF size;
-        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false);
+        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false, 0);
         assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         ft_h->blocktable.translate_blocknum_to_offset_size(b, &offset, &size);
@@ -964,7 +964,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     {
         DISKOFF offset;
         DISKOFF size;
-        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false);
+        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false, 0);
         assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         ft_h->blocktable.translate_blocknum_to_offset_size(b, &offset, &size);
@@ -1087,7 +1087,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     {
         DISKOFF offset;
         DISKOFF size;
-        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false);
+        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false, 0);
         assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         ft_h->blocktable.translate_blocknum_to_offset_size(b, &offset, &size);

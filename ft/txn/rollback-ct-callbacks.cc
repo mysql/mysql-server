@@ -126,7 +126,7 @@ toku_rollback_flush_unused_log(
 {
     if (write_me) {
         DISKOFF offset;
-        ft->blocktable.realloc_on_disk(logname, 0, &offset, ft, fd, for_checkpoint);
+        ft->blocktable.realloc_on_disk(logname, 0, &offset, ft, fd, for_checkpoint, INT_MAX);
     }
     if (!keep_me && !is_clone) {
         toku_free(log);

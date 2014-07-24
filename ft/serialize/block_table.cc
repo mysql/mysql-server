@@ -447,7 +447,7 @@ bool block_table::_translation_prevents_freeing(struct translation *t, BLOCKNUM 
            old_pair->u.diskoff == t->block_translation[b.b].u.diskoff;
 }
 
-void block_table::_realloc_on_disk_internal(BLOCKNUM b, DISKOFF size, DISKOFF *offset, FT ft, bool for_checkpoint) {
+void block_table::_realloc_on_disk_internal(BLOCKNUM b, DISKOFF size, DISKOFF *offset, FT ft, bool for_checkpoint, uint64_t heat) {
     toku_mutex_assert_locked(&_mutex);
     ft_set_dirty(ft, for_checkpoint);
 
@@ -466,7 +466,7 @@ void block_table::_realloc_on_disk_internal(BLOCKNUM b, DISKOFF size, DISKOFF *o
     if (size > 0) {
         // Allocate a new block if the size is greater than 0,
         // if the size is just 0, offset will be set to diskoff_unused
-        _bt_block_allocator.alloc_block(size, &allocator_offset);
+        _bt_block_allocator.alloc_block(size, heat, &allocator_offset);
     }
     t->block_translation[b.b].u.diskoff = allocator_offset;
     *offset = allocator_offset;
@@ -497,11 +497,11 @@ void block_table::_ensure_safe_write_unlocked(int fd, DISKOFF block_size, DISKOF
     }
 }
 
-void block_table::realloc_on_disk(BLOCKNUM b, DISKOFF size, DISKOFF *offset, FT ft, int fd, bool for_checkpoint) {
+void block_table::realloc_on_disk(BLOCKNUM b, DISKOFF size, DISKOFF *offset, FT ft, int fd, bool for_checkpoint, uint64_t heat) {
     _mutex_lock();
     struct translation *t = &_current;
     _verify_valid_freeable_blocknum(t, b);
-    _realloc_on_disk_internal(b, size, offset, ft, for_checkpoint);
+    _realloc_on_disk_internal(b, size, offset, ft, for_checkpoint, heat);
 
     _ensure_safe_write_unlocked(fd, size, *offset);
     _mutex_unlock();
@@ -526,7 +526,7 @@ void block_table::_alloc_inprogress_translation_on_disk_unlocked() {
     //Allocate a new block
     int64_t size = _calculate_size_on_disk(t);
     uint64_t offset;
-    _bt_block_allocator.alloc_block(size, &offset);
+    _bt_block_allocator.alloc_block(size, 0, &offset);
     t->block_translation[b.b].u.diskoff = offset;
     t->block_translation[b.b].size      = size;
 }
@@ -930,7 +930,7 @@ void block_table::internal_fragmentation(int64_t *total_sizep, int64_t *used_siz
 void block_table::_realloc_descriptor_on_disk_unlocked(DISKOFF size, DISKOFF *offset, FT ft) {
     toku_mutex_assert_locked(&_mutex);
     BLOCKNUM b = make_blocknum(RESERVED_BLOCKNUM_DESCRIPTOR);
-    _realloc_on_disk_internal(b, size, offset, ft, false);
+    _realloc_on_disk_internal(b, size, offset, ft, false, 0);
 }
 
 void block_table::realloc_descriptor_on_disk(DISKOFF size, DISKOFF *offset, FT ft, int fd) {

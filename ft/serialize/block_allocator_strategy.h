@@ -102,11 +102,10 @@ public:
 
     static struct block_allocator::blockpair *
     best_fit(struct block_allocator::blockpair *blocks_array,
-              uint64_t n_blocks, uint64_t size, uint64_t alignment);
+             uint64_t n_blocks, uint64_t size, uint64_t alignment);
 
-private:
-    // Effect: align a value by rounding up.
-    static inline uint64_t _align(uint64_t value, uint64_t ba_alignment) {
-        return ((value + ba_alignment - 1) / ba_alignment) * ba_alignment;
-    }
+    static struct block_allocator::blockpair *
+    heat_zone(struct block_allocator::blockpair *blocks_array,
+              uint64_t n_blocks, uint64_t size, uint64_t alignment,
+              uint64_t heat);
 };

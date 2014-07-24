@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 static void ba_alloc(block_allocator *ba, uint64_t size, uint64_t *answer) {
     ba->validate();
     uint64_t actual_answer;
-    ba->alloc_block(512 * size, &actual_answer);
+    ba->alloc_block(512 * size, 0, &actual_answer);
     ba->validate();
 
     assert(actual_answer%512==0);

@@ -126,7 +126,8 @@ public:
 
     enum allocation_strategy {
         BA_STRATEGY_FIRST_FIT = 1,
-        BA_STRATEGY_BEST_FIT
+        BA_STRATEGY_BEST_FIT,
+        BA_STRATEGY_HEAT_ZONE
     };
 
     struct blockpair {
@@ -134,6 +135,12 @@ public:
         uint64_t size;
         blockpair(uint64_t o, uint64_t s) :
             offset(o), size(s) {
+        }
+        int operator<(const struct blockpair &rhs) {
+            return offset < rhs.offset;
+        }
+        int operator<(const uint64_t &o) {
+            return offset < o;
         }
     };
 
@@ -172,7 +179,9 @@ public:
     // Parameters:
     //  size (IN):    The size of the block.  (The size does not have to be aligned.)
     //  offset (OUT): The location of the block.
-    void alloc_block(uint64_t size, uint64_t *offset);
+    //  heat (IN):    A higher heat means we should be prepared to free this block soon (perhaps in the next checkpoint)
+    //                Heat values are lexiographically ordered (like integers), but their specific values are arbitrary
+    void alloc_block(uint64_t size, uint64_t heat, uint64_t *offset);
 
     // Effect: Free the block at offset.
     // Requires: There must be a block currently allocated at that offset.
@@ -229,9 +238,7 @@ private:
     void grow_blocks_array_by(uint64_t n_to_add);
     void grow_blocks_array();
     int64_t find_block(uint64_t offset);
-    struct blockpair *choose_block_to_alloc_after(size_t size);
-
-    static int compare_blockpairs(const void *av, const void *bv);
+    struct blockpair *choose_block_to_alloc_after(size_t size, uint64_t heat);
 
     // How much to reserve at the beginning
     uint64_t _reserve_at_beginning;

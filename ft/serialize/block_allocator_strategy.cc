@@ -86,13 +86,31 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#include <algorithm>
+
+#include "portability/toku_assert.h"
+
 #include "ft/serialize/block_allocator_strategy.h"
 
+static uint64_t _align(uint64_t value, uint64_t ba_alignment) {
+    return ((value + ba_alignment - 1) / ba_alignment) * ba_alignment;
+}
+
 // First fit block allocation
-struct block_allocator::blockpair *
-block_allocator_strategy::first_fit(struct block_allocator::blockpair *blocks_array,
-                                    uint64_t n_blocks, uint64_t size, uint64_t alignment) {
-    for (uint64_t blocknum = 0; blocknum + 1 < n_blocks; blocknum++) {
+static struct block_allocator::blockpair *
+_first_fit(struct block_allocator::blockpair *blocks_array,
+           uint64_t n_blocks, uint64_t size, uint64_t alignment,
+           bool forward) {
+    if (n_blocks == 1) {
+        // won't enter loop, can't underflow the direction < 0 case
+        return nullptr;
+    }
+
+    for (uint64_t n_spaces_to_check = n_blocks - 1,
+                  blocknum = forward ? 0 : n_blocks - 2;
+         n_spaces_to_check > 0;
+         n_spaces_to_check--, forward ? blocknum++ : blocknum--) {
+        invariant(blocknum < n_blocks);
         // Consider the space after blocknum
         struct block_allocator::blockpair *bp = &blocks_array[blocknum];
         uint64_t possible_offset = _align(bp->offset + bp->size, alignment);
@@ -103,19 +121,26 @@ block_allocator_strategy::first_fit(struct block_allocator::blockpair *blocks_ar
     return nullptr;
 }
 
+struct block_allocator::blockpair *
+block_allocator_strategy::first_fit(struct block_allocator::blockpair *blocks_array,
+                                    uint64_t n_blocks, uint64_t size, uint64_t alignment) {
+    return _first_fit(blocks_array, n_blocks, size, alignment, true);
+}
+
 // Best fit block allocation
 struct block_allocator::blockpair *
 block_allocator_strategy::best_fit(struct block_allocator::blockpair *blocks_array,
-                                    uint64_t n_blocks, uint64_t size, uint64_t alignment) {
+                                   uint64_t n_blocks, uint64_t size, uint64_t alignment) {
     struct block_allocator::blockpair *best_bp = nullptr;
     uint64_t best_hole_size = 0;
     for (uint64_t blocknum = 0; blocknum + 1 < n_blocks; blocknum++) {
         // Consider the space after blocknum
         struct block_allocator::blockpair *bp = &blocks_array[blocknum];
         uint64_t possible_offset = _align(bp->offset + bp->size, alignment);
-        if (possible_offset + size <= bp[1].offset) {
+        uint64_t possible_end_offset = possible_offset + size;
+        if (possible_end_offset <= bp[1].offset) {
             // It fits here. Is it the best fit?
-            uint64_t hole_size = (bp[1].offset - possible_offset) + size;
+            uint64_t hole_size = bp[1].offset - possible_end_offset;
             if (best_bp == nullptr || hole_size < best_hole_size) {
                 best_hole_size = hole_size;
                 best_bp = bp;
@@ -123,4 +148,42 @@ block_allocator_strategy::best_fit(struct block_allocator::blockpair *blocks_arr
         }
     }
     return best_bp;
+}
+
+struct block_allocator::blockpair *
+block_allocator_strategy::heat_zone(struct block_allocator::blockpair *blocks_array,
+                                    uint64_t n_blocks, uint64_t size, uint64_t alignment,
+                                    uint64_t heat) {
+    if (heat > 0) {
+        const double hot_zone_threshold = 0.85;
+
+        // Hot allocation. Find the beginning of the hot zone.
+        struct block_allocator::blockpair *bp = &blocks_array[n_blocks - 1];
+        uint64_t highest_offset = _align(bp->offset + bp->size, alignment);
+        uint64_t hot_zone_offset = static_cast<uint64_t>(hot_zone_threshold * highest_offset);
+
+        bp = std::lower_bound(blocks_array, blocks_array + n_blocks, hot_zone_offset);
+        uint64_t blocks_in_zone = (blocks_array + n_blocks) - bp;
+        uint64_t blocks_outside_zone = bp - blocks_array;
+        invariant(blocks_in_zone + blocks_outside_zone == n_blocks);
+
+        if (blocks_in_zone > 0) {
+            // Find the first fit in the hot zone, going forward.
+            bp = _first_fit(bp, blocks_in_zone, size, alignment, true);
+            if (bp != nullptr) {
+                return bp;
+            }
+        }
+        if (blocks_outside_zone > 0) {
+            // Find the first fit in the cold zone, going backwards.
+            bp = _first_fit(bp, blocks_outside_zone, size, alignment, false);
+            if (bp != nullptr) {
+                return bp;
+            }
+        }
+    } else {
+        // Cold allocations are simply first-fit from the beginning.
+        return _first_fit(blocks_array, n_blocks, size, alignment, true);
+    }
+    return nullptr;
 }
