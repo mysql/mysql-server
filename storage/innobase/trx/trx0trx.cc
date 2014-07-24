@@ -2431,7 +2431,7 @@ state_ok:
 		putc('\n', f);
 	}
 
-	if (trx->mysql_thd != NULL) {
+	if (trx->state != TRX_STATE_NOT_STARTED && trx->mysql_thd != NULL) {
 		innobase_mysql_print_thd(
 			f, trx->mysql_thd, static_cast<uint>(max_query_len));
 	}
