@@ -209,7 +209,7 @@ toku_pin_ftnode_for_query(
     UNLOCKERS unlockers,
     ANCESTORS ancestors,
     const pivot_bounds &bounds,
-    FTNODE_FETCH_EXTRA bfe,
+    ftnode_fetch_extra *bfe,
     bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
     FTNODE *node_p,
     bool* msgs_applied)
@@ -322,7 +322,7 @@ toku_pin_ftnode_with_dep_nodes(
     FT ft,
     BLOCKNUM blocknum,
     uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
+    ftnode_fetch_extra *bfe,
     pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
     FTNODE *dependent_nodes,
@@ -364,7 +364,7 @@ toku_pin_ftnode_with_dep_nodes(
 void toku_pin_ftnode(FT ft,
                      BLOCKNUM blocknum,
                      uint32_t fullhash,
-                     FTNODE_FETCH_EXTRA bfe,
+                     ftnode_fetch_extra *bfe,
                      pair_lock_type lock_type,
                      FTNODE *node_p,
                      bool move_messages) {

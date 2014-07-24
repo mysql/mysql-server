@@ -147,8 +147,8 @@ doit (void) {
     // then node_internal should be huge
     // we pin it and verify that it is not
     FTNODE node;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, t->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_full_read(t->ft);
     toku_pin_ftnode(
         t->ft, 
         node_internal,

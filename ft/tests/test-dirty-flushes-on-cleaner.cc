@@ -237,8 +237,8 @@ doit (void) {
 
     // now lock and release the leaf node to make sure it is what we expect it to be.
     FTNODE node = NULL;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, ft->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(ft->ft);
     toku_pin_ftnode_with_dep_nodes(
         ft->ft, 
         node_leaf,
@@ -268,7 +268,7 @@ doit (void) {
     // node is in memory and another is
     // on disk
     //
-    fill_bfe_for_min_read(&bfe, ft->ft);
+    bfe.create_for_min_read(ft->ft);
     toku_pin_ftnode_with_dep_nodes(
         ft->ft, 
         node_leaf,
@@ -289,7 +289,7 @@ doit (void) {
     //
     // now let us induce a clean on the internal node
     //    
-    fill_bfe_for_min_read(&bfe, ft->ft);
+    bfe.create_for_min_read(ft->ft);
     toku_pin_ftnode_with_dep_nodes(
         ft->ft, 
         node_internal,
@@ -314,7 +314,7 @@ doit (void) {
         );
 
     // verify that node_internal's buffer is empty
-    fill_bfe_for_min_read(&bfe, ft->ft);
+    bfe.create_for_min_read(ft->ft);
     toku_pin_ftnode_with_dep_nodes(
         ft->ft, 
         node_internal,

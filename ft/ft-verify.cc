@@ -288,8 +288,8 @@ toku_get_node_for_verify(
     )
 {
     uint32_t fullhash = toku_cachetable_hash(ft_handle->ft->cf, blocknum);
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, ft_handle->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_full_read(ft_handle->ft);
     toku_pin_ftnode(
         ft_handle->ft,
         blocknum,

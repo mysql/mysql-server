@@ -491,8 +491,8 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             uint32_t fullhash;
             CACHEKEY root;
             toku_calculate_root_offset_pointer(ft, &root, &fullhash);
-            struct ftnode_fetch_extra bfe;
-            fill_bfe_for_full_read(&bfe, ft);
+            ftnode_fetch_extra bfe;
+            bfe.create_for_full_read(ft);
             toku_pin_ftnode(ft, root, fullhash, &bfe, PL_WRITE_EXPENSIVE, &root_node, true);
             toku_ftnode_assert_fully_in_memory(root_node);
         }
@@ -1075,8 +1075,8 @@ ft_split_child(
 
 static void bring_node_fully_into_memory(FTNODE node, FT ft) {
     if (!toku_ftnode_fully_in_memory(node)) {
-        struct ftnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, ft);
+        ftnode_fetch_extra bfe;
+        bfe.create_for_full_read(ft);
         toku_cachetable_pf_pinned_pair(
             node,
             toku_ftnode_pf_callback,
@@ -1379,8 +1379,8 @@ ft_merge_child(
     FTNODE childa, childb;
     {
         uint32_t childfullhash = compute_child_fullhash(ft->cf, node, childnuma);
-        struct ftnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, ft);
+        ftnode_fetch_extra bfe;
+        bfe.create_for_full_read(ft);
         toku_pin_ftnode_with_dep_nodes(ft, BP_BLOCKNUM(node, childnuma), childfullhash, &bfe, PL_WRITE_EXPENSIVE, 1, &node, &childa, true);
     }
     // for test
@@ -1390,8 +1390,8 @@ ft_merge_child(
         dep_nodes[0] = node;
         dep_nodes[1] = childa;
         uint32_t childfullhash = compute_child_fullhash(ft->cf, node, childnumb);
-        struct ftnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, ft);
+        ftnode_fetch_extra bfe;
+        bfe.create_for_full_read(ft);
         toku_pin_ftnode_with_dep_nodes(ft, BP_BLOCKNUM(node, childnumb), childfullhash, &bfe, PL_WRITE_EXPENSIVE, 2, dep_nodes, &childb, true);
     }
 
@@ -1520,10 +1520,10 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
     ft->blocktable.verify_blocknum_allocated(targetchild);
     uint32_t childfullhash = compute_child_fullhash(ft->cf, parent, childnum);
     FTNODE child;
-    struct ftnode_fetch_extra bfe;
+    ftnode_fetch_extra bfe;
     // Note that we don't read the entire node into memory yet.
     // The idea is let's try to do the minimum work before releasing the parent lock
-    fill_bfe_for_min_read(&bfe, ft);
+    bfe.create_for_min_read(ft);
     toku_pin_ftnode_with_dep_nodes(ft, targetchild, childfullhash, &bfe, PL_WRITE_EXPENSIVE, 1, &parent, &child, true);
 
     // for test

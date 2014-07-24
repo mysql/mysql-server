@@ -229,9 +229,9 @@ static int print_le(const void* key, const uint32_t keylen, const LEAFENTRY &le,
 
 static void dump_node(int fd, BLOCKNUM blocknum, FT ft) {
     FTNODE n;
-    struct ftnode_fetch_extra bfe;
-    FTNODE_DISK_DATA ndd = NULL;
-    fill_bfe_for_full_read(&bfe, ft);
+    FTNODE_DISK_DATA ndd = nullptr;
+    ftnode_fetch_extra bfe;
+    bfe.create_for_full_read(ft);
     int r = toku_deserialize_ftnode_from (fd, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, &ndd, &bfe);
     assert_zero(r);
     assert(n!=0);
@@ -366,8 +366,8 @@ static int nodesizes_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void 
     frag_help_extra *CAST_FROM_VOIDP(info, extra);
     FTNODE n;
     FTNODE_DISK_DATA ndd = NULL;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, info->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_full_read(info->ft);
     int r = toku_deserialize_ftnode_from(info->fd, b, 0 /*pass zero for hash, it doesn't matter*/, &n, &ndd, &bfe);
     if (r==0) {
         info->blocksizes += size;

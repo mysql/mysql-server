@@ -180,8 +180,8 @@ doit (void) {
     // the root, one in each buffer, let's verify this.
 
     FTNODE node = NULL;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, t->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(t->ft);
     toku_pin_ftnode(
         t->ft, 
         node_root,
@@ -210,7 +210,7 @@ doit (void) {
     // at this point, we have should have flushed
     // only the middle buffer, let's verify this.
     node = NULL;
-    fill_bfe_for_min_read(&bfe, t->ft);
+    bfe.create_for_min_read(t->ft);
     toku_pin_ftnode(
         t->ft, 
         node_root,

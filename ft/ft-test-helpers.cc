@@ -177,8 +177,8 @@ int toku_testsetup_get_sersize(FT_HANDLE ft_handle, BLOCKNUM diskoff) // Return 
 {
     assert(testsetup_initialized);
     void *node_v;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, ft_handle->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_full_read(ft_handle->ft);
     int r  = toku_cachetable_get_and_pin(
         ft_handle->ft->cf, diskoff,
         toku_cachetable_hash(ft_handle->ft->cf, diskoff),
@@ -204,8 +204,8 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE ft_handle, BLOCKNUM blocknum, const
 
     assert(testsetup_initialized);
 
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, ft_handle->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_full_read(ft_handle->ft);
     r = toku_cachetable_get_and_pin(
         ft_handle->ft->cf,
         blocknum,
@@ -258,8 +258,8 @@ testhelper_string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 void
 toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t)
 {
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, t->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(t->ft);
     toku_pin_ftnode(
         t->ft, 
         b,
@@ -277,8 +277,8 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE ft_handle, BLOCKNUM blocknum, en
 
     assert(testsetup_initialized);
 
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, ft_handle->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_full_read(ft_handle->ft);
     r = toku_cachetable_get_and_pin(
         ft_handle->ft->cf,
         blocknum,

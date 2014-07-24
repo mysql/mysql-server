@@ -298,6 +298,92 @@ struct ft_handle {
 PAIR_ATTR make_ftnode_pair_attr(FTNODE node);
 PAIR_ATTR make_invalid_pair_attr(void);
 
+//
+// Field in ftnode_fetch_extra that tells the 
+// partial fetch callback what piece of the node
+// is needed by the ydb
+//
+enum ftnode_fetch_type {
+    ftnode_fetch_none = 1, // no partitions needed.  
+    ftnode_fetch_subset, // some subset of partitions needed
+    ftnode_fetch_prefetch, // this is part of a prefetch call
+    ftnode_fetch_all, // every partition is needed
+    ftnode_fetch_keymatch, // one child is needed if it holds both keys
+};
+
+// Info passed to cachetable fetch callbacks to say which parts of a node
+// should be fetched (perhaps a subset, perhaps the whole thing, depending
+// on operation)
+class ftnode_fetch_extra {
+public:
+    // Used when the whole node must be in memory, such as for flushes.
+    void create_for_full_read(FT ft);
+
+    // A subset of children are necessary. Used by point queries.
+    void create_for_subset_read(FT ft, ft_search *search, const DBT *left, const DBT *right,
+                                bool left_is_neg_infty, bool right_is_pos_infty,
+                                bool disable_prefetching, bool read_all_partitions);
+
+    // No partitions are necessary - only pivots and/or subtree estimates.
+    // Currently used for stat64.
+    void create_for_min_read(FT ft);
+
+    // Used to prefetch partitions that fall within the bounds given by the cursor.
+    void create_for_prefetch(FT ft, struct ft_cursor *cursor);
+
+    // Only a portion of the node (within a keyrange) is required.
+    // Used by keysrange when the left and right key are in the same basement node.
+    void create_for_keymatch(FT ft, const DBT *left, const DBT *right,
+                             bool disable_prefetching, bool read_all_partitions);
+
+    void destroy(void);
+
+    // return: true if a specific childnum is required to be in memory
+    bool wants_child_available(int childnum) const;
+
+    // return: the childnum of the leftmost child that is required to be in memory
+    int leftmost_child_wanted(FTNODE node) const;
+
+    // return: the childnum of the rightmost child that is required to be in memory
+    int rightmost_child_wanted(FTNODE node) const;
+
+    // needed for reading a node off disk
+    FT ft;
+
+    enum ftnode_fetch_type type;
+
+    // used in the case where type == ftnode_fetch_subset
+    // parameters needed to find out which child needs to be decompressed (so it can be read)
+    ft_search *search;
+    DBT range_lock_left_key, range_lock_right_key;
+    bool left_is_neg_infty, right_is_pos_infty;
+
+    // states if we should try to aggressively fetch basement nodes 
+    // that are not specifically needed for current query, 
+    // but may be needed for other cursor operations user is doing
+    // For example, if we have not disabled prefetching,
+    // and the user is doing a dictionary wide scan, then
+    // even though a query may only want one basement node,
+    // we fetch all basement nodes in a leaf node.
+    bool disable_prefetching;
+
+    // this value will be set during the fetch_callback call by toku_ftnode_fetch_callback or toku_ftnode_pf_req_callback
+    // thi callbacks need to evaluate this anyway, so we cache it here so the search code does not reevaluate it
+    int child_to_read;
+
+    // when we read internal nodes, we want to read all the data off disk in one I/O
+    // then we'll treat it as normal and only decompress the needed partitions etc.
+    bool read_all_partitions;
+
+    // Accounting: How many bytes were read, and how much time did we spend doing I/O?
+    uint64_t bytes_read;
+    tokutime_t io_time;
+    tokutime_t decompress_time;
+    tokutime_t deserialize_time;
+
+private:
+    void _create_internal(FT ft_);
+};
 
 // Only exported for tests.
 // Cachetable callbacks for ftnodes.
@@ -333,47 +419,6 @@ STAT64INFO_S toku_get_and_clear_basement_stats(FTNODE leafnode);
 
 void toku_verify_or_set_counts(FTNODE);
 
-//
-// Helper function to fill a ftnode_fetch_extra with data
-// that will tell the fetch callback that the entire node is
-// necessary. Used in cases where the entire node
-// is required, such as for flushes.
-//
-void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT ft);
-
-//
-// Helper function to fill a ftnode_fetch_extra with data
-// that will tell the fetch callback that an explicit range of children is
-// necessary. Used in cases where the portion of the node that is required
-// is known in advance, e.g. for keysrange when the left and right key
-// are in the same basement node.
-//
-void fill_bfe_for_keymatch(struct ftnode_fetch_extra *bfe, FT ft,
-                           const DBT *left, const DBT *right,
-                           bool disable_prefetching, bool read_all_partitions);
-//
-// Helper function to fill a ftnode_fetch_extra with data
-// that will tell the fetch callback that some subset of the node
-// necessary. Used in cases where some of the node is required
-// such as for a point query.
-//
-void fill_bfe_for_subset_read(struct ftnode_fetch_extra *bfe, FT ft, ft_search *search,
-                              const DBT *left, const DBT *right,
-                              bool left_is_neg_infty, bool right_is_pos_infty,
-                              bool disable_prefetching, bool read_all_partitions);
-
-//
-// Helper function to fill a ftnode_fetch_extra with data
-// that will tell the fetch callback that no partitions are
-// necessary, only the pivots and/or subtree estimates.
-// Currently used for stat64.
-//
-void fill_bfe_for_min_read(struct ftnode_fetch_extra *bfe, FT ft);
-
-void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe, FT ft, struct ft_cursor *cursor);
-
-void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe);
-
 // TODO: consider moving this to ft/pivotkeys.cc
 class pivot_bounds {
 public:
@@ -395,11 +440,6 @@ private:
     const DBT _lower_bound_exclusive;
     const DBT _upper_bound_inclusive;
 };
-
-// TODO: move into the ftnode_fetch_extra class
-bool toku_bfe_wants_child_available (struct ftnode_fetch_extra* bfe, int childnum);
-int toku_bfe_leftmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node);
-int toku_bfe_rightmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node);
 
 // allocate a block number
 // allocate and initialize a ftnode
@@ -584,7 +624,7 @@ typedef struct {
     TOKU_ENGINE_STATUS_ROW_S status[FT_STATUS_NUM_ROWS];
 } FT_STATUS_S, *FT_STATUS;
 
-void toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe);
+void toku_ft_status_update_pivot_fetch_reason(ftnode_fetch_extra *bfe);
 void toku_ft_status_update_flush_reason(FTNODE node, uint64_t uncompressed_bytes_flushed, uint64_t bytes_written, tokutime_t write_time, bool for_checkpoint);
 void toku_ft_status_update_serialize_times(FTNODE node, tokutime_t serialize_time, tokutime_t compress_time);
 void toku_ft_status_update_deserialize_times(FTNODE node, tokutime_t deserialize_time, tokutime_t decompress_time);

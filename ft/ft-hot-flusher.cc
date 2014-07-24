@@ -328,8 +328,8 @@ toku_ft_hot_optimize(FT_HANDLE ft_handle, DBT* left, DBT* right,
             // Get root node (the first parent of each successive HOT
             // call.)
             toku_calculate_root_offset_pointer(ft_handle->ft, &root_key, &fullhash);
-            struct ftnode_fetch_extra bfe;
-            fill_bfe_for_full_read(&bfe, ft_handle->ft);
+            ftnode_fetch_extra bfe;
+            bfe.create_for_full_read(ft_handle->ft);
             toku_pin_ftnode(ft_handle->ft,
                             (BLOCKNUM) root_key,
                             fullhash,

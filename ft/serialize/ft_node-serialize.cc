@@ -1110,7 +1110,7 @@ static const int read_header_heuristic_max = 32*1024;
 // Effect: If the header part of the node is small enough, then read it into the rbuf.  The rbuf will be allocated to be big enough in any case.
 static void read_ftnode_header_from_fd_into_rbuf_if_small_enough(int fd, BLOCKNUM blocknum,
                                                                  FT ft, struct rbuf *rb,
-                                                                 struct ftnode_fetch_extra *bfe) {
+                                                                 ftnode_fetch_extra *bfe) {
     DISKOFF offset, size;
     ft->blocktable.translate_blocknum_to_offset_size(blocknum, &offset, &size);
     DISKOFF read_size = roundup_to_multiple(512, MIN(read_header_heuristic_max, size));
@@ -1277,7 +1277,7 @@ setup_available_ftnode_partition(FTNODE node, int i) {
 // Assign the child_to_read member of the bfe from the given ftnode
 // that has been brought into memory.
 static void
-update_bfe_using_ftnode(FTNODE node, struct ftnode_fetch_extra *bfe)
+update_bfe_using_ftnode(FTNODE node, ftnode_fetch_extra *bfe)
 {
     if (bfe->type == ftnode_fetch_subset && bfe->search != NULL) {
         // we do not take into account prefetching yet
@@ -1297,8 +1297,8 @@ update_bfe_using_ftnode(FTNODE node, struct ftnode_fetch_extra *bfe)
         // we find out what basement node the query cares about
         // and check if it is available
         if (node->height == 0) {
-            int left_child = toku_bfe_leftmost_child_wanted(bfe, node);
-            int right_child = toku_bfe_rightmost_child_wanted(bfe, node);
+            int left_child = bfe->leftmost_child_wanted(node);
+            int right_child = bfe->rightmost_child_wanted(node);
             if (left_child == right_child) {
                 bfe->child_to_read = left_child;
             }
@@ -1310,14 +1310,14 @@ update_bfe_using_ftnode(FTNODE node, struct ftnode_fetch_extra *bfe)
 // initialize all of the given ftnode's partitions.
 static void
 setup_partitions_using_bfe(FTNODE node,
-                           struct ftnode_fetch_extra *bfe,
+                           ftnode_fetch_extra *bfe,
                            bool data_in_memory)
 {
     // Leftmost and Rightmost Child bounds.
     int lc, rc;
     if (bfe->type == ftnode_fetch_subset || bfe->type == ftnode_fetch_prefetch) {
-        lc = toku_bfe_leftmost_child_wanted(bfe, node);
-        rc = toku_bfe_rightmost_child_wanted(bfe, node);
+        lc = bfe->leftmost_child_wanted(node);
+        rc = bfe->rightmost_child_wanted(node);
     } else {
         lc = -1;
         rc = -1;
@@ -1330,7 +1330,7 @@ setup_partitions_using_bfe(FTNODE node,
     for (int i = 0; i < node->n_children; i++) {
         BP_INIT_UNTOUCHED_CLOCK(node,i);
         if (data_in_memory) {
-            BP_STATE(node, i) = ((toku_bfe_wants_child_available(bfe, i) || (lc <= i && i <= rc))
+            BP_STATE(node, i) = ((bfe->wants_child_available(i) || (lc <= i && i <= rc))
                                  ? PT_AVAIL : PT_COMPRESSED);
         } else {
             BP_STATE(node, i) = PT_ON_DISK;
@@ -1354,7 +1354,7 @@ setup_partitions_using_bfe(FTNODE node,
     }
 }
 
-static void setup_ftnode_partitions(FTNODE node, struct ftnode_fetch_extra* bfe, bool data_in_memory)
+static void setup_ftnode_partitions(FTNODE node, ftnode_fetch_extra *bfe, bool data_in_memory)
 // Effect: Used when reading a ftnode into main memory, this sets up the partitions.
 //   We set bfe->child_to_read as well as the BP_STATE and the data pointers (e.g., with set_BSB or set_BNULL or other set_ operations).
 // Arguments:  Node: the node to set up.
@@ -1473,7 +1473,7 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
                                                       FTNODE_DISK_DATA* ndd, 
                                                       BLOCKNUM blocknum,
                                                       uint32_t fullhash,
-                                                      struct ftnode_fetch_extra *bfe,
+                                                      ftnode_fetch_extra *bfe,
                                                       struct rbuf *rb,
                                                       int fd)
 // If we have enough information in the rbuf to construct a header, then do so.
@@ -1604,7 +1604,6 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
     // rbuf, so we might be able to store the compressed data for some
     // objects.
     // We can proceed to deserialize the individual subblocks.
-    paranoid_invariant(is_valid_ftnode_fetch_type(bfe->type));
 
     // setup the memory of the partitions
     // for partitions being decompressed, create either message buffer or basement node
@@ -1627,7 +1626,7 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
 
     // handle clock
     for (int i = 0; i < node->n_children; i++) {
-        if (toku_bfe_wants_child_available(bfe, i)) {
+        if (bfe->wants_child_available(i)) {
             paranoid_invariant(BP_STATE(node,i) == PT_AVAIL);
             BP_TOUCH_CLOCK(node,i);
         }
@@ -1660,7 +1659,7 @@ cleanup:
 static int
 deserialize_and_upgrade_internal_node(FTNODE node,
                                       struct rbuf *rb,
-                                      struct ftnode_fetch_extra* bfe,
+                                      ftnode_fetch_extra *bfe,
                                       STAT64INFO info)
 {
     int version = node->layout_version_read_from_disk;
@@ -1719,8 +1718,8 @@ deserialize_and_upgrade_internal_node(FTNODE node,
     // sure we properly intitialize our partitions before filling them
     // in from our soon-to-be-upgraded node.
     update_bfe_using_ftnode(node, bfe);
-    struct ftnode_fetch_extra temp_bfe;
-    temp_bfe.type = ftnode_fetch_all;
+    ftnode_fetch_extra temp_bfe;
+    temp_bfe.create_for_full_read(nullptr);
     setup_partitions_using_bfe(node, &temp_bfe, true);
 
     // Cache the highest MSN generated for the message buffers.  This
@@ -1780,7 +1779,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
 static int
 deserialize_and_upgrade_leaf_node(FTNODE node,
                                   struct rbuf *rb,
-                                  struct ftnode_fetch_extra* bfe,
+                                  ftnode_fetch_extra *bfe,
                                   STAT64INFO info)
 {
     int r = 0;
@@ -1821,8 +1820,8 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
     // Create one basement node to contain all the leaf entries by
     // setting up the single partition and updating the bfe.
     update_bfe_using_ftnode(node, bfe);
-    struct ftnode_fetch_extra temp_bfe;
-    fill_bfe_for_full_read(&temp_bfe, bfe->ft);
+    ftnode_fetch_extra temp_bfe;
+    temp_bfe.create_for_full_read(bfe->ft);
     setup_partitions_using_bfe(node, &temp_bfe, true);
 
     // 11. Deserialize the partition maps, though they are not used in the
@@ -1933,7 +1932,7 @@ static int
 deserialize_and_upgrade_ftnode(FTNODE node,
                                 FTNODE_DISK_DATA* ndd,
                                 BLOCKNUM blocknum,
-                                struct ftnode_fetch_extra* bfe,
+                                ftnode_fetch_extra *bfe,
                                 STAT64INFO info,
                                 int fd)
 {
@@ -2023,7 +2022,7 @@ deserialize_ftnode_from_rbuf(
     FTNODE_DISK_DATA* ndd,
     BLOCKNUM blocknum,
     uint32_t fullhash,
-    struct ftnode_fetch_extra* bfe,
+    ftnode_fetch_extra *bfe,
     STAT64INFO info,
     struct rbuf *rb,
     int fd
@@ -2120,7 +2119,6 @@ deserialize_ftnode_from_rbuf(
 
     // now that the node info has been deserialized, we can proceed to deserialize
     // the individual sub blocks
-    paranoid_invariant(is_valid_ftnode_fetch_type(bfe->type));
 
     // setup the memory of the partitions
     // for partitions being decompressed, create either message buffer or basement node
@@ -2207,7 +2205,7 @@ cleanup:
 }
 
 int
-toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, struct ftnode_fetch_extra* bfe) {
+toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, ftnode_fetch_extra *bfe) {
     int r = 0;
     assert(BP_STATE(node,childnum) == PT_ON_DISK);
     assert(node->bp[childnum].ptr.tag == BCT_NULL);
@@ -2287,7 +2285,7 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
 
 // Take a ftnode partition that is in the compressed state, and make it avail
 int
-toku_deserialize_bp_from_compressed(FTNODE node, int childnum, struct ftnode_fetch_extra *bfe) {
+toku_deserialize_bp_from_compressed(FTNODE node, int childnum, ftnode_fetch_extra *bfe) {
     int r = 0;
     assert(BP_STATE(node, childnum) == PT_COMPRESSED);
     SUB_BLOCK curr_sb = BSB(node, childnum);
@@ -2332,7 +2330,7 @@ deserialize_ftnode_from_fd(int fd,
                             uint32_t fullhash,
                             FTNODE *ftnode,
                             FTNODE_DISK_DATA *ndd,
-                            struct ftnode_fetch_extra *bfe,
+                            ftnode_fetch_extra *bfe,
                             STAT64INFO info)
 {
     struct rbuf rb = RBUF_INITIALIZER;
@@ -2361,7 +2359,7 @@ toku_deserialize_ftnode_from (int fd,
                                uint32_t fullhash,
                                FTNODE *ftnode,
                                FTNODE_DISK_DATA* ndd,
-                               struct ftnode_fetch_extra* bfe
+                               ftnode_fetch_extra *bfe
     )
 // Effect: Read a node in.  If possible, read just the header.
 {
@@ -2864,8 +2862,8 @@ toku_upgrade_subtree_estimates_to_stat64info(int fd, FT ft)
 
     FTNODE unused_node = NULL;
     FTNODE_DISK_DATA unused_ndd = NULL;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(ft);
     r = deserialize_ftnode_from_fd(fd, ft->h->root_blocknum, 0, &unused_node, &unused_ndd,
                                    &bfe, &ft->h->on_disk_stats);
     ft->in_memory_stats = ft->h->on_disk_stats;
@@ -2888,8 +2886,8 @@ toku_upgrade_msn_from_root_to_header(int fd, FT ft)
 
     FTNODE node;
     FTNODE_DISK_DATA ndd;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(ft);
     r = deserialize_ftnode_from_fd(fd, ft->h->root_blocknum, 0, &node, &ndd, &bfe, nullptr);
     if (r != 0) {
         goto exit;
