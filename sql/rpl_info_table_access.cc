@@ -66,8 +66,7 @@ void Rpl_info_table_access::close_table(THD *thd, TABLE* table,
                                         bool error)
 {
   DBUG_ENTER("Rpl_info_table_access::close_table");
-
-  Table_access::close_table(thd, table, backup, error, thd_created);
+  System_table_access::close_table(thd, table, backup, error, thd_created);
   DBUG_VOID_RETURN;
 }
 
@@ -327,7 +326,7 @@ THD *Rpl_info_table_access::create_thd()
 
   if (!thd)
   {
-    thd= Table_access::create_thd();
+    thd= System_table_access::create_thd();
     thd->system_thread= SYSTEM_THREAD_INFO_REPOSITORY;
     thd_created= true;
   }
@@ -347,7 +346,7 @@ void Rpl_info_table_access::drop_thd(THD *thd)
 
   if (thd_created)
   {
-    Table_access::drop_thd(thd);
+    System_table_access::drop_thd(thd);
     thd_created= false;
   }
 
