@@ -68,25 +68,6 @@ connect (fail_con,localhost,test,zorro,test2);
 --error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,zorro,);
 
-# check if old password version also works
-SET GLOBAL secure_auth = OFF;
-update mysql.user set password=old_password("gambling2"), plugin="mysql_old_password" where user=_binary"test";
-flush privileges;
-connect (con10,localhost,test,gambling2,,,,SKIPSECUREAUTH);
-connect (con5,localhost,test,gambling2,mysql,,,SKIPSECUREAUTH);
-connection con5;
-set password="";
---error ER_PASSWD_LENGTH
-set password='gambling3';
-set password=old_password('gambling3');
-show tables;
-connect (con6,localhost,test,gambling3,test,,,SKIPSECUREAUTH);
-show tables;
-
-disconnect con10;
-disconnect con5;
-disconnect con6;
---source include/wait_until_disconnected.inc
 connection default;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -95,19 +76,12 @@ connect (fail_con,localhost,test,,test2);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,test,,);
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error ER_ACCESS_DENIED_ERROR
-connect (fail_con,localhost,test,zorro,test2,,,SKIPSECUREAUTH);
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error ER_ACCESS_DENIED_ERROR
-connect (fail_con,localhost,test,zorro,,,,SKIPSECUREAUTH);
 
 
 # remove user 'test' so that other tests which may use 'test'
 # do not depend on this test.
 delete from mysql.user where user=_binary"test";
 flush privileges;
-SET GLOBAL secure_auth = DEFAULT;
 
 #
 # Bug#12517 Clear user variables and replication events before
@@ -307,39 +281,6 @@ SET GLOBAL event_scheduler = OFF;
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
-
---echo #
---echo # Bug #13586336 : SRVGEN - HIBISCUS: ISSUE DEPRECATION WARNING FOR
---echo # LEGACY AUTHENTICATION METHOD
---echo #
-
---echo #Expect 1
-SELECT @@global.secure_auth;
-
-SET old_passwords=1;
-
---echo #Expect deprecation warning
-CREATE USER old_pwd@localhost IDENTIFIED WITH 'mysql_old_password';
-SET PASSWORD FOR old_pwd@localhost= OLD_PASSWORD('aha');
-
---echo #Expect deprecation warning
-SET PASSWORD FOR old_pwd@localhost = OLD_PASSWORD('aha2');
-
---echo #Expect deprecation warning
---error ER_PASSWORD_FORMAT
-GRANT SELECT on test.* TO old_gpwd@localhost 
-  IDENTIFIED BY 'aha3';
-
---echo #Expect deprecation warning
-GRANT SELECT on test.* TO old_gpwd@localhost 
-  IDENTIFIED WITH 'mysql_old_password';
-SET PASSWORD FOR old_gpwd@localhost= OLD_PASSWORD('aha4');
-
---echo #Expected normal flush, no warnings  
-FLUSH PRIVILEGES;  
-
-DROP USER old_pwd@localhost, old_gpwd@localhost;  
-SET old_passwords=default;
 
 
 --echo #
