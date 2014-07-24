@@ -108,9 +108,9 @@ int toku_serialize_rollback_log_to(int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROL
 void toku_serialize_rollback_log_to_memory_uncompressed(ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized);
 
 int toku_deserialize_rollback_log_from(int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT ft);
-int toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, struct ftnode_fetch_extra *bfe);
-int toku_deserialize_bp_from_compressed(FTNODE node, int childnum, struct ftnode_fetch_extra *bfe);
-int toku_deserialize_ftnode_from(int fd, BLOCKNUM off, uint32_t fullhash, FTNODE *node, FTNODE_DISK_DATA *ndd, struct ftnode_fetch_extra *bfe);
+int toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, ftnode_fetch_extra *bfe);
+int toku_deserialize_bp_from_compressed(FTNODE node, int childnum, ftnode_fetch_extra *bfe);
+int toku_deserialize_ftnode_from(int fd, BLOCKNUM off, uint32_t fullhash, FTNODE *node, FTNODE_DISK_DATA *ndd, ftnode_fetch_extra *bfe);
 
 // used by nonleaf node partial eviction
 void toku_create_compressed_partition_from_available(FTNODE node, int childnum,

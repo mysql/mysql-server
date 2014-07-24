@@ -243,8 +243,8 @@ doit (bool keep_other_bn_in_memory) {
     assert_zero(r);
     // now lock and release the leaf node to make sure it is what we expect it to be.
     FTNODE node = NULL;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, ft->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(ft->ft);
     toku_pin_ftnode(
         ft->ft, 
         node_leaf,
@@ -280,7 +280,7 @@ doit (bool keep_other_bn_in_memory) {
         // but only one should have broadcast message
         // applied.
         //
-        fill_bfe_for_full_read(&bfe, ft->ft);
+        bfe.create_for_full_read(ft->ft);
     }
     else {
         //
@@ -289,7 +289,7 @@ doit (bool keep_other_bn_in_memory) {
         // node is in memory and another is
         // on disk
         //
-        fill_bfe_for_min_read(&bfe, ft->ft);
+        bfe.create_for_min_read(ft->ft);
     }
     toku_pin_ftnode(
         ft->ft, 
@@ -314,7 +314,7 @@ doit (bool keep_other_bn_in_memory) {
     //
     // now let us induce a clean on the internal node
     //    
-    fill_bfe_for_min_read(&bfe, ft->ft);
+    bfe.create_for_min_read(ft->ft);
     toku_pin_ftnode(
         ft->ft, 
         node_internal,
@@ -337,7 +337,7 @@ doit (bool keep_other_bn_in_memory) {
         );
 
     // verify that node_internal's buffer is empty
-    fill_bfe_for_min_read(&bfe, ft->ft);
+    bfe.create_for_min_read(ft->ft);
     toku_pin_ftnode(
         ft->ft, 
         node_internal,

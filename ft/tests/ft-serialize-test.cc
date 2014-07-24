@@ -165,14 +165,14 @@ static void
 setup_dn(enum ftnode_verify_type bft, int fd, FT ft_h, FTNODE *dn, FTNODE_DISK_DATA* ndd) {
     int r;
     if (bft == read_all) {
-        struct ftnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, ft_h);
+        ftnode_fetch_extra bfe;
+        bfe.create_for_full_read(ft_h);
         r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
     }
     else if (bft == read_compressed || bft == read_none) {
-        struct ftnode_fetch_extra bfe;
-        fill_bfe_for_min_read(&bfe, ft_h);
+        ftnode_fetch_extra bfe;
+        bfe.create_for_min_read(ft_h);
         r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
         // assert all bp's are compressed or on disk.
@@ -199,7 +199,7 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT ft_h, FTNODE *dn, FTNODE_DISK_D
                 // that it is available
                 // then run partial eviction to get it compressed
                 PAIR_ATTR attr;
-                fill_bfe_for_full_read(&bfe, ft_h);
+                bfe.create_for_full_read(ft_h);
                 assert(toku_ftnode_pf_req_callback(*dn, &bfe));
                 r = toku_ftnode_pf_callback(*dn, *ndd, &bfe, fd, &attr);
                 assert(r==0);
@@ -221,7 +221,7 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT ft_h, FTNODE *dn, FTNODE_DISK_D
             }
         }
         // now decompress them
-        fill_bfe_for_full_read(&bfe, ft_h);
+        bfe.create_for_full_read(ft_h);
         assert(toku_ftnode_pf_req_callback(*dn, &bfe));
         PAIR_ATTR attr;
         r = toku_ftnode_pf_callback(*dn, *ndd, &bfe, fd, &attr);

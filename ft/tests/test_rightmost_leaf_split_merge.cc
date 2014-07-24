@@ -143,8 +143,8 @@ static void test_split_merge(void) {
 
     BLOCKNUM root_blocknum = ft->h->root_blocknum;
     FTNODE root_node;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_full_read(ft);
     toku_pin_ftnode(ft, root_blocknum,
                    toku_cachetable_hash(ft->cf, ft->h->root_blocknum),
                    &bfe, PL_WRITE_EXPENSIVE, &root_node, true);

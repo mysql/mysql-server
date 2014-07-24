@@ -247,9 +247,9 @@ test_serialize_leaf(int valsize, int nelts, double entropy, int ser_runs, int de
     total_start.tv_sec = total_start.tv_usec = 0;
     total_end.tv_sec = total_end.tv_usec = 0;
 
-    struct ftnode_fetch_extra bfe;
+    ftnode_fetch_extra bfe;
     for (int i = 0; i < deser_runs; i++) {
-        fill_bfe_for_full_read(&bfe, ft_h);
+        bfe.create_for_full_read(ft_h);
         gettimeofday(&t[0], NULL);
         FTNODE_DISK_DATA ndd2 = NULL;
         r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd2, &bfe);
@@ -392,8 +392,8 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
     dt *= 1000;
     printf("serialize nonleaf(ms):   %0.05lf (IGNORED RUNS=%d)\n", dt, ser_runs);
 
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, ft_h);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_full_read(ft_h);
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd2 = NULL;
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd2, &bfe);

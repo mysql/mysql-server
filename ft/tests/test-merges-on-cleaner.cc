@@ -229,8 +229,8 @@ doit (void) {
     r = toku_ft_lookup(ft, toku_fill_dbt(&k, "a", 2), lookup_checkf, &pair);
     assert(r==0);
 
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, ft->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(ft->ft);
     toku_pin_ftnode(
         ft->ft, 
         node_internal,
@@ -252,7 +252,7 @@ doit (void) {
         );
 
     // verify that node_internal's buffer is empty
-    fill_bfe_for_min_read(&bfe, ft->ft);
+    bfe.create_for_min_read(ft->ft);
     toku_pin_ftnode(
         ft->ft, 
         node_internal,

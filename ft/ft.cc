@@ -1045,8 +1045,8 @@ garbage_helper(BLOCKNUM blocknum, int64_t UU(size), int64_t UU(address), void *e
     struct garbage_helper_extra *CAST_FROM_VOIDP(info, extra);
     FTNODE node;
     FTNODE_DISK_DATA ndd;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, info->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_full_read(info->ft);
     int fd = toku_cachefile_get_fd(info->ft->cf);
     int r = toku_deserialize_ftnode_from(fd, blocknum, 0, &node, &ndd, &bfe);
     if (r != 0) {

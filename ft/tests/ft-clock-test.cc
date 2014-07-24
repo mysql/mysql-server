@@ -146,8 +146,8 @@ le_malloc(bn_data* bn, uint32_t idx, const char *key, const char *val)
 static void
 test1(int fd, FT ft_h, FTNODE *dn) {
     int r;
-    struct ftnode_fetch_extra bfe_all;
-    fill_bfe_for_full_read(&bfe_all, ft_h);
+    ftnode_fetch_extra bfe_all;
+    bfe_all.create_for_full_read(ft_h);
     FTNODE_DISK_DATA ndd = NULL;
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_all);
     bool is_leaf = ((*dn)->height == 0);
@@ -217,7 +217,6 @@ static int search_cmp(const struct ft_search& UU(so), const DBT* UU(key)) {
 
 static void
 test2(int fd, FT ft_h, FTNODE *dn) {
-    struct ftnode_fetch_extra bfe_subset;
     DBT left, right;
     DB dummy_db;
     memset(&dummy_db, 0, sizeof(dummy_db));
@@ -225,8 +224,8 @@ test2(int fd, FT ft_h, FTNODE *dn) {
     memset(&right, 0, sizeof(right));
     ft_search search;
     
-    fill_bfe_for_subset_read(
-        &bfe_subset,
+    ftnode_fetch_extra bfe_subset;
+    bfe_subset.create_for_subset_read(
         ft_h,
         ft_search_init(&search, search_cmp, FT_SEARCH_LEFT, nullptr, nullptr, nullptr),
         &left,
@@ -236,6 +235,7 @@ test2(int fd, FT ft_h, FTNODE *dn) {
         false,
         false
         );
+
     FTNODE_DISK_DATA ndd = NULL;
     int r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_subset);
     assert(r==0);
@@ -270,17 +270,15 @@ test2(int fd, FT ft_h, FTNODE *dn) {
 
 static void
 test3_leaf(int fd, FT ft_h, FTNODE *dn) {
-    struct ftnode_fetch_extra bfe_min;
     DBT left, right;
     DB dummy_db;
     memset(&dummy_db, 0, sizeof(dummy_db));
     memset(&left, 0, sizeof(left));
     memset(&right, 0, sizeof(right));
     
-    fill_bfe_for_min_read(
-        &bfe_min,
-        ft_h
-        );
+    ftnode_fetch_extra bfe_min;
+    bfe_min.create_for_min_read(ft_h);
+
     FTNODE_DISK_DATA ndd = NULL;
     int r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_min);
     assert(r==0);

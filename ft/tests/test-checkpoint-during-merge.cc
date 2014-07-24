@@ -245,8 +245,8 @@ doit (int state) {
     toku_unpin_ftnode(t->ft, node);
 
     
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, t->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(t->ft);
     toku_pin_ftnode_with_dep_nodes(
         t->ft, 
         node_root,
@@ -305,7 +305,7 @@ doit (int state) {
     //
     // now pin the root, verify that the state is what we expect
     //
-    fill_bfe_for_full_read(&bfe, c_ft->ft);
+    bfe.create_for_full_read(c_ft->ft);
     toku_pin_ftnode_with_dep_nodes(
         c_ft->ft, 
         node_root,

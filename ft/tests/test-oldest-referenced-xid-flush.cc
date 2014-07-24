@@ -167,8 +167,8 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
 
     // first verify the child
     FTNODE node = NULL;
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, t->ft);
+    ftnode_fetch_extra bfe;
+    bfe.create_for_min_read(t->ft);
     toku_pin_ftnode(
         t->ft,
         child_nonleaf_blocknum,

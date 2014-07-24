@@ -90,7 +90,7 @@ PATENT RIGHTS GRANT:
 
 // it used to be the case that we copied the left and right keys of a
 // range to be prelocked but never freed them, this test checks that they
-// are freed (as of this time, this happens in destroy_bfe_for_prefetch)
+// are freed (as of this time, this happens in ftnode_fetch_extra::destroy())
 
 #include "test.h"
 
