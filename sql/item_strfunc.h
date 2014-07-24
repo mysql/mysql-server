@@ -726,6 +726,78 @@ public:
 };
 
 
+/**
+  This class handles two forms of the same function:
+
+  <string> = ST_GEOHASH(<point>, <maxlength>);
+  <string> = ST_GEOHASH(<longitude>, <latitude>, <maxlength>)
+
+  It returns an encoded geohash string, no longer than <maxlength> characters
+  long. Note that it might be shorter than <maxlength>.
+*/
+class Item_func_geohash :public Item_str_ascii_func
+{
+private:
+  /// The latitude argument supplied by the user (directly or by a POINT).
+  double latitude;
+  /// The longitude argument supplied by the user (directly or by a POINT).
+  double longitude;
+  /// The maximum output length of the geohash, supplied by the user.
+  uint geohash_max_output_length;
+
+  /** 
+    The maximum input latitude. For now, this is set to 90.0. It can be
+    changed to support a different range than the normal [90, -90].
+  */
+  const double max_latitude;
+
+  /**
+    The minimum input latitude. For now, this is set to -90.0. It can be
+    changed to support a different range than the normal [90, -90].
+  */
+  const double min_latitude;
+
+  /**
+    The maximum input longitude. For now, this is set to 180.0. It can be
+    changed to support a different range than the normal [180, -180].
+  */
+  const double max_longitude;
+
+  /**
+    The minimum input longitude. For now, this is set to -180.0. It can be
+    changed to support a different range than the normal [180, -180].
+  */
+  const double min_longitude;
+
+  /**
+    The absolute upper limit of geohash output length. User will get an error
+    if they supply a max geohash length argument greater than this.
+  */
+  const uint upper_limit_output_length;
+public:
+  Item_func_geohash(const POS &pos, Item *point, Item *length)
+    :Item_str_ascii_func(pos, point, length), max_latitude(90.0),
+    min_latitude(-90.0), max_longitude(180.0), min_longitude(-180.0),
+    upper_limit_output_length(100)
+  {}
+  Item_func_geohash(const POS &pos, Item *longitude, Item *latitude,
+                    Item *length)
+    :Item_str_ascii_func(pos, longitude, latitude, length), max_latitude(90.0),
+    min_latitude(-90.0), max_longitude(180.0), min_longitude(-180.0),
+    upper_limit_output_length(100)
+  {}
+  String *val_str_ascii(String *);
+  void fix_length_and_dec();
+  bool fix_fields(THD *thd, Item **ref);
+  const char *func_name() const { return "st_geohash"; }
+  char char_to_base32(char char_input);
+  void encode_bit(double *upper_value, double *lower_value,
+                  double target_value, char *char_value, int bit_number);
+  bool fill_and_check_fields();
+  bool check_valid_latlong_type(Item *ref);
+};
+
+
 class Item_func_elt :public Item_str_func
 {
 public:
