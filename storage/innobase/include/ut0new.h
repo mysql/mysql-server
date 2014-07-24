@@ -160,29 +160,18 @@ extern PSI_memory_key	mem_key_std;
 extern PSI_memory_key	mem_key_sync_debug_latches;
 extern PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
 
-#ifdef UNIV_PFS_MEMORY
-
-/** Map used for default performance schema keys, based on file name of the
-caller. The key is the file name of the caller and the value is a pointer
-to a PSI_memory_key variable to be passed to performance schema methods.
-We use ut_strcmp_functor because by default std::map will compare the pointers
-themselves (cont char*) and not do strcmp(). */
-typedef std::map<const char*, PSI_memory_key*, ut_strcmp_functor>
-	mem_keys_auto_t;
-
-/** Map of filename/pfskey, used for tracing allocations that have not
-provided a manually created pfs key. This map is only ever modified (bulk
-insert) at startup in a single-threaded environment by ut_new_boot().
-Later it is only read (only std::map::find() is called) from multithreaded
-environment, thus it is not protected by any latch. */
-extern mem_keys_auto_t	mem_keys_auto;
-
-#endif /* UNIV_PFS_MEMORY */
-
 /** Setup the internal objects needed for UT_NEW() to operate.
 This must be called before the first call to UT_NEW(). */
 void
 ut_new_boot();
+
+/** Retrieve a memory key (registered with PFS), given a portion of the file
+name of the caller.
+@param[in]	file	portion of the filename - basename without an extension
+@return registered memory key or PSI_NOT_INSTRUMENTED if not found */
+PSI_memory_key
+ut_new_get_key_by_file(
+	const char*	file);
 
 #ifdef ut0new_cc
 
@@ -229,12 +218,20 @@ PSI_memory_info	pfs_info[] = {
 
 #ifdef UNIV_PFS_MEMORY
 
+/** Map used for default performance schema keys, based on file name of the
+caller. The key is the file name of the caller and the value is a pointer
+to a PSI_memory_key variable to be passed to performance schema methods.
+We use ut_strcmp_functor because by default std::map will compare the pointers
+themselves (cont char*) and not do strcmp(). */
+typedef std::map<const char*, PSI_memory_key*, ut_strcmp_functor>
+	mem_keys_auto_t;
+
 /** Map of filename/pfskey, used for tracing allocations that have not
 provided a manually created pfs key. This map is only ever modified (bulk
 insert) at startup in a single-threaded environment by ut_new_boot().
 Later it is only read (only std::map::find() is called) from multithreaded
 environment, thus it is not protected by any latch. */
-mem_keys_auto_t	mem_keys_auto;
+static mem_keys_auto_t	mem_keys_auto;
 
 #endif /* UNIV_PFS_MEMORY */
 
@@ -350,8 +347,24 @@ ut_new_boot()
 #endif /* UNIV_PFS_MEMORY */
 }
 
-#endif /* ut0new_cc */
+/** Retrieve a memory key (registered with PFS), given a portion of the file
+name of the caller.
+@param[in]	file	portion of the filename - basename without an extension
+@return registered memory key or PSI_NOT_INSTRUMENTED if not found */
+PSI_memory_key
+ut_new_get_key_by_file(
+	const char*	file)
+{
+	mem_keys_auto_t::const_iterator	el = mem_keys_auto.find(file);
 
+	if (el != mem_keys_auto.end()) {
+		return(*(el->second));
+	}
+
+	return(PSI_NOT_INSTRUMENTED);
+}
+
+#endif /* ut0new_cc */
 
 /** A structure that holds the necessary data for performance schema
 accounting. An object of this type is put in front of each allocated block
@@ -804,11 +817,10 @@ public:
 		memcpy(keyname, beg, len);
 		keyname[len] = '\0';
 
-		mem_keys_auto_t::const_iterator	el
-			= mem_keys_auto.find(keyname);
+		const PSI_memory_key	key = ut_new_get_key_by_file(keyname);
 
-		if (el != mem_keys_auto.end()) {
-			return(*(el->second));
+		if (key != PSI_NOT_INSTRUMENTED) {
+			return(key);
 		}
 
 		return(mem_key_other);
@@ -843,8 +855,9 @@ private:
 	   be used (this is the recommended approach for new code)
 	2. Otherwise, if "file" is NULL, then the name associated with
 	   mem_key_std will be used
-	3. Otherwise, if an entry is found in mem_keys_auto, that corresponds to
-	   "file", that will be used (see ut_new_boot() and auto_names[])
+	3. Otherwise, if an entry is found by ut_new_get_key_by_file(), that
+	   corresponds to "file", that will be used (see ut_new_boot(),
+	   auto_names[] and mem_keys_auto)
 	4. Otherwise, the name associated with mem_key_other will be used.
 	@param[in]	size	number of bytes that were allocated
 	@param[in]	file	file name of the caller or NULL if unknown
