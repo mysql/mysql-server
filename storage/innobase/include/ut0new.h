@@ -871,11 +871,11 @@ private:
 	n_elements_allocated(
 		const_pointer	ptr)
 	{
-		const ut_new_pfx_t*	pfx;
+		const ut_new_pfx_t*	pfx
+			= reinterpret_cast<const ut_new_pfx_t*>(ptr) - 1;
 
-		pfx = reinterpret_cast<const ut_new_pfx_t*>(ptr) - 1;
-
-		const size_type	user_bytes = pfx->m_size - sizeof(ut_new_pfx_t);
+		const size_type		user_bytes
+			= pfx->m_size - sizeof(ut_new_pfx_t);
 
 		ut_ad(user_bytes % sizeof(T) == 0);
 
