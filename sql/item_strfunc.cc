@@ -43,8 +43,7 @@
 #include "mysqld.h"                             // LOCK_uuid_generator
 #include "auth_common.h"                        // SUPER_ACL
 #include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
-#include "password.h"           // my_make_scrambled_password,
-                                // my_make_scrambled_password_323
+#include "password.h"           // my_make_scrambled_password
 #include "crypt_genhash_impl.h"
 #include <m_ctype.h>
 #include <base64.h>
@@ -2060,13 +2059,6 @@ static int calculate_password(String *str, char *buffer)
                                     str->length());
     buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH;
   }
-  else
-  if (old_passwords == 1)
-  {
-    my_make_scrambled_password_323(buffer, str->ptr(),
-                                   str->length());
-    buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
-  }
   return buffer_len;
 }
 
@@ -2144,58 +2136,6 @@ char *Item_func_password::
     my_make_scrambled_password(buff, password, pass_len);
   }
 #endif
-  return buff;
-}
-
-/* Item_func_old_password */
-
-bool Item_func_old_password::itemize(Parse_context *pc, Item **res)
-{
-  if (skip_itemize(res))
-    return false;
-  if (super::itemize(pc, res))
-    return true;
-
-  pc->thd->lex->contains_plaintext_password= true;
-  return false;
-}
-
-String *Item_func_old_password::val_str_ascii(String *str)
-{
-  String *res;
-
-  DBUG_ASSERT(fixed == 1);
-
-  res= args[0]->val_str(str);
-
-  if ((null_value= args[0]->null_value))
-    res= make_empty_result();
- 
-  /* we treat NULLs as equal to empty string when calling the plugin */
-  check_password_policy(res);
-
-  if (null_value)
-    return 0;
-
-  if (res->length() == 0)
-    return make_empty_result();
-
-  my_make_scrambled_password_323(tmp_value, res->ptr(), res->length());
-  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, &my_charset_latin1);
-  return str;
-}
-
-char *Item_func_old_password::alloc(THD *thd, const char *password,
-                                    size_t pass_len)
-{
-  char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
-  if (buff)
-  {
-    String *password_str= new (thd->mem_root)String(password, thd->variables.
-                                                    character_set_client);
-    check_password_policy(password_str);
-    my_make_scrambled_password_323(buff, password, pass_len);
-  }
   return buff;
 }
 

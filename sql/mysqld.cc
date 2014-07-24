@@ -6990,8 +6990,12 @@ mysqld_get_one_option(int optid,
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
     break;
   case OPT_SECURE_AUTH:
-    if (opt_secure_auth == 0)
-      push_deprecated_warn(NULL, "pre-4.1 password hash", "post-4.1 password hash");
+    push_deprecated_warn_no_replacement(NULL, "--secure-auth");
+    if (!opt_secure_auth)
+    {
+      sql_print_error("Unsupported value 0 for secure-auth");
+      return 1;
+    }
     break;
   case OPT_PFS_INSTRUMENT:
     {
@@ -7176,6 +7180,30 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
 C_MODE_END
 
 /**
+  Ensure all the deprecared options with 1 possible value are
+  within acceptable range.
+
+  @retval true error in the values set
+  @retval false all checked
+*/
+bool check_ghost_options()
+{
+  if (global_system_variables.old_passwords == 1)
+  {
+    sql_print_error("Invalid old_passwords mode: 1. Valid values are 2 and 0\n");
+    return true;
+  }
+  if (!opt_secure_auth)
+  {
+    sql_print_error("Invalid secure_auth mode: 0. Valid value is 1\n");
+    return true;
+  }
+
+  return false;
+}
+
+
+/**
   Get server options from the command line,
   and perform related server initializations.
   @param [in, out] argc_ptr       command line options (count)
@@ -7300,6 +7328,9 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   if (opt_skip_show_db)
     opt_specialflag|= SPECIAL_SKIP_SHOW_DB;
+
+  if (check_ghost_options())
+    return 1;
 
   if (myisam_flush)
     flush_time= 0;

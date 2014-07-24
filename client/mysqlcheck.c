@@ -150,8 +150,8 @@ static struct my_option my_long_options[] =
    &opt_write_binlog, &opt_write_binlog, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
-    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
+    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"optimize", 'o', "Optimize table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"password", 'p',
@@ -345,6 +345,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
+    break;
+  case OPT_SECURE_AUTH:
+    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    if (!opt_secure_auth)
+    {
+      usage();
+      exit(1);
+    }
     break;
   }
 
@@ -903,8 +911,6 @@ static int dbConnect(char *host, char *user, char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection, MYSQL_OPT_BIND, opt_bind_addr);
-  if (!opt_secure_auth)
-    mysql_options(&mysql_connection, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
