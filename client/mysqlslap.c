@@ -336,8 +336,6 @@ int main(int argc, char **argv)
   SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-  if (!opt_secure_auth && slap_connect(&mysql))
-    mysql_options(&mysql, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
@@ -683,8 +681,8 @@ static struct my_option my_long_options[] =
     &user_supplied_query, &user_supplied_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
-    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
+    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
     "Base name of shared memory.", &shared_memory_base_name,
@@ -783,6 +781,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     exit(0);
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
     using_opt_enable_cleartext_plugin= TRUE;
+    break;
+  case OPT_SECURE_AUTH:
+    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    if (!opt_secure_auth)
+    {
+      usage();
+      exit(1);
+    }
     break;
   }
   DBUG_RETURN(0);
