@@ -384,6 +384,9 @@ trx_create_low()
 	mem_heap_t*	heap;
 	ib_alloc_t*	alloc;
 
+	/* We just got trx from pool, it should be non locking */
+	ut_ad(trx->will_lock == 0);
+
 	trx->api_trx = false;
 
 	trx->api_auto_commit = false;
@@ -426,6 +429,10 @@ trx_free(trx_t*& trx)
 	trx->mod_tables.clear();
 
 	ut_ad(trx->read_view == NULL);
+
+	/* trx locking state should have been reset before returning trx
+	to pool */
+	ut_ad(trx->will_lock == 0);
 
 	trx_pools->free(trx);
 
