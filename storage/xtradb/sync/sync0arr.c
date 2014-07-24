@@ -995,27 +995,6 @@ sync_array_print_long_waits(
 			      stderr);
 			sync_array_cell_print(stderr, cell, &reserver);
 			noticed = TRUE;
-		} else {
-			fputs("InnoDB: Warning: semaphore wait:\n",
-			      stderr);
-			sync_array_cell_print(stderr, cell, &reserver);
-		}
-
-		/* Try to output cell information for writer recursive way */
-		while (reserver != 0) {
-			sync_cell_t* reserver_wait;
-
-			reserver_wait = sync_array_find_thread(sync_primary_wait_array, reserver);
-
-			if (reserver_wait &&
-			    reserver_wait->wait_object != NULL &&
-			    reserver_wait->waiting) {
-				fputs("InnoDB: Warning: Writer thread is waiting this semaphore:\n",
-				      stderr);
-				sync_array_cell_print(stderr, reserver_wait, &reserver);
-			} else {
-				reserver = 0;
-			}
 		}
 
 		if (diff > fatal_timeout) {
@@ -1026,6 +1005,46 @@ sync_array_print_long_waits(
 			longest_diff = diff;
 			*sema = wait_object;
 			*waiter = cell->thread;
+		}
+	}
+
+	/* We found a long semaphore wait, wait all threads that are
+	waiting for a semaphore. */
+	if (noticed) {
+		for (i = 0; i < sync_primary_wait_array->n_cells; i++) {
+			void*	wait_object;
+			os_thread_id_t reserver=0;
+
+			cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
+
+			wait_object = cell->wait_object;
+
+			if (wait_object == NULL || !cell->waiting) {
+
+				continue;
+			}
+
+			fputs("InnoDB: Warning: semaphore wait:\n",
+			      stderr);
+			sync_array_cell_print(stderr, cell, &reserver);
+			noticed = TRUE;
+
+			/* Try to output cell information for writer recursive way */
+			while (reserver != 0) {
+				sync_cell_t* reserver_wait;
+
+				reserver_wait = sync_array_find_thread(sync_primary_wait_array, reserver);
+
+				if (reserver_wait &&
+					reserver_wait->wait_object != NULL &&
+					reserver_wait->waiting) {
+					fputs("InnoDB: Warning: Writer thread is waiting this semaphore:\n",
+						stderr);
+					sync_array_cell_print(stderr, reserver_wait, &reserver);
+				} else {
+					reserver = 0;
+				}
+			}
 		}
 	}
 

@@ -1276,6 +1276,7 @@ page_zip_compress(
 	records. */
 
 	if (srv_simulate_comp_failures
+	    && !dict_index_is_ibuf(index)
 	    && page_get_n_recs(page) >= 2
 	    && ((ulint)(rand() % 100) < srv_simulate_comp_failures)) {
 

@@ -159,6 +159,7 @@ INSERT INTO global_suppressions VALUES
  ("InnoDB: Error: in ALTER TABLE `test`.`t[123]`"),
  ("InnoDB: Error: in RENAME TABLE table `test`.`t1`"),
  ("InnoDB: Error: table `test`.`t[123]` .*does not exist in the InnoDB internal"),
+ ("InnoDB: Warning: semaphore wait:"),
 
  /*
    BUG#32080 - Excessive warnings on Solaris: setrlimit could not
