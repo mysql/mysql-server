@@ -1255,7 +1255,7 @@ indicates a
 FORMAT_DESCRIPTION_EVENT\&. The following table lists the possible type codes\&.
 .TS
 allbox tab(:);
-l l l.
+l l lx.
 T{
 Type
 T}:T{
@@ -1389,6 +1389,7 @@ T}
 T{
 0f
 T}:T{
+.nf
 FORMAT_DESCRIPTION_EVENT
 T}:T{
 This indicates the start of a log file written by MySQL 5 or later\&.
@@ -1526,7 +1527,7 @@ Master Pos: The position of the next event in the original master log file\&.
 Flags: 16 flags\&. Currently, the following flags are used\&. The others are reserved for future use\&.
 .TS
 allbox tab(:);
-l l l.
+l l lx.
 T{
 Flag
 T}:T{
@@ -1537,6 +1538,7 @@ T}
 T{
 01
 T}:T{
+.nf
 LOG_EVENT_BINLOG_IN_USE_F
 T}:T{
 Log file correctly closed\&. (Used only in
@@ -1558,6 +1560,7 @@ T}
 T{
 04
 T}:T{
+.nf
 LOG_EVENT_THREAD_SPECIFIC_F
 T}:T{
 Set if the event is dependent on the connection it was executed in (for
