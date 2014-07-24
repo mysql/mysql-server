@@ -485,34 +485,6 @@ public:
 };
 
 
-/*
-  Item_func_old_password -- PASSWORD() implementation used in MySQL 3.21 - 4.0
-  compatibility mode. This item is created in sql_yacc.yy when
-  'old_passwords' session variable is set, and to handle OLD_PASSWORD()
-  function.
-*/
-
-class Item_func_old_password :public Item_str_ascii_func
-{
-  typedef Item_str_ascii_func super;
-
-  char tmp_value[SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1];
-public:
-  Item_func_old_password(Item *a) :Item_str_ascii_func(a) {}
-  Item_func_old_password(const POS &pos, Item *a) :super(pos, a) {}
-
-  virtual bool itemize(Parse_context *pc, Item **res);
-
-  String *val_str_ascii(String *str);
-  void fix_length_and_dec()
-  {
-    fix_length_and_charset(SCRAMBLED_PASSWORD_CHAR_LENGTH_323, default_charset());
-  } 
-  const char *func_name() const { return "old_password"; }
-  static char *alloc(THD *thd, const char *password, size_t pass_len);
-};
-
-
 class Item_func_des_encrypt :public Item_str_func
 {
   String tmp_value,tmp_arg;
