@@ -167,7 +167,7 @@ public:
 
     // Blocknums
     void allocate_blocknum(BLOCKNUM *res, struct ft *ft);
-    void realloc_on_disk(BLOCKNUM b, DISKOFF size, DISKOFF *offset, struct ft *ft, int fd, bool for_checkpoint);
+    void realloc_on_disk(BLOCKNUM b, DISKOFF size, DISKOFF *offset, struct ft *ft, int fd, bool for_checkpoint, uint64_t heat);
     void free_blocknum(BLOCKNUM *b, struct ft *ft, bool for_checkpoint);
     void translate_blocknum_to_offset_size(BLOCKNUM b, DISKOFF *offset, DISKOFF *size);
     void free_unused_blocknums(BLOCKNUM root);
@@ -258,7 +258,7 @@ private:
     void _allocate_blocknum_unlocked(BLOCKNUM *res, struct ft *ft);
     void _free_blocknum_unlocked(BLOCKNUM *bp, struct ft *ft, bool for_checkpoint);
     void _realloc_descriptor_on_disk_unlocked(DISKOFF size, DISKOFF *offset, struct ft *ft);
-    void _realloc_on_disk_internal(BLOCKNUM b, DISKOFF size, DISKOFF *offset, struct ft *ft, bool for_checkpoint);
+    void _realloc_on_disk_internal(BLOCKNUM b, DISKOFF size, DISKOFF *offset, struct ft *ft, bool for_checkpoint, uint64_t heat);
     void _translate_blocknum_to_offset_size_unlocked(BLOCKNUM b, DISKOFF *offset, DISKOFF *size);
 
     // File management

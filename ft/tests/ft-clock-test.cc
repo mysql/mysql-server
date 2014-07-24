@@ -370,7 +370,7 @@ test_serialize_nonleaf(void) {
     {
         DISKOFF offset;
         DISKOFF size;
-        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false);
+        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false, 0);
         assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         ft_h->blocktable.translate_blocknum_to_offset_size(b, &offset, &size);
@@ -450,7 +450,7 @@ test_serialize_leaf(void) {
     {
         DISKOFF offset;
         DISKOFF size;
-        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false);
+        ft_h->blocktable.realloc_on_disk(b, 100, &offset, ft_h, fd, false, 0);
         assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         ft_h->blocktable.translate_blocknum_to_offset_size(b, &offset, &size);

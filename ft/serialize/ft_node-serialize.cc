@@ -847,8 +847,12 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
     invariant(blocknum.b>=0);
     DISKOFF offset;
 
+    // Dirties the ft
     ft->blocktable.realloc_on_disk(blocknum, n_to_write, &offset,
-                                   ft, fd, for_checkpoint); //dirties h
+                                   ft, fd, for_checkpoint,
+                                   // Allocations for nodes high in the tree are considered 'hot',
+                                   // as they are likely to move again in the next checkpoint.
+                                   node->height);
 
     tokutime_t t0 = toku_time_now();
     toku_os_full_pwrite(fd, compressed_buf, n_to_write, offset);
@@ -2542,7 +2546,11 @@ toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBA
     // Dirties the ft
     DISKOFF offset;
     ft->blocktable.realloc_on_disk(blocknum, n_to_write, &offset,
-                                   ft, fd, for_checkpoint);
+                                   ft, fd, for_checkpoint,
+                                   // We consider rollback log flushing the hottest possible allocation,
+                                   // since rollback logs are short-lived compared to FT nodes.
+                                   INT_MAX);
+
     toku_os_full_pwrite(fd, compressed_buf, n_to_write, offset);
     toku_free(compressed_buf);
     if (!is_serialized) {

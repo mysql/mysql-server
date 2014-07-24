@@ -208,6 +208,7 @@ static vector<string> canonicalize_trace_from(FILE *file) {
 
             if (fn == "ba_trace_alloc") {
                 const uint64_t size = parse_uint64(&ptr, line_num);
+                const uint64_t heat = parse_uint64(&ptr, line_num);
                 const uint64_t offset = parse_uint64(&ptr, line_num);
                 ba_replay_assert(map->count(offset) == 0, "corrupted trace: double alloc", line, line_num);
 
@@ -215,7 +216,7 @@ static vector<string> canonicalize_trace_from(FILE *file) {
                 (*map)[offset] = allocation_seq_num;
 
                 // translate `offset = alloc(size)' to `asn = alloc(size)'
-                ss << fn << ' ' << canonical_allocator_id << ' ' << size << ' ' << allocation_seq_num << std::endl;
+                ss << fn << ' ' << canonical_allocator_id << ' ' << size << ' ' << heat << ' ' << allocation_seq_num << std::endl;
                 allocation_seq_num++;
             } else if (fn == "ba_trace_free") {
                 const uint64_t offset = parse_uint64(&ptr, line_num);
@@ -282,12 +283,13 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
             block_allocator *ba = (*allocator_map)[allocator_id];
             if (fn == "ba_trace_alloc") {
                 const uint64_t size = parse_uint64(&ptr, line_num);
+                const uint64_t heat = parse_uint64(&ptr, line_num);
                 const uint64_t asn = parse_uint64(&ptr, line_num);
                 ba_replay_assert(seq_num_to_offset.count(asn) == 0,
                                  "corrupted canonical trace: double alloc (asn in use)", line, line_num);
 
                 uint64_t offset;
-                ba->alloc_block(size, &offset);
+                ba->alloc_block(size, heat, &offset);
                 seq_num_to_offset[asn] = offset;
             } else if (fn == "ba_trace_free") {
                 const uint64_t asn = parse_uint64(&ptr, line_num);
@@ -318,6 +320,8 @@ static const char *strategy_str(block_allocator::allocation_strategy strategy) {
         return "first-fit";
     case block_allocator::allocation_strategy::BA_STRATEGY_BEST_FIT:
         return "best-fit";
+    case block_allocator::allocation_strategy::BA_STRATEGY_HEAT_ZONE:
+        return "heat-zone";
     default:
         abort();
     }
@@ -361,6 +365,8 @@ int main(void) {
 
     vector<enum block_allocator::allocation_strategy> candidate_strategies;
     candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_FIRST_FIT);
+    candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_BEST_FIT);
+    candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_HEAT_ZONE);
 
     for (vector<enum block_allocator::allocation_strategy>::const_iterator it = candidate_strategies.begin();
          it != candidate_strategies.end(); it++) {

@@ -89,8 +89,9 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ident "$Id$"
 
-#include <string>
-#include <cstring>
+#include <algorithm>
+
+#include <string.h>
 
 #include "portability/memory.h"
 #include "portability/toku_assert.h"
@@ -186,18 +187,6 @@ void block_allocator::grow_blocks_array() {
     grow_blocks_array_by(1);
 }
 
-int block_allocator::compare_blockpairs(const void *av, const void *bv) {
-    const struct blockpair *a = (const struct blockpair *) av;
-    const struct blockpair *b = (const struct blockpair *) bv;
-    if (a->offset < b->offset) {
-        return -1;
-    } else if (a->offset > b->offset) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 void block_allocator::create_from_blockpairs(uint64_t reserve_at_beginning, uint64_t alignment,
                                              struct blockpair *pairs, uint64_t n_blocks) {
     _create_internal(reserve_at_beginning, alignment);
@@ -205,7 +194,7 @@ void block_allocator::create_from_blockpairs(uint64_t reserve_at_beginning, uint
     _n_blocks = n_blocks;
     grow_blocks_array_by(_n_blocks);
     memcpy(_blocks_array, pairs, _n_blocks * sizeof(struct blockpair));
-    qsort(_blocks_array, _n_blocks, sizeof(struct blockpair), compare_blockpairs);
+    std::sort(_blocks_array, _blocks_array + _n_blocks);
     for (uint64_t i = 0; i < _n_blocks; i++) {
         // Allocator does not support size 0 blocks. See block_allocator_free_block.
         invariant(_blocks_array[i].size > 0);
@@ -224,19 +213,21 @@ static inline uint64_t align(uint64_t value, uint64_t ba_alignment) {
 }
 
 struct block_allocator::blockpair *
-block_allocator::choose_block_to_alloc_after(size_t size) {
+block_allocator::choose_block_to_alloc_after(size_t size, uint64_t heat) {
     switch (_strategy) {
     case BA_STRATEGY_FIRST_FIT:
         return block_allocator_strategy::first_fit(_blocks_array, _n_blocks, size, _alignment);
     case BA_STRATEGY_BEST_FIT:
         return block_allocator_strategy::best_fit(_blocks_array, _n_blocks, size, _alignment);
+    case BA_STRATEGY_HEAT_ZONE:
+        return block_allocator_strategy::heat_zone(_blocks_array, _n_blocks, size, _alignment, heat);
     default:
         abort();
     }
 }
 
 // Effect: Allocate a block. The resulting block must be aligned on the ba->alignment (which to make direct_io happy must be a positive multiple of 512).
-void block_allocator::alloc_block(uint64_t size, uint64_t *offset) {
+void block_allocator::alloc_block(uint64_t size, uint64_t heat, uint64_t *offset) {
     struct blockpair *bp;
 
     // Allocator does not support size 0 blocks. See block_allocator_free_block.
@@ -264,7 +255,7 @@ void block_allocator::alloc_block(uint64_t size, uint64_t *offset) {
         goto done;
     }
 
-    bp = choose_block_to_alloc_after(size);
+    bp = choose_block_to_alloc_after(size, heat);
     if (bp != nullptr) {
         // our allocation strategy chose the space after `bp' to fit the new block
         uint64_t answer_offset = align(bp->offset + bp->size, _alignment);
@@ -289,8 +280,10 @@ done:
     VALIDATE();
 
     if (ba_trace_file != nullptr) {
-        fprintf(ba_trace_file, "ba_trace_alloc %p %lu %lu\n",
-                this, static_cast<unsigned long>(size), static_cast<unsigned long>(*offset));
+        fprintf(ba_trace_file, "ba_trace_alloc %p %lu %lu %lu\n",
+                this, static_cast<unsigned long>(size),
+                static_cast<unsigned long>(heat),
+                static_cast<unsigned long>(*offset));
         fflush(ba_trace_file);
     }
 }
