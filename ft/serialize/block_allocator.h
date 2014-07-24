@@ -136,10 +136,10 @@ public:
         blockpair(uint64_t o, uint64_t s) :
             offset(o), size(s) {
         }
-        int operator<(const struct blockpair &rhs) {
+        int operator<(const struct blockpair &rhs) const {
             return offset < rhs.offset;
         }
-        int operator<(const uint64_t &o) {
+        int operator<(const uint64_t &o) const {
             return offset < o;
         }
     };
