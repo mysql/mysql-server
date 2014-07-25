@@ -119,7 +119,7 @@ InnoDB:
 #ifndef ut0new_h
 #define ut0new_h
 
-#include <algorithm> /* std::min */
+#include <algorithm> /* std::min() */
 #include <limits> /* std::numeric_limits */
 #include <map> /* std::map */
 
@@ -136,7 +136,7 @@ InnoDB:
 #include "os0proc.h" /* os_mem_alloc_large() */
 #include "os0thread.h" /* os_thread_sleep() */
 #include "ut0mem.h" /* OUT_OF_MEMORY_MSG */
-#include "ut0ut.h" /* ut_strcmp_functor */
+#include "ut0ut.h" /* ut_strcmp_functor, ut_basename_noext() */
 
 /** Keys for registering allocations with performance schema.
 Pointers to these variables are supplied to PFS code via the pfs_info[]
@@ -167,19 +167,6 @@ void
 ut_new_boot();
 
 #ifdef UNIV_PFS_MEMORY
-
-/** Extract the basename of a file without its extension.
-For example, extract "foo0bar" out of "/path/to/foo0bar.cc".
-@param[in]	file		file path, e.g. "/path/to/foo0bar.cc"
-@param[out]	base		result, e.g. "foo0bar"
-@param[in]	base_size	size of the output buffer 'base', if there
-is not enough space, then the result will be truncated, but always
-'\0'-terminated */
-void
-ut_new_basename_noext(
-	const char*	file,
-	char*		base,
-	size_t		base_size);
 
 /** Retrieve a memory key (registered with PFS), given a portion of the file
 name of the caller.
@@ -614,9 +601,12 @@ public:
 		}
 
 		/* e.g. "btr0cur", derived from "/path/to/btr0cur.cc" */
-		char	keyname[FILENAME_MAX];
-
-		ut_new_basename_noext(file, keyname, sizeof(keyname));
+		char		keyname[FILENAME_MAX];
+		const size_t	len = ut_basename_noext(file, keyname,
+							sizeof(keyname));
+		/* If sizeof(keyname) was not enough then the output would
+		be truncated, assert that this did not happen. */
+		ut_a(len < sizeof(keyname));
 
 		const PSI_memory_key	key = ut_new_get_key_by_file(keyname);
 
