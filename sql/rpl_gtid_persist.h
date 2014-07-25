@@ -19,13 +19,13 @@
 #define RPL_GTID_PERSIST_H_
 
 #include <string>
-#include "sql_base.h"
+#include "rpl_table_access.h"
 using std::string;
 
 class Open_tables_backup;
 
 
-class Gtid_table_access_context : public Table_access
+class Gtid_table_access_context : public System_table_access
 {
 
 public:
