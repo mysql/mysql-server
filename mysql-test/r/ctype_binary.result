@@ -491,16 +491,6 @@ t1	CREATE TABLE `t1` (
   `c1` varbinary(32) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select old_password('a'), hex(old_password('a'));
-old_password('a')	hex(old_password('a'))
-60671c896665c3fa	36303637316338393636363563336661
-create table t1 as select old_password('a') as c1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` varbinary(16) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-drop table t1;
 select password('a'), hex(password('a'));
 password('a')	hex(password('a'))
 *667F407DE7C6AD07358FA38DAED7828A72014B4E	2A36363746343037444537433641443037333538464133384441454437383238413732303134423445
@@ -2569,10 +2559,6 @@ drop function f1;
 # Bug#54668 User variable assignments get wrong type
 #
 SET @x=md5('a');
-SELECT charset(@x), collation(@x);
-charset(@x)	collation(@x)
-binary	binary
-SET @x=old_password('a');
 SELECT charset(@x), collation(@x);
 charset(@x)	collation(@x)
 binary	binary

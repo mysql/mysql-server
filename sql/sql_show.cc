@@ -2036,7 +2036,7 @@ public:
       user(NULL), host(NULL), db(NULL), proc_info(NULL), state_info(NULL)
   { }
 
-  ulong thread_id;
+  my_thread_id thread_id;
   time_t start_time;
   uint   command;
   const char *user,*host,*db,*proc_info,*state_info;
@@ -2113,7 +2113,7 @@ public:
     thread_info *thd_info= new thread_info;
 
     /* ID */
-    thd_info->thread_id= inspect_thd->thread_id;
+    thd_info->thread_id= inspect_thd->thread_id();
 
     /* USER */
     if (inspect_sctx->user)
@@ -2145,7 +2145,7 @@ public:
                     {
                     if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
                         inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
-                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_list_before_LOCK_thd_data");
                     });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
@@ -2287,7 +2287,7 @@ public:
     restore_record(table, s->default_values);
 
     /* ID */
-    table->field[0]->store((ulonglong) inspect_thd->thread_id, true);
+    table->field[0]->store((ulonglong) inspect_thd->thread_id(), true);
 
     /* USER */
     const char *val= NULL;
@@ -2319,7 +2319,7 @@ public:
                     {
                     if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
                         inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
-                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_list_before_LOCK_thd_data");
                     });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);

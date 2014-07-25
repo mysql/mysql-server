@@ -31,7 +31,7 @@ extern char *	mysql_unix_port;
                              CLIENT_LONG_FLAG |     \
                              CLIENT_TRANSACTIONS |  \
                              CLIENT_PROTOCOL_41 | \
-                             CLIENT_SECURE_CONNECTION | \
+                             CLIENT_RESERVED2 | \
                              CLIENT_MULTI_RESULTS | \
                              CLIENT_PS_MULTI_RESULTS | \
                              CLIENT_PLUGIN_AUTH | \
