@@ -67,6 +67,9 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd)
   uint index= 0;
   User_variable empty;
 
+  /* Protects thd->user_vars. */
+  mysql_mutex_assert_owner(&thd->LOCK_thd_data);
+
   for (;;)
   {
     sql_uvar= reinterpret_cast<user_var_entry*> (my_hash_element(& thd->user_vars, index));

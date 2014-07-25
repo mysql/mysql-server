@@ -5261,10 +5261,14 @@ longlong Item_func_sleep::val_int()
   @param cs  character set; IF we are creating the user_var_entry,
              we give it this character set.
 */
-static user_var_entry *get_variable(HASH *hash, const Name_string &name,
+static user_var_entry *get_variable(THD *thd, const Name_string &name,
                                     const CHARSET_INFO *cs)
 {
   user_var_entry *entry;
+  HASH *hash= & thd->user_vars;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_assert_owner(&thd->LOCK_thd_data);
 
   if (!(entry= (user_var_entry*) my_hash_search(hash, (uchar*) name.ptr(),
                                                  name.length())) &&
@@ -5272,7 +5276,7 @@ static user_var_entry *get_variable(HASH *hash, const Name_string &name,
   {
     if (!my_hash_inited(hash))
       return 0;
-    if (!(entry= user_var_entry::create(name, cs)))
+    if (!(entry= user_var_entry::create(thd, name, cs)))
       return 0;
     if (my_hash_insert(hash,(uchar*) entry))
     {
@@ -5301,7 +5305,12 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
           (args[0]->collation.derivation == DERIVATION_NUMERIC ?
           default_charset() : args[0]->collation.collation) : NULL;
 
-    if (!(entry= get_variable(&thd->user_vars, name, cs)))
+    /* Protects thd->user_vars. */
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    entry= get_variable(thd, name, cs);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+    if (entry == NULL)
     {
       entry_thread_id= 0;
       return TRUE;
@@ -5424,6 +5433,8 @@ bool user_var_entry::realloc(size_t length)
 */
 bool user_var_entry::store(const void *from, size_t length, Item_result type)
 {
+  assert_locked();
+
   // Store strings with end \0
   if (realloc(length + MY_TEST(type == STRING_RESULT)))
     return true;
@@ -5470,6 +5481,8 @@ bool user_var_entry::store(const void *ptr, size_t length, Item_result type,
                            const CHARSET_INFO *cs, Derivation dv,
                            bool unsigned_arg)
 {
+  assert_locked();
+
   if (store(ptr, length, type))
     return true;
   collation.set(cs, dv);
@@ -5477,6 +5490,17 @@ bool user_var_entry::store(const void *ptr, size_t length, Item_result type,
   return false;
 }
 
+void user_var_entry::lock()
+{
+  DBUG_ASSERT(m_owner != NULL);
+  mysql_mutex_lock(&m_owner->LOCK_thd_data);
+}
+
+void user_var_entry::unlock()
+{
+  DBUG_ASSERT(m_owner != NULL);
+  mysql_mutex_unlock(&m_owner->LOCK_thd_data);
+}
 
 bool
 Item_func_set_user_var::update_hash(const void *ptr, uint length,
@@ -5484,6 +5508,8 @@ Item_func_set_user_var::update_hash(const void *ptr, uint length,
                                     const CHARSET_INFO *cs, Derivation dv,
                                     bool unsigned_arg)
 {
+  entry->lock();
+
   /*
     If we set a variable explicitely to NULL then keep the old
     result type of the variable
@@ -5507,16 +5533,18 @@ Item_func_set_user_var::update_hash(const void *ptr, uint length,
     entry->set_null_value(res_type);
   else if (entry->store(ptr, length, res_type, cs, dv, unsigned_arg))
   {
+    entry->unlock();
     null_value= 1;
     return 1;
   }
+  entry->unlock();
   return 0;
 }
 
 
 /** Get the value of a variable as a double. */
 
-double user_var_entry::val_real(my_bool *null_value)
+double user_var_entry::val_real(my_bool *null_value) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0.0;
@@ -5576,7 +5604,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
 /** Get the value of a variable as a string. */
 
 String *user_var_entry::val_str(my_bool *null_value, String *str,
-				uint decimals)
+				uint decimals) const
 {
   if ((*null_value= (m_ptr == 0)))
     return (String*) 0;
@@ -5606,7 +5634,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 
 /** Get the value of a variable as a decimal. */
 
-my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
+my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0;
@@ -6095,7 +6123,11 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
-  var_entry= get_variable(&thd->user_vars, name, NULL);
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  var_entry= get_variable(thd, name, NULL);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   /*
     Any reference to user-defined variable which is done from stored
@@ -6143,7 +6175,11 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
       goto err;
     }
     thd->lex= sav_lex;
-    if (!(var_entry= get_variable(&thd->user_vars, name, NULL)))
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    var_entry= get_variable(thd, name, NULL);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+    if (var_entry == NULL)
       goto err;
   }
   else if (var_entry->used_query_id == thd->query_id ||
@@ -6230,7 +6266,7 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   /*
     If the variable didn't exist it has been created as a STRING-type.
-    'var_entry' is NULL only if there occured an error during the call to
+    'var_entry' is NULL only if there occurred an error during the call to
     get_var_with_binlog.
   */
   if (!error && var_entry)
@@ -6328,12 +6364,24 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
   */
   const CHARSET_INFO *cs= thd->lex->exchange->cs ?
     thd->lex->exchange->cs : thd->variables.collation_database;
-  if (Item::fix_fields(thd, ref) ||
-      !(entry= get_variable(&thd->user_vars, name, cs)))
+
+  if (Item::fix_fields(thd, ref))
     return true;
-  entry->set_type(STRING_RESULT);
-  entry->update_query_id= thd->query_id;
-  return FALSE;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  entry= get_variable(thd, name, cs);
+  if (entry != NULL)
+  {
+    entry->set_type(STRING_RESULT);
+    entry->update_query_id= thd->query_id;
+  }
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+  if (entry == NULL)
+    return true;
+
+  return false;
 }
 
 
