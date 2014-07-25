@@ -4881,6 +4881,7 @@ public:
   */
   void destroy()
   {
+    assert_locked();
     free_value();  // Free the external value buffer
     my_free(this); // Free the instance itself
   }
