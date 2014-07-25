@@ -611,14 +611,19 @@ next_dict_id(void) {
 // TODO: This isn't so pretty
 void ftnode_fetch_extra::_create_internal(FT ft_) {
     ft = ft_;
+    type = ftnode_fetch_none;
+    search = nullptr;
 
     toku_init_dbt(&range_lock_left_key);
     toku_init_dbt(&range_lock_right_key);
     left_is_neg_infty = false;
     right_is_pos_infty = false;
+
+    // -1 means 'unknown', which is the correct default state
     child_to_read = -1;
     disable_prefetching = false;
     read_all_partitions = false;
+
     bytes_read = 0;
     io_time = 0;
     deserialize_time = 0;
@@ -631,9 +636,8 @@ void ftnode_fetch_extra::create_for_full_read(FT ft_) {
     type = ftnode_fetch_all;
 }
 
-void ftnode_fetch_extra::create_for_keymatch(FT ft_,
-                           const DBT *left, const DBT *right,
-                           bool disable_prefetching_, bool read_all_partitions_) {
+void ftnode_fetch_extra::create_for_keymatch(FT ft_, const DBT *left, const DBT *right,
+                                             bool disable_prefetching_, bool read_all_partitions_) {
     _create_internal(ft_);
     invariant(ft->h->type == FT_CURRENT);
 
@@ -644,14 +648,16 @@ void ftnode_fetch_extra::create_for_keymatch(FT ft_,
     if (right != nullptr) {
         toku_copyref_dbt(&range_lock_right_key, *right);
     }
+    left_is_neg_infty = left == nullptr;
+    right_is_pos_infty = right == nullptr;
     disable_prefetching = disable_prefetching_;
     read_all_partitions = read_all_partitions_;
 }
 
 void ftnode_fetch_extra::create_for_subset_read(FT ft_, ft_search *search_,
-                              const DBT *left, const DBT *right,
-                              bool left_is_neg_infty_, bool right_is_pos_infty_,
-                              bool disable_prefetching_, bool read_all_partitions_) {
+                                                const DBT *left, const DBT *right,
+                                                bool left_is_neg_infty_, bool right_is_pos_infty_,
+                                                bool disable_prefetching_, bool read_all_partitions_) {
     _create_internal(ft_);
     invariant(ft->h->type == FT_CURRENT);
 
@@ -707,7 +713,9 @@ bool ftnode_fetch_extra::wants_child_available(int childnum) const {
 }
 
 int ftnode_fetch_extra::leftmost_child_wanted(FTNODE node) const {
-    paranoid_invariant(type == ftnode_fetch_subset || type == ftnode_fetch_prefetch || type == ftnode_fetch_keymatch);
+    paranoid_invariant(type == ftnode_fetch_subset ||
+                       type == ftnode_fetch_prefetch ||
+                       type == ftnode_fetch_keymatch);
     if (left_is_neg_infty) {
         return 0;
     } else if (range_lock_left_key.data == nullptr) {
@@ -718,7 +726,9 @@ int ftnode_fetch_extra::leftmost_child_wanted(FTNODE node) const {
 }
 
 int ftnode_fetch_extra::rightmost_child_wanted(FTNODE node) const {
-    paranoid_invariant(type == ftnode_fetch_subset || type == ftnode_fetch_prefetch || type == ftnode_fetch_keymatch);
+    paranoid_invariant(type == ftnode_fetch_subset ||
+                       type == ftnode_fetch_prefetch ||
+                       type == ftnode_fetch_keymatch);
     if (right_is_pos_infty) {
         return node->n_children - 1;
     } else if (range_lock_right_key.data == nullptr) {
