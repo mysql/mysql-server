@@ -1892,10 +1892,10 @@ NdbEventBuffer::complete_empty_bucket_using_exceptional_event(Uint64 gci,
     dealloc_mem(dummy_data, NULL);
   dummy_data->m_event_op = 0;
 
-  EventBufData_list *dummy_event_list = new EventBufData_list;
-  dummy_event_list->append_used_data(dummy_data);
-  dummy_event_list->m_is_not_multi_list = true;
-  m_complete_data.m_data.append_list(dummy_event_list, gci);
+  EventBufData_list dummy_event_list;
+  dummy_event_list.append_used_data(dummy_data);
+  dummy_event_list.m_is_not_multi_list = true;
+  m_complete_data.m_data.append_list(&dummy_event_list, gci);
   assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
   m_complete_data.m_data.m_gci_ops_list_tail->m_consistent = false;
 }
