@@ -394,12 +394,6 @@ update_user_table(THD *thd, TABLE *table,
   {
     table->field[(int) password_field]->store(new_password, new_password_len,
                                               system_charset_info);
-    if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 &&
-        password_field == MYSQL_USER_FIELD_PASSWORD)
-    {
-      push_deprecated_warn(thd, "pre-4.1 password hash",
-                           "post-4.1 password hash");
-    }
   }
 
   if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED
@@ -735,19 +729,13 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
      set_user_salt() is executed it will be too late to signal
      an error.
     */
-    if ((combo->plugin.str == native_password_plugin_name.str &&
-         password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH) ||
-        (combo->plugin.str == old_password_plugin_name.str &&
-         password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323))
+    if (combo->plugin.str == native_password_plugin_name.str &&
+        password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH)
     {
       my_error(ER_PASSWORD_FORMAT, MYF(0));
       error= 1;
       goto end;
     }
-    /* The legacy Password field is used */
-    if (combo->plugin.str == old_password_plugin_name.str)
-      push_deprecated_warn(thd, "pre-4.1 password hash",
-                           "post-4.1 password hash");
   }
 
   /* Update table columns with new privileges */

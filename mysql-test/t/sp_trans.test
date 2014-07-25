@@ -516,10 +516,7 @@ drop procedure if exists bug14210|
 set @@session.max_heap_table_size=16384|
 select @@session.max_heap_table_size|
 # To trigger the memory corruption the original table must be InnoDB.
-# No harm if it's not, so don't warn if the suite is run with --skip-innodb
---disable_warnings
 create table t3 (a char(255)) engine=InnoDB|
---enable_warnings
 create procedure bug14210_fill_table()
 begin
   declare table_size, max_table_size int default 0;

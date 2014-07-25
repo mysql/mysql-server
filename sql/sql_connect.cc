@@ -694,8 +694,8 @@ static bool login_connection(THD *thd)
   NET *net= &thd->net;
   int error;
   DBUG_ENTER("login_connection");
-  DBUG_PRINT("info", ("login_connection called by thread %lu",
-                      thd->thread_id));
+  DBUG_PRINT("info", ("login_connection called by thread %u",
+                      thd->thread_id()));
 
   /* Use "connect_timeout" value during connection phase */
   my_net_set_read_timeout(net, connect_timeout);
@@ -750,7 +750,8 @@ void end_connection(THD *thd)
       Security_context *sctx= thd->security_ctx;
 
       sql_print_information(ER(ER_NEW_ABORTING_CONNECTION),
-                            thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                            thd->thread_id(),
+                            (thd->db ? thd->db : "unconnected"),
                             sctx->user ? sctx->user : "unauthenticated",
                             sctx->host_or_ip,
                             (thd->get_stmt_da()->is_error() ?
@@ -795,7 +796,7 @@ static void prepare_new_connection_state(THD* thd)
       NET *net= &thd->net;
 
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
-                        thd->thread_id,
+                        thd->thread_id(),
                         thd->db ? thd->db : "unconnected",
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, "init_connect command failed");
@@ -812,7 +813,7 @@ static void prepare_new_connection_state(THD* thd)
       */
       if (packet_length != packet_error)
         my_error(ER_NEW_ABORTING_CONNECTION, MYF(0),
-                 thd->thread_id,
+                 thd->thread_id(),
                  thd->db ? thd->db : "unconnected",
                  sctx->user ? sctx->user : "unauthenticated",
                  sctx->host_or_ip, "init_connect command failed");
@@ -841,7 +842,7 @@ bool thd_prepare_connection(THD *thd)
   if (rc)
     return rc;
 
-  MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
+  MYSQL_CONNECTION_START(thd->thread_id(), &thd->security_ctx->priv_user[0],
                          (char *) thd->security_ctx->host_or_ip);
 
   prepare_new_connection_state(thd);
@@ -868,7 +869,7 @@ void close_connection(THD *thd, uint sql_errno)
 
   thd->disconnect();
 
-  MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id);
+  MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id());
 
   if (MYSQL_CONNECTION_DONE_ENABLED())
   {
