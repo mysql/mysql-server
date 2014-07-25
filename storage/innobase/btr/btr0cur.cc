@@ -6332,8 +6332,8 @@ struct btr_blob_log_check_t {
 	void check()
 	{
 		dict_index_t*	index = m_pcur->index();
-		ulint		offs;
-		ulint		page_no;
+		ulint		offs = 0;
+		ulint		page_no = ULINT_UNDEFINED;
 
 		if (m_op == BTR_STORE_INSERT_BULK) {
 			offs = page_offset(*m_rec);

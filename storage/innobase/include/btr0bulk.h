@@ -274,6 +274,12 @@ public:
 	@return	error code */
 	dberr_t finish(dberr_t	err);
 
+	/** Release all latches */
+	void release();
+
+	/** Re-latch all latches */
+	void latch();
+
 private:
 	/** Insert a tuple to a page in a level
 	@param[in]	tuple	tuple to insert
