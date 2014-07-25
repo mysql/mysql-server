@@ -7512,22 +7512,22 @@ compact_collection(const Geometry *g, Geometry_buffer *gbuf, String *str)
   char *wkb_start= g->get_cptr();
 
   wkb_len= wkb_len0= g->get_data_size();
-  typename BG_models<double, bgcs::cartesian>::Multilinestring mls;
-  Geometry_grouper<typename BG_models<double, bgcs::cartesian>::Linestring>
+  BG_models<double, bgcs::cartesian>::Multilinestring mls;
+  Geometry_grouper<TYPENAME BG_models<double, bgcs::cartesian>::Linestring>
     ls_grouper(&mls);
   wkb_scanner(wkb_start, &wkb_len,
               Geometry::wkb_geometrycollection, false, &ls_grouper);
 
-  typename BG_models<double, bgcs::cartesian>::Multipoint mpts;
+  BG_models<double, bgcs::cartesian>::Multipoint mpts;
   wkb_len= wkb_len0;
-  Geometry_grouper<typename BG_models<double, bgcs::cartesian>::Point>
+  Geometry_grouper<TYPENAME BG_models<double, bgcs::cartesian>::Point>
     pt_grouper(&mpts);
   wkb_scanner(wkb_start, &wkb_len,
               Geometry::wkb_geometrycollection, false, &pt_grouper);
 
   Gis_geometry_collection *ret= new (gbuf) Gis_geometry_collection();
   wkb_len= wkb_len0;
-  Geometry_grouper<typename BG_models<double, bgcs::cartesian>::Polygon>
+  Geometry_grouper<TYPENAME BG_models<double, bgcs::cartesian>::Polygon>
     mplgn_grouper(ret, str);
   wkb_scanner(wkb_start, &wkb_len,
               Geometry::wkb_geometrycollection, false, &mplgn_grouper);
