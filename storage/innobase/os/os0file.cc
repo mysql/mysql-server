@@ -1761,7 +1761,8 @@ os_file_create_func(
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Retrying to lock the first data file");
 
-			for (int i = 0; i < 100; i++) {
+			for (int i = 0; i < DBUG_EVALUATE_IF("innodb_lock_no_retry", 0, 100);
+					 i++) {
 				os_thread_sleep(1000000);
 
 				if (!os_file_lock(file, name)) {
