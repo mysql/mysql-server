@@ -2,22 +2,18 @@
 
 [mysqld.1]
 log-slave-updates
-innodb
 server-id= 1
 
 [mysqld.2]
 log-slave-updates
-innodb
 server-id= 2
 
 [mysqld.3]
 log-slave-updates
-innodb
 server-id= 3
 
 [mysqld.4]
 log-slave-updates
-innodb
 server-id= 4
 
 [ENV]

@@ -71,7 +71,7 @@ static void deinit_thd(THD *thd)
 
 THD *Gtid_table_access_context::create_thd()
 {
-  THD *thd= Table_access::create_thd();
+  THD *thd= System_table_access::create_thd();
   thd->system_thread= SYSTEM_THREAD_COMPRESS_GTID_TABLE;
   /*
     This is equivalent to a new "statement". For that reason, we call
