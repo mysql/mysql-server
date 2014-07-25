@@ -21,8 +21,6 @@
   Table USER_VARIABLES_BY_THREAD (declarations).
 */
 
-#include "vector"
-
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_instr_class.h"
@@ -53,7 +51,7 @@ public:
 
 class User_variables
 {
-  typedef Prealloced_array<User_variable, 500, false> User_variable_array;
+  typedef Prealloced_array<User_variable, 100, false> User_variable_array;
 
 public:
   User_variables()
@@ -141,6 +139,8 @@ struct pos_uvar_by_thread
 /** Table PERFORMANCE_SCHEMA.USER_VARIABLES_BY_THREAD. */
 class table_uvar_by_thread : public PFS_engine_table
 {
+  typedef pos_uvar_by_thread pos_t;
+
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
@@ -173,16 +173,16 @@ private:
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
 
-  /** Current THD. */
+  /** Current THD user variables. */
   User_variables m_THD_cache;
   /** Current row. */
   row_uvar_by_thread m_row;
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */
-  pos_uvar_by_thread m_pos;
+  pos_t m_pos;
   /** Next position. */
-  pos_uvar_by_thread m_next_pos;
+  pos_t m_next_pos;
 };
 
 /** @} */
