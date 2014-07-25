@@ -147,9 +147,9 @@ ut_allocator::get_mem_key()):
   unknown, then mem_key_std will be used. This happens only when called from
   within std::* containers.
 * If the caller has not provided a key and the file name of the caller is
-  known, but is not amongst the listed names in auto_names[] (see ut_new_boot())
-  then mem_key_other will be used. Generally this should not happen and if it
-  happens then that means that the list in auto_names[] needs to be extended.
+  known, but is not amongst the predefined names (see ut_new_boot()) then
+  mem_key_other will be used. Generally this should not happen and if it
+  happens then that means that the list of predefined names must be extended.
 Keep this list alphabetically sorted. */
 extern PSI_memory_key	mem_key_buf_buf_pool;
 extern PSI_memory_key	mem_key_dict_stats_index_map_t;
@@ -657,8 +657,7 @@ private:
 	2. Otherwise, if "file" is NULL, then the name associated with
 	   mem_key_std will be used
 	3. Otherwise, if an entry is found by ut_new_get_key_by_file(), that
-	   corresponds to "file", that will be used (see ut_new_boot(),
-	   auto_names[] and mem_keys_auto)
+	   corresponds to "file", that will be used (see ut_new_boot())
 	4. Otherwise, the name associated with mem_key_other will be used.
 	@param[in]	size	number of bytes that were allocated
 	@param[in]	file	file name of the caller or NULL if unknown
