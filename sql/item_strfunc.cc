@@ -43,8 +43,7 @@
 #include "mysqld.h"                             // LOCK_uuid_generator
 #include "auth_common.h"                        // SUPER_ACL
 #include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
-#include "password.h"           // my_make_scrambled_password,
-                                // my_make_scrambled_password_323
+#include "password.h"           // my_make_scrambled_password
 #include "crypt_genhash_impl.h"
 #include <m_ctype.h>
 #include <base64.h>
@@ -2060,13 +2059,6 @@ static int calculate_password(String *str, char *buffer)
                                     str->length());
     buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH;
   }
-  else
-  if (old_passwords == 1)
-  {
-    my_make_scrambled_password_323(buffer, str->ptr(),
-                                   str->length());
-    buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
-  }
   return buffer_len;
 }
 
@@ -2144,58 +2136,6 @@ char *Item_func_password::
     my_make_scrambled_password(buff, password, pass_len);
   }
 #endif
-  return buff;
-}
-
-/* Item_func_old_password */
-
-bool Item_func_old_password::itemize(Parse_context *pc, Item **res)
-{
-  if (skip_itemize(res))
-    return false;
-  if (super::itemize(pc, res))
-    return true;
-
-  pc->thd->lex->contains_plaintext_password= true;
-  return false;
-}
-
-String *Item_func_old_password::val_str_ascii(String *str)
-{
-  String *res;
-
-  DBUG_ASSERT(fixed == 1);
-
-  res= args[0]->val_str(str);
-
-  if ((null_value= args[0]->null_value))
-    res= make_empty_result();
- 
-  /* we treat NULLs as equal to empty string when calling the plugin */
-  check_password_policy(res);
-
-  if (null_value)
-    return 0;
-
-  if (res->length() == 0)
-    return make_empty_result();
-
-  my_make_scrambled_password_323(tmp_value, res->ptr(), res->length());
-  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, &my_charset_latin1);
-  return str;
-}
-
-char *Item_func_old_password::alloc(THD *thd, const char *password,
-                                    size_t pass_len)
-{
-  char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
-  if (buff)
-  {
-    String *password_str= new (thd->mem_root)String(password, thd->variables.
-                                                    character_set_client);
-    check_password_policy(password_str);
-    my_make_scrambled_password_323(buff, password, pass_len);
-  }
   return buff;
 }
 
@@ -2605,6 +2545,376 @@ String *Item_func_soundex::val_str(String *str)
 
   tmp_value.length((uint) (to-tmp_value.ptr()));
   return &tmp_value;
+}
+
+
+void Item_func_geohash::fix_length_and_dec()
+{
+  fix_length_and_charset(Item_func_geohash::upper_limit_output_length,
+                         default_charset());
+}
+
+
+/**
+  Here we check for valid types. We have to accept geometry of any type,
+  and determine if it's really a POINT in val_str(). 
+*/
+bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_str_func::fix_fields(thd, ref))
+    return true;
+
+  int geohash_length_arg_index;
+  if (arg_count == 2)
+  {
+    /*
+      First argument expected to be a point and second argument is expected
+      to be geohash output length.
+    */
+    geohash_length_arg_index= 1;
+    maybe_null= (args[0]->maybe_null || args[1]->maybe_null);
+    if (args[0]->field_type() != MYSQL_TYPE_GEOMETRY &&
+        args[0]->field_type() != MYSQL_TYPE_NULL)
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
+      return true;
+    }
+  }
+  else if (arg_count == 3)
+  {
+    /*
+      First argument is expected to be longitude, second argument is expected
+      to be latitude and third argument is expected to be geohash
+      output length.
+    */
+    geohash_length_arg_index= 2;
+    maybe_null= (args[0]->maybe_null || args[1]->maybe_null ||
+                 args[2]->maybe_null);
+    if (!check_valid_latlong_type(args[0]))
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "longitude", func_name());
+      return true;
+    }
+    else if (!check_valid_latlong_type(args[1]))
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "latitude", func_name());
+      return true;
+    }
+  }
+  else
+  {
+    /*
+      This should never happen, since function
+      only supports two or three arguments.
+    */
+    DBUG_ASSERT(false);
+    return true;
+  }
+
+  // Check if geohash length argument is of valid type.
+  bool is_binary_charset=
+    (args[geohash_length_arg_index]->collation.collation == &my_charset_bin);
+
+  switch (args[geohash_length_arg_index]->field_type())
+  {
+  case MYSQL_TYPE_NULL:
+    break;
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+    if (is_binary_charset)
+    {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "geohash max length", func_name());
+      return true;
+    }
+    break;
+  default:
+    my_error(ER_INCORRECT_TYPE, MYF(0), "geohash max length", func_name());
+    return true;
+  }
+  return false;
+}
+
+
+/**
+  Checks if supplied item is a valid latitude or longitude, based on which
+  type it is. Implemented as a whitelist of allowed types, where binary data is
+  not allowed.
+
+  @param ref Item to check for valid latitude/longitude.
+  @return false if item is not valid, true otherwise.
+*/
+bool Item_func_geohash::check_valid_latlong_type(Item *arg)
+{
+  bool is_binary_charset= (arg->collation.collation == &my_charset_bin);
+
+  switch (arg->field_type())
+  {
+  case MYSQL_TYPE_NULL:
+    return true;
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+    return !is_binary_charset;
+  default:
+    return false;
+  }
+}
+
+
+/**
+  Populate member variables with values from arguments.
+
+  In this function we populate the member variables 'latitude', 'longitude'
+  and 'geohash_length' with values from the arguments supplied by the user.
+  We also do type checking on the geometry object, as well as out-of-range
+  check for both longitude, latitude and geohash length.
+
+  If an expection is raised, null_value will not be set. If a null argument
+  was detected, null_value will be set to true.
+
+  @return false if class variables was populated, or true if the function
+          failed to populate them.
+*/
+bool Item_func_geohash::fill_and_check_fields()
+{
+  longlong geohash_length_arg= -1;
+  if (arg_count == 2)
+  {
+    // First argument is point, second argument is geohash output length.
+    String string_buffer;
+    String *swkb= args[0]->val_str(&string_buffer);
+    geohash_length_arg= args[1]->val_int();
+
+    if ((null_value= args[0]->null_value || args[1]->null_value || !swkb))
+    {
+      return true;
+    }
+    else
+    {
+      Geometry *geom;
+      Geometry_buffer geometry_buffer;
+      if (!(geom= Geometry::construct(&geometry_buffer, swkb)))
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+        return true;
+      }
+      else if (geom->get_type() != Geometry::wkb_point ||
+               geom->get_x(&longitude) || geom->get_y(&latitude))
+      {
+        my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
+        return true;
+      }
+    }
+  }
+  else if (arg_count == 3)
+  {
+    /*
+      First argument is longitude, second argument is latitude
+      and third argument is geohash output length.
+    */
+    longitude= args[0]->val_real();
+    latitude= args[1]->val_real();
+    geohash_length_arg= args[2]->val_int();
+
+    if ((null_value= args[0]->null_value || args[1]->null_value || 
+         args[2]->null_value))
+      return true;
+  }
+
+  // Check if supplied arguments are within allowed range.
+  if (longitude > max_longitude || longitude < min_longitude)
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "longitude", func_name());
+    return true;
+  }
+  else if (latitude > max_latitude || latitude < min_latitude)
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "latitude", func_name());
+    return true;
+  }
+
+  if (geohash_length_arg <= 0 ||
+      geohash_length_arg > upper_limit_output_length)
+  {
+    char geohash_length_string[MAX_BIGINT_WIDTH + 1];
+    llstr(geohash_length_arg, geohash_length_string);
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "max geohash length", func_name());
+    return true;
+  }
+
+  geohash_max_output_length= static_cast<uint>(geohash_length_arg);
+  return false;
+}
+
+
+/**
+  Encodes a pair of longitude and latitude values into a geohash string.
+  The length of the output string will be no longer than the value of
+  geohash_max_output_length member variable, but it might be shorter. The stop
+  condition is the following:
+
+  After appending a character to the output string, check if the encoded values
+  of latitude and longitude matches the input arguments values. If so, return
+  the result to the user.
+
+  It does exist latitudes/longitude values which will cause the algorithm to
+  loop until MAX(max_geohash_length, upper_geohash_limit), no matter how large
+  these arguments are (eg. SELECT GEOHASH(0.01, 1, 100); ). It is thus
+  important to supply an reasonable max geohash length argument.
+*/
+String *Item_func_geohash::val_str_ascii(String *str)
+{
+  DBUG_ASSERT(fixed == TRUE);
+
+  if (fill_and_check_fields())
+  {
+    if (null_value)
+    {
+      return NULL;
+    }
+    else
+    {
+      /*
+        Since null_value == false, my_error() was raised inside
+        fill_and_check_fields().
+      */
+      return error_str();
+    }
+  }
+
+  // Allocate one extra byte, for trailing '\0'.
+  if (str->alloc(geohash_max_output_length + 1))
+    return make_empty_result();
+  str->length(0);
+
+  double upper_latitude= max_latitude;
+  double lower_latitude= min_latitude;
+  double upper_longitude= max_longitude;
+  double lower_longitude= min_longitude;
+  bool even_bit= true;
+
+  for (uint i= 0; i < geohash_max_output_length; i++)
+  {
+    /*
+      We must encode in blocks of five bits, so we don't risk stopping
+      in the middle of a character. If we stop in the middle of a character,
+      some encoded geohash values will differ from geohash.org.
+    */
+    char current_char= 0;
+    for (uint bit_number= 0; bit_number < 5; bit_number++)
+    {
+      if (even_bit)
+      {
+        // Encode one longitude bit.
+        encode_bit(&upper_longitude, &lower_longitude, longitude,
+                   &current_char, bit_number);
+      }
+      else
+      {
+        // Encode one latitude bit.
+        encode_bit(&upper_latitude, &lower_latitude, latitude,
+                   &current_char, bit_number);
+      }
+      even_bit = !even_bit;
+    }
+    str->q_append(char_to_base32(current_char));
+
+    /*
+      If encoded values of latitude and longitude matches the supplied
+      arguments, there is no need to do more calculation.
+    */
+    if (latitude == (lower_latitude + upper_latitude) / 2.0 &&
+        longitude == (lower_longitude + upper_longitude) / 2.0)
+      break;
+  }
+  return str;
+}
+
+
+/**
+  Sets the bit number in char_value, determined by following formula:
+
+  IF target_value < (middle between lower_value and upper_value)
+  set bit to 0
+  ELSE
+  set bit to 1
+
+  When the function returns, upper_value OR lower_value are adjusted
+  to the middle value between lower and upper.
+
+  @param upper_value The upper error range for latitude or longitude.
+  @param lower_value The lower error range for latitude or longitude.
+  @param target_value Latitude or longitude value supplied as argument
+  by the user.
+  @param char_value The character we want to set the bit on.
+  @param bit_number Wich bit number in char_value to set.
+*/
+void Item_func_geohash::encode_bit(double *upper_value, double *lower_value,
+                                   double target_value, char *char_value,
+                                   int bit_number)
+{
+  DBUG_ASSERT(bit_number >= 0 && bit_number <= 4);
+
+  double middle_value= (*upper_value + *lower_value) / 2.0;
+  if (target_value < middle_value)
+  {
+    *upper_value= middle_value;
+    *char_value |= 0 << (4 - bit_number);
+  }
+  else
+  {
+    *lower_value= middle_value;
+    *char_value |= 1 << (4 - bit_number);
+  }
+}
+
+/**
+  Converts a char value to it's base32 representation, where 0 = a,
+  1 = b, ... , 30 = y, 31 = z.
+
+  The function expects that the input character is within allowed range.
+
+  @param char_input The value to convert.
+
+  @return the ASCII equivalent.
+*/
+char Item_func_geohash::char_to_base32(char char_input)
+{
+  DBUG_ASSERT(char_input >= 0 && char_input <= 31);
+
+  if (char_input < 10)
+    return char_input + '0';
+  else if (char_input < 17)
+    return char_input + ('b' - 10);
+  else if (char_input < 19)
+    return char_input + ('b' - 10 + 1);
+  else if (char_input < 21)
+    return char_input + ('b' - 10 + 2);
+  else
+    return char_input + ('b' - 10 + 3);
 }
 
 

@@ -80,6 +80,7 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_gtid_execution.cc
   ../sql/rpl_gtid_mutex_cond_array.cc
   ../sql/rpl_gtid_persist.cc
+  ../sql/rpl_table_access.cc
   ${IMPORTED_SOURCES}
 )
 
