@@ -180,7 +180,10 @@ ut_new_get_key_by_file(
 
 /** A structure that holds the necessary data for performance schema
 accounting. An object of this type is put in front of each allocated block
-of memory. This is because the data is needed even when freeing the memory. */
+of memory when allocation is done by ut_allocator::allocate(). This is
+because the data is needed even when freeing the memory. Users of
+ut_allocator::allocate_large() are responsible for maintaining this
+themselves. */
 struct ut_new_pfx_t {
 
 #ifdef UNIV_PFS_MEMORY
@@ -195,9 +198,12 @@ struct ut_new_pfx_t {
 #endif /* UNIV_PFS_MEMORY */
 
 	/** Size of the allocated block in bytes, including this prepended
-	aux structure. For example if InnoDB code requests to allocate
-	100 bytes, and sizeof(ut_new_pfx_t) is 16, then 116 bytes are
-	allocated in total and m_size will be 116. */
+	aux structure (for ut_allocator::allocate()). For example if InnoDB
+	code requests to allocate 100 bytes, and sizeof(ut_new_pfx_t) is 16,
+	then 116 bytes are allocated in total and m_size will be 116.
+	ut_allocator::allocate_large() does not prepend this struct to the
+	allocated block and its users are responsible for maintaining it
+	and passing it later to ut_allocator::deallocate_large(). */
 	size_t		m_size;
 };
 
@@ -536,7 +542,7 @@ public:
 	allocated memory. The caller must provide space for this one and keep
 	it until the memory is no longer needed and then pass it to
 	deallocate_large().
-	@return pointer to the allocated memory */
+	@return pointer to the allocated memory or NULL */
 	pointer
 	allocate_large(
 		size_type	n_elements,
