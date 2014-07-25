@@ -3886,7 +3886,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
              Log_event::EVENT_NORMAL_LOGGING),
    data_buf(0), query(query_arg), catalog(thd_arg->catalog),
    db(thd_arg->db), q_len((uint32) query_length),
-   thread_id(thd_arg->thread_id),
+   thread_id(thd_arg->thread_id()),
    /* save the original thread id; we already know the server id */
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
    flags2_inited(1), sql_mode_inited(1), charset_inited(1),
@@ -6336,7 +6336,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                            Log_event::EVENT_STMT_CACHE,
              Log_event::EVENT_NORMAL_LOGGING),
-   thread_id(thd_arg->thread_id),
+   thread_id(thd_arg->thread_id()),
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
    num_fields(0),fields(0),
    field_lens(0),field_block_len(0),
@@ -6538,7 +6538,7 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
   if (!print_event_info->short_form)
   {
     print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\tQuery\tthread_id=%ld\texec_time=%ld\n",
+    my_b_printf(head, "\tQuery\tthread_id=%u\texec_time=%ld\n",
                 thread_id, exec_time);
   }
 

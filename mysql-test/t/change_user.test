@@ -1,14 +1,8 @@
 # functional change user tests
 #
-connect (con_main,localhost,root,,,,,SKIPSECUREAUTH);
+connect (con_main,localhost,root);
 
-SET GLOBAL secure_auth = OFF;
 grant select on test.* to test_nopw;
-create user test_oldpw identified with 'mysql_old_password';
-# need to suppress the deprecation warnings because they're absent in embedded
---disable_warnings
-grant select on test.* to test_oldpw identified by password "09301740536db389";
---enable_warnings
 grant select on test.* to test_newpw identified by "newpw";
 
 select user(), current_user(), database();
@@ -24,9 +18,6 @@ select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 change_user test_nopw;
 --replace_result <@> <test_nopw@%> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
-change_user test_oldpw, oldpw;
---replace_result <@> <test_oldpw@%> @> @localhost>
-select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 change_user test_newpw, newpw;
 --replace_result <@> <test_newpw@%> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
@@ -37,9 +28,6 @@ select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 change_user test_nopw,,test;
 --replace_result <@> <test_nopw@%> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
-change_user test_oldpw,oldpw,test;
---replace_result <@> <test_oldpw@%> @> @localhost>
-select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 change_user test_newpw,newpw,test;
 --replace_result <@> <test_newpw@%> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
@@ -48,10 +36,7 @@ change_user root,,test;
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 
 drop user test_nopw;
-drop user test_oldpw;
 drop user test_newpw;
-
-SET GLOBAL secure_auth = DEFAULT;
 
 connection default;
 disconnect con_main;

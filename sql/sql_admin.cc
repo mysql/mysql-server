@@ -158,8 +158,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   if (!mysql_file_stat(key_file_misc, from, &stat_info, MYF(0)))
     goto end;				// Can't use USE_FRM flag
 
-  my_snprintf(tmp, sizeof(tmp), "%s-%lx_%lx",
-	      from, current_pid, thd->thread_id);
+  my_snprintf(tmp, sizeof(tmp), "%s-%lx_%x",
+	      from, current_pid, thd->thread_id());
 
   if (table_list->table)
   {

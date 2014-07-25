@@ -3035,7 +3035,6 @@ void set_slave_thread_default_charset(THD* thd, Relay_log_info const *rli)
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 #if !defined(DBUG_OFF)
   int simulate_error= 0;
 #endif
@@ -3055,15 +3054,14 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     - yet still assigned a PROCESSLIST_ID,
       for historical reasons (displayed in SHOW PROCESSLIST).
   */
-  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
-  thd->thread_id= thd->variables.pseudo_thread_id;
+  thd->set_new_thread_id();
 
 #ifdef HAVE_PSI_INTERFACE
   /*
     Populate the PROCESSLIST_ID in the instrumentation.
   */
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
-  PSI_THREAD_CALL(set_thread_id)(psi, thd->thread_id);
+  PSI_THREAD_CALL(set_thread_id)(psi, thd->thread_id());
 #endif /* HAVE_PSI_INTERFACE */
 
   DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",

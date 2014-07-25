@@ -507,9 +507,9 @@ static void ndbcluster_binlog_wait(THD *thd)
 
     if (count == 0)
     {
-      sql_print_warning("NDB: Thread id %llu timed out (30s) waiting for epoch %u/%u "
+      sql_print_warning("NDB: Thread id %u timed out (30s) waiting for epoch %u/%u "
                         "to be handled.  Progress : %u/%u -> %u/%u.",
-                        (ulonglong) thd->thread_id,
+                        thd->thread_id(),
                         Uint32((wait_epoch >> 32) & 0xffffffff),
                         Uint32(wait_epoch & 0xffffffff),
                         Uint32((start_handled_epoch >> 32) & 0xffffffff),
@@ -576,7 +576,6 @@ ndb_create_thd(char * stackptr)
   }
   THD_CHECK_SENTRY(thd);
 
-  thd->thread_id= 0;
   thd->thread_stack= stackptr; /* remember where our stack is */
   if (thd->store_globals())
   {
@@ -6810,7 +6809,7 @@ Ndb_binlog_thread::do_run()
   /* We need to set thd->thread_id before thd->store_globals, or it will
      set an invalid value for thd->variables.pseudo_thread_id.
   */
-  thd->thread_id= thd_manager->get_inc_thread_id();
+  thd->set_new_thread_id();
 
   thd->thread_stack= (char*) &thd; /* remember where our stack is */
   if (thd->store_globals())

@@ -1914,7 +1914,7 @@ public:
           p+= global_sid_map->sidno_to_sid(sidno).to_string(p);
           printed_sid= true;
         }
-        p+= sprintf(p, ":%lld#%lu", node->gno, node->owner);
+        p+= sprintf(p, ":%lld#%u", node->gno, node->owner);
       }
     }
     *p= 0;
