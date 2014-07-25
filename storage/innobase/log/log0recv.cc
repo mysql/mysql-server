@@ -1699,7 +1699,7 @@ recv_recover_page_func(
 	}
 
 #ifdef UNIV_ZIP_DEBUG
-	if (fil_page_index_page_checke(page)) {
+	if (fil_page_index_page_check(page)) {
 		page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
 
 		ut_a(!page_zip
