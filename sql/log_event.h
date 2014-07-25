@@ -817,7 +817,7 @@ typedef struct st_print_event_info
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
   uint lc_time_names_number;
   uint charset_database_number;
-  uint thread_id;
+  my_thread_id thread_id;
   bool thread_id_printed;
 
   st_print_event_info();
@@ -2187,14 +2187,14 @@ public:
   size_t q_len;
   size_t db_len;
   uint16 error_code;
-  ulong thread_id;
+  my_thread_id thread_id;
   /*
     For events created by Query_log_event::do_apply_event (and
     Load_log_event::do_apply_event()) we need the *original* thread
     id, to be able to log the event with the original (=master's)
     thread id (fix for BUG#1686).
   */
-  ulong slave_proxy_id;
+  my_thread_id slave_proxy_id;
 
   /*
     Binlog format 3 and 4 start to differ (as far as class members are
@@ -2614,8 +2614,8 @@ public:
   uint get_query_buffer_length();
   void print_query(bool need_db, const char *cs, char *buf, char **end,
                    char **fn_start, char **fn_end);
-  ulong thread_id;
-  ulong slave_proxy_id;
+  my_thread_id thread_id;
+  my_thread_id slave_proxy_id;
   uint32 table_name_len;
   /*
     No need to have a catalog, as these events can only come from 4.x.

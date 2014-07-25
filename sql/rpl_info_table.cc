@@ -229,8 +229,9 @@ end:
              mts_debug_concurrent_access < 2 && mts_debug_concurrent_access >  0)
       {
         DBUG_PRINT("mts", ("Waiting while locks are acquired to show "
-          "concurrency in mts: %u %lu\n", mts_debug_concurrent_access,
-          (ulong) thd->thread_id));
+                           "concurrency in mts: %u %u\n",
+                           mts_debug_concurrent_access,
+                           thd->thread_id()));
         my_sleep(6000000);
       }
     };

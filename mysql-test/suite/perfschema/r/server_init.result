@@ -36,7 +36,7 @@ where name like "wait/synch/mutex/sql/LOCK_open";
 count(name)
 1
 select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_thd_count";
+where name like "wait/synch/mutex/sql/LOCK_thd_list";
 count(name)
 1
 select count(name) from mutex_instances
@@ -146,7 +146,7 @@ count(name)
 select count(name) from cond_instances
 where name like "wait/synch/cond/sql/COND_thread_count";
 count(name)
-1
+0
 select count(name) from cond_instances
 where name like "wait/synch/cond/sql/COND_manager";
 count(name)

@@ -1930,6 +1930,9 @@ sub collect_mysqld_features {
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
+  # InnoDB is always enabled as of 5.7.
+  $mysqld_variables{'innodb'}= "ON";
+
 }
 
 
@@ -1965,9 +1968,8 @@ sub collect_mysqld_features_from_running_server ()
     }
   }
 
-  # "Convert" innodb flag
-  $mysqld_variables{'innodb'}= "ON"
-    if ($mysqld_variables{'have_innodb'} eq "YES");
+  # InnoDB is always enabled as of 5.7.
+  $mysqld_variables{'innodb'}= "ON";
 
   # Parse version
   my $version_str= $mysqld_variables{'version'};
@@ -4184,7 +4186,7 @@ sub run_testcase ($) {
 	   user            => $opt_user,
 	   password        => '',
 	   ssl             => $opt_ssl_supported,
-	   embedded        => $opt_embedded_server,
+	   embedded        => 1, # Always print out embedded section.
 	  }
 	);
 
