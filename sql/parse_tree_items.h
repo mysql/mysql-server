@@ -478,10 +478,7 @@ public:
 
     THD *thd= pc->thd;
     thd->lex->contains_plaintext_password= true;
-    if (thd->variables.old_passwords == 1)
-      *res= new (pc->mem_root) Item_func_old_password(expr);
-    else
-      *res= new (pc->mem_root) Item_func_password(expr);
+    *res= new (pc->mem_root) Item_func_password(expr);
     return *res == NULL;
   }
 };
