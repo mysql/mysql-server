@@ -66,10 +66,7 @@ void Rpl_info_table_access::close_table(THD *thd, TABLE* table,
                                         bool error)
 {
   DBUG_ENTER("Rpl_info_table_access::close_table");
-
-  Table_access::close_table(thd, table, backup, error,
-                            saved_current_thd != current_thd);
-
+  System_table_access::close_table(thd, table, backup, error, thd_created);
   DBUG_VOID_RETURN;
 }
 
@@ -325,16 +322,14 @@ bool Rpl_info_table_access::store_info_values(uint max_num_field, Field **fields
 */
 THD *Rpl_info_table_access::create_thd()
 {
-  THD *thd= NULL;
-  saved_current_thd= current_thd;
+  THD *thd= current_thd;
 
-  if (!current_thd)
+  if (!thd)
   {
-    thd= Table_access::create_thd();
+    thd= System_table_access::create_thd();
     thd->system_thread= SYSTEM_THREAD_INFO_REPOSITORY;
+    thd_created= true;
   }
-  else
-    thd= current_thd;
 
   return(thd);
 }
@@ -349,9 +344,10 @@ void Rpl_info_table_access::drop_thd(THD *thd)
 {
   DBUG_ENTER("Rpl_info::drop_thd");
 
-  if (saved_current_thd != current_thd)
+  if (thd_created)
   {
-    Table_access::drop_thd(thd);
+    System_table_access::drop_thd(thd);
+    thd_created= false;
   }
 
   DBUG_VOID_RETURN;
