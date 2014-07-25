@@ -1274,7 +1274,8 @@ page_zip_compress(
 	if (srv_simulate_comp_failures
 	    && !dict_index_is_ibuf(index)
 	    && page_get_n_recs(page) >= 2
-	    && ((ulint)(rand() % 100) < srv_simulate_comp_failures)) {
+	    && ((ulint)(rand() % 100) < srv_simulate_comp_failures)
+	    && strcasecmp(index->table_name, "IBUF_DUMMY") != 0) {
 
 #ifdef UNIV_DEBUG
 		fprintf(stderr,
