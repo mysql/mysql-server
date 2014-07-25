@@ -706,6 +706,17 @@ BtrBulk::pageCommit(
 void
 BtrBulk::logFreeCheck()
 {
+	release();
+
+	log_free_check();
+
+	latch();
+}
+
+/** Release all latches */
+void
+BtrBulk::release()
+{
 	ut_ad(m_root_level + 1 == m_page_bulks->size());
 
 	for (ulint level = 0; level <= m_root_level; level++) {
@@ -713,8 +724,13 @@ BtrBulk::logFreeCheck()
 
 		page_bulk->release();
 	}
+}
 
-	log_free_check();
+/** Re-latch all latches */
+void
+BtrBulk::latch()
+{
+	ut_ad(m_root_level + 1 == m_page_bulks->size());
 
 	for (ulint level = 0; level <= m_root_level; level++) {
 		PageBulk*    page_bulk = m_page_bulks->at(level);
@@ -830,7 +846,7 @@ BtrBulk::insert(
 		ut_ad(page_bulk->getLevel() == 0);
 		ut_ad(page_bulk == m_page_bulks->at(0));
 
-		/* Release */
+		/* Release all latched but leaf node. */
 		for (ulint level = 1; level <= m_root_level; level++) {
 			PageBulk*    page_bulk = m_page_bulks->at(level);
 
