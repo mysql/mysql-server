@@ -34,7 +34,7 @@ START TRANSACTION;
 --echo
 --echo # On connection 3
 --connection con3
-START TRANSACTION HIGH_PRIORITY;
+--source include/start_transaction_high_prio.inc
 UPDATE t1 SET c2=3 WHERE c2=0;
 COMMIT;
 
