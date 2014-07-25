@@ -26,6 +26,10 @@ select VARIABLE_NAME, VARIABLE_VALUE
 --connection default
 --disconnect con1
 
+# Wait till all disconnects are completed
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
+
 select VARIABLE_NAME, VARIABLE_VALUE
   from performance_schema.user_variables_by_thread
   order by VARIABLE_NAME;
