@@ -198,9 +198,11 @@ ostream &operator<<(ostream &os, const Gen_spaces &gen)
 class Log : public ostream
 {
 public:
-  Log(ostream &str, string logclass)
-   :std::ostream(&m_buffer), m_buffer(str, logclass)
-  {}
+  Log(ostream &str, string logclass) :
+   ostream(NULL), m_buffer(str, logclass)
+  {
+    this->init(&m_buffer);
+  }
   void enabled(bool s) { m_buffer.enabled(s); }
 private:
 
@@ -214,11 +216,11 @@ private:
     void enabled(bool s) { m_enabled= s; }
     virtual int sync()
     {
-      string out(str());
-      if (m_enabled && out.length() > 0)
+      string sout(str());
+      if (m_enabled && sout.length() > 0)
       {
         m_os << Datetime() << "[" << m_logc << "]"
-          << Gen_spaces(8-m_logc.length()) << out;
+          << Gen_spaces(8-m_logc.length()) << sout;
       }
       str("");
       m_os.flush();
