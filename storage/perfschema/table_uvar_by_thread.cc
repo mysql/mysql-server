@@ -148,12 +148,12 @@ PFS_engine_table_share
 table_uvar_by_thread::m_share=
 {
   { C_STRING_WITH_LEN("user_variables_by_thread") },
-  &pfs_truncatable_acl,
+  &pfs_readonly_acl,
   table_uvar_by_thread::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_uvar_by_thread::get_row_count,
-  sizeof(pos_uvar_by_thread),
+  sizeof(pos_t),
   &m_table_lock,
   &m_field_def,
   false /* checked */
@@ -168,7 +168,15 @@ table_uvar_by_thread::create(void)
 ha_rows
 table_uvar_by_thread::get_row_count(void)
 {
-  // FIXME
+  /*
+    This is an estimate only, not a hard limit.
+    The row count is given as a multiple of thread_max,
+    so that a join between:
+    - table performance_schema.threads
+    - table performance_schema.user_variables_by_thread
+    will still evaluate relative table sizes correctly
+    when deciding a join order.
+  */
   return thread_max * 10;
 }
 
