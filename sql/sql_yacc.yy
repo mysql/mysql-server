@@ -840,7 +840,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  NUMERIC_SYM                   /* SQL-2003-R */
 %token  NVARCHAR_SYM
 %token  OFFSET_SYM
-%token  OLD_PASSWORD
 %token  ON                            /* SQL-2003-R */
 %token  ONE_SYM
 %token  ONLY_SYM                      /* SQL-2003-R */
@@ -9470,10 +9469,6 @@ function_call_conflict:
           {
             $$= NEW_PTN Item_func_mod(@$, $3, $5);
           }
-        | OLD_PASSWORD '(' expr ')'
-          {
-            $$= NEW_PTN Item_func_old_password(@$, $3);
-          }
         | PASSWORD '(' expr ')'
           {
             $$= NEW_PTN PTI_password(@$, $3);
@@ -13082,7 +13077,6 @@ keyword_sp:
         | NUMBER_SYM               {}
         | NVARCHAR_SYM             {}
         | OFFSET_SYM               {}
-        | OLD_PASSWORD             {}
         | ONE_SYM                  {}
         | ONLY_SYM                 {}
         | PACK_KEYS_SYM            {}
@@ -13431,26 +13425,10 @@ text_or_password:
         | PASSWORD '(' TEXT_STRING ')'
           {
             if ($3.length == 0)
-             $$= $3.str;
+              $$= $3.str;
             else
-            switch (YYTHD->variables.old_passwords) {
-              case 1: $$= Item_func_old_password::
-                alloc(YYTHD, $3.str, $3.length);
-                break;
-              case 0:
-              case 2: $$= Item_func_password::
+              $$= Item_func_password::
                 create_password_hash_buffer(YYTHD, $3.str, $3.length);
-                break;
-            }
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-            Lex->contains_plaintext_password= true;
-          }
-        | OLD_PASSWORD '(' TEXT_STRING ')'
-          {
-            $$= $3.length ? Item_func_old_password::
-              alloc(YYTHD, $3.str, $3.length) :
-              $3.str;
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->contains_plaintext_password= true;

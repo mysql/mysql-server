@@ -1082,6 +1082,20 @@ protected:
 };
 
 
+class Create_func_geohash : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_geohash s_singleton;
+
+protected:
+  Create_func_geohash() {}
+  virtual ~Create_func_geohash() {}
+};
+
+
 class Create_func_geometry_from_text : public Create_native_func
 {
 public:
@@ -1539,6 +1553,32 @@ public:
 protected:
   Create_func_issimple() {}
   virtual ~Create_func_issimple() {}
+};
+
+
+class Create_func_latfromgeohash : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_latfromgeohash s_singleton;
+
+protected:
+  Create_func_latfromgeohash() {}
+  virtual ~Create_func_latfromgeohash() {}
+};
+
+
+class Create_func_longfromgeohash : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_longfromgeohash s_singleton;
+
+protected:
+  Create_func_longfromgeohash() {}
+  virtual ~Create_func_longfromgeohash() {}
 };
 
 
@@ -2001,6 +2041,19 @@ public:
 protected:
   Create_func_pi() {}
   virtual ~Create_func_pi() {}
+};
+
+
+class Create_func_pointfromgeohash : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_pointfromgeohash s_singleton;
+
+protected:
+  Create_func_pointfromgeohash() {}
+  virtual ~Create_func_pointfromgeohash() {}
 };
 
 
@@ -3642,6 +3695,47 @@ Create_func_from_unixtime::create_native(THD *thd, LEX_STRING name,
 }
 
 
+Create_func_geohash Create_func_geohash::s_singleton;
+
+Item*
+Create_func_geohash::create_native(THD *thd, LEX_STRING name,
+PT_item_list *item_list)
+{
+  Item *func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  switch (arg_count)
+  {
+  case 2:
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_geohash(POS(), param_1, param_2);
+      break;
+    }
+  case 3:
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      Item *param_3= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_geohash(POS(), param_1, param_2,
+                                                  param_3);
+      break;
+    }
+  default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
+}
+
+
 Create_func_geometry_from_text Create_func_geometry_from_text::s_singleton;
 
 Item*
@@ -4046,6 +4140,15 @@ Create_func_last_day::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_latfromgeohash Create_func_latfromgeohash::s_singleton;
+
+Item*
+Create_func_latfromgeohash::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_latfromgeohash(POS(), arg1);
+}
+
+
 Create_func_last_insert_id Create_func_last_insert_id::s_singleton;
 
 Item*
@@ -4253,6 +4356,15 @@ Item*
 Create_func_log2::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_log2(POS(), arg1);
+}
+
+
+Create_func_longfromgeohash Create_func_longfromgeohash::s_singleton;
+
+Item*
+Create_func_longfromgeohash::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_longfromgeohash(POS(), arg1);
 }
 
 
@@ -4561,6 +4673,15 @@ Create_func_pi::create(THD *thd)
   return new (thd->mem_root) Item_static_float_func(POS(),
                                                     NAME_STRING("pi()"),
                                                     M_PI, 6, 8);
+}
+
+
+Create_func_pointfromgeohash Create_func_pointfromgeohash::s_singleton;
+
+Item*
+Create_func_pointfromgeohash::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_pointfromgeohash(POS(), arg1, arg2);
 }
 
 
@@ -5386,6 +5507,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_ENVELOPE") }, GEOM_BUILDER(Create_func_envelope)},
   { { C_STRING_WITH_LEN("ST_EQUALS") }, GEOM_BUILDER(Create_func_mbr_equals)},
   { { C_STRING_WITH_LEN("ST_EXTERIORRING") }, GEOM_BUILDER(Create_func_exteriorring)},
+  { { C_STRING_WITH_LEN("ST_GEOHASH") }, GEOM_BUILDER(Create_func_geohash)},
   { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("ST_GEOMETRYCOLLECTIONFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
@@ -5406,15 +5528,18 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_ISCLOSED") }, GEOM_BUILDER(Create_func_isclosed)},
   { { C_STRING_WITH_LEN("ST_ISEMPTY") }, GEOM_BUILDER(Create_func_isempty)},
   { { C_STRING_WITH_LEN("ST_ISSIMPLE") }, GEOM_BUILDER(Create_func_issimple)},
+  { { C_STRING_WITH_LEN("ST_LATFROMGEOHASH") }, GEOM_BUILDER(Create_func_latfromgeohash)},
   { { C_STRING_WITH_LEN("ST_LENGTH") }, GEOM_BUILDER(Create_func_glength)},
   { { C_STRING_WITH_LEN("ST_LINEFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_LINEFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("ST_LINESTRINGFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_LINESTRINGFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+  { { C_STRING_WITH_LEN("ST_LONGFROMGEOHASH") }, GEOM_BUILDER(Create_func_longfromgeohash)},
   { { C_STRING_WITH_LEN("ST_NUMGEOMETRIES") }, GEOM_BUILDER(Create_func_numgeometries)},
   { { C_STRING_WITH_LEN("ST_NUMINTERIORRINGS") }, GEOM_BUILDER(Create_func_numinteriorring)},
   { { C_STRING_WITH_LEN("ST_NUMPOINTS") }, GEOM_BUILDER(Create_func_numpoints)},
   { { C_STRING_WITH_LEN("ST_OVERLAPS") }, GEOM_BUILDER(Create_func_overlaps)},
+  { { C_STRING_WITH_LEN("ST_POINTFROMGEOHASH") }, GEOM_BUILDER(Create_func_pointfromgeohash)},
   { { C_STRING_WITH_LEN("ST_POINTFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_POINTFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("ST_POINTN") }, GEOM_BUILDER(Create_func_pointn)},

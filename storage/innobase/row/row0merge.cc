@@ -1946,6 +1946,8 @@ write_buffers:
 						clust_btr_bulk = new BtrBulk(
 							index[i], trx->id);
 						clust_btr_bulk->init();
+					} else {
+						clust_btr_bulk->latch();
 					}
 
 					err = row_merge_insert_index_tuples(
@@ -1956,6 +1958,11 @@ write_buffers:
 						err = clust_btr_bulk->finish(
 							err);
 						delete clust_btr_bulk;
+					} else {
+						/* Release latches for possible
+						log_free_chck in spatial index
+						build. */
+						clust_btr_bulk->release();
 					}
 
 					if (row != NULL) {
