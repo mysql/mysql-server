@@ -197,47 +197,6 @@ ut_new_boot()
 
 #ifdef UNIV_PFS_MEMORY
 
-/** Extract the basename of a file without its extension.
-For example, extract "foo0bar" out of "/path/to/foo0bar.cc".
-@param[in]	file		file path, e.g. "/path/to/foo0bar.cc"
-@param[out]	base		result, e.g. "foo0bar"
-@param[in]	base_size	size of the output buffer 'base', if there
-is not enough space, then the result will be truncated, but always
-'\0'-terminated */
-void
-ut_new_basename_noext(
-	const char*	file,
-	char*		base,
-	size_t		base_size)
-{
-	/* Assuming 'file' contains something like the following,
-	extract the file name without the extenstion out of it by
-	setting 'beg' and 'len'.
-	...mysql-trunk/storage/innobase/dict/dict0dict.cc:302
-                                             ^-- beg, len=9
-	*/
-
-	const char*	beg = strrchr(file, OS_PATH_SEPARATOR);
-
-	if (beg == NULL) {
-		beg = file;
-	} else {
-		beg++;
-	}
-
-	size_t		len = strlen(beg);
-
-	const char*	end = strrchr(beg, '.');
-
-	if (end != NULL) {
-		len = end - beg;
-	}
-
-	memcpy(base, beg, std::min(len, base_size - 1));
-
-	base[base_size - 1] = '\0';
-}
-
 /** Retrieve a memory key (registered with PFS), given a portion of the file
 name of the caller.
 @param[in]	file	portion of the filename - basename without an extension
