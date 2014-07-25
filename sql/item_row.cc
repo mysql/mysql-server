@@ -46,6 +46,29 @@ Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail):
   }
 }
 
+Item_row::Item_row(Item *head, List<Item> &tail):
+  used_tables_cache(0), not_null_tables_cache(0),
+  const_item_cache(1), with_null(0)
+{
+
+  //TODO: think placing 2-3 component items in item (as it done for function)
+  arg_count= 1 + tail.elements;
+  items= (Item**) sql_alloc(sizeof(Item*)*arg_count);
+  if (items == NULL)
+  {
+    arg_count= 0;
+    return; // OOM
+  }
+  items[0]= head;
+  List_iterator<Item> li(tail);
+  uint i= 1;
+  Item *item;
+  while ((item= li++))
+  {
+    items[i]= item;
+    i++;    
+  }
+}
 
 bool Item_row::itemize(Parse_context *pc, Item **res)
 {

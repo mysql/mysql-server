@@ -70,9 +70,9 @@ void Binlog_sender::init()
   if (check_start_file())
     DBUG_VOID_RETURN;
 
-  sql_print_information("Start binlog_dump to master_thread_id(%lu) "
+  sql_print_information("Start binlog_dump to master_thread_id(%u) "
                         "slave_server(%u), pos(%s, %llu)",
-                        thd->thread_id, thd->server_id,
+                        thd->thread_id(), thd->server_id,
                         m_start_file, m_start_pos);
 
   if (RUN_HOOK(binlog_transmit, transmit_start,

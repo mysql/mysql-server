@@ -622,8 +622,8 @@ void _mi_report_crashed(MI_INFO *file, const char *message,
   char buf[1024];
   mysql_mutex_lock(&file->s->intern_lock);
   if ((cur_thd= (THD*) file->in_use.data))
-    sql_print_error("Got an error from thread_id=%lu, %s:%d", cur_thd->thread_id,
-                    sfile, sline);
+    sql_print_error("Got an error from thread_id=%u, %s:%d",
+                    cur_thd->thread_id(), sfile, sline);
   else
     sql_print_error("Got an error from unknown thread, %s:%d", sfile, sline);
   if (message)

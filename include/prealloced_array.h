@@ -290,6 +290,28 @@ public:
   }
 
   /**
+    Similar to std::set<>::erase()
+    Removes a single element from the array by value.
+    The removed element is destroyed.
+    This effectively reduces the container size by one.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to fill the "hole" in the array.
+
+    Assumes that the array is sorted with std::less<Element_type>.
+
+    @retval number of elements removed, 0 or 1.
+  */
+  size_type erase_unique(const value_type &val)
+  {
+    std::pair<iterator, iterator> p= std::equal_range(begin(), end(), val);
+    if (p.first == p.second)
+      return 0; // Not found
+    erase(p.first);
+    return 1;
+  }
+
+  /**
     Removes a single element from the array.
     The removed element is destroyed.
     This effectively reduces the container size by one.
