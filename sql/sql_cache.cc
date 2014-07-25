@@ -509,7 +509,7 @@ bool Query_cache::try_lock(bool use_timeout)
       m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
       if (thd)
-        m_cache_lock_thread_id= thd->thread_id;
+        m_cache_lock_thread_id= thd->thread_id();
 #endif
       break;
     }
@@ -576,7 +576,7 @@ void Query_cache::lock_and_suspend(void)
   m_cache_lock_status= Query_cache::LOCKED_NO_WAIT;
 #ifndef DBUG_OFF
   if (thd)
-    m_cache_lock_thread_id= thd->thread_id;
+    m_cache_lock_thread_id= thd->thread_id();
 #endif
   /* Wake up everybody, a whole cache flush is starting! */
   mysql_cond_broadcast(&COND_cache_status_changed);
@@ -605,7 +605,7 @@ void Query_cache::lock(void)
   m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
   if (thd)
-    m_cache_lock_thread_id= thd->thread_id;
+    m_cache_lock_thread_id= thd->thread_id();
 #endif
   mysql_mutex_unlock(&structure_guard_mutex);
 
@@ -624,7 +624,7 @@ void Query_cache::unlock(void)
 #ifndef DBUG_OFF
   THD *thd= current_thd;
   if (thd)
-    DBUG_ASSERT(m_cache_lock_thread_id == thd->thread_id);
+    DBUG_ASSERT(m_cache_lock_thread_id == thd->thread_id());
 #endif
   DBUG_ASSERT(m_cache_lock_status == Query_cache::LOCKED ||
               m_cache_lock_status == Query_cache::LOCKED_NO_WAIT);
