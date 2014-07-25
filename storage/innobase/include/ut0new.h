@@ -548,6 +548,8 @@ public:
 		size_type	n_elements,
 		ut_new_pfx_t*	pfx)
 	{
+		ut_ad(m_key != PSI_NOT_INSTRUMENTED);
+
 		if (n_elements == 0) {
 			return(NULL);
 		}
