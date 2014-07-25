@@ -3476,6 +3476,7 @@ innobase_commit_low(
 
 		trx_commit_for_mysql(trx);
 	}
+	trx->will_lock = 0;
 }
 
 /*****************************************************************//**
@@ -3816,6 +3817,8 @@ innobase_rollback_trx(
 
 	if (trx_is_rseg_updated(trx)) {
 		error = trx_rollback_for_mysql(trx);
+	} else {
+		trx->will_lock = 0;
 	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
@@ -12920,6 +12923,7 @@ ha_innobase::external_lock(
 		prebuilt->mysql_has_locked = TRUE;
 
 		if (!trx_is_started(trx)
+		    && lock_type != F_UNLCK
 		    && (prebuilt->select_lock_type != LOCK_NONE
 			|| prebuilt->stored_select_lock_type != LOCK_NONE)) {
 
@@ -12970,6 +12974,7 @@ ha_innobase::external_lock(
 	}
 
 	if (!trx_is_started(trx)
+	    && lock_type != F_UNLCK
 	    && (prebuilt->select_lock_type != LOCK_NONE
 		|| prebuilt->stored_select_lock_type != LOCK_NONE)) {
 

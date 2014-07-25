@@ -2236,13 +2236,14 @@ buf_pool_resize()
 	new_instance_size = srv_buf_pool_size / srv_buf_pool_instances;
 	new_instance_size /= UNIV_PAGE_SIZE;
 
-	buf_resize_status("Resizing buffer pool from %lu to %lu."
-			  " (unit=%lu)",
+	buf_resize_status("Resizing buffer pool from " ULINTPF " to "
+			  ULINTPF ". (unit=" ULINTPF ")",
 			  srv_buf_pool_old_size, srv_buf_pool_size,
 			  srv_buf_pool_chunk_unit);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Resizing buffer pool from %lu to %lu. (unit=%lu)",
+		"Resizing buffer pool from " ULINTPF " to "
+		ULINTPF ". (unit=" ULINTPF ")",
 		srv_buf_pool_old_size, srv_buf_pool_size,
 		srv_buf_pool_chunk_unit);
 
@@ -2648,7 +2649,8 @@ withdraw_retry:
 
 	if (srv_buf_pool_old_size != srv_buf_pool_size) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"completed to resize buffer pool from %lu to %lu.",
+			"completed to resize buffer pool from " ULINTPF " to "
+			ULINTPF ".",
 			srv_buf_pool_old_size, srv_buf_pool_size);
 		srv_buf_pool_old_size = srv_buf_pool_size;
 	}
