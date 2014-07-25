@@ -522,10 +522,16 @@ void Binlog_sender::init_heartbeat_period()
 {
   my_bool null_value;
   LEX_STRING name=  { C_STRING_WITH_LEN("master_heartbeat_period")};
+
+  /* Protects m_thd->user_vars. */
+  mysql_mutex_lock(&m_thd->LOCK_thd_data);
+
   user_var_entry *entry=
     (user_var_entry*) my_hash_search(&m_thd->user_vars, (uchar*) name.str,
                                      name.length);
   m_heartbeat_period= entry ? entry->val_int(&null_value) : 0;
+
+  mysql_mutex_unlock(&m_thd->LOCK_thd_data);
 }
 
 int Binlog_sender::check_start_file()
@@ -619,6 +625,10 @@ void Binlog_sender::init_checksum_alg()
   user_var_entry *entry;
 
   m_slave_checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
+
+  /* Protects m_thd->user_vars. */
+  mysql_mutex_lock(&m_thd->LOCK_thd_data);
+
   entry= (user_var_entry*) my_hash_search(&m_thd->user_vars,
                                           (uchar*) name.str, name.length);
   if (entry)
@@ -627,6 +637,8 @@ void Binlog_sender::init_checksum_alg()
       find_type((char*) entry->ptr(), &binlog_checksum_typelib, 1) - 1;
     DBUG_ASSERT(m_slave_checksum_alg < BINLOG_CHECKSUM_ALG_ENUM_END);
   }
+
+  mysql_mutex_unlock(&m_thd->LOCK_thd_data);
 
   /*
     m_event_checksum_alg should be set to the checksum algorithm in
