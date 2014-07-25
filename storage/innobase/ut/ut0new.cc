@@ -48,10 +48,10 @@ the list below:
 2. Without a specified key, allocations from inside std::* containers use
    mem_key_std
 3. Without a specified key, allocations from outside std::* pick up the key
-   based on the file name, and if file name is not found in auto_names[] (in
-   ut_new_boot()) then mem_key_other is used.
-NOTE: keep this list alphabetically sorted. */
-PSI_memory_info	pfs_info[] = {
+   based on the file name, and if file name is not found in the predefined list
+   (in ut_new_boot()) then mem_key_other is used.
+Keep this list alphabetically sorted. */
+static PSI_memory_info	pfs_info[] = {
 	{&mem_key_buf_buf_pool, "buf_buf_pool", 0},
 	{&mem_key_dict_stats_index_map_t, "dict_stats_index_map_t", 0},
 	{&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0},
@@ -88,7 +88,7 @@ void
 ut_new_boot()
 {
 #ifdef UNIV_PFS_MEMORY
-	static const char*	auto_names[] = {
+	static const char*	auto_event_names[] = {
 		/* Keep this list alphabetically sorted. */
 		"api0api",
 		"btr0btr",
@@ -163,24 +163,25 @@ ut_new_boot()
 		"ut0vec",
 		"ut0wqueue",
 	};
-	static const size_t	n_auto_names = UT_ARR_SIZE(auto_names);
-	static PSI_memory_key	auto_keys[n_auto_names];
-	static PSI_memory_info	pfs_info_auto[n_auto_names];
+	static const size_t	n_auto = UT_ARR_SIZE(auto_event_names);
+	static PSI_memory_key	auto_event_keys[n_auto];
+	static PSI_memory_info	pfs_info_auto[n_auto];
 
-	for (size_t i = 0; i < n_auto_names; i++) {
+	for (size_t i = 0; i < n_auto; i++) {
+
 		const std::pair<mem_keys_auto_t::iterator, bool>	ret
 			= mem_keys_auto.insert(
-			mem_keys_auto_t::value_type(auto_names[i],
-						    &auto_keys[i]));
+			mem_keys_auto_t::value_type(auto_event_names[i],
+						    &auto_event_keys[i]));
 
 		/* ret.second is true if new element has been inserted */
 		ut_ad(ret.second);
 
 		/* e.g. "btr0btr" */
-		pfs_info_auto[i].m_name = auto_names[i];
+		pfs_info_auto[i].m_name = auto_event_names[i];
 
 		/* a pointer to the pfs key */
-		pfs_info_auto[i].m_key = &auto_keys[i];
+		pfs_info_auto[i].m_key = &auto_event_keys[i];
 
 		pfs_info_auto[i].m_flags = 0;
 	}
@@ -190,7 +191,7 @@ ut_new_boot()
 					 UT_ARR_SIZE(pfs_info));
 	PSI_MEMORY_CALL(register_memory)("innodb",
 					 pfs_info_auto,
-					 n_auto_names);
+					 n_auto);
 #endif /* UNIV_PFS_MEMORY */
 }
 
