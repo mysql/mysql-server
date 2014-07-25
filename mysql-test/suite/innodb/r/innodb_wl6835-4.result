@@ -14,7 +14,8 @@ c3	c2
 0	0
 
 # On connection 3
-START TRANSACTION HIGH_PRIORITY;
+include/start_transaction_high_prio.inc
+START TRANSACTION /* HIGH PRIORITY */;
 UPDATE t1 SET c1=3 WHERE c1=0;
 COMMIT;
 

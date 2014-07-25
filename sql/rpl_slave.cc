@@ -2999,9 +2999,12 @@ void set_slave_thread_options(THD* thd)
   /*
     Set thread InnoDB high priority.
   */
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
-      thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
-    thd->thd_tx_priority= 1;
+  DBUG_EXECUTE_IF("dbug_set_high_prio_sql_thread", 
+    {
+      if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+          thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
+        thd->thd_tx_priority= 1;
+    });
 
   DBUG_VOID_RETURN;
 }

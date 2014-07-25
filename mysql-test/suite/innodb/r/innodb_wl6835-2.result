@@ -8,7 +8,8 @@ c1
 0
 
 # On connection 2
-START TRANSACTION HIGH_PRIORITY;
+include/start_transaction_high_prio.inc
+START TRANSACTION /* HIGH PRIORITY */;
 UPDATE t1 SET c1=2 WHERE c1=0;
 COMMIT;
 
