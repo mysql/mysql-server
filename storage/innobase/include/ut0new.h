@@ -550,11 +550,7 @@ public:
 	{
 		ut_ad(m_key != PSI_NOT_INSTRUMENTED);
 
-		if (n_elements == 0) {
-			return(NULL);
-		}
-
-		if (n_elements > max_size()) {
+		if (n_elements == 0 || n_elements > max_size()) {
 			return(NULL);
 		}
 
