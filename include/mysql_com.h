@@ -85,10 +85,9 @@ enum enum_server_command
   obfuscated password, recieved from client
 */
 #define SCRAMBLE_LENGTH 20
-#define SCRAMBLE_LENGTH_323 8
+#define AUTH_PLUGIN_DATA_PART_1_LENGTH 8
 /* length of password stored in the db: new passwords are preceeded with '*' */
 #define SCRAMBLED_PASSWORD_CHAR_LENGTH (SCRAMBLE_LENGTH*2+1)
-#define SCRAMBLED_PASSWORD_CHAR_LENGTH_323 (SCRAMBLE_LENGTH_323*2)
 
 
 #define NOT_NULL_FLAG	1		/* Field can't be NULL */
@@ -171,7 +170,7 @@ enum enum_server_command
 #define CLIENT_IGNORE_SIGPIPE   4096    /* IGNORE sigpipes */
 #define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
 #define CLIENT_RESERVED         16384   /* Old flag for 4.1 protocol  */
-#define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
+#define CLIENT_RESERVED2        32768   /* Old flag for 4.1 authentication */
 #define CLIENT_MULTI_STATEMENTS (1UL << 16) /* Enable/disable multi-stmt support */
 #define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
 #define CLIENT_PS_MULTI_RESULTS (1UL << 18) /* Multi-results in PS-protocol */
@@ -216,7 +215,7 @@ enum enum_server_command
                            | CLIENT_IGNORE_SIGPIPE \
                            | CLIENT_TRANSACTIONS \
                            | CLIENT_RESERVED \
-                           | CLIENT_SECURE_CONNECTION \
+                           | CLIENT_RESERVED2 \
                            | CLIENT_MULTI_STATEMENTS \
                            | CLIENT_MULTI_RESULTS \
                            | CLIENT_PS_MULTI_RESULTS \

@@ -212,6 +212,7 @@ trx_rollback_for_mysql(
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
 	case TRX_STATE_FORCED_ROLLBACK:
+		trx->will_lock = 0;
 		ut_ad(trx->in_mysql_trx_list);
 		return(DB_SUCCESS);
 
