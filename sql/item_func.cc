@@ -6641,15 +6641,19 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 
 void Item_user_var_as_out_param::set_null_value(const CHARSET_INFO* cs)
 {
+  entry->lock();
   entry->set_null_value(STRING_RESULT);
+  entry->unlock();
 }
 
 
 void Item_user_var_as_out_param::set_value(const char *str, size_t length,
                                            const CHARSET_INFO* cs)
 {
+  entry->lock();
   entry->store((void*) str, length, STRING_RESULT, cs,
                DERIVATION_IMPLICIT, 0 /* unsigned_arg */);
+  entry->unlock();
 }
 
 
