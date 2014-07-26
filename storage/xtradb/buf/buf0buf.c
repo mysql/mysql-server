@@ -2566,6 +2566,11 @@ loop2:
 		    || mode == BUF_PEEK_IF_IN_POOL
 		    || mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 
+			if (have_LRU_mutex) {
+				mutex_exit(&buf_pool->LRU_list_mutex);
+				have_LRU_mutex = FALSE;
+			}
+
 			return(NULL);
 		}
 
@@ -2628,6 +2633,11 @@ null_exit:
 		//buf_pool_mutex_exit(buf_pool);
 		mutex_exit(block_mutex);
 
+		if (have_LRU_mutex) {
+			mutex_exit(&buf_pool->LRU_list_mutex);
+			have_LRU_mutex = FALSE;
+		}
+
 		return(NULL);
 	}
 
@@ -2635,6 +2645,12 @@ null_exit:
 			  srv_pass_corrupt_table <= 1)) {
 
 		mutex_exit(block_mutex);
+
+		if (have_LRU_mutex) {
+			mutex_exit(&buf_pool->LRU_list_mutex);
+			have_LRU_mutex = FALSE;
+		}
+
 		return(NULL);
 	}
 
@@ -2843,6 +2859,11 @@ wait_until_unfixed:
 		insert buffer (change buffer) as much as possible. */
 		ulint	page_no	= buf_block_get_page_no(block);
 
+		if (!have_LRU_mutex) {
+			mutex_enter(&buf_pool->LRU_list_mutex);
+			have_LRU_mutex = TRUE;
+		}
+
 		if (buf_LRU_free_block(&block->page, (void *)block_mutex, TRUE, &have_LRU_mutex)) {
 			mutex_exit(block_mutex);
 			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
@@ -2867,6 +2888,12 @@ wait_until_unfixed:
 			fprintf(stderr,
 				"innodb_change_buffering_debug evict %u %u\n",
 				(unsigned) space, (unsigned) offset);
+
+			if (have_LRU_mutex){
+				mutex_exit(&buf_pool->LRU_list_mutex);
+				have_LRU_mutex = FALSE;
+			}
+
 			return(NULL);
 		} else if (UNIV_UNLIKELY(buf_block_get_state(block)
 					 != BUF_BLOCK_FILE_PAGE
@@ -2993,6 +3020,11 @@ wait_until_unfixed:
 #endif
 	if (UNIV_UNLIKELY(trx && trx->take_stats)) {
 		_increment_page_get_statistics(block, trx);
+	}
+
+	if (have_LRU_mutex) {
+		mutex_exit(&buf_pool->LRU_list_mutex);
+		have_LRU_mutex = FALSE;
 	}
 
 	return(block);

@@ -1013,6 +1013,10 @@ restart:
 				*have_LRU_mutex = FALSE;
 			}
 			return(TRUE);
+		} else if (!*have_LRU_mutex) {
+			*have_LRU_mutex = TRUE;
+			mutex_enter(&buf_pool->LRU_list_mutex);
+			taken_LRU_mutex = TRUE;
 		}
 	}
 
@@ -1097,6 +1101,10 @@ restart:
 			}
 
 			return(TRUE);
+		} else if (!*have_LRU_mutex) {
+			mutex_enter(&buf_pool->LRU_list_mutex);
+			taken_LRU_mutex = TRUE;
+			*have_LRU_mutex = TRUE;
 		}
 	}
 
@@ -1955,9 +1963,10 @@ alloc:
 	mutex_exit((mutex_t*)block_mutex);
 
 	if (!*have_LRU_mutex) {
-		mutex_enter(&buf_pool->LRU_list_mutex); /* optimistic */
+		mutex_enter(&buf_pool->LRU_list_mutex);
 		*have_LRU_mutex = TRUE;
 	}
+
 	rw_lock_x_lock(&buf_pool->page_hash_latch);
 	mutex_enter((mutex_t*)block_mutex);
 
@@ -1968,10 +1977,12 @@ not_freed:
 		if (b) {
 			buf_page_free_descriptor(b);
 		}
+
 		if (*have_LRU_mutex) {
 			mutex_exit(&buf_pool->LRU_list_mutex);
 			*have_LRU_mutex = FALSE;
 		}
+
 		rw_lock_x_unlock(&buf_pool->page_hash_latch);
 		return(FALSE);
 	} else if (zip || !bpage->zip.data) {
@@ -2106,10 +2117,12 @@ not_freed:
 		}
 
 		//buf_pool_mutex_exit(buf_pool);
+
 		if (*have_LRU_mutex) {
 			mutex_exit(&buf_pool->LRU_list_mutex);
 			*have_LRU_mutex = FALSE;
 		}
+
 		rw_lock_x_unlock(&buf_pool->page_hash_latch);
 		mutex_exit((mutex_t*)block_mutex);
 
@@ -2143,10 +2156,12 @@ not_freed:
 		}
 
 		//buf_pool_mutex_enter(buf_pool);
+
 		if (!*have_LRU_mutex) {
 			mutex_enter(&buf_pool->LRU_list_mutex);
 			*have_LRU_mutex = TRUE;
 		}
+
 		mutex_enter((mutex_t*)block_mutex);
 
 		if (b) {
@@ -2161,7 +2176,6 @@ not_freed:
 			mutex_exit(&buf_pool->LRU_list_mutex);
 			*have_LRU_mutex = FALSE;
 		}
-
 	} else {
 		/* The block_mutex should have been released by
 		buf_LRU_block_remove_hashed_page() when it returns
@@ -2173,6 +2187,7 @@ not_freed:
 			mutex_exit(&buf_pool->LRU_list_mutex);
 			*have_LRU_mutex = FALSE;
 		}
+
 		rw_lock_x_unlock(&buf_pool->page_hash_latch);
 	}
 

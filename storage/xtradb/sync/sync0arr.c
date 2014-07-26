@@ -1013,7 +1013,8 @@ sync_array_print_long_waits(
 	if (noticed) {
 		for (i = 0; i < sync_primary_wait_array->n_cells; i++) {
 			void*	wait_object;
-			os_thread_id_t reserver=0;
+			os_thread_id_t reserver=ULINT_UNDEFINED;
+			ulint loop=0;
 
 			cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
 
@@ -1030,7 +1031,7 @@ sync_array_print_long_waits(
 			noticed = TRUE;
 
 			/* Try to output cell information for writer recursive way */
-			while (reserver != 0) {
+			while (reserver != ULINT_UNDEFINED) {
 				sync_cell_t* reserver_wait;
 
 				reserver_wait = sync_array_find_thread(sync_primary_wait_array, reserver);
@@ -1040,9 +1041,20 @@ sync_array_print_long_waits(
 					reserver_wait->waiting) {
 					fputs("InnoDB: Warning: Writer thread is waiting this semaphore:\n",
 						stderr);
+					reserver = ULINT_UNDEFINED;
 					sync_array_cell_print(stderr, reserver_wait, &reserver);
+					loop++;
+
+					if (reserver_wait->thread == reserver) {
+						reserver = ULINT_UNDEFINED;
+					}
 				} else {
-					reserver = 0;
+					reserver = ULINT_UNDEFINED;
+				}
+				/* This is protection against loop */
+				if (loop > 100) {
+					fputs("InnoDB: Warning: Too many waiting threads.\n", stderr);
+					break;
 				}
 			}
 		}
