@@ -259,6 +259,11 @@ wait_for_ready () {
     if $bindir/mysqladmin ping >/dev/null 2>&1; then
       log_success_msg
       return 0
+    elif kill -0 $! 2>/dev/null ; then
+      :  # mysqld_safe is still running
+    else
+      # mysqld_safe is no longer running, abort the wait loop
+      break
     fi
 
     echo $echo_n ".$echo_c"
