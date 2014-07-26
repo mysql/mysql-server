@@ -1115,6 +1115,8 @@ public:
     return first_inner && first_inner == this;
   }
 
+  bool pfs_batch_update(JOIN *join);
+
   /// @returns semijoin strategy for this table.
   uint get_sj_strategy() const
   {

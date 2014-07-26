@@ -1193,6 +1193,7 @@ enum_nested_loop_state
 sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
   DBUG_ENTER("sub_select");
+  bool pfs_batch_update= true;
 
   join_tab->table->null_row=0;
   if (end_of_records)
@@ -1245,6 +1246,9 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     if (in_first_read)
     {
       in_first_read= false;
+      pfs_batch_update= join_tab->pfs_batch_update(join);
+      if (pfs_batch_update)
+        join_tab->table->file->start_psi_batch_mode();
       error= (*join_tab->read_first_record)(join_tab);
     }
     else
@@ -1253,13 +1257,23 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     DBUG_EXECUTE_IF("bug13822652_1", join->thd->killed= THD::KILL_QUERY;);
 
     if (error > 0 || (join->thd->is_error()))   // Fatal error
+    {
       rc= NESTED_LOOP_ERROR;
+      if (pfs_batch_update)
+        join_tab->table->file->end_psi_batch_mode();
+    }
     else if (error < 0)
+    {
+      if (pfs_batch_update)
+        join_tab->table->file->end_psi_batch_mode();
       break;
+    }
     else if (join->thd->killed)			// Aborted by user
     {
       join->thd->send_kill_message();
       rc= NESTED_LOOP_KILLED;
+      if (pfs_batch_update)
+        join_tab->table->file->end_psi_batch_mode();
     }
     else
     {
@@ -1271,6 +1285,9 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
   if (rc == NESTED_LOOP_OK && join_tab->last_inner && !join_tab->found)
     rc= evaluate_null_complemented_join_record(join, join_tab);
+
+  if (rc == NESTED_LOOP_QUERY_LIMIT && pfs_batch_update)
+    join_tab->table->file->end_psi_batch_mode();
 
   DBUG_RETURN(rc);
 }
