@@ -337,9 +337,24 @@ row_purge_remove_sec_if_poss_tree(
 	if (row_purge_poss_sec(node, index, entry)) {
 		/* Remove the index record, which should have been
 		marked for deletion. */
-		ut_ad(REC_INFO_DELETED_FLAG
-		      & rec_get_info_bits(btr_cur_get_rec(btr_cur),
-					  dict_table_is_comp(index->table)));
+		if (!rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
+					  dict_table_is_comp(index->table))) {
+			fputs("InnoDB: tried to purge sec index entry not"
+			      " marked for deletion in\n"
+			      "InnoDB: ", stderr);
+			dict_index_name_print(stderr, NULL, index);
+			fputs("\n"
+			      "InnoDB: tuple ", stderr);
+			dtuple_print(stderr, entry);
+			fputs("\n"
+			      "InnoDB: record ", stderr);
+			rec_print(stderr, btr_cur_get_rec(btr_cur), index);
+			putc('\n', stderr);
+
+			ut_ad(0);
+
+			goto func_exit;
+		}
 
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
 					   RB_NONE, &mtr);
@@ -428,10 +443,29 @@ row_purge_remove_sec_if_poss_leaf(
 			btr_cur_t* btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 			/* Only delete-marked records should be purged. */
-			ut_ad(REC_INFO_DELETED_FLAG
-			      & rec_get_info_bits(
-				      btr_cur_get_rec(btr_cur),
-				      dict_table_is_comp(index->table)));
+			if (!rec_get_deleted_flag(
+				btr_cur_get_rec(btr_cur),
+				dict_table_is_comp(index->table))) {
+
+				fputs("InnoDB: tried to purge sec index"
+				      " entry not marked for deletion in\n"
+				      "InnoDB: ", stderr);
+				dict_index_name_print(stderr, NULL, index);
+				fputs("\n"
+				      "InnoDB: tuple ", stderr);
+				dtuple_print(stderr, entry);
+				fputs("\n"
+				      "InnoDB: record ", stderr);
+				rec_print(stderr, btr_cur_get_rec(btr_cur),
+					  index);
+				putc('\n', stderr);
+
+				ut_ad(0);
+
+				btr_pcur_close(&pcur);
+
+				goto func_exit_no_pcur;
+			}
 
 			if (!btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
 
