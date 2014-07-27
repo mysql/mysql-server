@@ -92,9 +92,9 @@ os_stacktrace_print(
 #elif defined(__sparc__)
 	struct sigcontext* sc = (struct sigcontext*) ucontext;
 #if __WORDSIZE == 64
-	caller_address = (void*) scp->sigc_regs.tpc ;
+	caller_address = (void*) sc->sigc_regs.tpc ;
 #else
-	pnt = (void*) scp->si_regs.pc ;
+	caller_address = (void*) sc->si_regs.pc ;
 #endif
 #elif defined(__i386__)
 	ucontext_t* uc = (ucontext_t*) ucontext;
