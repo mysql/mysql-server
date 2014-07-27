@@ -532,7 +532,7 @@ lock_prdt_insert_check_and_lock(
 
 		/* Allocate MBR on the lock heap */
 		lock_init_prdt_from_mbr(prdt, mbr, 0, trx->lock.lock_heap);
-		
+
 		RecLock	rec_lock(thr, index, block, PRDT_HEAPNO, mode);
 
 		/* Note that we may get DB_SUCCESS also here! */

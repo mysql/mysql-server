@@ -459,7 +459,7 @@ public:
 
 private:
 	/** The multi range read session object */
-	DsMrr_impl 		m_ds_mrr;
+	DsMrr_impl		m_ds_mrr;
 
 	/** Save CPU time with prebuilt/cached data structures */
 	row_prebuilt_t*		m_prebuilt;
