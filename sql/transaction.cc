@@ -125,9 +125,9 @@ bool trans_begin(THD *thd, uint flags)
     thd->tx_read_only= false;
   }
 
-  DBUG_EXECUTE_IF("dbug_set_high_prio_trx", { 
+  DBUG_EXECUTE_IF("dbug_set_high_prio_trx", {
     DBUG_ASSERT(thd->tx_priority==0);
-    thd->tx_priority= 1; 
+    thd->tx_priority= 1;
   });
 
   thd->variables.option_bits|= OPTION_BEGIN;
