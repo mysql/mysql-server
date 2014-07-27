@@ -1864,7 +1864,7 @@ RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 		/* If a high priority transaction has been selected as
 		a victim there is nothing we can do. */
 
-	       	if (trx_is_high_priority(m_trx) && victim_trx != NULL) {
+		if (trx_is_high_priority(m_trx) && victim_trx != NULL) {
 
 			lock_reset_lock_and_trx_wait(lock);
 
@@ -1879,7 +1879,7 @@ RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 					" for rollback : %s",
 					thd_security_context(
 						thd, buffer, sizeof(buffer),
-				   		512));
+						512));
 			}
 
 			return(DB_DEADLOCK);
@@ -2137,7 +2137,7 @@ lock_rec_lock_slow(
 		err = DB_SUCCESS;
 
 	} else {
-		
+
 		const lock_t* wait_for = lock_rec_other_has_conflicting(
 			mode, block, heap_no, trx);
 

@@ -476,7 +476,7 @@ public:
 	@param[in] index	Index on which record lock requested
 	@param[in] block	Buffer page containing record
 	@param[in] heap_no	Heap number withing block
-	@param[in] mode		The lock mode 
+	@param[in] mode		The lock mode
 	@param[in] prdt		The predicate for the rtree lock */
 	RecLock(que_thr_t*	thr,
 		dict_index_t*	index,
@@ -542,7 +542,7 @@ public:
 	Enqueue a lock wait for a transaction. If it is a high priority
 	transaction (cannot rollback) then jump ahead in the record lock wait
 	queue and if the transaction at the head of the queue is itself waiting
-	roll it back. 
+	roll it back.
 	@param[in, out] wait_for	The lock that the the joining
 					transaction is waiting for
 	@param[in] prdt			Predicate [optional]
@@ -621,7 +621,7 @@ private:
 	void jump_queue(lock_t* lock, const lock_t* wait_for);
 
 	/**
-	Setup the requesting transaction state for lock grant 
+	Setup the requesting transaction state for lock grant
 	@param[in,out] lock	Lock for which to change state */
 	void set_wait_state(lock_t* lock);
 
@@ -710,7 +710,7 @@ private:
 		} else {
 			n_bytes = 1;
 		}
-		
+
 		return(n_bytes);
 	}
 

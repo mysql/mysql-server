@@ -2502,7 +2502,7 @@ public:
   /*
     Transaction cannot be rolled back must be given priority.
     When two transactions conflict inside InnoDB, the one with
-    greater priority wins. 
+    greater priority wins.
   */
   int tx_priority;
   /*
