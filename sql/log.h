@@ -954,6 +954,13 @@ end:
   DBUG_RETURN(error);
 }
 
-
+static inline TC_LOG *get_tc_log_implementation()
+{
+  if (total_ha_2pc <= 1)
+    return &tc_log_dummy;
+  if (opt_bin_log)
+    return &mysql_bin_log;
+  return &tc_log_mmap;
+}
 
 #endif /* LOG_H */

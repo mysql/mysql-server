@@ -1,0 +1,7 @@
+install plugin innodb soname 'ha_innodb';
+Warnings:
+Warning	1105	Cannot enable tc-log at run-time. XA features of InnoDB are disabled
+select engine,support,transactions,xa from information_schema.engines where engine='innodb';
+engine	support	transactions	xa
+InnoDB	YES	YES	NO
+uninstall plugin innodb;
