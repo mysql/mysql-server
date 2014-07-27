@@ -76,7 +76,7 @@ recv_sys_t*	recv_sys = NULL;
 /** TRUE when applying redo log records during crash recovery; FALSE
 otherwise.  Note that this is FALSE while a background thread is
 rolling back incomplete transactions. */
-ibool	recv_recovery_on;
+volatile ibool	recv_recovery_on;
 
 #ifndef UNIV_HOTBACKUP
 /** TRUE when recv_init_crash_recovery() has been called. */
@@ -148,7 +148,7 @@ mysql_pfs_key_t	recv_writer_thread_key;
 # endif /* UNIV_PFS_THREAD */
 
 /** Flag indicating if recv_writer thread is active. */
-bool	recv_writer_thread_active = false;
+volatile bool	recv_writer_thread_active = false;
 #endif /* !UNIV_HOTBACKUP */
 
 /* prototypes */
@@ -391,6 +391,14 @@ recv_sys_close(void)
 			mem_heap_free(recv_sys->heap);
 		}
 
+		if (recv_sys->flush_start != NULL) {
+			os_event_destroy(recv_sys->flush_start);
+		}
+
+		if (recv_sys->flush_end != NULL) {
+			os_event_destroy(recv_sys->flush_end);
+		}
+
 		ut_free(recv_sys->buf);
 		ut_free(recv_sys->last_block_buf_start);
 
@@ -422,6 +430,14 @@ recv_sys_mem_free(void)
 
 		if (recv_sys->heap != NULL) {
 			mem_heap_free(recv_sys->heap);
+		}
+
+		if (recv_sys->flush_start != NULL) {
+			os_event_destroy(recv_sys->flush_start);
+		}
+
+		if (recv_sys->flush_end != NULL) {
+			os_event_destroy(recv_sys->flush_end);
 		}
 
 		ut_free(recv_sys->buf);
@@ -488,7 +504,10 @@ DECLARE_THREAD(recv_writer_thread)(
 		}
 
 		/* Flush pages from end of LRU if required */
-		buf_flush_LRU_lists();
+		os_event_reset(recv_sys->flush_end);
+		recv_sys->flush_type = BUF_FLUSH_LRU;
+		os_event_set(recv_sys->flush_start);
+		os_event_wait(recv_sys->flush_end);
 
 		mutex_exit(&recv_sys->writer_mutex);
 	}
@@ -522,6 +541,11 @@ recv_sys_init(
 
 	recv_sys->heap = mem_heap_create_typed(256,
 					MEM_HEAP_FOR_RECV_SYS);
+
+	if (!srv_read_only_mode) {
+		recv_sys->flush_start = os_event_create(0);
+		recv_sys->flush_end = os_event_create(0);
+	}
 #else /* !UNIV_HOTBACKUP */
 	recv_sys->heap = mem_heap_create(256);
 	recv_is_from_backup = TRUE;
@@ -586,7 +610,7 @@ recv_sys_empty_hash(void)
 
 /********************************************************//**
 Frees the recovery system. */
-static
+
 void
 recv_sys_debug_free(void)
 /*=====================*/
@@ -602,6 +626,14 @@ recv_sys_debug_free(void)
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
 	recv_sys->last_block_buf_start = NULL;
+
+	/* wake page cleaner up to progress */
+	if (!srv_read_only_mode) {
+		ut_ad(recv_recovery_on == FALSE);
+		ut_ad(!recv_writer_thread_active);
+		os_event_reset(buf_flush_event);
+		os_event_set(recv_sys->flush_start);
+	}
 
 	mutex_exit(&(recv_sys->mutex));
 }
@@ -1698,7 +1730,7 @@ recv_recover_page_func(
 	}
 
 #ifdef UNIV_ZIP_DEBUG
-	if (fil_page_index_page_checke(page)) {
+	if (fil_page_index_page_check(page)) {
 		page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
 
 		ut_a(!page_zip
@@ -1932,7 +1964,10 @@ loop:
 		/* Wait for any currently run batch to end. */
 		buf_flush_wait_LRU_batch_end();
 
-		buf_flush_sync_all_buf_pools();
+		os_event_reset(recv_sys->flush_end);
+		recv_sys->flush_type = BUF_FLUSH_LIST;
+		os_event_set(recv_sys->flush_start);
+		os_event_wait(recv_sys->flush_end);
 
 		buf_pool_invalidate();
 
