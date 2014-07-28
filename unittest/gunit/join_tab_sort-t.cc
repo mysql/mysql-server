@@ -46,10 +46,12 @@ public:
   {
     found_records= recs;
     m_table.map= 1ULL << table_no;
-    this->table= &m_table;
+    set_qs(&m_shared);
+    this->set_table(&m_table);
   }
-  
+
   TABLE       m_table;
+  QEP_shared  m_shared;
 };
 
 std::ostream &operator<<(std::ostream &s, const MOCK_JOIN_TAB &jt)
