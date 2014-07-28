@@ -168,12 +168,13 @@ void table_replication_connection_configuration::reset_position(void)
 
 ha_rows table_replication_connection_configuration::get_row_count()
 {
-  /* We actually give the MAX_CHANNELS rather than the current
+  /*
+     We actually give the MAX_CHANNELS rather than the current
      number of channels
   */
 
  return msr_map.get_max_channels();
-} 
+}
 
 int table_replication_connection_configuration::rnd_next(void)
 {

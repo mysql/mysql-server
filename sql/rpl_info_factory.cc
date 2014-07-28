@@ -1120,7 +1120,7 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
     }
 
   }
-  else if (channel_list.size() >=1 &&
+  else if (channel_list.size() >= 1 &&
            (mi_option == INFO_REPOSITORY_TABLE &&
             rli_option == INFO_REPOSITORY_TABLE))
   {
@@ -1143,7 +1143,7 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
       }
     }
   }
-  else if (channel_list.size() >=1 &&
+  else if (channel_list.size() >= 1 &&
            (mi_option == INFO_REPOSITORY_FILE  ||
             (rli_option == INFO_REPOSITORY_FILE)))
   {
@@ -1196,7 +1196,7 @@ err:
                                 should be created.
    @param[in]    pmsr_map       a pointer to msr_map
    @param[in]   to_decide_repo  For this channel, check if repositories
-                                are allowed to conver from one type
+                                are allowed to convert from one type
                                 to other.
 
    @return      Pointer         pointer to the created Master_info
@@ -1281,11 +1281,10 @@ bool Rpl_info_factory::create_channel_list(std::vector<const char*>&channel_list
     break;
 
   case INFO_REPOSITORY_TABLE:
-    if (mi_instances >=1)
-    {
+
       if(create_channel_list_from_mi_table(channel_list))
-        goto err;
-    }
+        DBUG_RETURN(true);
+
     break;
   case INVALID_INFO_REPOSITORY:
     /* file and table instanaces are zero, nothing to be done*/
@@ -1295,9 +1294,6 @@ bool Rpl_info_factory::create_channel_list(std::vector<const char*>&channel_list
   }
   DBUG_RETURN(false);
 
-err:
-
-  DBUG_RETURN(true);
 }
 
 

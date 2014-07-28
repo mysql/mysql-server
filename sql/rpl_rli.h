@@ -998,6 +998,12 @@ public:
 
   bool set_info_search_keys(Rpl_info_handler *to);
 
+
+inline virtual Relay_log_info* get_c_rli()
+{
+  return this;
+}
+
 protected:
   Format_description_log_event *rli_description_event;
 
@@ -1100,6 +1106,7 @@ inline bool is_mts_worker(const THD *thd)
 {
   return thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER;
 }
+
 
 /**
  Auxiliary function to check if we have a db partitioned MTS

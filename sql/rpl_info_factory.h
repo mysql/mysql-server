@@ -44,9 +44,6 @@ public:
                                                 bool convert_repo,
                                                 Multisource_info* msr_map);
 
-  static bool supports_new_channel(uint mi_option, uint rli_option,
-                                   Multisource_info* pmsr_map);
-
   static Master_info *create_mi(uint rli_option, const char* channel,
                                 bool conver_repo);
   static bool change_mi_repository(Master_info *mi, const uint mi_option,

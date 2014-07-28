@@ -681,7 +681,7 @@ public:
   Item_int_func(Item *a, Item *b, Item *c, Item *d): Item_func(a,b,c,d)
   { collation.set_numeric(); fix_char_length(21); }
   Item_int_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
-    :Item_func(a,b,c,d)
+    :Item_func(pos,a,b,c,d)
   { collation.set_numeric(); fix_char_length(21); }
 
   Item_int_func(List<Item> &list) :Item_func(list)

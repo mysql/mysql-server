@@ -421,31 +421,33 @@ int init_slave()
   /*
     Loop through the msr_map and start slave threads for each channel.
   */
-  for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
+  if (!opt_skip_slave_start)
   {
-    mi= it->second;
-
-    /* If server id is not set, start_slave_thread() will say it */
-    if (mi->host[0] && !opt_skip_slave_start)
+    for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
     {
-      /* same as in start_slave() cache the global var values into rli's members */
-      mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
-      mi->rli->checkpoint_group= opt_mts_checkpoint_group;
-      if (start_slave_threads(true/*need_lock_slave=true*/,
-                              false/*wait_for_start=false*/,
-                              mi,
-                              thread_mask))
-      {
-        /*
-           Creation of slave threads for subsequent channels are stopped
-           if a failure occurs in this iteration.
-           @todo:have an option if the user wants to continue
-           the replication for other channels.
-        */
-        sql_print_error("Failed to create slave threads");
-        error= 1;
-        goto err;
+      mi= it->second;
 
+      /* If server id is not set, start_slave_thread() will say it */
+      if (mi && mi->host[0])
+      {
+        /* same as in start_slave() cache the global var values into rli's members */
+        mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
+        mi->rli->checkpoint_group= opt_mts_checkpoint_group;
+        if (start_slave_threads(true/*need_lock_slave=true*/,
+                                false/*wait_for_start=false*/,
+                                mi,
+                                thread_mask))
+        {
+          /*
+            Creation of slave threads for subsequent channels are stopped
+            if a failure occurs in this iteration.
+            @todo:have an option if the user wants to continue
+            the replication for other channels.
+          */
+          sql_print_error("Failed to create slave threads");
+          error= 1;
+          goto err;
+        }
       }
     }
   }
@@ -485,7 +487,7 @@ err:
 int start_slave(THD *thd)
 {
 
-  DBUG_ENTER("start_slave_for_all_channels");
+  DBUG_ENTER("start_slave(THD)");
   Master_info *mi;
   int error= 0;
 
@@ -548,9 +550,11 @@ err:
 */
 int stop_slave(THD *thd)
 {
-   DBUG_ENTER("stop_slave_for_all_channels");
+   DBUG_ENTER("stop_slave(THD)");
    Master_info *mi=0;
    int error= 0;
+
+   /*RITH: MSR errors to be done */
 
    for(mi_map::iterator it=msr_map.begin(); it!=msr_map.end(); it++)
    {
@@ -595,6 +599,7 @@ bool start_slave_cmd(THD *thd)
   bool res= true;  /* default, an error */
 
   mysql_mutex_lock(&LOCK_msr_map);
+
 
   /*
    If slave_until options are provided when multiple channels exist
@@ -1560,7 +1565,6 @@ void delete_slave_info_objects()
       if (mi->rli)
         delete mi->rli;
       delete mi;
-
       it->second= 0;
     }
   }
@@ -2918,8 +2922,7 @@ void show_slave_status_metadata(List<Item> &field_list,
   field_list.push_back(new Item_return_int("Auto_Position", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
-  //Rith@todo: change to CHANNEL_NAME
-  field_list.push_back(new Item_empty_string("Channel_Name", 64));
+  field_list.push_back(new Item_empty_string("Channel_Name", CHANNELNAME_LENGTH));
 
 }
 
@@ -3208,7 +3211,6 @@ bool show_slave_status_send_data(THD *thd, Master_info *mi,
 
 /**
    Method to the show the replication status in all channels.
-   Prerequisite: LOCK_msr_map has to be taken.
 
    @param[in]       thd        the client thread
 
@@ -3236,7 +3238,9 @@ bool show_slave_status(THD *thd)
   uint num_io_gtid_sets;
   bool ret= true;
 
-  DBUG_ENTER("show_slave_status_for_all_channels");
+  DBUG_ENTER("show_slave_status(THD)");
+
+  mysql_mutex_assert_owner(&LOCK_msr_map);
 
   num_io_gtid_sets= msr_map.get_num_instances();
 
@@ -3362,7 +3366,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
   Protocol *protocol= thd->protocol;
   char *sql_gtid_set_buffer= NULL, *io_gtid_set_buffer= NULL;
   int sql_gtid_set_size= 0, io_gtid_set_size= 0;
-  DBUG_ENTER("show_slave_status");
+  DBUG_ENTER("show_slave_status(THD, Master_info)");
  
   if (mi != NULL)
   { 
@@ -3431,6 +3435,8 @@ bool show_slave_status_cmd(THD *thd)
   LEX *lex= thd->lex;
   bool res;
 
+  DBUG_ENTER("show_slave_status_cmd");
+
   mysql_mutex_lock(&LOCK_msr_map);
 
   if (!lex->mi.for_channel)
@@ -3444,7 +3450,7 @@ bool show_slave_status_cmd(THD *thd)
 
   mysql_mutex_unlock(&LOCK_msr_map);
 
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -8504,7 +8510,9 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
   int thread_mask;
   bool error_reported= false;
 
-  DBUG_ENTER("start_slave");
+  DBUG_ENTER("start_slave(THD, Master_info, bool, bool");
+
+  /*RITH_TODO: shift to start_slave_cmd */
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
@@ -8764,8 +8772,8 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
 */
 int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel )
 {
-  DBUG_ENTER("stop_slave");
-  
+  DBUG_ENTER("stop_slave(THD, Master_info, bool, bool");
+
   int slave_errno;
   if (!thd)
     thd = current_thd;
@@ -9779,9 +9787,7 @@ bool add_new_channel(THD* thd, Master_info** mi, const char* channel)
 {
   DBUG_ENTER("add_new_channel");
 
-  bool ret= false;
-  char* same_channel= 0;
-  LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
+  bool ret= true;
 
   /*
     Refuse to create a new channel if the repositories does not support this.
@@ -9794,33 +9800,30 @@ bool add_new_channel(THD* thd, Master_info** mi, const char* channel)
                     " repositories are of type FILE. Convert slave"
                     " repositories  to TABLE to replicate from multiple"
                     " sources.");
-    my_message(ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY,
-               ER(ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY), MYF(0));
-    ret= true;
+    my_error(ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY, MYF(0));
     goto err;
   }
 
   /*
-     Refuse to create a new slave per channel, if host, port are already in use.
+    Return if max num of replication channels exceeded already.
   */
-  if ((same_channel= (char*)msr_map.get_channel_with_host_port(lex_mi->host,
-                                                     lex_mi->port)))
+
+  if (!msr_map.is_valid_channel_count())
   {
-    my_printf_error(ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT,
-              ER(ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT), MYF(0), same_channel);
-    ret= true;
+    my_error(ER_SLAVE_MAX_CHANNELS_EXCEEDED, MYF(0));
     goto err;
- }
+  }
+
 
  /*
-   Issue a warning if a channel name exceeds the specified 64 characters.
+   Issue an error if a channel name exceeds the specified 64 characters.
  */
 
   if (channel && (strlen(channel) > 64))
-    push_warning(thd,Sql_condition::SL_NOTE,
-                 ER_SLAVE_CHANNEL_NAME_TOO_LENGTHY,
-                 ER(ER_SLAVE_CHANNEL_NAME_TOO_LENGTHY));
-
+  {
+    my_error(ER_SLAVE_CHANNEL_NAME_TOO_LENGTHY, MYF(0));
+    goto err;
+  }
 
   if (!((*mi)=Rpl_info_factory::create_slave_per_channel(
                                              opt_mi_repository_id,
@@ -9828,9 +9831,10 @@ bool add_new_channel(THD* thd, Master_info** mi, const char* channel)
                                              channel, false, &msr_map)))
   {
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
-    ret= true;
     goto err;
   }
+
+  ret= false;
 
 err:
 
@@ -9856,6 +9860,7 @@ bool change_master_cmd(THD *thd)
   Master_info *mi= 0;
   LEX *lex= thd->lex;
   bool res=false;
+  const char* same_channel;
 
   mysql_mutex_lock(&LOCK_msr_map);
 
@@ -9880,6 +9885,20 @@ bool change_master_cmd(THD *thd)
     if (add_new_channel(thd, &mi, lex->mi.channel))
         goto err;
   }
+
+  /*
+     If host, port are already being used for a different channel,
+     refuse to do a change master.
+  */
+  same_channel= msr_map.get_channel_with_host_port(lex->mi.host, lex->mi.port);
+
+  if (same_channel && !strcmp(same_channel, lex->mi.channel))
+  {
+    my_error(ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT, MYF(0), same_channel);
+    res= true;
+    goto err;
+  }
+
 
   if (mi)
     res= change_master(thd, mi);

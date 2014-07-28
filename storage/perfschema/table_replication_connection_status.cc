@@ -209,6 +209,11 @@ void table_replication_connection_status::make_row(Master_info *mi)
   memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
 
   memcpy(m_row.source_uuid, mi->master_uuid, UUID_LENGTH+1);
+  if (mi->master_uuid[0] != 0)
+    memcpy(m_row.source_uuid, mi->master_uuid, UUID_LENGTH+1);
+  else
+    m_row.source_uuid[0]= 0;
+
   m_row.thread_id= 0;
 
   if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
@@ -301,10 +306,11 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /** channel_name*/
-          set_field_char_utf8(f, m_row.channel_name,m_row.channel_name_length);
-          break;
+        set_field_char_utf8(f, m_row.channel_name,m_row.channel_name_length);
+        break;
       case 1: /** source_uuid */
-        set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
+        if (m_row.source_uuid[0] !=0)
+          set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
         break;
       case 2: /** thread_id */
         if(m_row.thread_id_is_null)

@@ -7247,7 +7247,7 @@ ER_SLAVE_MULTIPLE_CHANNELS_CMD
    eng "Multiple channels exist on the slave. Please provide channel name as an argument."
 
 ER_SLAVE_MAX_CHANNELS_EXCEEDED
-   eng "Maximum number of replication channels exceeded."
+   eng "Maximum number of replication channels allowed exceeded."
 
 ER_SLAVE_CHANNEL_RUNNING
    eng "Slave for channel '%s' is already runnning."

@@ -25,7 +25,7 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi)
 
   mi_map::const_iterator it;
   pair<mi_map::iterator, bool>  ret;
-  bool added_pfs_mi= false;
+  bool res= false;
 
   /* The check of mi exceeding MAX_CHANNELS shall be done in the caller */
   DBUG_ASSERT(current_mi_count < MAX_CHANNELS);
@@ -40,37 +40,13 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi)
   if(!ret.second)
     DBUG_RETURN(true);
 
-  /* Point to this added mi in the pfs_mi*/
-  for (uint i = 0; i < MAX_CHANNELS; i++)
-  {
-    if (pfs_mi[i] == 0)
-    {
-      pfs_mi[i] = mi;
-      added_pfs_mi= true;
-      current_mi_count++;
-      break;
-    }
-  }
-
-  DBUG_RETURN(!added_pfs_mi);
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+    res= add_mi_to_rpl_pfs_mi(mi);
+#endif
+    current_mi_count++;
+  DBUG_RETURN(res);
 
 }
-
-int Multisource_info::get_index_from_pfs_mi(const char * channel_name)
-{
-  Master_info* mi= 0;
-  for (uint i= 0; i < MAX_CHANNELS; i++)
-  {
-    mi= pfs_mi[i];
-    if (mi)
-    {
-      if ( !strcmp(mi->get_channel(), channel_name))
-        return i;
-    }
-  }
-  return -1;
-}
-
 
 Master_info*  Multisource_info::get_mi(const char* channel_name)
 {
@@ -93,7 +69,7 @@ bool Multisource_info::delete_mi(const char* channel_name)
   DBUG_ENTER("Multisource_info::remove_mi");
 
   Master_info *mi= 0;
-  int index;
+  int index= -1;
   mi_map::iterator it;
 
   DBUG_ASSERT(channel_name != 0);
@@ -103,10 +79,17 @@ bool Multisource_info::delete_mi(const char* channel_name)
   if (it == channel_to_mi.end())
     DBUG_RETURN(true);
 
-  /* get the index of mi from pfs_mi */
-  index= get_index_from_pfs_mi(channel_name);
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  /* get the index of mi from rpl_pfs_mi */
+  index= get_index_from_rpl_pfs_mi(channel_name);
 
   DBUG_ASSERT(index != -1);
+
+  /* set the current index to  0  and decrease current_mi_count */
+  rpl_pfs_mi[index] = 0;
+#endif
+
+  current_mi_count--;
 
   mi= it->second;
   /* erase from the map */
@@ -120,12 +103,8 @@ bool Multisource_info::delete_mi(const char* channel_name)
       delete mi->rli;
     }
     delete mi;
-    mi= 0;
+    it->second= 0;
   }
-
-  /* set the current index to  0  and decrease current_mi_count */
-  pfs_mi[index] = 0;
-  current_mi_count--;
 
   DBUG_RETURN(false);
 
@@ -152,15 +131,51 @@ const char*  Multisource_info::get_channel_with_host_port(char *host, uint port)
 }
 
 
-/*
-   Every access from pfs asserts the LOCK_msr_map.
-   Unneccasary performance issue?
-*/
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+
+bool Multisource_info::add_mi_to_rpl_pfs_mi(Master_info *mi)
+{
+  DBUG_ENTER("Multisource_info::add_mi_to_rpl_pfs_mi");
+
+  bool res=true; // not added
+
+  /* Point to this added mi in the rpl_pfs_mi*/
+  for (uint i = 0; i < MAX_CHANNELS; i++)
+  {
+    if (rpl_pfs_mi[i] == 0)
+    {
+      rpl_pfs_mi[i] = mi;
+      res= false;  // success
+      break;
+    }
+  }
+  DBUG_RETURN(res);
+}
+
+
+int Multisource_info::get_index_from_rpl_pfs_mi(const char * channel_name)
+{
+  Master_info* mi= 0;
+  for (uint i= 0; i < MAX_CHANNELS; i++)
+  {
+    mi= rpl_pfs_mi[i];
+    if (mi)
+    {
+      if ( !strcmp(mi->get_channel(), channel_name))
+        return i;
+    }
+  }
+  return -1;
+}
+
+
 Master_info*  Multisource_info::get_mi_at_pos(uint pos)
 {
   DBUG_ENTER("Multisource_info::get_mi_at_pos");
 
   if ( pos < MAX_CHANNELS)
-    DBUG_RETURN(pfs_mi[pos]);
+    DBUG_RETURN(rpl_pfs_mi[pos]);
+
   DBUG_RETURN(0);
 }
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
