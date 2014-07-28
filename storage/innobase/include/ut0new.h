@@ -578,7 +578,7 @@ public:
 	allocate_large(). */
 	void
 	deallocate_large(
-		void*			ptr,
+		pointer			ptr,
 		const ut_new_pfx_t*	pfx)
 	{
 #ifdef UNIV_PFS_MEMORY

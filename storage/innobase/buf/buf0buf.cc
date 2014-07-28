@@ -1439,7 +1439,8 @@ buf_pool_init_instance(
 
 	mutex_create("buf_pool_zip", &buf_pool->zip_mutex);
 
-	new(&buf_pool->allocator) ut_allocator<char>(mem_key_buf_buf_pool);
+	new(&buf_pool->allocator)
+		ut_allocator<unsigned char>(mem_key_buf_buf_pool);
 
 	buf_pool_mutex_enter(buf_pool);
 
