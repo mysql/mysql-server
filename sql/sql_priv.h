@@ -264,7 +264,7 @@ enum enum_parsing_context
   CTX_SELECT_LIST, ///< SELECT (subquery), (subquery)...
   CTX_UPDATE_VALUE_LIST, ///< UPDATE ... SET field=(subquery)...
   CTX_JOIN,
-  CTX_JOIN_TAB,
+  CTX_QEP_TAB,
   CTX_MATERIALIZATION,
   CTX_DUPLICATES_WEEDOUT,
   CTX_DERIVED, ///< "Derived" subquery
