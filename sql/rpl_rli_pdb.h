@@ -471,6 +471,11 @@ public:
 
   bool set_info_search_keys(Rpl_info_handler *to);
 
+  inline virtual Relay_log_info* get_c_rli()
+  {
+    return c_rli;
+  }
+
 protected:
 
   virtual void do_report(loglevel level, int err_code,

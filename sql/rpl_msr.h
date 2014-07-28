@@ -25,7 +25,6 @@
 #include<string>
 #include "rpl_mi.h"
 
-
 /**
    Maps a channel name to it's Master_info.
 */
@@ -60,7 +59,7 @@ typedef std::map<std::string, Master_info*> mi_map;
   i) c++ std map to store the Master_info pointers with channel name as a key.
     @TODO: convert to boost after it's introduction.
   ii) An array of Master_info pointers to access from performance schema
-     tables. This array is specifically is implemented in a way to make
+     tables. This array is specifically implemented in a way to make
       a) pfs indices simple i.e a simple integer counter
       b) To avoid recalibration of data structure if master info is deleted.
          * Consider the following high level implementation of a pfs table
@@ -71,7 +70,7 @@ typedef std::map<std::string, Master_info*> mi_map;
            while(replication_table_xxxx.rnd_next())
            {
              do stuff;
-             }
+           }
           }
          </pseudo_code>
          However, we lock LOCK_msr_map for every rnd_next(); There is a gap
@@ -101,9 +100,6 @@ private:
  /* A Map that maps, a channel name to a Master_info */
   mi_map channel_to_mi;
 
-  /* Array for  performance schema related tables */
-  Master_info *pfs_mi[MAX_CHANNELS];
-
   /* Number of master_infos at the moment*/
   uint current_mi_count;
 
@@ -113,33 +109,36 @@ private:
   */
   static const char* default_channel;
 
-  /**
-     Get the index of the master info correposponding to channel name
-     from the pfs_mi array.
-  */
-  int get_index_from_pfs_mi(const char* channel_name);
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+
+  /* Array for  replication performance schema related tables */
+  Master_info *rpl_pfs_mi[MAX_CHANNELS];
+
+#endif  /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 public:
 
   /* Constructor for this class.*/
-
   Multisource_info()
   {
     current_mi_count= 0;
-    for (uint i= 0; i < MAX_CHANNELS; i++)
-      pfs_mi[i]= 0;
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+    init_rpl_pfs_mi();
+#endif  /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
   }
 
   /**
-    Adds the Master_info object to both channel_to_mi and multisource_mi
+    Adds the Master_info object to both channel_to_mi and rpl_pfs_mi
 
-    @param[in]   channel     channel name
-    @param[mi]   mi          pointer to master info corresponding
-                             to this channel
+    @param[in]   channel_name channel name
+    @param[mi]   mi           pointer to master info corresponding
+                              to this channel
 
     @return
-      @retval      FALSE       succesfully added to the map
-      @retval      TRUE        ok.
+      @retval      false       succesfully added
+      @retval      true        couldn't add channel
   */
   bool add_mi(const char* channel_name, Master_info* mi);
 
@@ -166,15 +165,6 @@ public:
       @retval     true             not ok
   */
   bool delete_mi(const char* channel_name);
-
-  /**
-    Used only by replication performance schema indices to get the master_info
-    at the position 'pos' from the multisource_mi array.
-
-    @param[in]   pos   the index in the pfs_mi array
-    @retval           pointer to the master info object at pos 'pos';
-  */
-  Master_info* get_mi_at_pos(uint pos);
 
   /**
      Return a channel name from the map having the same host and port.
@@ -236,6 +226,49 @@ public:
   {
     return channel_to_mi.end();
   }
+
+private:
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+
+  /* Initialize the rpl_pfs_mi array to NULLs */
+  inline void init_rpl_pfs_mi()
+  {
+    for (uint i= 0; i< MAX_CHANNELS; i++)
+      rpl_pfs_mi[i]= 0;
+  }
+
+  /**
+     Add a master info pointer to the rpl_pfs_mi array at the first
+     NULL;
+
+     @param[in]        mi        master info object to be added.
+
+     @return                     false if success.Else true.
+  */
+  bool add_mi_to_rpl_pfs_mi(Master_info *mi);
+
+  /**
+     Get the index of the master info correposponding to channel name
+     from the rpl_pfs_mi array.
+     @param[in]       channe_name     Channel name to get the index from
+
+     @return         index of mi for the channel_name. Else -1;
+  */
+  int get_index_from_rpl_pfs_mi(const char* channel_name);
+
+public:
+
+  /**
+    Used only by replication performance schema indices to get the master_info
+    at the position 'pos' from the rpl_pfs_mi array.
+
+    @param[in]   pos   the index in the rpl_pfs_mi array
+
+    @retval            pointer to the master info object at pos 'pos';
+  */
+  Master_info* get_mi_at_pos(uint pos);
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 };
 

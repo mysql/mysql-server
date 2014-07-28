@@ -1229,7 +1229,7 @@ err:
    The function adds a channel suffix (according to the channel to file name
    conventions and conversions) to the relay log file.
 
-   @todo: truncate of the log file if length exceeds.
+   @todo: truncate the log file if length exceeds.
 */
 
 const char*
@@ -1238,7 +1238,7 @@ Relay_log_info::add_channel_to_relay_log_name(char *buff, uint buff_size,
 {
   char *ptr;
   uint base_name_len= strlen(base_name);
-  uint suffix_buff_size= buff_size-base_name_len;
+  uint suffix_buff_size= buff_size - base_name_len;
   char channelbuff1[NAME_LEN], channelbuff2[NAME_LEN];
   uint errors, length;
 
@@ -1246,7 +1246,7 @@ Relay_log_info::add_channel_to_relay_log_name(char *buff, uint buff_size,
 
   DBUG_ASSERT(channel!= NULL);
 
-  ptr= strmake(buff, base_name, buff_size -1);
+  ptr= strmake(buff, base_name, buff_size-1);
 
   if (channel[0])
   {
@@ -1259,7 +1259,9 @@ Relay_log_info::add_channel_to_relay_log_name(char *buff, uint buff_size,
     my_casedn_str(channel_charset_info, channelbuff1);
 
     /*
-       convert the channelbuff1 to the file system charset. Channel is UTF8 always.       As it was defined as utf8 in the mysql.slaveinfo tables.
+      Convert the channelbuff1 to the file system charset.
+      Channel is UTF8 always. As it was defined as utf8 in the mysql.slaveinfo
+      tables.
     */
     length= strconvert(channel_charset_info, channelbuff1, &my_charset_filename,
                        channelbuff2, NAME_LEN, &errors);
@@ -1720,7 +1722,7 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
 /**
   Execute a SHOW RELAYLOG EVENTS statement.
 
-  When multiple replication channles exist on this slave
+  When multiple replication channels exist on this slave
   and no channel name is specified through FOR CHANNEL clause
   this function errors out and exits.
 
@@ -1759,17 +1761,20 @@ bool mysql_show_relaylog_events(THD* thd)
   if (!mi && strcmp(thd->lex->mi.channel, msr_map.get_default_channel()))
   {
     my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), thd->lex->mi.channel);
-    DBUG_RETURN(true);
+    res= true;
+    goto err;
   }
 
   if (mi == NULL)
   {
     my_error(ER_SLAVE_CONFIGURATION, MYF(0));
-    DBUG_RETURN(true);
+    res= true;
+    goto err;
   }
 
   res= show_binlog_events(thd, &mi->rli->relay_log);
 
+err:
   mysql_mutex_unlock(&LOCK_msr_map);
 
   DBUG_RETURN(res);

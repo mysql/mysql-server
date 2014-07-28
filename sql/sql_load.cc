@@ -404,8 +404,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                              (SYSTEM_THREAD_SLAVE_WORKER))!=0))
     {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-      if (strncmp(thd->rli_slave->slave_patternload_file, name,
-                  thd->rli_slave->slave_patternload_file_size))
+      Relay_log_info* rli= thd->rli_slave->get_c_rli();
+
+      if (strncmp(rli->slave_patternload_file, name,
+                  rli->slave_patternload_file_size))
       {
         /*
           LOAD DATA INFILE in the slave SQL Thread can only read from 

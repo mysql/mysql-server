@@ -216,7 +216,7 @@ public:
   template <class TypeHandler>
   bool set_info(int pk_cursor, TypeHandler const value)
   {
-    if (pk_cursor >=ninfo)
+    if (pk_cursor >= ninfo)
       return TRUE;
 
     return (do_set_info(pk_cursor, value));
