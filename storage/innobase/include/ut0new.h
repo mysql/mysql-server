@@ -489,18 +489,19 @@ public:
 			return(NULL);
 		}
 
-		T*	first = p;
+		T*		first = p;
+		size_type	i;
 
 		try {
-			for (size_type i = 0; i < n_elements; i++) {
+			for (i = 0; i < n_elements; i++) {
 				new(p) T;
 				++p;
 			}
 		} catch (...) {
-			for (--p; p != first; --p) {
+			for (size_type j = 0; j < i; j++) {
+				--p;
 				p->~T();
 			}
-			first->~T();
 
 			deallocate(first);
 
