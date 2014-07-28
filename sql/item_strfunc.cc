@@ -1624,7 +1624,7 @@ String *Item_func_ltrim::val_str(String *str)
 
   if ((remove_length= remove_str->length()) == 0 ||
       remove_length > res->length())
-    return res;
+    return non_trimmed_value(res);
 
   ptr= (char*) res->ptr();
   end= ptr+res->length();
@@ -1643,9 +1643,8 @@ String *Item_func_ltrim::val_str(String *str)
     end+=remove_length;
   }
   if (ptr == res->ptr())
-    return res;
-  tmp_value.set(*res,(uint) (ptr - res->ptr()),(uint) (end-ptr));
-  return &tmp_value;
+    return non_trimmed_value(res);
+  return trimmed_value(res, (uint32) (ptr - res->ptr()), (uint32) (end - ptr));
 }
 
 
@@ -1671,7 +1670,7 @@ String *Item_func_rtrim::val_str(String *str)
 
   if ((remove_length= remove_str->length()) == 0 ||
       remove_length > res->length())
-    return res;
+    return non_trimmed_value(res);
 
   ptr= (char*) res->ptr();
   end= ptr+res->length();
@@ -1683,11 +1682,11 @@ String *Item_func_rtrim::val_str(String *str)
   {
     char chr=(*remove_str)[0];
 #ifdef USE_MB
-    if (use_mb(res->charset()))
+    if (use_mb(collation.collation))
     {
       while (ptr < end)
       {
-	if ((l=my_ismbchar(res->charset(), ptr,end))) ptr+=l,p=ptr;
+	if ((l= my_ismbchar(collation.collation, ptr, end))) ptr+= l, p=ptr;
 	else ++ptr;
       }
       ptr=p;
@@ -1700,12 +1699,12 @@ String *Item_func_rtrim::val_str(String *str)
   {
     const char *r_ptr=remove_str->ptr();
 #ifdef USE_MB
-    if (use_mb(res->charset()))
+    if (use_mb(collation.collation))
     {
   loop:
       while (ptr + remove_length < end)
       {
-	if ((l=my_ismbchar(res->charset(), ptr,end))) ptr+=l;
+	if ((l= my_ismbchar(collation.collation, ptr, end))) ptr+= l;
 	else ++ptr;
       }
       if (ptr + remove_length == end && !memcmp(ptr,r_ptr,remove_length))
@@ -1724,9 +1723,8 @@ String *Item_func_rtrim::val_str(String *str)
     }
   }
   if (end == res->ptr()+res->length())
-    return res;
-  tmp_value.set(*res,0,(uint) (end-res->ptr()));
-  return &tmp_value;
+    return non_trimmed_value(res);
+  return trimmed_value(res, 0, (uint32) (end - res->ptr()));
 }
 
 
@@ -1753,37 +1751,22 @@ String *Item_func_trim::val_str(String *str)
 
   if ((remove_length= remove_str->length()) == 0 ||
       remove_length > res->length())
-    return res;
+    return non_trimmed_value(res);
 
   ptr= (char*) res->ptr();
   end= ptr+res->length();
   r_ptr= remove_str->ptr();
+  while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
+    ptr+=remove_length;
 #ifdef USE_MB
-  if (use_mb(res->charset()))
+  if (use_mb(collation.collation))
   {
-    while (ptr + remove_length <= end)
-    {
-      uint num_bytes= 0;
-      while (num_bytes < remove_length)
-      {
-        uint len;
-        if ((len= my_ismbchar(res->charset(), ptr + num_bytes, end)))
-          num_bytes+= len;
-        else
-          ++num_bytes;
-      }
-      if (num_bytes != remove_length)
-        break;
-      if (memcmp(ptr, r_ptr, remove_length))
-        break;
-      ptr+= remove_length;
-    }
     char *p=ptr;
     register uint32 l;
  loop:
     while (ptr + remove_length < end)
     {
-      if ((l= my_ismbchar(res->charset(), ptr,end)))
+      if ((l= my_ismbchar(collation.collation, ptr, end)))
         ptr+= l;
       else
         ++ptr;
@@ -1799,16 +1782,13 @@ String *Item_func_trim::val_str(String *str)
   else
 #endif /* USE_MB */
   {
-    while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
-      ptr+=remove_length;
     while (ptr + remove_length <= end &&
 	   !memcmp(end-remove_length,r_ptr,remove_length))
       end-=remove_length;
   }
   if (ptr == res->ptr() && end == ptr+res->length())
-    return res;
-  tmp_value.set(*res,(uint) (ptr - res->ptr()),(uint) (end-ptr));
-  return &tmp_value;
+    return non_trimmed_value(res);
+  return trimmed_value(res, (uint32) (ptr - res->ptr()), (uint32) (end - ptr));
 }
 
 void Item_func_trim::fix_length_and_dec()

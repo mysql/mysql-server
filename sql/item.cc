@@ -2074,7 +2074,7 @@ bool agg_item_collations(DTCollation &c, const char *fname,
   bool unknown_cs= 0;
 
   c.set(av[0]->collation);
-  for (i= 1, arg= &av[item_sep]; i < count; i++, arg++)
+  for (i= 1, arg= &av[item_sep]; i < count; i++, arg+= item_sep)
   {
     if (c.aggregate((*arg)->collation, flags))
     {
