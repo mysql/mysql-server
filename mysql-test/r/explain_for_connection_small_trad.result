@@ -150,7 +150,7 @@ SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,3 +2,3 @@
  1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
--2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	topic	topic	3	func	2	100.00	Using index; Using where
+-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	topic	topic	3	func	2	100.00	Using where; Using index
 -3	DEPENDENT SUBQUERY	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 +2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
 +3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet

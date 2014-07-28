@@ -106,7 +106,7 @@ TEST_join(JOIN *join)
 {
   uint i,ref;
   DBUG_ENTER("TEST_join");
-
+  DBUG_ASSERT(!join->join_tab);
   /*
     Assemble results of all the calls to full_name() first,
     in order not to garble the tabular output below.
@@ -114,10 +114,10 @@ TEST_join(JOIN *join)
   String ref_key_parts[MAX_TABLES];
   for (i= 0; i < join->tables; i++)
   {
-    JOIN_TAB *tab= join->join_tab + i;
-    for (ref= 0; ref < tab->ref.key_parts; ref++)
+    JOIN_TAB *tab= join->best_ref[i];
+    for (ref= 0; ref < tab->ref().key_parts; ref++)
     {
-      ref_key_parts[i].append(tab->ref.items[ref]->full_name());
+      ref_key_parts[i].append(tab->ref().items[ref]->full_name());
       ref_key_parts[i].append("  ");
     }
   }
@@ -126,34 +126,32 @@ TEST_join(JOIN *join)
   (void) fputs("\nInfo about JOIN\n",DBUG_FILE);
   for (i=0 ; i < join->tables ; i++)
   {
-    JOIN_TAB *tab=join->join_tab+i;
-    TABLE *form=tab->table;
+    JOIN_TAB *tab= join->best_ref[i];
+    TABLE *form=tab->table();
     if (!form)
       continue;
     char key_map_buff[128];
     fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %s  refs: %d  key: %d  len: %d\n",
 	    form->alias,
-	    join_type_str[tab->type],
-	    tab->keys.print(key_map_buff),
-	    tab->ref.key_parts,
-	    tab->ref.key,
-	    tab->ref.key_length);
-    if (tab->select)
+	    join_type_str[tab->type()],
+	    tab->keys().print(key_map_buff),
+	    tab->ref().key_parts,
+	    tab->ref().key,
+	    tab->ref().key_length);
+    if (tab->quick())
     {
       char buf[MAX_KEY/8+1];
       if (tab->use_quick == QS_DYNAMIC_RANGE)
 	fprintf(DBUG_FILE,
 		"                  quick select checked for each record (keys: %s)\n",
                 form->quick_keys.print(buf));
-      else if (tab->select->quick)
+      else
       {
 	fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->select->quick->dbug_dump(18, FALSE);
+        tab->quick()->dbug_dump(18, FALSE);
       }
-      else
-	(void) fputs("                  select used\n",DBUG_FILE);
     }
-    if (tab->ref.key_parts)
+    if (tab->ref().key_parts)
     {
       fprintf(DBUG_FILE,
               "                  refs:  %s\n", ref_key_parts[i].ptr());
@@ -252,7 +250,7 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
   for (i= 0; i < idx ; i++)
   {
     pos = join->positions[i];
-    table= pos.table->table;
+    table= pos.table->table();
     if (table)
       fputs(table->alias, DBUG_FILE);
     fputc(' ', DBUG_FILE);
@@ -269,7 +267,7 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
     for (i= 0; i < idx ; i++)
     {
       pos= join->best_positions[i];
-      table= pos.table->table;
+      table= pos.table->table();
       if (table)
         fputs(table->alias, DBUG_FILE);
       fputc(' ', DBUG_FILE);
@@ -282,10 +280,10 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
   for (plan_nodes= join->best_ref ; *plan_nodes ; plan_nodes++)
   {
     join_table= (*plan_nodes);
-    fputs(join_table->table->s->table_name.str, DBUG_FILE);
+    fputs(join_table->table()->s->table_name.str, DBUG_FILE);
     fprintf(DBUG_FILE, "(%lu,%lu,%lu)",
             (ulong) join_table->found_records,
-            (ulong) join_table->records,
+            (ulong) join_table->records(),
             (ulong) join_table->read_time);
     fputc(' ', DBUG_FILE);
   }
