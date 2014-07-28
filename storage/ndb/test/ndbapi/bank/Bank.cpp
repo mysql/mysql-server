@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2006 MySQL AB
-
+/*
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ int Bank::performTransaction(){
 
 retry_transaction:
   int res = performTransaction(fromAccount, toAccount, amount);
-  if (res != 0){
+  if (res != NDBT_OK){
     switch (res){
     case NDBT_FAILED:
       g_err << "performTransaction returned NDBT_FAILED" << endl
@@ -1162,7 +1162,7 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
 
 }
 
- int Bank::performValidateGLs(Uint64 age){
+int Bank::performValidateGLs(Uint64 age){
 
   Uint64 currTime;
   if (getCurrTime(currTime) != NDBT_OK){
@@ -1181,11 +1181,10 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
   }
   
   return NDBT_OK;
- }
+}
 
 int Bank::performValidateGL(Uint64 glTime){
    
-   ndbout << "performValidateGL: " << glTime << endl;
    /**
     * Rules: 
     * - There should be zero or NoAccountTypes GL records for each glTime
@@ -1413,9 +1412,7 @@ int Bank::performValidateGL(Uint64 glTime){
   }
 
   return result;
-
-   
- }
+}
 
 int Bank::getBalanceForGL(const Uint64 glTime,
 			  const Uint32 accountTypeId,
@@ -1539,14 +1536,15 @@ int Bank::getOldestPurgedGL(const Uint32 accountType,
     
     check = pScanTrans->execute(NoCommit);
     if( check == -1 ) {
-      NdbError err = pScanTrans->getNdbError();
-      NDB_ERR(err);
+      const NdbError err = pScanTrans->getNdbError();
       m_ndb.closeTransaction(pScanTrans);
       if (err.status == NdbError::TemporaryError)
       {
-	NdbSleep_MilliSleep(50);
-	continue;
+        NDB_ERR(err);
+        NdbSleep_MilliSleep(50);
+        continue;
       }
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
     
@@ -1570,15 +1568,16 @@ int Bank::getOldestPurgedGL(const Uint32 accountType,
     }
     if (eof == -1) 
     {
-      NdbError err = pScanTrans->getNdbError();
-      NDB_ERR(err);
+      const NdbError err = pScanTrans->getNdbError();
       m_ndb.closeTransaction(pScanTrans);
       
       if (err.status == NdbError::TemporaryError)
       {
-	NdbSleep_MilliSleep(50);
-	continue;
+        NDB_ERR(err);
+        NdbSleep_MilliSleep(50);
+        continue;
       }
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
     break;
@@ -1753,15 +1752,16 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
     
     check = pScanTrans->execute(NoCommit);   
     if( check == -1 ) {
-      NdbError err = pScanTrans->getNdbError();
-      NDB_ERR(err);
+      const NdbError err = pScanTrans->getNdbError();
       m_ndb.closeTransaction(pScanTrans);
 
       if (err.status == NdbError::TemporaryError)
       {
-	NdbSleep_MilliSleep(50);
-	continue;
+        NDB_ERR(err);
+        NdbSleep_MilliSleep(50);
+        continue;
       }
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
     
@@ -1787,16 +1787,17 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
       eof = pOp->nextResult();
     }
     if (eof == -1) {
-      NdbError err = pScanTrans->getNdbError();
-      NDB_ERR(err);
+      const NdbError err = pScanTrans->getNdbError();
       m_ndb.closeTransaction(pScanTrans);
       
       if (err.status == NdbError::TemporaryError)
       {
-	NdbSleep_MilliSleep(50);
-	continue;
+        NDB_ERR(err);
+        NdbSleep_MilliSleep(50);
+        continue;
       }
       
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
 
@@ -1820,18 +1821,17 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
     */
 
    for (int i = 0; i < getNumAccountTypes(); i++){
-     ndbout << "performValidatePurged: " << i << endl;
      Uint64 oldestGlTime; 
-     if (getOldestPurgedGL(i, oldestGlTime) != NDBT_OK){
+     int result = getOldestPurgedGL(i, oldestGlTime);
+     if (result != NDBT_OK){
        g_err << "getOldestPurgedGL failed" << endl;
-       return NDBT_FAILED;    
+       return result;
      }
-     int result = checkNoTransactionsOlderThan(i, oldestGlTime);
+     result = checkNoTransactionsOlderThan(i, oldestGlTime);
      if (result != NDBT_OK){
        g_err << "checkNoTransactionsOlderThan failed" << endl;
        return result;
      }
-     
    }
    
    return NDBT_OK;
@@ -2091,8 +2091,14 @@ int Bank::performIncreaseTime(int maxSleepBetweenDays, int yield)
   while(1){
     
     Uint64 currTime;
-    if (incCurrTime(currTime) != NDBT_OK)
+    const int res = incCurrTime(currTime);
+    if (res == NDBT_FAILED)
       break;
+    if (res == NDBT_TEMPORARY)  // Retry
+    {
+      NdbSleep_MilliSleep(50);
+      continue;
+    }
     
     g_info << "Current time is " << currTime << endl;
     if (maxSleepBetweenDays > 0){
@@ -2117,12 +2123,14 @@ int Bank::readSystemValue(SystemValueId sysValId, Uint64 & value){
     pTrans = m_ndb.startTransaction();
     if (pTrans == NULL)
     {
-      NDB_ERR(m_ndb.getNdbError());
-      if(m_ndb.getNdbError().status == NdbError::TemporaryError)
+      const NdbError err = m_ndb.getNdbError();
+      if(err.status == NdbError::TemporaryError)
       {
-	NdbSleep_MilliSleep(50);
-	continue;
+        NDB_ERR(err);
+        NdbSleep_MilliSleep(50);
+        continue;
       }
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
     
@@ -2136,14 +2144,15 @@ int Bank::readSystemValue(SystemValueId sysValId, Uint64 & value){
     
     check = pTrans->execute(Commit);
     if( check == -1 ) {
-      NdbError err = pTrans->getNdbError();
+      const NdbError err = pTrans->getNdbError();
       m_ndb.closeTransaction(pTrans);
-      NDB_ERR(err);
       if(err.status == NdbError::TemporaryError)
       {
-	NdbSleep_MilliSleep(50);
-	continue;
+        NDB_ERR(err);
+        NdbSleep_MilliSleep(50);
+        continue;
       }
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
     
@@ -2264,9 +2273,12 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
     
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL){
-    NDB_ERR(m_ndb.getNdbError());
-    if (m_ndb.getNdbError().status == NdbError::TemporaryError)
+    const NdbError err = m_ndb.getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
       DBUG_RETURN(NDBT_TEMPORARY);
+    }
+    NDB_ERR(err);
     DBUG_RETURN(NDBT_FAILED);
   }
     
@@ -2301,13 +2313,13 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
     
   check = pTrans->execute(NoCommit);
   if( check == -1 ) {
-    NDB_ERR(pTrans->getNdbError());
-    if (pTrans->getNdbError().status == NdbError::TemporaryError)
-    {
-      m_ndb.closeTransaction(pTrans);
+    const NdbError err = pTrans->getNdbError();
+    m_ndb.closeTransaction(pTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
       DBUG_RETURN(NDBT_TEMPORARY);
     }
-    m_ndb.closeTransaction(pTrans);
+    NDB_ERR(err);
     DBUG_RETURN(NDBT_FAILED);
   }
     
@@ -2348,7 +2360,7 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
     m_ndb.closeTransaction(pTrans);    
     if (err.status == NdbError::TemporaryError){
       NDB_ERR(err);
-      return NDBT_TEMPORARY;
+      DBUG_RETURN(NDBT_TEMPORARY);
     }
     NDB_ERR(err);
     DBUG_RETURN(NDBT_FAILED);
@@ -2385,13 +2397,13 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
 
   check = pTrans->execute(Commit);
   if( check == -1 ) {
-    NDB_ERR(pTrans->getNdbError());
-    if (pTrans->getNdbError().status == NdbError::TemporaryError)
-    {
-      m_ndb.closeTransaction(pTrans);
+    const NdbError err = pTrans->getNdbError();
+    m_ndb.closeTransaction(pTrans);    
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
       DBUG_RETURN(NDBT_TEMPORARY);
     }
-    m_ndb.closeTransaction(pTrans);
+    NDB_ERR(err);
     DBUG_RETURN(NDBT_FAILED);
   }
 
@@ -2424,9 +2436,12 @@ int Bank::increaseSystemValue2(SystemValueId sysValId, Uint64 &value){
     
   NdbConnection* pTrans = m_ndb.startTransaction();
   if (pTrans == NULL){
-    NDB_ERR(m_ndb.getNdbError());
-    if(m_ndb.getNdbError().status == NdbError::TemporaryError)
+    const NdbError err = m_ndb.getNdbError();
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
       return NDBT_TEMPORARY;
+    }
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
     
@@ -2468,13 +2483,13 @@ int Bank::increaseSystemValue2(SystemValueId sysValId, Uint64 &value){
   
   check = pTrans->execute(Commit);
   if( check == -1 ) {
-    NDB_ERR(pTrans->getNdbError());
-    if(pTrans->getNdbError().status == NdbError::TemporaryError)
-    {
-      m_ndb.closeTransaction(pTrans);
+    const NdbError err = pTrans->getNdbError();
+    m_ndb.closeTransaction(pTrans);
+    if (err.status == NdbError::TemporaryError){
+      NDB_ERR(err);
       return NDBT_TEMPORARY;
     }
-    m_ndb.closeTransaction(pTrans);
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
 
@@ -2505,8 +2520,15 @@ int Bank::performSumAccounts(int maxSleepBetweenSums, int yield){
 
     Uint32 sumAccounts = 0;
     Uint32 numAccounts = 0;
-    if (getSumAccounts(sumAccounts, numAccounts) != NDBT_OK){
+    const int result = getSumAccounts(sumAccounts, numAccounts);
+    if (result != NDBT_OK){
+      if (result == NDBT_TEMPORARY){
+        g_info << "getSumAccounts, retry after temporary failure"
+               << endl;
+        continue;
+      }
       g_err << "getSumAccounts FAILED" << endl;
+      return NDBT_FAILED;
     } else {
     
       g_info << "num="<<numAccounts<<", sum=" << sumAccounts << endl;
