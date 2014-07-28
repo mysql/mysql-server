@@ -181,6 +181,34 @@ int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
 }
 #endif
 
+int runBankSum(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int wait = 2000; // Max ms between each sum of accounts
+  int yield = 1; // Loops before bank returns 
+
+  while (!ctx->isTestStopped()) 
+  {
+    Bank bank(ctx->m_cluster_connection);
+    ctx->incProperty(NMR_SR_THREADS_ACTIVE);
+    while(!ctx->isTestStopped() && 
+          ctx->getProperty(NMR_SR) <= NdbMixRestarter::SR_STOPPING)
+    {
+      if (bank.performSumAccounts(wait, yield) == NDBT_FAILED)
+      {
+        ndbout << "bank.performSumAccounts FAILED" << endl;
+        if (ctx->getProperty(NMR_SR) == NdbMixRestarter::SR_RUNNING)
+          return NDBT_FAILED;
+        else
+          break;  // Possibly retry
+      }
+    }
+    ndbout_c("performSumAccounts is stopped");
+    ctx->decProperty(NMR_SR_THREADS_ACTIVE);
+    if(ctx->getPropertyWait(NMR_SR, NdbMixRestarter::SR_RUNNING))
+      break;
+  }
+  return NDBT_OK;
+}
 
 int
 runMixRestart(NDBT_Context* ctx, NDBT_Step* step)
@@ -253,6 +281,7 @@ TESTCASE("Mix",
   STEP(runBankTimer);
   STEPS(runBankTransactions, 10);
   STEP(runBankGL);
+  STEP(runBankSum);
   STEP(runMixRestart);
   STEP(runBankSrValidator);
   FINALIZER(runDropBank);
