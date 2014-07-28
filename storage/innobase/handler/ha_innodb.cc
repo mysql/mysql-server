@@ -256,7 +256,8 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 
 #ifdef HAVE_PSI_INTERFACE
 # define PSI_KEY(n) {&n##_key, #n, 0}
-# define PSI_RWLOCK_SX_KEY(n) {&n##_key, #n, PSI_RWLOCK_FLAG_SX}
+/* All RWLOCK used in Innodb are SX-locks */
+# define PSI_RWLOCK_KEY(n) {&n##_key, #n, PSI_RWLOCK_FLAG_SX}
 
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
@@ -354,24 +355,24 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 performance schema instrumented if "UNIV_PFS_RWLOCK"
 is defined */
 static PSI_rwlock_info all_innodb_rwlocks[] = {
-	PSI_RWLOCK_SX_KEY(btr_search_latch),
+	PSI_RWLOCK_KEY(btr_search_latch),
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-	PSI_RWLOCK_SX_KEY(buf_block_lock),
+	PSI_RWLOCK_KEY(buf_block_lock),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 #  ifdef UNIV_SYNC_DEBUG
-	PSI_RWLOCK_SX_KEY(buf_block_debug_latch),
+	PSI_RWLOCK_KEY(buf_block_debug_latch),
 #  endif /* UNIV_SYNC_DEBUG */
-	PSI_RWLOCK_SX_KEY(dict_operation_lock),
-	PSI_RWLOCK_SX_KEY(fil_space_latch),
-	PSI_RWLOCK_SX_KEY(checkpoint_lock),
-	PSI_RWLOCK_SX_KEY(fts_cache_rw_lock),
-	PSI_RWLOCK_SX_KEY(fts_cache_init_rw_lock),
-	PSI_RWLOCK_SX_KEY(trx_i_s_cache_lock),
-	PSI_RWLOCK_SX_KEY(trx_purge_latch),
-	PSI_RWLOCK_SX_KEY(index_tree_rw_lock),
-	PSI_RWLOCK_SX_KEY(index_online_log),
-	PSI_RWLOCK_SX_KEY(dict_table_stats),
-	PSI_RWLOCK_SX_KEY(hash_table_locks)
+	PSI_RWLOCK_KEY(dict_operation_lock),
+	PSI_RWLOCK_KEY(fil_space_latch),
+	PSI_RWLOCK_KEY(checkpoint_lock),
+	PSI_RWLOCK_KEY(fts_cache_rw_lock),
+	PSI_RWLOCK_KEY(fts_cache_init_rw_lock),
+	PSI_RWLOCK_KEY(trx_i_s_cache_lock),
+	PSI_RWLOCK_KEY(trx_purge_latch),
+	PSI_RWLOCK_KEY(index_tree_rw_lock),
+	PSI_RWLOCK_KEY(index_online_log),
+	PSI_RWLOCK_KEY(dict_table_stats),
+	PSI_RWLOCK_KEY(hash_table_locks)
 };
 # endif /* UNIV_PFS_RWLOCK */
 
