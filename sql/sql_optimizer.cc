@@ -1571,7 +1571,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
                         const char *clause_type)
 {
   int ref_key;
-  uint ref_key_parts;
+  uint ref_key_parts= 0;
   int order_direction= 0;
   uint used_key_parts;
   TABLE *table=tab->table();
