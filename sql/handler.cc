@@ -2511,7 +2511,9 @@ int handler::ha_close(void)
   m_psi= NULL; /* instrumentation handle, invalid after close_table() */
 #endif
   // TODO: set table= NULL to mark the handler as closed?
+  DBUG_ASSERT(! m_psi_batch_mode);
   DBUG_ASSERT(m_psi == NULL);
+  DBUG_ASSERT(m_psi_locker == NULL);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   DBUG_ASSERT(inited == NONE);
   DBUG_RETURN(close());
@@ -6215,7 +6217,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 error:
   h2->ha_index_or_rnd_end();
   h2->ha_external_lock(thd, F_UNLCK);
-  h2->close();
+  h2->ha_close();
   delete h2;
   h2= NULL;
   DBUG_ASSERT(retval != 0);
@@ -6248,7 +6250,7 @@ void DsMrr_impl::reset()
     dsmrr_close();
 
     // Close and delete the h2 handler
-    h2->close();
+    h2->ha_close();
     delete h2;
     h2= NULL;
   }
@@ -6366,7 +6368,7 @@ int DsMrr_impl::dsmrr_next(char **range_info)
     if (h2->mrr_funcs.skip_record &&
 	h2->mrr_funcs.skip_record(h2->mrr_iter, (char *) cur_range_info, rowid))
       continue;
-    res= h->rnd_pos(table->record[0], rowid);
+    res= h->ha_rnd_pos(table->record[0], rowid);
     break;
   } while (true);
  
