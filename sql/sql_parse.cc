@@ -6204,7 +6204,7 @@ void add_join_on(TABLE_LIST *b, Item *expr)
 {
   if (expr)
   {
-    b->set_optim_join_cond((Item*)1); // m_optim_join_cond is not ready
+    b->set_join_cond_optim((Item*)1); // m_join_cond_optim is not ready
     if (!b->join_cond())
       b->set_join_cond(expr);
     else

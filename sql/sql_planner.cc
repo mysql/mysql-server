@@ -61,8 +61,20 @@ cache_record_length(JOIN *join,uint idx)
        pos++)
   {
     JOIN_TAB *join_tab= *pos;
-    if (!join_tab->used_fieldlength)		/* Not calced yet */
-      calc_used_field_length(thd, join_tab);
+    if (!join_tab->used_fieldlength)		// Not calculated yet
+    {
+      uint used_fields, used_blobs;
+      bool used_null_fields, used_uneven_bit_fields;
+      /*
+        (1) keep_current_rowid: we don't know if Duplicate Weedout may be
+        used, length will thus be inaccurate, this is acceptable.
+      */
+      calc_used_field_length(thd, join_tab->table(),
+                             false,             // (1)
+                             &used_fields, &join_tab->used_fieldlength,
+                             &used_blobs, &used_null_fields,
+                             &used_uneven_bit_fields);
+    }
     length+=join_tab->used_fieldlength;
   }
   return length;
@@ -134,7 +146,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
   enum idx_type {CLUSTERED_PK, UNIQUE, NOT_UNIQUE, FULLTEXT};
   enum idx_type best_found_keytype= NOT_UNIQUE;
 
-  TABLE *const table= tab->table;
+  TABLE *const table= tab->table();
   Opt_trace_context *const trace= &thd->opt_trace;
 
   /*
@@ -142,10 +154,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     make "rec_per_key"-like estimates when no statistics is
     available.
   */
-  ha_rows distinct_keys_est= tab->records/MATCHING_ROWS_IN_OTHER_TABLE;
+  ha_rows distinct_keys_est= tab->records()/MATCHING_ROWS_IN_OTHER_TABLE;
 
   // Test how we can use keys
-  for (Key_use *keyuse= tab->keyuse; keyuse->table == table; )
+  for (Key_use *keyuse= tab->keyuse(); keyuse->table == table; )
   {
     // keyparts that are usable for this index given the current partial plan
     key_part_map found_part= 0;
@@ -253,8 +265,8 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     {
       // Fix for small tables
       distinct_keys_est= MATCHING_ROWS_IN_OTHER_TABLE;
-      if (tab->records && tab->records < distinct_keys_est)
-        distinct_keys_est= tab->records;
+      if (tab->records() && tab->records() < distinct_keys_est)
+        distinct_keys_est= tab->records();
     }
 
     // fulltext indexes require special treatment
@@ -339,7 +351,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
             else
             {
               // quick_range couldn't use key
-              cur_fanout= (double) tab->records/distinct_keys_est;
+              cur_fanout= (double) tab->records()/distinct_keys_est;
             }
           }
           else
@@ -350,7 +362,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
             else
             {                              /* Prefer longer keys */
               cur_fanout=
-                ((double) tab->records / (double) distinct_keys_est *
+                ((double) tab->records() / (double) distinct_keys_est *
                  (1.0 +
                   ((double) (table->s->max_key_length-keyinfo->key_length) /
                    (double) table->s->max_key_length)));
@@ -514,15 +526,15 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
             double rec_per_key;
             if (!(rec_per_key= (double)
                   keyinfo->rec_per_key[keyinfo->user_defined_key_parts-1]))
-              rec_per_key= (double) tab->records/distinct_keys_est+1;
+              rec_per_key= (double) tab->records()/distinct_keys_est+1;
 
-            if (tab->records == 0)
+            if (tab->records() == 0)
               tmp_fanout= 0;
-            else if (rec_per_key / (double) tab->records >= 0.01)
+            else if (rec_per_key / (double) tab->records() >= 0.01)
               tmp_fanout= rec_per_key;
             else
             {
-              const double a= tab->records * 0.01;
+              const double a= tab->records() * 0.01;
               if (keyinfo->user_defined_key_parts > 1)
                 tmp_fanout=
                   (cur_used_keyparts * (rec_per_key - a) +
@@ -712,7 +724,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
                                           Opt_trace_object *trace_access_scan)
 {
   double scan_and_filter_cost;
-  TABLE *const table= tab->table;
+  TABLE *const table= tab->table();
   const Cost_model_server *const cost_model= join->cost_model();
   *rows_after_filtering= tab->found_records;
 
@@ -762,10 +774,10 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
     than FULL: so if RANGE is present, it's always preferred to FULL.
     Here we estimate its cost.
   */
-  if (tab->quick)
+  if (tab->quick())
   {
     trace_access_scan->add_alnum("access_type", "range");
-    tab->quick->trace_quick_description(&thd->opt_trace);
+    tab->quick()->trace_quick_description(&thd->opt_trace);
     /*
       For each record we:
       - read record range through 'quick'
@@ -776,7 +788,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
       account here for range/index_merge access. Find out why this is so.
     */
     scan_and_filter_cost= prefix_rowcount *
-      (tab->quick->read_time +
+      (tab->quick()->read_time +
        cost_model->row_evaluate_cost(tab->found_records -
                                      *rows_after_filtering));
   }
@@ -787,7 +799,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
     // Cost of scanning the table once
     Cost_estimate scan_cost;
     if (table->force_index && !best_ref)                        // index scan
-      scan_cost= table->file->read_cost(tab->ref.key, 1, tab->records);
+      scan_cost= table->file->read_cost(tab->ref().key, 1, tab->records());
     else
       scan_cost= table->file->table_scan_cost();                // table scan
     const double single_scan_read_cost= scan_cost.total_cost();
@@ -809,7 +821,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
       */
       scan_and_filter_cost= prefix_rowcount *
         (single_scan_read_cost +
-         cost_model->row_evaluate_cost(tab->records - *rows_after_filtering));
+         cost_model->row_evaluate_cost(tab->records() - *rows_after_filtering));
     }
     else
     {
@@ -838,7 +850,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
 
       scan_and_filter_cost= buffer_count *
         (single_scan_read_cost +
-         cost_model->row_evaluate_cost(tab->records - *rows_after_filtering));
+         cost_model->row_evaluate_cost(tab->records() - *rows_after_filtering));
 
       trace_access_scan->add("using_join_cache", true);
       trace_access_scan->add("buffers_needed", (ulong)buffer_count);
@@ -880,7 +892,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   bool found_condition= false;
   bool best_uses_jbuf=  false;
   Opt_trace_context * const trace= &thd->opt_trace;
-  TABLE *const table= tab->table;
+  TABLE *const table= tab->table();
   const Cost_model_server *const cost_model= join->cost_model();
 
   float filter_effect= 1.0;
@@ -908,7 +920,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   table_map ref_depend_map= 0;
   uint used_key_parts= 0;
 
-  if (tab->keyuse != NULL)
+  if (tab->keyuse() != NULL)
     best_ref= find_best_ref(tab, remaining_tables, idx, prefix_rowcount,
                             &found_condition, &ref_depend_map, &used_key_parts);
 
@@ -969,12 +981,12 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
       best_read_cost <= tab->read_time)                           // (1b)
   {
     // "scan" means (full) index scan or (full) table scan.
-    if (tab->quick)
+    if (tab->quick())
     {
       trace_access_scan.add_alnum("access_type", "range");
-      tab->quick->trace_quick_description(trace);
+      tab->quick()->trace_quick_description(trace);
     }
-    else 
+    else
       trace_access_scan.add_alnum("access_type", "scan");
 
     trace_access_scan.add("cost", tab->read_time +
@@ -983,33 +995,33 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
       add("chosen", false).
       add_alnum("cause", "cost");
   }
-  else if (tab->quick && best_ref &&                              // (2)
-      tab->quick->index == best_ref->key &&                       // (2)
+  else if (tab->quick() && best_ref &&                              // (2)
+      tab->quick()->index == best_ref->key &&                       // (2)
       (used_key_parts >= table->quick_key_parts[best_ref->key]))  // (2)
   {
     trace_access_scan.add_alnum("access_type", "range");
-    tab->quick->trace_quick_description(trace);
+    tab->quick()->trace_quick_description(trace);
     trace_access_scan.add("chosen", false).
       add_alnum("cause", "heuristic_index_cheaper");
   }
   else if ((table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&    //(3)
       !table->covering_keys.is_clear_all() && best_ref &&                 //(3)
-      (!tab->quick ||                                                     //(3)
-       (tab->quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&//(3)
-        best_ref->read_cost < tab->quick->read_time)))                    //(3)
+      (!tab->quick() ||                                                     //(3)
+       (tab->quick()->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&//(3)
+        best_ref->read_cost < tab->quick()->read_time)))                    //(3)
   {
-    if (tab->quick)
+    if (tab->quick())
     {
       trace_access_scan.add_alnum("access_type", "range");
-      tab->quick->trace_quick_description(trace);
+      tab->quick()->trace_quick_description(trace);
     }
-    else 
+    else
       trace_access_scan.add_alnum("access_type", "scan");
 
     trace_access_scan.add("chosen", false).
       add_alnum("cause", "covering_index_better_than_full_scan");
   }
-  else if ((table->force_index && best_ref && !tab->quick))    // (4)
+  else if ((table->force_index && best_ref && !tab->quick()))    // (4)
   {
     trace_access_scan.add_alnum("access_type", "scan").
       add("chosen", false).
@@ -1168,20 +1180,21 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
     is lower. This is currently ignored since single table
     optimization performance is so important.
   */
-  const THD *thd= tab->join->thd;
+  const THD *thd= tab->join()->thd;
+  TABLE *const table= tab->table();
   const table_map remaining_tables=
-    ~used_tables & ~tab->table->map & tab->join->all_table_map;
+    ~used_tables & ~table->map & tab->join()->all_table_map;
   if (!(thd->optimizer_switch_flag(
-             OPTIMIZER_SWITCH_COND_FANOUT_FILTER) &&                     // 1)
-       (is_join_buffering ||                                             // 2a
-        remaining_tables != 0 ||                                         // 2b)
-        tab->join->select_lex-> master_unit()->outer_select() != NULL || // 2c)
-        !tab->join->select_lex->sj_nests.is_empty() ||                   // 2d)
-        thd->lex->describe)))                                            // 2e)
+             OPTIMIZER_SWITCH_COND_FANOUT_FILTER) &&                       // 1)
+       (is_join_buffering ||                                               // 2a
+        remaining_tables != 0 ||                                           // 2b)
+        tab->join()->select_lex-> master_unit()->outer_select() != NULL || // 2c)
+        !tab->join()->select_lex->sj_nests.is_empty() ||                   // 2d)
+        thd->lex->describe)))                                              // 2e)
     return COND_FILTER_ALLPASS;
 
   // No filtering is calculated if we expect less than one row to be fetched
-  if (fanout < 1.0 || tab->found_records < 1.0 || tab->records < 1.0)
+  if (fanout < 1.0 || tab->found_records < 1.0 || tab->records() < 1.0)
     return COND_FILTER_ALLPASS;
 
   /*
@@ -1189,7 +1202,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
     predicate. If no bits are set, there are no predicates on this
     table.
   */
-  if (bitmap_is_clear_all(&tab->table->cond_set))
+  if (bitmap_is_clear_all(&table->cond_set))
     return COND_FILTER_ALLPASS;
 
   /*
@@ -1197,12 +1210,9 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
     contribute to filtering effect.
     First, verify it's not used.
   */
-  DBUG_ASSERT(bitmap_is_clear_all(&tab->table->tmp_set));
+  DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
 
   float filter= COND_FILTER_ALLPASS;
-
-  QUICK_SELECT_I *quick= tab->quick ? tab->quick :
-    (tab->select ? tab->select->quick : NULL);
 
   /*
     If ref/range access, the condition is already included in the
@@ -1212,7 +1222,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
   */
   if (keyuse)
   {
-    const KEY *key= tab->table->key_info + keyuse->key;
+    const KEY *key= table->key_info + keyuse->key;
 
     if (keyuse[0].keypart == FT_KEYPART)
     {
@@ -1224,7 +1234,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         over the next 'actual_key_parts' works.
       */
       for (uint i= 0; i < key->actual_key_parts; i++)
-        bitmap_set_bit(&tab->table->tmp_set,
+        bitmap_set_bit(&table->tmp_set,
                        key->key_part[i].field->field_index);
     }
     else
@@ -1259,24 +1269,24 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
           "WHERE (t1.kp1=1 OR t1.kp1 IS NULL) AND t1.kp2=2"
              => t1.kp2 not used by ref since kp1 is ref_or_null
       */
-      while (curr_ku->table == tab->table &&                  // 1)
+      while (curr_ku->table == table &&                  // 1)
              curr_ku->key == keyuse->key &&                   // 1)
              curr_ku->keypart_map & keyuse->bound_keyparts)   // 2)
       {
-        bitmap_set_bit(&tab->table->tmp_set,
+        bitmap_set_bit(&table->tmp_set,
                        key->key_part[curr_ku->keypart].field->field_index);
         curr_ku++;
       }
     }
   }
-  else if (quick)
-    quick->get_fields_used(&tab->table->tmp_set);
+  else if (tab->quick())
+    tab->quick()->get_fields_used(&table->tmp_set);
 
   /*
     Early exit if the only conditions for the table refers to columns
     used by the access method.
   */
-  if (bitmap_is_subset(&tab->table->cond_set, &tab->table->tmp_set))
+  if (bitmap_is_subset(&table->cond_set, &table->tmp_set))
   {
     DBUG_ASSERT(filter == COND_FILTER_ALLPASS);
     goto cleanup;
@@ -1288,24 +1298,24 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
     do this because the range optimizer is more accurate than index
     statistics.
   */
-  if (!tab->table->quick_keys.is_clear_all())
+  if (!table->quick_keys.is_clear_all())
   {
     char buf[MAX_FIELDS/8];
     my_bitmap_map* bitbuf=
       static_cast<my_bitmap_map*>(static_cast<void*>(&buf));
     MY_BITMAP fields_current_quick;
 
-    for (uint keyno= 0; keyno < tab->table->s->keys; keyno++)
+    for (uint keyno= 0; keyno < table->s->keys; keyno++)
     {
-      if (tab->table->quick_keys.is_set(keyno))
+      if (table->quick_keys.is_set(keyno))
       {
         // The range optimizer made a row estimate for this index
 
         bitmap_init(&fields_current_quick, bitbuf,
-                    tab->table->s->fields, false);
+                    table->s->fields, false);
 
-        const KEY *key= tab->table->key_info + keyno;
-        for (uint i= 0; i < tab->table->quick_key_parts[keyno]; i++)
+        const KEY *key= table->key_info + keyno;
+        for (uint i= 0; i < table->quick_key_parts[keyno]; i++)
           bitmap_set_bit(&fields_current_quick,
                          key->key_part[i].field->field_index);
 
@@ -1315,14 +1325,14 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
           already contributing to 'filter', or by the access method we
           ignore it.
         */
-        if (bitmap_is_overlapping(&tab->table->tmp_set, &fields_current_quick))
+        if (bitmap_is_overlapping(&table->tmp_set, &fields_current_quick))
           continue;
 
-        bitmap_union(&tab->table->tmp_set, &fields_current_quick);
+        bitmap_union(&table->tmp_set, &fields_current_quick);
 
         const float selectivity=
-          static_cast<float>(tab->table->quick_rows[keyno]) /
-          static_cast<float>(tab->records);
+          static_cast<float>(table->quick_rows[keyno]) /
+          static_cast<float>(tab->records());
         // Cannot possible access more rows than there are in the table
         filter*= std::min(selectivity, 1.0f);
       }
@@ -1342,18 +1352,18 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
        exist a condition on a field that is not used by the ref/range
        access method.
   */
-  if (tab->join->where_cond &&                                         // 1)
-      !bitmap_is_subset(&tab->table->cond_set, &tab->table->tmp_set))  // 2)
+  if (tab->join()->where_cond &&                                         // 1)
+      !bitmap_is_subset(&table->cond_set, &table->tmp_set))  // 2)
   {
     /*
       Get filtering effect for predicates that are not already
       reflected in 'filter'. The below call gets this filtering effect
       based on index statistics and guesstimates.
     */
-    filter*= tab->join->where_cond->get_filtering_effect(tab->table->map,
+    filter*= tab->join()->where_cond->get_filtering_effect(table->map,
                                                          used_tables,
-                                                         &tab->table->tmp_set,
-                                                         tab->records);
+                                                         &table->tmp_set,
+                                                         tab->records());
   }
 
   /*
@@ -1367,7 +1377,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
 
 cleanup:
   // Clear tmp_set so it can be used elsewhere
-  bitmap_clear_all(&tab->table->tmp_set);
+  bitmap_clear_all(&table->tmp_set);
   DBUG_ASSERT(filter >= 0.0f && filter <= 1.0f);
   return filter;
 }
@@ -1443,7 +1453,7 @@ static ulonglong get_bound_sj_equalities(const JOIN_TAB *tab,
       TABLE_LIST *const nest=
         item_field->field->table->pos_in_table_list->outer_join_nest();
       item_equal= item_field->find_item_equal(nest ? nest->cond_equal :
-                                              tab->join->cond_equal);
+                                              tab->join()->cond_equal);
     }
     if (item_equal)
     {
@@ -1496,7 +1506,7 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_ls(trace, "searching_loose_scan_index");
 
-  TABLE *const table= tab->table;
+  TABLE *const table= tab->table();
   DBUG_ASSERT(remaining_tables & table->map);
 
   const ulonglong bound_sj_equalities=
@@ -1515,7 +1525,7 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
     For each index, we calculate how many key segments of this index
     we can use.
   */
-  for (Key_use *keyuse= tab->keyuse; keyuse->table == table; )
+  for (Key_use *keyuse= tab->keyuse(); keyuse->table == table; )
   {
     const uint key= keyuse->key;
 
@@ -1631,8 +1641,8 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
 
     // Ok, can use the strategy
 
-    if (tab->quick && tab->quick->index == key &&
-        tab->quick->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE)
+    if (tab->quick() && tab->quick()->index == key &&
+        tab->quick()->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE)
     {
       quick_uses_applicable_index= true;
       quick_max_keypart= max_keypart;
@@ -1653,7 +1663,7 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
         trace_ref.add("chosen", true);
       }
     }
-    else if (tab->table->covering_keys.is_set(key))
+    else if (tab->table()->covering_keys.is_set(key))
     {
       /*
         There are no usable bound IN-equalities, e.g. we have
@@ -1666,11 +1676,11 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
       Opt_trace_object trace_cov_scan(trace, "covering_scan");
 
       // Calculate the cost of complete loose index scan.
-      double rowcount= rows2double(tab->table->file->stats.records);
+      double rowcount= rows2double(tab->table()->file->stats.records);
 
       // The cost is entire index scan cost
       const double cost=
-        tab->table->file->index_scan_cost(key, 1, rowcount).total_cost();
+        tab->table()->file->index_scan_cost(key, 1, rowcount).total_cost();
 
       /*
         Now find out how many different keys we will get (for now we
@@ -1678,7 +1688,7 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
         some key components, that may make us think that loose
         scan will produce more distinct records than it actually will)
       */
-      const ulong rpc= tab->table->key_info[key].rec_per_key[max_keypart];
+      const ulong rpc= tab->table()->key_info[key].rec_per_key[max_keypart];
       if (rpc != 0)
         rowcount= rowcount / rpc;
 
@@ -1699,7 +1709,7 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
         add("covering_scan_possible", false);
 
 
-  } // ... for (Key_use *keyuse=tab->keyuse; etc
+  } // ... for (Key_use *keyuse=tab->keyuse(); etc
 
 
   trace_all_idx.end();
@@ -1707,14 +1717,14 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
   if (quick_uses_applicable_index && idx == join->const_tables)
   {
     Opt_trace_object trace_range(trace, "range_scan");
-    trace_range.add("cost", tab->quick->read_time);
+    trace_range.add("cost", tab->quick()->read_time);
     // @TODO: this the right part restriction:
-    if (tab->quick->read_time < pos->read_cost)
+    if (tab->quick()->read_time < pos->read_cost)
     {
-      pos->loosescan_key= tab->quick->index;
-      pos->read_cost= tab->quick->read_time;
+      pos->loosescan_key= tab->quick()->index;
+      pos->read_cost= tab->quick()->read_time;
       // this is ok because idx == join->const_tables
-      pos->rows_fetched= rows2double(tab->quick->records);
+      pos->rows_fetched= rows2double(tab->quick()->records);
       pos->loosescan_parts= quick_max_keypart + 1;
       pos->key= NULL;
       trace_range.add("chosen", true);
@@ -1818,7 +1828,7 @@ bool Optimize_table_order::choose_table_order()
       join->where_cond)
   {
     for (uint idx= join->const_tables; idx < join->tables; ++idx)
-      bitmap_clear_all(&join->best_ref[idx]->table->cond_set);
+      bitmap_clear_all(&join->best_ref[idx]->table()->cond_set);
 
     /*
       Set column bits for all columns involved in predicates in
@@ -1943,7 +1953,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     if (unlikely(trace->is_started()))
     {
       trace_plan_prefix(join, idx, excluded_tables);
-      trace_table.add_utf8_table(s->table);
+      trace_table.add_utf8_table(s->table());
     }
     /*
       Dependency computation (JOIN::make_join_plan()) and proper ordering
@@ -1965,11 +1975,11 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     trace_table.add("condition_filtering_pct", position->filter_effect * 100).
       add("rows_for_plan", rowcount).
       add("cost_for_plan", cost);
-    join_tables&= ~(s->table->map);
+    join_tables&= ~(s->table()->map);
   }
 
   if (join->sort_by_table &&
-      join->sort_by_table != join->positions[join->const_tables].table->table)
+      join->sort_by_table != join->positions[join->const_tables].table->table())
     cost+= rowcount;  // We have to make a temp table
 
   memcpy(join->best_positions, join->positions, sizeof(POSITION)*idx);
@@ -2019,7 +2029,7 @@ semijoin_order_allows_materialization(const JOIN *join,
                                       table_map remaining_tables,
                                       const JOIN_TAB *tab, uint idx)
 {
-  DBUG_ASSERT(!(remaining_tables & tab->table->map));
+  DBUG_ASSERT(!(remaining_tables & tab->table()->map));
   /*
    Check if 
     1. We're in a semi-join nest that can be run with SJ-materialization
@@ -2220,7 +2230,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
             sizeof(JOIN_TAB*) * (best_idx - idx));
     join->best_ref[idx]= best_table;
 
-    remaining_tables&= ~(best_table->table->map);
+    remaining_tables&= ~(best_table->table()->map);
 
     DBUG_EXECUTE("opt", print_plan(join, idx,
                                    join->positions[idx].prefix_rowcount,
@@ -2297,7 +2307,7 @@ void Optimize_table_order::consider_plan(uint             idx,
   */
   if (join->sort_by_table &&
       join->sort_by_table !=
-      join->positions[join->const_tables].table->table)
+      join->positions[join->const_tables].table->table())
   {
     cost+= join->positions[idx].prefix_rowcount;
     trace_obj->add("sort_cost", join->positions[idx].prefix_rowcount).
@@ -2499,7 +2509,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
   for (JOIN_TAB **pos= join->best_ref + idx; *pos; pos++)
   {
     JOIN_TAB *const s= *pos;
-    const table_map real_table_bit= s->table->map;
+    const table_map real_table_bit= s->table()->map;
 
     /*
       Don't move swap inside conditional code: All items should
@@ -2517,7 +2527,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
       if (unlikely(trace->is_started()))
       {
         trace_plan_prefix(join, idx, excluded_tables);
-        trace_one_table.add_utf8_table(s->table);
+        trace_one_table.add_utf8_table(s->table());
       }
       POSITION *const position= join->positions + idx;
 
@@ -2573,7 +2583,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
         if (best_rowcount > position->prefix_rowcount ||
             best_cost > position->prefix_cost ||
             (idx == join->const_tables &&  // 's' is the first table in the QEP
-            s->table == join->sort_by_table))
+            s->table() == join->sort_by_table))
         {
           if (best_rowcount >= position->prefix_rowcount &&
               best_cost >= position->prefix_cost &&
@@ -2819,7 +2829,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
 
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
-    const table_map real_table_bit= s->table->map;
+    const table_map real_table_bit= s->table()->map;
 
     /*
       Don't move swap inside conditional code: All items
@@ -2836,7 +2846,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
         4) and, It is key dependent on at least one already handled table
         5) and, It passed the interleaving check.
     */
-    if (s->keyuse                           &&     // 1)
+    if (s->keyuse()                           &&     // 1)
         (remaining_tables & real_table_bit) &&     // 2)
         !(remaining_tables & s->dependent)  &&     // 3)
         (~remaining_tables & s->key_dependent) &&  // 4)
@@ -2846,7 +2856,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
       if (unlikely(trace->is_started()))
       {
         trace_plan_prefix(join, idx, excluded_tables);
-        trace_one_table.add_utf8_table(s->table);
+        trace_one_table.add_utf8_table(s->table());
       }
       POSITION *const position= join->positions + idx;
 
@@ -3020,7 +3030,7 @@ prev_record_reads(JOIN *join, uint idx, table_map found_ref)
   for (POSITION *pos= join->positions + idx - 1; pos != pos_end; pos--)
   {
     const double fanout= pos->rows_fetched * pos->filter_effect;
-    if (pos->table->table->map & found_ref)
+    if (pos->table->table()->map & found_ref)
     {
       found_ref|= pos->ref_depend_map;
       /* 
@@ -3117,10 +3127,10 @@ bool Optimize_table_order::fix_semijoin_strategies()
   {
     POSITION *const pos= join->best_positions + tableno;
 
-    if ((handled_tables & pos->table->table->map) ||
+    if ((handled_tables & pos->table->table()->map) ||
         pos->sj_strategy == SJ_OPT_NONE)
     {
-      remaining_tables|= pos->table->table->map;
+      remaining_tables|= pos->table->table()->map;
       continue;
     }
 
@@ -3236,10 +3246,10 @@ bool Optimize_table_order::fix_semijoin_strategies()
       */
       if (i != first)
         join->best_positions[i].sj_strategy= SJ_OPT_NONE;
-      handled_tables|= join->best_positions[i].table->table->map;
+      handled_tables|= join->best_positions[i].table->table()->map;
     }
 
-    remaining_tables |= pos->table->table->map;
+    remaining_tables |= pos->table->table()->map;
   }
 
   DBUG_ASSERT(remaining_tables == (join->all_table_map&~join->const_table_map));
@@ -3349,7 +3359,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
     */
     return true;
   }
-  TABLE_LIST *next_emb= tab->table->pos_in_table_list->embedding;
+  TABLE_LIST *next_emb= tab->table()->pos_in_table_list->embedding;
   /*
     Do update counters for "pairs of brackets" that we've left (marked as
     X,Y,Z in the above picture)
@@ -3357,7 +3367,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
   for (; next_emb != emb_sjm_nest; next_emb= next_emb->embedding)
   {
     // Ignore join nests that are not outer joins.
-    if (!next_emb->optim_join_cond())
+    if (!next_emb->join_cond_optim())
       continue;
 
     next_emb->nested_join->nj_counter++;
@@ -3452,7 +3462,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
   uint no_jbuf_before;
   for (uint i= first_tab; i <= last_tab; i++)
   {
-    remaining_tables|= positions[i].table->table->map;
+    remaining_tables|= positions[i].table->table()->map;
     if (positions[i].table->emb_sj_nest)
       table_count++;
   }
@@ -3487,7 +3497,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     if (is_ls_driving_tab || positions[i].use_join_buffer)
     {
       Opt_trace_object trace_one_table(trace);
-      trace_one_table.add_utf8_table(tab->table);
+      trace_one_table.add_utf8_table(tab->table());
 
       /*
         Find the best access method with specified join buffering strategy.
@@ -3535,7 +3545,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
       DBUG_RETURN(false);
     }
 
-    remaining_tables&= ~tab->table->map;
+    remaining_tables&= ~tab->table()->map;
 
     cost+= pos->read_cost + 
       cost_model->row_evaluate_cost(rowcount * inner_fanout *
@@ -3612,7 +3622,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
          rowcount * sjm_nest->nested_join->sjm.scan_cost.total_cost();
     
   for (uint i= last_inner_tab + 1; i <= last_outer_tab; i++)
-    remaining_tables|= positions[i].table->table->map;
+    remaining_tables|= positions[i].table->table()->map;
   /*
     Materialization removes duplicates from the materialized table, so
     number of rows to scan is probably less than the number of rows
@@ -3626,12 +3636,12 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
   {
     Opt_trace_object trace_one_table(trace);
     JOIN_TAB *const tab= positions[i].table;
-    trace_one_table.add_utf8_table(tab->table);
+    trace_one_table.add_utf8_table(tab->table());
     POSITION regular_pos;
     POSITION *const dst_pos= final ? positions + i : &regular_pos;
     best_access_path(tab, remaining_tables, i, false,
                      rowcount * inner_fanout * outer_fanout, dst_pos);
-    remaining_tables&= ~tab->table->map;
+    remaining_tables&= ~tab->table()->map;
     outer_fanout*= dst_pos->rows_fetched;
     cost+= dst_pos->read_cost +
            cost_model->row_evaluate_cost(rowcount * inner_fanout *
@@ -3776,7 +3786,7 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
     else
     {
       outer_fanout*= p->rows_fetched * p->filter_effect;
-      rowsize+= p->table->table->file->ref_length;
+      rowsize+= p->table->table()->file->ref_length;
     }
   }
 
@@ -3882,11 +3892,11 @@ void Optimize_table_order::advance_sj_state(
   DBUG_ASSERT(emb_sjm_nest == NULL);
 
   // remaining_tables include the current one:
-  DBUG_ASSERT(remaining_tables & new_join_tab->table->map);
+  DBUG_ASSERT(remaining_tables & new_join_tab->table()->map);
   // Save it:
   const table_map remaining_tables_incl= remaining_tables;
   // And add the current table to the join prefix:
-  remaining_tables&= ~new_join_tab->table->map;
+  remaining_tables&= ~new_join_tab->table()->map;
 
   DBUG_ENTER("Optimize_table_order::advance_sj_state");
 
@@ -4080,8 +4090,8 @@ void Optimize_table_order::advance_sj_state(
           emb_sj_nest->nested_join->sj_corr_tables) &&               // (5)
         (remaining_tables_incl &
          emb_sj_nest->nested_join->sj_depends_on) &&                 // (6)
-        new_join_tab->keyuse != NULL &&                              // (7)
-        !new_join_tab->table->pos_in_table_list->uses_materialization()) // (8)
+        new_join_tab->keyuse() != NULL &&                              // (7)
+        !new_join_tab->table()->pos_in_table_list->uses_materialization()) // (8)
     {
       // start considering using LooseScan strategy
       pos->first_loosescan_table= idx;
@@ -4383,15 +4393,15 @@ void Optimize_table_order::advance_sj_state(
 void Optimize_table_order::backout_nj_state(const table_map remaining_tables,
                                             const JOIN_TAB *tab)
 {
-  DBUG_ASSERT(remaining_tables & tab->table->map);
+  DBUG_ASSERT(remaining_tables & tab->table()->map);
 
   /* Restore the nested join state */
-  TABLE_LIST *last_emb= tab->table->pos_in_table_list->embedding;
+  TABLE_LIST *last_emb= tab->table()->pos_in_table_list->embedding;
 
   for (; last_emb != emb_sjm_nest; last_emb= last_emb->embedding)
   {
     // Ignore join nests that are not outer joins.
-    if (!last_emb->optim_join_cond())
+    if (!last_emb->join_cond_optim())
       continue;
 
     NESTED_JOIN *const nest= last_emb->nested_join;
@@ -4421,7 +4431,7 @@ static void trace_plan_prefix(JOIN *join, uint idx,
   Opt_trace_array plan_prefix(&thd->opt_trace, "plan_prefix");
   for (uint i= 0; i < idx; i++)
   {
-    const TABLE * const table= join->positions[i].table->table;
+    const TABLE * const table= join->positions[i].table->table();
     if (!(table->map & excluded_tables))
     {
       TABLE_LIST * const tl= table->pos_in_table_list;
