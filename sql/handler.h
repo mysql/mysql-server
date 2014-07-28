@@ -2065,6 +2065,9 @@ public:
     }
   virtual ~handler(void)
   {
+    DBUG_ASSERT(! m_psi_batch_mode);
+    DBUG_ASSERT(m_psi == NULL);
+    DBUG_ASSERT(m_psi_locker == NULL);
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
