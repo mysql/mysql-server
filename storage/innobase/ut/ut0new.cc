@@ -39,6 +39,8 @@ PSI_memory_key	mem_key_std;
 PSI_memory_key	mem_key_sync_debug_latches;
 PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
 
+#ifdef UNIV_PFS_MEMORY
+
 /** Auxiliary array of performance schema 'PSI_memory_info'.
 Each allocation appears in
 performance_schema.memory_summary_global_by_event_name (and alike) in the form
@@ -62,8 +64,6 @@ static PSI_memory_info	pfs_info[] = {
 	{&mem_key_sync_debug_latches, "sync_debug_latches", 0},
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
 };
-
-#ifdef UNIV_PFS_MEMORY
 
 /** Map used for default performance schema keys, based on file name of the
 caller. The key is the file name of the caller and the value is a pointer
