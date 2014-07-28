@@ -18,11 +18,10 @@
 #include <my_global.h>                /* for uint typedefs */
 #include "my_base.h"
 
-typedef struct st_join_table JOIN_TAB;
+class QEP_TAB;
 class handler;
 struct TABLE;
 class THD;
-class SQL_SELECT;
 
 /**
   A context for reading through a single table using a chosen access method:
@@ -41,18 +40,20 @@ class SQL_SELECT;
 @endcode
 */
 
+class QUICK_SELECT_I;
+
 struct READ_RECORD
 {
   typedef int (*Read_func)(READ_RECORD*);
-  typedef void (*Unlock_row_func)(st_join_table *);
-  typedef int (*Setup_func)(JOIN_TAB*);
+  typedef void (*Unlock_row_func)(QEP_TAB *);
+  typedef int (*Setup_func)(QEP_TAB*);
 
   TABLE *table;                                 /* Head-form */
   TABLE **forms;                                /* head and ref forms */
   Unlock_row_func unlock_row;
   Read_func read_record;
   THD *thd;
-  SQL_SELECT *select;
+  QUICK_SELECT_I *quick;
   uint cache_records;
   uint ref_length,struct_length,reclength,rec_cache_size,error_offset;
 
@@ -73,14 +74,15 @@ public:
   READ_RECORD() {}
 };
 
-bool init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
-		      SQL_SELECT *select, int use_record_cache,
+bool init_read_record(READ_RECORD *info, THD *thd,
+                      TABLE *table, QEP_TAB *qep_tab,
+		      int use_record_cache,
                       bool print_errors, bool disable_rr_cache);
 bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
                           bool print_error, uint idx, bool reverse);
 void end_read_record(READ_RECORD *info);
 
-void rr_unlock_row(st_join_table *tab);
+void rr_unlock_row(QEP_TAB *tab);
 int rr_sequential(READ_RECORD *info);
 
 #endif /* SQL_RECORDS_H */
