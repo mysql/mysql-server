@@ -34,6 +34,7 @@
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
 #include "table_id.h"
+#include <set>
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -55,6 +56,7 @@ extern I_List<i_string_pair> binlog_rewrite_db;
 #include "sql_class.h"                          /* THD */
 #include "rpl_utility.h"                        /* Hash_slave_rows */
 #include "rpl_filter.h"
+#include "key.h"                                /* key_copy, compare_keys */
 #endif
 
 extern PSI_memory_key key_memory_log_event;
@@ -4369,10 +4371,39 @@ protected:
   const uchar *m_curr_row;     /* Start of the row being processed */
   const uchar *m_curr_row_end; /* One-after the end of the current row */
   uchar    *m_key;      /* Buffer to keep key value during searches */
-  uchar    *last_hashed_key;
   uint     m_key_index;
-  List<uchar> m_distinct_key_list;
-  List_iterator_fast<uchar> m_itr;
+  KEY      *m_key_info; /* Points to description of index #m_key_index */
+  class Key_compare
+  {
+public:
+    /**
+       @param  ki  Where to find KEY description
+       @note m_distinct_keys is instantiated when Rows_log_event is constructed; it
+       stores a Key_compare object internally. However at that moment, the
+       index (KEY*) to use for comparisons, is not yet known. So, at
+       instantiation, we indicate the Key_compare the place where it can
+       find the KEY* when needed (this place is Rows_log_event::m_key_info),
+       Key_compare remembers the place in member m_key_info.
+       Before we need to do comparisons - i.e. before we need to insert
+       elements, we update Rows_log_event::m_key_info once for all.
+    */
+    Key_compare(KEY **ki= NULL) : m_key_info(ki) {}
+    bool operator()(uchar *k1, uchar *k2) const
+    {
+      return key_cmp2((*m_key_info)->key_part,
+                      k1, (*m_key_info)->key_length,
+                      k2, (*m_key_info)->key_length) < 0 ;
+    }
+private:
+    KEY **m_key_info;
+  };
+  std::set<uchar *, Key_compare> m_distinct_keys;
+  std::set<uchar *>::iterator m_itr;
+  /**
+    A spare buffer which will be used when saving the distinct keys
+    for doing an index scan with HASH_SCAN search algorithm.
+  */
+  uchar *m_distinct_key_spare_buf;
 
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
@@ -4530,14 +4561,13 @@ private:
 
   /**
     Initializes scanning of rows. Opens an index and initailizes an iterator
-    over a list of distinct keys (m_distinct_key_list) if it is a HASH_SCAN
+    over a list of distinct keys (m_distinct_keys) if it is a HASH_SCAN
     over an index or the table if its a HASH_SCAN over the table.
   */
   int open_record_scan();
 
   /**
     Does the cleanup
-    - deallocates all the elements in m_distinct_key_list if any
     - closes the index if opened by open_record_scan
     - closes the table if opened for scanning.
   */
@@ -4558,7 +4588,7 @@ private:
   int next_record_scan(bool first_read);
 
   /**
-    Populates the m_distinct_key_list with unique keys to be modified
+    Populates the m_distinct_keys with unique keys to be modified
     during HASH_SCAN over keys.
     @return_value -0 success
                   -Err_code

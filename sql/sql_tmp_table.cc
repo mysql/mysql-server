@@ -2438,8 +2438,9 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
   *table->s= share;
   /* Update quick select, if any. */
   {
-    JOIN_TAB *tab= table->reginfo.join_tab;
-    if (tab && tab->select && tab->select->quick)
+    QEP_TAB *tab= table->reginfo.qep_tab;
+    DBUG_ASSERT(tab || !table->reginfo.join_tab);
+    if (tab && tab->quick())
     {
       /*
         This could happen only with result of derived table/view
@@ -2447,7 +2448,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
       */
       DBUG_ASSERT(table->pos_in_table_list &&
                   table->pos_in_table_list->uses_materialization());
-      tab->select->quick->set_handler(table->file);
+      tab->quick()->set_handler(table->file);
     }
   }
   table->file->change_table_ptr(table, table->s);
