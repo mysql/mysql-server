@@ -6501,6 +6501,30 @@ ha_innobase::innobase_set_max_autoinc(
 	return(error);
 }
 
+/** Write Row interface optimized for intrinisc table.
+@param[in]	record	a row in MySQL format. */
+
+int
+ha_innobase::intrinsic_table_write_row(uchar* record)
+{
+	dberr_t		err;
+
+	/* No auto-increment support for intrinsic table. */
+	ut_ad(!(table->next_number_field && record == table->record[0]));
+
+	if (prebuilt->mysql_template == NULL
+	    || prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
+		/* Build the template used in converting quickly between
+		the two database formats */
+		build_template(true);
+	}
+
+	err = row_insert_for_mysql((byte*) record, prebuilt);
+
+	return(convert_error_code_to_mysql(
+		err, prebuilt->table->flags, m_user_thd));
+}
+
 /********************************************************************//**
 Stores a row in an InnoDB database, to the table specified in this
 handle.
@@ -6515,10 +6539,15 @@ ha_innobase::write_row(
 	ulint		sql_command;
 	int		error_result = 0;
 	bool		auto_inc_used = false;
-	trx_t*		trx = thd_to_trx(m_user_thd);
-	TrxInInnoDB	trx_in_innodb(trx);
 
 	DBUG_ENTER("ha_innobase::write_row");
+
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		DBUG_RETURN(intrinsic_table_write_row(record));
+	}
+
+	trx_t*		trx = thd_to_trx(m_user_thd);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	if (trx_in_innodb.is_aborted()) {
 
@@ -6526,7 +6555,7 @@ ha_innobase::write_row(
 	}
 
 	/* Step-1: Validation checks before we commence write_row operation. */
-	if (srv_read_only_mode && !dict_table_is_intrinsic(prebuilt->table)) {
+	if (srv_read_only_mode) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (prebuilt->trx != trx) {
