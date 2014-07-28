@@ -2730,7 +2730,7 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
     // Print join condition
     Item *const cond=
       (curr->select_lex->join && curr->select_lex->join->optimized) ?
-      curr->optim_join_cond() : curr->join_cond();
+      curr->join_cond_optim() : curr->join_cond();
     if (cond)
     {
       str->append(STRING_WITH_LEN(" on("));
@@ -4188,12 +4188,12 @@ static bool get_optimizable_join_conditions(THD *thd,
     Item *const jc= table->join_cond();
     if (jc && !thd->stmt_arena->is_conventional())
     {
-      table->set_optim_join_cond(jc->copy_andor_structure(thd));
-      if (!table->optim_join_cond())
+      table->set_join_cond_optim(jc->copy_andor_structure(thd));
+      if (!table->join_cond_optim())
         return true;
     }
     else
-      table->set_optim_join_cond(jc);
+      table->set_join_cond_optim(jc);
   }
   return false;
 }
@@ -4211,7 +4211,7 @@ static bool get_optimizable_join_conditions(THD *thd,
    @param[out] new_where  copy of WHERE
    @param[out] new_having copy of HAVING (if passed pointer is not NULL)
 
-   Copies of join (ON) conditions are placed in TABLE_LIST::m_optim_join_cond.
+   Copies of join (ON) conditions are placed in TABLE_LIST::m_join_cond_optim.
 
    @returns true if OOM
 */
