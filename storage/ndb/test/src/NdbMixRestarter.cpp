@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2007 MySQL AB
-
+/*
+   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,51 +53,42 @@ NdbMixRestarter::restart_cluster(NDBT_Context* ctx,
 
   do 
   {
-    ctx->setProperty(NMR_SR_THREADS_STOPPED, (Uint32)0);
-    ctx->setProperty(NMR_SR_VALIDATE_THREADS_DONE, (Uint32)0);
-    
     ndbout << " -- Shutting down " << endl;
     ctx->setProperty(NMR_SR, NdbMixRestarter::SR_STOPPING);
     CHECK(restartAll(false, true, stopabort) == 0);
     ctx->setProperty(NMR_SR, NdbMixRestarter::SR_STOPPED);
+    ndbout << " -- waitClusterNoStart" << endl;
     CHECK(waitClusterNoStart(timeout) == 0);
-    
-    Uint32 cnt = ctx->getProperty(NMR_SR_THREADS);
-    Uint32 curr= ctx->getProperty(NMR_SR_THREADS_STOPPED);
-    while(curr != cnt && !ctx->isTestStopped())
+    ndbout << " -- available" << endl;
+
+    while(ctx->getProperty(NMR_SR_THREADS_ACTIVE) > 0 && !ctx->isTestStopped())
     {
-      if (curr > cnt)
-      {
-        ndbout_c("stopping: curr: %d cnt: %d", curr, cnt);
-        abort();
-      }
+      ndbout << "Await threads to stop"
+             << ", active: " << ctx->getProperty(NMR_SR_THREADS_ACTIVE)
+             << endl;
       
       NdbSleep_MilliSleep(100);
-      curr= ctx->getProperty(NMR_SR_THREADS_STOPPED);
     }
 
     CHECK(ctx->isTestStopped() == false);
+    ndbout << " -- startAll" << endl;
     CHECK(startAll() == 0);
+
+    ndbout << " -- waitClusterStarted" << endl;
     CHECK(waitClusterStarted(timeout) == 0);
-    
-    cnt = ctx->getProperty(NMR_SR_VALIDATE_THREADS);
-    if (cnt)
+    ndbout << " -- Started" << endl;
+
+    if (ctx->getProperty(NMR_SR_VALIDATE_THREADS) > 0)
     {
       ndbout << " -- Validating starts " << endl;
-      ctx->setProperty(NMR_SR_VALIDATE_THREADS_DONE, (Uint32)0);
       ctx->setProperty(NMR_SR, NdbMixRestarter::SR_VALIDATING);
-      curr = ctx->getProperty(NMR_SR_VALIDATE_THREADS_DONE);
-      while (curr != cnt && !ctx->isTestStopped())
-      {
-        if (curr > cnt)
-        {
-          ndbout_c("validating: curr: %d cnt: %d", curr, cnt);
-          abort();
-        }
 
+      while (ctx->getProperty(NMR_SR_VALIDATE_THREADS_ACTIVE) > 0 && 
+             !ctx->isTestStopped())
+      {
         NdbSleep_MilliSleep(100);
-        curr = ctx->getProperty(NMR_SR_VALIDATE_THREADS_DONE);
       }
+
       ndbout << " -- Validating complete " << endl;
     }
     CHECK(ctx->isTestStopped() == false);    
@@ -261,6 +252,7 @@ loop:
   case RTM_RestartCluster:
     if (restart_cluster(ctx, step))
       return NDBT_FAILED;
+    ndbout << " -- cluster restarted" << endl;
     for (Uint32 i = 0; i<m_nodes.size(); i++)
       m_nodes[i].node_status = NDB_MGM_NODE_STATUS_STARTED;
     break;
@@ -284,9 +276,11 @@ loop:
       ndbout << " inital";
     ndbout << endl;
     
+    ndbout << " -- restartOneDbNode" << endl;
     if (restartOneDbNode(node->node_id, initial, true, true))
       return NDBT_FAILED;
       
+    ndbout << " -- waitNodesNoStart" << endl;
     if (waitNodesNoStart(&node->node_id, 1))
       return NDBT_FAILED;
     
@@ -304,12 +298,16 @@ start:
     ndbout << "Starting " << node->node_id << endl;
     if (startNodes(&node->node_id, 1))
       return NDBT_FAILED;
+
+    ndbout << " -- waitNodesStarted" << endl;
     if (waitNodesStarted(&node->node_id, 1))
       return NDBT_FAILED;
     
+    ndbout << "Started " << node->node_id << endl;
     node->node_status = NDB_MGM_NODE_STATUS_STARTED;      
     break;
   }
+  ndbout << "Step done" << endl;
   return NDBT_OK;
 }
 
