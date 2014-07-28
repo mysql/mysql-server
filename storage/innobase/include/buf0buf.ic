@@ -42,7 +42,7 @@ Created 11/5/1995 Heikki Tuuri
 /** A chunk of buffers. The buffer pool is allocated in chunks. */
 struct buf_chunk_t{
 	ulint		size;		/*!< size of frames[] and blocks[] */
-	void*		mem;		/*!< pointer to the memory area which
+	unsigned char*	mem;		/*!< pointer to the memory area which
 					was allocated for the frames */
 	ut_new_pfx_t	mem_pfx;	/*!< Auxiliary structure, describing
 					"mem". It is filled by the allocator's
