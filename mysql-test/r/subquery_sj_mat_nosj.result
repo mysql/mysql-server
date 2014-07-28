@@ -7082,7 +7082,7 @@ EXPLAIN
                 "Language",
                 "Percentage"
               ],
-              "attached_condition": "((`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))"
+              "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))"
             }
           }
         },

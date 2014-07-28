@@ -67,7 +67,8 @@ public:
     index_over_t1ab_id= t1.create_index(&field_t1_a, &field_t1_b);
     indexes.set_bit(index_over_t1ab_id);
 
-    t1.reginfo.join_tab= &t1_join_tab;
+    t1_join_tab.set_qs(&t1_qep_shared);
+    t1_join_tab.set_table(&t1);
     t1.pos_in_table_list= &t1_table_list;
 
     t1_table_list.embedding= NULL;
@@ -105,7 +106,7 @@ public:
   TABLE_LIST t2_table_list;
 
   JOIN_TAB t1_join_tab;
-  JOIN_TAB t2_join_tab;
+  QEP_shared t1_qep_shared;
   Fake_key_field t1_key_field_arr[10];
   Key_field *t1_key_fields;
 
@@ -163,7 +164,7 @@ TEST_F(OptRefTest, addKeyFieldsFromInOneRow)
   EXPECT_EQ(0, t1_key_fields - static_cast<Key_field*>(&t1_key_field_arr[0]));
   EXPECT_EQ(indexes, t1_join_tab.const_keys)
     << "SARGable index not present in const_keys";
-  EXPECT_EQ(indexes, t1_join_tab.keys);
+  EXPECT_EQ(indexes, t1_join_tab.keys());
   EXPECT_EQ(0U, t1_key_field_arr[0].level);
   EXPECT_EQ(0U, t1_key_field_arr[1].level);
 }
@@ -186,7 +187,7 @@ TEST_F(OptRefTest, addKeyFieldsFromInTwoRows)
   EXPECT_EQ(0, t1_key_fields - static_cast<Key_field*>(&t1_key_field_arr[0]));
   EXPECT_EQ(indexes, t1_join_tab.const_keys)
     << "SARGable index not present in const_keys";
-  EXPECT_EQ(indexes, t1_join_tab.keys);
+  EXPECT_EQ(indexes, t1_join_tab.keys());
 }
 
 TEST_F(OptRefTest, addKeyFieldsFromInOneRowWithCols)
@@ -205,7 +206,7 @@ TEST_F(OptRefTest, addKeyFieldsFromInOneRowWithCols)
   // We expect the key_fields pointer not to be incremented.
   EXPECT_EQ(0, t1_key_fields - static_cast<Key_field*>(&t1_key_field_arr[0]));
   EXPECT_EQ(Bitmap<64>(0), t1_join_tab.const_keys);
-  EXPECT_EQ(indexes, t1_join_tab.keys);
+  EXPECT_EQ(indexes, t1_join_tab.keys());
 
   EXPECT_EQ(t2.map, t1_join_tab.key_dependent);
 }
@@ -226,7 +227,7 @@ TEST_F(OptRefTest, addKeyFieldsFromEq)
   EXPECT_EQ(2, t1_key_fields - static_cast<Key_field*>(&t1_key_field_arr[0]));
   EXPECT_EQ(indexes, t1_join_tab.const_keys)
     << "SARGable index not present in const_keys";
-  EXPECT_EQ(indexes, t1_join_tab.keys);
+  EXPECT_EQ(indexes, t1_join_tab.keys());
 
   EXPECT_EQ(0U, t1_join_tab.key_dependent);
 

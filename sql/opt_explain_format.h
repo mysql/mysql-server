@@ -119,7 +119,7 @@ enum enum_mod_type { MT_NONE, MT_INSERT, MT_UPDATE, MT_DELETE, MT_REPLACE };
   output row.
 
   For hierarchical EXPLAIN this structure contains property values for a single
-  CTX_TABLE/CTX_JOIN_TAB context node of the intermediate tree.
+  CTX_TABLE/CTX_QEP_TAB context node of the intermediate tree.
 */
 
 class qep_row : public Sql_alloc
@@ -138,7 +138,7 @@ public:
     "Extra" column - see the col_extra list).
 
     For hierarchical EXPLAIN this structure contains a numeric property value
-    for a single CTX_TABLE/CTX_JOIN_TAB context node of the intermediate tree.
+    for a single CTX_TABLE/CTX_QEP_TAB context node of the intermediate tree.
   */
   template<typename T>
   struct column
@@ -325,7 +325,7 @@ public:
   /// List of used columns
   List<const char> col_used_columns;
 
-  /* For structured EXPLAIN in CTX_JOIN_TAB context: */
+  /* For structured EXPLAIN in CTX_QEP_TAB context: */
   uint query_block_id; ///< query block id for materialized subqueries
 
   /**

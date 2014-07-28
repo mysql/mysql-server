@@ -29,6 +29,7 @@
 #include "sql_view.h"                         // check_duplicate_names
 #include "auth_common.h"                      // SELECT_ACL
 #include "sql_tmp_table.h"                    // Tmp tables
+#include "template_utils.h"                   // implicit_cast
 
 
 /**
@@ -335,12 +336,16 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
        (derived->select_lex->join->const_table_map & table->map)))
   {
     /*
-      At this point, JT_CONST derived tables should be null rows. Otherwise they
-      would have been materialized already.
+      At this point, JT_CONST derived tables should be null rows. Otherwise
+      they would have been materialized already.
     */
-    DBUG_ASSERT(table == NULL || table->reginfo.join_tab == NULL ||
-                table->reginfo.join_tab->type != JT_CONST ||
-                table->null_row == 1);
+#ifndef DBUG_OFF
+    if (table != NULL)
+    {
+      QEP_TAB *tab= table->reginfo.qep_tab;
+      DBUG_ASSERT(tab == NULL || tab->type() != JT_CONST || table->null_row);
+    }
+#endif
     DBUG_RETURN(FALSE);
   }
   /* create tmp table */
