@@ -2063,7 +2063,7 @@ struct buf_pool_t{
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ulint		mutex_exit_forbidden; /*!< Forbid release mutex */
 #endif
-	ut_allocator<char>	allocator;	/*!< Allocator used for
+	ut_allocator<unsigned char>	allocator;	/*!< Allocator used for
 					allocating memory for the the "chunks"
 					member. */
 	volatile ulint	n_chunks;	/*!< number of buffer pool chunks */
