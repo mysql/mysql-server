@@ -9892,7 +9892,7 @@ bool change_master_cmd(THD *thd)
   */
   same_channel= msr_map.get_channel_with_host_port(lex->mi.host, lex->mi.port);
 
-  if (same_channel && !strcmp(same_channel, lex->mi.channel))
+  if (same_channel && strcmp(same_channel, lex->mi.channel))
   {
     my_error(ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT, MYF(0), same_channel);
     res= true;
