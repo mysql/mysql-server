@@ -394,6 +394,9 @@ private:
 
 	int info_low(uint, bool);
 
+	/** Write Row Interface optimized for Intrinsic table. */
+	int intrinsic_table_write_row(uchar* record);
+
 public:
 	/** @name Multi Range Read interface @{ */
 
