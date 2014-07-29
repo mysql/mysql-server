@@ -3125,7 +3125,7 @@ Kill all transactions that are blocking this transaction from acquiring locks.
 void
 trx_kill_blocking(trx_t* trx)
 {
-	if (trx->kill.empty()) {
+	if (trx->hit_list.empty()) {
 		return;
 	}
 
