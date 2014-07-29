@@ -589,8 +589,9 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   else
   {
     /* if we run out of slots or we are not using tempool */
-    sprintf(path,"%s%lx_%lx_%x", tmp_file_prefix,current_pid,
-            thd->thread_id, thd->tmp_table++);
+    DBUG_ASSERT(sizeof(my_thread_id) == 4);
+    sprintf(path,"%s%lx_%x_%x", tmp_file_prefix, current_pid,
+            thd->thread_id(), thd->tmp_table++);
   }
 
   /*
@@ -1476,8 +1477,9 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   else
   {
     /* if we run out of slots or we are not using tempool */
-    sprintf(path,"%s%lx_%lx_%x", tmp_file_prefix,current_pid,
-            thd->thread_id, thd->tmp_table++);
+    DBUG_ASSERT(sizeof(my_thread_id) == 4);
+    sprintf(path,"%s%lx_%x_%x", tmp_file_prefix,current_pid,
+            thd->thread_id(), thd->tmp_table++);
   }
   fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
@@ -2436,8 +2438,9 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
   *table->s= share;
   /* Update quick select, if any. */
   {
-    JOIN_TAB *tab= table->reginfo.join_tab;
-    if (tab && tab->select && tab->select->quick)
+    QEP_TAB *tab= table->reginfo.qep_tab;
+    DBUG_ASSERT(tab || !table->reginfo.join_tab);
+    if (tab && tab->quick())
     {
       /*
         This could happen only with result of derived table/view
@@ -2445,7 +2448,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
       */
       DBUG_ASSERT(table->pos_in_table_list &&
                   table->pos_in_table_list->uses_materialization());
-      tab->select->quick->set_handler(table->file);
+      tab->quick()->set_handler(table->file);
     }
   }
   table->file->change_table_ptr(table, table->s);

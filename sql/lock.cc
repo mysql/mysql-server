@@ -565,7 +565,7 @@ void mysql_lock_abort_for_thread(THD *thd, TABLE *table)
     for (uint i=0; i < locked->lock_count; i++)
     {
       thr_abort_locks_for_thread(locked->locks[i]->lock,
-                                 table->in_use->thread_id);
+                                 table->in_use->thread_id());
     }
     my_free(locked);
   }
