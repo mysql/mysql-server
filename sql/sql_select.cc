@@ -3369,6 +3369,11 @@ bool JOIN::make_tmp_tables_info()
   uint curr_tmp_table= const_tables;
   TABLE *exec_tmp_table= NULL;
   DBUG_ENTER("JOIN::make_tmp_tables_info");
+
+  /*
+    In this function, we may change having_cond into a condition on a
+    temporary sort/group table, so we have to assign having_for_explain now:
+  */
   having_for_explain= having_cond;
 
   const bool has_group_by= this->group;
@@ -3784,18 +3789,6 @@ bool JOIN::make_tmp_tables_info()
   {
     qep_tab[primary_tables + tmp_tables - 1].next_select=
       get_end_select_func();
-    /*
-      We want to cover primary tables, tmp tables (they may have a sort, so
-      their "quick" and "condition" may change), and sj-mat inner tables.
-      Note that this function may have added a sort to the first non-const
-      primary table.
-    */
-    for (uint i= const_tables; i < tables; ++i)
-    {
-      qep_tab[i].set_quick_optim();
-      qep_tab[i].set_condition_optim();
-      qep_tab[i].set_keyread_optim();
-    }
   }
   group= has_group_by;
 
