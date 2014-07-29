@@ -83,6 +83,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/PartitionKeyTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryAllPrimitivesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryBigIntegerTypesTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryBlobIndexScanTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryBtreeIndexScanTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryByteArrayTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryDateAsSqlDateTypesTest.java \
@@ -110,6 +111,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/QueryPrimaryKeyTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryStringTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryTableScanTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryTextIndexScanTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryTimeAsSqlTimeTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryTimeAsUtilDateTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryTimestampAsSqlTimestampTypesTest.java \
