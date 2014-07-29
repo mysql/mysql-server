@@ -4398,7 +4398,7 @@ private:
     KEY **m_key_info;
   };
   std::set<uchar *, Key_compare> m_distinct_keys;
-  std::set<uchar *>::iterator m_itr;
+  std::set<uchar *, Key_compare>::iterator m_itr;
   /**
     A spare buffer which will be used when saving the distinct keys
     for doing an index scan with HASH_SCAN search algorithm.
