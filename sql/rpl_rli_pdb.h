@@ -471,6 +471,12 @@ public:
 
   bool set_info_search_keys(Rpl_info_handler *to);
 
+
+  /**
+    Get coordinator's RLI. Especially used get the rli from
+    a slave thread, like this: thd->rli_slave->get_c_rli();
+    thd could be a slave worker or a worker
+  */
   inline virtual Relay_log_info* get_c_rli()
   {
     return c_rli;

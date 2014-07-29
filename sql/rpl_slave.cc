@@ -8875,6 +8875,8 @@ bool delete_slave_info_object(Master_info *mi)
 
 int reset_slave(THD *thd)
 {
+  DBUG_ENTER("reset_slave");
+
   Master_info *mi= 0;
   int result= 0;
   for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
@@ -8885,7 +8887,8 @@ int reset_slave(THD *thd)
       break;
   }
 
-  return result;
+  DBUG_RETURN(result);
+
 }
 
 
