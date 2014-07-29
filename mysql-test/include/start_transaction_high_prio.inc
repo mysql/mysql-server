@@ -9,7 +9,7 @@
 # Given that this uses the dbug facility to inject a flag into the
 # THD context, tests including this file will require debug builds to
 # run.
-# 
+#
 # This include file is used in WL#6835's testing.
 #
 # ==== Usage ====

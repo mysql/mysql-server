@@ -344,7 +344,7 @@ trx_arbitrate(const trx_t* requestor, const trx_t* holder)
 {
 	if (requestor->mysql_thd == NULL) {
 
-	       return(requestor);
+		return(requestor);
 
 	} else if (holder->mysql_thd == NULL) {
 

@@ -1481,7 +1481,7 @@ RecLock::lock_alloc(
 		memset(&lock[1], 0x0, size);
 	}
 
-	rec_lock.space = rec_id.m_space;
+	rec_lock.space = rec_id.m_space_id;
 
 	rec_lock.page_no = rec_id.m_page_no;
 
@@ -1608,7 +1608,7 @@ RecLock::deadlock_check(lock_t* lock)
 
 	/* This is safe, because DeadlockChecker::check_and_resolve()
 	is invoked when a lock wait is enqueued for the currently
-	running transaction. Because trx is a running transaction
+	running transaction. Because m_trx is a running transaction
 	(it is not currently suspended because of a lock wait),
 	its state can only be changed by this thread, which is
 	currently associated with the transaction. */
@@ -1717,7 +1717,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for)
 		const lock_rec_t&	queued_lock = next->un_member.rec_lock;
 
 		if (!lock_get_wait(next)
-		    && queued_lock.space == m_rec_id.m_space
+		    && queued_lock.space == m_rec_id.m_space_id
 		    && queued_lock.page_no == m_rec_id.m_page_no
 		    && lock_rec_get_nth_bit(next, m_rec_id.m_heap_no)) {
 

@@ -729,7 +729,6 @@ THD* thd_tx_arbitrate(THD *requestor, THD* holder)
  /* Should be different sessions. */
  DBUG_ASSERT(holder != requestor);
 
- /* Can't have two high priority transactions. */
  return(thd_tx_priority(requestor) == thd_tx_priority(holder)
 	? requestor
 	: ((thd_tx_priority(requestor)

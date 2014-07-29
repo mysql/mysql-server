@@ -984,7 +984,7 @@ struct trx_t {
 					this transaction must abort when
 					it can */
 
-	trx_list_t	kill;		/*!< List of transactions to kill,
+	trx_list_t	hit_list;	/*!< List of transactions to kill,
 					when a high priority transaction
 					is blocked on a lock wait. */
 
