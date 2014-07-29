@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include <sstream>
 #include <string.h>
 
-using namespace binary_log;
 namespace binary_log {
 
 /**
@@ -83,11 +82,9 @@ max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
   case MYSQL_TYPE_LONG:
     return 11;
 
-#ifdef HAVE_LONG_LONG
   case MYSQL_TYPE_LONGLONG:
     return 20;
 
-#endif
   case MYSQL_TYPE_NULL:
     return 0;
 
@@ -232,11 +229,9 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
   case MYSQL_TYPE_LONG:
     length= 4;
     break;
-#ifdef HAVE_LONG_LONG
   case MYSQL_TYPE_LONGLONG:
     length= 8;
     break;
-#endif
   case MYSQL_TYPE_NULL:
     length= 0;
     break;
@@ -250,13 +245,11 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
   case MYSQL_TYPE_TIME2:
     /*
       The original methods in the server to calculate the binary size of the
-      packed numeric time representation is defined in time.c, the signature
+      packed numeric time representation is defined in my_time.c, the signature
       being  unsigned int my_time_binary_length(uint)
 
-      The length below needs to be updated if the aboe method is updated in
+      The length below needs to be updated if the above method is updated in
       the server
-      //TODO: Check with Mats if this is OK, and add a comment regarding the
-      same in time.c
     */
     assert(metadata <= DATETIME_MAX_DECIMALS);
     length= 3 + (metadata + 1) / 2;
@@ -270,10 +263,8 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
       packed numeric time representation is defined in time.c, the signature
       being  unsigned int my_timestamp_binary_length(uint)
 
-      The length below needs to be updated if the aboe method is updated in
+      The length below needs to be updated if the above method is updated in
       the server
-      //TODO: Check with Mats if this is OK, and add a comment regarding the
-      same in time.c
     */
     assert(metadata <= DATETIME_MAX_DECIMALS);
     length= 4 + (metadata + 1) / 2;
@@ -287,7 +278,7 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
       packed numeric time representation is defined in time.c, the signature
       being  unsigned int my_datetime_binary_length(uint)
 
-      The length below needs to be updated if the aboe method is updated in
+      The length below needs to be updated if the above method is updated in
       the server
       //TODO: Check with Mats if this is OK, and add a comment regarding the
       same in time.c
@@ -494,13 +485,15 @@ int64_t Value::as_int64() const
 
 float Value::as_float() const
 {
-  // TODO
+  // TODO: Handle cross endian replication when this library is used with
+  // mysql-binlog.
   return *((const float *)storage());
 }
 
 double Value::as_double() const
 {
-  // TODO
+  // TODO: Handle cross endian replication when this library is used with
+  // mysql-binlog.
   return *((const double *)storage());
 }
 
@@ -644,7 +637,7 @@ void Converter::to(long &out, const Value &val) const
   switch(val.type())
   {
     case MYSQL_TYPE_DECIMAL:
-      // TODO
+      // TODO: add implementation for this.
       out= 0;
       break;
     case MYSQL_TYPE_TINY:

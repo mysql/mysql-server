@@ -29,8 +29,6 @@ typedef NdbDictionary::Event  NDBEVENT;
 
 #define NDB_INVALID_SCHEMA_OBJECT 241
 
-extern handlerton *ndbcluster_hton;
-
 const uint max_ndb_nodes= 256; /* multiple of 32 */
 
 static const char *ha_ndb_ext=".ndb";
@@ -45,13 +43,14 @@ const uint error_conflict_fn_violation= 9999;
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
 extern unsigned char g_node_id_map[max_ndb_nodes];
-extern pthread_mutex_t ndbcluster_mutex;
+extern native_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
 
 /*
   Initialize the binlog part of the ndb handlerton
 */
-void ndbcluster_binlog_init_handlerton();
+void ndbcluster_binlog_init(handlerton* hton);
+
 /*
   Initialize the binlog part of the NDB_SHARE
 */
@@ -127,9 +126,8 @@ extern NDB_SHARE *ndb_apply_status_share;
 
 extern my_bool ndb_binlog_running;
 
-bool
-ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
-                              enum ha_stat_type stat_type);
+/* Prints ndb binlog status string in buf */
+size_t ndbcluster_show_status_binlog(char* buf, size_t buf_size);
 
 /*
   Helper functions

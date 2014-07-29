@@ -872,7 +872,7 @@ ut_strerr(
 		return("Identifier name is too long");
 	case DB_FTS_EXCEED_RESULT_CACHE_LIMIT:
 		return("FTS query exceeds result cache limit");
-	case DB_TEMP_FILE_WRITE_FAILURE:
+	case DB_TEMP_FILE_WRITE_FAIL:
 		return("Temp file write failure");
 	case DB_CANT_CREATE_GEOMETRY_OBJECT:
 		return("Can't create specificed geometry data object");

@@ -737,6 +737,10 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
+
+  m_staging = false;
+  m_stagingTable = NULL;
+  m_stagingFlags = 0;
 }
 
 TableS::~TableS()
@@ -1294,8 +1298,7 @@ RestoreDataIterator::readVarData_drop6(Uint32 *buf_ptr, Uint32 *ptr,
     typedef BackupFormat::DataFile::VariableData VarData;
     VarData * data = (VarData *)ptr;
     Uint32 sz = ntohl(data->Sz);
-    Uint32 id = ntohl(data->Id);
-    assert(id == attrId);
+    assert(ntohl(data->Id) == attrId);
 
     attr_data->null = false;
     attr_data->void_value = &data->Data[0];
@@ -1770,6 +1773,7 @@ AttributeDesc::AttributeDesc(NdbDictionary::Column *c)
 {
   size = 8*NdbColumnImpl::getImpl(* c).m_attrSize;
   arraySize = NdbColumnImpl::getImpl(* c).m_arraySize;
+  staging = false;
 }
 
 void TableS::createAttr(NdbDictionary::Column *column)

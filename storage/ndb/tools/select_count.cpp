@@ -95,7 +95,7 @@ int main(int argc, char** argv){
 
   Ndb MyNdb(&con, _dbname );
   if(MyNdb.init() != 0){
-    ERR(MyNdb.getNdbError());
+    NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -137,7 +137,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
   if ((code.interpret_exit_last_row() != 0) ||
       (code.finalise() != 0))
   {
-    ERR(code.getNdbError());
+    NDB_ERR(code.getNdbError());
     return NDBT_FAILED;
   }
 
@@ -158,18 +158,18 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	retryAttempt++;
 	continue;
       }
-      ERR(err);
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
     pOp = pTrans->getNdbScanOperation(pTab->getName());	
     if (pOp == NULL) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
 
     if( pOp->readTuples(NdbScanOperation::LM_Dirty) ) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
@@ -177,7 +177,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 
     check = pOp->setInterpretedCode(&code);
     if( check == -1 ) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
@@ -188,7 +188,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
     pOp->getValue(NdbDictionary::Column::ROW_SIZE, (char*)&row_size);
     check = pTrans->execute(NdbTransaction::NoCommit);
     if( check == -1 ) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
@@ -208,7 +208,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	retryAttempt++;
 	continue;
       }
-      ERR(err);
+      NDB_ERR(err);
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }

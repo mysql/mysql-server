@@ -85,7 +85,7 @@ char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
 
 size_t my_strcspn(const CHARSET_INFO *cs, const char *str,
                   const char *str_end, const char *reject,
-                  int reject_length)
+                  size_t reject_length)
 {
   const char *ptr_str, *ptr_reject;
   const char *reject_end= reject + reject_length;

@@ -329,7 +329,6 @@ struct ObjectArrayConvImpl {
         
         // init return value to error
         jobjectArray j = NULL;
-        jobjectArray ja = NULL;
 
         // get a (local or global) class object reference
         jclass cls = ObjectResult< J *, C * >::J_ctor::getClass(env);

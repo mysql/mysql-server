@@ -1,0 +1,79 @@
+drop table if exists t1;
+create table t1(a int) engine = myisam;
+insert into t1 values (1), (2), (3), (4), (5);
+update performance_schema.threads
+set instrumented = 'NO'
+  where processlist_id = connection_id();
+truncate table performance_schema.events_statements_history_long;
+truncate table performance_schema.events_stages_history_long;
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='copy_data_between_tables_before SIGNAL found_row WAIT_FOR wait_row EXECUTE 5';
+ALTER TABLE t1 engine = innodb;;
+SET DEBUG_SYNC='now WAIT_FOR found_row';
+select event_id from performance_schema.events_statements_current
+where thread_id = @con1_thread_id into @con1_stmt_id;
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+from performance_schema.events_stages_current
+where (thread_id = @con1_thread_id);
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
+stage/sql/copy to tmp table	0	5
+SET DEBUG_SYNC='now SIGNAL wait_row';
+SET DEBUG_SYNC='now WAIT_FOR found_row';
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+from performance_schema.events_stages_current
+where (thread_id = @con1_thread_id);
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
+stage/sql/copy to tmp table	1	5
+SET DEBUG_SYNC='now SIGNAL wait_row';
+SET DEBUG_SYNC='now WAIT_FOR found_row';
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+from performance_schema.events_stages_current
+where (thread_id = @con1_thread_id);
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
+stage/sql/copy to tmp table	2	5
+SET DEBUG_SYNC='now SIGNAL wait_row';
+SET DEBUG_SYNC='now WAIT_FOR found_row';
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+from performance_schema.events_stages_current
+where (thread_id = @con1_thread_id);
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
+stage/sql/copy to tmp table	3	5
+SET DEBUG_SYNC='now SIGNAL wait_row';
+SET DEBUG_SYNC='now WAIT_FOR found_row';
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+from performance_schema.events_stages_current
+where (thread_id = @con1_thread_id);
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
+stage/sql/copy to tmp table	4	5
+SET DEBUG_SYNC='now SIGNAL wait_row';
+select "After payload";
+After payload
+After payload
+Dumping ALTER TABLE stages
+select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
+from performance_schema.events_stages_history_long
+where (thread_id = @con1_thread_id)
+and (nesting_event_id = @con1_stmt_id)
+order by thread_id, event_id;
+EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
+stage/sql/starting	NULL	NULL
+stage/sql/checking permissions	NULL	NULL
+stage/sql/checking permissions	NULL	NULL
+stage/sql/init	NULL	NULL
+stage/sql/Opening tables	NULL	NULL
+stage/sql/setup	NULL	NULL
+stage/sql/creating table	NULL	NULL
+stage/sql/After create	NULL	NULL
+stage/sql/System lock	NULL	NULL
+stage/sql/copy to tmp table	5	5
+stage/sql/rename result table	NULL	NULL
+stage/sql/end	NULL	NULL
+stage/sql/query end	NULL	NULL
+stage/sql/closing tables	NULL	NULL
+stage/sql/freeing items	NULL	NULL
+stage/sql/cleaning up	NULL	NULL
+SET DEBUG_SYNC='RESET';
+drop table t1;
+update performance_schema.threads
+set instrumented = 'YES'
+  where processlist_id = connection_id();

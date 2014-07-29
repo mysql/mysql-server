@@ -52,7 +52,7 @@ public:
     Get the MESSAGE_OCTET_LENGTH of this condition.
     @return the length in bytes of the message text.
   */
-  int message_octet_length() const
+  size_t message_octet_length() const
   { return m_message_text.length(); }
 
   /**
@@ -204,8 +204,8 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-uint err_conv(char *buff, size_t to_length, const char *from,
-              size_t from_length, const CHARSET_INFO *from_cs);
+size_t err_conv(char *buff, size_t to_length, const char *from,
+                size_t from_length, const CHARSET_INFO *from_cs);
 
 class ErrConvString
 {
@@ -730,9 +730,9 @@ void push_deprecated_warn_no_replacement(THD *thd, const char *old_syntax);
 
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
-uint32 convert_error_message(char *to, uint32 to_length,
+size_t convert_error_message(char *to, size_t to_length,
                              const CHARSET_INFO *to_cs,
-                             const char *from, uint32 from_length,
+                             const char *from, size_t from_length,
                              const CHARSET_INFO *from_cs, uint *errors);
 
 extern const LEX_STRING warning_level_names[];

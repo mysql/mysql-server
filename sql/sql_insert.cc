@@ -400,8 +400,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                            update_fields, update_values, duplic, &unused_conds,
                            false,
                            (fields.elements || !value_count ||
-                            table_list->view != 0),
-                           !thd->lex->is_ignore() && thd->is_strict_mode()))
+                           table_list->view != 0)))
     goto exit_without_my_ok;
 
   insert_table= insert_table_ref->table;
@@ -649,7 +648,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       {
         DBUG_ASSERT(thd->is_error());
         /*
-          TODO: set thd->abort_on_warning if values_list.elements == 1
+          TODO: Convert warnings to errors if values_list.elements == 1
           and check that all items return warning in case of problem with
           storing field.
         */
@@ -1053,8 +1052,6 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
   @param select_insert         TRUE if INSERT ... SELECT statement
   @param check_fields          TRUE if need to check that all INSERT fields are
                                given values.
-  @param abort_on_warning      whether to report if some INSERT field is not
-                               assigned as error (TRUE) or as warning (FALSE).
 
   @todo (in far future)
     In cases of:
@@ -1075,7 +1072,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                           List<Item> &update_fields, List<Item> &update_values,
                           enum_duplicates duplic,
                           Item **where, bool select_insert,
-                          bool check_fields, bool abort_on_warning)
+                          bool check_fields)
 {
   DBUG_ENTER("mysql_prepare_insert");
 
@@ -1091,6 +1088,14 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   DBUG_PRINT("enter", ("table_list 0x%lx, view %d",
                        (ulong)table_list,
                        (int)insert_into_view));
+
+  // REPLACE for a JOIN view is not permitted.
+  if (table_list->multitable_view && duplic == DUP_REPLACE)
+  {
+    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+             table_list->view_db.str, table_list->view_name.str);
+    DBUG_RETURN(true);
+  }
 
   *insert_table_ref= NULL;
   /*
@@ -1560,6 +1565,42 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
       }
       else /* DUP_REPLACE */
       {
+        TABLE_LIST *view= table->pos_in_table_list->belong_to_view;
+
+        if (view && view->where)
+        {
+          const size_t record_length= table->s->reclength;
+
+          void *record0_saved= my_malloc(PSI_NOT_INSTRUMENTED, record_length,
+                                         MYF(MY_WME));
+
+          if (!record0_saved)
+          {
+            error= ENOMEM;
+            goto err;
+          }
+
+          // Save the record used for comparison.
+          memcpy(record0_saved, table->record[0], record_length);
+
+          // Preparing the record for comparison.
+          memcpy(table->record[0], table->record[1], record_length);
+
+          // Checking if the row being conflicted is visible by the view.
+          bool found_row_in_view= MY_TEST(view->where->val_int());
+
+          // Restoring the record back.
+          memcpy(table->record[0], record0_saved, record_length);
+
+          my_free(record0_saved);
+
+          if (!found_row_in_view)
+          {
+            my_error(ER_REPLACE_INACCESSIBLE_ROWS, MYF(0));
+            goto err;
+          }
+        }
+
 	/*
 	  The manual defines the REPLACE semantics that it is either
 	  an INSERT or DELETE(s) + INSERT; FOREIGN KEY checks in
@@ -1759,7 +1800,7 @@ bool mysql_insert_select_prepare(THD *thd)
                            &insert_table_ref, lex->field_list, 0,
                            lex->update_list, lex->value_list,
                            lex->duplicates,
-                           select_lex->where_cond_ref(), true, false, false))
+                           select_lex->where_cond_ref(), true, false))
     DBUG_RETURN(TRUE);
 
   /*

@@ -46,8 +46,7 @@ ib_bh_create(
 
 	sz = sizeof(*ib_bh) + (sizeof_elem * max_elems);
 
-	ib_bh = (ib_bh_t*) ut_malloc(sz);
-	memset(ib_bh, 0x0, sz);
+	ib_bh = (ib_bh_t*) ut_zalloc(sz);
 
 	ib_bh->compare = compare;
 	ib_bh->max_elems = max_elems;

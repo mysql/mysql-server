@@ -927,8 +927,8 @@ ErrConvString::ErrConvString(const struct st_mysql_time *ltime, uint dec)
    number of bytes written to "to"
 */
 
-uint err_conv(char *buff, size_t to_length, const char *from,
-              size_t from_length, const CHARSET_INFO *from_cs)
+size_t err_conv(char *buff, size_t to_length, const char *from,
+                size_t from_length, const CHARSET_INFO *from_cs)
 {
   char *to= buff;
   const char *from_start= from;
@@ -996,9 +996,9 @@ uint err_conv(char *buff, size_t to_length, const char *from,
    length of converted string
 */
 
-uint32 convert_error_message(char *to, uint32 to_length,
+size_t convert_error_message(char *to, size_t to_length,
                              const CHARSET_INFO *to_cs,
-                             const char *from, uint32 from_length,
+                             const char *from, size_t from_length,
                              const CHARSET_INFO *from_cs, uint *errors)
 {
   int         cnvres;
@@ -1009,7 +1009,7 @@ uint32 convert_error_message(char *to, uint32 to_length,
   my_charset_conv_mb_wc mb_wc= from_cs->cset->mb_wc;
   my_charset_conv_wc_mb wc_mb;
   uint error_count= 0;
-  uint length;
+  size_t length;
 
   DBUG_ASSERT(to_length > 0);
   /* Make room for the null terminator. */

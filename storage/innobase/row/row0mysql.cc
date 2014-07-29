@@ -66,6 +66,7 @@ Created 9/17/2000 Heikki Tuuri
 #include <deque>
 #include "row0ext.h"
 #include <vector>
+#include <algorithm>
 
 const char* MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION =
 	"A new raw disk partition was initialized. We do not allow database"
@@ -1333,20 +1334,17 @@ Storage Level by-passing all the locking and transaction semantics.
 For InnoDB case, this will also by-pass hidden column generation.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 static
 dberr_t
 row_insert_for_mysql_using_cursor(
 	const byte*		mysql_rec,
-	row_prebuilt_t*		prebuilt,
-	innodb_session_t*	session)
+	row_prebuilt_t*		prebuilt)
 {
 	dberr_t		err	= DB_SUCCESS;
 	ins_node_t*	node	= NULL;
 	que_thr_t*	thr	= NULL;
 	mtr_t		mtr;
-	trx_id_t	trx_id;
 
 	/* Step-1: Get the reference of row to insert. */
 	row_get_prebuilt_insert_row(prebuilt);
@@ -1361,14 +1359,13 @@ row_insert_for_mysql_using_cursor(
 	dict_index_t*	clust_index = dict_table_get_first_index(node->table);
 
 	if (dict_index_is_auto_gen_clust(clust_index)) {
-		row_id_t	row_id;
-		row_id = session->get_next_table_sess_row_id(
-			prebuilt->table->name);
-		dict_sys_write_row_id(node->row_id_buf, row_id);
+		dict_sys_write_row_id(
+			node->row_id_buf,
+			dict_table_get_next_table_sess_row_id(node->table));
 	}
 
-	trx_id = session->get_next_table_sess_trx_id(prebuilt->table->name);
-	trx_write_trx_id(node->trx_id_buf, trx_id);
+	trx_write_trx_id(node->trx_id_buf,
+			 dict_table_get_next_table_sess_trx_id(node->table));
 
 	/* Step-4: Iterate over all the indexes and insert entries. */
 	dict_index_t*	inserted_upto = NULL;
@@ -1627,21 +1624,18 @@ error_exit:
 /** Does an insert for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS*/
 
 dberr_t
 row_insert_for_mysql(
 	const byte*		mysql_rec,
-	row_prebuilt_t*		prebuilt,
-	innodb_session_t*	session)
+	row_prebuilt_t*		prebuilt)
 {
 	/* For intrinsic tables there a lot of restrictions that can be
 	relaxed including locking of table, transaction handling, etc.
 	Use direct cursor interface for inserting to intrinsic tables. */
 	if (dict_table_is_intrinsic(prebuilt->table)) {
-		return(row_insert_for_mysql_using_cursor(
-			mysql_rec, prebuilt, session));
+		return(row_insert_for_mysql_using_cursor(mysql_rec, prebuilt));
 	} else {
 		return(row_insert_for_mysql_using_ins_graph(
 			mysql_rec, prebuilt));
@@ -1821,8 +1815,6 @@ init_fts_doc_id_for_ref(
 {
 	dict_foreign_t* foreign;
 
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
-
 	table->fk_max_recusive_level = 0;
 
 	(*depth)++;
@@ -1834,17 +1826,23 @@ init_fts_doc_id_for_ref(
 
 	/* Loop through this table's referenced list and also
 	recursively traverse each table's foreign table list */
-	while (foreign && foreign->foreign_table) {
-		if (foreign->foreign_table->fts) {
+	for (dict_foreign_set::iterator it = table->referenced_set.begin();
+	     it != table->referenced_set.end();
+	     ++it) {
+
+		foreign = *it;
+
+		ut_ad(foreign->foreign_table != NULL);
+
+		if (foreign->foreign_table->fts != NULL) {
 			fts_init_doc_id(foreign->foreign_table);
 		}
 
-		if (UT_LIST_GET_LEN(foreign->foreign_table->referenced_list)
-		    > 0 && foreign->foreign_table != table) {
-			init_fts_doc_id_for_ref(foreign->foreign_table, depth);
+		if (!foreign->foreign_table->referenced_set.empty()
+		    && foreign->foreign_table != table) {
+			init_fts_doc_id_for_ref(
+				foreign->foreign_table, depth);
 		}
-
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 }
 
@@ -1864,7 +1862,6 @@ private:
 
 
 typedef	std::vector<btr_pcur_t>	cursors_t;
-typedef	std::vector<bool>	index_update_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
 Function will maintain cursor to the entries to invoke explicity rollback
@@ -2001,43 +1998,39 @@ row_delete_for_mysql_using_cursor(
 @param[in]	node		update node carrying information to delete.
 @param[out]	delete_entries	vector of cursor to deleted entries.
 @param[in]	thr		thread handler
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 static
 dberr_t
 row_update_for_mysql_using_cursor(
 	const upd_node_t*	node,
 	cursors_t&		delete_entries,
-	que_thr_t*		thr,
-	innodb_session_t*	session)
+	que_thr_t*		thr)
 {
 	dberr_t		err = DB_SUCCESS;
 	dict_table_t*	table = node->table;
 	mem_heap_t*	heap = mem_heap_create(1000);
 	dtuple_t*	entry;
-	trx_id_t        trx_id;
 	dfield_t*	trx_id_field;
 
 	/* Step-1: Update row-id column if table has auto-generated index.
 	Every update will result in update of auto-generated index. */
 	if (dict_index_is_auto_gen_clust(dict_table_get_first_index(table))) {
 		/* Update the row_id column. */
-		row_id_t	row_id;
 		dfield_t*	row_id_field;
 
-		row_id = session->get_next_table_sess_row_id(node->table->name);
 		row_id_field = dtuple_get_nth_field(
 			node->upd_row, dict_table_get_n_cols(table) - 2);
 
 		dict_sys_write_row_id(
-			static_cast<byte*>(row_id_field->data), row_id);
+			static_cast<byte*>(row_id_field->data),
+			dict_table_get_next_table_sess_row_id(node->table));
 	}
 
 	/* Step-2: Update the trx_id column. */
-	trx_id = session->get_next_table_sess_trx_id(node->table->name);
 	trx_id_field = dtuple_get_nth_field(
 		node->upd_row, dict_table_get_n_cols(table) - 1);
-	trx_write_trx_id(static_cast<byte*>(trx_id_field->data), trx_id);
+	trx_write_trx_id(static_cast<byte*>(trx_id_field->data),
+			 dict_table_get_next_table_sess_trx_id(node->table));
 
 
 	/* Step-3: Check if UPDATE can lead to DUPLICATE key violation.
@@ -2109,14 +2102,12 @@ row_update_for_mysql_using_cursor(
 /** Does an update or delete of a row for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 static
 dberr_t
 row_del_upd_for_mysql_using_cursor(
 	const byte*		mysql_rec,
-	row_prebuilt_t*		prebuilt,
-	innodb_session_t*	session)
+	row_prebuilt_t*		prebuilt)
 {
 	dberr_t			err = DB_SUCCESS;
 	upd_node_t*		node;
@@ -2157,7 +2148,7 @@ row_del_upd_for_mysql_using_cursor(
 		/* Step-4: Complete UPDATE operation by inserting new row with
 		updated data. */
 		err = row_update_for_mysql_using_cursor(
-			node, delete_entries, thr, session);
+			node, delete_entries, thr);
 
 		if (err == DB_SUCCESS) {
 			srv_stats.n_rows_updated.inc();
@@ -2474,18 +2465,15 @@ error:
 /** Does an update or delete of a row for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
-@param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 
 dberr_t
 row_update_for_mysql(
 	const byte*		mysql_rec,
-	row_prebuilt_t*		prebuilt,
-	innodb_session_t*	session)
+	row_prebuilt_t*		prebuilt)
 {
 	if (dict_table_is_intrinsic(prebuilt->table)) {
-		return(row_del_upd_for_mysql_using_cursor(
-			mysql_rec, prebuilt, session));
+		return(row_del_upd_for_mysql_using_cursor(mysql_rec, prebuilt));
 	} else {
 		ut_a(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
 		return(row_update_for_mysql_using_upd_graph(
@@ -3480,43 +3468,47 @@ row_discard_tablespace_foreign_key_checks(
 	const trx_t*		trx,	/*!< in: transaction handle */
 	const dict_table_t*	table)	/*!< in: table to be discarded */
 {
-	const dict_foreign_t*	foreign;
+
+	if (srv_read_only_mode || !trx->check_foreigns) {
+		return(DB_SUCCESS);
+	}
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
+	dict_foreign_set::iterator	it
+		= std::find_if(table->referenced_set.begin(),
+			       table->referenced_set.end(),
+			       dict_foreign_different_tables());
 
-	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
-	     foreign && foreign->foreign_table == table;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
-
+	if (it == table->referenced_set.end()) {
+		return(DB_SUCCESS);
 	}
 
-	if (!srv_read_only_mode && foreign && trx->check_foreigns) {
+	const dict_foreign_t*	foreign	= *it;
+	FILE*			ef	= dict_foreign_err_file;
 
-		FILE*	ef	= dict_foreign_err_file;
+	ut_ad(foreign->foreign_table != table);
+	ut_ad(foreign->referenced_table == table);
 
-		/* We only allow discarding a referenced table if
-		FOREIGN_KEY_CHECKS is set to 0 */
+	/* We only allow discarding a referenced table if
+	FOREIGN_KEY_CHECKS is set to 0 */
 
-		mutex_enter(&dict_foreign_err_mutex);
+	mutex_enter(&dict_foreign_err_mutex);
 
-		rewind(ef);
+	rewind(ef);
 
-		ut_print_timestamp(ef);
+	ut_print_timestamp(ef);
 
-		fputs("  Cannot DISCARD table ", ef);
-		ut_print_name(stderr, trx, TRUE, table->name);
-		fputs("\n"
-		      "because it is referenced by ", ef);
-		ut_print_name(stderr, trx, TRUE, foreign->foreign_table_name);
-		putc('\n', ef);
+	fputs("  Cannot DISCARD table ", ef);
+	ut_print_name(stderr, trx, TRUE, table->name);
+	fputs("\n"
+	      "because it is referenced by ", ef);
+	ut_print_name(stderr, trx, TRUE, foreign->foreign_table_name);
+	putc('\n', ef);
 
-		mutex_exit(&dict_foreign_err_mutex);
+	mutex_exit(&dict_foreign_err_mutex);
 
-		return(DB_CANNOT_DROP_CONSTRAINT);
-	}
-
-	return(DB_SUCCESS);
+	return(DB_CANNOT_DROP_CONSTRAINT);
 }
 
 /*********************************************************************//**
@@ -3993,42 +3985,45 @@ row_drop_table_for_mysql(
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
 
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	if (!srv_read_only_mode && trx->check_foreigns) {
 
-	while (foreign && foreign->foreign_table == table) {
-check_next_foreign:
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
-	}
+		for (dict_foreign_set::iterator it
+			= table->referenced_set.begin();
+		     it != table->referenced_set.end();
+		     ++it) {
 
-	if (!srv_read_only_mode
-	    && foreign
-	    && trx->check_foreigns
-	    && !(drop_db && dict_tables_have_same_db(
-			 name, foreign->foreign_table_name_lookup))) {
-		FILE*	ef	= dict_foreign_err_file;
+			foreign = *it;
 
-		/* We only allow dropping a referenced table if
-		FOREIGN_KEY_CHECKS is set to 0 */
+			const bool	ref_ok = drop_db
+				&& dict_tables_have_same_db(
+					name,
+					foreign->foreign_table_name_lookup);
 
-		err = DB_CANNOT_DROP_CONSTRAINT;
+			if (foreign->foreign_table != table && !ref_ok) {
 
-		mutex_enter(&dict_foreign_err_mutex);
-		rewind(ef);
-		ut_print_timestamp(ef);
+				FILE*	ef	= dict_foreign_err_file;
 
-		fputs("  Cannot drop table ", ef);
-		ut_print_name(ef, trx, TRUE, name);
-		fputs("\n"
-		      "because it is referenced by ", ef);
-		ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
-		putc('\n', ef);
-		mutex_exit(&dict_foreign_err_mutex);
+				/* We only allow dropping a referenced table
+				if FOREIGN_KEY_CHECKS is set to 0 */
 
-		goto funct_exit;
-	}
+				err = DB_CANNOT_DROP_CONSTRAINT;
 
-	if (foreign && trx->check_foreigns) {
-		goto check_next_foreign;
+				mutex_enter(&dict_foreign_err_mutex);
+				rewind(ef);
+				ut_print_timestamp(ef);
+
+				fputs("  Cannot drop table ", ef);
+				ut_print_name(ef, trx, TRUE, name);
+				fputs("\n"
+				      "because it is referenced by ", ef);
+				ut_print_name(ef, trx, TRUE,
+					      foreign->foreign_table_name);
+				putc('\n', ef);
+				mutex_exit(&dict_foreign_err_mutex);
+
+				goto funct_exit;
+			}
+		}
 	}
 
 	/* TODO: could we replace the counter n_foreign_key_checks_running
@@ -5311,9 +5306,8 @@ row_scan_index_for_mysql(
 	bool			check_keys,	/*!< in: true=check for mis-
 						ordered or duplicate records,
 						false=count the rows only */
-	ulint*			n_rows,		/*!< out: number of entries
+	ulint*			n_rows)		/*!< out: number of entries
 						seen in the consistent read */
-	innodb_session_t*	session)	/*!< in,out: session handler. */
 {
 	dtuple_t*	prev_entry	= NULL;
 	ulint		matched_fields;
@@ -5357,7 +5351,7 @@ row_scan_index_for_mysql(
 
 	cnt = 1000;
 
-	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0, session);
+	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
 loop:
 	/* Check thd->killed every 1,000 scanned rows */
 	if (--cnt == 0) {
@@ -5485,7 +5479,7 @@ not_ok:
 
 next_rec:
 	ret = row_search_for_mysql(
-		buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT, session);
+		buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);
 
 	goto loop;
 }

@@ -1836,9 +1836,9 @@ end:
   ALTER TABLE commands. Finally it is used for SHOW CREATE TABLES.
 */
 
-static int add_write(File fptr, const char *buf, uint len)
+static int add_write(File fptr, const char *buf, size_t len)
 {
-  uint ret_code= mysql_file_write(fptr, (const uchar*)buf, len, MYF(MY_FNABP));
+  size_t ret_code= mysql_file_write(fptr, (const uchar*)buf, len, MYF(MY_FNABP));
 
   if (likely(ret_code == 0))
     return 0;
@@ -1856,7 +1856,7 @@ static int add_string(File fptr, const char *string)
   return add_write(fptr, string, strlen(string));
 }
 
-static int add_string_len(File fptr, const char *string, uint len)
+static int add_string_len(File fptr, const char *string, size_t len)
 {
   return add_write(fptr, string, len);
 }
@@ -4639,14 +4639,17 @@ error:
   @param alter_info     Alter_info pointer holding partition names and flags.
   @param tab_part_info  partition_info holding all partitions.
   @param part_state     Which state to set for the named partitions.
+  @param include_subpartitions Also include subpartitions in the search.
 
   @return Operation status
     @retval false  Success
     @retval true   Failure
 */
 
-bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
-                    enum partition_state part_state)
+bool set_part_state(Alter_info *alter_info,
+                    partition_info *tab_part_info,
+                    enum partition_state part_state,
+                    bool include_subpartitions)
 {
   uint part_count= 0;
   uint num_parts_found= 0;
@@ -4669,7 +4672,7 @@ bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
       DBUG_PRINT("info", ("Setting part_state to %u for partition %s",
                           part_state, part_elem->partition_name));
     }
-    else if (tab_part_info->is_sub_partitioned())
+    else if (include_subpartitions && tab_part_info->is_sub_partitioned())
     {
       List_iterator<partition_element> sub_it(part_elem->subpartitions);
       partition_element *sub_elem;
@@ -5321,7 +5324,7 @@ that are reorganised.
     {
       set_engine_all_partitions(tab_part_info,
                                 tab_part_info->default_engine_type);
-      if (set_part_state(alter_info, tab_part_info, PART_CHANGED))
+      if (set_part_state(alter_info, tab_part_info, PART_CHANGED, false))
       {
         my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "REBUILD");
         goto err;

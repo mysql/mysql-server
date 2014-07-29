@@ -156,8 +156,12 @@ bool my_dboptions_cache_init(void)
   if (!dboptions_init)
   {
     dboptions_init= 1;
+    /*
+      For lower_case_table_names=0 we should use case sensitive search
+      (my_charset_bin), for 1 and 2 - case insensitive (system_charset_info).
+    */
     error= my_hash_init(&dboptions, lower_case_table_names ?
-                        &my_charset_bin : system_charset_info,
+                        system_charset_info : &my_charset_bin,
                         32, 0, 0, (my_hash_get_key) dboptions_get_key,
                         free_dbopt,0);
   }
@@ -189,8 +193,12 @@ void my_dbopt_cleanup(void)
 {
   mysql_rwlock_wrlock(&LOCK_dboptions);
   my_hash_free(&dboptions);
+  /*
+    For lower_case_table_names=0 we should use case sensitive search
+    (my_charset_bin), for 1 and 2 - case insensitive (system_charset_info).
+  */
   my_hash_init(&dboptions, lower_case_table_names ? 
-               &my_charset_bin : system_charset_info,
+               system_charset_info : &my_charset_bin,
                32, 0, 0, (my_hash_get_key) dboptions_get_key,
                free_dbopt,0);
   mysql_rwlock_unlock(&LOCK_dboptions);
@@ -547,7 +555,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   int error= 0;
   MY_STAT stat_info;
   uint create_options= create_info ? create_info->options : 0;
-  uint path_len;
+  size_t path_len;
   bool was_truncated;
   DBUG_ENTER("mysql_create_db");
 
@@ -778,7 +786,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   bool error= true;
   char	path[2 * FN_REFLEN + 16];
   MY_DIR *dirp;
-  uint length;
+  size_t length;
   bool found_other_files= false;
   TABLE_LIST *tables= NULL;
   TABLE_LIST *table;
@@ -956,7 +964,7 @@ update_binlog:
 
     for (tbl= tables; tbl; tbl= tbl->next_local)
     {
-      uint tbl_name_len;
+      size_t tbl_name_len;
       bool exists;
 
       // Only write drop table to the binlog for tables that no longer exist.
@@ -1691,7 +1699,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
 {
   int error= 0, change_to_newdb= 0;
   char path[FN_REFLEN+16];
-  uint length;
+  size_t length;
   HA_CREATE_INFO create_info;
   MY_DIR *dirp;
   TABLE_LIST *table_list;
@@ -1903,7 +1911,7 @@ exit:
 bool check_db_dir_existence(const char *db_name)
 {
   char db_dir_path[FN_REFLEN + 1];
-  uint db_dir_path_len;
+  size_t db_dir_path_len;
 
   db_dir_path_len= build_table_filename(db_dir_path, sizeof(db_dir_path) - 1,
                                         db_name, "", "", 0);

@@ -41,6 +41,7 @@
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
 #include "opt_explain.h"
+#include "abstract_query_plan.h"
 #include "sql_join_buffer.h"     // JOIN_CACHE
 #include "sql_optimizer.h"       // JOIN
 #include "sql_tmp_table.h"       // tmp tables
@@ -550,6 +551,8 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
                                                sjtbl->rowid_len + 
                                                sjtbl->null_bytes,
                                                sjtbl);
+          if (sjtbl->tmp_table->hash_field)
+            sjtbl->tmp_table->file->ha_index_init(0, 0);
           join->sj_tmp_tables.push_back(sjtbl->tmp_table);
         }
         else
@@ -1441,6 +1444,15 @@ get_store_key(THD *thd, Key_use *keyuse, table_map used_tables,
 }
 
 
+enum store_key::store_key_result store_key_hash_item::copy_inner()
+{
+  enum store_key_result res= store_key_item::copy_inner();
+  if (res != STORE_KEY_FATAL)
+    *hash= unique_hash(to_field, hash);
+  return res;
+}
+
+
 /**
   Extend e1 by AND'ing e2 to the condition e1 points to. The resulting
   condition is fixed. Requirement: the input Items must already have
@@ -1662,6 +1674,13 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno,
   DBUG_ENTER("push_index_cond");
   if (tab->reversed_access) // @todo: historical limitation, lift it!
     DBUG_VOID_RETURN;
+  // Disable ICP for Innodb intrinsic temp table because of performance
+  if (internal_tmp_disk_storage_engine == TMP_TABLE_INNODB &&
+      tab->table->s->db_type() == innodb_hton &&
+      tab->table->s->tmp_table != NO_TMP_TABLE &&
+      tab->table->s->tmp_table != TRANSACTIONAL_TMP_TABLE)
+    DBUG_VOID_RETURN;
+
   /*
     Fields of other non-const tables aren't allowed in following cases:
        tab->type is:
@@ -1914,7 +1933,8 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   tab->join= this;
 
   tab->worst_seeks= 1.0;
-  tab->records= (ha_rows)emb_sj_nest->nested_join->sjm.expected_rowcount;
+  tab->records= tab->rowcount=
+    (ha_rows)emb_sj_nest->nested_join->sjm.expected_rowcount;
   tab->found_records= tab->records;
   tab->read_time= (ha_rows)emb_sj_nest->nested_join->sjm.scan_cost.total_cost();
 
@@ -2068,6 +2088,24 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   if (setup_semijoin_dups_elimination(join, options, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
+  /**
+   * Push joins to handler(s) whenever possible.
+   * The handlers will inspect the QEP through the
+   * AQP (Abstract Query Plan), and extract from it
+   * whatewer it might implement of pushed execution.
+   * It is the responsibility if the handler to store any
+   * information it need for later execution of pushed queries.
+   *
+   * Currently pushed joins are only implemented by NDB.
+   * It only make sense to try pushing if > 1 non-const tables.
+   */
+  if (!join->plan_is_single_table() && !join->plan_is_const())
+  {
+    const AQP::Join_plan plan(join);
+    if (ha_make_pushed_joins(join->thd, &plan))
+      DBUG_RETURN(TRUE);
+  }
+
   for (uint i= join->const_tables; i < join->tables; i++)
   {
     JOIN_TAB *const tab= join->join_tab+i;
@@ -2160,6 +2198,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
           push_index_cond(tab, tab->select->quick->index,
                           &trace_refine_table);
       }
+      // Update number of rows
+      if (!tab->sj_mat_exec)
+        tab->table->pos_in_table_list->fetch_number_of_rows();
+      tab->rowcount= tab->table->file->stats.records;
       break;
     case JT_FT:
       if (tab->join->fts_index_access(tab))

@@ -23,6 +23,7 @@
 #include "rpl_constants.h"
 #include "table.h"                              /* TABLE */
 #include "binlog_event.h"
+#include "control_events.h"
 
 /* Forward declarations */
 class handler;

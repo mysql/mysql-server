@@ -1022,6 +1022,10 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
+  Field *hash_field;                    /* Field used by unique constraint */
+  /* Mask and bitmap are used along with hash_field */
+  uchar *hash_field_mask;
+  MY_BITMAP hash_field_bitmap;
   Field *fts_doc_id_field;              /* Set if FTS_DOC_ID field is present */
 
   /* Table's triggers, 0 if there are no of them */
@@ -1213,8 +1217,8 @@ private:
 public:
 
   void init(THD *thd, TABLE_LIST *tl);
-  bool fill_item_list(List<Item> *item_list) const;
-  void reset_item_list(List<Item> *item_list) const;
+  bool fill_item_list(List<Item> *item_list, uint limit= MAX_FIELDS) const;
+  void reset_item_list(List<Item> *item_list, uint limit) const;
   void clear_column_bitmaps(void);
   void prepare_for_position(void);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
@@ -1478,6 +1482,19 @@ public:
 
 
 /**
+  Derive type of metadata lock to be requested for table used by a DML
+  statement from the type of THR_LOCK lock requested for this table.
+*/
+
+inline enum enum_mdl_type mdl_type_for_dml(enum thr_lock_type lock_type)
+{
+  return lock_type >= TL_WRITE_ALLOW_WRITE ?
+         (lock_type == TL_WRITE_LOW_PRIORITY ?
+          MDL_SHARED_WRITE_LOW_PRIO : MDL_SHARED_WRITE) :
+         MDL_SHARED_READ;
+}
+
+/**
    Type of table which can be open for an element of table list.
 */
 
@@ -1565,8 +1582,7 @@ struct TABLE_LIST
     lock_type= lock_type_arg;
     MDL_REQUEST_INIT(&mdl_request,
                      MDL_key::TABLE, db, table_name,
-                     (lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                       MDL_SHARED_WRITE : MDL_SHARED_READ,
+                     mdl_type_for_dml(lock_type),
                      MDL_TRANSACTION);
     callback_func= 0;
   }
@@ -1921,6 +1937,8 @@ private:
   /**
      Optimized copy of m_join_cond (valid for one single
      execution). Initialized by SELECT_LEX::get_optimizable_conditions().
+     @todo it would be good to reset it in reinit_before_use(), if
+     reinit_stmt_before_use() had a loop including join nests.
   */
   Item          *m_optim_join_cond;
 public:

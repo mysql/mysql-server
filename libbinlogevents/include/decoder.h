@@ -43,7 +43,7 @@ namespace binary_log {
   </tr>
 
   <tr>
-    <td>des_ev</td>
+    <td>fd_ev</td>
     <td>Object pointer of class Format_description_event</td>
     <td>This will be passed to the event constructor while decoding
         that event.
@@ -62,20 +62,17 @@ namespace binary_log {
 class Decoder
 {
 public:
-  Decoder(bool force_read_arg= 0)
+  Decoder()
+  : force_read(0)
   {
-    /*
-     3 is passed as the default value of binlog_version, and an empty string is
-     passed for server_version, as when we are creating this object we dont know
-     about the exact value of these two variables. This object pointer will be
-     updated with the decoded FDE object in decode_event()
-    */
-    des_ev= new Format_description_event(4, "");
-    force_read= force_read_arg;
+  }
+  explicit Decoder(bool force_read_arg)
+  : force_read(force_read_arg)
+  {
   }
   ~Decoder()
   {
-    delete des_ev;
+    delete fd_ev;
   }
   /**
     decode_event() functions reads an event.
@@ -109,8 +106,10 @@ public:
   enum_binlog_checksum_alg checksum_algorithm(const  char * buf,
                                               unsigned int event_type,
                                               size_t event_len);
+  void set_format_description_event(Format_description_event *);
+  Format_description_event* get_format_description_event();
 private:
-  Format_description_event *des_ev;
+  Format_description_event *fd_ev;
   bool force_read;
 };
 }

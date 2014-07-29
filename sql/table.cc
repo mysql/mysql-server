@@ -1840,6 +1840,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               table_field->type() == MYSQL_TYPE_BLOB &&
               table_field->field_length == key_part[i].length)
             continue;
+          /*
+            If the key column is of NOT NULL GEOMETRY type, specifically POINT
+            type whose length is known internally (which is 25). And key part
+            prefix size is equal to the POINT column max size, then we can
+            promote it to primary key.
+          */
+          if (!table_field->real_maybe_null() &&
+              table_field->type() == MYSQL_TYPE_GEOMETRY &&
+              table_field->get_geometry_type() == Field::GEOM_POINT &&
+              key_part[i].length == MAX_LEN_GEOM_POINT_FIELD)
+            continue;
 
 	  if (table_field->real_maybe_null() ||
 	      table_field->key_length() != key_part[i].length)
@@ -2954,7 +2965,8 @@ File create_frm(THD *thd, const char *name, const char *db,
   if ((file= mysql_file_create(key_file_frm,
                                name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
-    uint key_length, tmp_key_length, tmp, csid;
+    size_t key_length, tmp_key_length;
+    uint tmp, csid;
     memset(fileinfo, 0, 64);
     /* header */
     fileinfo[0]=(uchar) 254;
@@ -2992,15 +3004,15 @@ File create_frm(THD *thd, const char *name, const char *db,
                                   create_info->extra_size));
     int4store(fileinfo+10,length);
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
-    int2store(fileinfo+14,tmp_key_length);
+    int2store(fileinfo+14, static_cast<uint16>(tmp_key_length));
     int2store(fileinfo+16,reclength);
-    int4store(fileinfo+18,create_info->max_rows);
-    int4store(fileinfo+22,create_info->min_rows);
+    int4store(fileinfo+18, static_cast<uint32>(create_info->max_rows));
+    int4store(fileinfo+22, static_cast<uint32>(create_info->min_rows));
     /* fileinfo[26] is set in mysql_create_frm() */
     fileinfo[27]=2;				// Use long pack-fields
     /* fileinfo[28 & 29] is set to key_info_length in mysql_create_frm() */
     create_info->table_options|=HA_OPTION_LONG_BLOB_PTR; // Use portable blob pointers
-    int2store(fileinfo+30,create_info->table_options);
+    int2store(fileinfo+30, static_cast<uint16>(create_info->table_options));
     fileinfo[32]=0;				// No filename anymore
     fileinfo[33]=5;                             // Mark for 5.0 frm file
     int4store(fileinfo+34,create_info->avg_row_length);
@@ -3019,7 +3031,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[44]= (uchar) create_info->stats_auto_recalc;
     fileinfo[45]= 0;
     fileinfo[46]= 0;
-    int4store(fileinfo+47, key_length);
+    int4store(fileinfo+47, static_cast<uint32>(key_length));
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
     int4store(fileinfo+55, create_info->extra_size);
@@ -3027,7 +3039,7 @@ File create_frm(THD *thd, const char *name, const char *db,
       59-60 is reserved for extra_rec_buf_length,
       61 for default_part_db_type
     */
-    int2store(fileinfo+62, create_info->key_block_size);
+    int2store(fileinfo+62, static_cast<uint16>(create_info->key_block_size));
     memset(fill, 0, IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
@@ -3097,7 +3109,7 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
 {
   char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
-  uint length;
+  size_t length;
 
   field->val_str(&str);
   if (!(length= str.length()))
@@ -3129,13 +3141,13 @@ char *get_field(MEM_ROOT *mem, Field *field)
 {
   char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
-  uint length;
+  size_t length;
 
   field->val_str(&str);
   length= str.length();
   if (!length || !(to= (char*) alloc_root(mem,length+1)))
     return NullS;
-  memcpy(to,str.ptr(),(uint) length);
+  memcpy(to,str.ptr(), length);
   to[length]=0;
   return to;
 }
@@ -3723,6 +3735,11 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   SYNPOSIS
     TABLE::fill_item_list()
       item_list          a pointer to an empty list used to store items
+      limit              maximum number of fields to add
+  @pre 'limit' is MAX_FIELDS or the number of columns in the table except
+  that the temporary table includes 'hash_field' which is at the end of
+  column lists and should be skipped because 'hash_field' is a pesudo
+  column.
 
   DESCRIPTION
     Create Item_field object for each column in the table and
@@ -3734,13 +3751,14 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
     1                    out of memory
 */
 
-bool TABLE::fill_item_list(List<Item> *item_list) const
+bool TABLE::fill_item_list(List<Item> *item_list, uint limit) const
 {
   /*
     All Item_field's created using a direct pointer to a field
     are fixed in Item_field constructor.
   */
-  for (Field **ptr= field; *ptr; ptr++)
+  uint i= 0;
+  for (Field **ptr= field; *ptr && i < limit; ptr++, i++)
   {
     Item_field *item= new Item_field(*ptr);
     if (!item || item_list->push_back(item))
@@ -3756,18 +3774,22 @@ bool TABLE::fill_item_list(List<Item> *item_list) const
   SYNPOSIS
     TABLE::fill_item_list()
       item_list          a non-empty list with Item_fields
+      limit              maximum number of fields to set 
+  @pre 'limit' is MAX_FIELDS or the number of columns in the table except
+  that the temporary table includes 'hash_field' which is at the end of
+  column lists and should be skipped because 'hash_field' is a pesudo
+  column.
 
   DESCRIPTION
     This is a counterpart of fill_item_list used to redirect
     Item_fields to the fields of a newly created table.
-    The caller must ensure that number of items in the item_list
-    is the same as the number of columns in the table.
 */
 
-void TABLE::reset_item_list(List<Item> *item_list) const
+void TABLE::reset_item_list(List<Item> *item_list, uint limit) const
 {
   List_iterator_fast<Item> it(*item_list);
-  for (Field **ptr= field; *ptr; ptr++)
+  uint i= 0;
+  for (Field **ptr= field; *ptr && i < limit; ptr++, i++)
   {
     Item_field *item_field= (Item_field*) it++;
     DBUG_ASSERT(item_field != 0);
@@ -5986,8 +6008,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
     MDL_REQUEST_INIT(&table_list->mdl_request,
                      MDL_key::TABLE,
                      table_list->db, table_list->table_name,
-                     table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                       MDL_SHARED_WRITE : MDL_SHARED_READ,
+                     mdl_type_for_dml(table_list->lock_type),
                      MDL_TRANSACTION);
 }
 

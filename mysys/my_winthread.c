@@ -21,6 +21,40 @@
 #include <process.h>
 #include <signal.h>
 
+int pthread_attr_init(pthread_attr_t *connect_att)
+{
+  connect_att->dwStackSize	= 0;
+  connect_att->dwCreatingFlag	= 0;
+  return 0;
+}
+
+
+int pthread_attr_setstacksize(pthread_attr_t *connect_att, size_t stack)
+{
+  connect_att->dwStackSize= (DWORD)stack;
+  return 0;
+}
+
+
+int pthread_attr_getstacksize(pthread_attr_t *connect_att, size_t *stack)
+{
+  *stack= (size_t)connect_att->dwStackSize;
+  return 0;
+}
+
+
+int pthread_attr_destroy(pthread_attr_t *connect_att)
+{
+  memset(connect_att, 0, sizeof(*connect_att));
+  return 0;
+}
+
+
+int pthread_dummy(int ret)
+{
+  return ret;
+}
+
 static void install_sigabrt_handler(void);
 
 struct thread_start_parameter
@@ -28,27 +62,6 @@ struct thread_start_parameter
   pthread_handler func;
   void *arg;
 };
-
-/**
-   Adapter to @c pthread_mutex_trylock()
-
-   @retval 0      Mutex was acquired
-   @retval EBUSY  Mutex was already locked by a thread
- */
-int
-win_pthread_mutex_trylock(pthread_mutex_t *mutex)
-{
-  if (TryEnterCriticalSection(mutex))
-  {
-    /* Don't allow recursive lock */
-    if (mutex->RecursionCount > 1){
-      LeaveCriticalSection(mutex);
-      return EBUSY;
-    }
-    return 0;
-  }
-  return EBUSY;
-}
 
 static unsigned int __stdcall pthread_start(void *p)
 {

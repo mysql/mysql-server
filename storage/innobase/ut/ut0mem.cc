@@ -88,7 +88,31 @@ void*
 ut_zalloc(
 	ulint	size)
 {
-	return(memset(ut_malloc(size), 0, size));
+	void*	ptr = calloc(size, 1);
+
+	for (int retry = 1; ; retry++) {
+		if (ptr != NULL) {
+			return(ptr);
+		}
+		if (retry > max_attempts) {
+			break;
+		}
+
+		/* Sleep for a second and retry the allocation;
+		maybe this is just a temporary shortage of memory */
+
+		os_thread_sleep(1000000);
+
+		ptr = calloc(size, 1);
+	}
+
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"Cannot allocate " ULINTPF " bytes of memory after %d"
+		" tries over %d seconds. OS error: %d-%s. %s",
+		size, max_attempts, max_attempts,
+		errno, strerror(errno), OUT_OF_MEMORY_MSG);
+
+	return(NULL);
 }
 
 /**********************************************************************//**

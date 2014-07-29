@@ -200,10 +200,13 @@ select * from t1;
 select * from t2;
 --error ER_TABLE_NOT_LOCKED
 select * from t3;
---echo Dropping of implicitly locked table is disallowed.
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
+--echo Dropping of implicitly locked table is allowed.
 drop table t1;
+--echo View becomes invalid.
+--error ER_VIEW_INVALID
+select * from v_bug5719;
 unlock tables;
+create table t1 (a int);
 --echo Now let us also lock table explicitly and drop it.
 lock tables t1 write, v_bug5719 write;
 drop table t1;
@@ -362,16 +365,11 @@ create table t2 (j int);
 --echo # Try to perform DDL on table which is locked through view.
 create view v1 as select * from t2;
 lock tables t1 write, v1 write;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
 flush table t2;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
-drop table t2;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
 alter table t2 add column k int;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
 create trigger t2_bi before insert on t2 for each row set @a:=1;
---echo # Repair produces error as part of its result set.
 repair table t2;
+drop table t2;
 unlock tables;
 drop view v1;
 --echo #
@@ -383,38 +381,30 @@ begin
   return 0;
 end|
 delimiter ;|
+create table t2 (j int);
 create view v1 as select f1() from t1;
 lock tables v1 read;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
 flush table t2;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
-drop table t2;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
 alter table t2 add column k int;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
 create trigger t2_bi before insert on t2 for each row set @a:=1;
---echo # Repair produces error as part of its result set.
 repair table t2;
+drop table t2;
 unlock tables;
 drop view v1;
 drop function f1;
 --echo #
 --echo # Finally, try DDL on table which is locked thanks to trigger.
 create trigger t1_ai after insert on t1 for each row insert into t2 values (1);
+create table t2 (j int);
 lock tables t1 write;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
-flush table t2;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
-drop table t2;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
 alter table t2 add column k int;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
 create trigger t2_bi before insert on t2 for each row set @a:=1;
---echo # Repair produces error as part of its result set.
 repair table t2;
+flush table t2;
+drop table t2;
 unlock tables;
 drop trigger t1_ai;
-drop tables t1, t2;
+drop tables t1;
 
 
 --echo #

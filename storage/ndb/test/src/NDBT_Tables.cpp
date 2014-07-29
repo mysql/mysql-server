@@ -1400,7 +1400,7 @@ NDBT_Tables::tableWithPkSize(const char* _nam, Uint32 pkSize){
 const NdbDictionary::Table* 
 NDBT_Tables::getTable(int _num){
   // Get table at pos _num
-  assert(_num < numTestTables);
+  require(_num < numTestTables);
   return test_tables[_num];
 }
 
@@ -1601,7 +1601,7 @@ NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp,
     {
       NdbError error;
       int ret = tmpTab.validate(error);
-      assert(ret == 0);
+      require(ret == 0);
     }
     if(f != 0 && f(pNdb, tmpTab, 0, arg))
     {

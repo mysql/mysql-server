@@ -1086,7 +1086,8 @@ buf_LRU_buf_pool_running_out(void)
 		if (!recv_recovery_is_on()
 		    && UT_LIST_GET_LEN(buf_pool->free)
 		       + UT_LIST_GET_LEN(buf_pool->LRU)
-		       < buf_pool->curr_size / 4) {
+		       < ut_min(buf_pool->curr_size,
+				buf_pool->old_size) / 4) {
 
 			ret = TRUE;
 		}
@@ -1111,9 +1112,10 @@ buf_LRU_get_free_only(
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	block = (buf_block_t*) UT_LIST_GET_FIRST(buf_pool->free);
+	block = reinterpret_cast<buf_block_t*>(
+		UT_LIST_GET_FIRST(buf_pool->free));
 
-	if (block != NULL) {
+	while (block != NULL) {
 
 		ut_ad(block->page.in_free_list);
 		ut_d(block->page.in_free_list = FALSE);
@@ -1122,14 +1124,30 @@ buf_LRU_get_free_only(
 		ut_a(!buf_page_in_file(&block->page));
 		UT_LIST_REMOVE(buf_pool->free, &block->page);
 
-		buf_page_mutex_enter(block);
+		if (buf_pool->curr_size >= buf_pool->old_size
+		    || UT_LIST_GET_LEN(buf_pool->withdraw)
+			>= buf_pool->withdraw_target
+		    || !buf_block_will_withdrawn(buf_pool, block)) {
+			/* found valid free block */
+			buf_page_mutex_enter(block);
 
-		buf_block_set_state(block, BUF_BLOCK_READY_FOR_USE);
-		UNIV_MEM_ALLOC(block->frame, UNIV_PAGE_SIZE);
+			buf_block_set_state(block, BUF_BLOCK_READY_FOR_USE);
+			UNIV_MEM_ALLOC(block->frame, UNIV_PAGE_SIZE);
 
-		ut_ad(buf_pool_from_block(block) == buf_pool);
+			ut_ad(buf_pool_from_block(block) == buf_pool);
 
-		buf_page_mutex_exit(block);
+			buf_page_mutex_exit(block);
+			break;
+		}
+
+		/* This should be withdrawn */
+		UT_LIST_ADD_LAST(
+			buf_pool->withdraw,
+			&block->page);
+		ut_d(block->in_withdraw_list = TRUE);
+
+		block = reinterpret_cast<buf_block_t*>(
+			UT_LIST_GET_FIRST(buf_pool->free));
 	}
 
 	return(block);
@@ -1149,6 +1167,7 @@ buf_LRU_check_size_of_non_data_objects(
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	if (!recv_recovery_is_on()
+	    && buf_pool->curr_size == buf_pool->old_size
 	    && UT_LIST_GET_LEN(buf_pool->free)
 	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->curr_size / 20) {
 
@@ -1164,6 +1183,7 @@ buf_LRU_check_size_of_non_data_objects(
 				 / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
 	} else if (!recv_recovery_is_on()
+		   && buf_pool->curr_size == buf_pool->old_size
 		   && (UT_LIST_GET_LEN(buf_pool->free)
 		       + UT_LIST_GET_LEN(buf_pool->LRU))
 		   < buf_pool->curr_size / 3) {
@@ -1288,7 +1308,8 @@ loop:
 		goto loop;
 	}
 
-	if (n_iterations > 20) {
+	if (n_iterations > 20
+	    && srv_buf_pool_old_size == srv_buf_pool_size) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Difficult to find free blocks in the buffer pool"
 			" (%lu search iterations)! %lu failed attempts to"
@@ -2108,8 +2129,18 @@ buf_LRU_block_free_non_file_page(
 				    false));
 	}
 
-	UT_LIST_ADD_FIRST(buf_pool->free, &block->page);
-	ut_d(block->page.in_free_list = TRUE);
+	if (buf_pool->curr_size < buf_pool->old_size
+	    && UT_LIST_GET_LEN(buf_pool->withdraw) < buf_pool->withdraw_target
+	    && buf_block_will_withdrawn(buf_pool, block)) {
+		/* This should be withdrawn */
+		UT_LIST_ADD_LAST(
+			buf_pool->withdraw,
+			&block->page);
+		ut_d(block->in_withdraw_list = TRUE);
+	} else {
+		UT_LIST_ADD_FIRST(buf_pool->free, &block->page);
+		ut_d(block->page.in_free_list = TRUE);
+	}
 
 	UNIV_MEM_ASSERT_AND_FREE(block->frame, UNIV_PAGE_SIZE);
 }
@@ -2301,10 +2332,6 @@ buf_LRU_block_remove_hashed(
 				 UNIV_PAGE_SIZE);
 		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
 
-		if (buf_pool->flush_rbt == NULL) {
-			bpage->id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
-		}
-
 		/* Question: If we release bpage and hash mutex here
 		then what protects us against:
 		1) Some other thread buffer fixing this page
@@ -2373,12 +2400,15 @@ buf_LRU_block_free_hashed_page(
 	buf_block_t*	block)	/*!< in: block, must contain a file page and
 				be in a state where it can be freed */
 {
-#ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
 	ut_ad(buf_pool_mutex_own(buf_pool));
-#endif
 
 	buf_page_mutex_enter(block);
+
+	if (buf_pool->flush_rbt == NULL) {
+		block->page.id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
+	}
+
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
 	buf_LRU_block_free_non_file_page(block);

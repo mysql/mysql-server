@@ -99,13 +99,13 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
     switch (err->severity())
     {
     case Sql_condition::SL_ERROR:
-      sql_print_error("%*s", err_msg.length(), err_msg.c_ptr());
+      sql_print_error("%*s", static_cast<int>(err_msg.length()), err_msg.c_ptr());
       break;
     case Sql_condition::SL_WARNING:
-      sql_print_warning("%*s", err_msg.length(), err_msg.c_ptr());
+      sql_print_warning("%*s", static_cast<int>(err_msg.length()), err_msg.c_ptr());
       break;
     case Sql_condition::SL_NOTE:
-      sql_print_information("%*s", err_msg.length(), err_msg.c_ptr());
+      sql_print_information("%*s", static_cast<int>(err_msg.length()), err_msg.c_ptr());
       break;
     default:
       DBUG_ASSERT(false);
@@ -373,7 +373,7 @@ Event_scheduler::Event_scheduler(Event_queue *queue_arg)
 {
   mysql_mutex_init(key_event_scheduler_LOCK_scheduler_state,
                    &LOCK_scheduler_state, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_event_scheduler_COND_state, &COND_state, NULL);
+  mysql_cond_init(key_event_scheduler_COND_state, &COND_state);
 }
 
 

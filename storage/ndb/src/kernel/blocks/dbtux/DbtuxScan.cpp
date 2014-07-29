@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,8 +65,8 @@ Dbtux::execACC_SCANREQ(Signal* signal)
       conf->scanPtr = req->senderData;
       conf->accPtr = RNIL;
       conf->flag = AccScanConf::ZEMPTY_FRAGMENT;
-      sendSignal(req->senderRef, GSN_ACC_SCANCONF,
-          signal, AccScanConf::SignalLength, JBB);
+      signal->theData[8] = 0;
+      /* Return ACC_SCANCONF */
       return;
     }
     // seize from pool and link to per-fragment list
@@ -132,8 +132,8 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     conf->scanPtr = req->senderData;
     conf->accPtr = scanPtr.i;
     conf->flag = AccScanConf::ZNOT_EMPTY_FRAGMENT;
-    sendSignal(req->senderRef, GSN_ACC_SCANCONF,
-        signal, AccScanConf::SignalLength, JBB);
+    signal->theData[8] = 0;
+    /* Return ACC_SCANCONF */
     return;
   } while (0);
   if (scanPtr.i != RNIL) {
@@ -146,8 +146,8 @@ Dbtux::execACC_SCANREQ(Signal* signal)
   ref->scanPtr = req->senderData;
   ref->accPtr = RNIL;
   ref->errorCode = errorCode;
-  sendSignal(req->senderRef, GSN_ACC_SCANREF,
-      signal, AccScanRef::SignalLength, JBB);
+  signal->theData[8] = 1;
+  /* Return ACC_SCANREF */
 }
 
 /*
@@ -372,11 +372,11 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     }
     if (req->scanFlag == NextScanReq::ZSCAN_COMMIT) {
       jam();
-      NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
-      conf->scanPtr = scan.m_userPtr;
-      unsigned signalLength = 1;
-      sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
-		 signal, signalLength, JBB);
+      signal->theData[0] = 0; /* Success */
+      /**
+       * Return with signal->theData[0] = 0 means a return
+       * signal NEXT_SCANCONF for NextScanReq::ZSCAN_COMMIT
+       */
       return;
     }
     break;
@@ -464,7 +464,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
   if (scan.m_lockwait) {
     jam();
     // LQH asks if we are waiting for lock and we tell it to ask again
-    const TreeEnt ent = scan.m_scanEnt;
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;       // no tuple returned
@@ -472,7 +471,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     unsigned signalLength = 3;
     // if TC has ordered scan close, it will be detected here
     sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
-        signal, signalLength, JBB);
+               signal, signalLength, JBB);
     return;     // stop
   }
   // check index online
@@ -621,15 +620,12 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     conf->localKey[1] = lkey2;
     unsigned signalLength = 5;
     // add key info
-    if (! scan.m_readCommitted) {
-      sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
-          signal, signalLength, JBB);
-    } else {
-      Uint32 blockNo = refToMain(scan.m_userRef);
-      EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
-    }
     // next time look for next entry
     scan.m_state = ScanOp::Next;
+    /* We need primary table fragment id here, not index fragment id */
+    c_tup->prepareTUPKEYREQ(lkey1, lkey2, frag.m_tupTableFragPtrI);
+    const Uint32 blockNo = refToMain(scan.m_userRef);
+    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
     return;
   }
   // XXX in ACC this is checked before req->checkLcpStop
@@ -640,8 +636,8 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     conf->accOperationPtr = RNIL;
     conf->fragId = RNIL;
     unsigned signalLength = 3;
-    sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
-        signal, signalLength, JBB);
+    Uint32 blockNo = refToMain(scan.m_userRef);
+    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
     return;
   }
   ndbrequire(false);
@@ -1177,6 +1173,7 @@ Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
     jam();
     abortAccLockOps(signal, scanPtr);
   }
+  Uint32 blockNo = refToMain(scanPtr.p->m_userRef);
   if (scanPtr.p->m_errorCode == 0) {
     jam();
     // send conf
@@ -1185,8 +1182,11 @@ Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
     conf->accOperationPtr = RNIL;
     conf->fragId = RNIL;
     unsigned signalLength = 3;
-    sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
-        signal, signalLength, JBB);
+    releaseScanOp(scanPtr);
+    EXECUTE_DIRECT(blockNo,
+                   GSN_NEXT_SCANCONF,
+                   signal,
+                   signalLength);
   } else {
     // send ref
     NextScanRef* ref = (NextScanRef*)signal->getDataPtr();
@@ -1194,10 +1194,12 @@ Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
     ref->accOperationPtr = RNIL;
     ref->fragId = RNIL;
     ref->errorCode = scanPtr.p->m_errorCode;
-    sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANREF,
-               signal, NextScanRef::SignalLength, JBB);
+    releaseScanOp(scanPtr);
+    EXECUTE_DIRECT(blockNo,
+                   GSN_NEXT_SCANREF,
+                   signal,
+                   NextScanRef::SignalLength);
   }
-  releaseScanOp(scanPtr);
 }
 
 void

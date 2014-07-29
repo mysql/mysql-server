@@ -730,7 +730,7 @@ struct Bval {
       m_val = (char*)memcpy(new char [m_len], v.m_val, m_len);
   }
   void trash() const {
-    assert(m_buf != 0);
+    require(m_buf != 0);
     memset(m_buf, 'x', m_buflen);
   }
 private:
@@ -791,7 +791,7 @@ struct Tup {
     m_bval2.alloc();
   }
   void copyfrom(const Tup& tup) {
-    assert(m_pk1 == tup.m_pk1);
+    require(m_pk1 == tup.m_pk1);
     m_bval1.copyfrom(tup.m_bval1);
     m_bval2.copyfrom(tup.m_bval2);
   }
@@ -943,7 +943,7 @@ calcTups(bool keys, bool keepsize = false)
           i++;
           j++;
         }
-        assert(i == c.m_totlen);
+        require(i == c.m_totlen);
         p[i] = q[i] = 0; // convenience
       }
       tup.m_pk3 = (Uint16)k;
@@ -1020,7 +1020,7 @@ getBlobLength(NdbBlob* h, unsigned& len)
   Uint64 len2 = (unsigned)-1;
   CHK(h->getLength(len2) == 0);
   len = (unsigned)len2;
-  assert(len == len2);
+  require(len == len2);
   bool isNull;
   CHK(h->getNull(isNull) == 0);
   DBG("getBlobLength " << h->getColumn()->getName() << " len=" << len << " null=" << isNull);
@@ -1162,7 +1162,7 @@ writeBlobData(NdbBlob* h, const Bval& v)
       CHK(h->writeData(v.m_val + n, m) == 0);
       n += m;
     } while (n < v.m_len);
-    assert(n == v.m_len);
+    require(n == v.m_len);
     isNull = true;
     CHK(h->getNull(isNull) == 0 && isNull == false);
     CHK(getBlobLength(h, len) == 0 && len == v.m_len);
@@ -1209,7 +1209,7 @@ readBlobData(NdbBlob* h, const Bval& v)
       CHK(m2 == m);
       n += m;
     }
-    assert(n == v.m_len);
+    require(n == v.m_len);
     // need to execute to see the data
     CHK(g_con->execute(NoCommit) == 0);
     for (unsigned i = 0; i < v.m_len; i++)
@@ -1503,7 +1503,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
       CHK(part < partcount && ! seen[part]);
       seen[part] = 1;
       unsigned n = b.m_inline + part * b.m_partsize;
-      assert(exists && v.m_val != 0 && n < v.m_len);
+      require(exists && v.m_val != 0 && n < v.m_len);
       unsigned m = v.m_len - n;
       if (m > b.m_partsize)
         m = b.m_partsize;
@@ -4221,12 +4221,12 @@ struct Tmr {    // stolen from testOIBasic
     m_on = m_ms = m_cnt = m_time[0] = m_text[0] = 0;
   }
   void on() {
-    assert(m_on == 0);
+    require(m_on == 0);
     m_on = NdbTick_CurrentMillisecond();
   }
   void off(unsigned cnt = 0) {
-    NDB_TICKS off = NdbTick_CurrentMillisecond();
-    assert(m_on != 0 && off >= m_on);
+    const Uint64 off = NdbTick_CurrentMillisecond();
+    require(m_on != 0 && off >= m_on);
     m_ms += off - m_on;
     m_cnt += cnt;
     m_on = 0;
@@ -4255,8 +4255,8 @@ struct Tmr {    // stolen from testOIBasic
       sprintf(m_text, "[cannot measure]");
     return m_text;
   }
-  NDB_TICKS m_on;
-  NDB_TICKS m_ms;
+  Uint64 m_on;
+  Uint64 m_ms;
   unsigned m_cnt;
   char m_time[100];
   char m_text[100];
@@ -4545,7 +4545,7 @@ bugtest_4088()
     CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
     CHK(g_opx->readTuple() == 0);
     CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
-    assert(tup.m_bval1.m_buf != 0);
+    require(tup.m_bval1.m_buf != 0);
     CHK(g_opx->getValue("BL1", (char*)tup.m_bval1.m_buf) != 0);
     // execute
     // BUG 4088: gets 1 tckeyconf, 1 tcindxconf, then hangs
@@ -5160,7 +5160,7 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
       c.m_mblen = 1;
       c.m_cs = 0;
     } else {
-      assert(c.m_cs != 0);
+      require(c.m_cs != 0);
       if (c.m_fixed)
         c.m_type = NdbDictionary::Column::Char;
       else

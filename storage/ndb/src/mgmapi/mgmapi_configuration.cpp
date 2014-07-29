@@ -1,6 +1,6 @@
 /*
-   Copyright (C) 2004-2007 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <ndb_global.h>
 #include <ndb_types.h>
 #include <mgmapi.h>
 #include "mgmapi_configuration.hpp"
@@ -28,10 +29,6 @@ ndb_mgm_configuration_iterator::ndb_mgm_configuration_iterator
   m_sectionNo = ~0;
   m_typeOfSection = type_of_section;
   first();
-}
-
-ndb_mgm_configuration_iterator::~ndb_mgm_configuration_iterator(){
-  reset();
 }
 
 void 
@@ -90,6 +87,11 @@ ndb_mgm_configuration_iterator::find(int param, unsigned search){
 
 int
 ndb_mgm_configuration_iterator::get(int param, unsigned * value) const {
+  /*
+    Verify that we call the right overloaded version of 
+    ConfigValues::ConstIterator::get().
+  */
+  assert(sizeof *value == sizeof(Uint32));
   return m_config.get(param, value) != true;
 
 }
@@ -188,7 +190,6 @@ ndb_mgm_get_db_parameter_info(Uint32 paramId, struct ndb_mgm_param_info * info, 
   }
 
   ConfigInfo data;
-  (void)data;
   for (int i = 0; i < data.m_NoOfParams; i++) {
     if (paramId == data.m_ParamInfo[i]._paramId && strcmp("DB", data.m_ParamInfo[i]._section) == 0) {
         size_t tmp = 0;

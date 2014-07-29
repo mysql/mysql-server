@@ -1532,6 +1532,10 @@ int decimal_bin_size(int precision, int scale)
       intg0x=intg-intg0*DIG_PER_DEC1, frac0x=scale-frac0*DIG_PER_DEC1;
 
   DBUG_ASSERT(scale >= 0 && precision > 0 && scale <= precision);
+  DBUG_ASSERT(intg0x >= 0);
+  DBUG_ASSERT(intg0x <= DIG_PER_DEC1);
+  DBUG_ASSERT(frac0x >= 0);
+  DBUG_ASSERT(frac0x <= DIG_PER_DEC1);
   return intg0*sizeof(dec1)+dig2bytes[intg0x]+
          frac0*sizeof(dec1)+dig2bytes[frac0x];
 }
@@ -2417,7 +2421,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
         error=E_DEC_TRUNCATED;
         goto done;
       }
-      stop1=start1+frac0;
+      stop1= start1 + frac0 + intg0;
       frac0+=intg0;
       to->intg=0;
       while (intg0++ < 0)

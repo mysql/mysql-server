@@ -1806,7 +1806,7 @@ os_file_delete_if_exists_func(
 		*exist = true;
 	}
 loop:
-	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
+	/* In Windows, deleting an .ibd file may fail if mysqlbackup is copying
 	it */
 
 	ret = DeleteFile((LPCTSTR) name);
@@ -1877,7 +1877,7 @@ os_file_delete_func(
 	BOOL	ret;
 	ulint	count	= 0;
 loop:
-	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
+	/* In Windows, deleting an .ibd file may fail if mysqlbackup is copying
 	it */
 
 	ret = DeleteFile((LPCTSTR) name);
@@ -1899,7 +1899,7 @@ loop:
 		os_file_get_last_error(true); /* print error information */
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot delete file %s. Are you running ibbackup"
+			"Cannot delete file %s. Are you running mysqlbackup"
 			" to back up the file?", name);
 	}
 
@@ -3663,8 +3663,7 @@ os_aio_array_create(
 	ut_a(n > 0);
 	ut_a(n_segments > 0);
 
-	array = static_cast<os_aio_array_t*>(ut_malloc(sizeof(*array)));
-	memset(array, 0x0, sizeof(*array));
+	array = static_cast<os_aio_array_t*>(ut_zalloc(sizeof(*array)));
 
 	mutex_create("os_aio_mutex", &array->mutex);
 
@@ -3677,9 +3676,8 @@ os_aio_array_create(
 	array->n_segments = n_segments;
 
 	array->slots = static_cast<os_aio_slot_t*>(
-		ut_malloc(n * sizeof(*array->slots)));
+		ut_zalloc(n * sizeof(*array->slots)));
 
-	memset(array->slots, 0x0, sizeof(n * sizeof(*array->slots)));
 #ifdef _WIN32
 	array->handles = static_cast<HANDLE*>(ut_malloc(n * sizeof(HANDLE)));
 #endif /* _WIN32 */
@@ -3715,9 +3713,8 @@ os_aio_array_create(
 
 	/* Initialize the event array. One event per slot. */
 	io_event = static_cast<struct io_event*>(
-		ut_malloc(n * sizeof(*io_event)));
+		ut_zalloc(n * sizeof(*io_event)));
 
-	memset(io_event, 0x0, sizeof(*io_event) * n);
 	array->aio_events = io_event;
 
 skip_native_aio:

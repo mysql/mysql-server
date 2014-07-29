@@ -28,6 +28,7 @@ PSI_memory_key key_memory_Gtid_set_Interval_chunk;
 
 using std::min;
 using std::max;
+using std::list;
 
 const Gtid_set::String_format Gtid_set::default_string_format=
 {
@@ -51,7 +52,8 @@ const Gtid_set::String_format Gtid_set::commented_string_format=
 
 
 Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
-  : sid_lock(_sid_lock), sid_map(_sid_map)
+  : sid_lock(_sid_lock), sid_map(_sid_map),
+    m_intervals(key_memory_Gtid_set_Interval_chunk)
 {
   init();
 }
@@ -59,7 +61,8 @@ Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
 
 Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
                    enum_return_status *status, Checkable_rwlock *_sid_lock)
-  : sid_lock(_sid_lock), sid_map(_sid_map)
+  : sid_lock(_sid_lock), sid_map(_sid_map),
+    m_intervals(key_memory_Gtid_set_Interval_chunk)
 {
   DBUG_ASSERT(_sid_map != NULL);
   init();
@@ -74,7 +77,6 @@ void Gtid_set::init()
   cached_string_format= NULL;
   chunks= NULL;
   free_intervals= NULL;
-  my_init_dynamic_array(&intervals, sizeof(Interval *), 0, 8);
   if (sid_lock)
     mysql_mutex_init(0, &free_intervals_mutex, NULL);
 #ifndef DBUG_OFF
@@ -98,7 +100,6 @@ Gtid_set::~Gtid_set()
 #endif
   }
   DBUG_ASSERT(n_chunks == 0);
-  delete_dynamic(&intervals);
   if (sid_lock)
     mysql_mutex_destroy(&free_intervals_mutex);
   DBUG_VOID_RETURN;
@@ -143,12 +144,11 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno)
         }
       }
     }
-    if (allocate_dynamic(&intervals,
-                         sid_map == NULL ? sidno : sid_map->get_max_sidno()))
+    if (m_intervals.reserve(sid_map == NULL ? sidno : sid_map->get_max_sidno()))
       goto error;
     Interval *null_p= NULL;
     for (rpl_sidno i= max_sidno; i < sidno; i++)
-      if (insert_dynamic(&intervals, &null_p))
+      if (m_intervals.push_back(null_p))
         goto error;
     if (sid_lock != NULL)
     {
@@ -479,7 +479,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
         DBUG_PRINT("info", ("expected UUID; found garbage '%.80s' at char %d in '%s'", s, (int)(s - text), text));
         goto parse_error;
       }
-      s += rpl_sid::TEXT_LENGTH;
+      s += binary_log::Uuid::TEXT_LENGTH;
       rpl_sidno sidno= sid_map->add_sid(sid);
       if (sidno <= 0)
       {
@@ -578,7 +578,7 @@ bool Gtid_set::is_valid(const char *text)
     // Parse SID.
     if (!rpl_sid::is_valid(s))
       DBUG_RETURN(false);
-    s += rpl_sid::TEXT_LENGTH;
+    s += binary_log::Uuid::TEXT_LENGTH;
     SKIP_WHITESPACE();
 
     // Iterate over intervals.
@@ -903,7 +903,7 @@ int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
   if (cached_string_length == -1 || cached_string_format != sf)
   {
     int n_sids= 0, n_intervals= 0, n_long_intervals= 0;
-    int total_interval_length= 0;
+    size_t total_interval_length= 0;
     rpl_sidno max_sidno= get_max_sidno();
     for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     {
@@ -934,7 +934,7 @@ int Gtid_set::get_string_length(const Gtid_set::String_format *sf) const
       if (n_sids > 0)
         cached_string_length+=
           total_interval_length +
-          n_sids * (rpl_sid::TEXT_LENGTH + sf->sid_gno_separator_length) +
+          n_sids * (binary_log::Uuid::TEXT_LENGTH + sf->sid_gno_separator_length) +
           (n_sids - 1) * sf->gno_sid_separator_length +
           (n_intervals - n_sids) * sf->gno_gno_separator_length +
           n_long_intervals * sf->gno_start_end_separator_length;
@@ -1305,7 +1305,7 @@ void Gtid_set::encode(uchar *buf) const
       n_sids++;
       // store SID
       sid_map->sidno_to_sid(sidno).copy_to(buf);
-      buf+= binary_log::Uuid_parent::BYTE_LENGTH;
+      buf+= binary_log::Uuid::BYTE_LENGTH;
       // make place for number of intervals
       uint64 n_intervals= 0;
       uchar *n_intervals_p= buf;

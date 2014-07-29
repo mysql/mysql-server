@@ -27,9 +27,7 @@ TabSeparatedValues::TabSeparatedValues(const char *string, Uint32 max_parts, siz
 {
   size_t parsed_len = 0;
 
-  assert(max_parts < MAX_VAL_COLUMNS);
-
-  while(parsed_len <= length && parts < max_parts) {
+  while(parsed_len <= length && parts < max_parts && parts < MAX_VAL_COLUMNS) {
     const char *s = string + parsed_len;
     pointers[parts] = s;
     lengths[parts] = find_tab(s, length - parsed_len);

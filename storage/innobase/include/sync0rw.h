@@ -40,8 +40,6 @@ Created 9/11/1995 Heikki Tuuri
 #include "ut0mutex.h"
 #include "sync0mutex.h"
 
-/* The following undef is to prevent a name conflict with a macro in MySQL. */
-#undef rw_lock_t
 #endif /* !UNIV_HOTBACKUP */
 
 /** Counters for RW locks. */

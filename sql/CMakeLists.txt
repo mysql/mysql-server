@@ -303,7 +303,7 @@ IF(WIN32)
   TARGET_LINK_LIBRARIES(sql auth_win_client)
 ENDIF()
 
-SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
+SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
                    rpl_slave_commit_order_manager.cc rpl_gtid_execution.cc

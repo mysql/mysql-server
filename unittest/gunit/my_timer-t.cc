@@ -34,33 +34,33 @@ typedef struct
 {
   my_timer_t timer;
   unsigned int fired;
-  pthread_mutex_t mutex;
-  pthread_cond_t cond;
+  native_mutex_t mutex;
+  native_cond_t cond;
 } test_timer_t;
 
 static void timer_notify_function(my_timer_t *timer)
 {
   test_timer_t *test= my_container_of(timer, test_timer_t, timer);
 
-  pthread_mutex_lock(&test->mutex);
+  native_mutex_lock(&test->mutex);
   test->fired++;
-  pthread_cond_signal(&test->cond);
-  pthread_mutex_unlock(&test->mutex);
+  native_cond_signal(&test->cond);
+  native_mutex_unlock(&test->mutex);
 }
 
 static void test_timer_create(test_timer_t *test)
 {
   memset(test, 0, sizeof(test_timer_t));
-  pthread_mutex_init(&test->mutex, NULL);
-  pthread_cond_init(&test->cond, NULL);
+  native_mutex_init(&test->mutex, NULL);
+  native_cond_init(&test->cond);
   EXPECT_EQ(my_timer_create(&test->timer), 0);
   test->timer.notify_function= timer_notify_function;
 }
 
 static void test_timer_destroy(test_timer_t *test)
 {
-  pthread_mutex_destroy(&test->mutex);
-  pthread_cond_destroy(&test->cond);
+  native_mutex_destroy(&test->mutex);
+  native_cond_destroy(&test->cond);
   my_timer_delete(&test->timer);
 }
 
@@ -75,7 +75,7 @@ static void timer_set_and_wait(test_timer_t *test, unsigned int fired_count)
   EXPECT_TRUE((test->fired != fired_count));
 
   while (test->fired != fired_count)
-    pthread_cond_wait(&test->cond, &test->mutex);
+    native_cond_wait(&test->cond, &test->mutex);
 
   // timer fired
   EXPECT_TRUE(test->fired == fired_count);
@@ -94,7 +94,7 @@ static void test_timer(void)
 
   test_timer_create(&test);
 
-  pthread_mutex_lock(&test.mutex);
+  native_mutex_lock(&test.mutex);
 
   rc= my_timer_set(&test.timer, 5);
   EXPECT_EQ(rc, 0);
@@ -103,12 +103,12 @@ static void test_timer(void)
   EXPECT_EQ(test.fired, (unsigned int)0);
 
   while (!test.fired)
-    pthread_cond_wait(&test.cond, &test.mutex);
+    native_cond_wait(&test.cond, &test.mutex);
 
   /* timer fired once */
   EXPECT_EQ(test.fired, (unsigned int)1);
 
-  pthread_mutex_unlock(&test.mutex);
+  native_mutex_unlock(&test.mutex);
 
   test_timer_destroy(&test);
 }
@@ -156,7 +156,7 @@ TEST(Mysys, TestTimer)
 
   test_timer_create(&test);
 
-  pthread_mutex_lock(&test.mutex);
+  native_mutex_lock(&test.mutex);
 
   rc= my_timer_set(&test.timer, 5);
   EXPECT_EQ(rc, 0);
@@ -165,12 +165,12 @@ TEST(Mysys, TestTimer)
   EXPECT_EQ(test.fired, (unsigned int)0);
 
   while (!test.fired)
-    pthread_cond_wait(&test.cond, &test.mutex);
+    native_cond_wait(&test.cond, &test.mutex);
 
   // timer fired once
   EXPECT_EQ(test.fired, (unsigned int)1);
 
-  pthread_mutex_unlock(&test.mutex);
+  native_mutex_unlock(&test.mutex);
 
   test_timer_destroy(&test);
 
@@ -187,7 +187,7 @@ TEST(Mysys, TestTimerReset)
 
   test_timer_create(&test);
 
-  pthread_mutex_lock(&test.mutex);
+  native_mutex_lock(&test.mutex);
 
   rc= my_timer_set(&test.timer, 600000);
   EXPECT_EQ(rc, 0);
@@ -199,7 +199,7 @@ TEST(Mysys, TestTimerReset)
   rc= my_timer_cancel(&test.timer, &state);
   EXPECT_EQ(rc, 0);
 
-  pthread_mutex_unlock(&test.mutex);
+  native_mutex_unlock(&test.mutex);
 
   test_timer_destroy(&test);
 
@@ -216,29 +216,29 @@ TEST(Mysys, TestMultipleTimers)
 
   // Timer "test1"
   test_timer_create(&test1);
-  pthread_mutex_lock(&test1.mutex);
+  native_mutex_lock(&test1.mutex);
   rc= my_timer_set(&test1.timer, 3);
   EXPECT_EQ(rc, 0);
 
   // Timer "test2"
   test_timer_create(&test2);
-  pthread_mutex_lock(&test2.mutex);
+  native_mutex_lock(&test2.mutex);
   rc= my_timer_set(&test2.timer, 6);
   EXPECT_EQ(rc, 0);
 
   // Timer "test3"
   test_timer_create(&test3);
-  pthread_mutex_lock(&test3.mutex);
+  native_mutex_lock(&test3.mutex);
   rc= my_timer_set(&test3.timer, 600000);
   EXPECT_EQ(rc, 0);
 
   // Wait till test1 timer fired.
   while (!test1.fired)
-    pthread_cond_wait(&test1.cond, &test1.mutex);
+    native_cond_wait(&test1.cond, &test1.mutex);
 
   // Wait till test2 timer fired.
   while (!test2.fired)
-    pthread_cond_wait(&test2.cond, &test2.mutex);
+    native_cond_wait(&test2.cond, &test2.mutex);
 
   // timer test1 fired
   EXPECT_EQ(test1.fired, (unsigned int)1);
@@ -253,9 +253,9 @@ TEST(Mysys, TestMultipleTimers)
   rc= my_timer_cancel(&test3.timer, &state);
   EXPECT_EQ(rc, 0);
 
-  pthread_mutex_unlock(&test1.mutex);
-  pthread_mutex_unlock(&test2.mutex);
-  pthread_mutex_unlock(&test3.mutex);
+  native_mutex_unlock(&test1.mutex);
+  native_mutex_unlock(&test2.mutex);
+  native_mutex_unlock(&test3.mutex);
 
   test_timer_destroy(&test1);
   test_timer_destroy(&test2);
@@ -268,7 +268,7 @@ TEST(Mysys, TestMultipleTimers)
 TEST(Mysys, TestTimerPerThread)
 {
   mysql_mutex_init(0, &mutex, 0);
-  mysql_cond_init(0, &cond, NULL);
+  mysql_cond_init(0, &cond);
   pthread_attr_init(&thr_attr);
   pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED);
 
@@ -291,13 +291,13 @@ TEST(Mysys, TestTimerReuse)
 
   test_timer_create(&test);
 
-  pthread_mutex_lock(&test.mutex);
+  native_mutex_lock(&test.mutex);
 
   timer_set_and_wait(&test, 1);
   timer_set_and_wait(&test, 2);
   timer_set_and_wait(&test, 3);
 
-  pthread_mutex_unlock(&test.mutex);
+  native_mutex_unlock(&test.mutex);
 
   test_timer_destroy(&test);
 

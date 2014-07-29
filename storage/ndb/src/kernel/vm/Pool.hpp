@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -132,8 +132,26 @@ struct Ptr
   Uint32 i;
 
   static Ptr get(T* _p, Uint32 _i) { Ptr x; x.p = _p; x.i = _i; return x; }
-  inline bool isNull() const { return i == RNIL; }
-  inline void setNull() { i = RNIL; }
+
+  /**
+    Initialize to ffff.... in debug mode. The purpose of this is to detect
+    use of uninitialized values by causing an error. To maximize performance,
+    this is done in debug mode only (when asserts are enabled).
+   */
+  Ptr(){assert(memset(this, 0xff, sizeof(*this)));};
+  Ptr(T* pVal, Uint32 iVal):p(pVal), i(iVal){};
+
+
+  bool isNull() const 
+  { 
+    assert(i <= RNIL);
+    return i == RNIL; 
+  }
+
+  inline void setNull()
+  {
+    i = RNIL;
+  }
 };
 
 template <typename T>
@@ -143,8 +161,25 @@ struct ConstPtr
   Uint32 i;
 
   static ConstPtr get(T const* _p, Uint32 _i) { ConstPtr x; x.p = _p; x.i = _i; return x; }
-  inline bool isNull() const { return i == RNIL; }
-  inline void setNull() { i = RNIL; }
+
+  /**
+    Initialize to ffff.... in debug mode. The purpose of this is to detect
+    use of uninitialized values by causing an error. To maximize performance,
+    this is done in debug mode only (when asserts are enabled).
+   */
+  ConstPtr(){assert(memset(this, 0xff, sizeof(*this)));};
+  ConstPtr(T* pVal, Uint32 iVal):p(pVal), i(iVal){};
+
+  bool isNull() const 
+  { 
+    assert(i <= RNIL);
+    return i == RNIL; 
+  }
+
+  inline void setNull()
+  {
+    i = RNIL;
+  }
 };
 
 #ifdef XX_DOCUMENTATION_XX

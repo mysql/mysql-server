@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +15,7 @@
 /**
   @file table_id.h
 
-  @brief Contains the class Table_id, aminly used for row based replication.
+  @brief Contains the class Table_id, mainly used for row based replication.
 */
 
 #ifndef TABLE_ID_INCLUDED
@@ -39,7 +38,7 @@ private:
 
 public:
   Table_id() : m_id(0) {}
-  Table_id(unsigned long long id) : m_id(id) {}
+  explicit Table_id(unsigned long long id) : m_id(id) {}
 
   unsigned long long id() const { return m_id; }
   bool is_valid() const { return m_id <= TABLE_ID_MAX; }

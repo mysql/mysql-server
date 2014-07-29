@@ -799,22 +799,19 @@ rbt_create(
 	ib_rbt_t*	tree;
 	ib_rbt_node_t*	node;
 
-	tree = (ib_rbt_t*) ut_malloc(sizeof(*tree));
-	memset(tree, 0, sizeof(*tree));
+	tree = (ib_rbt_t*) ut_zalloc(sizeof(*tree));
 
 	tree->sizeof_value = sizeof_value;
 
 	/* Create the sentinel (NIL) node. */
-	node = tree->nil = (ib_rbt_node_t*) ut_malloc(sizeof(*node));
-	memset(node, 0, sizeof(*node));
+	node = tree->nil = (ib_rbt_node_t*) ut_zalloc(sizeof(*node));
 
 	node->color = IB_RBT_BLACK;
 	node->parent = node->left = node->right = node;
 
 	/* Create the "fake" root, the real root node will be the
 	left child of this node. */
-	node = tree->root = (ib_rbt_node_t*) ut_malloc(sizeof(*node));
-	memset(node, 0, sizeof(*node));
+	node = tree->root = (ib_rbt_node_t*) ut_zalloc(sizeof(*node));
 
 	node->color = IB_RBT_BLACK;
 	node->parent = node->left = node->right = tree->nil;

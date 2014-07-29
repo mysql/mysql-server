@@ -46,7 +46,6 @@ function Test(name, phase) {
   this.errorMessages = '';
   this.index = 0;
   this.failed = null;
-  this.has_proxy = false;
   this.skipped = false;
 }
 
@@ -61,14 +60,6 @@ function ConcurrentTest(name) {
   this.phase = 1;
 }
 ConcurrentTest.prototype = new Test();
-
-
-function ConcurrentSubTest(name) {
-  this.name = name;
-  this.phase = 1;
-  this.has_proxy = true;
-}
-ConcurrentSubTest.prototype = new Test();
 
 
 function SerialTest(name) {
@@ -91,19 +82,12 @@ Test.prototype.test = function(result) {
   result.listener.startTest(this);
   var runReturnCode;
 
-  /* If a concurrent test has a proxy, then it is considered to be an async 
-     test incorporated into some larger test, and it will pass or fail while 
-     the larger test is running. */
-  if(this.has_proxy) {
-    return;
-  }
-
   udebug.log_detail('test.run:', this.suite.name, this.name);
   try {
     runReturnCode = this.run();
   }
   catch(e) {
-    console.log(this.name, 'threw exception & failed');
+    console.log(this.name, 'threw exception & failed\n', e.stack);
     this.failed = true;
     result.fail(this, e);
     return;
@@ -197,6 +181,7 @@ function compare(o1, o2) {
   if (o1 == o2) return true;
   if (o1 == null && o2 == null) return true;
   if (typeof(o1) === 'undefined' && typeof(o2) === 'undefined') return true;
+  if (typeof(o1) !== typeof(o2)) return false;
   if (o1.toString() === o2.toString()) return true;
   return false;
 }
@@ -603,7 +588,7 @@ Listener.prototype.fail = function(t, e) {
   }
 
   if(t.phase === 0) {
-    console.log("[FailSmokeTest]", t.fullName());
+    console.log("[FailSmokeTest]", t.fullName(), "\t", message);
   }
   else {
     console.log("[FAIL]", t.fullName(), "\t", message);
@@ -725,7 +710,6 @@ exports.FailOnlyListener  = FailOnlyListener;
 exports.Result            = Result;
 exports.SmokeTest         = SmokeTest;
 exports.ConcurrentTest    = ConcurrentTest;
-exports.ConcurrentSubTest = ConcurrentSubTest;
 exports.SerialTest        = SerialTest;
 exports.ClearSmokeTest    = ClearSmokeTest;
 exports.SQL               = SQL;

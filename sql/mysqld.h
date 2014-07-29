@@ -152,6 +152,7 @@ extern char *default_tz_name;
 extern Time_zone *default_tz;
 extern char *default_storage_engine;
 extern char *default_tmp_storage_engine;
+extern ulong internal_tmp_disk_storage_engine;
 extern bool opt_endinfo, using_udf_functions;
 extern my_bool locked_in_memory;
 extern bool opt_using_transactions;
@@ -279,6 +280,7 @@ extern const char *opt_date_time_formats[];
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
+extern handlerton *innodb_hton;
 extern uint opt_server_id_bits;
 extern ulong opt_server_id_mask;
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -334,9 +336,7 @@ extern bool load_perfschema_engine;
 
 C_MODE_START
 
-#ifdef HAVE_MMAP
 extern PSI_mutex_key key_LOCK_tc;
-#endif /* HAVE_MMAP */
 
 #ifdef HAVE_OPENSSL
 extern PSI_mutex_key key_LOCK_des_key_file;
@@ -400,10 +400,7 @@ extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
   key_rwlock_global_sid_lock;
 
-#ifdef HAVE_MMAP
 extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
-#endif /* HAVE_MMAP */
-
 extern PSI_cond_key key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_manager,
   key_COND_server_started,
@@ -435,10 +432,7 @@ extern PSI_thread_key key_thread_bootstrap,
 extern PSI_thread_key key_thread_timer_notifier;
 #endif
 
-#ifdef HAVE_MMAP
 extern PSI_file_key key_file_map;
-#endif /* HAVE_MMAP */
-
 extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
@@ -503,7 +497,7 @@ extern PSI_memory_key key_memory_Gcalc_dyn_list_block;
 extern PSI_memory_key key_memory_Gis_read_stream_err_msg;
 extern PSI_memory_key key_memory_Geometry_objects_data;
 extern PSI_memory_key key_memory_host_cache_hostname;
-extern PSI_memory_key key_memory_User_level_lock_key;
+extern PSI_memory_key key_memory_User_level_lock;
 extern PSI_memory_key key_memory_Filesort_info_record_pointers;
 extern PSI_memory_key key_memory_Sort_param_tmp_buffer;
 extern PSI_memory_key key_memory_Filesort_info_merge;
@@ -607,7 +601,7 @@ extern PSI_stage_info stage_checking_query_cache_for_query;
 extern PSI_stage_info stage_cleaning_up;
 extern PSI_stage_info stage_closing_tables;
 extern PSI_stage_info stage_connecting_to_master;
-extern PSI_stage_info stage_converting_heap_to_myisam;
+extern PSI_stage_info stage_converting_heap_to_ondisk;
 extern PSI_stage_info stage_copying_to_group_table;
 extern PSI_stage_info stage_copying_to_tmp_table;
 extern PSI_stage_info stage_copy_to_tmp_table;
@@ -671,7 +665,6 @@ extern PSI_stage_info stage_updating;
 extern PSI_stage_info stage_updating_main_table;
 extern PSI_stage_info stage_updating_reference_tables;
 extern PSI_stage_info stage_upgrading_lock;
-extern PSI_stage_info stage_user_lock;
 extern PSI_stage_info stage_user_sleep;
 extern PSI_stage_info stage_verifying_table;
 extern PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log;
@@ -743,8 +736,8 @@ extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
 extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
 extern ulong specialflag;
-extern uint mysql_data_home_len;
-extern uint mysql_real_data_home_len;
+extern size_t mysql_data_home_len;
+extern size_t mysql_real_data_home_len;
 extern const char *mysql_real_data_home_ptr;
 extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
@@ -762,7 +755,7 @@ extern MYSQL_PLUGIN_IMPORT key_map key_map_full;          /* Should be threaded 
   Server mutex locks and condition variables.
  */
 extern mysql_mutex_t
-       LOCK_user_locks, LOCK_status,
+       LOCK_item_func_sleep, LOCK_status,
        LOCK_error_log, LOCK_uuid_generator,
        LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
@@ -912,13 +905,6 @@ extern "C" void unireg_abort(int exit_code) __attribute__((noreturn));
 extern "C" void unireg_clear(int exit_code);
 #define unireg_abort(exit_code) do { unireg_clear(exit_code); DBUG_RETURN(exit_code); } while(0)
 #endif
-
-inline void table_case_convert(char * name, uint length)
-{
-  if (lower_case_table_names)
-    files_charset_info->cset->casedn(files_charset_info,
-                                     name, length, name, length);
-}
 
 #if defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32)
 extern "C" THD *_current_thd_noinline();

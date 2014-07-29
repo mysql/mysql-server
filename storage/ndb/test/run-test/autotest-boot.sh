@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -121,7 +121,7 @@ fi
 # Validate that all interesting
 #   variables where set in conf
 ###############################
-vars="src_clone_base install_dir build_dir bzr_src_base"
+vars="install_dir build_dir bzr_src_base"
 for i in $vars
 do
   t=`echo echo \\$$i`
@@ -146,7 +146,6 @@ fi
 # Setup the clone source location  #
 ####################################
 
-#src_clone=${src_clone_base}/${clone}
 src_clone0=${bzr_src_base}/${clone0}
 src_clone1=${bzr_src_base}/${clone1}
 

@@ -13,6 +13,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+# The jties tests intentionally checks more or less all permutations of
+# const result/parameter types in order to see what is supported
+# by C++ vs. Java. Tthis causes warnings about "type qualifiers ignored
+# on function return type" (which is turned on by -Wextra in maintainer.cmake).
+# Avoid the superfluous warnings by turning them off.
+MY_CHECK_CXX_COMPILER_FLAG("-Wignored-qualifiers" HAVE_IGNORED_QUALIFIERS)
+IF(HAVE_IGNORED_QUALIFIERS)
+  MESSAGE(STATUS "Turning off ignored qualifier warnings for jtie tests")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-ignored-qualifiers")
+ENDIF()
+
 ADD_SUBDIRECTORY(myapi)
 ADD_SUBDIRECTORY(myjapi)
 ADD_SUBDIRECTORY(unload)

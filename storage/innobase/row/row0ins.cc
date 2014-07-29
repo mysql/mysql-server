@@ -1740,12 +1740,11 @@ do_possible_lock_wait:
 		table case (check_ref == 0), since MDL lock will prevent
 		concurrent DDL and DML on the same table */
 		if (!check_ref) {
-			for (const dict_foreign_t* check_foreign
-				= UT_LIST_GET_FIRST( table->referenced_list);
-			     check_foreign;
-			     check_foreign = UT_LIST_GET_NEXT(
-					referenced_list, check_foreign)) {
-				if (check_foreign == foreign) {
+			for (dict_foreign_set::iterator it
+				= table->referenced_set.begin();
+			     it != table->referenced_set.end();
+			     ++it) {
+				if (*it == foreign) {
 					verified = true;
 					break;
 				}
@@ -1793,12 +1792,15 @@ row_ins_check_foreign_constraints(
 
 	trx = thr_get_trx(thr);
 
-	foreign = UT_LIST_GET_FIRST(table->foreign_list);
-
 	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
 			    "foreign_constraint_check_for_ins");
 
-	while (foreign) {
+	for (dict_foreign_set::iterator it = table->foreign_set.begin();
+	     it != table->foreign_set.end();
+	     ++it) {
+
+		foreign = *it;
+
 		if (foreign->foreign_index == index) {
 			dict_table_t*	ref_table = NULL;
 			dict_table_t*	referenced_table
@@ -1841,8 +1843,6 @@ row_ins_check_foreign_constraints(
 				return(err);
 			}
 		}
-
-		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
 
 	return(DB_SUCCESS);
@@ -1963,7 +1963,7 @@ row_ins_scan_sec_index_for_duplicate(
 	do {
 		const rec_t*		rec	= btr_pcur_get_rec(&pcur);
 		const buf_block_t*	block	= btr_pcur_get_block(&pcur);
-		ulint			lock_type;
+		const ulint		lock_type = LOCK_ORDINARY;
 
 		if (page_rec_is_infimum(rec)) {
 
@@ -1972,16 +1972,6 @@ row_ins_scan_sec_index_for_duplicate(
 
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &offsets_heap);
-
-		/* If the transaction isolation level is no stronger than
-		READ COMMITTED, then avoid gap locks. */
-		if (!page_rec_is_supremum(rec)
-		    && thr_get_trx(thr)->isolation_level
-					<= TRX_ISO_READ_COMMITTED) {
-			lock_type = LOCK_REC_NOT_GAP;
-		} else {
-			lock_type = LOCK_ORDINARY;
-		}
 
 		if (flags & BTR_NO_LOCKING_FLAG) {
 			/* Set no locks when applying log
@@ -3175,7 +3165,7 @@ row_ins_clust_index_entry(
 
 	DBUG_ENTER("row_ins_clust_index_entry");
 
-	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
+	if (!index->table->foreign_set.empty()) {
 		err = row_ins_check_foreign_constraints(
 			index->table, index, entry, thr);
 		if (err != DB_SUCCESS) {
@@ -3255,7 +3245,7 @@ row_ins_sec_index_entry(
 			DBUG_SET("-d,row_ins_sec_index_entry_timeout");
 			return(DB_LOCK_WAIT);});
 
-	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
+	if (!index->table->foreign_set.empty()) {
 		err = row_ins_check_foreign_constraints(index->table, index,
 							entry, thr);
 		if (err != DB_SUCCESS) {

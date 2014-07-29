@@ -16,19 +16,30 @@
 #include "decoder.h"
 #include <cassert>
 #include <iostream>
-using namespace binary_log;
 
+namespace binary_log
+{
 enum_binlog_checksum_alg Decoder::checksum_algorithm(const char *buf,
                                                      unsigned int event_type,
                                                      size_t event_len)
 {
   enum_binlog_checksum_alg alg;
   if (event_type != FORMAT_DESCRIPTION_EVENT)
-    alg= des_ev->footer()->checksum_alg;
+    alg= fd_ev->footer()->checksum_alg;
   else
     alg= Log_event_footer::get_checksum_alg(buf, event_len);
 
   return alg;
+}
+
+void Decoder::set_format_description_event(Format_description_event *fd_ev_arg)
+{
+  fd_ev= fd_ev_arg;
+}
+
+Format_description_event * Decoder::get_format_description_event()
+{
+  return fd_ev;
 }
 Binary_log_event* Decoder::decode_event(const char* buf, size_t event_len,
                                         const char **error,
@@ -36,7 +47,7 @@ Binary_log_event* Decoder::decode_event(const char* buf, size_t event_len,
 {
   Binary_log_event* ev;
   enum_binlog_checksum_alg alg;
-  assert(des_ev != 0);
+  assert(fd_ev != 0);
   //DBUG_DUMP("data", (unsigned char*) buf, event_len);
 
   /* Check the integrity */
@@ -73,13 +84,13 @@ Binary_log_event* Decoder::decode_event(const char* buf, size_t event_len,
     if (force_read)
     {
       // The user can skip this event, and move to next event.
-      ev= new Unknown_event(buf, des_ev);
+      ev= new Unknown_event(buf, fd_ev);
       return ev;
     }
     return NULL;
   }
 
-  if (event_type > des_ev->number_of_event_types &&
+  if (event_type > fd_ev->number_of_event_types &&
       event_type != FORMAT_DESCRIPTION_EVENT)
   {
     /*
@@ -100,9 +111,9 @@ Binary_log_event* Decoder::decode_event(const char* buf, size_t event_len,
       array, which was set up when the Format_description_event
       was read.
     */
-    if (des_ev->event_type_permutation)
+    if (fd_ev->event_type_permutation)
     {
-      int new_event_type= des_ev->event_type_permutation[event_type];
+      int new_event_type= fd_ev->event_type_permutation[event_type];
       event_type= new_event_type;
     }
 
@@ -113,87 +124,87 @@ Binary_log_event* Decoder::decode_event(const char* buf, size_t event_len,
 
     switch(event_type) {
     case QUERY_EVENT:
-      ev  = new Query_event(buf, event_len, des_ev, QUERY_EVENT);
+      ev  = new Query_event(buf, event_len, fd_ev, QUERY_EVENT);
       break;
     case LOAD_EVENT:
     case NEW_LOAD_EVENT:
-      ev= new Load_event(buf, event_len, des_ev);
+      ev= new Load_event(buf, event_len, fd_ev);
       break;
     case ROTATE_EVENT:
-      ev = new Rotate_event(buf, event_len, des_ev);
+      ev = new Rotate_event(buf, event_len, fd_ev);
       break;
     case CREATE_FILE_EVENT:
-      ev = new Create_file_event(buf, event_len, des_ev);
+      ev = new Create_file_event(buf, event_len, fd_ev);
       break;
     case APPEND_BLOCK_EVENT:
-      ev = new Append_block_event(buf, event_len, des_ev);
+      ev = new Append_block_event(buf, event_len, fd_ev);
       break;
     case DELETE_FILE_EVENT:
-      ev = new Delete_file_event(buf, event_len, des_ev);
+      ev = new Delete_file_event(buf, event_len, fd_ev);
       break;
     case EXEC_LOAD_EVENT:
-      ev = new Execute_load_event(buf, event_len, des_ev);
+      ev = new Execute_load_event(buf, event_len, fd_ev);
       break;
     case START_EVENT_V3: /* this is sent only by MySQL <=4.x */
-      ev = new Start_event_v3(buf, des_ev);
+      ev = new Start_event_v3(buf, fd_ev);
       break;
     case STOP_EVENT:
-      ev = new Stop_event(buf, des_ev);
+      ev = new Stop_event(buf, fd_ev);
       break;
     case INTVAR_EVENT:
-      ev = new Intvar_event(buf, des_ev);
+      ev = new Intvar_event(buf, fd_ev);
       break;
     case XID_EVENT:
-      ev = new Xid_event(buf, des_ev);
+      ev = new Xid_event(buf, fd_ev);
       break;
     case RAND_EVENT:
-      ev = new Rand_event(buf, des_ev);
+      ev = new Rand_event(buf, fd_ev);
       break;
     case USER_VAR_EVENT:
-      ev = new User_var_event(buf, event_len, des_ev);
+      ev = new User_var_event(buf, event_len, fd_ev);
       break;
     case FORMAT_DESCRIPTION_EVENT:
-      ev = new Format_description_event(buf, event_len, des_ev);
+      ev = new Format_description_event(buf, event_len, fd_ev);
       break;
     case WRITE_ROWS_EVENT_V1:
-      ev = new Write_rows_event(buf, event_len, des_ev);
+      ev = new Write_rows_event(buf, event_len, fd_ev);
       break;
     case UPDATE_ROWS_EVENT_V1:
-      ev = new Update_rows_event(buf, event_len, des_ev);
+      ev = new Update_rows_event(buf, event_len, fd_ev);
       break;
     case DELETE_ROWS_EVENT_V1:
-      ev = new Delete_rows_event(buf, event_len, des_ev);
+      ev = new Delete_rows_event(buf, event_len, fd_ev);
       break;
     case TABLE_MAP_EVENT:
-      ev = new Table_map_event(buf, event_len, des_ev);
+      ev = new Table_map_event(buf, event_len, fd_ev);
       break;
     case BEGIN_LOAD_QUERY_EVENT:
-      ev = new Begin_load_query_event(buf, event_len, des_ev);
+      ev = new Begin_load_query_event(buf, event_len, fd_ev);
       break;
     case EXECUTE_LOAD_QUERY_EVENT:
-      ev= new Execute_load_query_event(buf, event_len, des_ev);
+      ev= new Execute_load_query_event(buf, event_len, fd_ev);
       break;
     case INCIDENT_EVENT:
-      ev = new Incident_event(buf, event_len, des_ev);
+      ev = new Incident_event(buf, event_len, fd_ev);
       break;
     case ROWS_QUERY_LOG_EVENT:
-      ev= new Rows_query_event(buf, event_len, des_ev);
+      ev= new Rows_query_event(buf, event_len, fd_ev);
       break;
     case GTID_LOG_EVENT:
     case ANONYMOUS_GTID_LOG_EVENT:
-      ev= new Gtid_event(buf, event_len, des_ev);
+      ev= new Gtid_event(buf, event_len, fd_ev);
       break;
     case PREVIOUS_GTIDS_LOG_EVENT:
-      ev= new Previous_gtids_event(buf, event_len, des_ev);
+      ev= new Previous_gtids_event(buf, event_len, fd_ev);
       break;
     case WRITE_ROWS_EVENT:
-      ev = new Write_rows_event(buf, event_len, des_ev);
+      ev = new Write_rows_event(buf, event_len, fd_ev);
       break;
     case UPDATE_ROWS_EVENT:
-      ev = new Update_rows_event(buf, event_len, des_ev);
+      ev = new Update_rows_event(buf, event_len, fd_ev);
       break;
     case DELETE_ROWS_EVENT:
-      ev = new Delete_rows_event(buf, event_len, des_ev);
+      ev = new Delete_rows_event(buf, event_len, fd_ev);
       break;
     default:
       {
@@ -205,7 +216,7 @@ Binary_log_event* Decoder::decode_event(const char* buf, size_t event_len,
         memcpy(&flag_temp, buf + FLAGS_OFFSET, 2);
         if ( le16toh(flag_temp) & LOG_EVENT_IGNORABLE_F)
         {
-          ev= new Ignorable_event(buf, des_ev);
+          ev= new Ignorable_event(buf, fd_ev);
         }
         else
         {
@@ -219,8 +230,8 @@ Binary_log_event* Decoder::decode_event(const char* buf, size_t event_len,
   {
     if ((ev)->header()->type_code == FORMAT_DESCRIPTION_EVENT)
        {
-          Format_description_event *temp= des_ev;
-          des_ev= new Format_description_event(buf, event_len, temp);
+          Format_description_event *temp= fd_ev;
+          fd_ev= new Format_description_event(buf, event_len, temp);
           delete temp;
        }
   }
@@ -236,14 +247,14 @@ Binary_log_event* Decoder::decode_event(const char* buf, size_t event_len,
     }
   }
 
-//TODO: Modify this comment
   /*
-    is_valid are small event-specific sanity tests which are
+    is_valid is small event-specific sanity tests which are
     important; for example there are some my_malloc() in constructors
     (e.g. Query_log_event::Query_log_event(char*...)); when these
     my_malloc() fail we can't return an *error out of the constructor
-(because constructor is "void") ; so instead we leave the pointer we
-    wanted to allocate (e.g. 'query') to 0 and we test it in is_valid().
+    (because constructor is "void") ; so instead we leave the pointer we
+    wanted to allocate (e.g. 'query') to 0 and we test it and set the
+    value of is_valid to true or false based on the test.
     Same for Format_description_log_event, member 'post_header_len'.
 
     SLAVE_EVENT is never used, so it should not be read ever.
@@ -257,8 +268,9 @@ Binary_log_event* Decoder::decode_event(const char* buf, size_t event_len,
       return 0;
     }
     // the user can skip this event, and move to next event
-    ev= new Unknown_event(buf, des_ev);
+    ev= new Unknown_event(buf, fd_ev);
   }
 
   return ev;
 }
+} // end namespace binary_log

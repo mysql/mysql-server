@@ -3709,8 +3709,10 @@ CREATE TABLE t1(a INT UNIQUE);
 CREATE VIEW v1 AS SELECT t1.a FROM t1, t1 AS a;
 INSERT INTO t1 VALUES (1), (2);
 
+--error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v1(a) SELECT 1 FROM t1,t1 AS c;
 SELECT * FROM v1;
+--error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v1(a) SELECT 3 FROM t1,t1 AS c;
 SELECT * FROM v1;
 DELETE FROM t1 WHERE a=3;
@@ -3720,8 +3722,10 @@ SELECT * FROM v1;
 
 CREATE VIEW v2 AS SELECT t1.a FROM t1, v1 AS a;
 
+--error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v2(a) SELECT 1 FROM t1,t1 AS c;
 SELECT * FROM v2;
+--error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v2(a) SELECT 3 FROM t1,t1 AS c;
 SELECT * FROM v2;
 INSERT INTO v2(a) SELECT 1 FROM t1,t1 AS c
@@ -4087,7 +4091,6 @@ DROP TABLE t1, t2;
 --echo #
 
 --disable_warnings
-DROP TABLE IF EXISTS t1;
 DROP VIEW IF EXISTS v1;
 DROP PROCEDURE IF EXISTS p1;
 --enable_warnings
@@ -4099,15 +4102,17 @@ connect (con3, localhost, root);
 connection default;
 
 CREATE VIEW v1 AS SELECT schema_name FROM information_schema.schemata;
-CREATE TABLE t1 (str VARCHAR(50));
-CREATE PROCEDURE p1() INSERT INTO t1 SELECT * FROM v1;
+CREATE PROCEDURE p1() SELECT COUNT(*), GET_LOCK('blocker', 100) FROM v1;
 
 --echo # CALL p1() so the view is merged.
+--disable_result_log
 CALL p1();
+--enable_result_log
+SELECT RELEASE_LOCK('blocker');
 
 --echo # Connection 3
 connection con3;
-LOCK TABLE t1 READ;
+SELECT GET_LOCK('blocker', 100);
 
 --echo # Connection default
 connection default;
@@ -4119,8 +4124,8 @@ connection default;
 connection con2;
 let $wait_condition=
   SELECT COUNT(*) = 1 from information_schema.processlist
-  WHERE state = "Waiting for table level lock" AND
-        info = "INSERT INTO t1 SELECT * FROM v1";
+  WHERE state = "User lock" AND
+        info = "SELECT COUNT(*), GET_LOCK('blocker', 100) FROM v1";
 --source include/wait_condition.inc
 --echo # ... then try to drop the view. This should block.
 --echo # Sending:
@@ -4133,13 +4138,15 @@ let $wait_condition=
   WHERE state = "Waiting for table metadata lock" AND info = "DROP VIEW v1";
 --source include/wait_condition.inc
 --echo # Now allow CALL p1() to complete
-UNLOCK TABLES;
+SELECT RELEASE_LOCK('blocker');
 
 --echo # Connection default
 connection default;
 --echo # Reaping: CALL p1()
+--disable_result_log
 --reap
-
+--enable_result_log
+SELECT RELEASE_LOCK('blocker');
 --echo # Connection 2
 connection con2;
 --echo # Reaping: DROP VIEW v1
@@ -4148,7 +4155,6 @@ connection con2;
 --echo # Connection default
 connection default;
 DROP PROCEDURE p1;
-DROP TABLE t1;
 disconnect con2;
 disconnect con3;
 
@@ -4323,6 +4329,43 @@ WHERE
 
 DROP VIEW v_t1;
 DROP TABLE t1;
+
+
+--echo #
+--echo # BUG#14117018 - MYSQL SERVER CREATES INVALID VIEW DEFINITION 
+--echo # BUG#18405221 - SHOW CREATE VIEW OUTPUT INCCORRECT 
+--echo #
+
+CREATE VIEW v1 AS (SELECT '' FROM DUAL);
+CREATE VIEW v2 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
+                  (SELECT '' FROM DUAL);
+CREATE VIEW v3 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
+                  (SELECT '' FROM DUAL) UNION ALL
+                  (SELECT '' FROM DUAL);
+CREATE VIEW v4 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
+                  (SELECT '' AS col2 FROM DUAL) UNION ALL
+                  (SELECT '' FROM DUAL);
+
+--echo # Name for the column in select1 is set properly with or 
+--echo # without this fix.
+SHOW CREATE VIEW v1;
+
+--echo # Name for the column in select2 is set with this fix.
+--echo # Without this fix, name would not have set for the 
+--echo # columns in select2.
+SHOW CREATE VIEW v2;
+
+--echo # Name for the field item in select2 & select3 is set with this fix.
+--echo # Without this fix, name would not have set for the 
+--echo # columns in select2 & select3.
+SHOW CREATE VIEW v3;
+
+--echo # Name for the field item in select3 is set with this fix.
+--echo # Without this fix, name would not have set for the 
+--echo # columns in select3.
+SHOW CREATE VIEW v4;
+
+DROP VIEW v1, v2, v3, v4;
 
 
 # Check that all connections opened by test cases in this file are really

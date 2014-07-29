@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ struct NDB_SHARE {
   NDB_SHARE_STATE state;
   MEM_ROOT mem_root;
   THR_LOCK lock;
-  pthread_mutex_t mutex;
+  native_mutex_t mutex;
   char *key;
   uint key_length;
   char *new_key;
@@ -108,9 +108,9 @@ NDB_SHARE_STATE
 get_ndb_share_state(NDB_SHARE *share)
 {
   NDB_SHARE_STATE state;
-  pthread_mutex_lock(&share->mutex);
+  native_mutex_lock(&share->mutex);
   state= share->state;
-  pthread_mutex_unlock(&share->mutex);
+  native_mutex_unlock(&share->mutex);
   return state;
 }
 
@@ -119,9 +119,9 @@ inline
 void
 set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
 {
-  pthread_mutex_lock(&share->mutex);
+  native_mutex_lock(&share->mutex);
   share->state= state;
-  pthread_mutex_unlock(&share->mutex);
+  native_mutex_unlock(&share->mutex);
 }
 
 

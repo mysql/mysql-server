@@ -65,22 +65,18 @@ ndb_basename(const char * path)
   return p;
 }
 
+static
 const char*
-ErrorReporter::formatTimeStampString(){
+formatTimeStampString(char* theDateTimeString, size_t len){
   TimeModule DateTime;          /* To create "theDateTimeString" */
-  
-  static char theDateTimeString[39]; 
-  /* Used to store the generated timestamp */
-  /* ex: "Wednesday 18 September 2000 - 18:54:37" */
-
   DateTime.setTimeStamp();
   
-  BaseString::snprintf(theDateTimeString, 39, "%s %d %s %d - %s:%s:%s", 
+  BaseString::snprintf(theDateTimeString, len, "%s %d %s %d - %s:%s:%s",
 	   DateTime.getDayName(), DateTime.getDayOfMonth(),
 	   DateTime.getMonthName(), DateTime.getYear(), DateTime.getHour(),
 	   DateTime.getMinute(), DateTime.getSecond());
   
-  return (const char *)&theDateTimeString;
+  return theDateTimeString;
 }
 
 int
@@ -96,14 +92,24 @@ ErrorReporter::get_trace_no(){
    * Read last number from tracefile
    */  
   stream = fopen(file_name, "r+");
-  if (stream == NULL){
+  if (stream == NULL)
+  {
     traceFileNo = 1;
-  } else {
+  }
+  else
+  {
     char buf[255];
-    fgets(buf, 255, stream);
-    const int scan = sscanf(buf, "%u", &traceFileNo);
-    if(scan != 1){
+    if (fgets(buf, 255, stream) == NULL)
+    {
       traceFileNo = 1;
+    }
+    else
+    {
+      const int scan = sscanf(buf, "%u", &traceFileNo);
+      if(scan != 1)
+      {
+        traceFileNo = 1;
+      }
     }
     fclose(stream);
     traceFileNo++;
@@ -154,6 +160,9 @@ ErrorReporter::formatMessage(int thr_no,
     BaseString::snprintf(thrbuf, sizeof(thrbuf), " thr: %u", thr_no);
   }
 
+  char time_str[39];
+  formatTimeStampString(time_str, sizeof(time_str));
+
   BaseString::snprintf(messptr, MESSAGE_LENGTH,
                        "Time: %s\n"
                        "Status: %s\n"
@@ -165,7 +174,7 @@ ErrorReporter::formatMessage(int thr_no,
                        "Pid: %d%s\n"
                        "Version: %s\n"
                        "Trace: %s",
-                       formatTimeStampString() , 
+                       time_str,
                        exit_st_msg,
                        exit_msg, exit_cl_msg,
                        faultID, 
@@ -330,7 +339,10 @@ WriteMessage(int thrdMessageID,
   } else {
     // Go to the latest position in the file...
     fseek(stream, 40, SEEK_SET);
-    fscanf(stream, "%u", &offset);
+    if (fscanf(stream, "%u", &offset) != 1)
+    {
+      abort();
+    }
     fseek(stream, offset, SEEK_SET);
     
     // ...and write the error-message there...

@@ -70,11 +70,13 @@ typedef	byte	fseg_header_t;
 					header, in bytes */
 /* @} */
 
-/** Flags for fsp_reserve_free_extents @{ */
-#define FSP_NORMAL	1000000
-#define	FSP_UNDO	2000000
-#define FSP_CLEANING	3000000
-/* @} */
+/** Flags for fsp_reserve_free_extents */
+enum fsp_reserve_t {
+	FSP_NORMAL,	/* reservation during normal B-tree operations */
+	FSP_UNDO,	/* reservation done for undo logging */
+	FSP_CLEANING,	/* reservation done during purge operations */
+	FSP_BLOB	/* reservation being done for BLOB insertion */
+};
 
 /* Number of pages described in a single descriptor page: currently each page
 description takes less than 1 byte; a descriptor page is repeated every

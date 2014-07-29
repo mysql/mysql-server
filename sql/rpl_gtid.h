@@ -27,8 +27,11 @@
 #include <mysqld.h>
 #endif
 #include <binlog_event.h>
+#include <control_events.h>
+#include "prealloced_array.h"
 #include <list>
-using std::list;
+
+using binary_log::Uuid;
 /**
   Report an error from code that can be linked into either the server
   or mysqlbinlog.  There is no common error reporting mechanism, so we
@@ -108,7 +111,7 @@ typedef int64 rpl_binlog_pos;
 
    - Does a DBUG_PRINT before returning failure.
 */
-enum enum_return_status
+/*enum enum_return_status
 {
   /// The function completed successfully.
   RETURN_STATUS_OK= 0,
@@ -116,7 +119,7 @@ enum enum_return_status
   RETURN_STATUS_UNREPORTED_ERROR= 1,
   /// The function completed with error and has called my_error.
   RETURN_STATUS_REPORTED_ERROR= 2
-};
+};*/
 
 /**
   Lowest level macro used in the PROPAGATE_* and RETURN_* macros
@@ -240,68 +243,43 @@ int format_gno(char *s, rpl_gno gno);
   This is a POD.  It has to be a POD because it is a member of
   Sid_map::Node which is stored in both HASH and DYNAMIC_ARRAY.
 */
-struct Uuid
-{
+//struct Uuid
+//{
   /**
     Stores the UUID represented by a string on the form
     XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX in this object.
     @return RETURN_STATUS_OK or RETURN_STATUS_UNREPORTED_ERROR.
   */
 
-  binary_log::Uuid_parent uuid_par;
-  enum_return_status parse(const char *string);
+  //binary_log::Uuid_parent uuid_par;
+  //enum_return_status parse(const char *string);
   /// Set to all zeros.
-  void clear() { memset(uuid_par.bytes, 0, uuid_par.BYTE_LENGTH); }
-  void copy_from(const unsigned char *data) { memcpy(uuid_par.bytes, data, uuid_par.BYTE_LENGTH);}
+  /*void clear() { memset(uuid_par.bytes, 0, binary_log::Uuid_parent::BYTE_LENGTH); }
+   /// Copies the given 16-byte data to this UUID.
+  void copy_from(const unsigned char *data) { memcpy(uuid_par.bytes, data, binary_log::Uuid_parent::BYTE_LENGTH);}
   /// Copies the given UUID object to this UUID.
   void copy_from(const Uuid &data) { copy_from((uchar *)data.uuid_par.bytes); }
   /// Copies the given UUID object to this UUID.
   void copy_to(uchar *data) const { memcpy(data, uuid_par.bytes,
-                                           uuid_par.BYTE_LENGTH); }
+                                           binary_log::Uuid_parent::BYTE_LENGTH); }
   /// Returns true if this UUID is equal the given UUID.
   bool equals(const Uuid &other) const
-  { return memcmp(uuid_par.bytes, other.uuid_par.bytes, uuid_par.BYTE_LENGTH) == 0; }
-  /**
-    Generates a 36+1 character long representation of this UUID object
-    in the given string buffer.
-
-    @retval 36 - the length of the resulting string.
-  */
-  size_t to_string(char *buf) const;
-  /// Convert the given binary buffer to a UUID
-  static size_t to_string(const uchar* bytes_arg, char *buf);
-#ifndef DBUG_OFF
-  /// Debugging only: Print this Uuid to stdout.
-  void print() const
-  {
-    char buf[TEXT_LENGTH + 1];
-    to_string(buf);
-    printf("%s\n", buf);
-  }
-#endif
+  { return memcmp(uuid_par.bytes, other.uuid_par.bytes, binary_log::Uuid_parent::BYTE_LENGTH) == 0; }
   /// Print this Uuid to the trace file if debug is enabled; no-op otherwise.
   void dbug_print(const char *text= "") const
   {
 #ifndef DBUG_OFF
-    char buf[TEXT_LENGTH + 1];
-    to_string(buf);
+    char buf[binary_log::Uuid_parent::TEXT_LENGTH + 1];
+    uuid_par.to_string(buf);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
-  }
+  }*/
   /**
     Return true if parse() would return succeed, but don't actually
     store the result anywhere.
   */
-  static bool is_valid(const char *string);
-  /// The number of bytes in the textual representation of a Uuid.
-  static const size_t TEXT_LENGTH= 36;
-  /// The number of bits in the data of a Uuid.
-  static const size_t BIT_LENGTH= 128;
-private:
-  static const int NUMBER_OF_SECTIONS= 5;
-  static const int bytes_per_section[NUMBER_OF_SECTIONS];
-  static const int hex_to_byte[256];
-};
+ // static bool is_valid(const char *string);
+//};
 
 
 typedef Uuid rpl_sid;
@@ -503,8 +481,8 @@ public:
   {
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
-    Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.uuid_par.bytes,
-                                       binary_log::Uuid_parent::BYTE_LENGTH);
+    Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
+                                       binary_log::Uuid::BYTE_LENGTH);
     if (node == NULL)
       return 0;
     return node->sidno;
@@ -527,7 +505,7 @@ public:
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
     DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
-    return (*dynamic_element(&_sidno_to_sid, sidno - 1, Node **))->sid;
+    return (_sidno_to_sid[sidno - 1])->sid;
   }
   /**
     Return the n'th smallest sidno, in the order of the SID's UUID.
@@ -541,8 +519,7 @@ public:
   {
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
-    rpl_sidno ret= *dynamic_element(&_sorted, n, rpl_sidno *);
-    return ret;
+    return _sorted[n];
   }
   /**
     Return the biggest sidno in this Sid_map.
@@ -554,7 +531,7 @@ public:
   {
     if (sid_lock != NULL)
       sid_lock->assert_some_lock();
-    return _sidno_to_sid.elements;
+    return static_cast<rpl_sidno>(_sidno_to_sid.size());
   }
 
 private:
@@ -585,7 +562,7 @@ private:
     Array that maps SIDNO to SID; the element at index N points to a
     Node with SIDNO N-1.
   */
-  DYNAMIC_ARRAY _sidno_to_sid;
+  Prealloced_array<Node*, 8, true>_sidno_to_sid;
   /**
     Hash that maps SID to SIDNO.  The keys in this array are of type
     rpl_sid.
@@ -597,7 +574,7 @@ private:
 
     @see Sid_map::get_sorted_sidno.
   */
-  DYNAMIC_ARRAY _sorted;
+  Prealloced_array<rpl_sidno, 8, true> _sorted;
 };
 
 
@@ -700,7 +677,7 @@ public:
   inline int get_max_index() const
   {
     global_lock->assert_some_lock();
-    return array.elements - 1;
+    return static_cast<int>(m_array.size() - 1);
   }
   /**
     Grows the array so that the given index fits.
@@ -725,13 +702,13 @@ private:
   {
     global_lock->assert_some_lock();
     DBUG_ASSERT(n <= get_max_index());
-    Mutex_cond *ret= *dynamic_element(&array, n, Mutex_cond **);
+    Mutex_cond *ret= m_array[n];
     DBUG_ASSERT(ret);
     return ret;
   }
   /// Read-write lock that protects updates to the number of elements.
   mutable Checkable_rwlock *global_lock;
-  DYNAMIC_ARRAY array;
+  Prealloced_array<Mutex_cond*, 8, true> m_array;
 };
 
 
@@ -782,7 +759,7 @@ struct Gtid
     The maximal length of the textual representation of a SID, not
     including the terminating '\0'.
   */
-  static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
+  static const int MAX_TEXT_LENGTH= binary_log::Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
   /**
     Return true if parse() would succeed, but don't store the
     result anywhere.
@@ -1029,7 +1006,7 @@ public:
   {
     if (sid_lock)
       sid_lock->assert_some_lock();
-    return intervals.elements;
+    return static_cast<rpl_sidno>(m_intervals.size());
   }
   /**
     Allocates space for all sidnos up to the given sidno in the array of intervals.
@@ -1184,7 +1161,7 @@ public:
 
     @param[out] gtid_intervals Store all gtid intervals from this Gtid_set.
   */
-  void get_gtid_intervals(list<Gtid_interval> *gtid_intervals) const;
+  void get_gtid_intervals(std::list<Gtid_interval> *gtid_intervals) const;
   /**
     The default String_format: the format understood by
     add_gtid_text(const char *).
@@ -1272,7 +1249,7 @@ public:
     { p= const_cast<Interval_p *>(&gtid_set->free_intervals); }
     /// Reset this iterator.
     inline void init(Gtid_set_p gtid_set, rpl_sidno sidno)
-    { p= dynamic_element(&gtid_set->intervals, sidno - 1, Interval_p *); }
+    { p= const_cast<Interval_p *>(&gtid_set->m_intervals[sidno - 1]); }
     /// Advance current_elem one step.
     inline void next()
     {
@@ -1683,7 +1660,7 @@ private:
     Array where the N'th element contains the head pointer to the
     intervals of SIDNO N+1.
   */
-  DYNAMIC_ARRAY intervals;
+  Prealloced_array<Interval*, 8, true> m_intervals;
   /// Linked list of free intervals.
   Interval *free_intervals;
   /// Linked list of chunks.
@@ -1841,7 +1818,7 @@ public:
   rpl_sidno get_max_sidno() const
   {
     sid_lock->assert_some_lock();
-    return sidno_to_hash.elements;
+    return static_cast<rpl_sidno>(sidno_to_hash.size());
   }
 
   /**
@@ -1891,7 +1868,7 @@ public:
     {
       HASH *hash= get_hash(sidno);
       if (hash->records > 0)
-        ret+= rpl_sid::TEXT_LENGTH +
+        ret+= binary_log::Uuid::TEXT_LENGTH +
           hash->records * (1 + MAX_GNO_TEXT_LENGTH +
                            1 + MAX_THREAD_ID_TEXT_LENGTH);
     }
@@ -1964,7 +1941,7 @@ private:
   {
     DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
     sid_lock->assert_some_lock();
-    return *dynamic_element(&sidno_to_hash, sidno - 1, HASH **);
+    return sidno_to_hash[sidno - 1];
   }
   /**
     Returns the Node for the given HASH and GNO, or NULL if the GNO
@@ -1984,7 +1961,7 @@ private:
   /// Return true iff this Owned_gtids object contains the given group.
   bool contains_gtid(const Gtid &gtid) const { return get_node(gtid) != NULL; }
   /// Growable array of hashes.
-  DYNAMIC_ARRAY sidno_to_hash;
+  Prealloced_array<HASH*, 8, true> sidno_to_hash;
 
 public:
   /**
@@ -2490,6 +2467,124 @@ private:
 };
 
 
+/**
+  Enumeration of group types formed inside a transactions.
+  The structure of a group is as follows:
+  @verbatim
+  Group {
+        SID (16 byte UUID):         The source identifier for the group
+        GNO (8 byte unsigned int):  The group number for the group
+        COMMIT_FLAG (boolean):      True if this is the last group of the
+                                    transaction
+        LGID (8 byte unsigned int): Local group identifier: this is 1 for the
+                                    first group in the binary log, 2 for the
+                                    next one, etc. This is like an
+                                    auto_increment primary key on the binary log.
+        }
+  @endverbatim
+*/
+enum enum_group_type
+{
+  /**
+    Specifies that the GTID has not been generated yet; it will be
+    generated on commit.  It will depend on the GTID_MODE: if
+    GTID_MODE<=UPGRADE_STEP_1, then the transaction will be anonymous;
+    if GTID_MODE>=UPGRADE_STEP_2, then the transaction will be
+    assigned a new GTID.
+
+    This is the default value: thd->variables.gtid_next has this state
+    when GTID_NEXT="AUTOMATIC".
+
+    It is important that AUTOMATIC_GROUP==0 so that the default value
+    for thd->variables->gtid_next.type is AUTOMATIC_GROUP.
+  */
+  AUTOMATIC_GROUP= 0,
+  /**
+    Specifies that the transaction has been assigned a GTID (UUID:NUMBER).
+
+    thd->variables.gtid_next has this state when GTID_NEXT="UUID:NUMBER".
+
+    This is the state of GTID-transactions replicated to the slave.
+  */
+  GTID_GROUP,
+  /**
+    Specifies that the transaction is anonymous, i.e., it does not
+    have a GTID and will never be assigned one.
+
+    thd->variables.gtid_next has this state when GTID_NEXT="ANONYMOUS".
+
+    This is the state of any transaction generated on a pre-GTID
+    server, or on a server with GTID_MODE==OFF.
+  */
+ANONYMOUS_GROUP,
+  /**
+    Specifies that the GTID specification could not be parsed.  In
+    generate_automatic_gno() it is also used to specify that the GTID
+    has not yet been generated.  This is only used internally.
+  */
+  INVALID_GROUP,
+  /**
+    GTID_NEXT is set to this state after a transaction with
+    GTID_NEXT=='UUID:NUMBER' is committed.
+
+    This is used to protect against a special case of unsafe
+    non-transactional updates.
+
+    Background: Non-transactional updates are allowed as long as they
+    are sane.  Non-transactional updates must be single-statement
+    transactions; they must not be mixed with transactional updates in
+    the same statement or in the same transaction.  Since
+    non-transactional updates must be logged separately from
+    transactional updates, a single mixed statement would generate two
+    different transactions.
+
+    Problematic case: Consider a transaction, Tx1, that updates two
+    transactional tables on the master, t1 and t2. Then slave (s1) later
+    replays Tx1. However, t2 is a non-transactional table at s1. As such, s1
+    will report an error because it cannot split Tx1 into two different
+    transactions. Had no error been reported, then Tx1 would be split into Tx1
+    and Tx2, potentially causing severe harm in case some form of fail-over
+    procedure is later engaged by s1.
+
+    To detect this case on the slave and generate an appropriate error
+    message rather than causing an inconsistency in the GTID state, we
+    do as follows.  When committing a transaction that has
+    GTID_NEXT==UUID:NUMBER, we set GTID_NEXT to UNDEFINED_GROUP.  When
+    the next part of the transaction is being processed, an error is
+    generated, because it is not allowed to execute a transaction when
+    GTID_NEXT==UNDEFINED.  In the normal case, the error is not
+    generated, because there will always be a Gtid_log_event after the
+    next transaction.
+  */
+  UNDEFINED_GROUP,
+  /*
+    GTID_NEXT is set to this state by the slave applier thread when it
+    reads a Format_description_log_event that does not originate from
+    this server.
+
+    Background: when the slave applier thread reads a relay log that
+    comes from a pre-GTID master, it must preserve the transactions as
+    anonymous transactions, even if GTID_MODE>=UPGRADE_STEP2.  This
+    may happen, e.g., if the relay log was received when master and
+    slave had GTID_MODE=OFF or when master and slave were old, and the
+    relay log is applied when slave has GTID_MODE>=UPGRADE_STEP_2.
+
+    So the slave thread should set GTID_NEXT=ANONYMOUS for the next
+    transaction when it starts to process an old binary log.  However,
+    there is no way for the slave to tell if the binary log is old,
+    until it sees the first transaction.  If the first transaction
+    begins with a Gtid_log_event, we have the GTID there; if it begins
+    with query_log_event, row events, etc, then this is an old binary
+log.  So at the time the binary log begins, we just set
+    GTID_NEXT=NOT_YET_DETERMINED_GROUP.  If it remains
+    NOT_YET_DETERMINED when the next transaction begins,
+    gtid_pre_statement_checks will automatically turn it into an
+    anonymous transaction.  If a Gtid_log_event comes across before
+    the next transaction starts, then the Gtid_log_event will just
+    set GTID_NEXT='UUID:NUMBER' accordingly.
+  */
+  NOT_YET_DETERMINED_GROUP
+};
 /// Global state of GTIDs.
 extern Gtid_state *gtid_state;
 
@@ -2566,7 +2661,8 @@ struct Gtid_specification
   static bool is_valid(const char *text)
   { return Gtid_specification::get_type(text) != INVALID_GROUP; }
 #endif
-  static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
+  static const int MAX_TEXT_LENGTH= binary_log::Uuid::TEXT_LENGTH + 1 +
+                                    MAX_GNO_TEXT_LENGTH;
   /**
     Writes this Gtid_specification to the given string buffer.
 
@@ -2645,7 +2741,7 @@ public:
   /// Removes all groups from this cache.
   void clear();
   /// Return the number of groups in this group cache.
-  inline int get_n_groups() const { return groups.elements; }
+  inline int get_n_groups() const { return static_cast<int>(m_groups.size()); }
   /// Return true iff the group cache contains zero groups.
   inline bool is_empty() const { return get_n_groups() == 0; }
   /**
@@ -2728,7 +2824,7 @@ public:
     for (int i= 0; i < n_groups; i++)
     {
       Cached_group *group= get_unsafe_pointer(i);
-      char uuid[Uuid::TEXT_LENGTH + 1]= "[]";
+      char uuid[binary_log::Uuid::TEXT_LENGTH + 1]= "[]";
       if (group->spec.gtid.sidno)
         sm->sidno_to_sid(group->spec.gtid.sidno).to_string(uuid);
       s += sprintf(s, "  %s:%lld [offset %lld] %s\n",
@@ -2747,7 +2843,7 @@ public:
   */
   size_t get_max_string_length() const
   {
-    return (2 + Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
+    return (2 + binary_log::Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
             40 + 10 + 21 + 1 + 100/*margin*/) * get_n_groups() + 100/*margin*/;
   }
   /**
@@ -2793,12 +2889,12 @@ public:
   inline Cached_group *get_unsafe_pointer(int index) const
   {
     DBUG_ASSERT(index >= 0 && index < get_n_groups());
-    return dynamic_element(&groups, index, Cached_group *);
+    return const_cast<Cached_group*>(&m_groups[index]);
   }
 
 private:
   /// List of all groups in this cache, of type Cached_group.
-  DYNAMIC_ARRAY groups;
+  Prealloced_array<Cached_group, 8, true> m_groups;
 
   /**
     Return a pointer to the last group, or NULL if this Group_cache is
@@ -2816,10 +2912,12 @@ private:
   */
   Cached_group *allocate_group()
   {
-    Cached_group *ret= (Cached_group *)alloc_dynamic(&groups);
-    if (ret == NULL)
+    if (m_groups.push_back(Cached_group()))
+    {
       BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
-    return ret;
+      return NULL;
+    }
+    return &m_groups.back();
   }
 
   /**

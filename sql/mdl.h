@@ -96,8 +96,16 @@ public:
   virtual int  is_killed() = 0;
 
   /**
-     This one is only used for DEBUG_SYNC.
-     (Do not use it to peek/poke into other parts of THD.)
+    Does the owner still have connection to the client?
+  */
+  virtual bool is_connected() = 0;
+
+  /**
+     Within MDL subsystem this one is only used for DEBUG_SYNC.
+     Do not use it to peek/poke into other parts of THD from MDL.
+     However it is OK to use this method in callbacks provided
+     by SQL-layer to MDL subsystem (since SQL-layer has full
+     access to THD anyway).
    */
   virtual THD* get_thd() = 0;
 
@@ -192,14 +200,28 @@ enum enum_mdl_type {
   */
   MDL_SHARED_WRITE,
   /*
-    An upgradable shared metadata lock for cases when there is an intention
-    to modify (and not just read) data in the table.
-    Can be upgraded to MDL_SHARED_NO_WRITE and MDL_EXCLUSIVE.
-    A connection holding SU lock can read table metadata and modify or read
-    table data (after acquiring appropriate table and row-level locks).
+    A version of MDL_SHARED_WRITE lock which has lower priority than
+    MDL_SHARED_READ_ONLY locks. Used by DML statements modifying
+    tables and using the LOW_PRIORITY clause.
+  */
+  MDL_SHARED_WRITE_LOW_PRIO,
+  /*
+    An upgradable shared metadata lock which allows concurrent updates and
+    reads of table data.
+    A connection holding this kind of lock can read table metadata and read
+    table data. It should not modify data as this lock is compatible with
+    SRO locks.
+    Can be upgraded to SNW, SNRW and X locks. Once SU lock is upgraded to X
+    or SNRW lock data modification can happen freely.
     To be used for the first phase of ALTER TABLE.
   */
   MDL_SHARED_UPGRADABLE,
+  /*
+    A shared metadata lock for cases when we need to read data from table
+    and block all concurrent modifications to it (for both data and metadata).
+    Used by LOCK TABLES READ statement.
+  */
+  MDL_SHARED_READ_ONLY,
   /*
     An upgradable shared metadata lock which blocks all attempts to update
     table data, allowing reads.
@@ -291,9 +313,12 @@ public:
      - PROCEDURE is for stored procedures.
      - TRIGGER is for triggers.
      - EVENT is for event scheduler events
+     - USER_LEVEL_LOCK is for user-level locks
     Note that although there isn't metadata locking on triggers,
     it's necessary to have a separate namespace for them since
     MDL_key is also used outside of the MDL subsystem.
+    Also note that requests waiting for user-level locks get special
+    treatment - waiting is aborted if connection to client is lost.
   */
   enum enum_mdl_namespace { GLOBAL=0,
                             SCHEMA,
@@ -303,6 +328,7 @@ public:
                             TRIGGER,
                             EVENT,
                             COMMIT,
+                            USER_LEVEL_LOCK,
                             /* This should be the last ! */
                             NAMESPACE_END };
 
@@ -463,6 +489,25 @@ public:
     type= type_arg;
   }
 
+  /**
+    Is this a request for a lock which allow data to be updated?
+
+    @note This method returns true for MDL_SHARED_UPGRADABLE type of
+          lock. Even though this type of lock doesn't allow updates
+          it will always be upgraded to one that does.
+  */
+  bool is_write_lock_request() const
+  {
+    return (type >= MDL_SHARED_WRITE &&
+            type != MDL_SHARED_READ_ONLY);
+  }
+
+  /** Is this a request for a strong, DDL/LOCK TABLES-type, of lock? */
+  bool is_ddl_or_lock_tables_lock_request() const
+  {
+    return type >= MDL_SHARED_UPGRADABLE;
+  }
+
   /*
     This is to work around the ugliness of TABLE_LIST
     compiler-generated assignment operator. It is currently used
@@ -544,11 +589,10 @@ public:
   */
   virtual bool accept_visitor(MDL_wait_for_graph_visitor *gvisitor) = 0;
 
-  enum enum_deadlock_weight
-  {
-    DEADLOCK_WEIGHT_DML= 0,
-    DEADLOCK_WEIGHT_DDL= 100
-  };
+  static const uint DEADLOCK_WEIGHT_DML= 0;
+  static const uint DEADLOCK_WEIGHT_ULL= 50;
+  static const uint DEADLOCK_WEIGHT_DDL= 100;
+
   /* A helper used to determine which lock request should be aborted. */
   virtual uint get_deadlock_weight() const = 0;
 };
@@ -602,6 +646,7 @@ public:
   }
   enum_mdl_type get_type() const { return m_type; }
   MDL_lock *get_lock() const { return m_lock; }
+  const MDL_key *get_key() const;
   void downgrade_lock(enum_mdl_type type);
 
   bool has_stronger_or_equal_type(enum_mdl_type type) const;
@@ -744,6 +789,18 @@ private:
 };
 
 
+/**
+  Abstract visitor class for inspecting MDL_context.
+*/
+
+class MDL_context_visitor
+{
+public:
+  virtual ~MDL_context_visitor() {}
+  virtual void visit_context(const MDL_context *ctx) = 0;
+};
+
+
 typedef I_P_List<MDL_request, I_P_List_adapter<MDL_request,
                  &MDL_request::next_in_list,
                  &MDL_request::prev_in_list>,
@@ -785,6 +842,8 @@ public:
                                    const char *db, const char *name,
                                    enum_mdl_type mdl_type);
 
+  bool find_lock_owner(const MDL_key *mdl_key, MDL_context_visitor *visitor);
+
   bool has_lock(const MDL_savepoint &mdl_savepoint, MDL_ticket *mdl_ticket);
 
   inline bool has_locks() const
@@ -808,11 +867,15 @@ public:
   void release_transactional_locks();
   void rollback_to_savepoint(const MDL_savepoint &mdl_savepoint);
 
-  MDL_context_owner *get_owner() { return m_owner; }
+  MDL_context_owner *get_owner() const { return m_owner; }
 
   /** @pre Only valid if we started waiting for lock. */
   inline uint get_deadlock_weight() const
-  { return m_waiting_for->get_deadlock_weight(); }
+  {
+    return m_force_dml_deadlock_weight ?
+           MDL_wait_for_subgraph::DEADLOCK_WEIGHT_DML :
+           m_waiting_for->get_deadlock_weight();
+  }
 
   void init(MDL_context_owner *arg) { m_owner= arg; }
 
@@ -841,6 +904,11 @@ public:
   bool get_needs_thr_lock_abort() const
   {
     return m_needs_thr_lock_abort;
+  }
+
+  void set_force_dml_deadlock_weight(bool force_dml_deadlock_weight)
+  {
+    m_force_dml_deadlock_weight= force_dml_deadlock_weight;
   }
 
   /**
@@ -875,6 +943,11 @@ public:
     return m_rand_state;
   }
 
+  /**
+    Within MDL subsystem this one is only used for DEBUG_SYNC.
+    Do not use it to peek/poke into other parts of THD from MDL.
+    @sa MDL_context_owner::get_thd().
+  */
   THD *get_thd() const { return m_owner->get_thd(); }
 
 public:
@@ -890,9 +963,9 @@ private:
     Lists of MDL tickets:
     ---------------------
     The entire set of locks acquired by a connection can be separated
-    in three subsets according to their: locks released at the end of
-    statement, at the end of transaction and locks are released
-    explicitly.
+    in three subsets according to their duration: locks released at
+    the end of statement, at the end of transaction and locks are
+    released explicitly.
 
     Statement and transactional locks are locks with automatic scope.
     They are accumulated in the course of a transaction, and released
@@ -901,11 +974,12 @@ private:
     locks). They must not be (and never are) released manually,
     i.e. with release_lock() call.
 
-    Locks with explicit duration are taken for locks that span
+    Tickets with explicit duration are taken for locks that span
     multiple transactions or savepoints.
     These are: HANDLER SQL locks (HANDLER SQL is
     transaction-agnostic), LOCK TABLES locks (you can COMMIT/etc
-    under LOCK TABLES, and the locked tables stay locked), and
+    under LOCK TABLES, and the locked tables stay locked), user level
+    locks (GET_LOCK()/RELEASE_LOCK() functions) and
     locks implementing "global read lock".
 
     Statement/transactional locks are always prepended to the
@@ -914,29 +988,13 @@ private:
     a savepoint, we start popping and releasing tickets from the
     front until we reach the last ticket acquired after the savepoint.
 
-    Locks with explicit duration stored are not stored in any
+    Locks with explicit duration are not stored in any
     particular order, and among each other can be split into
-    three sets:
-
-    [LOCK TABLES locks] [HANDLER locks] [GLOBAL READ LOCK locks]
-
-    The following is known about these sets:
-
-    * GLOBAL READ LOCK locks are always stored after LOCK TABLES
-      locks and after HANDLER locks. This is because one can't say
-      SET GLOBAL read_only=1 or FLUSH TABLES WITH READ LOCK
-      if one has locked tables. One can, however, LOCK TABLES
-      after having entered the read only mode. Note, that
-      subsequent LOCK TABLES statement will unlock the previous
-      set of tables, but not the GRL!
-      There are no HANDLER locks after GRL locks because
-      SET GLOBAL read_only performs a FLUSH TABLES WITH
-      READ LOCK internally, and FLUSH TABLES, in turn, implicitly
-      closes all open HANDLERs.
-      However, one can open a few HANDLERs after entering the
-      read only mode.
-    * LOCK TABLES locks include intention exclusive locks on
-      involved schemas and global intention exclusive lock.
+    four sets:
+    - LOCK TABLES locks
+    - User-level locks
+    - HANDLER locks
+    - GLOBAL READ LOCK locks
   */
   Ticket_list m_tickets[MDL_DURATION_END];
   MDL_context_owner *m_owner;
@@ -950,6 +1008,17 @@ private:
     FALSE - Otherwise.
   */
   bool m_needs_thr_lock_abort;
+
+  /**
+    Indicates that we need to use DEADLOCK_WEIGHT_DML deadlock
+    weight for this context and ignore the deadlock weight provided
+    by the MDL_wait_for_subgraph object which we are waiting for.
+
+    @note Can be changed only when there is a guarantee that this
+          MDL_context is not waiting for a metadata lock or table
+          definition entry.
+  */
+  bool m_force_dml_deadlock_weight;
 
   /**
     Read-write lock protecting m_waiting_for member.
@@ -1047,8 +1116,8 @@ extern mysql_mutex_t LOCK_open;
 
 /*
   Metadata locking subsystem tries not to grant more than
-  max_write_lock_count high-prio, strong locks successively,
-  to avoid starving out weak, low-prio locks.
+  max_write_lock_count high priority, strong locks successively,
+  to avoid starving out weak, lower priority locks.
 */
 extern "C" ulong max_write_lock_count;
 

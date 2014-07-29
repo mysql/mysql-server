@@ -22,6 +22,8 @@
   to this header.
 */
 #include "binlog_event.h"
+#include "control_events.h"
+#include "statement_events.h"
 #include "field_iterator.h"
 #include "load_data_events.h"
 #include "rowset.h"
