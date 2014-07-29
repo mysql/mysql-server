@@ -404,7 +404,7 @@ struct RecID {
 		m_space_id(space_id),
 		m_page_no(page_no),
 		m_heap_no(heap_no),
-		m_fold(lock_rec_fold(m_space, m_page_no))
+		m_fold(lock_rec_fold(m_space_id, m_page_no))
 	{
 		/* No op */
 	}

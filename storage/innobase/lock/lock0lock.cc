@@ -1674,7 +1674,7 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 
 	trx->killed_by = os_thread_get_curr_id();
 
-	m_trx->kill.push_back(trx);
+	m_trx->hit_list.push_back(trx);
 
 	THD*	thd = trx->mysql_thd;
 
