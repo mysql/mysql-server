@@ -926,10 +926,7 @@ lock_place_prdt_page_lock(
 	dict_index_t*	index,		/*!< in: secondary index */
 	que_thr_t*	thr)		/*!< in: query thread */
 {
-	// TODO: Why can this be NULL?
-	if (thr != NULL) {
-		return(DB_SUCCESS);
-	}
+	ut_ad(thr != NULL);
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(!dict_index_is_online_ddl(index));
