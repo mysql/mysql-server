@@ -1692,9 +1692,11 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 Add the lock to the head of the record lock {space, page_no} wait queue and
 the transaction's lock list.
 @param[in, out] lock		Lock being requested
-@param[in, out] wait_for	The blocking lock */
+@param[in, out] wait_for	The blocking lock
+@param[in] kill_trx		true if the transaction that m_trx is waiting
+				for should be killed */
 void
-RecLock::jump_queue(lock_t* lock, const lock_t* wait_for)
+RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 {
 	ut_ad(m_trx == lock->trx);
 	ut_ad(trx_mutex_own(m_trx));
@@ -1705,7 +1707,9 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for)
 	/* We need to change the hash bucket list pointers only. */
 	lock_t*	head = const_cast<lock_t*>(wait_for);
 
-	mark_trx_for_rollback(wait_for->trx);
+	if (kill_trx) {
+		mark_trx_for_rollback(wait_for->trx);
+	}
 
 	lock->hash = head->hash;
 	head->hash = lock;
@@ -1776,18 +1780,65 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 	trx_mutex_enter(wait_for->trx);
 
+	bool	kill_trx;
+
+	bool	waiting = wait_for->trx->lock.que_state == TRX_QUE_LOCK_WAIT;
+
+	/* If the transaction that is blocking m_trx is itself waiting then
+	we kill it unless it is waiting for the same lock that m_trx wants.
+	For the latter case we don't kill it but jump the queue.
+
+	If the transaction is not waiting but is a read-only transaction
+	started with START TRANSACTION READ ONLY then we wait for it. */
+
+	if (waiting) {
+
+		const trx_t*		trx = wait_for->trx;
+		const lock_t*		lock = trx->lock.wait_lock;
+		const lock_rec_t&	block_lock = lock->un_member.rec_lock;
+
+		/* Check if "wait_for" is waiting for the same lock. */
+
+		if (block_lock.space != m_rec_id.m_space_id
+		    || block_lock.page_no != m_rec_id.m_page_no
+		    || !lock_rec_get_nth_bit(wait_for, m_rec_id.m_heap_no)) {
+
+			/* Move it out of the way by rolling it back. */
+
+			kill_trx = true;
+
+		} else {
+
+			/* This is the jump queue case. */
+
+			kill_trx = false;
+		}
+
+	} else if (wait_for->trx->read_only) {
+
+		/* Wait for running read-only transactions */
+
+		kill_trx = false;
+
+	} else {
+
+		/* Rollback any running non-ro blocking transactions */
+
+		kill_trx = true;
+	}
+
 	/* Move the lock being requested to the head of
 	the wait queue so that if the transaction that
 	we are waiting for is rolled back we get dibs
 	on the row. */
 
-	jump_queue(lock, wait_for);
+	jump_queue(lock, wait_for, kill_trx);
 
-	/* Only if the blocking transaction is itself waiting, we
-	do the rollback here. For active transactions we do the
-	rollback before we enter lock wait. */
+	/* Only if the blocking transaction is itself waiting, but
+	waiting on a different lock we do the rollback here. For active
+	transactions we do the rollback before we enter lock wait. */
 
-	if (wait_for->trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
+	if (waiting && kill_trx) {
 
 		UT_LIST_ADD_LAST(m_trx->lock.trx_locks, lock);
 

@@ -617,8 +617,10 @@ private:
 	Add the lock to the head of the record lock {space, page_no} wait queue
 	and the transaction's lock list.
 	@param[in, out] lock		Lock being requested
-	@param[in] wait_for		The blocking lock */
-	void jump_queue(lock_t* lock, const lock_t* wait_for);
+	@param[in] wait_for		The blocking lock
+	@param[in] kill_trx		true if the transaction that m_trx
+					is waiting for should be killed */
+	void jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx);
 
 	/**
 	Setup the requesting transaction state for lock grant
