@@ -1439,7 +1439,8 @@ innobase_start_or_create_for_mysql(void)
 		/* Size unit of buffer pool is larger than srv_buf_pool_size.
 		adjust srv_buf_pool_chunk_unit for srv_buf_pool_size. */
 		srv_buf_pool_chunk_unit
-			= srv_buf_pool_size / srv_buf_pool_instances;
+			= static_cast<ulong>(srv_buf_pool_size)
+			  / srv_buf_pool_instances;
 		if (srv_buf_pool_size % srv_buf_pool_instances != 0) {
 			++srv_buf_pool_chunk_unit;
 		}
