@@ -1078,6 +1078,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  UTC_DATE_SYM
 %token  UTC_TIMESTAMP_SYM
 %token  UTC_TIME_SYM
+%token  VALIDATION_SYM                /* MYSQL */
 %token  VALUES                        /* SQL-2003-R */
 %token  VALUE_SYM                     /* SQL-2003-R */
 %token  VARBINARY
@@ -1097,6 +1098,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  WITH                          /* SQL-2003-R */
 %token  WITH_CUBE_SYM                 /* INTERNAL */
 %token  WITH_ROLLUP_SYM               /* INTERNAL */
+%token  WITHOUT_SYM                   /* SQL-2003-R */
 %token  WORK_SYM                      /* SQL-2003-N */
 %token  WRAPPER_SYM
 %token  WRITE_SYM                     /* SQL-2003-N */
@@ -7633,7 +7635,7 @@ alter_commands:
           }
         | reorg_partition_rule
         | EXCHANGE_SYM PARTITION_SYM alt_part_name_item
-          WITH TABLE_SYM table_ident have_partitioning
+          WITH TABLE_SYM table_ident have_partitioning opt_validation
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -7676,6 +7678,15 @@ alter_commands:
               MYSQL_YYABORT;
           }
         ;
+
+opt_validation:
+          /* empty */
+        | WITH VALIDATION_SYM
+        | WITHOUT_SYM VALIDATION_SYM
+          {
+            Lex->alter_info.with_validation= false;
+          }
+	    ;
 
 remove_partitioning:
           REMOVE_SYM PARTITIONING_SYM have_partitioning
@@ -13199,12 +13210,14 @@ keyword_sp:
         | UNTIL_SYM                {}
         | USER                     {}
         | USE_FRM                  {}
+        | VALIDATION_SYM           {}
         | VARIABLES                {}
         | VIEW_SYM                 {}
         | VALUE_SYM                {}
         | WARNINGS                 {}
         | WAIT_SYM                 {}
         | WEEK_SYM                 {}
+        | WITHOUT_SYM              {}
         | WORK_SYM                 {}
         | WEIGHT_STRING_SYM        {}
         | X509_SYM                 {}
