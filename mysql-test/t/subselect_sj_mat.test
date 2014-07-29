@@ -1830,10 +1830,10 @@ create database mysqltest2;
 create database mysqltest3;
 create database mysqltest4;
 
-SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.SCHEMATA) ORDER BY db DESC;
+SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.schemata) ORDER BY db DESC;
 
 EXPLAIN EXTENDED
-SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.SCHEMATA) ORDER BY db DESC;
+SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.schemata) ORDER BY db DESC;
 
 drop table t1;
 drop database mysqltest1;

@@ -2166,20 +2166,20 @@ create database mysqltest1;
 create database mysqltest2;
 create database mysqltest3;
 create database mysqltest4;
-SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.SCHEMATA) ORDER BY db DESC;
+SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.schemata) ORDER BY db DESC;
 db
 mysqltest4
 mysqltest3
 mysqltest2
 mysqltest1
 EXPLAIN EXTENDED
-SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.SCHEMATA) ORDER BY db DESC;
+SELECT db FROM t1 WHERE db IN (SELECT SCHEMA_NAME FROM information_schema.schemata) ORDER BY db DESC;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	PRIMARY	t1	eq_ref	db	db	764	information_schema.SCHEMATA.SCHEMA_NAME	1	100.00	Using where; Using index
-2	MATERIALIZED	SCHEMATA	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
+1	PRIMARY	t1	eq_ref	db	db	764	information_schema.schemata.SCHEMA_NAME	1	100.00	Using where; Using index
+2	MATERIALIZED	schemata	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	select `test`.`t1`.`db` AS `db` from `test`.`t1` semi join (`information_schema`.`SCHEMATA`) where (`test`.`t1`.`db` = `information_schema`.`SCHEMATA`.`SCHEMA_NAME`) order by `test`.`t1`.`db` desc
+Note	1003	select `test`.`t1`.`db` AS `db` from `test`.`t1` semi join (`information_schema`.`schemata`) where (`test`.`t1`.`db` = `information_schema`.`schemata`.`SCHEMA_NAME`) order by `test`.`t1`.`db` desc
 drop table t1;
 drop database mysqltest1;
 drop database mysqltest2;
