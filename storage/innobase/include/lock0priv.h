@@ -399,9 +399,9 @@ enum lock_rec_req_status {
 Record lock ID */
 struct RecID {
 
-	RecID(ib_uint32_t space, ib_uint32_t page_no, ib_uint32_t heap_no)
+	RecID(ib_uint32_t space_id, ib_uint32_t page_no, ib_uint32_t heap_no)
 		:
-		m_space(space),
+		m_space_id(space_id),
 		m_page_no(page_no),
 		m_heap_no(heap_no),
 		m_fold(lock_rec_fold(m_space, m_page_no))
@@ -411,10 +411,10 @@ struct RecID {
 
 	RecID(const buf_block_t* block, ib_uint32_t heap_no)
 		:
-		m_space(block->page.id.space()),
+		m_space_id(block->page.id.space()),
 		m_page_no(block->page.id.page_no()),
 		m_heap_no(heap_no),
-		m_fold(lock_rec_fold(m_space, m_page_no))
+		m_fold(lock_rec_fold(m_space_id, m_page_no))
 	{
 		/* No op */
 	}
@@ -428,7 +428,7 @@ struct RecID {
 
 	/**
 	Tablespace ID */
-	ib_uint32_t		m_space;
+	ib_uint32_t		m_space_id;
 
 	/**
 	Page number within the space ID */
@@ -475,7 +475,7 @@ public:
 				lock
 	@param[in] index	Index on which record lock requested
 	@param[in] block	Buffer page containing record
-	@param[in] heap_no	Heap number withing block
+	@param[in] heap_no	Heap number within the block
 	@param[in] mode		The lock mode
 	@param[in] prdt		The predicate for the rtree lock */
 	RecLock(que_thr_t*	thr,
