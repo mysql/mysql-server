@@ -3136,75 +3136,80 @@ trx_kill_blocking(trx_t* trx)
 	     it != end;
 	     ++it) {
 
-		trx_t*	kill_trx = *it;
+		trx_t*	victim_trx = *it;
 
-		ut_ad(kill_trx != trx);
+		ut_ad(victim_trx != trx);
 
 		/* We should never kill background transactions. */
 
-		ut_ad(kill_trx->mysql_thd != NULL);
+		ut_ad(victim_trx->mysql_thd != NULL);
 
 		/* Shouldn't commit suicide either. */
 
-		ut_ad(kill_trx->mysql_thd != trx->mysql_thd);
+		ut_ad(victim_trx->mysql_thd != trx->mysql_thd);
 
 		/* Check that the transaction isn't active inside
 		InnoDB code. We have to wait while it is executing
-		in the InnoDB context.
+		in the InnoDB context. This can potentially take a
+		long time */
 
-		FIXME: Add a check for "forced rollback" */
+		trx_mutex_enter(victim_trx);
 
-		trx_mutex_enter(kill_trx);
+		ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK);
 
-		ut_ad(kill_trx->in_innodb & TRX_FORCE_ROLLBACK);
+		while ((victim_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0
+		       && trx_is_started(victim_trx)) {
 
-		while ((kill_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0
-		       && trx_is_started(kill_trx)) {
-
-			trx_mutex_exit(kill_trx);
+			trx_mutex_exit(victim_trx);
 
 			os_thread_sleep(20);
 
-			trx_mutex_enter(kill_trx);
+			trx_mutex_enter(victim_trx);
 		}
 
-		ut_ad(kill_trx->in_innodb & TRX_FORCE_ROLLBACK);
+		ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK);
 
-		trx_mutex_exit(kill_trx);
+		trx_mutex_exit(victim_trx);
 
 		char	buffer[1024];
 
-		if (trx_is_started(kill_trx)) {
+		/* We don't kill transactions that are tagged explicitly
+		as READ ONLY. */
+		if (victim_trx->read_only) {
 
-			ut_ad(kill_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
+			trx->killed_by = 0;
 
-			trx_rollback_for_mysql(kill_trx);
+		} else if (trx_is_started(victim_trx)) {
+
+			ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
+
+			trx_rollback_for_mysql(victim_trx);
 
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Killed transaction: %s",
 				thd_security_context(
-					kill_trx->mysql_thd,
+					victim_trx->mysql_thd,
 					buffer, sizeof(buffer), 512));
 
 		} else {
 
 			/* Note that it was rolled back synchronously. */
 
-			kill_trx->in_innodb &= ~TRX_FORCE_ROLLBACK_ASYNC;
+			victim_trx->in_innodb &= ~TRX_FORCE_ROLLBACK_ASYNC;
 
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Transaction completed before"
 				" forced rollback : %s",
 				thd_security_context(
-					kill_trx->mysql_thd,
+					victim_trx->mysql_thd,
 					buffer, sizeof(buffer), 512));
 		}
 
-		trx_mutex_enter(kill_trx);
+		trx_mutex_enter(victim_trx);
 
-		kill_trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
+		victim_trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
 
-		trx_mutex_exit(kill_trx);
+		trx_mutex_exit(victim_trx);
 	}
 
 	trx->hit_list.clear();

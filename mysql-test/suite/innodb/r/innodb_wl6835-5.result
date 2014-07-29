@@ -14,11 +14,12 @@ UPDATE t1 SET c1=2 WHERE c1=0 AND c2=0;
 # On connection 3
 include/start_transaction_high_prio.inc
 START TRANSACTION /* HIGH PRIORITY */;
-UPDATE t1 SET c1=3 WHERE c1=0;
+SET @con2_id = <con2_id>;
+UPDATE t1 SET c1=3 WHERE c1=0;;
 
 # On connection 1
+SET @con3_id = <con3_id>;
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
 
 # On connection 3
 COMMIT;
