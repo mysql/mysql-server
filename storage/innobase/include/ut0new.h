@@ -463,8 +463,11 @@ public:
 			return(NULL);
 		}
 
+		/* pfx_new still contains the description of the old block
+		that was presumably freed by realloc(). */
 		deallocate_trace(pfx_new);
 
+		/* pfx_new is set here to describe the new block. */
 		allocate_trace(total_bytes, file, pfx_new);
 
 		return(reinterpret_cast<pointer>(pfx_new + 1));
