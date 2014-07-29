@@ -16,9 +16,12 @@
 #include "mysqld_thd_manager.h"
 
 #include "mysql/thread_pool_priv.h"  // inc_thread_created
+#include "mutex_lock.h"              // Mutex_lock
 #include "debug_sync.h"              // DEBUG_SYNC_C
 #include "sql_class.h"               // THD
 
+#include <functional>
+#include <algorithm>
 
 int Global_THD_manager::global_thd_count= 0;
 Global_THD_manager *Global_THD_manager::thd_manager = NULL;
@@ -66,34 +69,36 @@ private:
 
 
 #ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_LOCK_thd_count;
+static PSI_mutex_key key_LOCK_thd_list;
 static PSI_mutex_key key_LOCK_thd_remove;
-static PSI_mutex_key key_LOCK_thread_created;
+static PSI_mutex_key key_LOCK_thread_ids;
 
 static PSI_mutex_info all_thd_manager_mutexes[]=
 {
-  { &key_LOCK_thd_count, "LOCK_thd_count", PSI_FLAG_GLOBAL},
+  { &key_LOCK_thd_list, "LOCK_thd_list", PSI_FLAG_GLOBAL},
   { &key_LOCK_thd_remove, "LOCK_thd_remove", PSI_FLAG_GLOBAL},
-  { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL }
+  { &key_LOCK_thread_ids, "LOCK_thread_ids", PSI_FLAG_GLOBAL }
 };
 
-static PSI_cond_key key_COND_thd_count;
+static PSI_cond_key key_COND_thd_list;
 
 static PSI_cond_info all_thd_manager_conds[]=
 {
-  { &key_COND_thd_count, "COND_thread_count", PSI_FLAG_GLOBAL}
+  { &key_COND_thd_list, "COND_thd_list", PSI_FLAG_GLOBAL}
 };
 #endif // HAVE_PSI_INTERFACE
 
 
+const my_thread_id Global_THD_manager::reserved_thread_id= 0;
+
 Global_THD_manager::Global_THD_manager()
-  : num_thread_running(0),
+  : thd_list(PSI_INSTRUMENT_ME),
+    thread_ids(PSI_INSTRUMENT_ME),
+    num_thread_running(0),
     thread_created(0),
-    thread_id(1L),
+    thread_id_counter(reserved_thread_id + 1),
     unit_test(false)
 {
-  thd_list= new std::set<THD*>;
-
 #ifdef HAVE_PSI_INTERFACE
   int count= array_elements(all_thd_manager_mutexes);
   mysql_mutex_register("sql", all_thd_manager_mutexes, count);
@@ -102,24 +107,30 @@ Global_THD_manager::Global_THD_manager()
   mysql_cond_register("sql", all_thd_manager_conds, count);
 #endif
 
-  mysql_mutex_init(key_LOCK_thd_count, &LOCK_thd_count,
+  mysql_mutex_init(key_LOCK_thd_list, &LOCK_thd_list,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_remove,
                    &LOCK_thd_remove, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_thread_created,
-                   &LOCK_thread_created, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_thd_count, &COND_thd_count);
+  mysql_mutex_init(key_LOCK_thread_ids,
+                   &LOCK_thread_ids, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_thd_list, &COND_thd_list);
+
+  // The reserved thread ID should never be used by normal threads,
+  // so mark it as in-use. This ID is used by temporary THDs never
+  // added to the list of THDs.
+  thread_ids.push_back(reserved_thread_id);
 }
 
 
 Global_THD_manager::~Global_THD_manager()
 {
-  delete thd_list;
-  thd_list= NULL;
-  mysql_mutex_destroy(&LOCK_thd_count);
+  thread_ids.erase_unique(reserved_thread_id);
+  DBUG_ASSERT(thd_list.empty());
+  DBUG_ASSERT(thread_ids.empty());
+  mysql_mutex_destroy(&LOCK_thd_list);
   mysql_mutex_destroy(&LOCK_thd_remove);
-  mysql_mutex_destroy(&LOCK_thread_created);
-  mysql_cond_destroy(&COND_thd_count);
+  mysql_mutex_destroy(&LOCK_thread_ids);
+  mysql_cond_destroy(&COND_thd_list);
 }
 
 
@@ -144,25 +155,28 @@ void Global_THD_manager::destroy_instance()
 
 void Global_THD_manager::add_thd(THD *thd)
 {
-  DBUG_PRINT("info", ("Global_THD_manager::add_thread %p", thd));
-  mysql_mutex_lock(&LOCK_thd_count);
-  std::pair<std::set<THD*>::iterator, bool>
-    insert_result= thd_list->insert(thd);
+  DBUG_PRINT("info", ("Global_THD_manager::add_thd %p", thd));
+  // Should have an assigned ID before adding to the list.
+  DBUG_ASSERT(thd->thread_id() != reserved_thread_id);
+  mysql_mutex_lock(&LOCK_thd_list);
+  // Technically it is not supported to compare pointers, but it works.
+  std::pair<THD_array::iterator, bool> insert_result=
+    thd_list.insert_unique(thd);
   if (insert_result.second)
   {
     ++global_thd_count;
   }
   // Adding the same THD twice is an error.
   DBUG_ASSERT(insert_result.second);
-  mysql_mutex_unlock(&LOCK_thd_count);
+  mysql_mutex_unlock(&LOCK_thd_list);
 }
 
 
 void Global_THD_manager::remove_thd(THD *thd)
 {
-  DBUG_PRINT("info", ("Global_THD_manager::remove_thread %p", thd));
+  DBUG_PRINT("info", ("Global_THD_manager::remove_thd %p", thd));
   mysql_mutex_lock(&LOCK_thd_remove);
-  mysql_mutex_lock(&LOCK_thd_count);
+  mysql_mutex_lock(&LOCK_thd_list);
 
   if (!unit_test)
     DBUG_ASSERT(thd->release_resources_done());
@@ -174,58 +188,75 @@ void Global_THD_manager::remove_thd(THD *thd)
   */
   DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
 
-  const size_t num_erased= thd_list->erase(thd);
+  const size_t num_erased= thd_list.erase_unique(thd);
   if (num_erased == 1)
     --global_thd_count;
   // Removing a THD that was never added is an error.
   DBUG_ASSERT(1 == num_erased);
   mysql_mutex_unlock(&LOCK_thd_remove);
-  mysql_cond_broadcast(&COND_thd_count);
-  mysql_mutex_unlock(&LOCK_thd_count);
+  mysql_cond_broadcast(&COND_thd_list);
+  mysql_mutex_unlock(&LOCK_thd_list);
 }
 
 
-void Global_THD_manager::inc_thread_created()
+my_thread_id Global_THD_manager::get_new_thread_id()
 {
-  mysql_mutex_lock(&LOCK_thread_created);
-  thread_created++;
-  mysql_mutex_unlock(&LOCK_thread_created);
+  my_thread_id new_id;
+  Mutex_lock lock(&LOCK_thread_ids);
+  do {
+    new_id= thread_id_counter++;
+  } while (!thread_ids.insert_unique(new_id).second);
+  return new_id;
+}
+
+
+void Global_THD_manager::release_thread_id(my_thread_id thread_id)
+{
+  if (thread_id == reserved_thread_id)
+    return; // Some temporary THDs are never given a proper ID.
+  Mutex_lock lock(&LOCK_thread_ids);
+  const size_t num_erased __attribute__((unused))=
+    thread_ids.erase_unique(thread_id);
+  // Assert if the ID was not found in the list.
+  DBUG_ASSERT(1 == num_erased);
+}
+
+
+void Global_THD_manager::set_thread_id_counter(my_thread_id new_id)
+{
+  DBUG_ASSERT(unit_test == true);
+  Mutex_lock lock(&LOCK_thread_ids);
+  thread_id_counter= new_id;
 }
 
 
 void Global_THD_manager::wait_till_no_thd()
 {
-  mysql_mutex_lock(&LOCK_thd_count);
+  mysql_mutex_lock(&LOCK_thd_list);
   while (get_thd_count() > 0)
   {
-    mysql_cond_wait(&COND_thd_count, &LOCK_thd_count);
+    mysql_cond_wait(&COND_thd_list, &LOCK_thd_list);
     DBUG_PRINT("quit", ("One thread died (count=%u)", get_thd_count()));
   }
-  mysql_mutex_unlock(&LOCK_thd_count);
+  mysql_mutex_unlock(&LOCK_thd_list);
 }
 
 
 void Global_THD_manager::do_for_all_thd_copy(Do_THD_Impl *func)
 {
-  /* Take copy of global_thread_list. */
-  std::set<THD*> thd_list_copy;
   Do_THD doit(func);
 
   mysql_mutex_lock(&LOCK_thd_remove);
-  mysql_mutex_lock(&LOCK_thd_count);
-  try
-  {
-    thd_list_copy= *thd_list;
-  }
-  catch (std::bad_alloc)
-  {
-  }
+  mysql_mutex_lock(&LOCK_thd_list);
+
+  /* Take copy of global_thread_list. */
+  THD_array thd_list_copy(thd_list);
 
   /*
     Allow inserts to global_thread_list. Newly added thd
     will not be accounted for when executing func.
   */
-  mysql_mutex_unlock(&LOCK_thd_count);
+  mysql_mutex_unlock(&LOCK_thd_list);
 
   /* Execute func for all existing threads. */
   std::for_each(thd_list_copy.begin(), thd_list_copy.end(), doit);
@@ -238,22 +269,22 @@ void Global_THD_manager::do_for_all_thd_copy(Do_THD_Impl *func)
 void Global_THD_manager::do_for_all_thd(Do_THD_Impl *func)
 {
   Do_THD doit(func);
-  mysql_mutex_lock(&LOCK_thd_count);
-  std::for_each(thd_list->begin(), thd_list->end(), doit);
-  mysql_mutex_unlock(&LOCK_thd_count);
+  mysql_mutex_lock(&LOCK_thd_list);
+  std::for_each(thd_list.begin(), thd_list.end(), doit);
+  mysql_mutex_unlock(&LOCK_thd_list);
 }
 
 
 THD* Global_THD_manager::find_thd(Find_THD_Impl *func)
 {
   Find_THD find_thd(func);
-  mysql_mutex_lock(&LOCK_thd_count);
-  std::set<THD*>::const_iterator it= std::find_if(thd_list->begin(),
-                                                  thd_list->end(), find_thd);
+  mysql_mutex_lock(&LOCK_thd_list);
+  THD_array::const_iterator it=
+    std::find_if(thd_list.begin(), thd_list.end(), find_thd);
   THD* ret= NULL;
-  if (it != thd_list->end())
+  if (it != thd_list.end())
     ret= *it;
-  mysql_mutex_unlock(&LOCK_thd_count);
+  mysql_mutex_unlock(&LOCK_thd_list);
   return ret;
 }
 
@@ -266,15 +297,15 @@ void inc_thread_created()
 
 void thd_lock_thread_count(THD *)
 {
-  mysql_mutex_lock(&Global_THD_manager::get_instance()->LOCK_thd_count);
+  mysql_mutex_lock(&Global_THD_manager::get_instance()->LOCK_thd_list);
 }
 
 
 void thd_unlock_thread_count(THD *)
 {
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  mysql_cond_broadcast(&thd_manager->COND_thd_count);
-  mysql_mutex_unlock(&thd_manager->LOCK_thd_count);
+  mysql_cond_broadcast(&thd_manager->COND_thd_list);
+  mysql_mutex_unlock(&thd_manager->LOCK_thd_list);
 }
 
 

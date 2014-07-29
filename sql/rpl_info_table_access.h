@@ -19,16 +19,16 @@
 #include "sql_priv.h"
 #include <table.h>
 #include <key.h>
-#include <sql_base.h>
+#include "rpl_table_access.h"
 #include "rpl_info_handler.h"
 #include "rpl_info_values.h"
 
 enum enum_return_id { FOUND_ID= 1, NOT_FOUND_ID, ERROR_ID };
 
-class Rpl_info_table_access : public Table_access
+class Rpl_info_table_access : public System_table_access
 {
 public:
-  Rpl_info_table_access() { };
+  Rpl_info_table_access(): thd_created(false) { };
   virtual ~Rpl_info_table_access() { };
 
   /**
@@ -53,7 +53,7 @@ public:
   void drop_thd(THD* thd);
 
 private:
-  THD *saved_current_thd;
+  bool thd_created;
 
   Rpl_info_table_access& operator=(const Rpl_info_table_access& info);
   Rpl_info_table_access(const Rpl_info_table_access& info);

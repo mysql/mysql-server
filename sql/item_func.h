@@ -920,6 +920,95 @@ public:
   bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
+
+/**
+  This is a superclass for Item_func_longfromgeohash and
+  Item_func_latfromgeohash, since they share almost all code.
+*/
+class Item_func_latlongfromgeohash :public Item_real_func
+{
+private:
+  /**
+   The lower limit for latitude output value. Normally, this will be
+   set to -90.0.
+  */
+  const double lower_latitude;
+
+  /**
+   The upper limit for latitude output value. Normally, this will be
+   set to 90.0.
+  */
+  const double upper_latitude;
+
+  /**
+   The lower limit for longitude output value. Normally, this will
+   be set to -180.0.
+  */
+  const double lower_longitude;
+
+  /**
+   The upper limit for longitude output value. Normally, this will
+   be set to 180.0.
+  */
+  const double upper_longitude;
+
+  /**
+   If this is set to TRUE the algorithm will start decoding on the first bit,
+   which decodes a longitude value. If it is FALSE, it will start on the
+   second bit which decodes a latitude value.
+  */
+  const bool start_on_even_bit;
+public:
+  Item_func_latlongfromgeohash(const POS &pos, Item *a,
+                               double lower_latitude, double upper_latitude,
+                               double lower_longitude, double upper_longitude,
+                               bool start_on_even_bit_arg)
+    :Item_real_func(pos, a), lower_latitude(lower_latitude),
+    upper_latitude(upper_latitude), lower_longitude(lower_longitude),
+    upper_longitude(upper_longitude), start_on_even_bit(start_on_even_bit_arg)
+  {}
+  double val_real();
+  void fix_length_and_dec();
+  bool fix_fields(THD *thd, Item **ref);
+  static bool decode_geohash(String *geohash, double upper_latitude,
+                             double lower_latitude, double upper_longitude,
+                             double lower_longitude, double *result_latitude,
+                             double *result_longitude);
+  static double round_latlongitude(double latlongitude, double error_range);
+  static bool check_geohash_argument_valid_type(Item *item);
+};
+
+
+/**
+  This handles the <double> = ST_LATFROMGEOHASH(<string>) funtion.
+  It returns the latitude-part of a geohash, in the range of [-90, 90].
+*/
+class Item_func_latfromgeohash :public Item_func_latlongfromgeohash
+{
+public:
+  Item_func_latfromgeohash(const POS &pos, Item *a)
+    :Item_func_latlongfromgeohash(pos, a, -90.0, 90.0, -180.0, 180.0, false)
+  {}
+
+  const char *func_name() const { return "ST_LATFROMGEOHASH"; }
+};
+
+
+/**
+  This handles the <double> = ST_LONGFROMGEOHASH(<string>) funtion.
+  It returns the longitude-part of a geohash, in the range of [-180, 180].
+*/
+class Item_func_longfromgeohash :public Item_func_latlongfromgeohash
+{
+public:
+  Item_func_longfromgeohash(const POS &pos, Item *a) 
+    :Item_func_latlongfromgeohash(pos, a, -90.0, 90.0, -180.0, 180.0, true)
+  {}
+
+  const char *func_name() const { return "ST_LONGFROMGEOHASH"; }
+};
+
+
 // A class to handle logarithmic and trigonometric functions
 
 class Item_dec_func :public Item_real_func
@@ -1834,6 +1923,28 @@ public:
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
   void fix_length_and_dec() { max_length=21; maybe_null=1;}
+};
+
+/**
+  This class is used for implementing the new wait_for_executed_gtid_set
+  function and the functions related to them. This new function is independent
+  of the slave threads.
+*/
+class Item_wait_for_executed_gtid_set :public Item_int_func
+{
+  typedef Item_int_func super;
+
+  String value;
+public:
+  Item_wait_for_executed_gtid_set(const POS &pos, Item *a) :Item_int_func(pos, a) {}
+  Item_wait_for_executed_gtid_set(const POS &pos, Item *a, Item *b)
+    :Item_int_func(pos, a, b)
+  {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
+  longlong val_int();
+  const char *func_name() const { return "wait_for_executed_gtid_set"; }
+  void fix_length_and_dec() { max_length= 21; maybe_null= 1; }
 };
 
 class Item_master_gtid_set_wait :public Item_int_func

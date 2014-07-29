@@ -21,13 +21,13 @@ AND enabled = 'yes' AND timed = 'no'
 ORDER BY name;
 
 SELECT * FROM performance_schema.setup_instruments
-WHERE name = 'wait/synch/mutex/sql/LOCK_thd_count'
+WHERE name = 'wait/synch/mutex/sql/LOCK_thd_list'
 AND enabled = 'no' AND timed = 'no';
 
 SELECT * FROM performance_schema.setup_instruments
 WHERE name IN (
   'wait/synch/mutex/sql/LOG_INFO::lock',
-  'wait/synch/mutex/sql/THD::LOCK_thd_data')
+  'wait/synch/mutex/sql/THD::LOCK_thd_list')
 AND enabled = 'yes' AND timed = 'yes'
 ORDER BY name;
 
