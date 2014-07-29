@@ -60,6 +60,8 @@ public:
     get_best_combination().
   */
   JOIN_TAB *join_tab;
+  /// Array of QEP_TABs
+  QEP_TAB *qep_tab;
 
   /**
     Array of plan operators representing the current (partial) best
@@ -389,7 +391,7 @@ public:
     shortcutting is done to handle outer joins or handle semi-joins with
     FirstMatch strategy.
   */
-  JOIN_TAB *return_tab;
+  plan_idx return_tab;
 
   /*
     Used pointer reference for this select.
@@ -443,7 +445,10 @@ public:
   void init(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
   {
+    best_ref= NULL;
     join_tab= 0;
+    qep_tab= NULL;
+    map2table= NULL;
     tables= 0;
     primary_tables= 0;
     const_tables= 0;
@@ -581,8 +586,8 @@ public:
     memory consumption.
   */
   void join_free();
-  /** Cleanup this JOIN, possibly for reuse */
-  void cleanup(bool full);
+  /** Cleanup this JOIN. Not a full cleanup. reusable? */
+  void cleanup();
   void clear();
   bool save_join_tab();
   void restore_join_tab();
@@ -608,9 +613,9 @@ public:
   bool generate_derived_keys();
   void drop_unused_derived_keys();
   bool get_best_combination();
-  bool attach_join_conditions(JOIN_TAB *tab);
+  bool attach_join_conditions(plan_idx last_tab);
   bool update_equalities_for_sjm();
-  bool add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order);
+  bool add_sorting_to_table(uint idx, ORDER_with_src *order);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
   void mark_const_table(JOIN_TAB *table, Key_use *key);
@@ -643,6 +648,8 @@ public:
   */
   bool fts_index_access(JOIN_TAB *tab);
 
+  Next_select_func get_end_select_func();
+
 private:
   bool executed;                          ///< Set by exec(), reset by reset()
 
@@ -671,7 +678,7 @@ private:
 
     @returns false on success, true on failure
   */
-  bool create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
+  bool create_intermediate_table(QEP_TAB *tab, List<Item> *tmp_table_fields,
                                  ORDER_with_src &tmp_table_group,
                                  bool save_sum_fields);
   /**
@@ -788,6 +795,8 @@ private:
           @see substitute_for_best_equal_field().
   */
   bool init_ref_access();
+  bool alloc_qep(uint n);
+  void unplug_join_tabs();
   bool setup_materialized_table(JOIN_TAB *tab, uint tableno,
                                 const POSITION *inner_pos,
                                 POSITION *sjm_pos);
