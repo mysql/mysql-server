@@ -3870,7 +3870,7 @@ os_aio_init(
 
 	n_segments += n_write_segs;
 
-	ut_ad(n_segments >= (srv_read_only_mode ? 2 : 4));
+	ut_ad(n_segments >= static_cast<ulint>(srv_read_only_mode ? 2 : 4));
 
 	/* Initialize AIO sync array. */
 	os_aio_sync_array = os_aio_array_create(n_slots_sync, 1);
