@@ -26,6 +26,7 @@ performance_schema_max_cond_instances	3504
 performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	7693
+performance_schema_max_index_stat	125000
 performance_schema_max_memory_classes	250
 performance_schema_max_metadata_locks	10000
 performance_schema_max_mutex_classes	200
@@ -41,6 +42,7 @@ performance_schema_max_statement_classes	189
 performance_schema_max_statement_stack	10
 performance_schema_max_table_handles	4000
 performance_schema_max_table_instances	12500
+performance_schema_max_table_lock_stat	12500
 performance_schema_max_thread_classes	50
 performance_schema_max_thread_instances	402
 performance_schema_session_connect_attrs_size	512
@@ -123,9 +125,9 @@ performance_schema	(pfs_file_handle).memory	262144
 performance_schema	events_waits_summary_by_thread_by_event_name.size	32
 performance_schema	events_waits_summary_by_thread_by_event_name.count	154368
 performance_schema	events_waits_summary_by_thread_by_event_name.memory	4939776
-performance_schema	(pfs_table_share).size	22144
+performance_schema	(pfs_table_share).size	1024
 performance_schema	(pfs_table_share).count	12500
-performance_schema	(pfs_table_share).memory	276800000
+performance_schema	(pfs_table_share).memory	12800000
 performance_schema	(pfs_table).size	9216
 performance_schema	(pfs_table).count	4000
 performance_schema	(pfs_table).memory	36864000
@@ -280,17 +282,23 @@ performance_schema	events_transactions_summary_by_user_by_event_name.memory	8800
 performance_schema	events_transactions_summary_by_host_by_event_name.size	88
 performance_schema	events_transactions_summary_by_host_by_event_name.count	100
 performance_schema	events_transactions_summary_by_host_by_event_name.memory	8800
-performance_schema	performance_schema.memory	521446696
+performance_schema	table_lock_waits_summary_by_table.size	328
+performance_schema	table_lock_waits_summary_by_table.count	12500
+performance_schema	table_lock_waits_summary_by_table.memory	4100000
+performance_schema	table_io_waits_summary_by_index_usage.size	336
+performance_schema	table_io_waits_summary_by_index_usage.count	125000
+performance_schema	table_io_waits_summary_by_index_usage.memory	42000000
+performance_schema	performance_schema.memory	303546696
 select * from performance_schema.memory_summary_global_by_event_name
 where event_name='memory/performance_schema/internal_buffers';
 EVENT_NAME	memory/performance_schema/internal_buffers
-COUNT_ALLOC	60
+COUNT_ALLOC	62
 COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	521446696
+SUM_NUMBER_OF_BYTES_ALLOC	303546696
 SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	60
-CURRENT_COUNT_USED	60
-HIGH_COUNT_USED	60
-LOW_NUMBER_OF_BYTES_USED	521446696
-CURRENT_NUMBER_OF_BYTES_USED	521446696
-HIGH_NUMBER_OF_BYTES_USED	521446696
+LOW_COUNT_USED	62
+CURRENT_COUNT_USED	62
+HIGH_COUNT_USED	62
+LOW_NUMBER_OF_BYTES_USED	303546696
+CURRENT_NUMBER_OF_BYTES_USED	303546696
+HIGH_NUMBER_OF_BYTES_USED	303546696

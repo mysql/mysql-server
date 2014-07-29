@@ -124,12 +124,12 @@ struct PFS_global_param
   */
   long m_table_share_sizing;
   /**
-    Maximum number of stastics collected for tables.
-    @sa table_stat_lost.
+    Maximum number of lock statistics collected for tables.
+    @sa table_lock_stat_lost.
   */
-  long m_table_stat_sizing;
+  long m_table_lock_stat_sizing;
   /**
-    Maximum number of stastics collected for tables indexes.
+    Maximum number of index statistics collected for tables.
     @sa table_index_lost.
   */
   long m_index_stat_sizing;

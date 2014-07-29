@@ -91,7 +91,7 @@ initialize_performance_schema(PFS_global_param *param)
                       param->m_cond_class_sizing) ||
       init_thread_class(param->m_thread_class_sizing) ||
       init_table_share(param->m_table_share_sizing) ||
-      init_table_share_lock_stat(param->m_table_stat_sizing) ||
+      init_table_share_lock_stat(param->m_table_lock_stat_sizing) ||
       init_table_share_index_stat(param->m_index_stat_sizing) ||
       init_file_class(param->m_file_class_sizing) ||
       init_stage_class(param->m_stage_class_sizing) ||

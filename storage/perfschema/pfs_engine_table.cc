@@ -1686,29 +1686,29 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= host_max * transaction_class_max * sizeof(PFS_transaction_stat);
       total_memory+= size;
       break;
-    case 201: 
-      name= "(pfs_table_stat).size";
+    case 201:
+      name= "table_lock_waits_summary_by_table.size";
       size= sizeof(PFS_table_share_lock);
       break;
     case 202:
-      name= "(pfs_table_stat).count";
+      name= "table_lock_waits_summary_by_table.count";
       size= table_share_lock_stat_max;
       break;
     case 203:
-      name= "(pfs_table_stat).memory";
+      name= "table_lock_waits_summary_by_table.memory";
       size= table_share_lock_stat_max * sizeof(PFS_table_share_lock);
       total_memory+= size;
       break;
-    case 204: 
-      name= "(pfs_index_stat).size";
+    case 204:
+      name= "table_io_waits_summary_by_index_usage.size";
       size= sizeof(PFS_table_share_index);
       break;
     case 205:
-      name= "(pfs_index_stat).count";
+      name= "table_io_waits_summary_by_index_usage.count";
       size= table_share_index_stat_max;
       break;
     case 206:
-      name= "(pfs_index_stat).memory";
+      name= "table_io_waits_summary_by_index_usage.memory";
       size= table_share_index_stat_max * sizeof(PFS_table_share_index);
       total_memory+= size;
       break;
