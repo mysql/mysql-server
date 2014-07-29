@@ -9068,6 +9068,8 @@ copy_data_between_tables(PSI_stage_progress *psi,
   ha_rows found_rows;
   bool auto_increment_field_copied= 0;
   sql_mode_t save_sql_mode;
+  QEP_TAB_standalone qep_tab_st;
+  QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
   DBUG_ENTER("copy_data_between_tables");
 
   if (mysql_trans_prepare_alter_copy_data(thd))
@@ -9146,8 +9148,9 @@ copy_data_between_tables(PSI_stage_progress *psi,
       if (setup_order(thd, select_lex->ref_pointer_array,
                       &tables, fields, all_fields, order))
         goto err;
-      Filesort fsort(order, HA_POS_ERROR, NULL);
-      if ((from->sort.found_records= filesort(thd, from, &fsort,
+      qep_tab.set_table(from);
+      Filesort fsort(order, HA_POS_ERROR);
+      if ((from->sort.found_records= filesort(thd, &qep_tab, &fsort,
                                               true,
                                               &examined_rows, &found_rows)) ==
           HA_POS_ERROR)
@@ -9157,7 +9160,7 @@ copy_data_between_tables(PSI_stage_progress *psi,
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  if (init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE))
+  if (init_read_record(&info, thd, from, NULL, 1, 1, FALSE))
   {
     error= 1;
     goto err;

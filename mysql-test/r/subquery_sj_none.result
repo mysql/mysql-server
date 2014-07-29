@@ -72,7 +72,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	99.50	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	99.50	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
@@ -101,7 +101,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	99.50	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	1001	99.50	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
@@ -320,7 +320,7 @@ insert into t1 select (A.a + 10 * B.a),1 from t0 A, t0 B;
 explain extended select * from t1 where a in (select pk from t10 where pk<3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	103	100.00	Using where
-2	DEPENDENT SUBQUERY	t10	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t10	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`a`) in t10 on PRIMARY where ((`test`.`t10`.`pk` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t10`.`pk`)))))
@@ -3613,7 +3613,7 @@ insert into t3 select A.a + 10*B.a from t0 A, t0 B;
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	kp1	kp1	5	func	1	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	kp1	kp1	5	func	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on kp1 where ((`test`.`t1`.`kp1` < 20) and (<cache>(`test`.`t3`.`a`) = `test`.`t1`.`kp1`)))))
 select * from t3 where a in (select kp1 from t1 where kp1<20);
@@ -3641,7 +3641,7 @@ a
 explain select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	33.33	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	kp1	kp1	5	func	1	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	kp1	kp1	5	func	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t3`.`a`) in t1 on kp1 where ((`test`.`t1`.`kp1` < 20) and (<cache>(`test`.`t3`.`a`) = `test`.`t1`.`kp1`))))) and (`test`.`t3`.`a` < 20))
 select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
@@ -6263,7 +6263,7 @@ FROM t1
 WHERE t1field IN (SELECT v1field FROM v1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	a	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	a	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
 4	DEPENDENT SUBQUERY	t1	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `t1`.`t1field` AS `t1field` from `test`.`t1` where <in_optimizer>(`t1`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`t1`.`t1field`) in t1 on PRIMARY where (<in_optimizer>(`test`.`a`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`a`.`t1field`) in t1 on PRIMARY))) and (<cache>(`t1`.`t1field`) = `test`.`a`.`t1field`)))))
@@ -6280,7 +6280,7 @@ FROM t1
 WHERE t1field IN (SELECT v1field FROM v1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	a	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	a	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
 4	DEPENDENT SUBQUERY	t1	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `t1`.`t1field` AS `t1field` from `test`.`t1` where <in_optimizer>(`t1`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`t1`.`t1field`) in t1 on PRIMARY where (<in_optimizer>(`test`.`a`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`a`.`t1field`) in t1 on PRIMARY))) and (<cache>(`t1`.`t1field`) = `test`.`a`.`t1field`)))))
@@ -6542,7 +6542,7 @@ CREATE INDEX I2 ON t1 (b);
 EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	I1	I1	2	func	2	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	I1	I1	2	func	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`b`) in t1 on I1 where (<cache>(`test`.`t1`.`b`) = `test`.`t1`.`a`))))
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
@@ -6554,7 +6554,7 @@ CREATE INDEX I2 ON t2 (b);
 EXPLAIN SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	I1	I1	4	func	2	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	I1	I1	4	func	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`b`) in t2 on I1 where (<cache>(`test`.`t2`.`b`) = `test`.`t2`.`a`))))
 SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
@@ -6563,7 +6563,7 @@ EXPLAIN
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	I1	I1	2	func	2	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	I1	I1	2	func	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`b`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`b`) in t1 on I1 where ((length(`test`.`t1`.`a`) < 500) and (<cache>(`test`.`t1`.`b`) = `test`.`t1`.`a`)))))
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
@@ -7096,7 +7096,7 @@ EXPLAIN
                 "Language",
                 "Percentage"
               ],
-              "attached_condition": "((`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))"
+              "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))"
             }
           }
         },
@@ -7593,7 +7593,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	k	k	5	func	2	33.33	Using index; Using where
+2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	k	k	5	func	2	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`i`) in t2 on k where ((`test`.`t2`.`j` > 0) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))))
 SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
@@ -8301,7 +8301,7 @@ AND outr.col_varchar_nokey < 't'
 ORDER BY outr.col_varchar_key, outr.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	16	33.33	Using where; Using filesort
-2	DEPENDENT SUBQUERY	innr	NULL	index_subquery	PRIMARY,col_varchar_key	col_varchar_key	3	func	1	100.00	Using index; Using where
+2	DEPENDENT SUBQUERY	innr	NULL	index_subquery	PRIMARY,col_varchar_key	col_varchar_key	3	func	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`outr`.`col_varchar_key` AS `x`,`test`.`outr`.`pk` AS `y` from `test`.`t1` `outr` where (<in_optimizer>(`test`.`outr`.`col_varchar_key`,<exists>(<index_lookup>(<cache>(`test`.`outr`.`col_varchar_key`) in t2 on col_varchar_key where (((`test`.`innr`.`col_varchar_key` = 'a') or (`test`.`innr`.`pk` = 8)) and (<cache>(`test`.`outr`.`col_varchar_key`) = `test`.`innr`.`col_varchar_key`))))) and (`test`.`outr`.`col_varchar_nokey` < 't')) order by `test`.`outr`.`col_varchar_key`,`test`.`outr`.`pk`
 SELECT outr.col_varchar_key AS x, outr.pk AS y
@@ -10524,7 +10524,7 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	test.alias2.col_varchar_key	2	100.00	Using where
-4	DEPENDENT SUBQUERY	<derived7>	NULL	index_subquery	<auto_key0>	<auto_key0>	6	func,func	2	100.00	Using index; Using where
+4	DEPENDENT SUBQUERY	<derived7>	NULL	index_subquery	<auto_key0>	<auto_key0>	6	func,func	2	100.00	Using where; Using index
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -11012,7 +11012,7 @@ EXPLAIN
                     "col_varchar_key",
                     "col_varchar_nokey"
                   ],
-                  "attached_condition": "(<cache>(`derived1`.`col_varchar_nokey`) = `test`.`derived2`.`col_varchar_nokey`)"
+                  "attached_condition": "((<cache>(`derived1`.`col_varchar_nokey`) = `test`.`derived2`.`col_varchar_nokey`) and (<cache>(`derived1`.`col_varchar_nokey`) = `test`.`derived2`.`col_varchar_key`))"
                 }
               }
             }
@@ -11177,7 +11177,7 @@ EXPLAIN
                     "col_int_nokey",
                     "col_int_key"
                   ],
-                  "attached_condition": "(<cache>(`test`.`grandparent1`.`col_int_nokey`) = `test`.`t2`.`col_int_nokey`)"
+                  "attached_condition": "((<cache>(`test`.`grandparent1`.`col_int_nokey`) = `test`.`t2`.`col_int_nokey`) and (<cache>(`test`.`grandparent1`.`col_int_nokey`) = `test`.`t2`.`col_int_key`))"
                 }
               }
             }
