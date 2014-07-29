@@ -690,11 +690,38 @@ setup_subq_exit:
 }
 
 
+/**
+   Sets the plan's state of the JOIN. This is always the final step of
+   optimization; starting from this call, we expose the plan to other
+   connections (via EXPLAIN CONNECTION) so the plan has to be final.
+   QEP_TAB's quick_optim, condition_optim and keyread_optim are set here.
+*/
 void JOIN::set_plan_state(enum_plan_state plan_state_arg)
 {
+  // A plan should not change to another plan:
+  DBUG_ASSERT(plan_state_arg == NO_PLAN || plan_state == NO_PLAN);
+  if (plan_state == NO_PLAN && plan_state_arg != NO_PLAN)
+  {
+    if (qep_tab != NULL)
+    {
+      /*
+        We want to cover primary tables, tmp tables (they may have a sort, so
+        their "quick" and "condition" may change when execution runs the
+        sort), and sj-mat inner tables. Note that make_tmp_tables_info() may
+        have added a sort to the first non-const primary table, so it's
+        important to do those assignments after make_tmp_tables_info().
+      */
+      for (uint i= const_tables; i < tables; ++i)
+      {
+        qep_tab[i].set_quick_optim();
+        qep_tab[i].set_condition_optim();
+        qep_tab[i].set_keyread_optim();
+      }
+    }
+  }
+
   DEBUG_SYNC(thd, "before_set_plan");
   mysql_mutex_lock(&thd->LOCK_query_plan);
-  DBUG_ASSERT(plan_state_arg == NO_PLAN || plan_state == NO_PLAN);
   plan_state= plan_state_arg;
   mysql_mutex_unlock(&thd->LOCK_query_plan);
 }
@@ -812,12 +839,8 @@ int JOIN::replace_index_subquery()
     DBUG_ASSERT(!first_qep_tab->table()->no_keyread);
     first_qep_tab->table()->set_keyread(true);
   }
-  /*
-    EXPLAIN prints tab->condition() but execution uses where_cond, so sync them:
-  */
+  // execution uses where_cond:
   first_qep_tab->set_condition(where_cond);
-  first_qep_tab->set_condition_optim();
-  first_qep_tab->set_keyread_optim();
 
   engine=
     new subselect_indexsubquery_engine(thd, first_qep_tab, unit->item,
