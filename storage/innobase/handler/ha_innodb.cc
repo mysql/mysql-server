@@ -7094,7 +7094,7 @@ if its index columns are updated!
 @return error number or 0 */
 
 int
-ha_innobase::update_row_low(
+ha_innobase::update_row(
 	const uchar*	old_row,
 	uchar*		new_row)
 {
@@ -7234,30 +7234,6 @@ func_exit:
 	innobase_active_small();
 
 	DBUG_RETURN(err);
-}
-
-/**
-Updates a row given as a parameter to a new value. Note that we are given
-whole rows, not just the fields which are updated: this incurs some
-overhead for CPU when we check which fields are actually updated.
-TODO: currently InnoDB does not prevent the 'Halloween problem':
-in a searched update a single row can get updated several times
-if its index columns are updated!
-@param[in] old_row	Old row contents in MySQL format
-@param[out] new_row	Updated row contents in MySQL format
-@return error number or 0 */
-
-int
-ha_innobase::update_row(
-	const uchar*	old_row,
-	uchar*		new_row)
-{
-	int	err = update_row_low(old_row, new_row);
-
-	/* We must wait after releasing the reference to the transaction. */
-	DEBUG_SYNC_C("ha_innobase_update_row_done");
-
-	return(err);
 }
 
 /**********************************************************************//**
