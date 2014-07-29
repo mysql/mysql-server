@@ -185,9 +185,9 @@ public:
   partition_type part_type;
   partition_type subpart_type;
 
-  uint part_info_len;
-  uint part_func_len;
-  uint subpart_func_len;
+  size_t part_info_len;
+  size_t part_func_len;
+  size_t subpart_func_len;
 
   uint num_parts;
   uint num_subparts;
@@ -287,7 +287,7 @@ public:
   ~partition_info() {}
 
   partition_info *get_clone();
-  bool set_named_partition_bitmap(const char *part_name, uint length);
+  bool set_named_partition_bitmap(const char *part_name, size_t length);
   bool set_partition_bitmaps(TABLE_LIST *table_list);
   /* Answers the question if subpartitioning is used for a certain table */
   bool is_sub_partitioned()
@@ -373,7 +373,7 @@ private:
   char *create_default_subpartition_name(uint subpart_no,
                                          const char *part_name);
   bool prune_partition_bitmaps(TABLE_LIST *table_list);
-  bool add_named_partition(const char *part_name, uint length);
+  bool add_named_partition(const char *part_name, size_t length);
   bool is_field_in_part_expr(List<Item> &fields);
   bool is_full_part_expr_in_fields(List<Item> &fields);
 };

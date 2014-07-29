@@ -2,7 +2,7 @@
 #
 # This test calls CHANGE MASTER in order to check if replication can
 # restart from where SQL thread left, not from where I/O thread left.
-#  
+#
 # This file tests the case when master_info is stored in a file.
 #
 # ==== See also ====
@@ -11,6 +11,7 @@
 
 --source include/no_valgrind_without_big.inc
 --source include/not_gtid_enabled.inc
+--source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 --source extra/rpl_tests/rpl_change_master.test
 
@@ -65,5 +66,48 @@ eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$
 --let $status_items= Master_Host
 --source include/show_slave_status.inc
 --source include/rpl_reset.inc
+
+#
+# Bug #11752299 REPLICATION SLAVE TRUNCATES MASTER_PASSWORD > 32 CHARACTERS
+#
+
+--let $passwd=012345678901234567890123456789ab
+--let assert_cond=CHAR_LENGTH("$passwd") = 32
+--let assert_text=Password length is 32
+--source include/assert.inc
+
+connection master;
+SET SQL_LOG_BIN=0;
+--eval GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY '$passwd'
+SET SQL_LOG_BIN=1;
+
+connection slave;
+--source include/stop_slave.inc
+
+# First, verify that 32 char maximum password works.
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='$passwd'
+
+--source include/start_slave_io.inc
+
+--let $slave_param= Slave_IO_Running
+--let $slave_param_value= Yes
+--source include/check_slave_param.inc
+
+# Now, prove 1 char oversized password is rejected
+--error ER_CHANGE_MASTER_PASSWORD_LENGTH
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='x$passwd'
+
+# Cleanup Bug #11752299
+
+connection master;
+SET SQL_LOG_BIN=0;
+DROP USER rpl@127.0.0.1;
+FLUSH PRIVILEGES;
+SET SQL_LOG_BIN=1;
+
+connection slave;
+--source include/stop_slave_io.inc
+CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
+--source include/start_slave.inc
 
 --source include/rpl_end.inc

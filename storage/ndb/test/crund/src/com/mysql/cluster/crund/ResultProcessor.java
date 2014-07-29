@@ -22,8 +22,10 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.EnumSet;
 import java.text.ParseException;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.BufferedReader;
@@ -39,22 +41,30 @@ public class ResultProcessor {
     // console
     static protected final PrintWriter out = new PrintWriter(System.out, true);
     static protected final PrintWriter err = new PrintWriter(System.err, true);
-
-    // shortcuts
     static protected final String endl = System.getProperty("line.separator");
 
     // command-line arguments
-    static private final List<String> ilogFileNames = new ArrayList<String>();
+    static private final List<String> ilogFileNames
+        = new ArrayList<String>();
+    static private enum OutputFormat { txt, csv };
+    static private final EnumSet<OutputFormat> outputFormats
+        = EnumSet.noneOf(OutputFormat.class);
     static private int nWarmupRuns;
     static private int largeRSDev;
+    static private String outFilePrefix;
 
     // resources
-    protected ResultReporter reporter;
-    protected String[] header;
-    protected int nTxOps;
-    protected int nRuns;
-    protected double[] ravg;
-    protected double[] rdev;
+    protected List<Reporter> reporters = new ArrayList<Reporter>();
+    protected List<Results> results = new ArrayList<Results>();
+    protected Results current;
+
+    public class Results {
+        public String[] header;
+        public long nRows;
+        public long nRuns;
+        public double[] ravg;
+        public double[] rdev;
+    }
 
     // ----------------------------------------------------------------------
     // Reporting
@@ -63,7 +73,46 @@ public class ResultProcessor {
     /**
      * Reports the results of the Crund benchmark.
      */
-    public interface ResultReporter {
+    public abstract class Reporter {
+        protected final String suffix;
+        protected File tmp;
+        protected PrintWriter dst;
+
+        public Reporter(String suffix) {
+            this.suffix = suffix;
+        }
+
+        /**
+         * Initializes this reporter.
+         */
+        public void init() throws IOException {
+            assert tmp == null;
+            assert dst == null;
+            tmp = File.createTempFile("crund_log_results", suffix);
+            dst = new PrintWriter(tmp);
+        }
+        
+        /**
+         * Releases resources held by this reporter.
+         */
+        public void close() throws IOException {
+            assert tmp != null;
+            assert dst != null;
+            dst.flush();
+            final File to = new File(outFilePrefix + "." + suffix);
+            if (tmp.renameTo(to)) {
+                out.println("wrote file: \t" + to);
+            } else {
+                out.flush();
+                err.println("ERROR: failed to rename temp file:" + endl
+                            + "    '" + tmp + "'" + endl
+                            + " to output file:" + endl
+                            + "    '" + to + "'");
+            }
+            tmp = null;
+            dst.close();
+            dst = null;
+        }
 
         /**
          * Reports a data series.
@@ -74,60 +123,98 @@ public class ResultProcessor {
          * @param       sdev    the standard deviations
          * @param       rsdev   the relative standard deviations
          */
-        void report(String tag,
-                    int nRuns,
-                    int nTxOps,
-                    String[] op,
-                    double[] avg,
-                    double[] sdev,
-                    double[] rsdev);
+        abstract void report(String tag,
+                             long nRuns,
+                             long nRows,
+                             String[] op,
+                             double[] avg,
+                             double[] sdev,
+                             double[] rsdev);
     }
 
-    /**
-     * Reports the results of the Crund benchmark.
-     */
-    static public class SimpleResultReporter implements ResultReporter {
+    public class TxtReporter extends Reporter {
+        public TxtReporter() {
+            super("txt");
+        }
+
         public void report(String tag,
-                           int nRuns,
-                           int nTxOps,
+                           long nRuns,
+                           long nRows,
                            String[] op,
                            double[] avg,
                            double[] sdev,
                            double[] rsdev) {
-            out.println();
-            out.println("--------------------------------------------------------------------------------");
-            out.println("ops: " + nTxOps + " " + tag
-                        + " (skip " + largeRSDev + " of " + nRuns + " runs)");
-            out.println("--------------------------------------------------------------------------------");
+            dst.println();
+            dst.println("------------------------------------------------------------");
+            dst.println("ops: " + tag + " " + nRows + " rows"
+                        + " (using last " + nRuns + " runs)");
+            dst.println("------------------------------------------------------------");
 
             // ops with large deviations
             final Map<Double,String> ldev = new TreeMap<Double,String>();
 
-            out.println();
-            out.println(String.format("%-24s", "op")
-                        + String.format("%12s", "#op/metric")
-                        + String.format("%12s", "avg")
-                        + String.format("%12s", "sdev")
-                        + String.format("%12s", "rsdev"));
+            dst.println();
+            dst.println(String.format("%-24s", "op")
+                        + String.format("%12s", "#rows/metric")
+                        + String.format("%12s", "metric/row")
+                        + String.format("%12s", "rsdev%"));
             for (int i = 0; i < op.length; i++) {
                 final double a = avg[i];
-                final double opa = (a > 0 ? nTxOps / a : -1);
-                out.println(String.format("%-24s", op[i])
+                final double opa = (a > 0 ? nRows / a : -1);
+                final double apo = (nRows > 0 ? a / nRows : -1);
+                dst.println(String.format("%-24s", op[i])
                             + String.format("%12.2f", opa)
-                            + String.format("%12.2f", avg[i])
-                            + String.format("%12.2f", sdev[i])
-                            + String.format("%11.2f%%", rsdev[i]));
-                if (rsdev[i] > largeRSDev) {
+                            + String.format("%12.2f", apo)
+                            + String.format("%12.2f", rsdev[i]));
+                if (rsdev[i] > largeRSDev)
                     ldev.put(-rsdev[i], op[i]);
-                }
             }
 
             if (ldev.size() > 1) {
-                out.println();
-                out.println("large deviations:");
+                dst.println();
+                dst.println(String.format("%-24s", "ops with rel. deviations")
+                            + String.format("%12s", "> " + largeRSDev + "%"));
                 for (Map.Entry<Double,String> e : ldev.entrySet()) {
-                    out.println(String.format("%8.2f%%\t%s",
-                                              -e.getKey(), e.getValue()));
+                    dst.println(
+                        String.format("%-24s", e.getValue())
+                        + String.format("%12.2f", -e.getKey()));
+                }
+            }
+        }
+    }
+
+    public class CsvReporter extends Reporter {
+        public CsvReporter() {
+            super("csv");
+        }
+
+        public void report(String tag,
+                           long nRuns,
+                           long nRows,
+                           String[] op,
+                           double[] avg,
+                           double[] sdev,
+                           double[] rsdev) {
+            dst.println("metric,load,#rows,#runs,op,xmode,"
+                        + "#rows/metric,metric/row,rsdev");
+            if (nRuns > 0) {
+                for (int i = 0; i < op.length; i++) {
+                    String ml = tag;   // =metric,load
+                    if (!ml.contains(","))
+                        ml = ml + ",null";
+                    String om = op[i]; // =op,xmode
+                    if (!om.contains(","))
+                        om = om + ",null";
+                    final double a = avg[i];
+                    final double rpa = (a > 0 ? nRows / a : -1);
+                    final double apr = (nRows > 0 ? a / nRows : -1);
+                    dst.println(ml
+                                + "," + nRows
+                                + "," + nRuns
+                                + "," + om
+                                + "," + String.format("%.2f", rpa)
+                                + "," + String.format("%.2f", apr)
+                                + "," + String.format("%.2f", rsdev[i]));
                 }
             }
         }
@@ -144,22 +231,20 @@ public class ResultProcessor {
         try {
             init();
 
+            out.println();
             for (String fn : ilogFileNames) {
-                out.println();
-                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-                out.println("reading log file: " + fn);
-                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-
+                out.println("parse file: \t" + fn);
                 BufferedReader ilog = null;
                 try {
                     ilog = new BufferedReader(new FileReader(fn));
-                    process(ilog);
+                    parse(ilog);
                 } finally {
                     if (ilog != null)
                         ilog.close();
                 }
             }
 
+            report();
             close();
         } catch (Exception ex) {
             // end the program regardless of threads
@@ -169,129 +254,128 @@ public class ResultProcessor {
         }
     }
 
-    // processes the log file
-    protected void process(BufferedReader ilog)
+    protected void parse(BufferedReader ilog)
         throws IOException, ParseException {
 
-        int lineNo = 1;
-        String line;
-        int nIgnored = nWarmupRuns;
+        long lineNo = 1;
+        long nRuns = 0;
+        String[] header = null;
         while (true) {
-            line = ilog.readLine();
-            if (line == null) {
+            final String line = ilog.readLine();
+            if (line == null)
                 return; // eof
-            }
             lineNo++;
             //out.println(line);
 
             // skip comments
-            if (line.startsWith("#")) {
+            if (line.startsWith("#"))
                 continue;
-            }
 
             // parse empty line
             if (line.equals("")) {
-                if (header != null) {
-                    report();
-                }
-
                 header = null;
-                ravg = null;
-                rdev = null;
                 continue;
             }
 
             // parse header line
             if (header == null) {
                 header = line.split("\\t");
-                assert (header.length > 0);
-
+                process(header, lineNo);
                 nRuns = 0;
-                nTxOps = 0;
-                ravg = new double[header.length];
-                rdev = new double[header.length];
                 continue;
             }
+
+            // skip warmup runs
+            if (nRuns++ < nWarmupRuns)
+                continue;
 
             // parse value line
             final String[] values = line.split("\\t");
             if (values.length != header.length) {
-                String msg = ("line # " + lineNo
-                              + ": wrong number of tokens; "
-                              + "expected: " + header.length
-                              + ", found: " + values.length);
+                final String msg = ("line # " + lineNo
+                                    + ": wrong number of tokens; "
+                                    + "expected: " + header.length
+                                    + ", found: " + values.length);
                 throw new ParseException(msg, 0);
             }
-            nRuns++;
-
-            // parse nTxOps
-            int n;
-            try {
-                n = Integer.valueOf(values[0]);
-            } catch (NumberFormatException e) {
-                String msg = ("line # " + lineNo
-                              + ": " + e);
-                throw new ParseException(msg, 0);
-            }
-            if (nRuns == 1) {
-                nTxOps = n;
-            } else if (nTxOps != n) {
-                String msg = ("line # " + lineNo
-                              + ": unexpected nTxOps; "
-                              + "expected: " + nTxOps
-                              + ", found: " + n);
-                throw new ParseException(msg, 0);
-            }
-
-            // skip warmup runs
-            if (nRuns <= nIgnored) {
-                nRuns--;
-                nIgnored--;
-                continue;
-            }
-
+        
             // parse values
             long[] val = new long[values.length];
-            for (int i = 1; i < values.length; i++) {
-                long l;
+            for (int i = 0; i < values.length; i++) {
                 try {
-                    val[i] = l = Long.valueOf(values[i]);
+                    val[i] = Long.valueOf(values[i]);
                 } catch (NumberFormatException e) {
-                    String msg = ("line # " + lineNo
-                                  + ": " + e);
+                    final String msg = ("line # " + lineNo + ": " + e);
                     throw new ParseException(msg, i);
                 }
-
-                // compute running averages and squared deviations
-                final double v = l;
-                final double oavg = ravg[i];
-                final double navg = oavg + (v - oavg) / nRuns;
-                final double odev = rdev[i];
-                final double ndev = odev + (v - oavg) * (v - navg);
-                ravg[i] = navg;
-                rdev[i] = ndev;
             }
+            process(val, lineNo);
+        }
+    }
+
+    protected void process(String[] header, long lineNo)
+        throws ParseException {
+        assert 0 < header.length;
+        current = new Results();
+        current.header = header;
+        //nRuns = 0;
+        //nRows = 0;
+        current.ravg = new double[header.length];
+        current.rdev = new double[header.length];
+        results.add(current);
+    }
+
+    protected void process(long[] values, long lineNo)
+        throws ParseException {
+        assert 0 < values.length;
+        assert values.length == current.header.length;
+
+        // check first nRows count
+        final long nRows = values[0];
+        if (current.nRuns++ == 0) {
+            current.nRows = nRows;
+        } else if (nRows != current.nRows) {
+            final String msg = ("line # " + lineNo
+                                + ": unexpected nRows; "
+                                + "expected: " + current.nRows
+                                + ", found: " + nRows);
+            throw new ParseException(msg, 0);
+        }
+
+        // compute running averages and squared deviations
+        for (int i = 1; i < values.length; i++) {
+            final double v = values[i];
+            final double oavg = current.ravg[i];
+            final double navg = oavg + (v - oavg) / current.nRuns;
+            final double odev = current.rdev[i];
+            final double ndev = odev + (v - oavg) * (v - navg);
+            current.ravg[i] = navg;
+            current.rdev[i] = ndev;
         }
     }
 
     protected void report() {
-        // result data
-        final int nops = header.length - 1;
-        final String[] op = new String[nops];
-        final double[] avg = new double[nops];
-        final double[] sdev = new double[nops];
-        final double[] rsdev = new double[nops];
-
-        // compute results
-        for (int i = 1; i <= nops; i++) {
-            op[i-1] = header[i];
-            avg[i-1] = ravg[i];
-            sdev[i-1] = Math.sqrt(rdev[i] / nRuns);
-            rsdev[i-1] = (sdev[i-1] * 100.0) / avg[i-1];
+        for (Results r : results) {
+            final int nops = r.header.length - 1;
+            final String[] op = new String[nops];
+            final double[] avg = new double[nops];
+            final double[] sdev = new double[nops];
+            final double[] rsdev = new double[nops];
+            
+            // compute results
+            final String tag = r.header[0];
+            if (r.nRuns > 0) {
+                for (int i = 1; i <= nops; i++) {
+                    op[i-1] = r.header[i];
+                    avg[i-1] = r.ravg[i];
+                    sdev[i-1] = Math.sqrt(r.rdev[i] / r.nRuns);
+                    rsdev[i-1] = (sdev[i-1] * 100.0) / avg[i-1];
+                }
+            }
+            
+            for (Reporter rp : reporters)
+                rp.report(tag, r.nRuns, r.nRows, op, avg, sdev, rsdev);
         }
-        final String tag = header[0];
-
-        reporter.report(tag, nRuns, nTxOps, op, avg, sdev, rsdev);
     }
 
     // ----------------------------------------------------------------------
@@ -300,13 +384,25 @@ public class ResultProcessor {
 
     // initializes the result processor's resources.
     protected void init() throws Exception {
-        reporter = new SimpleResultReporter();
-        printProperties();
+        for (OutputFormat f : outputFormats) {
+            switch (f) {
+            case txt : 
+                reporters.add(new TxtReporter());
+                break;
+            case csv: 
+                reporters.add(new CsvReporter());
+                break;
+            }
+        }
+        for (Reporter r : reporters)
+            r.init();
     }
 
     // releases the result processor's resources.
     protected void close() throws Exception {
-        reporter = null;
+        for (Reporter r : reporters)
+            r.close();
+        reporters.clear();
     }
 
     // prints the result processor's properties
@@ -321,11 +417,13 @@ public class ResultProcessor {
 
     // prints command-line usage and exits
     static protected void exitUsage() {
-        out.println("usage: [options] <log file>...");
-        out.println("    [-w <number>]          skip warmup runs (default 0)");
-        out.println("    [-d <number>]          flag large rsdev (default 10)");
-        out.println("    [-h|--help]            print usage message and exit");
-        out.println();
+        err.println("usage: [options] <log file>...");
+        err.println("    [-w <number>]       skip w warmup runs [w=0]");
+        err.println("    [-d <number>]       mark ops with rsdev>d [d=10]");
+        err.println("    [-f txt,csv]        generate output formats [txt]");
+        err.println("    [-o <file>]         out file prefix [./log_results]");
+        err.println("    [-h|--help]         print usage message and exit");
+        err.println();
         System.exit(1); // return an error code
     }
 
@@ -333,6 +431,8 @@ public class ResultProcessor {
     static public void parseArguments(String[] args) {
         String w = "0";
         String d = "10";
+        String f = "txt";
+        String o = "./log_results";
         for (int i = 0; i < args.length; i++) {
             final String arg = args[i];
             if (arg.equals("-w")) {
@@ -343,6 +443,14 @@ public class ResultProcessor {
                 if (i >= args.length)
                     exitUsage();
                 d = args[++i];
+            } else if (arg.equals("-f")) {
+                if (i >= args.length)
+                    exitUsage();
+                f = args[++i];
+            } else if (arg.equals("-o")) {
+                if (i >= args.length)
+                    exitUsage();
+                o = args[++i];
             } else if (arg.equals("-h") || arg.equals("--help")) {
                 exitUsage();
             } else if (arg.startsWith("-")) {
@@ -354,27 +462,37 @@ public class ResultProcessor {
         }
 
         try {
-            nWarmupRuns = Integer.valueOf(w);
+            if ((nWarmupRuns = Integer.valueOf(w)) < 0) {
+                err.println("illegal value: -w '" + w + "'");
+                exitUsage();
+            }
         } catch (NumberFormatException e) {
-            out.println("not a number: -w '" + w + "'");
-            exitUsage();
-        }
-        if (nWarmupRuns < 0) {
-            out.println("illegal value: -w '" + w + "'");
+            err.println("not a number: -w '" + w + "'");
             exitUsage();
         }
         try {
-            largeRSDev = Integer.valueOf(d);
+            if ((largeRSDev = Integer.valueOf(d)) < 0) {
+                err.println("illegal value: -d '" + d + "'");
+                exitUsage();
+            }
         } catch (NumberFormatException e) {
-            out.println("not a number: -d '" + d + "'");
+            err.println("not a number: -d '" + d + "'");
             exitUsage();
         }
-        if (largeRSDev < 0) {
-            out.println("illegal value: -d '" + d + "'");
+
+        try {
+            for (String s : f.split(","))
+                outputFormats.add(OutputFormat.valueOf(s));
+        } catch (IllegalArgumentException e) {
+            err.println("illegal value: -f '" + f + "'");
+            exitUsage();            
+        }
+        if ((outFilePrefix = o).isEmpty()) {
+            err.println("illegal file prefix: -o '" + o + "'");
             exitUsage();
         }
         if (ilogFileNames.size() == 0) {
-            out.println("missing input files");
+            err.println("missing input files");
             exitUsage();
         }
     }

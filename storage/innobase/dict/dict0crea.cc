@@ -1878,26 +1878,24 @@ dict_create_add_foreign_to_dictionary(
 	DBUG_RETURN(error);
 }
 
-/********************************************************************//**
-Adds foreign key definitions to data dictionary tables in the database.
+/** Adds the given set of foreign key objects to the dictionary tables
+in the database. This function does not modify the dictionary cache. The
+caller must ensure that all foreign key objects contain a valid constraint
+name in foreign->id.
+@param[in]	local_fk_set	set of foreign key objects, to be added to
+the dictionary tables
+@param[in]	table		table to which the foreign key objects in
+local_fk_set belong to
+@param[in,out]	trx		transaction
 @return error code or DB_SUCCESS */
-
 dberr_t
 dict_create_add_foreigns_to_dictionary(
 /*===================================*/
-	ulint		start_id,/*!< in: if we are actually doing ALTER TABLE
-				ADD CONSTRAINT, we want to generate constraint
-				numbers which are bigger than in the table so
-				far; we number the constraints from
-				start_id + 1 up; start_id should be set to 0 if
-				we are creating a new table, or if the table
-				so far has no constraints for which the name
-				was generated here */
-	dict_table_t*	table,	/*!< in: table */
-	trx_t*		trx)	/*!< in: transaction */
+	const dict_foreign_set&	local_fk_set,
+	const dict_table_t*	table,
+	trx_t*			trx)
 {
 	dict_foreign_t*	foreign;
-	ulint		number	= start_id + 1;
 	dberr_t		error;
 
 	ut_ad(mutex_own(&(dict_sys->mutex))
@@ -1915,17 +1913,12 @@ dict_create_add_foreigns_to_dictionary(
 		return(DB_ERROR);
 	}
 
-	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
-	     foreign;
-	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+	for (dict_foreign_set::const_iterator it = local_fk_set.begin();
+	     it != local_fk_set.end();
+	     ++it) {
 
-		error = dict_create_add_foreign_id(&number, table->name,
-						   foreign);
-
-		if (error != DB_SUCCESS) {
-
-			return(error);
-		}
+		foreign = *it;
+		ut_ad(foreign->id != NULL);
 
 		error = dict_create_add_foreign_to_dictionary(table->name,
 							      foreign, trx);

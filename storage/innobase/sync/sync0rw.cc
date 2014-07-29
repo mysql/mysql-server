@@ -379,6 +379,7 @@ rw_lock_s_lock_spin(
 lock_loop:
 
 	/* Spin waiting for the writer field to become free */
+	os_rmb;
 	while (i < srv_n_spin_wait_rounds && lock->lock_word <= 0) {
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
@@ -387,7 +388,7 @@ lock_loop:
 		i++;
 	}
 
-	if (i == srv_n_spin_wait_rounds) {
+	if (i >= srv_n_spin_wait_rounds) {
 		os_thread_yield();
 	}
 
@@ -470,6 +471,7 @@ rw_lock_x_lock_wait_func(
 	ulint		i = 0;
 	sync_array_t*	sync_arr;
 
+	os_rmb;
 	ut_ad(lock->lock_word <= threshold);
 
 	while (lock->lock_word < threshold) {
@@ -479,6 +481,7 @@ rw_lock_x_lock_wait_func(
 
 		if (i < srv_n_spin_wait_rounds) {
 			i++;
+			os_rmb;
 			continue;
 		}
 
@@ -559,6 +562,10 @@ rw_lock_x_lock_low(
 	} else {
 		os_thread_id_t	thread_id = os_thread_get_curr_id();
 
+		if (!pass) {
+			os_rmb;
+		}
+
 		/* Decrement failed: An X or SX lock is held by either
 		this thread or another. Try to relock. */
 		if (!pass
@@ -633,6 +640,10 @@ rw_lock_sx_lock_low(
 
 	} else {
 		os_thread_id_t	thread_id = os_thread_get_curr_id();
+
+		if (!pass) {
+			os_rmb;
+		}
 
 		/* Decrement failed: It already has an X or SX lock by this
 		thread or another thread. If it is this thread, relock,
@@ -729,6 +740,7 @@ lock_loop:
 		}
 
 		/* Spin waiting for the lock_word to become free */
+		os_rmb;
 		while (i < srv_n_spin_wait_rounds
 		       && lock->lock_word <= X_LOCK_HALF_DECR) {
 
@@ -740,7 +752,7 @@ lock_loop:
 			i++;
 		}
 
-		if (i == srv_n_spin_wait_rounds) {
+		if (i >= srv_n_spin_wait_rounds) {
 			os_thread_yield();
 		} else {
 			goto lock_loop;
@@ -831,6 +843,7 @@ lock_loop:
 		}
 
 		/* Spin waiting for the lock_word to become free */
+		os_rmb;
 		while (i < srv_n_spin_wait_rounds
 		       && lock->lock_word <= X_LOCK_HALF_DECR) {
 
@@ -842,7 +855,7 @@ lock_loop:
 			i++;
 		}
 
-		if (i == srv_n_spin_wait_rounds) {
+		if (i >= srv_n_spin_wait_rounds) {
 			os_thread_yield();
 		} else {
 			goto lock_loop;

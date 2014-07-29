@@ -156,12 +156,12 @@ performance_schema	(pfs_host).memory	19200
 performance_schema	(pfs_stage_class).size	256
 performance_schema	(pfs_stage_class).count	150
 performance_schema	(pfs_stage_class).memory	38400
-performance_schema	events_stages_history.size	88
+performance_schema	events_stages_history.size	104
 performance_schema	events_stages_history.count	5000
-performance_schema	events_stages_history.memory	440000
-performance_schema	events_stages_history_long.size	88
+performance_schema	events_stages_history.memory	520000
+performance_schema	events_stages_history_long.size	104
 performance_schema	events_stages_history_long.count	10000
-performance_schema	events_stages_history_long.memory	880000
+performance_schema	events_stages_history_long.memory	1040000
 performance_schema	events_stages_summary_by_thread_by_event_name.size	32
 performance_schema	events_stages_summary_by_thread_by_event_name.count	75000
 performance_schema	events_stages_summary_by_thread_by_event_name.memory	2400000
@@ -280,17 +280,17 @@ performance_schema	events_transactions_summary_by_user_by_event_name.memory	8800
 performance_schema	events_transactions_summary_by_host_by_event_name.size	88
 performance_schema	events_transactions_summary_by_host_by_event_name.count	100
 performance_schema	events_transactions_summary_by_host_by_event_name.memory	8800
-performance_schema	performance_schema.memory	526178664
+performance_schema	performance_schema.memory	526418664
 select * from performance_schema.memory_summary_global_by_event_name
 where event_name='memory/performance_schema/internal_buffers';
 EVENT_NAME	memory/performance_schema/internal_buffers
 COUNT_ALLOC	60
 COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	526178664
+SUM_NUMBER_OF_BYTES_ALLOC	526418664
 SUM_NUMBER_OF_BYTES_FREE	0
 LOW_COUNT_USED	60
 CURRENT_COUNT_USED	60
 HIGH_COUNT_USED	60
-LOW_NUMBER_OF_BYTES_USED	526178664
-CURRENT_NUMBER_OF_BYTES_USED	526178664
-HIGH_NUMBER_OF_BYTES_USED	526178664
+LOW_NUMBER_OF_BYTES_USED	526418664
+CURRENT_NUMBER_OF_BYTES_USED	526418664
+HIGH_NUMBER_OF_BYTES_USED	526418664

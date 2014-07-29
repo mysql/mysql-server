@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -163,7 +163,7 @@ void do_tests()
 TEST(Mysys, Atomic)
 {
   mysql_mutex_init(0, &mutex, 0);
-  mysql_cond_init(0, &cond, NULL);
+  mysql_cond_init(0, &cond);
   pthread_attr_init(&thr_attr);
   pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED);
  

@@ -35,7 +35,7 @@ RESET SLAVE;
 RESET MASTER;
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 Variable_name	Value
-Slave_heartbeat_period	15.000
+Slave_heartbeat_period	5.000
 
 *** Default value if slave_net_timeout changed ***
 SET @@global.slave_net_timeout=50;
@@ -171,7 +171,7 @@ RESET SLAVE;
 RESET MASTER;
 SELECT SLAVE_HEARTBEAT_TIMEOUT = 0 AS Result;
 Result
-0
+1
 
 *** Min slave_heartbeat_timeout ***
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.001;

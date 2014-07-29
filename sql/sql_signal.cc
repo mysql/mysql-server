@@ -149,7 +149,7 @@ static bool assign_fixed_string(MEM_ROOT *mem_root,
   char* dst_str;
   size_t dst_len;
   size_t dst_copied;
-  uint32 dummy_offset;
+  size_t dummy_offset;
 
   src_str= src->ptr();
   if (src_str == NULL)

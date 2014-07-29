@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -23,13 +23,12 @@
 PSI_memory_key key_memory_Sid_map_Node;
 
 Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
-  : sid_lock(_sid_lock)
+  : sid_lock(_sid_lock),
+    _sidno_to_sid(key_memory_Sid_map_Node), _sorted(key_memory_Sid_map_Node)
 {
   DBUG_ENTER("Sid_map::Sid_map");
-  my_init_dynamic_array(&_sidno_to_sid, sizeof(Node *), 8, 8);
-  my_init_dynamic_array(&_sorted, sizeof(rpl_sidno), 8, 8);
   my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
-               offsetof(Node, sid.uuid_par.bytes), binary_log::Uuid_parent::BYTE_LENGTH, NULL,
+               offsetof(Node, sid.bytes), binary_log::Uuid::BYTE_LENGTH, NULL,
                my_free, 0);
   DBUG_VOID_RETURN;
 }
@@ -38,8 +37,6 @@ Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
 Sid_map::~Sid_map()
 {
   DBUG_ENTER("Sid_map::~Sid_map");
-  delete_dynamic(&_sidno_to_sid);
-  delete_dynamic(&_sorted);
   my_hash_free(&_sid_to_sidno);
   DBUG_VOID_RETURN;
 }
@@ -57,7 +54,7 @@ enum_return_status Sid_map::clear()
   DBUG_ENTER("Sid_map::clear");
   my_hash_free(&_sid_to_sidno);
   my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
-               offsetof(Node, sid.uuid_par.bytes), binary_log::Uuid_parent::BYTE_LENGTH, NULL,
+               offsetof(Node, sid.bytes), binary_log::Uuid::BYTE_LENGTH, NULL,
                my_free, 0);
   reset_dynamic(&_sidno_to_sid);
   reset_dynamic(&_sorted);
@@ -70,14 +67,14 @@ rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
 {
   DBUG_ENTER("Sid_map::add_sid(const rpl_sid *)");
 #ifndef DBUG_OFF
-  char buf[Uuid::TEXT_LENGTH + 1];
+  char buf[binary_log::Uuid::TEXT_LENGTH + 1];
   sid.to_string(buf);
   DBUG_PRINT("info", ("SID=%s", buf));
 #endif
   if (sid_lock)
     sid_lock->assert_some_lock();
-  Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.uuid_par.bytes,
-                                     binary_log::Uuid_parent::BYTE_LENGTH);
+  Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
+                                     binary_log::Uuid::BYTE_LENGTH);
   if (node != NULL)
   {
     DBUG_PRINT("info", ("existed as sidno=%d", node->sidno));
@@ -96,8 +93,8 @@ rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
   }
   DBUG_PRINT("info", ("is_wrlock=%d sid_lock=%p", is_wrlock, sid_lock));
   rpl_sidno sidno;
-  node= (Node *)my_hash_search(&_sid_to_sidno, sid.uuid_par.bytes,
-                               binary_log::Uuid_parent::BYTE_LENGTH);
+  node= (Node *)my_hash_search(&_sid_to_sidno, sid.bytes,
+                               binary_log::Uuid::BYTE_LENGTH);
   if (node != NULL)
     sidno= node->sidno;
   else
@@ -130,9 +127,9 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
 
   node->sidno= sidno;
   node->sid= sid;
-  if (insert_dynamic(&_sidno_to_sid, &node) == 0)
+  if (!_sidno_to_sid.push_back(node))
   {
-    if (insert_dynamic(&_sorted, &sidno) == 0)
+    if (!_sorted.push_back(sidno))
     {
       if (my_hash_insert(&_sid_to_sidno, (uchar *)node) == 0)
       {
@@ -148,16 +145,14 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
           // We have added one element to the end of _sorted.  Now we
           // bubble it down to the sorted position.
           int sorted_i= sidno - 1;
-          rpl_sidno *prev_sorted_p= dynamic_element(&_sorted, sorted_i,
-                                                    rpl_sidno *);
+          rpl_sidno *prev_sorted_p= &_sorted[sorted_i];
           sorted_i--;
           while (sorted_i >= 0)
           {
-            rpl_sidno *sorted_p= dynamic_element(&_sorted, sorted_i,
-                                                 rpl_sidno *);
+            rpl_sidno *sorted_p= &_sorted[sorted_i];
             const rpl_sid &other_sid= sidno_to_sid(*sorted_p);
-            if (memcmp(sid.uuid_par.bytes, other_sid.uuid_par.bytes,
-                       binary_log::Uuid_parent::BYTE_LENGTH) >= 0)
+            if (memcmp(sid.bytes, other_sid.bytes,
+                       binary_log::Uuid::BYTE_LENGTH) >= 0)
               break;
             memcpy(prev_sorted_p, sorted_p, sizeof(rpl_sidno));
             sorted_i--;
@@ -167,9 +162,9 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
           RETURN_OK;
         }
       }
-      pop_dynamic(&_sorted);
+      _sorted.pop_back();
     }
-    pop_dynamic(&_sidno_to_sid);
+    _sidno_to_sid.pop_back();
   }
   my_free(node);
 

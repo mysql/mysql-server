@@ -17,6 +17,7 @@
 #include "unireg.h"                             // HAVE_*
 #include "rpl_mi.h"
 #include "rpl_rli.h"
+#include "rpl_mts_submode.h"
 #include "sql_base.h"                        // close_thread_tables
 #include <my_dir.h>    // For MY_STAT
 #include "log_event.h" // Format_description_log_event, Log_event,
@@ -95,6 +96,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
+   workers(PSI_NOT_INSTRUMENTED),
    workers_array_initialized(false), slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
    checkpoint_group(opt_mts_checkpoint_group),
@@ -139,11 +141,10 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   {
     mysql_mutex_init(key_relay_log_info_log_space_lock,
                      &log_space_lock, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond, NULL);
+    mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond);
     mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond,
-                    NULL);
+    mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond);
     mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK,
                      MY_MUTEX_INIT_FAST);
 
@@ -167,7 +168,7 @@ void Relay_log_info::init_workers(ulong n_workers)
   mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
   mts_last_online_stat= 0;
 
-  my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
+  workers.reserve(n_workers);
   workers_array_initialized= true; //set after init
 }
 
@@ -176,7 +177,7 @@ void Relay_log_info::init_workers(ulong n_workers)
 */
 void Relay_log_info::deinit_workers()
 {
-  delete_dynamic(&workers);
+  workers.clear();
 }
 
 Relay_log_info::~Relay_log_info()
@@ -223,9 +224,9 @@ void Relay_log_info::reset_notified_relay_log_change()
 {
   if (!is_parallel_exec())
     return;
-  for (uint i= 0; i < workers.elements; i++)
+  for (Slave_worker **it= workers.begin(); it != workers.end(); ++it)
   {
-    Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+    Slave_worker *w= *it;
     w->relay_log_change_notified= FALSE;
   }
 }
@@ -256,9 +257,9 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
   if (!is_parallel_exec())
     return;
 
-  for (uint i= 0; i < workers.elements; i++)
+  for (Slave_worker **it= workers.begin(); it != workers.end(); ++it)
   {
-    Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+    Slave_worker *w= *it;
     /*
       Reseting the notification information in order to force workers to
       assign jobs with the new updated information.
@@ -279,8 +280,9 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
       w->master_log_change_notified= false;
 
     DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
-               "worker->bitmap_shifted --> %lu, worker --> %u.",
-               shift, w->bitmap_shifted, i));  
+                       "worker->bitmap_shifted --> %lu, worker --> %u.",
+                       shift, w->bitmap_shifted,
+                       static_cast<unsigned>(it - workers.begin())));
   }
   /*
     There should not be a call where (shift == 0 && checkpoint_seqno != 0).
@@ -319,9 +321,9 @@ bool Relay_log_info::mts_finalize_recovery()
 
   DBUG_ENTER("Relay_log_info::mts_finalize_recovery");
 
-  for (i= 0; !ret && i < workers.elements; i++)
+  for (Slave_worker **it= workers.begin(); !ret && it != workers.end(); ++it)
   {
-    Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+    Slave_worker *w= *it;
     ret= w->reset_recovery_info();
     DBUG_EXECUTE_IF("mts_debug_recovery_reset_fails", ret= true;);
   }
@@ -331,7 +333,7 @@ bool Relay_log_info::mts_finalize_recovery()
     even temporary holes. Therefore stale records are deleted
     from the tail.
   */
-  for (i= recovery_parallel_workers; i > workers.elements && !ret; i--)
+  for (i= recovery_parallel_workers; i > workers.size() && !ret; i--)
   {
     Slave_worker *w=
       Rpl_info_factory::create_worker(repo_type, i - 1, this, true);
@@ -2302,9 +2304,9 @@ void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
 
       if (is_parallel_exec())
       {
-        for (uint i= 0; i < workers.elements; i++)
+        for (Slave_worker **it= workers.begin(); it != workers.end(); ++it)
         {
-          Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+          Slave_worker *w= *it;
           mysql_mutex_lock(&w->jobs_lock);
           if (w->running_status == Slave_worker::RUNNING)
             w->set_rli_description_event(fe);

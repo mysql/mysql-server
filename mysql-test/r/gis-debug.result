@@ -515,3 +515,17 @@ SRID(GEOMETRYFROMTEXT(' MULTIPOINT(8 4,5 0,7 8,6 9,3 4,7 3,5 5) '))));
 ASTEXT(ST_BUFFER(POLYGONFROMTEXT(' POLYGON((9 9,5 2,4 5,9 9))'),
 SRID(GEOMETRYFROMTEXT(' MULTIPOINT(8 4,5 0,7 8,6 9,3 4,7 3,5 5) '))))
 POLYGON((9 9,5 2,4 5,9 9))
+#
+# 18701868 CRASH IN MY_DECIMAL::SANITY_CHECK,
+#          ORDER BY CAST (INVALID GIS FUNCTION RESULT)
+#
+CREATE TABLE t1 (a INT) engine=innodb;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+a
+1
+DELETE FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+ERROR 22023: Invalid GIS data provided to function st_distance.
+UPDATE t1 SET a=1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+ERROR 22023: Invalid GIS data provided to function st_distance.
+DROP TABLE t1;

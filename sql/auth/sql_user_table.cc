@@ -301,11 +301,11 @@ bool acl_trans_commit_and_close_tables(THD *thd)
 
 */
 
-void acl_notify_htons(THD* thd, const char* query, uint query_length)
+void acl_notify_htons(THD* thd, const char* query, size_t query_length)
 {
   DBUG_ENTER("acl_notify_htons");
   DBUG_PRINT("enter", ("db: %s", thd->db));
-  DBUG_PRINT("enter", ("query: '%s', length: %u", query, query_length));
+  DBUG_PRINT("enter", ("query: '%s', length: %zu", query, query_length));
 
   ha_binlog_log_query(thd, NULL, LOGCOM_ACL_NOTIFY,
                       query, query_length,
@@ -468,7 +468,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   bool builtin_plugin= true;
   bool update_password;
   const char *password= empty_c_string;
-  uint password_len= 0;
+  size_t password_len= 0;
   char what= (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
   LEX *lex= thd->lex;

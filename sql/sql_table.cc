@@ -41,7 +41,7 @@
                                        // make_unireg_sortorder
 #include "sql_handler.h"               // mysql_ha_rm_tables
 #include "discover.h"                  // readfrm
-#include "my_pthread.h"                // pthread_mutex_t
+#include "my_pthread.h"                // native_mutex_t
 #include "log_event.h"                 // Query_log_event
 #include <hash.h>
 #include <myisam.h>
@@ -69,7 +69,8 @@ const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
-static int copy_data_between_tables(TABLE *from,TABLE *to,
+static int copy_data_between_tables(PSI_stage_progress *psi,
+                                    TABLE *from,TABLE *to,
                                     List<Create_field> &create,
 				    ha_rows *copied,ha_rows *deleted,
                                     Alter_info::enum_enable_or_disable keys_onoff,
@@ -3070,7 +3071,7 @@ static TYPELIB *create_typelib(MEM_ROOT *mem_root,
   String conv;
   for (uint i=0; i < result->count; i++)
   {
-    uint32 dummy;
+    size_t dummy;
     size_t length;
     String *tmp= it++;
 
@@ -3354,7 +3355,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   const char	*key_name;
   Create_field	*sql_field,*dup_field;
   uint		field,null_fields,blob_columns,max_key_length;
-  ulong		record_offset= 0;
+  size_t	record_offset= 0;
   KEY		*key_info;
   KEY_PART_INFO *key_part_info;
   int		field_no,dup_no;
@@ -3463,7 +3464,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         for (uint i= 0; (tmp= int_it++); i++)
         {
           size_t lengthsp;
-          uint32 dummy2;
+          size_t dummy2;
           if (String::needs_conversion(tmp->length(), tmp->charset(),
                                        cs, &dummy2))
           {
@@ -3791,7 +3792,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   key_number=0;
   for (; (key=key_iterator++) ; key_number++)
   {
-    uint key_length=0;
+    size_t key_length=0;
     Key_part_spec *column;
 
     if (key->name.str == ignore_key)
@@ -3979,7 +3980,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  }
           if (f_is_geom(sql_field->pack_flag) && sql_field->geom_type ==
               Field::GEOM_POINT)
-            column->length= 25;
+            column->length= MAX_LEN_GEOM_POINT_FIELD;
 	  if (!column->length)
 	  {
 	    my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name.str);
@@ -4077,7 +4078,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_part_info->fieldnr= field;
       key_part_info->offset=  (uint16) sql_field->offset;
       key_part_info->key_type=sql_field->pack_flag;
-      uint key_part_length= sql_field->key_length;
+      size_t key_part_length= sql_field->key_length;
 
       if (column->length)
       {
@@ -4090,7 +4091,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
             than the BLOB field max size. We handle this case
             using the max_field_size variable below.
           */
-          uint max_field_size= sql_field->key_length * sql_field->charset->mbmaxlen;
+          size_t max_field_size= sql_field->key_length * sql_field->charset->mbmaxlen;
 	  if ((max_field_size && key_part_length > max_field_size) ||
               key_part_length > max_key_length ||
 	      key_part_length > file->max_key_part_length())
@@ -5198,7 +5199,7 @@ mysql_rename_table(handlerton *base, const char *old_db,
   handler *file;
   int error=0;
   ulonglong save_bits= thd->variables.option_bits;
-  int length;
+  size_t length;
   bool was_truncated;
   DBUG_ENTER("mysql_rename_table");
   DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
@@ -5558,6 +5559,24 @@ int mysql_discard_or_import_tablespace(THD *thd,
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
+  /*
+    Under LOCK TABLES we need to upgrade SNRW metadata lock to X lock
+    before doing discard or import of tablespace.
+
+    Skip this step for temporary tables as metadata locks are not
+    applicable for them.
+  */
+  if (table_list->table->s->tmp_table == NO_TMP_TABLE &&
+      (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
+      thd->mdl_context.upgrade_shared_lock(table_list->table->mdl_ticket,
+                                           MDL_EXCLUSIVE,
+                                           thd->variables.lock_wait_timeout))
+  {
+    thd->tablespace_op= FALSE;
+    DBUG_RETURN(-1);
+  }
+
   error= table_list->table->file->ha_discard_or_import_tablespace(discard);
 
   THD_STAGE_INFO(thd, stage_end);
@@ -5580,6 +5599,13 @@ int mysql_discard_or_import_tablespace(THD *thd,
   error= write_bin_log(thd, false, thd->query().str, thd->query().length);
 
 err:
+  if (table_list->table->s->tmp_table == NO_TMP_TABLE &&
+      (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
+  {
+    table_list->table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+  }
+
   thd->tablespace_op=FALSE;
 
   if (error == 0)
@@ -8696,7 +8722,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
         goto err_new_table_cleanup;
       });
-    if (copy_data_between_tables(table, new_table,
+    if (copy_data_between_tables(thd->m_stage_progress_psi,
+                                 table, new_table,
                                  alter_info->create_list,
                                  &copied, &deleted,
                                  alter_info->keys_onoff,
@@ -9019,7 +9046,8 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
 
 
 static int
-copy_data_between_tables(TABLE *from,TABLE *to,
+copy_data_between_tables(PSI_stage_progress *psi,
+                         TABLE *from,TABLE *to,
 			 List<Create_field> &create,
 			 ha_rows *copied,
 			 ha_rows *deleted,
@@ -9054,6 +9082,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);
+
+  mysql_stage_set_work_estimated(psi, from->file->stats.records);
 
   save_sql_mode= thd->variables.sql_mode;
 
@@ -9192,7 +9222,11 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       }
     }
     else
+    {
+      DEBUG_SYNC(thd, "copy_data_between_tables_before");
       found_count++;
+      mysql_stage_set_work_completed(psi, found_count);
+    }
     thd->get_stmt_da()->inc_current_row_for_condition();
   }
   end_read_record(&info);

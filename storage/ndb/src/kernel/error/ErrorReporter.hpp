@@ -48,9 +48,7 @@ public:
 			    char* messptr);
 
   static int get_trace_no();
-  
-  static const char* formatTimeStampString();
-  
+
 private:
   static enum NdbShutdownType s_errorHandlerShutdownType;
 };

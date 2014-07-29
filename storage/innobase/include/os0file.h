@@ -126,7 +126,7 @@ enum os_file_create_t {
 
 #define OS_FILE_READ_ONLY		333
 #define	OS_FILE_READ_WRITE		444
-#define	OS_FILE_READ_ALLOW_DELETE	555	/* for ibbackup */
+#define	OS_FILE_READ_ALLOW_DELETE	555	/* for mysqlbackup */
 
 /* Options for file_create */
 #define	OS_FILE_AIO			61

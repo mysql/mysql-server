@@ -32,6 +32,16 @@ namespace table_cache_unittest {
 
 using my_testing::Server_initializer;
 
+// Strings in asserts are slightly different on Windows
+#ifdef SAFE_MUTEX
+#ifdef _WIN32
+static const char *assert_string=
+  ".*Assertion.*count > 0.*GetCurrentThreadId.*";
+#else
+static const char *assert_string=
+  ".*Assertion.*count > 0.*pthread_equal.*";
+#endif
+#endif
 
 /**
   Test fixture for basic tests involving Table_cache
@@ -195,7 +205,7 @@ TEST_F(TableCacheBasicDeathTest, CacheCreateAndDestroy)
   // Cache should be not locked after creation
 #ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
-                            ".*Assertion.*count > 0.*pthread_equal.*");
+                            assert_string);
 #endif
   table_cache.destroy();
 }
@@ -214,7 +224,7 @@ TEST_F(TableCacheBasicDeathTest, CacheLockAndUnlock)
 #ifdef SAFE_MUTEX
   // Cache should not be locked after creation
   EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
-                            ".*Assertion.*count > 0.*pthread_equal.*");
+                            assert_string);
 #endif
 
   // And get locked after we call its lock() method
@@ -225,7 +235,7 @@ TEST_F(TableCacheBasicDeathTest, CacheLockAndUnlock)
   table_cache.unlock();
 #ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
-                            ".*Assertion.*count > 0.*pthread_equal.*");
+                            assert_string);
 #endif
 
   table_cache.destroy();
@@ -266,9 +276,9 @@ TEST_F(TableCacheBasicDeathTest, ManagerCreateAndDestroy)
   // And not locked
 #ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(cache_1->assert_owner(),
-                            ".*Assertion.*count > 0.*pthread_equal.*");
+                            assert_string);
   EXPECT_DEATH_IF_SUPPORTED(cache_2->assert_owner(),
-                            ".*Assertion.*count > 0.*pthread_equal.*");
+                            assert_string);
 #endif
 
   table_cache_manager.destroy();
@@ -737,9 +747,9 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerLockAndUnlock)
   // Nor caches nor LOCK_open should not be locked after initialization
 #ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all(),
-                            ".*Assertion.*count > 0.*pthread_equal.*");
+                            assert_string);
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all_and_tdc(),
-                            ".*Assertion.*count > 0.*pthread_equal.*");
+                            assert_string);
 #endif
 
   // And get locked after we call its lock_all_and_tdc() method.
@@ -761,9 +771,9 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerLockAndUnlock)
 
 #ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all(),
-                            ".*Assertion.*count > 0.*pthread_equal.*");
+                            assert_string);
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all_and_tdc(),
-                            ".*Assertion.*count > 0.*pthread_equal.*");
+                            assert_string);
 #endif
 }
 

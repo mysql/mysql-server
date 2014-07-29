@@ -697,7 +697,8 @@ fsp_space_modify_check(
 		      || srv_is_tablespace_truncated(id)
 		      || fil_space_is_being_truncated(id)
 		      || fil_space_get_flags(id) == ULINT_UNDEFINED
-		      || fil_space_get_type(id) == FIL_TYPE_TEMPORARY);
+		      || fil_space_get_type(id) == FIL_TYPE_TEMPORARY
+		      || fil_space_is_redo_skipped(id));
 		return;
 	case MTR_LOG_ALL:
 		/* We must not write redo log for the shared temporary
@@ -877,7 +878,8 @@ fsp_header_get_space_id(
 
 	if (id != fsp_id) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Space id in fsp header %lu,but in the page header %lu",
+			"Space ID in fsp header is %lu,"
+			" but in the page header it is %lu.",
 			fsp_id, id);
 
 		return(ULINT_UNDEFINED);
@@ -2923,7 +2925,8 @@ fsp_reserve_free_extents(
 			then this can be 0, otherwise it is n_ext */
 	ulint	space,	/*!< in: space id */
 	ulint	n_ext,	/*!< in: number of extents to reserve */
-	ulint	alloc_type,/*!< in: FSP_NORMAL, FSP_UNDO, or FSP_CLEANING */
+	fsp_reserve_t	alloc_type,
+			/*!< in: page reservation type */
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
 	fsp_header_t*	space_header;
@@ -2951,7 +2954,7 @@ fsp_reserve_free_extents(
 try_again:
 	size = mtr_read_ulint(space_header + FSP_SIZE, MLOG_4BYTES, mtr);
 
-	if (size < FSP_EXTENT_SIZE / 2) {
+	if (alloc_type != FSP_BLOB && size < FSP_EXTENT_SIZE / 2) {
 		/* Use different rules for small single-table tablespaces */
 		*n_reserved = 0;
 		return(fsp_reserve_free_pages(space, space_header, size, mtr));
@@ -2976,7 +2979,8 @@ try_again:
 
 	n_free = n_free_list_ext + n_free_up;
 
-	if (alloc_type == FSP_NORMAL) {
+	switch (alloc_type) {
+	case FSP_NORMAL:
 		/* We reserve 1 extent + 0.5 % of the space size to undo logs
 		and 1 extent + 0.5 % to cleaning operations; NOTE: this source
 		code is duplicated in the function below! */
@@ -2987,7 +2991,8 @@ try_again:
 
 			goto try_to_extend;
 		}
-	} else if (alloc_type == FSP_UNDO) {
+		break;
+	case FSP_UNDO:
 		/* We reserve 0.5 % of the space size to cleaning operations */
 
 		reserve = 1 + ((size / FSP_EXTENT_SIZE) * 1) / 200;
@@ -2996,8 +3001,12 @@ try_again:
 
 			goto try_to_extend;
 		}
-	} else {
-		ut_a(alloc_type == FSP_CLEANING);
+		break;
+	case FSP_CLEANING:
+	case FSP_BLOB:
+		break;
+	default:
+		ut_error;
 	}
 
 	success = fil_space_reserve_free_extents(space, n_free, n_ext);

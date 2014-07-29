@@ -10,7 +10,6 @@ set global innodb_large_prefix=1;
 SELECT @@innodb_large_prefix;
 @@innodb_large_prefix
 1
-DROP DATABASE IF EXISTS testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
 case # 1
 USE testdb_wl6445;
@@ -114,14 +113,12 @@ FLUSH LOGS;
 FLUSH TABLES t1;
 FLUSH TABLES WITH READ LOCK;
 UNLOCK TABLES;
-USE testdb_wl6445;
 DROP USER 'test1'@'localhost';
 DROP USER 'test2'@'localhost';
 DROP USER 'test3'@'localhost';
-DROP TABLE otherlocation;
+DROP TABLE testdb_wl6445.otherlocation;
 DROP DATABASE testdb_wl6445;
 case # 2
-DROP DATABASE IF EXISTS testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
 SET GLOBAL innodb_file_per_table = 1;
 SET GLOBAL innodb_file_format = `Barracuda`;
@@ -1103,10 +1100,8 @@ FLUSH LOGS;
 FLUSH TABLES t1;
 FLUSH TABLES WITH READ LOCK;
 UNLOCK TABLES;
-USE testdb_wl6445;
 DROP DATABASE testdb_wl6445;
 case # 3
-DROP DATABASE IF EXISTS testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
@@ -1196,10 +1191,8 @@ FLUSH LOGS;
 FLUSH TABLES t1,t2,t3;
 FLUSH TABLES WITH READ LOCK;
 UNLOCK TABLES;
-USE testdb_wl6445;
 DROP DATABASE testdb_wl6445;
 case # 4
-DROP DATABASE IF EXISTS testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY , j VARCHAR(300), FULLTEXT KEY (j)) ENGINE = InnoDB;
@@ -1253,10 +1246,8 @@ SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
 i	j
 5	mysql database innodb support
 6	innodb engine
-USE testdb_wl6445;
 DROP DATABASE testdb_wl6445;
 case # 5
-DROP DATABASE IF EXISTS testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY , j VARCHAR(300), FULLTEXT KEY (j)) ENGINE = InnoDB;
@@ -1319,12 +1310,10 @@ i	LEFT(j,20)
 CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
 CREATE USER 'test5_2'@'localhost' IDENTIFIED BY '123';
 GRANT ALL ON testdb_wl6445.* TO 'test5_2'@'localhost';
-USE testdb_wl6445;
 DROP USER 'test5_2'@'localhost';
 DROP USER 'test5'@'localhost';
 DROP DATABASE testdb_wl6445;
 case # 6
-DROP DATABASE IF EXISTS testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY ) ENGINE = InnoDB;
@@ -1343,7 +1332,6 @@ i
 1
 2
 3
-USE testdb_wl6445;
 DROP DATABASE testdb_wl6445;
 case # 7 (restart server in read-only mode and perform check table)
 use test;

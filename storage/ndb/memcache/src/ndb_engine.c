@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
- reserved.
+ Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -17,6 +16,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+#include <my_config.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -82,6 +82,8 @@ ENGINE_ERROR_CODE create_instance(uint64_t interface,
                                   GET_SERVER_API get_server_api,
                                   ENGINE_HANDLE **handle ) {
   
+  struct ndb_engine *ndb_eng;
+  const char * env_connectstring;
   ENGINE_ERROR_CODE return_status;
   
   SERVER_HANDLE_V1 *api = get_server_api();
@@ -89,7 +91,7 @@ ENGINE_ERROR_CODE create_instance(uint64_t interface,
     return ENGINE_ENOTSUP;
   }
   
-  struct ndb_engine *ndb_eng = malloc(sizeof(struct ndb_engine)); 
+  ndb_eng = malloc(sizeof(struct ndb_engine));
   if(ndb_eng == NULL) {
     return ENGINE_ENOMEM;
   }
@@ -132,7 +134,7 @@ ENGINE_ERROR_CODE create_instance(uint64_t interface,
   ndb_eng->startup_options.reconf_enable = true;
 
   /* Now let NDB_CONNECTSRING environment variable override the default */
-  const char * env_connectstring = getenv("NDB_CONNECTSTRING");
+  env_connectstring = getenv("NDB_CONNECTSTRING");
   if(env_connectstring)
     ndb_eng->startup_options.connectstring = env_connectstring;
 
@@ -270,10 +272,12 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
 /*** destroy ***/
 static void ndb_destroy(ENGINE_HANDLE* handle, bool force) 
 {
+  struct ndb_engine* ndb_eng;
+  struct default_engine *def_eng;
   DEBUG_ENTER();
 
-  struct ndb_engine* ndb_eng = ndb_handle(handle);
-  struct default_engine *def_eng = default_handle(ndb_eng);
+  ndb_eng = ndb_handle(handle);
+  def_eng = default_handle(ndb_eng);
 
   for(unsigned int i = 0 ; i < ndb_eng->npipelines; i ++) {
     ndb_pipeline *p = ndb_eng->pipelines[i];
@@ -325,10 +329,13 @@ static ENGINE_ERROR_CODE ndb_allocate(ENGINE_HANDLE* handle,
                                            const int flags,
                                            const rel_time_t exptime)
 {
+  struct ndb_engine* ndb_eng;
+  struct default_engine *def_eng;
   DEBUG_ENTER();
-  struct ndb_engine* ndb_eng = ndb_handle(handle);
-  struct default_engine *def_eng = default_handle(ndb_eng);
-  
+
+  ndb_eng = ndb_handle(handle);
+  def_eng = default_handle(ndb_eng);
+
   return def_eng->engine.allocate(ndb_eng->m_default_engine, cookie, item, 
                                   key, nkey, nbytes, flags, exptime);
 }
@@ -368,8 +375,8 @@ static ENGINE_ERROR_CODE ndb_remove(ENGINE_HANDLE* handle,
   */
 
   if(prefix.do_mc_delete) {                         /* Cache Delete */ 
-    return_status = ENGINE_KEY_ENOENT;  
     hash_item *it = item_get(def_eng, key, nkey);
+    return_status = ENGINE_KEY_ENOENT;
     if (it != NULL) {
       // ACTUALLY NO??? 
       /* In the binary protocol there is such a thing as a CAS delete.
@@ -433,6 +440,7 @@ static ENGINE_ERROR_CODE ndb_get(ENGINE_HANDLE* handle,
   struct ndb_engine* ndb_eng = ndb_handle(handle);
   ndb_pipeline *pipeline = get_my_pipeline_config(ndb_eng);
   struct workitem *wqitem;
+  prefix_info_t prefix;
   ENGINE_ERROR_CODE return_status = ENGINE_KEY_ENOENT;
 
   wqitem = ndb_eng->server.cookie->get_engine_specific(cookie);
@@ -455,8 +463,8 @@ static ENGINE_ERROR_CODE ndb_get(ENGINE_HANDLE* handle,
     return return_status;  
   }
 
-  prefix_info_t prefix = get_prefix_info_for_key(nkey, key);
-  
+  prefix = get_prefix_info_for_key(nkey, key);
+
   /* Cache read */
   /* FIXME: Use the public APIs */
   if(prefix.do_mc_read) {
@@ -604,6 +612,7 @@ static ENGINE_ERROR_CODE ndb_arithmetic(ENGINE_HANDLE* handle,
   struct default_engine *def_eng = default_handle(ndb_eng);
   ndb_pipeline *pipeline = get_my_pipeline_config(ndb_eng);
   struct workitem *wqitem;
+  prefix_info_t prefix;
   ENGINE_ERROR_CODE return_status;  
   
   /* Is this a callback after completed I/O? */
@@ -619,7 +628,7 @@ static ENGINE_ERROR_CODE ndb_arithmetic(ENGINE_HANDLE* handle,
     return return_status;
   }
   
-  prefix_info_t prefix = get_prefix_info_for_key(nkey, key);
+  prefix = get_prefix_info_for_key(nkey, key);
   DEBUG_PRINT("prefix: %d   delta: %d  create: %d   initial: %d ", 
                      prefix.prefix_id, (int) delta, (int) create, (int) initial);
 
@@ -663,11 +672,14 @@ static ENGINE_ERROR_CODE ndb_flush(ENGINE_HANDLE* handle,
    They are performed synchronously. 
    And we always send the flush command to the cache engine.   
 */
-
+  struct ndb_engine* ndb_eng;
+  struct default_engine *def_eng;
+  ndb_pipeline *pipeline;
   DEBUG_ENTER();
-  struct ndb_engine* ndb_eng = ndb_handle(handle);
-  struct default_engine *def_eng = default_handle(ndb_eng);
-  ndb_pipeline *pipeline = get_my_pipeline_config(ndb_eng);
+
+  ndb_eng = ndb_handle(handle);
+  def_eng = default_handle(ndb_eng);
+  pipeline = get_my_pipeline_config(ndb_eng);
 
   (void) def_eng->engine.flush(ndb_eng->m_default_engine, cookie, when);
   return pipeline_flush_all(pipeline);
@@ -680,9 +692,12 @@ static ENGINE_ERROR_CODE ndb_unknown_command(ENGINE_HANDLE* handle,
                                              protocol_binary_request_header *request,
                                              ADD_RESPONSE response)
 {
+  struct ndb_engine* ndb_eng;
+  struct default_engine *def_eng;
   DEBUG_ENTER();
-  struct ndb_engine* ndb_eng = ndb_handle(handle);
-  struct default_engine *def_eng = default_handle(ndb_eng);
+
+  ndb_eng = ndb_handle(handle);
+  def_eng = default_handle(ndb_eng);
 
   return def_eng->engine.unknown_command(ndb_eng->m_default_engine, cookie, 
                                          request, response);
@@ -759,8 +774,11 @@ static bool ndb_get_item_info(ENGINE_HANDLE *handle,
 void read_cmdline_options(struct ndb_engine *ndb, struct default_engine *se,
                           const char * conf)
 {
+  int did_parse;
   DEBUG_ENTER();
-  int did_parse = 0;   /* 0 = success from parse_config() */
+
+  did_parse = 0;   /* 0 = success from parse_config() */
+
   if (conf != NULL) {
     struct config_item items[] = {
       /* NDB OPTIONS */
@@ -833,7 +851,6 @@ void read_cmdline_options(struct ndb_engine *ndb, struct default_engine *se,
 
 int fetch_core_settings(struct ndb_engine *engine,
                          struct default_engine *se) {
-  DEBUG_ENTER();
 
   /* Set up a struct config_item containing the keys we're interested in. */
   struct config_item items[] = {    
@@ -852,6 +869,8 @@ int fetch_core_settings(struct ndb_engine *engine,
     { .key = NULL }
   };
   
+  DEBUG_ENTER();
+
   /* This will call "stats settings" and parse the output into the config */
   return se->server.core->get_config(items);
 }

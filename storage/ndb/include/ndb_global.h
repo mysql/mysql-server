@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -159,12 +159,6 @@ extern "C" {
 #define PATH_MAX 1024
 #endif
 
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS)
-#define LINT_SET_PTR = {0,0}
-#else
-#define LINT_SET_PTR
-#endif
-
 #ifndef MIN
 #define MIN(x,y) (((x)<(y))?(x):(y))
 #endif
@@ -293,7 +287,8 @@ C_MODE_START
 /** see below */
 typedef int(*RequirePrinter)(const char *fmt, ...);
 void require_failed(int exitcode, RequirePrinter p,
-                    const char* expr, const char* file, int line);
+                    const char* expr, const char* file, int line)
+                    ATTRIBUTE_NORETURN;
 int ndbout_printer(const char * fmt, ...);
 C_MODE_END
 /*

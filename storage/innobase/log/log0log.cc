@@ -902,7 +902,7 @@ log_group_file_header_flush(
 	mach_write_to_4(buf + LOG_GROUP_ID, group->id);
 	mach_write_to_8(buf + LOG_FILE_START_LSN, start_lsn);
 
-	/* Wipe over possible label of ibbackup --restore */
+	/* Wipe over possible label of mysqlbackup --restore */
 	memset(buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, 0x20, 4);
 
 	dest_offset = nth_file * group->file_size;
@@ -1101,6 +1101,7 @@ loop:
 	(flush_to_disk == true) case, because the log_mutex
 	contention also works as the arbitrator for write-IO
 	(fsync) bandwidth between log files and data files. */
+	os_rmb;
 	if (!flush_to_disk && log_sys->write_lsn >= lsn) {
 		return;
 	}
@@ -1588,7 +1589,7 @@ log_reset_first_header_and_checkpoint(
 
 	lsn = start + LOG_BLOCK_HDR_SIZE;
 
-	/* Write the label of ibbackup --restore */
+	/* Write the label of mysqlbackup --restore */
 	strcpy((char*) hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
 	       "ibbackup ");
 	ut_sprintf_timestamp((char*) hdr_buf
@@ -2208,7 +2209,7 @@ loop:
 		fil_flush_file_spaces(FIL_TYPE_LOG);
 	}
 
-	/* The call fil_write_flushed_lsn_to_data_files() will pass the buffer
+	/* The call fil_write_flushed_lsn() will bypass the buffer
 	pool: therefore it is essential that the buffer pool has been
 	completely flushed to disk! (We do not call fil_write... if the
 	'very fast' shutdown is enabled.) */
@@ -2245,9 +2246,7 @@ loop:
 	srv_shutdown_lsn = lsn;
 
 	if (!srv_read_only_mode) {
-		fil_write_flushed_lsn_to_data_files(lsn, 0);
-
-		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+		fil_write_flushed_lsn(lsn);
 	}
 
 	fil_close_all_files();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include <vector>
 #include <stdexcept>
 
-using namespace binary_log;
 
 namespace binary_log {
 
@@ -34,8 +33,7 @@ namespace binary_log {
   binary_log::Row_event_set.
 */
 template <class Iterator_value_type >
-class Row_event_iterator : public std::iterator<std::forward_iterator_tag,
-                                                Iterator_value_type>
+class Row_event_iterator
 {
 public:
   Row_event_iterator() : m_row_event(0), m_table_map(0),
@@ -106,7 +104,7 @@ public:
 
   //Row_iterator end() const;
 private:
-    uint32_t fields(Iterator_value_type& fields_vector );
+    uint32_t fields(Iterator_value_type *fields_vector );
     const Rows_event *m_row_event;
     const Table_map_event *m_table_map;
     unsigned long m_new_field_offset_calculated;

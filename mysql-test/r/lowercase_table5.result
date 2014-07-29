@@ -1,0 +1,27 @@
+#
+# BUG#18923685: PROPERLY INITIALIZE DB OPTION HASH TABLE
+#
+CREATE DATABASE FoO COLLATE ascii_bin;
+CREATE DATABASE Foo COLLATE utf8_unicode_ci;
+USE FoO;
+CREATE TABLE t1(a INT);
+# t1 should inherit ascii_bin
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=ascii COLLATE=ascii_bin
+DROP TABLE t1;
+USE Foo;
+CREATE TABLE t1(a INT);
+# t1 should inherit utf8_unicode_ci
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+DROP TABLE t1;
+DROP DATABASE FoO;
+DROP DATABASE Foo;
+USE test;
+# End of 5.6 tests

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,21 +31,23 @@ typedef struct st_key KEY;
 
 class Ndb_index_stat_thread : public Ndb_component
 {
+  // Someone is waiting for stats
+  bool client_waiting;
+  native_mutex_t LOCK;
+  native_cond_t COND;
 public:
   Ndb_index_stat_thread();
   virtual ~Ndb_index_stat_thread();
-
-  int running;
-  pthread_mutex_t LOCK;
-  pthread_cond_t COND;
-  pthread_cond_t COND_ready;
 
   /*
     protect stats entry lists where needed
     protect and signal changes in stats entries
   */
-  pthread_mutex_t stat_mutex;
-  pthread_cond_t stat_cond;
+  native_mutex_t stat_mutex;
+  native_cond_t stat_cond;
+
+  // Wake thread up to fetch stats or do other stuff
+  void wakeup();
 
   /* are we setup */
   bool is_setup_complete();
@@ -53,6 +55,9 @@ private:
   virtual int do_init() { return 0;}
   virtual void do_run();
   virtual int do_deinit() { return 0;}
+  // Wakeup for stop
+  virtual void do_wakeup();
+
 };
 
 /* free entries from share or at end */

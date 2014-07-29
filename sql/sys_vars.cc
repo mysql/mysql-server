@@ -67,6 +67,7 @@
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#include "sql_tmp_table.h"  // internal_tmp_disk_storage_engine
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
@@ -3349,12 +3350,6 @@ static Sys_var_ulonglong Sys_tmp_table_size(
        VALID_RANGE(1024, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1));
 
-static Sys_var_mybool Sys_timed_mutexes(
-       "timed_mutexes",
-       "Specify whether to time mutexes (only InnoDB mutexes are currently "
-       "supported)",
-       GLOBAL_VAR(timed_mutexes), CMD_LINE(OPT_ARG), DEFAULT(0));
-
 static char *server_version_ptr;
 static Sys_var_charptr Sys_version(
        "version", "Server version",
@@ -3392,6 +3387,13 @@ static Sys_var_plugin Sys_default_storage_engine(
        SESSION_VAR(table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
+
+const char *internal_tmp_disk_storage_engine_names[] = { "MYISAM", "INNODB", 0};
+static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
+       "internal_tmp_disk_storage_engine",
+       "The default storage engine for on-disk internal tmp table",
+       GLOBAL_VAR(internal_tmp_disk_storage_engine), CMD_LINE(OPT_ARG),
+       internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_MYISAM));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
        "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",

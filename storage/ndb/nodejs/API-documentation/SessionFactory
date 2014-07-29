@@ -8,6 +8,11 @@
  * The resources required for sessions are allocated in advance. 
  * It may return an error in the callback indicating that those resources are 
  * not available.
+ *
+ * This function returns a promise.  On success, the promise will be fulfilled 
+ * with a Session.  The optional callback receives an error value and a 
+ * Session.  Any extra arguments passed after the callback function will
+ * be returned to the callback verbatim.
  * 
  * The "mappings" parameter can be used to preload metadata for application 
  * tables and to validate the defind mappings between stored data and 
@@ -21,12 +26,11 @@
  * @param mappings    mappings to validate when connection is made
  * @param callback    the function to call when the session is ready for use
  * @param additional  parameters will be returned in the callback
- * @return nothing
+ * @return promise
  * @async
  *
- * @return a Session object.
  */
-openSession(Object mappings, Function(error, session, ...) callback, ...);
+openSession(Object mappings, [callback], [...]);
 
 /** Get all open sessions that have been created by this factory.
  *

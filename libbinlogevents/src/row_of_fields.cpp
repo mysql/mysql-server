@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, 2014, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates.
    All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -19,7 +19,8 @@
 #include <stdexcept>
 #include <vector>
 
-using namespace binary_log;
+namespace binary_log
+{
 
 Row_of_fields& Row_of_fields::operator=(const Row_of_fields &right)
 {
@@ -48,3 +49,5 @@ Row_of_fields& Row_of_fields::operator=(Row_of_fields &right)
   }
   return *this;
 }
+
+} //end namespace binary_log

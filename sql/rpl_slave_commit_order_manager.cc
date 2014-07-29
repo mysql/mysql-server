@@ -23,7 +23,7 @@ Commit_order_manager::Commit_order_manager(uint32 worker_numbers)
   mysql_mutex_init(key_commit_order_manager_mutex, &m_mutex, NULL);
   for (uint32 i= 0; i < worker_numbers; i++)
   {
-    mysql_cond_init(key_commit_order_manager_cond, &m_workers[i].cond, NULL);
+    mysql_cond_init(key_commit_order_manager_cond, &m_workers[i].cond);
     m_workers[i].status= OCS_FINISH;
   }
 }

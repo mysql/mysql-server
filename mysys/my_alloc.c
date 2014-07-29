@@ -409,31 +409,6 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Find block that contains an object and set the pre_alloc to it
-*/
-
-void set_prealloc_root(MEM_ROOT *root, char *ptr)
-{
-  USED_MEM *next;
-  for (next=root->used; next ; next=next->next)
-  {
-    if ((char*) next <= ptr && (char*) next + next->size > ptr)
-    {
-      root->pre_alloc=next;
-      return;
-    }
-  }
-  for (next=root->free ; next ; next=next->next)
-  {
-    if ((char*) next <= ptr && (char*) next + next->size > ptr)
-    {
-      root->pre_alloc=next;
-      return;
-    }
-  }
-}
-
 
 char *strdup_root(MEM_ROOT *root, const char *str)
 {

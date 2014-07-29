@@ -38,7 +38,7 @@ typedef struct st_slave_info
 
 void init_slave_list();
 void end_slave_list();
-int register_slave(THD* thd, uchar* packet, uint packet_length);
+int register_slave(THD* thd, uchar* packet, size_t packet_length);
 void unregister_slave(THD* thd, bool only_mine, bool need_lock_slave_list);
 bool show_slave_hosts(THD* thd);
 String *get_slave_uuid(THD *thd, String *value);
@@ -57,7 +57,7 @@ void kill_zombie_dump_threads(String *slave_uuid);
   @retval true Error
   @retval false Success
 */
-bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length);
+bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length);
 
 /**
   Process a COM_BINLOG_DUMP packet.
@@ -70,7 +70,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length);
   @retval true Error
   @retval false Success
 */
-bool com_binlog_dump(THD *thd, char *packet, uint packet_length);
+bool com_binlog_dump(THD *thd, char *packet, size_t packet_length);
 
 /**
   Low-level function where the dump thread iterates over the binary

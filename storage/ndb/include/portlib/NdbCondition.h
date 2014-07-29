@@ -26,7 +26,7 @@ extern "C" {
 
 struct NdbCondition
 {
-  pthread_cond_t cond;
+  native_cond_t cond;
 };
 
 /**

@@ -28,24 +28,8 @@
 #define	ROWS_EVENT_INCLUDED
 
 #include "binlog_event.h"
-#include "debug_vars.h"
-/**
- The header contains functions macros for reading and storing in
- machine independent format (low byte first).
-*/
-#include "byteorder.h"
-#include "wrapper_functions.h"
+#include "control_events.h"
 #include "table_id.h"
-#include "cassert"
-#include <zlib.h> //for checksum calculations
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <iostream>
-#include <list>
-#include <map>
-#include <sstream>
-#include <vector>
 
 /**
    1 byte length, 1 byte format
@@ -393,9 +377,16 @@ public:
   typedef uint16_t flag_set;
   Table_map_event(const char *buf, unsigned int event_len,
                   const Format_description_event *description_event);
-  Table_map_event(unsigned long colcnt)
-  : m_colcnt(colcnt), m_field_metadata_size(0), m_field_metadata(0)
+  Table_map_event(const Table_id& tid, unsigned long colcnt, const char *dbnam, size_t dblen,
+                  const char *tblnam, size_t tbllen)
+  : m_table_id(tid), m_data_size(0), m_dblen(dblen), m_tbllen(tbllen),
+    m_colcnt(colcnt), m_field_metadata_size(0),
+    m_field_metadata(0), m_null_bits(0)
   {
+    if (dbnam)
+      m_dbnam= std::string(dbnam, m_dblen);
+    if (tblnam)
+      m_tblnam= std::string(tblnam, m_tbllen);
   }
 
   virtual ~Table_map_event();
@@ -610,7 +601,7 @@ public:
                              - DELETE_ROWS_EVENT, DELETE_ROWS_EVENT_V1,
                                PRE_GA_DELETE_ROWS_EVENT
   */
-  Rows_event(Log_event_type type_arg)
+  explicit Rows_event(Log_event_type type_arg)
   : Binary_log_event(type_arg),
     m_table_id(0), m_width(0), m_extra_row_data(0),
     columns_before_image(0), columns_after_image(0), row(0)
@@ -775,6 +766,69 @@ public:
   : Rows_event(DELETE_ROWS_EVENT)
   {
   }
+};
+
+/**
+  @class Rows_query_event
+
+  Rows query event type, which is a subclass
+  of the Ignorable_event, to record the original query for the rows
+  events in RBR. This event can be used to display the original query as
+  comments by SHOW BINLOG EVENTS query, or mysqlbinlog client when the
+  --verbose option is given twice
+
+  @section Rows_query_var_event_binary_format Binary Format
+
+  The Post-Header for this event type is empty. The Body has one
+  component:
+
+  <table>
+  <caption>Body for Rows_query_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>m_rows_query</td>
+    <td>char array</td>
+    <td>Records the original query executed in RBR </td>
+  </tr>
+  </table>
+*/
+class Rows_query_event: public virtual Ignorable_event
+{
+public:
+  /**
+    It is used to write the original query in the binlog file in case of RBR
+    when the session flag binlog_rows_query_log_events is set.
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
+
+  Rows_query_event(const char *buf, unsigned int event_len,
+                   const Format_description_event *descr_event);
+  /**
+    It is the minimal constructor, and all it will do is set the type_code as
+    ROWS_QUERY_LOG_EVENT in the header object in Binary_log_event.
+  */
+  Rows_query_event()
+  : Ignorable_event(ROWS_QUERY_LOG_EVENT)
+  {
+  }
+  virtual ~Rows_query_event();
+protected:
+  char *m_rows_query;
 };
 }
 

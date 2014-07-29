@@ -323,6 +323,7 @@ Success: 'load data infile '../../std_data/rpl_loaddata.dat' into table t2 (@a, 
 # 2.8 REPLACE with a subquery.
 # 
 # Same is true for this statement as well.
+# Suppress warnings for REPLACE ... SELECT
 Success: 'replace into t2 select i+5 from t1' doesn't allow concurrent inserts into 't1'.
 Success: 'replace into t2 values ((select i+5 from t1 where i = 4))' doesn't allow concurrent inserts into 't1'.
 #
@@ -632,80 +633,6 @@ drop procedure p3;
 drop table t1, t2, t3, t4, t5;
 set @@global.concurrent_insert= @old_concurrent_insert;
 #
-# Test for bug #45143 "All connections hang on concurrent ALTER TABLE".
-#
-# Concurrent execution of statements which required weak write lock
-# (TL_WRITE_ALLOW_WRITE) on several instances of the same table and
-# statements which tried to acquire stronger write lock (TL_WRITE,
-# TL_WRITE_ALLOW_READ) on this table might have led to deadlock.
-drop table if exists t1;
-drop view if exists v1;
-# Create auxiliary connections used through the test.
-# Reset DEBUG_SYNC facility before using it.
-set debug_sync= 'RESET';
-# Turn off logging so calls to locking subsystem performed
-# for general_log table won't interfere with our test.
-set @old_general_log = @@global.general_log;
-set @@global.general_log= OFF;
-create table t1 (i int) engine=InnoDB;
-# We have to use view in order to make LOCK TABLES avoid
-# acquiring SNRW metadata lock on table.
-create view v1 as select * from t1;
-insert into t1 values (1);
-# Prepare user lock which will be used for resuming execution of
-# the first statement after it acquires TL_WRITE_ALLOW_WRITE lock.
-select get_lock("lock_bug45143_wait", 0);
-get_lock("lock_bug45143_wait", 0)
-1
-# Switch to connection 'con_bug45143_1'.
-# Sending:
-insert into t1 values (get_lock("lock_bug45143_wait", 100));;
-# Switch to connection 'con_bug45143_2'.
-# Wait until the above INSERT takes TL_WRITE_ALLOW_WRITE lock on 't1'
-# and then gets blocked on user lock 'lock_bug45143_wait'.
-# Ensure that upcoming SELECT waits after acquiring TL_WRITE_ALLOW_WRITE
-# lock for the first instance of 't1'.
-set debug_sync='thr_multi_lock_after_thr_lock SIGNAL parked WAIT_FOR go';
-# Sending:
-select count(*) > 0 from t1 as a, t1 as b for update;;
-# Switch to connection 'con_bug45143_3'.
-# Wait until the above SELECT ... FOR UPDATE is blocked after
-# acquiring lock for the the first instance of 't1'.
-set debug_sync= 'now WAIT_FOR parked';
-# Send LOCK TABLE statement which will try to get TL_WRITE lock on 't1':
-lock table v1 write;;
-# Switch to connection 'default'.
-# Wait until this LOCK TABLES statement starts waiting for table lock.
-# Allow SELECT ... FOR UPDATE to resume.
-# Since it already has TL_WRITE_ALLOW_WRITE lock on the first instance
-# of 't1' it should be able to get lock on the second instance without
-# waiting, even although there is another thread which has such lock
-# on this table and also there is a thread waiting for a TL_WRITE on it.
-set debug_sync= 'now SIGNAL go';
-# Switch to connection 'con_bug45143_2'.
-# Reap SELECT ... FOR UPDATE
-count(*) > 0
-1
-# Switch to connection 'default'.
-# Resume execution of the INSERT statement.
-select release_lock("lock_bug45143_wait");
-release_lock("lock_bug45143_wait")
-1
-# Switch to connection 'con_bug45143_1'.
-# Reap INSERT statement.
-# In Statement and Mixed replication mode we get here "Unsafe 
-# for binlog" warnings. In row mode there are no warnings.
-# Hide the discrepancy.
-# Switch to connection 'con_bug45143_3'.
-# Reap LOCK TABLES statement.
-unlock tables;
-# Switch to connection 'default'.
-# Do clean-up.
-set debug_sync= 'RESET';
-set @@global.general_log= @old_general_log;
-drop view v1;
-drop table t1;
-#
 # Bug#50821 Deadlock between LOCK TABLES and ALTER TABLE
 #
 DROP TABLE IF EXISTS t1, t2;
@@ -746,40 +673,6 @@ SET DEBUG_SYNC="now SIGNAL query";
 DROP EVENT e2;
 SET DEBUG_SYNC="RESET";
 #
-# Bug#55930 Assertion `thd->transaction.stmt.is_empty() ||
-#           thd->in_sub_stmt || (thd->state..
-#
-DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(a INT) engine=InnoDB;
-INSERT INTO t1 VALUES (1), (2);
-# Connection con1
-SET SESSION lock_wait_timeout= 1;
-SET DEBUG_SYNC= 'ha_admin_open_ltable SIGNAL opti_recreate WAIT_FOR opti_analyze';
-# Sending:
-OPTIMIZE TABLE t1;
-# Connection con2
-SET DEBUG_SYNC= 'now WAIT_FOR opti_recreate';
-SET DEBUG_SYNC= 'after_lock_tables_takes_lock SIGNAL thrlock WAIT_FOR release_thrlock';
-# Sending:
-INSERT INTO t1 VALUES (3);
-# Connection default
-SET DEBUG_SYNC= 'now WAIT_FOR thrlock';
-SET DEBUG_SYNC= 'now SIGNAL opti_analyze';
-# Connection con1
-# Reaping: OPTIMIZE TABLE t1
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
-test.t1	optimize	error	Lock wait timeout exceeded; try restarting transaction
-test.t1	optimize	status	Operation failed
-Warnings:
-Error	1205	Lock wait timeout exceeded; try restarting transaction
-SET DEBUG_SYNC= 'now SIGNAL release_thrlock';
-# Connection con2
-# Reaping: INSERT INTO t1 VALUES (3)
-# Connection default
-DROP TABLE t1;
-SET DEBUG_SYNC= 'RESET';
-#
 # Bug#57130 crash in Item_field::print during SHOW CREATE TABLE or VIEW
 #
 DROP TABLE IF EXISTS t1;
@@ -814,3 +707,72 @@ Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function
 SET DEBUG_SYNC= 'RESET';
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#28587 SELECT is blocked by INSERT waiting on read lock, even with low_priority_updates
+#
+connection: default
+set low_priority_updates=1;
+drop table if exists t1;
+drop table if exists t2;
+set debug_sync='RESET';
+create table t1 (a int, b int, unique key t1$a (a));
+create table t2 (j int, k int);
+set debug_sync='after_lock_tables_takes_lock SIGNAL parked WAIT_FOR go';
+# Sending: 
+insert into t2 select * from t1;;
+connection: update
+set debug_sync='now WAIT_FOR parked';
+set low_priority_updates=1;
+show variables like 'low_priority_updates';
+Variable_name	Value
+low_priority_updates	ON
+insert into t1 values (1, 2) ON DUPLICATE KEY UPDATE b = 2;;
+connection: select
+select * from t1;
+a	b
+set debug_sync='now SIGNAL go';
+connection: default
+# Reaping INSERT SELECT
+drop tables t1, t2;
+set low_priority_updates=default;
+set debug_sync='RESET';
+#
+# Additional test coverage for LOCK TABLES ... READ LOCAL
+# for InnoDB tables.
+#
+# Check that we correctly handle deadlocks which can occur
+# during metadata lock upgrade which happens when one tries
+# to use LOCK TABLES ... READ LOCAL for InnoDB tables.
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (j INT) ENGINE=InnoDB;
+# Execute LOCK TABLE READ LOCK which will pause after acquiring
+# SR metadata lock and before upgrading it to SRO lock.
+SET DEBUG_SYNC="after_open_table_mdl_shared SIGNAL locked WAIT_FOR go";
+# Sending:
+LOCK TABLE t1 READ LOCAL;
+connect  con1, localhost, root;
+SET DEBUG_SYNC="now WAIT_FOR locked";
+# Execute RENAME TABLE which will try to acquire X lock.
+# Sending:
+RENAME TABLE t1 TO t3, t2 TO t1, t3 TO t2;
+connect  con2, localhost, root;
+# Wait until RENAME TABLE is blocked.
+# Resume LOCK TABLE statement. It should try to
+# upgrade SR lock to SRO lock which will create
+# deadlock due to presence of pending X lock.
+# Deadlock should be detected and LOCK TABLES should
+# release its MDL and retry opening of tables.
+SET DEBUG_SYNC="now SIGNAL go";
+connection con1;
+# RENAME TABLE should be able to complete. Reap it.
+connection default;
+# Reap LOCK TABLES.
+# Check that we see new version of table.
+SELECT * FROM t1;
+j
+UNLOCK TABLES;
+# Clean-up.
+SET DEBUG_SYNC="RESET";
+disconnect con1;
+disconnect con2;
+DROP TABLES t1, t2;

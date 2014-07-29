@@ -1628,6 +1628,10 @@ void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong tmp)
   Calculate binary size of packed numeric time representation.
   
   @param   dec   Precision.
+  The same formula is used to find the binary size of the packed numeric time
+  in libbinlogevents/src/value.cpp calc_field_size().
+  If any modification is done here the same needs to be done in the
+  aforementioned method in libbinlogevents also.
 */
 uint my_time_binary_length(uint dec)
 {
@@ -1862,6 +1866,11 @@ void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, longlong tmp)
 /**
   Calculate binary size of packed datetime representation.
   @param dec  Precision.
+
+  The same formula is used to find the binary size of the packed numeric time
+  in libbinlogevents/src/value.cpp calc_field_size().
+  If any modification is done here the same needs to be done in the
+  aforementioned method in libbinlogevents also.
 */
 uint my_datetime_binary_length(uint dec)
 {
@@ -1953,6 +1962,11 @@ void my_datetime_packed_to_binary(longlong nr, uchar *ptr, uint dec)
   Calculate on-disk size of a timestamp value.
 
   @param  dec  Precision.
+
+  The same formula is used to find the binary size of the packed numeric time
+  in libbinlogevents/src/value.cpp calc_field_size().
+  If any modification is done here the same needs to be done in the
+  aforementioned method in libbinlogevents also.
 */
 uint my_timestamp_binary_length(uint dec)
 {

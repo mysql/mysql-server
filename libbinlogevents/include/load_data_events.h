@@ -29,21 +29,9 @@
 #define	LOAD_DATA_EVENTS_INCLUDED
 
 #include "binlog_event.h"
-#include "debug_vars.h"
-/**
- The header contains functions macros for reading and storing in
- machine independent format (low byte first).
-*/
-#include "byteorder.h"
-#include "wrapper_functions.h"
+#include "statement_events.h"
 #include "table_id.h"
 #include "cassert"
-#include <zlib.h> //for checksum calculations
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <iostream>
-#include <sstream>
 
 /*
   These are flags and structs to handle all the LOAD DATA INFILE options (LINES
@@ -504,7 +492,7 @@ protected:
                      int body_offset,
                      const Format_description_event* description_event);
  // Required by Load_event(THD* ...) in the server
- Load_event(Log_event_type type_code_arg= NEW_LOAD_EVENT)
+ explicit Load_event(Log_event_type type_code_arg= NEW_LOAD_EVENT)
  : Binary_log_event(type_code_arg),
    num_fields(0), fields(0), field_lens(0), field_block_len(0)
  {
@@ -534,7 +522,7 @@ public:
     No need to have a catalog, as these events can only come from 4.x.
   */
   uint32_t db_len;
-  uint32_t fname_len;
+  size_t fname_len;
   uint32_t num_fields;
 
   const char* fields;
@@ -744,7 +732,6 @@ public:
 class Execute_load_event: public Binary_log_event
 {
 protected:
-  //TODO: Remove if not required, used by Execute_load_log_event(THD* ...)
   Execute_load_event(const uint32_t file_id, const char* db_arg);
   Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
 

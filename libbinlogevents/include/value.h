@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #include <cassert>
 #include <cstring>
 #ifndef DATETIME_MAX_DECIMALS
-  #define DATETIME_MAX_DECIMALS 6
+#define DATETIME_MAX_DECIMALS 6
 #endif
 
 //TODO: Remove the ifdef condition
@@ -87,6 +87,14 @@ uint32_t calc_field_size(unsigned char column_type, const unsigned char *field_p
 uint32_t
 max_display_length_for_field(enum_field_types sql_type, unsigned int metadata);
 
+/**
+   Returns the size of array to hold a binary representation of a decimal
+   @param  precision  number of significant digits in a particular radix R
+                      where R is either 2 or 10.
+   @param  scale      to what position to round.
+   @return  size in bytes
+*/
+int decimal_binary_size(int precision, int scale);
 /**
   @class Value
 

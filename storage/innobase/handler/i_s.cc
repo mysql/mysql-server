@@ -151,8 +151,7 @@ do {									\
 	}								\
 } while (0)
 
-#if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 &&	\
-	!defined __clang__
+#if !defined __STRICT_ANSI__ && defined __GNUC__ && !defined __clang__
 #define STRUCT_FLD(name, value)	name: value
 #else
 #define STRUCT_FLD(name, value)	value
@@ -2904,7 +2903,7 @@ struct st_mysql_plugin	i_s_innodb_ft_default_stopword =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_stopword_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -3076,7 +3075,7 @@ struct st_mysql_plugin	i_s_innodb_ft_deleted =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_fts_doc_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -3163,7 +3162,7 @@ struct st_mysql_plugin	i_s_innodb_ft_being_deleted =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_fts_doc_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -3457,7 +3456,7 @@ struct st_mysql_plugin	i_s_innodb_ft_index_cache =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_fts_index_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -3895,7 +3894,7 @@ struct st_mysql_plugin	i_s_innodb_ft_index_table =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_fts_index_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -4093,7 +4092,7 @@ struct st_mysql_plugin	i_s_innodb_ft_config =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_fts_config_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -5505,7 +5504,8 @@ i_s_innodb_fill_buffer_pool(
 
 	/* Go through each chunk of buffer pool. Currently, we only
 	have one single chunk for each buffer pool */
-	for (ulint n = 0; n < buf_pool->n_chunks; n++) {
+	for (ulint n = 0;
+	     n < ut_min(buf_pool->n_chunks, buf_pool->n_chunks_new); n++) {
 		const buf_block_t*	block;
 		ulint			n_blocks;
 		buf_page_info_t*	info_buffer;

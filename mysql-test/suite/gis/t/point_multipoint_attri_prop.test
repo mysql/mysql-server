@@ -62,6 +62,7 @@ INSERT INTO gis_point VALUES
 (108, PointFromWKB(AsWKB(PointFromText('POINT(99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999)'))));
 
 --echo #INSERT invalid entries to Point class
+--error ER_GIS_INVALID_DATA
 INSERT INTO gis_point VALUES
 (109, PointFromText('POINT(ô ô)')),
 (110, PointFromText('POINT(ô ô)')),
@@ -90,16 +91,17 @@ INSERT INTO gis_point VALUES
 
 --echo #Checking the integrity of the above insert statements 
 select count(g) from gis_point;
---echo 11 expected
+
 select count(astext(g)) from gis_point;
---echo 11 expected
+
 select count(distinct(g)) from gis_point;
---echo 9 expected
+
 select count(distinct(astext(g))) from gis_point;
---echo 9 expected
+
 
 --echo #INSERT valid entries to multi_point class
 --disable_warnings
+--error ER_GIS_INVALID_DATA
 INSERT INTO gis_multi_point VALUES
 (401, MultiPointFromText('MULTIPOINT(0 0,10 10,10 20,20 20)')),
 (402, MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)')),
@@ -118,6 +120,7 @@ INSERT INTO gis_multi_point VALUES
 (415, MPointFromWKB(AsWKB(MultiPoint(Point(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999, 999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999), Point(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999, 999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999)))));
 
 --echo #INSERT invalid entries to multi_point class
+--error ER_GIS_INVALID_DATA
 INSERT INTO gis_multi_point VALUES
 (416, MultiPointFromText('MULTIPOINT(ëô ôÑ, ëô ôÑ, ëô ôÑ, ëô ôÑ, ëô ôÑ, ëô ôÑ, ëô ôÑ, ëô ôÑ, ëô ôÑ, ëô ôÑ, ëô ôÑ)')),
 (417, MPointFromText('MULTIPOINT(ëô ôÑ,ëô ôÑ,ëô ôÑ,ëô ôÑ,ëô ôÑ,ëô ôÑ,ëô ôÑ,ëô ôÑ,ëô ôÑ)')),
@@ -147,13 +150,13 @@ INSERT INTO gis_multi_point VALUES
 
 --echo #Checking the integrity of the above insert statements 
 select count(g) from gis_multi_point;
---echo 21 expected
+
 select count(astext(g)) from gis_multi_point;
---echo 21 expected
+
 select count(distinct(g)) from gis_multi_point;
---echo 12 expected
+
 select count(distinct(astext(g))) from gis_multi_point;
---echo 12 expected
+
 
 ############################################################################################
 # Displaying the spatial data from all the spatial objects created                         #
@@ -172,82 +175,82 @@ select fid, X(g),Y(g) FROM gis_point;
 
 --echo # the null geometry types should not be included here
 select count(X(g)) FROM gis_point;
---echo 11 expected
+
 select count(Y(g)) FROM gis_point;
---echo 11 expected
+
 
 --echo #Checking the spatial coordinate "X" of some random points.
 select X(PointFromText('point(1 1)'));
---echo 1 expected
+
 select X(PointFromWKB(AsWKB(PointFromText('POINT(1 1)'))));
---echo 1 expected
+
 
 --echo #WKB data, little-endian format
 select X(PointFromWKB(0x010100000000000000000000000000000000000000));
---echo 0 expected
+
 select X(PointFromWKB(0x01010000001EA7E8482EFFF43F0000000000000000));
---echo 1.3123 expected
+
 select X(PointFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A));
---echo 1e47 expected
+
 select X(PointFromWKB(0x01010000005CA0B4B32784B1C98F3ACA087E5E1B4A));
---echo -1e47 expected
+
 
 --echo #WKB data, big-endian format
 select X(PointFromWKB(0x000000000100000000000000000000000000000000));
---echo 0 expected
+
 select X(PointFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000));
---echo -1.23 expected
+
 select X(PointFromWKB(0x00000000017FE1CCF385EBC8A00000000000000000));
---echo 1e308 expected
+
 select X(PointFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000));
---echo -1e308 expected
+
 
 select X(PointFromText('point(0 0)'));
---echo 0 expected
+
 select X(PointFromWKB(AsWKB(PointFromText('POINT(0 0)'))));
---echo 0 expected
+
 
 ## The below section is commented till the BUG@17175957 is fixed
 #select X(PointFromText('point(-0 1)'));
-#--echo 0 expected
+#
 #select X(PointFromWKB(AsWKB(PointFromText('POINT(-0 1)'))));
-#--echo 0 expected
+#
 
+--error ER_GIS_INVALID_DATA
 select X(PointFromText('point(x 1)'));
---echo NULL expected
+--error ER_GIS_INVALID_DATA
 select X(PointFromWKB(AsWKB(PointFromText('POINT(x 1)'))));
---echo NULL expected
 
 ## The below section is commented till the BUG@17167633 is fixed
 #select X(PointFromText('point(.0 1)'));
-#--echo 0 expected
+#
 #select X(PointFromWKB(AsWKB(PointFromText('POINT(.0 1)'))));
-#--echo 0 expected
+#
 
 select X(PointFromText('point(-.1 1)'));
---echo -0.1 expected
+
 select X(PointFromWKB(AsWKB(PointFromText('POINT(-.1 1)'))));
---echo -0.1 expected
+
 
 select X(PointFromText('point(001 1)'));
---echo 1 expected
+
 select X(PointFromWKB(AsWKB(PointFromText('POINT(001 1)'))));
---echo 1 expected
+
 
 select X(PointFromText('point(-001 1)'));
---echo -1 expected
+
 select X(PointFromWKB(AsWKB(PointFromText('POINT(-001 1)'))));
---echo -1 expected
 
+
+--error ER_GIS_INVALID_DATA
 select X(PointFromText('point(~ 1)'));
---echo NULL expected
+--error ER_GIS_INVALID_DATA
 select X(PointFromWKB(AsWKB(PointFromText('POINT(~ 1)'))));
---echo NULL expected
 
+--error ER_GIS_INVALID_DATA
 select X(PointFromText('point()'));
---echo NULL expected
+--error ER_GIS_INVALID_DATA
 select X(PointFromWKB(AsWKB(PointFromText('POINT()'))));
---echo NULL expected
 
 --echo #Invalid WKB data
 --error ER_GIS_DATA_WRONG_ENDIANESS
@@ -265,76 +268,80 @@ SELECT X(0x000000000300000001000000000100000000000000004024000000000000);
 
 --echo #Checking the spatial coordinate "Y" of some random points.
 select Y(PointFromText('point(1 1)'));
---echo 1 expected
+
 select Y(PointFromWKB(AsWKB(PointFromText('POINT(1 1)'))));
---echo 1 expected
+
 
 --echo #WKB data, little-endian format
 select Y(PointFromWKB(0x010100000000000000000000000000000000000000));
---echo 0 expected
+
 select Y(PointFromWKB(0x01010000001EA7E8482EFFF43F0000000000000000));
---echo 0 expected
+
 select Y(PointFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A));
---echo 1e49 expected
+
 select Y(PointFromWKB(0x01010000005CA0B4B32784B1C9134DE45A3E64C4CB));
---echo -1e57 expected
+
 
 --echo #WKB data, big-endian format
 select Y(PointFromWKB(0x000000000100000000000000000000000000000000));
---echo 0 expected
+
 select Y(PointFromWKB(0x00000000010000000000000000BFF3AE147AE147AE));
---echo -1.23 expected
+
 select Y(PointFromWKB(0x000000000100000000000000007FE1CCF385EBC8A0));
---echo 1e308 expected
+
 select Y(PointFromWKB(0x00000000010000000000000000FFE1CCF385EBC8A0));
---echo -1e308 expected
+
 
 select Y(PointFromText('point(0 0)'));
---echo 0 expected
+
 select Y(PointFromWKB(AsWKB(PointFromText('POINT(0 0)'))));
---echo 0 expected
+
 
 ## The below section is commented till the BUG@17175957 is fixed
 #select Y(PointFromText('point(1 -0)'));
-#--echo 0 expected
+#
 #select Y(PointFromWKB(AsWKB(PointFromText('POINT(1 -0)'))));
-#--echo 0 expected
+#
 
+--error ER_GIS_INVALID_DATA
 select Y(PointFromText('point(1 x)'));
---echo NULL expected
+--error ER_GIS_INVALID_DATA
 select Y(PointFromWKB(AsWKB(PointFromText('POINT(1 x)'))));
---echo NULL expected
 
 ## The below section is commented till the BUG@17167633 is fixed
 #select Y(PointFromText('point(1 .0)'));
-#--echo 0 expected
+#
 #select Y(PointFromWKB(AsWKB(PointFromText('POINT(1 .0)'))));
-#--echo 0 expected
+#
 
 select Y(PointFromText('point(1 -.1)'));
---echo -0.1 expected
+
 select Y(PointFromWKB(AsWKB(PointFromText('POINT(1 -.1)'))));
---echo -0.1 expected
+
 
 select Y(PointFromText('point(1 001)'));
---echo 1 expected
+
 select Y(PointFromWKB(AsWKB(PointFromText('POINT(1 001)'))));
---echo 1 expected
+
 
 select Y(PointFromText('point(1 -001)'));
---echo -1 expected
+
 select Y(PointFromWKB(AsWKB(PointFromText('POINT(1 -001)'))));
---echo -1 expected
 
+
+--error ER_GIS_INVALID_DATA
 select Y(PointFromText('point(1 ~)'));
---echo NULL expected
-select Y(PointFromWKB(AsWKB(PointFromText('POINT(1 ~)'))));
---echo NULL expected
 
+--error ER_GIS_INVALID_DATA
+select Y(PointFromWKB(AsWKB(PointFromText('POINT(1 ~)'))));
+
+
+--error ER_GIS_INVALID_DATA
 select Y(PointFromText('point()'));
---echo NULL expected
+
+--error ER_GIS_INVALID_DATA
 select Y(PointFromWKB(AsWKB(PointFromText('POINT()'))));
---echo NULL expected
+
 
 --echo #Invalid WKB data
 --error ER_GIS_DATA_WRONG_ENDIANESS
@@ -357,223 +364,248 @@ SELECT Y(0x000000000300000001000000000100000000000000004024000000000000);
 --echo #Checking the geometry types of the spatial objects inserted into point and multipoint class
 select fid,GeometryType(g) from gis_point where g is not NULL;
 select count(GeometryType(g)) FROM gis_point;
---echo 11 expected
+
 
 select fid,GeometryType(g) from gis_multi_point where g is not NULL;
 select count(GeometryType(g)) FROM gis_multi_point;
---echo 21 expected
+
 
 --echo #Checking the geometry types of some random points and multipoints.
 select GeometryType(PointFromText('point(1 1)'));
---echo POINT Expected
+
 select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(1 1)'))));
---echo POINT Expected
+
 select GeometryType(MultiPointFromText('multipoint(1 1)'));
---echo MULTIPOINT Expected
+
 select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(1 1)'))));
---echo MULTIPOINT Expected
+
 select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(1 1)'))));
---echo MULTIPOINT Expected
+
 select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('1', '1')))));
---echo MULTIPOINT Expected
+
 
 --echo #WKB data, little-endian format
 select GeometryType(PointFromWKB(0x010100000000000000000000000000000000000000));
---echo POINT expected
+
 select GeometryType(PointFromWKB(0x01010000001EA7E8482EFFF43F0000000000000000));
---echo POINT expected
+
 select GeometryType(PointFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A));
---echo POINT expected
+
 select GeometryType(PointFromWKB(0x01010000005CA0B4B32784B1C9134DE45A3E64C4CB));
---echo POINT expected
+
 select GeometryType(MPointFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F));
---echo MULTIPOINT expected
+
 select GeometryType(MPointFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240));
---echo MULTIPOINT expected
+
 select GeometryType(MPointFromWKB(0x010400000001000000010100000000000000000000000000000000000000));
---echo MULTIPOINT expected
+
 
 --echo #WKB data, big-endian format
 select GeometryType(PointFromWKB(0x000000000100000000000000000000000000000000));
---echo POINT expected
+
 select GeometryType(PointFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000));
---echo POINT expected
+
 select GeometryType(PointFromWKB(0x00000000017FE1CCF385EBC8A00000000000000000));
---echo POINT expected
+
 select GeometryType(PointFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000));
---echo POINT expected
+
 select GeometryType(MPointFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE));
---echo MULTIPOINT expected
+
 select GeometryType(MPointFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001BFF428F5C28F5C293FFFAE147AE147AE));
---echo MULTIPOINT expected
+
 select GeometryType(MPointFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A));
---echo MULTIPOINT expected
+
 
 select GeometryType(PointFromText('point(0 0)'));
---echo POINT Expected
+
 select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(0 0)'))));
---echo POINT Expected
+
 select GeometryType(MultiPointFromText('multipoint(0 0)'));
---echo MULTIPOINT Expected
+
 select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)'))));
---echo MULTIPOINT Expected
+
 select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)'))));
---echo MULTIPOINT Expected
+
 select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('0', '0')))));
---echo MULTIPOINT Expected
+
 
 select GeometryType(PointFromText('point(-0 -0)'));
---echo POINT Expected
-select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(-0 -0)'))));
---echo POINT Expected
-select GeometryType(MultiPointFromText('multipoint(-0 -0)'));
---echo MULTIPOINT Expected
-select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
---echo MULTIPOINT Expected
-select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
---echo MULTIPOINT Expected
-select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('-0', '-0')))));
---echo MULTIPOINT Expected
 
+select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(-0 -0)'))));
+
+select GeometryType(MultiPointFromText('multipoint(-0 -0)'));
+
+select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
+
+select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
+
+select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('-0', '-0')))));
+
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(PointFromText('point(a -0)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(a -0)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MultiPointFromText('multipoint(a -0)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)'))));
---echo NULL Expected
+
 --disable_warnings
 select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('a', '-0')))));
---echo MULTIPOINT Expected
+
 --enable_warnings
 
+--error ER_GIS_INVALID_DATA
 select GeometryType(PointFromText('point(a d)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(a d)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MultiPointFromText('multipoint(a d)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(a d)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a d)'))));
---echo NULL Expected
+
 --disable_warnings
 select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('a', 'd')))));
---echo MULTIPOINT Expected
+
 --enable_warnings
 
 select GeometryType(PointFromText('point(-0.7654 189.7654)'));
---echo POINT Expected
+
 select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(-0.7654 189.7654)'))));
---echo POINT Expected
+
 select GeometryType(MultiPointFromText('multipoint(-0.7654 189.7654)'));
---echo MULTIPOINT Expected
+
 select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0.7654 189.7654)'))));
---echo MULTIPOINT Expected
+
 select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0.7654 189.7654)'))));
---echo MULTIPOINT Expected
+
 select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('-0.7654', '189.7654')))));
---echo MULTIPOINT Expected
+
 
 ## The below section is commented till the BUG@17167633 is fixed
 #select GeometryType(PointFromText('point(.1 0)'));
-#--echo POINT Expected
+#
 #select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(.1 0)'))));
-#--echo POINT Expected
+#
 #select GeometryType(MultiPointFromText('multipoint(.1 0)'));
-#--echo MULTIPOINT Expected
+#
 #select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(.1 0)'))));
-#--echo MULTIPOINT Expected
+#
 #select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(.1 0)'))));
-#--echo MULTIPOINT Expected
+#
 select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('.1', '0')))));
---echo MULTIPOINT Expected
+
 
 select GeometryType(PointFromText('point(0.1 0)'));
---echo POINT Expected
-select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(0.1 1)'))));
---echo POINT Expected
-select GeometryType(MultiPointFromText('multipoint(0.1 0)'));
---echo MULTIPOINT Expected
-select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
---echo MULTIPOINT Expected
-select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
---echo MULTIPOINT Expected
-select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '0')))));
---echo MULTIPOINT Expected
 
+select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(0.1 1)'))));
+
+select GeometryType(MultiPointFromText('multipoint(0.1 0)'));
+
+select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
+
+select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
+
+select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '0')))));
+
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(PointFromText('point(0.1 ë)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(0.1 ë)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MultiPointFromText('multipoint(0.1 ë)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 ë)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 ë)'))));
---echo NULL Expected
+
 --disable_warnings
 select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', 'ë')))));
---echo MULTIPOINT Expected
+
 --enable_warnings
 
 select GeometryType(PointFromText('point(0.1 00010)'));
---echo POINT Expected
+
 select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(0.1 00010)'))));
---echo POINT Expected
+
 select GeometryType(MultiPointFromText('multipoint(0.1 00010)'));
---echo MULTIPOINT Expected
+
 select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 00010)'))));
---echo MULTIPOINT Expected
+
 select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 00010)'))));
---echo MULTIPOINT Expected
+
 select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '00010')))));
---echo MULTIPOINT Expected
+
 
 select GeometryType(PointFromText('point(0.1 -00010)'));
---echo POINT Expected
-select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(0.1 -00010)'))));
---echo POINT Expected
-select GeometryType(MultiPointFromText('multipoint(0.1 -00010)'));
---echo MULTIPOINT Expected
-select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
---echo MULTIPOINT Expected
-select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
---echo MULTIPOINT Expected
-select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '-00010')))));
---echo MULTIPOINT Expected
 
+select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(0.1 -00010)'))));
+
+select GeometryType(MultiPointFromText('multipoint(0.1 -00010)'));
+
+select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
+
+select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
+
+select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '-00010')))));
+
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(PointFromText('point(. .)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(. .)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MultiPointFromText('multipoint(. .)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(. .)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(. .)'))));
---echo NULL Expected
+
 --disable_warnings
 select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('.', '.')))));
---echo MULTIPOINT Expected
+
 --enable_warnings
 
+--error ER_GIS_INVALID_DATA
 select GeometryType(PointFromText('point(0 ~)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(PointFromWKB(AsWKB(PointFromText('POINT(0 ~)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MultiPointFromText('multipoint(0 ~)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 ~)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select GeometryType(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 ~)'))));
---echo NULL Expected
+
 --disable_warnings
 select GeometryType(MPointFromWKB(AsWKB(MultiPoint(Point('0', '~')))));
---echo MULTIPOINT Expected
+
 --enable_warnings
 
 --echo #Invalid WKB data
@@ -597,268 +629,293 @@ SELECT GeometryType(0x0000000003000000010000000001000000000000000040240000000000
 --echo #Checking the SRID of the spatial objects inserted into point and Multipoint class
 select fid,SRID(g) from gis_point where g is not NULL;
 select count(SRID(g)) FROM gis_point;
---echo 11 expected
+
 
 select fid,SRID(g) from gis_multi_point where g is not NULL;
 select count(SRID(g)) FROM gis_multi_point;
---echo 21 expected
+
 
 --echo #Checking the geometry types of some random points.
 select SRID(PointFromText('point(1 1)'));
---echo 0 Expected
+
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(1 1)'))));
---echo 0 Expected
+
 select SRID(MultiPointFromText('multipoint(1 1)'));
---echo 0 Expected
+
 select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(1 1)'))));
---echo 0 Expected
+
 select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(1 1)'))));
---echo 0 Expected
+
 select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('1', '1')))));
---echo 0 Expected
+
 
 --echo #WKB data, little-endian format
 select SRID(PointFromWKB(0x010100000000000000000000000000000000000000));
---echo 0 expected
+
 select SRID(PointFromWKB(0x01010000001EA7E8482EFFF43F0000000000000000));
---echo 0 expected
+
 select SRID(PointFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A));
---echo 0 expected
+
 select SRID(PointFromWKB(0x01010000005CA0B4B32784B1C9134DE45A3E64C4CB));
---echo 0 expected
+
 select SRID(MPointFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F));
---echo 0 expected
+
 select SRID(MPointFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240));
---echo 0 expected
+
 select SRID(MPointFromWKB(0x010400000001000000010100000000000000000000000000000000000000));
---echo 0 expected
+
 
 --echo #WKB data, big-endian format
 select SRID(PointFromWKB(0x000000000100000000000000000000000000000000));
---echo 0 expected
+
 select SRID(PointFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000));
---echo 0 expected
+
 select SRID(PointFromWKB(0x00000000017FE1CCF385EBC8A00000000000000000));
---echo 0 expected
+
 select SRID(PointFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000));
---echo 0 expected
+
 select SRID(MPointFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE));
---echo 0 expected
+
 select SRID(MPointFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001BFF428F5C28F5C293FFFAE147AE147AE));
---echo 0 expected
+
 select SRID(MPointFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A));
---echo 0 expected
+
 
 select SRID(PointFromText('point(0 0)'));
---echo 0 Expected
+
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(0 0)'))));
---echo 0 Expected
+
 select SRID(MultiPointFromText('multipoint(0 0)'));
---echo 0 Expected
+
 select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)'))));
---echo 0 Expected
+
 select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)'))));
---echo 0 Expected
+
 select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('0', '0')))));
---echo 0 Expected
+
 
 select SRID(PointFromText('point(-0 -0)'));
---echo 0 Expected
-select SRID(PointFromWKB(AsWKB(PointFromText('POINT(-0 -0)'))));
---echo 0 Expected
-select SRID(MultiPointFromText('multipoint(-0 -0)'));
---echo 0 Expected
-select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
---echo 0 Expected
-select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
---echo 0 Expected
-select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('-0', '-0')))));
---echo 0 Expected
 
+select SRID(PointFromWKB(AsWKB(PointFromText('POINT(-0 -0)'))));
+
+select SRID(MultiPointFromText('multipoint(-0 -0)'));
+
+select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
+
+select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
+
+select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('-0', '-0')))));
+
+
+--error ER_GIS_INVALID_DATA
 select SRID(PointFromText('point(a -0)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(a -0)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MultiPointFromText('multipoint(a -0)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)'))));
---echo NULL Expected
+
 --disable_warnings
 select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('a', '-0')))));
---echo 0 Expected
+
 --enable_warnings
 
+--error ER_GIS_INVALID_DATA
 select SRID(PointFromText('point(a d)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(a d)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MultiPointFromText('multipoint(a d)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(a d)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a d)'))));
---echo NULL Expected
+
 --disable_warnings
 select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('a', 'd')))));
---echo 0 Expected
+
 --enable_warnings
 
 select SRID(PointFromText('point(-0.7654 189.7654)'));
---echo 0 Expected
+
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(-0.7654 189.7654)'))));
---echo 0 Expected
+
 select SRID(MultiPointFromText('multipoint(-0.7654 189.7654)'));
---echo 0 Expected
+
 select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0.7654 189.7654)'))));
---echo 0 Expected
+
 select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0.7654 189.7654)'))));
---echo 0 Expected
+
 select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('-0.7654', '189.7654')))));
---echo 0 Expected
+
 
 ## The below section is commented till the BUG@17167633 is fixed
 #select SRID(PointFromText('point(.1 0)'));
-#--echo 0 Expected
+#
 #select SRID(PointFromWKB(AsWKB(PointFromText('POINT(.1 0)'))));
-#--echo 0 Expected
+#
 #select SRID(MultiPointFromText('multipoint(.1 0)'));
-#--echo 0 Expected
+#
 #select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(.1 0)'))));
-#--echo 0 Expected
+#
 #select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(.1 0)'))));
-#--echo 0 Expected
+#
 select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('.1', '0')))));
---echo 0 Expected
+
 
 select SRID(PointFromText('point(0.1 0)'));
---echo 0 Expected
-select SRID(PointFromWKB(AsWKB(PointFromText('POINT(0.1 1)'))));
---echo 0 Expected
-select SRID(MultiPointFromText('multipoint(0.1 0)'));
---echo 0 Expected
-select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
---echo 0 Expected
-select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
---echo 0 Expected
-select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '0')))));
---echo 0 Expected
 
+select SRID(PointFromWKB(AsWKB(PointFromText('POINT(0.1 1)'))));
+
+select SRID(MultiPointFromText('multipoint(0.1 0)'));
+
+select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
+
+select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
+
+select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '0')))));
+
+
+--error ER_GIS_INVALID_DATA
 select SRID(PointFromText('point(0.1 ë)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(0.1 ë)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MultiPointFromText('multipoint(0.1 ë)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 ë)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 ë)'))));
---echo NULL Expected
+
 --disable_warnings
 select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', 'ë')))));
---echo 0 Expected
+
 --enable_warnings
 
 select SRID(PointFromText('point(0.1 00010)'));
---echo 0 Expected
+
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(0.1 00010)'))));
---echo 0 Expected
+
 select SRID(MultiPointFromText('multipoint(0.1 00010)'));
---echo 0 Expected
+
 select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 00010)'))));
---echo 0 Expected
+
 select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 00010)'))));
---echo 0 Expected
+
 select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '00010')))));
---echo 0 Expected
+
 
 select SRID(PointFromText('point(0.1 -00010)'));
---echo 0 Expected
-select SRID(PointFromWKB(AsWKB(PointFromText('POINT(0.1 -00010)'))));
---echo 0 Expected
-select SRID(MultiPointFromText('multipoint(0.1 -00010)'));
---echo 0 Expected
-select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
---echo 0 Expected
-select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
---echo 0 Expected
-select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '-00010')))));
---echo 0 Expected
 
+select SRID(PointFromWKB(AsWKB(PointFromText('POINT(0.1 -00010)'))));
+
+select SRID(MultiPointFromText('multipoint(0.1 -00010)'));
+
+select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
+
+select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
+
+select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '-00010')))));
+
+
+--error ER_GIS_INVALID_DATA
 select SRID(PointFromText('point(. .)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(. .)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MultiPointFromText('multipoint(. .)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(. .)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(. .)'))));
---echo NULL Expected
+
 --disable_warnings
 select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('.', '.')))));
---echo 0 Expected
+
 --enable_warnings
 
+--error ER_GIS_INVALID_DATA
 select SRID(PointFromText('point(0 ~)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(0 ~)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MultiPointFromText('multipoint(0 ~)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 ~)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 ~)'))));
---echo NULL Expected
+
 --disable_warnings
 select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('0', '~')))));
---echo 0 Expected
+
 --enable_warnings
 
 select SRID(PointFromText('point(0 0)',0));
---echo 0 Expected
+
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(0 0)')),10000));
---echo 10000 Expected
+
 select SRID(PointFromWKB(0x010100000000000000000000000000000000000000,2000000));
---echo 2000000 expected
+
 select SRID(PointFromWKB(0x01010000001EA7E8482EFFF43F0000000000000000,123456789));
---echo 123456789 expected
+
 select SRID(PointFromText('point(0 0)',4294967295));
---echo 4294967295 Expected
+
 select SRID(MultiPointFromText('multipoint(0 0)',0));
---echo 0 Expected
+
 select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)')),1000));
---echo 1000 Expected
+
 select SRID(MPointFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F,1500000));
---echo 1500000 expected
+
 select SRID(MPointFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240,123456789));
---echo 123456789 expected
+
 select SRID(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)')),1048000000));
---echo 1048000000 Expected
+
 select SRID(MPointFromWKB(AsWKB(MultiPoint(Point('0', '0'))),4294967295));
---echo 4294967295 Expected
+
 
 select SRID(PointFromText('point(0 0)',-1));
---echo 4294967295 expected
+
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(0 0)')),-1024));
---echo 4294966272 expected
+
 select SRID(PointFromWKB(0x01010000001EA7E8482EFFF43F0000000000000000,4294967296));
---echo 0 expected
+
 select SRID(PointFromWKB(AsWKB(PointFromText('POINT(0 0)')),429496729510));
---echo 4294967206 expected
+
 select SRID(PointFromText('point(0 0)',42949672950000));
---echo 4294957296 expected
+
 select SRID(MultiPointFromText('multipoint(0 0)',-1));
---echo 4294967295 expected
+
 select SRID(MPointFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F,-1024));
---echo 4294966272 expected
+
 select SRID(MPointFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240,4294967296));
---echo 0 expected
+
 select SRID(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)')),429496729510));
---echo 4294967206 expected
+
 select SRID(MultiPointFromText('multipoint(0 0)',42949672950000));
---echo 4294957296 expected
+
 
 --echo #Invalid WKB data
 --error ER_GIS_DATA_WRONG_ENDIANESS
@@ -881,223 +938,248 @@ SELECT SRID(0x000000000300000001000000000100000000000000004024000000000000);
 --echo #Checking the Dimension of the spatial objects inserted into Point and Multipoint class
 select fid,Dimension(g) from gis_point where g is not NULL;
 select count(Dimension(g)) FROM gis_point;
---echo 11 expected
+
 
 select fid,Dimension(g) from gis_multi_point where g is not NULL;
 select count(Dimension(g)) FROM gis_multi_point;
---echo 21 expected
+
 
 --echo #Checking the geometry types of some random points.
 select Dimension(PointFromText('point(1 1)'));
---echo 0 Expected
+
 select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(1 1)'))));
---echo 0 Expected
+
 select Dimension(MultiPointFromText('multipoint(1 1)'));
---echo 0 Expected
+
 select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(1 1)'))));
---echo 0 Expected
+
 select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(1 1)'))));
---echo 0 Expected
+
 select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('1', '1')))));
---echo 0 Expected
+
 
 --echo #WKB data, little-endian format
 select Dimension(PointFromWKB(0x010100000000000000000000000000000000000000));
---echo 0 expected
+
 select Dimension(PointFromWKB(0x01010000001EA7E8482EFFF43F0000000000000000));
---echo 0 expected
+
 select Dimension(PointFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A));
---echo 0 expected
+
 select Dimension(PointFromWKB(0x01010000005CA0B4B32784B1C9134DE45A3E64C4CB));
---echo 0 expected
+
 select Dimension(MPointFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F));
---echo 0 expected
+
 select Dimension(MPointFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240));
---echo 0 expected
+
 select Dimension(MPointFromWKB(0x010400000001000000010100000000000000000000000000000000000000));
---echo 0 expected
+
 
 --echo #WKB data, big-endian format
 select Dimension(PointFromWKB(0x000000000100000000000000000000000000000000));
---echo 0 expected
+
 select Dimension(PointFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000));
---echo 0 expected
+
 select Dimension(PointFromWKB(0x00000000017FE1CCF385EBC8A00000000000000000));
---echo 0 expected
+
 select Dimension(PointFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000));
---echo 0 expected
+
 select Dimension(MPointFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE));
---echo 0 expected
+
 select Dimension(MPointFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001BFF428F5C28F5C293FFFAE147AE147AE));
---echo 0 expected
+
 select Dimension(MPointFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A));
---echo 0 expected
+
 
 select Dimension(PointFromText('point(0 0)'));
---echo 0 Expected
+
 select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(0 0)'))));
---echo 0 Expected
+
 select Dimension(MultiPointFromText('multipoint(0 0)'));
---echo 0 Expected
+
 select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)'))));
---echo 0 Expected
+
 select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)'))));
---echo 0 Expected
+
 select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('0', '0')))));
---echo 0 Expected
+
 
 select Dimension(PointFromText('point(-0 -0)'));
---echo 0 Expected
-select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(-0 -0)'))));
---echo 0 Expected
-select Dimension(MultiPointFromText('multipoint(-0 -0)'));
---echo 0 Expected
-select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
---echo 0 Expected
-select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
---echo 0 Expected
-select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('-0', '-0')))));
---echo 0 Expected
 
+select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(-0 -0)'))));
+
+select Dimension(MultiPointFromText('multipoint(-0 -0)'));
+
+select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
+
+select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
+
+select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('-0', '-0')))));
+
+
+--error ER_GIS_INVALID_DATA
 select Dimension(PointFromText('point(a -0)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(a -0)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MultiPointFromText('multipoint(a -0)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)'))));
---echo NULL Expected
+
 --disable_warnings
 select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('a', '-0')))));
---echo 0 Expected
+
 --enable_warnings
 
+--error ER_GIS_INVALID_DATA
 select Dimension(PointFromText('point(a d)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(a d)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MultiPointFromText('multipoint(a d)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(a d)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a d)'))));
---echo NULL Expected
+
 --disable_warnings
 select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('a', 'd')))));
---echo 0 Expected
+
 --enable_warnings
 
 select Dimension(PointFromText('point(-0.7654 189.7654)'));
---echo 0 Expected
+
 select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(-0.7654 189.7654)'))));
---echo 0 Expected
+
 select Dimension(MultiPointFromText('multipoint(-0.7654 189.7654)'));
---echo 0 Expected
+
 select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0.7654 189.7654)'))));
---echo 0 Expected
+
 select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0.7654 189.7654)'))));
---echo 0 Expected
+
 select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('-0.7654', '189.7654')))));
---echo 0 Expected
+
 
 ## The below section is commented till the BUG@17167633 is fixed
 #select Dimension(PointFromText('point(.1 0)'));
-#--echo 0 Expected
+#
 #select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(.1 0)'))));
-#--echo 0 Expected
+#
 #select Dimension(MultiPointFromText('multipoint(.1 0)'));
-#--echo 0 Expected
+#
 #select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(.1 0)'))));
-#--echo 0 Expected
+#
 #select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(.1 0)'))));
-#--echo 0 Expected
+#
 select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('.1', '0')))));
---echo 0 Expected
+
 
 select Dimension(PointFromText('point(0.1 0)'));
---echo 0 Expected
-select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(0.1 1)'))));
---echo 0 Expected
-select Dimension(MultiPointFromText('multipoint(0.1 0)'));
---echo 0 Expected
-select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
---echo 0 Expected
-select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
---echo 0 Expected
-select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '0')))));
---echo 0 Expected
 
+select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(0.1 1)'))));
+
+select Dimension(MultiPointFromText('multipoint(0.1 0)'));
+
+select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
+
+select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
+
+select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '0')))));
+
+
+--error ER_GIS_INVALID_DATA
 select Dimension(PointFromText('point(0.1 ë)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(0.1 ë)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MultiPointFromText('multipoint(0.1 ë)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 ë)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 ë)'))));
---echo NULL Expected
+
 --disable_warnings
 select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', 'ë')))));
---echo 0 Expected
+
 --enable_warnings
 
 select Dimension(PointFromText('point(0.1 00010)'));
---echo 0 Expected
+
 select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(0.1 00010)'))));
---echo 0 Expected
+
 select Dimension(MultiPointFromText('multipoint(0.1 00010)'));
---echo 0 Expected
+
 select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 00010)'))));
---echo 0 Expected
+
 select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 00010)'))));
---echo 0 Expected
+
 select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '00010')))));
---echo 0 Expected
+
 
 select Dimension(PointFromText('point(0.1 -00010)'));
---echo 0 Expected
-select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(0.1 -00010)'))));
---echo 0 Expected
-select Dimension(MultiPointFromText('multipoint(0.1 -00010)'));
---echo 0 Expected
-select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
---echo 0 Expected
-select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
---echo 0 Expected
-select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '-00010')))));
---echo 0 Expected
 
+select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(0.1 -00010)'))));
+
+select Dimension(MultiPointFromText('multipoint(0.1 -00010)'));
+
+select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
+
+select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
+
+select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '-00010')))));
+
+
+--error ER_GIS_INVALID_DATA
 select Dimension(PointFromText('point(. .)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(. .)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MultiPointFromText('multipoint(. .)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(. .)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(. .)'))));
---echo NULL Expected
+
 --disable_warnings
 select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('.', '.')))));
---echo 0 Expected
+
 --enable_warnings
 
+--error ER_GIS_INVALID_DATA
 select Dimension(PointFromText('point(0 ~)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(PointFromWKB(AsWKB(PointFromText('POINT(0 ~)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MultiPointFromText('multipoint(0 ~)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 ~)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Dimension(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 ~)'))));
---echo NULL Expected
+
 --disable_warnings
 select Dimension(MPointFromWKB(AsWKB(MultiPoint(Point('0', '~')))));
---echo 0 Expected
+
 --enable_warnings
 
 --echo #Invalid WKB data
@@ -1121,225 +1203,250 @@ SELECT Dimension(0x000000000300000001000000000100000000000000004024000000000000)
 --echo #Checking the Envelope of the spatial objects inserted into Point and Multipoint class
 select fid,Astext(Envelope(g)) from gis_point where g is not NULL;
 select count(Envelope(g)) FROM gis_point;
---echo 11 expected
+
 
 select fid,Astext(Envelope(g)) from gis_multi_point where g is not NULL;
 select count(Envelope(g)) FROM gis_multi_point;
---echo 21 expected
+
 
 --echo #Checking the geometry types of some random points.
 select Astext(Envelope(PointFromText('point(1 1)')));
---echo POLYGON((1 1,1 1,1 1,1 1,1 1)) Expected
+
 select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(1 1)')))));
---echo POLYGON((1 1,1 1,1 1,1 1,1 1)) Expected
+
 select Astext(Envelope(MultiPointFromText('multipoint(1 1, 0 0, 1 -1, -1 -1)')));
---echo POLYGON((-1 -1,1 -1,1 1,-1 1,-1 -1)) Expected
+
 select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(1 1)')))));
---echo POLYGON((1 1,1 1,1 1,1 1,1 1)) Expected
+
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(1 1)')))));
---echo POLYGON((1 1,1 1,1 1,1 1,1 1)) Expected
+
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('1', '1'))))));
---echo POLYGON((1 1,1 1,1 1,1 1,1 1)) Expected
+
 
 --echo #WKB data, little-endian format
 select AsText(Envelope(PointFromWKB(0x010100000000000000000000000000000000000000)));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0)) expected
+
 select AsText(Envelope(PointFromWKB(0x01010000001EA7E8482EFFF43F0000000000000000)));
---echo POLYGON((1.3123 0,1.3123 0,1.3123 0,1.3123 0,1.3123 0)) expected
+
 select AsText(Envelope(PointFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A)));
---echo POLYGON((1e47 1e49,1e47 1e49,1e47 1e49,1e47 1e49,1e47 1e49)) expected
+
 select AsText(Envelope(PointFromWKB(0x01010000005CA0B4B32784B1C9134DE45A3E64C4CB)));
---echo POLYGON((-1e47 -1e57,-1e47 -1e57,-1e47 -1e57,-1e47 -1e57,-1e47 -1e57)) expected
+
 select AsText(Envelope(MPointFromWKB(0x01040000000300000001010000000000000000000000000000000000000001010000001EA7E8482EFFF43F00000000000000000101000000000000000000F03F000000000000F03F)));
---echo POLYGON((0 0,1.3123 0,1.3123 1,0 1,0 0)) expected
+
 select AsText(Envelope(MPointFromWKB(0x010400000003000000010100000048E17A14AE47F5BF000000000000000001010000000000000000000000B0726891ED7CBFBF0101000000000000007E842E410000000000002240)));
---echo POLYGON((-1.33 -0.123,999999 -0.123,999999 9,-1.33 9,-1.33 -0.123)) expected
+
 select AsText(Envelope(MPointFromWKB(0x010400000001000000010100000000000000000000000000000000000000)));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0)) expected
+
 
 --echo #WKB data, big-endian format
 select AsText(Envelope(PointFromWKB(0x000000000100000000000000000000000000000000)));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0)) expected
+
 select AsText(Envelope(PointFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000)));
---echo POLYGON((-1.23 0,-1.23 0,-1.23 0,-1.23 0,-1.23 0)) expected
+
 select AsText(Envelope(PointFromWKB(0x00000000017FE1CCF385EBC8A00000000000000000)));
---echo POLYGON((1e308 0,1e308 0,1e308 0,1e308 0,1e308 0)) expected
+
 select AsText(Envelope(PointFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000)));
---echo POLYGON((-1e308 0,-1e308 0,-1e308 0,-1e308 0,-1e308 0)) expected
+
 select AsText(Envelope(MPointFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE)));
---echo POLYGON((0 0,10 0,10 10,0 10,0 0)) expected
+
 select AsText(Envelope(MPointFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001BFF428F5C28F5C293FFFAE147AE147AE)));
---echo POLYGON((-10 0,0 0,0 10,-10 10,-10 0)) expected
+
 select AsText(Envelope(MPointFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A)));
---echo POLYGON((-10 -1e197,1e155 -1e197,1e155 10,-10 10,-10 -1e197)) expected
+
 
 select Astext(Envelope(PointFromText('point(0 0)')));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0)) Expected
+
 select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(0 0)')))));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0)) Expected
+
 select Astext(Envelope(MultiPointFromText('multipoint(0 0)')));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0)) Expected
+
 select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)')))));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0)) Expected
+
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)')))));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0)) Expected
+
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('0', '0'))))));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0)) Expected
+
 
 select Astext(Envelope(PointFromText('point(-0 -0)')));
---echo POLYGON((-0 -0,-0 -0,-0 -0,-0 -0,-0 -0)) Expected
-select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(-0 -0)')))));
---echo POLYGON((-0 -0,-0 -0,-0 -0,-0 -0,-0 -0)) Expected
-select Astext(Envelope(MultiPointFromText('multipoint(-0 -0)')));
---echo POLYGON((-0 -0,-0 -0,-0 -0,-0 -0,-0 -0)) Expected
-select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)')))));
---echo POLYGON((-0 -0,-0 -0,-0 -0,-0 -0,-0 -0)) Expected
-select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)')))));
---echo POLYGON((-0 -0,-0 -0,-0 -0,-0 -0,-0 -0)) Expected
-select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('-0', '-0'))))));
---echo POLYGON((-0 -0,-0 -0,-0 -0,-0 -0,-0 -0)) Expected
 
+select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(-0 -0)')))));
+
+select Astext(Envelope(MultiPointFromText('multipoint(-0 -0)')));
+
+select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)')))));
+
+select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)')))));
+
+select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('-0', '-0'))))));
+
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(PointFromText('point(a -0)')));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(a -0)')))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MultiPointFromText('multipoint(a -0)')));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)')))));
---echo NULL Expected
+
 --disable_warnings
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)')))));
---echo NULL Expected
+
 --enable_warnings
 
 ##The below section is hased till the Bug #17371854 is fixed
 #select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('a', '-0'))))));
-#--echo POLYGON((0 0,0 0,0 0,0 0,0 0)) Expected
+#
 
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(PointFromText('point(a d)')));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(a d)')))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MultiPointFromText('multipoint(a d)')));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(a d)')))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a d)')))));
---echo NULL Expected
+
 --disable_warnings
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('a', 'd'))))));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0))  Expected
+
 --enable_warnings
 
 select Astext(Envelope(PointFromText('point(-0.7654 189.7654)')));
---echo POLYGON((-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654)) Expected
+
 select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(-0.7654 189.7654)')))));
---echo POLYGON((-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654)) Expected
+
 select Astext(Envelope(MultiPointFromText('multipoint(-0.7654 189.7654,0 0)')));
---echo POLYGON((-0.7654 0,0 0,0 189.7654,-0.7654 189.7654,-0.7654 0)) Expected
+
 select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0.7654 189.7654)')))));
---echo POLYGON((-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654)) Expected
+
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0.7654 189.7654)')))));
---echo POLYGON((-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654)) Expected
+
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('-0.7654', '189.7654'))))));
---echo POLYGON((-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654)) Expected
+
 
 ## The below section is commented till the BUG@17167633 is fixed
 #select Astext(Envelope(PointFromText('point(.1 0)')));
-#--echo POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
+#
 #select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(.1 0)')))));
-#--echo POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
+#
 #select Astext(Envelope(MultiPointFromText('multipoint(.1 0)')));
-#--echo POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
+#
 #select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(.1 0)')))));
-#--echo POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
+#
 #select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(.1 0)')))));
-#--echo POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
+#
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('.1', '0'))))));
---echo  POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
+
 
 select Astext(Envelope(PointFromText('point(0.1 0)')));
---echo POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
-select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(0.1 1)')))));
---echo POLYGON((0.1 1,0.1 1,0.1 1,0.1 1,0.1 1)) Expected
-select Astext(Envelope(MultiPointFromText('multipoint(0.1 0)')));
---echo POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
-select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)')))));
---echo POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
-select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)')))));
---echo POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
-select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '0'))))));
---echo POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
 
+select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(0.1 1)')))));
+
+select Astext(Envelope(MultiPointFromText('multipoint(0.1 0)')));
+
+select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)')))));
+
+select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)')))));
+
+select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '0'))))));
+
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(PointFromText('point(0.1 ë)')));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(0.1 ë)')))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MultiPointFromText('multipoint(0.1 ë)')));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 ë)')))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 ë)')))));
---echo NULL Expected
+
 --disable_warnings
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', 'ë'))))));
---echo POLYGON((0.1 0,0.1 0,0.1 0,0.1 0,0.1 0)) Expected
+
 --enable_warnings
 
 select Astext(Envelope(PointFromText('point(0.1 00010)')));
---echo POLYGON((0.1 10,0.1 10,0.1 10,0.1 10,0.1 10)) Expected
+
 select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(0.1 00010)')))));
---echo POLYGON((0.1 10,0.1 10,0.1 10,0.1 10,0.1 10)) Expected
+
 select Astext(Envelope(MultiPointFromText('multipoint(0.1 00010)')));
---echo POLYGON((0.1 10,0.1 10,0.1 10,0.1 10,0.1 10)) Expected
+
 select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 00010)')))));
---echo POLYGON((0.1 10,0.1 10,0.1 10,0.1 10,0.1 10)) Expected
+
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 00010)')))));
---echo POLYGON((0.1 10,0.1 10,0.1 10,0.1 10,0.1 10)) Expected
+
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '00010'))))));
---echo POLYGON((0.1 10,0.1 10,0.1 10,0.1 10,0.1 10)) Expected
+
 
 select Astext(Envelope(PointFromText('point(0.1 -00010)')));
---echo POLYGON((0.1 -10,0.1 -10,0.1 -10,0.1 -10,0.1 -10)) Expected
-select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(0.1 -00010)')))));
---echo POLYGON((0.1 -10,0.1 -10,0.1 -10,0.1 -10,0.1 -10)) Expected
-select Astext(Envelope(MultiPointFromText('multipoint(0.1 -00010)')));
---echo POLYGON((0.1 -10,0.1 -10,0.1 -10,0.1 -10,0.1 -10)) Expected
-select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)')))));
---echo POLYGON((0.1 -10,0.1 -10,0.1 -10,0.1 -10,0.1 -10)) Expected
-select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)')))));
---echo POLYGON((0.1 -10,0.1 -10,0.1 -10,0.1 -10,0.1 -10)) Expected
-select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '-00010'))))));
---echo POLYGON((0.1 -10,0.1 -10,0.1 -10,0.1 -10,0.1 -10)) Expected
 
+select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(0.1 -00010)')))));
+
+select Astext(Envelope(MultiPointFromText('multipoint(0.1 -00010)')));
+
+select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)')))));
+
+select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)')))));
+
+select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '-00010'))))));
+
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(PointFromText('point(. .)')));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(. .)')))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MultiPointFromText('multipoint(. .)')));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(. .)')))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(. .)')))));
---echo NULL Expected
+
 --disable_warnings
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('.', '.'))))));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0))  Expected
+
 --enable_warnings
 
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(PointFromText('point(0 ~)')));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(PointFromWKB(AsWKB(PointFromText('POINT(0 ~)')))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MultiPointFromText('multipoint(0 ~)')));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 ~)')))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 ~)')))));
---echo NULL Expected
+
 --disable_warnings
 select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('0', '~'))))));
---echo POLYGON((0 0,0 0,0 0,0 0,0 0)) Expected
+
 --enable_warnings
 
 --echo #Invalid WKB data
@@ -1363,229 +1470,254 @@ SELECT AsText(Envelope(0x0000000003000000010000000001000000000000000040240000000
 --echo #Checking the IsSimple of the spatial objects inserted into Point and Multipoint class
 select fid,IsSimple(g) from gis_point where g is not NULL;
 select count(IsSimple(g)) FROM gis_point;
---echo 11 expected
+
 
 select fid,IsSimple(g) from gis_multi_point where g is not NULL;
 select count(IsSimple(g)) FROM gis_multi_point;
---echo 21 expected
+
 
 --echo #Checking the geometry types of some random points.
 select IsSimple(PointFromText('point(1 1)'));
---echo 1 Expected
+
 select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(1 1)'))));
---echo 1 Expected
+
 select IsSimple(MultiPointFromText('multipoint(1 1)'));
---echo 1 Expected
+
 select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(1 1)'))));
---echo 1 Expected
+
 select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(1 1)'))));
---echo 1 Expected
+
 select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('1', '1')))));
---echo 1 Expected
+
 select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0, 10 10, 1 10, 10 0)'))));
---echo 1 Expected
+
 
 --echo #WKB data, little-endian format
 select IsSimple(PointFromWKB(0x010100000000000000000000000000000000000000));
---echo 1 expected
+
 select IsSimple(PointFromWKB(0x01010000001EA7E8482EFFF43F0000000000000000));
---echo 1 expected
+
 select IsSimple(PointFromWKB(0x01010000005CA0B4B32784B1498F3ACA087E5E1B4A));
---echo 1 expected
+
 select IsSimple(PointFromWKB(0x01010000005CA0B4B32784B1C9134DE45A3E64C4CB));
---echo 1 expected
+
 select IsSimple(MPointFromWKB(0x0104000000040000000101000000000000000000000000000000000000000101000000000000000000F03F000000000000F03F010100000000000000000000000000000000000000010100000000000000000000400000000000000040));
---echo 1 expected
+
 select IsSimple(MPointFromWKB(0x0104000000050000000101000000000000000000000000000000000000000101000000000000000000F03F00000000000000000101000000000000000000F03F000000000000F03F0101000000000000000000F03F0000000000000000010100000000000000000000000000000000000000));
---echo 1 expected
+
 select IsSimple(MPointFromWKB(0x0104000000040000000101000000000000000000000000000000000000000101000000000000000000F0BF7FBC57AD4CF8F1BF0101000000B0726891ED7CBF3F0000000000000000010100000000000000000000400000000000000040));
---echo 1 expected
+
 
 --echo #WKB data, big-endian format
 select IsSimple(PointFromWKB(0x000000000100000000000000000000000000000000));
---echo 1 expected
+
 select IsSimple(PointFromWKB(0x0000000001BFF3AE147AE147AE0000000000000000));
---echo 1 expected
+
 select IsSimple(PointFromWKB(0x00000000017FE1CCF385EBC8A00000000000000000));
---echo 1 expected
+
 select IsSimple(PointFromWKB(0x0000000001FFE1CCF385EBC8A00000000000000000));
---echo 1 expected
+
 select IsSimple(MPointFromWKB(0x00000000040000000300000000010000000000000000000000000000000000000000014024000000000000402400000000000000000000013FF428F5C28F5C293FFFAE147AE147AE));
---echo 1 expected
+
 select IsSimple(MPointFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001BFF428F5C28F5C293FFFAE147AE147AE));
---echo 1 expected
+
 select IsSimple(MPointFromWKB(0x0000000004000000030000000001000000000000000000000000000000000000000001C02400000000000040240000000000000000000001601DD55745CBB7EDE8D56785FBBDD55A));
---echo 1 expected
+
 
 select IsSimple(PointFromText('point(0 0)'));
---echo 1 Expected
+
 select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(0 0)'))));
---echo 1 Expected
+
 select IsSimple(MultiPointFromText('multipoint(0 0)'));
---echo 1 Expected
+
 select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)'))));
---echo 1 Expected
+
 select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0)'))));
---echo 1 Expected
+
 select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('0', '0')))));
---echo 1 Expected
+
 
 select IsSimple(PointFromText('point(-0 -0)'));
---echo 1 Expected
-select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(-0 -0)'))));
---echo 1 Expected
-select IsSimple(MultiPointFromText('multipoint(-0 -0)'));
---echo 1 Expected
-select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
---echo 1 Expected
-select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
---echo 1 Expected
-select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('-0', '-0')))));
---echo 1 Expected
 
+select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(-0 -0)'))));
+
+select IsSimple(MultiPointFromText('multipoint(-0 -0)'));
+
+select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
+
+select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0 -0)'))));
+
+select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('-0', '-0')))));
+
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(PointFromText('point(a -0)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(a -0)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MultiPointFromText('multipoint(a -0)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)'))));
---echo NULL Expected
+
 --disable_warnings
 select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('a', '-0')))));
---echo 1 Expected
+
 --enable_warnings
 
+--error ER_GIS_INVALID_DATA
 select IsSimple(PointFromText('point(a d)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(a d)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MultiPointFromText('multipoint(a d)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(a d)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a d)'))));
---echo NULL Expected
+
 --disable_warnings
 select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('a', 'd')))));
---echo 1 Expected
+
 --enable_warnings
 
 select IsSimple(PointFromText('point(-0.7654 189.7654)'));
---echo 1 Expected
+
 select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(-0.7654 189.7654)'))));
---echo 1 Expected
+
 select IsSimple(MultiPointFromText('multipoint(-0.7654 189.7654)'));
---echo 1 Expected
+
 select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0.7654 189.7654)'))));
---echo 1 Expected
+
 select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(-0.7654 189.7654)'))));
---echo 1 Expected
+
 select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('-0.7654', '189.7654')))));
---echo 1 Expected
+
 
 ## The below section is commented till the BUG@17167633 is fixed
 #select IsSimple(PointFromText('point(.1 0)'));
-#--echo 1 Expected
+#
 #select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(.1 0)'))));
-#--echo 1 Expected
+#
 #select IsSimple(MultiPointFromText('multipoint(.1 0)'));
-#--echo 1 Expected
+#
 #select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(.1 0)'))));
-#--echo 1 Expected
+#
 #select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(.1 0)'))));
-#--echo 1 Expected
+#
 select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('.1', '0')))));
---echo 1 Expected
+
 
 select IsSimple(PointFromText('point(0.1 0)'));
---echo 1 Expected
-select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(0.1 1)'))));
---echo 1 Expected
-select IsSimple(MultiPointFromText('multipoint(0.1 0)'));
---echo 1 Expected
-select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
---echo 1 Expected
-select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
---echo 1 Expected
-select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '0')))));
---echo 1 Expected
 
+select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(0.1 1)'))));
+
+select IsSimple(MultiPointFromText('multipoint(0.1 0)'));
+
+select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
+
+select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 0)'))));
+
+select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '0')))));
+
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(PointFromText('point(0.1 ë)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(0.1 ë)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MultiPointFromText('multipoint(0.1 ë)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 ë)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 ë)'))));
---echo NULL Expected
+
 --disable_warnings
 select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', 'ë')))));
---echo 1 Expected
+
 --enable_warnings
 
 select IsSimple(PointFromText('point(0.1 00010)'));
---echo 1 Expected
+
 select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(0.1 00010)'))));
---echo 1 Expected
+
 select IsSimple(MultiPointFromText('multipoint(0.1 00010)'));
---echo 1 Expected
+
 select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 00010)'))));
---echo 1 Expected
+
 select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 00010)'))));
---echo 1 Expected
+
 select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '00010')))));
---echo 1 Expected
+
 
 select IsSimple(PointFromText('point(0.1 -00010)'));
---echo 1 Expected
-select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(0.1 -00010)'))));
---echo 1 Expected
-select IsSimple(MultiPointFromText('multipoint(0.1 -00010)'));
---echo 1 Expected
-select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
---echo 1 Expected
-select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
---echo 1 Expected
-select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '-00010')))));
---echo 1 Expected
 
+select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(0.1 -00010)'))));
+
+select IsSimple(MultiPointFromText('multipoint(0.1 -00010)'));
+
+select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
+
+select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0.1 -00010)'))));
+
+select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('0.1', '-00010')))));
+
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(PointFromText('point(. .)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(. .)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MultiPointFromText('multipoint(. .)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(. .)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(. .)'))));
---echo NULL Expected
+
 --disable_warnings
 select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('.', '.')))));
---echo 1 Expected
+
 --enable_warnings
 
 #The Below section is commented till the Bug #17376038 is fixed
 #select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 0, 0 0, 1 1, 2 2, 1 1)'))));
-#--echo 0 Expected
+#
 
+--error ER_GIS_INVALID_DATA
 select IsSimple(PointFromText('point(0 ~)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(PointFromWKB(AsWKB(PointFromText('POINT(0 ~)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MultiPointFromText('multipoint(0 ~)'));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MultiPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 ~)'))));
---echo NULL Expected
+
+--error ER_GIS_INVALID_DATA
 select IsSimple(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(0 ~)'))));
---echo NULL Expected
+
 --disable_warnings
 select IsSimple(MPointFromWKB(AsWKB(MultiPoint(Point('0', '~')))));
---echo 1 Expected
+
 --enable_warnings
 
 --echo #Invalid WKB data
@@ -1623,7 +1755,6 @@ delimiter ;|
 
 --echo #call the proc
 CALL geom_type;
---echo POINT, POINT, MULTIPOINT, MULTIPOINT, MULTIPOINT, MULTIPOINT expected respectively
 
 delimiter |;
 --echo #create procedure to check SRID
@@ -1640,7 +1771,6 @@ delimiter ;|
 
 --echo #call the proc
 CALL srid;
---echo 0, 0, 0, 0, 0, 0 expected respectively
 
 delimiter |;
 --echo #create procedure to check coordinates on Point
@@ -1657,7 +1787,6 @@ delimiter ;|
 
 --echo #call the proc
 CALL coord_point;
---echo 0, 0, NULL, NULL, NULL, NULL expected respectively
 
 delimiter |;
 --echo #create procedure to check Dimension
@@ -1674,7 +1803,6 @@ delimiter ;|
 
 --echo #call the proc
 CALL dimension;
---echo 0, 0, 0, 0, 0, 0 expected respectively
 
 delimiter |;
 --echo #create procedure to check Envelope
@@ -1690,13 +1818,14 @@ END |
 delimiter ;|
 
 --echo #call the proc
+--error ER_GIS_INVALID_DATA
 CALL envelope;
---echo POLYGON((1 1,1 1,1 1,1 1,1 1)) expected
---echo POLYGON((-0 0,-0 0,-0 0,-0 0,-0 0)) expected
---echo NULL expected
---echo POLYGON((-10 0,10 0,10 10,-10 10,-10 0)) expected
---echo NULL expected
---echo POLYGON((-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654,-0.7654 189.7654)) expected
+
+
+
+
+
+
 --echo Respectively
 
 delimiter |;
@@ -1713,8 +1842,9 @@ END |
 delimiter ;|
 
 --echo #call the proc
+--error ER_GIS_INVALID_DATA
 CALL issimple;
---echo 1, NULL, 1, 1, 1, 1 expected
+
 --enable_warnings
 
 --echo #Dropping the created procedures.

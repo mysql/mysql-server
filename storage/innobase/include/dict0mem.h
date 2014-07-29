@@ -48,6 +48,8 @@ Created 1/8/1996 Heikki Tuuri
 #include "buf0buf.h"
 #include "gis0type.h"
 #include "os0once.h"
+#include <set>
+#include <algorithm>
 
 /* Forward declaration. */
 struct ib_rbt_t;
@@ -731,6 +733,9 @@ struct dict_index_t{
 #endif
 	dict_field_t*	fields;	/*!< array of field descriptions */
 	st_mysql_ftparser*	parser;/*!< fulltext plugin parser */
+	bool		is_redo_skipped;
+				/*!< TRUE if skip redo log for allocation
+				under special cases, such as bulk load. */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
@@ -852,12 +857,106 @@ struct dict_foreign_t{
 					does not generate new indexes
 					implicitly */
 	dict_index_t*	referenced_index;/*!< referenced index */
-	UT_LIST_NODE_T(dict_foreign_t)
-			foreign_list;	/*!< list node for foreign keys of the
-					table */
-	UT_LIST_NODE_T(dict_foreign_t)
-			referenced_list;/*!< list node for referenced
-					keys of the table */
+};
+
+/** Compare two dict_foreign_t objects using their ids. Used in the ordering
+of dict_table_t::foreign_set and dict_table_t::referenced_set.  It returns
+true if the first argument is considered to go before the second in the
+strict weak ordering it defines, and false otherwise. */
+struct dict_foreign_compare {
+
+	bool operator()(
+		const dict_foreign_t*	lhs,
+		const dict_foreign_t*	rhs) const
+	{
+		return(ut_strcmp(lhs->id, rhs->id) < 0);
+	}
+};
+
+/** A function object to find a foreign key with the given index as the
+referenced index. Return the foreign key with matching criteria or NULL */
+struct dict_foreign_with_index {
+
+	dict_foreign_with_index(const dict_index_t*	index)
+	: m_index(index)
+	{}
+
+	bool operator()(const dict_foreign_t*	foreign) const
+	{
+		return(foreign->referenced_index == m_index);
+	}
+
+	const dict_index_t*	m_index;
+};
+
+/* A function object to check if the foreign constraint is between different
+tables.  Returns true if foreign key constraint is between different tables,
+false otherwise. */
+struct dict_foreign_different_tables {
+
+	bool operator()(const dict_foreign_t*	foreign) const
+	{
+		return(foreign->foreign_table != foreign->referenced_table);
+	}
+};
+
+/** A function object to check if the foreign key constraint has the same
+name as given.  If the full name of the foreign key constraint doesn't match,
+then, check if removing the database name from the foreign key constraint
+matches. Return true if it matches, false otherwise. */
+struct dict_foreign_matches_id {
+
+	dict_foreign_matches_id(const char* id)
+		: m_id(id)
+	{}
+
+	bool operator()(const dict_foreign_t*	foreign) const
+	{
+		if (0 == innobase_strcasecmp(foreign->id, m_id)) {
+			return(true);
+		}
+		if (const char* pos = strchr(foreign->id, '/')) {
+			if (0 == innobase_strcasecmp(m_id, pos + 1)) {
+				return(true);
+			}
+		}
+		return(false);
+	}
+
+	const char*	m_id;
+};
+
+typedef std::set<dict_foreign_t*, dict_foreign_compare> dict_foreign_set;
+
+/*********************************************************************//**
+Frees a foreign key struct. */
+inline
+void
+dict_foreign_free(
+/*==============*/
+	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
+{
+	mem_heap_free(foreign->heap);
+}
+
+/** The destructor will free all the foreign key constraints in the set
+by calling dict_foreign_free() on each of the foreign key constraints.
+This is used to free the allocated memory when a local set goes out
+of scope. */
+struct dict_foreign_set_free {
+
+	dict_foreign_set_free(const dict_foreign_set&	foreign_set)
+		: m_foreign_set(foreign_set)
+	{}
+
+	~dict_foreign_set_free()
+	{
+		std::for_each(m_foreign_set.begin(),
+			      m_foreign_set.end(),
+			      dict_foreign_free);
+	}
+
+	const dict_foreign_set&	m_foreign_set;
 };
 
 /** The flags for ON_UPDATE and ON_DELETE can be ORed; the default is that
@@ -1017,6 +1116,13 @@ struct dict_table_t {
 	loading the definition or CREATE TABLE, or ALTER TABLE (prepare,
 	commit, and rollback phases). */
 	trx_id_t				def_trx_id;
+
+	/*!< set of foreign key constraints in the table; these refer to
+	columns in other tables */
+	dict_foreign_set			foreign_set;
+
+	/*!< set of foreign key constraints which refer to this table */
+	dict_foreign_set			referenced_set;
 
 #ifdef UNIV_DEBUG
 	/** This field is used to specify in simulations tables which are so
@@ -1231,6 +1337,19 @@ void
 lock_table_lock_list_init(
 /*======================*/
 	table_lock_list_t*	locks);		/*!< List to initialise */
+
+/** A function object to add the foreign key constraint to the referenced set
+of the referenced table, if it exists in the dictionary cache. */
+struct dict_foreign_add_to_referenced_table {
+	void operator()(dict_foreign_t*	foreign) const
+	{
+		if (dict_table_t* table = foreign->referenced_table) {
+			std::pair<dict_foreign_set::iterator, bool>	ret
+				= table->referenced_set.insert(foreign);
+			ut_a(ret.second);
+		}
+	}
+};
 
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"

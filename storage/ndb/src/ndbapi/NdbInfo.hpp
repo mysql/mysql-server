@@ -1,6 +1,5 @@
 /*
-   Copyright 2009, 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,7 +102,7 @@ private:
   unsigned m_connect_count;
   unsigned m_min_db_version;
   class Ndb_cluster_connection* m_connection;
-  pthread_mutex_t m_mutex;
+  native_mutex_t m_mutex;
   HashMap<BaseString, Table, BaseString_get_key> m_tables;
   Table* m_tables_table;
   Table* m_columns_table;

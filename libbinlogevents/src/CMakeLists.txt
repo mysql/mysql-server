@@ -15,12 +15,15 @@
 
 SET (REPLICATION_SOURCES
      field_iterator.cpp
+     statement_events.cpp
+     control_events.cpp
      load_data_events.cpp
      row_of_fields.cpp
      rows_event.cpp
      value.cpp
      binlog_event.cpp
      decoder.cpp
+     uuid.cc
     )
 
 # Configure for building static library

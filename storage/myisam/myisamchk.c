@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -128,9 +128,7 @@ int main(int argc, char **argv)
   ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error);
-#ifndef _lint
   return 0;				/* No compiler warning */
-#endif
 } /* main */
 
 enum options_mc {
@@ -585,7 +583,6 @@ get_one_option(int optid,
     if (argument != disabled_my_option)
     {
       check_param.testflag|= T_REP;
-      my_disable_async_io= 1;		/* More safety */
     }
     break;
   case 'n':

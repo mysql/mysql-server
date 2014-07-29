@@ -60,6 +60,8 @@
 #include "sql_optimizer.h" // JOIN
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "mutex_lock.h"
+#include "prealloced_array.h"
+#include "template_utils.h"
 
 #include <algorithm>
 #include <functional>
@@ -347,7 +349,8 @@ static HASH ignore_db_dirs_hash;
   An array of LEX_STRING pointers to collect the options at 
   option parsing time.
 */
-static DYNAMIC_ARRAY ignore_db_dirs_array;
+typedef Prealloced_array<LEX_STRING *, 16> Ignore_db_dirs_array;
+static Ignore_db_dirs_array *ignore_db_dirs_array;
 
 /**
   A value for the read only system variable to show a list of
@@ -361,17 +364,11 @@ char *opt_ignore_db_dirs= NULL;
   processing time.
   We need to collect the directories in an array first, because
   we need the character sets initialized before setting up the hash.
-
-  @return state
-  @retval TRUE  failed
-  @retval FALSE success
 */
 
-bool
-ignore_db_dirs_init()
+void ignore_db_dirs_init()
 {
-  return my_init_dynamic_array(&ignore_db_dirs_array, sizeof(LEX_STRING *),
-                               0, 0);
+  ignore_db_dirs_array= new Ignore_db_dirs_array(key_memory_ignored_db);
 }
 
 
@@ -429,7 +426,7 @@ push_ignored_db_dir(char *path)
   memcpy(new_elt_buffer, path, path_len);
   new_elt_buffer[path_len]= 0;
   new_elt->length= path_len;
-  return insert_dynamic(&ignore_db_dirs_array, &new_elt);
+  return ignore_db_dirs_array->push_back(new_elt);
 }
 
 
@@ -443,10 +440,7 @@ push_ignored_db_dir(char *path)
 void
 ignore_db_dirs_reset()
 {
-  LEX_STRING **elt;
-  while (NULL!= (elt= (LEX_STRING **) pop_dynamic(&ignore_db_dirs_array)))
-    if (elt && *elt)
-      my_free(*elt);
+  my_free_container_pointers(*ignore_db_dirs_array);
 }
 
 
@@ -465,7 +459,7 @@ ignore_db_dirs_free()
     opt_ignore_db_dirs= NULL;
   }
   ignore_db_dirs_reset();
-  delete_dynamic(&ignore_db_dirs_array);
+  delete ignore_db_dirs_array;
   my_hash_free(&ignore_db_dirs_hash);
 }
 
@@ -485,10 +479,8 @@ ignore_db_dirs_free()
 bool
 ignore_db_dirs_process_additions()
 {
-  ulong i;
   size_t len;
   char *ptr;
-  LEX_STRING *dir;
 
   DBUG_ASSERT(opt_ignore_db_dirs == NULL);
 
@@ -502,10 +494,11 @@ ignore_db_dirs_process_additions()
 
   /* len starts from 1 because of the terminating zero. */
   len= 1;
-  for (i= 0; i < ignore_db_dirs_array.elements; i++)
+  LEX_STRING **iter;
+  for (iter= ignore_db_dirs_array->begin();
+       iter != ignore_db_dirs_array->end(); ++iter)
   {
-    get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
-    len+= dir->length + 1;                      // +1 for the comma
+    len+= (*iter)->length + 1;                      // +1 for the comma
   }
 
   /* No delimiter for the last directory. */
@@ -521,9 +514,10 @@ ignore_db_dirs_process_additions()
   /* Make sure we have an empty string to start with. */
   *ptr= 0;
 
-  for (i= 0; i < ignore_db_dirs_array.elements; i++)
+  for (iter= ignore_db_dirs_array->begin();
+       iter != ignore_db_dirs_array->end(); ++iter)
   {
-    get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
+    LEX_STRING *dir= *iter;
     if (my_hash_insert(&ignore_db_dirs_hash, (uchar *)dir))
     {
       /* ignore duplicates from the config file */
@@ -537,8 +531,7 @@ ignore_db_dirs_process_additions()
           the end of the function, not destructed.
         */
         my_free(dir);
-        dir= NULL;
-        set_dynamic(&ignore_db_dirs_array, (uchar *)&dir, i);
+        (*iter)= NULL;
         continue;
       }
       return true;
@@ -551,8 +544,7 @@ ignore_db_dirs_process_additions()
       Set the transferred array element to NULL to avoid double free
       in case of error.
     */
-    dir= NULL;
-    set_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
+    (*iter)= NULL;
   }
 
   /* get back to the last comma, if there is one */
@@ -569,7 +561,7 @@ ignore_db_dirs_process_additions()
     It's OK to empty the array here as the allocated elements are
     referenced through the hash now.
   */
-  reset_dynamic(&ignore_db_dirs_array);
+  ignore_db_dirs_array->clear();
 
   return false;
 }
@@ -621,7 +613,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
-  uint wild_length= 0;
+  size_t wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
 
@@ -919,7 +911,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     field_list.push_back(new Item_empty_string("View",NAME_CHAR_LEN));
     field_list.push_back(new Item_empty_string("Create View",
-                                               max(buffer.length(), 1024U)));
+                                               max<uint>(buffer.length(), 1024U)));
     field_list.push_back(new Item_empty_string("character_set_client",
                                                MY_CS_NAME_SIZE));
     field_list.push_back(new Item_empty_string("collation_connection",
@@ -930,7 +922,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     field_list.push_back(new Item_empty_string("Table",NAME_CHAR_LEN));
     // 1024 is for not to confuse old clients
     field_list.push_back(new Item_empty_string("Create Table",
-                                               max(buffer.length(), 1024U)));
+                                               max<size_t>(buffer.length(), 1024U)));
   }
 
   if (protocol->send_result_set_metadata(&field_list,
@@ -1118,7 +1110,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
     0	No conflicting character
 */
 
-static const char *require_quotes(const char *name, uint name_length)
+static const char *require_quotes(const char *name, size_t name_length)
 {
   bool pure_digit= TRUE;
   const char *end= name + name_length;
@@ -2585,7 +2577,7 @@ void remove_status_vars(SHOW_VAR *list)
   if (status_vars_inited)
   {
     mysql_mutex_lock(&LOCK_status);
-    int a= 0, b= all_status_vars.size(), c= (a+b)/2;
+    size_t a= 0, b= all_status_vars.size(), c= (a+b)/2;
 
     for (; list->name; list++)
     {
@@ -2798,7 +2790,7 @@ static bool show_status_array(THD *thd, const char *wild,
   char *prefix_end;
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
-  int len;
+  size_t len;
   SHOW_VAR tmp, *var;
   Item *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
@@ -2954,7 +2946,7 @@ bool schema_table_store_record(THD *thd, TABLE *table)
   {
     Temp_table_param *param= table->pos_in_table_list->schema_table_param;
 
-    if (create_myisam_from_heap(thd, table, param->start_recinfo, 
+    if (create_ondisk_from_heap(thd, table, param->start_recinfo, 
                                 &param->recinfo, error, FALSE, NULL))
       return 1;
   }
@@ -4473,7 +4465,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
      !with_i_schema)
   {
     char path[FN_REFLEN+16];
-    uint path_len;
+    size_t path_len;
     MY_STAT stat_info;
     if (!lookup_field_vals.db_value.str[0])
       DBUG_RETURN(0);
@@ -5715,7 +5707,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   char definer[USER_HOST_BUFF_SIZE];
-  uint definer_len;
+  size_t definer_len;
   bool updatable_view;
   DBUG_ENTER("get_schema_views_record");
 
@@ -5855,7 +5847,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 
 bool store_constraints(THD *thd, TABLE *table, LEX_STRING *db_name,
                        LEX_STRING *table_name, const char *key_name,
-                       uint key_len, const char *con_type, uint con_len)
+                       size_t key_len, const char *con_type, size_t con_len)
 {
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
@@ -6051,7 +6043,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
 
 void store_key_column_usage(TABLE *table, LEX_STRING *db_name,
                             LEX_STRING *table_name, const char *key_name,
-                            uint key_len, const char *con_type, uint con_len,
+                            size_t key_len, const char *con_type, size_t con_len,
                             longlong idx)
 {
   CHARSET_INFO *cs= system_charset_info;
@@ -8829,7 +8821,7 @@ static void get_cs_converted_string_value(THD *thd,
   }
   {
     const uchar *ptr;
-    uint i, len;
+    size_t i, len;
     char buf[3];
 
     output_str->append("_");

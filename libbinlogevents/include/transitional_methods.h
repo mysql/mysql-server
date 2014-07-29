@@ -16,8 +16,8 @@
 /**
   @file transitional_methods.h
 
-  @brief Contains functions which are used by the server independent of the
-  binlogevent library.
+  @brief Contains functions which are used by the server and libbinlogevent
+         library both.
 */
 
 #ifndef TRANSITIONAL_METHODS_INCLUDED
@@ -87,7 +87,7 @@ inline unsigned long version_product(const unsigned char* version_split)
 }
 
 /*
-  This method copies the string pointed to by src (including
+  This function copies the string pointed to by src (including
   the terminating null byte ('\0')) to the array pointed to by dest.
   The strings may not overlap, and the destination string dest must be
   large enough to receive the copy.

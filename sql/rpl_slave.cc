@@ -60,6 +60,8 @@
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 #include "rpl_slave_commit_order_manager.h"
 
+#include <algorithm>
+
 using std::min;
 using std::max;
 using binary_log::checksum_crc32;
@@ -620,7 +622,7 @@ int remove_info(Master_info* mi)
   mi->rli->clear_error();
   if (mi->rli->workers_array_initialized)
   {
-    for(uint i= 0; i < mi->rli->get_worker_count(); i++)
+    for(size_t i= 0; i < mi->rli->get_worker_count(); i++)
     {
       mi->rli->get_worker(i)->clear_error();
     }
@@ -2005,7 +2007,7 @@ maybe it is a *VERY OLD MASTER*.");
     mysql_free_result(master_res);
     master_res= NULL;
   }
-  if (mi->master_id == 0 && mi->ignore_server_ids->dynamic_ids.elements > 0)
+  if (mi->master_id == 0 && mi->ignore_server_ids->dynamic_ids.size() > 0)
   {
     errmsg= "Slave configured with server id filtering could not detect the master server id.";
     err_code= ER_SLAVE_FATAL_ERROR;
@@ -2239,12 +2241,12 @@ when it try to get the value of TIME_ZONE global variable from master.";
           (master_row= mysql_fetch_row(master_res)) &&
           (master_row[0] != NULL))
       {
-        mi->checksum_alg_before_fd= static_cast<enum_binlog_checksum_alg> 
+        mi->checksum_alg_before_fd= static_cast<enum_binlog_checksum_alg>
           (find_type(master_row[0], &binlog_checksum_typelib, 1) - 1);
-        
+
        DBUG_EXECUTE_IF("undefined_algorithm_on_slave",
         mi->checksum_alg_before_fd = BINLOG_CHECKSUM_ALG_UNDEF;);
-       if(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_UNDEF) 
+       if(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_UNDEF)
        {
          errmsg= "The slave I/O thread was stopped because a fatal error is encountered "
                  "The checksum algorithm used by master is unknown to slave.";
@@ -2497,7 +2499,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
                              bool *suppress_warnings)
 {
   uchar buf[1024], *pos= buf;
-  uint report_host_len=0, report_user_len=0, report_password_len=0;
+  size_t report_host_len=0, report_user_len=0, report_password_len=0;
   DBUG_ENTER("register_slave_on_master");
 
   *suppress_warnings= FALSE;
@@ -2505,7 +2507,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
     report_host_len= strlen(report_host);
   if (report_host_len > HOSTNAME_LENGTH)
   {
-    sql_print_warning("The length of report_host is %d. "
+    sql_print_warning("The length of report_host is %zu. "
                       "It is larger than the max length(%d), so this "
                       "slave cannot be registered to the master.",
                       report_host_len, HOSTNAME_LENGTH);
@@ -2516,7 +2518,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
     report_user_len= strlen(report_user);
   if (report_user_len > USERNAME_LENGTH)
   {
-    sql_print_warning("The length of report_user is %d. "
+    sql_print_warning("The length of report_user is %zu. "
                       "It is larger than the max length(%d), so this "
                       "slave cannot be registered to the master.",
                       report_user_len, USERNAME_LENGTH);
@@ -2527,7 +2529,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
     report_password_len= strlen(report_password);
   if (report_password_len > MAX_PASSWORD_LENGTH)
   {
-    sql_print_warning("The length of report_password is %d. "
+    sql_print_warning("The length of report_password is %zu. "
                       "It is larger than the max length(%d), so this "
                       "slave cannot be registered to the master.",
                       report_password_len, MAX_PASSWORD_LENGTH);
@@ -2885,11 +2887,11 @@ bool show_slave_status(THD* thd, Master_info* mi)
       char buff[FN_REFLEN];
       ulong i, cur_len;
       for (i= 0, buff[0]= 0, cur_len= 0;
-           i < mi->ignore_server_ids->dynamic_ids.elements; i++)
+           i < mi->ignore_server_ids->dynamic_ids.size(); i++)
       {
         ulong s_id, slen;
         char sbuff[FN_REFLEN];
-        get_dynamic(&(mi->ignore_server_ids->dynamic_ids), (uchar*) &s_id, i);
+        s_id= mi->ignore_server_ids->dynamic_ids[i];
         slen= sprintf(sbuff, (i == 0 ? "%lu" : ", %lu"), s_id);
         if (cur_len + slen + 4 > FN_REFLEN)
         {
@@ -3131,7 +3133,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
 {
   DBUG_ENTER("request_dump");
 
-  const int BINLOG_NAME_INFO_SIZE= strlen(mi->get_master_log_name());
+  const size_t BINLOG_NAME_INFO_SIZE= strlen(mi->get_master_log_name());
   int error= 1;
   size_t command_size= 0;
   enum_server_command command= mi->is_auto_position() ?
@@ -3233,7 +3235,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     int8store(ptr_buffer, 4LL);
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
 
-    int4store(ptr_buffer, encoded_data_size);
+    int4store(ptr_buffer, static_cast<uint32>(encoded_data_size));
     ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
     gtid_executed.encode(ptr_buffer);
     ptr_buffer+= encoded_data_size;
@@ -3252,7 +3254,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     uchar* ptr_buffer= command_buffer;
   
     int4store(ptr_buffer, DBUG_EVALUATE_IF("request_master_log_pos_3", 3,
-                                           mi->get_master_log_pos()));
+                                           static_cast<uint32>(mi->get_master_log_pos())));
     ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
     // See comment regarding binlog_flags above.
     int2store(ptr_buffer, binlog_flags);
@@ -3379,7 +3381,7 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
 */
 static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
 {
-  long sql_delay= rli->get_sql_delay();
+  time_t sql_delay= rli->get_sql_delay();
 
   DBUG_ENTER("sql_delay_event");
   mysql_mutex_assert_owner(&rli->data_lock);
@@ -3395,7 +3397,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
     // The current time.
     time_t now= my_time(0);
     // The time we will have to sleep before executing the event.
-    unsigned long nap_time= 0;
+    time_t nap_time= 0;
     if (sql_delay_end > now)
       nap_time= sql_delay_end - now;
 
@@ -3865,14 +3867,20 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
   mysql_mutex_lock(&rli->data_lock);
 
   /*
-    UNTIL_SQL_AFTER_GTIDS requires special handling since we have to check
-    whether the until_condition is satisfied *before* the SQL threads goes on
-    a wait inside next_event() for the relay log to grow. This is reuired since
-    if we have already applied the last event in the waiting set but since he
-    check happens only at the start of the next event we may end up waiting
-    forever the next event is not available or is delayed.
+    UNTIL_SQL_AFTER_GTIDS, UNTIL_MASTER_POS and UNTIL_RELAY_POS require
+    special handling since we have to check whether the until_condition is
+    satisfied *before* the SQL threads goes on a wait inside next_event()
+    for the relay log to grow.
+    This is required in the following case: We have already applied the last
+    event in the waiting set, but the relay log ends after this event. Then it
+    is not enough to check the condition in next_event; we also have to check
+    it here, before going to sleep. Otherwise, if no updates were coming from
+    the master, we would sleep forever despite having reached the required
+    position.
   */
-  if (rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS &&
+  if ((rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS ||
+       rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ||
+       rli->until_condition == Relay_log_info::UNTIL_RELAY_POS) &&
        rli->is_until_satisfied(thd, NULL))
   {
     rli->abort_slave= 1;
@@ -4451,7 +4459,8 @@ Stopping slave I/O thread due to out-of-memory error from master");
       retry_count=0;                    // ok event, reset retry counter
       THD_STAGE_INFO(thd, stage_queueing_master_event_to_the_relay_log);
       event_buf= (const char*)mysql->net.read_pos + 1;
-      DBUG_PRINT("info", ("IO thread received event of type %s", Log_event::get_type_str((Log_event_type)event_buf[EVENT_TYPE_OFFSET])));
+      DBUG_PRINT("info", ("IO thread received event of type %s",
+                 binary_log::Binary_log_event::get_type_str_with_para((Log_event_type)event_buf[EVENT_TYPE_OFFSET]).c_str()));
       if (RUN_HOOK(binlog_relay_io, after_read_event,
                    (thd, mi,(const char*)mysql->net.read_pos + 1,
                     event_len, &event_buf, &event_len)))
@@ -4841,8 +4850,10 @@ int mts_recovery_groups(Relay_log_info *rli)
   bool flag_group_seen_begin= FALSE;
   uint recovery_group_cnt= 0;
   bool not_reached_commit= true;
-  DYNAMIC_ARRAY above_lwm_jobs;
-  Slave_job_group job_worker;
+
+  // Value-initialization, to avoid compiler warnings on push_back.
+  Slave_job_group job_worker= Slave_job_group();
+
   IO_CACHE log;
   File file;
   LOG_INFO linfo;
@@ -4879,9 +4890,9 @@ int mts_recovery_groups(Relay_log_info *rli)
     Gathers information on valuable workers and stores it in 
     above_lwm_jobs in asc ordered by the master binlog coordinates.
   */
-  my_init_dynamic_array(&above_lwm_jobs, sizeof(Slave_job_group),
-                        rli->recovery_parallel_workers,
-                        rli->recovery_parallel_workers);
+  Prealloced_array<Slave_job_group, 16, true>
+    above_lwm_jobs(PSI_NOT_INSTRUMENTED);
+  above_lwm_jobs.reserve(rli->recovery_parallel_workers);
 
   for (uint id= 0; id < rli->recovery_parallel_workers; id++)
   {
@@ -4907,7 +4918,7 @@ int mts_recovery_groups(Relay_log_info *rli)
       job_worker.checkpoint_log_pos= worker->checkpoint_master_log_pos;
       job_worker.checkpoint_log_name= worker->checkpoint_master_log_name;
 
-      insert_dynamic(&above_lwm_jobs, (uchar*) &job_worker);
+      above_lwm_jobs.push_back(job_worker);
     }
     else
     {
@@ -4938,22 +4949,23 @@ int mts_recovery_groups(Relay_log_info *rli)
   */
   DBUG_ASSERT(!rli->recovery_groups_inited);
 
-  if (above_lwm_jobs.elements != 0)
+  if (!above_lwm_jobs.empty())
   {
     bitmap_init(groups, NULL, MTS_MAX_BITS_IN_GROUP, FALSE);
     rli->recovery_groups_inited= true;
     bitmap_clear_all(groups);
   }
   rli->mts_recovery_group_cnt= 0;
-  for (uint it_job= 0; it_job < above_lwm_jobs.elements; it_job++)
+  for (Slave_job_group *jg= above_lwm_jobs.begin();
+       jg != above_lwm_jobs.end(); ++jg)
   {
-    Slave_worker *w= ((Slave_job_group *)
-                      dynamic_array_ptr(&above_lwm_jobs, it_job))->worker;
+    Slave_worker *w= jg->worker;
     LOG_POS_COORD w_last= { const_cast<char*>(w->get_group_master_log_name()),
                             w->get_group_master_log_pos() };
     bool checksum_detected= FALSE;
 
-    sql_print_information("Slave: MTS group recovery relay log info based on Worker-Id %lu, "
+    sql_print_information("Slave: MTS group recovery relay log info based on "
+                          "Worker-Id %lu, "
                           "group_relay_log_name %s, group_relay_log_pos %llu "
                           "group_master_log_name %s, group_master_log_pos %llu",
                           w->id,
@@ -5103,13 +5115,12 @@ int mts_recovery_groups(Relay_log_info *rli)
 
 err:
   
-  for (uint it_job= 0; it_job < above_lwm_jobs.elements; it_job++)
+  for (Slave_job_group *jg= above_lwm_jobs.begin();
+       jg != above_lwm_jobs.end(); ++jg)
   {
-    get_dynamic(&above_lwm_jobs, (uchar *) &job_worker, it_job);
-    delete job_worker.worker;
+    delete jg->worker;
   }
 
-  delete_dynamic(&above_lwm_jobs);
   if (rli->recovery_groups_inited && rli->mts_recovery_group_cnt == 0)
   {
     bitmap_free(groups);
@@ -5211,10 +5222,10 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   /* TODO: 
      to turn the least occupied selection in terms of jobs pieces
   */
-  for (uint i= 0; i < rli->workers.elements; i++)
+  for (Slave_worker **it= rli->workers.begin();
+       it != rli->workers.begin(); ++it)
   {
-    Slave_worker *w_i;
-    get_dynamic(&rli->workers, (uchar *) &w_i, i);
+    Slave_worker *w_i= *it;
     rli->least_occupied_workers[w_i->id]= w_i->jobs.len;
   };
   std::sort(rli->least_occupied_workers.begin(),
@@ -5307,7 +5318,13 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
     error= 1;
     goto err;
   }
-  set_dynamic(&rli->workers, (uchar*) &w, i);
+
+  // We assume that workers are added in sequential order here.
+  DBUG_ASSERT(i == rli->workers.size());
+  if (i >= rli->workers.size())
+    rli->workers.resize(i+1);
+  rli->workers[i]= w;
+
   w->currently_executing_gtid.clear();
   if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
       (error= mysql_thread_create(key_thread_slave_worker, &th,
@@ -5334,11 +5351,11 @@ err:
   {
     delete w;
     /*
-      Any failure after dynarray inserted must follow with deletion
+      Any failure after array inserted must follow with deletion
       of just created item.
     */
-    if (rli->workers.elements == i + 1)
-      delete_dynamic_element(&rli->workers, i);
+    if (rli->workers.size() == i + 1)
+      rli->workers.erase(i);
   }
   return error;
 }
@@ -5362,7 +5379,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
 
   if (n == 0 && rli->mts_recovery_group_cnt == 0)
   {
-    reset_dynamic(&rli->workers);
+    rli->workers.clear();
     goto end;
   }
 
@@ -5462,7 +5479,6 @@ err:
 */
 void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 {
-  int i;
   THD *thd= rli->info_thd;
 
   if (!*mts_inited) 
@@ -5499,34 +5515,34 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     */
     (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
   }
-  for (i= rli->workers.elements - 1; i >= 0; i--)
+  if (!rli->workers.empty())
   {
-    Slave_worker *w;
-    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
-    
-    mysql_mutex_lock(&w->jobs_lock);
-    
-    if (w->running_status != Slave_worker::RUNNING)
+    for (int i= static_cast<int>(rli->workers.size()) - 1; i >= 0; i--)
     {
+      Slave_worker *w= rli->workers[i];
+
+      mysql_mutex_lock(&w->jobs_lock);
+
+      if (w->running_status != Slave_worker::RUNNING)
+      {
+        mysql_mutex_unlock(&w->jobs_lock);
+        continue;
+      }
+
+      w->running_status= Slave_worker::KILLED;
+      mysql_cond_signal(&w->jobs_cond);
+
       mysql_mutex_unlock(&w->jobs_lock);
-      continue;
+
+      sql_print_information("Notifying Worker %lu to exit, thd %p", w->id,
+                            w->info_thd);
     }
-
-    w->running_status= Slave_worker::KILLED;
-    mysql_cond_signal(&w->jobs_cond);
-
-    mysql_mutex_unlock(&w->jobs_lock);
-
-    sql_print_information("Notifying Worker %lu to exit, thd %p", w->id,
-                          w->info_thd);
   }
-
   thd_proc_info(thd, "Waiting for workers to exit");
 
-  for (uint i= 0; i < rli->workers.elements; i++)
+  for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
   {
-    Slave_worker *w= NULL;
-    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
+    Slave_worker *w= *it;
 
     /*
       Make copies for reporting through the performance schema tables.
@@ -5550,10 +5566,9 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     rli->workers_copy_pfs.push_back(worker_copy);
   }
 
-  for (i= rli->workers.elements - 1; i >= 0; i--)
+  while (!rli->workers.empty())
   {
-    Slave_worker *w= NULL;
-    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
+    Slave_worker *w= rli->workers.back();
 
     mysql_mutex_lock(&w->jobs_lock);
     while (w->running_status != Slave_worker::NOT_RUNNING)
@@ -5572,7 +5587,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     // Free the current submode object
     delete w->current_mts_submode;
     w->current_mts_submode= 0;
-    delete_dynamic_element(&rli->workers, i);
+    rli->workers.pop_back();
     delete w;
   }
 
@@ -5735,7 +5750,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   rli->clear_error();
   if (rli->workers_array_initialized)
   {
-    for(uint i= 0; i<rli->get_worker_count(); i++)
+    for(size_t i= 0; i<rli->get_worker_count(); i++)
     {
       rli->get_worker(i)->clear_error();
     }
@@ -6527,7 +6542,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       DBUG_SET("");
     }
   );
-  Format_description_event *des_ev= NULL;
   binary_log_debug::debug_checksum_test=
                DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
   if (Log_event_footer::event_checksum_test((uchar *) buf,
@@ -6546,8 +6560,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     mysql_mutex_unlock(&mi->data_lock);
     DBUG_RETURN(ret);
   }
-  des_ev= new Format_description_event(mi->get_mi_description_event()->binlog_version,
-                                       mi->get_mi_description_event()->server_version);
   switch (event_type) {
   case STOP_EVENT:
     /*
@@ -6567,16 +6579,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   {
     Rotate_log_event rev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                          event_len - BINLOG_CHECKSUM_LEN : event_len,
-                         /*
-                          *  TODO: Change the return type of
-                          *  get_mi_description_event() from
-                          *  Format_description_log_event to
-                          *  binary_log::Format_description_event
-                          *   + mi->get_mi_description_event(), header);
-                          *   - des_ev, header);
-                          *  Hence, change it to the implementation above
-                          */
-                         des_ev);
+                         mi->get_mi_description_event());
 
     if (unlikely(process_io_rotate(mi, &rev)))
     {
@@ -6869,7 +6872,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         If the master is on the ignore list, execution of
         format description log events and rotate events is necessary.
       */
-      (mi->ignore_server_ids->dynamic_ids.elements > 0 &&
+      (mi->ignore_server_ids->dynamic_ids.size() > 0 &&
        mi->shall_ignore_server_id(s_id) &&
        /* everything is filtered out from non-master */
        (s_id != mi->master_id ||
@@ -6937,11 +6940,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       buf= save_buf;
   }
   mysql_mutex_unlock(log_lock);
-  if (des_ev)
-  {
-    delete des_ev;
-    des_ev= NULL;
-  }
 skip_relay_logging:
 
 err:
@@ -6953,11 +6951,6 @@ err:
                (error == ER_SLAVE_RELAY_LOG_WRITE_FAILURE)?
                "could not queue event from master" :
                error_msg.ptr());
-  if (des_ev)
-  {
-    delete des_ev;
-    des_ev= NULL;
-  }
   DBUG_RETURN(error);
 }
 
@@ -7022,7 +7015,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   ulong err_count=0;
   char llbuff[22];
   char password[MAX_PASSWORD_LENGTH + 1];
-  int password_size= sizeof(password);
+  size_t password_size= sizeof(password);
   DBUG_ENTER("connect_to_master");
   set_slave_max_allowed_packet(thd, mysql);
 #ifndef DBUG_OFF
@@ -7030,7 +7023,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 #endif
   ulong client_flag= CLIENT_REMEMBER_OPTIONS;
   if (opt_slave_compressed_protocol)
-    client_flag=CLIENT_COMPRESS;                /* We will use compression */
+    client_flag|= CLIENT_COMPRESS;              /* We will use compression */
 
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
@@ -8550,15 +8543,37 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     mi->connect_retry = lex_mi->connect_retry;
   if (lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->retry_count = lex_mi->retry_count;
+
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
+  else if (lex_mi->host || lex_mi->port)
+  {
+    /*
+      If the user specified host or port or both without heartbeat_period,
+      we use default value for heartbeat_period. By default, We want to always
+      have heartbeat enabled when we switch master unless
+      master_heartbeat_period is explicitly set to zero (heartbeat disabled).
+
+      Here is the default value for heartbeat period if CHANGE MASTER did not
+      specify it.  (no data loss in conversion as hb period has a max)
+    */
+    mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
+                                     (slave_net_timeout/2.0));
+    DBUG_ASSERT(mi->heartbeat_period > (float) 0.001
+                || mi->heartbeat_period == 0);
+
+    // counter is cleared if master is CHANGED.
+    mi->received_heartbeats= 0;
+    // clear timestamp of last heartbeat as well.
+    mi->last_heartbeat= 0;
+  }
 
   /*
     reset the last time server_id list if the current CHANGE MASTER
     is mentioning IGNORE_SERVER_IDS= (...)
   */
   if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
-    reset_dynamic(&(mi->ignore_server_ids->dynamic_ids));
+    mi->ignore_server_ids->dynamic_ids.clear();
   for (size_t i= 0; i < lex_mi->repl_ignore_server_ids.size(); i++)
   {
     ulong s_id= lex_mi->repl_ignore_server_ids[i];
@@ -8570,16 +8585,10 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     }
     else
     {
-      if (bsearch((const ulong *) &s_id,
-                  mi->ignore_server_ids->dynamic_ids.buffer,
-                  mi->ignore_server_ids->dynamic_ids.elements, sizeof(ulong),
-                  (int (*) (const void*, const void*))
-                  change_master_server_id_cmp) == NULL)
-        insert_dynamic(&(mi->ignore_server_ids->dynamic_ids), (uchar*) &s_id);
+      // Keep the array sorted, ignore duplicates.
+      mi->ignore_server_ids->dynamic_ids.insert_unique(s_id);
     }
   }
-  sort_dynamic(&(mi->ignore_server_ids->dynamic_ids),
-               (qsort_cmp) change_master_server_id_cmp);
 
   if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);
@@ -9035,7 +9044,7 @@ bool change_master(THD* thd, Master_info* mi)
     mi->rli->clear_error();
     if (mi->rli->workers_array_initialized)
     {
-      for(uint i= 0; i < mi->rli->get_worker_count(); i++)
+      for(size_t i= 0; i < mi->rli->get_worker_count(); i++)
       {
         mi->rli->get_worker(i)->clear_error();
       }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 
 namespace binary_log
 {
-
 
 template<class Iterator_value_type>
 bool Row_event_iterator< Iterator_value_type>::
@@ -108,7 +107,7 @@ Iterator_value_type Row_event_iterator<Iterator_value_type>::operator*()
   /*
    * Remember this offset if we need to increate the row pointer
    */
-  m_new_field_offset_calculated= fields(fields_vector);
+  m_new_field_offset_calculated= fields(&fields_vector);
   return fields_vector;
 }
 
@@ -194,7 +193,7 @@ bool Row_event_iterator< Iterator_value_type >::
 
 template <class Iterator_value_type>
 uint32_t Row_event_iterator<Iterator_value_type>::
-       fields(Iterator_value_type& fields_vector)
+       fields(Iterator_value_type *fields_vector)
 {
   uint32_t field_offset= m_field_offset;
   int row_field_col_index= 0;
@@ -228,7 +227,7 @@ uint32_t Row_event_iterator<Iterator_value_type>::
          throw std::logic_error("Field type is unrecognized");
        field_offset += val.length();
     }
-    fields_vector.push_back(val);
+    fields_vector->push_back(val);
   }
   return field_offset;
 }

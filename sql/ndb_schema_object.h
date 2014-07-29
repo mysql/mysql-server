@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@
 #include <my_bitmap.h>
 
 struct NDB_SCHEMA_OBJECT {
-  pthread_mutex_t mutex;
+  native_mutex_t mutex;
   char *key;
   uint key_length;
   uint use_count;

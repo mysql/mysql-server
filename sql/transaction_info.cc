@@ -18,6 +18,15 @@
 #include "mysys_err.h"
 #include "sql_class.h"
 
+Transaction_ctx::Transaction_ctx()
+{
+  memset(this, 0, sizeof(*this));
+  init_sql_alloc(key_memory_thd_transactions, &m_mem_root,
+                 global_system_variables.trans_alloc_block_size,
+                 global_system_variables.trans_prealloc_size);
+}
+
+
 void Transaction_ctx::push_unsafe_rollback_warnings(THD *thd)
 {
   if (m_scope_info[SESSION].has_modified_non_trans_table())

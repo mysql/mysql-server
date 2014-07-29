@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 #define USE_MALLOC_WRAPPER
 #endif
+
+static void *my_raw_malloc(size_t size, myf my_flags);
+static void my_raw_free(void *ptr);
 
 #ifdef USE_MALLOC_WRAPPER
 struct my_memory_header
@@ -114,14 +117,16 @@ void my_free(void *ptr)
   MEM_FREELIKE_BLOCK(ptr, 0);
   my_raw_free(mh);
 }
-#endif
 
-#ifndef USE_MALLOC_WRAPPER
+#else
+
 void *my_malloc(PSI_memory_key key __attribute__((unused)),
                 size_t size, myf my_flags)
 {
   return my_raw_malloc(size, my_flags);
 }
+
+static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags);
 
 void *my_realloc(PSI_memory_key key __attribute__((unused)),
                  void *ptr, size_t size, myf flags)
@@ -144,7 +149,7 @@ void my_free(void *ptr)
 
   @return A pointer to the allocated memory block, or NULL on failure.
 */
-void *my_raw_malloc(size_t size, myf my_flags)
+static void *my_raw_malloc(size_t size, myf my_flags)
 {
   void* point;
   DBUG_ENTER("my_raw_malloc");
@@ -154,7 +159,11 @@ void *my_raw_malloc(size_t size, myf my_flags)
   if (!size)
     size=1;
 
-  point= malloc(size);
+  if (my_flags & MY_ZEROFILL)
+    point= calloc(size, 1);
+  else
+    point= malloc(size);
+
   DBUG_EXECUTE_IF("simulate_out_of_memory",
                   {
                     free(point);
@@ -179,13 +188,13 @@ void *my_raw_malloc(size_t size, myf my_flags)
     if (my_flags & MY_FAE)
       exit(1);
   }
-  else if (my_flags & MY_ZEROFILL)
-    memset(point, 0, size);
+
   DBUG_PRINT("exit",("ptr: %p", point));
   DBUG_RETURN(point);
 }
 
 
+#ifndef USE_MALLOC_WRAPPER
 /**
    @brief wrapper around realloc()
 
@@ -196,7 +205,7 @@ void *my_raw_malloc(size_t size, myf my_flags)
    @note if size==0 realloc() may return NULL; my_realloc() treats this as an
    error which is not the intention of realloc()
 */
-void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags)
+static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags)
 {
   void *point;
   DBUG_ENTER("my_realloc");
@@ -232,6 +241,7 @@ end:
   DBUG_PRINT("exit",("ptr: %p", point));
   DBUG_RETURN(point);
 }
+#endif
 
 /**
   Free memory allocated with my_raw_malloc.
@@ -240,7 +250,7 @@ end:
 
   @param ptr Pointer to the memory allocated by my_raw_malloc.
 */
-void my_raw_free(void *ptr)
+static void my_raw_free(void *ptr)
 {
   DBUG_ENTER("my_free");
   DBUG_PRINT("my",("ptr: %p", ptr));

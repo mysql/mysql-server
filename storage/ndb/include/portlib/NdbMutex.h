@@ -24,16 +24,13 @@
 extern "C" {
 #endif
 
-#if defined NDB_WIN32
 #include <my_pthread.h>
-#else
-#include <pthread.h>
-#endif
+
 #if !defined NDB_MUTEX_STAT && !defined NDB_MUTEX_DEADLOCK_DETECTOR
-typedef pthread_mutex_t NdbMutex;
+typedef native_mutex_t NdbMutex;
 #else
 typedef struct {
-  pthread_mutex_t mutex;
+  native_mutex_t mutex;
 #ifdef NDB_MUTEX_STAT
   unsigned cnt_lock;
   unsigned cnt_lock_contention;

@@ -28,14 +28,13 @@ SET GLOBAL LOG_OUTPUT = 'FILE';
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
+connection default;
 
 flush status;
 
 show status like 'Table_lock%';
 select * from information_schema.session_status where variable_name like 'Table_lock%';
 
-connection con1;
---echo # Switched to connection: con1
 set sql_log_bin=0;
 set @old_general_log = @@global.general_log;
 set global general_log = 'OFF';
@@ -45,40 +44,52 @@ drop table if exists t1;
 
 create table t1(n int) engine=myisam;
 insert into t1 values(1);
-# Execute dummy select in order to ensure that tables used in the
-# previous statement are unlocked and closed.
-select 1;
+select get_lock('mysqltest_lock', 100);
 
 connection con2;
 --echo # Switched to connection: con2
-lock tables t1 read;
-unlock tables;
-lock tables t1 read;
+--echo # Sending:
+--send update t1 set n = get_lock('mysqltest_lock', 100) 
 
 connection con1;
 --echo # Switched to connection: con1
+--echo # Wait for the first UPDATE to get blocked.
+let $wait_condition= select count(*) from INFORMATION_SCHEMA.PROCESSLIST
+                     where STATE = "User lock" and
+                           INFO = "update t1 set n = get_lock('mysqltest_lock', 100)";
+--source include/wait_condition.inc
+
 let $ID= `select connection_id()`;
+--echo # Sending:
 --send update t1 set n = 3
 
-connection con2;
---echo # Switched to connection: con2
-# wait for the other query to start executing
+connection default;
+--echo # Switched to connection: default
+--echo # wait for the second UPDATE to get blocked
 let $wait_condition= select 1 from INFORMATION_SCHEMA.PROCESSLIST
                      where ID = $ID and STATE = "Waiting for table level lock";
 --source include/wait_condition.inc
-unlock tables;
+select release_lock('mysqltest_lock');
+
+connection con2;
+--echo # Switched to connection: con2
+--echo # Reaping first UPDATE
+--reap
+select release_lock('mysqltest_lock');
 
 connection con1;
 --echo # Switched to connection: con1
+--echo # Reaping second UPDATE
 reap;
 show status like 'Table_locks_waited';
+
+connection default;
+--echo # Switched to connection: default
 drop table t1;
 set global general_log = @old_general_log;
 
 disconnect con2;
 disconnect con1;
-connection default;
---echo # Switched to connection: default
 
 # End of 4.1 tests
 

@@ -35,8 +35,8 @@
 /* Global Thread counter */
 uint counter;
 #ifdef HAVE_LIBPTHREAD
-pthread_mutex_t counter_mutex;
-pthread_cond_t count_threshhold;
+native_mutex_t counter_mutex;
+native_cond_t count_threshold;
 #endif
 
 static void db_error_with_table(MYSQL *mysql, char *table);
@@ -594,10 +594,10 @@ error:
   if (mysql)
     db_disconnect(current_host, mysql);
 
-  pthread_mutex_lock(&counter_mutex);
+  native_mutex_lock(&counter_mutex);
   counter--;
-  pthread_cond_signal(&count_threshhold);
-  pthread_mutex_unlock(&counter_mutex);
+  native_cond_signal(&count_threshold);
+  native_mutex_unlock(&counter_mutex);
   mysql_thread_end();
 
   return 0;
@@ -633,29 +633,29 @@ int main(int argc, char **argv)
     pthread_attr_setdetachstate(&attr,
                                 PTHREAD_CREATE_DETACHED);
 
-    pthread_mutex_init(&counter_mutex, NULL);
-    pthread_cond_init(&count_threshhold, NULL);
+    native_mutex_init(&counter_mutex, NULL);
+    native_cond_init(&count_threshold);
 
     for (counter= 0; *argv != NULL; argv++) /* Loop through tables */
     {
-      pthread_mutex_lock(&counter_mutex);
+      native_mutex_lock(&counter_mutex);
       while (counter == opt_use_threads)
       {
         struct timespec abstime;
 
         set_timespec(abstime, 3);
-        pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
+        native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
       }
       /* Before exiting the lock we set ourselves up for the next thread */
       counter++;
-      pthread_mutex_unlock(&counter_mutex);
+      native_mutex_unlock(&counter_mutex);
       /* now create the thread */
       if (pthread_create(&mainthread, &attr, worker_thread, 
                          (void *)*argv) != 0)
       {
-        pthread_mutex_lock(&counter_mutex);
+        native_mutex_lock(&counter_mutex);
         counter--;
-        pthread_mutex_unlock(&counter_mutex);
+        native_mutex_unlock(&counter_mutex);
         fprintf(stderr,"%s: Could not create thread\n",
                 my_progname);
       }
@@ -664,17 +664,17 @@ int main(int argc, char **argv)
     /*
       We loop until we know that all children have cleaned up.
     */
-    pthread_mutex_lock(&counter_mutex);
+    native_mutex_lock(&counter_mutex);
     while (counter)
     {
       struct timespec abstime;
 
       set_timespec(abstime, 3);
-      pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
+      native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
     }
-    pthread_mutex_unlock(&counter_mutex);
-    pthread_mutex_destroy(&counter_mutex);
-    pthread_cond_destroy(&count_threshhold);
+    native_mutex_unlock(&counter_mutex);
+    native_mutex_destroy(&counter_mutex);
+    native_cond_destroy(&count_threshold);
     pthread_attr_destroy(&attr);
   }
   else

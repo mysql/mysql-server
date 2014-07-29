@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3602,8 +3602,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
 #endif
 
   cache= cache_buff;
-  if (keycache->disk_blocks > 0 &&
-      (!my_disable_flush_key_blocks || type != FLUSH_KEEP))
+  if (keycache->disk_blocks > 0)
   {
     /* Key cache exists and flush is not disabled */
     int error= 0;

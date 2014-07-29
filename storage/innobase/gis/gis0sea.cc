@@ -866,6 +866,43 @@ get_parent:
 			ut_ad(ret && btr_cur->low_match == n_fields);
 		}
 
+		/* Since there could be some identical recs in different
+		pages, we still need to compare the page_no field to
+		verify we have the right parent. */
+		btr_pcur_t*	r_cursor = rtr_get_parent_cursor(btr_cur,
+								 level,
+								 false);
+		rec = btr_pcur_get_rec(r_cursor);
+
+		ulint* offsets = rec_get_offsets(rec, index, NULL,
+						 ULINT_UNDEFINED, &heap);
+		while (page_no != btr_node_ptr_get_child_page_no(rec, offsets)) {
+			ret = rtr_pcur_getnext_from_path(
+				tuple, PAGE_CUR_RTREE_LOCATE, btr_cur,
+				level - 1, BTR_CONT_MODIFY_TREE,
+				true, mtr);
+
+			ut_ad(ret && btr_cur->low_match == n_fields);
+
+			/* There must be a rec in the path, if the path
+			is run out, the spatial index is corrupted. */
+			if (!ret) {
+				mutex_enter(&dict_sys->mutex);
+				dict_set_corrupted_index_cache_only(
+					index, index->table);
+				mutex_exit(&dict_sys->mutex);
+
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"InnoDB: Corruption of a spatail index %s "
+					"of table %s", index->name, index->table_name);
+				break;
+			}
+			r_cursor = rtr_get_parent_cursor(btr_cur, level, false);
+			rec = btr_pcur_get_rec(r_cursor);
+			offsets = rec_get_offsets(rec, index, NULL,
+						  ULINT_UNDEFINED, &heap);
+		}
+
 		sea_cur = btr_cur;
 		goto get_parent;
 	}
@@ -905,8 +942,7 @@ rtr_create_rtr_info(
 	index = index ? index : cursor->index;
 	ut_ad(index);
 
-	rtr_info = static_cast<rtr_info_t*>(ut_malloc(sizeof(*rtr_info)));
-	memset(rtr_info, 0, sizeof(*rtr_info));
+	rtr_info = static_cast<rtr_info_t*>(ut_zalloc(sizeof(*rtr_info)));
 
 	rtr_info->allocated = true;
 	rtr_info->cursor = cursor;
@@ -1236,7 +1272,8 @@ rtr_cur_restore_position_func(
 
 	ut_ad(latch_mode == BTR_CONT_MODIFY_TREE);
 
-	if (buf_page_optimistic_get(RW_X_LATCH,
+	if (!buf_pool_is_obsolete(r_cursor->withdraw_clock)
+	    && buf_page_optimistic_get(RW_X_LATCH,
 				    r_cursor->block_when_stored,
 				    r_cursor->modify_clock, file, line, mtr)) {
 		ut_ad(r_cursor->pos_state == BTR_PCUR_IS_POSITIONED);

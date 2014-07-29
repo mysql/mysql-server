@@ -142,7 +142,7 @@ BEGIN
 SET @v1 = f1;
 SELECT @v1;
 END//
-ERROR 42000: Too big precision 256 specified for column ''. Maximum is 65.
+ERROR 42000: Too-big precision 256 specified for ''. Maximum is 65.
 DROP PROCEDURE IF EXISTS sp1//
 Warnings:
 Note	1305	PROCEDURE db_storedproc.sp1 does not exist
@@ -152,7 +152,7 @@ BEGIN
 SET @v1 = f1;
 SELECT @v1;
 END//
-ERROR 42000: Too big precision 66 specified for column ''. Maximum is 65.
+ERROR 42000: Too-big precision 66 specified for ''. Maximum is 65.
 DROP PROCEDURE IF EXISTS sp1//
 Warnings:
 Note	1305	PROCEDURE db_storedproc.sp1 does not exist

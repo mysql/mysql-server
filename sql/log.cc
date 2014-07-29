@@ -235,7 +235,7 @@ static void ull2timeval(ulonglong utime, struct timeval *tv)
 {
   DBUG_ASSERT(tv != NULL);
   DBUG_ASSERT(utime > 0);      /* should hold true in this context */
-  tv->tv_sec= utime / 1000000;
+  tv->tv_sec= static_cast<long>(utime / 1000000);
   tv->tv_usec=utime % 1000000;
 }
 
@@ -816,8 +816,8 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
     if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t))
       goto err;
     /* lock_time */
-    calc_time_from_sec(&t, min<long>((longlong) (lock_utime / 1000000),
-                                     (longlong) TIME_MAX_VALUE_SECONDS),
+    calc_time_from_sec(&t, min((longlong) (lock_utime / 1000000),
+                               (longlong) TIME_MAX_VALUE_SECONDS),
                        lock_utime % 1000000);
     if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t))
       goto err;
@@ -1022,13 +1022,13 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
-  uint user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                                sctx->priv_user ? sctx->priv_user : "", "[",
-                                sctx->user ? sctx->user : "", "] @ ",
-                                sctx->get_host()->length() ?
-                                sctx->get_host()->ptr() : "", " [",
-                                sctx->get_ip()->length() ? sctx->get_ip()->ptr() :
-                                "", "]", NullS) - user_host_buff);
+  size_t user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
+                                  sctx->priv_user ? sctx->priv_user : "", "[",
+                                  sctx->user ? sctx->user : "", "] @ ",
+                                  sctx->get_host()->length() ?
+                                  sctx->get_host()->ptr() : "", " [",
+                                  sctx->get_ip()->length() ? sctx->get_ip()->ptr() :
+                                  "", "]", NullS) - user_host_buff);
   ulonglong current_utime= thd->current_utime();
   ulonglong query_utime, lock_utime;
   if (thd->start_utime)
@@ -1166,7 +1166,7 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
 
 
 void Query_logger::init_query_log(enum_log_table_type log_type,
-                                  uint log_printer)
+                                  ulonglong log_printer)
 {
   if (log_type == QUERY_LOG_SLOW)
   {
@@ -1221,7 +1221,7 @@ void Query_logger::init_query_log(enum_log_table_type log_type,
 }
 
 
-void Query_logger::set_handlers(uint log_printer)
+void Query_logger::set_handlers(ulonglong log_printer)
 {
   mysql_rwlock_wrlock(&LOCK_logger);
 
@@ -1532,9 +1532,9 @@ bool Slow_log_throttle::log(THD *thd, bool eligible)
 }
 
 
-bool Error_log_throttle::log(THD *thd)
+bool Error_log_throttle::log()
 {
-  ulonglong end_utime_of_query= thd->current_utime();
+  ulonglong end_utime_of_query= my_micro_time();
 
   /*
     If the window has expired, we'll try to write a summary line.
@@ -1557,7 +1557,7 @@ bool Error_log_throttle::log(THD *thd)
 }
 
 
-bool Error_log_throttle::flush(THD *thd)
+bool Error_log_throttle::flush()
 {
   // Write summary if we throttled.
   ulong     suppressed_count= prepare_summary(1);
@@ -1859,8 +1859,6 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
 
 ulong tc_log_page_waits= 0;
 
-#ifdef HAVE_MMAP
-
 #define TC_LOG_HEADER_SIZE (sizeof(tc_log_magic)+1)
 
 static const char tc_log_magic[]={(char) 254, 0x23, 0x05, 0x74};
@@ -1934,7 +1932,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
     pg->next=pg+1;
     pg->waiters=0;
     pg->state=PS_POOL;
-    mysql_cond_init(key_PAGE_cond, &pg->cond, 0);
+    mysql_cond_init(key_PAGE_cond, &pg->cond);
     pg->size=pg->free=tc_log_page_size/sizeof(my_xid);
     pg->start= (my_xid *)(data + i*tc_log_page_size);
     pg->end= pg->start + pg->size;
@@ -1955,8 +1953,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
   inited=5;
 
   mysql_mutex_init(key_LOCK_tc, &LOCK_tc, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_active, &COND_active, 0);
-  mysql_cond_init(key_COND_pool, &COND_pool, 0);
+  mysql_cond_init(key_COND_active, &COND_active);
+  mysql_cond_init(key_COND_pool, &COND_pool);
 
   inited=6;
 
@@ -2310,7 +2308,6 @@ err1:
                   "--tc-heuristic-recover={commit|rollback}");
   return 1;
 }
-#endif
 
 TC_LOG *tc_log;
 TC_LOG_DUMMY tc_log_dummy;

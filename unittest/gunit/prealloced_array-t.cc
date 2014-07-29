@@ -215,6 +215,27 @@ TEST_F(PreallocedArrayTest, ResizeShrink)
   EXPECT_EQ(10U, int_10.size());
 }
 
+TEST_F(PreallocedArrayTest, InsertUnique)
+{
+  for (int ix= 0; ix < 10; ++ix)
+  {
+    int_10.push_back(ix);
+    int_10.push_back(ix);
+  }
+  std::random_shuffle(int_10.begin(), int_10.end());
+  Prealloced_array<int, 1> unique_arr(PSI_NOT_INSTRUMENTED);
+  for (int *pi= int_10.begin(); pi != int_10.end(); ++pi)
+  {    
+    unique_arr.insert_unique(*pi);
+  }
+  EXPECT_EQ(10U, unique_arr.size());
+  // Duplicates should have been ignored, and the result should be sorted.
+  for (int ix= 0; ix < static_cast<int>(unique_arr.size()); ++ix)
+  {
+    EXPECT_EQ(ix, unique_arr[ix]);
+  }
+}
+
 /*
   A simple class for testing that object copying and destruction is done
   properly when we have to expand the array a few times,
@@ -382,6 +403,42 @@ TEST_F(PreallocedArrayTest, NoMemLeaksStdSwap)
   // We expect a buffer swap here.
   EXPECT_EQ(p1, array2.begin());
   EXPECT_EQ(p2, array1.begin());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitMalloc)
+{
+  Prealloced_array<IntWrap, 1, false> array1(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array1.push_back(IntWrap(ix));
+  IntWrap *p1= array1.begin();
+  array1.shrink_to_fit();
+  EXPECT_EQ(42U, array1.size());
+  EXPECT_EQ(42U, array1.capacity());
+  EXPECT_NE(p1, array1.begin());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitSameSize)
+{
+  Prealloced_array<IntWrap, 10, false> array1(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array1.push_back(IntWrap(ix));
+  for (int ix= 0; array1.size() != array1.capacity(); ++ix)
+    array1.push_back(IntWrap(ix));
+  IntWrap *p1= array1.begin();
+  array1.shrink_to_fit();
+  EXPECT_EQ(p1, array1.begin());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksShrinkToFitPrealloc)
+{
+  Prealloced_array<IntWrap, 100, false> array1(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array1.push_back(IntWrap(ix));
+  IntWrap *p1= array1.begin();
+  array1.shrink_to_fit();
+  EXPECT_EQ(42U, array1.size());
+  EXPECT_EQ(100U, array1.capacity());
+  EXPECT_EQ(p1, array1.begin());
 }
 
 /*

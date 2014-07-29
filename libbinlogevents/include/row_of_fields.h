@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,6 @@
 #include <vector>
 #include <iostream>
 
-using namespace binary_log;
-
 namespace binary_log
 {
 
@@ -36,13 +34,11 @@ class Row_of_fields : public std::vector<Value >
 {
 public:
     Row_of_fields() : std::vector<Value >(0) { }
-    Row_of_fields(int field_count) : std::vector<Value >(field_count) {}
+    explicit Row_of_fields(int field_count) : std::vector<Value >(field_count) {}
     virtual ~Row_of_fields() {}
 
     Row_of_fields& operator=(const Row_of_fields &right);
     Row_of_fields& operator=(Row_of_fields &right);
-
-private:
 
 };
 

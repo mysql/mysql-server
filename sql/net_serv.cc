@@ -79,13 +79,9 @@ PSI_memory_key key_memory_NET_compress_packet;
 */
 extern void query_cache_insert(const char *packet, ulong length,
                                unsigned pkt_nr);
-#define update_statistics(A) A
-#else /* MYSQL_SERVER */
-#define update_statistics(A)
-#define thd_increment_bytes_sent(N)
-#endif
+extern void thd_increment_bytes_sent(size_t length);
+extern void thd_increment_bytes_received(size_t length);
 
-#ifdef MYSQL_SERVER
 /* Additional instrumentation hooks for the server */
 #include "mysql_com_server.h"
 #endif
@@ -93,7 +89,7 @@ extern void query_cache_insert(const char *packet, ulong length,
 #define VIO_SOCKET_ERROR  ((size_t) -1)
 #define MAX_PACKET_LENGTH (256L*256L*256L-1)
 
-static my_bool net_write_buff(NET *, const uchar *, ulong);
+static my_bool net_write_buff(NET *, const uchar *, size_t);
 
 /** Init with packet info. */
 
@@ -307,7 +303,7 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
     len-=     z_size;
   }
   /* Write last packet */
-  int3store(buff,len);
+  int3store(buff, static_cast<uint>(len));
   buff[3]= (uchar) net->pkt_nr++;
   if (net_write_buff(net, buff, NET_HEADER_SIZE))
   {
@@ -389,7 +385,7 @@ net_write_command(NET *net,uchar command,
     } while (length >= MAX_PACKET_LENGTH);
     len=length;         /* Data left to be written */
   }
-  int3store(buff,length);
+  int3store(buff, static_cast<uint>(length));
   buff[3]= (uchar) net->pkt_nr++;
   rc= MY_TEST(net_write_buff(net, buff, header_size) ||
               (head_len && net_write_buff(net, header, head_len)) ||
@@ -426,7 +422,7 @@ net_write_command(NET *net,uchar command,
 */
 
 static my_bool
-net_write_buff(NET *net, const uchar *packet, ulong len)
+net_write_buff(NET *net, const uchar *packet, size_t len)
 {
   ulong left_length;
   if (net->compress && net->max_packet > MAX_PACKET_LENGTH)
@@ -506,7 +502,9 @@ net_write_raw_loop(NET *net, const uchar *buf, size_t count)
 
     count-= sentcnt;
     buf+= sentcnt;
-    update_statistics(thd_increment_bytes_sent(sentcnt));
+#ifdef MYSQL_SERVER
+    thd_increment_bytes_sent(sentcnt);
+#endif
   }
 
   /* On failure, propagate the error code. */
@@ -570,9 +568,9 @@ compress_packet(NET *net, const uchar *packet, size_t *length)
   }
 
   /* Length of the compressed (original) packet. */
-  int3store(&compr_packet[NET_HEADER_SIZE], compr_length);
+  int3store(&compr_packet[NET_HEADER_SIZE], static_cast<uint>(compr_length));
   /* Length of this packet. */
-  int3store(compr_packet, *length);
+  int3store(compr_packet, static_cast<uint>(*length));
   /* Packet number. */
   compr_packet[3]= (uchar) (net->compress_pkt_nr++);
 
@@ -682,7 +680,9 @@ static my_bool net_read_raw_loop(NET *net, size_t count)
 
     count-= recvcnt;
     buf+= recvcnt;
-    update_statistics(thd_increment_bytes_received(recvcnt));
+#ifdef MYSQL_SERVER
+    thd_increment_bytes_received(recvcnt);
+#endif
   }
 
   /* On failure, propagate the error code. */
@@ -934,7 +934,7 @@ my_net_read(NET *net)
     }
     for (;;)
     {
-      ulong packet_len;
+      size_t packet_len;
 
       if (buf_length - start_of_packet >= NET_HEADER_SIZE)
       {

@@ -465,6 +465,7 @@ NdbOperation::reorderKEYINFO()
   Uint32 data[ NDB_MAX_KEYSIZE_IN_WORDS ];
   Uint32 size = NDB_MAX_KEYSIZE_IN_WORDS;
   int rc = getKeyFromTCREQ(data, size);
+  (void)rc;
   assert(rc == 0);
   Uint32 pos = 1;
   Uint32 k;
@@ -481,6 +482,7 @@ NdbOperation::reorderKEYINFO()
             assert(off < NDB_MAX_KEYSIZE_IN_WORDS && 
                    off + len <= NDB_MAX_KEYSIZE_IN_WORDS);
             int ret = insertKEYINFO((char*)&data[off], pos, len);
+            (void)ret;
             assert(ret == 0);
             pos += len;
             break;

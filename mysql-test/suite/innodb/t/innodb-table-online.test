@@ -2,7 +2,9 @@
 --source include/have_debug_sync.inc
 
 let $innodb_metrics_select=
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and name not in
+('ddl_sort_file_alter_table','ddl_log_file_alter_table') and count > 0;
 
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 # these will be triggered by DISCARD TABLESPACE

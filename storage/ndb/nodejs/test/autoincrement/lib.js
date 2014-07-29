@@ -75,7 +75,7 @@ global.verify_autopk = function(err, instance, id, testCase, domainObject) {
 };
 
 /** Verify the instance or fail the test case */
-global.fail_verify_autopk = function(err, instance, id, testCase, domainObject) {
+global.fail_verify_autopk = function(err, instance, id, testCase, domainObject, checkId) {
   if (err) {
     testCase.fail(err);
     return;
@@ -98,6 +98,9 @@ global.fail_verify_autopk = function(err, instance, id, testCase, domainObject) 
   var message = '';
   if (!instance.id) {
     testCase.appendErrorMessage('autoincrement instance.id is not set; instance.id: ' + instance.id);
+  }
+  if (checkId && instance.id != id) {
+    message += 'fail to verify id: expected: ' + id + ', actual: ' + instance.id + '\n';
   }
   if (instance.age != id) {
     message += 'fail to verify age: expected: ' + id + ', actual: ' + instance.age + '\n';

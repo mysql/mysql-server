@@ -688,7 +688,9 @@ enum blob_op {
 	/** Store off-page columns for an insert by update */
 	BTR_STORE_INSERT_UPDATE,
 	/** Store off-page columns for an update */
-	BTR_STORE_UPDATE
+	BTR_STORE_UPDATE,
+	/** Store off-page columns for a freshly inserted record by bulk */
+	BTR_STORE_INSERT_BULK
 };
 
 /*******************************************************************//**

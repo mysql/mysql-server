@@ -142,7 +142,7 @@ public:
   { 
     return (MY_XPATH_FLT*) (ptr() + i * sizeof(MY_XPATH_FLT));
   }
-  inline uint32 numelements()
+  inline size_t numelements()
   {
     return length() / sizeof(MY_XPATH_FLT);
   }
@@ -1302,7 +1302,7 @@ MY_XPATH_FUNC *
 my_xpath_function(const char *beg, const char *end)
 {
   MY_XPATH_FUNC *k, *function_names;
-  uint length= end-beg;
+  size_t length= end-beg;
   switch (length)
   {
     case 1: return 0;

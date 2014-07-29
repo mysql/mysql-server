@@ -47,8 +47,8 @@ Item_splocal* create_item_for_sp_var(THD *thd,
                                      const char *end)
 {
   LEX *lex= thd->lex;
-  uint spv_pos_in_query= 0;
-  uint spv_len_in_query= 0;
+  size_t spv_pos_in_query= 0;
+  size_t spv_len_in_query= 0;
   sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
   /* If necessary, look for the variable. */
@@ -282,7 +282,8 @@ bool set_trigger_new_row(Parse_context *pc,
     Let us add this item to list of all Item_trigger_field
     objects in trigger.
   */
-  sp->m_trg_table_fields.link_in_list(trg_fld, &trg_fld->next_trg_field);
+  sp->m_cur_instr_trig_field_items.link_in_list(trg_fld,
+                                                &trg_fld->next_trg_field);
 
   return sp->add_instr(thd, i);
 }

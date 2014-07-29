@@ -313,6 +313,37 @@ Rows_event::~Rows_event()
   }
 }
 
+/**
+  The ctor of Rows_query_event,
+  Here we are copying the exact query executed in RBR, to a
+  char array m_rows_query
+*/
+Rows_query_event::
+Rows_query_event(const char *buf, unsigned int event_len,
+                 const Format_description_event *descr_event)
+ : Ignorable_event(buf, descr_event)
+{
+  uint8_t const common_header_len=
+    descr_event->common_header_len;
+  uint8_t const post_header_len=
+    descr_event->post_header_len[ROWS_QUERY_LOG_EVENT-1];
+
+  /*
+   m_rows_query length is stored using only one byte, but that length is
+   ignored and the complete query is read.
+  */
+  int offset= common_header_len + post_header_len + 1;
+  int len= event_len - offset;
+  if (!(m_rows_query= (char*) bapi_malloc(len + 1, MEMORY_LOG_EVENT, 16)))
+    return;
+  bapi_strmake(m_rows_query, buf + offset , len);
+}
+
+Rows_query_event::~Rows_query_event()
+{
+  if(m_rows_query)
+     bapi_free(m_rows_query);
+}
 
 #ifndef HAVE_MYSYS
 void Table_map_event::print_event_info(std::ostream& info)

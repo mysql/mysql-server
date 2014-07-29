@@ -24,7 +24,7 @@ var mysql = require('mysql');
 
 var tableHandlers = {
     'a': {
-      insertSQL: 'INSERT INTO a(id, cint, clong, cfloat, cdouble) values (?,?,?,?,?)',
+      insertSQL: 'INSERT INTO a(id, cint, clong, cfloat, cdouble) VALUES (?,?,?,?,?)',
       createInsertParameterList: function(object) {
         var result = [];
         result.push(object.id);
@@ -42,7 +42,35 @@ var tableHandlers = {
           return [object.id];
         } else throw new Error('createFindParameterList parameter must be number or object');
       },
-      findSQL: 'SELECT id, cint, clong, cfloat, cdouble FROM a where id = ?',
+      findSQL: 'SELECT id, cint, clong, cfloat, cdouble FROM a WHERE id = ?',
+      createFindParameterList: function(object) {
+        if (typeof(object) === 'number') {
+          return [object];
+        } else if (typeof(object) === 'object') {
+          return [object.id];
+        } else throw new Error('createFindParameterList parameter must be number or object');
+      }
+    },
+    'b': {
+      insertSQL: 'INSERT INTO b(id, cint, clong, cfloat, cdouble) VALUES (?,?,?,?,?)',
+      createInsertParameterList: function(object) {
+        var result = [];
+        result.push(object.id);
+        result.push(object.cint);
+        result.push(object.clong);
+        result.push(object.cfloat);
+        result.push(object.cdouble);
+        return result;
+      },
+      deleteSQL: 'DELETE FROM b WHERE id = ?',
+      createDeleteParameterList: function(object) {
+        if (typeof(object) === 'number') {
+          return [object];
+        } else if (typeof(object) === 'object') {
+          return [object.id];
+        } else throw new Error('createFindParameterList parameter must be number or object');
+      },
+      findSQL: 'SELECT id, cint, clong, cfloat, cdouble FROM b WHERE id = ?',
       createFindParameterList: function(object) {
         if (typeof(object) === 'number') {
           return [object];
@@ -54,29 +82,48 @@ var tableHandlers = {
 };
 
 var implementation = function() {
-  // the connection is initialized in function initialize
-  var connection = null;
+};
+
+implementation.prototype.getDefaultProperties = function() {
+  return {
+    mysql_host      : 'localhost',
+    mysql_port      : 3306,
+    mysql_user      : 'root',
+    mysql_password  : '',
+    database        : 'test'
+  };
 };
 
 implementation.prototype.initialize = function(options, callback) {
   JSCRUND.udebug.log_detail('jscrund_sql.initialize', this);
-  var impl = this;
-  // set up the session
   var properties = {};
   // set up mysql properties
-  properties.host = options.properties.mysql_host || 'localhost';
-  properties.port = options.properties.mysql_port || 3306;
+  properties.host = options.properties.mysql_host;
+  properties.port = options.properties.mysql_port;
   properties.user = options.properties.mysql_user;
   properties.password = options.properties.mysql_password;
   properties.database = options.properties.database;
-  
+  properties.multipleStatements = true;
   JSCRUND.udebug.log_detail('jscrund_sql.initialize calling mysql.createConnection', properties);
+  this.inBatchMode = false;
   this.connection = mysql.createConnection(properties);
-  this.connection.connect(function(err) {
-    JSCRUND.udebug.log_detail('jscrund_sql implementation.initialize connection:', impl.connection);
-    callback(err); // report error if any
-  });
+  this.connection.connect(callback);
 };
+
+implementation.prototype.exec = function(statement, values, callback) {
+  var v;
+  if(this.inBatchMode) {
+    this.batchCallbacks.push(callback);
+    this.batchQuery += statement + "; ";
+    while((v = values.shift()) != undefined) {
+      this.batchValues.push(v);
+    }
+  }
+  else {
+    this.connection.query(statement, values, callback);
+  }
+
+}
 
 implementation.prototype.persist = function(parameters, callback) {
   // which object is it
@@ -88,15 +135,9 @@ implementation.prototype.persist = function(parameters, callback) {
 
   // find the handler for the table
   var tableHandler = tableHandlers[tableName];
-  this.connection.query(tableHandler.insertSQL, tableHandler.createInsertParameterList(object), 
-      function(err) {
-        if (err) {
-          JSCRUND.udebug.log_detail('jscrund_sql implementation.insert callback err:', err);
-        } else {
-          JSCRUND.udebug.log_detail('jscrund_sql implementation.insert no error');
-        }
-        callback(err);
-      });
+  this.exec(tableHandler.insertSQL,
+            tableHandler.createInsertParameterList(object),
+            callback);
 };
 
 implementation.prototype.find = function(parameters, callback) {
@@ -108,15 +149,9 @@ implementation.prototype.find = function(parameters, callback) {
 
   // find the handler for the table
   var tableHandler = tableHandlers[tableName];
-  this.connection.query(tableHandler.findSQL, tableHandler.createFindParameterList(parameters.key), 
-      function(err, result) {
-        if (err) {
-          JSCRUND.udebug.log_detail('jscrund_sql implementation.find callback err:', err);
-        } else {
-          JSCRUND.udebug.log_detail('jscrund_sql implementation.find result:', result);
-        }
-        callback(err, result);
-      });
+  this.exec(tableHandler.findSQL,
+            tableHandler.createFindParameterList(parameters.key),
+            callback);
 };
 
 implementation.prototype.remove = function(parameters, callback) {
@@ -128,25 +163,32 @@ implementation.prototype.remove = function(parameters, callback) {
 
   // find the handler for the table
   var tableHandler = tableHandlers[tableName];
-  this.connection.query(tableHandler.deleteSQL, tableHandler.createFindParameterList(parameters.key), 
-      function(err, result) {
-        if (err) {
-          JSCRUND.udebug.log_detail('jscrund_sql implementation.remove callback err:', err);
-        } else {
-          JSCRUND.udebug.log_detail('jscrund_sql implementation.remove no error');
-        }
-        callback(err);
-  });
-};
+  this.exec(tableHandler.deleteSQL,
+            tableHandler.createFindParameterList(parameters.key),
+            callback);
+ };
 
 implementation.prototype.createBatch = function(callback) {
   JSCRUND.udebug.log_detail('jscrund_sql implementation.createBatch');
-  this.begin(callback);
+  this.inBatchMode = true;
+  this.batchQuery = "";
+  this.batchValues = [];
+  this.batchCallbacks = [];
+  setImmediate(callback);
 };
 
 implementation.prototype.executeBatch = function(callback) {
-  JSCRUND.udebug.log_detail('jscrund_sql implementation.begin');
-  this.commit(callback);
+  JSCRUND.udebug.log_detail('jscrund_sql implementation.executeBatch');
+  var callbacks = this.batchCallbacks;
+  function allCallbacks(err, results) {
+    var n;
+    for(n = 0 ; n < callbacks.length ; n++) {
+      callbacks[n](err, results[n]);
+    }
+  }
+  this.connection.query(this.batchQuery, this.batchValues, allCallbacks);
+  this.inBatchMode = false;
+  setImmediate(callback);
 };
 
 implementation.prototype.begin = function(callback) {

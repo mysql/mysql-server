@@ -84,8 +84,6 @@ dict_mem_table_create(
 	lock_table_lock_list_init(&table->locks);
 
 	UT_LIST_INIT(table->indexes, &dict_index_t::indexes);
-	UT_LIST_INIT(table->foreign_list, &dict_foreign_t::foreign_list);
-	UT_LIST_INIT(table->referenced_list, &dict_foreign_t::referenced_list);
 
 	table->heap = heap;
 
@@ -116,6 +114,9 @@ dict_mem_table_create(
 
 	table->autoinc = 0;
 
+	table->sess_row_id = 0;
+	table->sess_trx_id = 0;
+
 	/* The number of transactions that are either waiting on the
 	AUTOINC lock or have been granted the lock. */
 	table->n_waiting_or_granted_auto_inc_locks = 0;
@@ -131,6 +132,9 @@ dict_mem_table_create(
 		table->fts = NULL;
 	}
 #endif /* !UNIV_HOTBACKUP */
+
+	new(&table->foreign_set) dict_foreign_set();
+	new(&table->referenced_set) dict_foreign_set();
 
 	return(table);
 }
@@ -163,6 +167,9 @@ dict_mem_table_free(
 #endif /* UNIV_HOTBACKUP */
 
 	dict_table_stats_latch_destroy(table);
+
+	table->foreign_set.~dict_foreign_set();
+	table->referenced_set.~dict_foreign_set();
 
 	ut_free(table->name);
 	mem_heap_free(table->heap);
@@ -334,10 +341,15 @@ dict_mem_table_col_rename_low(
 		table->col_names = col_names;
 	}
 
+	dict_foreign_t*	foreign;
+
 	/* Replace the field names in every foreign key constraint. */
-	for (dict_foreign_t* foreign = UT_LIST_GET_FIRST(table->foreign_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+	for (dict_foreign_set::iterator it = table->foreign_set.begin();
+	     it != table->foreign_set.end();
+	     ++it) {
+
+		foreign = *it;
+
 		for (unsigned f = 0; f < foreign->n_fields; f++) {
 			/* These can point straight to
 			table->col_names, because the foreign key
@@ -349,10 +361,12 @@ dict_mem_table_col_rename_low(
 		}
 	}
 
-	for (dict_foreign_t* foreign = UT_LIST_GET_FIRST(
-		     table->referenced_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+	for (dict_foreign_set::iterator it = table->referenced_set.begin();
+	     it != table->referenced_set.end();
+	     ++it) {
+
+		foreign = *it;
+
 		for (unsigned f = 0; f < foreign->n_fields; f++) {
 			/* foreign->referenced_col_names[] need to be
 			copies, because the constraint may become

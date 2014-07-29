@@ -26,7 +26,7 @@ class THD;
 typedef struct st_mysql_lock MYSQL_LOCK;
 
 
-MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count, uint flags);
+MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, size_t count, uint flags);
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);

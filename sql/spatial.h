@@ -694,7 +694,7 @@ public:
                              const char *data, uint32 data_len);
   static Geometry *construct(Geometry_buffer *buffer, const String *str)
   {
-    return construct(buffer, str->ptr(), str->length());
+    return construct(buffer, str->ptr(), static_cast<uint32>(str->length()));
   }
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
 				   Gis_read_stream *trs, String *wkt,
@@ -2371,10 +2371,21 @@ public:
 
     const_cast<self &>(v).reassemble();
     set_flags(v.get_flags());
-    m_ptr= gis_wkb_alloc(get_nbytes());
-    memcpy(m_ptr, v.get_ptr(), get_nbytes());
-    parse_wkb_data(this, get_cptr(), v.get_geo_vect()->size());
-    set_ownmem(true);
+    set_nbytes(v.get_nbytes());
+    if (get_nbytes() > 0)
+    {
+      m_ptr= gis_wkb_alloc(v.get_nbytes() + 2);
+      memcpy(m_ptr, v.get_ptr(), v.get_nbytes());
+      /*
+        The extra 2 bytes makes the buffer usable by get_nbytes_free.
+        It's hard to know how many more space will be needed so let's 
+        allocate more later.
+      */
+      get_cptr()[get_nbytes()]= '\xff';
+      get_cptr()[get_nbytes() + 1]= '\0';
+      parse_wkb_data(this, get_cptr(), v.get_geo_vect()->size());
+      set_ownmem(true);
+    }
     guard.release();
   }
 
@@ -2395,7 +2406,7 @@ public:
       exception now. We do so nonetheless for potential mis-use of exceptions
       in futher code.
     */
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
     try
     {
 #endif
@@ -2403,7 +2414,7 @@ public:
         return;
       if (m_geo_vect != NULL)
         clear_wkb_data();
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
     }
     catch (...)
     {
@@ -2652,9 +2663,14 @@ public:
 
     size_t cap= current_size();
     if (cap == 0)
+    {
+      DBUG_ASSERT(m_ptr == NULL);
       return 0;
+    }
 
     const char *p= NULL, *ptr= get_cptr();
+    DBUG_ASSERT(ptr != NULL);
+
     /*
       There will always be remaining free space because in push_back, when
       number of free bytes equals needed bytes we will do a realloc.
@@ -2839,7 +2855,7 @@ public:
       memset((get_cptr() + get_nbytes() - sublen), 0xff, sublen);
       set_nbytes(get_nbytes() - sublen);
 
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
       bool rsz_ret= m_geo_vect->resize(sz);
       DBUG_ASSERT(rsz_ret == false);
 #else
@@ -3069,7 +3085,7 @@ public:
           // component can be a multipoint/multilinestring/multipolygon or a
           // geometrycollection. And multipoint components are already supported
           // so not forbidding them here.
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
           Geometry::wkbType veci_gt= veci->get_geotype();
 #endif
           DBUG_ASSERT(veci_gt != wkb_geometrycollection &&

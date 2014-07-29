@@ -51,7 +51,7 @@ static int check_event_type(int type, Relay_log_info *rli)
     Log_event_type new_type;
     new_type= (Log_event_type) fd_event->event_type_permutation[type];
     DBUG_PRINT("info", ("converting event type %d to %d (%s)",
-                        type, new_type, Log_event::get_type_str(new_type)));
+                        type, new_type, binary_log::Binary_log_event::get_type_str_with_para(new_type).c_str()));
 #endif
     type= fd_event->event_type_permutation[type];
   }
@@ -90,7 +90,7 @@ static int check_event_type(int type, Relay_log_info *rli)
     else
     {
       my_error(ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT,
-               MYF(0), Log_event::get_type_str((Log_event_type)type));
+               MYF(0), binary_log::Binary_log_event::get_type_str_with_para((Log_event_type)type).c_str());
       return 1;
     }
     break;
@@ -104,7 +104,7 @@ static int check_event_type(int type, Relay_log_info *rli)
       thread when the slave SQL thread is running.
     */
     my_error(ER_ONLY_FD_AND_RBR_EVENTS_ALLOWED_IN_BINLOG_STATEMENT,
-             MYF(0), Log_event::get_type_str((Log_event_type)type));
+             MYF(0), binary_log::Binary_log_event::get_type_str_with_para((Log_event_type)type).c_str());
     return 1;
   }
 }
