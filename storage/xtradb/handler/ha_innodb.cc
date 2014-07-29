@@ -3276,6 +3276,14 @@ innobase_end(
 
 	if (innodb_inited) {
 
+		THD *thd= current_thd;
+		if (thd) { // may be UNINSTALL PLUGIN statement
+		 	trx_t* trx = thd_to_trx(thd);
+		 	if (trx) {
+		 		trx_free_for_mysql(trx);
+		 	}
+		}
+
 		srv_fast_shutdown = (ulint) innobase_fast_shutdown;
 		innodb_inited = 0;
 		hash_table_free(innobase_open_tables);
