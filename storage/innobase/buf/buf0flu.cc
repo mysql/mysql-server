@@ -100,6 +100,9 @@ struct page_cleaner_slot_t {
 	ulint			n_flushed_list;
 					/*!< number of flushed pages
 					by flush_list flushing */
+	bool			succeeded_list;
+					/*!< true if flush_list flushing
+					succeeded. */
 };
 
 /** Page cleaner structure common for all threads */
@@ -132,6 +135,8 @@ struct page_cleaner_t {
 						in the state
 						PAGE_CLEANER_STATE_FINISHED */
 	page_cleaner_slot_t*	slots;		/*!< pointer to the slots */
+	bool			is_running;	/*!< false if attempt
+						to shutdown */
 };
 
 static page_cleaner_t*	page_cleaner = NULL;
@@ -2182,28 +2187,6 @@ buf_flush_wait_LRU_batch_end(void)
 }
 
 /*********************************************************************//**
-Flush a batch of dirty pages from the flush list
-@return number of pages flushed, 0 if no page is flushed or if another
-flush_list type batch is running */
-static
-ulint
-pc_do_flush_batch(
-/*==============*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	ulint		n_to_flush,	/*!< in: number of pages that
-					we should attempt to flush. */
-	lsn_t		lsn_limit)	/*!< in: LSN up to which flushing
-					must happen */
-{
-	ulint n_flushed;
-
-	buf_flush_do_batch(buf_pool, BUF_FLUSH_LIST, n_to_flush,
-			   lsn_limit, &n_flushed);
-
-	return(n_flushed);
-}
-
-/*********************************************************************//**
 Calculates if flushing is required based on number of dirty pages in
 the buffer pool.
 @return percent of io_capacity to flush to manage dirty page ratio */
@@ -2437,6 +2420,8 @@ buf_flush_page_cleaner_init(void)
 	page_cleaner->slots = static_cast<page_cleaner_slot_t*>(
 		ut_zalloc_nokey(page_cleaner->n_slots
 				* sizeof(*page_cleaner->slots)));
+
+	page_cleaner->is_running = true;
 }
 
 /**
@@ -2546,7 +2531,7 @@ pc_flush_slot(void)
 			os_event_reset(page_cleaner->is_requested);
 		}
 
-		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		if (!page_cleaner->is_running) {
 			slot->n_flushed_lru = 0;
 			slot->n_flushed_list = 0;
 			goto finish_mutex;
@@ -2557,19 +2542,21 @@ pc_flush_slot(void)
 		/* Flush pages from end of LRU if required */
 		slot->n_flushed_lru = buf_flush_LRU_list(buf_pool);
 
-		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		if (!page_cleaner->is_running) {
 			slot->n_flushed_list = 0;
 			goto finish;
 		}
 
 		/* Flush pages from flush_list if required */
 		if (page_cleaner->n_pages_requested > 0) {
-			slot->n_flushed_list = pc_do_flush_batch(
-				buf_pool,
+			slot->succeeded_list = buf_flush_do_batch(
+				buf_pool, BUF_FLUSH_LIST,
 				page_cleaner->n_pages_requested,
-				page_cleaner->lsn_limit);
+				page_cleaner->lsn_limit,
+				&slot->n_flushed_list);
 		} else {
 			slot->n_flushed_list = 0;
+			slot->succeeded_list = true;
 		}
 finish:
 		mutex_enter(&page_cleaner->mutex);
@@ -2595,13 +2582,16 @@ finish_mutex:
 Wait until all flush requests are finished.
 @param n_flushed_lru	number of pages flushed from the end of the LRU list.
 @param n_flushed_list	number of pages flushed from the end of the
-			flush_list. */
+			flush_list.
+@return			true if all flush_list flushing batch were success. */
 static
-void
+bool
 pc_wait_finished(
 	ulint*	n_flushed_lru,
 	ulint*	n_flushed_list)
 {
+	bool	all_succeeded = true;
+
 	*n_flushed_lru = 0;
 	*n_flushed_list = 0;
 
@@ -2620,6 +2610,7 @@ pc_wait_finished(
 
 		*n_flushed_lru += slot->n_flushed_lru;
 		*n_flushed_list += slot->n_flushed_list;
+		all_succeeded &= slot->succeeded_list;
 
 		slot->state = PAGE_CLEANER_STATE_NONE;
 	}
@@ -2629,6 +2620,8 @@ pc_wait_finished(
 	os_event_reset(page_cleaner->is_finished);
 
 	mutex_exit(&page_cleaner->mutex);
+
+	return(all_succeeded);
 }
 
 /******************************************************************//**
@@ -2659,6 +2652,47 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	buf_page_cleaner_is_active = TRUE;
+
+	while (!srv_read_only_mode
+	       && srv_shutdown_state == SRV_SHUTDOWN_NONE
+	       && recv_sys->heap != NULL) {
+		/* treat flushing requests during recovery. */
+		ulint	n_flushed_lru = 0;
+		ulint	n_flushed_list = 0;
+
+		os_event_wait(recv_sys->flush_start);
+
+		if (srv_shutdown_state != SRV_SHUTDOWN_NONE
+		    || recv_sys->heap == NULL) {
+			break;
+		}
+
+		switch (recv_sys->flush_type) {
+		case BUF_FLUSH_LRU:
+			/* Flush pages from end of LRU if required */
+			pc_request(0, LSN_MAX);
+			while (pc_flush_slot() > 0) {}
+			pc_wait_finished(&n_flushed_lru, &n_flushed_list);
+			break;
+
+		case BUF_FLUSH_LIST:
+			/* Flush all pages */
+			do {
+				pc_request(ULINT_MAX, LSN_MAX);
+				while (pc_flush_slot() > 0) {}
+			} while (!pc_wait_finished(&n_flushed_lru,
+						   &n_flushed_list));
+			break;
+
+		default:
+			ut_ad(0);
+		}
+
+		os_event_reset(recv_sys->flush_start);
+		os_event_set(recv_sys->flush_end);
+	}
+
+	os_event_wait(buf_flush_event);
 
 	ulint		ret_sleep = 0;
 	int64_t		sig_count = os_event_reset(buf_flush_event);
@@ -2756,11 +2790,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 		}
 	}
 
-	/* All worker threads are waiting for the event here,
-	and no more access to page_cleaner structure by them.
-	Wakes worker threads up just to make them exit. */
-	os_event_set(page_cleaner->is_requested);
-
 	ut_ad(srv_shutdown_state > 0);
 	if (srv_fast_shutdown == 2
 	    || srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
@@ -2783,7 +2812,15 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	dirtied until we enter SRV_SHUTDOWN_FLUSH_PHASE phase. */
 
 	do {
-		buf_flush_lists(PCT_IO(100), LSN_MAX, &n_flushed);
+		pc_request(PCT_IO(100), LSN_MAX);
+
+		while (pc_flush_slot() > 0) {}
+
+		ulint	n_flushed_lru = 0;
+		ulint	n_flushed_list = 0;
+		pc_wait_finished(&n_flushed_lru, &n_flushed_list);
+
+		n_flushed = n_flushed_lru + n_flushed_list;
 
 		/* We sleep only if there are no pages to flush */
 		if (n_flushed == 0) {
@@ -2809,8 +2846,16 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	bool	success;
 
 	do {
+		pc_request(PCT_IO(100), LSN_MAX);
 
-		success = buf_flush_lists(PCT_IO(100), LSN_MAX, &n_flushed);
+		while (pc_flush_slot() > 0) {}
+
+		ulint	n_flushed_lru = 0;
+		ulint	n_flushed_list = 0;
+		success = pc_wait_finished(&n_flushed_lru, &n_flushed_list);
+
+		n_flushed = n_flushed_lru + n_flushed_list;
+
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 	} while (!success || n_flushed > 0);
@@ -2827,6 +2872,12 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	/* We have lived our life. Time to die. */
 
 thread_exit:
+	/* All worker threads are waiting for the event here,
+	and no more access to page_cleaner structure by them.
+	Wakes worker threads up just to make them exit. */
+	page_cleaner->is_running = false;
+	os_event_set(page_cleaner->is_requested);
+
 	buf_flush_page_cleaner_close();
 
 	buf_page_cleaner_is_active = FALSE;
@@ -2855,7 +2906,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 
 	while (true) {
 		os_event_wait(page_cleaner->is_requested);
-		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		if (!page_cleaner->is_running) {
 			break;
 		}
 		pc_flush_slot();
