@@ -10373,7 +10373,7 @@ Rows_log_event::add_key_to_distinct_keyset()
   DBUG_ENTER("Rows_log_event::add_key_to_distinct_keyset");
   DBUG_ASSERT(m_key_index < MAX_KEY);
   key_copy(m_distinct_key_spare_buf, m_table->record[0], m_key_info, 0);
-  std::pair<std::set<uchar *>::iterator,bool> ret=
+  std::pair<std::set<uchar *, Key_compare>::iterator,bool> ret=
     m_distinct_keys.insert(m_distinct_key_spare_buf);
   if (ret.second)
   {
