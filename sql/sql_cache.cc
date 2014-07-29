@@ -1669,7 +1669,7 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
   DBUG_ENTER("Query_cache::send_result_to_client");
 
   /*
-    Testing 'query_cache_size' without a lock here is safe: the thing
+    Testing without a lock here is safe: the thing
     we may loose is that the query won't be served from cache, but we
     save on mutex locking in the case when query cache is disabled.
 
@@ -1688,8 +1688,6 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
     DBUG_PRINT("qcache", ("SELECT is non-cacheable"));
     goto err;
   }
-
-  DBUG_ASSERT(query_cache_size != 0);           // otherwise cache would be disabled
 
   thd->query_cache_is_applicable= 1;
   sql= org_sql; sql_end= sql + query_length;
