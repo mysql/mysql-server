@@ -3005,3 +3005,64 @@ SELECT 1 FROM r GROUP BY MAKE_SET(1,c) WITH ROLLUP;
 1
 1
 DROP TABLE r;
+#
+# Bug #18921626 	DEBUG CRASH IN PLAN_CHANGE_WATCHDOG::~PLAN_CHANGE_WATCHDOG AT SQL_OPTIMIZER.CC
+#
+CREATE TABLE AA (
+col_varchar_1024_latin1 varchar(1024)  CHARACTER SET latin1,
+pk integer auto_increment,
+col_varchar_1024_utf8_key varchar(1024)  CHARACTER SET utf8,
+col_varchar_1024_latin1_key varchar(1024)  CHARACTER SET latin1,
+col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8,
+col_varchar_10_latin1_key varchar(10)  CHARACTER SET latin1,
+col_int int,
+col_varchar_10_latin1 varchar(10)  CHARACTER SET latin1,
+col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8,
+col_varchar_1024_utf8 varchar(1024)  CHARACTER SET utf8,
+col_int_key int,
+primary key (pk),
+key (col_varchar_1024_utf8_key ),
+key (col_varchar_1024_latin1_key ),
+key (col_varchar_10_utf8_key ),
+key (col_varchar_10_latin1_key ),
+key (col_int_key )) ENGINE=innodb;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+Warning	1071	Specified key was too long; max key length is 767 bytes
+CREATE OR REPLACE VIEW view_AA AS SELECT * FROM AA;
+CREATE TABLE B (
+col_varchar_1024_latin1_key varchar(1024)  CHARACTER SET latin1,
+col_varchar_10_latin1 varchar(10)  CHARACTER SET latin1,
+col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8,
+col_int_key int,
+col_varchar_1024_latin1 varchar(1024)  CHARACTER SET latin1,
+col_varchar_1024_utf8_key varchar(1024)  CHARACTER SET utf8,
+col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8,
+col_int int,
+pk integer auto_increment,
+col_varchar_10_latin1_key varchar(10)  CHARACTER SET latin1,
+col_varchar_1024_utf8 varchar(1024)  CHARACTER SET utf8,
+key (col_varchar_1024_latin1_key ),
+key (col_varchar_10_utf8_key ),
+key (col_int_key ),
+key (col_varchar_1024_utf8_key ),
+primary key (pk),
+key (col_varchar_10_latin1_key )) ENGINE=myisam;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+INSERT INTO B VALUES  ('at', repeat('a',1000), 'the',
+-1622540288, 'as', repeat('a',1000), 'want', 1810890752, NULL, 'v', 'just');
+Warnings:
+Warning	1265	Data truncated for column 'col_varchar_10_latin1' at row 1
+SELECT
+DISTINCT table1 . pk AS field1
+FROM  view_AA AS table1  LEFT  JOIN B AS table2
+ON  table1 . col_varchar_10_latin1_key =  table2 .
+col_varchar_1024_latin1_key
+WHERE ( ( table2 . pk > table1 . col_int_key AND table1 . pk NOT
+BETWEEN 3 AND ( 3 + 3 ) ) AND table2 . pk <> 6 )
+GROUP BY table1 . pk;
+field1
+DROP TABLE AA,B;
+DROP VIEW view_AA;

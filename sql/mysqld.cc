@@ -8334,7 +8334,7 @@ PSI_memory_key key_memory_quick_index_merge_root;
 PSI_memory_key key_memory_quick_ror_intersect_select_root;
 PSI_memory_key key_memory_quick_ror_union_select_root;
 PSI_memory_key key_memory_quick_group_min_max_select_root;
-PSI_memory_key key_memory_sql_select_test_quick_select_exec;
+PSI_memory_key key_memory_test_quick_select_exec;
 PSI_memory_key key_memory_prune_partitions_exec;
 PSI_memory_key key_memory_binlog_recover_exec;
 PSI_memory_key key_memory_blob_mem_storage;
@@ -8467,7 +8467,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_quick_ror_intersect_select_root, "QUICK_ROR_INTERSECT_SELECT::alloc", PSI_FLAG_THREAD},
   { &key_memory_quick_ror_union_select_root, "QUICK_ROR_UNION_SELECT::alloc", PSI_FLAG_THREAD},
   { &key_memory_quick_group_min_max_select_root, "QUICK_GROUP_MIN_MAX_SELECT::alloc", PSI_FLAG_THREAD},
-  { &key_memory_sql_select_test_quick_select_exec, "SQL_SELECT::test_quick_select", PSI_FLAG_THREAD},
+  { &key_memory_test_quick_select_exec, "test_quick_select", PSI_FLAG_THREAD},
   { &key_memory_prune_partitions_exec, "prune_partitions::exec", 0},
   { &key_memory_binlog_recover_exec, "MYSQL_BIN_LOG::recover", 0},
   { &key_memory_blob_mem_storage, "Blob_mem_storage::storage", 0},

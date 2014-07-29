@@ -7150,6 +7150,27 @@ void Item_equal::print(String *str, enum_query_type query_type)
 }
 
 
+longlong Item_func_trig_cond::val_int()
+{
+  if (trig_var == NULL)
+  {
+    DBUG_ASSERT(m_join != NULL && m_idx >= 0);
+    switch(trig_type)
+    {
+    case IS_NOT_NULL_COMPL:
+      trig_var= &m_join->qep_tab[m_idx].not_null_compl;
+      break;
+    case FOUND_MATCH:
+      trig_var= &m_join->qep_tab[m_idx].found;
+      break;
+    default:
+      DBUG_ASSERT(false); /* purecov: inspected */
+      return 0;
+    }
+  }
+  return *trig_var ? args[0]->val_int() : 1;
+}
+
 void Item_func_trig_cond::print(String *str, enum_query_type query_type)
 {
   /*
@@ -7175,15 +7196,35 @@ void Item_func_trig_cond::print(String *str, enum_query_type query_type)
   default:
     DBUG_ASSERT(0);
   }
-  if (trig_tab != NULL)
+  if (m_join != NULL)
   {
+    /*
+      Item printing is done at various stages of optimization, so there can
+      be a JOIN_TAB or a QEP_TAB.
+    */
+    TABLE *table, *last_inner_table;
+    plan_idx last_inner;
+    if (m_join->qep_tab)
+    {
+      QEP_TAB *qep_tab= &m_join->qep_tab[m_idx];
+      table= qep_tab->table();
+      last_inner= qep_tab->last_inner();
+      last_inner_table= m_join->qep_tab[last_inner].table();
+    }
+    else
+    {
+      JOIN_TAB *join_tab= m_join->best_ref[m_idx];
+      table= join_tab->table();
+      last_inner= join_tab->last_inner();
+      last_inner_table= m_join->best_ref[last_inner]->table();
+    }
     str->append("(");
-    str->append(trig_tab->table->alias);
-    if (trig_tab->last_inner != trig_tab)
+    str->append(table->alias);
+    if (last_inner != m_idx)
     {
       /* case of t1 LEFT JOIN (t2,t3,...): print range of inner tables */
       str->append("..");
-      str->append(trig_tab->last_inner->table->alias);
+      str->append(last_inner_table->alias);
     }
     str->append(")");
   }
@@ -7254,16 +7295,13 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
     */
     List_iterator<Item_field> it(fields);
     Item_field *item;
-    const JOIN_TAB *first= field_tab->first_sj_inner_tab;
-    const JOIN_TAB *last=  field_tab->last_sj_inner_tab;
+    plan_idx first= field_tab->first_sj_inner(), last= field_tab->last_sj_inner();
 
     while ((item= it++))
     {
-      if (item->field->table->reginfo.join_tab >= first &&
-          item->field->table->reginfo.join_tab <= last)
-      {
+      plan_idx idx= item->field->table->reginfo.join_tab->idx();
+      if (idx >= first && idx <= last)
         return item;
-      }
     }
   }
   else
