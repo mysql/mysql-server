@@ -212,7 +212,7 @@ struct TrxFactory {
 
 		new(&trx->lock.table_locks) lock_pool_t();
 
-		new(&trx->kill) trx_list_t();
+		new(&trx->hit_list) trx_list_t();
 
 		lock_trx_alloc_locks(trx);
 	}
@@ -271,7 +271,7 @@ struct TrxFactory {
 
 		trx->lock.table_locks.~lock_pool_t();
 
-		trx->kill.~trx_list_t();
+		trx->hit_list.~trx_list_t();
 	}
 
 	/** Enforce any invariants here, this is called before the transaction
@@ -310,7 +310,7 @@ struct TrxFactory {
 
 		ut_ad(!trx->abort);
 
-		ut_ad(trx->kill.empty());
+		ut_ad(trx->hit_list.empty());
 
 		ut_ad(trx->killed_by == 0);
 
@@ -3125,17 +3125,14 @@ Kill all transactions that are blocking this transaction from acquiring locks.
 void
 trx_kill_blocking(trx_t* trx)
 {
-	// FIXME: Q&D
-	extern void thd_kill(THD* thd);
-
 	if (trx->kill.empty()) {
 		return;
 	}
 
 	/** Kill the transactions in the lock acquisition order old -> new. */
-	trx_list_t::reverse_iterator	end = trx->kill.rend();
+	trx_list_t::reverse_iterator	end = trx->hit_list.rend();
 
-	for (trx_list_t::reverse_iterator it = trx->kill.rbegin();
+	for (trx_list_t::reverse_iterator it = trx->hit_list.rbegin();
 	     it != end;
 	     ++it) {
 
@@ -3210,5 +3207,5 @@ trx_kill_blocking(trx_t* trx)
 		trx_mutex_exit(kill_trx);
 	}
 
-	trx->kill.clear();
+	trx->hit_list.clear();
 }
