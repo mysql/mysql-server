@@ -33,3 +33,18 @@ insert into t1 values (2);
 select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
 a	a
 drop table t1,t2;
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=Aria PARTITION BY KEY() PARTITIONS 2;
+CREATE VIEW v1 AS SELECT * FROM t1;
+LOCK TABLE v1 WRITE;
+CREATE TABLE v1 (i INT);
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+INSERT INTO v1 VALUES (1);
+UNLOCK TABLES;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+pk
+1
+drop table t1;
+drop view v1;

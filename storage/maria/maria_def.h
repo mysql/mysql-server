@@ -360,6 +360,7 @@ typedef struct st_maria_share
   LEX_STRING index_file_name;
   LEX_STRING open_file_name;		/* parameter to open filename */
   uchar *file_map;			/* mem-map of file if possible */
+  LIST *open_list;			/* Tables open with this share */
   PAGECACHE *pagecache;			/* ref to the current key cache */
   MARIA_DECODE_TREE *decode_trees;
   /*
@@ -624,6 +625,7 @@ struct st_maria_handler
   PAGECACHE_FILE dfile;			/* The datafile */
   IO_CACHE rec_cache;			/* When cacheing records */
   LIST open_list;
+  LIST share_list;
   MY_BITMAP changed_fields;
   ulong row_base_length;                /* Length of row header */
   uint row_flag;                        /* Flag to store in row header */

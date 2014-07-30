@@ -240,6 +240,7 @@ void _ma_reset_state(MARIA_HA *info)
   MARIA_STATE_HISTORY *history= share->state_history;
   DBUG_ENTER("_ma_reset_state");
 
+  /* Always true if share->now_transactional is set */
   if (history)
   {
     MARIA_STATE_HISTORY *next;
@@ -769,7 +770,7 @@ void _ma_copy_nontrans_state_information(MARIA_HA *info)
 
 /**
    Reset history
-   This is only called during repair when we the only one using the table.
+   This is only called during repair when we are the only one using the table.
 */
 
 void _ma_reset_history(MARIA_SHARE *share)
