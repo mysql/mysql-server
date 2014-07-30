@@ -235,7 +235,7 @@ public:
   PFS_TL_LOCK_TYPE m_external_lock;
 
 private:
-  static void safe_aggregate_io(const TABLE_SHARE *server_share,
+  static void safe_aggregate_io(const TABLE_SHARE *optional_server_share,
                                 PFS_table_stat *stat,
                                 PFS_table_share *safe_share);
   static void safe_aggregate_lock(PFS_table_stat *stat,
