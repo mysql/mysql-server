@@ -526,7 +526,10 @@ public:
 
   virtual void on_wkb_end(const void *wkb)
   {
-    DBUG_ASSERT(static_cast<const char *>(pt_start) + POINT_DATA_SIZE == wkb);
+    if (pt_start)
+      DBUG_ASSERT(static_cast<const char *>(pt_start) + POINT_DATA_SIZE == wkb);
+
+    pt_start= NULL;
   }
 };
 
