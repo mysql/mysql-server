@@ -2166,6 +2166,13 @@ opt_channel:
        }
      | FOR_SYM CHANNEL_SYM TEXT_STRING_sys_nonewline
        {
+         /*
+           channel names are case insensitive. This means, even the results
+           displayed to the user are converted to lower cases.
+           system_charset_info is utf8_general_ci as required by channel name
+           restrictions
+         */
+         my_casedn_str(system_charset_info, $3.str);
          Lex->mi.channel= $3.str;
          Lex->mi.for_channel= true;
        }

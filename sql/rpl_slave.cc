@@ -8864,7 +8864,7 @@ bool delete_slave_info_object(Master_info *mi)
   if (msr_map.delete_mi(mi->get_channel()))
   {
     sql_print_error("Slave: couldn't delete slave info objects "
-                    " for channel '%s'", mi->get_channel());
+                    "for channel '%s'", mi->get_channel());
     my_error(ER_SLAVE_CHANNEL_DELETE, MYF(0), mi->get_channel());
 
     return true;
@@ -8875,7 +8875,7 @@ bool delete_slave_info_object(Master_info *mi)
 
 int reset_slave(THD *thd)
 {
-  DBUG_ENTER("reset_slave");
+  DBUG_ENTER("reset_slave(THD)");
 
   Master_info *mi= 0;
   int result= 0;
@@ -9791,6 +9791,8 @@ bool add_new_channel(THD* thd, Master_info** mi, const char* channel)
   DBUG_ENTER("add_new_channel");
 
   bool ret= true;
+  enum_ident_name_check ident_check_status;
+
 
   /*
     Refuse to create a new channel if the repositories does not support this.
@@ -9817,14 +9819,20 @@ bool add_new_channel(THD* thd, Master_info** mi, const char* channel)
     goto err;
   }
 
-
  /*
-   Issue an error if a channel name exceeds the specified 64 characters.
+   Now check the sanity of the channel name. It's length etc. The channel
+   identifier is similar to table names. So, use  check_table_function.
  */
-
-  if (channel && (strlen(channel) > 64))
+  if (channel)
   {
-    my_error(ER_SLAVE_CHANNEL_NAME_TOO_LENGTHY, MYF(0));
+    ident_check_status= check_table_name(channel, strlen(channel), false);
+  }
+  else
+    ident_check_status= IDENT_NAME_WRONG;
+
+  if (ident_check_status != IDENT_NAME_OK)
+  {
+    my_error(ER_SLAVE_CHANNEL_NAME_WRONG_OR_TOO_LENGTHY, MYF(0));
     goto err;
   }
 

@@ -1237,14 +1237,16 @@ Relay_log_info::add_channel_to_relay_log_name(char *buff, uint buff_size,
                                               const char *base_name)
 {
   char *ptr;
-  uint base_name_len= strlen(base_name);
-  uint suffix_buff_size= buff_size - base_name_len;
-  char channelbuff1[NAME_LEN], channelbuff2[NAME_LEN];
+  char channel_to_file[FN_REFLEN];
   uint errors, length;
 
-  CHARSET_INFO *channel_charset_info= &my_charset_utf8_general_ci;
+  uint base_name_len= strlen(base_name);
+  uint suffix_buff_size;
 
-  DBUG_ASSERT(channel!= NULL);
+  DBUG_ASSERT(base_name != NULL);
+
+  base_name_len= strlen(base_name);
+  suffix_buff_size= buff_size - base_name_len;
 
   ptr= strmake(buff, base_name, buff_size-1);
 
@@ -1254,18 +1256,14 @@ Relay_log_info::add_channel_to_relay_log_name(char *buff, uint buff_size,
    /* adding a "-" */
     ptr= strmake(ptr, "-", suffix_buff_size-1);
 
-    strncpy(channelbuff1, channel, NAME_LEN);
-    /* convert the channel to lower case*/
-    my_casedn_str(channel_charset_info, channelbuff1);
-
     /*
-      Convert the channelbuff1 to the file system charset.
-      Channel is UTF8 always. As it was defined as utf8 in the mysql.slaveinfo
+      Convert the channel to the file names charset. Channel name
+      is UTF8_general_ci always. As it was defined as utf8 in the mysql.slaveinfo
       tables.
     */
-    length= strconvert(channel_charset_info, channelbuff1, &my_charset_filename,
-                       channelbuff2, NAME_LEN, &errors);
-    ptr= strmake(ptr, channelbuff2, suffix_buff_size-length-1);
+    length= strconvert(system_charset_info, channel, &my_charset_filename,
+                       channel_to_file, NAME_LEN, &errors);
+    ptr= strmake(ptr, channel_to_file, suffix_buff_size-length-1);
 
   }
 
@@ -1922,7 +1920,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 
 
     ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
-                                (const char*)relay_bin_channel, buf);
+                                "-relay-bin", buf);
 
     ln= add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN,
                                       ln_without_channel_name);
@@ -1941,7 +1939,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
                         " so replication "
                         "may break when this MySQL server acts as a "
                         "slave and has his hostname changed!! Please "
-                        "use '--relay-log=%s' to avoid this problem.", ln);
+                        "use '--relay-log=%s' to avoid this problem.",
+                        ln_without_channel_name);
       name_warning_sent= 1;
     }
 

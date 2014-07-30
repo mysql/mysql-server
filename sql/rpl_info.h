@@ -21,7 +21,7 @@
 #include "rpl_info_handler.h"
 #include "rpl_reporting.h"
 
-#define  CHANNELNAME_LENGTH 64         /* Based on USERNAME_LENGTH */
+#define  CHANNELNAME_LENGTH NAME_LEN 
 
 class Rpl_info : public Slave_reporting_capability
 {
