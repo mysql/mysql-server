@@ -620,6 +620,19 @@ struct PFS_table_lock_stat
 {
   PFS_single_stat m_stat[COUNT_PFS_TL_LOCK_TYPE];
 
+  inline bool has_data() const
+  {
+    const PFS_single_stat *pfs= & m_stat[0];
+    const PFS_single_stat *pfs_last= & m_stat[COUNT_PFS_TL_LOCK_TYPE];
+    for ( ; pfs < pfs_last ; pfs++)
+    {
+      if (pfs->m_count > 0)
+        return true;
+    }
+
+    return false;
+  }
+
   inline void reset(void)
   {
     PFS_single_stat *pfs= & m_stat[0];
@@ -660,6 +673,11 @@ struct PFS_table_stat
     Statistics, per lock type.
   */
   PFS_table_lock_stat m_lock_stat;
+
+  inline bool has_lock_data()
+  {
+    return m_lock_stat.has_data();
+  }
 
   /** Reset table io statistic. */
   inline void reset_io(void)

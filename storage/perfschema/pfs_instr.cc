@@ -1485,18 +1485,12 @@ void PFS_table::sanitized_aggregate(void)
   PFS_table_share *safe_share= sanitize_table_share(m_share);
   if (safe_share != NULL)
   {
-    if (m_has_io_stats && m_has_lock_stats)
+    if (m_has_io_stats)
     {
-      safe_aggregate(& m_table_stat, safe_share);
-      m_has_io_stats= false;
-      m_has_lock_stats= false;
-    }
-    else if (m_has_io_stats)
-    {
-      safe_aggregate_io(& m_table_stat, safe_share);
+      safe_aggregate_io(NULL, & m_table_stat, safe_share);
       m_has_io_stats= false;
     }
-    else if (m_has_lock_stats)
+    if (m_has_lock_stats)
     {
       safe_aggregate_lock(& m_table_stat, safe_share);
       m_has_lock_stats= false;
@@ -1509,7 +1503,7 @@ void PFS_table::sanitized_aggregate_io(void)
   PFS_table_share *safe_share= sanitize_table_share(m_share);
   if (safe_share != NULL && m_has_io_stats)
   {
-    safe_aggregate_io(& m_table_stat, safe_share);
+    safe_aggregate_io(NULL, & m_table_stat, safe_share);
     m_has_io_stats= false;
   }
 }
@@ -1524,25 +1518,8 @@ void PFS_table::sanitized_aggregate_lock(void)
   }
 }
 
-void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
-                               PFS_table_share *table_share)
-{
-/*
-  DBUG_ASSERT(table_stat != NULL);
-  DBUG_ASSERT(table_share != NULL);
-
-  uint key_count= sanitize_index_count(table_share->m_key_count);
-
-  table_share->m_table_stat->aggregate(table_stat, key_count);
-  table_stat->fast_reset();
-*/
-
-  /* Aggregate to TABLE_IO_SUMMARY, TABLE_LOCK_SUMMARY */
-  safe_aggregate_io(table_stat, table_share);
-  safe_aggregate_lock(table_stat, table_share);
-}
-
-void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
+void PFS_table::safe_aggregate_io(const TABLE_SHARE *server_share,
+                                  PFS_table_stat *table_stat,
                                   PFS_table_share *table_share)
 {
   DBUG_ASSERT(table_stat != NULL);
@@ -1550,35 +1527,38 @@ void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
 
   uint key_count= sanitize_index_count(table_share->m_key_count);
 
-/*
-  table_share->m_table_stat->aggregate_io(table_stat, key_count);
-  table_stat->fast_reset_io();
-*/
-
-  /* Aggregate to TABLE_IO_SUMMARY */
-  PFS_table_share_index **to_stat;
-  PFS_table_share_index **to_stat_last;
+  PFS_table_share_index *to_stat;
   PFS_table_io_stat *from_stat;
+  uint index;
 
   DBUG_ASSERT(key_count <= MAX_INDEXES);
 
   /* Aggregate stats for each index, if any */
-  to_stat= & table_share->m_index_stat[0];
-  to_stat_last= to_stat + key_count;
-  from_stat= & table_stat->m_index_stat[0];
-  for ( ; to_stat < to_stat_last ; from_stat++, to_stat++)
+  for (index= 0; index < key_count; index++)
   {
-    /* get_table_share_index_stat() returns NULL or valid location in
-       table_share_index_stat_array.*/
-    if (get_table_share_index_stat(to_stat))
-      (*to_stat)->m_stat.aggregate(from_stat);
+    from_stat= & table_stat->m_index_stat[index];
+    if (from_stat->m_has_data)
+    {
+      to_stat= table_share->find_or_create_index_stat(server_share, index);
+      if (to_stat != NULL)
+      {
+        /* Aggregate to TABLE_IO_SUMMARY */
+        to_stat->m_stat.aggregate(from_stat);
+      }
+    }
   }
 
   /* Aggregate stats for the table */
-  to_stat= & table_share->m_index_stat[MAX_INDEXES];
   from_stat= & table_stat->m_index_stat[MAX_INDEXES];
-  if (get_table_share_index_stat(to_stat))
-    (*to_stat)->m_stat.aggregate(from_stat);
+  if (from_stat->m_has_data)
+  {
+    to_stat= table_share->find_or_create_index_stat(NULL, MAX_INDEXES);
+    if (to_stat != NULL)
+    {
+      /* Aggregate to TABLE_IO_SUMMARY */
+      to_stat->m_stat.aggregate(from_stat);
+    }
+  }
 
   table_stat->fast_reset_io();
 }
@@ -1589,19 +1569,21 @@ void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
   DBUG_ASSERT(table_stat != NULL);
   DBUG_ASSERT(table_share != NULL);
 
-/*
-  table_share->m_table_stat.aggregate_lock(table_stat);
-*/
+  PFS_table_lock_stat *from_stat= & table_stat->m_lock_stat;
 
-  /* Aggregate to TABLE_LOCK_SUMMARY */
-  if (!table_share->m_lock_stat)
-    table_share->m_lock_stat= get_table_share_lock_stat(table_share);
+  if (from_stat->has_data())
+  {
+    PFS_table_share_lock *to_stat;
 
-  /* table_stat might still be null as get_table_stat might return NULL. */
-  if (table_share->m_lock_stat)
-    table_share->m_lock_stat->m_stat.aggregate(& table_stat->m_lock_stat);
+    to_stat= table_share->find_or_create_lock_stat();
+    if (to_stat != NULL)
+    {
+      /* Aggregate to TABLE_LOCK_SUMMARY */
+      to_stat->m_stat.aggregate(from_stat);
+    }
 
-  table_stat->fast_reset_lock();
+    table_stat->fast_reset_lock();
+  }
 }
 
 /**

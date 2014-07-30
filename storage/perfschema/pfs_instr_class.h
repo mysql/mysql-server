@@ -343,23 +343,21 @@ public:
   /** Number of indexes. */
   uint m_key_count;
 
-  /** Table locks statistics. */
-  PFS_table_share_lock *m_lock_stat;
-  /** Table indexes' stats. */
-  PFS_table_share_index *m_index_stat[MAX_INDEXES + 1];
-  
-  void inline initialize_index_stat()
-  {
-    int count= MAX_INDEXES;
-    do{
-        m_index_stat[count]= NULL;
-        count--;
-      }while(count>=0);
-  }
+  PFS_table_share_lock *find_lock_stat() const;
+  PFS_table_share_lock *find_or_create_lock_stat();
+  void destroy_lock_stat();
+
+  PFS_table_share_index *find_index_stat(uint index) const;
+  PFS_table_share_index *find_or_create_index_stat(const TABLE_SHARE *server_share, uint index);
+  void destroy_index_stats();
 
 private:
   /** Number of opened table handles. */
   int m_refcount;
+  /** Table locks statistics. */
+  PFS_table_share_lock *m_race_lock_stat;
+  /** Table indexes' stats. */
+  PFS_table_share_index *m_race_index_stat[MAX_INDEXES + 1];
 };
 
 /** Statistics for the IDLE instrument. */
@@ -476,13 +474,13 @@ void cleanup_table_share();
 
 int init_table_share_lock_stat(uint table_stat_sizing);
 void cleanup_table_share_lock_stat();
-PFS_table_share_lock* get_table_share_lock_stat(PFS_table_share* share);
-void release_table_share_lock_stat(PFS_table_share_lock m_lock_stat);
+PFS_table_share_lock* create_table_share_lock_stat();
+void release_table_share_lock_stat(PFS_table_share_lock *pfs);
 
 int init_table_share_index_stat(uint index_stat_sizing);
 void cleanup_table_share_index_stat();
-PFS_table_share_index* get_table_share_index_stat(PFS_table_share_index** stat);
-void release_table_share_index_stat(PFS_table_share_index m_index_stat);
+PFS_table_share_index* create_table_share_index_stat(const TABLE_SHARE *share, uint index);
+void release_table_share_index_stat(PFS_table_share_index *pfs);
 
 int init_table_share_hash();
 void cleanup_table_share_hash();
