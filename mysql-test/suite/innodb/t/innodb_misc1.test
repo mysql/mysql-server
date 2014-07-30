@@ -1172,3 +1172,6 @@ DISCONNECT c1;
 CONNECTION default;
 
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
+
+-- enable_query_log
+-- source suite/innodb/include/check_pfs_mem_other_is_zero.inc
