@@ -414,6 +414,7 @@ public:
   int setName(const char * name);
   const char * getName() const;
   int setTable(const NdbDictionary::Table& table);
+  int setTable(const NdbDictionary::Table *table);
   const NdbDictionary::Table * getTable() const;
   int setTable(const char * table);
   const char * getTableName() const;
@@ -908,7 +909,12 @@ public:
   int createIndex(NdbIndexImpl &ix, NdbTableImpl & tab, bool offline);
   int dropIndex(const char * indexName, 
 		const char * tableName);
+  int dropIndex(const char * indexName, 
+		const char * tableName,
+                bool ignoreFKs);
   int dropIndex(NdbIndexImpl &, const char * tableName);
+  int dropIndex(NdbIndexImpl &, const char * tableName,
+                bool ignoreFKs);
   NdbTableImpl * getIndexTable(NdbIndexImpl * index, 
 			       NdbTableImpl * table);
 
@@ -944,6 +950,7 @@ public:
   int dropTableGlobal(NdbTableImpl &);
   int dropTableGlobal(NdbTableImpl &, int flags);
   int dropIndexGlobal(NdbIndexImpl & impl);
+  int dropIndexGlobal(NdbIndexImpl &, bool ignoreFKs);
   int releaseTableGlobal(const NdbTableImpl & impl, int invalidate);
   int releaseIndexGlobal(const NdbIndexImpl & impl, int invalidate);
 

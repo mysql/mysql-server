@@ -1,56 +1,78 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+# Embedded server doesn't support restarting.
+--source include/not_embedded.inc
 
-#
-# test mysqld in bootstrap mode
-#
---disable_warnings
-drop table if exists t1;
---enable_warnings
+# Prepare MYSQLD_DATADIR and MYSQLD_BOOTSTRAP_CMD.
+# Add the datadir to the bootstrap command.
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--let $MYSQLD_BOOTSTRAP_CMD = $MYSQLD_BOOTSTRAP_CMD --datadir=$MYSQLD_DATADIR --default-storage-engine=MyISAM --default-tmp-storage-engine=MyISAM
 
+###########################################################################
+# 1. Check that --bootstrap reads from stdin
+###########################################################################
 
-# Add the datadir to the bootstrap command
-let $MYSQLD_DATADIR= `select @@datadir`;
-let $MYSQLD_BOOTSTRAP_CMD= $MYSQLD_BOOTSTRAP_CMD --datadir=$MYSQLD_DATADIR --default-storage-engine=MyISAM --default-tmp-storage-engine=MyISAM --skip-innodb;
-#
-# Check that --bootstrap reads from stdin
-#
+# Stop server
+--source include/shutdown_mysqld.inc
+
 --write_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql
-use test;
-CREATE TABLE t1(a int);
+USE test;
+CREATE TABLE t1(a INT);
 EOF
+
 --exec $MYSQLD_BOOTSTRAP_CMD < $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
-drop table t1;
-remove_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql;
-#
-# Check that --bootstrap of file with SQL error returns error
-#
+
+--remove_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql
+
+###########################################################################
+# 2. Check that --bootstrap of file with SQL error returns error
+###########################################################################
+
 --write_file $MYSQLTEST_VARDIR/tmp/bootstrap_error.sql
-use test;
-CREATE TABLE t1;
+USE test;
+CREATE TABLE t2;
 EOF
+
 --error 1
 --exec $MYSQLD_BOOTSTRAP_CMD  < $MYSQLTEST_VARDIR/tmp/bootstrap_error.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
-# Table t1 should not exists
---error 1051
-drop table t1;
-remove_file $MYSQLTEST_VARDIR/tmp/bootstrap_error.sql;
 
-#
-# Bootstrap with a query larger than 2*thd->net.max_packet
-#
-set @my_max_allowed_packet= @@max_allowed_packet;
-set global max_allowed_packet=100*@@max_allowed_packet;
---disable_query_log
-create table t1 select 2 as a, concat(repeat('MySQL', @@max_allowed_packet/10), ';') as b;
-eval select * into outfile '$MYSQLTEST_VARDIR/tmp/long_query.sql' from t1;
---enable_query_log
+--remove_file $MYSQLTEST_VARDIR/tmp/bootstrap_error.sql
+
+# Start server
+--source include/start_mysqld.inc
+
+# Drop t1 from the previous test (1).
+DROP TABLE t1;
+
+# Table t2 should not exists
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t2;
+
+###########################################################################
+# 3. Bootstrap with a query larger than 2*thd->net.max_packet
+###########################################################################
+
+# Prepare a long query.
+# NOTE: no need to save max_allowed_packet value as the server will be restarted.
+
+SET @@global.max_allowed_packet = 100 * @@global.max_allowed_packet;
+
+CREATE TABLE t1 SELECT 2 AS a, CONCAT(REPEAT('MySQL', @@max_allowed_packet/10), ';') AS b;
+
+--replace_result $MYSQLTEST_VARDIR VARDIR
+--eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/long_query.sql' FROM t1
+
+# Stop server
+--source include/shutdown_mysqld.inc
+
 --error 1
 --exec $MYSQLD_BOOTSTRAP_CMD < $MYSQLTEST_VARDIR/tmp/long_query.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
-remove_file $MYSQLTEST_VARDIR/tmp/long_query.sql;
 
-set global max_allowed_packet=@my_max_allowed_packet;
-drop table t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/long_query.sql
 
+# Start server
+--source include/start_mysqld.inc
+
+SHOW CREATE TABLE t1;
+SELECT a, LENGTH(b) FROM t1;
+
+DROP TABLE t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/bootstrap.log

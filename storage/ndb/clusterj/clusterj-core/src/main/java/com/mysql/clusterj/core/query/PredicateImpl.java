@@ -56,7 +56,14 @@ public abstract class PredicateImpl implements Predicate {
     /** The comparator for candidate indices, ordered descending by score */
     Comparator<CandidateIndexImpl> candidateIndexComparator = new Comparator<CandidateIndexImpl>() {
         public int compare(CandidateIndexImpl o1, CandidateIndexImpl o2) {
-            return o2.score - o1.score;
+            int scoreDifference = o2.score - o1.score;
+            if (scoreDifference != 0) {
+                return scoreDifference;
+            } else {
+                // scores are equal; need arbitrary number to compare so that both are included in the TreeSet
+                // hashCode() is "guaranteed" to be different for different objects
+                return o1.hashCode() - o2.hashCode();
+            }
         }
     };
 

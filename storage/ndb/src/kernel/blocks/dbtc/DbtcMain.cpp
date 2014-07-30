@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,6 +71,7 @@
 #include <signaldata/IndxAttrInfo.hpp>
 #include <signaldata/PackedSignal.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
+#include <signaldata/LqhTransReq.hpp>
 #include <AttributeHeader.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <AttributeDescriptor.hpp>
@@ -89,6 +90,7 @@
 #include <signaldata/CreateTab.hpp>
 
 #include <TransporterRegistry.hpp> // error 8035
+#include <EventLogger.hpp>
 
 #include <signaldata/CreateFKImpl.hpp>
 #include <signaldata/DropFKImpl.hpp>
@@ -97,6 +99,9 @@
 
 #define JAM_FILE_ID 353
 
+#define TC_TIME_SIGNAL_DELAY 50
+
+extern EventLogger * g_eventLogger;
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -217,6 +222,11 @@ void Dbtc::execCONTINUEB(Signal* signal)
   UintR Tdata0 = signal->theData[1];
   UintR Tdata1 = signal->theData[2];
   UintR Tdata2 = signal->theData[3];
+  UintR Tdata3 = signal->theData[4];
+#ifdef ERROR_INSERT
+  UintR Tdata4 = signal->theData[5];
+  UintR Tdata5 = signal->theData[6];
+#endif
   switch (tcase) {
   case TcContinueB::ZRETURN_FROM_QUEUED_DELIVERY:
     jam();
@@ -234,14 +244,13 @@ void Dbtc::execCONTINUEB(Signal* signal)
     return;
   case TcContinueB::ZNODE_TAKE_OVER_COMPLETED:
     jam();
-    tnodeid = Tdata0;
     tcNodeFailptr.i = 0;
     ptrAss(tcNodeFailptr, tcFailRecord);
-    nodeTakeOverCompletedLab(signal);
+    nodeTakeOverCompletedLab(signal, Tdata0, 0);
     return;
   case TcContinueB::ZINITIALISE_RECORDS:
     jam();
-    initialiseRecordsLab(signal, Tdata0, Tdata2, signal->theData[4]);
+    initialiseRecordsLab(signal, Tdata0, Tdata2, Tdata3);
     return;
   case TcContinueB::ZSEND_COMMIT_LOOP:
     jam();
@@ -315,6 +324,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     nodeFailCheckTransactions(signal, Tdata0, Tdata1);
     return;
   case TcContinueB::TRIGGER_PENDING:
+  {
     jam();
     ApiConnectRecordPtr transPtr;
     transPtr.i = Tdata0;
@@ -343,6 +353,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
       executeTriggers(signal, &transPtr);
     }
     return;
+  }
   case TcContinueB::DelayTCKEYCONF:
     jam();
     apiConnectptr.i = Tdata0;
@@ -374,6 +385,51 @@ void Dbtc::execCONTINUEB(Signal* signal)
     startFragScansLab(signal, Tdata0, handle, Tdata1);
     return;
   }
+#ifdef ERROR_INSERT
+  case TcContinueB::ZDEBUG_DELAYED_ABORT:
+  {
+    char buf[128];
+    BaseString::snprintf(buf, sizeof(buf), "Received CONTINUEB:ZDEBUG_DELAYED_ABORT");
+    warningEvent("%s", buf);
+
+    jam();
+    apiConnectptr.i = Tdata0;
+    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+    apiConnectptr.p->returncode = Tdata3;
+    apiConnectptr.p->returnsignal = (Dbtc::ReturnSignal)Tdata4;
+    SET_ERROR_INSERT_VALUE(Tdata5);
+    abort010Lab(signal);
+    break;
+  }
+  case TcContinueB::ZDEBUG_DELAY_TCROLLBACKREP:
+  {
+    char buf[128];
+    BaseString::snprintf(buf, sizeof(buf), "Received CONTINUEB:ZDEBUG_DELAY_TCROLLBACKREP");
+    warningEvent("%s", buf);
+
+    jam();
+    if (ERROR_INSERTED(8101))
+    {
+      jam();
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
+    }
+    else
+    {
+      TcRollbackRep * const tcRollbackRep = 
+        (TcRollbackRep *) signal->getDataPtr();
+      Uint32 blockRef = Tdata5;
+      
+      tcRollbackRep->connectPtr = Tdata0;
+      tcRollbackRep->transId[0] = Tdata1;
+      tcRollbackRep->transId[1] = Tdata2;
+      tcRollbackRep->returnCode = Tdata3;
+      tcRollbackRep->errorData = Tdata4;
+      sendSignal(blockRef, GSN_TCROLLBACKREP, signal, 
+                 TcRollbackRep::SignalLength, JBB);
+    }
+    break;
+  }
+#endif
   default:
     ndbrequire(false);
   }//switch
@@ -698,13 +754,14 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   m_max_writes_per_trans = val;
 
   ctimeOutCheckDelay = 50; // 500ms
+  ctimeOutCheckDelayScan = 40; // 400ms
 
   Pool_context pc;
   pc.m_block = this;
 
   c_fk_hash.setSize(16);
   c_fk_pool.init(RT_DBDICT_FILE, pc); // TODO
-}//Dbtc::execSIZEALT_REP()
+}
 
 void Dbtc::execSTTOR(Signal* signal) 
 {
@@ -747,14 +804,14 @@ void Dbtc::execNDB_STTOR(Signal* signal)
 
   jamEntry();
   tusersblkref = signal->theData[0];
-  tnodeid = signal->theData[1];
+  NodeId nodeId = signal->theData[1];
   tndbstartphase = signal->theData[2];   /* START PHASE      */
   tstarttype = signal->theData[3];       /* START TYPE       */
   c_sttor_ref = signal->getSendersBlockRef();
   switch (tndbstartphase) {
   case ZINTSPH1:
     jam();
-    intstartphase1x010Lab(signal);
+    intstartphase1x010Lab(signal, nodeId);
     return;
   case ZINTSPH2:
     jam();
@@ -763,7 +820,7 @@ void Dbtc::execNDB_STTOR(Signal* signal)
   case ZINTSPH3:
   {
     jam();
-    intstartphase3x010Lab(signal);      /* SEIZE CONNECT RECORD IN EACH LQH*/
+    intstartphase3x010Lab(signal);
 
     /* Start transaction counters event reporting. */
     const Uint32 len = c_counters.build_continueB(signal);
@@ -772,9 +829,12 @@ void Dbtc::execNDB_STTOR(Signal* signal)
     return;
   }
   case ZINTSPH6:
+  {
     jam();
-    csystemStart = SSS_TRUE;
+    c_elapsed_time_millis = 0;
+    init_elapsed_time(signal, c_latestTIME_SIGNAL);
     break;
+  }
   default:
     jam();
     break;
@@ -833,12 +893,14 @@ Dbtc::set_no_parallel_takeover(Uint32 noParallelTakeOver)
 /* ***************************************************************************/
 void Dbtc::startphase1x010Lab(Signal* signal) 
 {
-  csystemStart = SSS_FALSE;
   ctimeOutCheckCounter = 0;
   ctimeOutCheckFragCounter = 0;
   ctimeOutMissedHeartbeats = 0;
   ctimeOutCheckHeartbeat = 0;
   ctimeOutCheckLastHeartbeat = 0;
+  ctimeOutMissedHeartbeatsScan = 0;
+  ctimeOutCheckHeartbeatScan = 0;
+  ctimeOutCheckLastHeartbeatScan = 0;
   ctimeOutCheckActive = TOCS_FALSE;
   ctimeOutCheckFragActive = TOCS_FALSE;
   sttorryLab(signal);
@@ -848,9 +910,9 @@ void Dbtc::startphase1x010Lab(Signal* signal)
 /*                        I N T S T A R T P H A S E 1 X                      */
 /*                         INITIALISE ALL RECORDS.                           */
 /*****************************************************************************/
-void Dbtc::intstartphase1x010Lab(Signal* signal) 
+void Dbtc::intstartphase1x010Lab(Signal* signal, NodeId nodeId)
 {
-  cownNodeid = tnodeid;
+  cownNodeid = nodeId;
   cownref =          reference();
   clqhblockref =     calcLqhBlockRef(cownNodeid);
   cdihblockref =     calcDihBlockRef(cownNodeid);
@@ -864,7 +926,6 @@ void Dbtc::intstartphase1x010Lab(Signal* signal)
 
 /*****************************************************************************/
 /*                         I N T S T A R T P H A S E 3 X                     */
-/*                        PREPARE DISTRIBUTED CONNECTIONS                    */
 /*****************************************************************************/
 void Dbtc::intstartphase3x010Lab(Signal* signal) 
 {
@@ -1024,6 +1085,7 @@ Dbtc::handleFailedApiNode(Signal* signal,
         apiConnectptr.p->apiFailState = ZTRUE;
         break;
       case CS_START_SCAN:
+      {
         /*********************************************************************/
         // The api record was performing a scan operation. We need to check 
         // on the scan state. Since completing a scan process might involve
@@ -1041,6 +1103,7 @@ Dbtc::handleFailedApiNode(Signal* signal,
 	
         TloopCount += 64;
         break;
+      }
       case CS_CONNECTED:
       case CS_REC_COMMITTING:
       case CS_RECEIVING:
@@ -1110,7 +1173,7 @@ Dbtc::handleFailedApiNode(Signal* signal,
 
 void
 Dbtc::removeMarkerForFailedAPI(Signal* signal, 
-                               Uint32 nodeId, 
+                               NodeId nodeId, 
                                Uint32 startBucket)
 {
   TcFailRecordPtr node_fail_ptr;
@@ -1446,7 +1509,8 @@ void Dbtc::printState(Signal* signal, int place, bool force_trace)
   ndbout << " apiTimer = " << getApiConTimer(apiConnectptr.i)
 	 << " counter = " << apiConnectptr.p->counter
 	 << " lqhkeyconfrec = " << apiConnectptr.p->lqhkeyconfrec
-	 << " lqhkeyreqrec = " << apiConnectptr.p->lqhkeyreqrec << endl;
+	 << " lqhkeyreqrec = " << apiConnectptr.p->lqhkeyreqrec
+         << " cascading_scans = " << apiConnectptr.p->cascading_scans_count << endl;
   ndbout << "abortState = " << apiConnectptr.p->abortState 
 	 << " apiScanRec = " << apiConnectptr.p->apiScanRec
 	 << " returncode = " << apiConnectptr.p->returncode << endl;
@@ -2426,6 +2490,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->m_transaction_nodes.clear();
   regApiPtr->singleUserMode = 0;
   regApiPtr->m_pre_commit_pass = 0;
+  regApiPtr->cascading_scans_count = 0;
   // Trigger data
   ndbassert(regApiPtr->theFiredTriggers.isEmpty());
   releaseFiredTriggerData(&regApiPtr->theFiredTriggers);
@@ -3519,7 +3584,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     bool found = false;
     for (Uint32 idx = 0; idx < numNodes; idx ++)
     {
-      Uint32 nodeId = regTcPtr->tcNodedata[ idx ];
+      NodeId nodeId = regTcPtr->tcNodedata[ idx ];
       jam();
       if (nodeId == regCachePtr->unlockNodeId)
       {
@@ -4253,11 +4318,13 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
     switch (Tdata1 >> 28) {
     case ZCOMMITTED:
       signal->header.theLength = 3;
+      jamBuffer()->markEndOfSigExec();
       execCOMMITTED(signal);
       Tstep += 3;
       break;
     case ZCOMPLETED:
       signal->header.theLength = 3;
+      jamBuffer()->markEndOfSigExec();
       execCOMPLETED(signal);
       Tstep += 3;
       break;
@@ -4273,6 +4340,7 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
       lqhKeyConf->transId2 = Tdata3;
       lqhKeyConf->noFiredTriggers = Tdata4;
       signal->header.theLength = LqhKeyConf::SignalLength;
+      jamBuffer()->markEndOfSigExec();
       execLQHKEYCONF(signal);
       Tstep += LqhKeyConf::SignalLength;
       break;
@@ -4280,6 +4348,7 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
       jam();
       signal->header.theLength = 4;
       signal->theData[3] = TpackDataPtr[3];
+      jamBuffer()->markEndOfSigExec();
       execFIRE_TRIG_CONF(signal);
       Tstep += 4;
       break;
@@ -4570,10 +4639,10 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     SET_ERROR_INSERT_VALUE(8024);
     return;
   }//if
-  if (ERROR_INSERTED(8101))
+  if (ERROR_INSERTED(8107))
   {
     jam();
-    ndbout_c("Error 8101, timing out transaction");
+    ndbout_c("Error 8107, timing out transaction");
     timeOutFoundLab(signal, apiConnectptr.i, ZTIME_OUT_ERROR);
     return;
   }
@@ -6376,7 +6445,7 @@ Dbtc::sendRemoveMarkers(Signal* signal, CommitAckMarker * marker)
   {
     jam();
     Uint32 dataWord = *iter.data;
-    Uint32 nodeId = dataWord >> 16;
+    NodeId nodeId = dataWord >> 16;
     Uint32 instanceKey = dataWord & 0xFFFF;
     sendRemoveMarker(signal, nodeId, instanceKey, transId1, transId2);
     next_flag = commitAckMarkers.next(iter, 1);
@@ -6786,7 +6855,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 
         trigger_op_finished(signal, apiConnectptr, RNIL, opPtr.p, 0);
 
-        if (ERROR_INSERTED(8098))
+        if (ERROR_INSERTED(8105))
         {
           abortTransFromTrigger(signal, apiConnectptr, ZGET_DATAREC_ERROR);
         }
@@ -6892,15 +6961,9 @@ void Dbtc::clearCommitAckMarker(ApiConnectRecord * const regApiPtr,
     regTcPtr->commitAckMarker = RNIL;
     if (regApiPtr->no_commit_ack_markers == 0)
     {
-      regApiPtr->commitAckMarker = RNIL;
       tc_clearbit(regApiPtr->m_flags,
                   ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED);
-      CommitAckMarkerBuffer::DataBufferPool & pool =
-        c_theCommitAckMarkerBufferPool;
-      CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
-      LocalDataBuffer<5> commitAckMarkers(pool, tmp->theDataBuffer);
-      commitAckMarkers.release();
-      m_commitAckMarkerHash.release(commitAckMarker);
+      releaseMarker(regApiPtr);
     }
   }
 }
@@ -7662,7 +7725,7 @@ ABORT020:
     tcConnectptr.i = tcConnectptr.p->nextTcConnect;
     if (TloopCount < 1024 &&
         !ERROR_INSERTED(8089) &&
-        !ERROR_INSERTED(8098))
+        !ERROR_INSERTED(8105))
     {
       goto ABORT020;
     }
@@ -7760,16 +7823,49 @@ int Dbtc::releaseAndAbort(Signal* signal)
 /* ------------------------------------------------------------------------- */
 void Dbtc::execTIME_SIGNAL(Signal* signal) 
 {
-  
   jamEntry();
-  ctcTimer++;
-  if (csystemStart != SSS_TRUE) {
+
+  const NDB_TICKS currentTime = NdbTick_getCurrentTicks();
+  Uint64 num_ms_elapsed = elapsed_time(signal,
+                                       currentTime,
+                                       c_latestTIME_SIGNAL,
+                                       Uint32(TC_TIME_SIGNAL_DELAY));
+  sendTIME_SIGNAL(signal, currentTime, Uint32(TC_TIME_SIGNAL_DELAY));
+
+  /**
+   * The code here will make calls to timer_handling that appears to happen
+   * every 10ms but in reality they come in batches of up to 10 10ms
+   * intervals. The timer_handling will check if a new scan of PK timeouts
+   * is to start, this happens after an idle check period of 500ms. So
+   * we actually need only check this a divisor of 500 ms and 400ms. 400ms
+   * is how long we are idle between scans to check for scan timeouts.
+   * The reason to separate those is to make sure that they don't run
+   * at the same time as much.
+   * 
+   * One reason to run the updates of the timer_handling as often as once
+   * per 50ms is that it is also then that we update the timer that is used
+   * to check for timeouts on transaction. So 50ms is the granularity of
+   * when we see timeouts.
+   *
+   * The reason for keeping the 10ms appearance of timer_handling is to
+   * decrease changes in this part of the code. This could be changed
+   * in the future.
+   */
+  c_elapsed_time_millis += num_ms_elapsed;
+  while (c_elapsed_time_millis > Uint64(10))
+  {
     jam();
-    return;
-  }//if
+    c_elapsed_time_millis -= Uint64(10);
+    timer_handling(signal);
+  }
+}//execTIME_SIGNAL()
+
+void Dbtc::timer_handling(Signal *signal)
+{
+  ctcTimer++;
   checkStartTimeout(signal);
   checkStartFragTimeout(signal);
-}//Dbtc::execTIME_SIGNAL()
+}
 
 /*------------------------------------------------*/
 /* Start timeout handling if not already going on */
@@ -7782,9 +7878,22 @@ void Dbtc::checkStartTimeout(Signal* signal)
     // Check heartbeat of timeout loop
     if(ctimeOutCheckHeartbeat > ctimeOutCheckLastHeartbeat){
       jam();
-      ctimeOutMissedHeartbeats = 0;      
+      ctimeOutMissedHeartbeats = 0;
     }else{
       jam();
+      /**
+       * This code simply checks that the scan for PK timeouts haven't
+       * lost itself, a sort of watchdog for that code. If that would
+       * occur we would no longer have any timeout handling of
+       * transactions which would render the system useless. This is
+       * to protect ourselves for future bugs in the code that we
+       * might introduce by mistake.
+       * 
+       * 100 is simply an arbitrary number that needs to be bigger
+       * than the maximum number of calls to timer_handling that
+       * we can have in one call to execTIME_SIGNAL. This is
+       * currently 10 but could change in the future.
+       */
       ctimeOutMissedHeartbeats++;
       if (ctimeOutMissedHeartbeats > 100){
 	jam();
@@ -7804,9 +7913,10 @@ void Dbtc::checkStartTimeout(Signal* signal)
   }//if
   ctimeOutCheckActive = TOCS_TRUE;
   ctimeOutCheckCounter = 0;
+  ctimeOutMissedHeartbeats = 0;
   timeOutLoopStartLab(signal, 0); // 0 is first api connect record
   return;
-}//Dbtc::execTIME_SIGNAL()
+}//checkStartTimeout()
 
 /*----------------------------------------------------------------*/
 /* Start fragment (scan) timeout handling if not already going on */
@@ -7816,9 +7926,29 @@ void Dbtc::checkStartFragTimeout(Signal* signal)
   ctimeOutCheckFragCounter++;
   if (ctimeOutCheckFragActive == TOCS_TRUE) {
     jam();
+    // Check heartbeat of scan timeout loop
+    if(ctimeOutCheckHeartbeatScan > ctimeOutCheckLastHeartbeatScan)
+    {
+      jam();
+      ctimeOutMissedHeartbeatsScan = 0;
+    }
+    else
+    {
+      /**
+       * Exactly the same code as for PK timeouts, but here to check the
+       * scan for scan timeouts. Same comments apply as above.
+       */
+      jam();
+      ctimeOutMissedHeartbeatsScan++;
+      if (ctimeOutMissedHeartbeatsScan > 100){
+	jam();
+	systemErrorLab(signal, __LINE__);
+      }
+    }
+    ctimeOutCheckLastHeartbeatScan = ctimeOutCheckHeartbeatScan;
     return;
   }//if
-  if (ctimeOutCheckFragCounter < ctimeOutCheckDelay) {
+  if (ctimeOutCheckFragCounter < ctimeOutCheckDelayScan) {
     jam();
     /*------------------------------------------------------------------*/
     /*       NO TIME-OUT CHECKED THIS TIME. WAIT MORE.                  */
@@ -7829,6 +7959,7 @@ void Dbtc::checkStartFragTimeout(Signal* signal)
   // Go through the fragment records and look for timeout in a scan.
   ctimeOutCheckFragActive = TOCS_TRUE;
   ctimeOutCheckFragCounter = 0;
+  ctimeOutMissedHeartbeatsScan = 0;
   timeOutLoopStartFragLab(signal, 0); // 0 means first scan record
 }//checkStartFragTimeout()
 
@@ -8371,7 +8502,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
   } while (1);
 }//Dbtc::sendAbortedAfterTimeout()
 
-void Dbtc::reportNodeFailed(Signal* signal, Uint32 nodeId)
+void Dbtc::reportNodeFailed(Signal* signal, NodeId nodeId)
 {
   DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
   rep->nodeId = nodeId;
@@ -8390,6 +8521,8 @@ void Dbtc::timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr)
   UintR texpiredTime[8];
   UintR TloopCount = 0;
   Uint32 TtcTimer = ctcTimer;
+
+  ctimeOutCheckHeartbeatScan = TtcTimer;
 
   while ((TscanConPtr + 8) < cscanFragrecFileSize) {
     jam();
@@ -8594,7 +8727,17 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
   switch (ptr.p->scanFragState) {
   case ScanFragRec::WAIT_GET_PRIMCONF:
     jam();
-    ndbrequire(false);
+    /**
+     * Time-out waiting for local DIH, we will continue waiting forever.
+     * This should only occur when we run in an unstable environment where
+     * the main thread goes slow.
+     * We reset timer to avoid getting here again immediately.
+     */
+    ptr.p->startFragTimer(ctcTimer);
+#ifdef VM_TRACE
+    g_eventLogger->warning("Time-out in WAIT_GET_PRIMCONF: scanRecord = %u",
+                           ptr.i);
+#endif
     break;
   case ScanFragRec::LQH_ACTIVE:{
     jam();
@@ -8602,7 +8745,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
     /**  
      * The LQH expired it's timeout, try to close it
      */    
-    Uint32 nodeId = refToNode(ptr.p->lqhBlockref);
+    NodeId nodeId = refToNode(ptr.p->lqhBlockref);
     Uint32 connectCount = getNodeInfo(nodeId).m_connectCount;
     ScanRecordPtr scanptr;
     scanptr.i = ptr.p->scanRec;
@@ -9123,8 +9266,8 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
     return;
   }
 
-  tfailedNodeId = signal->theData[0];
-  hostptr.i = tfailedNodeId;
+  Uint32 failedNodeId = signal->theData[0];
+  hostptr.i = failedNodeId;
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
 
   Uint32 senderRef = signal->theData[1];
@@ -9151,6 +9294,12 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
       jam();
       if (tcNodeFailptr.p->queueList[i] == hostptr.i)
       {
+        g_eventLogger->info("DBTC instance %u: Removed node %u"
+          " from takeover queue, %u failed nodes remaining",
+                            instance(),
+                            hostptr.i,
+                            end - 1);
+
         jam();
         break;
       }
@@ -9189,7 +9338,7 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
 void Dbtc::execTAKE_OVERTCREQ(Signal* signal) 
 {
   jamEntry();
-  tfailedNodeId = signal->theData[0];
+  Uint32 failedNodeId = signal->theData[0];
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
   if (tcNodeFailptr.p->failStatus != FS_IDLE ||
@@ -9206,52 +9355,329 @@ void Dbtc::execTAKE_OVERTCREQ(Signal* signal)
     /*       QUEUE THE TAKE OVER AND START IT AS SOON AS THE      */
     /*       PREVIOUS ARE COMPLETED.                              */
     /*------------------------------------------------------------*/
+    g_eventLogger->info("DBTC instance %u: Inserting failed node %u into"
+                        " takeover queue, length now=%u",
+                        instance(),
+                        failedNodeId,
+                        tcNodeFailptr.p->queueIndex + 1);
     arrGuard(tcNodeFailptr.p->queueIndex, MAX_NDB_NODES);
-    tcNodeFailptr.p->queueList[tcNodeFailptr.p->queueIndex] = tfailedNodeId;
-    tcNodeFailptr.p->queueIndex = tcNodeFailptr.p->queueIndex + 1;
+    tcNodeFailptr.p->queueList[tcNodeFailptr.p->queueIndex] = failedNodeId;
+    tcNodeFailptr.p->queueIndex++;
     return;
   }//if
   ndbrequire(instance() == 0 || instance() == TAKE_OVER_INSTANCE);
-  startTakeOverLab(signal);
+  g_eventLogger->info("DBTC instance %u: Starting take over of node %u",
+                      instance(),
+                      failedNodeId);
+  startTakeOverLab(signal, 0, failedNodeId);
 }//Dbtc::execTAKE_OVERTCREQ()
+
+/**
+  TC Takeover protocol
+  --------------------
+  When a node fails it has a set of transactions ongoing in many cases. In
+  order to complete those transactions we have implemented a take over
+  protocol.
+
+  The failed node was transaction controller for a set of transactions.
+  The transaction controller has failed, so we cannot ask it for the
+  state of the transactions. This means that we need to rebuild the
+  transaction state of all transactions that was controlled by the failed
+  node. If there are several node failures at the same time, then we'll
+  take over one node at a time. The TC take over is only handled by the
+  first TC instance, most of the work of the take over is handled by the
+  LQH instances that need to scan all ongoing operations to send the
+  operations to the TC instance that takes over. For the ndbd it is handled
+  by the TC instance simply.
+
+  With the introduction of multiple TC instances we have also seen it fit
+  to handle also the take over of one TC instance in multiple steps. We use
+  one step per TC instance we take over. If the TC take over fails due to
+  not having sufficient amount of transaction records or operations records,
+  we will also run several steps for each TC instance we take over.
+
+  The TC take over process will eventually complete as long as there isn't
+  any transaction that is bigger than the number of operation records
+  available for TC take over.
+
+  The protocol works as follows:
+
+  Master TC (take over TC instance, starting at instance 0):
+  Sends:
+  LQH_TRANSREQ (Take over data reference,
+                Master TC block reference,
+                TC Take over node id,
+                TC Take over instance id)
+
+  This signal is sent to the LQH proxy block in each of the alive nodes.
+  From the proxy block it is sent to each LQH instance. For ndbd's we
+  send it directly to the LQH block.
+
+  Each LQH instance scans the operations for any operations that has a
+  TC reference that comes from the TC node and TC instance that has failed.
+  For each such operation it sends a LQH_TRANSCONF signal that contains a
+  lot of data about the transaction operation.
+
+  When the LQH instance have completed the scan of its operations then it
+  will send a special LQH_TRANSCONF with a last operation flag set. All
+  LQH_TRANSCONF is sent through the LQH proxy such that we can check when
+  all LQH instances have completed their scans. We will only send one
+  LQH_TRANSCONF signal from each node.
+
+  The Master TC that performs the take over builds the state of each
+  transaction such that it can decide whether the transaction was
+  committed or not, if it wasn't committed we will abort it.
+
+  The design is certain that each step will at least handle one transaction
+  for each take over step. Normally it will complete all transactions in
+  one instance in each step, we can though handle also other uncommon cases.
+*/
 
 /*------------------------------------------------------------*/
 /*       INITIALISE THE HASH TABLES FOR STORING TRANSACTIONS  */
 /*       AND OPERATIONS DURING TC TAKE OVER.                  */
 /*------------------------------------------------------------*/
-void Dbtc::startTakeOverLab(Signal* signal) 
+void Dbtc::startTakeOverLab(Signal* signal,
+                            Uint32 instanceId,
+                            Uint32 failedNodeId)
 {
-  for (tindex = 0; tindex <= 511; tindex++) {
-    ctransidFailHash[tindex] = RNIL;
+  for (Uint32 i = 0; i < TRANSID_FAIL_HASH_SIZE; i++) {
+    ctransidFailHash[i] = RNIL;
   }//for
-  for (tindex = 0; tindex <= 1023; tindex++) {
-    ctcConnectFailHash[tindex] = RNIL;
+  for (Uint32 i = 0; i < TC_FAIL_HASH_SIZE; i++) {
+    ctcConnectFailHash[i] = RNIL;
   }//for
   tcNodeFailptr.p->failStatus = FS_LISTENING;
-  tcNodeFailptr.p->takeOverNode = tfailedNodeId;
+  tcNodeFailptr.p->takeOverNode = failedNodeId;
+  tcNodeFailptr.p->takeOverInstanceId = instanceId;
+  tcNodeFailptr.p->takeOverFailed = false;
+  tcNodeFailptr.p->maxInstanceId = 0;
+  tcNodeFailptr.p->handledOneTransaction = false;
   for (hostptr.i = 1; hostptr.i < MAX_NDB_NODES; hostptr.i++) {
     jam();
     ptrAss(hostptr, hostRecord);
-    if (hostptr.p->hostStatus == HS_ALIVE) {
+    if (hostptr.p->hostStatus == HS_ALIVE)
+    {
+      LqhTransReq * const lqhTransReq  = (LqhTransReq *)&signal->theData[0];
+      Uint32 sig_len;
       jam();
       tblockref = calcLqhBlockRef(hostptr.i);
       hostptr.p->lqhTransStatus = LTS_ACTIVE;
-      signal->theData[0] = tcNodeFailptr.i;
-      signal->theData[1] = cownref;
-      signal->theData[2] = tfailedNodeId;
+      lqhTransReq->senderData = tcNodeFailptr.i;
+      lqhTransReq->senderRef = cownref;
+      lqhTransReq->failedNodeId = failedNodeId;
+      lqhTransReq->instanceId = instanceId;
+      if (ndbd_multi_tc_instance_takeover(getNodeInfo(hostptr.i).m_version))
+      {
+        /* The node does support the new LQH_TRANSREQ protocol */
+        sig_len = LqhTransReq::SignalLength;
+      }
+      else
+      {
+        sig_len = LqhTransReq::OldSignalLength;
+      }
       if (ERROR_INSERTED(8064) && hostptr.i == getOwnNodeId())
       {
         ndbout_c("sending delayed GSN_LQH_TRANSREQ to self");
-        sendSignalWithDelay(tblockref, GSN_LQH_TRANSREQ, signal, 100, 3);
+        sendSignalWithDelay(tblockref, GSN_LQH_TRANSREQ, signal, 100, sig_len);
         CLEAR_ERROR_INSERT_VALUE;
       }
       else
       {
-        sendSignal(tblockref, GSN_LQH_TRANSREQ, signal, 3, JBB);
+        sendSignal(tblockref, GSN_LQH_TRANSREQ, signal, sig_len, JBB);
       }
     }//if
   }//for
 }//Dbtc::startTakeOverLab()
+
+Uint32
+Dbtc::get_transid_fail_bucket(Uint32 transid1)
+{
+  return transid1 & (TRANSID_FAIL_HASH_SIZE - 1);
+}
+
+void
+Dbtc::insert_transid_fail_hash(Uint32 transid1)
+{
+  Uint32 bucket = get_transid_fail_bucket(transid1);
+  apiConnectptr.p->nextApiConnect = ctransidFailHash[bucket];
+  ctransidFailHash[bucket] = apiConnectptr.i;
+  return;
+}
+
+bool
+Dbtc::findApiConnectFail(Signal *signal, Uint32 transid1, Uint32 transid2)
+{
+  Uint32 bucket = get_transid_fail_bucket(transid1);
+  apiConnectptr.i = ctransidFailHash[bucket];
+
+  while (apiConnectptr.i != RNIL)
+  {
+    jam();
+    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+    if (apiConnectptr.p->transid[0] == transid1 &&
+        apiConnectptr.p->transid[1] == transid2)
+    {
+      jam();
+      return true;
+    }
+    apiConnectptr.i = apiConnectptr.p->nextApiConnect;
+  }
+  jam();
+  return false;
+}
+
+void Dbtc::releaseMarker(ApiConnectRecord * const regApiPtr)
+{
+  Uint32 marker = regApiPtr->commitAckMarker;
+  if (marker != RNIL)
+  {
+    regApiPtr->commitAckMarker = RNIL;
+    CommitAckMarkerBuffer::DataBufferPool & pool =
+      c_theCommitAckMarkerBufferPool;
+    CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(marker);
+    LocalDataBuffer<5> commitAckMarkers(pool, tmp->theDataBuffer);
+    commitAckMarkers.release();
+    m_commitAckMarkerHash.release(marker);
+  }
+}
+
+void Dbtc::remove_from_transid_fail_hash(Signal *signal, Uint32 transid1)
+{
+  ApiConnectRecordPtr locApiConnectptr;
+  ApiConnectRecordPtr prevApiConptr;
+
+  prevApiConptr.i = RNIL;
+  Uint32 bucket = get_transid_fail_bucket(transid1);
+  locApiConnectptr.i = ctransidFailHash[bucket];
+  ndbrequire(locApiConnectptr.i != RNIL);
+  do
+  {
+    ptrCheckGuard(locApiConnectptr, capiConnectFilesize, apiConnectRecord);
+    if (locApiConnectptr.i == apiConnectptr.i)
+    {
+      if (prevApiConptr.i == RNIL)
+      {
+        jam();
+        /* We were first in the hash linked list */
+        ndbassert(ctransidFailHash[bucket] == apiConnectptr.i);
+        ctransidFailHash[bucket] = apiConnectptr.p->nextApiConnect;
+      }
+      else
+      {
+        /* Link past our record in the hash list */
+        jam();
+        ptrCheckGuard(prevApiConptr, capiConnectFilesize, apiConnectRecord);
+        prevApiConptr.p->nextApiConnect = apiConnectptr.p->nextApiConnect;
+      }
+      apiConnectptr.p->nextApiConnect = RNIL;
+      return;
+    }
+    else
+    {
+      jam();
+      prevApiConptr.i = locApiConnectptr.i;
+      locApiConnectptr.i = locApiConnectptr.p->nextApiConnect;
+    }
+  } while (locApiConnectptr.i != RNIL);
+  ndbrequire(false);
+}
+
+Uint32
+Dbtc::get_tc_fail_bucket(Uint32 transid1, Uint32 opRec)
+{
+  return (transid1 ^ opRec) & (TC_FAIL_HASH_SIZE - 1);
+}
+
+void
+Dbtc::insert_tc_fail_hash(Uint32 transid1, Uint32 tcOprec)
+{
+  Uint32 bucket = get_tc_fail_bucket(transid1, tcOprec);
+  tcConnectptr.p->nextTcFailHash = ctcConnectFailHash[bucket];
+  ctcConnectFailHash[bucket] = tcConnectptr.i;
+}
+
+bool
+Dbtc::findTcConnectFail(Signal* signal,
+                        Uint32 transid1,
+                        Uint32 transid2,
+                        Uint32 tcOprec) 
+{
+  Uint32 bucket = get_tc_fail_bucket(transid1, tcOprec);
+
+  tcConnectptr.i = ctcConnectFailHash[bucket];
+  while (tcConnectptr.i != RNIL)
+  {
+    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    if (tcConnectptr.p->tcOprec == tcOprec &&
+        tcConnectptr.p->apiConnect == apiConnectptr.i &&
+        apiConnectptr.p->transid[0] == transid1 &&
+        apiConnectptr.p->transid[1] == transid2)
+    {
+      jam();
+      return true;
+    }
+    else
+    {
+      jam();
+      tcConnectptr.i = tcConnectptr.p->nextTcFailHash;
+    }
+  }
+  jam();
+  return false;
+}
+
+void Dbtc::remove_transaction_from_tc_fail_hash(Signal *signal)
+{
+  TcConnectRecordPtr remTcConnectptr;
+
+  remTcConnectptr.i = apiConnectptr.p->firstTcConnect;
+  while (remTcConnectptr.i != RNIL)
+  {
+    jam();
+    TcConnectRecordPtr loopTcConnectptr;
+    TcConnectRecordPtr prevTcConnectptr;
+    ptrCheckGuard(remTcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    bool found = false;
+    Uint32 bucket = get_tc_fail_bucket(apiConnectptr.p->transid[0],
+                                       remTcConnectptr.p->tcOprec);
+    prevTcConnectptr.i = RNIL;
+    loopTcConnectptr.i = ctcConnectFailHash[bucket];
+    while (loopTcConnectptr.i != RNIL)
+    {
+      if (loopTcConnectptr.i == remTcConnectptr.i)
+      {
+        found = true;
+        if (prevTcConnectptr.i == RNIL)
+        {
+          jam();
+          /* We were first in the hash linked list */
+          ndbassert(ctcConnectFailHash[bucket] == remTcConnectptr.i);
+          ctcConnectFailHash[bucket] = remTcConnectptr.p->nextTcFailHash;
+        }
+        else
+        {
+          /* Link past our record in the hash list */
+          jam();
+          ptrCheckGuard(prevTcConnectptr, ctcConnectFilesize, tcConnectRecord);
+          prevTcConnectptr.p->nextTcFailHash =
+            remTcConnectptr.p->nextTcFailHash;
+        }
+        remTcConnectptr.p->nextTcFailHash = RNIL;
+        break;
+      }
+      else
+      {
+        jam();
+        ptrCheckGuard(loopTcConnectptr, ctcConnectFilesize, tcConnectRecord);
+        prevTcConnectptr.i = loopTcConnectptr.i;
+        loopTcConnectptr.i = loopTcConnectptr.p->nextTcFailHash;
+      }
+    }
+    ndbrequire(found);
+    remTcConnectptr.i = remTcConnectptr.p->nextTcConnect;
+  }
+}
 
 /*------------------------------------------------------------*/
 /*       A REPORT OF AN OPERATION WHERE TC FAILED HAS ARRIVED.*/
@@ -9260,47 +9686,74 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
 {
   jamEntry();
   LqhTransConf * const lqhTransConf = (LqhTransConf *)&signal->theData[0];
-  
+
+  if (ERROR_INSERTED(8102))
+  {
+    jam();
+    if ((((LqhTransConf::OperationStatus)lqhTransConf->operationStatus) ==
+         LqhTransConf::LastTransConf) &&
+        signal->getSendersBlockRef() != reference())
+    {
+      jam();
+      ndbout_c("Delaying final LQH_TRANSCONF from Lqh @ node %u",
+               refToNode(signal->getSendersBlockRef()));
+      // Force multi-tc takeover
+      ((LqhTransConf*)lqhTransConf)->maxInstanceId = 4;
+      sendSignalWithDelay(reference(),
+                          GSN_LQH_TRANSCONF,
+                          signal,
+                          5000,
+                          signal->getLength());
+      return;
+    }
+  }
+
   CRASH_INSERTION(8060);
 
   tcNodeFailptr.i = lqhTransConf->tcRef;
   ptrCheckGuard(tcNodeFailptr, 1, tcFailRecord);
-  tnodeid = lqhTransConf->lqhNodeId;
-  ttransStatus = (LqhTransConf::OperationStatus)lqhTransConf->operationStatus;
-  ttransid1    = lqhTransConf->transId1;
-  ttransid2    = lqhTransConf->transId2;
-  ttcOprec     = lqhTransConf->oldTcOpRec;
-  treqinfo     = lqhTransConf->requestInfo;
-  tgci         = Uint64(lqhTransConf->gci_hi) << 32;
+  NodeId nodeId = lqhTransConf->lqhNodeId;
+  LqhTransConf::OperationStatus transStatus =
+    (LqhTransConf::OperationStatus)lqhTransConf->operationStatus;
+  Uint32 transid1    = lqhTransConf->transId1;
+  Uint32 transid2    = lqhTransConf->transId2;
+  Uint32 tcOprec     = lqhTransConf->oldTcOpRec;
+  Uint32 reqinfo     = lqhTransConf->requestInfo;
+  Uint64 gci         = Uint64(lqhTransConf->gci_hi) << 32;
   cnodes[0]    = lqhTransConf->nextNodeId1;
   cnodes[1]    = lqhTransConf->nextNodeId2;
   cnodes[2]    = lqhTransConf->nextNodeId3;
-  const Uint32 ref = tapplRef = lqhTransConf->apiRef;
-  tapplOprec   = lqhTransConf->apiOpRec;
+  const BlockReference ref = lqhTransConf->apiRef;
+  BlockReference applRef = lqhTransConf->apiRef;
+  Uint32 applOprec   = lqhTransConf->apiOpRec;
   const Uint32 tableId = lqhTransConf->tableId;
   Uint32 gci_lo = lqhTransConf->gci_lo;
   Uint32 fragId = lqhTransConf->fragId;
-  if (ttransStatus == LqhTransConf::Committed && 
+
+  if (transStatus == LqhTransConf::Committed && 
       unlikely(signal->getLength() < LqhTransConf::SignalLength_GCI_LO))
   {
     jam();
     gci_lo = 0;
-    ndbassert(!ndb_check_micro_gcp(getNodeInfo(tnodeid).m_version));
+    ndbassert(!ndb_check_micro_gcp(getNodeInfo(nodeId).m_version));
   }
-  tgci |= gci_lo;
+  gci |= gci_lo;
 
-  if (ttransStatus == LqhTransConf::LastTransConf){
+  if (transStatus == LqhTransConf::LastTransConf){
     jam();
-    /*------------------------------------------------------------*/
-    /*       A NODE HAS REPORTED COMPLETION OF TAKE OVER REPORTING*/
-    /*------------------------------------------------------------*/
-    nodeTakeOverCompletedLab(signal);
+    Uint32 maxInstanceId = lqhTransConf->maxInstanceId;
+    if (unlikely(signal->getLength() < LqhTransConf::SignalLength_INST_ID))
+    {
+      maxInstanceId = 0;
+    }
+    /* A node has reported one phase of take over handling as completed. */
+    nodeTakeOverCompletedLab(signal, nodeId, maxInstanceId);
     return;
   }//if
-  if (ttransStatus == LqhTransConf::Marker){
+  if (transStatus == LqhTransConf::Marker){
     jam();
-    treqinfo = 0;
-    LqhTransConf::setMarkerFlag(treqinfo, 1);
+    reqinfo = 0;
+    LqhTransConf::setMarkerFlag(reqinfo, 1);
   } else {
     TableRecordPtr tabPtr;
     tabPtr.i = tableId;
@@ -9310,22 +9763,87 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
     case DictTabInfo::UserTable:
       break;
     default:
-      tapplRef = 0;
-      tapplOprec = 0;
+      applRef = 0;
+      applOprec = 0;
     }
   }
 
-  findApiConnectFail(signal);
-
-  if(apiConnectptr.p->ndbapiBlockref == 0 && tapplRef != 0){
-    apiConnectptr.p->ndbapiBlockref = ref;
-    apiConnectptr.p->ndbapiConnect = tapplOprec;
+  if (findApiConnectFail(signal, transid1, transid2))
+  {
+    /**
+     * Found a transaction record, record the added info about this
+     * transaction as received in this message
+     */
+    updateApiStateFail(signal,
+                       transid1,
+                       transid2,
+                       transStatus,
+                       reqinfo,
+                       applRef,
+                       gci,
+                       nodeId);
   }
-  
-  if (ttransStatus != LqhTransConf::Marker)
+  else
+  {
+    if (cfirstfreeApiConnectFail == RNIL)
+    {
+      jam();
+      /**
+       * We failed to allocate a transaction record, we will record that
+       * we failed to handle all transactions and we will not allocate
+       * any more transaction records as part of taking over this instance
+       * of the failed TC. The failed transactions will be taken over in
+       * a second step of the TC take over of this instance and possibly
+       * even more than two steps will be performed.
+       *
+       * This could happen if the master node has less transaction records
+       * than the failed node which is possible but not recommended.
+       */
+      Uint32 apiConnect = capiConnectFilesize / 3;
+      g_eventLogger->info("Need to do another round of TC takeover handling."
+                          " The failed node had a higher setting of "
+                          "MaxNoOfConcurrentTransactions than this node has, "
+                          "this node has MaxNoOfConcurrentTransactions = %u",
+                          apiConnect);
+      tcNodeFailptr.p->takeOverFailed = true;
+      return;
+    }
+    else if (tcNodeFailptr.p->takeOverFailed)
+    {
+      jam();
+      /**
+       * After we failed to allocate a transaction record we won't
+       * try to allocate any new ones since it might mean that we
+       * miss operations of a transaction.
+       */
+      return;
+    }
+    /**
+     * A new transaction was found, allocate a record for it and fill
+     * it with info as received in LQH_TRANSCONF message. Also insert
+     * it in hash table for transaction records in TC take over.
+     */
+    seizeApiConnectFail(signal);
+    insert_transid_fail_hash(transid1);
+    initApiConnectFail(signal,
+                       transid1,
+                       transid2,
+                       transStatus,
+                       reqinfo,
+                       applRef,
+                       gci,
+                       nodeId);
+  }
+
+  if(apiConnectptr.p->ndbapiBlockref == 0 && applRef != 0)
   {
     jam();
-
+    apiConnectptr.p->ndbapiBlockref = ref;
+    apiConnectptr.p->ndbapiConnect = applOprec;
+  }
+  
+  if (transStatus != LqhTransConf::Marker)
+  {
     Uint32 instanceKey;
 
     if (unlikely(signal->getLength() < LqhTransConf::SignalLength_FRAG_ID))
@@ -9338,20 +9856,85 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
       jam();
       instanceKey = getInstanceKey(tableId, fragId);
     }
-    findTcConnectFail(signal, instanceKey);
+    if (findTcConnectFail(signal, transid1, transid2, tcOprec))
+    {
+      jam();
+      updateTcStateFail(signal,
+                        instanceKey,
+                        tcOprec,
+                        reqinfo,
+                        transStatus,
+                        nodeId);
+    }
+    else
+    {
+      if (cfirstfreeTcConnectFail == RNIL)
+      {
+        /**
+         * We failed to allocate a TC record, given that we can no longer
+         * complete take over of this transaction we must handle the failed
+         * transaction take over. We also set takeOverFailed to true to
+         * ensure that we cannot start any new transaction take over after
+         * this one. This is imperative to do since otherwise a new operation
+         * on the failed transaction can come along and find free resources.
+         * This would not be a correct behavior so we need to protect against
+         * it by not starting any transactions after any seize failure.
+         * 
+         * As long as we don't have transactions that are bigger than the
+         * available number of TC records we should make progress at each
+         * step and the algorithm should eventually complete.
+         *
+         * This could happen if the master node have fewer operation records
+         * than the failed node had. This could happen but isn't
+         * recommended.
+         */
+        Uint32 tcConnect = ctcConnectFilesize;
+        jam();
+        g_eventLogger->info("Need to do another round of TC takeover handling."
+                            " The failed node had a higher setting of "
+                            "MaxNoOfConcurrentOperations than this node has, "
+                            "this node has MaxNoOfConcurrentOperations = %u",
+                            tcConnect);
+        tcNodeFailptr.p->takeOverFailed = true;
+        remove_transaction_from_tc_fail_hash(signal);
+        releaseMarker(apiConnectptr.p);
+        remove_from_transid_fail_hash(signal, transid1);
+        releaseTakeOver(signal);
+      }
+      else
+      {
+        jam();
+        seizeTcConnectFail(signal);
+        linkTcInConnectionlist(signal);
+        insert_tc_fail_hash(transid1, tcOprec);
+        initTcConnectFail(signal,
+                          instanceKey,
+                          tcOprec,
+                          reqinfo,
+                          transStatus,
+                          nodeId);
+      }
+    }
   }
 }//Dbtc::execLQH_TRANSCONF()
 
 /*------------------------------------------------------------*/
 /*       A NODE HAS REPORTED COMPLETION OF TAKE OVER REPORTING*/
 /*------------------------------------------------------------*/
-void Dbtc::nodeTakeOverCompletedLab(Signal* signal) 
+void Dbtc::nodeTakeOverCompletedLab(Signal* signal,
+                                    NodeId nodeId,
+                                    Uint32 maxInstanceId)
 {
   Uint32 guard0;
 
   CRASH_INSERTION(8061);
 
-  hostptr.i = tnodeid;
+  if (tcNodeFailptr.p->maxInstanceId < maxInstanceId)
+  {
+    jam();
+    tcNodeFailptr.p->maxInstanceId = maxInstanceId;
+  }
+  hostptr.i = nodeId;
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
   hostptr.p->lqhTransStatus = LTS_IDLE;
   for (hostptr.i = 1; hostptr.i < MAX_NDB_NODES; hostptr.i++) {
@@ -9360,10 +9943,10 @@ void Dbtc::nodeTakeOverCompletedLab(Signal* signal)
     if (hostptr.p->hostStatus == HS_ALIVE) {
       if (hostptr.p->lqhTransStatus == LTS_ACTIVE) {
         jam();
-	/*------------------------------------------------------------*/
-	/*       NOT ALL NODES ARE COMPLETED WITH REPORTING IN THE    */
-	/*       TAKE OVER.                                           */
-	/*------------------------------------------------------------*/
+        /*------------------------------------------------------------*/
+        /*       NOT ALL NODES ARE COMPLETED WITH REPORTING IN THE    */
+        /*       TAKE OVER.                                           */
+        /*------------------------------------------------------------*/
         return;
       }//if
     }//if
@@ -9406,7 +9989,8 @@ void Dbtc::nodeTakeOverCompletedLab(Signal* signal)
 void Dbtc::completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd) 
 {
   jam();
-  while (tcNodeFailptr.p->currentHashIndexTakeOver < 512){
+  while (tcNodeFailptr.p->currentHashIndexTakeOver < TRANSID_FAIL_HASH_SIZE)
+  {
     jam();
     apiConnectptr.i = 
         ctransidFailHash[tcNodeFailptr.p->currentHashIndexTakeOver];
@@ -9421,14 +10005,15 @@ void Dbtc::completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd)
       ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
       ctransidFailHash[tcNodeFailptr.p->currentHashIndexTakeOver] = 
         apiConnectptr.p->nextApiConnect;
-
+      tcNodeFailptr.p->handledOneTransaction = true;
       completeTransAtTakeOverDoOne(signal, TtakeOverInd);
       // One transaction taken care of, return from this function
       // and wait for the next CONTINUEB to continue processing
       break;
 
     } else {
-      if (tcNodeFailptr.p->currentHashIndexTakeOver < 511){
+      if (tcNodeFailptr.p->currentHashIndexTakeOver <
+          (TRANSID_FAIL_HASH_SIZE -1)){
         jam();      
         tcNodeFailptr.p->currentHashIndexTakeOver++;
       } else {
@@ -9439,8 +10024,6 @@ void Dbtc::completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd)
     }//if
   }//while
 }//Dbtc::completeTransAtTakeOverLab()
-
-
 
 
 void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd) 
@@ -9456,9 +10039,67 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
     systemErrorLab(signal, __LINE__);
     return;
   }//if
+  /**
+   * If we need to continue with take over processing it will still be with
+   * the same node.
+   */
+  if (tcNodeFailptr.p->takeOverFailed == ZTRUE)
+  {
+    /**
+     * We performed a take over and it didn't complete, we will try
+     * again. The reason it failed was due to this TC instance
+     * not having sufficient resources to handle all transactions,
+     * we should however make progress and thus eventually we should
+     * be able to complete it. The only reason that it could completely
+     * fail is if there is one transaction which is so big that we
+     * cannot calculate its outcome.
+     *
+     * Given that we haven't completed this round, we continue with
+     * one more attempt on the same TC instance.
+     */
+    jam();
+    g_eventLogger->info("DBTC instance %u: Continuing take over of "
+                        "DBTC instance %u in node %u",
+                        instance(),
+                        tcNodeFailptr.p->takeOverInstanceId,
+                        tcNodeFailptr.p->takeOverNode);
+    ndbrequire(tcNodeFailptr.p->handledOneTransaction);
+    startTakeOverLab(signal,
+                     tcNodeFailptr.p->takeOverInstanceId,
+                     tcNodeFailptr.p->takeOverNode);
+    return;
+  }
+  if (tcNodeFailptr.p->takeOverInstanceId < tcNodeFailptr.p->maxInstanceId)
+  {
+    /**
+     * We deal with one TC instance at a time, we have completed one
+     * instance and there are more instances to handle. Let's continue
+     * with the next instance.
+     */
+    jam();
+    g_eventLogger->info("DBTC instance %u: Completed take over of "
+                        "DBTC instance %u in failed node %u,"
+                        " continuing with the next instance",
+                        instance(),
+                        tcNodeFailptr.p->takeOverInstanceId,
+                        tcNodeFailptr.p->takeOverNode);
+    startTakeOverLab(signal,
+                     tcNodeFailptr.p->takeOverInstanceId + 1,
+                     tcNodeFailptr.p->takeOverNode);
+    return;
+  }
+  /**
+   * We have completed take over of this node for all its TC instances.
+   * We will continue taking over other nodes if there are any more
+   * nodes to take over.
+   */
   tcNodeFailptr.p->takeOverProcState[TtakeOverInd] = ZTAKE_OVER_IDLE;
   tcNodeFailptr.p->completedTakeOver++;
 
+  g_eventLogger->info("DBTC instance %u: Completed take over"
+                      " of failed node %u",
+                      instance(),
+                      tcNodeFailptr.p->takeOverNode);
   CRASH_INSERTION(8062);
 
   if (tcNodeFailptr.p->completedTakeOver == cnoParallelTakeOver) {
@@ -9479,16 +10120,21 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
       /*       THERE ARE MORE NODES TO TAKE OVER. WE NEED TO START  */
       /*       THE TAKE OVER.                                       */
       /*------------------------------------------------------------*/
-      tfailedNodeId = tcNodeFailptr.p->queueList[0];
+      Uint32 failedNodeId = tcNodeFailptr.p->queueList[0];
       guard0 = tcNodeFailptr.p->queueIndex - 1;
       arrGuard(guard0 + 1, MAX_NDB_NODES);
-      for (tindex = 0; tindex <= guard0; tindex++) {
+      for (Uint32 i = 0; i <= guard0; i++) {
         jam();
-        tcNodeFailptr.p->queueList[tindex] = 
-          tcNodeFailptr.p->queueList[tindex + 1];
+        tcNodeFailptr.p->queueList[i] = tcNodeFailptr.p->queueList[i+1];
       }//for
       tcNodeFailptr.p->queueIndex--;
-      startTakeOverLab(signal);
+      g_eventLogger->info("DBTC instance %u: Starting next DBTC node"
+                          " take over for failed node %u,"
+                          " %u failed nodes remaining in takeover queue",
+                          instance(),
+                          failedNodeId,
+                          tcNodeFailptr.p->queueIndex);
+      startTakeOverLab(signal, 0, failedNodeId);
       return;
     } else {
       jam();
@@ -9589,7 +10235,7 @@ Dbtc::sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord * regApiPtr){
   jam();
 
   const Uint32 ref = regApiPtr->ndbapiBlockref;
-  const Uint32 nodeId = refToNode(ref);
+  const NodeId nodeId = refToNode(ref);
   if(ref != 0)
   {
     jam();
@@ -9608,19 +10254,7 @@ Dbtc::sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord * regApiPtr){
       routeTCKEY_FAILREFCONF(signal, regApiPtr, GSN_TCKEY_FAILREF, 3);
     }
   }
-
-  const Uint32 marker = regApiPtr->commitAckMarker;
-  if(marker != RNIL)
-  {
-    jam();
-    CommitAckMarkerBuffer::DataBufferPool & pool =
-      c_theCommitAckMarkerBufferPool;
-    CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(marker);
-    LocalDataBuffer<5> commitAckMarkers(pool, tmp->theDataBuffer);
-    commitAckMarkers.release();
-    m_commitAckMarkerHash.release(marker);
-    regApiPtr->commitAckMarker = RNIL;
-  }
+  releaseMarker(regApiPtr);
 }
 
 void 
@@ -9630,7 +10264,7 @@ Dbtc::sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord * regApiPtr){
   
   const Uint32 ref = regApiPtr->ndbapiBlockref;
   const Uint32 marker = regApiPtr->commitAckMarker;
-  const Uint32 nodeId = refToNode(ref);
+  const NodeId nodeId = refToNode(ref);
   if(ref != 0)
   {
     jam();
@@ -9686,7 +10320,7 @@ Dbtc::routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord* regApiPtr,
     CheckNodeGroups::GetNodeGroupMembers;
   sd->nodeId = node;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		 CheckNodeGroups::SignalLength);
+		 CheckNodeGroups::SignalLength, 0);
   jamEntry();
   
   NdbNodeBitmask mask;
@@ -9745,7 +10379,7 @@ void Dbtc::execABORTCONF(Signal* signal)
 
   jamEntry();
   tcConnectptr.i = signal->theData[0];
-  tnodeid = signal->theData[2];
+  NodeId nodeId = signal->theData[2];
   if (ERROR_INSERTED(8045)) {
     CLEAR_ERROR_INSERT_VALUE;
     sendSignalWithDelay(cownref, GSN_ABORTCONF, signal, 2000, 5);
@@ -9775,7 +10409,7 @@ void Dbtc::execABORTCONF(Signal* signal)
   }//if
   arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
   if (tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo] !=
-      tnodeid) {
+      nodeId) {
     warningReport(signal, 19);
     return;
   }//if
@@ -9885,7 +10519,7 @@ void Dbtc::execCOMMITCONF(Signal* signal)
 
   jamEntry();
   tcConnectptr.i = signal->theData[0];
-  tnodeid = signal->theData[1];
+  NodeId nodeId = signal->theData[1];
   if (ERROR_INSERTED(8046)) {
     CLEAR_ERROR_INSERT_VALUE;
     sendSignalWithDelay(cownref, GSN_COMMITCONF, signal, 2000, 4);
@@ -9915,7 +10549,7 @@ void Dbtc::execCOMMITCONF(Signal* signal)
   }//if
   arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
   if (tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo] !=
-      tnodeid) {
+      nodeId) {
     warningReport(signal, 11);
     return;
   }//if
@@ -10033,7 +10667,7 @@ void Dbtc::execCOMPLETECONF(Signal* signal)
 
   jamEntry();
   tcConnectptr.i = signal->theData[0];
-  tnodeid = signal->theData[1];
+  NodeId nodeId = signal->theData[1];
   if (ERROR_INSERTED(8047)) {
     CLEAR_ERROR_INSERT_VALUE;
     sendSignalWithDelay(cownref, GSN_COMPLETECONF, signal, 2000, 4);
@@ -10063,7 +10697,7 @@ void Dbtc::execCOMPLETECONF(Signal* signal)
   }//if
   arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
   if (tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo] !=
-      tnodeid) {
+      nodeId) {
     warningReport(signal, 15);
     return;
   }//if
@@ -10161,120 +10795,36 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
   } while (1);
 }//Dbtc::toCompleteHandlingLab()
 
-/*------------------------------------------------------------*/
-/*                                                            */
-/*       FIND THE API CONNECT RECORD FOR THIS TRANSACTION     */
-/*       DURING TAKE OVER FROM A FAILED TC. IF NONE EXISTS    */
-/*       YET THEN SEIZE A NEW API CONNECT RECORD AND LINK IT  */
-/*       INTO THE HASH TABLE.                                 */
-/*------------------------------------------------------------*/
-void Dbtc::findApiConnectFail(Signal* signal) 
-{
-  ApiConnectRecordPtr fafPrevApiConnectptr;
-  ApiConnectRecordPtr fafNextApiConnectptr;
-  UintR tfafHashNumber;
-
-  tfafHashNumber = ttransid1 & 511;
-  fafPrevApiConnectptr.i = RNIL;
-  ptrNull(fafPrevApiConnectptr);
-  arrGuard(tfafHashNumber, 512);
-  fafNextApiConnectptr.i = ctransidFailHash[tfafHashNumber];
-  ptrCheck(fafNextApiConnectptr, capiConnectFilesize, apiConnectRecord);
-FAF_LOOP:
-  jam();
-  if (fafNextApiConnectptr.i == RNIL) {
-    jam();
-    if (cfirstfreeApiConnectFail == RNIL) {
-      jam();
-      systemErrorLab(signal, __LINE__);
-      return;
-    }//if
-    seizeApiConnectFail(signal);
-    if (fafPrevApiConnectptr.i == RNIL) {
-      jam();
-      ctransidFailHash[tfafHashNumber] = apiConnectptr.i;
-    } else {
-      jam();
-      ptrGuard(fafPrevApiConnectptr);
-      fafPrevApiConnectptr.p->nextApiConnect = apiConnectptr.i;
-    }//if
-    apiConnectptr.p->nextApiConnect = RNIL;
-    initApiConnectFail(signal);
-  } else {
-    jam();
-    fafPrevApiConnectptr.i = fafNextApiConnectptr.i;
-    fafPrevApiConnectptr.p = fafNextApiConnectptr.p;
-    apiConnectptr.i = fafNextApiConnectptr.i;
-    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
-    fafNextApiConnectptr.i = apiConnectptr.p->nextApiConnect;
-    ptrCheck(fafNextApiConnectptr, capiConnectFilesize, apiConnectRecord);
-    if ((apiConnectptr.p->transid[1] != ttransid2) ||
-        (apiConnectptr.p->transid[0] != ttransid1)) {
-      goto FAF_LOOP;
-    }//if
-    updateApiStateFail(signal);
-  }//if
-}//Dbtc::findApiConnectFail()
-
-/*----------------------------------------------------------*/
-/*       FIND THE TC CONNECT AND IF NOT FOUND ALLOCATE A NEW  */
-/*----------------------------------------------------------*/
-void Dbtc::findTcConnectFail(Signal* signal, Uint32 instanceKey) 
-{
-  UintR tftfHashNumber;
-
-  tftfHashNumber = (ttransid1 ^ ttcOprec) & 1023;
-  tcConnectptr.i = ctcConnectFailHash[tftfHashNumber];
-  do {
-    if (tcConnectptr.i == RNIL) {
-      jam();
-      if (cfirstfreeTcConnectFail == RNIL) {
-        jam();
-        systemErrorLab(signal, __LINE__);
-        return;
-      }//if
-      seizeTcConnectFail(signal);
-      linkTcInConnectionlist(signal);
-      tcConnectptr.p->nextTcFailHash = ctcConnectFailHash[tftfHashNumber];
-      ctcConnectFailHash[tftfHashNumber] = tcConnectptr.i;
-      initTcConnectFail(signal, instanceKey);
-      return;
-    } else {
-      ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-      if (tcConnectptr.p->tcOprec != ttcOprec) {
-        jam();  /* FRAGMENTID = TC_OPREC HERE, LOOP ANOTHER TURN */
-        tcConnectptr.i = tcConnectptr.p->nextTcFailHash;
-      } else {
-        updateTcStateFail(signal, instanceKey);
-        return;
-      }//if
-    }//if
-  } while (1);
-}//Dbtc::findTcConnectFail()
-
 /*----------------------------------------------------------*/
 /*       INITIALISE AN API CONNECT FAIL RECORD              */
 /*----------------------------------------------------------*/
-void Dbtc::initApiConnectFail(Signal* signal) 
+void Dbtc::initApiConnectFail(Signal* signal,
+                              Uint32 transid1,
+                              Uint32 transid2,
+                              LqhTransConf::OperationStatus transStatus,
+                              Uint32 reqinfo,
+                              BlockReference applRef,
+                              Uint64 gci,
+                              NodeId nodeId)
 {
-  apiConnectptr.p->transid[0] = ttransid1;
-  apiConnectptr.p->transid[1] = ttransid2;
+  apiConnectptr.p->transid[0] = transid1;
+  apiConnectptr.p->transid[1] = transid2;
   apiConnectptr.p->firstTcConnect = RNIL;
   apiConnectptr.p->currSavePointId = 0;
   apiConnectptr.p->lastTcConnect = RNIL;
-  tblockref = calcTcBlockRef(tcNodeFailptr.p->takeOverNode);
+  BlockReference blockRef = calcTcBlockRef(tcNodeFailptr.p->takeOverNode);
 
-  apiConnectptr.p->tcBlockref = tblockref;
+  apiConnectptr.p->tcBlockref = blockRef;
   apiConnectptr.p->ndbapiBlockref = 0;
   apiConnectptr.p->ndbapiConnect = 0;
   apiConnectptr.p->buddyPtr = RNIL;
   apiConnectptr.p->m_transaction_nodes.clear();
   apiConnectptr.p->singleUserMode = 0;
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
-  switch(ttransStatus){
+  switch(transStatus){
   case LqhTransConf::Committed:
     jam();
-    apiConnectptr.p->globalcheckpointid = tgci;
+    apiConnectptr.p->globalcheckpointid = gci;
     apiConnectptr.p->apiConnectstate = CS_FAIL_COMMITTED;
     break;
   case LqhTransConf::Prepared:
@@ -10294,49 +10844,106 @@ void Dbtc::initApiConnectFail(Signal* signal)
     systemErrorLab(signal, __LINE__);
   }//if
   apiConnectptr.p->commitAckMarker = RNIL;
-  if(LqhTransConf::getMarkerFlag(treqinfo)){
+  if(LqhTransConf::getMarkerFlag(reqinfo)){
     jam();
     CommitAckMarkerPtr tmp;
-    m_commitAckMarkerHash.seize(tmp);
-    
-    ndbrequire(tmp.i != RNIL);
-    apiConnectptr.p->commitAckMarker = tmp.i;
-   
-    new (tmp.p) CommitAckMarker();
-    tmp.p->transid1      = ttransid1;
-    tmp.p->transid2      = ttransid2;
-    tmp.p->apiNodeId     = refToNode(tapplRef);
-    tmp.p->apiConnectPtr = apiConnectptr.i;
-    ndbrequire(tmp.p->insert_in_commit_ack_marker_all(this, tnodeid));
 
-#if defined VM_TRACE || defined ERROR_INSERT
     {
-      CommitAckMarkerPtr check;
-      ndbrequire(!m_commitAckMarkerHash.find(check, *tmp.p));
+      CommitAckMarker key;
+      key.transid1 = transid1;
+      key.transid2 = transid2;
+      if (m_commitAckMarkerHash.find(tmp, key))
+      {
+        /**
+         * We found a "lingering" marker...
+         *   most probably from earlier node failure
+         *   check consistency using lots of it-statements
+         */
+        jam();
+        if (tmp.p->apiConnectPtr == RNIL)
+        {
+          jam();
+          // ok - marker had no transaction, use it...
+        }
+        else
+        {
+          ApiConnectRecordPtr transPtr;
+          transPtr.i = tmp.p->apiConnectPtr;
+          ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord);
+          if (transPtr.p->commitAckMarker == RNIL)
+          {
+            jam();
+            // ok - marker had a transaction that had moved on, use it...
+          }
+          else if (transPtr.p->commitAckMarker != tmp.i)
+          {
+            jam();
+            // ok - marker had a transaction that had moved on, use it...
+          }
+          else
+          {
+            jam();
+            /**
+             * marker pointed to a transaction that was pointing to marker...
+             *   i.e both transaction + marker lingering...
+             *   treat this as an updateApiStateFail and release already seize trans
+             */
+            releaseApiConnectFail(signal);
+            apiConnectptr = transPtr;
+            updateApiStateFail(signal,
+                               transid1,
+                               transid2,
+                               transStatus,
+                               reqinfo,
+                               applRef,
+                               gci,
+                               nodeId);
+            return;
+          }
+        }
+      }
+      else
+      {
+        jam();
+        m_commitAckMarkerHash.seize(tmp);
+        ndbrequire(tmp.i != RNIL);
+        new (tmp.p) CommitAckMarker();
+        tmp.p->transid1      = transid1;
+        tmp.p->transid2      = transid2;
+        m_commitAckMarkerHash.add(tmp);
+      }
     }
-#endif
-    m_commitAckMarkerHash.add(tmp);
-  } 
+
+    apiConnectptr.p->commitAckMarker = tmp.i;
+    tmp.p->apiNodeId     = refToNode(applRef);
+    tmp.p->apiConnectPtr = apiConnectptr.i;
+    ndbrequire(tmp.p->insert_in_commit_ack_marker_all(this, nodeId));
+  }
 }//Dbtc::initApiConnectFail()
 
 /*------------------------------------------------------------*/
 /*       INITIALISE AT TC CONNECT AT TAKE OVER WHEN ALLOCATING*/
 /*       THE TC CONNECT RECORD.                               */
 /*------------------------------------------------------------*/
-void Dbtc::initTcConnectFail(Signal* signal, Uint32 instanceKey) 
+void Dbtc::initTcConnectFail(Signal* signal,
+                             Uint32 instanceKey,
+                             Uint32 tcOprec,
+                             Uint32 reqinfo,
+                             LqhTransConf::OperationStatus transStatus,
+                             NodeId nodeId)
 {
-  tcConnectptr.p->apiConnect = apiConnectptr.i;
-  tcConnectptr.p->tcOprec = ttcOprec;
-  Uint32 treplicaNo = LqhTransConf::getReplicaNo(treqinfo);
+  TcConnectRecord * regTcPtr = tcConnectptr.p;
+  regTcPtr->apiConnect = apiConnectptr.i;
+  regTcPtr->tcOprec = tcOprec;
+  Uint32 replicaNo = LqhTransConf::getReplicaNo(reqinfo);
   for (Uint32 i = 0; i < MAX_REPLICAS; i++) {
-    tcConnectptr.p->failData[i] = LqhTransConf::InvalidStatus;
+    regTcPtr->failData[i] = LqhTransConf::InvalidStatus;
   }//for
-  tcConnectptr.p->tcNodedata[treplicaNo] = tnodeid;
-  tcConnectptr.p->failData[treplicaNo] = ttransStatus;
-  tcConnectptr.p->lastReplicaNo = LqhTransConf::getLastReplicaNo(treqinfo);
-  tcConnectptr.p->dirtyOp = LqhTransConf::getDirtyFlag(treqinfo);
-  tcConnectptr.p->lqhInstanceKey = instanceKey;
-
+  regTcPtr->tcNodedata[replicaNo] = nodeId;
+  regTcPtr->failData[replicaNo] = transStatus;
+  regTcPtr->lastReplicaNo = LqhTransConf::getLastReplicaNo(reqinfo);
+  regTcPtr->dirtyOp = LqhTransConf::getDirtyFlag(reqinfo);
+  regTcPtr->lqhInstanceKey = instanceKey;
 }//Dbtc::initTcConnectFail()
 
 /*----------------------------------------------------------*/
@@ -10453,9 +11060,16 @@ void Dbtc::setupFailData(Signal* signal)
 /*----------------------------------------------------------*/
 /*       UPDATE THE STATE OF THE API CONNECT FOR THIS PART.   */
 /*----------------------------------------------------------*/
-void Dbtc::updateApiStateFail(Signal* signal) 
+void Dbtc::updateApiStateFail(Signal* signal,
+                              Uint32 transid1,
+                              Uint32 transid2,
+                              LqhTransConf::OperationStatus transStatus,
+                              Uint32 reqinfo,
+                              BlockReference applRef,
+                              Uint64 gci,
+                              NodeId nodeId)
 {
-  if(LqhTransConf::getMarkerFlag(treqinfo))
+  if(LqhTransConf::getMarkerFlag(reqinfo))
   {
     CommitAckMarkerPtr tmp;
     const Uint32 marker = apiConnectptr.p->commitAckMarker;
@@ -10468,9 +11082,9 @@ void Dbtc::updateApiStateFail(Signal* signal)
       
       new (tmp.p) CommitAckMarker();
       apiConnectptr.p->commitAckMarker = tmp.i;
-      tmp.p->transid1      = ttransid1;
-      tmp.p->transid2      = ttransid2;
-      tmp.p->apiNodeId     = refToNode(tapplRef);
+      tmp.p->transid1      = transid1;
+      tmp.p->transid2      = transid2;
+      tmp.p->apiNodeId     = refToNode(applRef);
       tmp.p->apiConnectPtr = apiConnectptr.i;
 #if defined VM_TRACE || defined ERROR_INSERT
       {
@@ -10484,29 +11098,29 @@ void Dbtc::updateApiStateFail(Signal* signal)
       tmp.i = marker;
       tmp.p = m_commitAckMarkerHash.getPtr(marker);
 
-      ndbassert(tmp.p->transid1 == ttransid1);
-      ndbassert(tmp.p->transid2 == ttransid2);
+      ndbrequire(tmp.p->transid1 == transid1);
+      ndbrequire(tmp.p->transid2 == transid2);
     }
-    ndbrequire(tmp.p->insert_in_commit_ack_marker_all(this, tnodeid));
+    ndbrequire(tmp.p->insert_in_commit_ack_marker_all(this, nodeId));
   }
 
-  switch (ttransStatus) {
+  switch (transStatus) {
   case LqhTransConf::Committed:
     jam();
     switch (apiConnectptr.p->apiConnectstate) {
     case CS_FAIL_COMMITTING:
     case CS_FAIL_COMMITTED:
       jam();
-      ndbrequire(tgci == apiConnectptr.p->globalcheckpointid);
+      ndbrequire(gci == apiConnectptr.p->globalcheckpointid);
       break;
     case CS_FAIL_PREPARED:
       jam();
       apiConnectptr.p->apiConnectstate = CS_FAIL_COMMITTING;
-      apiConnectptr.p->globalcheckpointid = tgci;
+      apiConnectptr.p->globalcheckpointid = gci;
       break;
     case CS_FAIL_COMPLETED:
       jam();
-      apiConnectptr.p->globalcheckpointid = tgci;
+      apiConnectptr.p->globalcheckpointid = gci;
       apiConnectptr.p->apiConnectstate = CS_FAIL_COMMITTED;
       break;
     default:
@@ -10578,21 +11192,27 @@ void Dbtc::updateApiStateFail(Signal* signal)
 /*       WE ALSO NEED TO CHECK THAT THERE IS CONSISTENCY      */
 /*       BETWEEN THE DIFFERENT REPLICAS.                      */
 /*------------------------------------------------------------*/
-void Dbtc::updateTcStateFail(Signal* signal, Uint32 instanceKey) 
+void Dbtc::updateTcStateFail(Signal* signal,
+                             Uint32 instanceKey,
+                             Uint32 tcOprec,
+                             Uint32 reqinfo,
+                             LqhTransConf::OperationStatus transStatus,
+                             NodeId nodeId) 
 {
-  const Uint8 treplicaNo     = LqhTransConf::getReplicaNo(treqinfo);
-  const Uint8 tlastReplicaNo = LqhTransConf::getLastReplicaNo(treqinfo);
-  const Uint8 tdirtyOp       = LqhTransConf::getDirtyFlag(treqinfo);
+  const Uint8 replicaNo     = LqhTransConf::getReplicaNo(reqinfo);
+  const Uint8 lastReplicaNo = LqhTransConf::getLastReplicaNo(reqinfo);
+  const Uint8 dirtyOp       = LqhTransConf::getDirtyFlag(reqinfo);
 
   TcConnectRecord * regTcPtr = tcConnectptr.p;
   
   ndbrequire(regTcPtr->apiConnect == apiConnectptr.i);
-  ndbrequire(regTcPtr->failData[treplicaNo] == LqhTransConf::InvalidStatus);
-  ndbrequire(regTcPtr->lastReplicaNo == tlastReplicaNo);
-  ndbrequire(regTcPtr->dirtyOp == tdirtyOp);
+  ndbrequire(regTcPtr->failData[replicaNo] == LqhTransConf::InvalidStatus);
+  ndbrequire(regTcPtr->lastReplicaNo == lastReplicaNo);
+  ndbrequire(regTcPtr->dirtyOp == dirtyOp);
   
-  regTcPtr->tcNodedata[treplicaNo] = tnodeid;
-  regTcPtr->failData[treplicaNo] = ttransStatus;  
+  regTcPtr->tcNodedata[replicaNo] = nodeId;
+  regTcPtr->failData[replicaNo] = transStatus;
+  ndbrequire(regTcPtr->tcOprec == tcOprec);
   ndbrequire(regTcPtr->lqhInstanceKey == instanceKey)
 }//Dbtc::updateTcStateFail()
 
@@ -11189,7 +11809,17 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
       &c_counters.c_scan_count))++;
   return 0;
 errout:
-  while (list.releaseFirst());
+  {
+    ScanFragRecPtr ptr;
+    bool found = list.first(ptr);
+    while (found)
+    {
+      ScanFragRecPtr old_ptr = ptr;
+      ptr.p->scanFragState = ScanFragRec::COMPLETED;
+      found = list.next(ptr);
+      list.release(old_ptr);
+    }
+  }
   return ZSCAN_FRAGREC_ERROR;
 }//Dbtc::initScanrec()
 
@@ -11645,8 +12275,23 @@ void Dbtc::releaseScanResources(Signal* signal,
     jam();
     ScanFragList run(c_scan_frag_pool, scanPtr.p->m_running_scan_frags);
     ScanFragList queue(c_scan_frag_pool, scanPtr.p->m_queued_scan_frags);
-    while (run.releaseFirst());
-    while (queue.releaseFirst());
+    ScanFragRecPtr ptr;
+    bool found = run.first(ptr);
+    while (found)
+    {
+      ScanFragRecPtr old_ptr = ptr;
+      ptr.p->scanFragState = ScanFragRec::COMPLETED;
+      found = run.next(ptr);
+      run.release(old_ptr);
+    }
+    found = queue.first(ptr);
+    while (found)
+    {
+      ScanFragRecPtr old_ptr = ptr;
+      ptr.p->scanFragState = ScanFragRec::COMPLETED;
+      found = queue.next(ptr);
+      queue.release(old_ptr);
+    }
   }
 
   if (scanPtr.p->scanKeyInfoPtr != RNIL)
@@ -11705,7 +12350,6 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
   jamEntry();
   DihScanGetNodesConf * conf = (DihScanGetNodesConf*)signal->getDataPtr();
   const Uint32 tableId = conf->tableId;
-  const Uint32 fragCnt = conf->fragCnt;
 
   if (signal->getNoOfSections() > 0)
   {
@@ -11725,7 +12369,7 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
   else   // Short signal, with single FragItem
   {
     jam();
-    ndbassert(fragCnt == 1);
+    ndbassert(conf->fragCnt == 1);
     ndbassert(signal->getLength() 
               == DihScanGetNodesConf::FixedSignalLength + DihScanGetNodesConf::FragItem::Length);
 
@@ -11830,10 +12474,10 @@ void Dbtc::startFragScanLab(Signal* signal, Uint32 tableId,
   scanFragptr.i = fragConf.senderData;
   c_scan_frag_pool.getPtr(scanFragptr);
 
-  tnodeid = fragConf.nodes[0];
-  arrGuard(tnodeid, MAX_NDB_NODES);
+  NodeId nodeId = fragConf.nodes[0];
+  arrGuard(nodeId, MAX_NDB_NODES);
 
-  if (ERROR_INSERTED(8050) && tnodeid != ownNodeId)
+  if (ERROR_INSERTED(8050) && nodeId != ownNodeId)
   {
     /* Asked to scan a fragment which is not on the same node as the
      * TC - transaction hinting / scan partition pruning has failed
@@ -11862,7 +12506,7 @@ void Dbtc::startFragScanLab(Signal* signal, Uint32 tableId,
       if (fragConf.nodes[i] == ownNodeId)
       {
 	jam();
-	tnodeid = ownNodeId;
+	nodeId = ownNodeId;
 	break;
       }
     }
@@ -11890,6 +12534,7 @@ void Dbtc::startFragScanLab(Signal* signal, Uint32 tableId,
         err = tabPtr.p->getErrorCode(schemaVersion);
       }
       {
+        scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
         ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
         run.release(scanFragptr);
       }
@@ -11905,6 +12550,7 @@ void Dbtc::startFragScanLab(Signal* signal, Uint32 tableId,
     jam();
     updateBuddyTimer(apiConnectptr);
     {
+      scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       run.release(scanFragptr);
     }
@@ -11925,9 +12571,9 @@ void Dbtc::startFragScanLab(Signal* signal, Uint32 tableId,
    */
   Uint32 instanceKey = fragConf.instanceKey;
   scanFragptr.p->lqhBlockref = numberToRef(scanptr.p->m_scan_block_no,
-                                           instanceKey, tnodeid);
+                                           instanceKey, nodeId);
 
-  scanFragptr.p->m_connectCount = getNodeInfo(tnodeid).m_connectCount;
+  scanFragptr.p->m_connectCount = getNodeInfo(nodeId).m_connectCount;
 
   /* Determine whether this is the last scanFragReq
    * Handle normal scan-all-fragments and partition pruned
@@ -12474,6 +13120,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       case ScanFragRec::IDLE:
 	jam(); // real early abort
 	ndbrequire(old == ScanRecord::WAIT_AI || old == ScanRecord::RUNNING);
+        curr.p->scanFragState = ScanFragRec::COMPLETED;
 	running.release(curr);
 	continue;
       case ScanFragRec::WAIT_GET_PRIMCONF:
@@ -12566,17 +13213,6 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
   ndbrequire(scanPtr.p->m_delivered_scan_frags.isEmpty());
   //ndbrequire(scanPtr.p->m_running_scan_frags.isEmpty());
 
-#if 0
-  {
-    ScanFragList comp(c_scan_frag_pool, scanPtr.p->m_completed_scan_frags);
-    ScanFragRecPtr ptr;
-    for(comp.first(ptr); !ptr.isNull(); comp.next(ptr)){
-      ndbrequire(ptr.p->scanFragTimer == 0);
-      ndbrequire(ptr.p->scanFragState == ScanFragRec::COMPLETED);
-    } 
-  }
-#endif
-  
   if(!scanPtr.p->m_running_scan_frags.isEmpty()){
     jam();
     return;
@@ -13256,7 +13892,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     jam();
     ptrAss(tcConnectptr, tcConnectRecord);
     new (tcConnectptr.p) TcConnectRecord();
-    tcConnectptr.p->tcConnectstate = OS_RESTART;
+    tcConnectptr.p->tcConnectstate = OS_CONNECTED;
     tcConnectptr.p->apiConnect = RNIL;
     tcConnectptr.p->noOfNodes = 0;
     tcConnectptr.p->nextTcConnect = tcConnectptr.i + 1;
@@ -13274,7 +13910,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     jam();
     ptrAss(tcConnectptr, tcConnectRecord);
     new (tcConnectptr.p) TcConnectRecord();
-    tcConnectptr.p->tcConnectstate = OS_RESTART;
+    tcConnectptr.p->tcConnectstate = OS_CONNECTED;
     tcConnectptr.p->apiConnect = RNIL;
     tcConnectptr.p->noOfNodes = 0;
     tcConnectptr.p->nextTcConnect = tcConnectptr.i + 1;
@@ -13316,14 +13952,13 @@ void Dbtc::linkTcInConnectionlist(Signal* signal)
 
   tcConnectptr.p->nextTcConnect = RNIL;
   ltcTcConnectptr.i = apiConnectptr.p->lastTcConnect;
-  ptrCheck(ltcTcConnectptr, ctcConnectFilesize, tcConnectRecord);
   apiConnectptr.p->lastTcConnect = tcConnectptr.i;
   if (ltcTcConnectptr.i == RNIL) {
     jam();
     apiConnectptr.p->firstTcConnect = tcConnectptr.i;
   } else {
     jam();
-    ptrGuard(ltcTcConnectptr);
+    ptrCheckGuard(ltcTcConnectptr, ctcConnectFilesize, tcConnectRecord);
     ltcTcConnectptr.p->nextTcConnect = tcConnectptr.i;
   }//if
 }//Dbtc::linkTcInConnectionlist()
@@ -13368,18 +14003,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
     tcConnectptr.i = rarTcConnectptr.i;
   }//while
 
-  Uint32 marker = apiConnectptr.p->commitAckMarker;
-  if (marker != RNIL)
-  {
-    jam();
-    CommitAckMarkerBuffer::DataBufferPool & pool =
-      c_theCommitAckMarkerBufferPool;
-    CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(marker);
-    LocalDataBuffer<5> commitAckMarkers(pool, tmp->theDataBuffer);
-    commitAckMarkers.release();
-    m_commitAckMarkerHash.release(marker);
-    apiConnectptr.p->commitAckMarker = RNIL;
-  }
+  releaseMarker(apiConnectptr.p);
 
   apiConnectptr.p->firstTcConnect = RNIL;
   apiConnectptr.p->lastTcConnect = RNIL;
@@ -13417,6 +14041,26 @@ void Dbtc::releaseAbortResources(Signal* signal)
     case RS_TCROLLBACKREP:{
       jam();
       ok = true;
+#ifdef ERROR_INSERT
+      if (ERROR_INSERTED(8101))
+      {
+        char buf[128];
+        BaseString::snprintf(buf, sizeof(buf), "Sending CONTINUEB:ZDEBUG_DELAY_TCROLLBACKREP");
+        warningEvent("%s", buf);
+
+        jam();
+        signal->theData[0] = TcContinueB::ZDEBUG_DELAY_TCROLLBACKREP;
+        signal->theData[1] = apiConnectptr.p->ndbapiConnect;
+        signal->theData[2] = apiConnectptr.p->transid[0];
+        signal->theData[3] = apiConnectptr.p->transid[1];
+        signal->theData[4] = apiConnectptr.p->returncode;
+        signal->theData[5] = apiConnectptr.p->errorData;
+        signal->theData[6] = blockRef;
+        
+        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 7);
+        break;
+      }
+#endif      
       TcRollbackRep * const tcRollbackRep = 
 	(TcRollbackRep *) signal->getDataPtr();
       
@@ -13467,6 +14111,7 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
   TlocalApiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
   ndbassert(TlocalApiConnectptr.p->m_transaction_nodes.isclear());
   ndbassert(TlocalApiConnectptr.p->apiScanRec == RNIL);
+  ndbassert(TlocalApiConnectptr.p->cascading_scans_count == 0);
   TlocalApiConnectptr.p->ndbapiBlockref = 0;
   TlocalApiConnectptr.p->transid[0] = 0;
   TlocalApiConnectptr.p->transid[1] = 0;
@@ -13496,6 +14141,7 @@ void Dbtc::releaseTcConnectFail(Signal* signal)
 {
   ptrGuard(tcConnectptr);
   tcConnectptr.p->nextTcConnect = cfirstfreeTcConnectFail;
+  tcConnectptr.p->tcConnectstate = OS_CONNECTED;
   cfirstfreeTcConnectFail = tcConnectptr.i;
 }//Dbtc::releaseTcConnectFail()
 
@@ -13524,6 +14170,7 @@ void Dbtc::seizeApiConnectFail(Signal* signal)
   apiConnectptr.i = cfirstfreeApiConnectFail;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   cfirstfreeApiConnectFail = apiConnectptr.p->nextApiConnect;
+  apiConnectptr.p->nextApiConnect = RNIL;
 }//Dbtc::seizeApiConnectFail()
 
 void Dbtc::seizeTcConnect(Signal* signal) 
@@ -14151,10 +14798,11 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
   }
 #endif
 
-  if (arg == 7019 && signal->getLength() == 2)
+  if (arg == DumpStateOrd::DihTcSumaNodeFailCompleted &&
+      signal->getLength() == 2)
   {
     jam();
-    Uint32 nodeId = signal->theData[1];
+    NodeId nodeId = signal->theData[1];
     if (nodeId < MAX_NODES && nodeId < NDB_ARRAY_SIZE(capiConnectClosing))
     {
       warningEvent(" DBTC: capiConnectClosing[%u]: %u",
@@ -14162,7 +14810,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     }
     else
     {
-      warningEvent(" DBTC: dump-7019 to unknown node: %u", nodeId);
+      warningEvent(" DBTC: dump-%u to unknown node: %u", arg, nodeId);
     }
   }
 
@@ -15485,25 +16133,71 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   ApiConnectRecord * const regApiPtr = transPtr.p;  
   // Seize index operation
   TcIndexOperationPtr indexOpPtr;
-  /**
-   * NOTE this if-statement is incorrect,
-   * see bug#50648
-   *
-   * The correct if is 
-   *
+
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(8100))
+  {
+    char buf[128];
+    BaseString::snprintf(buf, sizeof(buf), "Inserted 8100, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
+    warningEvent("%s", buf);
+    
+    if (startFlag == 1)
+    {
+      jam();
+      /*
+        Phase 1:
+        Abort the transaction by simulating a fake node failure.
+        Don't send any TCROLLBACKREP until in next TCINDXREQ call
+        to simulate a slow signal still in the air.
+      */
+      Signal s = *signal;
+      signal->theData[0] = TcContinueB::ZDEBUG_DELAYED_ABORT;
+      signal->theData[1] = transPtr.i;
+      signal->theData[2] = regApiPtr->transid[0];
+      signal->theData[3] = regApiPtr->transid[1];
+      signal->theData[4] = ZNODEFAIL_BEFORE_COMMIT;
+      signal->theData[5] = RS_TCROLLBACKREP;
+      signal->theData[6] = 8101;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
+      *signal = s;
+    }
+  }
+  else if (ERROR_INSERTED(8101))
+  {
+    char buf[128];
+    BaseString::snprintf(buf, sizeof(buf), "Inserted 8101, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
+    warningEvent("%s", buf);
+
+    jam();
+    /*
+      Phase 2:
+      Transaction has been aborted by a fake node failure,
+      but the API hasn't been informed yet. Force the state
+      into waiting for pending signals.
+    */
+    if (regApiPtr->returncode != ZNODEFAIL_BEFORE_COMMIT ||
+        regApiPtr->apiConnectstate != CS_ABORTING ||
+        regApiPtr->abortState != AS_IDLE)
+    {
+      /*
+        We are waiting for abort to complete, but have not reached
+        the transaction state we want to test. Try again.
+      */
+      jam();
+      sendSignalWithDelay(reference(), GSN_TCINDXREQ, signal, 100,
+                          TcKeyReq::StaticLength, &handle);
+      return;
+    }
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+#endif
+
    if (startFlag == 1 &&
        (regApiPtr->apiConnectstate == CS_CONNECTED ||
         (regApiPtr->apiConnectstate == CS_STARTED && 
          regApiPtr->firstTcConnect == RNIL) ||
         (regApiPtr->apiConnectstate == CS_ABORTING && 
          regApiPtr->abortState == AS_IDLE)))
-   */
-  if (((startFlag == 1) &&
-       (regApiPtr->apiConnectstate == CS_CONNECTED ||
-        (regApiPtr->apiConnectstate == CS_STARTED && 
-         regApiPtr->firstTcConnect == RNIL))) ||
-      (regApiPtr->apiConnectstate == CS_ABORTING && 
-       regApiPtr->abortState == AS_IDLE))
   {
     jam();
     // This is a newly started transaction, clean-up from any
@@ -15513,7 +16207,18 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     regApiPtr->apiConnectstate = CS_STARTED;
     regApiPtr->transid[0] = tcIndxReq->transId1;
     regApiPtr->transid[1] = tcIndxReq->transId2;
-  }//if
+  }//if (startFlag == 1 && ...
+  else if (regApiPtr->apiConnectstate == CS_ABORTING)
+  {
+    jam();
+    /*
+      Transaction has been aborted and we have to do error
+      handling, but since when we read the index table
+      the generated TCKEYREQ will do the proper error
+      handling. Any received TCKEYREF will be forwarded
+      to the original sender as a TCINDXREF.
+     */
+  }//if (regApiPtr->apiConnectstate == CS_ABORTING)
 
   if (getNodeState().startLevel == NodeState::SL_SINGLEUSER &&
       getNodeState().getSingleUserApi() !=
@@ -16004,12 +16709,11 @@ void Dbtc::execTCKEYCONF(Signal* signal)
   jamEntry();
   indexOpPtr.i = tcKeyConf->apiConnectPtr;
   TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
-  Uint32 confInfo = tcKeyConf->confInfo;
 
   /**
    * Check on TCKEYCONF whether the the transaction was committed
    */
-  ndbassert(TcKeyConf::getCommitFlag(confInfo) == false);
+  ndbassert(TcKeyConf::getCommitFlag(tcKeyConf->confInfo) == false);
 
   indexOpPtr.p = indexOp;
   if (!indexOp) {
@@ -16680,6 +17384,7 @@ Dbtc::trigger_op_finished(Signal* signal,
     c_theDefinedTriggers.getPtr(trigPtr, trigPtrI);
     switch(trigPtr.p->triggerType){
     case TriggerType::FK_PARENT:
+    {
       if (errCode == ZNOT_FOUND)
       {
         break; // good!
@@ -16720,6 +17425,7 @@ Dbtc::trigger_op_finished(Signal* signal,
       apiConnectptr = regApiPtr;
       abortErrorLab(signal);
       return;
+    }
     default:
       (void)1;
     }
@@ -16787,6 +17493,15 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
       regApiPtr->theFiredTriggers.first(trigPtr);
       while (trigPtr.i != RNIL) {
         jam();
+        if (regApiPtr->cascading_scans_count >=
+            MaxCascadingScansPerTransaction)
+        {
+          jam();
+          D("trans: cascading scans " << regApiPtr->cascading_scans_count);
+          waitToExecutePendingTrigger(signal, *transPtr);
+          // pause all trigger execution
+          break;
+        }
         // Execute all ready triggers in parallel
         opPtr.i = trigPtr.p->fireingOperation;
         ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
@@ -16827,19 +17542,8 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
       {
         // Wait until transaction is ready to execute a trigger
         jam();
-        if (!tc_testbit(regApiPtr->m_flags,
-                        ApiConnectRecord::TF_TRIGGER_PENDING))
-        {
-          jam();
-          regApiPtr->m_flags |= ApiConnectRecord::TF_TRIGGER_PENDING;
-          signal->theData[0] = TcContinueB::TRIGGER_PENDING;
-          signal->theData[1] = transPtr->i;
-          signal->theData[2] = regApiPtr->transid[0];
-          signal->theData[3] = regApiPtr->transid[1];
-          sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
-        }
-        // else  
-        // We are already waiting for a pending trigger (CONTINUEB)
+        D("trans: apiConnectstate " << regApiPtr->apiConnectstate);
+        waitToExecutePendingTrigger(signal, *transPtr);
       }
       else
       {
@@ -16849,6 +17553,28 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
         ndbrequire(regApiPtr->apiConnectstate == CS_ABORTING);
       }
     }
+  }
+}
+
+void
+Dbtc::waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr)
+{
+  if (!tc_testbit(transPtr.p->m_flags,
+                  ApiConnectRecord::TF_TRIGGER_PENDING))
+  {
+    jam();
+    D("trans: send trigger pending");
+    transPtr.p->m_flags |= ApiConnectRecord::TF_TRIGGER_PENDING;
+    signal->theData[0] = TcContinueB::TRIGGER_PENDING;
+    signal->theData[1] = transPtr.i;
+    signal->theData[2] = transPtr.p->transid[0];
+    signal->theData[3] = transPtr.p->transid[1];
+    sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+  }
+  else
+  {
+    // We are already waiting for a pending trigger (CONTINUEB)
+    D("trans: trigger pending already");
   }
 }
 
@@ -16934,7 +17660,7 @@ Dbtc::fk_constructAttrInfoSetNull(const TcFKData * fkPtrP)
   }
 
   Uint32 tmp = RNIL;
-  if (ERROR_INSERTED(8099))
+  if (ERROR_INSERTED(8106))
   {
     return tmp;
   }
@@ -16948,7 +17674,7 @@ Dbtc::fk_constructAttrInfoUpdateCascade(const TcFKData * fkPtrP,
                                         DataBuffer<11>::Head & srchead)
 {
   Uint32 tmp = RNIL;
-  if (ERROR_INSERTED(8100))
+  if (ERROR_INSERTED(8103))
   {
     return tmp;
   }
@@ -17312,7 +18038,7 @@ Dbtc::fk_buildKeyInfo(Uint32& keyIVal, bool& hasNull,
                       TcFKData * fkPtrP,
                       bool parent)
 {
-  if (ERROR_INSERTED(8101))
+  if (ERROR_INSERTED(8104))
   {
     return ZGET_DATAREC_ERROR;
   }
@@ -17532,6 +18258,9 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   execSCAN_TABREQ(signal);
 
   transPtr->p->lqhkeyreqrec++; // Make sure that execution is stalled
+  D("trans: cascading scans++ " << transPtr->p->cascading_scans_count);
+  ndbrequire(transPtr->p->cascading_scans_count < MaxCascadingScansPerTransaction);
+  transPtr->p->cascading_scans_count++;
   return;
 
 oom:
@@ -17702,7 +18431,7 @@ Dbtc::execKEYINFO20(Signal* signal)
   ndbrequire(transPtr.p->immediateTriggerId == RNIL);
   transPtr.p->immediateTriggerId = tcPtr.p->currentTriggerId;
   EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength +
-                 use_scan_takeover ? 1 : 0);
+                 (use_scan_takeover ? 1 : 0));
   jamEntry();
 
   /*
@@ -17988,6 +18717,10 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
   ndbrequire(orgApiConnectPtr.p->lqhkeyreqrec > 0);
   ndbrequire(orgApiConnectPtr.p->lqhkeyreqrec > orgApiConnectPtr.p->lqhkeyconfrec);
   orgApiConnectPtr.p->lqhkeyreqrec--;
+
+  D("trans: cascading scans-- " << orgApiConnectPtr.p->cascading_scans_count);
+  ndbrequire(orgApiConnectPtr.p->cascading_scans_count > 0);
+  orgApiConnectPtr.p->cascading_scans_count--;
 
   trigger_op_finished(signal, orgApiConnectPtr, triggerId, opPtr.p, errCode);
 }

@@ -89,7 +89,6 @@ class sp_cache;
 class Parser_state;
 class Rows_log_event;
 class Sroutine_hash_entry;
-class User_level_lock;
 class user_var_entry;
 typedef struct st_log_info LOG_INFO;
 
@@ -1820,11 +1819,11 @@ public:
 
   HASH		handler_tables_hash;
   /*
-    One thread can hold up to one named user-level lock. This variable
-    points to a lock object if the lock is present. See item_func.cc and
-    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
+    A thread can hold named user-level locks. This variable
+    contains granted tickets if a lock is present. See item_func.cc and
+    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK.
   */
-  User_level_lock *ull;
+  HASH ull_hash;
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif
@@ -2449,7 +2448,24 @@ public:
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
   pthread_t  real_id;                           /* For debugging */
-  my_thread_id  thread_id;
+  /**
+    This counter is 32 bit because of the client protocol.
+
+    @note It is not meant to be used for pthread_self(), see @real_id for this.
+
+    @note Set to reserved_thread_id on initialization. This is a magic
+    value that is only to be used for temporary THDs not present in
+    the global THD list.
+  */
+private:
+  my_thread_id  m_thread_id;
+public:
+  /**
+    Assign a value to m_thread_id by calling
+    Global_THD_manager::get_new_thread_id().
+  */
+  void set_new_thread_id();
+  my_thread_id thread_id() const { return m_thread_id; }
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
@@ -2746,7 +2762,7 @@ public:
     The THD dtor is effectively split in two:
       THD::release_resources() and ~THD().
 
-    We want to minimize the time we hold LOCK_thd_count,
+    We want to minimize the time we hold LOCK_thd_list,
     so when destroying a global thread, do:
 
     thd->release_resources()
@@ -3093,7 +3109,7 @@ public:
 #ifndef EMBEDDED_LIBRARY
   inline bool vio_ok() const { return net.vio != 0; }
   /** Return FALSE if connection to client is broken. */
-  bool is_connected()
+  virtual bool is_connected()
   {
     /*
       All system threads (e.g., the slave IO thread) are connected but
@@ -3104,7 +3120,7 @@ public:
   }
 #else
   inline bool vio_ok() const { return TRUE; }
-  inline bool is_connected() { return TRUE; }
+  virtual bool is_connected() { return true; }
 #endif
   /**
     Mark the current error as fatal. Warning: this does not
@@ -4512,15 +4528,7 @@ public:
   {
     result->abort_result_set(); /* purecov: inspected */
   }
-  void cleanup()
-  {
-    /*
-      Only called for top-level select_results, usually select_send,
-      and for the results of subquery engines
-      (select_<something>_subselect).
-    */
-    DBUG_ASSERT(false); /* purecov: inspected */
-  }
+  void cleanup() {}
   void set_thd(THD *thd_arg)
   {
     /*

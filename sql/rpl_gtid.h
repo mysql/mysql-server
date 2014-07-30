@@ -19,7 +19,6 @@
 #ifndef RPL_GTID_H_INCLUDED
 #define RPL_GTID_H_INCLUDED
 
-
 #include <m_string.h>
 #include <mysqld_error.h>
 #include <my_global.h>
@@ -28,7 +27,6 @@
 #endif
 #include "prealloced_array.h"
 #include <list>
-
 
 /**
   Report an error from code that can be linked into either the server
@@ -683,15 +681,49 @@ public:
     sid_lock will be released, whereas the mutex will be released
     during the wait and (atomically) re-acquired when the wait ends.
   */
-  inline void wait(int n) const
+  inline void wait(const THD* thd, int n) const
   {
     DBUG_ENTER("Mutex_cond_array::wait");
     Mutex_cond *mutex_cond= get_mutex_cond(n);
     global_lock->unlock();
-    mysql_mutex_assert_owner(&mutex_cond->mutex);
-    mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
-    mysql_mutex_assert_owner(&mutex_cond->mutex);
+    if (!check_thd_killed(thd))
+    {
+      mysql_mutex_assert_owner(&mutex_cond->mutex);
+      mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
+      mysql_mutex_assert_owner(&mutex_cond->mutex);
+    }
     DBUG_VOID_RETURN;
+  }
+
+  /**
+    Wait for signal on the n'th condition variable.
+
+    The caller must hold the read lock or write lock on sid_lock, as
+    well as the nth mutex lock, before invoking this function.  The
+    sid_lock will be released, whereas the mutex will be released
+    during the wait and (atomically) re-acquired when the wait ends
+    or the timeout is reached.
+
+    @param[in] n - Sidno to wait for.
+    @param[in] abstime - pointer to the absolute wating time
+
+    @retval - 0 - success
+             !=0 - failure
+  */
+  inline int wait(const THD* thd, int sidno, struct timespec* abstime) const
+  {
+    DBUG_ENTER("Mutex_cond_array::wait");
+    int error= 0;
+    Mutex_cond *mutex_cond= get_mutex_cond(sidno);
+    global_lock->unlock();
+    if (!check_thd_killed(thd))
+    {
+      mysql_mutex_assert_owner(&mutex_cond->mutex);
+      error= mysql_cond_timedwait(&mutex_cond->cond,
+                                  &mutex_cond->mutex, abstime);
+      mysql_mutex_assert_owner(&mutex_cond->mutex);
+    }
+    DBUG_RETURN(error);
   }
 #ifndef MYSQL_CLIENT
   /// Execute THD::enter_cond for the n'th condition variable.
@@ -702,7 +734,7 @@ public:
   inline int get_max_index() const
   {
     global_lock->assert_some_lock();
-    return array.elements - 1;
+    return static_cast<int>(m_array.size() - 1);
   }
   /**
     Grows the array so that the given index fits.
@@ -715,6 +747,15 @@ public:
     @return RETURN_OK or RETURN_REPORTED_ERROR
   */
   enum_return_status ensure_index(int n);
+  /**
+    This function is used to check whether the given thd is killed
+    or not.
+
+    @param[in] thd -  The thread object
+    @retval true  - thread is killed
+            false - thread not killed
+  */
+  bool check_thd_killed(const THD* thd) const;
 private:
   /// A mutex/cond pair.
   struct Mutex_cond
@@ -727,13 +768,13 @@ private:
   {
     global_lock->assert_some_lock();
     DBUG_ASSERT(n <= get_max_index());
-    Mutex_cond *ret= *dynamic_element(&array, n, Mutex_cond **);
+    Mutex_cond *ret= m_array[n];
     DBUG_ASSERT(ret);
     return ret;
   }
   /// Read-write lock that protects updates to the number of elements.
   mutable Checkable_rwlock *global_lock;
-  DYNAMIC_ARRAY array;
+  Prealloced_array<Mutex_cond*, 8, true> m_array;
 };
 
 
@@ -910,34 +951,31 @@ public:
 
     @param sidno SIDNO of the group to add.
     @param gno GNO of the group to add.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status _add_gtid(rpl_sidno sidno, rpl_gno gno)
+  void _add_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     DBUG_ENTER("Gtid_set::_add_gtid(sidno, gno)");
     Interval_iterator ivit(this, sidno);
     Free_intervals_lock lock(this);
-    enum_return_status ret= add_gno_interval(&ivit, gno, gno + 1, &lock);
-    DBUG_RETURN(ret);
+    add_gno_interval(&ivit, gno, gno + 1, &lock);
+    DBUG_VOID_RETURN;
   }
   /**
     Removes the given GTID from this Gtid_set.
 
     @param sidno SIDNO of the group to remove.
     @param gno GNO of the group to remove.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status _remove_gtid(rpl_sidno sidno, rpl_gno gno)
+  void _remove_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     DBUG_ENTER("Gtid_set::_remove_gtid(rpl_sidno, rpl_gno)");
     if (sidno <= get_max_sidno())
     {
       Interval_iterator ivit(this, sidno);
       Free_intervals_lock lock(this);
-      enum_return_status ret= remove_gno_interval(&ivit, gno, gno + 1, &lock);
-      DBUG_RETURN(ret);
+      remove_gno_interval(&ivit, gno, gno + 1, &lock);
     }
-    RETURN_OK;
+    DBUG_VOID_RETURN;
   }
   /**
     Adds the given GTID to this Gtid_set.
@@ -945,19 +983,17 @@ public:
     The SIDNO must exist in the Gtid_set before this function is called.
 
     @param gtid Gtid to add.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status _add_gtid(const Gtid &gtid)
-  { return _add_gtid(gtid.sidno, gtid.gno); }
+  void _add_gtid(const Gtid &gtid)
+  {  _add_gtid(gtid.sidno, gtid.gno); }
   /**
     Removes the given GTID from this Gtid_set.
 
     @param gtid Gtid to remove.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
    */
-  enum_return_status _remove_gtid(const Gtid &gtid)
+  void _remove_gtid(const Gtid &gtid)
   {
-    return _remove_gtid(gtid.sidno, gtid.gno);
+    _remove_gtid(gtid.sidno, gtid.gno);
   }
   /**
     Adds all groups from the given Gtid_set to this Gtid_set.
@@ -976,9 +1012,8 @@ public:
     Removes all groups in the given Gtid_set from this Gtid_set.
 
     @param other The Gtid_set to remove.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status remove_gtid_set(const Gtid_set *other);
+  void remove_gtid_set(const Gtid_set *other);
   /**
     Adds the set of GTIDs represented by the given string to this Gtid_set.
 
@@ -1031,7 +1066,7 @@ public:
   {
     if (sid_lock)
       sid_lock->assert_some_lock();
-    return intervals.elements;
+    return static_cast<rpl_sidno>(m_intervals.size());
   }
   /**
     Allocates space for all sidnos up to the given sidno in the array of intervals.
@@ -1274,7 +1309,7 @@ public:
     { p= const_cast<Interval_p *>(&gtid_set->free_intervals); }
     /// Reset this iterator.
     inline void init(Gtid_set_p gtid_set, rpl_sidno sidno)
-    { p= dynamic_element(&gtid_set->intervals, sidno - 1, Interval_p *); }
+    { p= const_cast<Interval_p *>(&gtid_set->m_intervals[sidno - 1]); }
     /// Advance current_elem one step.
     inline void next()
     {
@@ -1500,9 +1535,8 @@ private:
     unused intervals.
 
     @param size The number of intervals in this chunk
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status create_new_chunk(int size);
+  void create_new_chunk(int size);
   /**
     Returns a fresh new Interval object.
 
@@ -1511,9 +1545,8 @@ private:
     no free intervals, it calls create_new_chunk.
 
     @param out The resulting Interval* will be stored here.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status get_free_interval(Interval **out);
+  void get_free_interval(Interval **out);
   /**
     Puts the given interval in the list of free intervals.  Does not
     unlink it from its place in any other list.
@@ -1602,11 +1635,10 @@ private:
     e.g. add_gtid_set() the first time that the list of free intervals
     is accessed, and automatically released when add_gtid_set()
     returns.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_gno_interval(Interval_iterator *ivitp,
-                                      rpl_gno start, rpl_gno end,
-                                      Free_intervals_lock *lock);
+  void add_gno_interval(Interval_iterator *ivitp,
+                        rpl_gno start, rpl_gno end,
+                        Free_intervals_lock *lock);
   /**
     Removes the interval (start, end) from the given
     Interval_iterator. This is the lowest-level function that removes
@@ -1627,11 +1659,10 @@ private:
     e.g. add_gtid_set() the first time that the list of free intervals
     is accessed, and automatically released when add_gtid_set()
     returns.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status remove_gno_interval(Interval_iterator *ivitp,
-                                         rpl_gno start, rpl_gno end,
-                                         Free_intervals_lock *lock);
+  void remove_gno_interval(Interval_iterator *ivitp,
+                           rpl_gno start, rpl_gno end,
+                           Free_intervals_lock *lock);
   /**
     Adds a list of intervals to the given SIDNO.
 
@@ -1646,11 +1677,10 @@ private:
     e.g. add_gtid_set() the first time that the list of free intervals
     is accessed, and automatically released when add_gtid_set()
     returns.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_gno_intervals(rpl_sidno sidno,
-                                       Const_interval_iterator ivit,
-                                       Free_intervals_lock *lock);
+  void add_gno_intervals(rpl_sidno sidno,
+                         Const_interval_iterator ivit,
+                         Free_intervals_lock *lock);
   /**
     Removes a list of intervals from the given SIDNO.
 
@@ -1665,11 +1695,10 @@ private:
     e.g. add_gtid_set() the first time that the list of free intervals
     is accessed, and automatically released when add_gtid_set()
     returns.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status remove_gno_intervals(rpl_sidno sidno,
-                                          Const_interval_iterator ivit,
-                                          Free_intervals_lock *lock);
+  void remove_gno_intervals(rpl_sidno sidno,
+                            Const_interval_iterator ivit,
+                            Free_intervals_lock *lock);
 
   /// Returns true if every interval of sub is a subset of some
   /// interval of super.
@@ -1685,7 +1714,7 @@ private:
     Array where the N'th element contains the head pointer to the
     intervals of SIDNO N+1.
   */
-  DYNAMIC_ARRAY intervals;
+  Prealloced_array<Interval*, 8, true> m_intervals;
   /// Linked list of free intervals.
   Interval *free_intervals;
   /// Linked list of chunks.
@@ -1843,7 +1872,7 @@ public:
   rpl_sidno get_max_sidno() const
   {
     sid_lock->assert_some_lock();
-    return sidno_to_hash.elements;
+    return static_cast<rpl_sidno>(sidno_to_hash.size());
   }
 
   /**
@@ -1873,7 +1902,7 @@ public:
           p+= global_sid_map->sidno_to_sid(sidno).to_string(p);
           printed_sid= true;
         }
-        p+= sprintf(p, ":%lld#%lu", node->gno, node->owner);
+        p+= sprintf(p, ":%lld#%u", node->gno, node->owner);
       }
     }
     *p= 0;
@@ -1966,7 +1995,7 @@ private:
   {
     DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
     sid_lock->assert_some_lock();
-    return *dynamic_element(&sidno_to_hash, sidno - 1, HASH **);
+    return sidno_to_hash[sidno - 1];
   }
   /**
     Returns the Node for the given HASH and GNO, or NULL if the GNO
@@ -1986,7 +2015,7 @@ private:
   /// Return true iff this Owned_gtids object contains the given group.
   bool contains_gtid(const Gtid &gtid) const { return get_node(gtid) != NULL; }
   /// Growable array of hashes.
-  DYNAMIC_ARRAY sidno_to_hash;
+  Prealloced_array<HASH*, 8, true> sidno_to_hash;
 
 public:
   /**
@@ -2176,19 +2205,6 @@ public:
   */
   enum_return_status acquire_ownership(THD *thd, const Gtid &gtid);
   /**
-    Update the state after the given thread has flushed cache to binlog.
-
-    This will:
-     - release ownership of all GTIDs owned by the THD;
-     - add all GTIDs in the Group_cache to
-       executed_gtids;
-     - send a broadcast on the condition variable for every sidno for
-       which we released ownership.
-
-    @param thd Thread for which owned groups are updated.
-  */
-  enum_return_status update_on_flush(THD *thd);
-  /**
     Remove the GTID owned by thread from owned GTIDs, stating that
     thd->owned_gtid was committed.
 
@@ -2242,8 +2258,13 @@ public:
 
     @param thd THD object of the caller.
     @param g Gtid to wait for.
+    @param timeout - pointer to the absolute timeout to wait for.
+
+    @retval  0 - success
+             !=0 timeout or some failure.
   */
-  void wait_for_gtid(THD *thd, const Gtid &gtid);
+  int wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* timeout= NULL);
+
 #endif // ifndef MYSQL_CLIENT
 #ifdef HAVE_GTID_NEXT_LIST
   /**
@@ -2278,6 +2299,25 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status ensure_sidno();
+
+  /**
+    This function is used to wait for a given gtid until it is logged.
+
+    @param thd     - global thread pointer.
+    @param Gtid    - Pointer to the Gtid set which gets updated.
+    @param timeout - Timeout value for which wait should be done in
+                     millisecond.
+
+    @return 0 - success
+            1 - timeout
+
+    For all other cases we will throw corresponding error messages using the
+    my_error(ER_*, MYF(0)) call and return with value of -1.
+
+   */
+#ifdef MYSQL_SERVER
+  int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
+#endif
   /**
     Adds the given Gtid_set that contains the groups in the given
     string to lost_gtids and executed_gtids, since lost_gtids must
@@ -2289,7 +2329,7 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
    */
   enum_return_status add_lost_gtids(const char *text);
-  /// Return a pointer to the Gtid_set that contains the logged groups.
+  /// Return a pointer to the Gtid_set that contains the lost groups.
   const Gtid_set *get_lost_gtids() const { return &lost_gtids; }
   /*
     Return a pointer to the Gtid_set that contains the stored groups
@@ -2450,11 +2490,17 @@ private:
   /**
     Remove the GTID owned by thread from owned GTIDs.
 
-    @param thd Thread for which owned groups are updated.
-    @param is_commit send a broadcast on the condition variable for
-           every sidno for which we released ownership.
+    This will:
+
+    - release ownership of all GTIDs owned by the THD;
+    - add all GTIDs in the Group_cache to executed_gtids is only done if the
+      is_commit flag is set.
+    - send a broadcast on the condition variable for every sidno for
+      which we released ownership.
+
+    @param[in] thd - Thread for which owned groups are updated.
   */
-  void update_owned_gtids_impl(THD *thd, bool is_commit);
+  void update_gtids_impl(THD *thd, bool is_commit);
 
 
   /// Read-write lock that protects updates to the number of SIDs.
@@ -2753,7 +2799,7 @@ public:
   /// Removes all groups from this cache.
   void clear();
   /// Return the number of groups in this group cache.
-  inline int get_n_groups() const { return groups.elements; }
+  inline int get_n_groups() const { return static_cast<int>(m_groups.size()); }
   /// Return true iff the group cache contains zero groups.
   inline bool is_empty() const { return get_n_groups() == 0; }
   /**
@@ -2901,12 +2947,12 @@ public:
   inline Cached_group *get_unsafe_pointer(int index) const
   {
     DBUG_ASSERT(index >= 0 && index < get_n_groups());
-    return dynamic_element(&groups, index, Cached_group *);
+    return const_cast<Cached_group*>(&m_groups[index]);
   }
 
 private:
   /// List of all groups in this cache, of type Cached_group.
-  DYNAMIC_ARRAY groups;
+  Prealloced_array<Cached_group, 8, true> m_groups;
 
   /**
     Return a pointer to the last group, or NULL if this Group_cache is
@@ -2924,10 +2970,12 @@ private:
   */
   Cached_group *allocate_group()
   {
-    Cached_group *ret= (Cached_group *)alloc_dynamic(&groups);
-    if (ret == NULL)
+    if (m_groups.push_back(Cached_group()))
+    {
       BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
-    return ret;
+      return NULL;
+    }
+    return &m_groups.back();
   }
 
   /**

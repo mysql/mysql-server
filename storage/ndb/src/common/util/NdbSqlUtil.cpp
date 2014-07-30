@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1998,6 +1998,7 @@ static int
 testmain()
 {
   ndb_init();
+#ifdef NDB_USE_GET_ENV
   struct { const char* env; int* val; } opt[] = {
     { "TEST_NDB_SQL_UTIL_SEED", &seed },
     { "TEST_NDB_SQL_UTIL_LOOPS", &loops },
@@ -2009,6 +2010,7 @@ testmain()
     if (p != 0)
       *opt[i].val = atoi(p);
   }
+#endif
 #ifdef VM_TRACE
   signal(SIGABRT, SIG_DFL);
 #endif

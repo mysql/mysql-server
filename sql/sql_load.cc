@@ -95,7 +95,7 @@ public:
   int read_fixed_length(void);
   int next_line(void);
   char unescape(char chr);
-  int terminator(const uchar *ptr, uint length);
+  int terminator(const uchar *ptr, size_t length);
   bool find_start_of_fields();
   /* load xml */
   List<XML_TAG> taglist;
@@ -1550,10 +1550,10 @@ READ_INFO::~READ_INFO()
   } while (0)
 
 
-inline int READ_INFO::terminator(const uchar *ptr, uint length)
+inline int READ_INFO::terminator(const uchar *ptr, size_t length)
 {
   int chr=0;					// Keep gcc happy
-  uint i;
+  size_t i;
   for (i=1 ; i < length ; i++)
   {
     chr= GET;

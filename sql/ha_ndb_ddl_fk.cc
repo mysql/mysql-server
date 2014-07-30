@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,7 +103,6 @@ find_matching_index(NDBDICT* dict,
   const int noinvalidate= 0;
   uint best_matching_columns= 0;
   const NDBINDEX* best_matching_index= 0;
-  const NDBINDEX* return_index= 0;
 
   NDBDICT::List index_list;
   dict->listIndexes(index_list, *tab);
@@ -116,6 +115,10 @@ find_matching_index(NDBDICT* dict,
       uint cnt= 0;
       for (unsigned j = 0; columns[j] != 0; j++)
       {
+        /*
+         * Search for matching columns in any order
+         * since order does not matter for unique index
+         */
         bool found= FALSE;
         for (unsigned c = 0; c < index->getNoOfColumns(); c++)
         {
@@ -133,19 +136,21 @@ find_matching_index(NDBDICT* dict,
       if (cnt == index->getNoOfColumns())
       {
         /**
-         * Full match...
+         * Full match...return this index, no need to look further
          */
-        return_index= index;
-        goto found;
+        if (best_matching_index)
+        {
+          // release ref to previous best candidate
+          dict->removeIndexGlobal(* best_matching_index, noinvalidate);
+        }
+        return index; // NOTE: also returns reference
       }
-      else
-      {
-        /**
-         * Not full match...i.e not usable
-         */
-        dict->removeIndexGlobal(* index, noinvalidate);
-        continue;
-      }
+
+      /**
+       * Not full match...i.e not usable
+       */
+      dict->removeIndexGlobal(* index, noinvalidate);
+      continue;
     }
     else if (index->getType() == NDBINDEX::OrderedIndex)
     {
@@ -184,16 +189,6 @@ find_matching_index(NDBDICT* dict,
       dict->removeIndexGlobal(* index, noinvalidate);
       continue;
     }
-  }
-found:
-  if (return_index)
-  {
-    // release ref to previous best candidate
-    if (best_matching_index)
-    {
-      dict->removeIndexGlobal(* best_matching_index, noinvalidate);
-    }
-    return return_index; // NOTE: also returns reference
   }
 
   return best_matching_index; // NOTE: also returns reference
@@ -274,6 +269,22 @@ ndb_fk_casedn(char *name)
               files_charset_info->casedn_multiply == 1);
   files_charset_info->cset->casedn(files_charset_info,
                                    name, length, name, length);
+}
+
+static int
+ndb_fk_casecmp(const char* name1, const char* name2)
+{
+  if (!lower_case_table_names)
+  {
+    return strcmp(name1, name2);
+  }
+  char tmp1[FN_LEN + 1];
+  char tmp2[FN_LEN + 1];
+  strcpy(tmp1, name1);
+  strcpy(tmp2, name2);
+  ndb_fk_casedn(tmp1);
+  ndb_fk_casedn(tmp2);
+  return strcmp(tmp1, tmp2);
 }
 
 extern bool ndb_show_foreign_key_mock_tables(THD* thd);
@@ -404,9 +415,7 @@ class Fk_util
       }
 
       char fk_name[FN_REFLEN+1];
-      my_snprintf(fk_name, sizeof(fk_name), "%u/%u/%s",
-                  new_parent_tab.get_table()->getObjectId(),
-                  child_id,
+      my_snprintf(fk_name, sizeof(fk_name), "%s",
                   name);
       DBUG_PRINT("info", ("Setting new fk name: %s", fk_name));
       new_fk.setName(fk_name);
@@ -1378,10 +1387,9 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
     if (!parent_primary_key && parent_index == 0)
     {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_CANNOT_ADD_FOREIGN,
-                          "Parent table %s foreign key columns match no index in NDB",
-                          parent_tab.get_table()->getName());
+      my_error(ER_FK_NO_INDEX_PARENT, MYF(0),
+               fk->name.str ? fk->name.str : "",
+               parent_tab.get_table()->getName());
       DBUG_RETURN(err_default);
     }
 
@@ -1410,16 +1418,12 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     char fk_name[FN_REFLEN];
     if (!isnull(fk->name))
     {
-      my_snprintf(fk_name, sizeof(fk_name), "%u/%u/%s",
-                  parent_tab.get_table()->getObjectId(),
-                  child_tab.get_table()->getObjectId(),
+      my_snprintf(fk_name, sizeof(fk_name), "%s",
                   lex2str(fk->name, tmpbuf, sizeof(tmpbuf)));
     }
     else
     {
-      my_snprintf(fk_name, sizeof(fk_name), "%u/%u/FK_%u_%u",
-                  parent_tab.get_table()->getObjectId(),
-                  child_tab.get_table()->getObjectId(),
+      my_snprintf(fk_name, sizeof(fk_name), "FK_%u_%u",
                   parent_index ?
                   parent_index->getObjectId() :
                   parent_tab.get_table()->getObjectId(),
@@ -2237,7 +2241,7 @@ ha_ndbcluster::free_foreign_key_create_info(char* str)
 int
 ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 {
-  DBUG_ENTER("copy_fk_for_offline_alter");
+  DBUG_ENTER("ha_ndbcluster::copy_fk_for_offline_alter");
   if (thd->lex == 0)
   {
     assert(false);
@@ -2275,11 +2279,62 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 
   setDbName(ndb, src_db);
   NDBDICT::List obj_list;
-  dict->listDependentObjects(obj_list, *srctab.get_table());
+  if (dict->listDependentObjects(obj_list, *srctab.get_table()) != 0)
+  {
+    ERR_RETURN(dict->getNdbError());
+  }
+
+  // check if fk to drop exists
+  {
+    Alter_drop * drop_item= 0;
+    List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
+    while ((drop_item=drop_iterator++))
+    {
+      if (drop_item->type != Alter_drop::FOREIGN_KEY)
+        continue;
+      bool found= false;
+      for (unsigned i = 0; i < obj_list.count; i++)
+      {
+        char db_and_name[FN_LEN + 1];
+        const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
+        if (ndb_fk_casecmp(drop_item->name, name) != 0)
+          continue;
+
+        NdbDictionary::ForeignKey fk;
+        if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
+        {
+          ERR_RETURN(dict->getNdbError());
+        }
+
+        char child_db_and_name[FN_LEN + 1];
+        const char* child_name = fk_split_name(child_db_and_name,
+                                               fk.getChildTable());
+        if (strcmp(child_db_and_name, src_db) == 0 &&
+            strcmp(child_name, src_tab) == 0)
+        {
+          found= true;
+          break;
+        }
+      }
+      if (!found)
+      {
+        // FK not found
+        my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_item->name);
+        DBUG_RETURN(ER_CANT_DROP_FIELD_OR_KEY);
+      }
+    }
+  }
+
   for (unsigned i = 0; i < obj_list.count; i++)
   {
     if (obj_list.elements[i].type == NdbDictionary::Object::ForeignKey)
     {
+      NdbDictionary::ForeignKey fk;
+      if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
+      {
+        ERR_RETURN(dict->getNdbError());
+      }
+
       {
         /**
          * Check if it should be copied
@@ -2294,7 +2349,14 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         {
           if (drop_item->type != Alter_drop::FOREIGN_KEY)
             continue;
-          if (strcmp(drop_item->name, name) == 0)
+          if (ndb_fk_casecmp(drop_item->name, name) != 0)
+            continue;
+
+          char child_db_and_name[FN_LEN + 1];
+          const char* child_name = fk_split_name(child_db_and_name,
+                                                 fk.getChildTable());
+          if (strcmp(child_db_and_name, src_db) == 0 &&
+              strcmp(child_name, src_tab) == 0)
           {
             found= true;
             break;
@@ -2308,12 +2370,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
            */
           continue;
         }
-      }
-
-      NdbDictionary::ForeignKey fk;
-      if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
-      {
-        ERR_RETURN(dict->getNdbError());
       }
 
       unsigned parentObjectId= 0;
@@ -2438,9 +2494,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 
       char new_name[FN_LEN + 1];
       name= fk_split_name(db_and_name, fk.getName());
-      my_snprintf(new_name, sizeof(new_name), "%u/%u/%s",
-                  parentObjectId,
-                  childObjectId,
+      my_snprintf(new_name, sizeof(new_name), "%s",
                   name);
       fk.setName(new_name);
       setDbName(ndb, db_and_name);
@@ -2463,7 +2517,7 @@ int
 ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
                                         const NDBTAB* tab)
 {
-  DBUG_ENTER("drop_fk_for_online");
+  DBUG_ENTER("ha_ndbcluster::drop_fk_for_online_alter");
   if (thd->lex == 0)
   {
     assert(false);
@@ -2478,7 +2532,10 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
   }
 
   NDBDICT::List obj_list;
-  dict->listDependentObjects(obj_list, *srctab.get_table());
+  if (dict->listDependentObjects(obj_list, *srctab.get_table()) != 0)
+  {
+    ERR_RETURN(dict->getNdbError());
+  }
 
   Alter_drop * drop_item= 0;
   List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
@@ -2488,7 +2545,7 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
       continue;
 
     bool found= false;
-    for (unsigned i = 0; i < obj_list.count && !found; i++)
+    for (unsigned i = 0; i < obj_list.count; i++)
     {
       if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
       {
@@ -2498,22 +2555,20 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
       char db_and_name[FN_LEN + 1];
       const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
 
-      /*
-       * sql_yacc allows "..drop foreign key;" with no FK name
-       * (or column list) and passes NULL name here from opt_ident
-       *
-       * Edit: mysql-5.6 parser now catches this with ER_PARSE_ERROR
-       * but we leave the old check here.
-       */
-      if (drop_item->name == 0)
+      if (ndb_fk_casecmp(drop_item->name, name) != 0)
+        continue;
+
+      NdbDictionary::ForeignKey fk;
+      if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
       {
-        my_printf_error(ER_SYNTAX_ERROR,
-                        "Drop foreign key must specify key name",
-                        MYF(0));
-        DBUG_RETURN(1);
+        ERR_RETURN(dict->getNdbError());
       }
 
-      if (strcmp(drop_item->name, name) == 0)
+      char child_db_and_name[FN_LEN + 1];
+      const char* child_name = fk_split_name(child_db_and_name,
+                                             fk.getChildTable());
+      if (strcmp(child_db_and_name, ndb->getDatabaseName()) == 0 &&
+          strcmp(child_name, tab->getName()) == 0)
       {
         found= true;
         Fk_util fk_util(thd);
@@ -2523,6 +2578,12 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
         }
         break;
       }
+    }
+    if (!found)
+    {
+      // FK not found
+      my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_item->name);
+      DBUG_RETURN(ER_CANT_DROP_FIELD_OR_KEY);
     }
   }
   DBUG_RETURN(0);

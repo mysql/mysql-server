@@ -25,7 +25,6 @@
 #include "binlog.h"                      /* MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
 #include<vector>
-#include "rpl_mts_submode.h"
 #include "prealloced_array.h"
 
 struct RPL_TABLE_LIST;
@@ -33,6 +32,8 @@ class Master_info;
 class Mts_submode;
 class Commit_order_manager;
 extern uint sql_slave_skip_counter;
+
+typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
 
 /*******************************************************************************
 Replication SQL Thread
@@ -258,15 +259,12 @@ private:
 public:
   Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
   void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
-  int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
+  void add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
-    int ret= 0;
     global_sid_lock->assert_some_lock();
     DBUG_ASSERT(sidno <= global_sid_map->get_max_sidno());
     gtid_set.ensure_sidno(sidno);
-    if (gtid_set._add_gtid(sidno, gno) != RETURN_STATUS_OK)
-      ret= 1;
-    return ret;
+    gtid_set._add_gtid(sidno, gno);
   }
   const Gtid_set *get_gtid_set() const { return &gtid_set; }
 
@@ -515,7 +513,8 @@ public:
     W  - Worker;
     WQ - Worker Queue containing event assignments
   */
-  DYNAMIC_ARRAY workers; // number's is determined by global slave_parallel_workers
+  // number's is determined by global slave_parallel_workers
+  Slave_worker_array workers;
 
   HASH mapping_db_to_worker; // To map a database to a worker
   bool inited_hash_workers; //  flag to check if mapping_db_to_worker is inited
@@ -648,28 +647,26 @@ public:
   /* end of MTS statistics */
 
   /* Returns the number of elements in workers array/vector. */
-  inline uint get_worker_count()
+  inline size_t get_worker_count()
   {
     if (workers_array_initialized)
-      return workers.elements;
+      return workers.size();
     else
-      return static_cast<uint>(workers_copy_pfs.size());
+      return workers_copy_pfs.size();
   }
 
   /*
     Returns a pointer to the worker instance at index n in workers
     array/vector.
   */
-  Slave_worker* get_worker(uint n)
+  Slave_worker* get_worker(size_t n)
   {
     if (workers_array_initialized)
     {
-      if (n >= workers.elements)
+      if (n >= workers.size())
         return NULL;
 
-      Slave_worker *ret_worker;
-      get_dynamic(&workers, (uchar *) &ret_worker, n);
-      return ret_worker;
+      return workers[n];
     }
     else if (workers_copy_pfs.size())
     {
@@ -713,7 +710,7 @@ public:
   {
     bool ret= (slave_parallel_workers > 0) && !is_mts_recovery();
 
-    DBUG_ASSERT(!ret || workers.elements > 0);
+    DBUG_ASSERT(!ret || !workers.empty());
 
     return ret;
   }
@@ -817,13 +814,16 @@ public:
      Replication is inside a group if either:
      - The OPTION_BEGIN flag is set, meaning we're inside a transaction
      - The RLI_IN_STMT flag is set, meaning we're inside a statement
+     - There is an GTID owned by the thd, meaning we've passed a SET GTID_NEXT
 
      @retval true Replication thread is currently inside a group
      @retval false Replication thread is currently not inside a group
    */
   bool is_in_group() const {
     return (info_thd->variables.option_bits & OPTION_BEGIN) ||
-      (m_flags & (1UL << IN_STMT));
+      (m_flags & (1UL << IN_STMT)) ||
+      /* If a SET GTID_NEXT was issued we are inside of a group */
+      info_thd->owned_gtid.sidno;
   }
 
   int count_relay_log_space();

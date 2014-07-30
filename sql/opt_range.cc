@@ -960,7 +960,7 @@ public:
   MY_BITMAP needed_fields;    /* bitmask of fields needed by the query */
   MY_BITMAP tmp_covered_fields;
 
-  key_map *needed_reg;        /* ptr to SQL_SELECT::needed_reg */
+  key_map *needed_reg; /* ptr to needed_reg argument of test_quick_select() */
 
   // Buffer for index_merge cost estimates.
   Unique::Imerge_cost_buf_type imerge_cost_buff;
@@ -1144,7 +1144,7 @@ int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree)
 
   SYNOPSIS
     or_sel_tree_with_checks()
-      param    PARAM from SQL_SELECT::test_quick_select
+      param    PARAM from test_quick_select
       new_tree SEL_TREE with type KEY or KEY_SMALLER.
 
   NOTES
@@ -1376,71 +1376,6 @@ static bool imerge_list_or_tree(RANGE_OPT_PARAM *param,
   DBUG_RETURN(im1->is_empty());
 }
 
-
-/***************************************************************************
-** Basic functions for SQL_SELECT and QUICK_RANGE_SELECT
-***************************************************************************/
-
-	/* make a select from mysql info
-	   Error is set as following:
-	   0 = ok
-	   1 = Got some error (out of memory?)
-	   */
-
-SQL_SELECT *make_select(TABLE *head, table_map const_tables,
-			table_map read_tables, Item *conds,
-                        bool allow_null_cond,
-                        int *error)
-{
-  SQL_SELECT *select;
-  DBUG_ENTER("make_select");
-
-  *error=0;
-
-  if (!conds && !allow_null_cond)
-    DBUG_RETURN(0);
-  if (!(select= new SQL_SELECT))
-  {
-    *error= 1;			// out of memory
-    DBUG_RETURN(0);		/* purecov: inspected */
-  }
-  select->read_tables=read_tables;
-  select->const_tables=const_tables;
-  select->head=head;
-  select->cond=conds;
-
-  if (head->sort.io_cache)
-  {
-    select->file= *head->sort.io_cache;
-    select->records=(ha_rows) (select->file.end_of_file/
-			       head->file->ref_length);
-    my_free(head->sort.io_cache);
-    head->sort.io_cache=0;
-  }
-  DBUG_RETURN(select);
-}
-
-
-SQL_SELECT::SQL_SELECT() :
-  quick(0), cond(0), icp_cond(0),
-  free_cond(0), traced_before(false)
-{
-  my_b_clear(&file);
-}
-
-
-SQL_SELECT::~SQL_SELECT()
-{
-  delete quick;
-  if (free_cond)
-  {
-    free_cond=0;
-    delete cond;
-    cond= 0;
-  }
-  close_cached_file(&file);
-  traced_before= false;
-}
 
 #undef index					// Fix for Unixware 7
 
@@ -2677,15 +2612,6 @@ static int fill_used_fields_bitmap(PARAM *param)
   return 0;
 }
 
-void SQL_SELECT::set_quick(QUICK_SELECT_I *new_quick)
-{
-  delete quick;
-  DBUG_ASSERT (quick==NULL || quick != new_quick);
-  quick= new_quick;
-  if (head && head->reginfo.join_tab)
-    head->reginfo.join_tab->type=
-      (new_quick ? calc_join_type(new_quick->get_type()) : JT_ALL);
-}
 
 /*
   Test if a key can be used in different ranges, and create the QUICK
@@ -2694,7 +2620,7 @@ void SQL_SELECT::set_quick(QUICK_SELECT_I *new_quick)
   parameter force_quick_range).
 
   SYNOPSIS
-    SQL_SELECT::test_quick_select()
+    test_quick_select()
       thd               Current thread
       keys_to_use       Keys to use for range retrieval
       prev_tables       Tables assumed to be already read when the scan is
@@ -2704,11 +2630,11 @@ void SQL_SELECT::set_quick(QUICK_SELECT_I *new_quick)
                         if it is more expensive.
       interesting_order The sort order the range access method must be able
                         to provide. Three-value logic: asc/desc/don't care
-
+      needed_reg        this info is used in make_join_select() even if there is no quick!
+      quick[out]        Calculated QUICK, or NULL
   NOTES
-    Updates the following in the select parameter:
+    Updates the following:
       needed_reg - Bits for keys with may be used if all prev regs are read
-      quick      - Parameter to use when reading records.
 
     In the table struct the following information is updated:
       quick_keys           - Which keys can be used
@@ -2756,36 +2682,52 @@ void SQL_SELECT::set_quick(QUICK_SELECT_I *new_quick)
    -1 if impossible select (i.e. certainly no rows will be selected)
     0 if can't use quick_select
     1 if found usable ranges and quick select has been successfully created.
-*/
 
-int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
-                                  table_map prev_tables,
-                                  ha_rows limit, bool force_quick_range, 
-                                  const ORDER::enum_order interesting_order)
+  @note After this call, caller may decide to really use the returned QUICK,
+  by calling QEP_TAB::set_quick() and updating tab->type() if appropriate.
+
+*/
+int test_quick_select(THD *thd, key_map keys_to_use,
+                      table_map prev_tables,
+                      ha_rows limit, bool force_quick_range,
+                      const ORDER::enum_order interesting_order,
+                      const QEP_shared_owner *tab,
+                      Item *cond,
+                      key_map *needed_reg,
+                      QUICK_SELECT_I **quick)
 {
-  uint idx;
-  double scan_time;
-  DBUG_ENTER("SQL_SELECT::test_quick_select");
+  DBUG_ENTER("test_quick_select");
+
+  *quick= NULL;
+  needed_reg->clear_all();
+
+  if (keys_to_use.is_clear_all())
+    DBUG_RETURN(0);
+
+  table_map const_tables, read_tables;
+  if (tab->join())
+  {
+    const_tables= tab->join()->found_const_table_map;
+    read_tables= tab->join()->is_executed() ?
+      // in execution, range estimation is done for each row, so can access previous tables
+      (tab->prefix_tables() & ~tab->added_tables()) :
+      const_tables;
+  }
+  else
+    const_tables= read_tables= 0;
+
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
 		      (ulong) keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
 
   const Cost_model_server *const cost_model= thd->cost_model();
-  if (quick)
-  {
-    mysql_mutex_lock(&thd->LOCK_query_plan);
-    set_quick(NULL);
-    mysql_mutex_unlock(&thd->LOCK_query_plan);
-  }
-  needed_reg.clear_all();
-  if (keys_to_use.is_clear_all())
-    DBUG_RETURN(0);
-  records= head->file->stats.records;
+  TABLE *const head= tab->table();
+  ha_rows records= head->file->stats.records;
   if (!records)
     records++;					/* purecov: inspected */
-  scan_time= cost_model->row_evaluate_cost(records) + 1;
+  double scan_time= cost_model->row_evaluate_cost(records) + 1;
   const Cost_estimate table_scan_time= head->file->table_scan_cost();
-  read_time= table_scan_time.total_cost() + scan_time + 1.1;
+  double read_time= table_scan_time.total_cost() + scan_time + 1.1;
   if (head->force_index)
     scan_time= read_time= DBL_MAX;
   if (limit < records)
@@ -2829,7 +2771,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.keys=0;
     param.mem_root= &alloc;
     param.old_root= thd->mem_root;
-    param.needed_reg= &needed_reg;
+    param.needed_reg= needed_reg;
     param.imerge_cost_buff.reset();
     param.using_real_indexes= TRUE;
     param.remove_jump_scans= TRUE;
@@ -2838,7 +2780,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.use_index_statistics= false;
 
     thd->no_errors=1;				// Don't warn about NULL
-    init_sql_alloc(key_memory_sql_select_test_quick_select_exec,
+    init_sql_alloc(key_memory_test_quick_select_exec,
                    &alloc, thd->variables.range_alloc_block_size, 0);
     if (!(param.key_parts= (KEY_PART*) alloc_root(&alloc,
                                                   sizeof(KEY_PART)*
@@ -2861,7 +2803,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         This is used in get_mm_parts function.
       */
       key_info= head->key_info;
-      for (idx=0 ; idx < head->s->keys ; idx++, key_info++)
+      for (uint idx= 0 ; idx < head->s->keys ; idx++, key_info++)
       {
         Opt_trace_object trace_idx_details(trace);
         trace_idx_details.add_utf8("index", key_info->name);
@@ -2938,7 +2880,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     {
       {
         Opt_trace_array trace_setup_cond(trace, "setup_range_conditions");
-        tree= get_mm_tree(&param,cond);
+        tree= get_mm_tree(&param, cond);
       }
       if (tree)
       {
@@ -3078,16 +3020,14 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     if (best_trp)
     {
       QUICK_SELECT_I *qck;
-      mysql_mutex_lock(&thd->LOCK_query_plan);
       records= best_trp->records;
       if (!(qck= best_trp->make_quick(&param, TRUE)) || qck->init())
         qck= NULL;
-      set_quick(qck);
-      mysql_mutex_unlock(&thd->LOCK_query_plan);
+      *quick= qck;
     }
 
 free_mem:
-    if (unlikely(quick && trace->is_started() && best_trp))
+    if (unlikely(*quick && trace->is_started() && best_trp))
     {
       // best_trp cannot be NULL if quick is set, done to keep fortify happy
       Opt_trace_object trace_range_summary(trace,
@@ -3097,23 +3037,24 @@ free_mem:
                                           "range_access_plan");
         best_trp->trace_basic_info(&param, &trace_range_plan);
       }
-      trace_range_summary.add("rows_for_plan", quick->records).
-        add("cost_for_plan", quick->read_time).
+      trace_range_summary.add("rows_for_plan", (*quick)->records).
+        add("cost_for_plan", (*quick)->read_time).
         add("chosen", true);
     }
 
     free_root(&alloc,MYF(0));			// Return memory & allocator
     thd->mem_root= param.old_root;
     thd->no_errors=0;
+
+    DBUG_EXECUTE("info", print_quick(*quick, needed_reg););
   }
 
-  DBUG_EXECUTE("info", print_quick(quick, &needed_reg););
 
   /*
     Assume that if the user is using 'limit' we will only need to scan
     limit rows if we are using a key
   */
-  DBUG_RETURN(records ? MY_TEST(quick) : -1);
+  DBUG_RETURN(records ? MY_TEST(*quick) : -1);
 }
 
 /****************************************************************************
@@ -5918,7 +5859,7 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
    used for range access due to either type conversion or different
    collations on the field used for comparison
 
-   @param param              PARAM from SQL_SELECT::test_quick_select
+   @param param              PARAM from test_quick_select
    @param key_num            Key number
    @param field              Field in the predicate
  */
@@ -5945,7 +5886,7 @@ if_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
  
   SYNOPSIS
     get_ne_mm_tree()
-      param       PARAM from SQL_SELECT::test_quick_select
+      param       PARAM from test_quick_select
       cond_func   item for the predicate
       field       field in the predicate
       lt_value    constant that field should be smaller
@@ -6250,7 +6191,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
 /**
   Build a SEL_TREE for a simple predicate.
 
-  @param param     PARAM from SQL_SELECT::test_quick_select
+  @param param     PARAM from test_quick_select
   @param predicand field in the predicate
   @param cond_func item for the predicate
   @param value     constant in the predicate
@@ -6360,7 +6301,7 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param,
  
   SYNOPSIS
     get_full_func_mm_tree()
-      param       PARAM from SQL_SELECT::test_quick_select
+      param       PARAM from test_quick_select
       predicand   column or row constructor in the predicate's left-hand side.
       op          Item for the predicate operator
       value       constant in the predicate (or a field already read from
@@ -6568,10 +6509,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     Here when simple cond 
     There are limits on what kinds of const items we can evaluate.
     At this stage a subquery in 'cond' might not be fully transformed yet
-    (example: semijoin) thus cannot be evaluated. Another reason is that we
-    may be called by test_quick_select (), which holds LOCK_query_plan,
-    thus we must not acquire this Mutex here, thus we can neither prepare nor
-    optimize any subquery here.
+    (example: semijoin) thus cannot be evaluated.
   */
   if (cond->const_item() && !cond->is_expensive() && !cond->has_subquery())
   {
@@ -7232,7 +7170,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     uchar *min_str,*max_str;
     String tmp(buff1,sizeof(buff1),value->collation.collation),*res;
     size_t length, offset, min_length, max_length;
-    uint field_length= field->pack_length()+maybe_null;
+    size_t field_length= field->pack_length()+maybe_null;
 
     if (!optimize_range)
       goto end;
@@ -7298,8 +7236,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
     if (offset != maybe_null)			// BLOB or VARCHAR
     {
-      int2store(min_str+maybe_null,min_length);
-      int2store(max_str+maybe_null,max_length);
+      int2store(min_str+maybe_null, static_cast<uint16>(min_length));
+      int2store(max_str+maybe_null, static_cast<uint16>(max_length));
     }
     tree= new (alloc) SEL_ARG(field, min_str, max_str);
     goto end;
@@ -8059,7 +7997,7 @@ get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1)
    ( 2  <  kp1 < 10 AND 1 < kp2 < 20 ) OR
    ( 10 <= kp1 < 20 AND 4 < kp2 < 20 )
 
-   @param param    PARAM from SQL_SELECT::test_quick_select
+   @param param    PARAM from test_quick_select
    @param key1     Root of RB-tree of SEL_ARGs to be ORed with key2
    @param key2     Root of RB-tree of SEL_ARGs to be ORed with key1
 */
@@ -10491,7 +10429,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   doing_pk_scan= FALSE;
   /* index_merge currently doesn't support "using index" at all */
   head->set_keyread(FALSE);
-  if (init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1, 1, TRUE))
+  if (init_read_record(&read_record, thd, head, NULL, 1, 1, TRUE))
     DBUG_RETURN(1);
   DBUG_RETURN(result);
 }
@@ -11012,7 +10950,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
         DBUG_RETURN(0);
     }
 
-    const uint count= ranges.size() - (cur_range - ranges.begin());
+    const size_t count= ranges.size() - (cur_range - ranges.begin());
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -11058,7 +10996,7 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
 	DBUG_RETURN(result);
     }
 
-    const uint count= ranges.size() - (cur_range-ranges.begin());
+    const size_t count= ranges.size() - (cur_range-ranges.begin());
     if (count == 0)
     {
       /* Ranges have already been used up before. None is left for read. */
@@ -11321,7 +11259,8 @@ QUICK_SELECT_I *QUICK_RANGE_SELECT::make_reverse(uint used_key_parts_arg)
 /*
   Compare if found key is over max-value
   Returns 0 if key <= range->max_key
-  TODO: Figure out why can't this function be as simple as cmp_prev(). 
+  TODO: Figure out why can't this function be as simple as cmp_prev().
+  At least it could use key_cmp() from key.cc, it's almost identical.
 */
 
 int QUICK_RANGE_SELECT::cmp_next(QUICK_RANGE *range_arg)
@@ -11471,7 +11410,7 @@ void QUICK_RANGE_SELECT::add_keys_and_lengths(String *key_names,
                                               String *used_lengths)
 {
   char buf[64];
-  uint length;
+  size_t length;
   KEY *key_info= head->key_info + index;
   key_names->append(key_info->name);
   length= longlong2str(max_used_key_length, buf, 10) - buf;
@@ -11482,7 +11421,7 @@ void QUICK_INDEX_MERGE_SELECT::add_keys_and_lengths(String *key_names,
                                                     String *used_lengths)
 {
   char buf[64];
-  uint length;
+  size_t length;
   bool first= TRUE;
   QUICK_RANGE_SELECT *quick;
 
@@ -11517,7 +11456,7 @@ void QUICK_ROR_INTERSECT_SELECT::add_keys_and_lengths(String *key_names,
                                                       String *used_lengths)
 {
   char buf[64];
-  uint length;
+  size_t length;
   bool first= TRUE;
   QUICK_RANGE_SELECT *quick;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
@@ -12681,7 +12620,7 @@ get_field_keypart(KEY *index, Field *field)
     get_index_range_tree()
     index     [in]  The ID of the index being looked for
     range_tree[in]  Tree of ranges being searched
-    param     [in]  PARAM from SQL_SELECT::test_quick_select
+    param     [in]  PARAM from test_quick_select
     param_idx [out] Index in the array PARAM::key that corresponds to 'index'
 
   DESCRIPTION
@@ -12853,7 +12792,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
 
   /*
     CPU cost must be comparable to that of an index scan as computed
-    in SQL_SELECT::test_quick_select(). When the groups are small,
+    in test_quick_select(). When the groups are small,
     e.g. for a unique index, using index scan will be cheaper since it
     reads the next record without having to re-position to it on every
     group. To make the CPU cost reflect this, we estimate the CPU cost
@@ -14031,7 +13970,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
                                                       String *used_lengths)
 {
   char buf[64];
-  uint length;
+  size_t length;
   key_names->append(index_info->name);
   length= longlong2str(max_used_key_length, buf, 10) - buf;
   used_lengths->append(buf, length);
@@ -14404,7 +14343,7 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
 
   @param tree_name   Descriptive name of the tree
   @param tree        The SEL_TREE that will be printed to debug log
-  @param param       PARAM from SQL_SELECT::test_quick_select
+  @param param       PARAM from test_quick_select
 */
 static inline void dbug_print_tree(const char *tree_name,
                                    SEL_TREE *tree,

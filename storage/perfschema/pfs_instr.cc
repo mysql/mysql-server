@@ -1259,7 +1259,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   char dirbuffer[FN_REFLEN];
   size_t dirlen;
   const char *normalized_filename;
-  int normalized_length;
+  size_t normalized_length;
 
   dirlen= dirname_length(safe_filename);
   if (dirlen == 0)

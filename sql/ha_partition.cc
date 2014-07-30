@@ -1247,7 +1247,7 @@ static bool print_admin_msg(THD* thd, uint len,
   va_list args;
   Protocol *protocol= thd->protocol;
   uint length;
-  uint msg_length;
+  size_t msg_length;
   char name[NAME_LEN*2+2];
   char *msgbuf;
   bool error= true;
@@ -1615,6 +1615,35 @@ void ha_partition::cleanup_new_partition(uint part_count)
 
       file++;
       part_count--;
+    }
+    if (m_new_file && m_added_file)
+    {
+      /*
+        Remove m_added_file partitions from m_new_file since they are already
+        cleaned up.
+      */
+      file= m_new_file;
+      handler **new_file= file;
+      while (*file)
+      {
+        handler **added_file;
+        for (added_file= m_added_file; *added_file; added_file++)
+        {
+          if (*added_file == *file)
+          {
+            /* Skip this since it is already cleaned up. */
+            file++;
+            break;
+          }
+        }
+        if (*added_file)
+        {
+          /* Check next file. */
+          continue;
+        }
+        *(new_file++)= *(file++);
+      }
+      *new_file= NULL;
     }
     m_added_file= NULL;
   }
@@ -2033,6 +2062,18 @@ int ha_partition::copy_partitions(ulonglong * const copied,
       }
       else
       {
+        if (m_new_file[new_part]->get_lock_type() != F_WRLCK)
+        {
+          /*
+             Technically HA_ERR_NOT_IN_LOCK_PARTITIONS, but all correct
+             partitions should be locked, hence we found a misplaced row.
+             Also good to get some extra info from print_error.
+          */
+          result= HA_ERR_ROW_IN_WRONG_PARTITION;
+          m_last_part= reorg_part;
+          m_err_rec= m_rec0;
+          goto error;
+        }
         THD *thd= ha_thd();
         /* Copy record to new handler */
         (*copied)++;
@@ -2457,8 +2498,9 @@ static uint name_add(char *dest, const char *first_name, const char *sec_name)
 bool ha_partition::create_handler_file(const char *name)
 {
   partition_element *part_elem, *subpart_elem;
-  uint i, j, part_name_len, subpart_name_len;
-  uint tot_partition_words, tot_name_len, num_parts;
+  uint i, j;
+  size_t part_name_len, subpart_name_len, tot_name_len;
+  uint tot_partition_words, num_parts;
   uint tot_parts= 0;
   uint tot_len_words, tot_len_byte, chksum, tot_name_words;
   char *name_buffer_ptr;
@@ -2948,7 +2990,7 @@ bool ha_partition::insert_partition_name_in_hash(const char *name, uint part_id,
 {
   PART_NAME_DEF *part_def;
   uchar *part_name;
-  uint part_name_length;
+  size_t part_name_length;
   DBUG_ENTER("ha_partition::insert_partition_name_in_hash");
   /*
     Calculate and store the length here, to avoid doing it when
@@ -4302,7 +4344,7 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   /* Only binlog when it starts any call to the partitions handlers */
   *binlog_stmt= false;
 
-  if (set_part_state(alter_info, m_part_info, PART_ADMIN))
+  if (set_part_state(alter_info, m_part_info, PART_ADMIN, true))
     DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   /*
@@ -7726,13 +7768,13 @@ double ha_partition::read_time(uint index, uint ranges, ha_rows rows)
 
 /**
   Number of rows in table. see handler.h
-
-  @return Number of records in the table (after pruning!)
+  @param[out] num_rows Number of records in the table (after pruning!)
+  @return possible error code.
 */
 
-ha_rows ha_partition::records()
+int ha_partition::records(ha_rows *num_rows)
 {
-  ha_rows rows, tot_rows= 0;
+  ha_rows tot_rows= 0;
   uint i;
   DBUG_ENTER("ha_partition::records");
 
@@ -7740,12 +7782,13 @@ ha_rows ha_partition::records()
        i < m_tot_parts;
        i= bitmap_get_next_set(&m_part_info->read_partitions, i))
   {
-    rows= m_file[i]->records();
-    if (rows == HA_POS_ERROR)
-      DBUG_RETURN(HA_POS_ERROR);
-    tot_rows+= rows;
+    int error= m_file[i]->ha_records(num_rows);
+    if (error != 0)
+      return error;
+    tot_rows+= *num_rows;
   }
-  DBUG_RETURN(tot_rows);
+  *num_rows= tot_rows;
+  DBUG_RETURN(0);
 }
 
 
@@ -8019,11 +8062,16 @@ void ha_partition::print_error(int error, myf errflag)
   }
   else if (error == HA_ERR_ROW_IN_WRONG_PARTITION)
   {
-    /* Should only happen on DELETE or UPDATE! */
+    /*
+      Should only happen on DELETE or UPDATE!
+      Or in ALTER TABLE REBUILD/REORGANIZE where there are a misplaced
+      row that needed to move to an old partition (not in the given set).
+    */
     DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_DELETE ||
                 thd_sql_command(thd) == SQLCOM_DELETE_MULTI ||
                 thd_sql_command(thd) == SQLCOM_UPDATE ||
-                thd_sql_command(thd) == SQLCOM_UPDATE_MULTI);
+                thd_sql_command(thd) == SQLCOM_UPDATE_MULTI ||
+                thd_sql_command(thd) == SQLCOM_ALTER_TABLE);
     DBUG_ASSERT(m_err_rec);
     if (m_err_rec)
     {
@@ -8032,14 +8080,27 @@ void ha_partition::print_error(int error, myf errflag)
       String str(buf,sizeof(buf),system_charset_info);
       uint32 part_id;
       str.length(0);
-      str.append("(");
-      str.append_ulonglong(m_last_part);
-      str.append(" != ");
-      if (get_part_for_delete(m_err_rec, m_rec0, m_part_info, &part_id))
-        str.append("?");
+      if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
+      {
+        str.append("from REBUILD/REORGANIZED partition: ");
+        str.append_ulonglong(m_last_part);
+        str.append(" to non included partition (new definition): ");
+        if (get_part_for_delete(m_err_rec, m_rec0, m_part_info, &part_id))
+          str.append("?");
+        else
+          str.append_ulonglong(part_id);
+      }
       else
-        str.append_ulonglong(part_id);
-      str.append(")");
+      {
+        str.append("(");
+        str.append_ulonglong(m_last_part);
+        str.append(" != ");
+        if (get_part_for_delete(m_err_rec, m_rec0, m_part_info, &part_id))
+          str.append("?");
+        else
+          str.append_ulonglong(part_id);
+        str.append(")");
+      }
       append_row_to_str(str);
 
       /* Log this error, so the DBA can notice it and fix it! */

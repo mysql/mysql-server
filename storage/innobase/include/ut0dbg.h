@@ -78,8 +78,7 @@ ut_dbg_assertion_failed(
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
-#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) \
-		&& defined(HAVE_SYS_RESOURCE_H)
+#if defined(HAVE_SYS_TIME_H) && defined(HAVE_SYS_RESOURCE_H)
 
 #define HAVE_UT_CHRONO_T
 
@@ -181,7 +180,7 @@ private:
 	struct timeval	m_tv;
 };
 
-#endif /* HAVE_SYS_TYPES_H && HAVE_SYS_TIME_H && HAVE_SYS_RESOURCE_H */
+#endif /* HAVE_SYS_TIME_H && HAVE_SYS_RESOURCE_H */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 

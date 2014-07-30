@@ -872,7 +872,7 @@ ut_strerr(
 		return("Identifier name is too long");
 	case DB_FTS_EXCEED_RESULT_CACHE_LIMIT:
 		return("FTS query exceeds result cache limit");
-	case DB_TEMP_FILE_WRITE_FAILURE:
+	case DB_TEMP_FILE_WRITE_FAIL:
 		return("Temp file write failure");
 	case DB_CANT_CREATE_GEOMETRY_OBJECT:
 		return("Can't create specificed geometry data object");
@@ -882,6 +882,9 @@ ut_strerr(
 		return("Table is corrupted");
 	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
 		return("Too many words in a FTS phrase or proximity search");
+	case DB_FORCED_ABORT:
+		return("Transaction aborted by another higher priority "
+		       "transaction");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

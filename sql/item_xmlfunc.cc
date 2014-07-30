@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1258,7 +1258,7 @@ static MY_XPATH_FUNC my_func_names5[]=
 static MY_XPATH_FUNC my_func_names6[]=
 {
   {"concat", 6, 2, 255, create_func_concat},
-  {"number", 6, 0, 1  , create_func_number},
+  {"number", 6, 1, 1  , create_func_number},
   {"string", 6, 0, 1  , 0},
   {0       , 0, 0, 0  , 0}
 };
@@ -1302,7 +1302,7 @@ MY_XPATH_FUNC *
 my_xpath_function(const char *beg, const char *end)
 {
   MY_XPATH_FUNC *k, *function_names;
-  uint length= end-beg;
+  size_t length= end-beg;
   switch (length)
   {
     case 1: return 0;
@@ -2358,6 +2358,12 @@ static int my_xpath_parse_MultiplicativeExpr(MY_XPATH *xpath)
 */
 static int my_xpath_parse_UnaryExpr(MY_XPATH *xpath)
 {
+  THD *thd= current_thd;
+  uchar stack_top;
+
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, &stack_top))
+    return 0;
+
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_MINUS))
     return my_xpath_parse_UnionExpr(xpath);
   if (!my_xpath_parse_UnaryExpr(xpath))

@@ -232,7 +232,9 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           const char* logname);
 static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                            const char* logname);
-static Exit_status dump_log_entries(const char* logname);
+static Exit_status dump_single_log(PRINT_EVENT_INFO *print_event_info,
+                                   const char* logname);
+static Exit_status dump_multiple_logs(int argc, char **argv);
 static Exit_status safe_connect();
 
 struct buff_event_info buff_event;
@@ -953,9 +955,20 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       {
         in_transaction= false;
         print_event_info->skipped_event_in_transaction= false;
+        if (print_event_info->is_gtid_next_set)
+          print_event_info->is_gtid_next_valid= false;
       }
       else if (starts_group)
         in_transaction= true;
+      else
+      {
+        /*
+          We are not in a transaction and are not seeing a BEGIN or
+          COMMIT. So this is an implicitly committing DDL.
+         */
+        if (print_event_info->is_gtid_next_set && !in_transaction)
+          print_event_info->is_gtid_next_valid= false;
+      }
 
       ev->print(result_file, print_event_info);
       if (head->error == -1)
@@ -1296,6 +1309,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case GTID_LOG_EVENT:
     {
       seen_gtids= true;
+      print_event_info->is_gtid_next_set= true;
+      print_event_info->is_gtid_next_valid= true;
       if (print_event_info->skipped_event_in_transaction == true)
         fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n", print_event_info->delimiter);
       print_event_info->skipped_event_in_transaction= false;
@@ -1309,6 +1324,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     {
       in_transaction= false;
       print_event_info->skipped_event_in_transaction= false;
+      if (print_event_info->is_gtid_next_set)
+        print_event_info->is_gtid_next_valid= false;
       ev->print(result_file, print_event_info);
       if (head->error == -1)
         goto err;
@@ -1331,9 +1348,11 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
             since there may be no gtids on the next one.
           */
           seen_gtids= false;
-          fprintf(result_file, "SET @@SESSION.GTID_NEXT= 'AUTOMATIC' "
-                               "/* added by mysqlbinlog */ %s\n", 
-                               print_event_info->delimiter);
+          fprintf(result_file, "%sAUTOMATIC' /* added by mysqlbinlog */ %s\n",
+                  Gtid_log_event::SET_STRING_PREFIX,
+                  print_event_info->delimiter);
+          print_event_info->is_gtid_next_set= false;
+          print_event_info->is_gtid_next_valid= true;
         }
       }
       ev->print(result_file, print_event_info);
@@ -1500,8 +1519,8 @@ static struct my_option my_long_options[] =
    &output_file, &output_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
-    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
+    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
    "Extract only binlog entries created by the server having the given id.",
    &filter_server_id, &filter_server_id, 0, GET_ULONG,
@@ -1851,6 +1870,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage();
     exit(0);
+  case OPT_SECURE_AUTH:
+    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    if (!opt_secure_auth)
+    {
+      usage();
+      exit(1);
+    }
+    break;
+
   }
   if (tty_password)
     pass= get_tty_password(NullS);
@@ -1903,8 +1931,6 @@ static Exit_status safe_connect()
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
   if (opt_bind_addr)
     mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
-  if (!opt_secure_auth)
-    mysql_options(mysql, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
@@ -1936,11 +1962,35 @@ static Exit_status safe_connect()
   @retval OK_STOP No error, but the end of the specified range of
   events to process has been reached and the program should terminate.
 */
-static Exit_status dump_log_entries(const char* logname)
+static Exit_status dump_single_log(PRINT_EVENT_INFO *print_event_info,
+                                   const char* logname)
 {
-  DBUG_ENTER("dump_log_entries");
+  DBUG_ENTER("dump_single_log");
 
   Exit_status rc= OK_CONTINUE;
+
+  switch (opt_remote_proto)
+  {
+    case BINLOG_LOCAL:
+      rc= dump_local_log_entries(print_event_info, logname);
+    break;
+    case BINLOG_DUMP_NON_GTID:
+    case BINLOG_DUMP_GTID:
+      rc= dump_remote_log_entries(print_event_info, logname);
+    break;
+    default:
+      DBUG_ASSERT(0);
+    break;
+  }
+  DBUG_RETURN(rc);
+}
+
+
+static Exit_status dump_multiple_logs(int argc, char **argv)
+{
+  DBUG_ENTER("dump_multiple_logs");
+  Exit_status rc= OK_CONTINUE;
+
   PRINT_EVENT_INFO print_event_info;
   if (!print_event_info.init_ok())
     DBUG_RETURN(ERROR_STOP);
@@ -1959,18 +2009,18 @@ static Exit_status dump_log_entries(const char* logname)
   print_event_info.base64_output_mode= opt_base64_output_mode;
   print_event_info.skip_gtids= opt_skip_gtids;
 
-  switch (opt_remote_proto)
+  // Dump all logs.
+  my_off_t save_stop_position= stop_position;
+  stop_position= ~(my_off_t)0;
+  for (int i= 0; i < argc; i++)
   {
-    case BINLOG_LOCAL:
-      rc= dump_local_log_entries(&print_event_info, logname);
-    break;
-    case BINLOG_DUMP_NON_GTID:
-    case BINLOG_DUMP_GTID:
-      rc= dump_remote_log_entries(&print_event_info, logname);
-    break;
-    default:
-      DBUG_ASSERT(0);
-    break;
+    if (i == argc - 1) // last log, --stop-position applies
+      stop_position= save_stop_position;
+    if ((rc= dump_single_log(&print_event_info, argv[i])) != OK_CONTINUE)
+      break;
+
+    // For next log, --start-position does not apply
+    start_position= BIN_LOG_HEADER_SIZE;
   }
 
   if (!buff_ev->empty())
@@ -1997,6 +2047,14 @@ static Exit_status dump_log_entries(const char* logname)
     if (print_event_info.skipped_event_in_transaction)
       fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n", print_event_info.delimiter);
 
+    if (!print_event_info.is_gtid_next_valid)
+    {
+      fprintf(result_file, "%sAUTOMATIC' /* added by mysqlbinlog */%s\n",
+              Gtid_log_event::SET_STRING_PREFIX,
+              print_event_info.delimiter);
+      print_event_info.is_gtid_next_set= false;
+      print_event_info.is_gtid_next_valid= true;
+    }
     fprintf(result_file, "DELIMITER ;\n");
     my_stpcpy(print_event_info.delimiter, ";");
   }
@@ -2116,7 +2174,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   uchar *command_buffer= NULL;
   size_t command_size= 0;
   ulong len= 0;
-  uint logname_len= 0;
+  size_t logname_len= 0;
   uint server_id= 0;
   NET* net= NULL;
   my_off_t old_off= start_position_mot;
@@ -2164,7 +2222,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     error("Log name too long.");
     DBUG_RETURN(ERROR_STOP);
   }
-  const uint BINLOG_NAME_INFO_SIZE= logname_len= tlen;
+  const size_t BINLOG_NAME_INFO_SIZE= logname_len= tlen;
   
   if (opt_remote_proto == BINLOG_DUMP_NON_GTID)
   {
@@ -2222,7 +2280,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-    int4store(ptr_buffer, BINLOG_NAME_INFO_SIZE);
+    int4store(ptr_buffer, static_cast<uint32>(BINLOG_NAME_INFO_SIZE));
     ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
     memcpy(ptr_buffer, logname, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
@@ -2436,7 +2494,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     {
       Load_log_event *le= (Load_log_event*)ev;
       const char *old_fname= le->fname;
-      uint old_len= le->fname_len;
+      size_t old_len= le->fname_len;
       File file;
 
       if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
@@ -2920,7 +2978,6 @@ int main(int argc, char** argv)
 {
   char **defaults_argv;
   Exit_status retval= OK_CONTINUE;
-  ulonglong save_stop_position;
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
@@ -3016,17 +3073,7 @@ int main(int argc, char** argv)
     fprintf(result_file,
             "/*!50700 SET @@SESSION.RBR_EXEC_MODE=IDEMPOTENT*/;\n\n");
 
-  for (save_stop_position= stop_position, stop_position= ~(my_off_t)0 ;
-       (--argc >= 0) ; )
-  {
-    if (argc == 0) // last log, --stop-position applies
-      stop_position= save_stop_position;
-    if ((retval= dump_log_entries(*argv++)) != OK_CONTINUE)
-      break;
-
-    // For next log, --start-position does not apply
-    start_position= BIN_LOG_HEADER_SIZE;
-  }
+  retval= dump_multiple_logs(argc, argv);
 
   if (!raw_mode)
   {

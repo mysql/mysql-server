@@ -24,6 +24,7 @@ SET(INNOBASE_SOURCES
 	btr/btr0cur.cc
 	btr/btr0pcur.cc
 	btr/btr0sea.cc
+	btr/btr0bulk.cc
 	buf/buf0buddy.cc
 	buf/buf0buf.cc
 	buf/buf0dblwr.cc
@@ -148,7 +149,7 @@ IF(WITH_INNODB)
 ENDIF()
 
 MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
-  DEFAULT
+  MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES ${ZLIB_LIBRARY})
 

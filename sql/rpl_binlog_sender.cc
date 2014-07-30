@@ -49,19 +49,6 @@ void Binlog_sender::init()
   DBUG_PRINT("info", ("Initial packet->alloced_length: %zu",
                       m_packet.alloced_length()));
 
-  sql_print_information("Start binlog_dump to master_thread_id(%lu) "
-                        "slave_server(%u), pos(%s, %llu)",
-                        thd->thread_id, thd->server_id,
-                        m_start_file, m_start_pos);
-
-  if (RUN_HOOK(binlog_transmit, transmit_start,
-               (thd, m_flag, m_start_file, m_start_pos,
-                &m_observe_transmission)))
-  {
-    set_unknow_error("Failed to run hook 'transmit_start'");
-    DBUG_VOID_RETURN;
-  }
-
   if (!mysql_bin_log.is_open())
   {
     set_fatal_error("Binary log is not open");
@@ -82,6 +69,20 @@ void Binlog_sender::init()
 
   if (check_start_file())
     DBUG_VOID_RETURN;
+
+  sql_print_information("Start binlog_dump to master_thread_id(%u) "
+                        "slave_server(%u), pos(%s, %llu)",
+                        thd->thread_id(), thd->server_id,
+                        m_start_file, m_start_pos);
+
+  if (RUN_HOOK(binlog_transmit, transmit_start,
+               (thd, m_flag, m_start_file, m_start_pos,
+                &m_observe_transmission)))
+  {
+    set_unknow_error("Failed to run hook 'transmit_start'");
+    DBUG_VOID_RETURN;
+  }
+  m_transmit_started=true;
 
   init_checksum_alg();
   /*
@@ -137,7 +138,8 @@ void Binlog_sender::cleanup()
 
   THD *thd= m_thd;
 
-  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, m_flag));
+  if (m_transmit_started)
+    (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, m_flag));
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo= NULL;
@@ -233,10 +235,25 @@ void Binlog_sender::run()
   DBUG_VOID_RETURN;
 }
 
-int Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
+my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
 {
-  if (unlikely(send_format_description_event(log_cache,
-                                             start_pos > BIN_LOG_HEADER_SIZE)))
+  /*
+    If we are skipping the beginning of the binlog file based on the position
+    asked by the slave, we must clear the log_pos and the created flag of the
+    Format_description_log_event to be sent.
+  */
+  bool clear_log_pos= start_pos > BIN_LOG_HEADER_SIZE;
+  /*
+    As when using GTID protocol the slave don't ask for a position, we will
+    clear the log_pos and the created flag of the Format_description_log_event
+    just if we are skipping at least the first GTID of the binlog file.
+  */
+  if (m_using_gtid_protocol)
+  {
+    clear_log_pos= m_gtid_clear_fd_created_flag;
+  }
+
+  if (unlikely(send_format_description_event(log_cache, clear_log_pos)))
     return 1;
 
   if (start_pos == BIN_LOG_HEADER_SIZE)
@@ -527,8 +544,10 @@ int Binlog_sender::check_start_file()
   }
   else if (m_using_gtid_protocol)
   {
+    Gtid first_gtid= {0, 0};
     if (mysql_bin_log.find_first_log_not_in_gtid_set(index_entry_name,
                                                      m_exclude_gtid,
+                                                     &first_gtid,
                                                      &errmsg))
     {
       set_fatal_error(errmsg);
@@ -542,6 +561,14 @@ int Binlog_sender::check_start_file()
       dump binglogs.
     */
     m_check_previous_gtid_event= false;
+    /*
+      If we are skipping at least the first transaction of the binlog,
+      we must clear the "created" field of the FD event (set it to 0)
+      to avoid cleaning up temp tables on slave.
+    */
+    m_gtid_clear_fd_created_flag= (first_gtid.sidno >= 1 &&
+                                   first_gtid.gno >= 1 &&
+                                   m_exclude_gtid->contains_gtid(first_gtid));
   }
 
   /*
@@ -616,8 +643,8 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
 {
   DBUG_ENTER("fake_rotate_event");
   const char* p = next_log_file + dirname_length(next_log_file);
-  ulong ident_len = strlen(p);
-  ulong event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN +
+  size_t ident_len = strlen(p);
+  size_t event_len = ident_len + LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN +
     (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
   /* reset transmit packet for the fake rotate event below */
@@ -635,7 +662,7 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
   int4store(header, 0);
   header[EVENT_TYPE_OFFSET] = ROTATE_EVENT;
   int4store(header + SERVER_ID_OFFSET, server_id);
-  int4store(header + EVENT_LEN_OFFSET, event_len);
+  int4store(header + EVENT_LEN_OFFSET, static_cast<uint32>(event_len));
   int4store(header + LOG_POS_OFFSET, 0);
   int2store(header + FLAGS_OFFSET, LOG_EVENT_ARTIFICIAL_F);
 
@@ -648,17 +675,17 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
   DBUG_RETURN(send_packet());
 }
 
-inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, uint32 event_len)
+inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, size_t event_len)
 {
   ha_checksum crc= my_checksum(0L, NULL, 0);
   crc= my_checksum(crc, event_ptr, event_len - BINLOG_CHECKSUM_LEN);
   int4store(event_ptr + event_len - BINLOG_CHECKSUM_LEN, crc);
 }
 
-inline int Binlog_sender::reset_transmit_packet(ushort flags, uint32 event_len)
+inline int Binlog_sender::reset_transmit_packet(ushort flags, size_t event_len)
 {
   DBUG_ENTER("Binlog_sender::reset_transmit_packet");
-  DBUG_PRINT("info", ("event_len: %u, m_packet->alloced_length: %zu",
+  DBUG_PRINT("info", ("event_len: %zu, m_packet->alloced_length: %zu",
                       event_len, m_packet.alloced_length()));
   DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
 
@@ -854,7 +881,7 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
   header[EVENT_TYPE_OFFSET] = HEARTBEAT_LOG_EVENT;
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
-  int4store(header + LOG_POS_OFFSET, log_pos);
+  int4store(header + LOG_POS_OFFSET, static_cast<uint32>(log_pos));
   int2store(header + FLAGS_OFFSET, 0);
   memcpy(header + LOG_EVENT_HEADER_LEN, p, ident_len);
 
@@ -964,7 +991,7 @@ inline bool Binlog_sender::grow_packet(uint32 extra_size)
   /* Grow the buffer if needed. */
   if (needed_buffer_size > cur_buffer_size)
   {
-    uint32 new_buffer_size;
+    size_t new_buffer_size;
     if (calc_buffer_size(cur_buffer_size, needed_buffer_size,
                          PACKET_GROW_FACTOR, &new_buffer_size))
       DBUG_RETURN(true);
@@ -1038,10 +1065,10 @@ inline bool Binlog_sender::shrink_packet()
   DBUG_RETURN(res);
 }
 
-inline bool Binlog_sender::calc_buffer_size(uint32 current_size,
-                                            uint32 min_size,
+inline bool Binlog_sender::calc_buffer_size(size_t current_size,
+                                            size_t min_size,
                                             float factor,
-                                            uint32 *new_val)
+                                            size_t *new_val)
 {
   /* Check that a sane minimum buffer size was requested.  */
   if (min_size < PACKET_MIN_SIZE || min_size > PACKET_MAX_SIZE)
@@ -1055,7 +1082,7 @@ inline bool Binlog_sender::calc_buffer_size(uint32 current_size,
      Also, cap new_size to PACKET_MAX_SIZE (in case
      PACKET_MAX_SIZE < UINT_MAX32).
    */
-  uint32 new_size= static_cast<uint32>(
+  size_t new_size= static_cast<size_t>(
     std::min(static_cast<double>(PACKET_MAX_SIZE),
              static_cast<double>(current_size * factor)));
 

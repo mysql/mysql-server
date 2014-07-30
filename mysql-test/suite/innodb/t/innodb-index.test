@@ -556,3 +556,255 @@ show create table t2c;
 --disable_info
 
 DROP TABLE t1,t2,t2c,t2i;
+--echo #
+--echo # Bug #17657223	EXCESSIVE TEMPORARY FILE USAGE IN ALTER TABLE
+--echo #
+
+SET GLOBAL innodb_monitor_enable = module_ddl;
+let $innodb_metrics_select=
+SELECT name, count_reset FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count_reset > 0;
+
+# Table with Blob data.
+create table t1(f1 int not null, f2 blob)engine=innodb;
+insert into t1 values(1, repeat('a',20000));
+--echo # Skip sort
+--echo # Reusing the same pk
+--enable_info
+alter table t1 force;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+drop table t1;
+
+# Table with small data.
+create table t1(f1 int not null, f2 int not null,
+primary key(f1))engine=innodb;
+insert into t1 values(1,2), (3,4);
+--echo # Add Secondary index.
+--echo # Skip temp file usage due to small table size
+--enable_info
+alter table t1 add key(f2);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+drop table t1;
+
+# Table with large data which is greater than sort buffer
+create table t480(a serial)engine=innodb;
+insert into t480
+values(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),
+(),(),(),(),(),(),(),();
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+create table t1(f1 int auto_increment not null,
+		f2 char(200) not null, f3 char(200) not null,
+		f4 char(200) not null,primary key(f1))engine=innodb;
+insert into t1 select NULL,'aaa','bbb','ccc' from t480;
+insert into t1 select NULL,'aaaa','bbbb','cccc' from t480;
+insert into t1 select NULL,'aaaaa','bbbbb','ccccc' from t480;
+insert into t1 select NULL,'aaaaaa','bbbbbb','cccccc' from t480;
+insert into t1 select NULL,'aaaaaaa','bbbbbbb','ccccccc' from t480;
+insert into t1 select NULL,'aaaaaaaa','bbbbbbbb','cccccccc' from t480;
+select count(*) from t1;
+
+--echo # Skip sort
+--echo # Change PK from (f1) to (f1,f2,f3,f4)
+--enable_info
+alter table t1 drop primary key, add primary key(f1,f2,f3,f4);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+
+# Temp file not used during clustered index rebuild
+# for the following alter table commands.
+
+--echo # Skip sort
+--echo # Change PK from (f1,f2,f3,f4) to (f1,f2,added_columns)
+--enable_info
+alter table t1 drop primary key,add column f5 int not null,
+add column f6 int not null,add primary key(f1,f2,f5,f6);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Change PK from (f1,f2,f5,f6) to (f1,f2,f5)
+--enable_info
+alter table t1 drop column f6;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Reusing the same PK
+--enable_info
+alter table t1 add column f6 int;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Reusing the same pk
+--enable_info
+alter table t1 drop column f6;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Must sort
+--echo # Change PK from (f1,f2,f5) to (f1,f5)
+--enable_info
+alter table t1 drop column f2;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Reusing the same pk
+--enable_info
+alter table t1 add column f2n int after f1, drop primary key, add
+primary key (f1,f5,f2n);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Reusing the same pk
+--enable_info
+alter table t1 change f5 f2n int not null,change f2n f5 int not null,
+add column f8 int not null;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Change PK from (f1,f4,f2n) to (f1,f4,added_column,f2n)
+--enable_info
+alter table t1 add column f7 int, drop primary key,
+add primary key (f1,f5,f7,f2n);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Reusing the same pk
+--enable_info
+alter table t1 force;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Reusing the same pk
+--enable_info
+alter table t1 row_format=compact;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Reusing the same pk
+--enable_info
+alter table t1 engine=innodb;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Optimize table
+--enable_info
+optimize table t1;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Sort files used for adding secondary index
+--enable_info
+alter table t1 drop primary key, add primary key(f1,f5,f7), add index
+i(f3);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # No sort files used for dropping secondary index
+--enable_info
+alter table t1 drop primary key, add primary key(f1,f5),drop index i;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Change PK(f1,f5) to (f1,added_columns) and drop f5
+--enable_info
+alter table t1 drop primary key, add primary key(f1,f12),
+drop column f5, add column f12 int not null;
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Must sort
+--echo # Change PK(f1,f12) to (f1,existing_columns)
+--enable_info
+alter table t1 drop primary key, add primary key(f1,f3);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort
+--echo # Change PK(f1,f3) to (f1,added_column,f3,added_column)
+--enable_info
+alter table t1 drop primary key, add column f3n int,
+add column f4n int, add primary key(f1,f3n,f3,f4n);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Adding Secondary index alone.
+--enable_info
+alter table t1 add key(f1);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Must sort
+--echo # Change PK(f1,f3) to (existing_column,f1)
+--enable_info
+alter table t1 drop primary key, add primary key(f4,f1);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort for PK.
+--echo # Change PK(f4,f1) to (added_columns,f4,f1)
+--echo # Secondary index rebuild happens
+--enable_info
+alter table t1 drop primary key, add column f5n int,
+add column f6n int, add primary key(f5n,f6n,f4,f1);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+--echo # Skip sort for PK.
+--echo # Change PK(f5n,f6n,f4,f1) to
+--echo # (added_columns,f5n,added_column,f6n,f4,f1)
+--echo # Secondary index rebuild happens
+--enable_info
+alter table t1 drop primary key, add column f7n int,
+add column f8n int, add primary key(f7n,f5n,f8n,f6n,f4,f1);
+--disable_info
+eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
+SET GLOBAL innodb_monitor_disable = module_ddl;
+select count(*) from t1;
+drop table t1;
+drop table t480;
+--disable_warnings
+SET GLOBAL innodb_monitor_reset = default;
+SET GLOBAL innodb_monitor_enable = default;
+SET GLOBAL innodb_monitor_disable = default;
+--enable_warnings

@@ -3133,18 +3133,17 @@ Execute_sql_statement::execute_server_code(THD *thd)
 
   parent_locker= thd->m_statement_psi;
   thd->m_statement_psi= NULL;
+
   /*
     Rewrite first (if needed); execution might replace passwords
     with hashes in situ without flagging it, and then we'd make
     a hash of that hash.
   */
   rewrite_query_if_needed(thd);
+  log_execute_line(thd);
+
   error= mysql_execute_command(thd) ;
   thd->m_statement_psi= parent_locker;
-
-  /* report error issued during command execution */
-  if (error == 0)
-    log_execute_line(thd);
 
 end:
   lex_end(thd->lex);
@@ -4001,19 +4000,35 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     {
       PSI_statement_locker *parent_locker;
       MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                             thd->thread_id,
+                             thd->thread_id(),
                              (char *) (thd->db ? thd->db : ""),
                              &thd->security_ctx->priv_user[0],
                              (char *) thd->security_ctx->host_or_ip,
                              1);
       parent_locker= thd->m_statement_psi;
       thd->m_statement_psi= NULL;
+
       /*
+        Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
+        prepared statements this causes two records to be output:
+
+        Query       EXECUTE <statement name>
+        Execute     <statement SQL text>
+
+        This is considered user-friendly, since in the
+        second log entry we output values of parameter markers.
+
+        Rewriting/password obfuscation:
+
+        - Any passwords in the "Execute" line should be substituted with
+        their hashes, or a notice.
+
         Rewrite first (if needed); execution might replace passwords
         with hashes in situ without flagging it, and then we'd make
         a hash of that hash.
       */
       rewrite_query_if_needed(thd);
+      log_execute_line(thd);
 
       error= mysql_execute_command(thd);
       thd->m_statement_psi= parent_locker;
@@ -4059,25 +4074,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     else
       thd->protocol->send_out_parameters(&this->lex->param_list);
   }
-
-  /*
-    Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
-    prepared statements this causes two records to be output:
-
-    Query       EXECUTE <statement name>
-    Execute     <statement SQL text>
-
-    This is considered user-friendly, since in the
-    second log entry we output values of parameter markers.
-
-    Rewriting/password obfuscation:
-
-    - Any passwords in the "Execute" line should be substituted with
-      their hashes, or a notice.
-
-  */
-  if (error == 0)
-    log_execute_line(thd);
 
   flags&= ~ (uint) IS_IN_USE;
   return error;

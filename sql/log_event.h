@@ -34,6 +34,7 @@
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
 #include "table_id.h"
+#include <set>
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -55,6 +56,7 @@ extern I_List<i_string_pair> binlog_rewrite_db;
 #include "sql_class.h"                          /* THD */
 #include "rpl_utility.h"                        /* Hash_slave_rows */
 #include "rpl_filter.h"
+#include "key.h"                                /* key_copy, compare_keys */
 #endif
 
 extern PSI_memory_key key_memory_log_event;
@@ -817,7 +819,7 @@ typedef struct st_print_event_info
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
   uint lc_time_names_number;
   uint charset_database_number;
-  uint thread_id;
+  my_thread_id thread_id;
   bool thread_id_printed;
 
   st_print_event_info();
@@ -876,6 +878,23 @@ typedef struct st_print_event_info
      False, otherwise.
    */
   bool skipped_event_in_transaction;
+
+  /* true if gtid_next is set with a value */
+  bool is_gtid_next_set;
+
+  /*
+    Determines if the current value of gtid_next needs to be restored
+    to AUTOMATIC if the binary log would end after the current event.
+
+    If the log ends after a transaction, then this should be false.
+    If the log ends in the middle of a transaction, then this should
+    be true; this can happen for relay logs where transactions are
+    split over multiple logs.
+
+    Set to true initially, and after a Gtid_log_event is processed.
+    Set to false if is_gtid_next_set is true.
+   */
+  bool is_gtid_next_valid;
 } PRINT_EVENT_INFO;
 #endif
 
@@ -1130,7 +1149,7 @@ public:
   /* The number of seconds the query took to run on the master. */
   ulong exec_time;
   /* Number of bytes written by write() function */
-  ulong data_written;
+  size_t data_written;
 
   /*
     The master's server id (is preserved in the relay log; used to
@@ -1363,7 +1382,7 @@ public:
   bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t data_length);
 
 #ifdef MYSQL_SERVER
-  bool write_header(IO_CACHE* file, ulong data_length);
+  bool write_header(IO_CACHE* file, size_t data_length);
   bool write_footer(IO_CACHE* file);
   my_bool need_checksum();
 
@@ -1413,7 +1432,13 @@ public:
   }
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
-  virtual ~Log_event() { free_temp_buf();}
+  virtual ~Log_event()
+  {
+    free_temp_buf();
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+    free_root(&m_event_mem_root, MYF(MY_KEEP_PREALLOC));
+#endif //!MYSQL_CLIENT && HAVE_REPLICATION
+  }
   void register_temp_buf(char* buf) { temp_buf = buf; }
   void free_temp_buf()
   {
@@ -1427,7 +1452,7 @@ public:
     Get event length for simple events. For complicated events the length
     is calculated during write()
   */
-  virtual int get_data_size() { return 0;}
+  virtual size_t get_data_size() { return 0;}
   static Log_event* read_log_event(const char* buf, uint event_len,
 				   const char **error,
                                    const Format_description_log_event
@@ -1673,6 +1698,13 @@ public:
   }
 
   virtual int do_apply_event_worker(Slave_worker *w);
+
+  /*
+    Mem root whose scope is equalent to event's scope.
+    This mem_root will be initialized in constructor
+    Log_event() and freed in destructor ~Log_event().
+   */
+  MEM_ROOT m_event_mem_root;
 
 protected:
 
@@ -2157,21 +2189,21 @@ public:
   size_t q_len;
   size_t db_len;
   uint16 error_code;
-  ulong thread_id;
+  my_thread_id thread_id;
   /*
     For events created by Query_log_event::do_apply_event (and
     Load_log_event::do_apply_event()) we need the *original* thread
     id, to be able to log the event with the original (=master's)
     thread id (fix for BUG#1686).
   */
-  ulong slave_proxy_id;
+  my_thread_id slave_proxy_id;
 
   /*
     Binlog format 3 and 4 start to differ (as far as class members are
     concerned) from here.
   */
 
-  uint catalog_len;			// <= 255 char; 0 means uninited
+  size_t catalog_len;			// <= 255 char; 0 means uninited
 
   /*
     We want to be able to store a variable number of N-bit status vars:
@@ -2213,7 +2245,7 @@ public:
   sql_mode_t sql_mode;
   ulong auto_increment_increment, auto_increment_offset;
   char charset[6];
-  uint time_zone_len; /* 0 means uninited */
+  size_t time_zone_len; /* 0 means uninited */
   const char *time_zone_str;
   uint lc_time_names_number; /* 0 means en_US */
   uint charset_database_number;
@@ -2327,8 +2359,8 @@ public:        /* !!! Public in this patch to allow old usage */
   virtual int do_update_pos(Relay_log_info *rli);
 
   int do_apply_event(Relay_log_info const *rli,
-                       const char *query_arg,
-                       uint32 q_len_arg);
+                     const char *query_arg,
+                     size_t q_len_arg);
 #endif /* HAVE_REPLICATION */
   /*
     If true, the event always be applied by slave SQL thread or be printed by
@@ -2584,8 +2616,8 @@ public:
   uint get_query_buffer_length();
   void print_query(bool need_db, const char *cs, char *buf, char **end,
                    char **fn_start, char **fn_end);
-  ulong thread_id;
-  ulong slave_proxy_id;
+  my_thread_id thread_id;
+  my_thread_id slave_proxy_id;
   uint32 table_name_len;
   /*
     No need to have a catalog, as these events can only come from 4.x.
@@ -2593,7 +2625,7 @@ public:
     5.0 only (not in 4.x).
   */
   uint32 db_len;
-  uint32 fname_len;
+  size_t fname_len;
   uint32 num_fields;
   const char* fields;
   const uchar* field_lens;
@@ -2618,7 +2650,7 @@ public:
   bool is_concurrent;
 
   /* fname doesn't point to memory inside Log_event::temp_buf  */
-  void set_fname_outside_temp_buf(const char *afname, uint alen)
+  void set_fname_outside_temp_buf(const char *afname, size_t alen)
   {
     fname= afname;
     fname_len= alen;
@@ -2670,7 +2702,7 @@ public:
   bool write_data_body(IO_CACHE* file);
 #endif
   bool is_valid() const { return table_name != 0; }
-  int get_data_size()
+  size_t get_data_size()
   {
     return (table_name_len + db_len + 2 + fname_len
 	    + LOAD_HEADER_LEN
@@ -2758,7 +2790,7 @@ public:
   bool write(IO_CACHE* file);
 #endif
   bool is_valid() const { return 1; }
-  int get_data_size()
+  size_t get_data_size()
   {
     return START_V3_HEADER_LEN; //no variable-sized part
   }
@@ -2842,7 +2874,7 @@ public:
     return header_is_valid() && version_is_valid();
   }
 
-  int get_data_size()
+  size_t get_data_size()
   {
     /*
       The vector of post-header lengths is considered as part of the
@@ -2926,7 +2958,7 @@ public:
   ~Intvar_log_event() {}
   Log_event_type get_type_code() { return INTVAR_EVENT;}
   const char* get_var_type_name();
-  int get_data_size() { return  9; /* sizeof(type) + sizeof(val) */;}
+  size_t get_data_size() { return  9; /* sizeof(type) + sizeof(val) */;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
@@ -3003,7 +3035,7 @@ class Rand_log_event: public Log_event
                  const Format_description_log_event *description_event);
   ~Rand_log_event() {}
   Log_event_type get_type_code() { return RAND_EVENT;}
-  int get_data_size() { return 16; /* sizeof(ulonglong) * 2*/ }
+  size_t get_data_size() { return 16; /* sizeof(ulonglong) * 2*/ }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
@@ -3052,7 +3084,7 @@ class Xid_log_event: public Log_event
                 const Format_description_log_event *description_event);
   ~Xid_log_event() {}
   Log_event_type get_type_code() { return XID_EVENT;}
-  int get_data_size() { return sizeof(xid); }
+  size_t get_data_size() { return sizeof(xid); }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
@@ -3261,7 +3293,7 @@ public:
       my_free((void*) new_log_ident);
   }
   Log_event_type get_type_code() { return ROTATE_EVENT;}
-  int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
+  size_t get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
   bool is_valid() const { return new_log_ident != 0; }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -3320,7 +3352,7 @@ public:
   {
     return fake_base ? Load_log_event::get_type_code() : CREATE_FILE_EVENT;
   }
-  int get_data_size()
+  size_t get_data_size()
   {
     return (fake_base ? Load_log_event::get_data_size() :
 	    Load_log_event::get_data_size() +
@@ -3385,7 +3417,7 @@ public:
                          *description_event);
   ~Append_block_log_event() {}
   Log_event_type get_type_code() { return APPEND_BLOCK_EVENT;}
-  int get_data_size() { return  block_len + APPEND_BLOCK_HEADER_LEN ;}
+  size_t get_data_size() { return  block_len + APPEND_BLOCK_HEADER_LEN ;}
   bool is_valid() const { return block != 0; }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -3426,7 +3458,7 @@ public:
                         const Format_description_log_event* description_event);
   ~Delete_file_log_event() {}
   Log_event_type get_type_code() { return DELETE_FILE_EVENT;}
-  int get_data_size() { return DELETE_FILE_HEADER_LEN ;}
+  size_t get_data_size() { return DELETE_FILE_HEADER_LEN ;}
   bool is_valid() const { return file_id != 0; }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -3466,7 +3498,7 @@ public:
                          *description_event);
   ~Execute_load_log_event() {}
   Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
-  int get_data_size() { return  EXEC_LOAD_HEADER_LEN ;}
+  size_t get_data_size() { return  EXEC_LOAD_HEADER_LEN ;}
   bool is_valid() const { return file_id != 0; }
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
@@ -4006,7 +4038,7 @@ public:
     return (m_memory != NULL && m_meta_memory != NULL); /* we check malloc */
   }
 
-  virtual int get_data_size() { return (uint) m_data_size; }
+  virtual size_t get_data_size() { return m_data_size; }
 #ifdef MYSQL_SERVER
   virtual int save_field_metadata();
   virtual bool write_data_header(IO_CACHE *file);
@@ -4191,7 +4223,7 @@ public:
 #endif
 
   /* Member functions to implement superclass interface */
-  virtual int get_data_size();
+  virtual size_t get_data_size();
 
   MY_BITMAP const *get_cols() const { return &m_cols; }
   MY_BITMAP const *get_cols_ai() const { return &m_cols_ai; }
@@ -4339,10 +4371,39 @@ protected:
   const uchar *m_curr_row;     /* Start of the row being processed */
   const uchar *m_curr_row_end; /* One-after the end of the current row */
   uchar    *m_key;      /* Buffer to keep key value during searches */
-  uchar    *last_hashed_key;
   uint     m_key_index;
-  List<uchar> m_distinct_key_list;
-  List_iterator_fast<uchar> m_itr;
+  KEY      *m_key_info; /* Points to description of index #m_key_index */
+  class Key_compare
+  {
+public:
+    /**
+       @param  ki  Where to find KEY description
+       @note m_distinct_keys is instantiated when Rows_log_event is constructed; it
+       stores a Key_compare object internally. However at that moment, the
+       index (KEY*) to use for comparisons, is not yet known. So, at
+       instantiation, we indicate the Key_compare the place where it can
+       find the KEY* when needed (this place is Rows_log_event::m_key_info),
+       Key_compare remembers the place in member m_key_info.
+       Before we need to do comparisons - i.e. before we need to insert
+       elements, we update Rows_log_event::m_key_info once for all.
+    */
+    Key_compare(KEY **ki= NULL) : m_key_info(ki) {}
+    bool operator()(uchar *k1, uchar *k2) const
+    {
+      return key_cmp2((*m_key_info)->key_part,
+                      k1, (*m_key_info)->key_length,
+                      k2, (*m_key_info)->key_length) < 0 ;
+    }
+private:
+    KEY **m_key_info;
+  };
+  std::set<uchar *, Key_compare> m_distinct_keys;
+  std::set<uchar *, Key_compare>::iterator m_itr;
+  /**
+    A spare buffer which will be used when saving the distinct keys
+    for doing an index scan with HASH_SCAN search algorithm.
+  */
+  uchar *m_distinct_key_spare_buf;
 
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
@@ -4500,14 +4561,13 @@ private:
 
   /**
     Initializes scanning of rows. Opens an index and initailizes an iterator
-    over a list of distinct keys (m_distinct_key_list) if it is a HASH_SCAN
+    over a list of distinct keys (m_distinct_keys) if it is a HASH_SCAN
     over an index or the table if its a HASH_SCAN over the table.
   */
   int open_record_scan();
 
   /**
     Does the cleanup
-    - deallocates all the elements in m_distinct_key_list if any
     - closes the index if opened by open_record_scan
     - closes the table if opened for scanning.
   */
@@ -4528,7 +4588,7 @@ private:
   int next_record_scan(bool first_read);
 
   /**
-    Populates the m_distinct_key_list with unique keys to be modified
+    Populates the m_distinct_keys with unique keys to be modified
     during HASH_SCAN over keys.
     @return_value -0 success
                   -Err_code
@@ -4856,8 +4916,8 @@ public:
   {
     return m_incident > INCIDENT_NONE && m_incident < INCIDENT_COUNT;
   }
-  virtual int get_data_size() {
-    return INCIDENT_HEADER_LEN + 1 + (uint) m_message.length;
+  virtual size_t get_data_size() {
+    return INCIDENT_HEADER_LEN + 1 + m_message.length;
   }
 
 private:
@@ -4914,14 +4974,14 @@ public:
 
   virtual bool is_valid() const { return 1; }
 
-  virtual int get_data_size() { return IGNORABLE_HEADER_LEN; }
+  virtual size_t get_data_size() { return IGNORABLE_HEADER_LEN; }
 };
 
 
 class Rows_query_log_event : public Ignorable_log_event {
 public:
 #ifndef MYSQL_CLIENT
-  Rows_query_log_event(THD *thd_arg, const char * query, ulong query_len)
+  Rows_query_log_event(THD *thd_arg, const char * query, size_t query_len)
     : Ignorable_log_event(thd_arg)
   {
     DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
@@ -4950,9 +5010,9 @@ public:
 
   virtual Log_event_type get_type_code() { return ROWS_QUERY_LOG_EVENT; }
 
-  virtual int get_data_size()
+  virtual size_t get_data_size()
   {
-    return IGNORABLE_HEADER_LEN + 1 + (uint) strlen(m_rows_query);
+    return IGNORABLE_HEADER_LEN + 1 + strlen(m_rows_query);
   }
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -5060,7 +5120,7 @@ public:
     DBUG_RETURN(ret);
   }
 
-  int get_data_size() { return POST_HEADER_LENGTH; }
+  size_t get_data_size() { return POST_HEADER_LENGTH; }
 
 private:
   /// Used internally by both print() and pack_info().
@@ -5139,9 +5199,9 @@ public:
   /// Return true if this is the last group of the transaction, else false.
   bool get_commit_flag() const { return commit_flag; }
 
-private:
   /// string holding the text "SET @@GLOBAL.GTID_NEXT = '"
   static const char *SET_STRING_PREFIX;
+private:
   /// Length of SET_STRING_PREFIX
   static const size_t SET_STRING_PREFIX_LENGTH= 26;
   /// The maximal length of the entire "SET ..." query.
@@ -5197,7 +5257,7 @@ public:
   Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT; }
 
   bool is_valid() const { return buf != NULL; }
-  int get_data_size() { return static_cast<int>(buf_size); }
+  size_t get_data_size() { return buf_size; }
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);

@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,8 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi)
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata)
 
 MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp
@@ -64,6 +65,7 @@ MYSQL_ADD_EXECUTABLE(ndb_restore
   restore/consumer_restore.cpp
   restore/consumer_printer.cpp
   restore/Restore.cpp
+  ndb_lib_move_data.cpp
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_restore ndbclient_static ndbNDBT)
 
@@ -80,11 +82,11 @@ ADD_EXECUTABLE(ndbinfo_sql
 )
 TARGET_LINK_LIBRARIES(ndbinfo_sql ndbclient_static)
 GET_TARGET_PROPERTY(NDBINFO_SQL_EXE ndbinfo_sql LOCATION)
-ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql
+ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql
                    COMMAND ${NDBINFO_SQL_EXE} ARGS > ndbinfo.sql
                    DEPENDS ndbinfo_sql)
 ADD_CUSTOM_TARGET(ndbinfo_sql_run ALL
-				  DEPENDS ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql)
+                  DEPENDS ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql)
 
 MYSQL_ADD_EXECUTABLE(ndb_index_stat
   ndb_index_stat.cpp
@@ -104,6 +106,12 @@ MYSQL_ADD_EXECUTABLE(ndb_blob_tool
   ndb_blob_tool.cpp
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_blob_tool ndbclient_static ndbNDBT)
+
+MYSQL_ADD_EXECUTABLE(ndb_move_data
+  ndb_move_data.cpp
+  ndb_lib_move_data.cpp
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_move_data ndbclient_static ndbNDBT)
 
 IF (MYSQL_VERSION_ID LESS "50501")
   # Don't build or install this program anymore in 5.5+

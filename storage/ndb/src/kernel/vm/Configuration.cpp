@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -406,12 +406,18 @@ Configuration::setupConfiguration(){
       m_thr_config.setLockIoThreadsToCPU(maintCPU);
   }
 
+#ifdef NDB_USE_GET_ENV
   const char * thrconfigstring = NdbEnv_GetEnv("NDB_MT_THREAD_CONFIG",
                                                (char*)0, 0);
+#else
+  const char * thrconfigstring = NULL;
+#endif
   if (thrconfigstring ||
       iter.get(CFG_DB_MT_THREAD_CONFIG, &thrconfigstring) == 0)
   {
-    int res = m_thr_config.do_parse(thrconfigstring);
+    int res = m_thr_config.do_parse(thrconfigstring,
+                                    _realtimeScheduler,
+                                    _schedulerSpinTimer);
     if (res != 0)
     {
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
@@ -426,17 +432,22 @@ Configuration::setupConfiguration(){
 
     Uint32 classic = 0;
     iter.get(CFG_NDBMT_CLASSIC, &classic);
+#ifdef NDB_USE_GET_ENV
     const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
     if (p != 0)
     {
       if (strstr(p, "NOPLEASE") != 0)
         classic = 1;
     }
-
+#endif
     Uint32 lqhthreads = 0;
     iter.get(CFG_NDBMT_LQH_THREADS, &lqhthreads);
 
-    int res = m_thr_config.do_parse(mtthreads, lqhthreads, classic);
+    int res = m_thr_config.do_parse(mtthreads,
+                                    lqhthreads,
+                                    classic,
+                                    _realtimeScheduler,
+                                    _schedulerSpinTimer);
     if (res != 0)
     {
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
@@ -499,6 +510,7 @@ Configuration::setupConfiguration(){
     iter.get(CFG_NDBMT_LQH_WORKERS, &workers);
 
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
     // testing
     {
       const char* p;
@@ -506,6 +518,7 @@ Configuration::setupConfiguration(){
       if (p != 0)
         workers = atoi(p);
     }
+#endif
 #endif
 
 
@@ -1008,8 +1021,8 @@ Configuration::setAllLockCPU(bool exec_thread)
       continue;
 
     bool run = 
-      (exec_thread && threadInfo[i].type == MainThread) ||
-      (!exec_thread && threadInfo[i].type != MainThread);
+      (exec_thread && threadInfo[i].type == BlockThread) ||
+      (!exec_thread && threadInfo[i].type != BlockThread);
 
     if (run)
     {
@@ -1031,11 +1044,23 @@ Configuration::setRealtimeScheduler(NdbThread* pThread,
   if (!init || real_time)
   {
     int error_no;
-    if ((error_no = NdbThread_SetScheduler(pThread, real_time,
-                                           (type != MainThread))))
+    bool high_prio = !((type == BlockThread) ||
+                       (type == ReceiveThread) ||
+                       (type == SendThread));
+    if ((error_no = NdbThread_SetScheduler(pThread, real_time, high_prio)))
     {
       //Warning, no permission to set scheduler
+      if (init)
+      {
+        ndbout_c("Failed to set real-time prio on tid = %d, error_no = %d",
+                 NdbThread_GetTid(pThread), error_no);
+      }
       return 1;
+    }
+    else if (init)
+    {
+      ndbout_c("Successfully set real-time prio on tid = %d",
+               NdbThread_GetTid(pThread));
     }
   }
   return 0;
@@ -1046,9 +1071,24 @@ Configuration::setLockCPU(NdbThread * pThread,
                           enum ThreadTypes type)
 {
   int res = 0;
-  if (type != MainThread)
+  if (type != BlockThread &&
+      type != SendThread &&
+      type != ReceiveThread)
   {
-    res = m_thr_config.do_bind_io(pThread);
+    if (type == NdbfsThread)
+    {
+      /*
+       * NdbfsThread (IO threads).
+       */
+      res = m_thr_config.do_bind_io(pThread);
+    }
+    else
+    {
+      /*
+       * WatchDogThread, SocketClientThread, SocketServerThread
+       */
+      res = m_thr_config.do_bind_watchdog(pThread);
+    }
   }
   else if (!NdbIsMultiThreaded())
   {
@@ -1060,12 +1100,13 @@ Configuration::setLockCPU(NdbThread * pThread,
   {
     if (res > 0)
     {
-      ndbout << "Locked to CPU ok" << endl;
+      ndbout_c("Locked tid = %d to CPU ok", NdbThread_GetTid(pThread));
       return 0;
     }
     else
     {
-      ndbout << "Failed to lock CPU, error_no = " << (-res) << endl;
+      ndbout_c("Failed to lock tid = %d to CPU, error_no = %d",
+               NdbThread_GetTid(pThread), (-res));
       return 1;
     }
   }
@@ -1073,9 +1114,18 @@ Configuration::setLockCPU(NdbThread * pThread,
   return 0;
 }
 
-Uint32
-Configuration::addThread(struct NdbThread* pThread, enum ThreadTypes type)
+bool
+Configuration::get_io_real_time() const
 {
+  return m_thr_config.do_get_realtime_io();
+}
+
+Uint32
+Configuration::addThread(struct NdbThread* pThread,
+                         enum ThreadTypes type,
+                         bool single_threaded)
+{
+  const char *type_str;
   Uint32 i;
   NdbMutex_Lock(threadIdMutex);
   for (i = 0; i < threadInfo.size(); i++)
@@ -1091,24 +1141,86 @@ Configuration::addThread(struct NdbThread* pThread, enum ThreadTypes type)
   threadInfo[i].pThread = pThread;
   threadInfo[i].type = type;
   NdbMutex_Unlock(threadIdMutex);
-  setRealtimeScheduler(pThread, type, _realtimeScheduler, TRUE);
-  if (type != MainThread)
+  switch (type)
   {
+    case WatchDogThread:
+      type_str = "WatchDogThread";
+      break;
+    case SocketServerThread:
+      type_str = "SocketServerThread";
+      break;
+    case SocketClientThread:
+      type_str = "SocketClientThread";
+      break;
+    case NdbfsThread:
+      type_str = "NdbfsThread";
+      break;
+    case BlockThread:
+    case SendThread:
+    case ReceiveThread:
+      type_str = NULL;
+      break;
+    default:
+      type_str = NULL;
+      abort();
+  }
+
+  bool real_time;
+  if (single_threaded)
+  {
+    setRealtimeScheduler(pThread, type, _realtimeScheduler, TRUE);
+  }
+  else if (type == WatchDogThread ||
+           type == SocketClientThread ||
+           type == SocketServerThread ||
+           type == NdbfsThread)
+  {
+    if (type != NdbfsThread)
+    {
+      /**
+       * IO threads are handled internally in NDBFS with
+       * regard to setting real time properties on the
+       * IO thread.
+       *
+       * WatchDog, SocketServer and SocketClient have no
+       * special handling of real-time breaks since we
+       * don't expect these threads to long without
+       * breaks.
+       */
+      real_time = m_thr_config.do_get_realtime_wd();
+      setRealtimeScheduler(pThread, type, real_time, TRUE);
+    }
     /**
      * main threads are set in ThreadConfig::ipControlLoop
      * as it's handled differently with mt
      */
+    ndbout_c("Started thread, index = %u, id = %d, type = %s",
+             i,
+             NdbThread_GetTid(pThread),
+             type_str);
     setLockCPU(pThread, type);
   }
+  /**
+   * All other thread types requires special handling of real-time
+   * property which is handled in the thread itself for multithreaded
+   * nbdmtd process.
+   */
   return i;
 }
 
 void
-Configuration::removeThreadId(Uint32 index)
+Configuration::removeThread(struct NdbThread *pThread)
 {
   NdbMutex_Lock(threadIdMutex);
-  threadInfo[index].pThread = 0;
-  threadInfo[index].type = NotInUse;
+  for (Uint32 i = 0; i < threadInfo.size(); i++)
+  {
+    if (threadInfo[i].pThread == pThread)
+    {
+      threadInfo[i].pThread = 0;
+      threadInfo[i].type = NotInUse;
+      break;
+    }
+  }
   NdbMutex_Unlock(threadIdMutex);
 }
 

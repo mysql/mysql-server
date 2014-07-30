@@ -145,7 +145,7 @@ public:
     mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_done, &m_cond_done);
 #ifndef DBUG_OFF
-    /* reuse key_COND_done 'cos a new PSI object would be wasteful in DBUG_ON */
+    /* reuse key_COND_done 'cos a new PSI object would be wasteful in !DBUG_OFF */
     mysql_cond_init(key_COND_done, &m_cond_preempt);
 #endif
     m_queue[FLUSH_STAGE].init(
@@ -576,12 +576,15 @@ public:
 
     @param[out] binlog_file_name, the file name of oldest binary log found
     @param[in]  gtid_set, the given gtid set
+    @param[out] first_gtid, the first GTID information from the binary log
+                file returned at binlog_file_name
     @param[out] errmsg, the error message outputted, which is left untouched
                 if the function returns false
     @return false on success, true on error.
   */
   bool find_first_log_not_in_gtid_set(char *binlog_file_name,
                                       const Gtid_set *gtid_set,
+                                      Gtid *first_gtid,
                                       const char **errmsg);
 
   /**

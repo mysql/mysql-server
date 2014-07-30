@@ -34,8 +34,8 @@ class WatchDog{
   struct WatchedThread {
     Uint32 *m_watchCounter;
     Uint32 m_threadId;
-    /* This is the time that activity was last registered from thread. */
-    MicroSecondTimer m_startTime;
+    /* This is the tick count when activity was last registered from thread. */
+    NDB_TICKS m_startTicks;
     /*
       During slow operation (memory allocation), warnings are output less
       frequently, and this is the point when the next warning should be given.

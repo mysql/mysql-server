@@ -658,4 +658,5 @@ public:
                         Sql_condition ** cond_hdl);
 };
 
+
 #endif /* SQL_BASE_INCLUDED */

@@ -2036,7 +2036,7 @@ public:
       user(NULL), host(NULL), db(NULL), proc_info(NULL), state_info(NULL)
   { }
 
-  ulong thread_id;
+  my_thread_id thread_id;
   time_t start_time;
   uint   command;
   const char *user,*host,*db,*proc_info,*state_info;
@@ -2113,7 +2113,7 @@ public:
     thread_info *thd_info= new thread_info;
 
     /* ID */
-    thd_info->thread_id= inspect_thd->thread_id;
+    thd_info->thread_id= inspect_thd->thread_id();
 
     /* USER */
     if (inspect_sctx->user)
@@ -2145,7 +2145,7 @@ public:
                     {
                     if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
                         inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
-                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_list_before_LOCK_thd_data");
                     });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
@@ -2287,7 +2287,7 @@ public:
     restore_record(table, s->default_values);
 
     /* ID */
-    table->field[0]->store((ulonglong) inspect_thd->thread_id, true);
+    table->field[0]->store((ulonglong) inspect_thd->thread_id(), true);
 
     /* USER */
     const char *val= NULL;
@@ -2319,7 +2319,7 @@ public:
                     {
                     if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
                         inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
-                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_list_before_LOCK_thd_data");
                     });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
@@ -2577,7 +2577,7 @@ void remove_status_vars(SHOW_VAR *list)
   if (status_vars_inited)
   {
     mysql_mutex_lock(&LOCK_status);
-    int a= 0, b= all_status_vars.size(), c= (a+b)/2;
+    size_t a= 0, b= all_status_vars.size(), c= (a+b)/2;
 
     for (; list->name; list++)
     {
@@ -2946,7 +2946,7 @@ bool schema_table_store_record(THD *thd, TABLE *table)
   {
     Temp_table_param *param= table->pos_in_table_list->schema_table_param;
 
-    if (create_myisam_from_heap(thd, table, param->start_recinfo, 
+    if (create_ondisk_from_heap(thd, table, param->start_recinfo, 
                                 &param->recinfo, error, FALSE, NULL))
       return 1;
   }
@@ -4465,7 +4465,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
      !with_i_schema)
   {
     char path[FN_REFLEN+16];
-    uint path_len;
+    size_t path_len;
     MY_STAT stat_info;
     if (!lookup_field_vals.db_value.str[0])
       DBUG_RETURN(0);
@@ -7524,7 +7524,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 */
 static bool do_fill_table(THD *thd,
                           TABLE_LIST *table_list,
-                          JOIN_TAB *join_table)
+                          QEP_TAB *qep_tab)
 {
   // NOTE: fill_table() may generate many "useless" warnings, which will be
   // ignored afterwards. On the other hand, there might be "useful"
@@ -7541,8 +7541,17 @@ static bool do_fill_table(THD *thd,
   // when we call copy_non_errors_from_da below.
   thd->push_diagnostics_area(&tmp_da, false);
 
+  /*
+    We pass a condition, which can be used to do less file manipulations (for
+    example, WHERE TABLE_SCHEMA='test' allows to open only directory 'test',
+    not other database directories). Filling schema tables is done before
+    QEP_TAB::sort_table() (=filesort, for ORDER BY), so we can trust
+    that condition() is complete, has not been zeroed by filesort:
+  */
+  DBUG_ASSERT(qep_tab->condition() == qep_tab->condition_optim());
+
   bool res= table_list->schema_table->fill_table(
-    thd, table_list, join_table->unified_condition());
+    thd, table_list, qep_tab->condition());
 
   thd->pop_diagnostics_area();
 
@@ -7590,16 +7599,16 @@ bool get_schema_tables_result(JOIN *join,
   DBUG_ENTER("get_schema_tables_result");
 
   /* Check if the schema table is optimized away */
-  if (!join->join_tab)
+  if (!join->qep_tab)
     DBUG_RETURN(result);
 
   for (uint i= 0; i < join->tables; i++)
   {
-    JOIN_TAB *const tab= join->join_tab + i;
-    if (!tab->table || !tab->table->pos_in_table_list)
+    QEP_TAB *const tab= join->qep_tab + i;
+    if (!tab->table() || !tab->table()->pos_in_table_list)
       break;
 
-    TABLE_LIST *table_list= tab->table->pos_in_table_list;
+    TABLE_LIST *table_list= tab->table()->pos_in_table_list;
     if (table_list->schema_table && thd->fill_information_schema_tables())
     {
       bool is_subselect= join->select_lex->master_unit() &&

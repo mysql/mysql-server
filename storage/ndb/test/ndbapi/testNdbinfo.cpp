@@ -96,7 +96,7 @@ scan_table(NdbInfo& ndbinfo, const NdbInfo::Table* table, int &rows)
   while (scanOp->getValue(columnId))
     columnId++;
   // At least one column
-  assert(columnId >= 1);
+  require(columnId >= 1);
   int ret;
   if((ret = scanOp->execute()) != 0)
   {
@@ -176,7 +176,7 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   // Should never come here
-  assert(false);
+  require(false);
   return NDBT_FAILED;
 }
 
@@ -240,7 +240,7 @@ int runScanStop(NDBT_Context* ctx, NDBT_Step* step)
       while (scanOp->getValue(columnId))
         columnId++;
       // At least one column
-      assert(columnId >= 1);
+      require(columnId >= 1);
 
       if(scanOp->execute() != 0)
       {
@@ -266,7 +266,7 @@ int runScanStop(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   // Should never come here
-  assert(false);
+  require(false);
   return NDBT_FAILED;
 }
 
@@ -331,7 +331,7 @@ int runRatelimit(NDBT_Context* ctx, NDBT_Step* step)
       while (scanOp->getValue(columnId))
         columnId++;
       // At least one column
-      assert(columnId >= 1);
+      require(columnId >= 1);
 
       if(scanOp->execute() != 0)
       {
@@ -363,7 +363,7 @@ int runRatelimit(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   // Should never come here
-  assert(false);
+  require(false);
   return NDBT_FAILED;
 }
 

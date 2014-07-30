@@ -1035,9 +1035,9 @@ public:
   bool cleanup(bool full);
   /*
     Recursively cleanup the join of this select lex and of all nested
-    select lexes.
+    select lexes. This is not a full cleanup.
   */
-  void cleanup_all_joins(bool full);
+  void cleanup_all_joins();
 
   /* 
    Add a index hint to the tagged list of hints. The type and clause of the

@@ -131,7 +131,7 @@ static int safe_print_str(const char *addr, int max_len)
 
 #endif /* __linux __ */
 
-void my_safe_puts_stderr(const char* val, int max_len)
+void my_safe_puts_stderr(const char* val, size_t max_len)
 {
   char *heap_end;
 
@@ -524,7 +524,7 @@ void my_write_core(int unused)
 }
 
 
-void my_safe_puts_stderr(const char *val, int len)
+void my_safe_puts_stderr(const char *val, size_t len)
 {
   __try
   {
@@ -741,3 +741,37 @@ size_t my_safe_printf_stderr(const char* fmt, ...)
   my_write_stderr(to, result);
   return result;
 }
+
+
+void my_safe_print_system_time()
+{
+  char hrs_buf[3]= "00";
+  char mins_buf[3]= "00";
+  char secs_buf[3]= "00";
+  int base= 10;
+#ifdef _WIN32
+  SYSTEMTIME utc_time;
+  long hrs, mins, secs;
+  GetSystemTime(&utc_time);
+  hrs=  utc_time.wHour;
+  mins= utc_time.wMinute;
+  secs= utc_time.wSecond;
+#else
+  /* Using time() instead of my_time() to avoid looping */
+  const time_t curr_time= time(NULL);
+  /* Calculate time of day */
+  const long tmins = curr_time / 60;
+  const long thrs  = tmins / 60;
+  const long hrs   = thrs  % 24;
+  const long mins  = tmins % 60;
+  const long secs  = curr_time % 60;
+#endif
+
+  my_safe_itoa(base, hrs, &hrs_buf[2]);
+  my_safe_itoa(base, mins, &mins_buf[2]);
+  my_safe_itoa(base, secs, &secs_buf[2]);
+
+  my_safe_printf_stderr("---------- %s:%s:%s UTC - ",
+                        hrs_buf, mins_buf, secs_buf);
+}
+

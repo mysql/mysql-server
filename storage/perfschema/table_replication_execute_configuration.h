@@ -41,7 +41,7 @@ class Master_info;
 struct st_row_execute_config {
   char channel_name[CHANNELNAME_LENGTH];
   uint channel_name_length;
-  uint desired_delay;
+  time_t desired_delay;
   bool desired_delay_is_set;
 };
 

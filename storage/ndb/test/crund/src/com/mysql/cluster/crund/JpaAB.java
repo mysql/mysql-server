@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -65,7 +65,6 @@ public class JpaAB extends CrundLoad {
         CrundDriver.parseArguments(args);
         final CrundDriver driver = new CrundDriver();
         final CrundLoad load = new JpaAB(driver);
-        driver.addLoad(load);
         driver.run();
         System.out.println();
         System.out.println("JpaAB.main(): done.");
@@ -129,6 +128,7 @@ public class JpaAB extends CrundLoad {
         if (msg.length() == 0) {
             out.println("      [ok]");
         } else {
+            driver.hasIgnoredSettings = true;
             out.println();
             out.print(msg.toString());
         }
@@ -137,7 +137,7 @@ public class JpaAB extends CrundLoad {
         final String c = ("ndb".equals(brokerFactory)
                           ? ("clusterj(" + ndbConnectString + ")")
                           : url);
-        name = "->jpa->" + c.substring(0, 10); // shortcut will do
+        name = "jpa_" + c.substring(0, 10); // shortcut will do
     }
 
     protected void printProperties() {
@@ -180,12 +180,13 @@ public class JpaAB extends CrundLoad {
     // JPA operations
     // ----------------------------------------------------------------------
 
-    // model assumptions: relationships: identity 1:1
+    // current model assumption: relationships only 1:1 identity
+    // (target id of a navigation operation is verified against source id)
     protected abstract class JpaOp extends Op {
         protected XMode xMode;
 
         public JpaOp(String name, XMode m) {
-            super(name + (m == null ? "" : m));
+            super(name + "," + m);
             this.xMode = m;
         }
 
@@ -411,13 +412,13 @@ public class JpaAB extends CrundLoad {
         out.print("initializing operations ...");
         out.flush();
 
-        for (XMode m : driver.xMode) {
+        for (XMode m : driver.xModes) {
             // inner classes can only refer to a constant
             final XMode xMode = m;
             final boolean setAttrs = true;
 
             ops.add(
-                new WriteOp("A_insAttr_", xMode) {
+                new WriteOp("A_insAttr", xMode) {
                     protected void write(int id) {
                         final A o = new A();
                         o.setId(id);
@@ -427,7 +428,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_insAttr_", xMode) {
+                new WriteOp("B_insAttr", xMode) {
                     protected void write(int id) {
                         final B o = new B();
                         o.setId(id);
@@ -437,7 +438,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("A_setAttr_", xMode) {
+                new WriteOp("A_setAttr", xMode) {
                     protected void write(int id) {
                         // blind update
                         final A o = em.getReference(A.class, id);
@@ -447,7 +448,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_setAttr_", xMode) {
+                new WriteOp("B_setAttr", xMode) {
                     protected void write(int id) {
                         // blind update
                         final B o = em.getReference(B.class, id);
@@ -457,7 +458,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("A_getAttr_", xMode, "A") {
+                new ReadOp("A_getAttr", xMode, "A") {
                     protected void read(int id) {
                         final A o = em.find(A.class, id); // eager load
                         verify(id, o.getId());
@@ -466,7 +467,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("B_getAttr_", xMode, "B") {
+                new ReadOp("B_getAttr", xMode, "B") {
                     protected void read(int id) {
                         final B o = em.find(B.class, id); // eager load
                         verify(id, o.getId());
@@ -475,7 +476,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new QReadOp<A>("A_getAttr_wherein_", xMode,
+                new QReadOp<A>("A_getAttr_wherein", xMode,
                                "SELECT a FROM A a WHERE a.id IN (?1) ORDER BY a.id") {
                     protected void setParams(Object o) {
                         q.setParameter(1, o);
@@ -489,7 +490,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new QReadOp<B>("B_getAttr_wherein_", xMode,
+                new QReadOp<B>("B_getAttr_wherein", xMode,
                                "SELECT b FROM B b WHERE b.id IN (?1) ORDER BY b.id") {
                     protected void setParams(Object o) {
                         q.setParameter(1, o);
@@ -510,7 +511,7 @@ public class JpaAB extends CrundLoad {
                     break;
 
                 ops.add(
-                    new WriteOp("B_setVarbin_" + l + "_", xMode) {
+                    new WriteOp("B_setVarbin_" + l, xMode) {
                         protected void write(int id) {
                             // blind update
                             final B o = em.getReference(B.class, id);
@@ -520,7 +521,7 @@ public class JpaAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new ReadOp("B_getVarbin_" + l + "_", xMode, "B") {
+                    new ReadOp("B_getVarbin_" + l, xMode, "B") {
                         protected void read(int id) {
                             // lazy load
                             final B o = em.getReference(B.class, id);
@@ -530,7 +531,7 @@ public class JpaAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new WriteOp("B_clearVarbin_" + l + "_", xMode) {
+                    new WriteOp("B_clearVarbin_" + l, xMode) {
                         protected void write(int id) {
                             // blind update
                             final B o = em.getReference(B.class, id);
@@ -548,7 +549,7 @@ public class JpaAB extends CrundLoad {
                     break;
 
                 ops.add(
-                    new WriteOp("B_setVarchar_" + l + "_", xMode) {
+                    new WriteOp("B_setVarchar_" + l, xMode) {
                         protected void write(int id) {
                             // blind update
                             final B o = em.getReference(B.class, id);
@@ -558,7 +559,7 @@ public class JpaAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new ReadOp("B_getVarchar_" + l + "_", xMode, "B") {
+                    new ReadOp("B_getVarchar_" + l, xMode, "B") {
                         protected void read(int id) {
                             // lazy load
                             final B o = em.getReference(B.class, id);
@@ -568,7 +569,7 @@ public class JpaAB extends CrundLoad {
                     });
 
                 ops.add(
-                    new WriteOp("B_clearVarchar_" + l + "_", xMode) {
+                    new WriteOp("B_clearVarchar_" + l, xMode) {
                         protected void write(int id) {
                             // blind update
                             final B o = em.getReference(B.class, id);
@@ -579,7 +580,7 @@ public class JpaAB extends CrundLoad {
             }
 
             ops.add(
-                new WriteOp("B_setA_", xMode) {
+                new WriteOp("B_setA", xMode) {
                     protected void write(int id) {
                         // blind update
                         final int aId = id;
@@ -593,7 +594,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("B_getA_", xMode, "B") {
+                new ReadOp("B_getA", xMode, "B") {
                     protected void read(int id) {
                         // lazy load
                         final B b = em.getReference(B.class, id);
@@ -605,7 +606,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new ReadOp("A_getBs_", xMode, "B") {
+                new ReadOp("A_getBs", xMode, "B") {
                     protected void read(int id) {
                         // lazy load
                         final A a = em.getReference(A.class, id);
@@ -620,7 +621,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_clearA_", xMode) {
+                new WriteOp("B_clearA", xMode) {
                     protected void write(int id) {
                         // blind update
                         final B b = em.getReference(B.class, id);
@@ -630,7 +631,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new QWriteOp<B>("B_setA_where_", xMode,
+                new QWriteOp<B>("B_setA_where", xMode,
                                 "UPDATE B o SET o.a = ?2 WHERE o.id = ?1") {
                     protected void setParams(int id) {
                         final int aId = id;
@@ -643,7 +644,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new QReadOp<A>("B_getAs_wherein_", xMode,
+                new QReadOp<A>("B_getAs_wherein", xMode,
                                "SELECT b.a FROM B b WHERE b.id IN (?1) ORDER BY b.a.id") {
                     protected void setParams(Object o) {
                         q.setParameter(1, o);
@@ -657,7 +658,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new QReadOp<B>("A_getBs_wherein_", xMode,
+                new QReadOp<B>("A_getBs_wherein", xMode,
                                "SELECT b FROM B b WHERE b.a.id IN (?1)") {
                     protected void setParams(Object o) {
                         q.setParameter(1, o);
@@ -671,7 +672,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new QWriteOp<B>("B_clearA_where_", xMode,
+                new QWriteOp<B>("B_clearA_where", xMode,
                                 "UPDATE B o SET o.a = NULL WHERE o.id = ?1") {
                     protected void setParams(int id) {
                         q.setParameter(1, id);
@@ -679,7 +680,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_del_", xMode) {
+                new WriteOp("B_del", xMode) {
                     protected void write(int id) {
                         // blind delete
                         final B o = em.getReference(B.class, id);
@@ -689,7 +690,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("A_del_", xMode) {
+                new WriteOp("A_del", xMode) {
                     protected void write(int id) {
                         // blind delete
                         final A o = em.getReference(A.class, id);
@@ -699,7 +700,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("A_ins_", xMode) {
+                new WriteOp("A_ins", xMode) {
                     protected void write(int id) {
                         final A o = new A();
                         o.setId(id);
@@ -708,7 +709,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new WriteOp("B_ins_", xMode) {
+                new WriteOp("B_ins", xMode) {
                     protected void write(int id) {
                         final B o = new B();
                         o.setId(id);
@@ -717,7 +718,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new QueryOp("B_delAll", null,
+                new QueryOp("B_delAll", XMode.bulk,
                             "DELETE FROM B") {
                     public void run(int[] id) {
                         final int n = id.length;
@@ -729,7 +730,7 @@ public class JpaAB extends CrundLoad {
                 });
 
             ops.add(
-                new QueryOp("A_delAll", null,
+                new QueryOp("A_delAll", XMode.bulk,
                             "DELETE FROM A") {
                     public void run(int[] id) {
                         final int n = id.length;

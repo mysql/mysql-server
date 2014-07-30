@@ -2753,16 +2753,6 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(32) CHARACTER SET utf8 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-select old_password('a'), hex(old_password('a'));
-old_password('a')	hex(old_password('a'))
-60671c896665c3fa	36303637316338393636363563336661
-create table t1 as select old_password('a') as c1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` varchar(16) CHARACTER SET utf8 NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
 select password('a'), hex(password('a'));
 password('a')	hex(password('a'))
 *667F407DE7C6AD07358FA38DAED7828A72014B4E	2A36363746343037444537433641443037333538464133384441454437383238413732303134423445
@@ -3387,12 +3377,7 @@ select hex(concat(Dimension(GeomFromText('LINESTRING(0 0,10 10)'))));
 hex(concat(Dimension(GeomFromText('LINESTRING(0 0,10 10)'))))
 31
 create table t1 as select concat(Dimension(GeomFromText('LINSTRING(0 0,10 10)'))) as c1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET utf8 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 select hex(concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
 hex(concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))))
 32
@@ -4839,10 +4824,6 @@ SET @x=md5('a');
 SELECT charset(@x), collation(@x);
 charset(@x)	collation(@x)
 utf8	utf8_general_ci
-SET @x=old_password('a');
-SELECT charset(@x), collation(@x);
-charset(@x)	collation(@x)
-utf8	utf8_general_ci
 SET @x=password('a');
 SELECT charset(@x), collation(@x);
 charset(@x)	collation(@x)
@@ -5165,7 +5146,9 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (0), (0), (1), (0), (0);
 SELECT COUNT(*) FROM t1, t1 t2 
 GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
-ERROR 23000: Duplicate entry '107374182410737418241' for key 'group_key'
+COUNT(*)
+20
+5
 DROP TABLE t1;
 #
 # Bug#11764503 (Bug#57341) Query in EXPLAIN EXTENDED shows wrong characters

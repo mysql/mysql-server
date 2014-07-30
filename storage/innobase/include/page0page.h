@@ -833,7 +833,8 @@ page_create(
 	buf_block_t*	block,		/*!< in: a buffer block where the
 					page is created */
 	mtr_t*		mtr,		/*!< in: mini-transaction handle */
-	ulint		comp);		/*!< in: nonzero=compact page format */
+	ulint		comp,		/*!< in: nonzero=compact page format */
+	bool		is_rtree);	/*!< in: if creating R-tree page */
 /**********************************************************//**
 Create a compressed B-tree index page.
 @return pointer to the page */
@@ -1039,12 +1040,14 @@ page_parse_delete_rec_list(
 	mtr_t*		mtr);	/*!< in: mtr or NULL */
 /** Parses a redo log record of creating a page.
 @param[in,out]	block	buffer block, or NULL
-@param[in]	comp	nonzero=compact page format */
+@param[in]	comp	nonzero=compact page format
+@param[in]	is_rtree whether it is rtree page */
 
 void
 page_parse_create(
 	buf_block_t*	block,
-	ulint		comp);
+	ulint		comp,
+	bool		is_rtree);
 #ifndef UNIV_HOTBACKUP
 /************************************************************//**
 Prints record contents including the data relevant only in

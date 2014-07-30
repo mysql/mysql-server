@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,14 +69,14 @@ public:
   static bool verifyId(Uint32 fileId, const char* pathName);
 
   explicit JamEvent()
-    :m_jamVal(0xffffffff){}
+    :m_jamVal(0x7fffffff){}
 
   explicit JamEvent(Uint32 fileId, Uint32 lineNo)
     :m_jamVal(fileId << 16 | lineNo){}
 
   Uint32 getFileId() const
   {
-    return m_jamVal >> 16;
+    return (m_jamVal >> 16) & 0x7fff;
   }
 
   // Get the name of the source file, or NULL if unknown.
@@ -89,11 +89,35 @@ public:
 
   bool isEmpty() const
   {
-    return m_jamVal == 0xffffffff;
+    return m_jamVal == 0x7fffffff;
+  }
+
+  /*
+    True if the next JamEvent is the first in the execution of an incomming 
+    signal.
+  */
+  bool isEndOfSig() const
+  {
+    return (m_jamVal >> 31) == 1;
+  }
+
+  /*
+    Mark this event as the last one before the execution of the next incomming 
+    signal. (We mark the last event before a signal instead of the fist event
+    in a signal since this makes jam() more efficient, by eliminating the need
+    to preserve bit 31 in the event that it accesses.) 
+  */
+  void setEndOfSig(bool isEnd)
+  {
+    m_jamVal |= (isEnd << 31);
   }
 
 private:
-  // Upper 16 bits are the JAM_FILE_ID, lower 16 bits are the line number.
+  /*
+    Bit 0-15:  line number.
+    Bit 16-30: JAM_FILE_ID.
+    Bit 31:    True if next JamEvent is the beginning of an incomming signal.
+  */
   Uint32 m_jamVal;
 };
 
@@ -105,6 +129,13 @@ struct EmulatedJamBuffer
   // Index of the next entry.
   Uint32 theEmulatedJamIndex;
   JamEvent theEmulatedJam[EMULATED_JAM_SIZE];
+
+  // Mark current JamEvent as the last one before processing a new signal.
+  void markEndOfSigExec()
+  {
+    const Uint32 eventNo = (theEmulatedJamIndex - 1) & JAM_MASK;
+    theEmulatedJam[eventNo].setEndOfSig(true);    
+  }
 };
 
 struct EmulatorData {

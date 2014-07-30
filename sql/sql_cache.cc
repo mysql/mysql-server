@@ -509,7 +509,7 @@ bool Query_cache::try_lock(bool use_timeout)
       m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
       if (thd)
-        m_cache_lock_thread_id= thd->thread_id;
+        m_cache_lock_thread_id= thd->thread_id();
 #endif
       break;
     }
@@ -576,7 +576,7 @@ void Query_cache::lock_and_suspend(void)
   m_cache_lock_status= Query_cache::LOCKED_NO_WAIT;
 #ifndef DBUG_OFF
   if (thd)
-    m_cache_lock_thread_id= thd->thread_id;
+    m_cache_lock_thread_id= thd->thread_id();
 #endif
   /* Wake up everybody, a whole cache flush is starting! */
   mysql_cond_broadcast(&COND_cache_status_changed);
@@ -605,7 +605,7 @@ void Query_cache::lock(void)
   m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
   if (thd)
-    m_cache_lock_thread_id= thd->thread_id;
+    m_cache_lock_thread_id= thd->thread_id();
 #endif
   mysql_mutex_unlock(&structure_guard_mutex);
 
@@ -624,7 +624,7 @@ void Query_cache::unlock(void)
 #ifndef DBUG_OFF
   THD *thd= current_thd;
   if (thd)
-    DBUG_ASSERT(m_cache_lock_thread_id == thd->thread_id);
+    DBUG_ASSERT(m_cache_lock_thread_id == thd->thread_id());
 #endif
   DBUG_ASSERT(m_cache_lock_status == Query_cache::LOCKED ||
               m_cache_lock_status == Query_cache::LOCKED_NO_WAIT);
@@ -1773,7 +1773,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     if (table->callback()) 
     {
       char qcache_se_key_name[FN_REFLEN + 1];
-      uint qcache_se_key_len;
+      size_t qcache_se_key_len;
       engine_data= table->engine_data();
 
       qcache_se_key_len= build_table_filename(qcache_se_key_name,
@@ -3825,12 +3825,13 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
     if (tables_used->uses_materialization())
     {
       /*
-        Currently all result tables are MyISAM or HEAP. MyISAM allows caching
-        unless table is under in a concurrent insert (which never could
-        happen to a derived table). HEAP always allows caching.
+        Currently all result tables are MyISAM/Innodb or HEAP. MyISAM/Innodb
+        allows caching unless table is under in a concurrent insert
+        (which never could happen to a derived table). HEAP always allows caching.
       */
       DBUG_ASSERT(table->s->db_type() == heap_hton ||
-                  table->s->db_type() == myisam_hton);
+                  table->s->db_type() == myisam_hton ||
+                  table->s->db_type() == innodb_hton);
       DBUG_RETURN(0);
     }
 

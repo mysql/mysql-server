@@ -2965,7 +2965,8 @@ File create_frm(THD *thd, const char *name, const char *db,
   if ((file= mysql_file_create(key_file_frm,
                                name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
-    uint key_length, tmp_key_length, tmp, csid;
+    size_t key_length, tmp_key_length;
+    uint tmp, csid;
     memset(fileinfo, 0, 64);
     /* header */
     fileinfo[0]=(uchar) 254;
@@ -3003,7 +3004,7 @@ File create_frm(THD *thd, const char *name, const char *db,
                                   create_info->extra_size));
     int4store(fileinfo+10,length);
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
-    int2store(fileinfo+14,tmp_key_length);
+    int2store(fileinfo+14, static_cast<uint16>(tmp_key_length));
     int2store(fileinfo+16,reclength);
     int4store(fileinfo+18, static_cast<uint32>(create_info->max_rows));
     int4store(fileinfo+22, static_cast<uint32>(create_info->min_rows));
@@ -3030,7 +3031,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[44]= (uchar) create_info->stats_auto_recalc;
     fileinfo[45]= 0;
     fileinfo[46]= 0;
-    int4store(fileinfo+47, key_length);
+    int4store(fileinfo+47, static_cast<uint32>(key_length));
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
     int4store(fileinfo+55, create_info->extra_size);
@@ -3734,6 +3735,11 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   SYNPOSIS
     TABLE::fill_item_list()
       item_list          a pointer to an empty list used to store items
+      limit              maximum number of fields to add
+  @pre 'limit' is MAX_FIELDS or the number of columns in the table except
+  that the temporary table includes 'hash_field' which is at the end of
+  column lists and should be skipped because 'hash_field' is a pesudo
+  column.
 
   DESCRIPTION
     Create Item_field object for each column in the table and
@@ -3745,13 +3751,14 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
     1                    out of memory
 */
 
-bool TABLE::fill_item_list(List<Item> *item_list) const
+bool TABLE::fill_item_list(List<Item> *item_list, uint limit) const
 {
   /*
     All Item_field's created using a direct pointer to a field
     are fixed in Item_field constructor.
   */
-  for (Field **ptr= field; *ptr; ptr++)
+  uint i= 0;
+  for (Field **ptr= field; *ptr && i < limit; ptr++, i++)
   {
     Item_field *item= new Item_field(*ptr);
     if (!item || item_list->push_back(item))
@@ -3767,18 +3774,22 @@ bool TABLE::fill_item_list(List<Item> *item_list) const
   SYNPOSIS
     TABLE::fill_item_list()
       item_list          a non-empty list with Item_fields
+      limit              maximum number of fields to set 
+  @pre 'limit' is MAX_FIELDS or the number of columns in the table except
+  that the temporary table includes 'hash_field' which is at the end of
+  column lists and should be skipped because 'hash_field' is a pesudo
+  column.
 
   DESCRIPTION
     This is a counterpart of fill_item_list used to redirect
     Item_fields to the fields of a newly created table.
-    The caller must ensure that number of items in the item_list
-    is the same as the number of columns in the table.
 */
 
-void TABLE::reset_item_list(List<Item> *item_list) const
+void TABLE::reset_item_list(List<Item> *item_list, uint limit) const
 {
   List_iterator_fast<Item> it(*item_list);
-  for (Field **ptr= field; *ptr; ptr++)
+  uint i= 0;
+  for (Field **ptr= field; *ptr && i < limit; ptr++, i++)
   {
     Item_field *item_field= (Item_field*) it++;
     DBUG_ASSERT(item_field != 0);
