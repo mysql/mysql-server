@@ -27,6 +27,9 @@ Created May 26, 2014 Vasil Dimov
 
 #include "ut0new.h"
 
+/** Maximum number of retries to allocate memory. */
+const size_t	alloc_max_retries = 60;
+
 /** Keys for registering allocations with performance schema.
 Keep this list alphabetically sorted. */
 PSI_memory_key	mem_key_buf_buf_pool;
