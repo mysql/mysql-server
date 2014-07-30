@@ -1844,16 +1844,6 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(32) CHARACTER SET ucs2 NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-select old_password('a'), hex(old_password('a'));
-old_password('a')	hex(old_password('a'))
-0705298948d1f92f	0030003700300035003200390038003900340038006400310066003900320066
-create table t1 as select old_password('a') as c1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` varchar(16) CHARACTER SET ucs2 NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-drop table t1;
 select password('a'), hex(password('a'));
 password('a')	hex(password('a'))
 *9A48A662559C49521B25C43077059DD109FBD84A	002A0039004100340038004100360036003200350035003900430034003900350032003100420032003500430034003300300037003700300035003900440044003100300039004600420044003800340041
@@ -2478,12 +2468,7 @@ select hex(concat(Dimension(GeomFromText('LINESTRING(0 0,10 10)'))));
 hex(concat(Dimension(GeomFromText('LINESTRING(0 0,10 10)'))))
 0031
 create table t1 as select concat(Dimension(GeomFromText('LINSTRING(0 0,10 10)'))) as c1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-drop table t1;
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 select hex(concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
 hex(concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))))
 0032
@@ -3927,10 +3912,6 @@ drop function f1;
 # Bug#54668 User variable assignments get wrong type
 #
 SET @x=md5('a');
-SELECT charset(@x), collation(@x);
-charset(@x)	collation(@x)
-ucs2	ucs2_general_ci
-SET @x=old_password('a');
 SELECT charset(@x), collation(@x);
 charset(@x)	collation(@x)
 ucs2	ucs2_general_ci

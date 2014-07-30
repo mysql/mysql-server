@@ -377,17 +377,16 @@ void thd_binlog_pos(const THD *thd,
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
   DBUG_ENTER("thd_new_connection_setup");
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
-  thd->thread_id= thd->variables.pseudo_thread_id;
+  thd->set_new_thread_id();
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_THREAD_CALL(new_thread)
-                (key_thread_one_connection, thd, thd->thread_id));
+              (key_thread_one_connection, thd, thd->thread_id()));
 #endif
   thd->set_time();
   thd->thr_create_utime= thd->start_utime= my_micro_time();
 
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   thd_manager->add_thd(thd);
 
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
@@ -755,8 +754,8 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
   const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
-                   "MySQL thread id %lu, OS thread handle %lu, query id %lu",
-                   thd->thread_id, (ulong) thd->real_id, (ulong) thd->query_id);
+                   "MySQL thread id %u, OS thread handle %lu, query id %lu",
+                   thd->thread_id(), (ulong)thd->real_id, (ulong)thd->query_id);
   str.length(0);
   str.append(header, len);
 
@@ -963,6 +962,7 @@ THD::THD(bool enable_plugins)
   col_access=0;
   is_slave_error= thread_specific_used= FALSE;
   my_hash_clear(&handler_tables_hash);
+  my_hash_clear(&ull_hash);
   tmp_table=0;
   cuted_fields= 0L;
   m_sent_row_count= 0L;
@@ -977,7 +977,7 @@ THD::THD(bool enable_plugins)
   current_linfo =  0;
   slave_thread = 0;
   memset(&variables, 0, sizeof(variables));
-  thread_id= 0;
+  m_thread_id= Global_THD_manager::reserved_thread_id;
   one_shot_set= 0;
   file_id = 0;
   query_id= 0;
@@ -997,7 +997,6 @@ THD::THD(bool enable_plugins)
   net.vio=0;
 #endif
   client_capabilities= 0;                       // minimalistic client
-  ull=0;
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= 0;
   m_release_resources_done= false;
@@ -1342,7 +1341,7 @@ void THD::init(void)
     variables.pseudo_thread_id to 0. We need to correct it here to
     avoid temporary tables replication failure.
   */
-  variables.pseudo_thread_id= thread_id;
+  variables.pseudo_thread_id= m_thread_id;
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /*
@@ -1430,6 +1429,13 @@ void THD::init_for_queries(Relay_log_info *rli)
     DBUG_ASSERT(rli_slave->info_thd == this && slave_thread);
   }
 #endif
+}
+
+
+void THD::set_new_thread_id()
+{
+  m_thread_id= Global_THD_manager::get_instance()->get_new_thread_id();
+  variables.pseudo_thread_id= m_thread_id;
 }
 
 
@@ -1533,6 +1539,8 @@ void THD::cleanup(void)
   if (global_read_lock.is_acquired())
     global_read_lock.unlock_global_read_lock(this);
 
+  mysql_ull_cleanup(this);
+
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
@@ -1540,14 +1548,6 @@ void THD::cleanup(void)
   close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
-
-  if (ull)
-  {
-    mysql_mutex_lock(&LOCK_user_locks);
-    item_user_lock_release(ull);
-    mysql_mutex_unlock(&LOCK_user_locks);
-    ull= NULL;
-  }
 
   /*
     Actions above might generate events for the binary log, so we
@@ -1577,6 +1577,8 @@ void THD::cleanup(void)
 void THD::release_resources()
 {
   DBUG_ASSERT(m_release_resources_done == false);
+
+  Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
@@ -1968,7 +1970,7 @@ bool THD::store_globals()
     Let mysqld define the thread id (not mysys)
     This allows us to move THD to different threads if needed.
   */
-  mysys_var->id= thread_id;
+  mysys_var->id= m_thread_id;
   real_id= pthread_self();                      // For debugging
 
   /*
@@ -3068,7 +3070,7 @@ bool select_export::send_data(List<Item> &items)
 	  space_inited=1;
 	  memset(space, ' ', sizeof(space));
 	}
-	uint length=item->max_length-used_length;
+	size_t length=item->max_length-used_length;
 	for (; length > sizeof(space) ; length-=sizeof(space))
 	{
 	  if (my_b_write(&cache,(uchar*) space,sizeof(space)))
@@ -3742,20 +3744,21 @@ bool select_dumpvar::send_eof()
 }
 
 
-void thd_increment_bytes_sent(ulong length)
+void thd_increment_bytes_sent(size_t length)
 {
-  THD *thd=current_thd;
-  if (likely(thd != 0))
-  { /* current_thd==0 when close_connection() calls net_send_error() */
+  THD *thd= current_thd;
+  if (likely(thd != NULL))
+  { /* current_thd==NULL when close_connection() calls net_send_error() */
     thd->status_var.bytes_sent+= length;
   }
 }
 
 
-void thd_increment_bytes_received(ulong length)
+void thd_increment_bytes_received(size_t length)
 {
-  if (likely(current_thd != NULL))
-    current_thd->status_var.bytes_received+= length;
+  THD *thd= current_thd;
+  if (likely(thd != NULL))
+    thd->status_var.bytes_received+= length;
 }
 
 
@@ -4037,7 +4040,7 @@ extern "C" void thd_set_kill_status(const MYSQL_THD thd)
 */
 extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
 {
-  return((unsigned long)thd->thread_id);
+  return((unsigned long)thd->thread_id());
 }
 
 /**
@@ -4126,6 +4129,7 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
 
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 {
+  DBUG_ENTER("thd_mark_transaction_to_rollback");
   DBUG_ASSERT(thd);
   /*
     The parameter "all" has type int since the function is defined
@@ -4135,6 +4139,7 @@ extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
     specifically.
   */
   thd->mark_transaction_to_rollback((all != 0));
+  DBUG_VOID_RETURN;
 }
 
 extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
@@ -4560,9 +4565,14 @@ void THD::leave_locked_tables_mode()
       when leaving LTM.
     */
     global_read_lock.set_explicit_lock_duration(this);
-    /* Also ensure that we don't release metadata locks for open HANDLERs. */
+    /*
+      Also ensure that we don't release metadata locks for open HANDLERs
+      and user-level locks.
+    */
     if (handler_tables_hash.records)
       mysql_ha_set_explicit_lock_duration(this);
+    if (ull_hash.records)
+      mysql_ull_set_explicit_lock_duration(this);
   }
   locked_tables_mode= LTM_NONE;
 }

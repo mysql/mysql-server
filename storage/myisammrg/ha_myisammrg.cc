@@ -228,7 +228,7 @@ const char *ha_myisammrg::index_type(uint key_number)
     children_last_l -----------------------------------------+
 */
 
-CPP_UNNAMED_NS_START
+namespace {
 
 extern "C" int myisammrg_parent_open_callback(void *callback_param,
                                               const char *filename)
@@ -238,7 +238,7 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   Mrg_child_def *mrg_child_def;
   char          *db;
   char          *table_name;
-  uint          dirlen;
+  size_t        dirlen;
   size_t        db_length;
   size_t        table_name_length;
   char          dir_path[FN_REFLEN];
@@ -328,7 +328,7 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   DBUG_RETURN(0);
 }
 
-CPP_UNNAMED_NS_END
+}
 
 
 /**
@@ -615,7 +615,7 @@ public:
     next child table. It is called for each child table.
 */
 
-CPP_UNNAMED_NS_START
+namespace {
 
 extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
 {
@@ -709,7 +709,7 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   DBUG_RETURN(myisam);
 }
 
-CPP_UNNAMED_NS_END
+}
 
 
 /**
@@ -1632,9 +1632,10 @@ int ha_myisammrg::check(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
-ha_rows ha_myisammrg::records()
+int ha_myisammrg::records(ha_rows *num_rows)
 {
-  return myrg_records(file);
+  *num_rows= myrg_records(file);
+  return 0;
 }
 
 

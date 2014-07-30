@@ -276,6 +276,8 @@ The following options may be given as the first argument:
  --interactive-timeout=# 
  The number of seconds the server waits for activity on an
  interactive connection before closing it
+ --internal-tmp-disk-storage-engine[=name] 
+ The default storage engine for on-disk internal tmp table
  --join-buffer-size=# 
  The size of the buffer that is used for full joins
  --keep-files-on-create 
@@ -864,7 +866,7 @@ The following options may be given as the first argument:
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
- (pre-4.1) passwords
+ (pre-4.1) passwords. Deprecated. Always TRUE.
  (Defaults to on; use --skip-secure-auth to disable.)
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
@@ -1138,6 +1140,7 @@ init-connect
 init-file (No default value)
 init-slave 
 interactive-timeout 28800
+internal-tmp-disk-storage-engine MYISAM
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608

@@ -24,7 +24,7 @@ class Querycache_stream
 public:
 #ifndef DBUG_OFF
   Query_cache_block *first_block;
-  uint stored_size;
+  size_t stored_size;
 #endif
   Querycache_stream(Query_cache_block *ini_block, uint ini_headers_len) :
     block(ini_block), headers_len(ini_headers_len)    

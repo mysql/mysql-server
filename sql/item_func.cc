@@ -2221,6 +2221,260 @@ void Item_func_abs::fix_length_and_dec()
 }
 
 
+void Item_func_latlongfromgeohash::fix_length_and_dec()
+{
+  Item_real_func::fix_length_and_dec();
+  unsigned_flag= FALSE;
+}
+
+
+bool Item_func_latlongfromgeohash::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_real_func::fix_fields(thd, ref))
+    return true;
+
+  maybe_null= args[0]->maybe_null;
+
+  if (!check_geohash_argument_valid_type(args[0]))
+  {
+    my_error(ER_INCORRECT_TYPE, MYF(0), "geohash", func_name());
+    return true;
+  }
+
+  return false;
+}
+
+
+/**
+  Checks if geohash arguments is of valid type
+
+  We must enforce that input actually is text/char, since
+  SELECT LongFromGeohash(0123) would give different (and wrong) result,
+  as opposed to SELECT LongFromGeohash("0123").
+
+  @param item Item to validate.
+
+  @return false if validation failed. true if item is a valid type.
+*/
+bool
+Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
+{
+  /*
+    If charset is not binary and field_type() is BLOB,
+    we have a TEXT column (which is allowed).
+  */
+  bool is_binary_charset= (item->collation.collation == &my_charset_bin);
+
+  switch (item->field_type())
+  {
+  case MYSQL_TYPE_NULL:
+    return true;
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+    return !is_binary_charset;
+  default:
+    return false;
+  }
+}
+
+
+/**
+  Decodes a geohash string into longitude and latitude.
+
+  The results are rounded,  based on the length of input geohash. The function
+  will stop evaluating when the error range, or "accuracy", has become 0.0 for
+  both latitude and longitude since no more changes can happen after this.
+
+  @param geohash The geohash to decode.
+  @param upper_latitude Upper limit of returned latitude (normally 90.0).
+  @param upper_latitude Lower limit of returned latitude (normally -90.0).
+  @param upper_latitude Upper limit of returned longitude (normally 180.0).
+  @param upper_latitude Lower limit of returned longitude (normally -180.0).
+  @param[out] result_latitude Calculated latitude.
+  @param[out] result_longitude Calculated longitude.
+
+  @return false on success, true on failure (invalid geohash string).
+*/
+bool
+Item_func_latlongfromgeohash::decode_geohash(String *geohash,
+                                             double upper_latitude,
+                                             double lower_latitude,
+                                             double upper_longitude,
+                                             double lower_longitude,
+                                             double *result_latitude,
+                                             double *result_longitude)
+{
+  double latitiude_accuracy= (upper_latitude - lower_latitude) / 2.0;
+  double longitude_accuracy= (upper_longitude - lower_longitude) / 2.0;
+
+  double latitude_value= (upper_latitude + lower_latitude) / 2.0;
+  double longitude_value= (upper_longitude + lower_longitude) / 2.0;
+
+  uint number_of_bits_used= 0;
+  uint input_length= geohash->length();
+
+  for (uint i= 0;
+       i < input_length && latitiude_accuracy > 0.0 && longitude_accuracy > 0.0;
+       i++)
+  {
+    char input_character= my_tolower(geohash->charset(), (*geohash)[i]);
+
+    /*
+     The following part will convert from character value to a
+     contiguous value from 0 to 31, where "0" = 0, "1" = 1 ... "z" = 31.
+     It will also detect characters that aren't allowed.
+    */
+    int converted_character;
+    if (input_character >= '0' && input_character <= '9')
+    {
+      converted_character= input_character - '0';
+    }
+    else if (input_character >= 'b' && input_character <= 'z' &&
+             input_character != 'i' &&
+             input_character != 'l' &&
+             input_character != 'o')
+    {
+      if (input_character > 'o')
+        converted_character= input_character - ('b' - 10 + 3);
+      else if (input_character > 'l')
+        converted_character= input_character - ('b' - 10 + 2);
+      else if (input_character > 'i')
+        converted_character= input_character - ('b' - 10 + 1);
+      else
+        converted_character= input_character - ('b' - 10);
+    }
+    else
+    {
+      return true;
+    }
+
+    DBUG_ASSERT(converted_character >= 0 && converted_character <= 31);
+
+    /*
+     This loop decodes 5 bits of data. Every even bit (counting from 0) is 
+     used for longitude value, and odd bits are used for latitude value.
+    */
+    for (int bit_number= 4; bit_number >= 0; bit_number-= 1)
+    {
+      if (number_of_bits_used % 2 == 0)
+      {
+        longitude_accuracy/= 2.0;
+
+        if (converted_character & (1 << bit_number))
+          longitude_value+= longitude_accuracy;
+        else
+          longitude_value-= longitude_accuracy;
+      }
+      else
+      {
+        latitiude_accuracy/= 2.0;
+
+        if (converted_character & (1 << bit_number))
+          latitude_value+= latitiude_accuracy;
+        else
+          latitude_value-= latitiude_accuracy;
+      }
+
+      number_of_bits_used++;
+
+      DBUG_ASSERT(latitude_value >= lower_latitude &&
+                  latitude_value <= upper_latitude &&
+                  longitude_value >= lower_longitude &&
+                  longitude_value <= upper_longitude);
+    }
+  }
+
+  *result_latitude= round_latlongitude(latitude_value,
+                                       latitiude_accuracy * 2.0);
+  *result_longitude= round_latlongitude(longitude_value,
+                                        longitude_accuracy * 2.0);
+
+  return false;
+}
+
+
+/**
+  Rounds a latitude or longitude value.
+
+  This will round a latitude or longitude value, based on error_range.
+  The error_range is the difference between upper and lower lat/longitude
+  (e.g upper value of 45.0 and a lower value of 22.5, gives an error range of
+  22.5).
+
+  @param latlongitude The latitude or longitude to round.
+  @param error_range The total error range of the calculated laglongitude.
+
+  @return A rounded latitude or longitude.
+*/
+double Item_func_latlongfromgeohash::round_latlongitude(double latlongitude,
+                                                        double error_range)
+{
+  if (error_range == 0.0)
+  {
+    return latlongitude;
+  }
+  else
+  {
+    uint number_of_decimals= 0;
+    while (error_range < 0.1)
+    {
+      number_of_decimals++;
+      error_range*= 10.0;
+    }
+
+    double rounded_result= my_double_round(latlongitude,
+                                           number_of_decimals,
+                                           false,
+                                           false);
+    // Avoid printing signed zero.
+    return rounded_result + 0.0;
+  }
+}
+
+
+/**
+  Decodes a geohash into longitude if start_on_even_bit == true, or latitude if
+  start_on_even_bit == false. The output will be rounded based on the length
+  of the geohash.
+*/
+double Item_func_latlongfromgeohash::val_real()
+{
+  DBUG_ASSERT(fixed == TRUE);
+
+  String buf;
+  String *input_value= args[0]->val_str_ascii(&buf);
+
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+
+  if (input_value->length() == 0)
+  {
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
+             func_name());
+    return error_real();
+  }
+
+  double latitude= 0.0;
+  double longitude= 0.0;
+  if (decode_geohash(input_value, upper_latitude, lower_latitude,
+                     upper_longitude, lower_longitude, &latitude, &longitude))
+  {
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
+             func_name());
+    return error_real();
+  }
+
+  // Return longitude if start_on_even_bit == true. Otherwise, return latitude.
+  if (start_on_even_bit)
+    return longitude;
+  return latitude;
+}
+
+
 /** Gateway to natural LOG function. */
 double Item_func_ln::val_real()
 {
@@ -3871,7 +4125,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       free_udf(u_d);
       DBUG_RETURN(TRUE);
     }
-    func->max_length= min<size_t>(initid.max_length, MAX_BLOB_WIDTH);
+    func->max_length= min<uint32>(initid.max_length, MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
     const_item_cache=initid.const_item;
     /* 
@@ -4168,112 +4422,6 @@ udf_handler::~udf_handler()
 bool udf_handler::get_arguments() { return 0; }
 #endif /* HAVE_DLOPEN */
 
-/*
-** User level locks
-*/
-
-mysql_mutex_t LOCK_user_locks;
-static HASH hash_user_locks;
-
-class User_level_lock
-{
-  uchar *key;
-  size_t key_length;
-
-public:
-  int count;
-  bool locked;
-  mysql_cond_t cond;
-  my_thread_id thread_id;
-  void set_thread(THD *thd) { thread_id= thd->thread_id; }
-
-  User_level_lock(const uchar *key_arg,uint length, ulong id) 
-    :key_length(length),count(1),locked(1), thread_id(id)
-  {
-    key= (uchar*) my_memdup(key_memory_User_level_lock_key,
-                            key_arg, length, MYF(0));
-    mysql_cond_init(key_user_level_lock_cond, &cond);
-    if (key)
-    {
-      if (my_hash_insert(&hash_user_locks,(uchar*) this))
-      {
-	my_free(key);
-	key=0;
-      }
-    }
-  }
-  ~User_level_lock()
-  {
-    if (key)
-    {
-      my_hash_delete(&hash_user_locks,(uchar*) this);
-      my_free(key);
-    }
-    mysql_cond_destroy(&cond);
-  }
-  inline bool initialized() { return key != 0; }
-  friend void item_user_lock_release(User_level_lock *ull);
-  friend uchar *ull_get_key(const User_level_lock *ull, size_t *length,
-                            my_bool not_used);
-};
-
-uchar *ull_get_key(const User_level_lock *ull, size_t *length,
-                   my_bool not_used __attribute__((unused)))
-{
-  *length= ull->key_length;
-  return ull->key;
-}
-
-#ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_LOCK_user_locks;
-
-static PSI_mutex_info all_user_mutexes[]=
-{
-  { &key_LOCK_user_locks, "LOCK_user_locks", PSI_FLAG_GLOBAL}
-};
-
-static void init_user_lock_psi_keys(void)
-{
-  int count;
-
-  count= array_elements(all_user_mutexes);
-  mysql_mutex_register("sql", all_user_mutexes, count);
-}
-#endif
-
-static bool item_user_lock_inited= 0;
-
-void item_user_lock_init(void)
-{
-#ifdef HAVE_PSI_INTERFACE
-  init_user_lock_psi_keys();
-#endif
-
-  mysql_mutex_init(key_LOCK_user_locks, &LOCK_user_locks, MY_MUTEX_INIT_SLOW);
-  my_hash_init(&hash_user_locks,system_charset_info,
-	    16,0,0,(my_hash_get_key) ull_get_key,NULL,0);
-  item_user_lock_inited= 1;
-}
-
-void item_user_lock_free(void)
-{
-  if (item_user_lock_inited)
-  {
-    item_user_lock_inited= 0;
-    my_hash_free(&hash_user_locks);
-    mysql_mutex_destroy(&LOCK_user_locks);
-  }
-}
-
-void item_user_lock_release(User_level_lock *ull)
-{
-  ull->locked=0;
-  ull->thread_id= 0;
-  if (--ull->count)
-    mysql_cond_signal(&ull->cond);
-  else
-    delete ull;
-}
 
 bool Item_master_pos_wait::itemize(Parse_context *pc, Item **res)
 {
@@ -4345,6 +4493,64 @@ longlong Item_master_pos_wait::val_int()
   }
 #endif
   return event_count;
+}
+
+bool Item_wait_for_executed_gtid_set::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  /*
+    It is unsafe because the return value depends on timing. If the timeout
+    happens, the return value is different from the one in which the function
+    returns with success.
+  */
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  pc->thd->lex->safe_to_cache_query= false;
+  return false;
+}
+
+/**
+  Wait until the given gtid_set is found in the executed gtid_set independent
+  of the slave threads.
+*/
+longlong Item_wait_for_executed_gtid_set::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD* thd= current_thd;
+  String *gtid= args[0]->val_str(&value);
+  int result= 0;
+
+  null_value= 0;
+
+  if (gtid_mode == 0)
+  {
+    my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
+    null_value= 1;
+    return result;
+  }
+
+  if (gtid == NULL)
+  {
+    my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
+    null_value= 1;
+    return result;
+  }
+
+  // Since the function is independent of the slave threads we need to return
+  // with null value being set to 1.
+  if (thd->slave_thread)
+  {
+    null_value= 1;
+    return result;
+  }
+
+  longlong timeout= (arg_count== 2) ? args[1]->val_int() : 0;
+  result= gtid_state->wait_for_gtid_set(thd, gtid, timeout);
+  if (result == -1)
+    null_value= 1;
+  return result;
 }
 
 bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res)
@@ -4546,6 +4752,213 @@ int Interruptible_wait::wait(mysql_cond_t *cond, mysql_mutex_t *mutex)
 }
 
 
+/*
+  User-level locks implementation.
+*/
+
+
+/**
+  For locks with EXPLICIT duration, MDL returns a new ticket
+  every time a lock is granted. This allows to implement recursive
+  locks without extra allocation or additional data structures, such
+  as below. However, if there are too many tickets in the same
+  MDL_context, MDL_context::find_ticket() is getting too slow,
+  since it's using a linear search.
+  This is why a separate structure is allocated for a user
+  level lock held by connection, and before requesting a new lock from MDL,
+  GET_LOCK() checks thd->ull_hash if such lock is already granted,
+  and if so, simply increments a reference counter.
+*/
+
+struct User_level_lock
+{
+  MDL_ticket *ticket;
+  uint refs;
+};
+
+
+/** Extract a hash key from User_level_lock. */
+
+uchar *ull_get_key(const uchar *ptr, size_t *length,
+                   my_bool not_used __attribute__((unused)))
+{
+  const User_level_lock *ull = reinterpret_cast<const User_level_lock*>(ptr);
+  const MDL_key *key = ull->ticket->get_key();
+  *length= key->length();
+  return const_cast<uchar*>(key->ptr());
+}
+
+
+/**
+  Release all user level locks for this THD.
+*/
+
+void mysql_ull_cleanup(THD *thd)
+{
+  User_level_lock *ull;
+  DBUG_ENTER("mysql_ull_cleanup");
+
+  for (ulong i= 0; i < thd->ull_hash.records; i++)
+  {
+    ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash, i));
+    thd->mdl_context.release_lock(ull->ticket);
+    my_free(ull);
+  }
+
+  my_hash_free(&thd->ull_hash);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Set explicit duration for metadata locks corresponding to
+  user level locks to protect them from being released at the end
+  of transaction.
+*/
+
+void mysql_ull_set_explicit_lock_duration(THD *thd)
+{
+  User_level_lock *ull;
+  DBUG_ENTER("mysql_ull_set_explicit_lock_duration");
+
+  for (ulong i= 0; i < thd->ull_hash.records; i++)
+  {
+    ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash, i));
+    thd->mdl_context.set_lock_duration(ull->ticket, MDL_EXPLICIT);
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  When MDL detects a lock wait timeout, it pushes an error into the statement
+  diagnostics area. For GET_LOCK(), lock wait timeout is not an error, but a
+  special return value (0). NULL is returned in case of error. Capture and
+  suppress lock wait timeout.
+  We also convert ER_LOCK_DEADLOCK error to ER_USER_LOCK_DEADLOCK error.
+  The former means that implicit rollback of transaction has occurred
+  which doesn't (and should not) happen when we get deadlock while waiting
+  for user-level lock.
+*/
+
+class User_level_lock_wait_error_handler: public Internal_error_handler
+{
+public:
+  User_level_lock_wait_error_handler()
+    : m_lock_wait_timeout(false)
+  { }
+
+  bool got_timeout() const { return m_lock_wait_timeout; }
+
+  bool handle_condition(THD * /* thd */, uint sql_errno,
+                        const char * /* sqlstate */,
+                        Sql_condition::enum_severity_level * /* level */,
+                        const char *message,
+                        Sql_condition **cond_hdl);
+
+private:
+  bool m_lock_wait_timeout;
+};
+
+
+bool
+User_level_lock_wait_error_handler::
+handle_condition(THD * /* thd */, uint sql_errno,
+                 const char * /* sqlstate */,
+                 Sql_condition::enum_severity_level * /* level */,
+                 const char *message,
+                 Sql_condition **cond_hdl)
+{
+  *cond_hdl= NULL;
+
+  if (sql_errno == ER_LOCK_WAIT_TIMEOUT)
+  {
+    m_lock_wait_timeout= true;
+    return true;
+  }
+  else if (sql_errno == ER_LOCK_DEADLOCK)
+  {
+    my_error(ER_USER_LOCK_DEADLOCK, MYF(0));
+    return true;
+  }
+
+  return false;
+}
+
+
+class MDL_lock_get_owner_thread_id_visitor : public MDL_context_visitor
+{
+public:
+  MDL_lock_get_owner_thread_id_visitor()
+    : m_owner_id(0)
+  { }
+
+  void visit_context(const MDL_context *ctx)
+  {
+    m_owner_id= ctx->get_owner()->get_thd()->thread_id();
+  }
+
+  my_thread_id get_owner_id() const { return m_owner_id; }
+
+private:
+  my_thread_id m_owner_id;
+};
+
+
+/**
+  Helper function which checks if user-level lock name is acceptable
+  and converts it to system charset (utf8). Error is emitted if name
+  is not acceptable. Name is also lowercased to ensure that user-level
+  lock names are treated in case-insensitive fashion even though MDL
+  subsystem which used by implementation does binary comparison of keys.
+
+  @param buff      Buffer for lowercased name in system charset of
+                   NAME_LEN + 1 bytes length.
+  @param org_name  Original string passed as name parameter to
+                   user-level lock function.
+
+  @return True in case of error, false on success.
+*/
+
+static bool check_and_convert_ull_name(char *buff, String *org_name)
+{
+  if (!org_name || !org_name->length())
+  {
+    my_error(ER_USER_LOCK_WRONG_NAME, MYF(0), (org_name ? "" : "NULL"));
+    return true;
+  }
+
+  const char *well_formed_error_pos;
+  const char *cannot_convert_error_pos;
+  const char *from_end_pos;
+  size_t bytes_copied;
+
+  bytes_copied= well_formed_copy_nchars(system_charset_info,
+                                        buff, NAME_LEN,
+                                        org_name->charset(),
+                                        org_name->ptr(), org_name->length(),
+                                        NAME_CHAR_LEN,
+                                        &well_formed_error_pos,
+                                        &cannot_convert_error_pos,
+                                        &from_end_pos);
+
+  if (well_formed_error_pos || cannot_convert_error_pos ||
+      from_end_pos < org_name->ptr() + org_name->length())
+  {
+    ErrConvString err(org_name);
+    my_error(ER_USER_LOCK_WRONG_NAME, MYF(0), err.ptr());
+    return true;
+  }
+
+  buff[bytes_copied]= '\0';
+
+  my_casedn_str(system_charset_info, buff);
+
+  return false;
+}
+
+
 bool Item_func_get_lock::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -4559,133 +4972,121 @@ bool Item_func_get_lock::itemize(Parse_context *pc, Item **res)
 
 
 /**
-  Get a user level lock.  If the thread has an old lock this is first released.
+  Get a user level lock.
+
+  @note Sets null_value to TRUE on error.
+
+  @note This means that SQL-function GET_LOCK() returns:
+        1    - if lock was acquired.
+        0    - if lock was not acquired due to timeout.
+        NULL - in case of error such as bad lock name, deadlock,
+               thread being killed (also error is emitted).
 
   @retval
     1    : Got lock
   @retval
-    0    : Timeout
-  @retval
-    NULL : Error
+    0    : Timeout, error.
 */
 
 longlong Item_func_get_lock::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  String *res=args[0]->val_str(&value);
+  String *res= args[0]->val_str(&value);
   ulonglong timeout= args[1]->val_int();
-  THD *thd=current_thd;
+  char name[NAME_LEN + 1];
+  THD *thd= current_thd;
   User_level_lock *ull;
-  int error;
-  Interruptible_wait timed_cond(thd);
   DBUG_ENTER("Item_func_get_lock::val_int");
 
+  null_value= TRUE;
   /*
     In slave thread no need to get locks, everything is serialized. Anyway
     there is no way to make GET_LOCK() work on slave like it did on master
     (i.e. make it return exactly the same value) because we don't have the
     same other concurrent threads environment. No matter what we return here,
-    it's not guaranteed to be same as on master.
+    it's not guaranteed to be same as on master. So we always return 1.
   */
   if (thd->slave_thread)
+  {
+    null_value= FALSE;
     DBUG_RETURN(1);
+  }
 
-  mysql_mutex_lock(&LOCK_user_locks);
-
-  if (!res || !res->length())
-  {
-    mysql_mutex_unlock(&LOCK_user_locks);
-    null_value=1;
+  if (check_and_convert_ull_name(name, res))
     DBUG_RETURN(0);
-  }
-  DBUG_PRINT("info", ("lock %.*s, thd=%lu",
-                      static_cast<int>(res->length()), res->ptr(),
-                      (ulong) thd->real_id));
-  null_value=0;
 
-  if (thd->ull)
-  {
-    item_user_lock_release(thd->ull);
-    thd->ull=0;
-  }
-
-  if (!(ull= ((User_level_lock *) my_hash_search(&hash_user_locks,
-                                                 (uchar*) res->ptr(),
-                                                 res->length()))))
-  {
-    ull= new User_level_lock((uchar*) res->ptr(), res->length(),
-                             thd->thread_id);
-    if (!ull || !ull->initialized())
-    {
-      delete ull;
-      mysql_mutex_unlock(&LOCK_user_locks);
-      null_value=1;				// Probably out of memory
-      DBUG_RETURN(0);
-    }
-    ull->set_thread(thd);
-    thd->ull=ull;
-    mysql_mutex_unlock(&LOCK_user_locks);
-    DBUG_PRINT("info", ("made new lock"));
-    DBUG_RETURN(1);				// Got new lock
-  }
-  ull->count++;
-  DBUG_PRINT("info", ("ull->count=%d", ull->count));
+  DBUG_PRINT("info", ("lock %s, thd=%lu", name, (ulong) thd->real_id));
 
   /*
-    Structure is now initialized.  Try to get the lock.
-    Set up control struct to allow others to abort locks.
+    Convert too big and negative timeout values to INT_MAX32.
+    This gives robust, "infinite" wait on all platforms.
   */
-  THD_STAGE_INFO(thd, stage_user_lock);
-  thd->mysys_var->current_mutex= &LOCK_user_locks;
-  thd->mysys_var->current_cond=  &ull->cond;
+  if (timeout > INT_MAX32)
+    timeout= INT_MAX32;
 
-  timed_cond.set_timeout(timeout * ULL(1000000000));
-
-  error= 0;
-  thd_wait_begin(thd, THD_WAIT_USER_LOCK);
-  while (ull->locked && !thd->killed)
+  /* HASH entries are of type User_level_lock. */
+  if (! my_hash_inited(&thd->ull_hash) &&
+      my_hash_init(&thd->ull_hash, &my_charset_bin,
+                   16 /* small hash */, 0, 0, ull_get_key, NULL, 0))
   {
-    DBUG_PRINT("info", ("waiting on lock"));
-    error= timed_cond.wait(&ull->cond, &LOCK_user_locks);
-    if (error == ETIMEDOUT || error == ETIME)
-    {
-      DBUG_PRINT("info", ("lock wait timeout"));
-      break;
-    }
-    error= 0;
+    DBUG_RETURN(0);
   }
-  thd_wait_end(thd);
 
-  if (ull->locked)
+  MDL_request ull_request;
+  MDL_REQUEST_INIT(&ull_request, MDL_key::USER_LEVEL_LOCK, "",
+                   name, MDL_EXCLUSIVE, MDL_EXPLICIT);
+  MDL_key *ull_key= &ull_request.key;
+
+  if ((ull= reinterpret_cast<User_level_lock*>
+         (my_hash_search(&thd->ull_hash, ull_key->ptr(), ull_key->length()))))
   {
-    if (!--ull->count)
-    {
-      DBUG_ASSERT(0);
-      delete ull;				// Should never happen
-    }
-    if (!error)                                 // Killed (thd->killed != 0)
-    {
-      error=1;
-      null_value=1;				// Return NULL
-    }
+    /* Recursive lock. */
+    ull->refs++;
+    null_value= FALSE;
+    DBUG_RETURN(1);
   }
-  else                                          // We got the lock
+
+  User_level_lock_wait_error_handler error_handler;
+
+  thd->push_internal_handler(&error_handler);
+  bool error= thd->mdl_context.acquire_lock(&ull_request, timeout);
+  (void) thd->pop_internal_handler();
+
+  if (error)
   {
-    ull->locked=1;
-    ull->set_thread(thd);
-    ull->thread_id= thd->thread_id;
-    thd->ull=ull;
-    error=0;
-    DBUG_PRINT("info", ("got the lock"));
+    /*
+      Return 0 in case of timeout and NULL in case of deadlock/other
+      errors. In the latter case error (e.g. ER_USER_LOCK_DEADLOCK)
+      will be reported as well.
+    */
+    if (error_handler.got_timeout())
+      null_value= FALSE;
+    DBUG_RETURN(0);
   }
-  mysql_mutex_unlock(&LOCK_user_locks);
 
-  mysql_mutex_lock(&thd->mysys_var->mutex);
-  thd->mysys_var->current_mutex= 0;
-  thd->mysys_var->current_cond=  0;
-  mysql_mutex_unlock(&thd->mysys_var->mutex);
+  ull= reinterpret_cast<User_level_lock*>(my_malloc(key_memory_User_level_lock,
+                                                    sizeof(User_level_lock),
+                                                    MYF(0)));
 
-  DBUG_RETURN(!error ? 1 : 0);
+  if (ull == NULL)
+  {
+    thd->mdl_context.release_lock(ull_request.ticket);
+    DBUG_RETURN(0);
+  }
+
+  ull->ticket= ull_request.ticket;
+  ull->refs= 1;
+
+  if (my_hash_insert(&thd->ull_hash, reinterpret_cast<uchar*>(ull)))
+  {
+    thd->mdl_context.release_lock(ull_request.ticket);
+    my_free(ull);
+    DBUG_RETURN(0);
+  }
+
+  null_value= FALSE;
+
+  DBUG_RETURN(1);
 }
 
 
@@ -4703,53 +5104,215 @@ bool Item_func_release_lock::itemize(Parse_context *pc, Item **res)
 
 /**
   Release a user level lock.
+
+  @note Sets null_value to TRUE on error/if no connection holds such lock.
+
+  @note This means that SQL-function RELEASE_LOCK() returns:
+        1    - if lock was held by this connection and was released.
+        0    - if lock was held by some other connection (and was not released).
+        NULL - if name of lock is bad or if it was not held by any connection
+               (in the former case also error will be emitted),
+
   @return
     - 1 if lock released
-    - 0 if lock wasn't held
-    - (SQL) NULL if no such lock
+    - 0 if lock wasn't held/error.
 */
 
 longlong Item_func_release_lock::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  String *res=args[0]->val_str(&value);
-  User_level_lock *ull;
-  longlong result;
-  THD *thd=current_thd;
+  String *res= args[0]->val_str(&value);
+  char name[NAME_LEN + 1];
+  THD *thd= current_thd;
   DBUG_ENTER("Item_func_release_lock::val_int");
-  if (!res || !res->length())
+
+  null_value= TRUE;
+
+  if (check_and_convert_ull_name(name, res))
+    DBUG_RETURN(0);
+
+  DBUG_PRINT("info", ("lock %s", name));
+
+  MDL_key ull_key;
+  ull_key.mdl_key_init(MDL_key::USER_LEVEL_LOCK, "", name);
+
+  User_level_lock *ull;
+
+  if (!(ull= reinterpret_cast<User_level_lock*>
+          (my_hash_search(&thd->ull_hash, ull_key.ptr(), ull_key.length()))))
   {
-    null_value=1;
+    /*
+      When RELEASE_LOCK() is called for lock which is not owned by the
+      connection it should return 0 or NULL depending on whether lock
+      is owned by any other connection or not.
+    */
+    MDL_lock_get_owner_thread_id_visitor get_owner_visitor;
+
+    if (thd->mdl_context.find_lock_owner(&ull_key, &get_owner_visitor))
+      DBUG_RETURN(0);
+
+    null_value= get_owner_visitor.get_owner_id() == 0;
+
     DBUG_RETURN(0);
   }
-  DBUG_PRINT("info", ("lock %.*s", static_cast<int>(res->length()),
-                      res->ptr()));
-  null_value=0;
+  null_value= FALSE;
+  if (--ull->refs == 0)
+  {
+    my_hash_delete(&thd->ull_hash, reinterpret_cast<uchar*>(ull));
+    thd->mdl_context.release_lock(ull->ticket);
+    my_free(ull);
+  }
+  DBUG_RETURN(1);
+}
 
-  result=0;
-  mysql_mutex_lock(&LOCK_user_locks);
-  if (!(ull= ((User_level_lock*) my_hash_search(&hash_user_locks,
-                                                (const uchar*) res->ptr(),
-                                                (size_t) res->length()))))
+
+bool Item_func_release_all_locks::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
+  return false;
+}
+
+
+/**
+  Release all user level lock held by connection.
+
+  @return Number of locks released including recursive lock count.
+*/
+
+longlong Item_func_release_all_locks::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD *thd= current_thd;
+  uint result= 0;
+  User_level_lock *ull;
+  DBUG_ENTER("Item_func_release_all_locks::val_int");
+
+  if (my_hash_inited(&thd->ull_hash))
   {
-    null_value=1;
-  }
-  else
-  {
-    DBUG_PRINT("info", ("ull->locked=%d ull->thread=%lu thd=%lu", 
-                        (int) ull->locked,
-                        (long)ull->thread_id,
-                        (long)thd->thread_id));
-    if (ull->locked && current_thd->thread_id == ull->thread_id)
+    for (ulong i= 0; i < thd->ull_hash.records; i++)
     {
-      DBUG_PRINT("info", ("release lock"));
-      result=1;					// Release is ok
-      item_user_lock_release(ull);
-      thd->ull=0;
+      ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash,
+                                                              i));
+      thd->mdl_context.release_lock(ull->ticket);
+      result+= ull->refs;
+      my_free(ull);
     }
+    my_hash_reset(&thd->ull_hash);
   }
-  mysql_mutex_unlock(&LOCK_user_locks);
+
   DBUG_RETURN(result);
+}
+
+
+bool Item_func_is_free_lock::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
+  return false;
+}
+
+
+/**
+  Check if user level lock is free.
+
+  @note Sets null_value=TRUE on error.
+
+  @note As result SQL-function IS_FREE_LOCK() returns:
+        1    - if lock is free,
+        0    - if lock is in use
+        NULL - if lock name is bad or OOM (also error is emitted).
+
+  @retval
+    1		Available
+  @retval
+    0		Already taken, or error
+*/
+
+longlong Item_func_is_free_lock::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  String *res= args[0]->val_str(&value);
+  char name[NAME_LEN + 1];
+  THD *thd= current_thd;
+
+  null_value= TRUE;
+
+  if (check_and_convert_ull_name(name, res))
+    return 0;
+
+  MDL_key ull_key;
+  ull_key.mdl_key_init(MDL_key::USER_LEVEL_LOCK, "", name);
+
+  MDL_lock_get_owner_thread_id_visitor get_owner_visitor;
+
+  if (thd->mdl_context.find_lock_owner(&ull_key, &get_owner_visitor))
+    return 0;
+
+  null_value= FALSE;
+  return MY_TEST(get_owner_visitor.get_owner_id() == 0);
+}
+
+
+bool Item_func_is_used_lock::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
+  return false;
+}
+
+
+/**
+  Check if user level lock is used and return connection id of owner.
+
+  @note Sets null_value=TRUE if lock is free/on error.
+
+  @note SQL-function IS_USED_LOCK() returns:
+        #    - connection id of lock owner if lock is acquired.
+        NULL - if lock is free or on error (in the latter case
+               also error is emitted).
+
+  @return Connection id of lock owner, 0 if lock is free/on error.
+*/
+
+longlong Item_func_is_used_lock::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  String *res= args[0]->val_str(&value);
+  char name[NAME_LEN + 1];
+  THD *thd= current_thd;
+
+  null_value= TRUE;
+
+  if (check_and_convert_ull_name(name, res))
+    return 0;
+
+  MDL_key ull_key;
+  ull_key.mdl_key_init(MDL_key::USER_LEVEL_LOCK, "", name);
+
+  MDL_lock_get_owner_thread_id_visitor get_owner_visitor;
+
+  if (thd->mdl_context.find_lock_owner(&ull_key, &get_owner_visitor))
+    return 0;
+
+  my_thread_id thread_id= get_owner_visitor.get_owner_id();
+  if (thread_id == 0)
+    return 0;
+
+  null_value= FALSE;
+  return thread_id;
 }
 
 
@@ -4866,6 +5429,57 @@ void Item_func_benchmark::print(String *str, enum_query_type query_type)
 }
 
 
+/**
+  Lock which is used to implement interruptible wait for SLEEP() function.
+*/
+
+mysql_mutex_t LOCK_item_func_sleep;
+
+
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_LOCK_item_func_sleep;
+
+
+static PSI_mutex_info item_func_sleep_mutexes[]=
+{
+  { &key_LOCK_item_func_sleep, "LOCK_item_func_sleep", PSI_FLAG_GLOBAL}
+};
+
+
+static void init_item_func_sleep_psi_keys()
+{
+  int count;
+
+  count= array_elements(item_func_sleep_mutexes);
+  mysql_mutex_register("sql", item_func_sleep_mutexes, count);
+}
+#endif
+
+
+static bool item_func_sleep_inited= false;
+
+
+void item_func_sleep_init()
+{
+#ifdef HAVE_PSI_INTERFACE
+  init_item_func_sleep_psi_keys();
+#endif
+
+  mysql_mutex_init(key_LOCK_item_func_sleep, &LOCK_item_func_sleep, MY_MUTEX_INIT_SLOW);
+  item_func_sleep_inited= true;
+}
+
+
+void item_func_sleep_free()
+{
+  if (item_func_sleep_inited)
+  {
+    item_func_sleep_inited= false;
+    mysql_mutex_destroy(&LOCK_item_func_sleep);
+  }
+}
+
+
 bool Item_func_sleep::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -4929,23 +5543,23 @@ longlong Item_func_sleep::val_int()
   timed_cond.set_timeout((ulonglong) (timeout * 1000000000.0));
 
   mysql_cond_init(key_item_func_sleep_cond, &cond);
-  mysql_mutex_lock(&LOCK_user_locks);
+  mysql_mutex_lock(&LOCK_item_func_sleep);
 
   THD_STAGE_INFO(thd, stage_user_sleep);
-  thd->mysys_var->current_mutex= &LOCK_user_locks;
+  thd->mysys_var->current_mutex= &LOCK_item_func_sleep;
   thd->mysys_var->current_cond=  &cond;
 
   error= 0;
   thd_wait_begin(thd, THD_WAIT_SLEEP);
   while (!thd->killed)
   {
-    error= timed_cond.wait(&cond, &LOCK_user_locks);
+    error= timed_cond.wait(&cond, &LOCK_item_func_sleep);
     if (error == ETIMEDOUT || error == ETIME)
       break;
     error= 0;
   }
   thd_wait_end(thd);
-  mysql_mutex_unlock(&LOCK_user_locks);
+  mysql_mutex_unlock(&LOCK_item_func_sleep);
   mysql_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
@@ -4992,7 +5606,7 @@ void Item_func_set_user_var::cleanup()
 
 bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
 {
-  if (entry && thd->thread_id == entry_thread_id)
+  if (entry && thd->thread_id() == entry_thread_id)
   {} // update entry->update_query_id for PS
   else
   {
@@ -5005,7 +5619,7 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
       entry_thread_id= 0;
       return TRUE;
     }
-    entry_thread_id= thd->thread_id;
+    entry_thread_id= thd->thread_id();
   }
   /* 
     Remember the last query which updated it, this way a query can later know
@@ -5857,7 +6471,7 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     return 0;
   }
 
-  uint size;
+  size_t size;
   /*
     First we need to store value of var_entry, when the next situation
     appears:
@@ -7069,93 +7683,6 @@ Item *get_system_var(Parse_context *pc,
 
   return new Item_func_get_system_var(var, var_type, component_name,
                                       NULL, 0);
-}
-
-
-bool Item_func_is_free_lock::itemize(Parse_context *pc, Item **res)
-{
-  if (skip_itemize(res))
-    return false;
-  if (super::itemize(pc, res))
-    return true;
-  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-  return false;
-}
-
-
-/**
-  Check a user level lock.
-
-  Sets null_value=TRUE on error.
-
-  @retval
-    1		Available
-  @retval
-    0		Already taken, or error
-*/
-
-longlong Item_func_is_free_lock::val_int()
-{
-  DBUG_ASSERT(fixed == 1);
-  String *res=args[0]->val_str(&value);
-  User_level_lock *ull;
-
-  null_value=0;
-  if (!res || !res->length())
-  {
-    null_value=1;
-    return 0;
-  }
-  
-  mysql_mutex_lock(&LOCK_user_locks);
-  ull= (User_level_lock *) my_hash_search(&hash_user_locks, (uchar*) res->ptr(),
-                                          (size_t) res->length());
-  mysql_mutex_unlock(&LOCK_user_locks);
-  if (!ull || !ull->locked)
-    return 1;
-  return 0;
-}
-
-
-bool Item_func_is_used_lock::itemize(Parse_context *pc, Item **res)
-{
-  if (skip_itemize(res))
-    return false;
-  if (super::itemize(pc, res))
-    return true;
-  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-  return false;
-}
-
-
-void Item_func_is_used_lock::fix_length_and_dec()
-{
-  Item_int_func::fix_length_and_dec();
-  unsigned_flag= 1;
-  maybe_null= 1;
-}
-
-longlong Item_func_is_used_lock::val_int()
-{
-  DBUG_ASSERT(fixed == 1);
-  String *res=args[0]->val_str(&value);
-  User_level_lock *ull;
-
-  null_value=1;
-  if (!res || !res->length())
-    return 0;
-  
-  mysql_mutex_lock(&LOCK_user_locks);
-  ull= (User_level_lock *) my_hash_search(&hash_user_locks, (uchar*) res->ptr(),
-                                          (size_t) res->length());
-  mysql_mutex_unlock(&LOCK_user_locks);
-  if (!ull || !ull->locked)
-    return 0;
-
-  null_value=0;
-  return ull->thread_id;
 }
 
 

@@ -523,6 +523,16 @@ public:
 
   int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
   int flushIncompleteEvents(Uint64 gci);
+
+  void free_consumed_event_data();
+  void move_head_event_data_item_to_used_data_queue(EventBufData *data);
+
+  /* Remove gci_ops belonging to epochs less than firstKeepGci from
+   * m_gci_ops list. gci = UINT_MAX64 means remove all gci_ops from the list.
+   */
+  EventBufData_list::Gci_ops* remove_consumed_gci_ops(Uint64 firstKeepGci);
+
+ // dequeue event data from event queue and give it for consumption
   NdbEventOperation *nextEvent();
   bool isConsistent(Uint64& gci);
   bool isConsistentGCI(Uint64 gci);
@@ -595,6 +605,23 @@ public:
 
   unsigned m_total_alloc; // total allocated memory
 
+  /**
+   * EB_BufferEvents: m_total_alloc*100/m_max_alloc <= 70
+   * EB_DiscardNewEvents: m_total_alloc*100/m_max_alloc > 70
+   * EB_DiscardEvents: m_total_alloc*100/m_max_alloc > 100
+   */
+  enum EventBufferState
+  {
+    EB_BUFFERINGEVENTS      = 0x1 // Enough alloc'd mem to buffer events
+    ,EB_DISCARDINGNEWEVENTS = 0x2 // Alloc'd mem is running out
+    ,EB_DISCARDINGEVENTS    = 0x3 // Alloc'd mem is used up completely
+  };
+  EventBufferState lastReportedState; // To avoid bursts of reporting
+  EventBufferState event_buffer_state();
+
+  // ceiling for total allocated memory, 0 means unlimited
+  unsigned m_max_alloc;
+
   // threshholds to report status
   unsigned m_free_thresh, m_min_free_thresh, m_max_free_thresh;
   unsigned m_gci_slip_thresh;
@@ -607,6 +634,7 @@ public:
 #endif
 
 private:
+  bool outOfMemory(Uint32 alloc_sz);
   void insert_event(NdbEventOperationImpl* impl,
                     SubTableData &data,
                     LinearSectionPtr *ptr,
@@ -656,10 +684,21 @@ private:
   Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> m_alive_node_bit_mask;
 
   void handle_change_nodegroup(const SubGcpCompleteRep*);
+  /* Adds a dummy event data and a dummy gci_op list
+   * to an empty bucket and moves these to m_complete_data.
+   */
+  void complete_empty_bucket_using_exceptional_event(Uint64 gci, Uint32 type);
 
 public:
   void set_total_buckets(Uint32);
 };
+
+inline bool
+NdbEventBuffer::outOfMemory(Uint32 alloc_sz)
+{
+  return (m_max_alloc == 0 ? false :
+          (m_total_alloc + alloc_sz > m_max_alloc));
+}
 
 inline
 NdbEventOperationImpl*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,7 +113,6 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg,
       (void) fprintf(stream,"%g",d_1);
       key=end;
       break;
-#ifdef HAVE_LONG_LONG
     case HA_KEYTYPE_LONGLONG:
     {
       char buff[21];
@@ -140,7 +139,6 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg,
       break;
     }
 
-#endif
     case HA_KEYTYPE_VARTEXT1:                   /* VARCHAR and TEXT */
     case HA_KEYTYPE_VARTEXT2:                   /* VARCHAR and TEXT */
     case HA_KEYTYPE_VARBINARY1:                 /* VARBINARY and BLOB */

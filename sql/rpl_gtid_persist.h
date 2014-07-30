@@ -19,12 +19,13 @@
 #define RPL_GTID_PERSIST_H_
 
 #include <string>
+#include "rpl_table_access.h"
 using std::string;
 
 class Open_tables_backup;
 
 
-class Gtid_table_access_context
+class Gtid_table_access_context : public System_table_access
 {
 
 public:
@@ -61,6 +62,22 @@ public:
     @param need_commit Need to commit current transaction if it is true
   */
   void deinit(THD *thd, TABLE *table, bool error, bool need_commit);
+  /**
+    Prepares before opening table.
+    - set flags
+
+    @param[in]  thd  Thread requesting to open the table
+  */
+  void before_open(THD* thd);
+  /**
+    Creates a new thread in the bootstrap process or in the mysqld startup,
+    a thread is created in order to be able to access a table. And reset a
+    new "statement".
+
+    @return
+      @retval THD* Pointer to thread structure
+  */
+  THD *create_thd();
 private:
   /* Pointer to new created THD. */
   THD *m_drop_thd_object;
@@ -70,65 +87,7 @@ private:
   Open_tables_backup m_backup;
   /* Save binlog options. */
   ulonglong m_tmp_disable_binlog__save_options;
-  /**
-    Creates a new thread in the bootstrap process or in the mysqld startup,
-    a thread is created in order to be able to access a table.
 
-    @return
-      @retval THD* Pointer to thread structure
-  */
-  THD *create_thd();
-  /**
-    Destroys the created thread and restores the
-    system_thread information.
-
-    @param thd Thread requesting to be destroyed
-  */
-  void drop_thd(THD *thd);
-  /**
-    Opens and locks a table.
-
-    It's assumed that the caller knows what they are doing:
-    - whether it was necessary to reset-and-backup the open tables state
-    - whether the requested lock does not lead to a deadlock
-    - whether this open mode would work under LOCK TABLES, or inside a
-    stored function or trigger.
-
-    Note that if the table can't be locked successfully this operation will
-    close it. Therefore it provides guarantee that it either opens and locks
-    table or fails without leaving any tables open.
-
-    @param      thd           Thread requesting to open the table
-    @param      lock_type     How to lock the table
-    @param[out] table         We will store the open table here
-
-    @return
-      @retval TRUE open and lock failed - an error message is pushed into the
-                                          stack
-      @retval FALSE success
-  */
-  bool open_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
-  /**
-    Commits the changes, unlocks the table and closes it. This method
-    needs to be called even if the open_table fails, in order to ensure
-    the lock info is properly restored.
-
-    @param thd    Thread requesting to close the table
-    @param table  Table to be closed
-    @param error  If there was an error while updating
-                    the table
-    @param need_commit Need to commit current transaction if
-                       it is true.
-
-    If there is an error, rolls back the current statement. Otherwise,
-    commits it. However, if a new thread was created and there is an
-    error, the transaction must be rolled back. Otherwise, it must be
-    committed. In this case, the changes were not done on behalf of
-    any user transaction and if not finished, there would be pending
-    changes.
-
-  */
-  void close_table(THD *thd, TABLE *table, bool error, bool need_commit);
   /* Prevent user from invoking default assignment function. */
   Gtid_table_access_context &operator=(const Gtid_table_access_context &info);
   /* Prevent user from invoking default constructor function. */

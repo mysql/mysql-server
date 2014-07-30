@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,6 +134,11 @@ public:
   uint global_schema_lock_error;
   uint schema_locks_count; // Number of global schema locks taken by thread
   bool has_required_global_schema_lock(const char* func);
+
+  /**
+     Epoch of last committed transaction in this session, 0 if none so far
+   */
+  Uint64 m_last_commit_epoch_session;
 
   unsigned m_connect_count;
   bool valid_ndb(void) const;

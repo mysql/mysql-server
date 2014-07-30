@@ -68,6 +68,7 @@
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#include "sql_tmp_table.h"  // internal_tmp_disk_storage_engine
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
@@ -2042,11 +2043,12 @@ static Sys_var_ulong Sys_metadata_locks_hash_instances(
        VALID_RANGE(1, 1024), DEFAULT(8), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
-static Sys_var_ulong Sys_pseudo_thread_id(
+// relies on DBUG_ASSERT(sizeof(my_thread_id) == 4);
+static Sys_var_uint Sys_pseudo_thread_id(
        "pseudo_thread_id",
        "This variable is for internal server use",
        SESSION_ONLY(pseudo_thread_id),
-       NO_CMD_LINE, VALID_RANGE(0, ULONG_MAX), DEFAULT(0),
+       NO_CMD_LINE, VALID_RANGE(0, UINT_MAX32), DEFAULT(0),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
        ON_CHECK(check_has_super));
 
@@ -2250,12 +2252,21 @@ static Sys_var_mybool Sys_old_alter_table(
        "old_alter_table", "Use old, non-optimized alter table",
        SESSION_VAR(old_alter_table), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+static bool old_passwords_check(sys_var *self  __attribute__((unused)),
+                                THD *thd  __attribute__((unused)),
+                                set_var *var)
+{
+  /* 1 used to be old passwords */
+  return var->save_result.ulonglong_value == 1;
+}
+
 static Sys_var_uint Sys_old_passwords(
        "old_passwords",
        "Determine which hash algorithm to use when generating passwords using "
        "the PASSWORD() function",
        SESSION_VAR(old_passwords), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, 2), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, 2), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(old_passwords_check));
 
 static Sys_var_ulong Sys_open_files_limit(
        "open_files_limit",
@@ -2759,18 +2770,14 @@ static Sys_var_mybool Sys_query_cache_wlock_invalidate(
 static bool
 on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
 {
-  if (!var->save_result.ulonglong_value)
-  {
-    push_deprecated_warn(thd, "pre-4.1 password hash",
-                         "post-4.1 password hash");
-  }
-  return false;
+  push_deprecated_warn_no_replacement(thd, "--secure-auth");
+  return (!var->save_result.ulonglong_value);
 }
 
 static Sys_var_mybool Sys_secure_auth(
        "secure_auth",
        "Disallow authentication for accounts that have old (pre-4.1) "
-       "passwords",
+       "passwords. Deprecated. Always TRUE.",
        GLOBAL_VAR(opt_secure_auth), CMD_LINE(OPT_ARG, OPT_SECURE_AUTH),
        DEFAULT(TRUE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
@@ -3434,6 +3441,13 @@ static Sys_var_plugin Sys_default_storage_engine(
        SESSION_VAR(table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
+
+const char *internal_tmp_disk_storage_engine_names[] = { "MYISAM", "INNODB", 0};
+static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
+       "internal_tmp_disk_storage_engine",
+       "The default storage engine for on-disk internal tmp table",
+       GLOBAL_VAR(internal_tmp_disk_storage_engine), CMD_LINE(OPT_ARG),
+       internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_MYISAM));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
        "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",
@@ -4752,7 +4766,7 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
     DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     global_sid_lock->wrlock();
     DBUG_ASSERT(gtid_state->get_owned_gtids()->
-                thread_owns_anything(thd->thread_id));
+                thread_owns_anything(thd->thread_id()));
 #else
     global_sid_lock->rdlock();
 #endif

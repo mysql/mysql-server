@@ -1588,7 +1588,6 @@ SET NAMES utf8;
 SET NAMES utf8;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (0), (0), (1), (0), (0);
---error ER_DUP_ENTRY
 SELECT COUNT(*) FROM t1, t1 t2 
 GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
 DROP TABLE t1;

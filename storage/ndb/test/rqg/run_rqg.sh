@@ -46,7 +46,7 @@ EOF
     export NDB_JOIN_PUSHDOWN
     for t in 1
     do
-	$mysqltest_exe ${myisam_db} < $tmp >> ${opre}.$no.myisam.$i.txt
+	$mysqltest_exe ${innodb_db} < $tmp >> ${opre}.$no.innodb.$i.txt
     done
 
     for t in 1
@@ -94,12 +94,12 @@ run_all() {
     export NDB_JOIN_PUSHDOWN
     if [ `echo $mode | grep -c m` -ne 0 ]
     then
-	echo "- run myisam"
+	echo "- run innodb"
 	start=`eval $getepochtime`
-	$mysqltest_exe ${myisam_db} < $file > ${opre}_myisam.out
+	$mysqltest_exe ${innodb_db} < $file > ${opre}_innodb.out
 	stop=`eval $getepochtime`
 	echo "  elapsed: `expr $stop - $start`s"
-	tmpfiles="$tmpfiles ${opre}_myisam.out"
+	tmpfiles="$tmpfiles ${opre}_innodb.out"
     fi
 
     if [ `echo $mode | grep -c nv` -ne 0 ]
@@ -184,7 +184,7 @@ do
 	echo "--disable_query_log"
 	echo "--eval set ndb_join_pushdown='\$NDB_JOIN_PUSHDOWN';"
 	echo "$ecp"
-	${gensql} --seed=$us --queries=$queries --dsn="$dsn:database=${myisam_db}" --grammar=$grammar | grep -v "#" |
+	${gensql} --seed=$us --queries=$queries --dsn="$dsn:database=${innodb_db}" --grammar=$grammar | grep -v "#" |
         $awk_exe '{ print "--sorted_result"; print "--error 0,233,1242,4006"; print; }'
 	echo "--exit"
     ) > ${opre}_test.sql

@@ -310,6 +310,7 @@ bool File_query_log::open()
   my_off_t pos= 0;
   const char *log_name= NULL;
   char buff[FN_REFLEN];
+  MY_STAT f_stat;
   DBUG_ENTER("File_query_log::open");
 
   if (m_log_type == QUERY_LOG_SLOW)
@@ -329,6 +330,10 @@ bool File_query_log::open()
   }
 
   fn_format(log_file_name, name, mysql_data_home, "", 4);
+
+  /* File is regular writable file */
+  if (my_stat(log_file_name, &f_stat, MYF(0)) && !MY_S_ISREG(f_stat.st_mode))
+    goto err;
 
   db[0]= 0;
 
@@ -461,7 +466,7 @@ bool File_query_log::write_general(ulonglong event_utime,
   if (my_b_write(&log_file, (uchar*) local_time_buff, time_buff_len))
     goto err;
 
-  length= my_snprintf(buff, 32, "%5lu ", thread_id);
+  length= my_snprintf(buff, 32, "%5u ", thread_id);
 
   if (my_b_write(&log_file, (uchar*) buff, length))
     goto err;
@@ -518,7 +523,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
     if (my_b_write(&log_file, (uchar*) buff, buff_len))
       goto err;
 
-    buff_len= my_snprintf(buff, 32, "%5lu", thd->thread_id);
+    buff_len= my_snprintf(buff, 32, "%5u", thd->thread_id());
     if (my_b_printf(&log_file, "# User@Host: %s  Id: %s\n", user_host, buff)
         == (uint) -1)
       goto err;
@@ -882,7 +887,7 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
                                                client_cs) < 0)
     goto err;
 
-  if (table->field[SQLT_FIELD_THREAD_ID]->store((longlong) thd->thread_id,
+  if (table->field[SQLT_FIELD_THREAD_ID]->store((longlong) thd->thread_id(),
                                                 true))
     goto err;
 
@@ -1123,7 +1128,7 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
        *current_handler; )
   {
     error|= (*current_handler++)->log_general(thd, current_utime, user_host_buff,
-                                              user_host_len, thd->thread_id,
+                                              user_host_len, thd->thread_id(),
                                               command_name[(uint) command].str,
                                               command_name[(uint) command].length,
                                               query, query_length,
@@ -1166,7 +1171,7 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
 
 
 void Query_logger::init_query_log(enum_log_table_type log_type,
-                                  uint log_printer)
+                                  ulonglong log_printer)
 {
   if (log_type == QUERY_LOG_SLOW)
   {
@@ -1710,13 +1715,13 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
     add the connection ID to the log-line, otherwise 0.
   */
   if (THR_THD_initialized && (current_thd != NULL))
-    thread_id= current_thd->thread_id;
+    thread_id= current_thd->thread_id();
 
   make_iso8601_timestamp(my_timestamp);
 
   mysql_mutex_lock(&LOCK_error_log);
 
-  fprintf(stderr, "%s %lu [%s] %.*s\n",
+  fprintf(stderr, "%s %u [%s] %.*s\n",
           my_timestamp,
           thread_id,
           (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
@@ -1858,8 +1863,6 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
 */
 
 ulong tc_log_page_waits= 0;
-
-#ifdef HAVE_MMAP
 
 #define TC_LOG_HEADER_SIZE (sizeof(tc_log_magic)+1)
 
@@ -2310,7 +2313,6 @@ err1:
                   "--tc-heuristic-recover={commit|rollback}");
   return 1;
 }
-#endif
 
 TC_LOG *tc_log;
 TC_LOG_DUMMY tc_log_dummy;

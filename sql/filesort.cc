@@ -27,7 +27,7 @@
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"
-#include "opt_range.h"                          // SQL_SELECT
+#include "opt_range.h"                          // QUICK
 #include "bounded_queue.h"
 #include "filesort_utils.h"
 #include "sql_select.h"
@@ -44,7 +44,7 @@ using std::min;
 
 	/* functions defined in this file */
 
-static ha_rows find_all_keys(Sort_param *param,SQL_SELECT *select,
+static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
                              Filesort_info *fs_info,
                              IO_CACHE *buffer_file,
                              IO_CACHE *chunk_file,
@@ -203,7 +203,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
                         found_rows if LIMIT were provided.
 */
 
-ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
+ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
                  bool sort_positions, ha_rows *examined_rows,
                  ha_rows *found_rows)
 {
@@ -218,7 +218,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   bool multi_byte_charset;
   Bounded_queue<uchar *, uchar *, Sort_param> pq;
   Opt_trace_context * const trace= &thd->opt_trace;
-  SQL_SELECT *const select= filesort->select;
+  TABLE *const table= qep_tab->table();
   ha_rows max_rows= filesort->limit;
   uint s_length= 0;
 
@@ -234,9 +234,11 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   Opt_trace_object trace_wrapper(trace);
   trace_filesort_information(trace, filesort->sortorder, s_length);
 
-  Item_subselect *subselect= table->reginfo.join_tab ?
-     table->reginfo.join_tab->join->select_lex->master_unit()->item :
-     NULL;
+  DBUG_ASSERT(!table->reginfo.join_tab);
+  Item_subselect *const subselect=
+    (table->reginfo.qep_tab &&
+     table->reginfo.qep_tab->join()) ?
+    table->reginfo.qep_tab->join()->select_lex->master_unit()->item : NULL;
 
   MYSQL_FILESORT_START(table->s->db.str, table->s->table_name.str);
   DEBUG_SYNC(thd, "filesort_start");
@@ -271,7 +273,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
 
   table_sort.addon_fields= param.addon_fields;
 
-  if (select && select->quick)
+  if (qep_tab->quick())
     thd->inc_status_sort_range();
   else
     thd->inc_status_sort_scan();
@@ -370,7 +372,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
-    num_rows= find_all_keys(&param, select,
+    num_rows= find_all_keys(&param, qep_tab,
                             &table_sort,
                             &chunk_file,
                             &tempfile,
@@ -509,11 +511,11 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
 
     if (thd->is_fatal_error)
       sql_print_information("%s, host: %s, user: %s, "
-                            "thread: %lu, error: %s, query: %-.4096s",
+                            "thread: %u, error: %s, query: %-.4096s",
                             msg,
                             thd->security_ctx->host_or_ip,
                             &thd->security_ctx->priv_user[0],
-                            thd->thread_id,
+                            thd->thread_id(),
                             cause,
                             thd->query().str);
   }
@@ -553,14 +555,6 @@ void filesort_free_buffers(TABLE *table, bool full)
   DBUG_VOID_RETURN;
 }
 
-void Filesort::cleanup()
-{
-  if (select && own_select)
-  {
-    delete select;
-    select= NULL;
-  }
-}
 
 uint Filesort::make_sortorder()
 {
@@ -746,14 +740,14 @@ static const Item::enum_walk walk_subquery=
     HA_POS_ERROR on error.
 */
 
-static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
+static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
                              Filesort_info *fs_info,
                              IO_CACHE *chunk_file,
                              IO_CACHE *tempfile,
                              Bounded_queue<uchar *, uchar *, Sort_param> *pq,
                              ha_rows *found_rows)
 {
-  int error,flag,quick_select;
+  int error,flag;
   uint idx,indexpos,ref_length;
   uchar *ref_pos,*next_pos,ref_buff[MAX_REFLENGTH];
   my_off_t record;
@@ -768,16 +762,16 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
 
   DBUG_ENTER("find_all_keys");
   DBUG_PRINT("info",("using: %s",
-                     (select ? select->quick ? "ranges" : "where":
+                     (qep_tab->condition() ? qep_tab->quick() ? "ranges" : "where":
                       "every row")));
 
   idx=indexpos=0;
-  error=quick_select=0;
+  error= 0;
   sort_form=param->sort_form;
   file=sort_form->file;
   ref_length=param->ref_length;
   ref_pos= ref_buff;
-  quick_select=select && select->quick;
+  const bool quick_select= qep_tab->quick() != NULL;
   record=0;
   *found_rows= 0;
   flag= ((file->ha_table_flags() & HA_REC_NOT_IN_SEQ) || quick_select);
@@ -800,7 +794,7 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
 
   if (quick_select)
   {
-    if ((error= select->quick->reset()))
+    if ((error= qep_tab->quick()->reset()))
     {
       file->print_error(error, MYF(0));
       DBUG_RETURN(HA_POS_ERROR);
@@ -822,14 +816,15 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
   register_used_fields(param); 
 
   // Include fields used by conditions in the read_set.
-  if (select && select->cond)
-    select->cond->walk(&Item::register_field_in_read_map, walk_subquery,
-                       (uchar*) sort_form);
+  if (qep_tab->condition())
+    qep_tab->condition()->walk(&Item::register_field_in_read_map,
+                               walk_subquery, (uchar*) sort_form);
 
   // Include fields used by pushed conditions in the read_set.
-  if (select && select->icp_cond)
-    select->icp_cond->walk(&Item::register_field_in_read_map, walk_subquery,
-                           (uchar*) sort_form);
+  if (qep_tab->table()->file->pushed_idx_cond)
+    qep_tab->table()->file->pushed_idx_cond->
+      walk(&Item::register_field_in_read_map, walk_subquery,
+           (uchar*) sort_form);
 
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
 
@@ -838,7 +833,7 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
   {
     if (quick_select)
     {
-      if ((error= select->quick->get_next()))
+      if ((error= qep_tab->quick()->get_next()))
         break;
       file->position(sort_form->record[0]);
       DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
@@ -872,8 +867,7 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
     }
     if (error == 0)
       param->examined_rows++;
-    if (!error && (!select ||
-                   (!select->skip_record(thd, &skip_record) && !skip_record)))
+    if (!error && !qep_tab->skip_record(thd, &skip_record) && !skip_record)
     {
       ++(*found_rows);
       if (pq)
@@ -1029,7 +1023,7 @@ write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
   Store length as suffix in high-byte-first order.
 */
 
-static inline void store_length(uchar *to, uint length, uint pack_length)
+static inline void store_length(uchar *to, size_t length, uint pack_length)
 {
   switch (pack_length) {
   case 1:
@@ -1149,7 +1143,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
         }
         else
         {
-          uint diff;
+          size_t diff;
           uint sort_field_length= sort_field->length -
             sort_field->suffix_length;
           if (sort_field_length < length)

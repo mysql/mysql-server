@@ -610,9 +610,10 @@ size_t build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
   DBUG_ENTER("build_tmptable_filename");
 
   char *p= my_stpnmov(buff, mysql_tmpdir, bufflen);
+  DBUG_ASSERT(sizeof(my_thread_id) == 4);
   my_snprintf(p, bufflen - (p - buff), "/%s%lx_%lx_%x",
               tmp_file_prefix, current_pid,
-              thd->thread_id, thd->tmp_table++);
+              thd->thread_id(), thd->tmp_table++);
 
   if (lower_case_table_names)
   {
@@ -3355,7 +3356,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   const char	*key_name;
   Create_field	*sql_field,*dup_field;
   uint		field,null_fields,blob_columns,max_key_length;
-  ulong		record_offset= 0;
+  size_t	record_offset= 0;
   KEY		*key_info;
   KEY_PART_INFO *key_part_info;
   int		field_no,dup_no;
@@ -3792,7 +3793,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   key_number=0;
   for (; (key=key_iterator++) ; key_number++)
   {
-    uint key_length=0;
+    size_t key_length=0;
     Key_part_spec *column;
 
     if (key->name.str == ignore_key)
@@ -8819,8 +8820,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     anything goes wrong while renaming the new table.
   */
   char backup_name[32];
+  DBUG_ASSERT(sizeof(my_thread_id) == 4);
   my_snprintf(backup_name, sizeof(backup_name), "%s2-%lx-%lx", tmp_file_prefix,
-              current_pid, thd->thread_id);
+              current_pid, thd->thread_id());
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, backup_name);
   if (mysql_rename_table(old_db_type, alter_ctx.db, alter_ctx.table_name,
@@ -9066,6 +9068,8 @@ copy_data_between_tables(PSI_stage_progress *psi,
   ha_rows found_rows;
   bool auto_increment_field_copied= 0;
   sql_mode_t save_sql_mode;
+  QEP_TAB_standalone qep_tab_st;
+  QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
   DBUG_ENTER("copy_data_between_tables");
 
   if (mysql_trans_prepare_alter_copy_data(thd))
@@ -9144,8 +9148,9 @@ copy_data_between_tables(PSI_stage_progress *psi,
       if (setup_order(thd, select_lex->ref_pointer_array,
                       &tables, fields, all_fields, order))
         goto err;
-      Filesort fsort(order, HA_POS_ERROR, NULL);
-      if ((from->sort.found_records= filesort(thd, from, &fsort,
+      qep_tab.set_table(from);
+      Filesort fsort(order, HA_POS_ERROR);
+      if ((from->sort.found_records= filesort(thd, &qep_tab, &fsort,
                                               true,
                                               &examined_rows, &found_rows)) ==
           HA_POS_ERROR)
@@ -9155,7 +9160,7 @@ copy_data_between_tables(PSI_stage_progress *psi,
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  if (init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE))
+  if (init_read_record(&info, thd, from, NULL, 1, 1, FALSE))
   {
     error= 1;
     goto err;

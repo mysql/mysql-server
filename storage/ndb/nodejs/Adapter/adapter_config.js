@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -56,6 +56,10 @@ else if(existsSync(path.join(build2, "Debug", "ndb_adapter.node"))) {
   global.build_dir = path.join(build2, "Debug");
 }
 
+/* Some compatibility with older versions of node */
+if(typeof global.setImmediate !== 'function') {
+  global.setImmediate = process.nextTick;
+}
 
 
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #ifdef VM_TRACE_TIME
 static char* mytime()
 {
-  NDB_TICKS t = NdbTick_CurrentMillisecond();
+  Uint64 t = NdbTick_CurrentMillisecond();
   uint s = (t / 1000) % 3600;
   uint ms = t % 1000;
   static char buf[100];
@@ -46,9 +46,12 @@ SignalLoggerManager::SignalLoggerManager()
 
   // using mutex avoids MT log mixups but has some serializing effect
   m_mutex = 0;
+
+#ifdef NDB_USE_GET_ENV
   const char* p = NdbEnv_GetEnv("NDB_SIGNAL_LOG_MUTEX", (char*)0, 0);
   if (p != 0 && strchr("1Y", p[0]) != 0)
     m_mutex = NdbMutex_Create();
+#endif
 }
 
 SignalLoggerManager::~SignalLoggerManager()

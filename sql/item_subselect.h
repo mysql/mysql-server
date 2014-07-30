@@ -69,7 +69,7 @@ public:
   /* unit of subquery */
   st_select_lex_unit *unit;
   /**
-     If !=INT_MIN: this Item is in the condition attached to the JOIN_TAB
+     If !=NO_PLAN_IDX: this Item is in the condition attached to the JOIN_TAB
      having this index in the parent JOIN.
   */
   int in_cond_of_tab;
@@ -685,8 +685,9 @@ struct st_join_table;
 class subselect_indexsubquery_engine : public subselect_engine
 {
 protected:
-  st_join_table *tab;
+  QEP_TAB *tab;
   Item *cond; /* The WHERE condition of subselect */
+  ulonglong hash; /* Hash value calculated by copy_ref_key, when needed. */
 private:
   /* FALSE for 'ref', TRUE for 'ref-or-null'. */
   bool check_null;
@@ -712,7 +713,7 @@ public:
     constructor can assign THD because it will be called after
     SELECT_LEX::prepare
   */
-  subselect_indexsubquery_engine(THD *thd_arg, st_join_table *tab_arg,
+  subselect_indexsubquery_engine(THD *thd_arg, QEP_TAB *tab_arg,
 				 Item_subselect *subs, Item *where,
                                  Item *having_arg, bool chk_null,
                                  bool unique_arg)
@@ -813,7 +814,7 @@ public:
   }
   virtual enum_engine_type engine_type() const { return HASH_SJ_ENGINE; }
   
-  const st_join_table *get_join_tab() const { return tab; }
+  const QEP_TAB *get_qep_tab() const { return tab; }
   Item *get_cond_for_explain() const { return cond; }
 };
 #endif /* ITEM_SUBSELECT_INCLUDED */

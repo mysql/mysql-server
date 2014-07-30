@@ -27,6 +27,7 @@ Created 3/26/1996 Heikki Tuuri
 #define trx0trx_h
 
 #include <set>
+#include <list>
 
 #include "ha_prototypes.h"
 
@@ -166,6 +167,15 @@ trx_start_internal_low(
 void
 trx_start_internal_read_only_low(
 	trx_t*	trx);
+
+/**
+Check if transaction is started.
+@param[in] trx		Transaction whose state we need to check
+@reutrn true if transaction is in state started */
+UNIV_INLINE
+bool
+trx_is_started(
+	const trx_t*	trx);
 
 #ifdef UNIV_DEBUG
 #define trx_start_if_not_started_xa(t, rw)			\
@@ -431,14 +441,11 @@ that is serving a running transaction.
 A running RW transaction must be in trx_sys->rw_trx_list.
 @return TRUE if trx->state == state */
 UNIV_INLINE
-ibool
+bool
 trx_state_eq(
 /*=========*/
 	const trx_t*	trx,	/*!< in: transaction */
-	trx_state_t	state)	/*!< in: state;
-				if state != TRX_STATE_NOT_STARTED
-				asserts that
-				trx->state != TRX_STATE_NOT_STARTED */
+	trx_state_t	state)	/*!< in: state */
 	__attribute__((warn_unused_result));
 # ifdef UNIV_DEBUG
 /**********************************************************************//**
@@ -484,13 +491,13 @@ is estimated as the number of altered rows + the number of locked rows.
 Compares the "weight" (or size) of two transactions. Transactions that
 have edited non-transactional tables are considered heavier than ones
 that have not.
-@return TRUE if weight(a) >= weight(b) */
+@return true if weight(a) >= weight(b) */
 
-ibool
+bool
 trx_weight_ge(
 /*==========*/
-	const trx_t*	a,	/*!< in: the first transaction to be compared */
-	const trx_t*	b);	/*!< in: the second transaction to be compared */
+	const trx_t*	a,	/*!< in: the transaction to be compared */
+	const trx_t*	b);	/*!< in: the transaction to be compared */
 
 /* Maximum length of a string that can be returned by
 trx_get_que_state_str(). */
@@ -538,14 +545,14 @@ trx_pool_init();
 void
 trx_pool_close();
 
-/*************************************************************//**
+/**
 Set the transaction as a read-write transaction if it is not already
-tagged as such. */
+tagged as such.
+@param[in,out] trx	Transaction that needs to be "upgraded" to RW from RO */
 
 void
 trx_set_rw_mode(
-/*============*/
-	trx_t*		trx);		/*!< in/out: transaction that is RW */
+	trx_t*		trx);
 
 /**
 Increase the reference count. If the transaction is in state
@@ -620,6 +627,7 @@ Check transaction state */
 	case TRX_STATE_COMMITTED_IN_MEMORY:				\
 		continue;						\
 	case TRX_STATE_NOT_STARTED:					\
+	case TRX_STATE_FORCED_ROLLBACK:					\
 		break;							\
 	}								\
 	ut_error;							\
@@ -628,7 +636,8 @@ Check transaction state */
 /** Check if transaction is free so that it can be re-initialized.
 @param t transaction handle */
 #define	assert_trx_is_free(t)	do {					\
-	ut_ad(trx_state_eq((t), TRX_STATE_NOT_STARTED));		\
+	ut_ad(trx_state_eq((t), TRX_STATE_NOT_STARTED)			\
+	      || trx_state_eq((t), TRX_STATE_FORCED_ROLLBACK));		\
 	ut_ad(!trx_is_rseg_updated(trx));				\
 	ut_ad(!MVCC::is_view_active((t)->read_view));			\
 	ut_ad((t)->lock.wait_thr == NULL);				\
@@ -658,6 +667,7 @@ The tranasction must be in the mysql_trx_list. */
 			ut_ad(!(t)->in_rw_trx_list);			\
 			ut_ad((t)->in_mysql_trx_list);			\
 			ut_ad(t_state == TRX_STATE_NOT_STARTED		\
+			      || t_state == TRX_STATE_FORCED_ROLLBACK	\
 			      || t_state == TRX_STATE_ACTIVE);		\
 		} else {						\
 			check_trx_state(t);				\
@@ -749,7 +759,7 @@ struct trx_lock_t {
 					and lock_sys->mutex; removals are
 					protected by lock_sys->mutex */
 
-	ib_vector_t*	table_locks;	/*!< All table locks requested by this
+	lock_pool_t	table_locks;	/*!< All table locks requested by this
 					transaction, including AUTOINC locks */
 
 	bool		cancel;		/*!< true if the transaction is being
@@ -818,7 +828,7 @@ lock_sys->mutex and sometimes by trx->mutex. */
 
 
 /** Represents an instance of rollback segment along with its state variables.*/
-struct trx_undo_ptr_t{
+struct trx_undo_ptr_t {
 	trx_rseg_t*	rseg;		/*!< rollback segment assigned to the
 					transaction, or NULL if not assigned
 					yet */
@@ -847,7 +857,9 @@ enum trx_rseg_type_t {
 	TRX_RSEG_TYPE_NOREDO		/*!< non-redo rollback segment. */
 };
 
-struct trx_t{
+typedef std::list<trx_t*> trx_list_t;
+
+struct trx_t {
 	TrxMutex	mutex;		/*!< Mutex protecting the fields
 					state and lock (except some fields
 					of lock, which are protected by
@@ -876,6 +888,7 @@ struct trx_t{
 	Possible states:
 
 	TRX_STATE_NOT_STARTED
+	TRX_STATE_FORCED_ROLLBACK
 	TRX_STATE_ACTIVE
 	TRX_STATE_PREPARED
 	TRX_STATE_COMMITTED_IN_MEMORY (alias below COMMITTED)
@@ -1271,6 +1284,14 @@ but does NOT protect:
 Bear in mind (3) and (4) when using the hash index.
 */
 extern rw_lock_t*	btr_search_latch_temp;
+
+/** Track if a transaction is executing inside InnoDB code */
+class TrxInInnoDB {
+public:
+	TrxInInnoDB(trx_t* trx) { }
+	~TrxInInnoDB() { }
+	static bool is_aborted() { return(false); }
+};
 
 /** The latch protecting the adaptive search system */
 #define btr_search_latch	(*btr_search_latch_temp)

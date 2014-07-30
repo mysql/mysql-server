@@ -1,0 +1,50 @@
+###########################################################################################
+# Testing Bug#14166590 DATA NODE CRASHES AT LINE 1388 IN DBTC
+###########################################################################################
+
+-- source include/not_embedded.inc
+-- source include/have_ndb.inc
+# We are using some debug-only features in this test
+--source include/have_ndb_debug.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# Setup
+#
+let $ndb_mgm_cmd = $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --verbose=0;
+
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+connection con1;
+create table t1(  pk1 INT NOT NULL PRIMARY KEY,
+                  attr1 INT NOT NULL UNIQUE,
+                  attr2 INT,
+                  attr3 VARCHAR(1024)
+) ENGINE = ndb;
+INSERT INTO t1 VALUES (9410, 9412, 9412, '9412');
+
+connection con2;
+begin;
+# Force abort of transaction with by error injection after
+# next operation, but delay informing Ndb API to simulate
+# a TCROLLBACKREP signal in flight.
+--exec $ndb_mgm_cmd -e "all error 8100" >> $NDB_TOOLS_OUTPUT
+select * from t1 where attr1 = 9412 order by pk1;
+disable_query_log;
+while (`select @@error_count = 0`)
+{
+  --error 0,1296,1297
+  select pk1 from t1 where attr1 = 9412 into @slask;
+}
+enable_query_log;
+begin;
+# Check that no overwritten transaction record is used
+select * from t1 where pk1 = 9410 order by pk1;
+commit;
+
+connection con1;
+drop table t1;

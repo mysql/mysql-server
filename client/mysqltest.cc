@@ -818,13 +818,6 @@ public:
         perror("fwrite");
       }
     }
-
-    if (!lines)
-    {
-      fprintf(stderr,
-              "\nMore results from queries before failure can be found in %s\n",
-              m_file_name);
-    }
     fflush(stderr);
 
     DBUG_VOID_RETURN;
@@ -4530,9 +4523,133 @@ void do_sync_with_master(struct st_command *command)
 
 
 /*
-  when ndb binlog is on, this call will wait until last updated epoch
-  (locally in the mysqld) has been received into the binlog
+  Wait for ndb binlog injector to be up-to-date with all changes
+  done on the local mysql server
 */
+
+static void
+ndb_wait_for_binlog_injector(void)
+{
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  MYSQL *mysql = &cur_con->mysql;
+  const char *query;
+  ulong have_ndbcluster;
+  if (mysql_query(mysql, query=
+                  "select count(*) from information_schema.engines"
+                  "  where engine = 'ndbcluster' and"
+                  "        support in ('YES', 'DEFAULT')"))
+    die("'%s' failed: %d %s", query,
+        mysql_errno(mysql), mysql_error(mysql));
+  if (!(res= mysql_store_result(mysql)))
+    die("mysql_store_result() returned NULL for '%s'", query);
+  if (!(row= mysql_fetch_row(res)))
+    die("Query '%s' returned empty result", query);
+
+  have_ndbcluster= strcmp(row[0], "1") == 0;
+  mysql_free_result(res);
+
+  if (!have_ndbcluster)
+  {
+    return;
+  }
+
+  ulonglong start_epoch= 0,
+    handled_epoch= 0,
+    latest_trans_epoch=0,
+    latest_handled_binlog_epoch= 0,
+    start_handled_binlog_epoch= 0;
+  const int WaitSeconds = 150;
+
+  int count= 0;
+  int do_continue= 1;
+  while (do_continue)
+  {
+    const char binlog[]= "binlog";
+    const char latest_trans_epoch_str[]=
+      "latest_trans_epoch=";
+    const char latest_handled_binlog_epoch_str[]=
+      "latest_handled_binlog_epoch=";
+    if (count)
+      my_sleep(100*1000); /* 100ms */
+
+    if (mysql_query(mysql, query= "show engine ndb status"))
+      die("failed in '%s': %d %s", query,
+          mysql_errno(mysql), mysql_error(mysql));
+    if (!(res= mysql_store_result(mysql)))
+      die("mysql_store_result() returned NULL for '%s'", query);
+    while ((row= mysql_fetch_row(res)))
+    {
+      if (strcmp(row[1], binlog) == 0)
+      {
+        const char *status= row[2];
+
+        /* latest_trans_epoch */
+        while (*status && strncmp(status, latest_trans_epoch_str,
+                                  sizeof(latest_trans_epoch_str)-1))
+          status++;
+        if (*status)
+        {
+          status+= sizeof(latest_trans_epoch_str)-1;
+          latest_trans_epoch= my_strtoull(status, (char**) 0, 10);
+        }
+        else
+          die("result does not contain '%s' in '%s'",
+              latest_trans_epoch_str, query);
+
+        /* latest_handled_binlog */
+        while (*status &&
+               strncmp(status, latest_handled_binlog_epoch_str,
+                       sizeof(latest_handled_binlog_epoch_str)-1))
+          status++;
+        if (*status)
+        {
+          status+= sizeof(latest_handled_binlog_epoch_str)-1;
+          latest_handled_binlog_epoch= my_strtoull(status, (char**) 0, 10);
+        }
+        else
+          die("result does not contain '%s' in '%s'",
+              latest_handled_binlog_epoch_str, query);
+
+        if (count == 0)
+        {
+          start_epoch= latest_trans_epoch;
+          start_handled_binlog_epoch= latest_handled_binlog_epoch;
+        }
+        break;
+      }
+    }
+    if (!row)
+      die("result does not contain '%s' in '%s'",
+          binlog, query);
+    if (latest_handled_binlog_epoch > handled_epoch)
+      count= 0;
+    handled_epoch= latest_handled_binlog_epoch;
+    count++;
+    if (latest_handled_binlog_epoch >= start_epoch)
+      do_continue= 0;
+    else if (count > (WaitSeconds * 10))
+    {
+      die("do_save_master_pos() timed out after %u s waiting for "
+          "last committed epoch to be applied by the "
+          "Ndb binlog injector.  "
+          "Ndb epoch %llu/%llu to be handled.  "
+          "Last handled epoch : %llu/%llu.  "
+          "First handled epoch : %llu/%llu.",
+          WaitSeconds,
+          start_epoch >> 32,
+          start_epoch & 0xffffffff,
+          latest_handled_binlog_epoch >> 32,
+          latest_handled_binlog_epoch & 0xffffffff,
+          start_handled_binlog_epoch >> 32,
+          start_handled_binlog_epoch & 0xffffffff);
+    }
+
+    mysql_free_result(res);
+  }
+}
+
+
 int do_save_master_pos()
 {
   MYSQL_RES *res;
@@ -4540,103 +4657,11 @@ int do_save_master_pos()
   MYSQL *mysql = &cur_con->mysql;
   const char *query;
   DBUG_ENTER("do_save_master_pos");
-
   /*
-    Wait for ndb binlog to be up-to-date with all changes
-    done on the local mysql server
+    when ndb binlog is on, this call will wait until last updated epoch
+    (locally in the mysqld) has been received into the binlog
   */
-  {
-    bool have_ndbcluster;
-    if (mysql_query(mysql, query=
-                    "select count(*) from information_schema.engines"
-                    "  where engine = 'ndbcluster' and"
-                    "        support in ('YES', 'DEFAULT')"))
-      die("'%s' failed: %d %s", query,
-          mysql_errno(mysql), mysql_error(mysql));
-    if (!(res= mysql_store_result(mysql)))
-      die("mysql_store_result() returned NULL for '%s'", query);
-    if (!(row= mysql_fetch_row(res)))
-      die("Query '%s' returned empty result", query);
-
-    have_ndbcluster= strcmp(row[0], "1") == 0;
-    mysql_free_result(res);
-
-    if (have_ndbcluster)
-    {
-      ulonglong start_epoch= 0, handled_epoch= 0,
-	latest_trans_epoch=0,
-	latest_handled_binlog_epoch= 0;
-      int count= 0;
-      int do_continue= 1;
-      while (do_continue)
-      {
-        const char binlog[]= "binlog";
-        const char latest_trans_epoch_str[]=
-          "latest_trans_epoch=";
-        const char latest_handled_binlog_epoch_str[]=
-          "latest_handled_binlog_epoch=";
-        if (count)
-          my_sleep(100*1000); /* 100ms */
-        if (mysql_query(mysql, query= "show engine ndb status"))
-          die("failed in '%s': %d %s", query,
-              mysql_errno(mysql), mysql_error(mysql));
-        if (!(res= mysql_store_result(mysql)))
-          die("mysql_store_result() returned NULL for '%s'", query);
-        while ((row= mysql_fetch_row(res)))
-        {
-          if (strcmp(row[1], binlog) == 0)
-          {
-            const char *status= row[2];
-
-	    /* latest_trans_epoch */
-	    while (*status && strncmp(status, latest_trans_epoch_str,
-				      sizeof(latest_trans_epoch_str)-1))
-	      status++;
-	    if (*status)
-	    {
-	      status+= sizeof(latest_trans_epoch_str)-1;
-	      latest_trans_epoch= my_strtoull(status, (char**) 0, 10);
-	    }
-	    else
-	      die("result does not contain '%s' in '%s'",
-		  latest_trans_epoch_str, query);
-
-	    /* latest_handled_binlog */
-	    while (*status &&
-		   strncmp(status, latest_handled_binlog_epoch_str,
-			   sizeof(latest_handled_binlog_epoch_str)-1))
-	      status++;
-	    if (*status)
-	    {
-	      status+= sizeof(latest_handled_binlog_epoch_str)-1;
-	      latest_handled_binlog_epoch= my_strtoull(status, (char**) 0, 10);
-	    }
-	    else
-	      die("result does not contain '%s' in '%s'",
-		  latest_handled_binlog_epoch_str, query);
-
-	    if (count == 0)
-	      start_epoch= latest_trans_epoch;
-	    break;
-	  }
-	}
-	if (!row)
-	  die("result does not contain '%s' in '%s'",
-	      binlog, query);
-	if (latest_handled_binlog_epoch > handled_epoch)
-	  count= 0;
-	handled_epoch= latest_handled_binlog_epoch;
-	count++;
-	if (latest_handled_binlog_epoch >= start_epoch)
-          do_continue= 0;
-        else if (count > 300) /* 30s */
-	{
-	  break;
-        }
-        mysql_free_result(res);
-      }
-    }
-  }
+  ndb_wait_for_binlog_injector();
 
   if (mysql_query(mysql, query= "show master status"))
     die("failed in 'show master status': %d %s",
@@ -5651,7 +5676,6 @@ void do_connect(struct st_command *command)
   char *con_options;
   my_bool con_ssl= 0, con_compress= 0;
   my_bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
-  my_bool con_secure_auth= 1;
   struct st_connection* con_slot;
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   my_bool save_opt_use_ssl= opt_use_ssl;
@@ -5746,8 +5770,6 @@ void do_connect(struct st_command *command)
       con_shm= 1;
     else if (!strncmp(con_options, "CLEARTEXT", 9))
       con_cleartext_enable= 1;
-    else if (!strncmp(con_options, "SKIPSECUREAUTH",14))
-      con_secure_auth= 0;
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -5857,10 +5879,6 @@ void do_connect(struct st_command *command)
   if (con_cleartext_enable)
     mysql_options(&con_slot->mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char*) &con_cleartext_enable);
-
-  if (!con_secure_auth)
-    mysql_options(&con_slot->mysql, MYSQL_SECURE_AUTH,
-                  (char*) &con_secure_auth);
 
   /* Special database to allow one to connect without a database name */
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
@@ -10201,7 +10219,7 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
     }
     else /* no match this time, just copy the string as is */
     {
-      int left_in_str= str_end-str_p;
+      size_t left_in_str= str_end-str_p;
       need_buf_len= (res_p-buf) + left_in_str;
       SECURE_REG_BUF
         memcpy(res_p,str_p,left_in_str);

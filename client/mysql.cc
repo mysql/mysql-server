@@ -80,8 +80,6 @@ extern "C" {
 #if defined(HAVE_TERMIOS_H)
 #include <termios.h>
 #include <unistd.h>
-#elif defined(HAVE_TERMBITS_H)
-#include <termbits.h>
 #elif defined(HAVE_ASM_TERMBITS_H) && (!defined __GLIBC__ || !(__GLIBC__ > 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ > 0))
 #include <asm/termbits.h>		// Standard linux
 #endif
@@ -670,7 +668,6 @@ static COMMANDS commands[] = {
   { "NUMERIC", 0, 0, 0, ""},
   { "NVARCHAR", 0, 0, 0, ""},
   { "OFFSET", 0, 0, 0, ""},
-  { "OLD_PASSWORD", 0, 0, 0, ""},
   { "ON", 0, 0, 0, ""},
   { "ONE", 0, 0, 0, ""},
   { "ONE_SHOT", 0, 0, 0, ""},
@@ -1124,7 +1121,7 @@ static void initialize_readline (char *name);
 
 static COMMANDS *find_command(char *name);
 static COMMANDS *find_command(char cmd_name);
-static bool add_line(String &buffer, char *line, ulong line_length,
+static bool add_line(String &buffer, char *line, size_t line_length,
                      char *in_string, bool *ml_comment, bool truncated);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
@@ -1410,13 +1407,22 @@ int main(int argc,char *argv[])
   if (opt_outfile)
     end_tee();
   mysql_end(0);
-#ifndef _lint
   DBUG_RETURN(0);				// Keep compiler happy
-#endif
 }
 
 void mysql_end(int sig)
 {
+#ifndef _WIN32
+  /*
+    Ingnoring SIGQUIT, SIGINT and SIGHUP signals when cleanup process starts.
+    This will help in resolving the double free issues, which occures in case
+    the signal handler function is started in between the clean up function.
+  */
+  signal(SIGQUIT, SIG_IGN);
+  signal(SIGINT, SIG_IGN);
+  signal(SIGHUP, SIG_IGN);
+#endif
+
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
   if (!status.batch && !quick && !opt_html && !opt_xml &&
@@ -1806,8 +1812,8 @@ static struct my_option my_long_options[] =
    &max_join_size, &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L,
    1, ULONG_MAX, 0, 1, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
-    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
+    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"server-arg", OPT_SERVER_ARG, "Send embedded server this as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
@@ -1940,6 +1946,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
 #endif
+    break;
+  case OPT_SECURE_AUTH:
+    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    if (!opt_secure_auth)
+    {
+      usage(0);
+      exit(1);
+    }
     break;
   case OPT_SERVER_ARG:
 #ifdef EMBEDDED_LIBRARY
@@ -2443,7 +2457,7 @@ static COMMANDS *find_command(char *name)
 }
 
 
-static bool add_line(String &buffer, char *line, ulong line_length,
+static bool add_line(String &buffer, char *line, size_t line_length,
                      char *in_string, bool *ml_comment, bool truncated)
 {
   uchar inchar;
@@ -3845,10 +3859,10 @@ print_table_data(MYSQL_RES *result)
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
       size_t name_length= strlen(field->name);
-      uint numcells= charset_info->cset->numcells(charset_info,
-                                                  field->name,
-                                                  field->name + name_length);
-      uint display_length= field->max_length + name_length - numcells;
+      size_t numcells= charset_info->cset->numcells(charset_info,
+                                                    field->name,
+                                                    field->name + name_length);
+      size_t display_length= field->max_length + name_length - numcells;
       tee_fprintf(PAGER, " %-*s |",
                   min<int>(display_length, MAX_COLUMN_LENGTH),
                   field->name);
@@ -4965,9 +4979,6 @@ init_connection_options(MYSQL *mysql)
 
   if (opt_compress)
     mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
-
-  if (!opt_secure_auth)
-    mysql_options(mysql, MYSQL_SECURE_AUTH, (char *) &opt_secure_auth);
 
   if (using_opt_local_infile)
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);

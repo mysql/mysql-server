@@ -164,7 +164,7 @@ public:
   {
     if (thd->get_command() == COM_DAEMON)
       return false;
-    if (thd->thread_id == m_id)
+    if (thd->thread_id() == m_id)
     {
       mysql_mutex_lock(&thd->LOCK_thd_data);
       return true;

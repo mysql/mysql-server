@@ -856,25 +856,37 @@ SELECT Crosses(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 SELECT Crosses(NULL,NULL);
 SELECT Crosses(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT Crosses(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT Crosses(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT Crosses(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Crosses(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT Crosses(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Crosses(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Crosses(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Crosses(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT Crosses(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Crosses(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT Crosses(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Crosses(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT Crosses(,);
@@ -897,25 +909,37 @@ SELECT ST_Crosses(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
 SELECT ST_Crosses(NULL,NULL);
 SELECT ST_Crosses(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Crosses(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Crosses(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Crosses(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+--error ER_GIS_INVALID_DATA
 SELECT ST_Crosses(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 --error ER_PARSE_ERROR
 SELECT ST_Crosses(,);

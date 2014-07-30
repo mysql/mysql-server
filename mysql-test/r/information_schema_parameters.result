@@ -19,7 +19,7 @@ PARAMETERS	CREATE TEMPORARY TABLE `PARAMETERS` (
   `COLLATION_NAME` varchar(64) DEFAULT NULL,
   `DTD_IDENTIFIER` longtext NOT NULL,
   `ROUTINE_TYPE` varchar(9) NOT NULL DEFAULT ''
-)  DEFAULT CHARSET=utf8
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
   AND table_name   = 'parameters'

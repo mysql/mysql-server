@@ -32,7 +32,7 @@ public:
   ~ThreadConfig();
   void init(void);
 
-  void ipControlLoop(NdbThread*, Uint32 thread_index);
+  void ipControlLoop(NdbThread*);
 
   int doStart(NodeState::StartLevel startLevel);
 private:

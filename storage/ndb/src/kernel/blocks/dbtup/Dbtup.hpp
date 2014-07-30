@@ -622,8 +622,12 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   STATIC_CONST( FREE_PAGE_RNIL = RNIL + 1 );
 
 struct Fragrecord {
+  // Number of allocated pages for fixed-sized data.
   Uint32 noOfPages;
+  // Number of allocated pages for var-sized data.
   Uint32 noOfVarPages;
+  // No of allocated but unused words for var-sized fields.
+  Uint64 m_varWordsFree;
 
   Uint32 m_max_page_no;
   Uint32 m_free_page_id_list;
@@ -657,9 +661,24 @@ struct Fragrecord {
   Uint32 m_tablespace_id;
   Uint32 m_logfile_group_id;
   Disk_alloc_info m_disk_alloc_info;
+  // Number of fixed-seize tuple parts (which equals the tuple count).
+  Uint64 m_fixedElemCount;
+  /**
+    Number of variable-size tuple parts, i.e. the number of tuples that has
+    one or more non-NULL varchar/varbinary or blob fields. (The first few bytes
+    of a blob is stored like that, the rest in a blob table.)
+  */
+  Uint64 m_varElemCount;
+
+  // Consistency check.
+  bool verifyVarSpace() const
+  {
+    return (m_varWordsFree < Uint64(1)<<60) && //Underflow.
+      m_varWordsFree * sizeof(Uint32) <=
+      noOfVarPages * File_formats::NDB_PAGE_SIZE;
+  }
 };
 typedef Ptr<Fragrecord> FragrecordPtr;
-
 
 struct Operationrec {
   /*
@@ -711,6 +730,10 @@ struct Operationrec {
     Uint32 m_commit_disk_callback_page;
   };
 
+  Uint32 op_type;
+  Uint32 trans_state;
+  Uint32 tuple_state;
+
   /*
    * State variables on connection.
    * State variable on tuple after multi-updates
@@ -722,14 +745,18 @@ struct Operationrec {
    * Is delete or insert performed
    */
   struct OpBitFields {
-    unsigned int trans_state : 3;
-    unsigned int tuple_state : 2;
-    unsigned int in_active_list : 1;
+  /*
+   * TUX needs to know the tuple version of the tuple since it
+   * keeps an entry for both the committed and all versions in
+   * a transaction currently. So each update will create a new
+   * version even if in the same transaction.
+   */
+    unsigned int tupVersion : 16;
 
-    unsigned int op_type : 3;
+    unsigned int m_reorg : 2;
+    unsigned int in_active_list : 1;
     unsigned int delete_insert_flag : 1;
     unsigned int primary_replica : 1;
-    unsigned int m_reorg : 2;
     unsigned int m_disk_preallocated : 1;
     unsigned int m_load_diskpage_on_commit : 1;
     unsigned int m_wait_log_buffer : 1;
@@ -744,18 +771,11 @@ struct Operationrec {
      */
     unsigned int m_disable_fk_checks : 1;
   };
-  union {
-    OpBitFields op_struct;
+  union OpStruct {
+    OpBitFields bit_field;
     Uint32 op_bit_fields;
   };
-
-  /*
-   * TUX needs to know the tuple version of the tuple since it
-   * keeps an entry for both the committed and all versions in
-   * a transaction currently. So each update will create a new
-   * version even if in the same transaction.
-   */
-  Uint16 tupVersion;
+  OpStruct op_struct;
 
   /*
    * When refreshing a row, there are four scenarios
@@ -1488,21 +1508,23 @@ struct KeyReqStruct {
 /**
  * These variables are used as temporary storage during execution of the
  * TUPKEYREQ signal.
+ *
  * The first set of variables defines a number of variables needed for
  * the fix part of the tuple.
  *
  * The second part defines a number of commonly used meta data variables.
  *
- * The third set of variables defines a set of variables needed for the
- * variable part.
+ * The third part is variables needed only for updates and inserts.
  *
- * The fourth part is variables needed only for updates and inserts.
+ * The fourth set of variables defines a set of variables needed for the
+ * variable part.
  *
  * The fifth part is a long array of real lengths which is is put last
  * for cache memory reasons. This is part of the variable part and
  * contains the real allocated lengths whereas the tuple contains
  * the length of attribute stored.
  */
+
   Tablerec* tablePtrP;
   Fragrecord* fragPtrP;
   Operationrec * operPtrP;
@@ -1530,6 +1552,38 @@ struct KeyReqStruct {
   bool is_expanded;
   bool m_is_lcp;
   enum When m_when;
+
+  Tuple_header *m_disk_ptr;
+  PagePtr m_page_ptr;
+  PagePtr m_varpart_page_ptr;    // could be same as m_page_ptr_p
+  PagePtr m_disk_page_ptr;       //
+  Local_key m_row_id;
+  Uint32 optimize_options;
+  
+  bool            dirty_op;
+  bool            interpreted_exec;
+  bool            last_row;
+  bool            m_use_rowid;
+  Uint8           m_reorg;
+  bool            m_deferred_constraints;
+  bool            m_disable_fk_checks;
+
+  Signal*         signal;
+  Uint32 no_fired_triggers;
+  Uint32 frag_page_id;
+  Uint32 hash_value;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
+  Uint32 log_size;
+  Uint32 read_length;
+  Uint32 attrinfo_len;
+  Uint32 tc_operation_ptr;
+  Uint32 trans_id1;
+  Uint32 trans_id2;
+  Uint32 TC_index;
+  // next 2 apply only to attrids >= 64 (zero otherwise)
+  BlockReference TC_ref;
+  BlockReference rec_blockref;
 
   struct Var_data {
     /*
@@ -1564,38 +1618,6 @@ struct KeyReqStruct {
     */
     Uint16 m_dyn_len_offset;
   } m_var_data[2];
-
-  Tuple_header *m_disk_ptr;
-  PagePtr m_page_ptr;
-  PagePtr m_varpart_page_ptr;    // could be same as m_page_ptr_p
-  PagePtr m_disk_page_ptr;       //
-  Local_key m_row_id;
-  Uint32 optimize_options;
-  
-  bool            dirty_op;
-  bool            interpreted_exec;
-  bool            last_row;
-  bool            m_use_rowid;
-  Uint8           m_reorg;
-  bool            m_deferred_constraints;
-  bool            m_disable_fk_checks;
-
-  Signal*         signal;
-  Uint32 no_fired_triggers;
-  Uint32 frag_page_id;
-  Uint32 hash_value;
-  Uint32 gci_hi;
-  Uint32 gci_lo;
-  Uint32 log_size;
-  Uint32 read_length;
-  Uint32 attrinfo_len;
-  Uint32 tc_operation_ptr;
-  Uint32 trans_id1;
-  Uint32 trans_id2;
-  Uint32 TC_index;
-  // next 2 apply only to attrids >= 64 (zero otherwise)
-  BlockReference TC_ref;
-  BlockReference rec_blockref;
 
   /*
    * A bit mask where a bit set means that the update or insert
@@ -1716,6 +1738,41 @@ public:
   void nr_delete_log_buffer_callback(Signal*, Uint32 op, Uint32 page);
 
   bool get_frag_info(Uint32 tableId, Uint32 fragId, Uint32* maxPage);
+
+  void execSTORED_PROCREQ(Signal* signal);
+
+
+  // Statistics about fragment memory usage.
+  struct FragStats
+  {
+    // Size of fixed-size part of record.
+    Uint32 fixedRecordBytes;
+    // Page size (32k, see File_formats::NDB_PAGE_SIZE).
+    Uint32 pageSizeBytes;
+    // Number of fixed-size parts that fits in each page.
+    Uint32 fixedSlotsPerPage;
+    // Number of pages allocated for storing fixed-size parts.
+    Uint64 fixedMemoryAllocPages;
+    // Number of pages allocated for storing var-size parts.
+    Uint64 varMemoryAllocPages;
+    /** 
+      Number of bytes for storing var-size parts that are allocated but not yet 
+      used.
+    */
+    Uint64 varMemoryFreeBytes;
+    // Number of fixed-size elements (i.e. number of rows.)
+    Uint64 fixedElemCount;
+    /**
+      Number of var-size elements. There will be one for each row that has at
+      least one non-null var-size field (varchar/varbinary/blob).
+     */
+    Uint64 varElemCount;
+    // Size of the page map (DynArr256) that maps from logical to physical pages.
+    Uint64 logToPhysMapAllocBytes;
+  };
+
+  const FragStats get_frag_stats(Uint32 fragId) const;
+
 private:
   BLOCK_DEFINES(Dbtup);
 
@@ -1734,7 +1791,6 @@ private:
   void execMEMCHECKREQ(Signal* signal);
   void execTUPSEIZEREQ(Signal* signal);
   void execTUPRELEASEREQ(Signal* signal);
-  void execSTORED_PROCREQ(Signal* signal);
 
   void execCREATE_TAB_REQ(Signal*);
   void execTUP_ADD_ATTRREQ(Signal* signal);
@@ -1954,7 +2010,16 @@ private:
 // *****************************************************************
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void execTUPKEYREQ(Signal* signal);
+public:
+  bool execTUPKEYREQ(Signal* signal);
+  /**
+   * Prepare for execTUPKEYREQ by prefetching row and preparing
+   * some variables as part of row address calculation.
+   */
+  void prepareTUPKEYREQ(Uint32 page_id,
+                        Uint32 page_idx,
+                        Uint32 frag_id);
+private:
   void disk_page_load_callback(Signal*, Uint32 op, Uint32 page);
   void disk_page_load_scan_callback(Signal*, Uint32 op, Uint32 page);
 
@@ -2060,8 +2125,7 @@ private:
 //------------------------------------------------------------------
   void sendReadAttrinfo(Signal* signal,
                         KeyReqStruct *req_struct,
-                        Uint32 TnoOfData,
-                        const Operationrec * regOperPtr);
+                        Uint32 TnoOfData);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -2072,9 +2136,10 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  void sendTUPKEYCONF(Signal* signal,
-                      KeyReqStruct *req_struct,
-                      Operationrec * regOperPtr); 
+  void returnTUPKEYCONF(Signal* signal,
+                        KeyReqStruct *req_struct,
+                        Operationrec * regOperPtr,
+                        TransState trans_state);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -2782,6 +2847,10 @@ private:
 
   void prepare_initial_insert(KeyReqStruct*, Operationrec*, Tablerec*);
   void fix_disk_insert_no_mem_insert(KeyReqStruct*, Operationrec*, Tablerec*);
+  void setup_fixed_tuple_ref_opt(KeyReqStruct* req_struct);
+  void setup_fixed_tuple_ref(KeyReqStruct* req_struct,
+			     Operationrec* regOperPtr,
+			     Tablerec* regTabPtr);
   void setup_fixed_part(KeyReqStruct* req_struct,
 			Operationrec* regOperPtr,
 			Tablerec* regTabPtr);
@@ -2867,8 +2936,6 @@ private:
   void initializeDefaultValuesFrag();
 
   void initTab(Tablerec* regTabPtr);
-
-  void startphase3Lab(Signal* signal, Uint32 config1, Uint32 config2);
 
   void fragrefuseLab(Signal* signal, FragoperrecPtr fragOperPtr);
   void fragrefuse1Lab(Signal* signal, FragoperrecPtr fragOperPtr);
@@ -3082,6 +3149,8 @@ private:
   Uint32 cnoOfFragrec;
   RSS_OP_COUNTER(cnoOfFreeFragrec);
   RSS_OP_SNAPSHOT(cnoOfFreeFragrec);
+  FragrecordPtr prepare_fragptr;
+
   /*
    * DefaultValuesFragment is a normal struct Fragrecord.
    * It is TUP block-variable.
@@ -3114,11 +3183,20 @@ private:
   Uint32 cnoOfTabDescrRec;
   RSS_OP_COUNTER(cnoOfFreeTabDescrRec);
   RSS_OP_SNAPSHOT(cnoOfFreeTabDescrRec);
+  TablerecPtr prepare_tabptr;
+
+  PagePtr prepare_pageptr;
+  Uint32 *prepare_tuple_ptr;
+#ifdef VM_TRACE
+  Local_key prepare_orig_local_key;
+#endif
+  Uint32 prepare_page_no;
   
   Uint32 cdata[32];
   Uint32 cdataPages[16];
   Uint32 cpackedListIndex;
   Uint32 cpackedList[MAX_NODES];
+  Uint32 cerrorPackedDelay;
   Uint32 cfreeTdList[16];
   Uint32 clastBitMask;
   Uint32 clblPageCounter;
@@ -3425,10 +3503,30 @@ Dbtup::get_frag_page_id(Uint32 real_page_id)
 #endif
 
 inline
+void
+Dbtup::setup_fixed_tuple_ref_opt(KeyReqStruct* req_struct)
+{
+  req_struct->m_page_ptr = prepare_pageptr;
+  req_struct->m_tuple_ptr = (Tuple_header*)prepare_tuple_ptr;
+}
+
+inline
+void
+Dbtup::setup_fixed_tuple_ref(KeyReqStruct* req_struct,
+                             Operationrec* regOperPtr,
+                             Tablerec* regTabPtr)
+{
+  PagePtr page_ptr;
+  Uint32* ptr= get_ptr(&page_ptr, &regOperPtr->m_tuple_location, regTabPtr);
+  req_struct->m_page_ptr = page_ptr;
+  req_struct->m_tuple_ptr = (Tuple_header*)ptr;
+}
+
+inline
 Dbtup::TransState
 Dbtup::get_trans_state(Operationrec * regOperPtr)
 {
-  return (Dbtup::TransState)regOperPtr->op_struct.trans_state;
+  return (Dbtup::TransState)regOperPtr->trans_state;
 }
 
 inline
@@ -3436,14 +3534,14 @@ void
 Dbtup::set_trans_state(Operationrec* regOperPtr,
                        Dbtup::TransState trans_state)
 {
-  regOperPtr->op_struct.trans_state= (Uint32)trans_state;
+  regOperPtr->trans_state= (Uint32)trans_state;
 }
 
 inline
 Dbtup::TupleState
 Dbtup::get_tuple_state(Operationrec * regOperPtr)
 {
-  return (Dbtup::TupleState)regOperPtr->op_struct.tuple_state;
+  return (Dbtup::TupleState)regOperPtr->tuple_state;
 }
 
 inline
@@ -3451,7 +3549,7 @@ void
 Dbtup::set_tuple_state(Operationrec* regOperPtr,
                        Dbtup::TupleState tuple_state)
 {
-  regOperPtr->op_struct.tuple_state= (Uint32)tuple_state;
+  regOperPtr->tuple_state= (Uint32)tuple_state;
 }
 
 

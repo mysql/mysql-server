@@ -195,7 +195,7 @@ public:
 
     @return false if there is no error, otherwise true is returned.
   */
-  bool get_password(char *password_arg, int *password_arg_size);
+  bool get_password(char *password_arg, size_t *password_arg_size);
   /**
     Cleans in-memory password defined by START SLAVE.
   */

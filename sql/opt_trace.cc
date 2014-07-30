@@ -392,8 +392,8 @@ Opt_trace_struct& Opt_trace_struct::do_add_hex(const char *key, uint64 val)
   }
   *p--= 'x';
   *p= '0';
-  const int len= p_end + 1 - p;
-  DBUG_PRINT("opt", ("%s: %.*s", key, len, p));
+  const size_t len= p_end + 1 - p;
+  DBUG_PRINT("opt", ("%s: %.*s", key, static_cast<int>(len), p));
   stmt->add(check_key(key), p, len, false, false);
   return *this;
 }

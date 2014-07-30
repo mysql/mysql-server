@@ -134,20 +134,20 @@ typedef struct st_key {
   /**
     Array of AVG(#records with the same field value) for 1st ... Nth key part.
     0 means 'not known'.
-    For temporary heap tables this member is NULL.
+    For internally created temporary tables this member is NULL.
   */
   ulong *rec_per_key;
 
 private:
   /**
     Array of AVG(#records with the same field value) for 1st ... Nth
-    key part. For temporary heap tables this member is NULL.  This is
-    the same information as stored in the above rec_per_key array but
-    using float values instead of integer values. If the storage
-    engine has supplied values in this array, these will be
-    used. Otherwise the value in rec_per_key will be used.
-    @todo In the next release the rec_per_key array above should be
-    removed and only this should be used.
+    key part. For internally created temporary tables this member is
+    NULL. This is the same information as stored in the above
+    rec_per_key array but using float values instead of integer
+    values. If the storage engine has supplied values in this array,
+    these will be used. Otherwise the value in rec_per_key will be
+    used.  @todo In the next release the rec_per_key array above
+    should be removed and only this should be used.
   */
   rec_per_key_t *rec_per_key_float;
 public:
@@ -215,10 +215,26 @@ public:
   void set_records_per_key(uint key_part_no, rec_per_key_t rec_per_key_est)
   {
     DBUG_ASSERT(key_part_no < actual_key_parts);
-    DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN || 
+    DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN ||
                 rec_per_key_est >= 0.0);
+    DBUG_ASSERT(rec_per_key_float != NULL);
 
     rec_per_key_float[key_part_no]= rec_per_key_est;
+  }
+
+  /**
+    Check if this key supports storing records per key information.
+
+    @return true if it has support for storing records per key information,
+            false otherwise.
+  */
+
+  bool supports_records_per_key() const
+  {
+    if (rec_per_key_float != NULL && rec_per_key != NULL)
+      return true;
+
+    return false;
   }
 
   /**
@@ -234,7 +250,7 @@ public:
     @param rec_per_key_float_arg pointer to allocated array for storing
                                  records per key using float
   */
-  
+
   void set_rec_per_key_array(ulong *rec_per_key_arg,
                              rec_per_key_t *rec_per_key_float_arg)
   {
@@ -244,10 +260,12 @@ public:
 } KEY;
 
 
-struct st_join_table;
+class JOIN_TAB;
+class QEP_TAB;
 
 typedef struct st_reginfo {		/* Extra info about reg */
-  struct st_join_table *join_tab;	/* Used by SELECT() */
+  class JOIN_TAB *join_tab;
+  class QEP_TAB *qep_tab;
   enum thr_lock_type lock_type;		/* How database is used */
   bool not_exists_optimize;
   /*
@@ -595,5 +613,23 @@ public:
   ulonglong maximum()     const { return (head ? tail->maximum() : 0); };
   uint      nb_elements() const { return elements; }
 };
+
+
+/**
+   This represents the index of a JOIN_TAB/QEP_TAB in an array. "plan_idx": "Plan
+   Table Index".
+   It is signed, because:
+   - firstmatch_return may be PRE_FIRST_PLAN_IDX (it can happen that the first
+   table of the plan uses FirstMatch: SELECT ... WHERE literal IN (SELECT
+   ...)).
+   - it must hold the invalid value NO_PLAN_IDX (which means "no
+   JOIN_TAB/QEP_TAB", equivalent of NULL pointer); this invalid value must
+   itself be different from PRE_FIRST_PLAN_IDX, to distinguish "FirstMatch to
+   before-first-table" (firstmatch_return==PRE_FIRST_PLAN_IDX) from "No
+   FirstMatch" (firstmatch_return==NO_PLAN_IDX).
+*/
+typedef int8 plan_idx;
+#define NO_PLAN_IDX (-2)          ///< undefined index
+#define PRE_FIRST_PLAN_IDX (-1) ///< right before the first (first's index is 0)
 
 #endif /* STRUCTS_INCLUDED */

@@ -842,7 +842,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  NUMERIC_SYM                   /* SQL-2003-R */
 %token  NVARCHAR_SYM
 %token  OFFSET_SYM
-%token  OLD_PASSWORD
 %token  ON                            /* SQL-2003-R */
 %token  ONE_SYM
 %token  ONLY_SYM                      /* SQL-2003-R */
@@ -1081,6 +1080,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  UTC_DATE_SYM
 %token  UTC_TIMESTAMP_SYM
 %token  UTC_TIME_SYM
+%token  VALIDATION_SYM                /* MYSQL */
 %token  VALUES                        /* SQL-2003-R */
 %token  VALUE_SYM                     /* SQL-2003-R */
 %token  VARBINARY
@@ -1100,6 +1100,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  WITH                          /* SQL-2003-R */
 %token  WITH_CUBE_SYM                 /* INTERNAL */
 %token  WITH_ROLLUP_SYM               /* INTERNAL */
+%token  WITHOUT_SYM                   /* SQL-2003-R */
 %token  WORK_SYM                      /* SQL-2003-N */
 %token  WRAPPER_SYM
 %token  WRITE_SYM                     /* SQL-2003-N */
@@ -4910,7 +4911,7 @@ size_number:
             uint text_shift_number= 0;
             longlong prefix_number;
             char *start_ptr= $1.str;
-            uint str_len= $1.length;
+            size_t str_len= $1.length;
             char *end_ptr= start_ptr + str_len;
             int error;
             prefix_number= my_strtoll10(start_ptr, &end_ptr, &error);
@@ -7656,7 +7657,7 @@ alter_commands:
           }
         | reorg_partition_rule
         | EXCHANGE_SYM PARTITION_SYM alt_part_name_item
-          WITH TABLE_SYM table_ident have_partitioning
+          WITH TABLE_SYM table_ident have_partitioning opt_validation
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -7699,6 +7700,15 @@ alter_commands:
               MYSQL_YYABORT;
           }
         ;
+
+opt_validation:
+          /* empty */
+        | WITH VALIDATION_SYM
+        | WITHOUT_SYM VALIDATION_SYM
+          {
+            Lex->alter_info.with_validation= false;
+          }
+	    ;
 
 remove_partitioning:
           REMOVE_SYM PARTITIONING_SYM have_partitioning
@@ -9504,10 +9514,6 @@ function_call_conflict:
         | MOD_SYM '(' expr ',' expr ')'
           {
             $$= NEW_PTN Item_func_mod(@$, $3, $5);
-          }
-        | OLD_PASSWORD '(' expr ')'
-          {
-            $$= NEW_PTN Item_func_old_password(@$, $3);
           }
         | PASSWORD '(' expr ')'
           {
@@ -11490,7 +11496,7 @@ opt_profile_args:
   | FOR_SYM QUERY_SYM NUM
     {
       int error;
-      Lex->query_id= my_strtoll10($3.str, NULL, &error);
+      Lex->query_id= static_cast<my_thread_id>(my_strtoll10($3.str, NULL, &error));
       if (error != 0)
         MYSQL_YYABORT;
     }
@@ -13119,7 +13125,6 @@ keyword_sp:
         | NUMBER_SYM               {}
         | NVARCHAR_SYM             {}
         | OFFSET_SYM               {}
-        | OLD_PASSWORD             {}
         | ONE_SYM                  {}
         | ONLY_SYM                 {}
         | PACK_KEYS_SYM            {}
@@ -13242,12 +13247,14 @@ keyword_sp:
         | UNTIL_SYM                {}
         | USER                     {}
         | USE_FRM                  {}
+        | VALIDATION_SYM           {}
         | VARIABLES                {}
         | VIEW_SYM                 {}
         | VALUE_SYM                {}
         | WARNINGS                 {}
         | WAIT_SYM                 {}
         | WEEK_SYM                 {}
+        | WITHOUT_SYM              {}
         | WORK_SYM                 {}
         | WEIGHT_STRING_SYM        {}
         | X509_SYM                 {}
@@ -13468,26 +13475,10 @@ text_or_password:
         | PASSWORD '(' TEXT_STRING ')'
           {
             if ($3.length == 0)
-             $$= $3.str;
+              $$= $3.str;
             else
-            switch (YYTHD->variables.old_passwords) {
-              case 1: $$= Item_func_old_password::
-                alloc(YYTHD, $3.str, $3.length);
-                break;
-              case 0:
-              case 2: $$= Item_func_password::
+              $$= Item_func_password::
                 create_password_hash_buffer(YYTHD, $3.str, $3.length);
-                break;
-            }
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-            Lex->contains_plaintext_password= true;
-          }
-        | OLD_PASSWORD '(' TEXT_STRING ')'
-          {
-            $$= $3.length ? Item_func_old_password::
-              alloc(YYTHD, $3.str, $3.length) :
-              $3.str;
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->contains_plaintext_password= true;

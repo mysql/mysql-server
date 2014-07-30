@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ C_MODE_START
 #define HAVE_STACKTRACE 1
 void my_init_stacktrace();
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack);
-void my_safe_puts_stderr(const char* val, int max_len);
+void my_safe_puts_stderr(const char* val, size_t max_len);
 #if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
 char *my_demangle(const char *mangled_name, int *status);
 #endif
@@ -103,6 +103,11 @@ size_t my_safe_printf_stderr(const char* fmt, ...)
   @returns Number of bytes written.
 */
 size_t my_write_stderr(const void *buf, size_t count);
+
+/**
+  Writes system time to STDERR without allocating new memory.
+*/
+void my_safe_print_system_time();
 
 C_MODE_END
 

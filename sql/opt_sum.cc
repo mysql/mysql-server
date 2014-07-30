@@ -63,8 +63,8 @@ static int maxmin_in_range(bool max_fl, Field* field, Item *cond);
   Get exact count of rows in all tables
 
   SYNOPSIS
-    get_exact_records()
-    tables		List of tables
+    get_exact_record_count()
+    @param tables  List of tables
 
   NOTES
     When this is called, we know all table handlers supports HA_HAS_RECORDS
@@ -80,8 +80,9 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
   ulonglong count= 1;
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
-    ha_rows tmp= tl->table->file->records();
-    if (tmp == HA_POS_ERROR)
+    ha_rows tmp= 0;
+    int error= tl->table->file->ha_records(&tmp);
+    if (error != 0)
       return ULONGLONG_MAX;
     count*= tmp;
   }
@@ -265,7 +266,7 @@ int opt_sum_query(THD *thd,
   */
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
-    if (tl->optim_join_cond() || tl->outer_join_nest())
+    if (tl->join_cond_optim() || tl->outer_join_nest())
     /* Don't replace expression on a table that is part of an outer join */
     {
       outer_tables|= tl->table->map;

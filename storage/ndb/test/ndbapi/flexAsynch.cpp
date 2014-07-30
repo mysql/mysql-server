@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,8 @@
 #define MAX_SEEK 16 
 #define MAXSTRLEN 16 
 #define MAXATTR 511 
-#define MAXTABLES 1
+#define MAXTABLES 128
+#define MAXINDEXES 16
 #define NDB_MAXTHREADS 128
 #define MAX_EXECUTOR_THREADS 128
 #define MAX_DEFINER_THREADS 32
@@ -90,8 +91,12 @@ static void dropTables(Ndb* pMyNdb);
 static int createTables(Ndb*);
 static void defineOperation(NdbConnection* aTransObject, StartType aType, 
                             Uint32 base, Uint32 aIndex);
-static void defineNdbRecordOperation(char*, NdbConnection* aTransObject, StartType aType,
-                            Uint32 base, Uint32 aIndex);
+static void defineNdbRecordOperation(char*,
+                                     Uint32 table_id,
+                                     NdbConnection* aTransObject,
+                                     StartType aType,
+                                     Uint32 base,
+                                     Uint32 aIndex);
 static void execute(StartType aType);
 static bool executeThread(ThreadNdb*, StartType aType, Ndb* aNdbObject, unsigned int);
 static bool executeTransLoop(ThreadNdb* pThread, StartType aType, Ndb* aNdbObject,
@@ -117,6 +122,7 @@ static int                              ThreadReady[MAX_REAL_THREADS];
 static longlong                         ThreadExecutions[MAX_REAL_THREADS];
 static StartType                        ThreadStart[NDB_MAXTHREADS];
 static char                             tableName[MAXTABLES][MAXSTRLEN+1];
+static char                             indexName[MAXTABLES][MAXINDEXES][MAXSTRLEN+1];
 static const NdbDictionary::Table *     tables[MAXTABLES];
 static char                             attrName[MAXATTR][MAXSTRLEN+1];
 static bool                             nodeTableArray[MAXTABLES][NDB_MAX_NODES + 1];
@@ -137,6 +143,8 @@ static int                              tNoOfLoops = 1;
 static int                              tAttributeSize = 1;
 static unsigned int             tNoOfThreads = 1;
 static unsigned int             tNoOfParallelTrans = 32;
+static unsigned int             tNumTables = 1;
+static unsigned int             tNumIndexes = 0;
 static unsigned int             tNoOfAttributes = 25;
 static unsigned int             tNoOfTransactions = 500;
 static unsigned int             tNoOfOpsPerTrans = 1;
@@ -244,7 +252,9 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
     ndbout << "  Cooldown time is " << tCooldownTime << endl;
   }
   ndbout << "  " << "Load Factor is " << tLoadFactor << "%" << endl;
+  ndbout << "  " << tNumTables << " tables " << endl;
   ndbout << "  " << tNoOfAttributes << " attributes per table " << endl;
+  ndbout << "  " << tNumIndexes << " ordered indexes per table " << endl;
   ndbout << "  " << tAttributeSize;
   ndbout << " is the number of 32 bit words per attribute " << endl;
   if (tempTable == true) {
@@ -575,6 +585,7 @@ executeTrans(ThreadNdb* pThread,
         //-------------------------------------------------------
         if (tNdbRecord)
           defineNdbRecordOperation(pThread->record,
+                                   (Uint32)0,
                                    tConArray[num_ops],
                                    aType,
                                    threadBaseLoc2,
@@ -722,7 +733,7 @@ static void
 executeCallback(int result, NdbConnection* NdbObject, void* aObject)
 {
   NdbConnection **array_ref = (NdbConnection**)aObject;
-  assert(NdbObject == *array_ref);
+  require(NdbObject == *array_ref);
   *array_ref = NULL;
   if (result == -1 && failed < 100)
   {
@@ -855,13 +866,15 @@ defineOperation(NdbConnection* localNdbConnection, StartType aType,
 
 static void
 defineNdbRecordOperation(char *record,
+                         Uint32 table_id,
                          NdbConnection* pTrans,
                          StartType aType,
                          Uint32 threadBase,
                          Uint32 aIndex)
 {
   Uint32 offset;
-  NdbDictionary::getOffset(g_record[0], 0, offset);
+  NdbRecord *ndb_record = g_record[table_id];
+  NdbDictionary::getOffset(ndb_record, 0, offset);
   * (Uint32*)(record + offset) = threadBase;
   * (Uint32*)(record + offset + 4) = aIndex;
   
@@ -871,7 +884,7 @@ defineNdbRecordOperation(char *record,
   if (aType != stRead && aType != stDelete)
   {
     for (unsigned k = 1; k < tNoOfAttributes; k++) {
-      NdbDictionary::getOffset(g_record[0], k, offset);
+      NdbDictionary::getOffset(ndb_record, k, offset);
       * (Uint32*)(record + offset) = aIndex;    
     }//for
   }
@@ -881,33 +894,39 @@ defineNdbRecordOperation(char *record,
   case stInsert: {   // Insert case
     if (theWriteFlag == 1)
     {
-      op = pTrans->writeTuple(g_record[0],record,g_record[0],record);
+      op = pTrans->writeTuple(ndb_record,
+                              record,
+                              ndb_record,
+                              record);
     }
     else
     {
-      op = pTrans->insertTuple(g_record[0],record,g_record[0],record);
+      op = pTrans->insertTuple(ndb_record,
+                               record,
+                               ndb_record,
+                               record);
     }
     break;
   }//case
   case stRead: {     // Read Case
-    op = pTrans->readTuple(g_record[0],
+    op = pTrans->readTuple(ndb_record,
                            record,
-                           g_record[0],
+                           ndb_record,
                            record,
                            NdbOperation::LM_CommittedRead);
     break;
   }//case
   case stUpdate:{    // Update Case
-    op = pTrans->updateTuple(g_record[0],
+    op = pTrans->updateTuple(ndb_record,
                              record,
-                             g_record[0],
+                             ndb_record,
                              record);
     break;
   }//case
   case stDelete: {   // Delete Case
-    op = pTrans->deleteTuple(g_record[0],
+    op = pTrans->deleteTuple(ndb_record,
                              record,
-                             g_record[0]);
+                             ndb_record);
     break;
   }//case
   default: {
@@ -921,7 +940,7 @@ defineNdbRecordOperation(char *record,
     abort();
   }
     
-  assert(op != 0);
+  require(op != 0);
 }
 
 static void setAttrNames()
@@ -937,24 +956,39 @@ static void setAttrNames()
 static void setTableNames()
 {
   // Note! Uses only uppercase letters in table name's
-  // so that we can look at the tables wits SQL
-  int i;
-  for (i = 0; i < MAXTABLES ; i++){
-    if (theStdTableNameFlag==0){
-      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%u", i, 
+  // so that we can look at the tables with SQL
+  unsigned int i, j;
+  for (i = 0; i < tNumTables ; i++)
+  {
+    if (theStdTableNameFlag==0)
+    {
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%u_%u", i, 
                (unsigned)(NdbTick_CurrentMillisecond()+rand()));
-    } else {
-      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d", tStdTableNum);
+      for (j = 0; j < tNumIndexes; j++)
+      {
+        BaseString::snprintf(indexName[i][j], MAXSTRLEN, "INDEX%u_%u_%u", i, j,
+                   (unsigned)(NdbTick_CurrentMillisecond()+rand()));
+
+      }
     }
-    ndbout << "Using table name " << tableName[0] << endl;
+    else
+    {
+      BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%u", tStdTableNum, i);
+      for (j = 0; j < tNumIndexes; j++)
+      {
+        BaseString::snprintf(indexName[i][j], MAXSTRLEN, "INDEX%d_%u_%u",
+                             tStdTableNum, i, j);
+      }
+    }
+    ndbout << "Using table name " << tableName[i] << endl;
   }
 }
 
 static void
 dropTables(Ndb* pMyNdb)
 {
-  int i;
-  for (i = 0; i < MAXTABLES; i++)
+  unsigned int i;
+  for (i = 0; i < tNumTables; i++)
   {
     ndbout << "Dropping table " << tableName[i] << "..." << endl;
     pMyNdb->getDictionary()->dropTable(tableName[i]);
@@ -1027,12 +1061,12 @@ get_my_node_id(Uint32 tableNo, Uint32 threadNo)
 
 static
 int 
-createTables(Ndb* pMyNdb){
-
+createTables(Ndb* pMyNdb)
+{
   NdbDictionary::Dictionary* pDict = pMyNdb->getDictionary();
   if (theTableCreateFlag == 0 || tRunType == RunCreateTable)
   {
-    for(int i=0; i < MAXTABLES ;i++)
+    for(unsigned i=0; i < tNumTables ;i++)
     {
       ndbout << "Creating " << tableName[i] << "..." << endl;
 
@@ -1068,17 +1102,38 @@ createTables(Ndb* pMyNdb){
         col.setLength(tAttributeSize);
         tab.addColumn(col);
       }
-
-      int res = pDict->createTable(tab);
-      if (res != 0)
       {
-        ndbout << pDict->getNdbError() << endl;
-        return -1;
+        int res = pDict->createTable(tab);
+        if (res != 0)
+        {
+          ndbout << pDict->getNdbError() << endl;
+          return -1;
+        }
+      }
+      for (unsigned j = 0; j < tNumIndexes; j++)
+      {
+        NdbDictionary::Index ndb_index(indexName[i][j]);
+        ndb_index.setType(NdbDictionary::Index::OrderedIndex);
+        ndb_index.setLogging(FALSE);
+        if (ndb_index.setTable(tableName[i]))
+        {
+          ndbout << "setTableError " << errno << endl;
+        }
+        if (ndb_index.addColumnName(attrName[j+1]))
+        {
+          ndbout << "addColumnName on Index Error " << errno << endl;
+        }
+        int res = pDict->createIndex(ndb_index, tab);
+        if (res != 0)
+        {
+          ndbout << pDict->getNdbError() << endl;
+          return -1;
+        }
       }
     }
   }
 
-  for(int i=0; i < MAXTABLES ;i++)
+  for(unsigned i=0; i < tNumTables ;i++)
   {
     const NdbDictionary::Table * pTab = pDict->getTable(tableName[i]);
     if (pTab == NULL)
@@ -1096,7 +1151,7 @@ createTables(Ndb* pMyNdb){
 
   if (tNdbRecord)
   {
-    for(int i=0; i < MAXTABLES ;i++)
+    for(unsigned i=0; i < tNumTables ;i++)
     {
       const NdbDictionary::Table * pTab = tables[i];
 
@@ -1114,7 +1169,7 @@ createTables(Ndb* pMyNdb){
 	  pDict->createRecord(pTab, spec.getBase(), 
 			      spec.size(),
 			      sizeof(NdbDictionary::RecordSpecification));
-      assert(g_record[i]);
+      require(g_record[i]);
     }
   }
   return 0;
@@ -1174,6 +1229,7 @@ struct KeyOperation
 {
   Uint32 first_key;
   Uint32 second_key;
+  Uint32 table_id;
   Uint32 definer_thread_id;
   Uint32 executor_thread_id;
   RunType operation_type;
@@ -1502,7 +1558,7 @@ insert_list(KEY_LIST_HEADER *list_header,
 static KEY_OPERATION*
 get_first_free(KEY_LIST_HEADER *list_header)
 {
-  assert(list_header->first_in_list);
+  require(list_header->first_in_list);
   KEY_OPERATION *key_op = list_header->first_in_list;
   list_header->first_in_list = key_op->next_key_op;
   list_header->num_in_list--;
@@ -1615,6 +1671,7 @@ init_key_op_list(char *key_op_ptr,
     key_op->definer_thread_id = my_thread_id;
     key_op->executor_thread_id = MAX_EXECUTOR_THREADS;
     key_op->operation_type = my_run_type;
+    key_op->table_id = 0;
   }
   key_op->next_key_op = NULL; /* Last key operation */
   list_header->last_in_list = key_op;
@@ -1744,6 +1801,7 @@ prepare_operations(char *thread_id_mem,
     Uint32 thread_id = (Uint32)thread_id_mem[record_id - first_record];
     define_op->first_key = record_id;
     define_op->second_key = record_id;
+    define_op->table_id = record_id % tNumTables;
     define_op->executor_thread_id = thread_id;
     thread_state[thread_id]++;
     KEY_LIST_HEADER *thread_list_header = &thread_list_headers[thread_id];
@@ -1870,6 +1928,7 @@ execute_operations(char *record,
     // Define the operation, but do not execute it yet.
     //-------------------------------------------------------
     defineNdbRecordOperation(record,
+                             key_op->table_id,
                              ndb_conn_array[num_ops],
                              (StartType)key_op->operation_type,
                              key_op->first_key,
@@ -2005,7 +2064,7 @@ readArguments(int argc, const char** argv){
     if (strcmp(argv[i], "-t") == 0){
       tNoOfThreads = atoi(argv[i+1]);
       if ((tNoOfThreads < 1) || (tNoOfThreads > NDB_MAXTHREADS)){
-	ndbout_c("Invalid no of threads");
+        ndbout_c("Invalid no of threads");
         return -1;
       }
     }
@@ -2020,31 +2079,50 @@ readArguments(int argc, const char** argv){
     } else if (strcmp(argv[i], "-p") == 0){
       tNoOfParallelTrans = atoi(argv[i+1]);
       if ((tNoOfParallelTrans < 1) || (tNoOfParallelTrans > MAXPAR)){
-	ndbout_c("Invalid no of parallell transactions");
+        ndbout_c("Invalid no of parallel transactions");
+        return -1;
+      }
+    } else if (strcmp(argv[i], "-num_tables") == 0) {
+      tNumTables = atoi(argv[i+1]);
+      if ((tNumTables < 1) || (tNumTables > MAXTABLES))
+      {
+        ndbout_c("Invalid number of tables");
+        return -1;
+      }
+    } else if (strcmp(argv[i], "-num_indexes") == 0) {
+      tNumIndexes = atoi(argv[i+1]);
+      if ((tNumIndexes > MAX_INDEXES) || ((tNumIndexes + 1) >= tNoOfAttributes))
+      {
+        ndbout_c("Invalid number of indexes per table");
         return -1;
       }
     } else if (strcmp(argv[i], "-load_factor") == 0){
       tLoadFactor = atoi(argv[i+1]);
       if ((tLoadFactor < 40) || (tLoadFactor > 99)){
-	ndbout_c("Invalid load factor");
+        ndbout_c("Invalid load factor");
         return -1;
       }
     } else if (strcmp(argv[i], "-c") == 0) {
       tNoOfOpsPerTrans = atoi(argv[i+1]);
       if (tNoOfOpsPerTrans < 1){
-	ndbout_c("Invalid no of operations per transaction");
+        ndbout_c("Invalid no of operations per transaction");
         return -1;
       }
     } else if (strcmp(argv[i], "-o") == 0) {
       tNoOfTransactions = atoi(argv[i+1]);
       if (tNoOfTransactions < 1){
-	ndbout_c("Invalid no of transactions");
+        ndbout_c("Invalid no of transactions");
         return -1;
       }
     } else if (strcmp(argv[i], "-a") == 0){
       tNoOfAttributes = atoi(argv[i+1]);
       if ((tNoOfAttributes < 2) || (tNoOfAttributes > MAXATTR)){
-	ndbout_c("Invalid no of attributes");
+        ndbout_c("Invalid no of attributes");
+        return -1;
+      }
+      if ((tNumIndexes + 1) >= tNoOfAttributes)
+      {
+        ndbout_c("Invalid number of indexes per table");
         return -1;
       }
     } else if (strcmp(argv[i], "-n") == 0){
@@ -2054,13 +2132,13 @@ readArguments(int argc, const char** argv){
     } else if (strcmp(argv[i], "-l") == 0){
       tNoOfLoops = atoi(argv[i+1]);
       if ((tNoOfLoops < 0) || (tNoOfLoops > 100000)){
-	ndbout_c("Invalid no of loops");
+        ndbout_c("Invalid no of loops");
         return -1;
       }
     } else if (strcmp(argv[i], "-s") == 0){
       tAttributeSize = atoi(argv[i+1]);
       if ((tAttributeSize < 1) || (tAttributeSize > MAXATTRSIZE)){
-	ndbout_c("Invalid attributes size");
+        ndbout_c("Invalid attributes size");
         return -1;
       }
     } else if (strcmp(argv[i], "-local") == 0){
@@ -2224,6 +2302,8 @@ input_error(){
   ndbout_c("   -execution_time Execution Time where measurement is done");
   ndbout_c("   -cooldown_time Cooldown time after measurement completed");
   ndbout_c("   -table Number of standard table, default 0");
+  ndbout_c("   -num_tables Number of tables in benchmark, default 1");
+  ndbout_c("   -num_indexes Number of ordered indexes per table in benchmark, default 0");
 }
   
 static void

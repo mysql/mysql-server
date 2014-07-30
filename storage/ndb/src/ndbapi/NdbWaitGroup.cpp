@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-#include <stdlib.h>
 #include <ndb_global.h>
+#include <stdlib.h>
 #include "NdbWaitGroup.hpp"
 #include "WakeupHandler.hpp"
 #include "ndb_cluster_connection.hpp"
@@ -61,16 +61,17 @@ NdbWaitGroup::NdbWaitGroup(Ndb_cluster_connection *_conn, int ndbs) :
 
   /* Call into the TransporterFacade to set up wakeups */
   bool rc = m_conn->m_impl.m_transporter_facade->setupWakeup();
-  assert(rc);
+  require(rc);
 
   /* Get a new Ndb object to be the dedicated "wakeup object" for the group */
   m_wakeNdb = new Ndb(m_conn);
-  assert(m_wakeNdb);
+  require(m_wakeNdb);
   m_wakeNdb->init(1);
   m_nodeId = m_wakeNdb->theNode;
 
   /* Get a wakeup handler */
   m_multiWaitHandler = new MultiNdbWakeupHandler(m_wakeNdb);
+  require(m_multiWaitHandler);
 }
 
 

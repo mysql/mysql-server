@@ -275,11 +275,6 @@ create table t1 as select md5('a') as c1;
 show create table t1;
 drop table t1;
 
-select old_password('a'), hex(old_password('a'));
-create table t1 as select old_password('a') as c1;
-show create table t1;
-drop table t1;
-
 select password('a'), hex(password('a'));
 create table t1 as select password('a') as c1;
 show create table t1;
@@ -652,9 +647,8 @@ drop table t1;
 #
 
 select hex(concat(Dimension(GeomFromText('LINESTRING(0 0,10 10)'))));
+--error ER_GIS_INVALID_DATA
 create table t1 as select concat(Dimension(GeomFromText('LINSTRING(0 0,10 10)'))) as c1;
-show create table t1;
-drop table t1;
 
 select hex(concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))));
 create table t1 as select concat(NumGeometries(MultiPointFromText('MULTIPOINT(0 0,10 10)'))) as c1;
@@ -1610,8 +1604,6 @@ drop function f1;
 --echo # Bug#54668 User variable assignments get wrong type
 --echo #
 SET @x=md5('a');
-SELECT charset(@x), collation(@x);
-SET @x=old_password('a');
 SELECT charset(@x), collation(@x);
 SET @x=password('a');
 SELECT charset(@x), collation(@x);

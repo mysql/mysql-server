@@ -13,11 +13,7 @@ ThreadConfig=ldm={count=4}
 # expected to really strain the system.
 ######
 MaxNoOfConcurrentOperations=250000
+MaxNoOfConcurrentScans=256
 LongMessageBuffer=64M
 TransactionDeadlockDetectionTimeout=30000
 TimeBetweenEpochs=1000
-
-[ENV]
-# Need to always use ndbmtd when we want lots of partitions
-# (Avoid mixed 'round robin' use of mt / non-mt) 
-MTR_NDBMTD= 1

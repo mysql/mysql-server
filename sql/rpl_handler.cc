@@ -172,15 +172,7 @@ void delegates_destroy()
      Use a struct to make sure that they are allocated adjacent, check
      delete_dynamic().
   */                                                                    \
-  struct {                                                              \
-    DYNAMIC_ARRAY plugins;                                              \
-    /* preallocate 8 slots */                                           \
-    plugin_ref plugins_buffer[8];                                       \
-  } s;                                                                  \
-  DYNAMIC_ARRAY *plugins= &s.plugins;                                   \
-  plugin_ref *plugins_buffer= s.plugins_buffer;                         \
-  my_init_dynamic_array2(plugins, sizeof(plugin_ref),                   \
-                         plugins_buffer, 8, 8);                         \
+  Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);        \
   read_lock();                                                          \
   Observer_info_iterator iter= observer_info_iter();                    \
   Observer_info *info= iter++;                                          \
@@ -194,7 +186,7 @@ void delegates_destroy()
       r= 0;                                                             \
       break;                                                            \
     }                                                                   \
-    insert_dynamic(plugins, &plugin);                                   \
+    plugins.push_back(plugin);                                          \
     if (((Observer *)info->observer)->f                                 \
         && ((Observer *)info->observer)->f args)                        \
     {                                                                   \
@@ -212,9 +204,8 @@ void delegates_destroy()
      deinitialize the plugin, which will try to lock the Delegate in
      order to remove the observers.
   */                                                                    \
-  plugin_unlock_list(0, (plugin_ref*)plugins->buffer,                   \
-                     plugins->elements);                                \
-  delete_dynamic(plugins)
+  if (!plugins.empty())                                                 \
+    plugin_unlock_list(0, &plugins[0], plugins.size());
 
 
 int Trans_delegate::after_commit(THD *thd, bool all)
