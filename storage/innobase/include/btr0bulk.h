@@ -44,7 +44,7 @@ public:
 	@param[in]	trx_id	transaction id */
 	PageBulk(
 		dict_index_t* index,
-		ulint trx_id,
+		trx_id_t trx_id,
 		ulint page_no,
 		ulint level)
 		:
@@ -173,7 +173,7 @@ private:
 	mtr_t*		m_mtr;
 
 	/** The transaction id */
-	ulint		m_trx_id;
+	trx_id_t	m_trx_id;
 
 	/** The buffer block */
 	buf_block_t*	m_block;
@@ -227,7 +227,7 @@ public:
 	@param[in]	trx_id	transaction id */
 	BtrBulk(
 		dict_index_t* index,
-		ulint trx_id)
+		trx_id_t trx_id)
 		:
 		m_heap(NULL),
 		m_index(index),
