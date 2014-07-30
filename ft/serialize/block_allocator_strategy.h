@@ -105,6 +105,10 @@ public:
              uint64_t n_blocks, uint64_t size, uint64_t alignment);
 
     static struct block_allocator::blockpair *
+    padded_fit(struct block_allocator::blockpair *blocks_array,
+               uint64_t n_blocks, uint64_t size, uint64_t alignment);
+
+    static struct block_allocator::blockpair *
     heat_zone(struct block_allocator::blockpair *blocks_array,
               uint64_t n_blocks, uint64_t size, uint64_t alignment,
               uint64_t heat);

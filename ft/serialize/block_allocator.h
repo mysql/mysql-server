@@ -127,6 +127,7 @@ public:
     enum allocation_strategy {
         BA_STRATEGY_FIRST_FIT = 1,
         BA_STRATEGY_BEST_FIT,
+        BA_STRATEGY_PADDED_FIT,
         BA_STRATEGY_HEAT_ZONE
     };
 
