@@ -596,5 +596,18 @@ SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
 --error ER_GIS_INVALID_DATA
 SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
 
+--echo #
+--echo # Bug #19304320 CENTROID() AND CONVEXHULL() FUNCTIONS RETURN NULL WITH VALID GEOMETRY INPUT
+--echo #
+Select st_astext(st_centroid(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))')));
+Select st_astext(st_centroid(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))')));
+Select st_astext(st_convexhull(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))')));
+Select st_astext(st_convexhull(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))')));
+select st_distance(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('linestring(0 0,10 10)'));
+select st_distance(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('point(100 100)'));
+Select st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('point(100 100)'));
+Select st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('linestring(0 0,10 10)'));
+
+
 
 --source include/gis_debug.inc
