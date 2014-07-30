@@ -656,6 +656,9 @@ bool assert_mysqld_exists(const string &opt_mysqldfile,
     {
       spaths.push_back(Path(opt_basedir).
         append("bin"));
+      /* cater for RPM installs : mysqld in sbin */
+      spaths.push_back(Path(opt_basedir).
+        append("sbin"));
     }
     if (opt_builddir.length() > 0)
     {
@@ -697,6 +700,11 @@ bool assert_valid_language_directory(const string &opt_langpath,
       Path ld(opt_basedir);
       ld.append("/share/english");
       search_paths.push_back(ld);
+
+      /* cater for RPMs */
+      Path ld2(opt_basedir);
+      ld2.append("/share/mysql/english");
+      search_paths.push_back(ld2);
     }
     if (opt_builddir.length() > 0)
     {
@@ -1376,14 +1384,14 @@ int main(int argc,char *argv[])
             << " to (" << pwd->pw_uid << ", " << pwd->pw_gid << ")"
             << endl;
     }
-    if (seteuid(pwd->pw_uid) != 0)
-    {
-      warning << "Failed to set effective user id to " << pwd->pw_uid
-              << endl;
-    }
     if (setegid(pwd->pw_gid) != 0)
     {
       warning << "Failed to set effective group id to " << pwd->pw_gid
+              << endl;
+    }
+    if (seteuid(pwd->pw_uid) != 0)
+    {
+      warning << "Failed to set effective user id to " << pwd->pw_uid
               << endl;
     }
   }
