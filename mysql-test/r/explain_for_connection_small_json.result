@@ -553,7 +553,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                "used_columns": [
 -                  "topic"
 -                ],
--                "attached_condition": "(not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`))))",
+-                "attached_condition": "((not(exists(/* select#3 */ select 1 from dual where ('1' = `test`.`t2`.`topic`)))) and (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`))",
 -                "attached_subqueries": [
 -                  {
 -                    "dependent": true,
@@ -731,12 +731,10 @@ Diff: EXPLAIN NORMAL vs OTHER
                "filtered": 100,
 +              "using_where": true,
                "using_index": true,
-@@ -62,4 +63,3 @@
-                 "b"
--              ],
--              "attached_condition": "((`test`.`rs`.`t1_id` <=> (/* select#3 */ select NULL from `test`.`t1` `lt` where multiple equal('3', NULL))) and (`test`.`rs`.`t1_id` = (/* select#3 */ select NULL from `test`.`t1` `lt` where multiple equal('3', NULL))))"
-+              ]
-             },
+@@ -63,3 +64,2 @@
+               ],
+-              "attached_condition": "((`test`.`rs`.`t1_id` <=> (/* select#3 */ select NULL from `test`.`t1` `lt` where multiple equal('3', NULL))) and (`test`.`rs`.`t1_id` = (/* select#3 */ select NULL from `test`.`t1` `lt` where multiple equal('3', NULL))))",
+               "attached_subqueries": [
 QUERY: UPDATE t1 join t2 on (t1.a=t2.a) set t1.id=t2.id 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan

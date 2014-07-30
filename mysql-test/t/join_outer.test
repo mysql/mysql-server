@@ -1570,3 +1570,17 @@ CREATE TABLE t1(a INT) ENGINE=INNODB;
 SET @a:=(SELECT ROW(1, 2)=
                 ROW((SELECT 1 FROM t1 LEFT JOIN t1 t2 ON 1), 1));
 DROP TABLE t1;
+
+--echo #
+--echo # Coverage for "unique row not found"
+--echo #
+
+create table t1(a int, unique key(a)) engine=innodb;
+insert into t1 values(1);
+let $query=
+select * from t1 left join t1 as t2
+              on t2.a=12
+         where t1.a=1;
+eval explain $query;
+eval $query;
+drop table t1;

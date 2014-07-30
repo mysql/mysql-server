@@ -7524,7 +7524,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 */
 static bool do_fill_table(THD *thd,
                           TABLE_LIST *table_list,
-                          JOIN_TAB *join_table)
+                          QEP_TAB *qep_tab)
 {
   // NOTE: fill_table() may generate many "useless" warnings, which will be
   // ignored afterwards. On the other hand, there might be "useful"
@@ -7541,8 +7541,17 @@ static bool do_fill_table(THD *thd,
   // when we call copy_non_errors_from_da below.
   thd->push_diagnostics_area(&tmp_da, false);
 
+  /*
+    We pass a condition, which can be used to do less file manipulations (for
+    example, WHERE TABLE_SCHEMA='test' allows to open only directory 'test',
+    not other database directories). Filling schema tables is done before
+    QEP_TAB::sort_table() (=filesort, for ORDER BY), so we can trust
+    that condition() is complete, has not been zeroed by filesort:
+  */
+  DBUG_ASSERT(qep_tab->condition() == qep_tab->condition_optim());
+
   bool res= table_list->schema_table->fill_table(
-    thd, table_list, join_table->unified_condition());
+    thd, table_list, qep_tab->condition());
 
   thd->pop_diagnostics_area();
 
@@ -7590,16 +7599,16 @@ bool get_schema_tables_result(JOIN *join,
   DBUG_ENTER("get_schema_tables_result");
 
   /* Check if the schema table is optimized away */
-  if (!join->join_tab)
+  if (!join->qep_tab)
     DBUG_RETURN(result);
 
   for (uint i= 0; i < join->tables; i++)
   {
-    JOIN_TAB *const tab= join->join_tab + i;
-    if (!tab->table || !tab->table->pos_in_table_list)
+    QEP_TAB *const tab= join->qep_tab + i;
+    if (!tab->table() || !tab->table()->pos_in_table_list)
       break;
 
-    TABLE_LIST *table_list= tab->table->pos_in_table_list;
+    TABLE_LIST *table_list= tab->table()->pos_in_table_list;
     if (table_list->schema_table && thd->fill_information_schema_tables())
     {
       bool is_subselect= join->select_lex->master_unit() &&
