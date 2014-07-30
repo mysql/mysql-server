@@ -97,10 +97,10 @@ static inline int64 my_atomic_load64(int64 volatile *a)
 static inline void* my_atomic_loadptr(void * volatile *a)
 {
 #if SIZEOF_VOIDP == 8
-  return (void *) atomic_or_64_nv((volatile uint64_t **)a, 0);
+  return (void *) atomic_or_64_nv((volatile uint64_t *)a, 0);
 #else
   #if SIZEOF_VOIDP == 4
-    return (void *) atomic_or_32_nv((volatile uint32_t **)a, 0);
+    return (void *) atomic_or_32_nv((volatile uint32_t *)a, 0);
   #else
     #error "Need to support my_atomic_loadptr()"
   #endif
