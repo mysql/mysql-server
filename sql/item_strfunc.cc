@@ -5012,14 +5012,16 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
       Gtid_set set2(&sid_map, charp2, &status);
       int length;
       // subtract, save result, return result
-      if (status == RETURN_STATUS_OK &&
-          set1.remove_gtid_set(&set2) == 0 &&
-          !str->realloc((length= set1.get_string_length()) + 1))
+      if (status == RETURN_STATUS_OK)
       {
-        null_value= false;
-        set1.to_string((char *)str->ptr());
-        str->length(length);
-        DBUG_RETURN(str);
+        set1.remove_gtid_set(&set2);
+        if (!str->realloc((length= set1.get_string_length()) + 1))
+        {
+          null_value= false;
+          set1.to_string((char *)str->ptr());
+          str->length(length);
+          DBUG_RETURN(str);
+        }
       }
     }
   }
