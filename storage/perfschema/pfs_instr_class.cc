@@ -794,6 +794,8 @@ int init_table_share_index_stat(uint index_stat_sizing)
 PFS_table_share_index*
 create_table_share_index_stat(const TABLE_SHARE *server_share, uint server_index)
 {
+  DBUG_ASSERT((server_share != NULL) || (server_index == MAX_INDEXES));
+
   if (table_share_index_stat_array == NULL || table_share_index_stat_max == 0)
   {
     table_share_index_stat_lost++;
@@ -824,18 +826,13 @@ create_table_share_index_stat(const TABLE_SHARE *server_share, uint server_index
       {
         pfs->m_key.m_name_length= 0;
       }
-      else if (server_share != NULL)
+      else
       {
         KEY *key_info= server_share->key_info + server_index;
         size_t len= strlen(key_info->name);
 
         memcpy(pfs->m_key.m_name, key_info->name, len);
         pfs->m_key.m_name_length= len;
-      }
-      else
-      {
-        pfs->m_key.m_name_length= 12;
-        strcpy(pfs->m_key.m_name, "FIX KEY NAME");
       }
 
       /* Reset the stats. */
@@ -1698,6 +1695,8 @@ PFS_transaction_class *sanitize_transaction_class(PFS_transaction_class *unsafe)
   return NULL;
 }
 
+#ifdef LATER
+// not needed, keeping the code around
 static void set_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 {
   size_t len;
@@ -1729,6 +1728,7 @@ static void set_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
     index_stat->m_stat.reset();
   }
 }
+#endif
 
 static int compare_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 {

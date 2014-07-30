@@ -1518,7 +1518,7 @@ void PFS_table::sanitized_aggregate_lock(void)
   }
 }
 
-void PFS_table::safe_aggregate_io(const TABLE_SHARE *server_share,
+void PFS_table::safe_aggregate_io(const TABLE_SHARE *optional_server_share,
                                   PFS_table_stat *table_stat,
                                   PFS_table_share *table_share)
 {
@@ -1539,7 +1539,26 @@ void PFS_table::safe_aggregate_io(const TABLE_SHARE *server_share,
     from_stat= & table_stat->m_index_stat[index];
     if (from_stat->m_has_data)
     {
-      to_stat= table_share->find_or_create_index_stat(server_share, index);
+      if (optional_server_share != NULL)
+      {
+        /*
+          An instrumented thread is closing a table,
+          and capable of providing index names when
+          creating index statistics on the fly.
+        */
+        to_stat= table_share->find_or_create_index_stat(optional_server_share, index);
+      }
+      else
+      {
+        /*
+          A monitoring thread, performing TRUNCATE TABLE,
+          is asking to flush existing stats from table handles,
+          but it does not know about index names used in handles.
+          If the index stat already exists, find it and aggregate to it.
+          It the index stat does not exist yet, drop the stat and do nothing.
+        */
+        to_stat= table_share->find_index_stat(index);
+      }
       if (to_stat != NULL)
       {
         /* Aggregate to TABLE_IO_SUMMARY */
