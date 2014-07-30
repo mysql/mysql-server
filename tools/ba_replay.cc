@@ -322,6 +322,8 @@ static const char *strategy_str(block_allocator::allocation_strategy strategy) {
         return "best-fit";
     case block_allocator::allocation_strategy::BA_STRATEGY_HEAT_ZONE:
         return "heat-zone";
+    case block_allocator::allocation_strategy::BA_STRATEGY_PADDED_FIT:
+        return "padded-fit";
     default:
         abort();
     }
