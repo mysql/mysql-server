@@ -4560,13 +4560,12 @@ int mysqld_main(int argc, char **argv)
 
       /* gtids_only_in_table= executed_gtids - logged_gtids_binlog */
       if (gtids_only_in_table->add_gtid_set(executed_gtids) !=
-          RETURN_STATUS_OK ||
-          gtids_only_in_table->remove_gtid_set(&logged_gtids_binlog) !=
           RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         unireg_abort(1);
       }
+      gtids_only_in_table->remove_gtid_set(&logged_gtids_binlog);
       /*
         lost_gtids = executed_gtids -
                      (logged_gtids_binlog - purged_gtids_binlog)
