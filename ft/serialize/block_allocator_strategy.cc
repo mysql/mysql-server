@@ -115,16 +115,14 @@ _first_fit(struct block_allocator::blockpair *blocks_array,
         return nullptr;
     }
 
-    for (uint64_t n_spaces_to_check = n_blocks - 1,
-                  blocknum = forward ? 0 : n_blocks - 2;
-         n_spaces_to_check > 0;
-         n_spaces_to_check--, forward ? blocknum++ : blocknum--) {
-        invariant(blocknum < n_blocks);
-        // Consider the space after blocknum
-        struct block_allocator::blockpair *bp = &blocks_array[blocknum];
+    struct block_allocator::blockpair *bp = forward ? &blocks_array[0] : &blocks_array[-1];
+    for (uint64_t n_spaces_to_check = n_blocks - 1; n_spaces_to_check > 0;
+         n_spaces_to_check--, forward ? bp++ : bp--) {
+        // Consider the space after bp
         uint64_t padded_alignment = max_padding != 0 ? _align(max_padding, alignment) : alignment;
         uint64_t possible_offset = _align(bp->offset + bp->size, padded_alignment);
         if (possible_offset + size <= bp[1].offset) {
+            invariant((forward ? bp - blocks_array : blocks_array - bp) < (int64_t) n_blocks);
             return bp;
         }
     }
@@ -178,28 +176,29 @@ block_allocator_strategy::heat_zone(struct block_allocator::blockpair *blocks_ar
                                     uint64_t n_blocks, uint64_t size, uint64_t alignment,
                                     uint64_t heat) {
     if (heat > 0) {
+        struct block_allocator::blockpair *bp, *boundary_bp;
         const double hot_zone_threshold = 0.85;
 
         // Hot allocation. Find the beginning of the hot zone.
-        struct block_allocator::blockpair *bp = &blocks_array[n_blocks - 1];
-        uint64_t highest_offset = _align(bp->offset + bp->size, alignment);
+        boundary_bp = &blocks_array[n_blocks - 1];
+        uint64_t highest_offset = _align(boundary_bp->offset + boundary_bp->size, alignment);
         uint64_t hot_zone_offset = static_cast<uint64_t>(hot_zone_threshold * highest_offset);
 
-        bp = std::lower_bound(blocks_array, blocks_array + n_blocks, hot_zone_offset);
-        uint64_t blocks_in_zone = (blocks_array + n_blocks) - bp;
-        uint64_t blocks_outside_zone = bp - blocks_array;
+        boundary_bp = std::lower_bound(blocks_array, blocks_array + n_blocks, hot_zone_offset);
+        uint64_t blocks_in_zone = (blocks_array + n_blocks) - boundary_bp;
+        uint64_t blocks_outside_zone = boundary_bp - blocks_array;
         invariant(blocks_in_zone + blocks_outside_zone == n_blocks);
 
         if (blocks_in_zone > 0) {
             // Find the first fit in the hot zone, going forward.
-            bp = _first_fit(bp, blocks_in_zone, size, alignment, true, 0);
+            bp = _first_fit(boundary_bp, blocks_in_zone, size, alignment, true, 0);
             if (bp != nullptr) {
                 return bp;
             }
         }
         if (blocks_outside_zone > 0) {
             // Find the first fit in the cold zone, going backwards.
-            bp = _first_fit(bp, blocks_outside_zone, size, alignment, false, 0);
+            bp = _first_fit(boundary_bp, blocks_outside_zone, size, alignment, false, 0);
             if (bp != nullptr) {
                 return bp;
             }
