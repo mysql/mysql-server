@@ -29,6 +29,7 @@ set global big_tables = 1;
 set global internal_tmp_disk_storage_engine = innodb;
 #
 ##--disable_query_log
+let $wl7682_auto_inc = auto_increment;
 --source suite/innodb/include/create_workload_itt.inc
 ##--enable_query_log
 

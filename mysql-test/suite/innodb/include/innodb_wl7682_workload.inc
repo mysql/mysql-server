@@ -7,7 +7,6 @@
 # 5. Multiple + Cascade key DML (with auto-gen-clustered index)
 # 6. Large column (blob/text) column DML
 # 7. Repeated insertion of same key.
-# 8. Auto-incremnet insert.
 #
 ################################################################################
 
@@ -226,25 +225,4 @@ update t1 set i = 3, j = 4 where i = 3;
 select * from t1;
 check table t1;
 drop table t1;
-
-
-#-----------------------------------------------------------------------------
-#
-# 8. Auto-incremnet insert.
-#
-create temporary table t1 (
-	c1 int auto_increment primary key,
-	c2 varchar(1024)) engine = innodb;
-insert into t1 values (1, repeat('a', 10));
-create temporary table t2 like t1;
-insert into t2 select * from t1;
---error ER_DUP_ENTRY
-insert into t2 select * from t1;
-select * from t2;
-insert into t2 values (1, 'bbbbb') on duplicate key update c1 = 100;
-select * from t2;
-drop table t1, t2;
-
-
-
 

@@ -52,14 +52,14 @@ create index indx7 on t7(b);
 #
 drop table if exists t8;
 eval create $wl7682_temp table t8 (
-	pk integer auto_increment, col_int_key integer,
+	pk integer $wl7682_auto_inc, col_int_key integer,
 	col_varchar_key varchar(1), primary key (pk),
 	key (col_int_key), key (col_varchar_key, col_int_key)) engine = innodb;
-insert into t8 (col_int_key, col_varchar_key) values (2, 'v'), (150, 'v');
+insert into t8 values (1, 2, 'v'), (2, 150, 'v');
 #
 drop table if exists t9, t10;
 eval create $wl7682_temp table t9 (
-  pk int(11) not null auto_increment,
+  pk int(11) not null $wl7682_auto_inc,
   col_int_nokey int(11) default null,
   col_int_key int(11) default null,
   col_date_key date default null,
@@ -70,7 +70,7 @@ eval create $wl7682_temp table t9 (
   key col_varchar_key (col_int_key)
 ) engine=innodb;
 eval create $wl7682_temp table t10 (
-  pk int(11) not null auto_increment,
+  pk int(11) not null $wl7682_auto_inc,
   col_int_nokey int(11) default null,
   col_int_key int(11) default null,
   col_date_key date default null,
