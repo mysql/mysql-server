@@ -6514,8 +6514,11 @@ btr_store_big_rec_extern_fields(
 	if (page_size.is_compressed()) {
 		for (ulint i = 0; i < big_rec_vec->n_fields; i++) {
 			total_blob_pages
-				+= (compressBound(big_rec_vec->fields[i].len)
-				    + payload_size_zip - 1) / payload_size_zip;
+				+= static_cast<ulint>
+				   (compressBound(static_cast<uLong>
+						  (big_rec_vec->fields[i].len))
+				    + payload_size_zip - 1)
+				   / payload_size_zip;
 		}
 	} else {
 		for (ulint i = 0; i < big_rec_vec->n_fields; i++) {
