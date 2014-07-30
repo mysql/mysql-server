@@ -493,8 +493,6 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
     if (*len < 4)
       return NULL;
     ngeos= uint4korr(q);
-    if (ngeos == 0)
-      return NULL;
     q+= sizeof(uint32);
     *len-= 4;
   }

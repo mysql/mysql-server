@@ -930,6 +930,33 @@ SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
 SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
+#
+# Bug #19304320 CENTROID() AND CONVEXHULL() FUNCTIONS RETURN NULL WITH VALID GEOMETRY INPUT
+#
+Select st_astext(st_centroid(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))')));
+st_astext(st_centroid(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))')))
+POINT(5 5)
+Select st_astext(st_centroid(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))')));
+st_astext(st_centroid(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))')))
+POINT(5 5)
+Select st_astext(st_convexhull(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))')));
+st_astext(st_convexhull(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+Select st_astext(st_convexhull(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))')));
+st_astext(st_convexhull(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))')))
+POLYGON((0 0,10 0,10 10,0 10,0 0))
+select st_distance(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('linestring(0 0,10 10)'));
+st_distance(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('linestring(0 0,10 10)'))
+0
+select st_distance(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('point(100 100)'));
+st_distance(st_geomfromtext('geometrycollection(geometrycollection(),polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('point(100 100)'))
+127.27922061357856
+Select st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('point(100 100)'));
+st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('point(100 100)'))
+127.27922061357856
+Select st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('linestring(0 0,10 10)'));
+st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('linestring(0 0,10 10)'))
+0
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN
