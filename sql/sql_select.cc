@@ -2395,6 +2395,24 @@ uint QEP_TAB::sjm_query_block_id() const
   return 0;
 }
 
+bool QEP_TAB::pfs_batch_update(JOIN *join)
+{   
+  /*
+    Use PFS batch mode unless
+     1. Operation is for a single table, or
+     2. tab is not a inner-most tabl, or
+     3. a table is joined with eq_ref, or
+     4. this tab contains a subquery that accesses one or more tables
+  */ 
+  if (join && 
+      (join->tables == 1 || join->primary_tables == 1 ||     
+      (join->qep_tab + join->primary_tables - 1) != this ||
+      this->type() == JT_EQ_REF ||  
+      (this->condition() && this->condition()->has_subquery()))) 
+    return false;
+ 
+  return true;    
+}
 
 /**
   Extend join_tab->cond by AND'ing add_cond to it

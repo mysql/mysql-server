@@ -1235,12 +1235,16 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool in_first_read= true;
+  bool pfs_batch_update= false;
   while (rc == NESTED_LOOP_OK && join->return_tab >= qep_tab_idx)
   {
     int error;
     if (in_first_read)
     {
       in_first_read= false;
+      pfs_batch_update= qep_tab->pfs_batch_update(join);
+      if (pfs_batch_update)
+        qep_tab->table()->file->start_psi_batch_mode();      
       error= (*qep_tab->read_first_record)(qep_tab);
     }
     else
@@ -1269,6 +1273,9 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
       qep_tab->last_inner() != NO_PLAN_IDX &&
       !qep_tab->found)
     rc= evaluate_null_complemented_join_record(join, qep_tab);
+
+  if (pfs_batch_update)
+    qep_tab->table()->file->end_psi_batch_mode();
 
   DBUG_RETURN(rc);
 }
