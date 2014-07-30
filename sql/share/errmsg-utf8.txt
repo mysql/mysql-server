@@ -7234,8 +7234,8 @@ ER_SLAVE_CHANNEL_DOES_NOT_EXIST
 ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
   eng "A slave channel '%s' already exists for the given host and port combination."
 
-ER_SLAVE_CHANNEL_NAME_TOO_LENGTHY
-  eng "Couldn't create channel: Channel name is too lengthy."
+ER_SLAVE_CHANNEL_NAME_WRONG_OR_TOO_LENGTHY
+  eng "Couldn't create channel: Channel name is either wrong or too lengthy."
 
 ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
   eng "To have multiple channels, repository cannot be of type FILE; Please check the repository configuration and convert them to TABLE."

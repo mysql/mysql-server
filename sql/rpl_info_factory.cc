@@ -1327,7 +1327,7 @@ Rpl_info_factory::create_channel_list_from_mi_table(std::vector<const char*> &ch
   Rpl_info_table* info= 0;
   THD *thd= 0;
   char buff[MAX_FIELD_WIDTH];
-  String str(buff, sizeof(buff), &my_charset_bin);
+  String str(buff, sizeof(buff), system_charset_info); // to extract channel names
 
   uint channel_field= Master_info::get_channel_field_num() -1;
 

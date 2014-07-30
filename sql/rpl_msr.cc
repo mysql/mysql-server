@@ -30,9 +30,6 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi)
   /* The check of mi exceeding MAX_CHANNELS shall be done in the caller */
   DBUG_ASSERT(current_mi_count < MAX_CHANNELS);
 
-
-  /* @TODO: convert to lowercase by default in all the functions */
-
   /* implicit type cast from const char* to string */
   ret= channel_to_mi.insert(pair<string, Master_info* >(channel_name, mi));
 
