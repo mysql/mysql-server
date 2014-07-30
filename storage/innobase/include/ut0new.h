@@ -138,6 +138,10 @@ InnoDB:
 #include "ut0mem.h" /* OUT_OF_MEMORY_MSG */
 #include "ut0ut.h" /* ut_strcmp_functor, ut_basename_noext() */
 
+
+/** Maximum number of retries to allocate memory. */
+extern const size_t	alloc_max_retries;
+
 /** Keys for registering allocations with performance schema.
 Pointers to these variables are supplied to PFS code via the pfs_info[]
 array and the PFS code initializes them via PSI_MEMORY_CALL(register_memory)().
@@ -223,11 +227,10 @@ public:
 	explicit
 	ut_allocator(
 		PSI_memory_key	key = PSI_NOT_INSTRUMENTED)
-		:
 #ifdef UNIV_PFS_MEMORY
-		m_key(key),
+		:
+		m_key(key)
 #endif /* UNIV_PFS_MEMORY */
-		m_max_retries(60)
 	{
 	}
 
@@ -235,11 +238,10 @@ public:
 	template <class U>
 	ut_allocator(
 		const ut_allocator<U>&	other)
-		:
 #ifdef UNIV_PFS_MEMORY
-		m_key(other.get_mem_key(NULL)),
+		:
+		m_key(other.get_mem_key(NULL))
 #endif /* UNIV_PFS_MEMORY */
-		m_max_retries(60)
 	{
 	}
 
@@ -306,7 +308,7 @@ public:
 				ptr = malloc(total_bytes);
 			}
 
-			if (ptr != NULL || retries >= m_max_retries) {
+			if (ptr != NULL || retries >= alloc_max_retries) {
 				break;
 			}
 
@@ -316,10 +318,11 @@ public:
 		if (ptr == NULL) {
 			ib::fatal()
 				<< "Cannot allocate " << total_bytes
-				<< " bytes of memory after " << m_max_retries
-				<< " retries over " << m_max_retries
-				<< " seconds. OS error: " << strerror(errno)
-				<< " (" << errno << "). " << OUT_OF_MEMORY_MSG;
+				<< " bytes of memory after "
+				<< alloc_max_retries << " retries over "
+				<< alloc_max_retries << " seconds. OS error: "
+				<< strerror(errno) << " (" << errno << "). "
+				<< OUT_OF_MEMORY_MSG;
 			/* not reached */
 			if (throw_on_error) {
 				throw(std::bad_alloc());
@@ -445,7 +448,7 @@ public:
 			pfx_new = static_cast<ut_new_pfx_t*>(
 				realloc(pfx_old, total_bytes));
 
-			if (pfx_new != NULL || retries >= m_max_retries) {
+			if (pfx_new != NULL || retries >= alloc_max_retries) {
 				break;
 			}
 
@@ -455,10 +458,11 @@ public:
 		if (pfx_new == NULL) {
 			ib::fatal()
 				<< "Cannot reallocate " << total_bytes
-				<< " bytes of memory after " << m_max_retries
-				<< " retries over " << m_max_retries
-				<< " seconds. OS error: " << strerror(errno)
-				<< " (" << errno << "). " << OUT_OF_MEMORY_MSG;
+				<< " bytes of memory after "
+				<< alloc_max_retries << " retries over "
+				<< alloc_max_retries << " seconds. OS error: "
+				<< strerror(errno) << " (" << errno << "). "
+				<< OUT_OF_MEMORY_MSG;
 			/* not reached */
 			return(NULL);
 		}
@@ -696,9 +700,6 @@ private:
 	void
 	operator=(
 		const ut_allocator<U>&);
-
-	/** Maximum number of retries to allocate memory. */
-	const size_t		m_max_retries;
 };
 
 /** Compare two allocators of the same type.
