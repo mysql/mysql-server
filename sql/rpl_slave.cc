@@ -3190,13 +3190,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     */
     if (!last_retrieved_gtid->empty() &&
         !gtid_state->get_executed_gtids()->contains_gtid(*last_retrieved_gtid))
-    {
-      if (retrieved_set->_remove_gtid(*last_retrieved_gtid) != RETURN_STATUS_OK)
-      {
-        global_sid_lock->unlock();
-        goto err;
-      }
-    }
+      retrieved_set->_remove_gtid(*last_retrieved_gtid);
 
     if (gtid_executed.add_gtid_set(retrieved_set) != RETURN_STATUS_OK ||
         gtid_executed.add_gtid_set(gtid_state->get_executed_gtids()) !=
@@ -6926,12 +6920,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       if (event_type == GTID_LOG_EVENT)
       {
         global_sid_lock->rdlock();
-        int ret= rli->add_logged_gtid(gtid.sidno, gtid.gno);
-        if (!ret)
-          rli->set_last_retrieved_gtid(gtid);
+        rli->add_logged_gtid(gtid.sidno, gtid.gno);
+        rli->set_last_retrieved_gtid(gtid);
         global_sid_lock->unlock();
-        if (ret != 0)
-          goto err;
       }
     }
     else

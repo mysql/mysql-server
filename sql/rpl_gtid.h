@@ -951,34 +951,31 @@ public:
 
     @param sidno SIDNO of the group to add.
     @param gno GNO of the group to add.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status _add_gtid(rpl_sidno sidno, rpl_gno gno)
+  void _add_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     DBUG_ENTER("Gtid_set::_add_gtid(sidno, gno)");
     Interval_iterator ivit(this, sidno);
     Free_intervals_lock lock(this);
-    enum_return_status ret= add_gno_interval(&ivit, gno, gno + 1, &lock);
-    DBUG_RETURN(ret);
+    add_gno_interval(&ivit, gno, gno + 1, &lock);
+    DBUG_VOID_RETURN;
   }
   /**
     Removes the given GTID from this Gtid_set.
 
     @param sidno SIDNO of the group to remove.
     @param gno GNO of the group to remove.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status _remove_gtid(rpl_sidno sidno, rpl_gno gno)
+  void _remove_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     DBUG_ENTER("Gtid_set::_remove_gtid(rpl_sidno, rpl_gno)");
     if (sidno <= get_max_sidno())
     {
       Interval_iterator ivit(this, sidno);
       Free_intervals_lock lock(this);
-      enum_return_status ret= remove_gno_interval(&ivit, gno, gno + 1, &lock);
-      DBUG_RETURN(ret);
+      remove_gno_interval(&ivit, gno, gno + 1, &lock);
     }
-    RETURN_OK;
+    DBUG_VOID_RETURN;
   }
   /**
     Adds the given GTID to this Gtid_set.
@@ -986,19 +983,17 @@ public:
     The SIDNO must exist in the Gtid_set before this function is called.
 
     @param gtid Gtid to add.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status _add_gtid(const Gtid &gtid)
-  { return _add_gtid(gtid.sidno, gtid.gno); }
+  void _add_gtid(const Gtid &gtid)
+  {  _add_gtid(gtid.sidno, gtid.gno); }
   /**
     Removes the given GTID from this Gtid_set.
 
     @param gtid Gtid to remove.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
    */
-  enum_return_status _remove_gtid(const Gtid &gtid)
+  void _remove_gtid(const Gtid &gtid)
   {
-    return _remove_gtid(gtid.sidno, gtid.gno);
+    _remove_gtid(gtid.sidno, gtid.gno);
   }
   /**
     Adds all groups from the given Gtid_set to this Gtid_set.
@@ -1017,9 +1012,8 @@ public:
     Removes all groups in the given Gtid_set from this Gtid_set.
 
     @param other The Gtid_set to remove.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status remove_gtid_set(const Gtid_set *other);
+  void remove_gtid_set(const Gtid_set *other);
   /**
     Adds the set of GTIDs represented by the given string to this Gtid_set.
 
@@ -1541,9 +1535,8 @@ private:
     unused intervals.
 
     @param size The number of intervals in this chunk
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status create_new_chunk(int size);
+  void create_new_chunk(int size);
   /**
     Returns a fresh new Interval object.
 
@@ -1552,9 +1545,8 @@ private:
     no free intervals, it calls create_new_chunk.
 
     @param out The resulting Interval* will be stored here.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status get_free_interval(Interval **out);
+  void get_free_interval(Interval **out);
   /**
     Puts the given interval in the list of free intervals.  Does not
     unlink it from its place in any other list.
@@ -1643,11 +1635,10 @@ private:
     e.g. add_gtid_set() the first time that the list of free intervals
     is accessed, and automatically released when add_gtid_set()
     returns.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_gno_interval(Interval_iterator *ivitp,
-                                      rpl_gno start, rpl_gno end,
-                                      Free_intervals_lock *lock);
+  void add_gno_interval(Interval_iterator *ivitp,
+                        rpl_gno start, rpl_gno end,
+                        Free_intervals_lock *lock);
   /**
     Removes the interval (start, end) from the given
     Interval_iterator. This is the lowest-level function that removes
@@ -1668,11 +1659,10 @@ private:
     e.g. add_gtid_set() the first time that the list of free intervals
     is accessed, and automatically released when add_gtid_set()
     returns.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status remove_gno_interval(Interval_iterator *ivitp,
-                                         rpl_gno start, rpl_gno end,
-                                         Free_intervals_lock *lock);
+  void remove_gno_interval(Interval_iterator *ivitp,
+                           rpl_gno start, rpl_gno end,
+                           Free_intervals_lock *lock);
   /**
     Adds a list of intervals to the given SIDNO.
 
@@ -1687,11 +1677,10 @@ private:
     e.g. add_gtid_set() the first time that the list of free intervals
     is accessed, and automatically released when add_gtid_set()
     returns.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_gno_intervals(rpl_sidno sidno,
-                                       Const_interval_iterator ivit,
-                                       Free_intervals_lock *lock);
+  void add_gno_intervals(rpl_sidno sidno,
+                         Const_interval_iterator ivit,
+                         Free_intervals_lock *lock);
   /**
     Removes a list of intervals from the given SIDNO.
 
@@ -1706,11 +1695,10 @@ private:
     e.g. add_gtid_set() the first time that the list of free intervals
     is accessed, and automatically released when add_gtid_set()
     returns.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status remove_gno_intervals(rpl_sidno sidno,
-                                          Const_interval_iterator ivit,
-                                          Free_intervals_lock *lock);
+  void remove_gno_intervals(rpl_sidno sidno,
+                            Const_interval_iterator ivit,
+                            Free_intervals_lock *lock);
 
   /// Returns true if every interval of sub is a subset of some
   /// interval of super.
