@@ -3430,3 +3430,7 @@ c1	c2
 9	3
 DROP TABLE t1;
 DROP TABLE t2;
+SELECT count_alloc FROM performance_schema.memory_summary_global_by_event_name
+WHERE event_name like 'memory/innodb/other';
+count_alloc
+0

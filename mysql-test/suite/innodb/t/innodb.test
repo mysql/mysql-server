@@ -2692,6 +2692,9 @@ SELECT * FROM t2;
 
 DROP TABLE t1;
 DROP TABLE t2;
+
+-- source suite/innodb/include/check_pfs_mem_other_is_zero.inc
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #

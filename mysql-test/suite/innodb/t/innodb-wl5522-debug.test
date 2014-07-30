@@ -1502,3 +1502,4 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for 
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
 
+-- source suite/innodb/include/check_pfs_mem_other_is_zero.inc
