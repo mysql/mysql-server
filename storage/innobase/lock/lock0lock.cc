@@ -968,7 +968,7 @@ lock_rec_reset_nth_bit(
 /** Reset the nth bit of a record lock.
 @param[in,out]	lock record lock
 @param[in] i	index of the bit that will be reset
-@param[in] type	whether the lock is in wait mode  */
+@param[in] type	whether the lock is in wait mode */
 
 void
 lock_rec_trx_wait(
@@ -1319,7 +1319,7 @@ lock_rec_other_trx_holds_expl(
 		}
 
 		mutex_exit(&trx_sys->mutex);
-        }
+	}
 
 	lock_mutex_exit();
 
@@ -4425,7 +4425,7 @@ ibool
 lock_print_info_summary(
 /*====================*/
 	FILE*	file,	/*!< in: file where to print */
-	ibool   nowait)	/*!< in: whether to wait for the lock mutex */
+	ibool	nowait)	/*!< in: whether to wait for the lock mutex */
 {
 	/* if nowait is FALSE, wait on the lock mutex,
 	otherwise return immediately if fail to obtain the
@@ -4535,7 +4535,7 @@ class TrxLockIterator {
 public:
 	TrxLockIterator() { rewind(); }
 
-	/** Get the m_index(th) lock  of a transaction.
+	/** Get the m_index(th) lock of a transaction.
 	@return current lock or 0 */
 	const lock_t* current(const trx_t* trx) const
 	{
@@ -7080,11 +7080,10 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 			MONITOR_INC(MONITOR_DEADLOCK);
 		}
 
-	} while (victim_trx != 0 && victim_trx != trx);
+	} while (victim_trx != NULL && victim_trx != trx);
 
 	/* If the joining transaction was selected as the victim. */
-	if (victim_trx != 0) {
-		ut_a(victim_trx == trx);
+	if (victim_trx != NULL) {
 
 		print("*** WE ROLL BACK TRANSACTION (2)\n");
 
