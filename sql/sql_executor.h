@@ -468,6 +468,8 @@ public:
   void pick_table_access_method(const JOIN_TAB *join_tab);
   void push_index_cond(const JOIN_TAB *join_tab,
                        uint keyno, Opt_trace_object *trace_obj);
+                       
+  bool pfs_batch_update(JOIN *join);                       
 
 public:
 

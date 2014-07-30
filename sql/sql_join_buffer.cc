@@ -1871,10 +1871,18 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 
   // See setup_join_buffering(=: dynamic range => no cache.
   DBUG_ASSERT(!(qep_tab->dynamic_range() && qep_tab->quick()));
+  
+  bool pfs_batch_update= qep_tab->pfs_batch_update(join);
+  if (pfs_batch_update)
+    qep_tab->table()->file->start_psi_batch_mode();  
 
   /* Start retrieving all records of the joined table */
   if ((error= (*qep_tab->read_first_record)(qep_tab)))
+  {  
+    if (pfs_batch_update)
+      qep_tab->table()->file->end_psi_batch_mode();  
     return error < 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR;
+  }    
 
   READ_RECORD *info= &qep_tab->read_record;
   do
@@ -1884,6 +1892,9 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 
     if (join->thd->killed)
     {
+      if (pfs_batch_update)
+        qep_tab->table()->file->end_psi_batch_mode();
+    
       /* The user has aborted the execution of the query */
       join->thd->send_kill_message();
       return NESTED_LOOP_KILLED;
@@ -1900,7 +1911,11 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
       {
         const bool consider_record= const_cond->val_int() != FALSE;
         if (join->thd->is_error())              // error in condition evaluation
+        {
+          if (pfs_batch_update)
+            qep_tab->table()->file->end_psi_batch_mode();        
           return NESTED_LOOP_ERROR;
+        }          
         if (!consider_record)
           continue;
       }
@@ -1920,12 +1935,19 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
             get_record();
             rc= generate_full_extensions(get_curr_rec());
             if (rc != NESTED_LOOP_OK)
+            {
+              if (pfs_batch_update)
+                qep_tab->table()->file->end_psi_batch_mode();             
               return rc;
+            }
           }
         }
       }
     }
   } while (!(error= info->read_record(info)));
+
+  if (pfs_batch_update)
+    qep_tab->table()->file->end_psi_batch_mode();
 
   if (error > 0)				// Fatal error
     rc= NESTED_LOOP_ERROR; 
@@ -2390,10 +2412,16 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   uchar *rec_ptr= NULL;
 
+  bool pfs_batch_update= qep_tab->pfs_batch_update(join);
+  if (pfs_batch_update)
+    qep_tab->table()->file->start_psi_batch_mode();
+
   while (!(error= file->multi_range_read_next((char **) &rec_ptr)))
   {
     if (join->thd->killed)
     {
+      if (pfs_batch_update)
+        qep_tab->table()->file->end_psi_batch_mode();    
       /* The user has aborted the execution of the query */
       join->thd->send_kill_message();
       return NESTED_LOOP_KILLED;
@@ -2411,9 +2439,16 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
       get_record_by_pos(rec_ptr);
       rc= generate_full_extensions(rec_ptr);
       if (rc != NESTED_LOOP_OK)
+      {
+        if (pfs_batch_update)
+          qep_tab->table()->file->end_psi_batch_mode();      
         return rc;
+      }        
     }
   }
+
+  if (pfs_batch_update)
+    qep_tab->table()->file->end_psi_batch_mode();
 
   if (error > 0 && error != HA_ERR_END_OF_FILE)	   
     return NESTED_LOOP_ERROR; 
