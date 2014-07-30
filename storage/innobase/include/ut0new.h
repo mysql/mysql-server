@@ -558,10 +558,6 @@ public:
 		size_type	n_elements,
 		ut_new_pfx_t*	pfx)
 	{
-#ifdef UNIV_PFS_MEMORY
-		ut_ad(m_key != PSI_NOT_INSTRUMENTED);
-#endif /* UNIV_PFS_MEMORY */
-
 		if (n_elements == 0 || n_elements > max_size()) {
 			return(NULL);
 		}
