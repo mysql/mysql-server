@@ -240,7 +240,9 @@ public:
 		const ut_allocator<U>&	other)
 #ifdef UNIV_PFS_MEMORY
 		:
-		m_key(other.get_mem_key(NULL))
+		m_key(other.get_mem_key(NULL) != mem_key_std
+		      ? other.get_mem_key(NULL)
+		      : PSI_NOT_INSTRUMENTED)
 #endif /* UNIV_PFS_MEMORY */
 	{
 	}
