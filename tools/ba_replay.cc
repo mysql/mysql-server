@@ -366,6 +366,7 @@ int main(void) {
     vector<enum block_allocator::allocation_strategy> candidate_strategies;
     candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_FIRST_FIT);
     candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_BEST_FIT);
+    candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_PADDED_FIT);
     candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_HEAT_ZONE);
 
     for (vector<enum block_allocator::allocation_strategy>::const_iterator it = candidate_strategies.begin();
