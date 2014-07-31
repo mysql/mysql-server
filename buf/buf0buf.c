@@ -1600,6 +1600,12 @@ buf_pool_watch_is_sentinel(
 	buf_pool_t*		buf_pool,	/*!< buffer pool instance */
 	const buf_page_t*	bpage)		/*!< in: block */
 {
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&buf_pool->page_hash_latch, RW_LOCK_SHARED)
+	      || rw_lock_own(&buf_pool->page_hash_latch, RW_LOCK_EX)
+	      || mutex_own(buf_page_get_mutex(bpage)));
+#endif
+
 	ut_ad(buf_page_in_file(bpage));
 
 	if (bpage < &buf_pool->watch[0]
@@ -2048,7 +2054,9 @@ err_exit:
 		mutex_enter(&buf_pool->LRU_list_mutex);
 		mutex_enter(block_mutex);
 
-		if (UNIV_UNLIKELY(bpage->space != space
+		if (UNIV_UNLIKELY((buf_page_get_state(bpage)
+				   != BUF_BLOCK_FILE_PAGE)
+				  || bpage->space != space
 				  || bpage->offset != offset
 				  || !bpage->in_LRU_list
 				  || !bpage->zip.data)) {

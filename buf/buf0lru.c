@@ -177,20 +177,15 @@ UNIV_INLINE
 ibool
 buf_LRU_evict_from_unzip_LRU(
 /*=========================*/
-	buf_pool_t*	buf_pool,
-	ibool		have_LRU_mutex)
+	buf_pool_t*	buf_pool)
 {
 	ulint	io_avg;
 	ulint	unzip_avg;
 
-	//ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
-	if (!have_LRU_mutex)
-		mutex_enter(&buf_pool->LRU_list_mutex);
 	/* If the unzip_LRU list is empty, we can only use the LRU. */
 	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU) == 0) {
-		if (!have_LRU_mutex)
-			mutex_exit(&buf_pool->LRU_list_mutex);
 		return(FALSE);
 	}
 
@@ -199,20 +194,14 @@ buf_LRU_evict_from_unzip_LRU(
 	decompressed pages in the buffer pool. */
 	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU)
 	    <= UT_LIST_GET_LEN(buf_pool->LRU) / 10) {
-		if (!have_LRU_mutex)
-			mutex_exit(&buf_pool->LRU_list_mutex);
 		return(FALSE);
 	}
 
 	/* If eviction hasn't started yet, we assume by default
 	that a workload is disk bound. */
 	if (buf_pool->freed_page_clock == 0) {
-		if (!have_LRU_mutex)
-			mutex_exit(&buf_pool->LRU_list_mutex);
 		return(TRUE);
 	}
-	if (!have_LRU_mutex)
-		mutex_exit(&buf_pool->LRU_list_mutex);
 
 	/* Calculate the average over past intervals, and add the values
 	of the current interval. */
@@ -612,6 +601,8 @@ buf_flush_or_remove_pages(
 	ibool		all_freed = TRUE;
 	ibool		must_restart = FALSE;
 
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
 	buf_flush_list_mutex_enter(buf_pool);
 
 	for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
@@ -930,19 +921,18 @@ ibool
 buf_LRU_free_from_unzip_LRU_list(
 /*=============================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	ulint		n_iterations,	/*!< in: how many times this has
+	ulint		n_iterations)	/*!< in: how many times this has
 					been called repeatedly without
 					result: a high value means that
 					we should search farther; we will
 					search n_iterations / 5 of the
 					unzip_LRU list, or nothing if
 					n_iterations >= 5 */
-	ibool		have_LRU_mutex)
 {
 	buf_block_t*	block;
 	ulint		distance;
 
-	//ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
 	/* Theoratically it should be much easier to find a victim
 	from unzip_LRU as we can choose even a dirty block (as we'll
@@ -952,7 +942,7 @@ buf_LRU_free_from_unzip_LRU_list(
 	if we have done five iterations so far. */
 
 	if (UNIV_UNLIKELY(n_iterations >= 5)
-	    || !buf_LRU_evict_from_unzip_LRU(buf_pool, have_LRU_mutex)) {
+	    || !buf_LRU_evict_from_unzip_LRU(buf_pool)) {
 
 		return(FALSE);
 	}
@@ -960,25 +950,18 @@ buf_LRU_free_from_unzip_LRU_list(
 	distance = 100 + (n_iterations
 			  * UT_LIST_GET_LEN(buf_pool->unzip_LRU)) / 5;
 
-restart:
 	for (block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
 	     UNIV_LIKELY(block != NULL) && UNIV_LIKELY(distance > 0);
 	     block = UT_LIST_GET_PREV(unzip_LRU, block), distance--) {
 
 		ibool freed;
 
-		mutex_enter(&block->mutex);
-		if (!block->in_unzip_LRU_list || !block->page.in_LRU_list
-		    || buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
-			mutex_exit(&block->mutex);
-			goto restart;
-		}
-
 		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 		ut_ad(block->in_unzip_LRU_list);
 		ut_ad(block->page.in_LRU_list);
 
-		freed = buf_LRU_free_block(&block->page, FALSE, have_LRU_mutex);
+		mutex_enter(&block->mutex);
+		freed = buf_LRU_free_block(&block->page, FALSE, TRUE);
 		mutex_exit(&block->mutex);
 
 		if (freed) {
@@ -997,46 +980,35 @@ ibool
 buf_LRU_free_from_common_LRU_list(
 /*==============================*/
 	buf_pool_t*	buf_pool,
-	ulint		n_iterations,
+	ulint		n_iterations)
 				/*!< in: how many times this has been called
 				repeatedly without result: a high value means
 				that we should search farther; if
 				n_iterations < 10, then we search
 				n_iterations / 10 * buf_pool->curr_size
 				pages from the end of the LRU list */
-	ibool		have_LRU_mutex)
 {
 	buf_page_t*	bpage;
 	ulint		distance;
 
-	//ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
 	distance = 100 + (n_iterations * buf_pool->curr_size) / 10;
 
-restart:
 	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 	     UNIV_LIKELY(bpage != NULL) && UNIV_LIKELY(distance > 0);
 	     bpage = UT_LIST_GET_PREV(LRU, bpage), distance--) {
 
 		ibool		freed;
 		unsigned	accessed;
-		mutex_t*	block_mutex = buf_page_get_mutex_enter(bpage);
-
-		if (!block_mutex) {
-			goto restart;
-		}
-
-		if (!bpage->in_LRU_list
-		    || !buf_page_in_file(bpage)) {
-			mutex_exit(block_mutex);
-			goto restart;
-		}
+		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
 		ut_ad(buf_page_in_file(bpage));
 		ut_ad(bpage->in_LRU_list);
 
+		mutex_enter(block_mutex);
 		accessed = buf_page_is_accessed(bpage);
-		freed = buf_LRU_free_block(bpage, TRUE, have_LRU_mutex);
+		freed = buf_LRU_free_block(bpage, TRUE, TRUE);
 		mutex_exit(block_mutex);
 
 		if (freed) {
@@ -1073,23 +1045,18 @@ buf_LRU_search_and_free_block(
 				n_iterations / 5 of the unzip_LRU list. */
 {
 	ibool	freed = FALSE;
-	ibool	have_LRU_mutex = FALSE;
 
-	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU))
-		have_LRU_mutex = TRUE;
+	mutex_enter(&buf_pool->LRU_list_mutex);
 
-	//buf_pool_mutex_enter(buf_pool);
-	if (have_LRU_mutex)
-		mutex_enter(&buf_pool->LRU_list_mutex);
-
-	freed = buf_LRU_free_from_unzip_LRU_list(buf_pool, n_iterations, have_LRU_mutex);
+	freed = buf_LRU_free_from_unzip_LRU_list(buf_pool, n_iterations);
 
 	if (!freed) {
 		freed = buf_LRU_free_from_common_LRU_list(
-			buf_pool, n_iterations, have_LRU_mutex);
+			buf_pool, n_iterations);
 	}
 
 	buf_pool_mutex_enter(buf_pool);
+
 	if (!freed) {
 		buf_pool->LRU_flush_ended = 0;
 	} else if (buf_pool->LRU_flush_ended > 0) {
@@ -1097,8 +1064,8 @@ buf_LRU_search_and_free_block(
 	}
 
 	buf_pool_mutex_exit(buf_pool);
-	if (have_LRU_mutex)
-		mutex_exit(&buf_pool->LRU_list_mutex);
+
+	mutex_exit(&buf_pool->LRU_list_mutex);
 
 	return(freed);
 }

@@ -1606,7 +1606,11 @@ buf_flush_page_and_try_neighbors(
 	}
 
 	ut_a(buf_page_in_file(bpage)
-	     || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
+	     || (buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH
+#ifdef UNIV_DEBUG
+		 && !mutex_own(&buf_pool->LRU_list_mutex)
+#endif
+		 ));
 
 	if (buf_flush_ready_for_flush(bpage, flush_type)) {
 		ulint		space;
