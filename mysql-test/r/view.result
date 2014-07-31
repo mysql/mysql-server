@@ -5302,6 +5302,61 @@ NULL	8
 drop view v1;
 drop table t1,t2,t3;
 SET optimizer_switch=@save_optimizer_switch_MDEV_3874;
+CREATE TABLE `t1` (
+`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+`f0` int(11) unsigned NOT NULL DEFAULT '0',
+`f1` int(11) unsigned NOT NULL DEFAULT '0',
+PRIMARY KEY (`id`),
+UNIQUE KEY `id` (`id`)
+);
+CREATE TABLE `t2` (
+`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+`f02` bigint(20) unsigned NOT NULL DEFAULT '0',
+`f03` int(11) unsigned NOT NULL DEFAULT '0',
+PRIMARY KEY (`id`),
+UNIQUE KEY `id` (`id`)
+);
+CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v1` AS 
+SELECT 
+`t1`.`f0` AS `f0`,
+`t1`.`f1` AS `f1`,
+`t2`.`f02` AS `f02`,
+`t2`.`f03` AS `f03` 
+FROM 
+(`t1` LEFT JOIN `t2` ON((`t1`.`id` = `t2`.`f02`)));
+CREATE FUNCTION `f1`(
+p0 BIGINT(20) UNSIGNED
+)
+RETURNS bigint(20) unsigned
+DETERMINISTIC
+CONTAINS SQL
+SQL SECURITY DEFINER
+COMMENT ''
+BEGIN
+DECLARE k0 INTEGER UNSIGNED DEFAULT 0;
+DECLARE lResult INTEGER UNSIGNED DEFAULT 0;
+SET k0 = 0;
+WHILE k0 < 1 DO
+SELECT COUNT(*) as `f00` INTO lResult  FROM `v1` WHERE `v1`.`f0` = p0; -- BUG
+SET k0 = k0 + 1;
+END WHILE;
+RETURN(k0);
+END|
+SELECT `f1`(1);
+`f1`(1)
+1
+SELECT `f1`(1);
+`f1`(1)
+1
+SELECT `f1`(1);
+`f1`(1)
+1
+SELECT `f1`(1);
+`f1`(1)
+1
+DROP FUNCTION f1;
+DROP VIEW v1;
+DROP TABLE t1, t2;
 # -----------------------------------------------------------------
 # -- End of 5.5 tests.
 # -----------------------------------------------------------------

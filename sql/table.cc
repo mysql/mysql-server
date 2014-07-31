@@ -4140,7 +4140,8 @@ bool TABLE_LIST::create_field_translation(THD *thd)
 
   while ((item= it++))
   {
-    transl[field_count].name= item->name;
+    DBUG_ASSERT(item->name && item->name[0]);
+    transl[field_count].name= thd->strdup(item->name);
     transl[field_count++].item= item;
   }
   field_translation= transl;
