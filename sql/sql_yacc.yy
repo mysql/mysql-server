@@ -8167,10 +8167,6 @@ start_transaction_option:
           {
             $$= MYSQL_START_TRANS_OPT_READ_WRITE;
           }
-        | HIGH_PRIORITY
-	  {
-	    $$= MYSQL_START_TRANS_OPT_HIGH_PRIORITY;
-	  }
         ;
 
 slave_connection_opts:
