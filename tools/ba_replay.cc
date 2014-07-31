@@ -111,6 +111,8 @@ using std::set;
 using std::string;
 using std::vector;
 
+static bool verbose = false;
+
 static void ba_replay_assert(bool pred, const char *msg, const char *line, int line_num) {
     if (!pred) {
         fprintf(stderr, "%s, line (#%d): %s\n", msg, line_num, line);
@@ -259,7 +261,10 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
 
         char *line = toku_strdup(it->c_str());
 
-        printf("playing canonical trace line #%d: %s", line_num, line);
+        if (verbose) {
+            printf("playing canonical trace line #%d: %s", line_num, line);
+        }
+
         char *ptr = tidy_line(line);
 
         // canonical allocator id is in base 10, not 16
@@ -335,30 +340,43 @@ static void print_result(uint64_t allocator_id,
     uint64_t total_bytes = report->data_bytes + report->unused_bytes;
     uint64_t total_blocks = report->data_blocks + report->unused_blocks;
     if (total_bytes < 32UL * 1024 * 1024) {
-        printf("skipping allocator_id %" PRId64 " (total bytes < 32mb)\n", allocator_id);
+        printf(" ...skipping allocator_id %" PRId64 " (total bytes < 32mb)\n", allocator_id);
+        printf("\n");
         return;
     }
 
-    printf("\n");
-    printf("allocator_id:   %20" PRId64 "\n", allocator_id);
-    printf("strategy:       %20s\n", strategy_str(strategy));
+    printf(" allocator_id:   %20" PRId64 "\n", allocator_id);
+    printf(" strategy:       %20s\n", strategy_str(strategy));
 
     // byte statistics
-    printf("total bytes:    %20" PRId64 "\n", total_bytes);
-    printf("used bytes:     %20" PRId64 " (%.3lf)\n", report->data_bytes,
+    printf(" total bytes:    %20" PRId64 "\n", total_bytes);
+    printf(" used bytes:     %20" PRId64 " (%.3lf)\n", report->data_bytes,
            static_cast<double>(report->data_bytes) / total_bytes);
-    printf("unused bytes:   %20" PRId64 " (%.3lf)\n", report->unused_bytes,
+    printf(" unused bytes:   %20" PRId64 " (%.3lf)\n", report->unused_bytes,
            static_cast<double>(report->unused_bytes) / total_bytes);
 
     // block statistics
-    printf("total blocks:   %20" PRId64 "\n", total_blocks);
-    printf("used blocks:    %20" PRId64 " (%.3lf)\n", report->data_blocks,
+    printf(" total blocks:   %20" PRId64 "\n", total_blocks);
+    printf(" used blocks:    %20" PRId64 " (%.3lf)\n", report->data_blocks,
            static_cast<double>(report->data_blocks) / total_blocks);
-    printf("unused blocks:  %20" PRId64 " (%.3lf)\n", report->unused_blocks,
+    printf(" unused blocks:  %20" PRId64 " (%.3lf)\n", report->unused_blocks,
            static_cast<double>(report->unused_blocks) / total_blocks);
 
     // misc
-    printf("largest unused: %20" PRId64 "\n", report->largest_unused_block);
+    printf(" largest unused: %20" PRId64 "\n", report->largest_unused_block);
+    printf("\n");
+}
+
+static void merge_fragmentation_reports(TOKU_DB_FRAGMENTATION dst,
+                                        TOKU_DB_FRAGMENTATION src) {
+    dst->file_size_bytes += src->file_size_bytes;
+    dst->data_bytes += src->data_bytes;
+    dst->data_blocks += src->data_blocks;
+    dst->checkpoint_bytes_additional += src->checkpoint_bytes_additional;
+    dst->checkpoint_blocks_additional += src->checkpoint_blocks_additional;
+    dst->unused_bytes += src->unused_bytes;
+    dst->unused_blocks += src->unused_blocks;
+    dst->largest_unused_block += src->largest_unused_block;
 }
 
 int main(void) {
@@ -371,6 +389,11 @@ int main(void) {
     candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_PADDED_FIT);
     candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_HEAT_ZONE);
 
+    printf("\n");
+    printf("Individual reports, by allocator:\n");
+    printf("\n");
+
+    map<block_allocator::allocation_strategy, TOKU_DB_FRAGMENTATION_S> reports_by_strategy; 
     for (vector<enum block_allocator::allocation_strategy>::const_iterator it = candidate_strategies.begin();
          it != candidate_strategies.end(); it++) {
         const block_allocator::allocation_strategy strategy(*it);
@@ -381,16 +404,31 @@ int main(void) {
         map<uint64_t, block_allocator *> allocator_map;
         replay_canonicalized_trace(canonicalized_trace, strategy, &allocator_map);
 
+        TOKU_DB_FRAGMENTATION_S aggregate_report;
+        memset(&aggregate_report, 0, sizeof(aggregate_report));
         for (map<uint64_t, block_allocator *>::iterator al = allocator_map.begin();
              al != allocator_map.end(); al++) {
             block_allocator *ba = al->second;
 
             TOKU_DB_FRAGMENTATION_S report;
+            memset(&report, 0, sizeof(report));
             ba->get_statistics(&report);
             ba->destroy();
 
-            print_result(al->first, strategy,&report);
+            merge_fragmentation_reports(&aggregate_report, &report);
+            print_result(al->first, strategy, &report);
         }
+        reports_by_strategy[strategy] = aggregate_report;
+    }
+
+    printf("\n");
+    printf("Aggregate reports, by strategy:\n");
+    printf("\n");
+
+    for (map<block_allocator::allocation_strategy, TOKU_DB_FRAGMENTATION_S>::iterator it = reports_by_strategy.begin();
+         it != reports_by_strategy.end(); it++) {
+        TOKU_DB_FRAGMENTATION report = &it->second;
+        print_result(0, it->first, report);
     }
 
     return 0;

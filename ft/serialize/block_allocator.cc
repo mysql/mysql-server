@@ -221,6 +221,8 @@ block_allocator::choose_block_to_alloc_after(size_t size, uint64_t heat) {
         return block_allocator_strategy::best_fit(_blocks_array, _n_blocks, size, _alignment);
     case BA_STRATEGY_HEAT_ZONE:
         return block_allocator_strategy::heat_zone(_blocks_array, _n_blocks, size, _alignment, heat);
+    case BA_STRATEGY_PADDED_FIT:
+        return block_allocator_strategy::padded_fit(_blocks_array, _n_blocks, size, _alignment);
     default:
         abort();
     }
@@ -260,7 +262,8 @@ void block_allocator::alloc_block(uint64_t size, uint64_t heat, uint64_t *offset
         // our allocation strategy chose the space after `bp' to fit the new block
         uint64_t answer_offset = align(bp->offset + bp->size, _alignment);
         uint64_t blocknum = bp - _blocks_array;
-        assert(&_blocks_array[blocknum] == bp);
+        invariant(&_blocks_array[blocknum] == bp);
+        invariant(blocknum < _n_blocks);
         memmove(bp + 2, bp + 1, (_n_blocks - blocknum - 1) * sizeof(*bp));
         bp[1].offset = answer_offset;
         bp[1].size = size;
