@@ -24731,7 +24731,7 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
             row.write_uint32(getOwnNodeId());
             row.write_uint32(instance());
             row.write_uint32(tableid);
-            row.write_uint32(fragNo);
+            row.write_uint32(myFragPtr.p->fragId);
 
             FragrecordPtr rowsLookupFragPtr;
             rowsLookupFragPtr.i = myFragPtr.i;
