@@ -730,7 +730,7 @@ static int open_logfile (TOKULOGGER logger)
     snprintf(fname, fnamelen, "%s/log%012lld.tokulog%d", logger->directory, logger->next_log_file_number, TOKU_LOG_VERSION);
     long long index = logger->next_log_file_number;
     if (logger->write_log_files) {
-        logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);     
+        logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRUSR+S_IWUSR);     
         if (logger->fd==-1) {
             return get_error_errno();
         }

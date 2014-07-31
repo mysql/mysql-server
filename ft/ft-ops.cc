@@ -3593,19 +3593,20 @@ static inline int ft_open_maybe_direct(const char *filename, int oflag, int mode
     }
 }
 
+static const mode_t file_mode = S_IRUSR+S_IWUSR+S_IRGRP+S_IWGRP+S_IROTH+S_IWOTH;
+
 // open a file for use by the brt
 // Requires:  File does not exist.
 static int ft_create_file(FT_HANDLE UU(brt), const char *fname, int *fdp) {
-    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r;
     int fd;
     int er;
-    fd = ft_open_maybe_direct(fname, O_RDWR | O_BINARY, mode);
+    fd = ft_open_maybe_direct(fname, O_RDWR | O_BINARY, file_mode);
     assert(fd==-1);
     if ((er = get_maybe_error_errno()) != ENOENT) {
         return er;
     }
-    fd = ft_open_maybe_direct(fname, O_RDWR | O_CREAT | O_BINARY, mode);
+    fd = ft_open_maybe_direct(fname, O_RDWR | O_CREAT | O_BINARY, file_mode);
     if (fd==-1) {
         r = get_error_errno();
         return r;
@@ -3623,9 +3624,8 @@ static int ft_create_file(FT_HANDLE UU(brt), const char *fname, int *fdp) {
 
 // open a file for use by the brt.  if the file does not exist, error
 static int ft_open_file(const char *fname, int *fdp) {
-    mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int fd;
-    fd = ft_open_maybe_direct(fname, O_RDWR | O_BINARY, mode);
+    fd = ft_open_maybe_direct(fname, O_RDWR | O_BINARY, file_mode);
     if (fd==-1) {
         return get_error_errno();
     }
@@ -3783,13 +3783,12 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
         }
         if (r==ENOENT && is_create) {
             did_create = true;
-            mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
             if (txn) {
                 BYTESTRING bs = { .len=(uint32_t) strlen(fname_in_env), .data = (char*)fname_in_env };
                 toku_logger_save_rollback_fcreate(txn, reserved_filenum, &bs); // bs is a copy of the fname relative to the environment
             }
             txn_created = (bool)(txn!=NULL);
-            toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, ft_h->options.flags, ft_h->options.nodesize, ft_h->options.basementnodesize, ft_h->options.compression_method);
+            toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, file_mode, ft_h->options.flags, ft_h->options.nodesize, ft_h->options.basementnodesize, ft_h->options.compression_method);
             r = ft_create_file(ft_h, fname_in_cwd, &fd);
             if (r) { goto exit; }
         }

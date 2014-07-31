@@ -2727,7 +2727,7 @@ static int loader_do_i (FTLOADER bl,
     if (r) goto error;
 
     {
-        mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
+        mode_t mode = S_IRUSR+S_IWUSR + S_IRGRP+S_IWGRP;
         int fd = toku_os_open(new_fname, O_RDWR| O_CREAT | O_BINARY, mode); // #2621
         if (fd < 0) {
             r = get_error_errno(); goto error;
