@@ -85,7 +85,7 @@ int decrypt_login_cnf_file(istream &fin, ostream &sout)
     int len;
     char len_buf[MAX_CIPHER_STORE_LEN];
     char cipher[MAX_CIPHER_LEN];
-    fin.read(len_buf, 4);
+    fin.read(len_buf, MAX_CIPHER_STORE_LEN);
     len= sint4korr(len_buf);
     if (len == 0 || fin.eof())
       break;
@@ -97,7 +97,7 @@ int decrypt_login_cnf_file(istream &fin, ostream &sout)
     aes_length= my_aes_decrypt((const unsigned char *) cipher, len,
                                (unsigned char *) plain,
                                (const unsigned char *) rkey,
-                               MAX_CIPHER_LEN, my_aes_128_ecb, NULL);
+                               LOGIN_KEY_LEN, my_aes_128_ecb, NULL);
     if (aes_length > MAX_CIPHER_LEN)
       return ERR_ENCRYPTION;
     plain[aes_length]= 0;
