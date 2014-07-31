@@ -784,8 +784,8 @@ os_file_opendir(
 {
 	os_file_dir_t		dir;
 #ifdef _WIN32
-	LPWIN32_FIND_DATA	lpFindFileData;
-	char			path[OS_FILE_MAX_PATH + 3];
+	WIN32_FIND_DATA	FindFileData;
+	char		path[OS_FILE_MAX_PATH + 3];
 
 	ut_a(strlen(dirname) < OS_FILE_MAX_PATH);
 
@@ -796,12 +796,7 @@ os_file_opendir(
 	the first entry in the directory. Since it is '.', that is no problem,
 	as we will skip over the '.' and '..' entries anyway. */
 
-	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
-		ut_malloc_nokey(sizeof(WIN32_FIND_DATA)));
-
-	dir = FindFirstFile((LPCTSTR) path, lpFindFileData);
-
-	ut_free(lpFindFileData);
+	dir = FindFirstFile((LPCTSTR) path, &FindFileData);
 
 	if (dir == INVALID_HANDLE_VALUE) {
 
@@ -811,6 +806,12 @@ os_file_opendir(
 
 		return(NULL);
 	}
+
+	/* Ensure that the first entry opened is indeed "." because we are
+	going to skip it (going to call FindNextFile() without considering
+	the value of FindFileData) and we do not want to skip some real
+	file. */
+	ut_ad(strcmp(FindFileData.cFileName, ".") == 0);
 
 	return(dir);
 #else
@@ -871,31 +872,29 @@ os_file_readdir_next_file(
 	os_file_stat_t*	info)	/*!< in/out: buffer where the info is returned */
 {
 #ifdef _WIN32
-	LPWIN32_FIND_DATA	lpFindFileData;
-	BOOL			ret;
+	WIN32_FIND_DATA	FindFileData;
+	BOOL		ret;
 
-	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
-		ut_malloc_nokey(sizeof(WIN32_FIND_DATA)));
 next_file:
-	ret = FindNextFile(dir, lpFindFileData);
+	ret = FindNextFile(dir, &FindFileData);
 
 	if (ret) {
-		ut_a(strlen((char*) lpFindFileData->cFileName)
+		ut_a(strlen((char*) FindFileData.cFileName)
 		     < OS_FILE_MAX_PATH);
 
-		if (strcmp((char*) lpFindFileData->cFileName, ".") == 0
-		    || strcmp((char*) lpFindFileData->cFileName, "..") == 0) {
+		if (strcmp((char*) FindFileData.cFileName, ".") == 0
+		    || strcmp((char*) FindFileData.cFileName, "..") == 0) {
 
 			goto next_file;
 		}
 
-		strcpy(info->name, (char*) lpFindFileData->cFileName);
+		strcpy(info->name, (char*) FindFileData.cFileName);
 
-		info->size = static_cast<int64_t>(lpFindFileData->nFileSizeLow)
-			+ (static_cast<int64_t>(lpFindFileData->nFileSizeHigh)
+		info->size = static_cast<int64_t>(FindFileData.nFileSizeLow)
+			+ (static_cast<int64_t>(FindFileData.nFileSizeHigh)
 			   << 32);
 
-		if (lpFindFileData->dwFileAttributes
+		if (FindFileData.dwFileAttributes
 		    & FILE_ATTRIBUTE_REPARSE_POINT) {
 			/* TODO: test Windows symlinks */
 			/* TODO: MySQL has apparently its own symlink
@@ -903,7 +902,7 @@ next_file:
 			redirect a database directory:
 			REFMAN "windows-symbolic-links.html" */
 			info->type = OS_FILE_TYPE_LINK;
-		} else if (lpFindFileData->dwFileAttributes
+		} else if (FindFileData.dwFileAttributes
 			   & FILE_ATTRIBUTE_DIRECTORY) {
 			info->type = OS_FILE_TYPE_DIR;
 		} else {
@@ -913,19 +912,16 @@ next_file:
 
 			info->type = OS_FILE_TYPE_FILE;
 		}
-	}
 
-	ut_free(lpFindFileData);
-
-	if (ret) {
 		return(0);
-	} else if (GetLastError() == ERROR_NO_MORE_FILES) {
-
-		return(1);
-	} else {
-		os_file_handle_error_no_exit(NULL, "readdir_next_file", false);
-		return(-1);
 	}
+
+	if (GetLastError() == ERROR_NO_MORE_FILES) {
+		return(1);
+	}
+
+	os_file_handle_error_no_exit(NULL, "readdir_next_file", false);
+	return(-1);
 #else
 	struct dirent*	ent;
 	char*		full_path;
