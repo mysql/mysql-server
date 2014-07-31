@@ -38,3 +38,11 @@ UNLOCK TABLES;
 LOCK TABLES performance_schema.user_variables_by_thread WRITE;
 UNLOCK TABLES;
 
+DELIMITER |;
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE TRIGGER test_uvar_trigger
+    AFTER INSERT ON performance_schema.user_variables_by_thread
+     FOR EACH ROW BEGIN
+     set @a='OK';
+END|
+DELIMITER ;|

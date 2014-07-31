@@ -22,3 +22,9 @@ UNLOCK TABLES;
 LOCK TABLES performance_schema.user_variables_by_thread WRITE;
 ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'user_variables_by_thread'
 UNLOCK TABLES;
+CREATE TRIGGER test_uvar_trigger
+AFTER INSERT ON performance_schema.user_variables_by_thread
+FOR EACH ROW BEGIN
+set @a='OK';
+END|
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
