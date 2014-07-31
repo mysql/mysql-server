@@ -4363,6 +4363,19 @@ static bool index_key_is_null(TABLE *table, uint keynr, const uchar *key, uint k
     return key_can_be_null && key_len > 0 && key[0] != 0;
 }
 
+// Return true if bulk fetch can be used
+static bool tokudb_do_bulk_fetch(THD *thd) {
+    switch (thd_sql_command(thd)) {
+    case SQLCOM_SELECT:
+    case SQLCOM_CREATE_TABLE:
+    case SQLCOM_INSERT_SELECT:
+    case SQLCOM_REPLACE_SELECT:
+        return true;
+    default:
+        return false;
+    }
+}
+
 //
 // Notification that a range query getting all elements that equal a key
 //  to take place. Will pre acquire read lock
@@ -4395,7 +4408,7 @@ int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
 
     range_lock_grabbed = true;
     range_lock_grabbed_null = index_key_is_null(table, tokudb_active_index, key, key_len);
-    doing_bulk_fetch = thd_sql_command(thd) == SQLCOM_SELECT || thd_sql_command(thd) == SQLCOM_CREATE_TABLE || thd_sql_command(thd) == SQLCOM_INSERT_SELECT;
+    doing_bulk_fetch = tokudb_do_bulk_fetch(thd);
     bulk_fetch_iteration = 0;
     rows_fetched_using_bulk_fetch = 0;
     error = 0;
@@ -5705,7 +5718,7 @@ int ha_tokudb::prelock_range(const key_range *start_key, const key_range *end_ke
     }
 
     // at this point, determine if we will be doing bulk fetch
-    doing_bulk_fetch = thd_sql_command(thd) == SQLCOM_SELECT || thd_sql_command(thd) == SQLCOM_CREATE_TABLE || thd_sql_command(thd) == SQLCOM_INSERT_SELECT;
+    doing_bulk_fetch = tokudb_do_bulk_fetch(thd);
     bulk_fetch_iteration = 0;
     rows_fetched_using_bulk_fetch = 0;
 
