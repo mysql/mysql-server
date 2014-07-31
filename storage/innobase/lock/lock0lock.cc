@@ -1521,7 +1521,7 @@ RecLock::lock_add(lock_t* lock, bool add_to_hash)
 }
 
 /**
-Create a new request
+Create a new lock.
 @param[in,out] trx		Transaction requesting the lock
 @param[in] owns_trx_mutex	true if caller owns the trx_t::mutex
 @return a new lock instance */

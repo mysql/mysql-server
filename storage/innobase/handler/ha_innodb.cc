@@ -1138,8 +1138,8 @@ Check if the transaction can be rolled back
 THD*
 thd_trx_arbitrate(THD* requestor, THD* holder)
 {
-	/* Non-user (thd==0) transactions by default can rollback, in
-	practice DDL transactions should never rollback but that's because
+	/* Non-user (thd==0) transactions by default can't rollback, in
+	practice DDL transactions should never rollback and that's because
 	they should never wait on table/record locks either */
 
 	ut_a(holder != NULL);
