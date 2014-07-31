@@ -147,24 +147,21 @@ void block_allocator::_create_internal(uint64_t reserve_at_beginning, uint64_t a
     _n_bytes_in_use = reserve_at_beginning;
     _strategy = BA_STRATEGY_FIRST_FIT;
 
+    memset(&_trace_lock, 0, sizeof(toku_mutex_t));
+    toku_mutex_init(&_trace_lock, nullptr);
+
     VALIDATE();
 }
 
 void block_allocator::create(uint64_t reserve_at_beginning, uint64_t alignment) {
     _create_internal(reserve_at_beginning, alignment);
-    if (ba_trace_file != nullptr) {
-        fprintf(ba_trace_file, "ba_trace_create %p\n", this);
-        fflush(ba_trace_file);
-    }
+    _trace_create();
 }
 
 void block_allocator::destroy() {
     toku_free(_blocks_array);
-
-    if (ba_trace_file != nullptr) {
-        fprintf(ba_trace_file, "ba_trace_destroy %p\n", this);
-        fflush(ba_trace_file);
-    }
+    _trace_destroy();
+    toku_mutex_destroy(&_trace_lock);
 }
 
 void block_allocator::set_strategy(enum allocation_strategy strategy) {
@@ -205,6 +202,8 @@ void block_allocator::create_from_blockpairs(uint64_t reserve_at_beginning, uint
     }
 
     VALIDATE();
+
+    _trace_create_from_blockpairs();
 }
 
 // Effect: align a value by rounding up.
@@ -282,13 +281,7 @@ done:
     _n_blocks++;
     VALIDATE();
 
-    if (ba_trace_file != nullptr) {
-        fprintf(ba_trace_file, "ba_trace_alloc %p %lu %lu %lu\n",
-                this, static_cast<unsigned long>(size),
-                static_cast<unsigned long>(heat),
-                static_cast<unsigned long>(*offset));
-        fflush(ba_trace_file);
-    }
+    _trace_alloc(size, heat, *offset);
 }
 
 // Find the index in the blocks array that has a particular offset.  Requires that the block exist.
@@ -330,12 +323,8 @@ void block_allocator::free_block(uint64_t offset) {
             (_n_blocks - bn - 1) * sizeof(struct blockpair));
     _n_blocks--;
     VALIDATE();
-
-    if (ba_trace_file != nullptr) {
-        fprintf(ba_trace_file, "ba_trace_free %p %lu\n",
-                this, static_cast<unsigned long>(offset));
-        fflush(ba_trace_file);
-    }
+    
+    _trace_free(offset);
 }
 
 uint64_t block_allocator::block_size(uint64_t offset) {
@@ -461,4 +450,66 @@ void block_allocator::validate() const {
         }
     }
     assert(n_bytes_in_use == _n_bytes_in_use);
+}
+
+// Tracing
+
+void block_allocator::_trace_create(void) {
+    if (ba_trace_file != nullptr) {
+        toku_mutex_lock(&_trace_lock);
+        fprintf(ba_trace_file, "ba_trace_create %p %lu %lu\n", this,
+                _reserve_at_beginning, _alignment);
+        toku_mutex_unlock(&_trace_lock);
+
+        fflush(ba_trace_file);
+    }
+}
+
+void block_allocator::_trace_create_from_blockpairs(void) {
+    if (ba_trace_file != nullptr) {
+        toku_mutex_lock(&_trace_lock);
+        fprintf(ba_trace_file, "ba_trace_create_from_blockpairs %p %lu %lu ", this,
+                _reserve_at_beginning, _alignment);
+        for (uint64_t i = 0; i < _n_blocks; i++) {
+            fprintf(ba_trace_file, "[%lu %lu] ", _blocks_array[i].offset, _blocks_array[i].size);
+        }
+        fprintf(ba_trace_file, "\n");
+        toku_mutex_unlock(&_trace_lock);
+
+        fflush(ba_trace_file);
+    }
+}
+
+void block_allocator::_trace_destroy(void) {
+    if (ba_trace_file != nullptr) {
+        toku_mutex_lock(&_trace_lock);
+        fprintf(ba_trace_file, "ba_trace_destroy %p\n", this);
+        toku_mutex_unlock(&_trace_lock);
+
+        fflush(ba_trace_file);
+    }
+}
+
+void block_allocator::_trace_alloc(uint64_t size, uint64_t heat, uint64_t offset) {
+    if (ba_trace_file != nullptr) {
+        toku_mutex_lock(&_trace_lock);
+        fprintf(ba_trace_file, "ba_trace_alloc %p %lu %lu %lu\n", this,
+                static_cast<unsigned long>(size),
+                static_cast<unsigned long>(heat),
+                static_cast<unsigned long>(offset));
+        toku_mutex_unlock(&_trace_lock);
+
+        fflush(ba_trace_file);
+    }
+}
+
+void block_allocator::_trace_free(uint64_t offset) {
+    if (ba_trace_file != nullptr) {
+        toku_mutex_lock(&_trace_lock);
+        fprintf(ba_trace_file, "ba_trace_free %p %lu\n", this,
+                static_cast<unsigned long>(offset));
+        toku_mutex_unlock(&_trace_lock);
+
+        fflush(ba_trace_file);
+    }
 }

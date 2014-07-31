@@ -94,6 +94,7 @@ PATENT RIGHTS GRANT:
 
 #include <db.h>
 
+#include "portability/toku_pthread.h"
 #include "portability/toku_stdint.h"
 
 // Block allocator.
@@ -240,6 +241,14 @@ private:
     void grow_blocks_array();
     int64_t find_block(uint64_t offset);
     struct blockpair *choose_block_to_alloc_after(size_t size, uint64_t heat);
+
+    // Tracing
+    toku_mutex_t _trace_lock;
+    void _trace_create(void);
+    void _trace_create_from_blockpairs(void);
+    void _trace_destroy(void);
+    void _trace_alloc(uint64_t size, uint64_t heat, uint64_t offset);
+    void _trace_free(uint64_t offset);
 
     // How much to reserve at the beginning
     uint64_t _reserve_at_beginning;
