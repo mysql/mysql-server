@@ -1104,12 +1104,18 @@ srv_shutdown_all_bg_threads()
 
 		if (srv_start_state_is_set(SRV_START_STATE_IO)) {
 			/* e. Exit the i/o threads */
-			if (!srv_read_only_mode
-			    && recv_sys->heap != NULL) {
-				os_event_set(recv_sys->flush_start);
+			if (!srv_read_only_mode) {
+				if (recv_sys->flush_start != NULL) {
+					os_event_set(recv_sys->flush_start);
+				}
+				if (recv_sys->flush_end != NULL) {
+					os_event_set(recv_sys->flush_end);
+				}
 			}
 			os_event_set(buf_flush_event);
-			os_aio_wake_all_threads_at_shutdown();
+			if (!buf_page_cleaner_is_active) {
+				os_aio_wake_all_threads_at_shutdown();
+			}
 		}
 
 		/* f. dict_stats_thread is signaled from
