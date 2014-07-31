@@ -4790,9 +4790,3 @@ void THD::Query_plan::set_query_plan(enum_sql_command sql_cmd,
   is_ps= ps;
   mysql_mutex_unlock(&thd->LOCK_query_plan);
 }
-
-void
-thd_kill(THD* thd)
-{
-	thd->awake(THD::KILL_QUERY);
-}
