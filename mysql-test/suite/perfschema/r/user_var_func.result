@@ -55,3 +55,34 @@ where VARIABLE_NAME like "blob%"
 variable_name	length(variable_value)
 blob_under_16_bits	65000
 blob_under_24_bits	1000000
+set @a=10;
+CREATE procedure test_user_val
+(IN input INT,OUT output INT)
+BEGIN
+SELECT input + input
+INTO output;
+END|
+CALL test_user_val(@a , @total);
+select VARIABLE_NAME,VARIABLE_VALUE from performance_schema.user_variables_by_thread 
+where variable_name in ('a','total') order by VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+a	10
+total	20
+create table t1 (c1 int);
+CREATE TRIGGER test_uvar_trigger
+AFTER INSERT ON t1
+FOR EACH ROW BEGIN
+set @a=@a+@a;
+END|
+insert into t1 values(1);
+select VARIABLE_NAME,VARIABLE_VALUE from performance_schema.user_variables_by_thread 
+where variable_name ='a' order by VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+a	20
+insert into t1 values(1);
+select VARIABLE_NAME,VARIABLE_VALUE from performance_schema.user_variables_by_thread 
+where variable_name ='a' order by VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+a	40
+drop table t1;
+drop procedure test_user_val;
