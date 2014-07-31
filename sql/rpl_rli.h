@@ -258,15 +258,12 @@ private:
 public:
   Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
   void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
-  int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
+  void add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
-    int ret= 0;
     global_sid_lock->assert_some_lock();
     DBUG_ASSERT(sidno <= global_sid_map->get_max_sidno());
     gtid_set.ensure_sidno(sidno);
-    if (gtid_set._add_gtid(sidno, gno) != RETURN_STATUS_OK)
-      ret= 1;
-    return ret;
+    gtid_set._add_gtid(sidno, gno);
   }
   const Gtid_set *get_gtid_set() const { return &gtid_set; }
 
