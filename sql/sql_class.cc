@@ -1566,7 +1566,11 @@ void THD::cleanup(void)
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
+  /* Protects user_vars. */
+  mysql_mutex_lock(&LOCK_thd_data);
   my_hash_free(&user_vars);
+  mysql_mutex_unlock(&LOCK_thd_data);
+
   close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
