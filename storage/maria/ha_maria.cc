@@ -2809,7 +2809,8 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
   TRN *trn;
   int error;
   uint locked_tables;
-  MARIA_SHARE **used_tables= 0;
+  DYNAMIC_ARRAY used_tables;
+  
   DBUG_ENTER("ha_maria::implicit_commit");
   if (!maria_hton || !(trn= THD_TRN))
     DBUG_RETURN(0);
@@ -2825,32 +2826,37 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
     DBUG_PRINT("info", ("locked_tables, skipping"));
     DBUG_RETURN(0);
   }
-  if ((locked_tables= trnman_has_locked_tables(trn)))
-  {
-    MARIA_SHARE **used_tables_end;
-    MARIA_USED_TABLES *tables;
-    /* Save locked tables so that we can move them to another transaction */
 
-    used_tables= (MARIA_SHARE**) my_malloc((locked_tables+1) * 
-                                           sizeof(MARIA_SHARE*),
-                                           MY_WME);
-    used_tables_end= used_tables;
-    if (!used_tables)
-    {
-      /* Continue using the old transaction; Should be safe in most cases */
-      error= HA_ERR_OUT_OF_MEM;
-      goto end;
-    }
-    
+  locked_tables= trnman_has_locked_tables(trn);
+
+  if (new_trn && trn && trn->used_tables)
+  {
+    MARIA_USED_TABLES *tables;
+    /*
+      Save locked tables so that we can move them to another transaction
+      We are using a dynamic array as locked_tables in some cases can be
+      smaller than the used_tables list (for example when the server does
+      early unlock of tables.
+    */
+
+    my_init_dynamic_array2(&used_tables, sizeof(MARIA_SHARE*), (void*) 0,
+                           locked_tables, 8);
     for (tables= (MARIA_USED_TABLES*) trn->used_tables;
          tables;
          tables= tables->next)
     {
       if (tables->share->base.born_transactional)
-        *used_tables_end++= tables->share;
+      {
+        if (insert_dynamic(&used_tables, (uchar*) &tables->share))
+        {
+          error= HA_ERR_OUT_OF_MEM;
+          goto end_and_free;
+        }
+      }
     }
-    *used_tables_end= 0;                        // End marker
   }
+  else
+    bzero(&used_tables, sizeof(used_tables));
 
   error= 0;
   if (unlikely(ma_commit(trn)))
@@ -2875,7 +2881,7 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
   if (unlikely(trn == NULL))
   {
     error= HA_ERR_OUT_OF_MEM;
-    goto end;
+    goto end_and_free;
   }
   /*
     Move all locked tables to the new transaction
@@ -2884,28 +2890,27 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
     when we should call _ma_setup_live_state() and in some cases, like
     in check table, we use the table without calling start_stmt().
   */
-  if (used_tables)
-  {
-    MARIA_SHARE **tables;
-    for (tables= used_tables; *tables ; tables++)
-    {
-      MARIA_SHARE *share= *tables;
-      LIST *handlers;
 
-      /* Find table instances that was used in this transaction */
-      for (handlers= share->open_list; handlers; handlers= handlers->next)
-      {
-        MARIA_HA *handler= (MARIA_HA*) handlers->data;
-        if (handler->external_ref && 
-            ((TABLE*) handler->external_ref)->in_use == thd)
-        {        
-          _ma_set_trn_for_table(handler, trn);
-          /* If handler uses versioning */
-          if (handler->s->lock_key_trees)
-          {
-            if (_ma_setup_live_state(handler))
-              error= HA_ERR_OUT_OF_MEM;
-          }
+  uint i;
+  for (i= 0 ; i < used_tables.elements ; i++)
+  {
+    MARIA_SHARE *share;
+    LIST *handlers;
+
+    share= *(dynamic_element(&used_tables, i, MARIA_SHARE**));
+    /* Find table instances that was used in this transaction */
+    for (handlers= share->open_list; handlers; handlers= handlers->next)
+    {
+      MARIA_HA *handler= (MARIA_HA*) handlers->data;
+      if (handler->external_ref && 
+          ((TABLE*) handler->external_ref)->in_use == thd)
+      {        
+        _ma_set_trn_for_table(handler, trn);
+        /* If handler uses versioning */
+        if (handler->s->lock_key_trees)
+        {
+          if (_ma_setup_live_state(handler))
+            error= HA_ERR_OUT_OF_MEM;
         }
       }
     }
@@ -2913,8 +2918,9 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
   /* This is just a commit, tables stay locked if they were: */
   trnman_reset_locked_tables(trn, locked_tables);
 
+end_and_free:
+  delete_dynamic(&used_tables);
 end:
-  my_free(used_tables);
   DBUG_RETURN(error);
 }
 
