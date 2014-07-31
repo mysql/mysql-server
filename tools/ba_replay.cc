@@ -130,10 +130,11 @@ static char *trim_whitespace(char *line) {
 
 static int64_t parse_number(char **ptr, int line_num, int base) {
     *ptr = trim_whitespace(*ptr);
+    char *line = *ptr;
 
     char *new_ptr;
-    int64_t n = strtoll(*ptr, &new_ptr, base);
-    ba_replay_assert(n >= 0, "malformed trace", *ptr, line_num);
+    int64_t n = strtoll(line, &new_ptr, base);
+    ba_replay_assert(n >= 0, "malformed trace", line, line_num);
     *ptr = new_ptr;
     return n;
 }
@@ -147,22 +148,25 @@ static uint64_t parse_uint64(char **ptr, int line_num) {
 }
 
 static string parse_token(char **ptr, int line_num) {
-    char *line = trim_whitespace(*ptr);
+    *ptr = trim_whitespace(*ptr);
+    char *line = *ptr;
 
     // parse the first token, which represents the traced function
     char token[64];
-    int r = sscanf(line, "%64s", token);
+    int r = sscanf(*ptr, "%64s", token);
     ba_replay_assert(r == 1, "malformed trace", line, line_num);
     *ptr += strlen(token);
     return string(token);
 }
 
 static block_allocator::blockpair parse_blockpair(char **ptr, int line_num) {
-    char *line = trim_whitespace(*ptr);
+    *ptr = trim_whitespace(*ptr);
+    char *line = *ptr;
+
     uint64_t offset, size;
     int bytes_read;
     int r = sscanf(line, "[%" PRIu64 " %" PRIu64 "]%n", &offset, &size, &bytes_read);
-    ba_replay_assert(r == 3, "malformed trace", line, line_num);
+    ba_replay_assert(r == 2, "malformed trace", line, line_num);
     *ptr += bytes_read;
     return block_allocator::blockpair(offset, size);
 }
@@ -170,7 +174,9 @@ static block_allocator::blockpair parse_blockpair(char **ptr, int line_num) {
 static char *strip_newline(char *line, bool *found) {
     char *ptr = strchr(line, '\n');
     if (ptr != nullptr) {
-        *found = true;
+        if (found != nullptr) {
+            *found = true;
+        }
         *ptr = '\0';
     }
     return line;
@@ -192,7 +198,7 @@ static char *read_trace_line(FILE *file) {
         }
     }
     std::string s = ss.str();
-    return toku_strdup(s.c_str());
+    return s.size() ? toku_strdup(s.c_str()) : nullptr;
 }
 
 static vector<string> canonicalize_trace_from(FILE *file) {
@@ -209,6 +215,7 @@ static vector<string> canonicalize_trace_from(FILE *file) {
     // allocated offset -> allocation seq num
     //
     uint64_t allocation_seq_num = 0;
+    static const uint64_t ASN_NONE = (uint64_t) -1;
     typedef map<uint64_t, uint64_t> offset_seq_map;
 
     // raw allocator id -> offset_seq_map that tracks its allocations
@@ -232,6 +239,19 @@ static vector<string> canonicalize_trace_from(FILE *file) {
             allocator_ids[allocator_id] = allocator_id_seq_num;
             ss << fn << ' ' << allocator_id_seq_num << ' ' << trim_whitespace(ptr) << std::endl;
             allocator_id_seq_num++;
+
+            // For each blockpair created by this traceline, add its offset to the offset seq map
+            // with asn ASN_NONE so that later canonicalizations of `free' know whether to write
+            // down the asn or the raw offset.
+            //
+            // First, read passed the reserve / alignment values.
+            (void) parse_uint64(&ptr, line_num);
+            (void) parse_uint64(&ptr, line_num);
+            offset_seq_map *map = &offset_to_seq_num_maps[allocator_id];
+            while (*trim_whitespace(ptr) != '\0') {
+                const block_allocator::blockpair bp = parse_blockpair(&ptr, line_num);
+                (*map)[bp.offset] = ASN_NONE;
+            }
         } else if (allocator_ids.count(allocator_id) > 0) {
             // this allocator is part of the canonical trace
             uint64_t canonical_allocator_id = allocator_ids[allocator_id];
@@ -259,8 +279,14 @@ static vector<string> canonicalize_trace_from(FILE *file) {
                 const uint64_t asn = (*map)[offset];
                 map->erase(offset);
 
-                // translate `free(offset)' to `free(asn)'
-                ss << fn << ' ' << canonical_allocator_id << ' ' << asn << std::endl;
+                // if there's an asn, then a corresponding ba_trace_alloc occurred and we should
+                // write `free(asn)'. otherwise, the blockpair was initialized from create_from_blockpairs
+                // and we write the original offset.
+                if (asn != ASN_NONE) {
+                    ss << "ba_trace_free_asn" << ' ' << canonical_allocator_id << ' ' << asn << std::endl;
+                } else {
+                    ss << "ba_trace_free_offset" << ' ' << canonical_allocator_id << ' ' << offset << std::endl;
+                }
             } else if (fn == "ba_trace_destroy") {
                 // Remove this allocator from both maps
                 allocator_ids.erase(allocator_id);
@@ -293,6 +319,7 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
         line_num++;
 
         char *line = toku_strdup(it->c_str());
+        line = strip_newline(line, nullptr);
 
         if (verbose) {
             printf("playing canonical trace line #%d: %s", line_num, line);
@@ -318,7 +345,7 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
                                  "corrupted canonical trace: bad create fn", line, line_num);
                 vector<block_allocator::blockpair> pairs;
                 while (*trim_whitespace(ptr) != '\0') {
-                    block_allocator::blockpair bp = parse_blockpair(&ptr, line_num);
+                    const block_allocator::blockpair bp = parse_blockpair(&ptr, line_num);
                     pairs.push_back(bp);
                 }
                 ba->create_from_blockpairs(reserve_at_beginning, alignment, &pairs[0], pairs.size());
@@ -333,6 +360,7 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
 
             block_allocator *ba = (*allocator_map)[allocator_id];
             if (fn == "ba_trace_alloc") {
+                // replay an `alloc' whose result will be associated with a certain asn
                 const uint64_t size = parse_uint64(&ptr, line_num);
                 const uint64_t heat = parse_uint64(&ptr, line_num);
                 const uint64_t asn = parse_uint64(&ptr, line_num);
@@ -342,14 +370,19 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
                 uint64_t offset;
                 ba->alloc_block(size, heat, &offset);
                 seq_num_to_offset[asn] = offset;
-            } else if (fn == "ba_trace_free") {
+            } else if (fn == "ba_trace_free_asn") {
+                // replay a `free' on a block whose offset is the result of an alloc with an asn
                 const uint64_t asn = parse_uint64(&ptr, line_num);
                 ba_replay_assert(seq_num_to_offset.count(asn) == 1,
                                  "corrupted canonical trace: double free (asn unused)", line, line_num);
 
-                uint64_t offset = seq_num_to_offset[asn];
+                const uint64_t offset = seq_num_to_offset[asn];
                 ba->free_block(offset);
                 seq_num_to_offset.erase(asn);
+            } else if (fn == "ba_trace_free_offset") {
+                // replay a `free' on a block whose offset was explicitly set during a create_from_blockpairs
+                const uint64_t offset = parse_uint64(&ptr, line_num);
+                ba->free_block(offset);
             } else if (fn == "ba_trace_destroy") {
                 // TODO: Clean this up - we won't be able to catch no such allocator errors
                 // if we don't actually not the destroy. We only do it here so that the caller
