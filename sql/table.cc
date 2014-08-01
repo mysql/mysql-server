@@ -5441,6 +5441,52 @@ void TABLE::create_key_part_by_field(KEY *keyinfo,
 
 /**
   @brief
+  Check validity of a possible key for the derived table
+
+  @param key            the number of the key
+  @param key_parts      number of components of the key
+  @param next_field_no  the call-back function that returns the number of
+                        the field used as the next component of the key
+  @param arg            the argument for the above function
+
+  @details
+  The function checks whether a possible key satisfies the constraints
+  imposed on the keys of any temporary table.
+
+  @return TRUE if the key is valid
+  @return FALSE otherwise
+*/
+
+bool TABLE::check_tmp_key(uint key, uint key_parts,
+                          uint (*next_field_no) (uchar *), uchar *arg)
+{
+  Field **reg_field;
+  uint i;
+  uint key_len= 0;
+
+  for (i= 0; i < key_parts; i++)
+  {
+    uint fld_idx= next_field_no(arg);
+    reg_field= field + fld_idx;
+    uint fld_store_len= (uint16) (*reg_field)->key_length();
+    if ((*reg_field)->real_maybe_null())
+      fld_store_len+= HA_KEY_NULL_LENGTH;
+    if ((*reg_field)->type() == MYSQL_TYPE_BLOB ||
+        (*reg_field)->real_type() == MYSQL_TYPE_VARCHAR ||
+        (*reg_field)->type() == MYSQL_TYPE_GEOMETRY)
+      fld_store_len+= HA_KEY_BLOB_LENGTH;
+    key_len+= fld_store_len;
+  }
+  /*
+    We use MI_MAX_KEY_LENGTH (myisam's default) below because it is
+    smaller than MAX_KEY_LENGTH (heap's default) and it's unknown whether
+    myisam or heap will be used for the temporary table.
+  */
+  return key_len <= MI_MAX_KEY_LENGTH;
+}
+
+/**
+  @brief
   Add one key to a temporary table
 
   @param key            the number of the key
@@ -5470,6 +5516,7 @@ bool TABLE::add_tmp_key(uint key, uint key_parts,
   KEY* keyinfo;
   Field **reg_field;
   uint i;
+  
   bool key_start= TRUE;
   KEY_PART_INFO* key_part_info=
       (KEY_PART_INFO*) alloc_root(&mem_root, sizeof(KEY_PART_INFO)*key_parts);
