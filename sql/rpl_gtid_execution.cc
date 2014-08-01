@@ -202,13 +202,13 @@ int gtid_acquire_ownership_multiple(THD *thd)
   {
     if (!gtid_state->is_executed(g))
     {
-      if (gtid_state->acquire_ownership(thd, g) != RETURN_STATUS_OK ||
-          thd->owned_gtid_set._add_gtid(g))
+      if (gtid_state->acquire_ownership(thd, g) != RETURN_STATUS_OK)
       {
         /// @todo release ownership on error
         ret= 1;
         break;
       }
+      thd->owned_gtid_set._add_gtid(g);
     }
     git.next();
     g= git.get();
