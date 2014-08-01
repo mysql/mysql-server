@@ -2332,6 +2332,7 @@ ha_innobase::ha_innobase(
 			  | HA_CAN_RTREEKEYS
 			  | HA_HAS_RECORDS
 			  | HA_NO_READ_LOCAL_LOCK
+                          | HA_VIRTUAL_COLUMNS
 		  ),
 	m_start_of_scan(),
 	m_num_write_row()
@@ -6802,11 +6803,11 @@ calc_row_difference(
 	ulint		n_changed = 0;
 	dfield_t	dfield;
 	dict_index_t*	clust_index;
-	uint		i;
 	ibool		changes_fts_column = FALSE;
 	ibool		changes_fts_doc_col = FALSE;
 	trx_t*          trx = thd_to_trx(thd);
 	doc_id_t	doc_id = FTS_NULL_DOC_ID;
+	uint		sql_idx, innodb_idx= 0;
 
 	ut_ad(!srv_read_only_mode || dict_table_is_intrinsic(prebuilt->table));
 
@@ -6816,8 +6817,10 @@ calc_row_difference(
 	/* We use upd_buff to convert changed fields */
 	buf = (byte*) upd_buff;
 
-	for (i = 0; i < n_fields; i++) {
-		field = table->field[i];
+	for (sql_idx = 0; sql_idx < n_fields; sql_idx++) {
+		field = table->field[sql_idx];
+		if (!field->stored_in_db)
+		  continue;
 
 		o_ptr = (const byte*) old_row + get_field_offset(table, field);
 		n_ptr = (const byte*) new_row + get_field_offset(table, field);
@@ -6835,7 +6838,7 @@ calc_row_difference(
 
 		field_mysql_type = field->type();
 
-		col_type = prebuilt->table->cols[i].mtype;
+		col_type = prebuilt->table->cols[innodb_idx].mtype;
 
 		switch (col_type) {
 
@@ -6912,7 +6915,8 @@ calc_row_difference(
 			}
 
 			if (n_len != UNIV_SQL_NULL) {
-				dict_col_copy_type(prebuilt->table->cols + i,
+				dict_col_copy_type(prebuilt->table->cols +
+                                                   innodb_idx,
 						   dfield_get_type(&dfield));
 
 				buf = row_mysql_store_col_in_innobase_format(
@@ -6930,7 +6934,7 @@ calc_row_difference(
 			ufield->exp = NULL;
 			ufield->orig_len = 0;
 			ufield->field_no = dict_col_get_clust_pos(
-				&prebuilt->table->cols[i], clust_index);
+				&prebuilt->table->cols[innodb_idx], clust_index);
 			n_changed++;
 
 			/* If an FTS indexed column was changed by this
@@ -6964,6 +6968,8 @@ calc_row_difference(
 				}
 			}
 		}
+                if (field->stored_in_db)
+                  innodb_idx++;
 	}
 
 	/* If the update changes a column with an FTS index on it, we
@@ -8646,6 +8652,8 @@ create_table_check_doc_id_col(
 		ulint		unsigned_type;
 
 		field = form->field[i];
+		if (!field->stored_in_db)
+		  continue;
 
 		col_type = get_innobase_type_from_mysql_type(&unsigned_type,
 							     field);

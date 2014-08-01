@@ -860,6 +860,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  PAGE_SYM
 %token  PARAM_MARKER
 %token  PARSER_SYM
+%token  PARSE_VCOL_EXPR_SYM
 %token  PARTIAL                       /* SQL-2003-N */
 %token  PARTITION_SYM                 /* SQL-2003-R */
 %token  PARTITIONS_SYM
@@ -1008,6 +1009,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  STD_SYM
 %token  STOP_SYM
 %token  STORAGE_SYM
+%token  STORED_SYM
 %token  STRAIGHT_JOIN
 %token  STRING_SYM
 %token  SUBCLASS_ORIGIN_SYM           /* SQL-2003-N */
@@ -1088,6 +1090,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  VARYING                       /* SQL-2003-R */
 %token  VAR_SAMP_SYM
 %token  VIEW_SYM                      /* SQL-2003-N */
+%token  VIRTUAL_SYM
 %token  WAIT_SYM
 %token  WARNINGS
 %token  WEEK_SYM
@@ -1162,7 +1165,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_natural_language_mode opt_query_expansion
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
-        trg_action_time trg_event
+        trg_action_time trg_event field_def
 
 /*
   Bit field of MYSQL_START_TRANS_OPT_* flags.
@@ -1333,6 +1336,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         part_column_list
         server_options_list server_option
         definer_opt no_definer definer get_diagnostics
+        parse_vcol_expr vcol_opt_attribute vcol_opt_attribute_list
+        vcol_attribute
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -1610,6 +1615,7 @@ statement:
         | lock
         | optimize
         | keycache
+        | parse_vcol_expr
         | partition_entry
         | preload
         | prepare
@@ -6224,8 +6230,9 @@ field_spec:
             lex->default_value= lex->on_update_value= 0;
             lex->comment=null_lex_str;
             lex->charset=NULL;
+            lex->vcol_info= 0;
           }
-          type opt_attribute
+          field_def
           {
             LEX *lex=Lex;
             if (add_field_to_list(lex->thd, &$1, (enum enum_field_types) $3,
@@ -6233,8 +6240,82 @@ field_spec:
                                   lex->default_value, lex->on_update_value,
                                   &lex->comment,
                                   lex->change,&lex->interval_list,lex->charset,
-                                  lex->uint_geom_type))
+                                  lex->uint_geom_type,
+                                  lex->vcol_info))
               MYSQL_YYABORT;
+          }
+        ;
+
+field_def:
+          type opt_attribute {}
+        | VIRTUAL_SYM type AS '(' virtual_column_func ')' vcol_opt_attribute
+          {
+            $$=MYSQL_TYPE_VIRTUAL;
+            Lex->vcol_info->set_field_type((enum enum_field_types) $2);
+          }
+        ;
+
+vcol_opt_attribute:
+          /* empty */ {}
+        | vcol_opt_attribute_list {}
+        ;
+
+vcol_opt_attribute_list:
+          vcol_opt_attribute_list vcol_attribute {}
+        | vcol_attribute
+        ;
+
+vcol_attribute:
+          UNIQUE_SYM
+          {
+            LEX *lex=Lex;
+            lex->type|= UNIQUE_FLAG; 
+            lex->alter_info.flags|= Alter_inplace_info::ADD_INDEX;
+          }
+        | UNIQUE_SYM KEY_SYM
+          {
+            LEX *lex=Lex;
+            lex->type|= UNIQUE_KEY_FLAG; 
+            lex->alter_info.flags|= Alter_inplace_info::ADD_INDEX; 
+          }
+        | COMMENT_SYM TEXT_STRING_sys { Lex->comment= $2; }
+        | STORED_SYM
+          {
+            Lex->vcol_info->set_field_stored(TRUE);
+          }
+        ;
+
+parse_vcol_expr:
+          PARSE_VCOL_EXPR_SYM '(' virtual_column_func ')'
+          {
+            /* 
+              "PARSE_VCOL_EXPR" can only be used by the SQL server
+              when reading a '*.frm' file.
+              Prevent the end user from invoking this command.
+            */
+            if (!Lex->parse_vcol_expr)
+            {
+              my_message(ER_SYNTAX_ERROR, ER(ER_SYNTAX_ERROR), MYF(0));
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+virtual_column_func:
+          expr
+          {
+            Lex->vcol_info= new virtual_column_info();
+            if (!Lex->vcol_info)
+            {
+              mem_alloc_error(sizeof(virtual_column_info));
+              MYSQL_YYABORT;
+            }
+            ITEMIZE($1, &$1);
+            uint expr_len= (uint)@1.cpp.length();
+            Lex->vcol_info->expr_str.str=
+              (char* ) sql_memdup(@1.cpp.start, expr_len);
+            Lex->vcol_info->expr_str.length= expr_len;
+            Lex->vcol_info->expr_item= $1;
           }
         ;
 
@@ -7807,6 +7888,8 @@ alter_list_item:
           add_column column_def opt_place
           {
             Lex->create_last_non_select_table= Lex->last_table();
+            if (Lex->vcol_info)
+              Lex->alter_info.flags|= Alter_info::ALTER_STORED_VCOLUMN;
           }
         | ADD key_def
           {
@@ -7817,6 +7900,8 @@ alter_list_item:
           {
             Lex->alter_info.flags|= Alter_info::ALTER_ADD_COLUMN |
                                     Alter_info::ALTER_ADD_INDEX;
+            if (Lex->vcol_info)
+              Lex->alter_info.flags|= Alter_info::ALTER_STORED_VCOLUMN;
           }
         | CHANGE opt_column field_ident
           {
@@ -7827,6 +7912,8 @@ alter_list_item:
           field_spec opt_place
           {
             Lex->create_last_non_select_table= Lex->last_table();
+            if (Lex->vcol_info)
+              Lex->alter_info.flags|= Alter_info::ALTER_STORED_VCOLUMN;
           }
         | MODIFY_SYM opt_column field_ident
           {
@@ -7836,8 +7923,9 @@ alter_list_item:
             lex->comment=null_lex_str;
             lex->charset= NULL;
             lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN;
+            lex->vcol_info= 0;
           }
-          type opt_attribute
+          field_def
           {
             LEX *lex=Lex;
             if (add_field_to_list(lex->thd,&$3,
@@ -7846,8 +7934,11 @@ alter_list_item:
                                   lex->default_value, lex->on_update_value,
                                   &lex->comment,
                                   $3.str, &lex->interval_list, lex->charset,
-                                  lex->uint_geom_type))
+                                  lex->uint_geom_type,
+                                  lex->vcol_info))
               MYSQL_YYABORT;
+            if (lex->vcol_info)
+              lex->alter_info.flags|= Alter_info::ALTER_STORED_VCOLUMN;
           }
           opt_place
           {
@@ -14750,6 +14841,7 @@ sf_tail:
             lex->length= lex->dec= NULL;
             lex->interval_list.empty();
             lex->type= 0;
+            lex->vcol_info= 0;
           }
           type_with_opt_collate /* $10 */
           { /* $11 */

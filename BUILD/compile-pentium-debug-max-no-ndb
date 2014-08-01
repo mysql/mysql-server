@@ -16,5 +16,5 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 path=`dirname $0`
-cmake $path/.. -DWITH_DEBUG=1 -DWITH_NDBCLUSTER=0
+cmake $path/.. -DWITH_DEBUG=1 -DWITH_NDBCLUSTER=0 $@
 make

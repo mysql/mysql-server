@@ -1486,8 +1486,24 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     else
       type.set_charset(system_charset_info);
 
+    if (field->vcol_info)
+    {
+      packet->append(STRING_WITH_LEN("VIRTUAL "));
+    }
+
     field->sql_type(type);
     packet->append(type.ptr(), type.length(), system_charset_info);
+
+    if (field->vcol_info)
+    {
+      packet->append(STRING_WITH_LEN(" AS ("));
+      packet->append(field->vcol_info->expr_str.str,
+                     field->vcol_info->expr_str.length,
+                     system_charset_info);
+      packet->append(STRING_WITH_LEN(")"));
+      if (field->stored_in_db)
+        packet->append(STRING_WITH_LEN(" STORED"));
+    }
 
     if (field->has_charset() && 
         !(thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)))
@@ -1547,7 +1563,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       break;
     }
 
-    if (print_default_clause(thd, field, &def_value, true))
+    if (!field->vcol_info &&
+        print_default_clause(thd, field, &def_value, true))
     {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
       packet->append(def_value.ptr(), def_value.length(), system_charset_info);
@@ -5014,6 +5031,9 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
                                             cs);
     if (print_on_update_clause(field, &type, true))
       table->field[IS_COLUMNS_EXTRA]->store(type.ptr(), type.length(), cs);
+    if (field->vcol_info)
+      table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN("VIRTUAL"), cs);
+
     table->field[IS_COLUMNS_COLUMN_COMMENT]->store(field->comment.str,
                                                    field->comment.length, cs);
     if (schema_table_store_record(thd, table))
@@ -5316,6 +5336,8 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
                         field_def->interval, "");
 
       field->table= &tbl;
+      field->vcol_info= field_def->vcol_info;
+      field->stored_in_db= field_def->stored_in_db;
       tbl.in_use= thd;
       store_column_type(table, field, cs, IS_PARAMETERS_DATA_TYPE);
       if (schema_table_store_record(thd, table))
@@ -5376,6 +5398,8 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
                         field_def->interval, spvar->name.str);
 
       field->table= &tbl;
+      field->vcol_info= field_def->vcol_info;
+      field->stored_in_db= field_def->stored_in_db;
       tbl.in_use= thd;
       store_column_type(table, field, cs, IS_PARAMETERS_DATA_TYPE);
       if (schema_table_store_record(thd, table))
@@ -5476,6 +5500,8 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                             field_def->interval, "");
 
           field->table= &tbl;
+          field->vcol_info= field_def->vcol_info;
+          field->stored_in_db= field_def->stored_in_db;
           tbl.in_use= thd;
           store_column_type(table, field, cs, IS_ROUTINES_DATA_TYPE);
           free_table_share(&share);

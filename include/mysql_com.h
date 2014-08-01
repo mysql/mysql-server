@@ -79,7 +79,12 @@ enum enum_server_command
   COM_END
 };
 
-
+/* The length of the header part for each virtual column in the .frm file. */
+#define FRM_VCOL_HEADER_SIZE 3
+/*
+  Maximum length of the expression statement defined for virtual columns.
+*/
+#define VIRTUAL_COLUMN_EXPRESSION_MAXLEN 255 - FRM_VCOL_HEADER_SIZE
 /*
   Length of random string sent by server on handshake; this is also length of
   obfuscated password, recieved from client
@@ -390,6 +395,7 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 			MYSQL_TYPE_TIMESTAMP2,
 			MYSQL_TYPE_DATETIME2,
 			MYSQL_TYPE_TIME2,
+                        MYSQL_TYPE_VIRTUAL=245,
                         MYSQL_TYPE_NEWDECIMAL=246,
 			MYSQL_TYPE_ENUM=247,
 			MYSQL_TYPE_SET=248,
