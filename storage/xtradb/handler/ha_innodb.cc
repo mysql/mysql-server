@@ -12693,9 +12693,9 @@ innodb_buffer_pool_evict_update(
 
 			for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 				buf_pool_t*	buf_pool = &buf_pool_ptr[i];
-				ibool have_LRU_mutex = TRUE;
 
 				//buf_pool_mutex_enter(buf_pool);
+				ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 				mutex_enter(&buf_pool->LRU_list_mutex);
 
 				for (buf_block_t* block = UT_LIST_GET_LAST(
@@ -12711,15 +12711,15 @@ innodb_buffer_pool_evict_update(
 					ut_ad(block->page.in_LRU_list);
 
 					mutex_enter(&block->mutex);
+					ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 					buf_LRU_free_block(&block->page,
-						(void *)&block->mutex,FALSE, &have_LRU_mutex);
+						           FALSE, TRUE);
 					mutex_exit(&block->mutex);
 					block = prev_block;
 				}
 
-				if (have_LRU_mutex) {
-					mutex_exit(&buf_pool->LRU_list_mutex);
-				}
+				ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+				mutex_exit(&buf_pool->LRU_list_mutex);
 				//buf_pool_mutex_exit(buf_pool);
 			}
 		}

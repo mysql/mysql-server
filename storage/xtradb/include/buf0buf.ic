@@ -689,6 +689,11 @@ buf_page_get_block(
 /*===============*/
 	buf_page_t*	bpage)	/*!< in: control block, or NULL */
 {
+#ifdef UNIV_SYNC_DEBUG
+	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+	ut_ad(rw_lock_own(&buf_pool->page_hash_latch, RW_LOCK_SHARED)
+	      || rw_lock_own(&buf_pool->page_hash_latch, RW_LOCK_EX));
+#endif
 	if (UNIV_LIKELY(bpage != NULL)) {
 		ut_ad(buf_page_in_file(bpage));
 

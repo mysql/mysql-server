@@ -340,8 +340,12 @@ buf_read_ahead_random(
 		return(0);
 	}
 
+	buf_pool_mutex_exit(buf_pool);
+
 	/* Count how many blocks in the area have been recently accessed,
 	that is, reside near the start of the LRU list. */
+
+	rw_lock_s_lock(&buf_pool->page_hash_latch);
 
 	for (i = low; i < high; i++) {
 		const buf_page_t* bpage =
@@ -356,13 +360,13 @@ buf_read_ahead_random(
 			if (recent_blocks
 			    >= BUF_READ_AHEAD_RANDOM_THRESHOLD(buf_pool)) {
 
-				buf_pool_mutex_exit(buf_pool);
+				rw_lock_s_unlock(&buf_pool->page_hash_latch);
 				goto read_ahead;
 			}
 		}
 	}
 
-	buf_pool_mutex_exit(buf_pool);
+	rw_lock_s_unlock(&buf_pool->page_hash_latch);
 	/* Do nothing */
 	return(0);
 

@@ -4428,7 +4428,7 @@ btr_blob_free(
 	    && buf_block_get_space(block) == space
 	    && buf_block_get_page_no(block) == page_no) {
 
-		if (!buf_LRU_free_block(&block->page, (void *)&block->mutex, all, &have_LRU_mutex)
+		if (!buf_LRU_free_block(&block->page, all, TRUE)
 		    && all && block->page.zip.data
 		    /* Now, buf_LRU_free_block() may release mutex temporarily */
 		    && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
@@ -4437,7 +4437,7 @@ btr_blob_free(
 			/* Attempt to deallocate the uncompressed page
 			if the whole block cannot be deallocted. */
 
-			buf_LRU_free_block(&block->page, (void *)&block->mutex, FALSE, &have_LRU_mutex);
+			buf_LRU_free_block(&block->page, FALSE, TRUE);
 		}
 	}
 

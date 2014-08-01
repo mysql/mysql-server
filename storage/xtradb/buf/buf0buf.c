@@ -1600,6 +1600,12 @@ buf_pool_watch_is_sentinel(
 	buf_pool_t*		buf_pool,	/*!< buffer pool instance */
 	const buf_page_t*	bpage)		/*!< in: block */
 {
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&buf_pool->page_hash_latch, RW_LOCK_SHARED)
+	      || rw_lock_own(&buf_pool->page_hash_latch, RW_LOCK_EX)
+	      || mutex_own(buf_page_get_mutex(bpage)));
+#endif
+
 	ut_ad(buf_page_in_file(bpage));
 
 	if (bpage < &buf_pool->watch[0]
@@ -1976,7 +1982,6 @@ buf_page_get_zip(
 	ib_uint64_t	start_time;
 	ib_uint64_t	finish_time;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
-	ibool have_LRU_mutex = FALSE;
 
 	if (UNIV_UNLIKELY(innobase_get_slow_log())) {
 		trx = innobase_get_trx();
@@ -2048,40 +2053,33 @@ err_exit:
 		mutex_exit(block_mutex);
 
 		/* get LRU_list_mutex for buf_LRU_free_block() */
-		if (!have_LRU_mutex) {
-			mutex_enter(&buf_pool->LRU_list_mutex);
-			have_LRU_mutex = TRUE;
-		}
-
+		ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
+		mutex_enter(&buf_pool->LRU_list_mutex);
 		mutex_enter(block_mutex);
 
-		if (UNIV_UNLIKELY(bpage->space != space
+		if (UNIV_UNLIKELY((buf_page_get_state(bpage)
+				   != BUF_BLOCK_FILE_PAGE)
+				  || bpage->space != space
 				  || bpage->offset != offset
 				  || !bpage->in_LRU_list
 				  || !bpage->zip.data)) {
 			/* someone should interrupt, retry */
-			if (have_LRU_mutex) {
-				mutex_exit(&buf_pool->LRU_list_mutex);
-				have_LRU_mutex = FALSE;
-			}
+			ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+			mutex_exit(&buf_pool->LRU_list_mutex);
 			mutex_exit(block_mutex);
 			goto lookup;
 		}
 
 		/* Discard the uncompressed page frame if possible. */
-		if (buf_LRU_free_block(bpage, (void *)block_mutex, FALSE, &have_LRU_mutex)) {
-			if (have_LRU_mutex) {
-				mutex_exit(&buf_pool->LRU_list_mutex);
-				have_LRU_mutex = FALSE;
-			}
+		if (buf_LRU_free_block(bpage, FALSE, TRUE)) {
+			ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+			mutex_exit(&buf_pool->LRU_list_mutex);
 			mutex_exit(block_mutex);
 			goto lookup;
 		}
 
-		if (have_LRU_mutex) {
-			mutex_exit(&buf_pool->LRU_list_mutex);
-			have_LRU_mutex = FALSE;
-		}
+		ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+		mutex_exit(&buf_pool->LRU_list_mutex);
 
 		buf_block_buf_fix_inc((buf_block_t*) bpage,
 				      __FILE__, __LINE__);
@@ -2464,7 +2462,6 @@ buf_page_get_gen(
 	ib_uint64_t	start_time;
 	ib_uint64_t	finish_time;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
-	ibool           have_LRU_mutex = FALSE;
 
 	ut_ad(mtr);
 	ut_ad(mtr->state == MTR_ACTIVE);
@@ -2566,19 +2563,7 @@ loop2:
 		    || mode == BUF_PEEK_IF_IN_POOL
 		    || mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 
-			if (have_LRU_mutex) {
-				mutex_exit(&buf_pool->LRU_list_mutex);
-				have_LRU_mutex = FALSE;
-			}
-
 			return(NULL);
-		}
-
-		/* We should not hold LRU mutex below when trying
-		to read the page */
-		if (have_LRU_mutex) {
-			mutex_exit(&buf_pool->LRU_list_mutex);
-			have_LRU_mutex = FALSE;
 		}
 
 		if (buf_read_page(space, zip_size, offset, trx)) {
@@ -2633,11 +2618,6 @@ null_exit:
 		//buf_pool_mutex_exit(buf_pool);
 		mutex_exit(block_mutex);
 
-		if (have_LRU_mutex) {
-			mutex_exit(&buf_pool->LRU_list_mutex);
-			have_LRU_mutex = FALSE;
-		}
-
 		return(NULL);
 	}
 
@@ -2645,11 +2625,6 @@ null_exit:
 			  srv_pass_corrupt_table <= 1)) {
 
 		mutex_exit(block_mutex);
-
-		if (have_LRU_mutex) {
-			mutex_exit(&buf_pool->LRU_list_mutex);
-			have_LRU_mutex = FALSE;
-		}
 
 		return(NULL);
 	}
@@ -2711,12 +2686,8 @@ wait_until_unfixed:
 		ut_a(block);
 		block_mutex = &block->mutex;
 
-		//buf_pool_mutex_enter(buf_pool);
-		if (!have_LRU_mutex) {
-			mutex_enter(&buf_pool->LRU_list_mutex);
-			have_LRU_mutex = TRUE;
-		}
-
+		ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
+		mutex_enter(&buf_pool->LRU_list_mutex);
 		rw_lock_x_lock(&buf_pool->page_hash_latch);
 		mutex_enter(&block->mutex);
 		mutex_enter(&buf_pool->zip_mutex);
@@ -2740,10 +2711,8 @@ wait_until_unfixed:
 
 			rw_lock_x_unlock(&buf_pool->page_hash_latch);
 
-			if (have_LRU_mutex) {
-				mutex_exit(&buf_pool->LRU_list_mutex);
-				have_LRU_mutex = FALSE;
-			}
+			ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+			mutex_exit(&buf_pool->LRU_list_mutex);
 
 			goto wait_until_unfixed;
 		}
@@ -2782,10 +2751,8 @@ wait_until_unfixed:
 		/* Insert at the front of unzip_LRU list */
 		buf_unzip_LRU_add_block(block, FALSE);
 
-		if (have_LRU_mutex) {
-			mutex_exit(&buf_pool->LRU_list_mutex);
-			have_LRU_mutex = FALSE;
-		}
+		ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+		mutex_exit(&buf_pool->LRU_list_mutex);
 
 		block->page.buf_fix_count = 1;
 		buf_block_set_io_fix(block, BUF_IO_READ);
@@ -2859,12 +2826,7 @@ wait_until_unfixed:
 		insert buffer (change buffer) as much as possible. */
 		ulint	page_no	= buf_block_get_page_no(block);
 
-		if (!have_LRU_mutex) {
-			mutex_enter(&buf_pool->LRU_list_mutex);
-			have_LRU_mutex = TRUE;
-		}
-
-		if (buf_LRU_free_block(&block->page, (void *)block_mutex, TRUE, &have_LRU_mutex)) {
+		if (buf_LRU_free_block(&block->page, TRUE, FALSE)) {
 			mutex_exit(block_mutex);
 			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 				/* Set the watch, as it would have
@@ -2889,11 +2851,6 @@ wait_until_unfixed:
 				"innodb_change_buffering_debug evict %u %u\n",
 				(unsigned) space, (unsigned) offset);
 
-			if (have_LRU_mutex){
-				mutex_exit(&buf_pool->LRU_list_mutex);
-				have_LRU_mutex = FALSE;
-			}
-
 			return(NULL);
 		} else if (UNIV_UNLIKELY(buf_block_get_state(block)
 					 != BUF_BLOCK_FILE_PAGE
@@ -2910,10 +2867,7 @@ wait_until_unfixed:
 		} else {
 			/* We should not hold LRU mutex below when trying
 			to flush page */
-			if (have_LRU_mutex) {
-				mutex_exit(&buf_pool->LRU_list_mutex);
-				have_LRU_mutex = FALSE;
-			}
+			ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
 			if (buf_flush_page_try(buf_pool, block)) {
 				fprintf(stderr,
@@ -3020,11 +2974,6 @@ wait_until_unfixed:
 #endif
 	if (UNIV_UNLIKELY(trx && trx->take_stats)) {
 		_increment_page_get_statistics(block, trx);
-	}
-
-	if (have_LRU_mutex) {
-		mutex_exit(&buf_pool->LRU_list_mutex);
-		have_LRU_mutex = FALSE;
 	}
 
 	return(block);
