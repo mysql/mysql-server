@@ -306,8 +306,9 @@ static vector<string> canonicalize_trace_from(FILE *file) {
         toku_free(line);
     }
 
-    ba_replay_assert(allocator_ids.size() == 0,
-                     "corrupted trace: leaked allocators", "(no specific line)", -1);
+    if (allocator_ids.size() != 0) {
+        fprintf(stderr, "warning: leaked allocators. this is ok if the trace is still live");
+    }
 
     return canonicalized_trace;
 }
@@ -473,9 +474,6 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
 
         toku_free(line);
     }
-
-    ba_replay_assert(allocator_map.size() == 0,
-                     "corrupted canonical trace: leaked allocators", "(no specific line", -1);
 }
 
 // TODO: Put this in the allocation strategy class
@@ -497,7 +495,9 @@ static const char *strategy_str(block_allocator::allocation_strategy strategy) {
 static void print_result_verbose(uint64_t allocator_id,
                                  block_allocator::allocation_strategy strategy,
                                  const struct fragmentation_report &report) {
-    if (report.end.data_bytes + report.end.unused_bytes < 32UL * 1024 * 1024) {
+    if (report.end.data_bytes + report.end.unused_bytes +
+        report.beginning.data_bytes + report.beginning.unused_bytes
+        < 32UL * 1024 * 1024) {
         printf(" ...skipping allocator_id %" PRId64 " (total bytes < 32mb)\n", allocator_id);
         return;
     }
@@ -540,7 +540,7 @@ static void print_result(uint64_t allocator_id,
 
     uint64_t total_beginning_bytes = beginning->data_bytes + beginning->unused_bytes;
     uint64_t total_end_bytes = end->data_bytes + end->unused_bytes;
-    if (total_end_bytes < 32UL * 1024 * 1024) {
+    if (total_end_bytes + total_beginning_bytes < 32UL * 1024 * 1024) {
         if (verbose) {
             printf(" ...skipping allocator_id %" PRId64 " (total bytes < 32mb)\n", allocator_id);
             printf("\n");
