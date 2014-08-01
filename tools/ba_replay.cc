@@ -307,16 +307,31 @@ static vector<string> canonicalize_trace_from(FILE *file) {
     return canonicalized_trace;
 }
 
+struct canonical_trace_stats {
+    uint64_t n_lines_replayed;
+
+    uint64_t n_create;
+    uint64_t n_create_from_blockpairs;
+    uint64_t n_alloc_hot;
+    uint64_t n_alloc_cold;
+    uint64_t n_free;
+    uint64_t n_destroy;
+
+    canonical_trace_stats() {
+        memset(this, 0, sizeof(*this));
+    }
+};
+
 static void replay_canonicalized_trace(const vector<string> &canonicalized_trace,
                                        block_allocator::allocation_strategy strategy,
-                                       map<uint64_t, block_allocator *> *allocator_map) {
+                                       map<uint64_t, block_allocator *> *allocator_map,
+                                       struct canonical_trace_stats *stats) {
     // maps allocation seq num to allocated offset
     map<uint64_t, uint64_t> seq_num_to_offset;
 
-    int line_num = 0;
     for (vector<string>::const_iterator it = canonicalized_trace.begin();
          it != canonicalized_trace.end(); it++) {
-        line_num++;
+        const int line_num = stats->n_lines_replayed++;
 
         char *line = toku_strdup(it->c_str());
         line = strip_newline(line, nullptr);
@@ -340,6 +355,7 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
             block_allocator *ba = new block_allocator();
             if (fn == "ba_trace_create") {
                 ba->create(reserve_at_beginning, alignment);
+                stats->n_create++;
             } else {
                 ba_replay_assert(fn == "ba_trace_create_from_blockpairs",
                                  "corrupted canonical trace: bad create fn", line, line_num);
@@ -349,6 +365,7 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
                     pairs.push_back(bp);
                 }
                 ba->create_from_blockpairs(reserve_at_beginning, alignment, &pairs[0], pairs.size());
+                stats->n_create_from_blockpairs++;
             }
             ba->set_strategy(strategy);
 
@@ -370,6 +387,7 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
                 uint64_t offset;
                 ba->alloc_block(size, heat, &offset);
                 seq_num_to_offset[asn] = offset;
+                heat ? stats->n_alloc_hot++ : stats->n_alloc_cold++;
             } else if (fn == "ba_trace_free_asn") {
                 // replay a `free' on a block whose offset is the result of an alloc with an asn
                 const uint64_t asn = parse_uint64(&ptr, line_num);
@@ -379,15 +397,18 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
                 const uint64_t offset = seq_num_to_offset[asn];
                 ba->free_block(offset);
                 seq_num_to_offset.erase(asn);
+                stats->n_free++;
             } else if (fn == "ba_trace_free_offset") {
                 // replay a `free' on a block whose offset was explicitly set during a create_from_blockpairs
                 const uint64_t offset = parse_uint64(&ptr, line_num);
                 ba->free_block(offset);
+                stats->n_free++;
             } else if (fn == "ba_trace_destroy") {
                 // TODO: Clean this up - we won't be able to catch no such allocator errors
                 // if we don't actually not the destroy. We only do it here so that the caller
                 // can gather statistics on all closed allocators at the end of the run.
                 // allocator_map->erase(allocator_id);
+                stats->n_destroy++;
             } else {
                 ba_replay_assert(false, "corrupted canonical trace: bad fn", line, line_num);
             }
@@ -472,6 +493,7 @@ int main(void) {
     printf("Individual reports, by allocator:\n");
     printf("\n");
 
+    struct canonical_trace_stats stats;
     map<block_allocator::allocation_strategy, TOKU_DB_FRAGMENTATION_S> reports_by_strategy; 
     for (vector<enum block_allocator::allocation_strategy>::const_iterator it = candidate_strategies.begin();
          it != candidate_strategies.end(); it++) {
@@ -480,8 +502,11 @@ int main(void) {
         // replay the canonicalized trace against the current strategy.
         //
         // we provided the allocator map so we can gather statistics later
+        struct canonical_trace_stats dummy_stats;
         map<uint64_t, block_allocator *> allocator_map;
-        replay_canonicalized_trace(canonicalized_trace, strategy, &allocator_map);
+        replay_canonicalized_trace(canonicalized_trace, strategy, &allocator_map,
+                                   // Only need to gather canonical trace stats once
+                                   it == candidate_strategies.begin() ? &stats : &dummy_stats);
 
         TOKU_DB_FRAGMENTATION_S aggregate_report;
         memset(&aggregate_report, 0, sizeof(aggregate_report));
@@ -500,7 +525,6 @@ int main(void) {
         reports_by_strategy[strategy] = aggregate_report;
     }
 
-    printf("\n");
     printf("Aggregate reports, by strategy:\n");
     printf("\n");
 
@@ -509,6 +533,17 @@ int main(void) {
         TOKU_DB_FRAGMENTATION report = &it->second;
         print_result(0, it->first, report);
     }
+
+    printf("Overall trace stats:\n");
+    printf("\n");
+    printf(" n_lines_played:            %9" PRIu64 "\n", stats.n_lines_replayed);
+    printf(" n_create:                  %9" PRIu64 "\n", stats.n_create);
+    printf(" n_create_from_blockpairs:  %9" PRIu64 "\n", stats.n_create_from_blockpairs);
+    printf(" n_alloc_hot:               %9" PRIu64 "\n", stats.n_alloc_hot);
+    printf(" n_alloc_cold:              %9" PRIu64 "\n", stats.n_alloc_cold);
+    printf(" n_free:                    %9" PRIu64 "\n", stats.n_free);
+    printf(" n_destroy:                 %9" PRIu64 "\n", stats.n_destroy);
+    printf("\n");
 
     return 0;
 }
