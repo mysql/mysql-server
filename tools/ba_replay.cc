@@ -91,6 +91,7 @@ PATENT RIGHTS GRANT:
 
 #include <db.h>
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -308,6 +309,26 @@ static vector<string> canonicalize_trace_from(FILE *file) {
     return canonicalized_trace;
 }
 
+struct streaming_variance_calculator {
+    int64_t n_samples;
+    int64_t mean;
+    int64_t variance;
+
+    // math credit: AoCP, Donald Knuth, '62
+    void add_sample(int64_t x) {
+        n_samples++;
+        if (n_samples == 1) {
+            mean = x;
+            variance = 0;
+        } else {
+            int64_t old_mean = mean;
+            mean = old_mean + ((x - old_mean) / n_samples);
+            variance = (((n_samples - 1) * variance) +
+                        ((x - old_mean) * (x - mean))) / n_samples;
+        }
+    }
+};
+
 struct canonical_trace_stats {
     uint64_t n_lines_replayed;
 
@@ -317,6 +338,9 @@ struct canonical_trace_stats {
     uint64_t n_alloc_cold;
     uint64_t n_free;
     uint64_t n_destroy;
+
+    struct streaming_variance_calculator alloc_hot_bytes;
+    struct streaming_variance_calculator alloc_cold_bytes;
 
     canonical_trace_stats() {
         memset(this, 0, sizeof(*this));
@@ -389,6 +413,7 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
                 ba->alloc_block(size, heat, &offset);
                 seq_num_to_offset[asn] = offset;
                 heat ? stats->n_alloc_hot++ : stats->n_alloc_cold++;
+                heat ? stats->alloc_hot_bytes.add_sample(size) : stats->alloc_cold_bytes.add_sample(size);
             } else if (fn == "ba_trace_free_asn") {
                 // replay a `free' on a block whose offset is the result of an alloc with an asn
                 const uint64_t asn = parse_uint64(&ptr, line_num);
@@ -559,13 +584,18 @@ int main(void) {
     printf("\n");
     printf("Overall trace stats:\n");
     printf("\n");
-    printf(" n_lines_played:            %9" PRIu64 "\n", stats.n_lines_replayed);
-    printf(" n_create:                  %9" PRIu64 "\n", stats.n_create);
-    printf(" n_create_from_blockpairs:  %9" PRIu64 "\n", stats.n_create_from_blockpairs);
-    printf(" n_alloc_hot:               %9" PRIu64 "\n", stats.n_alloc_hot);
-    printf(" n_alloc_cold:              %9" PRIu64 "\n", stats.n_alloc_cold);
-    printf(" n_free:                    %9" PRIu64 "\n", stats.n_free);
-    printf(" n_destroy:                 %9" PRIu64 "\n", stats.n_destroy);
+    printf(" n_lines_played:            %15" PRIu64 "\n", stats.n_lines_replayed);
+    printf(" n_create:                  %15" PRIu64 "\n", stats.n_create);
+    printf(" n_create_from_blockpairs:  %15" PRIu64 "\n", stats.n_create_from_blockpairs);
+    printf(" n_alloc_hot:               %15" PRIu64 "\n", stats.n_alloc_hot);
+    printf(" n_alloc_cold:              %15" PRIu64 "\n", stats.n_alloc_cold);
+    printf(" n_free:                    %15" PRIu64 "\n", stats.n_free);
+    printf(" n_destroy:                 %15" PRIu64 "\n", stats.n_destroy);
+    printf("\n");
+    printf(" avg_alloc_hot:             %15" PRIu64 "\n", stats.alloc_hot_bytes.mean);
+    printf(" stddev_alloc_hot:          %15" PRIu64 "\n", (uint64_t) sqrt(stats.alloc_hot_bytes.variance));
+    printf(" avg_alloc_cold:            %15" PRIu64 "\n", stats.alloc_cold_bytes.mean);
+    printf(" stddev_alloc_cold:         %15" PRIu64 "\n", (uint64_t) sqrt(stats.alloc_cold_bytes.variance));
     printf("\n");
 
     return 0;
