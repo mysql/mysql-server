@@ -45,6 +45,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+#include "buf0flu.h"
 #include "srv0mon.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0event.h"
@@ -4750,6 +4751,7 @@ os_aio_windows_handle(
 	mutex_enter(&array->mutex);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+	    && !buf_page_cleaner_is_active
 	    && array->n_reserved == 0) {
 		*message1 = NULL;
 		*message2 = NULL;
@@ -4942,7 +4944,8 @@ retry:
 		return;
 	}
 
-	if (UNIV_UNLIKELY(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS)) {
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+	    && !buf_page_cleaner_is_active) {
 		return;
 	}
 
@@ -5032,7 +5035,8 @@ wait_for_event:
 		and the system is being shut down, exit. */
 		if (UNIV_UNLIKELY
 		    (!any_reserved
-		     && srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS)) {
+		     && srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+		     && !buf_page_cleaner_is_active )) {
 			*message1 = NULL;
 			*message2 = NULL;
 			return(true);
@@ -5219,7 +5223,9 @@ restart:
 	/* There is no completed request.
 	If there is no pending request at all,
 	and the system is being shut down, exit. */
-	if (!any_reserved && srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+	if (!any_reserved
+	    && srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+	    && !buf_page_cleaner_is_active) {
 		mutex_exit(&array->mutex);
 		*message1 = NULL;
 		*message2 = NULL;
