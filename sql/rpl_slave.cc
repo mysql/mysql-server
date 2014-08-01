@@ -8356,8 +8356,12 @@ bool flush_relay_logs_cmd(THD *thd)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
-  if (!lex->mi.channel ||           /* for FLUSH LOGS, chanel is NULL */
-       !lex->mi.for_channel)        /* when channel not given*/
+  /*
+     lex->mi.channel is NULL, for FLUSH LOGS or when the client thread
+     is not present. (See tmp_thd in  the caller).
+     When channel is not provided, lex->mi.for_channel is false.
+  */
+  if (!lex->mi.channel || !lex->mi.for_channel)
   {
     for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
     {
