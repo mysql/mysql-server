@@ -1,0 +1,101 @@
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+set @v1a="Hello";
+set @v2a="World";
+set @v3a=65;
+set @v4a=NULL;
+
+select @v1a, @v2a, @v3a, @v4a, @v_unknown;
+
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.user_variables_by_thread
+  order by VARIABLE_NAME;
+
+connect(con1, localhost, root,,);
+
+set @v1b="Salut";
+set @v2b="La compagnie";
+set @v3b=12;
+set @v4b=NULL;
+
+select @v1b, @v2b, @v3b, @v4b, @v_unknown;
+
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.user_variables_by_thread
+  order by VARIABLE_NAME;
+
+--connection default
+--disconnect con1
+
+# Wait till all disconnects are completed
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
+
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.user_variables_by_thread
+  order by VARIABLE_NAME;
+
+# Make sure large values are not truncated
+set @blob_under_16_bits=repeat("a", 65000);
+set @blob_under_24_bits=repeat("a", 1000000);
+
+# Not testable because of limitation on max_allowed_packet
+# set @blob_under_32_bits=repeat("a", 20000000);
+
+select length(@blob_under_16_bits);
+select length(@blob_under_24_bits);
+# select length(@blob_under_32_bits);
+
+select variable_name, length(variable_value)
+  from performance_schema.user_variables_by_thread
+  where VARIABLE_NAME like "blob%"
+  order by VARIABLE_NAME;
+
+
+# Check the behaviour with procedures if the values passed inside procedures gets reflected in the table performance_schema.user_variables_by_thread. 
+
+set @a=10;
+
+DELIMITER |;
+CREATE procedure test_user_val
+(IN input INT,OUT output INT)
+BEGIN
+    SELECT input + input
+    INTO output;
+END|
+DELIMITER ;|
+
+CALL test_user_val(@a , @total);
+select VARIABLE_NAME,VARIABLE_VALUE from performance_schema.user_variables_by_thread 
+where variable_name in ('a','total') order by VARIABLE_NAME;
+
+
+# Checking behaviour around triggers if the values in performance_schema.user_variables_by_thread are updated from within trigger
+
+create table t1 (c1 int);
+
+DELIMITER |;
+CREATE TRIGGER test_uvar_trigger
+    AFTER INSERT ON t1
+     FOR EACH ROW BEGIN
+     set @a=@a+@a;
+END|
+DELIMITER ;|
+
+insert into t1 values(1);
+select VARIABLE_NAME,VARIABLE_VALUE from performance_schema.user_variables_by_thread 
+where variable_name ='a' order by VARIABLE_NAME;
+
+insert into t1 values(1);
+select VARIABLE_NAME,VARIABLE_VALUE from performance_schema.user_variables_by_thread 
+where variable_name ='a' order by VARIABLE_NAME;
+
+drop table t1;
+drop procedure test_user_val;
+#drop TRIGGER test_uvar_trigger;
+
+
+
+
