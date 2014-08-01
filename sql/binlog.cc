@@ -125,41 +125,6 @@ private:
 
 
 /**
-  Print system time.
- */
-
-static void print_system_time()
-{
-#ifdef _WIN32
-  SYSTEMTIME utc_time;
-  GetSystemTime(&utc_time);
-  const long hrs=  utc_time.wHour;
-  const long mins= utc_time.wMinute;
-  const long secs= utc_time.wSecond;
-#else
-  /* Using time() instead of my_time() to avoid looping */
-  const time_t curr_time= time(NULL);
-  /* Calculate time of day */
-  const long tmins = curr_time / 60;
-  const long thrs  = tmins / 60;
-  const long hrs   = thrs  % 24;
-  const long mins  = tmins % 60;
-  const long secs  = curr_time % 60;
-#endif
-  char hrs_buf[3]= "00";
-  char mins_buf[3]= "00";
-  char secs_buf[3]= "00";
-  int base= 10;
-  my_safe_itoa(base, hrs, &hrs_buf[2]);
-  my_safe_itoa(base, mins, &mins_buf[2]);
-  my_safe_itoa(base, secs, &secs_buf[2]);
-
-  my_safe_printf_stderr("---------- %s:%s:%s UTC - ",
-                        hrs_buf, mins_buf, secs_buf);
-}
-
-
-/**
   Helper class to perform a thread excursion.
 
   This class is used to temporarily switch to another session (THD
@@ -236,6 +201,8 @@ public:
                             "during the group commit phase.\n", i + 1);
         break;
       }
+      /* Sleep 1 microsecond per try to avoid temporary 'out of memory' */
+      my_sleep(1);
       i++;
     }
     /*
@@ -244,7 +211,7 @@ public:
     */
     if (MAX_SESSION_ATTACH_TRIES == i)
     {
-      print_system_time();
+      my_safe_print_system_time();
       my_safe_printf_stderr("%s", "[Fatal] Out of memory while attaching to "
                             "session thread during the group commit phase. "
                             "Data consistency between master and slave can "
@@ -3234,9 +3201,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
           {
             if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
               ret= ERROR, done= true;
-            else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
-                     RETURN_STATUS_OK)
-              ret= ERROR, done= true;
+            all_gtids->_add_gtid(sidno, gtid_ev->get_gno());
             DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
                                 filename, sidno, gtid_ev->get_gno()));
           }
@@ -3699,14 +3664,13 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
         gtid_state->get_gtids_only_in_table();
       /* logged_gtids_binlog= executed_gtids - gtids_only_in_table */
       if (logged_gtids_binlog.add_gtid_set(executed_gtids) !=
-          RETURN_STATUS_OK ||
-          logged_gtids_binlog.remove_gtid_set(gtids_only_in_table) !=
           RETURN_STATUS_OK)
       {
         if (need_sid_lock)
           global_sid_lock->unlock();
         goto err;
       }
+      logged_gtids_binlog.remove_gtid_set(gtids_only_in_table);
     }
     Previous_gtids_log_event prev_gtids_ev(previous_logged_gtids);
 

@@ -216,6 +216,8 @@ void test_noop()
   PSI_server->inc_transaction_rollback_to_savepoint(NULL, 1);
   PSI_server->inc_transaction_savepoints(NULL, 1);
 
+  PSI_server->set_thread_THD(NULL, NULL);
+
   ok(true, "all noop api called");
 }
 
