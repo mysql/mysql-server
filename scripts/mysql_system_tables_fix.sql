@@ -658,9 +658,7 @@ DROP PROCEDURE IF EXISTS mysql.count_duplicate_host_names;
 DELIMITER //
 CREATE PROCEDURE mysql.count_duplicate_host_names()
 BEGIN
-  SET @duplicate_hosts=0;
   SET @duplicate_hosts=(SELECT count(*) FROM mysql.user GROUP BY user, lower(host) HAVING count(*) > 1 LIMIT 1);
-  select @duplicate_hosts;
   IF @duplicate_hosts > 1 THEN
     SIGNAL SQLSTATE '45000'  SET MESSAGE_TEXT = 'Multiple accounts exist for @user_name, @host_name that differ only in Host lettercase; remove all except one of them';
   END IF;
