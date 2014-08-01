@@ -106,7 +106,9 @@ static struct my_option my_long_options[] =
 
 static void short_usage_sub(void)
 {
-  ndb_short_usage_sub(NULL);
+  ndb_short_usage_sub("table [index]");
+  printf("table : select all rows from this table\n");
+  printf("index : order rows by given index, requires --order option\n");
 }
 
 static void usage()
@@ -126,11 +128,20 @@ int main(int argc, char** argv){
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
-  if ((_tabname = argv[0]) == 0) {
+  if (argc == 0) {
+    ndbout << "Missing table name. Please see the below usage for correct command." << endl;
+    usage();
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
+  if (argc > (!_order? 1 : 2))
+  {
+    ndbout << "Error. TOO MANY ARGUMENTS GIVEN." << endl;
+    ndbout << "Please see the below usage for correct command." << endl;
     usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
+  _tabname = argv[0];
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_select_all");
   if(con.connect(12, 5, 1) != 0)
@@ -153,23 +164,25 @@ int main(int argc, char** argv){
   // Check if table exists in db
   const NdbDictionary::Table* pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
   const NdbDictionary::Index * pIdx = 0;
-  if(argc > 1){
-    pIdx = MyNdb.getDictionary()->getIndex(argv[1], _tabname);
-  }
 
   if(pTab == NULL){
     ndbout << " Table " << _tabname << " does not exist!" << endl;
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  if(argc > 1 && pIdx == 0)
-  {
-    ndbout << " Index " << argv[1] << " does not exists" << endl;
-  }
-  
-  if(_order && pIdx == NULL){
-    ndbout << " Order flag given without an index" << endl;
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  if(_order){
+    if (argc > 1){
+      pIdx = MyNdb.getDictionary()->getIndex(argv[1], _tabname);
+      if(pIdx == 0)
+      {
+        ndbout << " Index " << argv[1] << " does not exists" << endl;
+        return NDBT_ProgramExit(NDBT_WRONGARGS);
+      }
+    }
+    else{
+      ndbout << " Order flag given without an index" << endl;
+      return NDBT_ProgramExit(NDBT_WRONGARGS);
+    }
   }
 
   if (_descending && ! _order) {
