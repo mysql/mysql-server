@@ -60,12 +60,11 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
   DBUG_PRINT("info", ("group=%d:%lld", gtid.sidno, gtid.gno));
   DBUG_ASSERT(thd->owned_gtid.sidno == 0);
   if (owned_gtids.add_gtid_owner(gtid, thd->thread_id()) != RETURN_STATUS_OK)
-    goto err2;
+    goto err;
   if (thd->get_gtid_next_list() != NULL)
   {
 #ifdef HAVE_GTID_NEXT_LIST
-    if (thd->owned_gtid_set._add_gtid(gtid) != RETURN_STATUS_OK)
-      goto err1;
+    thd->owned_gtid_set._add_gtid(gtid)
     thd->owned_gtid.sidno= -1;
     thd->owned_sid.clear();
 #else
@@ -78,11 +77,7 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
     thd->owned_sid= sid_map->sidno_to_sid(gtid.sidno);
   }
   RETURN_OK;
-#ifdef HAVE_GTID_NEXT_LIST
-err1:
-  owned_gtids.remove_gtid(gtid);
-#endif
-err2:
+err:
   if (thd->get_gtid_next_list() != NULL)
   {
 #ifdef HAVE_GTID_NEXT_LIST
@@ -147,6 +142,7 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd)
   }
 }
 
+
 void Gtid_state::update_on_commit(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_commit");
@@ -169,6 +165,9 @@ void Gtid_state::update_on_commit(THD *thd)
         into global executed_gtids and gtids_only_in_table.
       */
       lock_sidno(gtid->sidno);
+      DBUG_EXECUTE_IF(
+        "rpl_gtid_update_on_commit_simulate_out_of_memory",
+        DBUG_SET("+d,rpl_gtid_get_free_interval_simulate_out_of_memory"););
       executed_gtids._add_gtid(*gtid);
       if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates)
         gtids_only_in_table._add_gtid(*gtid);
@@ -293,11 +292,7 @@ int Gtid_state::wait_for_gtid_set(THD* thd, String* gtid_set_text, longlong time
       executed_gtid_set. This wait will continue till the point the
       wait_gtid_st is empty.
     */
-    if (wait_gtid_set.remove_gtid_set(&executed_gtid_set) != RETURN_STATUS_OK)
-    {
-      global_sid_lock->unlock();
-      DBUG_RETURN(-1);
-    }
+    wait_gtid_set.remove_gtid_set(&executed_gtid_set);
 
     Gtid_set::Gtid_iterator git(&wait_gtid_set);
     Gtid wait_for= git.get();
@@ -542,19 +537,18 @@ int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation)
   */
   global_sid_lock->wrlock();
   if ((ret = (logged_gtids_last_binlog.add_gtid_set(&executed_gtids) !=
-              RETURN_STATUS_OK ||
-              logged_gtids_last_binlog.
-              remove_gtid_set(&previous_gtids_logged) !=
-              RETURN_STATUS_OK ||
-              logged_gtids_last_binlog.remove_gtid_set(&gtids_only_in_table) !=
-              RETURN_STATUS_OK)) == 0 &&
-              !logged_gtids_last_binlog.is_empty())
+              RETURN_STATUS_OK)) == 0)
   {
-    /* Save set of GTIDs of the last binlog into gtid_executed table */
-    ret= save(&logged_gtids_last_binlog);
-    /* Prepare previous_gtids_logged for next binlog on binlog rotation */
-    if (!ret && on_rotation)
-      ret= previous_gtids_logged.add_gtid_set(&logged_gtids_last_binlog);
+    logged_gtids_last_binlog.remove_gtid_set(&previous_gtids_logged);
+    logged_gtids_last_binlog.remove_gtid_set(&gtids_only_in_table);
+    if (!logged_gtids_last_binlog.is_empty())
+    {
+      /* Save set of GTIDs of the last binlog into gtid_executed table */
+      ret= save(&logged_gtids_last_binlog);
+      /* Prepare previous_gtids_logged for next binlog on binlog rotation */
+      if (!ret && on_rotation)
+        ret= previous_gtids_logged.add_gtid_set(&logged_gtids_last_binlog);
+    }
   }
   global_sid_lock->unlock();
 
