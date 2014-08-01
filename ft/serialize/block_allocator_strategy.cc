@@ -158,23 +158,23 @@ block_allocator_strategy::best_fit(struct block_allocator::blockpair *blocks_arr
     return best_bp;
 }
 
-static uint64_t desired_fragmentation_divisor = 10;
+static uint64_t padded_fit_alignment = 64 * 1024;
 
 // TODO: These compiler specific directives should be abstracted in a portability header
 //       portability/toku_compiler.h?
 __attribute__((__constructor__))
-static void determine_padded_fit_divisor_from_env(void) {
+static void determine_padded_fit_alignment_from_env(void) {
     // TODO: Should be in portability as 'toku_os_getenv()?'
-    const char *s = getenv("TOKU_BA_PADDED_FIT_DIVISOR");
+    const char *s = getenv("TOKU_BA_PADDED_FIT_ALIGNMENT");
     if (s != nullptr) {
-        const int64_t divisor = strtoll(s, nullptr, 10);
-        if (divisor < 0) {
-            fprintf(stderr, "tokuft: error: block allocator padded fit divisor found in environment (%s), "
+        const int64_t alignment = strtoll(s, nullptr, 10);
+        if (alignment < 0) {
+            fprintf(stderr, "tokuft: error: block allocator padded fit alignment found in environment (%s), "
                             "but it's out of range (should be an integer > 0). defaulting to 10\n", s);
-            desired_fragmentation_divisor = 10;
+            padded_fit_alignment = 64 * 1024;
         } else {
-            fprintf(stderr, "tokuft: setting block allocator padded fit divisor to %s\n", s);
-            desired_fragmentation_divisor = divisor;
+            padded_fit_alignment = _next_power_of_two(alignment);
+            fprintf(stderr, "tokuft: setting block allocator padded fit alignment to %" PRIu64 "\n", padded_fit_alignment);
         }
     }
 }
@@ -185,10 +185,7 @@ static void determine_padded_fit_divisor_from_env(void) {
 struct block_allocator::blockpair *
 block_allocator_strategy::padded_fit(struct block_allocator::blockpair *blocks_array,
                                      uint64_t n_blocks, uint64_t size, uint64_t alignment) {
-    static const uint64_t absolute_max_padding = 128 * 1024;
-    uint64_t desired_padding = size / desired_fragmentation_divisor;
-    desired_padding = std::min(_next_power_of_two(desired_padding), absolute_max_padding);
-    return _first_fit(blocks_array, n_blocks, size, alignment, true, desired_padding);
+    return _first_fit(blocks_array, n_blocks, size, alignment, true, padded_fit_alignment);
 }
 
 static double hot_zone_threshold = 0.85;
