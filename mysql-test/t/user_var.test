@@ -478,3 +478,30 @@ eval explain format=json $query;
 eval $query;
 
 DROP TABLE t1, t2, t3;
+
+#
+# Starting with MySQL 5.7:
+# Enforcing max length on variable names
+#
+
+# Length 64 is ok.
+set    @X234567890123456789012345678901234567890123456789012345678901234 = 12;
+select @X234567890123456789012345678901234567890123456789012345678901234;
+
+# Length 65 is illegal
+-- error ER_ILLEGAL_USER_VAR
+set    @X2345678901234567890123456789012345678901234567890123456789012345 = 12;
+
+# Length 0 is illegal
+-- error ER_ILLEGAL_USER_VAR
+set @``= "illegal";
+
+# trailing spaces are illegal
+-- error ER_ILLEGAL_USER_VAR
+set @`endswithspace `= "illegal";
+
+# No error reported, illegal identifier treated as non existent
+select @X2345678901234567890123456789012345678901234567890123456789012345;
+select @``;
+select @`endswithspace `;
+
