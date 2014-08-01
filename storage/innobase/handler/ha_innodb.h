@@ -60,7 +60,7 @@ struct row_prebuilt_t;
 class ha_innobase: public handler
 {
  public:
-	ha_innobase(handlerton *hton, TABLE_SHARE *table_arg);
+	ha_innobase(handlerton* hton, TABLE_SHARE* table_arg);
 	~ha_innobase();
 
 	/** Get the row type from the storage engine.  If this method returns
@@ -459,10 +459,10 @@ public:
 
 private:
 	/** The multi range read session object */
-	DsMrr_impl 		m_ds_mrr;
+	DsMrr_impl		m_ds_mrr;
 
 	/** Save CPU time with prebuilt/cached data structures */
-	row_prebuilt_t*		prebuilt;
+	row_prebuilt_t*		m_prebuilt;
 
 	/** Thread handle of the user currently using the handler;
 	this is set in external_lock function */
