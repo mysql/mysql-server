@@ -179,7 +179,7 @@ enum_return_status Group_cache::get_gtids(Gtid_set *gs) const
       was executed before group.
     */
     if (group->spec.type == GTID_GROUP)
-      PROPAGATE_REPORTED_ERROR(gs->_add_gtid(group->spec.gtid));
+      gs->_add_gtid(group->spec.gtid);
   }
   RETURN_OK;
 }
