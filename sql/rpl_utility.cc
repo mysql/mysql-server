@@ -823,6 +823,7 @@ can_convert_field_to(Field *field,
   case MYSQL_TYPE_TIMESTAMP2:
   case MYSQL_TYPE_DATETIME2:
   case MYSQL_TYPE_TIME2:
+  case MYSQL_TYPE_VIRTUAL:
     DBUG_RETURN(false);
   }
   DBUG_RETURN(false);                                 // To keep GCC happy

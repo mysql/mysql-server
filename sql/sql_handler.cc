@@ -800,6 +800,8 @@ retry:
       }
       goto ok;
     }
+    /* Generate values for virtual fields */
+    update_virtual_fields_marked_for_write(table);
     if (cond && !cond->val_int())
     {
       if (thd->is_error())

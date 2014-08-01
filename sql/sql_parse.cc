@@ -5549,7 +5549,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
                        LEX_STRING *comment,
 		       char *change,
                        List<String> *interval_list, const CHARSET_INFO *cs,
-		       uint uint_geom_type)
+		       uint uint_geom_type,
+                       virtual_column_info *vcol_info)
 {
   Create_field *new_field;
   LEX  *lex= thd->lex;
@@ -5631,7 +5632,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   if (!(new_field= new Create_field()) ||
       new_field->init(thd, field_name->str, type, length, decimals, type_modifier,
                       default_value, on_update_value, comment, change,
-                      interval_list, cs, uint_geom_type))
+                      interval_list, cs, uint_geom_type, vcol_info))
     DBUG_RETURN(1);
 
   lex->alter_info.create_list.push_back(new_field);
@@ -6993,7 +6994,8 @@ bool parse_sql(THD *thd,
 {
   bool ret_value;
   DBUG_ASSERT(thd->m_parser_state == NULL);
-  DBUG_ASSERT(thd->lex->m_sql_cmd == NULL);
+  // TODO fix to allow parsing vcol exprs after main query.
+//  DBUG_ASSERT(thd->lex->m_sql_cmd == NULL);
 
   MYSQL_QUERY_PARSE_START(const_cast<char*>(thd->query().str));
   /* Backup creation context. */

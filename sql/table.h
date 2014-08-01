@@ -616,6 +616,8 @@ struct TABLE_SHARE
   ulong   version;
   ulong   mysql_version;		/* 0 if .frm is created before 5.0 */
   ulong   reclength;			/* Recordlength */
+  ulong   stored_rec_length;            /* Stored record length 
+                                           (no generated-only virtual fields) */
 
   plugin_ref db_plugin;			/* storage engine plugin */
   inline handlerton *db_type() const	/* table_type for handler */
@@ -633,6 +635,8 @@ struct TABLE_SHARE
   enum_stats_auto_recalc stats_auto_recalc; /* Automatic recalc of stats. */
   uint null_bytes, last_null_bit_pos;
   uint fields;				/* Number of fields */
+  uint stored_fields;                   /* Number of stored fields 
+                                           (i.e. without generated-only ones) */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
   uint keys;                            /* Number of keys defined for the table*/
   uint key_parts;                       /* Number of key parts of all keys
@@ -657,6 +661,7 @@ struct TABLE_SHARE
   uint error, open_errno, errarg;       /* error from open_table_def() */
   uint column_bitmap_size;
   uchar frm_version;
+  uint vfields;                         /* Number of virtual fields */
   bool null_field_first;
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */
@@ -1022,6 +1027,7 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
+  Field **vfield;                       /* Pointer to virtual fields*/
   Field *hash_field;                    /* Field used by unique constraint */
   /* Mask and bitmap are used along with hash_field */
   uchar *hash_field_mask;
@@ -1228,6 +1234,7 @@ public:
   void mark_columns_needed_for_delete(void);
   void mark_columns_needed_for_insert(void);
   void mark_columns_per_binlog_row_image(void);
+  void mark_virtual_columns(void);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
                                  MY_BITMAP *write_set_arg)
   {

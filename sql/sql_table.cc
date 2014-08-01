@@ -3044,7 +3044,8 @@ int prepare_create_field(Create_field *sql_field,
                           (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
     break;
   }
-  if (!(sql_field->flags & NOT_NULL_FLAG))
+  if (!(sql_field->flags & NOT_NULL_FLAG) ||
+      (sql_field->vcol_info))  /* Make virtual columns allow NULL values */
     sql_field->pack_flag|= FIELDFLAG_MAYBE_NULL;
   if (sql_field->flags & NO_DEFAULT_VALUE_FLAG)
     sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
@@ -3130,7 +3131,8 @@ bool fill_field_definition(THD *thd,
                       &lex->interval_list,
                       lex->charset ? lex->charset :
                                      thd->variables.collation_database,
-                      lex->uint_geom_type))
+                      // TODO check last arg
+                      lex->uint_geom_type, NULL))
   {
     return true;
   }
@@ -3626,6 +3628,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
             null_fields--;
 	  sql_field->flags=		dup_field->flags;
           sql_field->interval=          dup_field->interval;
+          sql_field->vcol_info=         dup_field->vcol_info;
+          sql_field->stored_in_db=      dup_field->stored_in_db;
 	  it2.remove();			// Remove first (create) definition
 	  select_field_pos--;
 	  break;
@@ -3657,7 +3661,23 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     sql_field->offset= record_offset;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
-    record_offset+= sql_field->pack_length;
+    /*
+      For now skip fields that are not physically stored in the database
+      (virtual fields) and update their offset later 
+      (see the next loop).
+    */
+    if (sql_field->stored_in_db)
+      record_offset+= sql_field->pack_length;
+  }
+  /* Update virtual fields' offset*/
+  it.rewind();
+  while ((sql_field=it++))
+  {
+    if (!sql_field->stored_in_db)
+    {
+      sql_field->offset= record_offset;
+      record_offset+= sql_field->pack_length;
+    }
   }
   if (auto_increment > 1)
   {
@@ -3709,6 +3729,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (key->type == Key::FOREIGN_KEY)
     {
       fk_key_count++;
+      if (((Foreign_key *)key)->validate(alter_info->create_list))
+        DBUG_RETURN(TRUE);
       Foreign_key *fk_key= (Foreign_key*) key;
       if (fk_key->ref_columns.elements &&
 	  fk_key->ref_columns.elements != fk_key->columns.elements)
@@ -4043,6 +4065,17 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         {
           my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
           DBUG_RETURN(true);
+        }
+        if (!sql_field->stored_in_db)
+        {
+          /* Key fields must always be physically stored. */
+          my_error(ER_KEY_BASED_ON_GENERATED_VIRTUAL_COLUMN, MYF(0));
+          DBUG_RETURN(TRUE);
+        }
+        if (key->type == Key::PRIMARY && sql_field->vcol_info)
+        {
+          my_error(ER_PRIMARY_KEY_BASED_ON_VIRTUAL_COLUMN, MYF(0));
+          DBUG_RETURN(TRUE);
         }
 	if (!(sql_field->flags & NOT_NULL_FLAG))
 	{
@@ -5973,6 +6006,14 @@ static bool fill_alter_inplace_info(THD *thd,
         ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_TYPE;
       }
 
+      /*
+        Check if the altered column is a stored virtual field.
+        TODO: Mark such a column with an alter flag only if
+        the expression functions are not equal. 
+      */
+      if (field->stored_in_db && field->vcol_info)
+        ha_alter_info->handler_flags|= Alter_inplace_info::HA_ALTER_STORED_VCOL;
+
       /* Check if field was renamed */
       if (my_strcasecmp(system_charset_info, field->field_name,
                         new_field->field_name))
@@ -6547,9 +6588,13 @@ static bool is_inplace_alter_impossible(TABLE *table,
     ENABLE/DISABLE KEYS is a MyISAM/Heap specific operation that is
     not supported for in-place in combination with other operations.
     Alone, it will be done by simple_rename_or_index_change().
+
+    Stored virtual columns are evaluated in server, thus can't be added/changed
+    inplace.
   */
   if (alter_info->flags & (Alter_info::ALTER_ORDER |
-                           Alter_info::ALTER_KEYS_ONOFF))
+                           Alter_info::ALTER_KEYS_ONOFF |
+                           Alter_info::ALTER_STORED_VCOLUMN))
     DBUG_RETURN(true);
 
   /*
@@ -7011,7 +7056,8 @@ upgrade_old_temporal_types(THD *thd, Alter_info *alter_info)
         temporal_field->init(thd, def->field_name, sql_type, NULL, NULL,
                              (def->flags & NOT_NULL_FLAG), default_value,
                              update_value, &def->comment, def->change, NULL,
-                             NULL, 0))
+                             // TODO check last arg
+                             NULL, 0, NULL))
       DBUG_RETURN(true);
 
     temporal_field->field= def->field;
@@ -7176,6 +7222,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (def)
     {						// Field is changed
       def->field=field;
+      if (field->stored_in_db != def->stored_in_db)
+      {
+        my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN,
+                 MYF(0),
+                 "Changing the STORED status");
+        goto err;
+      }
       /*
         Add column being updated to the list of new columns.
         Note that columns with AFTER clauses are added to the end
@@ -7496,6 +7549,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     Key *key;
     while ((key=key_it++))			// Add new keys
     {
+      // TODO how is this related to this WL?
+      if (key->type == Key::FOREIGN_KEY &&
+          ((Foreign_key *)key)->validate(new_create_list))
+        goto err;
       new_key_list.push_back(key);
       if (key->name.str &&
 	  !my_strcasecmp(system_charset_info, key->name.str, primary_key_name))
@@ -9194,6 +9251,12 @@ copy_data_between_tables(PSI_stage_progress *psi,
     for (Copy_field *copy_ptr=copy ; copy_ptr != copy_end ; copy_ptr++)
     {
       copy_ptr->invoke_do_copy(copy_ptr);
+    }
+    update_virtual_fields_marked_for_write(to, false);
+    if (thd->is_error())
+    {
+      error= 1;
+      break;
     }
 
     error=to->file->ha_write_row(to->record[0]);

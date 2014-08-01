@@ -301,6 +301,8 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
                                   bool no_error);
 void mark_tmp_table_for_reuse(TABLE *table);
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
+int update_virtual_fields_marked_for_write(TABLE *table,
+                                           bool ignore_stored= true);
 
 extern Item **not_found_item;
 extern Field *not_found_field;

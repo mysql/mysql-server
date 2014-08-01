@@ -7050,6 +7050,24 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
 
   if (field_ptr && *field_ptr)
   {
+    if ((*field_ptr)->vcol_info)
+    {
+      if (thd->mark_used_columns != MARK_COLUMNS_NONE)
+      {
+        Item *vcol_item= (*field_ptr)->vcol_info->expr_item;
+        DBUG_ASSERT(vcol_item);
+        vcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
+                        (uchar *) 0);
+        /* 
+          Set the virtual field for write here if 
+          1) this procedure is called for a read-only operation (SELECT), and
+          2) the virtual column is not phycically stored in the table
+        */
+        if (thd->mark_used_columns != MARK_COLUMNS_WRITE && 
+            !(*field_ptr)->stored_in_db)
+          bitmap_set_bit((*field_ptr)->table->write_set, (*field_ptr)->field_index);
+      }
+    }
     *cached_field_index_ptr= field_ptr - table->field;
     field= *field_ptr;
   }
@@ -9013,6 +9031,18 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       {
         /* Mark fields as used to allow storage engine to optimze access */
         bitmap_set_bit(field->table->read_set, field->field_index);
+        /*
+          Mark virtual fields for write and others that the virtual fields
+          depend on for read.
+        */
+        if (field->vcol_info)
+        {
+          Item *vcol_item= field->vcol_info->expr_item;
+          DBUG_ASSERT(vcol_item);
+          vcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
+                          (uchar *) 0);
+          bitmap_set_bit(field->table->write_set, field->field_index);
+        }
         if (table)
         {
           table->covering_keys.intersect(field->part_of_key);
@@ -9090,6 +9120,13 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 ** Returns : 1 if some field has wrong type
 ******************************************************************************/
 
+/// Function to sort pointers in order of allocation.
+
+static int ptr_cmp_func(void *a, void *b, void *arg)
+{
+  return (a > b) ? 1 : ((a < b) ? -1 : 0);
+}
+
 
 /*
   Fill fields with given items.
@@ -9117,6 +9154,8 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   Item *value, *fld;
   Item_field *field;
   TABLE *table= 0;
+  List<TABLE> tbl_list;
+//  bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
   DBUG_ASSERT(fields.elements == values.elements);
   /*
@@ -9154,6 +9193,18 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
+    if (rfield->vcol_info && 
+        value->type() != Item::DEFAULT_VALUE_ITEM && 
+        value->type() != Item::NULL_ITEM &&
+        table->s->table_category != TABLE_CATEGORY_TEMPORARY)
+    {
+//      thd->abort_on_warning= FALSE;
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
+                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
+                          rfield->field_name, table->s->table_name.str);
+//      thd->abort_on_warning= abort_on_warning_saved;
+    }
     if (value->save_in_field(rfield, false) < 0)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
@@ -9162,9 +9213,38 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
+    tbl_list.push_back(table);
   }
+  /* Update virtual fields*/
+//  thd->abort_on_warning= FALSE;
+  if (tbl_list.elements)
+  {
+    tbl_list.sort((Node_cmp_func)ptr_cmp_func, NULL);
+    List_iterator_fast<TABLE> t(tbl_list);
+    TABLE *prev_table= 0;
+    while ((table= t++))
+    {
+      /*
+        Do simple optimization to prevent unnecessary re-generating 
+        values for virtual fields
+      */
+      if (table != prev_table)
+      {
+        prev_table= table;
+        if (table->vfield)
+        {
+          if (update_virtual_fields_marked_for_write(table, FALSE))
+          {
+            goto err;
+          }
+        }
+      }
+    }
+  }
+//  thd->abort_on_warning= abort_on_warning_saved;
   DBUG_RETURN(thd->is_error());
 err:
+//  thd->abort_on_warning= abort_on_warning_saved;
   if (table)
     table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(TRUE);
@@ -9338,7 +9418,26 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
       rc= fill_record(thd, fields, values, NULL, NULL) ||
           table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
     }
-
+    /* 
+      Re-calculate virtual fields to cater for cases when base columns are 
+      updated by the triggers.
+    */
+    if (!rc)
+    {
+      TABLE *table= 0;
+      List_iterator_fast<Item> f(fields);
+      Item *fld;
+      Item_field *item_field;
+      if (fields.elements)
+      {
+        fld= (Item_field*)f++;
+        item_field= fld->field_for_view_update();
+        if (item_field && item_field->field && 
+            (table= item_field->field->table) &&
+            table->vfield)
+          rc= update_virtual_fields_marked_for_write(table, FALSE);
+      }
+    }
     table->triggers->disable_fields_temporary_nullability();
 
     return rc || check_record(thd, table->field);
@@ -9378,7 +9477,10 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
   List_iterator_fast<Item> v(values);
   Item *value;
   TABLE *table= 0;
+  List<TABLE> tbl_list;
+//  bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
+  tbl_list.empty();
 
   Field *field;
   /*
@@ -9403,8 +9505,21 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
       continue;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
+    if (field->vcol_info && 
+        value->type() != Item::DEFAULT_VALUE_ITEM && 
+        value->type() != Item::NULL_ITEM &&
+        table->s->table_category != TABLE_CATEGORY_TEMPORARY)
+    {
+//      thd->abort_on_warning= FALSE;
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
+                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
+                          field->field_name, table->s->table_name.str);
+//      thd->abort_on_warning= abort_on_warning_saved;
+    }
     if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       goto err;
+    tbl_list.push_back(table);
     /*
       fill_record could be called as part of multi update and therefore
       table->fields_set_during_insert could be NULL.
@@ -9414,10 +9529,38 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
   }
+  /* Update virtual fields*/
+//  thd->abort_on_warning= FALSE;
+  if (tbl_list.head())
+  {
+    tbl_list.sort((Node_cmp_func)ptr_cmp_func, NULL);
+    List_iterator_fast<TABLE> t(tbl_list);
+    TABLE *prev_table= 0;
+    while ((table= t++))
+    {
+      /*
+        Do simple optimization to prevent unnecessary re-generating 
+        values for virtual fields
+      */
+      if (table != prev_table)
+      {
+        prev_table= table;
+        if (table->vfield)
+        {
+          if (update_virtual_fields_marked_for_write(table, FALSE))
+          {
+            goto err;
+          }
+        }
+      }
+    }
+  }
+//  thd->abort_on_warning= abort_on_warning_saved;
   DBUG_ASSERT(thd->is_error() || !v++);      // No extra value!
   DBUG_RETURN(thd->is_error());
 
 err:
+//  thd->abort_on_warning= abort_on_warning_saved;
   if (table)
     table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(TRUE);
@@ -9476,6 +9619,16 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
       rc= call_before_insert_triggers(thd, table, event,
                                       &insert_into_fields_bitmap);
 
+    /* 
+      Re-calculate virtual fields to cater for cases when base columns are 
+      updated by the triggers.
+    */
+    if (!rc && *ptr)
+    {
+      TABLE *table= (*ptr)->table;
+      if (table->vfield)
+        rc= update_virtual_fields_marked_for_write(table, FALSE);
+    }
     bitmap_free(&insert_into_fields_bitmap);
     table->triggers->disable_fields_temporary_nullability();
   }

@@ -5644,10 +5644,31 @@ bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
     TABLE *table= (TABLE *) arg;
     if (result_field->table == table || !table)
       bitmap_set_bit(result_field->table->read_set, result_field->field_index);
+    if (result_field->vcol_info && result_field->vcol_info->expr_item)
+      return result_field->vcol_info->
+               expr_item->walk(&Item::register_field_in_read_map,
+                               Item::WALK_PREFIX, arg);
   }
   return 0;
 }
 
+/*
+  Mark field in bitmap supplied as *arg
+
+*/
+
+bool Item_func_set_user_var::register_field_in_bitmap(uchar *arg)
+{
+  MY_BITMAP *bitmap = (MY_BITMAP *) arg;
+  DBUG_ASSERT(bitmap);
+  if (result_field)
+  {
+    if (!bitmap)
+      return 1;
+    bitmap_set_bit(bitmap, result_field->field_index);
+  }
+  return 0;
+}
 
 bool user_var_entry::realloc(size_t length)
 {

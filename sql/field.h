@@ -451,6 +451,57 @@ void copy_integer(uchar *to, size_t to_length,
 }
 
 
+class virtual_column_info: public Sql_alloc
+{
+public:
+  Item *expr_item;
+  LEX_STRING expr_str;
+  Item *item_free_list;
+  virtual_column_info() 
+  : expr_item(0), item_free_list(0),
+    field_type(MYSQL_TYPE_VIRTUAL),
+    stored_in_db(FALSE), data_inited(FALSE)
+  {
+    expr_str.str= NULL;
+    expr_str.length= 0;
+  };
+  ~virtual_column_info() {}
+  enum_field_types get_real_type()
+  {
+    DBUG_ASSERT(data_inited);
+    return data_inited ? field_type : MYSQL_TYPE_VIRTUAL;
+  }
+  void set_field_type(enum_field_types fld_type)
+  {
+    /* Calling this function can only be done once. */
+    DBUG_ASSERT(!data_inited);
+    data_inited= TRUE;
+    field_type= fld_type;
+  }
+  bool get_field_stored()
+  {
+    DBUG_ASSERT(data_inited);
+    return data_inited ? stored_in_db : TRUE;
+  }
+  void set_field_stored(bool stored)
+  {
+    stored_in_db= stored;
+  }
+private:
+  /*
+    The following data is only updated by the parser and read
+    when a Create_field object is created/initialized.
+  */
+  enum_field_types field_type;   /* Real field type*/
+  bool stored_in_db;             /* Indication that the field is 
+                                    phisically stored in the database*/
+  /*
+    This flag is used to prevent other applications from
+    reading and using incorrect data.
+  */
+  bool data_inited; 
+};
+
 class Field
 {
   Field(const Item &);				/* Prevent use of these */
@@ -584,6 +635,15 @@ private:
   unsigned int m_warnings_pushed;
 
 public:
+  /* Virtual column data */
+  virtual_column_info *vcol_info;
+  /*
+    Indication that the field is phycically stored in tables 
+    rather than just generated on SQL queries.
+    As of now, FALSE can only be set for generated-only virtual columns.
+  */
+  bool stored_in_db;
+
   Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
         uchar null_bit_arg, utype unireg_check_arg,
         const char *field_name_arg);
@@ -4028,6 +4088,16 @@ public:
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
+
+  /* Virtual column expression statement */
+  virtual_column_info *vcol_info;
+  /*
+    Indication that the field is phycically stored in tables 
+    rather than just generated on SQL queries.
+    As of now, FALSE can only be set for generated-only virtual columns.
+  */
+  bool stored_in_db;
+
   Create_field() :after(NULL) {}
   Create_field(Field *field, Field *orig_field);
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
@@ -4045,7 +4115,8 @@ public:
             const char *length, const char *decimals, uint type_modifier,
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
-            const CHARSET_INFO *cs, uint uint_geom_type);
+            const CHARSET_INFO *cs, uint uint_geom_type,
+            virtual_column_info *vcol_info);
 
   ha_storage_media field_storage_type() const
   {

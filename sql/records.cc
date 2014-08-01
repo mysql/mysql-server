@@ -27,6 +27,7 @@
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_class.h"                          // THD
 #include "sql_select.h"          // JOIN_TAB
+#include "sql_base.h"            // update_virtual_fields_marked_for_write
 
 
 static int rr_quick(READ_RECORD *info);
@@ -401,6 +402,7 @@ static int rr_quick(READ_RECORD *info)
       break;
     }
   }
+  update_virtual_fields_marked_for_write(info->table);
   return tmp;
 }
 
@@ -516,6 +518,8 @@ int rr_sequential(READ_RECORD *info)
       break;
     }
   }
+  if (!tmp)
+    update_virtual_fields_marked_for_write(info->table);
   return tmp;
 }
 
