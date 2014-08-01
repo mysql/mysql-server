@@ -1212,6 +1212,7 @@ SELECT * FROM t1 GROUP BY @a:=(FROM_UNIXTIME(concat(a,'10'))*1);
 
 DROP TABLE t1;
 
+SET TIME_ZONE='+02:00';
 
 --echo #
 --echo # MDEV-6302 Wrong result set when using GROUP BY FROM_UNIXTIME(...)+0
@@ -1239,10 +1240,9 @@ DROP TABLE t1,t2;
 --echo #
 --echo # MDEV-4635 Crash in UNIX_TIMESTAMP(STR_TO_DATE('2020','%Y'))
 --echo #
-SET TIME_ZONE='+02:00';
 SELECT UNIX_TIMESTAMP(STR_TO_DATE('2020','%Y'));
-SET TIME_ZONE=DEFAULT;
 
+SET TIME_ZONE=DEFAULT;
 
 --echo #
 --echo #  MDEV-4863 COALESCE(time_or_datetime) returns wrong results in numeric context
