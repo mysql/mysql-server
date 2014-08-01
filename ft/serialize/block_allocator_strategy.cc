@@ -158,6 +158,27 @@ block_allocator_strategy::best_fit(struct block_allocator::blockpair *blocks_arr
     return best_bp;
 }
 
+static uint64_t desired_fragmentation_divisor = 10;
+
+// TODO: These compiler specific directives should be abstracted in a portability header
+//       portability/toku_compiler.h?
+__attribute__((__constructor__))
+static void determine_padded_fit_divisor_from_env(void) {
+    // TODO: Should be in portability as 'toku_os_getenv()?'
+    const char *s = getenv("TOKU_BA_PADDED_FIT_DIVISOR");
+    if (s != nullptr) {
+        const int64_t divisor = strtoll(s, nullptr, 10);
+        if (divisor < 0) {
+            fprintf(stderr, "tokuft: error: block allocator padded fit divisor found in environment (%s), "
+                            "but it's out of range (should be an integer > 0). defaulting to 10\n", s);
+            desired_fragmentation_divisor = 10;
+        } else {
+            fprintf(stderr, "tokuft: setting block allocator padded fit divisor to %s\n", s);
+            desired_fragmentation_divisor = divisor;
+        }
+    }
+}
+
 // First fit into a block that is oversized by up to max_padding.
 // The hope is that if we purposefully waste a bit of space at allocation
 // time we'll be more likely to reuse this block later.
@@ -165,10 +186,30 @@ struct block_allocator::blockpair *
 block_allocator_strategy::padded_fit(struct block_allocator::blockpair *blocks_array,
                                      uint64_t n_blocks, uint64_t size, uint64_t alignment) {
     static const uint64_t absolute_max_padding = 128 * 1024;
-    static const uint64_t desired_fragmentation_divisor = 10;
     uint64_t desired_padding = size / desired_fragmentation_divisor;
     desired_padding = std::min(_next_power_of_two(desired_padding), absolute_max_padding);
     return _first_fit(blocks_array, n_blocks, size, alignment, true, desired_padding);
+}
+
+static double hot_zone_threshold = 0.85;
+
+// TODO: These compiler specific directives should be abstracted in a portability header
+//       portability/toku_compiler.h?
+__attribute__((__constructor__))
+static void determine_hot_zone_threshold_from_env(void) {
+    // TODO: Should be in portability as 'toku_os_getenv()?'
+    const char *s = getenv("TOKU_BA_HOT_ZONE_THRESHOLD");
+    if (s != nullptr) {
+        const double hot_zone = strtod(s, nullptr);
+        if (hot_zone < 1 || hot_zone > 99) {
+            fprintf(stderr, "tokuft: error: block allocator hot zone threshold found in environment (%s), "
+                            "but it's out of range (should be an integer 1 through 99). defaulting to 85\n", s);
+            hot_zone_threshold = 85 / 100;
+        } else {
+            fprintf(stderr, "tokuft: setting block allocator hot zone threshold to %s\n", s);
+            hot_zone_threshold = hot_zone / 100;
+        }
+    }
 }
 
 struct block_allocator::blockpair *
@@ -177,7 +218,6 @@ block_allocator_strategy::heat_zone(struct block_allocator::blockpair *blocks_ar
                                     uint64_t heat) {
     if (heat > 0) {
         struct block_allocator::blockpair *bp, *boundary_bp;
-        const double hot_zone_threshold = 0.85;
 
         // Hot allocation. Find the beginning of the hot zone.
         boundary_bp = &blocks_array[n_blocks - 1];
