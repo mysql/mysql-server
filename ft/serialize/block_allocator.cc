@@ -457,8 +457,8 @@ void block_allocator::validate() const {
 void block_allocator::_trace_create(void) {
     if (ba_trace_file != nullptr) {
         toku_mutex_lock(&_trace_lock);
-        fprintf(ba_trace_file, "ba_trace_create %p %lu %lu\n", this,
-                _reserve_at_beginning, _alignment);
+        fprintf(ba_trace_file, "ba_trace_create %p %" PRIu64 " %" PRIu64 "\n",
+                this, _reserve_at_beginning, _alignment);
         toku_mutex_unlock(&_trace_lock);
 
         fflush(ba_trace_file);
@@ -468,10 +468,11 @@ void block_allocator::_trace_create(void) {
 void block_allocator::_trace_create_from_blockpairs(void) {
     if (ba_trace_file != nullptr) {
         toku_mutex_lock(&_trace_lock);
-        fprintf(ba_trace_file, "ba_trace_create_from_blockpairs %p %lu %lu ", this,
-                _reserve_at_beginning, _alignment);
+        fprintf(ba_trace_file, "ba_trace_create_from_blockpairs %p %" PRIu64 " %" PRIu64 " ",
+                this, _reserve_at_beginning, _alignment);
         for (uint64_t i = 0; i < _n_blocks; i++) {
-            fprintf(ba_trace_file, "[%lu %lu] ", _blocks_array[i].offset, _blocks_array[i].size);
+            fprintf(ba_trace_file, "[%" PRIu64 " %" PRIu64 "] ",
+                    _blocks_array[i].offset, _blocks_array[i].size);
         }
         fprintf(ba_trace_file, "\n");
         toku_mutex_unlock(&_trace_lock);
@@ -493,10 +494,8 @@ void block_allocator::_trace_destroy(void) {
 void block_allocator::_trace_alloc(uint64_t size, uint64_t heat, uint64_t offset) {
     if (ba_trace_file != nullptr) {
         toku_mutex_lock(&_trace_lock);
-        fprintf(ba_trace_file, "ba_trace_alloc %p %lu %lu %lu\n", this,
-                static_cast<unsigned long>(size),
-                static_cast<unsigned long>(heat),
-                static_cast<unsigned long>(offset));
+        fprintf(ba_trace_file, "ba_trace_alloc %p %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
+                this, size, heat, offset);
         toku_mutex_unlock(&_trace_lock);
 
         fflush(ba_trace_file);
@@ -506,8 +505,7 @@ void block_allocator::_trace_alloc(uint64_t size, uint64_t heat, uint64_t offset
 void block_allocator::_trace_free(uint64_t offset) {
     if (ba_trace_file != nullptr) {
         toku_mutex_lock(&_trace_lock);
-        fprintf(ba_trace_file, "ba_trace_free %p %lu\n", this,
-                static_cast<unsigned long>(offset));
+        fprintf(ba_trace_file, "ba_trace_free %p %" PRIu64 "\n", this, offset);
         toku_mutex_unlock(&_trace_lock);
 
         fflush(ba_trace_file);
