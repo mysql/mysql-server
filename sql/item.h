@@ -1014,9 +1014,47 @@ public:
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
+  /* Returns total number of decimal digits */
   virtual uint decimal_precision() const;
+  /* Returns the number of integer part digits only */
   inline int decimal_int_part() const
   { return my_decimal_int_part(decimal_precision(), decimals); }
+  /*
+    Returns the number of fractional digits only.
+    NOT_FIXED_DEC is replaced to the maximum possible number
+    of fractional digits, taking into account the data type.
+  */
+  uint decimal_scale() const
+  {
+    return decimals < NOT_FIXED_DEC ? decimals :
+           is_temporal_type_with_time(field_type()) ?
+           TIME_SECOND_PART_DIGITS :
+           min(max_length, DECIMAL_MAX_SCALE);
+  }
+  /*
+    Returns how many digits a divisor adds into a division result.
+    This is important when the integer part of the divisor can be 0.
+    In this  example:
+      SELECT 1 / 0.000001; -> 1000000.0000
+    the divisor adds 5 digits into the result precision.
+
+    Currently this method only replaces NOT_FIXED_DEC to
+    TIME_SECOND_PART_DIGITS for temporal data types.
+    This method can be made virtual, to create more efficient (smaller)
+    data types for division results.
+    For example, in
+      SELECT 1/1.000001;
+    the divisor could provide no additional precision into the result,
+    so could any other items that are know to return a result
+    with non-zero integer part.
+  */
+  uint divisor_precision_increment() const
+  {
+    return decimals <  NOT_FIXED_DEC ? decimals :
+           is_temporal_type_with_time(field_type()) ?
+           TIME_SECOND_PART_DIGITS :
+           decimals;
+  }
   /**
     TIME or DATETIME precision of the item: 0..6
   */

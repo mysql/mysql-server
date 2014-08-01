@@ -413,16 +413,15 @@ protected:
 public:
   Item_func_seconds_hybrid() :Item_func_numhybrid() {}
   Item_func_seconds_hybrid(Item *a) :Item_func_numhybrid(a) {}
-  void fix_num_length_and_dec()
+  void fix_length_and_dec()
   {
     if (arg_count)
       decimals= args[0]->temporal_precision(arg0_expected_type());
     set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
     max_length=17 + (decimals ? decimals + 1 : 0);
     maybe_null= true;
+    cached_result_type= decimals ? DECIMAL_RESULT : INT_RESULT;
   }
-  void find_num_type()
-  { cached_result_type= decimals ? DECIMAL_RESULT : INT_RESULT; }
   double real_op() { DBUG_ASSERT(0); return 0; }
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
   bool date_op(MYSQL_TIME *ltime, uint fuzzydate) { DBUG_ASSERT(0); return true; }
@@ -470,11 +469,6 @@ protected:
 public:
   Item_func_time_to_sec(Item *item) :Item_func_seconds_hybrid(item) {}
   const char *func_name() const { return "time_to_sec"; }
-  void fix_num_length_and_dec()
-  {
-    maybe_null= true;
-    Item_func_seconds_hybrid::fix_num_length_and_dec();
-  }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
   bool check_valid_arguments_processor(uchar *int_arg)

@@ -113,6 +113,29 @@ inline bool is_temporal_type(enum_field_types type)
   return mysql_type_to_time_type(type) != MYSQL_TIMESTAMP_ERROR;
 }
 
+
+/**
+  Tests if field type is temporal and has time part,
+  i.e. represents TIME, DATETIME or TIMESTAMP types in SQL.
+
+  @param type    Field type, as returned by field->type().
+  @retval true   If field type is temporal type with time part.
+  @retval false  If field type is not temporal type with time part.
+*/
+inline bool is_temporal_type_with_time(enum_field_types type)
+{
+  switch (type)
+  {
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    return true;
+  default:
+    return false;
+  }
+}
+
+
 /*
   Virtual_column_info is the class to contain additional
   characteristics that is specific for a virtual/computed

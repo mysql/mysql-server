@@ -6736,7 +6736,7 @@ static uint kill_threads_for_user(THD *thd, LEX_USER *user,
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
   {
-    if (tmp->command == COM_DAEMON)
+    if (!tmp->security_ctx->user)
       continue;
     /*
       Check that hostname (if given) and user name matches.

@@ -146,7 +146,6 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void print_op(String *str, enum_query_type query_type);
   void print_args(String *str, uint from, enum_query_type query_type);
-  virtual void fix_num_length_and_dec();
   void count_only_length(Item **item, uint nitems);
   void count_real_length();
   void count_decimal_length();
@@ -533,9 +532,6 @@ public:
   Item_func_numhybrid(List<Item> &list)
     :Item_func_hybrid_result_type(list)
   { }
-  void fix_length_and_dec();
-  void fix_num_length_and_dec();
-  virtual void find_num_type()= 0; /* To be called from fix_length_and_dec */
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
   bool date_op(MYSQL_TIME *ltime, uint fuzzydate) { DBUG_ASSERT(0); return true; }
 };
@@ -547,9 +543,7 @@ class Item_func_num1: public Item_func_numhybrid
 public:
   Item_func_num1(Item *a) :Item_func_numhybrid(a) {}
   Item_func_num1(Item *a, Item *b) :Item_func_numhybrid(a, b) {}
-
-  void fix_num_length_and_dec();
-  void find_num_type();
+  void fix_length_and_dec();
 };
 
 
@@ -565,7 +559,7 @@ class Item_num_op :public Item_func_numhybrid
     print_op(str, query_type);
   }
 
-  void find_num_type();
+  void fix_length_and_dec();
 };
 
 
@@ -785,7 +779,6 @@ public:
   const char *func_name() const { return "-"; }
   enum Functype functype() const   { return NEG_FUNC; }
   void fix_length_and_dec();
-  void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -952,8 +945,7 @@ class Item_func_int_val :public Item_func_num1
 {
 public:
   Item_func_int_val(Item *a) :Item_func_num1(a) {}
-  void fix_num_length_and_dec();
-  void find_num_type();
+  void fix_length_and_dec();
 };
 
 
@@ -1363,6 +1355,7 @@ public:
     fixed= 1;
     return res;
   }
+  void fix_num_length_and_dec();
   void update_used_tables() 
   {
     /*
@@ -1476,7 +1469,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String *str);
   enum Item_result result_type () const { return DECIMAL_RESULT; }
-  void fix_length_and_dec();
+  void fix_length_and_dec() { fix_num_length_and_dec(); }
 };
 
 

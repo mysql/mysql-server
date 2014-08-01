@@ -595,7 +595,7 @@ my_decimal *Item_real_func::val_decimal(my_decimal *decimal_value)
 }
 
 
-void Item_func::fix_num_length_and_dec()
+void Item_udf_func::fix_num_length_and_dec()
 {
   uint fl_length= 0;
   decimals=0;
@@ -611,11 +611,6 @@ void Item_func::fix_num_length_and_dec()
     max_length= float_length(NOT_FIXED_DEC);
   }
 }
-
-
-void Item_func_numhybrid::fix_num_length_and_dec()
-{}
-
 
 
 /**
@@ -805,9 +800,9 @@ bool Item_func_connection_id::fix_fields(THD *thd, Item **ref)
   function of two arguments.
 */
 
-void Item_num_op::find_num_type(void)
+void Item_num_op::fix_length_and_dec(void)
 {
-  DBUG_ENTER("Item_num_op::find_num_type");
+  DBUG_ENTER("Item_num_op::fix_length_and_dec");
   DBUG_PRINT("info", ("name %s", func_name()));
   DBUG_ASSERT(arg_count == 2);
   Item_result r0= args[0]->cast_to_int_type();
@@ -851,22 +846,26 @@ void Item_num_op::find_num_type(void)
   type depends only on the first argument)
 */
 
-void Item_func_num1::find_num_type()
+void Item_func_num1::fix_length_and_dec()
 {
-  DBUG_ENTER("Item_func_num1::find_num_type");
+  DBUG_ENTER("Item_func_num1::fix_length_and_dec");
   DBUG_PRINT("info", ("name %s", func_name()));
   switch (cached_result_type= args[0]->cast_to_int_type()) {
   case INT_RESULT:
+    max_length= args[0]->max_length;
     unsigned_flag= args[0]->unsigned_flag;
     break;
   case STRING_RESULT:
   case REAL_RESULT:
     cached_result_type= REAL_RESULT;
+    decimals= args[0]->decimals; // Preserve NOT_FIXED_DEC
     max_length= float_length(decimals);
     break;
   case TIME_RESULT:
     cached_result_type= DECIMAL_RESULT;
   case DECIMAL_RESULT:
+    decimals= args[0]->decimal_scale(); // Do not preserve NOT_FIXED_DEC
+    max_length= args[0]->max_length;
     break;
   case ROW_RESULT:
   case IMPOSSIBLE_RESULT:
@@ -878,20 +877,6 @@ void Item_func_num1::find_num_type()
                        cached_result_type == INT_RESULT ? "INT_RESULT" :
                        "--ILLEGAL!!!--")));
   DBUG_VOID_RETURN;
-}
-
-
-void Item_func_num1::fix_num_length_and_dec()
-{
-  decimals= args[0]->decimals;
-  max_length= args[0]->max_length;
-}
-
-
-void Item_func_numhybrid::fix_length_and_dec()
-{
-  fix_num_length_and_dec();
-  find_num_type();
 }
 
 
@@ -1541,10 +1526,13 @@ my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)
 */
 void Item_func_additive_op::result_precision()
 {
-  decimals= max(args[0]->decimals, args[1]->decimals);
-  int arg1_int= args[0]->decimal_precision() - args[0]->decimals;
-  int arg2_int= args[1]->decimal_precision() - args[1]->decimals;
+  decimals= max(args[0]->decimal_scale(), args[1]->decimal_scale());
+  int arg1_int= args[0]->decimal_precision() - args[0]->decimal_scale();
+  int arg2_int= args[1]->decimal_precision() - args[1]->decimal_scale();
   int precision= max(arg1_int, arg2_int) + 1 + decimals;
+
+  DBUG_ASSERT(arg1_int >= 0);
+  DBUG_ASSERT(arg2_int >= 0);
 
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
@@ -1782,7 +1770,8 @@ void Item_func_mul::result_precision()
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
-  decimals= min(args[0]->decimals + args[1]->decimals, DECIMAL_MAX_SCALE);
+  decimals= min(args[0]->decimal_scale() + args[1]->decimal_scale(),
+                DECIMAL_MAX_SCALE);
   uint est_prec = args[0]->decimal_precision() + args[1]->decimal_precision();
   uint precision= min(est_prec, DECIMAL_MAX_PRECISION);
   max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
@@ -1836,8 +1825,20 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
 
 void Item_func_div::result_precision()
 {
+  /*
+    We need to add args[1]->divisor_precision_increment(),
+    to properly handle the cases like this:
+      SELECT 5.05 / 0.014; -> 360.714286
+    i.e. when the divisor has a zero integer part
+    and non-zero digits appear only after the decimal point.
+    Precision in this example is calculated as
+      args[0]->decimal_precision()           +  // 3
+      args[1]->divisor_precision_increment() +  // 3
+      prec_increment                            // 4
+    which gives 10 decimals digits. 
+  */
   uint precision=min(args[0]->decimal_precision() + 
-                     args[1]->decimals + prec_increment,
+                     args[1]->divisor_precision_increment() + prec_increment,
                      DECIMAL_MAX_PRECISION);
 
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
@@ -1845,7 +1846,7 @@ void Item_func_div::result_precision()
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
-  decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
+  decimals= min(args[0]->decimal_scale() + prec_increment, DECIMAL_MAX_SCALE);
   max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
                                                            unsigned_flag);
 }
@@ -2051,7 +2052,7 @@ my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value)
 
 void Item_func_mod::result_precision()
 {
-  decimals= max(args[0]->decimals, args[1]->decimals);
+  decimals= max(args[0]->decimal_scale(), args[1]->decimal_scale());
   max_length= max(args[0]->max_length, args[1]->max_length);
 }
 
@@ -2107,18 +2108,12 @@ my_decimal *Item_func_neg::decimal_op(my_decimal *decimal_value)
 }
 
 
-void Item_func_neg::fix_num_length_and_dec()
-{
-  decimals= args[0]->decimals;
-  /* 1 add because sign can appear */
-  max_length= args[0]->max_length + 1;
-}
-
-
 void Item_func_neg::fix_length_and_dec()
 {
   DBUG_ENTER("Item_func_neg::fix_length_and_dec");
   Item_func_num1::fix_length_and_dec();
+  /* 1 add because sign can appear */
+  max_length= args[0]->max_length + 1;
 
   /*
     If this is in integer context keep the context as integer if possible
@@ -2425,8 +2420,12 @@ void Item_func_integer::fix_length_and_dec()
   decimals=0;
 }
 
-void Item_func_int_val::fix_num_length_and_dec()
+
+void Item_func_int_val::fix_length_and_dec()
 {
+  DBUG_ENTER("Item_func_int_val::fix_length_and_dec");
+  DBUG_PRINT("info", ("name %s", func_name()));
+
   ulonglong tmp_max_length= (ulonglong ) args[0]->max_length - 
     (args[0]->decimals ? args[0]->decimals + 1 : 0) + 2;
   max_length= tmp_max_length > (ulonglong) 4294967295U ?
@@ -2434,13 +2433,7 @@ void Item_func_int_val::fix_num_length_and_dec()
   uint tmp= float_length(decimals);
   set_if_smaller(max_length,tmp);
   decimals= 0;
-}
 
-
-void Item_func_int_val::find_num_type()
-{
-  DBUG_ENTER("Item_func_int_val::find_num_type");
-  DBUG_PRINT("info", ("name %s", func_name()));
   switch (cached_result_type= args[0]->cast_to_int_type())
   {
   case STRING_RESULT:
@@ -3891,12 +3884,6 @@ String *Item_func_udf_decimal::val_str(String *str)
   my_decimal_round(E_DEC_FATAL_ERROR, dec, decimals, FALSE, &dec_buf);
   my_decimal2string(E_DEC_FATAL_ERROR, &dec_buf, 0, 0, '0', str);
   return str;
-}
-
-
-void Item_func_udf_decimal::fix_length_and_dec()
-{
-  fix_num_length_and_dec();
 }
 
 
