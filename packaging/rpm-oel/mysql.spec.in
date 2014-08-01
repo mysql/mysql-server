@@ -434,6 +434,9 @@ package has been split into several subpackages.
 pushd %{src_dir}
 %patch0 -p1
 %{?el7:%patch1 -p1}
+# Avoid dtrace dep
+sed -i -e "1d" mysql-test/std_data/dtrace.d
+chmod 0664 mysql-test/std_data/dtrace.d
 
 %build
 # Fail quickly and obviously if user tries to build as root
