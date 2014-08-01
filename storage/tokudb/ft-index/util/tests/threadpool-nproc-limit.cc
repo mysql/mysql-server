@@ -1,5 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -85,98 +86,86 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
-#ident "$Id$"
+#ident "Copyright (c) 2014 Tokutek Inc.  All rights reserved."
 
-// Ensure that loader->abort free all of its resources.  The test just creates a loader and then
-// aborts it.
+// this test verifies that the toku thread pool is resilient when hitting the nproc limit.
 
-#include "test.h"
-#include <db.h>
+#include <util/threadpool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/resource.h>
 
-static int loader_flags = 0;
-static const char *envdir = TOKU_TEST_FILENAME;
+int verbose = 0;
 
-static void test_loader_create_close(int ndb) {
+static int usage(void) {
+    fprintf(stderr, "[-q] [-v] [--verbose] (%d)\n", verbose);
+    return 1;
+}
+
+static void *f(void *arg) {
+    return arg;
+}
+
+static int dotest(int the_limit) {
+    if (verbose)
+        fprintf(stderr, "%s:%u %d\n", __FILE__, __LINE__, the_limit);
     int r;
+    struct toku_thread_pool *pool = nullptr;
+    r = toku_thread_pool_create(&pool, 10);
+    assert(r == 0 && pool != nullptr);
 
-    char rmcmd[32 + strlen(envdir)];
-    snprintf(rmcmd, sizeof rmcmd, "rm -rf %s", envdir);
-    r = system(rmcmd);                                                                             CKERR(r);
-    r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+    struct rlimit current_nproc_limit;
+    r = getrlimit(RLIMIT_NPROC, &current_nproc_limit);
+    assert(r == 0);
+    
+    struct rlimit new_nproc_limit = current_nproc_limit;
+    new_nproc_limit.rlim_cur = the_limit;
+    r = setrlimit(RLIMIT_NPROC, &new_nproc_limit);
+    assert(r == 0);
 
-    DB_ENV *env;
-    r = db_env_create(&env, 0);                                                                               CKERR(r);
-    int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
-    r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
-    env->set_errfile(env, stderr);
-
-    DB *dbs[ndb];
-    uint32_t db_flags[ndb];
-    uint32_t dbt_flags[ndb];
-    for (int i = 0; i < ndb; i++) {
-        db_flags[i] = DB_NOOVERWRITE;
-        dbt_flags[i] = 0;
-        r = db_create(&dbs[i], env, 0); CKERR(r);
-        char name[32];
-        sprintf(name, "db%d", i);
-        r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666); CKERR(r);
+    int want_n = 20;
+    int got_n = want_n;
+    r = toku_thread_pool_run(pool, 0, &got_n, f, nullptr);
+    if (r == 0)
+        assert(want_n == got_n);
+    else {
+        assert(r == EWOULDBLOCK);
+        assert(got_n <= want_n);
     }
 
-    DB_TXN *txn;
-    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+    r = setrlimit(RLIMIT_NPROC, &current_nproc_limit);
+    assert(r == 0);
 
-    DB_LOADER *loader;
-    r = env->create_loader(env, txn, &loader, ndb > 0 ? dbs[0] : NULL, ndb, dbs, db_flags, dbt_flags, loader_flags); CKERR(r);
-
-    r = loader->close(loader); CKERR(r);
-
-    r = txn->commit(txn, 0); CKERR(r);
-
-    for (int i = 0; i < ndb; i++) {
-        r = dbs[i]->close(dbs[i], 0); CKERR(r);
-    }
-
-    r = env->close(env, 0); CKERR(r);
+    if (verbose)
+        toku_thread_pool_print(pool, stderr);
+    toku_thread_pool_destroy(&pool);
+    return got_n > 0;
 }
 
-static void do_args(int argc, char * const argv[]) {
-    int resultcode;
-    char *cmd = argv[0];
-    argc--; argv++;
-    while (argc>0) {
-        if (strcmp(argv[0], "-h")==0) {
-	    resultcode=0;
-	do_usage:
-	    fprintf(stderr, "Usage: %s -h -v -q -p\n", cmd);
-	    exit(resultcode);
-	} else if (strcmp(argv[0], "-v")==0) {
-	    verbose++;
-	} else if (strcmp(argv[0],"-q")==0) {
-	    verbose--;
-	    if (verbose<0) verbose=0;
-        } else if (strcmp(argv[0], "-p") == 0) {
-            loader_flags |= LOADER_DISALLOW_PUTS;
-        } else if (strcmp(argv[0], "-z") == 0) {
-            loader_flags |= LOADER_COMPRESS_INTERMEDIATES;
-        } else if (strcmp(argv[0], "-e") == 0) {
-            argc--; argv++;
-            if (argc > 0)
-                envdir = argv[0];
-	} else {
-	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
-	    resultcode=1;
-	    goto do_usage;
-	}
-	argc--;
-	argv++;
+int main(int argc, char *argv[]) {
+    // parse args
+    for (int i = 1; i < argc; i++) {
+        char *arg = argv[i];
+        if (arg[0] != '-')
+            break;
+        if (strcmp(arg, "-v") == 0 || strcmp(arg, "--verbose") == 0) {
+            verbose = verbose+1;
+            continue;
+        }
+        if (strcmp(arg, "-q") == 0) {
+            verbose = verbose > 0 ? verbose-1 : 0;
+            continue;
+        }
+        return usage();
     }
-}
-
-int test_main(int argc, char * const *argv) {
-    do_args(argc, argv);
-    test_loader_create_close(0);
-    test_loader_create_close(1);
-    test_loader_create_close(2);
+    // set increasing nproc limits until the test succeeds in hitting the limit after > 0 threads are created
+    for (int i = 0; 1; i++) {
+        if (dotest(i))
+            break;
+    }
     return 0;
 }

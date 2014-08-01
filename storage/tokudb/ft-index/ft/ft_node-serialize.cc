@@ -291,8 +291,13 @@ serialize_ftnode_partition_size (FTNODE node, int i)
     paranoid_invariant(node->bp[i].state == PT_AVAIL);
     result++; // Byte that states what the partition is
     if (node->height > 0) {
-        result += 4; // size of bytes in buffer table
-        result += toku_bnc_nbytesinbuf(BNC(node, i));
+        NONLEAF_CHILDINFO bnc = BNC(node, i);
+        // number of messages (4 bytes) plus size of the buffer
+        result += (4 + toku_bnc_nbytesinbuf(bnc));
+        // number of offsets (4 bytes) plus an array of 4 byte offsets, for each message tree
+        result += (4 + (4 * bnc->fresh_message_tree.size()));
+        result += (4 + (4 * bnc->stale_message_tree.size()));
+        result += (4 + (4 * bnc->broadcast_list.size()));
     }
     else {
         result += 4 + bn_data::HEADER_LENGTH; // n_entries in buffer table + basement header
@@ -305,8 +310,35 @@ serialize_ftnode_partition_size (FTNODE node, int i)
 #define FTNODE_PARTITION_DMT_LEAVES 0xaa
 #define FTNODE_PARTITION_FIFO_MSG 0xbb
 
+UU() static int
+assert_fresh(const int32_t &offset, const uint32_t UU(idx), struct fifo *const f) {
+    struct fifo_entry *entry = toku_fifo_get_entry(f, offset);
+    assert(entry->is_fresh);
+    return 0;
+}
+
+UU() static int
+assert_stale(const int32_t &offset, const uint32_t UU(idx), struct fifo *const f) {
+    struct fifo_entry *entry = toku_fifo_get_entry(f, offset);
+    assert(!entry->is_fresh);
+    return 0;
+}
+
+static void bnc_verify_message_trees(NONLEAF_CHILDINFO UU(bnc)) {
+#ifdef TOKU_DEBUG_PARANOID
+    bnc->fresh_message_tree.iterate<struct fifo, assert_fresh>(bnc->buffer);
+    bnc->stale_message_tree.iterate<struct fifo, assert_stale>(bnc->buffer);
+#endif
+}
+
+static int
+wbuf_write_offset(const int32_t &offset, const uint32_t UU(idx), struct wbuf *const wb) {
+    wbuf_nocrc_int(wb, offset);
+    return 0;
+}
+
 static void
-serialize_nonleaf_childinfo(NONLEAF_CHILDINFO bnc, struct wbuf *wb)
+serialize_child_buffer(NONLEAF_CHILDINFO bnc, struct wbuf *wb)
 {
     unsigned char ch = FTNODE_PARTITION_FIFO_MSG;
     wbuf_nocrc_char(wb, ch);
@@ -323,6 +355,19 @@ serialize_nonleaf_childinfo(NONLEAF_CHILDINFO bnc, struct wbuf *wb)
             wbuf_nocrc_bytes(wb, key, keylen);
             wbuf_nocrc_bytes(wb, data, datalen);
         });
+
+    bnc_verify_message_trees(bnc);
+
+    // serialize the message trees (num entries, offsets array):
+    //    fresh, stale, broadcast
+    wbuf_nocrc_int(wb, bnc->fresh_message_tree.size());
+    bnc->fresh_message_tree.iterate<struct wbuf, wbuf_write_offset>(wb);
+
+    wbuf_nocrc_int(wb, bnc->stale_message_tree.size());
+    bnc->stale_message_tree.iterate<struct wbuf, wbuf_write_offset>(wb);
+
+    wbuf_nocrc_int(wb, bnc->broadcast_list.size());
+    bnc->broadcast_list.iterate<struct wbuf, wbuf_write_offset>(wb);
 }
 
 //
@@ -346,7 +391,7 @@ serialize_ftnode_partition(FTNODE node, int i, struct sub_block *sb) {
     wbuf_init(&wb, sb->uncompressed_ptr, sb->uncompressed_size);
     if (node->height > 0) {
         // TODO: (Zardosht) possibly exit early if there are no messages
-        serialize_nonleaf_childinfo(BNC(node, i), &wb);
+        serialize_child_buffer(BNC(node, i), &wb);
     }
     else {
         unsigned char ch = FTNODE_PARTITION_DMT_LEAVES;
@@ -1024,8 +1069,8 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
 }
 
 static void
-deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
-                         DESCRIPTOR desc, ft_compare_func cmp) {
+deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
+                             DESCRIPTOR desc, ft_compare_func cmp) {
     int r;
     int n_in_this_buffer = rbuf_int(rbuf);
     int32_t *fresh_offsets = NULL, *stale_offsets = NULL;
@@ -1088,6 +1133,68 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         bnc->broadcast_list.destroy();
         bnc->broadcast_list.create_steal_sorted_array(&broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
     }
+}
+
+// effect: deserialize a single message from rbuf and enqueue the result into the given fifo
+static void
+fifo_deserialize_msg_from_rbuf(FIFO fifo, struct rbuf *rbuf) {
+    bytevec key, val;
+    ITEMLEN keylen, vallen;
+    enum ft_msg_type type = (enum ft_msg_type) rbuf_char(rbuf);
+    bool is_fresh = rbuf_char(rbuf);
+    MSN msn = rbuf_msn(rbuf);
+    XIDS xids;
+    xids_create_from_buffer(rbuf, &xids);
+    rbuf_bytes(rbuf, &key, &keylen); /* Returns a pointer into the rbuf. */
+    rbuf_bytes(rbuf, &val, &vallen);
+    int r = toku_fifo_enq(fifo, key, keylen, val, vallen, type, msn, xids, is_fresh, nullptr);
+    lazy_assert_zero(r);
+    xids_destroy(&xids);
+}
+
+static void
+deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf) {
+    int n_in_this_buffer = rbuf_int(rbuf);
+    int nfresh = 0, nstale = 0, nbroadcast_offsets = 0;
+    int32_t *XMALLOC_N(n_in_this_buffer, stale_offsets);
+    int32_t *XMALLOC_N(n_in_this_buffer, fresh_offsets);
+    int32_t *XMALLOC_N(n_in_this_buffer, broadcast_offsets);
+
+    toku_fifo_resize(bnc->buffer, rbuf->size + 64);
+    for (int i = 0; i < n_in_this_buffer; i++) {
+        fifo_deserialize_msg_from_rbuf(bnc->buffer, rbuf);
+    }
+
+    // read in each message tree (fresh, stale, broadcast)
+    nfresh = rbuf_int(rbuf);
+    bytevec fresh_offsets_src_v;
+    rbuf_literal_bytes(rbuf, &fresh_offsets_src_v, nfresh * (sizeof *fresh_offsets));
+    const int32_t *fresh_offsets_src = (const int32_t *) fresh_offsets_src_v;
+    for (int i = 0; i < nfresh; i++) {
+        fresh_offsets[i] = toku_dtoh32(fresh_offsets_src[i]);
+    }
+    nstale = rbuf_int(rbuf);
+    bytevec stale_offsets_src_v;
+    rbuf_literal_bytes(rbuf, &stale_offsets_src_v, nstale * (sizeof *stale_offsets));
+    const int32_t *stale_offsets_src = (const int32_t *) stale_offsets_src_v;
+    for (int i = 0; i < nstale; i++) {
+        stale_offsets[i] = toku_dtoh32(stale_offsets_src[i]);
+    }
+    nbroadcast_offsets = rbuf_int(rbuf);
+    bytevec broadcast_offsets_src_v;
+    rbuf_literal_bytes(rbuf, &broadcast_offsets_src_v, nbroadcast_offsets * (sizeof *broadcast_offsets));
+    const int32_t *broadcast_offsets_src = (const int32_t *) broadcast_offsets_src_v;
+    for (int i = 0; i < nbroadcast_offsets; i++) {
+        broadcast_offsets[i] = toku_dtoh32(broadcast_offsets_src[i]);
+    }
+
+    // build OMTs out of each offset array
+    bnc->fresh_message_tree.destroy();
+    bnc->fresh_message_tree.create_steal_sorted_array(&fresh_offsets, nfresh, n_in_this_buffer);
+    bnc->stale_message_tree.destroy();
+    bnc->stale_message_tree.create_steal_sorted_array(&stale_offsets, nstale, n_in_this_buffer);
+    bnc->broadcast_list.destroy();
+    bnc->broadcast_list.create_steal_sorted_array(&broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
 }
 
 // dump a buffer to stderr
@@ -1161,13 +1268,16 @@ NONLEAF_CHILDINFO toku_create_empty_nl(void) {
     return cn;
 }
 
-// does NOT create OMTs, just the FIFO
+// must clone the OMTs, since we serialize them along with the FIFO
 NONLEAF_CHILDINFO toku_clone_nl(NONLEAF_CHILDINFO orig_childinfo) {
     NONLEAF_CHILDINFO XMALLOC(cn);
     toku_fifo_clone(orig_childinfo->buffer, &cn->buffer);
     cn->fresh_message_tree.create_no_array();
+    cn->fresh_message_tree.clone(orig_childinfo->fresh_message_tree);
     cn->stale_message_tree.create_no_array();
+    cn->stale_message_tree.clone(orig_childinfo->stale_message_tree);
     cn->broadcast_list.create_no_array();
+    cn->broadcast_list.clone(orig_childinfo->broadcast_list);
     memset(cn->flow, 0, sizeof cn->flow);
     return cn;
 }
@@ -1513,7 +1623,13 @@ deserialize_ftnode_partition(
 
     if (node->height > 0) {
         assert(ch == FTNODE_PARTITION_FIFO_MSG);
-        deserialize_child_buffer(BNC(node, childnum), &rb, desc, cmp);
+        NONLEAF_CHILDINFO bnc = BNC(node, childnum);
+        if (node->layout_version_read_from_disk <= FT_LAYOUT_VERSION_26) {
+            // Layout version <= 26 did not serialize sorted message trees to disk.
+            deserialize_child_buffer_v26(bnc, &rb, desc, cmp);
+        } else {
+            deserialize_child_buffer(bnc, &rb);
+        }
         BP_WORKDONE(node, childnum) = 0;
     }
     else {

@@ -462,6 +462,7 @@ serialize_ft_min_size (uint32_t version) {
     size_t size = 0;
 
     switch(version) {
+    case FT_LAYOUT_VERSION_27:
     case FT_LAYOUT_VERSION_26:
     case FT_LAYOUT_VERSION_25:
     case FT_LAYOUT_VERSION_24:

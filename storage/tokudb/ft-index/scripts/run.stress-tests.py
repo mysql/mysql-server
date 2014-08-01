@@ -735,6 +735,7 @@ if __name__ == '__main__':
                          'test_stress6.tdb',
                          'test_stress7.tdb',
                          'test_stress_hot_indexing.tdb',
+                         'test_stress_with_verify.tdb',
                          'test_stress_openclose.tdb']
     default_recover_testnames = ['recover-test_stress1.tdb',
                                  'recover-test_stress2.tdb',
@@ -766,8 +767,8 @@ if __name__ == '__main__':
                              help="skip the tests that don't involve upgrade [default=False]")
     upgrade_group.add_option('--double_upgrade', action='store_true', dest='double_upgrade', default=False,
                              help='run the upgrade tests twice in a row [default=False]')
-    upgrade_group.add_option('--add_old_version', action='append', type='choice', dest='old_versions', choices=['4.2.0', '5.0.8', '5.2.7', '6.0.0', '6.1.0', '6.5.1', '6.6.3'],
-                             help='which old versions to use for running the stress tests in upgrade mode. can be specified multiple times [options=4.2.0, 5.0.8, 5.2.7, 6.0.0, 6.1.0, 6.5.1, 6.6.3]')
+    upgrade_group.add_option('--add_old_version', action='append', type='choice', dest='old_versions', choices=['4.2.0', '5.0.8', '5.2.7', '6.0.0', '6.1.0', '6.5.1', '6.6.3', '7.1.6'],
+                             help='which old versions to use for running the stress tests in upgrade mode. can be specified multiple times [options=4.2.0, 5.0.8, 5.2.7, 6.0.0, 6.1.0, 6.5.1, 6.6.3, 7.1.6]')
     upgrade_group.add_option('--old_environments_dir', type='string', dest='old_environments_dir',
                              default=('%s/old-stress-test-envs' % default_tokudb_data),
                              help='directory containing old version environments (should contain 5.0.8/, 5.2.7/, etc, and the environments should be in those) [default=../../tokudb.data/stress_environments]')

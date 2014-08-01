@@ -213,6 +213,9 @@ int toku_ft_lookup (FT_HANDLE ft_h, DBT *k, FT_GET_CALLBACK_FUNCTION getf, void 
 // Effect: Insert a key and data pair into an ft
 void toku_ft_insert (FT_HANDLE ft_h, DBT *k, DBT *v, TOKUTXN txn);
 
+// Returns: 0 if the key was inserted, DB_KEYEXIST if the key already exists
+int toku_ft_insert_unique(FT_HANDLE ft, DBT *k, DBT *v, TOKUTXN txn, bool do_logging);
+
 // Effect: Optimize the ft
 void toku_ft_optimize (FT_HANDLE ft_h);
 

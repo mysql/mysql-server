@@ -96,6 +96,10 @@ PATENT RIGHTS GRANT:
 #pragma interface               /* gcc class implementation */
 #endif
 
+#if !defined(TOKUDB_CHECK_JEMALLOC)
+#define TOKUDB_CHECK_JEMALLOC 1
+#endif
+
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
 // mariadb 10.0
 #define TOKU_USE_DB_TYPE_TOKUDB 1
@@ -108,6 +112,7 @@ PATENT RIGHTS GRANT:
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
 #define TOKU_INCLUDE_OPTION_STRUCTS 1
+#define TOKU_OPTIMIZE_WITH_RECREATE 1
 
 #elif 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
 // mysql 5.7 with no patches
@@ -130,17 +135,18 @@ PATENT RIGHTS GRANT:
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
 #else
 // mysql 5.6 with tokutek patches
-#define TOKU_USE_DB_TYPE_TOKUDB 1           /* has DB_TYPE_TOKUDB patch */
+#define TOKU_USE_DB_TYPE_TOKUDB 1           // has DB_TYPE_TOKUDB patch
 #define TOKU_INCLUDE_ALTER_56 1
-#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1 /* has tokudb row format compression patch */
-#define TOKU_INCLUDE_XA 1                   /* has patch that fixes TC_LOG_MMAP code */
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1 // has tokudb row format compression patch
+#define TOKU_INCLUDE_XA 1                   // has patch that fixes TC_LOG_MMAP code
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
 #define TOKU_INCLUDE_WRITE_FRM_DATA 0
-#define TOKU_INCLUDE_UPSERT 1               /* has tokudb upsert patch */
+#define TOKU_INCLUDE_UPSERT 1               // has tokudb upsert patch
 #if defined(HTON_SUPPORTS_EXTENDED_KEYS)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
 #endif
+#define TOKU_OPTIMIZE_WITH_RECREATE 1
 
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
 #define TOKU_USE_DB_TYPE_TOKUDB 1

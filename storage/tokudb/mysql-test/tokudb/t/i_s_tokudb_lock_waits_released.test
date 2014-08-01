@@ -23,6 +23,7 @@ select * from information_schema.tokudb_lock_waits;
 
 connect (conn_a,localhost,root,,);
 set autocommit=0;
+set tokudb_prelock_empty=OFF; # disable the bulk loader
 insert into t values (1);
 
 connect (conn_b,localhost,root,,);
@@ -72,6 +73,7 @@ select * from information_schema.tokudb_lock_waits;
 
 connect (conn_a,localhost,root,,);
 set autocommit=0;
+set tokudb_prelock_empty=OFF; # disable the bulk loader
 replace into t values (1);
 
 connect (conn_b,localhost,root,,);

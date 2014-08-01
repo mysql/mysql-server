@@ -113,7 +113,8 @@ int toku_ft_loader_open (FTLOADER *bl,
                           TOKUTXN txn,
                           bool reserve_memory,
                           uint64_t reserve_memory_size,
-                          bool compress_intermediates);
+                          bool compress_intermediates,
+                          bool allow_puts);
 
 int toku_ft_loader_put (FTLOADER bl, DBT *key, DBT *val);
 

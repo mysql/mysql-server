@@ -123,6 +123,10 @@ enum { FT_DEFAULT_FANOUT = 16 };
 enum { FT_DEFAULT_NODE_SIZE = 4 * 1024 * 1024 };
 enum { FT_DEFAULT_BASEMENT_NODE_SIZE = 128 * 1024 };
 
+// We optimize for a sequential insert pattern if 100 consecutive injections
+// happen into the rightmost leaf node due to promotion.
+enum { FT_SEQINSERT_SCORE_THRESHOLD = 100 };
+
 //
 // Field in ftnode_fetch_extra that tells the 
 // partial fetch callback what piece of the node
@@ -572,6 +576,22 @@ struct ft {
 
     // is this ft a blackhole? if so, all messages are dropped.
     bool blackhole;
+
+    // The blocknum of the rightmost leaf node in the tree. Stays constant through splits
+    // and merges using pair-swapping (like the root node, see toku_ftnode_swap_pair_values())
+    // 
+    // This field only transitions from RESERVED_BLOCKNUM_NULL to non-null, never back.
+    // We initialize it when promotion inserts into a non-root leaf node on the right extreme.
+    // We use the blocktable lock to protect the initialize transition, though it's not really
+    // necessary since all threads should be setting it to the same value. We maintain that invariant
+    // on first initialization, see ft_set_or_verify_rightmost_blocknum()
+    BLOCKNUM rightmost_blocknum;
+
+    // sequential access pattern heuristic
+    // - when promotion pushes a message directly into the rightmost leaf, the score goes up.
+    // - if the score is high enough, we optimistically attempt to insert directly into the rightmost leaf
+    // - if our attempt fails because the key was not in range of the rightmost leaf, we reset the score back to 0
+    uint32_t seqinsert_score;
 };
 
 // Allocate a DB struct off the stack and only set its comparison
@@ -1037,7 +1057,7 @@ toku_get_node_for_verify(
 
 int
 toku_verify_ftnode (FT_HANDLE ft_h,
-                    MSN rootmsn, MSN parentmsn, bool messages_exist_above,
+                    MSN rootmsn, MSN parentmsn_with_messages, bool messages_exist_above,
                      FTNODE node, int height,
                      const DBT *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
                      const DBT *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
@@ -1186,6 +1206,9 @@ typedef enum {
     FT_PRO_NUM_DIDNT_WANT_PROMOTE,
     FT_BASEMENT_DESERIALIZE_FIXED_KEYSIZE, // how many basement nodes were deserialized with a fixed keysize
     FT_BASEMENT_DESERIALIZE_VARIABLE_KEYSIZE, // how many basement nodes were deserialized with a variable keysize
+    FT_PRO_RIGHTMOST_LEAF_SHORTCUT_SUCCESS,
+    FT_PRO_RIGHTMOST_LEAF_SHORTCUT_FAIL_POS,
+    FT_PRO_RIGHTMOST_LEAF_SHORTCUT_FAIL_REACTIVE,
     FT_STATUS_NUM_ROWS
 } ft_status_entry;
 

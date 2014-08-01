@@ -18,19 +18,16 @@ let $default_id=`select connection_id()`;
 # should be empty
 select * from information_schema.tokudb_locks;
 
-
 connect (conn_a,localhost,root,,);
 set autocommit=0;
-let $a_id=`select connection_id()`;
+set tokudb_prelock_empty=OFF; # disable bulk loader
 
 insert into t values (1);
 
 connect (conn_b,localhost,root,,);
 set autocommit=0;
-let $b_id=`select connection_id()`;
 
 send insert into t values (1);
-
 
 # should find the presence of a lock on 2nd transaction
 connection default;

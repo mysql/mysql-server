@@ -190,4 +190,7 @@ int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, pai
 void toku_unpin_ftnode(FT h, FTNODE node);
 void toku_unpin_ftnode_read_only(FT ft, FTNODE node);
 
+// Effect: Swaps pair values of two pinned nodes
+void toku_ftnode_swap_pair_values(FTNODE nodea, FTNODE nodeb);
+
 #endif

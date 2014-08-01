@@ -621,7 +621,7 @@ int toku_logger_find_next_unused_log_file(const char *directory, long long *resu
     if (d==0) return get_error_errno();
     while ((de=readdir(d))) {
         if (de==0) return get_error_errno();
-        long long thisl;
+        long long thisl = -1;
         if ( is_a_logfile(de->d_name, &thisl) ) {
             if ((long long)thisl > maxf) maxf = thisl;
         }

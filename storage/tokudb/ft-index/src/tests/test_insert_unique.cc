@@ -1,8 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef FT_LAYOUT_VERSION_H
-#define FT_LAYOUT_VERSION_H
-
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -91,44 +88,115 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+/**
+ * Test that unique inserts work correctly. This exercises the rightmost leaf inject optimization.
+ */
 
-//Must be defined before other recursive headers could include logger.h
-enum ft_layout_version_e {
-    FT_LAYOUT_VERSION_5 = 5,
-    FT_LAYOUT_VERSION_6 = 6,   // Diff from 5 to 6:  Add leafentry_estimate
-    FT_LAYOUT_VERSION_7 = 7,   // Diff from 6 to 7:  Add exact-bit to leafentry_estimate #818, add magic to header #22, add per-subdatase flags #333
-    FT_LAYOUT_VERSION_8 = 8,   // Diff from 7 to 8:  Use murmur instead of crc32.  We are going to make a simplification and stop supporting version 7 and before.  Current As of Beta 1.0.6
-    FT_LAYOUT_VERSION_9 = 9,   // Diff from 8 to 9:  Variable-sized blocks and compression.
-    FT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates, translation table, dictionary descriptors, checksum in header, subdb support removed from ft layer
-    FT_LAYOUT_VERSION_11 = 11, // Diff from 10 to 11: Nested transaction leafentries (completely redesigned).  FT_CMDs on disk now support XIDS (multiple txnids) instead of exactly one.
-    FT_LAYOUT_VERSION_12 = 12, // Diff from 11 to 12: Added FT_CMD 'FT_INSERT_NO_OVERWRITE', compressed block format, num old blocks
-    FT_LAYOUT_VERSION_13 = 13, // Diff from 12 to 13: Fixed loader pivot bug, added build_id to every node, timestamps to ft 
-    FT_LAYOUT_VERSION_14 = 14, // Diff from 13 to 14: Added MVCC; deprecated TOKU_DB_VALCMP_BUILTIN(_13); Remove fingerprints; Support QUICKLZ; add end-to-end checksum on uncompressed data.
-    FT_LAYOUT_VERSION_15 = 15, // Diff from 14 to 15: basement nodes, last verification time
-    FT_LAYOUT_VERSION_16 = 16, // Dr. No:  No subtree estimates, partition layout information represented more transparently. 
-                                // ALERT ALERT ALERT: version 16 never released to customers, internal and beta use only
-    FT_LAYOUT_VERSION_17 = 17, // Dr. No:  Add STAT64INFO_S to ft header
-    FT_LAYOUT_VERSION_18 = 18, // Dr. No:  Add HOT info to ft header
-    FT_LAYOUT_VERSION_19 = 19, // Doofenshmirtz: Add compression method, highest_unused_msn_for_upgrade
-    FT_LAYOUT_VERSION_20 = 20, // Deadshot: Add compression method to log_fcreate,
-                               // mgr_last_xid after begin checkpoint,
-                               // last_xid to shutdown
-    FT_LAYOUT_VERSION_21 = 21, // Ming: Add max_msn_in_ft to header,
-                               //       Removed log suppression logentry
-    FT_LAYOUT_VERSION_22 = 22, // Ming: Add oldest known referenced xid to each ftnode, for better garbage collection
-    FT_LAYOUT_VERSION_23 = 23, // Ming: Fix upgrade path #5902
-    FT_LAYOUT_VERSION_24 = 24, // Riddler: change logentries that log transactions to store TXNID_PAIRs instead of TXNIDs
-    FT_LAYOUT_VERSION_25 = 25, // SecretSquirrel: ROLLBACK_LOG_NODES (on disk and in memory) now just use blocknum (instead of blocknum + hash) to point to other log nodes.  same for xstillopen log entry
-    FT_LAYOUT_VERSION_26 = 26, // Hojo: basements store key/vals separately on disk for fixed klpair length BNs
-    FT_LAYOUT_VERSION_27 = 27, // serialize message trees with nonleaf buffers to avoid key, msn sort on deserialize
-    FT_NEXT_VERSION,           // the version after the current version
-    FT_LAYOUT_VERSION   = FT_NEXT_VERSION-1, // A hack so I don't have to change this line.
-    FT_LAYOUT_MIN_SUPPORTED_VERSION = FT_LAYOUT_VERSION_13, // Minimum version supported
+#include <portability/toku_random.h>
 
-    // Define these symbolically so the knowledge of exactly which layout version got rid of fingerprints isn't spread all over the code.
-    FT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT = FT_LAYOUT_VERSION_13,
-    FT_FIRST_LAYOUT_VERSION_WITH_END_TO_END_CHECKSUM = FT_LAYOUT_VERSION_14,
-    FT_FIRST_LAYOUT_VERSION_WITH_BASEMENT_NODES = FT_LAYOUT_VERSION_15,
-};
+#include "test.h"
 
-#endif
+static char random_buf[8];
+static struct random_data random_data;
+
+static void test_simple_unique_insert(DB_ENV *env) {
+    int r;
+    DB *db;
+    r = db_create(&db, env, 0); CKERR(r);
+    r = db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0644); CKERR(r);
+
+    DBT key1, key2, key3;
+    dbt_init(&key1, "a", sizeof("a"));
+    dbt_init(&key2, "b", sizeof("b"));
+    dbt_init(&key3, "c", sizeof("c"));
+    r = db->put(db, NULL, &key1, &key1, DB_NOOVERWRITE); CKERR(r);
+    r = db->put(db, NULL, &key1, &key1, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+    r = db->put(db, NULL, &key3, &key3, DB_NOOVERWRITE); CKERR(r);
+    r = db->put(db, NULL, &key3, &key3, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+    r = db->put(db, NULL, &key2, &key2, DB_NOOVERWRITE); CKERR(r);
+    r = db->put(db, NULL, &key2, &key2, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+    // sanity check
+    r = db->put(db, NULL, &key1, &key1, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+    r = db->put(db, NULL, &key1, &key3, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+
+    r = db->close(db, 0); CKERR(r);
+    r = env->dbremove(env, NULL, "db", NULL, 0); CKERR(r);
+}
+
+static void test_large_sequential_insert_unique(DB_ENV *env) {
+    int r;
+    DB *db;
+    r = db_create(&db, env, 0); CKERR(r);
+
+    // very small nodes/basements to make a taller tree
+    r = db->set_pagesize(db, 8 * 1024); CKERR(r);
+    r = db->set_readpagesize(db, 2 * 1024); CKERR(r);
+    r = db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0644); CKERR(r);
+
+    const int val_size = 1024;
+    char *XMALLOC_N(val_size, val_buf);
+    memset(val_buf, 'k', val_size);
+    DBT val;
+    dbt_init(&val, val_buf, val_size);
+
+    // grow a tree to about depth 3, taking sanity checks along the way
+    const int start_num_rows = (64 * 1024 * 1024) / val_size;
+    for (int i = 0; i < start_num_rows; i++) {
+        DBT key;
+        int k = toku_htonl(i);
+        dbt_init(&key, &k, sizeof(k));
+        r = db->put(db, NULL, &key, &val, DB_NOOVERWRITE); CKERR(r);
+        if (i % 50 == 0) {
+            // sanity check - should not be able to insert this key twice in a row
+            r = db->put(db, NULL, &key, &val, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+
+            // .. but re-inserting is okay, if we provisionally deleted the row
+            DB_TXN *txn;
+            r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+            r = db->del(db, NULL, &key, DB_DELETE_ANY); CKERR(r);
+            r = db->put(db, NULL, &key, &val, DB_NOOVERWRITE); CKERR(r);
+            r = txn->commit(txn, 0); CKERR(r);
+        }
+        if (i > 0 && i % 250 == 0) {
+            // sanity check - unique checks on random keys we already inserted should
+            //                fail (exercises middle-of-the-tree checks)
+            for (int check_i = 0; check_i < 4; check_i++) {
+                DBT rand_key;
+                int rand_k = toku_htonl(myrandom_r(&random_data) % i);
+                dbt_init(&rand_key, &rand_k, sizeof(rand_k));
+                r = db->put(db, NULL, &rand_key, &val, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+            }
+        }
+    }
+
+    toku_free(val_buf);
+    r = db->close(db, 0); CKERR(r);
+    r = env->dbremove(env, NULL, "db", NULL, 0); CKERR(r);
+}
+
+
+int test_main(int argc, char * const argv[]) {
+    default_parse_args(argc, argv);
+
+    int r;
+    const int envflags = DB_INIT_MPOOL | DB_CREATE | DB_THREAD |
+                         DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN | DB_PRIVATE;
+
+    // startup
+    DB_ENV *env;
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, 0755); CKERR(r);
+    r = db_env_create(&env, 0); CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, 0755);
+
+    r = myinitstate_r(random(), random_buf, 8, &random_data); CKERR(r);
+
+    test_simple_unique_insert(env);
+    test_large_sequential_insert_unique(env);
+
+    // cleanup
+    r = env->close(env, 0); CKERR(r);
+
+    return 0;
+}
+

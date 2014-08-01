@@ -321,8 +321,8 @@ toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_cl
         r = 0; //Logs are up to date
     else {
         FOOTPRINT(4);
-        LSN last_lsn;
-        TXNID last_xid;
+        LSN last_lsn = ZERO_LSN;
+        TXNID last_xid = TXNID_NONE;
         r = verify_clean_shutdown_of_log_version(log_dir, version_of_logs_on_disk, &last_lsn, &last_xid);
         if (r != 0) {
             goto cleanup;

@@ -5,6 +5,39 @@ function usage() {
     echo "--mysqlbuild=$mysqlbuild --shutdown=$shutdown --install=$install --startup=$startup"
 }
 
+function download_file() {
+    local file=$1
+    s3get $s3bucket $file $file
+}
+
+function download_tarball() {
+    local tarball=$1
+    if [ ! -f $tarball ] ; then
+        download_file $tarball
+        if [ $? -ne 0 ] ; then test 0 = 1; return; fi
+    fi
+    if [ ! -f $tarball.md5 ] ; then
+        download_file $tarball.md5
+        if [ $? -ne 0 ] ; then test 0 = 1; return; fi
+    fi
+}
+
+function install_tarball() {
+    local basedir=$1; local tarball=$2
+    tar -x -z -f $basedir/$tarball
+    if [ $? -ne 0 ] ; then test 0 = 1; return; fi
+}
+
+function check_md5() {
+    local tarball=$1
+    md5sum --check $tarball.md5
+    if [ $? -ne 0 ] ; then
+        # support jacksum md5 output which is almost the same as md5sum
+        diff -b <(cat $tarball.md5) <(md5sum $tarball)
+        if [ $? -ne 0 ] ; then test 0 = 1; return; fi
+    fi
+}
+
 mysqlbuild=
 shutdown=1
 install=1
@@ -64,30 +97,24 @@ basedir=$PWD
 
 mysqltarball=$mysqlbuild.tar.gz
 
-if [ -f $mysqlbuild.tar.gz ] ; then
-    compression=-z
-    mysqltarball=$mysqlbuild.tar.gz
-elif [ -f $mysqlbuild.tar.bz2 ] ; then
-    compression=-j
-    mysqltarball=$mysqlbuild.tar.bz2
-fi
-
-# get the release
-if [ ! -f $mysqltarball ] ; then
-    s3get $s3bucket $mysqltarball $mysqltarball 
-    if [ $? -ne 0 ] ; then exit 1; fi
-fi
-if [ ! -f $mysqltarball.md5 ] ; then
-    s3get $s3bucket $mysqltarball.md5 $mysqltarball.md5
-    if [ $? -ne 0 ] ; then exit 1; fi
-fi
+# get the tarball
+download_tarball $mysqltarball
+if [ $? -ne 0 ] ; then exit 1; fi
 
 # check the md5 sum
-md5sum --check $mysqltarball.md5
-if [ $? -ne 0 ] ; then
-    # support jacksum md5 output which is almost the same as md5sum
-    diff -b <(cat $mysqltarball.md5) <(md5sum $mysqltarball)
-    if [ $? -ne 0 ] ; then exit 1; fi
+check_md5 $mysqltarball
+if [ $? -ne 0 ] ; then exit 1; fi
+
+tokudbtarball=""
+if [[ $mysqltarball =~ ^(Percona-Server.*)\.(Linux\.x86_64.*)$ ]] ; then
+    tar tzf $mysqltarball | egrep ha_tokudb.so >/dev/null 2>&1
+    if [ $? -ne 0 ] ; then
+        tokudbtarball=${BASH_REMATCH[1]}.TokuDB.${BASH_REMATCH[2]}
+        download_tarball $tokudbtarball
+        if [ $? -ne 0 ] ; then exit 1; fi
+        check_md5 $tokudbtarball
+        if [ $? -ne 0 ] ; then exit 1; fi
+    fi
 fi
 
 # set ldpath
@@ -126,8 +153,14 @@ if [ ! -d $mysqlbuild ] || [ $install -ne 0 ] ; then
     rm mysql
     if [ -d $mysqlbuild ] ; then $sudo rm -rf $mysqlbuild; fi
 
-    tar -x $compression -f $basedir/$mysqltarball
+    install_tarball $basedir $mysqltarball
     if [ $? -ne 0 ] ; then exit 1; fi
+
+    if [ $tokudbtarball ] ; then
+        install_tarball $basedir $tokudbtarball
+        if [ $? -ne 0 ] ; then exit 1; fi
+    fi
+
     ln -s $mysqldir /usr/local/mysql
     if [ $? -ne 0 ] ; then exit 1; fi
     ln -s $mysqldir /usr/local/$mysqlbuild
@@ -179,6 +212,10 @@ if [ $startup -ne 0 ] ; then
             default_arg=""
         else
             default_arg="--defaults-file=$defaultsfile"
+        fi
+        j=/usr/local/mysql/lib/mysql/libjemalloc.so
+        if [ -f $j ] ; then
+            default_arg="$default_arg --malloc-lib=$j"
         fi
         $sudo -b bash -c "$ldpath /usr/local/mysql/bin/mysqld_safe $default_arg $mysqld_args" >/dev/null 2>&1 &
     fi

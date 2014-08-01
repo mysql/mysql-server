@@ -16,6 +16,7 @@ select * from information_schema.tokudb_lock_waits;
 
 connect (conn_a,localhost,root,,);
 set autocommit=0;
+set tokudb_prelock_empty=OFF;
 insert into t values (1);
 
 connect (conn_b,localhost,root,,);

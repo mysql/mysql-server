@@ -412,7 +412,7 @@ static void test (const char *directory, bool is_error) {
 					       bt_compare_functions,
 					       "tempxxxxxx",
 					       *lsnp,
-                                               nullptr, true, 0, false);
+                                               nullptr, true, 0, false, true);
 	assert(r==0);
     }
 
@@ -499,11 +499,6 @@ static void test (const char *directory, bool is_error) {
 	if (result==0) {
 	    assert(cthunk.n_read == N_RECORDS);
 	}
-    }
-    //printf("%s:%d Destroying\n", __FILE__, __LINE__);
-    {
-	int r = queue_destroy(bl->primary_rowset_queue);
-	assert(r==0);
     }
     {
 	int r = queue_destroy(q);

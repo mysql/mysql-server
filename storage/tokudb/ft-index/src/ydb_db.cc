@@ -1221,36 +1221,14 @@ load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], const char * new
 
 int
 locked_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], char * new_inames_in_env[/*N*/], LSN *load_lsn, bool mark_as_loader) {
-    int ret, r;
+    int r;
     HANDLE_READ_ONLY_TXN(txn);
-
-    DB_TXN *child_txn = NULL;
-    int using_txns = env->i->open_flags & DB_INIT_TXN;
-    if (using_txns) {
-        ret = toku_txn_begin(env, txn, &child_txn, 0);
-        invariant_zero(ret);
-    }
 
     // cannot begin a checkpoint
     toku_multi_operation_client_lock();
-    r = load_inames(env, child_txn, N, dbs, (const char **) new_inames_in_env, load_lsn, mark_as_loader);
+    r = load_inames(env, txn, N, dbs, (const char **) new_inames_in_env, load_lsn, mark_as_loader);
     toku_multi_operation_client_unlock();
 
-    if (using_txns) {
-        if (r == 0) {
-            ret = locked_txn_commit(child_txn, DB_TXN_NOSYNC);
-            invariant_zero(ret);
-        } else {
-            ret = locked_txn_abort(child_txn);
-            invariant_zero(ret);
-            for (int i = 0; i < N; i++) {
-                if (new_inames_in_env[i]) {
-                    toku_free(new_inames_in_env[i]);
-                    new_inames_in_env[i] = NULL;
-                }
-            }
-        }
-    }
     return r;
 
 }

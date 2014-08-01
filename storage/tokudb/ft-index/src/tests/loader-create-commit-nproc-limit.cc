@@ -88,16 +88,18 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
-// Ensure that loader->abort free all of its resources.  The test just creates a loader and then
-// aborts it.
+// This test crashes if a failed loader creation causes the db to be corrupted by unlinking 
+// the underlying fractal tree files.  This unlinking occurs because the txn that logs the
+// load log entries is committed rather than aborted.
 
 #include "test.h"
 #include <db.h>
+#include <sys/resource.h>
 
 static int loader_flags = 0;
 static const char *envdir = TOKU_TEST_FILENAME;
 
-static void test_loader_create_close(int ndb) {
+static void run_test(int ndb) {
     int r;
 
     char rmcmd[32 + strlen(envdir)];
@@ -126,12 +128,41 @@ static void test_loader_create_close(int ndb) {
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
 
-    DB_LOADER *loader;
-    r = env->create_loader(env, txn, &loader, ndb > 0 ? dbs[0] : NULL, ndb, dbs, db_flags, dbt_flags, loader_flags); CKERR(r);
+    struct rlimit current_nproc_limit;
+    r = getrlimit(RLIMIT_NPROC, &current_nproc_limit);
+    assert(r == 0);
+    
+    struct rlimit new_nproc_limit = current_nproc_limit;
+    new_nproc_limit.rlim_cur = 0;
+    r = setrlimit(RLIMIT_NPROC, &new_nproc_limit);
+    assert(r == 0);
 
-    r = loader->close(loader); CKERR(r);
+    DB_LOADER *loader;
+    int loader_r = env->create_loader(env, txn, &loader, ndb > 0 ? dbs[0] : NULL, ndb, dbs, db_flags, dbt_flags, loader_flags);
+
+    r = setrlimit(RLIMIT_NPROC, &current_nproc_limit);
+    assert(r == 0);
+
+    if (loader_flags & LOADER_DISALLOW_PUTS)  {
+        CKERR(loader_r);
+        loader_r = loader->close(loader);
+        CKERR(loader_r);
+    } else {
+        CKERR2(loader_r, EAGAIN);
+    }
 
     r = txn->commit(txn, 0); CKERR(r);
+
+    for (int i = 0; i < ndb; i++) {
+        r = dbs[i]->close(dbs[i], 0); CKERR(r);
+    }
+
+    for (int i = 0; i < ndb; i++) {
+        r = db_create(&dbs[i], env, 0); CKERR(r);
+        char name[32];
+        sprintf(name, "db%d", i);
+        r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, 0, 0666); CKERR(r);
+    }
 
     for (int i = 0; i < ndb; i++) {
         r = dbs[i]->close(dbs[i], 0); CKERR(r);
@@ -175,8 +206,6 @@ static void do_args(int argc, char * const argv[]) {
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
-    test_loader_create_close(0);
-    test_loader_create_close(1);
-    test_loader_create_close(2);
+    run_test(1);
     return 0;
 }

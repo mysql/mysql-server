@@ -172,6 +172,13 @@ struct __toku_loader_internal {
     char **inames_in_env; /* [N]  inames of new files to be created */
 };
 
+static void free_inames(char **inames, int n) {
+    for (int i = 0; i < n; i++) {
+        toku_free(inames[i]);
+    }
+    toku_free(inames);
+}
+
 /*
  *  free_loader_resources() frees all of the resources associated with
  *      struct __toku_loader_internal 
@@ -185,16 +192,15 @@ static void free_loader_resources(DB_LOADER *loader)
         toku_destroy_dbt(&loader->i->err_val);
 
         if (loader->i->inames_in_env) {
-            for (int i=0; i<loader->i->N; i++) {
-                if (loader->i->inames_in_env[i]) toku_free(loader->i->inames_in_env[i]);
-            }
-            toku_free(loader->i->inames_in_env);
+            free_inames(loader->i->inames_in_env, loader->i->N);
+            loader->i->inames_in_env = nullptr;
         }
-        if (loader->i->temp_file_template) toku_free(loader->i->temp_file_template);
+        toku_free(loader->i->temp_file_template);
+        loader->i->temp_file_template = nullptr;
 
         // loader->i
         toku_free(loader->i);
-        loader->i = NULL;
+        loader->i = nullptr;
     }
 }
 
@@ -245,6 +251,7 @@ toku_loader_create_loader(DB_ENV *env,
                           bool check_empty) {
     int rval;
     HANDLE_READ_ONLY_TXN(txn);
+    DB_TXN *loader_txn = nullptr;
 
     *blp = NULL;           // set later when created
 
@@ -299,6 +306,13 @@ toku_loader_create_loader(DB_ENV *env,
     }
 
     {
+        if (env->i->open_flags & DB_INIT_TXN) {
+            rval = env->txn_begin(env, txn, &loader_txn, 0);
+            if (rval) {
+                goto create_exit;
+            }
+        }
+
         ft_compare_func compare_functions[N];
         for (int i=0; i<N; i++) {
             compare_functions[i] = env->i->bt_compare;
@@ -306,18 +320,21 @@ toku_loader_create_loader(DB_ENV *env,
 
         // time to open the big kahuna
         char **XMALLOC_N(N, new_inames_in_env);
+        for (int i = 0; i < N; i++) {
+            new_inames_in_env[i] = nullptr;
+        }
         FT_HANDLE *XMALLOC_N(N, fts);
         for (int i=0; i<N; i++) {
             fts[i] = dbs[i]->i->ft_handle;
         }
         LSN load_lsn;
-        rval = locked_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, puts_allowed);
+        rval = locked_load_inames(env, loader_txn, N, dbs, new_inames_in_env, &load_lsn, puts_allowed);
         if ( rval!=0 ) {
-            toku_free(new_inames_in_env);
+            free_inames(new_inames_in_env, N);
             toku_free(fts);
             goto create_exit;
         }
-        TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
+        TOKUTXN ttxn = loader_txn ? db_txn_struct_i(loader_txn)->tokutxn : NULL;
         rval = toku_ft_loader_open(&loader->i->ft_loader,
                                  env->i->cachetable,
                                  env->i->generate_row_for_put,
@@ -331,12 +348,14 @@ toku_loader_create_loader(DB_ENV *env,
                                  ttxn,
                                  puts_allowed,
                                  env->get_loader_memory_size(env),
-                                 compress_intermediates);
+                                 compress_intermediates,
+                                 puts_allowed);
         if ( rval!=0 ) {
-            toku_free(new_inames_in_env);
+            free_inames(new_inames_in_env, N);
             toku_free(fts);
             goto create_exit;
         }
+
         loader->i->inames_in_env = new_inames_in_env;
         toku_free(fts);
 
@@ -348,10 +367,19 @@ toku_loader_create_loader(DB_ENV *env,
             rval = 0;
         }
 
+        rval = loader_txn->commit(loader_txn, 0);
+        assert_zero(rval);
+        loader_txn = nullptr;
+
         rval = 0;
     }
     *blp = loader;
  create_exit:
+    if (loader_txn) {
+        int r  = loader_txn->abort(loader_txn);
+        assert_zero(r);
+        loader_txn = nullptr;
+    }
     if (rval == 0) {
         (void) toku_sync_fetch_and_add(&STATUS_VALUE(LOADER_CREATE), 1);
         (void) toku_sync_fetch_and_add(&STATUS_VALUE(LOADER_CURRENT), 1);
@@ -441,7 +469,7 @@ static void redirect_loader_to_empty_dictionaries(DB_LOADER *loader) {
         loader->i->dbs,
         loader->i->db_flags,
         loader->i->dbt_flags,
-        0,
+        LOADER_DISALLOW_PUTS,
         false
         );
     lazy_assert_zero(r);

@@ -6,6 +6,7 @@ set autocommit=0;
 select * from information_schema.tokudb_locks;
 locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
 set autocommit=0;
+set tokudb_prelock_empty=OFF;
 insert into t values (1);
 set autocommit=0;
 insert into t values (1);

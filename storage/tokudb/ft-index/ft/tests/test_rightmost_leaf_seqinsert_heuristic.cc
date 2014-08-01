@@ -1,5 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -29,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 COPYRIGHT NOTICE:
 
   TokuDB, Tokutek Fractal Tree Indexing Library.
-  Copyright (C) 2007-2013 Tokutek, Inc.
+  Copyright (C) 2007-2014 Tokutek, Inc.
 
 DISCLAIMER:
 
@@ -85,98 +86,98 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
-#ident "$Id$"
-
-// Ensure that loader->abort free all of its resources.  The test just creates a loader and then
-// aborts it.
+#ident "Copyright (c) 2014 Tokutek Inc.  All rights reserved."
 
 #include "test.h"
-#include <db.h>
 
-static int loader_flags = 0;
-static const char *envdir = TOKU_TEST_FILENAME;
+#include <ft/ybt.h>
+#include <ft/ft-cachetable-wrappers.h>
 
-static void test_loader_create_close(int ndb) {
-    int r;
+// Each FT maintains a sequential insert heuristic to determine if its
+// worth trying to insert directly into a well-known rightmost leaf node.
+//
+// The heuristic is only maintained when a rightmost leaf node is known.
+//
+// This test verifies that sequential inserts increase the seqinsert score
+// and that a single non-sequential insert resets the score.
 
-    char rmcmd[32 + strlen(envdir)];
-    snprintf(rmcmd, sizeof rmcmd, "rm -rf %s", envdir);
-    r = system(rmcmd);                                                                             CKERR(r);
-    r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+static void test_seqinsert_heuristic(void) {
+    int r = 0;
+    char name[TOKU_PATH_MAX + 1];
+    toku_path_join(name, 2, TOKU_TEST_FILENAME, "ftdata");
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU); CKERR(r);
+    
+    FT_HANDLE ft_handle;
+    CACHETABLE ct;
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    r = toku_open_ft_handle(name, 1, &ft_handle,
+                            4*1024*1024, 64*1024,
+                            TOKU_DEFAULT_COMPRESSION_METHOD, ct, NULL,
+                            toku_builtin_compare_fun); CKERR(r);
+    FT ft = ft_handle->ft;
 
-    DB_ENV *env;
-    r = db_env_create(&env, 0);                                                                               CKERR(r);
-    int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
-    r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
-    env->set_errfile(env, stderr);
+    int k;
+    DBT key, val;
+    const int val_size = 1024 * 1024;
+    char *XMALLOC_N(val_size, val_buf);
+    memset(val_buf, 'x', val_size);
+    toku_fill_dbt(&val, val_buf, val_size);
 
-    DB *dbs[ndb];
-    uint32_t db_flags[ndb];
-    uint32_t dbt_flags[ndb];
-    for (int i = 0; i < ndb; i++) {
-        db_flags[i] = DB_NOOVERWRITE;
-        dbt_flags[i] = 0;
-        r = db_create(&dbs[i], env, 0); CKERR(r);
-        char name[32];
-        sprintf(name, "db%d", i);
-        r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666); CKERR(r);
+    // Insert many rows sequentially. This is enough data to:
+    // - force the root to split (the righmost leaf will then be known)
+    // - raise the seqinsert score high enough to enable direct rightmost injections
+    const int rows_to_insert = 200;
+    for (int i = 0; i < rows_to_insert; i++) {
+        k = toku_htonl(i);
+        toku_fill_dbt(&key, &k, sizeof(k));
+        toku_ft_insert(ft_handle, &key, &val, NULL);
     }
+    invariant(ft->rightmost_blocknum.b != RESERVED_BLOCKNUM_NULL);
+    invariant(ft->seqinsert_score == FT_SEQINSERT_SCORE_THRESHOLD);
 
-    DB_TXN *txn;
-    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+    // Insert on the left extreme. The seq insert score is high enough
+    // that we will attempt to insert into the rightmost leaf. We won't
+    // be successful because key 0 won't be in the bounds of the rightmost leaf.
+    // This failure should reset the seqinsert score back to 0. 
+    k = toku_htonl(0);
+    toku_fill_dbt(&key, &k, sizeof(k));
+    toku_ft_insert(ft_handle, &key, &val, NULL);
+    invariant(ft->seqinsert_score == 0);
 
-    DB_LOADER *loader;
-    r = env->create_loader(env, txn, &loader, ndb > 0 ? dbs[0] : NULL, ndb, dbs, db_flags, dbt_flags, loader_flags); CKERR(r);
+    // Insert in the middle. The score should not go up.
+    k = toku_htonl(rows_to_insert / 2);
+    toku_fill_dbt(&key, &k, sizeof(k));
+    toku_ft_insert(ft_handle, &key, &val, NULL);
+    invariant(ft->seqinsert_score == 0);
 
-    r = loader->close(loader); CKERR(r);
+    // Insert on the right extreme. The score should go up.
+    k = toku_htonl(rows_to_insert);
+    toku_fill_dbt(&key, &k, sizeof(k));
+    toku_ft_insert(ft_handle, &key, &val, NULL);
+    invariant(ft->seqinsert_score == 1);
 
-    r = txn->commit(txn, 0); CKERR(r);
+    // Insert again on the right extreme again, the score should go up.
+    k = toku_htonl(rows_to_insert + 1);
+    toku_fill_dbt(&key, &k, sizeof(k));
+    toku_ft_insert(ft_handle, &key, &val, NULL);
+    invariant(ft->seqinsert_score == 2);
 
-    for (int i = 0; i < ndb; i++) {
-        r = dbs[i]->close(dbs[i], 0); CKERR(r);
-    }
+    // Insert close to, but not at, the right extreme. The score should reset.
+    // -- the magic number 4 derives from the fact that vals are 1mb and nodes are 4mb
+    k = toku_htonl(rows_to_insert - 4);
+    toku_fill_dbt(&key, &k, sizeof(k));
+    toku_ft_insert(ft_handle, &key, &val, NULL);
+    invariant(ft->seqinsert_score == 0);
 
-    r = env->close(env, 0); CKERR(r);
+    toku_free(val_buf);
+    toku_ft_handle_close(ft_handle);
+    toku_cachetable_close(&ct);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 }
 
-static void do_args(int argc, char * const argv[]) {
-    int resultcode;
-    char *cmd = argv[0];
-    argc--; argv++;
-    while (argc>0) {
-        if (strcmp(argv[0], "-h")==0) {
-	    resultcode=0;
-	do_usage:
-	    fprintf(stderr, "Usage: %s -h -v -q -p\n", cmd);
-	    exit(resultcode);
-	} else if (strcmp(argv[0], "-v")==0) {
-	    verbose++;
-	} else if (strcmp(argv[0],"-q")==0) {
-	    verbose--;
-	    if (verbose<0) verbose=0;
-        } else if (strcmp(argv[0], "-p") == 0) {
-            loader_flags |= LOADER_DISALLOW_PUTS;
-        } else if (strcmp(argv[0], "-z") == 0) {
-            loader_flags |= LOADER_COMPRESS_INTERMEDIATES;
-        } else if (strcmp(argv[0], "-e") == 0) {
-            argc--; argv++;
-            if (argc > 0)
-                envdir = argv[0];
-	} else {
-	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
-	    resultcode=1;
-	    goto do_usage;
-	}
-	argc--;
-	argv++;
-    }
-}
-
-int test_main(int argc, char * const *argv) {
-    do_args(argc, argv);
-    test_loader_create_close(0);
-    test_loader_create_close(1);
-    test_loader_create_close(2);
+int test_main(int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
+    test_seqinsert_heuristic();
     return 0;
 }

@@ -310,7 +310,7 @@ toku_get_node_for_verify(
 
 static int
 toku_verify_ftnode_internal(FT_HANDLE ft_handle,
-                            MSN rootmsn, MSN parentmsn, bool messages_exist_above,
+                            MSN rootmsn, MSN parentmsn_with_messages, bool messages_exist_above,
                             FTNODE node, int height,
                             const DBT *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
                             const DBT *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
@@ -328,7 +328,7 @@ toku_verify_ftnode_internal(FT_HANDLE ft_handle,
         invariant(height == node->height);   // this is a bad failure if wrong
     }
     if (node->height > 0 && messages_exist_above) {
-        VERIFY_ASSERTION((parentmsn.msn >= this_msn.msn), 0, "node msn must be descending down tree, newest messages at top");
+        VERIFY_ASSERTION((parentmsn_with_messages.msn >= this_msn.msn), 0, "node msn must be descending down tree, newest messages at top");
     }
     // Verify that all the pivot keys are in order.
     for (int i = 0; i < node->n_children-2; i++) {
@@ -450,7 +450,7 @@ done:
 // input is a pinned node, on exit, node is unpinned
 int
 toku_verify_ftnode (FT_HANDLE ft_handle,
-                    MSN rootmsn, MSN parentmsn, bool messages_exist_above,
+                    MSN rootmsn, MSN parentmsn_with_messages, bool messages_exist_above,
                      FTNODE node, int height,
                      const DBT *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
                      const DBT *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
@@ -469,7 +469,7 @@ toku_verify_ftnode (FT_HANDLE ft_handle,
         // Otherwise we'll just do the next call
 
         result = toku_verify_ftnode_internal(
-                ft_handle, rootmsn, parentmsn, messages_exist_above, node, height, lesser_pivot, greatereq_pivot,
+                ft_handle, rootmsn, parentmsn_with_messages, messages_exist_above, node, height, lesser_pivot, greatereq_pivot,
                 verbose, keep_going_on_failure, false);
         if (result != 0 && (!keep_going_on_failure || result != TOKUDB_NEEDS_REPAIR)) goto done;
     }
@@ -477,7 +477,7 @@ toku_verify_ftnode (FT_HANDLE ft_handle,
         toku_move_ftnode_messages_to_stale(ft_handle->ft, node);
     }
     result2 = toku_verify_ftnode_internal(
-            ft_handle, rootmsn, parentmsn, messages_exist_above, node, height, lesser_pivot, greatereq_pivot,
+            ft_handle, rootmsn, parentmsn_with_messages, messages_exist_above, node, height, lesser_pivot, greatereq_pivot,
             verbose, keep_going_on_failure, true);
     if (result == 0) {
         result = result2;
@@ -489,12 +489,16 @@ toku_verify_ftnode (FT_HANDLE ft_handle,
         for (int i = 0; i < node->n_children; i++) {
             FTNODE child_node;
             toku_get_node_for_verify(BP_BLOCKNUM(node, i), ft_handle, &child_node);
-            int r = toku_verify_ftnode(ft_handle, rootmsn, this_msn, messages_exist_above || toku_bnc_n_entries(BNC(node, i)) > 0,
-                                        child_node, node->height-1,
-                                        (i==0)                  ? lesser_pivot        : &node->childkeys[i-1],
-                                        (i==node->n_children-1) ? greatereq_pivot     : &node->childkeys[i],
-                                        progress_callback, progress_extra,
-                                        recurse, verbose, keep_going_on_failure);
+            int r = toku_verify_ftnode(ft_handle, rootmsn,
+                                       (toku_bnc_n_entries(BNC(node, i)) > 0
+                                        ? this_msn
+                                        : parentmsn_with_messages),
+                                       messages_exist_above || toku_bnc_n_entries(BNC(node, i)) > 0,
+                                       child_node, node->height-1,
+                                       (i==0)                  ? lesser_pivot        : &node->childkeys[i-1],
+                                       (i==node->n_children-1) ? greatereq_pivot     : &node->childkeys[i],
+                                       progress_callback, progress_extra,
+                                       recurse, verbose, keep_going_on_failure);
             if (r) {
                 result = r;
                 if (!keep_going_on_failure || result != TOKUDB_NEEDS_REPAIR) goto done;

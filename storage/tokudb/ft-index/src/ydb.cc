@@ -1160,6 +1160,7 @@ env_close(DB_ENV * env, uint32_t flags) {
             goto panic_and_quit_early;
         }
     }
+    env_fsync_log_cron_destroy(env);
     if (env->i->cachetable) {
         toku_cachetable_minicron_shutdown(env->i->cachetable);
         if (env->i->logger) {
@@ -1200,7 +1201,6 @@ env_close(DB_ENV * env, uint32_t flags) {
     }
 
     env_fs_destroy(env);
-    env_fsync_log_cron_destroy(env);
     env->i->ltm.destroy();
     if (env->i->data_dir)
         toku_free(env->i->data_dir);
@@ -2901,7 +2901,13 @@ env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u
     r = toku_db_create(&db, env, 0);
     lazy_assert_zero(r);
     r = toku_db_open_iname(db, txn, iname, 0, 0);
-    lazy_assert_zero(r);
+    if (txn && r) {
+        if (r == EMFILE || r == ENFILE)
+            r = toku_ydb_do_error(env, r, "toku dbremove failed because open file limit reached\n");
+        else
+            r = toku_ydb_do_error(env, r, "toku dbremove failed\n");
+        goto exit;
+    }
     if (txn) {
         // Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
         if (env_is_db_with_dname_open(env, dname)) {

@@ -85,19 +85,19 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2014 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
-// Ensure that loader->abort free all of its resources.  The test just creates a loader and then
-// aborts it.
+// This test verifies that the env->dbremove function returns an error rather than
+// crash when the NOFILE resource limit is exceeded.
 
 #include "test.h"
 #include <db.h>
+#include <sys/resource.h>
 
-static int loader_flags = 0;
 static const char *envdir = TOKU_TEST_FILENAME;
 
-static void test_loader_create_close(int ndb) {
+static void test_dbremove() {
     int r;
 
     char rmcmd[32 + strlen(envdir)];
@@ -111,31 +111,36 @@ static void test_loader_create_close(int ndb) {
     r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
 
-    DB *dbs[ndb];
-    uint32_t db_flags[ndb];
-    uint32_t dbt_flags[ndb];
-    for (int i = 0; i < ndb; i++) {
-        db_flags[i] = DB_NOOVERWRITE;
-        dbt_flags[i] = 0;
-        r = db_create(&dbs[i], env, 0); CKERR(r);
-        char name[32];
-        sprintf(name, "db%d", i);
-        r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666); CKERR(r);
-    }
+    DB *db;
+    r = db_create(&db, env, 0); CKERR(r);
+    char fname[32];
+    sprintf(fname, "db%d", 0);
+    r = db->open(db, nullptr, fname, nullptr, DB_BTREE, DB_CREATE, 0666); CKERR(r);
+
+    r = db->close(db, 0); CKERR(r);
 
     DB_TXN *txn;
-    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+    r = env->txn_begin(env, nullptr, &txn, 0); CKERR(r);
 
-    DB_LOADER *loader;
-    r = env->create_loader(env, txn, &loader, ndb > 0 ? dbs[0] : NULL, ndb, dbs, db_flags, dbt_flags, loader_flags); CKERR(r);
+    struct rlimit current_limit;
+    r = getrlimit(RLIMIT_NOFILE, &current_limit);
+    assert(r == 0);
+    
+    struct rlimit new_limit = current_limit;
+    new_limit.rlim_cur = 0;
+    r = setrlimit(RLIMIT_NOFILE, &new_limit);
+    assert(r == 0);
 
-    r = loader->close(loader); CKERR(r);
+    r = env->dbremove(env, txn, fname, nullptr, 0);
+    CKERR2(r, EMFILE);
 
+    r = setrlimit(RLIMIT_NOFILE, &current_limit);
+    assert(r == 0);
+
+    r = env->dbremove(env, txn, fname, nullptr, 0);
+    CKERR(r);
+    
     r = txn->commit(txn, 0); CKERR(r);
-
-    for (int i = 0; i < ndb; i++) {
-        r = dbs[i]->close(dbs[i], 0); CKERR(r);
-    }
 
     r = env->close(env, 0); CKERR(r);
 }
@@ -148,21 +153,13 @@ static void do_args(int argc, char * const argv[]) {
         if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: %s -h -v -q -p\n", cmd);
+	    fprintf(stderr, "Usage: %s -h -v -q\n", cmd);
 	    exit(resultcode);
 	} else if (strcmp(argv[0], "-v")==0) {
 	    verbose++;
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
-        } else if (strcmp(argv[0], "-p") == 0) {
-            loader_flags |= LOADER_DISALLOW_PUTS;
-        } else if (strcmp(argv[0], "-z") == 0) {
-            loader_flags |= LOADER_COMPRESS_INTERMEDIATES;
-        } else if (strcmp(argv[0], "-e") == 0) {
-            argc--; argv++;
-            if (argc > 0)
-                envdir = argv[0];
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
@@ -175,8 +172,6 @@ static void do_args(int argc, char * const argv[]) {
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
-    test_loader_create_close(0);
-    test_loader_create_close(1);
-    test_loader_create_close(2);
+    test_dbremove();
     return 0;
 }
