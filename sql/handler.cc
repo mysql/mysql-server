@@ -2509,11 +2509,11 @@ int handler::ha_close(void)
 #ifdef HAVE_PSI_TABLE_INTERFACE
   PSI_TABLE_CALL(close_table)(m_psi);
   m_psi= NULL; /* instrumentation handle, invalid after close_table() */
+  DBUG_ASSERT(! m_psi_batch_mode);
+  DBUG_ASSERT(m_psi_locker == NULL);
 #endif
   // TODO: set table= NULL to mark the handler as closed?
-  DBUG_ASSERT(! m_psi_batch_mode);
   DBUG_ASSERT(m_psi == NULL);
-  DBUG_ASSERT(m_psi_locker == NULL);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   DBUG_ASSERT(inited == NONE);
   DBUG_RETURN(close());
