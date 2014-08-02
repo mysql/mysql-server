@@ -2476,11 +2476,25 @@ innobase_invalidate_query_cache(
 	above the InnoDB trx_sys_t->lock. The caller of this function must
 	not have latches of a lower rank. */
 
-	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
+	char	qcache_key_name[2 * (NAME_LEN + 1)];
+	size_t	tabname_len;
+	size_t	dbname_len;
+
+	/* Construct the key("db-name\0table$name\0") for the query cache using
+	the path name("db@002dname\0table@0024name\0") of the table in its
+        canonical form. */
+	dbname_len = filename_to_tablename(full_name, qcache_key_name,
+					   sizeof(qcache_key_name));
+	tabname_len = filename_to_tablename(full_name + strlen(full_name) + 1,
+					    qcache_key_name + dbname_len + 1,
+					    sizeof(qcache_key_name)
+                                            - dbname_len - 1);
+
+	/* Argument TRUE below means we are using transactions */
 	mysql_query_cache_invalidate4(trx->mysql_thd,
-				      full_name,
-				      (uint32) full_name_len,
+				      qcache_key_name,
+				      (dbname_len + tabname_len + 2),
 				      TRUE);
 #endif
 }

@@ -1403,5 +1403,56 @@ CREATE TABLE t1 (f1 blob);
 SELECT COUNT(*) FROM (SELECT * FROM t1 ) tt;
 DROP TABLE t1;
 SET GLOBAL query_cache_size= @qc;
---echo #
 
+
+--echo #
+--echo #BUG 18710853: QUERY CACHE NOT INVALIDATED ON CASCADE DELETE IF DB NAME HAS
+--echo #              SPECIAL SYMBOLS
+
+SET @query_cache_size.saved = @@query_cache_size;
+SET GLOBAL query_cache_size = 1024*1024;
+
+CREATE DATABASE `db-db`;
+CREATE TABLE `db-db`.`t$1` (fld1 INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE `db-db`.`t$2` (fld1 INT PRIMARY KEY, fld2 INT,
+CONSTRAINT t2_fk FOREIGN KEY (fld2) REFERENCES `db-db`.`t$1` (fld1) ON
+DELETE CASCADE) ENGINE=InnoDB;
+CREATE TABLE `db-db`.`t$3` (fld1 INT PRIMARY KEY, fld2 INT,
+CONSTRAINT t3_fk FOREIGN KEY (fld2) REFERENCES `db-db`.`t$1` (fld1) ON
+UPDATE CASCADE) ENGINE=InnoDB;
+
+INSERT INTO `db-db`.`t$1` VALUES (100);
+INSERT INTO `db-db`.`t$1` VALUES (300);
+INSERT INTO `db-db`.`t$2` VALUES (1, 100);
+INSERT INTO `db-db`.`t$3` VALUES (2, 300);
+
+SELECT * FROM `db-db`.`t$2`;
+SELECT * FROM `db-db`.`t$3`;
+
+DELETE FROM `db-db`.`t$1` WHERE fld1= 100;
+UPDATE `db-db`.`t$1` SET fld1= 200 WHERE fld1= 300;
+
+--echo #After fix the number of the records returned with the
+--echo #query cache and without the query cache are the same.
+SELECT * FROM `db-db`.`t$2`;
+SELECT SQL_NO_CACHE * FROM `db-db`.`t$2`;
+
+SELECT * FROM `db-db`.`t$3`;
+SELECT SQL_NO_CACHE * FROM `db-db`.`t$3`;
+
+--echo #Test case added for code coverage, invalidation
+--echo #triggered at the SQL layer.
+
+CREATE TABLE `db-db`.`t$4` (fld1 INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO `db-db`.`t$4` VALUES (100);
+
+SELECT * FROM `db-db`.`t$4`;
+INSERT INTO `db-db`.`t$4` VALUES (200);
+SELECT * FROM `db-db`.`t$4`;
+SELECT SQL_NO_CACHE * FROM `db-db`.`t$4`;
+
+--echo #cleanup
+DROP DATABASE `db-db`;
+SET GLOBAL query_cache_size = @query_cache_size.saved;
+
+--echo #
