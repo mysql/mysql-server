@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2012, Monty Program Ab.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,6 +70,7 @@ extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
                                   char *argument);
 static my_bool sql_connect(MYSQL *mysql, uint wait);
 static int execute_commands(MYSQL *mysql,int argc, char **argv);
+static char **mask_password(int argc, char ***argv);
 static int drop_db(MYSQL *mysql,const char *db);
 extern "C" sig_handler endprog(int signal_number);
 static void nice_time(ulong sec,char *buff);
@@ -303,9 +304,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 int main(int argc,char *argv[])
 {
-  int error= 0;
+  int error= 0, temp_argc;
   MYSQL mysql;
-  char **commands, **save_argv;
+  char **commands, **save_argv, **temp_argv;
 
   MY_INIT(argv[0]);
   mysql_init(&mysql);
@@ -313,8 +314,12 @@ int main(int argc,char *argv[])
   if ((error= load_defaults("my",load_default_groups,&argc,&argv)))
     goto err1;
   save_argv = argv;				/* Save for free_defaults */
+
   if ((error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     goto err2;
+  temp_argv= mask_password(argc, &argv);
+  temp_argc= argc;
+
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
@@ -325,7 +330,7 @@ int main(int argc,char *argv[])
     usage();
     exit(1);
   }
-  commands = argv;
+  commands = temp_argv;
   if (tty_password)
     opt_password = get_tty_password(NullS);
 
@@ -465,6 +470,13 @@ int main(int argc,char *argv[])
   }                                             /* got connection */
 
   mysql_close(&mysql);
+  temp_argc--;
+  while(temp_argc >= 0)
+  {
+    my_free(temp_argv[temp_argc]);
+    temp_argc--;
+  }
+  my_free(temp_argv);
 err2:
   mysql_library_end();
   my_free(opt_password);
@@ -1165,6 +1177,47 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
   return 0;
 }
 
+/**
+   @brief Masking the password if it is passed as command line argument.
+
+   @details It works in Linux and changes cmdline in ps and /proc/pid/cmdline,
+            but it won't work for history file of shell.
+            The command line arguments are copied to another array and the
+            password in the argv is masked. This function is called just after
+            "handle_options" because in "handle_options", the agrv pointers
+            are altered which makes freeing of dynamically allocated memory
+            difficult. The password masking is done before all other operations
+            in order to minimise the time frame of password visibility via cmdline.
+
+   @param argc            command line options (count)
+   @param argv            command line options (values)
+
+   @return temp_argv      copy of argv
+*/
+
+static char **mask_password(int argc, char ***argv)
+{
+  char **temp_argv;
+  temp_argv= (char **)(my_malloc(sizeof(char *) * argc, MYF(MY_WME)));
+  argc--;
+  while (argc > 0)
+  {
+    temp_argv[argc]= my_strdup((*argv)[argc], MYF(MY_FAE));
+    if (find_type((*argv)[argc - 1],&command_typelib, FIND_TYPE_BASIC) == ADMIN_PASSWORD ||
+        find_type((*argv)[argc - 1],&command_typelib, FIND_TYPE_BASIC) == ADMIN_OLD_PASSWORD)
+    {
+      char *start= (*argv)[argc];
+      while (*start)
+        *start++= 'x';
+      start= (*argv)[argc];
+      if (*start)
+        start[1]= 0;                         /* Cut length of argument */
+     }
+    argc--;
+  }
+  temp_argv[argc]= my_strdup((*argv)[argc], MYF(MY_FAE));
+  return(temp_argv);
+}
 
 static void print_version(void)
 {

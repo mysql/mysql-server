@@ -104,6 +104,9 @@ enum enum_explain_filename_mode
   EXPLAIN_PARTITIONS_AS_COMMENT
 };
 
+/* Maximum length of GEOM_POINT Field */
+#define MAX_LEN_GEOM_POINT_FIELD   25
+
 /* depends on errmsg.txt Database `db`, Table `t` ... */
 #define EXPLAIN_FILENAME_MAX_EXTRA_LENGTH 63
 

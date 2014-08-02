@@ -38,7 +38,9 @@ FUNCTION (INSTALL_DEBUG_SYMBOLS)
     STRING(REPLACE ".dll" ".pdb" pdb_location ${pdb_location})
     STRING(REPLACE ".lib" ".pdb" pdb_location ${pdb_location})
     IF(CMAKE_GENERATOR MATCHES "Visual Studio")
-      STRING(REPLACE "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}" pdb_location ${pdb_location})
+      STRING(REPLACE
+        "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}"
+        pdb_location ${pdb_location})
     ENDIF()
 	
     set(comp "")

@@ -1273,6 +1273,36 @@ SELECT(SELECT 1 AS a ORDER BY a) AS dev;
 SELECT(SELECT 1 AS a LIMIT 1) AS dev;
 SELECT(SELECT 1 AS a FROM dual ORDER BY a DESC LIMIT 1) AS dev;
 
+
+--echo #
+--echo # Bug #17059925 : UNIONS COMPUTES ROWS_EXAMINED INCORRECTLY
+--echo #
+
+## Save current state of slow log variables
+SET @old_slow_query_log= @@global.slow_query_log;
+SET @old_log_output= @@global.log_output;
+SET @old_long_query_time= @@long_query_time;
+SET GLOBAL log_output= "TABLE";
+SET GLOBAL slow_query_log= ON;
+SET SESSION long_query_time= 0;
+
+CREATE TABLE t17059925 (a INT);
+CREATE TABLE t2 (b INT);
+CREATE TABLE t3 (c INT);
+INSERT INTO t17059925 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (4), (5), (6);
+INSERT INTO t3 VALUES (7), (8), (9);
+TRUNCATE table mysql.slow_log;
+--sorted_result
+SELECT * FROM t17059925 UNION SELECT * FROM t2 UNION SELECT * FROM t3;
+SELECT sql_text, rows_examined FROM mysql.slow_log WHERE sql_text LIKE '%SELECT%t17059925%';
+DROP TABLE t17059925, t2, t3;
+
+## Reset to initial values
+SET @@long_query_time= @old_long_query_time;
+SET @@global.log_output= @old_log_output;
+SET @@global.slow_query_log= @old_slow_query_log;
+
 --echo #
 --echo # lp:1010729: Unexpected syntax error from UNION
 --echo # (bug #54382) with single-table join nest      

@@ -824,8 +824,8 @@ The following options may be given as the first argument:
  How many threads we should keep in a cache for reuse
  --thread-stack=#    The stack size for each thread
  --time-format=name  The TIME format (ignored)
- --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
- currently supported)
+ --timed-mutexes     Specify whether to time mutexes. Deprecated, has no
+ effect.
  --tmp-table-size=#  If an internal in-memory temporary table exceeds this
  size, MySQL will automatically convert it to an on-disk
  MyISAM or Aria table

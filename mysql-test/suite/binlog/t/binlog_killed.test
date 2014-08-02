@@ -353,6 +353,10 @@ drop function bug27563;
 # common cleanup 
 #
 
+connection default;
+disconnect con1;
+disconnect con2;
+
 drop table t1,t2,t3;
 
 --echo end of the tests

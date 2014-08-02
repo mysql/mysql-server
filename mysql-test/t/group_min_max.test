@@ -1404,6 +1404,31 @@ drop table t1;
 --echo # End of test#50539.
 
 --echo #
+--echo # Bug#17217128 -  BAD INTERACTION BETWEEN MIN/MAX AND
+--echo #                 "HAVING SUM(DISTINCT)": WRONG RESULTS.
+--echo #
+
+CREATE TABLE t (a INT, b INT, KEY(a,b));
+INSERT INTO t VALUES (1,1), (2,2), (3,3), (4,4), (1,0), (3,2), (4,5);
+ANALYZE TABLE t;
+
+SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
+EXPLAIN SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
+
+SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
+EXPLAIN SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
+
+SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
+EXPLAIN SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
+
+SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
+EXPLAIN SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
+
+SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
+EXPLAIN SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
+DROP TABLE t;
+
+--echo #
 --echo # MDEV-4219 A simple select query returns random data (upstream bug#68473)
 --echo #
 

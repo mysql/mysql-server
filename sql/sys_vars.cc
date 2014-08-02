@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates.
    Copyright (c) 2012, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
@@ -2444,9 +2444,10 @@ static Sys_var_ulonglong Sys_tmp_table_size(
 
 static Sys_var_mybool Sys_timed_mutexes(
        "timed_mutexes",
-       "Specify whether to time mutexes (only InnoDB mutexes are currently "
-       "supported)",
-       GLOBAL_VAR(timed_mutexes), CMD_LINE(OPT_ARG), DEFAULT(0));
+       "Specify whether to time mutexes. Deprecated, has no effect.",
+       GLOBAL_VAR(timed_mutexes), CMD_LINE(OPT_ARG), DEFAULT(0),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
+       DEPRECATED(""));
 
 static char *server_version_ptr;
 static Sys_var_charptr Sys_version(

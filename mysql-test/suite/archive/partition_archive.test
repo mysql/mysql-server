@@ -128,3 +128,21 @@ show create table t1;
 select count(*) from t1;
 drop table t1;
 
+
+--echo #
+--echo #BUG 18618561: FAILED ALTER TABLE ENGINE CHANGE WITH PARTITIONS
+--echo #              CORRUPTS FRM
+
+CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE= MYISAM PARTITION BY HASH(fld1)
+PARTITIONS 5;
+SHOW CREATE TABLE t1;
+
+--replace_regex /#sql-[0-9a-f_]*/#sql-temporary/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ENGINE= ARCHIVE;
+
+--echo #After the patch, the ENGINE is correctly displayed as MyISAM
+SHOW CREATE TABLE t1;
+
+--echo #Cleanup.
+DROP TABLE t1;

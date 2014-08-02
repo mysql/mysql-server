@@ -1583,6 +1583,11 @@ call foo('(( 00000000 ++ 00000000 ))');
 drop procedure foo;
 drop table t1,t2;
 
+#
+# Bug#18786138 SHA/MD5 HASHING FUNCTIONS DIE WITH "FILENAME" CHARACTER SET
+#
+select md5(_filename "a"), sha(_filename "a");
+
 --echo #
 --echo # End of 5.5 tests
 --echo #

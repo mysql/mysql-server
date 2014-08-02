@@ -385,7 +385,6 @@ SET(LIBS clientlib dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES} ${LIB
 MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
-INSTALL_DEBUG_SYMBOLS(clientlib)
 IF(MSVC)
  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
  INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)

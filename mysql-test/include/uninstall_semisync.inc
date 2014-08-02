@@ -13,6 +13,11 @@
 UNINSTALL PLUGIN rpl_semi_sync_slave;
 
 --connection master
+# After BUG#17638477 fix, uninstallation of rpl_semi_sync_master
+#  is not allowed when there are semi sync slaves. Hence kill
+#  all dump threads before uninstalling it.
+SET GLOBAL rpl_semi_sync_master_enabled = OFF;
+--source include/stop_dump_threads.inc
 UNINSTALL PLUGIN rpl_semi_sync_master;
 --enable_warnings
 

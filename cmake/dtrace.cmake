@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -80,13 +80,6 @@ IF(ENABLE_DTRACE)
    ${CMAKE_BINARY_DIR}/include/probes_mysql_dtrace.h
    ${CMAKE_BINARY_DIR}/include/probes_mysql_nodtrace.h
   )
-  IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-   # Systemtap object
-   EXECUTE_PROCESS(
-     COMMAND ${DTRACE} -G -s ${CMAKE_SOURCE_DIR}/include/probes_mysql.d.base
-     -o ${CMAKE_BINARY_DIR}/probes_mysql.o
-   )
-  ENDIF()
   ADD_CUSTOM_TARGET(gen_dtrace_header
   DEPENDS  
   ${CMAKE_BINARY_DIR}/include/probes_mysql.d
@@ -105,12 +98,7 @@ FUNCTION(DTRACE_INSTRUMENT target)
   IF(ENABLE_DTRACE)
     ADD_DEPENDENCIES(${target} gen_dtrace_header)
 
-    IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-      TARGET_LINK_LIBRARIES(${target}  ${CMAKE_BINARY_DIR}/probes_mysql.o)
-    ENDIF()
-
-    # On Solaris, invoke dtrace -G to generate object file and
-    # link it together with target.
+    # Invoke dtrace to generate object file and link it together with target.
     IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
       SET(objdir ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${target}.dir)
       SET(outfile ${objdir}/${target}_dtrace.o)
@@ -127,6 +115,21 @@ FUNCTION(DTRACE_INSTRUMENT target)
           -P ${CMAKE_SOURCE_DIR}/cmake/dtrace_prelink.cmake
         WORKING_DIRECTORY ${objdir}
       )
+    ELSEIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+      # dtrace on Linux runs gcc and uses flags from environment
+      SET(CFLAGS_SAVED $ENV{CFLAGS})
+      SET(ENV{CFLAGS} ${CMAKE_C_FLAGS})
+      SET(outfile "${CMAKE_BINARY_DIR}/probes_mysql.o")
+      # Systemtap object
+      EXECUTE_PROCESS(
+        COMMAND ${DTRACE} -G -s ${CMAKE_SOURCE_DIR}/include/probes_mysql.d.base
+        -o ${outfile}
+        )
+      SET(ENV{CFLAGS} ${CFLAGS_SAVED})
+    ENDIF()
+
+    # Do not try to extend the library if we have not built the .o file
+    IF(outfile)
       # Add full  object path to linker flags
       GET_TARGET_PROPERTY(target_type ${target} TYPE)
       IF(NOT target_type MATCHES "STATIC")
@@ -138,12 +141,12 @@ FUNCTION(DTRACE_INSTRUMENT target)
         # but maybe one day this will be fixed.
         GET_TARGET_PROPERTY(target_location ${target} LOCATION)
         ADD_CUSTOM_COMMAND(
-         TARGET ${target} POST_BUILD
-         COMMAND ${CMAKE_AR} r  ${target_location} ${outfile}
-	 COMMAND ${CMAKE_RANLIB} ${target_location}
-        )
-       # Used in DTRACE_INSTRUMENT_WITH_STATIC_LIBS
-       SET(TARGET_OBJECT_DIRECTORY_${target}  ${objdir} CACHE INTERNAL "")
+          TARGET ${target} POST_BUILD
+          COMMAND ${CMAKE_AR} r  ${target_location} ${outfile}
+	  COMMAND ${CMAKE_RANLIB} ${target_location}
+          )
+        # Used in DTRACE_INSTRUMENT_WITH_STATIC_LIBS
+        SET(TARGET_OBJECT_DIRECTORY_${target}  ${objdir} CACHE INTERNAL "")
       ENDIF()
     ENDIF()
   ENDIF()

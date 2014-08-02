@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -62,22 +62,30 @@ IF(MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)
 ENDIF()
 
 IF(MSVC)
-  # Enable debug info also in Release build, and create PDB to be able to analyze 
-  # crashes
-  FOREACH(lang C CXX)
-    SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Zi")
-  ENDFOREACH()
+  # Enable debug info also in Release build,
+  # and create PDB to be able to analyze crashes.
   FOREACH(type EXE SHARED MODULE)
-   SET(CMAKE_{type}_LINKER_FLAGS_RELEASE "${CMAKE_${type}_LINKER_FLAGS_RELEASE} /debug")
+   SET(CMAKE_{type}_LINKER_FLAGS_RELEASE
+     "${CMAKE_${type}_LINKER_FLAGS_RELEASE} /debug")
   ENDFOREACH()
   
   # Force static runtime libraries
+  # - Choose debugging information:
+  #     /Z7
+  #     Produces an .obj file containing full symbolic debugging
+  #     information for use with the debugger. The symbolic debugging
+  #     information includes the names and types of variables, as well as
+  #     functions and line numbers. No .pdb file is produced by the compiler.
+  FOREACH(lang C CXX)
+    SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
+  ENDFOREACH()
   FOREACH(flag 
-   CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO 
-   CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_DEBUG_INIT 
+   CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
+   CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
    CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
-   CMAKE_CXX_FLAGS_DEBUG  CMAKE_CXX_FLAGS_DEBUG_INIT)
+   CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
    STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+   STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
   ENDFOREACH()
   
   # Remove support for exceptions
@@ -108,7 +116,6 @@ IF(MSVC)
   #TODO: update the code and remove the disabled warnings
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800 /wd4805 /wd4996 /we4099")
-
 
   IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
     # _WIN64 is defined by the compiler itself. 

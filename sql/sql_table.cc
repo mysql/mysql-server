@@ -1,6 +1,6 @@
 /*
    Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2013, Monty Program Ab.
+   Copyright (c) 2010, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,6 +74,7 @@ static bool check_engine(THD *, const char *, const char *, HA_CREATE_INFO *);
 static int mysql_prepare_create_table(THD *, HA_CREATE_INFO *, Alter_info *,
                                       bool, uint *, handler *, KEY **, uint *,
                                       int);
+static uint blob_length_by_type(enum_field_types type);
 
 /**
   @brief Helper function for explain_filename
@@ -3475,7 +3476,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
-      uint length;
       Key_part_spec *dup_column;
 
       it.rewind();
@@ -3552,7 +3552,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  }
           if (f_is_geom(sql_field->pack_flag) && sql_field->geom_type ==
               Field::GEOM_POINT)
-            column->length= 25;
+            column->length= MAX_LEN_GEOM_POINT_FIELD;
 	  if (!column->length)
 	  {
 	    my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name.str);
@@ -3618,30 +3618,31 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_part_info->fieldnr= field;
       key_part_info->offset=  (uint16) sql_field->offset;
       key_part_info->key_type=sql_field->pack_flag;
-      length= sql_field->key_length;
+      uint key_part_length= sql_field->key_length;
 
       if (column->length)
       {
 	if (f_is_blob(sql_field->pack_flag))
 	{
-	  if ((length=column->length) > max_key_length ||
-	      length > file->max_key_part_length())
+	  key_part_length= min(column->length,
+                               blob_length_by_type(sql_field->sql_type)
+                               * sql_field->charset->mbmaxlen);
+	  if (key_part_length > max_key_length ||
+	      key_part_length > file->max_key_part_length())
 	  {
-	    length=min(max_key_length, file->max_key_part_length());
+	    key_part_length= min(max_key_length, file->max_key_part_length());
 	    if (key->type == Key::MULTIPLE)
 	    {
 	      /* not a critical problem */
-	      char warn_buff[MYSQL_ERRMSG_SIZE];
-	      my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_KEY),
-			  length);
-	      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			   ER_TOO_LONG_KEY, warn_buff);
+	      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		           ER_TOO_LONG_KEY, ER(ER_TOO_LONG_KEY),
+		           key_part_length);
               /* Align key length to multibyte char boundary */
-              length-= length % sql_field->charset->mbmaxlen;
+              key_part_length-= key_part_length % sql_field->charset->mbmaxlen;
 	    }
 	    else
 	    {
-	      my_error(ER_TOO_LONG_KEY,MYF(0),length);
+	      my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
 	      DBUG_RETURN(TRUE);
 	    }
 	  }
@@ -3649,9 +3650,9 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         // Catch invalid use of partial keys 
 	else if (!f_is_geom(sql_field->pack_flag) &&
                  // is the key partial? 
-                 column->length != length &&
+                 column->length != key_part_length &&
                  // is prefix length bigger than field length? 
-                 (column->length > length ||
+                 (column->length > key_part_length ||
                   // can the field have a partial key? 
                   !Field::type_can_have_key_part (sql_field->sql_type) ||
                   // a packed field can't be used in a partial key
@@ -3660,43 +3661,42 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                   ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
                    // and is this a 'unique' key?
                    (key_info->flags & HA_NOSAME))))
-        {         
+        {
 	  my_message(ER_WRONG_SUB_KEY, ER(ER_WRONG_SUB_KEY), MYF(0));
 	  DBUG_RETURN(TRUE);
 	}
 	else if (!(file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS))
-	  length=column->length;
+	  key_part_length= column->length;
       }
-      else if (length == 0 && (sql_field->flags & NOT_NULL_FLAG))
+      else if (key_part_length == 0 && (sql_field->flags & NOT_NULL_FLAG))
       {
 	my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->field_name.str);
 	  DBUG_RETURN(TRUE);
       }
-      if (length > file->max_key_part_length() && key->type != Key::FULLTEXT)
+      if (key_part_length > file->max_key_part_length() &&
+          key->type != Key::FULLTEXT)
       {
-        length= file->max_key_part_length();
+        key_part_length= file->max_key_part_length();
 	if (key->type == Key::MULTIPLE)
 	{
 	  /* not a critical problem */
-	  char warn_buff[MYSQL_ERRMSG_SIZE];
-	  my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_KEY),
-		      length);
-	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-		       ER_TOO_LONG_KEY, warn_buff);
+	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		       ER_TOO_LONG_KEY, ER(ER_TOO_LONG_KEY),
+		       key_part_length);
           /* Align key length to multibyte char boundary */
-          length-= length % sql_field->charset->mbmaxlen;
+          key_part_length-= key_part_length % sql_field->charset->mbmaxlen;
 	}
 	else
 	{
-	  my_error(ER_TOO_LONG_KEY,MYF(0),length);
+	  my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
 	  DBUG_RETURN(TRUE);
 	}
       }
-      key_part_info->length=(uint16) length;
+      key_part_info->length= (uint16) key_part_length;
       /* Use packed keys for long strings on the first column */
       if (!((*db_options) & HA_OPTION_NO_PACK_KEYS) &&
           !((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
-	  (length >= KEY_DEFAULT_PACK_LENGTH &&
+	  (key_part_length >= KEY_DEFAULT_PACK_LENGTH &&
 	   (sql_field->sql_type == MYSQL_TYPE_STRING ||
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
 	    sql_field->pack_flag & FIELDFLAG_BLOB)))
@@ -3708,10 +3708,10 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  key_info->flags|= HA_PACK_KEY;
       }
       /* Check if the key segment is partial, set the key flag accordingly */
-      if (length != sql_field->key_length)
+      if (key_part_length != sql_field->key_length)
         key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
 
-      key_length+=length;
+      key_length+= key_part_length;
       key_part_info++;
 
       /* Create the key name based on the first column (if not given) */

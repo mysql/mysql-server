@@ -7835,9 +7835,9 @@ void Execute_load_query_log_event::print(FILE* file,
   if (local_fname)
   {
     my_b_write(&cache, (uchar*) query, fn_pos_start);
-    my_b_printf(&cache, " LOCAL INFILE \'");
-    my_b_printf(&cache, "%s", local_fname);
-    my_b_printf(&cache, "\'");
+    my_b_printf(&cache, " LOCAL INFILE ");
+    pretty_print_str(&cache, local_fname, strlen(local_fname));
+
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(&cache, " REPLACE");
     my_b_printf(&cache, " INTO");

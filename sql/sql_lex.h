@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2013, Monty Program Ab.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2932,7 +2932,7 @@ extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
 void end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex);
 int init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex);
-extern int MYSQLlex(void *arg, THD *thd);
+extern int MYSQLlex(union YYSTYPE *yylval, THD *thd);
 
 extern void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str);
 

@@ -1,0 +1,20 @@
+--source include/have_innodb.inc
+
+
+#
+# Bug#16368875 INNODB: FAILING ASSERTION: PRIMARY_KEY_NO == -1 || PRIMARY_KEY_NO == 0
+#
+create table t1 (f1 tinyblob not null) engine=innodb;
+alter table t1 add unique index (f1(255));
+drop table t1;
+
+create table t1 (f1 tinyblob not null) engine=innodb;
+alter table t1 add unique index (f1(356));
+show create table t1;
+drop table t1;
+
+create table t1 (f1 point not null) engine=innodb;
+alter table t1 add unique index (f1);
+drop table t1;
+
+

@@ -1,5 +1,5 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2011, Monty Program Ab.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3232,19 +3232,28 @@ uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
   uint num_columns= part_info->part_field_list.elements;
   uint list_index;
   uint min_list_index= 0;
+  int cmp;
+  /* Notice that max_list_index = last_index + 1 here! */
   uint max_list_index= part_info->num_list_values;
   DBUG_ENTER("get_partition_id_cols_list_for_endpoint");
 
   /* Find the matching partition (including taking endpoint into account). */
   do
   {
-    /* Midpoint, adjusted down, so it can never be > last index. */
+    /* Midpoint, adjusted down, so it can never be >= max_list_index. */
     list_index= (max_list_index + min_list_index) >> 1;
-    if (cmp_rec_and_tuple_prune(list_col_array + list_index*num_columns,
-                                nparts, left_endpoint, include_endpoint) > 0)
+    cmp= cmp_rec_and_tuple_prune(list_col_array + list_index*num_columns,
+                                 nparts, left_endpoint, include_endpoint);
+    if (cmp > 0)
+    {
       min_list_index= list_index + 1;
+    }
     else
+    {
       max_list_index= list_index;
+      if (cmp == 0)
+        break;
+    }
   } while (max_list_index > min_list_index);
   list_index= max_list_index;
 
@@ -3261,17 +3270,10 @@ uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
                                            nparts, left_endpoint,
                                            include_endpoint)));
 
-  if (!left_endpoint && list_index < part_info->num_list_values)
-  {
-    /*
-      Set the end after this list tuple if it is not already after the last
-      and it matches.  ???
-    */
-    int cmp = cmp_rec_and_tuple_prune(list_col_array + list_index*num_columns,
-                                      nparts, left_endpoint, include_endpoint);
-    if (cmp >= 0)
-       list_index++;
-  }
+  /* Include the right endpoint if not already passed end of array. */
+  if (!left_endpoint && include_endpoint && cmp == 0 &&
+      list_index < part_info->num_list_values)
+    list_index++;
 
   DBUG_RETURN(list_index);
 }
@@ -5499,7 +5501,9 @@ the generated partition syntax in a correct manner.
        There was no partitioning before and no partitioning defined.
        Obviously no work needed.
     */
-    if (table->part_info)
+    partition_info *tab_part_info= table->part_info;
+
+    if (tab_part_info)
     {
       if (alter_info->flags & ALTER_REMOVE_PARTITIONING)
       {
@@ -5507,7 +5511,7 @@ the generated partition syntax in a correct manner.
         if (!(create_info->used_fields & HA_CREATE_USED_ENGINE))
         {
           DBUG_PRINT("info", ("No explicit engine used"));
-          create_info->db_type= table->part_info->default_engine_type;
+          create_info->db_type= tab_part_info->default_engine_type;
         }
         DBUG_PRINT("info", ("New engine type: %s",
                    ha_resolve_storage_engine_name(create_info->db_type)));
@@ -5519,16 +5523,20 @@ the generated partition syntax in a correct manner.
         /*
           Retain partitioning but possibly with a new storage engine
           beneath.
+
+          Create a copy of TABLE::part_info to be able to modify it freely.
         */
-        thd->work_part_info= table->part_info;
+        if (!(tab_part_info= tab_part_info->get_clone()))
+          DBUG_RETURN(TRUE);
+        thd->work_part_info= tab_part_info;
         if (create_info->used_fields & HA_CREATE_USED_ENGINE &&
-            create_info->db_type != table->part_info->default_engine_type)
+            create_info->db_type != tab_part_info->default_engine_type)
         {
           /*
             Make sure change of engine happens to all partitions.
           */
           DBUG_PRINT("info", ("partition changed"));
-          if (table->part_info->is_auto_partitioned)
+          if (tab_part_info->is_auto_partitioned)
           {
             /*
               If the user originally didn't specify partitioning to be
@@ -5556,7 +5564,7 @@ the generated partition syntax in a correct manner.
         Need to cater for engine types that can handle partition without
         using the partition handler.
       */
-      if (part_info != table->part_info)
+      if (part_info != tab_part_info)
       {
         if (part_info->fix_parser_data(thd))
         {
@@ -5584,8 +5592,8 @@ the generated partition syntax in a correct manner.
         part_info->default_engine_type= create_info->db_type;
       else
       {
-        if (table->part_info)
-          part_info->default_engine_type= table->part_info->default_engine_type;
+        if (tab_part_info)
+          part_info->default_engine_type= tab_part_info->default_engine_type;
         else
           part_info->default_engine_type= create_info->db_type;
       }
@@ -7428,15 +7436,13 @@ static int cmp_rec_and_tuple_prune(part_column_list_val *val,
   field= val->part_info->part_field_array + n_vals_in_rec;
   if (!(*field))
   {
-    /*
-      Full match, if right endpoint and not including the endpoint,
-      (rec < part) return lesser.
-    */
-    if (!is_left_endpoint && !include_endpoint)
-      return -4;
+    /* Full match. Only equal if including endpoint. */
+    if (include_endpoint)
+      return 0;
 
-    /* Otherwise they are equal! */
-    return 0;
+    if (is_left_endpoint)
+      return +4;     /* Start of range, part_tuple < rec, return higher. */
+    return -4;     /* End of range, rec < part_tupe, return lesser. */
   }
   /*
     The prefix is equal and there are more partition columns to compare.

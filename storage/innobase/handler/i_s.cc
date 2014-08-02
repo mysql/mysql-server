@@ -2692,6 +2692,19 @@ i_s_innodb_buffer_page_fill(
 				table_name = mem_heap_strdup(heap,
 							     index->table_name);
 
+                                DBUG_EXECUTE_IF("mysql_test_print_index_type",
+                                  {
+                                    char idx_type[3];
+
+                                    ut_snprintf(idx_type,
+                                                sizeof(idx_type),
+                                                "%d",
+                                                index->type);
+
+                                    index_name=mem_heap_strcat(heap,
+                                                               index_name,
+                                                               idx_type);
+                                  };);
 			}
 
 			mutex_exit(&dict_sys->mutex);

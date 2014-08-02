@@ -1,5 +1,6 @@
 /* Copyright (c) 2002-2007 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2009-2011, Monty Program Ab
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, SkySQL Ab.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public

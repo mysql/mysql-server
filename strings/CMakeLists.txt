@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@ ENDIF()
 ADD_DEFINITIONS(-DDISABLE_MYSQL_THREAD_H)
 ADD_CONVENIENCE_LIBRARY(strings ${STRINGS_SOURCES})
 
-INSTALL_DEBUG_SYMBOLS(strings)
 IF(MSVC)
    INSTALL_DEBUG_TARGET(strings DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -692,6 +693,11 @@ bool st_select_lex_unit::exec()
                                     0);
 	if (!saved_error)
 	{
+          /*
+            Save the current examined row count locally and clear the global
+            counter, so that we can accumulate the number of evaluated rows for
+            the current query block.
+          */
 	  examined_rows+= thd->examined_row_count;
           thd->examined_row_count= 0;
 	  if (union_result->flush())

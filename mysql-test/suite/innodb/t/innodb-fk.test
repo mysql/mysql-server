@@ -1,0 +1,86 @@
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+
+--echo #
+--echo # Bug #18806829 OPENING INNODB TABLES WITH MANY FOREIGN KEY
+--echo # REFERENCES IS SLOW/CRASHES SEMAPHORE
+--echo #
+
+create table t1 (f1 int primary key) engine=innodb;
+insert into t1 values (5);
+insert into t1 values (2882);
+insert into t1 values (10);
+
+let $fk_tables = 120;
+
+--disable_query_log
+let $i = $fk_tables;
+while ($i)
+{
+  eval create table fk_$i (f1 int primary key,
+          constraint pc$i foreign key (f1) references t1(f1)
+          on delete cascade on update cascade) engine=innodb;
+  eval insert into fk_$i values (5);
+  eval insert into fk_$i values (2882);
+  eval insert into fk_$i values (10);
+  dec $i;
+}
+--enable_query_log
+
+--source include/restart_mysqld.inc
+
+update t1 set f1 = 28 where f1 = 2882;
+
+select * from fk_120;
+select * from fk_1;
+select * from fk_50;
+
+--disable_query_log
+let $i = $fk_tables;
+while ($i)
+{
+  eval drop table fk_$i;
+  dec $i;
+}
+--enable_query_log
+
+drop table t1;
+
+--echo #
+--echo # Check if restrict is working fine.
+--echo #
+
+create table t1 (f1 int primary key) engine=innodb;
+
+let $fk_tables = 30;
+
+--disable_query_log
+let $i = $fk_tables;
+while ($i)
+{
+  eval create table fk_$i (f1 int primary key,
+          constraint pc$i foreign key (f1) references t1(f1)
+          on delete restrict on update restrict) engine=innodb;
+  eval insert into t1 values ($i);
+  eval insert into fk_$i values ($i);
+  dec $i;
+}
+--enable_query_log
+
+--source include/restart_mysqld.inc
+
+--error ER_ROW_IS_REFERENCED_2
+delete from t1 where f1 = 29;
+select * from fk_29;
+
+--disable_query_log
+let $i = $fk_tables;
+while ($i)
+{
+  eval drop table fk_$i;
+  dec $i;
+}
+--enable_query_log
+
+drop table t1;
+

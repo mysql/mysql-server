@@ -31,7 +31,6 @@ IF(WIN32)
     LINK_LIBRARIES Secur32
     MODULE_ONLY COMPONENT SharedLibraries)
 
-  #INSTALL_DEBUG_SYMBOLS(auth_win_client)
   #IF(MSVC)
   #   INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
   #ENDIF()
