@@ -4753,8 +4753,7 @@ os_aio_windows_handle(
 	mutex_enter(&array->mutex);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
-	    && !buf_page_cleaner_is_active
-	    && array->n_reserved == 0) {
+	    && !buf_page_cleaner_is_active) {
 		*message1 = NULL;
 		*message2 = NULL;
 		mutex_exit(&array->mutex);
