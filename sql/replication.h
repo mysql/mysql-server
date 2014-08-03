@@ -16,6 +16,20 @@
 #ifndef REPLICATION_H
 #define REPLICATION_H
 
+/***************************************************************************
+  NOTE: plugin locking.
+  This API was created specifically for the semisync plugin and its locking
+  logic is also matches semisync plugin usage pattern.  In particular, a plugin
+  is locked on Binlog_transmit_observer::transmit_start and is unlocked after
+  Binlog_transmit_observer::transmit_stop.  All other master observable events
+  happen between these two and don't lock the plugin at all. This works well
+  for the semisync_master plugin. 
+
+  Also a plugin is locked on Binlog_relay_IO_observer::thread_start
+  and unlocked after Binlog_relay_IO_observer::thread_stop. This works well for
+  the semisync_slave plugin.
+***************************************************************************/
+
 #include <mysql.h>
 
 typedef struct st_mysql MYSQL;

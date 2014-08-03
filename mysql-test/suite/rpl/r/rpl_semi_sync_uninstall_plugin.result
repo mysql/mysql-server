@@ -1,36 +1,61 @@
 include/master-slave.inc
 [connection master]
-INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
-INSTALL PLUGIN rpl_semi_sync_slave SONAME 'SEMISYNC_SLAVE_PLUGIN';
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master';
+[connection slave]
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave';
 UNINSTALL PLUGIN rpl_semi_sync_slave;
+[connection master]
 UNINSTALL PLUGIN rpl_semi_sync_master;
 CREATE TABLE t1(i int);
 INSERT INTO t1 values (1);
 DROP TABLE t1;
+[connection slave]
 include/install_semisync.inc
-call mtr.add_suppression("Plugin 'rpl_semi_sync_slave' cannot be uninstalled now");
+[connection slave]
 UNINSTALL PLUGIN rpl_semi_sync_slave;
-ERROR HY000: Unknown error
-call mtr.add_suppression("Plugin 'rpl_semi_sync_master' cannot be uninstalled now");
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
+plugin_name	plugin_status
+rpl_semi_sync_slave	DELETED
+[connection master]
 UNINSTALL PLUGIN rpl_semi_sync_master;
-ERROR HY000: Unknown error
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
+plugin_name	plugin_status
+rpl_semi_sync_master	DELETED
 CREATE TABLE t1(i int);
 INSERT INTO t1 values (2);
 DROP TABLE t1;
-include/assert.inc [semi sync slave status should be ON.]
-include/assert.inc [semi sync master status should be ON.]
-include/assert.inc [semi sync master clients should be 1.]
-SET GLOBAL rpl_semi_sync_master_enabled = OFF;
-include/assert.inc [semi sync master clients should be 1.]
-UNINSTALL PLUGIN rpl_semi_sync_master;
-ERROR HY000: Unknown error
+[connection slave]
+show status like "Rpl_semi_sync_slave_status";
+Variable_name	Value
+Rpl_semi_sync_slave_status	ON
+[connection master]
+show status like "Rpl_semi_sync_master_status";
+Variable_name	Value
+Rpl_semi_sync_master_status	ON
+show status like "Rpl_semi_sync_master_clients";
+Variable_name	Value
+Rpl_semi_sync_master_clients	1
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
+plugin_name	plugin_status
+rpl_semi_sync_master	DELETED
+[connection slave]
 include/stop_slave.inc
-SET GLOBAL rpl_semi_sync_slave_enabled = OFF;
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
+plugin_name	plugin_status
 include/start_slave.inc
-UNINSTALL PLUGIN rpl_semi_sync_slave;
-include/assert.inc [semi sync master clients should be 0.]
-UNINSTALL PLUGIN rpl_semi_sync_master;
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
+plugin_name	plugin_status
+[connection master]
+show status like "Rpl_semi_sync_master_clients";
+Variable_name	Value
+select plugin_name,plugin_status from information_schema.plugins where plugin_name like 'rpl_%';
+plugin_name	plugin_status
 CREATE TABLE t1(i int);
 INSERT INTO t1 values (3);
 DROP TABLE t1;
+[connection slave]
 include/rpl_end.inc

@@ -3388,9 +3388,10 @@ err_during_init:
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
   mysql_mutex_lock(&LOCK_thread_count);
+  thd->unlink();
+  mysql_mutex_unlock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
-  mysql_mutex_unlock(&LOCK_thread_count);
   mi->abort_slave= 0;
   mi->slave_running= 0;
   mi->io_thd= 0;

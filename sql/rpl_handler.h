@@ -26,13 +26,10 @@ class Observer_info {
 public:
   void *observer;
   st_plugin_int *plugin_int;
-  plugin_ref plugin;
 
   Observer_info(void *ob, st_plugin_int *p)
     :observer(ob), plugin_int(p)
-  {
-    plugin= plugin_int_to_ref(plugin_int);
-  }
+  { }
 };
 
 class Delegate {
