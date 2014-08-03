@@ -282,7 +282,8 @@ DECLARE_THREAD(io_handler_thread)(
 	}
 #endif /* UNIV_PFS_THREAD */
 
-	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS
+	       || buf_page_cleaner_is_active) {
 		fil_aio_wait(segment);
 	}
 
