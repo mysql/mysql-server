@@ -6513,17 +6513,17 @@ ha_innobase::intrinsic_table_write_row(uchar* record)
 	/* No auto-increment support for intrinsic table. */
 	ut_ad(!(table->next_number_field && record == table->record[0]));
 
-	if (prebuilt->mysql_template == NULL
-	    || prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
+	if (m_prebuilt->mysql_template == NULL
+	    || m_prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
 		/* Build the template used in converting quickly between
 		the two database formats */
 		build_template(true);
 	}
 
-	err = row_insert_for_mysql((byte*) record, prebuilt);
+	err = row_insert_for_mysql((byte*) record, m_prebuilt);
 
 	return(convert_error_code_to_mysql(
-		err, prebuilt->table->flags, m_user_thd));
+		err, m_prebuilt->table->flags, m_user_thd));
 }
 
 /********************************************************************//**
@@ -6543,7 +6543,7 @@ ha_innobase::write_row(
 
 	DBUG_ENTER("ha_innobase::write_row");
 
-	if (dict_table_is_intrinsic(prebuilt->table)) {
+	if (dict_table_is_intrinsic(m_prebuilt->table)) {
 		DBUG_RETURN(intrinsic_table_write_row(record));
 	}
 
