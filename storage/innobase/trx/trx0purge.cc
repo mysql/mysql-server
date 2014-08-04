@@ -862,7 +862,7 @@ trx_purge_mark_undo_for_truncate(
 		- already marked for truncate (OR)
 		- truncate disabled
 	return immediately else search for qualifying tablespace. */
-	if (undo_trunc->is_marked() || !srv_undo_truncate) {
+	if (undo_trunc->is_marked() || !srv_undo_log_truncate) {
 		return;
 	}
 

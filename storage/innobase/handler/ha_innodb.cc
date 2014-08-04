@@ -16881,7 +16881,7 @@ static MYSQL_SYSVAR_ULONG(purge_rseg_truncate_frequency,
   " purge rollback segment(s) on every Nth iteration of purge invocation",
   NULL, NULL, 128, 1, 128, 0);
 
-static MYSQL_SYSVAR_BOOL(undo_truncate, srv_undo_truncate,
+static MYSQL_SYSVAR_BOOL(undo_log_truncate, srv_undo_log_truncate,
   PLUGIN_VAR_OPCMDARG,
   "Enable or Disable Truncate of UNDO tablespace.",
   NULL, NULL, FALSE);
@@ -17227,7 +17227,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(undo_logs),
   MYSQL_SYSVAR(max_undo_log_size),
   MYSQL_SYSVAR(purge_rseg_truncate_frequency),
-  MYSQL_SYSVAR(undo_truncate),
+  MYSQL_SYSVAR(undo_log_truncate),
   MYSQL_SYSVAR(rollback_segments),
   MYSQL_SYSVAR(undo_directory),
   MYSQL_SYSVAR(undo_tablespaces),

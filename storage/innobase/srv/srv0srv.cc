@@ -115,7 +115,7 @@ Note: If enabled then UNDO tablespace will be selected for truncate.
 While Server waits for undo-tablespace to truncate if user disables
 it, truncate action is completed but no new tablespace is marked
 for truncate (action is never aborted). */
-my_bool	srv_undo_truncate = FALSE;
+my_bool	srv_undo_log_truncate = FALSE;
 
 /** Maximum size of undo tablespace. */
 unsigned long long	srv_max_undo_log_size;
