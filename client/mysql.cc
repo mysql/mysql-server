@@ -668,7 +668,6 @@ static COMMANDS commands[] = {
   { "NUMERIC", 0, 0, 0, ""},
   { "NVARCHAR", 0, 0, 0, ""},
   { "OFFSET", 0, 0, 0, ""},
-  { "OLD_PASSWORD", 0, 0, 0, ""},
   { "ON", 0, 0, 0, ""},
   { "ONE", 0, 0, 0, ""},
   { "ONE_SHOT", 0, 0, 0, ""},
@@ -1813,8 +1812,8 @@ static struct my_option my_long_options[] =
    &max_join_size, &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L,
    1, ULONG_MAX, 0, 1, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
-    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
+    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"server-arg", OPT_SERVER_ARG, "Send embedded server this as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
@@ -1947,6 +1946,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
 #endif
+    break;
+  case OPT_SECURE_AUTH:
+    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+    if (!opt_secure_auth)
+    {
+      usage(0);
+      exit(1);
+    }
     break;
   case OPT_SERVER_ARG:
 #ifdef EMBEDDED_LIBRARY
@@ -4972,9 +4979,6 @@ init_connection_options(MYSQL *mysql)
 
   if (opt_compress)
     mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
-
-  if (!opt_secure_auth)
-    mysql_options(mysql, MYSQL_SECURE_AUTH, (char *) &opt_secure_auth);
 
   if (using_opt_local_infile)
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);

@@ -1616,6 +1616,35 @@ void ha_partition::cleanup_new_partition(uint part_count)
       file++;
       part_count--;
     }
+    if (m_new_file && m_added_file)
+    {
+      /*
+        Remove m_added_file partitions from m_new_file since they are already
+        cleaned up.
+      */
+      file= m_new_file;
+      handler **new_file= file;
+      while (*file)
+      {
+        handler **added_file;
+        for (added_file= m_added_file; *added_file; added_file++)
+        {
+          if (*added_file == *file)
+          {
+            /* Skip this since it is already cleaned up. */
+            file++;
+            break;
+          }
+        }
+        if (*added_file)
+        {
+          /* Check next file. */
+          continue;
+        }
+        *(new_file++)= *(file++);
+      }
+      *new_file= NULL;
+    }
     m_added_file= NULL;
   }
   DBUG_VOID_RETURN;
@@ -2033,6 +2062,18 @@ int ha_partition::copy_partitions(ulonglong * const copied,
       }
       else
       {
+        if (m_new_file[new_part]->get_lock_type() != F_WRLCK)
+        {
+          /*
+             Technically HA_ERR_NOT_IN_LOCK_PARTITIONS, but all correct
+             partitions should be locked, hence we found a misplaced row.
+             Also good to get some extra info from print_error.
+          */
+          result= HA_ERR_ROW_IN_WRONG_PARTITION;
+          m_last_part= reorg_part;
+          m_err_rec= m_rec0;
+          goto error;
+        }
         THD *thd= ha_thd();
         /* Copy record to new handler */
         (*copied)++;
@@ -8021,11 +8062,16 @@ void ha_partition::print_error(int error, myf errflag)
   }
   else if (error == HA_ERR_ROW_IN_WRONG_PARTITION)
   {
-    /* Should only happen on DELETE or UPDATE! */
+    /*
+      Should only happen on DELETE or UPDATE!
+      Or in ALTER TABLE REBUILD/REORGANIZE where there are a misplaced
+      row that needed to move to an old partition (not in the given set).
+    */
     DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_DELETE ||
                 thd_sql_command(thd) == SQLCOM_DELETE_MULTI ||
                 thd_sql_command(thd) == SQLCOM_UPDATE ||
-                thd_sql_command(thd) == SQLCOM_UPDATE_MULTI);
+                thd_sql_command(thd) == SQLCOM_UPDATE_MULTI ||
+                thd_sql_command(thd) == SQLCOM_ALTER_TABLE);
     DBUG_ASSERT(m_err_rec);
     if (m_err_rec)
     {
@@ -8034,14 +8080,27 @@ void ha_partition::print_error(int error, myf errflag)
       String str(buf,sizeof(buf),system_charset_info);
       uint32 part_id;
       str.length(0);
-      str.append("(");
-      str.append_ulonglong(m_last_part);
-      str.append(" != ");
-      if (get_part_for_delete(m_err_rec, m_rec0, m_part_info, &part_id))
-        str.append("?");
+      if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
+      {
+        str.append("from REBUILD/REORGANIZED partition: ");
+        str.append_ulonglong(m_last_part);
+        str.append(" to non included partition (new definition): ");
+        if (get_part_for_delete(m_err_rec, m_rec0, m_part_info, &part_id))
+          str.append("?");
+        else
+          str.append_ulonglong(part_id);
+      }
       else
-        str.append_ulonglong(part_id);
-      str.append(")");
+      {
+        str.append("(");
+        str.append_ulonglong(m_last_part);
+        str.append(" != ");
+        if (get_part_for_delete(m_err_rec, m_rec0, m_part_info, &part_id))
+          str.append("?");
+        else
+          str.append_ulonglong(part_id);
+        str.append(")");
+      }
       append_row_to_str(str);
 
       /* Log this error, so the DBA can notice it and fix it! */
