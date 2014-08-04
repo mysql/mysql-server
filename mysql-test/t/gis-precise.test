@@ -608,6 +608,11 @@ select st_distance(st_geomfromtext('geometrycollection(geometrycollection(),poly
 Select st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('point(100 100)'));
 Select st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('linestring(0 0,10 10)'));
 
-
+--echo #
+--echo # Bug #19351967  CENTROID() AND COVEXHULL() ACCEPTS GEOMETRYCOLLECTION CONTAINING INVALID POLYGON
+--echo #
+SELECT AsText(ConvexHull(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
+--error ER_GIS_INVALID_DATA
+SELECT AsText(Centroid(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
 
 --source include/gis_debug.inc
