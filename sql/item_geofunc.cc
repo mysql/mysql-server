@@ -644,10 +644,20 @@ public:
 };
 
 
+/*
+  Compute a geometry collection's centroid in demension decreasing order:
+  If it has polygons, make them a multipolygon and compute its centroid as the
+  result; otherwise compose a multilinestring and compute its centroid as the
+  result; otherwise compose a multipoint and compute its centroid as the result.
+  @param geom the geometry collection.
+  @param[out] respt takes out the centroid point result.
+  @param[out] null_value returns whether the result is NULL.
+  @return whether got error, true if got error and false if successful.
+*/
 template <typename Coordsys>
 bool geometry_collection_centroid(const Geometry *geom,
                                   typename BG_models<double, Coordsys>::
-                                  Point &respt)
+                                  Point *respt, my_bool *null_value)
 {
   typename BG_models<double, Coordsys>::Multipolygon mplgn;
   Geometry_grouper<typename BG_models<double, Coordsys>::Polygon>
@@ -655,7 +665,7 @@ bool geometry_collection_centroid(const Geometry *geom,
 
   const char *wkb_start= geom->get_cptr();
   uint32 wkb_len0, wkb_len= geom->get_data_size();
-  bool null_value= false;
+  *null_value= false;
 
   /*
     The geometries with largest dimension determine the centroid, because
@@ -666,8 +676,10 @@ bool geometry_collection_centroid(const Geometry *geom,
               Geometry::wkb_geometrycollection, false, &plgn_grouper);
   if (mplgn.size() > 0)
   {
-    mplgn.normalize_ring_order();
-    boost::geometry::centroid(mplgn, respt);
+    if (mplgn.normalize_ring_order() == NULL)
+      return true;
+
+    boost::geometry::centroid(mplgn, *respt);
   }
   else
   {
@@ -678,7 +690,7 @@ bool geometry_collection_centroid(const Geometry *geom,
     wkb_scanner(wkb_start, &wkb_len,
                 Geometry::wkb_geometrycollection, false, &ls_grouper);
     if (mls.size() > 0)
-      boost::geometry::centroid(mls, respt);
+      boost::geometry::centroid(mls, *respt);
     else
     {
       typename BG_models<double, Coordsys>::Multipoint mpts;
@@ -688,13 +700,13 @@ bool geometry_collection_centroid(const Geometry *geom,
       wkb_scanner(wkb_start, &wkb_len,
                   Geometry::wkb_geometrycollection, false, &pt_grouper);
       if (mpts.size() > 0)
-        boost::geometry::centroid(mpts, respt);
+        boost::geometry::centroid(mpts, *respt);
       else
-        null_value= true;
+        *null_value= true;
     }
   }
 
-  return null_value;
+  return false;
 }
 
 
@@ -759,7 +771,11 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
       }
       break;
     case Geometry::wkb_geometrycollection:
-      null_value= geometry_collection_centroid<Coordsys>(geom, respt);
+      if (geometry_collection_centroid<Coordsys>(geom, &respt, &null_value))
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+        null_value= true;
+      }
       break;
     default:
       DBUG_ASSERT(false);

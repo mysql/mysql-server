@@ -957,6 +957,14 @@ st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0
 Select st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('linestring(0 0,10 10)'));
 st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,10 0,0 0)))'),st_geomfromtext('linestring(0 0,10 10)'))
 0
+#
+# Bug #19351967  CENTROID() AND COVEXHULL() ACCEPTS GEOMETRYCOLLECTION CONTAINING INVALID POLYGON
+#
+SELECT AsText(ConvexHull(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
+AsText(ConvexHull(GeomFromText('GeometryCollection(POLYGON((0 0)))')))
+LINESTRING(0 0,0 0,0 0)
+SELECT AsText(Centroid(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
+ERROR 22023: Invalid GIS data provided to function st_centroid.
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN
