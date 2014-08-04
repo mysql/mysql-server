@@ -6333,8 +6333,8 @@ struct btr_blob_log_check_t {
 	void check()
 	{
 		dict_index_t*	index = m_pcur->index();
-		ulint		offs;
-		ulint		page_no;
+		ulint		offs = 0;
+		ulint		page_no = ULINT_UNDEFINED;
 
 		if (m_op == BTR_STORE_INSERT_BULK) {
 			offs = page_offset(*m_rec);
@@ -6515,8 +6515,11 @@ btr_store_big_rec_extern_fields(
 	if (page_size.is_compressed()) {
 		for (ulint i = 0; i < big_rec_vec->n_fields; i++) {
 			total_blob_pages
-				+= (compressBound(big_rec_vec->fields[i].len)
-				    + payload_size_zip - 1) / payload_size_zip;
+				+= static_cast<ulint>
+				   (compressBound(static_cast<uLong>
+						  (big_rec_vec->fields[i].len))
+				    + payload_size_zip - 1)
+				   / payload_size_zip;
 		}
 	} else {
 		for (ulint i = 0; i < big_rec_vec->n_fields; i++) {

@@ -594,12 +594,19 @@ bool Sql_cmd_alter_table_exchange_partition::
   if (compare_table_with_partition(thd, swap_table, part_table, part_elem))
     DBUG_RETURN(TRUE);
 
-  /* Table and partition has same structure/options, OK to exchange */
+  /* Table and partition has same structure/options */
 
-  thd_proc_info(thd, "verifying data with partition");
+  if (alter_info->with_validation)
+  {
+    thd_proc_info(thd, "verifying data with partition");
 
-  if (verify_data_with_partition(swap_table, part_table, swap_part_id))
-    DBUG_RETURN(TRUE);
+    if (verify_data_with_partition(swap_table, part_table, swap_part_id))
+    {
+      DBUG_RETURN(true);
+    }
+  }
+
+  /* OK to exchange */
 
   /*
     Get exclusive mdl lock on both tables, alway the non partitioned table

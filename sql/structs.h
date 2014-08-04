@@ -260,10 +260,12 @@ public:
 } KEY;
 
 
-struct st_join_table;
+class JOIN_TAB;
+class QEP_TAB;
 
 typedef struct st_reginfo {		/* Extra info about reg */
-  struct st_join_table *join_tab;	/* Used by SELECT() */
+  class JOIN_TAB *join_tab;
+  class QEP_TAB *qep_tab;
   enum thr_lock_type lock_type;		/* How database is used */
   bool not_exists_optimize;
   /*
@@ -611,5 +613,23 @@ public:
   ulonglong maximum()     const { return (head ? tail->maximum() : 0); };
   uint      nb_elements() const { return elements; }
 };
+
+
+/**
+   This represents the index of a JOIN_TAB/QEP_TAB in an array. "plan_idx": "Plan
+   Table Index".
+   It is signed, because:
+   - firstmatch_return may be PRE_FIRST_PLAN_IDX (it can happen that the first
+   table of the plan uses FirstMatch: SELECT ... WHERE literal IN (SELECT
+   ...)).
+   - it must hold the invalid value NO_PLAN_IDX (which means "no
+   JOIN_TAB/QEP_TAB", equivalent of NULL pointer); this invalid value must
+   itself be different from PRE_FIRST_PLAN_IDX, to distinguish "FirstMatch to
+   before-first-table" (firstmatch_return==PRE_FIRST_PLAN_IDX) from "No
+   FirstMatch" (firstmatch_return==NO_PLAN_IDX).
+*/
+typedef int8 plan_idx;
+#define NO_PLAN_IDX (-2)          ///< undefined index
+#define PRE_FIRST_PLAN_IDX (-1) ///< right before the first (first's index is 0)
 
 #endif /* STRUCTS_INCLUDED */

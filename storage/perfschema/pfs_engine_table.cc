@@ -99,6 +99,8 @@
 #include "table_md_locks.h"
 #include "table_table_handles.h"
 
+#include "table_uvar_by_thread.h"
+
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
@@ -203,6 +205,8 @@ static PFS_engine_table_share *all_shares[]=
   &table_replication_execute_status_by_worker::m_share,
 
   &table_prepared_stmt_instances::m_share,
+
+  &table_uvar_by_thread::m_share,
   NULL
 };
 
@@ -571,6 +575,14 @@ void PFS_engine_table::set_field_longtext_utf8(Field *f, const char* str,
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
   Field_blob *f2= (Field_blob*) f;
   f2->store(str, len, &my_charset_utf8_bin);
+}
+
+void PFS_engine_table::set_field_blob(Field *f, const char* val,
+                                      uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
+  Field_blob *f2= (Field_blob*) f;
+  f2->store(val, len, &my_charset_utf8_bin);
 }
 
 void PFS_engine_table::set_field_enum(Field *f, ulonglong value)
