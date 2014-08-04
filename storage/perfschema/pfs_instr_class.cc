@@ -569,6 +569,7 @@ PFS_table_share::find_or_create_lock_stat()
   if (my_atomic_casptr(typed_addr, & old_ptr, ptr))
   {
     /* Ok. */
+    pfs->m_owner= this;
     return pfs;
   }
 
@@ -644,6 +645,7 @@ PFS_table_share::find_or_create_index_stat(const TABLE_SHARE *server_share, uint
   if (my_atomic_casptr(typed_addr, & old_ptr, ptr))
   {
     /* Ok. */
+    pfs->m_owner= this;
     return pfs;
   }
 
@@ -677,11 +679,23 @@ void PFS_table_share::destroy_index_stats()
 
 void PFS_table_share::refresh_setup_object_flags(PFS_thread *thread)
 {
+  bool old_enabled= m_enabled;
+
   lookup_setup_object(thread,
                       OBJECT_TYPE_TABLE,
                       m_schema_name, m_schema_name_length,
                       m_table_name, m_table_name_length,
                       &m_enabled, &m_timed);
+
+  /* 
+    If instrumentation for this table was enabled earlier and is disabled now,
+    cleanup slots reserved for lock stats and index stats.
+  */
+  if (old_enabled && ! m_enabled)
+  {
+    destroy_lock_stat();
+    destroy_index_stats();
+  }
 }
 
 /**
@@ -753,6 +767,7 @@ create_table_share_lock_stat()
 
 void release_table_share_lock_stat(PFS_table_share_lock *pfs)
 {
+  pfs->m_owner= NULL;
   pfs->m_lock.allocated_to_free();
   table_share_lock_stat_full= false;
   return;
@@ -850,6 +865,7 @@ create_table_share_index_stat(const TABLE_SHARE *server_share, uint server_index
 
 void release_table_share_index_stat(PFS_table_share_index *pfs)
 {
+  pfs->m_owner= NULL;
   pfs->m_lock.allocated_to_free();
   table_share_index_stat_full= false;
   return;
@@ -2081,7 +2097,7 @@ void update_program_share_derived_flags(PFS_thread *thread)
   for (; pfs < pfs_last ; pfs++)
   {
     if (pfs->m_lock.is_populated())
-      pfs->referesh_setup_object_flags(thread);
+      pfs->refresh_setup_object_flags(thread);
   }
 }
 

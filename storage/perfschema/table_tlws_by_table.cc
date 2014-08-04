@@ -438,7 +438,7 @@ int table_tlws_by_table::rnd_next(void)
        m_pos.m_index++)
   {
     table_share= &table_share_array[m_pos.m_index];
-    if (table_share->m_lock.is_populated())
+    if (table_share->m_lock.is_populated() && table_share->m_enabled)
     {
       make_row(table_share);
       m_next_pos.set_after(&m_pos);
