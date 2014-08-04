@@ -51,6 +51,7 @@
 #include "pfs_column_types.h"
 
 struct PFS_global_param;
+struct PFS_table_share;
 
 /**
   @addtogroup Performance_schema_buffers
@@ -259,15 +260,17 @@ struct PFS_table_key
 struct PFS_table_share_index
 {
   pfs_lock m_lock;
-  PFS_table_key m_key; /* the index name */
-  PFS_table_io_stat m_stat; /* the index stat */
+  PFS_table_key m_key; /* The index name */
+  PFS_table_io_stat m_stat; /* The index stat */
+  PFS_table_share* m_owner; /* Owner table share. To be used later. */
 };
 
 /* Lock statistics of a table.*/
 struct PFS_table_share_lock
 {
   pfs_lock m_lock;
-  PFS_table_lock_stat m_stat;
+  PFS_table_lock_stat m_stat; /* Lock stats. */
+  PFS_table_share* m_owner; /* Owner table share. To be used later. */
 };
 
 /** Instrumentation metadata for a table share. */
