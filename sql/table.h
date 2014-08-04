@@ -986,6 +986,8 @@ struct st_table {
   inline bool needs_reopen_or_name_lock()
   { return s->version != refresh_version; }
   bool alloc_keys(uint key_count);
+  bool check_tmp_key(uint key, uint key_parts,
+                     uint (*next_field_no) (uchar *), uchar *arg);
   bool add_tmp_key(uint key, uint key_parts,
                    uint (*next_field_no) (uchar *), uchar *arg,
                    bool unique);
