@@ -87,7 +87,7 @@ innobase_invalidate_query_cache(
 	trx_t*		trx,		/*!< in: transaction which
 					modifies the table */
 	const char*	full_name,	/*!< in: concatenation of
-					database name, null char NUL,
+					database name, path separator,
 					table name, null char NUL;
 					NOTE that in Windows this is
 					always in LOWER CASE! */
