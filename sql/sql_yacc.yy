@@ -6250,8 +6250,9 @@ field_def:
           type opt_attribute {}
         | VIRTUAL_SYM type AS '(' virtual_column_func ')' vcol_opt_attribute
           {
-            $$=MYSQL_TYPE_VIRTUAL;
+            $$= $2;
             Lex->vcol_info->set_field_type((enum enum_field_types) $2);
+            Lex->type|= VIRTUAL_FLAG;
           }
         ;
 

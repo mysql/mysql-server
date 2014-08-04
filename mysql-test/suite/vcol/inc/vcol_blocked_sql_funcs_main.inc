@@ -316,8 +316,10 @@ let $tmp_long_string = `SELECT repeat('a',240)`;
 eval create table t1 (a int, b virtual varchar(300) as (concat(a,'$tmp_long_string')));
 drop table t1;
 let $tmp_long_string = `SELECT repeat('a',243)`;
---error 1470
+# Limit is lifted to 64K. TODO write a test for it.
+# --error 1470
 eval create table t1 (a int, b virtual varchar(300) as (concat(a,'$tmp_long_string')));
+drop table t1;
 
 --echo #
 --echo # Constant expression

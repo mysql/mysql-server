@@ -1672,17 +1672,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
       }
 
-      if (field_type == MYSQL_TYPE_VIRTUAL)
-      {
-        DBUG_ASSERT(interval_nr); // Expect non-null expression
-        /* 
-          The interval_id byte in the .frm file stores the length of the
-          expression statement for a virtual column.
-        */
-        vcol_info_length= interval_nr;
-        interval_nr= 0;
-      }
-
       if (!comment_length)
       {
 	comment.str= (char*) "";
@@ -1695,14 +1684,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	comment_pos+=   comment_length;
       }
 
-      if (vcol_info_length)
+      if (unireg_type & Field::VIRTUAL_FIELD)
       {
         /*
           Get virtual column data stored in the .frm file as follows:
           byte 1      = 1 (always 1 to allow for future extensions)
-          byte 2      = sql_type
-          byte 3      = flags (as of now, 0 - no flags, 1 - field is physically stored)
-          byte 4-...  = virtual column expression (text data)
+          byte 2,3    = expression length
+          byte 4      = flags, as of now:
+                          0 - no flags
+                          1 - field is physically stored
+          byte 5-...  = virtual column expression (text data)
         */
         vcol_info= new virtual_column_info();
         if ((uint)vcol_screen_pos[0] != 1)
@@ -1710,14 +1701,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           error= 4;
           goto err;
         }
-        field_type= (enum_field_types) (uchar) vcol_screen_pos[1];
-        fld_stored_in_db= (bool) (uint) vcol_screen_pos[2];
+
+        vcol_info_length= uint2korr(vcol_screen_pos + 1);
+        DBUG_ASSERT(vcol_info_length); // Expect non-null expression
+
+        fld_stored_in_db= (bool) (uint) vcol_screen_pos[3];
         vcol_info->expr_str.str= (char *)memdup_root(&share->mem_root,
                                                      vcol_screen_pos+
                                                        (uint)FRM_VCOL_HEADER_SIZE,
-                                                     vcol_info_length-
-                                                       (uint)FRM_VCOL_HEADER_SIZE);
-        vcol_info->expr_str.length= vcol_info_length-(uint)FRM_VCOL_HEADER_SIZE;
+                                                     vcol_info_length);
+        vcol_info->expr_str.length= vcol_info_length;
         vcol_screen_pos+= vcol_info_length;
         share->vfields++;
       }

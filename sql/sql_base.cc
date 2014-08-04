@@ -7058,8 +7058,10 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
         DBUG_ASSERT(vcol_item);
         vcol_item->walk(&Item::register_field_in_read_map, Item::WALK_PREFIX,
                         (uchar *) 0);
-        /* 
-          Set the virtual field for write here if 
+        /*
+          As non-persistent virtual columns are calculated on the fly, they
+          needs to be stored (written, even for read-only statements) to the
+          field in order to be used, so set the virtual field for write here if
           1) this procedure is called for a read-only operation (SELECT), and
           2) the virtual column is not phycically stored in the table
         */

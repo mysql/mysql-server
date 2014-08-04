@@ -459,7 +459,7 @@ public:
   Item *item_free_list;
   virtual_column_info() 
   : expr_item(0), item_free_list(0),
-    field_type(MYSQL_TYPE_VIRTUAL),
+    field_type(MYSQL_TYPE_LONG),
     stored_in_db(FALSE), data_inited(FALSE)
   {
     expr_str.str= NULL;
@@ -469,7 +469,7 @@ public:
   enum_field_types get_real_type()
   {
     DBUG_ASSERT(data_inited);
-    return data_inited ? field_type : MYSQL_TYPE_VIRTUAL;
+    return field_type;
   }
   void set_field_type(enum_field_types fld_type)
   {
@@ -481,7 +481,7 @@ public:
   bool get_field_stored()
   {
     DBUG_ASSERT(data_inited);
-    return data_inited ? stored_in_db : TRUE;
+    return stored_in_db;
   }
   void set_field_stored(bool stored)
   {
@@ -594,7 +594,9 @@ public:
   enum utype  { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
 		CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
                 BIT_FIELD, TIMESTAMP_OLD_FIELD, CAPITALIZE, BLOB_FIELD,
-                TIMESTAMP_DN_FIELD, TIMESTAMP_UN_FIELD, TIMESTAMP_DNUN_FIELD};
+                TIMESTAMP_DN_FIELD, TIMESTAMP_UN_FIELD, TIMESTAMP_DNUN_FIELD,
+                // This value is used as a flag in addition to above
+                VIRTUAL_FIELD= 128 };
   enum geometry_type
   {
     GEOM_GEOMETRY = 0, GEOM_POINT = 1, GEOM_LINESTRING = 2, GEOM_POLYGON = 3,
