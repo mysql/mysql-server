@@ -79,4 +79,20 @@ inline Target down_cast(Source arg)
   return static_cast<Target>(arg);
 }
 
+
+/**
+   Sometimes the compiler insists that types be the same and does not do any
+   implicit conversion. For example:
+   Derived1 *a;
+   Derived2 *b; // Derived1 and 2 are children classes of Base
+   Base *x= cond ? a : b; // Error, need to force a cast.
+
+   Use:
+   Base *x= cond ? implicit_cast<Base*>(a) : implicit_cast<Base*>(b);
+   static_cast would work too, but would be less safe (allows any
+   pointer-to-pointer conversion, not only up-casts).
+*/
+template<typename To>
+inline To implicit_cast(To x) { return x; }
+
 #endif  // TEMPLATE_UTILS_INCLUDED

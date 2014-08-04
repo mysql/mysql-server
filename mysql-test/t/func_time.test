@@ -1127,3 +1127,32 @@ DO maketime(~0, 49, 0.123456789);
 --echo #
 
 DO is_used_lock(ifnull(now(), CASE 1 WHEN 1 THEN NULL END));
+
+
+--echo #
+--echo # BUG#18675237  NOW() : MISSING FRACTIONAL SECONDS FROM A VIEW
+--echo #
+
+SET @@TIMESTAMP= UNIX_TIMESTAMP('2014-05-27 10:20:30.123456');
+
+CREATE VIEW v1 AS SELECT NOW(6), CURTIME(4), LOCALTIME(3), CURRENT_TIME(2),
+CURRENT_TIMESTAMP(0), LOCALTIMESTAMP(1), UTC_TIME(4), UTC_TIMESTAMP(4);
+
+--echo # After the patch, the decimal value is printed for the temporal
+--echo # functions. 
+SHOW CREATE VIEW v1;
+
+--echo # After the patch, the fractional seconds are displayed.
+SELECT * FROM v1;
+
+--echo #Adding separate case for SYSDATE, since its value cannot
+--echo #be fixed and varies with every run.
+CREATE VIEW v2 AS SELECT LOCATE(".", SYSDATE(6)) != 0;
+SHOW CREATE VIEW v2;
+
+--echo #After the patch, will return the value as '1'(Condition is true).
+SELECT * FROM v2;
+
+--echo # Cleanup
+DROP VIEW v1, v2;
+SET @@TIMESTAMP= DEFAULT;

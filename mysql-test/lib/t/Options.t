@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,26 +23,26 @@ use_ok("My::Options");
 my @tests=
 (
   [
-   ['--binlog-format=row', '--loose-skip-innodb', '--binlog-format=ms'],
-   ['--binlog-format=row', '--loose-skip-innodb', '--binlog-format=statement'],
+   ['--binlog-format=row', '--binlog-format=ms'],
+   ['--binlog-format=row', '--binlog-format=statement'],
    ['--binlog-format=statement']
   ],
 
   [
-   ['--binlog-format=row', '--loose-skip-innodb', '--binlog-format=statement'],
-   ['--binlog-format=row', '--loose-skip-innodb', '--binlog-format=mixed'],
+   ['--binlog-format=row', '--binlog-format=statement'],
+   ['--binlog-format=row', '--binlog-format=mixed'],
    ['--binlog-format=mixed']
   ],
 
   [
-   ['--binlog-format=row', '--loose-skip-innodb', '--binlog-format=mixed'],
-   ['--binlog-format=row', '--loose-skip-innodb', '--binlog-format=statement'],
+   ['--binlog-format=row', '--binlog-format=mixed'],
+   ['--binlog-format=row', '--binlog-format=statement'],
    ['--binlog-format=statement']
   ],
 
   [
-   ['--binlog-format=mixed', '--loose-skip-innodb', '--binlog-format=row'],
-   ['--binlog-format=statement', '--loose-skip-innodb', '--binlog-format=row'],
+   ['--binlog-format=mixed', '--binlog-format=row'],
+   ['--binlog-format=statement', '--binlog-format=row'],
    [ ]
   ],
 

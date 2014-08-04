@@ -603,76 +603,6 @@ innodb_api_fill_mci(
 }
 
 /*************************************************************//**
-Copy data from a read tuple and instantiate a "mci_column_t" structure
-@return true if successful */
-static
-bool
-innodb_api_copy_mci(
-/*================*/
-	ib_tpl_t	read_tpl,	/*!< in: Read tuple */
-	int		col_id,		/*!< in: Column ID for the column to
-					read */
-	mci_column_t*	mci_item)	/*!< out: item to fill */
-{
-	ib_ulint_t      data_len;
-	ib_col_meta_t   col_meta;
-
-	data_len = ib_cb_col_get_meta(read_tpl, col_id, &col_meta);
-
-	if (data_len == IB_SQL_NULL) {
-		mci_item->value_str = NULL;
-		mci_item->value_len = 0;
-		mci_item->allocated = false;
-	} else {
-		if (col_meta.type == IB_INT) {
-			mci_item->value_str = malloc(50);
-			memset(mci_item->value_str, 0, 50);
-
-			if (col_meta.attr == IB_COL_UNSIGNED) {
-				uint64_t int_val = 0;
-
-				int_val = innodb_api_read_uint64(&col_meta,
-								 read_tpl,
-								 col_id);
-
-				sprintf(mci_item->value_str,
-					"%" PRIu64, int_val);
-			} else {
-				int64_t int_val = 0;
-
-				int_val = innodb_api_read_int(&col_meta,
-							      read_tpl,
-							      col_id);
-
-				sprintf(mci_item->value_str,
-					"%" PRIi64, int_val);
-			}
-
-			mci_item->value_len = strlen(mci_item->value_str);
-			mci_item->allocated = true;
-
-		} else {
-			mci_item->value_str = malloc(data_len);
-
-			if (!mci_item->value_str) {
-				return(false);
-			}
-
-			mci_item->allocated = true;
-			memcpy(mci_item->value_str,
-			       ib_cb_col_get_value(read_tpl, col_id),
-			       data_len);
-			mci_item->value_len = data_len;
-		}
-	}
-
-	mci_item->is_str = true;
-	mci_item->is_valid = true;
-
-	return(true);
-}
-
-/*************************************************************//**
 Fetch value from a read cursor into "mci_items"
 @return DB_SUCCESS if successful */
 static
@@ -683,8 +613,7 @@ innodb_api_fill_value(
 			meta_info,	/*!< in: Metadata */
 	mci_item_t*	item,		/*!< out: item to fill */
 	ib_tpl_t	read_tpl,	/*!< in: read tuple */
-	int		col_id,		/*!< in: column Id */
-	bool		alloc_mem)	/*!< in: allocate memory */
+	int		col_id)		/*!< in: column Id */
 {
 	ib_err_t	err = DB_NOT_FOUND;
 
@@ -695,15 +624,9 @@ innodb_api_fill_value(
 
 		if (col_id == col_info[CONTAINER_VALUE].field_id) {
 
-			if (alloc_mem) {
-				innodb_api_copy_mci(
-					read_tpl, col_id,
-					&item->col_value[MCI_COL_VALUE]);
-			} else {
-				innodb_api_fill_mci(
-					read_tpl, col_id,
-					&item->col_value[MCI_COL_VALUE]);
-			}
+			innodb_api_fill_mci(
+				read_tpl, col_id,
+				&item->col_value[MCI_COL_VALUE]);
 
 			err = DB_SUCCESS;
 		}
@@ -712,15 +635,9 @@ innodb_api_fill_value(
 
 		for (i = 0; i < meta_info->n_extra_col; i++) {
 			if (col_id == meta_info->extra_col_info[i].field_id) {
-				if (alloc_mem) {
-					innodb_api_copy_mci(
-						read_tpl, col_id,
-						&item->extra_col_value[i]);
-				} else {
-					innodb_api_fill_mci(
-						read_tpl, col_id,
-						&item->extra_col_value[i]);
-				}
+				innodb_api_fill_mci(
+					read_tpl, col_id,
+					&item->extra_col_value[i]);
 
 				err = DB_SUCCESS;
 				break;
@@ -970,7 +887,7 @@ innodb_api_search(
 			     && i == col_info[CONTAINER_VALUE].field_id)
 			    || meta_info->n_extra_col) {
 				innodb_api_fill_value(meta_info, item,
-						      read_tpl, i, false);
+						      read_tpl, i);
 			}
 		}
 

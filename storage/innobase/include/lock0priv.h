@@ -67,8 +67,9 @@ struct lock_t {
 
 	dict_index_t*	index;		/*!< index for a record lock */
 
-	hash_node_t	hash;		/*!< hash chain node for a record
-					lock */
+	lock_t*		hash;		/*!< hash chain node for a record
+					lock. The link node in a singly linked
+					list, used during hashing. */
 
 	union {
 		lock_table_t	tab_lock;/*!< table lock */
@@ -438,7 +439,7 @@ lock_clust_rec_some_has_impl(
 	const rec_t*		rec,	/*!< in: user record */
 	const dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
 Gets the first or next record lock on a page.
