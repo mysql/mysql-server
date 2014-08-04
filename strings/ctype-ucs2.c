@@ -750,10 +750,10 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
   negative= 0;
   if (wc == '-')
   {
-    *error= -1;                                        /* Mark as negative number */
+    *error= -1;                          /* Mark as negative number */
     negative= 1;
     res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
-    if (res < 0)
+    if (res <= 0)
       goto no_conv;
     s+= res;
     cutoff=  MAX_NEGATIVE_NUMBER / LFACTOR2;
@@ -766,7 +766,7 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
     if (wc == '+')
     {
       res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
-      if (res < 0)
+      if (res <= 0)
         goto no_conv;
       s+= res;
     }
@@ -785,7 +785,7 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
       if (s == end)
         goto end_i;                                /* Return 0 */
       res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
-      if (res < 0)
+      if (res <= 0)
         goto no_conv;
       if (wc != '0')
         break;
@@ -808,7 +808,7 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
   for ( ; ; )
   {
     res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) n_end);
-    if (res < 0)
+    if (res <= 0)
       break;
     s+= res;
     if ((c= (wc - '0')) > 9)
@@ -827,7 +827,7 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
   do
   {
     res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
-    if (res < 0)
+    if (res <= 0)
       goto no_conv;
     s+= res;
     if ((c= (wc - '0')) > 9)
@@ -841,7 +841,7 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
     goto end3;
   }
   res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
-  if (res < 0)
+  if (res <= 0)
     goto no_conv;
   s+= res;
   if ((c= (wc - '0')) > 9)
@@ -852,7 +852,7 @@ my_strtoll10_mb2(const CHARSET_INFO *cs,
   if (s == end)
     goto end4;
   res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
-  if (res < 0)
+  if (res <= 0)
     goto no_conv;
   s+= res;
   if ((c= (wc - '0')) > 9)
@@ -1398,9 +1398,8 @@ my_strnncollsp_utf16(const CHARSET_INFO *cs,
 
     for ( ; s < se; s+= s_res)
     {
-      if ((s_res= cs->cset->mb_wc(cs, &s_wc, s, se)) < 0)
+      if ((s_res= cs->cset->mb_wc(cs, &s_wc, s, se)) <= 0)
       {
-        DBUG_ASSERT(0);
         return 0;
       }
       if (s_wc != ' ')
@@ -1595,9 +1594,8 @@ my_strnncollsp_utf16_bin(const CHARSET_INFO *cs,
 
     for ( ; s < se; s+= s_res)
     {
-      if ((s_res= cs->cset->mb_wc(cs, &s_wc, s, se)) < 0)
+      if ((s_res= cs->cset->mb_wc(cs, &s_wc, s, se)) <= 0)
       {
-        DBUG_ASSERT(0);
         return 0;
       }
       if (s_wc != ' ')
