@@ -1001,7 +1001,7 @@ public:
   /**
     Get coordinator's RLI. Especially used get the rli from
     a slave thread, like this: thd->rli_slave->get_c_rli();
-    thd could be a slave worker or a worker
+    thd could be a SQL thread or a worker thread
   */
   virtual Relay_log_info* get_c_rli()
   {

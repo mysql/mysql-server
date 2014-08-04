@@ -309,7 +309,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
         set_field_char_utf8(f, m_row.channel_name,m_row.channel_name_length);
         break;
       case 1: /** source_uuid */
-        if (m_row.source_uuid[0] !=0)
+        if (m_row.source_uuid[0] != 0)
           set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
         break;
       case 2: /** thread_id */

@@ -21,7 +21,7 @@
 #include "rpl_info_handler.h"
 #include "rpl_reporting.h"
 
-#define  CHANNELNAME_LENGTH NAME_LEN 
+#define  CHANNEL_NAME_LENGTH NAME_LEN
 
 class Rpl_info : public Slave_reporting_capability
 {
@@ -176,7 +176,7 @@ protected:
      Every slave info object acts on a particular channel in Multisource
      Replication.
   */
-  char channel[CHANNELNAME_LENGTH+1];
+  char channel[CHANNEL_NAME_LENGTH+1];
 
   Rpl_info(const char* type
 #ifdef HAVE_PSI_INTERFACE

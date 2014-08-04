@@ -28,7 +28,7 @@
 #include "rpl_mi.h"
 #include "mysql_com.h"
 #include "rpl_msr.h"
-#include "rpl_info.h" /*CHANNELNAME_LENGTH*/
+#include "rpl_info.h" /*CHANNEL_NAME_LENGTH*/
 
 class Master_info;
 
@@ -51,7 +51,7 @@ enum enum_rpl_yes_no {
   additional length field denoted by <field_name>_length.
 */
 struct st_row_coordinator {
-  char channel_name[CHANNELNAME_LENGTH];
+  char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   ulonglong thread_id;
   bool thread_id_is_null;

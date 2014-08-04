@@ -1187,7 +1187,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   }
 
   /**
-    Clear the gtid set for this channel.
+    Clear the retrieved gtid set for this channel.
     global_sid_lock->wrlock() is needed.
   */
   global_sid_lock->wrlock();
@@ -1260,9 +1260,9 @@ Relay_log_info::add_channel_to_relay_log_name(char *buff, uint buff_size,
     ptr= strmake(ptr, "-", suffix_buff_size-1);
 
     /*
-      Convert the channel to the file names charset. Channel name
-      is UTF8_general_ci always. As it was defined as utf8 in the mysql.slaveinfo
-      tables.
+      Convert the channel name to the file names charset.
+      Channel name is in system_charset which is UTF8_general_ci
+      as it was defined as utf8 in the mysql.slaveinfo tables.
     */
     length= strconvert(system_charset_info, channel, &my_charset_filename,
                        channel_to_file, NAME_LEN, &errors);

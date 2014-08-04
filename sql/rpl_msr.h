@@ -207,6 +207,8 @@ public:
   */
   inline bool is_valid_channel_count()
   {
+    DBUG_EXECUTE_IF("max_replication_channels_exceeded",
+                    current_mi_count= MAX_CHANNELS+1;);
     return (current_mi_count < MAX_CHANNELS);
   }
 

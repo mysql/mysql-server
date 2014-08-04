@@ -28,7 +28,7 @@
 #include "rpl_mi.h"
 #include "mysql_com.h"
 #include "rpl_msr.h"
-#include "rpl_info.h" /*CHANNELNAME_LENGTH*/
+#include "rpl_info.h" /*CHANNEL_NAME_LENGTH*/
 
 class Master_info;
 
@@ -48,7 +48,7 @@ enum enum_rpl_yes_no {
 
 /** A row in the table. */
 struct st_row_execute_status {
-  char channel_name[65];
+  char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   enum_rpl_yes_no service_state;
   uint remaining_delay;
