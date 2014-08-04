@@ -245,7 +245,7 @@ extern unsigned long long	srv_max_undo_log_size;
 extern ulong	srv_purge_rseg_truncate_frequency;
 
 /** Enable or Disable Truncate of UNDO tablespace. */
-extern my_bool	srv_undo_truncate;
+extern my_bool	srv_undo_log_truncate;
 
 /** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
 extern const ulong	srv_tmp_undo_logs;
