@@ -2220,6 +2220,260 @@ void Item_func_abs::fix_length_and_dec()
 }
 
 
+void Item_func_latlongfromgeohash::fix_length_and_dec()
+{
+  Item_real_func::fix_length_and_dec();
+  unsigned_flag= FALSE;
+}
+
+
+bool Item_func_latlongfromgeohash::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_real_func::fix_fields(thd, ref))
+    return true;
+
+  maybe_null= args[0]->maybe_null;
+
+  if (!check_geohash_argument_valid_type(args[0]))
+  {
+    my_error(ER_INCORRECT_TYPE, MYF(0), "geohash", func_name());
+    return true;
+  }
+
+  return false;
+}
+
+
+/**
+  Checks if geohash arguments is of valid type
+
+  We must enforce that input actually is text/char, since
+  SELECT LongFromGeohash(0123) would give different (and wrong) result,
+  as opposed to SELECT LongFromGeohash("0123").
+
+  @param item Item to validate.
+
+  @return false if validation failed. true if item is a valid type.
+*/
+bool
+Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
+{
+  /*
+    If charset is not binary and field_type() is BLOB,
+    we have a TEXT column (which is allowed).
+  */
+  bool is_binary_charset= (item->collation.collation == &my_charset_bin);
+
+  switch (item->field_type())
+  {
+  case MYSQL_TYPE_NULL:
+    return true;
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+    return !is_binary_charset;
+  default:
+    return false;
+  }
+}
+
+
+/**
+  Decodes a geohash string into longitude and latitude.
+
+  The results are rounded,  based on the length of input geohash. The function
+  will stop evaluating when the error range, or "accuracy", has become 0.0 for
+  both latitude and longitude since no more changes can happen after this.
+
+  @param geohash The geohash to decode.
+  @param upper_latitude Upper limit of returned latitude (normally 90.0).
+  @param upper_latitude Lower limit of returned latitude (normally -90.0).
+  @param upper_latitude Upper limit of returned longitude (normally 180.0).
+  @param upper_latitude Lower limit of returned longitude (normally -180.0).
+  @param[out] result_latitude Calculated latitude.
+  @param[out] result_longitude Calculated longitude.
+
+  @return false on success, true on failure (invalid geohash string).
+*/
+bool
+Item_func_latlongfromgeohash::decode_geohash(String *geohash,
+                                             double upper_latitude,
+                                             double lower_latitude,
+                                             double upper_longitude,
+                                             double lower_longitude,
+                                             double *result_latitude,
+                                             double *result_longitude)
+{
+  double latitiude_accuracy= (upper_latitude - lower_latitude) / 2.0;
+  double longitude_accuracy= (upper_longitude - lower_longitude) / 2.0;
+
+  double latitude_value= (upper_latitude + lower_latitude) / 2.0;
+  double longitude_value= (upper_longitude + lower_longitude) / 2.0;
+
+  uint number_of_bits_used= 0;
+  uint input_length= geohash->length();
+
+  for (uint i= 0;
+       i < input_length && latitiude_accuracy > 0.0 && longitude_accuracy > 0.0;
+       i++)
+  {
+    char input_character= my_tolower(geohash->charset(), (*geohash)[i]);
+
+    /*
+     The following part will convert from character value to a
+     contiguous value from 0 to 31, where "0" = 0, "1" = 1 ... "z" = 31.
+     It will also detect characters that aren't allowed.
+    */
+    int converted_character;
+    if (input_character >= '0' && input_character <= '9')
+    {
+      converted_character= input_character - '0';
+    }
+    else if (input_character >= 'b' && input_character <= 'z' &&
+             input_character != 'i' &&
+             input_character != 'l' &&
+             input_character != 'o')
+    {
+      if (input_character > 'o')
+        converted_character= input_character - ('b' - 10 + 3);
+      else if (input_character > 'l')
+        converted_character= input_character - ('b' - 10 + 2);
+      else if (input_character > 'i')
+        converted_character= input_character - ('b' - 10 + 1);
+      else
+        converted_character= input_character - ('b' - 10);
+    }
+    else
+    {
+      return true;
+    }
+
+    DBUG_ASSERT(converted_character >= 0 && converted_character <= 31);
+
+    /*
+     This loop decodes 5 bits of data. Every even bit (counting from 0) is 
+     used for longitude value, and odd bits are used for latitude value.
+    */
+    for (int bit_number= 4; bit_number >= 0; bit_number-= 1)
+    {
+      if (number_of_bits_used % 2 == 0)
+      {
+        longitude_accuracy/= 2.0;
+
+        if (converted_character & (1 << bit_number))
+          longitude_value+= longitude_accuracy;
+        else
+          longitude_value-= longitude_accuracy;
+      }
+      else
+      {
+        latitiude_accuracy/= 2.0;
+
+        if (converted_character & (1 << bit_number))
+          latitude_value+= latitiude_accuracy;
+        else
+          latitude_value-= latitiude_accuracy;
+      }
+
+      number_of_bits_used++;
+
+      DBUG_ASSERT(latitude_value >= lower_latitude &&
+                  latitude_value <= upper_latitude &&
+                  longitude_value >= lower_longitude &&
+                  longitude_value <= upper_longitude);
+    }
+  }
+
+  *result_latitude= round_latlongitude(latitude_value,
+                                       latitiude_accuracy * 2.0);
+  *result_longitude= round_latlongitude(longitude_value,
+                                        longitude_accuracy * 2.0);
+
+  return false;
+}
+
+
+/**
+  Rounds a latitude or longitude value.
+
+  This will round a latitude or longitude value, based on error_range.
+  The error_range is the difference between upper and lower lat/longitude
+  (e.g upper value of 45.0 and a lower value of 22.5, gives an error range of
+  22.5).
+
+  @param latlongitude The latitude or longitude to round.
+  @param error_range The total error range of the calculated laglongitude.
+
+  @return A rounded latitude or longitude.
+*/
+double Item_func_latlongfromgeohash::round_latlongitude(double latlongitude,
+                                                        double error_range)
+{
+  if (error_range == 0.0)
+  {
+    return latlongitude;
+  }
+  else
+  {
+    uint number_of_decimals= 0;
+    while (error_range < 0.1)
+    {
+      number_of_decimals++;
+      error_range*= 10.0;
+    }
+
+    double rounded_result= my_double_round(latlongitude,
+                                           number_of_decimals,
+                                           false,
+                                           false);
+    // Avoid printing signed zero.
+    return rounded_result + 0.0;
+  }
+}
+
+
+/**
+  Decodes a geohash into longitude if start_on_even_bit == true, or latitude if
+  start_on_even_bit == false. The output will be rounded based on the length
+  of the geohash.
+*/
+double Item_func_latlongfromgeohash::val_real()
+{
+  DBUG_ASSERT(fixed == TRUE);
+
+  String buf;
+  String *input_value= args[0]->val_str_ascii(&buf);
+
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+
+  if (input_value->length() == 0)
+  {
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
+             func_name());
+    return error_real();
+  }
+
+  double latitude= 0.0;
+  double longitude= 0.0;
+  if (decode_geohash(input_value, upper_latitude, lower_latitude,
+                     upper_longitude, lower_longitude, &latitude, &longitude))
+  {
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", input_value->c_ptr(),
+             func_name());
+    return error_real();
+  }
+
+  // Return longitude if start_on_even_bit == true. Otherwise, return latitude.
+  if (start_on_even_bit)
+    return longitude;
+  return latitude;
+}
+
+
 /** Gateway to natural LOG function. */
 double Item_func_ln::val_real()
 {
@@ -5261,10 +5515,14 @@ longlong Item_func_sleep::val_int()
   @param cs  character set; IF we are creating the user_var_entry,
              we give it this character set.
 */
-static user_var_entry *get_variable(HASH *hash, const Name_string &name,
+static user_var_entry *get_variable(THD *thd, const Name_string &name,
                                     const CHARSET_INFO *cs)
 {
   user_var_entry *entry;
+  HASH *hash= & thd->user_vars;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_assert_owner(&thd->LOCK_thd_data);
 
   if (!(entry= (user_var_entry*) my_hash_search(hash, (uchar*) name.ptr(),
                                                  name.length())) &&
@@ -5272,7 +5530,7 @@ static user_var_entry *get_variable(HASH *hash, const Name_string &name,
   {
     if (!my_hash_inited(hash))
       return 0;
-    if (!(entry= user_var_entry::create(name, cs)))
+    if (!(entry= user_var_entry::create(thd, name, cs)))
       return 0;
     if (my_hash_insert(hash,(uchar*) entry))
     {
@@ -5301,7 +5559,12 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
           (args[0]->collation.derivation == DERIVATION_NUMERIC ?
           default_charset() : args[0]->collation.collation) : NULL;
 
-    if (!(entry= get_variable(&thd->user_vars, name, cs)))
+    /* Protects thd->user_vars. */
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    entry= get_variable(thd, name, cs);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+    if (entry == NULL)
     {
       entry_thread_id= 0;
       return TRUE;
@@ -5424,6 +5687,8 @@ bool user_var_entry::realloc(size_t length)
 */
 bool user_var_entry::store(const void *from, size_t length, Item_result type)
 {
+  assert_locked();
+
   // Store strings with end \0
   if (realloc(length + MY_TEST(type == STRING_RESULT)))
     return true;
@@ -5470,6 +5735,8 @@ bool user_var_entry::store(const void *ptr, size_t length, Item_result type,
                            const CHARSET_INFO *cs, Derivation dv,
                            bool unsigned_arg)
 {
+  assert_locked();
+
   if (store(ptr, length, type))
     return true;
   collation.set(cs, dv);
@@ -5477,6 +5744,17 @@ bool user_var_entry::store(const void *ptr, size_t length, Item_result type,
   return false;
 }
 
+void user_var_entry::lock()
+{
+  DBUG_ASSERT(m_owner != NULL);
+  mysql_mutex_lock(&m_owner->LOCK_thd_data);
+}
+
+void user_var_entry::unlock()
+{
+  DBUG_ASSERT(m_owner != NULL);
+  mysql_mutex_unlock(&m_owner->LOCK_thd_data);
+}
 
 bool
 Item_func_set_user_var::update_hash(const void *ptr, uint length,
@@ -5484,6 +5762,8 @@ Item_func_set_user_var::update_hash(const void *ptr, uint length,
                                     const CHARSET_INFO *cs, Derivation dv,
                                     bool unsigned_arg)
 {
+  entry->lock();
+
   /*
     If we set a variable explicitely to NULL then keep the old
     result type of the variable
@@ -5507,16 +5787,18 @@ Item_func_set_user_var::update_hash(const void *ptr, uint length,
     entry->set_null_value(res_type);
   else if (entry->store(ptr, length, res_type, cs, dv, unsigned_arg))
   {
+    entry->unlock();
     null_value= 1;
     return 1;
   }
+  entry->unlock();
   return 0;
 }
 
 
 /** Get the value of a variable as a double. */
 
-double user_var_entry::val_real(my_bool *null_value)
+double user_var_entry::val_real(my_bool *null_value) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0.0;
@@ -5576,7 +5858,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
 /** Get the value of a variable as a string. */
 
 String *user_var_entry::val_str(my_bool *null_value, String *str,
-				uint decimals)
+				uint decimals) const
 {
   if ((*null_value= (m_ptr == 0)))
     return (String*) 0;
@@ -5606,7 +5888,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 
 /** Get the value of a variable as a decimal. */
 
-my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
+my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val) const
 {
   if ((*null_value= (m_ptr == 0)))
     return 0;
@@ -6095,7 +6377,11 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
-  var_entry= get_variable(&thd->user_vars, name, NULL);
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  var_entry= get_variable(thd, name, NULL);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   /*
     Any reference to user-defined variable which is done from stored
@@ -6143,7 +6429,11 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
       goto err;
     }
     thd->lex= sav_lex;
-    if (!(var_entry= get_variable(&thd->user_vars, name, NULL)))
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    var_entry= get_variable(thd, name, NULL);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+    if (var_entry == NULL)
       goto err;
   }
   else if (var_entry->used_query_id == thd->query_id ||
@@ -6230,7 +6520,7 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   /*
     If the variable didn't exist it has been created as a STRING-type.
-    'var_entry' is NULL only if there occured an error during the call to
+    'var_entry' is NULL only if there occurred an error during the call to
     get_var_with_binlog.
   */
   if (!error && var_entry)
@@ -6328,26 +6618,42 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
   */
   const CHARSET_INFO *cs= thd->lex->exchange->cs ?
     thd->lex->exchange->cs : thd->variables.collation_database;
-  if (Item::fix_fields(thd, ref) ||
-      !(entry= get_variable(&thd->user_vars, name, cs)))
+
+  if (Item::fix_fields(thd, ref))
     return true;
-  entry->set_type(STRING_RESULT);
-  entry->update_query_id= thd->query_id;
-  return FALSE;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  entry= get_variable(thd, name, cs);
+  if (entry != NULL)
+  {
+    entry->set_type(STRING_RESULT);
+    entry->update_query_id= thd->query_id;
+  }
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+  if (entry == NULL)
+    return true;
+
+  return false;
 }
 
 
 void Item_user_var_as_out_param::set_null_value(const CHARSET_INFO* cs)
 {
+  entry->lock();
   entry->set_null_value(STRING_RESULT);
+  entry->unlock();
 }
 
 
 void Item_user_var_as_out_param::set_value(const char *str, size_t length,
                                            const CHARSET_INFO* cs)
 {
+  entry->lock();
   entry->store((void*) str, length, STRING_RESULT, cs,
                DERIVATION_IMPLICIT, 0 /* unsigned_arg */);
+  entry->unlock();
 }
 
 

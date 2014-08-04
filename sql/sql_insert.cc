@@ -523,8 +523,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   Modification_plan plan(thd,
                          (thd->lex->sql_command == SQLCOM_INSERT) ?
                          MT_INSERT : MT_REPLACE, insert_table,
-                         NULL, MAX_KEY, HA_POS_ERROR, false, false, false,
-                         0);
+                         NULL, false, 0);
   DEBUG_SYNC(thd, "planned_single_insert");
 
   if (thd->lex->describe)
