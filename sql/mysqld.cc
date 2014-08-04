@@ -2715,11 +2715,18 @@ rpl_make_log_name(PSI_memory_key key,
   unsigned int options=
     MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH;
 
-  /* mysql_real_data_home_ptr  may be null if no value of datadir has been
+  /* mysql_real_data_home_ptr may be null if no value of datadir has been
      specified through command-line or througha cnf file. If that is the 
      case we make mysql_real_data_home_ptr point to mysql_real_data_home
      which, in that case holds the default path for data-dir.
-  */ 
+  */
+
+  DBUG_EXECUTE_IF("emulate_empty_datadir_param",
+                  {
+                    mysql_real_data_home_ptr= NULL;
+                  };
+                 );
+
   if(mysql_real_data_home_ptr == NULL)
     mysql_real_data_home_ptr= mysql_real_data_home;
 
