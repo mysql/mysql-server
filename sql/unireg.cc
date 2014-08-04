@@ -933,14 +933,10 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     }
     if (field->vcol_info)
     {
-      /* 
-        Use the interval_id place in the .frm file to store the length of
-        virtual field's data.
-      */
       buff[12]= cur_vcol_expr_len= field->vcol_info->expr_str.length +
                 (uint)FRM_VCOL_HEADER_SIZE;
       vcol_info_length+= cur_vcol_expr_len+(uint)FRM_VCOL_HEADER_SIZE;
-      buff[13]= (uchar) MYSQL_TYPE_VIRTUAL;
+      buff[10]|= (uchar)Field::VIRTUAL_FIELD;
     }
     int2store(buff+15, static_cast<uint16>(field->comment.length));
     comment_length+= field->comment.length;
@@ -1045,20 +1041,21 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
       /*
         Pack each virtual field as follows:
         byte 1      = 1 (always 1 to allow for future extensions)
-        byte 2      = sql_type
-        byte 3      = flags (as of now, 0 - no flags, 1 - field is physically stored)
-        byte 4-...  = virtual column expression (text data)
+        byte 2,3    = expression length
+        byte 4      = flags, as of now:
+                        0 - no flags
+                        1 - field is physically stored
+        byte 5-...  = virtual column expression (text data)
       */
       if (field->vcol_info && field->vcol_info->expr_str.length)
       {
-//        Item *item= field->vcol_info->expr_item;
         buff[0]= (uchar)1;
-        buff[1]= (uchar) field->sql_type;
-        buff[2]= (uchar) field->stored_in_db;
-        if (my_write(file, buff, 3, MYF_RW))
+        int2store(buff + 1, field->vcol_info->expr_str.length);
+        buff[3]= (uchar) field->stored_in_db;
+        if (my_write(file, buff, FRM_VCOL_HEADER_SIZE, MYF_RW))
           DBUG_RETURN(1);
-        if (my_write(file, 
-                     (uchar*) field->vcol_info->expr_str.str, 
+        if (my_write(file,
+                     (uchar*) field->vcol_info->expr_str.str,
                      field->vcol_info->expr_str.length,
                      MYF_RW))
           DBUG_RETURN(1);
