@@ -45,7 +45,6 @@ static const TABLE_FIELD_TYPE field_types[]=
     {C_STRING_WITH_LEN("char(64)")},
     {NULL, 0}
   },
-
   {
     {C_STRING_WITH_LEN("SERVICE_STATE")},
     {C_STRING_WITH_LEN("enum('ON','OFF')")},
@@ -215,7 +214,7 @@ int table_replication_execute_status::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /**channel_name*/
-         set_field_char_utf8(f, m_row.channel_name,m_row.channel_name_length);
+         set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
          break;
       case 1: /* service_state */
         set_field_enum(f, m_row.service_state);

@@ -29,7 +29,7 @@
 #include "mysql_com.h"
 #include "rpl_rli_pdb.h"
 #include "rpl_msr.h"
-#include "rpl_info.h" /*CHANNELNAME_LENGTH*/
+#include "rpl_info.h" /*CHANNEL_NAME_LENGTH*/
 
 class Slave_worker;
 class Master_info;
@@ -54,7 +54,7 @@ enum enum_rpl_yes_no {
 */
 struct st_row_worker {
 
-  char channel_name[CHANNELNAME_LENGTH];
+  char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   /*
     worker_id is added to the table because thread is killed at STOP SLAVE

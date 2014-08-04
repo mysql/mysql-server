@@ -490,11 +490,15 @@ int start_slave(THD *thd)
   DBUG_ENTER("start_slave(THD)");
   Master_info *mi;
   int error= 0;
+  bool channel_exists;
+  bool channel_running;
 
   if (msr_map.get_num_instances() == 1)
   {
     mi= msr_map.get_mi(msr_map.get_default_channel());
+
     DBUG_ASSERT(!strcmp(mi->get_channel(), msr_map.get_default_channel()));
+
     if ((error= start_slave(thd, mi, 1, false)))
       goto err;
   }
@@ -502,31 +506,33 @@ int start_slave(THD *thd)
   {
     for (mi_map::iterator it=msr_map.begin(); it!=msr_map.end(); it++)
     {
-      bool channel_exists;
-      bool channel_running;
-
       mi= it->second;
+
       channel_exists= mi && mi->host[0];
-      channel_running= channel_exists &&
-                      (mi->slave_running || mi->rli->slave_running);
+      channel_running= mi && (mi->slave_running || mi->rli->slave_running);
 
       if (!channel_running)
       {
-        if ((error=start_slave(thd, mi, 1, false)))
+        if (channel_exists)
         {
-          sql_print_error("Slave: Could not start slave for channel '%s'."
-                         " operation discontinued", mi->get_channel());
-          goto err;
+          if ((error=start_slave(thd, mi, 1, false)))
+          {/* RITH TODO: Don't discontinue the operation */
+            sql_print_error("Slave: Could not start slave for channel '%s'."
+                            " operation discontinued", mi->get_channel());
+            goto err;
+          }
         }
       }
-      else if(channel_exists)
+      else
       {
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                     ER_SLAVE_CHANNEL_RUNNING,ER(ER_SLAVE_CHANNEL_RUNNING),
-                     mi->get_channel());
+        if (!channel_exists)
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_SLAVE_CHANNEL_RUNNING,
+                            ER(ER_SLAVE_CHANNEL_RUNNING), mi->get_channel());
       }
     }
   }
+
   /* no error */
   my_ok(thd);
 
@@ -627,7 +633,7 @@ bool start_slave_cmd(THD *thd)
     else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
     else
-      /* Even default channel doesnot exist. Report error as before.*/
+      /* Even default channel does not exist. Report error as before.*/
       my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION), MYF(0));
   }
 err:
@@ -2922,7 +2928,7 @@ void show_slave_status_metadata(List<Item> &field_list,
   field_list.push_back(new Item_return_int("Auto_Position", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
-  field_list.push_back(new Item_empty_string("Channel_Name", CHANNELNAME_LENGTH));
+  field_list.push_back(new Item_empty_string("Channel_Name", CHANNEL_NAME_LENGTH));
 
 }
 
@@ -8519,8 +8525,6 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
 
   DBUG_ENTER("start_slave(THD, Master_info, bool, bool");
 
-  /*RITH_TODO: shift to start_slave_cmd */
-
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
 
@@ -9001,7 +9005,7 @@ bool reset_slave_cmd(THD *thd)
     mi= msr_map.get_mi(lex->mi.channel);
 
     if (mi)
-      res= reset_slave(thd,mi);
+      res= reset_slave(thd, mi);
     else if (!mi && strcmp(msr_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
     else
@@ -9894,16 +9898,6 @@ bool change_master_cmd(THD *thd)
     goto err;
   }
 
-  /* Get the Master_info of the channel */
-  mi= msr_map.get_mi(lex->mi.channel);
-
-  /* create a new channel if doesn't exist */
-  if (!mi  && strcmp(lex->mi.channel, msr_map.get_default_channel()))
-  {
-    if (add_new_channel(thd, &mi, lex->mi.channel))
-        goto err;
-  }
-
   /*
      If host, port are already being used for a different channel,
      refuse to do a change master.
@@ -9917,6 +9911,15 @@ bool change_master_cmd(THD *thd)
     goto err;
   }
 
+  /* Get the Master_info of the channel */
+  mi= msr_map.get_mi(lex->mi.channel);
+
+  /* create a new channel if doesn't exist */
+  if (!mi  && strcmp(lex->mi.channel, msr_map.get_default_channel()))
+  {
+    if (add_new_channel(thd, &mi, lex->mi.channel))
+        goto err;
+  }
 
   if (mi)
     res= change_master(thd, mi);

@@ -38,9 +38,10 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi)
     DBUG_RETURN(true);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-    res= add_mi_to_rpl_pfs_mi(mi);
+  res= add_mi_to_rpl_pfs_mi(mi);
 #endif
-    current_mi_count++;
+  current_mi_count++;
+
   DBUG_RETURN(res);
 
 }
@@ -113,6 +114,10 @@ const char*  Multisource_info::get_channel_with_host_port(char *host, uint port)
   DBUG_ENTER("Multisource_info::same_host_port");
   Master_info *mi;
 
+  /* RITHTODO
+   * Resolving hostnames to ip adresses,
+   for ex:127.0.0.1=localhost
+  */
 
   for (mi_map::iterator it= channel_to_mi.begin(); it != channel_to_mi.end(); it++)
   {
