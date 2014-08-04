@@ -38,6 +38,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0sea.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
+#include <sql_const.h>
 #include "dict0dict.h"
 #include "dict0load.h"
 #include "dict0stats.h"
@@ -728,7 +729,8 @@ handle_new_error:
 		}
 		/* MySQL will roll back the latest SQL statement */
 		break;
-	case DB_LOCK_WAIT:
+	case DB_LOCK_WAIT: {
+
 		lock_wait_suspend_thread(thr);
 
 		if (trx->error_state != DB_SUCCESS) {
@@ -740,6 +742,7 @@ handle_new_error:
 		*new_err = err;
 
 		return(true);
+	}
 
 	case DB_DEADLOCK:
 	case DB_LOCK_TABLE_FULL:
@@ -804,8 +807,10 @@ row_create_prebuilt(
 	row_prebuilt_t*	prebuilt;
 	mem_heap_t*	heap;
 	dict_index_t*	clust_index;
+	dict_index_t*	temp_index;
 	dtuple_t*	ref;
 	ulint		ref_len;
+	uint		srch_key_len = 0;
 	ulint		search_tuple_n_fields;
 
 	search_tuple_n_fields = 2 * dict_table_get_n_cols(table);
@@ -816,6 +821,14 @@ row_create_prebuilt(
 	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
 
 	ref_len = dict_index_get_n_unique(clust_index);
+
+
+        /* Maximum size of the buffer needed for conversion of INTs from
+	little endian format to big endian format in an index. An index
+	can have maximum 16 columns (MAX_REF_PARTS) in it. Therfore
+	Max size for PK: 16 * 8 bytes (BIGINT's size) = 128 bytes
+	Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
+#define MAX_SRCH_KEY_VAL_BUFFER         2* (8 * MAX_REF_PARTS)
 
 #define PREBUILT_HEAP_INITIAL_SIZE	\
 	( \
@@ -845,10 +858,38 @@ row_create_prebuilt(
 	+ sizeof(que_thr_t) \
 	)
 
+	/* Calculate size of key buffer used to store search key in
+	InnoDB format. MySQL stores INTs in little endian format and
+	InnoDB stores INTs in big endian format with the sign bit
+	flipped. All other field types are stored/compared the same
+	in MySQL and InnoDB, so we must create a buffer containing
+	the INT key parts in InnoDB format.We need two such buffers
+	since both start and end keys are used in records_in_range(). */
+
+	for (temp_index = dict_table_get_first_index(table); temp_index;
+	     temp_index = dict_table_get_next_index(temp_index)) {
+		DBUG_EXECUTE_IF("innodb_srch_key_buffer_max_value",
+			ut_a(temp_index->n_user_defined_cols
+						== MAX_REF_PARTS););
+		uint temp_len = 0;
+		for (uint i = 0; i < temp_index->n_uniq; i++) {
+			if (temp_index->fields[i].col->mtype == DATA_INT) {
+				temp_len +=
+					temp_index->fields[i].fixed_len;
+			}
+		}
+		srch_key_len = std::max(srch_key_len,temp_len);
+	}
+
+	ut_a(srch_key_len <= MAX_SRCH_KEY_VAL_BUFFER);
+
+	DBUG_EXECUTE_IF("innodb_srch_key_buffer_max_value",
+		ut_a(srch_key_len == MAX_SRCH_KEY_VAL_BUFFER););
+
 	/* We allocate enough space for the objects that are likely to
 	be created later in order to minimize the number of malloc()
 	calls */
-	heap = mem_heap_create(PREBUILT_HEAP_INITIAL_SIZE);
+	heap = mem_heap_create(PREBUILT_HEAP_INITIAL_SIZE + 2 * srch_key_len);
 
 	prebuilt = static_cast<row_prebuilt_t*>(
 		mem_heap_zalloc(heap, sizeof(*prebuilt)));
@@ -860,6 +901,18 @@ row_create_prebuilt(
 
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->heap = heap;
+
+	prebuilt->srch_key_val_len = srch_key_len;
+	if (prebuilt->srch_key_val_len) {
+		prebuilt->srch_key_val1 = static_cast<byte*>(
+			mem_heap_alloc(prebuilt->heap,
+				       2 * prebuilt->srch_key_val_len));
+		prebuilt->srch_key_val2 = prebuilt->srch_key_val1 +
+						prebuilt->srch_key_val_len;
+	} else {
+		prebuilt->srch_key_val1 = NULL;
+		prebuilt->srch_key_val2 = NULL;
+	}
 
 	btr_pcur_reset(&prebuilt->pcur);
 	btr_pcur_reset(&prebuilt->clust_pcur);
@@ -2497,7 +2550,7 @@ row_delete_all_rows(
 
 	/* Step-1: Now truncate all the indexes and re-create them.
 	Note: This is ddl action even though delete all rows is
-	dml action. Any error during this action is ir-reversible. */
+	DML action. Any error during this action is ir-reversible. */
 	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 	     index != NULL && err == DB_SUCCESS;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
@@ -3073,13 +3126,15 @@ error_handling:
 
 		trx->error_state = DB_SUCCESS;
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
 		row_drop_table_for_mysql(table_name, trx, FALSE, true, handler);
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -3175,13 +3230,15 @@ row_table_add_foreign_constraints(
 
 		trx->error_state = DB_SUCCESS;
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
 		row_drop_table_for_mysql(name, trx, FALSE, true, handler);
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -3918,7 +3975,8 @@ row_drop_table_for_mysql(
 	}
 
 	/* This function is called recursively via fts_drop_tables(). */
-	if (trx->state == TRX_STATE_NOT_STARTED) {
+	if (!trx_is_started(trx)) {
+
 		if (!dict_table_is_temporary(table)) {
 			trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
 		} else {
@@ -4313,8 +4371,10 @@ row_drop_table_for_mysql(
 
 		if (dict_table_has_fts_index(table)
 		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+
 			ut_ad(table->n_ref_count == 0);
-			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+			ut_ad(trx_is_started(trx));
+
 			err = fts_drop_tables(trx, table);
 
 			if (err != DB_SUCCESS) {
@@ -4481,7 +4541,9 @@ funct_exit:
 	ut_free(filepath);
 
 	if (locked_dictionary) {
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -5160,7 +5222,9 @@ row_rename_table_for_mysql(
 			/* If the first fts_rename fails, the trx would
 			be rolled back and committed, we can't use it any more,
 			so we have to start a new background trx here. */
+
 			ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+
 			trx_bg->op_info = "Revert the failing rename"
 					  " for fts aux tables";
 			trx_bg->dict_operation_lock_mode = RW_X_LATCH;

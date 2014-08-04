@@ -285,6 +285,46 @@ public:
   Field::geometry_type get_geometry_type() const;
 };
 
+
+/**
+  This handles the <point> = ST_POINTFROMGEOHASH(<string>, <srid>) funtion.
+
+  It returns a point containing the decoded geohash value, where X is the
+  longitude in the range of [-180, 180] and Y is the latitude in the range
+  of [-90, 90].
+
+  At the moment, SRID can be any 32 bit unsigned integer.
+*/
+class Item_func_pointfromgeohash : public Item_geometry_func
+{
+private:
+  /// The maximum output latitude value when decoding the geohash value.
+  const double upper_latitude;
+
+  /// The minimum output latitude value when decoding the geohash value.
+  const double lower_latitude;
+
+  /// The maximum output longitude value when decoding the geohash value.
+  const double upper_longitude;
+
+  /// The minimum output longitude value when decoding the geohash value.
+  const double lower_longitude;
+public:
+  Item_func_pointfromgeohash(const POS &pos, Item *a, Item *b)
+    : Item_geometry_func(pos, a, b),
+    upper_latitude(90.0), lower_latitude(-90.0),
+    upper_longitude(180.0), lower_longitude(-180.0)
+  {}
+  const char *func_name() const { return "st_pointfromgeohash"; }
+  String *val_str(String *);
+  bool fix_fields(THD *thd, Item **ref);
+  Field::geometry_type get_geometry_type() const 
+  {
+    return Field::GEOM_POINT;
+  };
+};
+
+
 class Item_func_spatial_decomp: public Item_geometry_func
 {
   enum Functype decomp_func;

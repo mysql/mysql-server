@@ -604,6 +604,7 @@ int get_root_password()
         the temporary password file.
       */
       char *temp_pass;
+      init_connection_options(&mysql);
       if (find_temporary_password(&temp_pass) == TRUE)
       {
         my_free(password);

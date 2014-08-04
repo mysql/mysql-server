@@ -1099,8 +1099,8 @@ public:
 
   virtual void operator()(THD *killing_thd)
   {
-    DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
-                       killing_thd->thread_id));
+    DBUG_PRINT("quit",("Informing thread %u that it's time to die",
+                       killing_thd->thread_id()));
     if (!m_kill_dump_threads_flag)
     {
       // We skip slave threads & scheduler on this first loop through.
@@ -1154,7 +1154,7 @@ public:
     if (closing_thd->vio_ok())
     {
       sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
-                        closing_thd->thread_id,
+                        closing_thd->thread_id(),
                         (closing_thd->main_security_ctx.user ?
                          closing_thd->main_security_ctx.user : ""));
       close_connection(closing_thd);
@@ -2736,7 +2736,7 @@ int init_common_variables()
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();      // Set tzname
 
-  max_system_variables.pseudo_thread_id= (ulong)~0;
+  max_system_variables.pseudo_thread_id= (my_thread_id) ~0;
   server_start_time= flush_status_time= my_time(0);
 
   rpl_filter= new Rpl_filter;
@@ -4560,13 +4560,12 @@ int mysqld_main(int argc, char **argv)
 
       /* gtids_only_in_table= executed_gtids - logged_gtids_binlog */
       if (gtids_only_in_table->add_gtid_set(executed_gtids) !=
-          RETURN_STATUS_OK ||
-          gtids_only_in_table->remove_gtid_set(&logged_gtids_binlog) !=
           RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         unireg_abort(1);
       }
+      gtids_only_in_table->remove_gtid_set(&logged_gtids_binlog);
       /*
         lost_gtids = executed_gtids -
                      (logged_gtids_binlog - purged_gtids_binlog)
@@ -5656,6 +5655,14 @@ struct my_option my_long_options[]=
    "Multiple --plugin-load-add are supported.",
    0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+
+  {"innodb", OPT_SKIP_INNODB,
+   "Deprecated option. Provided for backward compatibility only. "
+   "The option has no effect on the server behaviour. InnoDB is always enabled. "
+   "The option will be removed in a future release.",
+   0, 0, 0, GET_BOOL, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
+
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -6990,8 +6997,12 @@ mysqld_get_one_option(int optid,
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
     break;
   case OPT_SECURE_AUTH:
-    if (opt_secure_auth == 0)
-      push_deprecated_warn(NULL, "pre-4.1 password hash", "post-4.1 password hash");
+    push_deprecated_warn_no_replacement(NULL, "--secure-auth");
+    if (!opt_secure_auth)
+    {
+      sql_print_error("Unsupported value 0 for secure-auth");
+      return 1;
+    }
     break;
   case OPT_PFS_INSTRUMENT:
     {
@@ -7116,6 +7127,11 @@ pfs_error:
     push_deprecated_warn_no_replacement(NULL,
                                         "--metadata_locks_hash_instances");
     break;
+  case OPT_SKIP_INNODB:
+    sql_print_warning("The use of InnoDB is mandatory since MySQL 5.7. "
+                      "The former options like '--innodb=0/1/OFF/ON' or "
+                      "'--skip-innodb' are ignored.");
+    break;
   }
   return 0;
 }
@@ -7174,6 +7190,30 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
 }
 
 C_MODE_END
+
+/**
+  Ensure all the deprecared options with 1 possible value are
+  within acceptable range.
+
+  @retval true error in the values set
+  @retval false all checked
+*/
+bool check_ghost_options()
+{
+  if (global_system_variables.old_passwords == 1)
+  {
+    sql_print_error("Invalid old_passwords mode: 1. Valid values are 2 and 0\n");
+    return true;
+  }
+  if (!opt_secure_auth)
+  {
+    sql_print_error("Invalid secure_auth mode: 0. Valid value is 1\n");
+    return true;
+  }
+
+  return false;
+}
+
 
 /**
   Get server options from the command line,
@@ -7300,6 +7340,9 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   if (opt_skip_show_db)
     opt_specialflag|= SPECIAL_SKIP_SHOW_DB;
+
+  if (check_ghost_options())
+    return 1;
 
   if (myisam_flush)
     flush_time= 0;
@@ -8290,7 +8333,7 @@ PSI_memory_key key_memory_quick_index_merge_root;
 PSI_memory_key key_memory_quick_ror_intersect_select_root;
 PSI_memory_key key_memory_quick_ror_union_select_root;
 PSI_memory_key key_memory_quick_group_min_max_select_root;
-PSI_memory_key key_memory_sql_select_test_quick_select_exec;
+PSI_memory_key key_memory_test_quick_select_exec;
 PSI_memory_key key_memory_prune_partitions_exec;
 PSI_memory_key key_memory_binlog_recover_exec;
 PSI_memory_key key_memory_blob_mem_storage;
@@ -8423,7 +8466,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_quick_ror_intersect_select_root, "QUICK_ROR_INTERSECT_SELECT::alloc", PSI_FLAG_THREAD},
   { &key_memory_quick_ror_union_select_root, "QUICK_ROR_UNION_SELECT::alloc", PSI_FLAG_THREAD},
   { &key_memory_quick_group_min_max_select_root, "QUICK_GROUP_MIN_MAX_SELECT::alloc", PSI_FLAG_THREAD},
-  { &key_memory_sql_select_test_quick_select_exec, "SQL_SELECT::test_quick_select", PSI_FLAG_THREAD},
+  { &key_memory_test_quick_select_exec, "test_quick_select", PSI_FLAG_THREAD},
   { &key_memory_prune_partitions_exec, "prune_partitions::exec", 0},
   { &key_memory_binlog_recover_exec, "MYSQL_BIN_LOG::recover", 0},
   { &key_memory_blob_mem_storage, "Blob_mem_storage::storage", 0},

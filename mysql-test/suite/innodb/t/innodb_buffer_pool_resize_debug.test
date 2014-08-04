@@ -2,8 +2,7 @@
 # WL6117 : Resize the InnoDB Buffer Pool Online
 # (concurrent sql; allocation fail;)
 #
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
+
 --source include/have_innodb.inc
 --source include/have_debug.inc
 

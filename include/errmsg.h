@@ -93,7 +93,7 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_SHARED_MEMORY_CONNECT_SET_ERROR      2046
 #define CR_CONN_UNKNOW_PROTOCOL 		2047
 #define CR_INVALID_CONN_HANDLE			2048
-#define CR_SECURE_AUTH                          2049
+#define CR_UNUSED_1                             2049
 #define CR_FETCH_CANCELED                       2050
 #define CR_NO_DATA                              2051
 #define CR_NO_STMT_METADATA                     2052

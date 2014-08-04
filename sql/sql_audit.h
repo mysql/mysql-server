@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -188,7 +188,7 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd) mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CONNECT,\
   (thd)->get_stmt_da()->is_error() ? (thd)->get_stmt_da()->mysql_errno() : 0,\
-  (thd)->thread_id, (thd)->security_ctx->user,\
+  (thd)->thread_id(), (thd)->security_ctx->user,                        \
   (thd)->security_ctx->user ? strlen((thd)->security_ctx->user) : 0,\
   (thd)->security_ctx->priv_user, strlen((thd)->security_ctx->priv_user),\
   (thd)->security_ctx->get_external_user()->ptr(),\
@@ -203,12 +203,12 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode)\
   mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_DISCONNECT,\
-  (errcode), (thd)->thread_id, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0)
+  (errcode), (thd)->thread_id(), "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0)
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd) mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CHANGE_USER,\
   (thd)->get_stmt_da()->is_error() ? (thd)->get_stmt_da()->mysql_errno() : 0,\
-  (thd)->thread_id, (thd)->security_ctx->user,\
+  (thd)->thread_id(), (thd)->security_ctx->user,                        \
   (thd)->security_ctx->user ? strlen((thd)->security_ctx->user) : 0,\
   (thd)->security_ctx->priv_user, strlen((thd)->security_ctx->priv_user),\
   (thd)->security_ctx->get_external_user()->ptr(),\
