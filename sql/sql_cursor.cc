@@ -109,7 +109,7 @@ bool mysql_open_cursor(THD *thd, select_result *result,
   lex->result= result_materialize;
 
   MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                         thd->thread_id,
+                         thd->thread_id(),
                          (char *) (thd->db ? thd->db : ""),
                          &thd->security_ctx->priv_user[0],
                          (char *) thd->security_ctx->host_or_ip,

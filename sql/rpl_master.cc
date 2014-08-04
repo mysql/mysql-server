@@ -423,15 +423,21 @@ String *get_slave_uuid(THD *thd, String *value)
 
   if (value == NULL)
     return NULL;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+
   user_var_entry *entry=
     (user_var_entry*) my_hash_search(&thd->user_vars, name, sizeof(name)-1);
   if (entry && entry->length() > 0)
   {
     value->copy(entry->ptr(), entry->length(), NULL);
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
     return value;
   }
-  else
-    return NULL;
+
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+  return NULL;
 }
 
 /**
@@ -499,6 +505,11 @@ void kill_zombie_dump_threads(String *slave_uuid)
       it will be slow because it will iterate through the list
       again. We just to do kill the thread ourselves.
     */
+    if (log_warnings > 1)
+      sql_print_information("While initializing dump thread for slave with "
+                            "UUID <%s>, found a zombie dump thread with "
+                            "the same UUID. Master is killing the zombie dump "
+                            "thread.", slave_uuid->c_ptr());
     tmp->awake(THD::KILL_QUERY);
     mysql_mutex_unlock(&tmp->LOCK_thd_data);
   }

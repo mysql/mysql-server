@@ -1117,6 +1117,110 @@ String *Item_func_point::val_str(String *str)
 }
 
 
+/// This will check if arguments passed (geohash and SRID) are of valid types.
+bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_geometry_func::fix_fields(thd, ref))
+    return true;
+
+  maybe_null= (args[0]->maybe_null || args[1]->maybe_null);
+
+  // Check for valid type in geohash argument.
+  if (!Item_func_latlongfromgeohash::check_geohash_argument_valid_type(args[0]))
+  {
+    my_error(ER_INCORRECT_TYPE, MYF(0), "geohash", func_name());
+    return true;
+  }
+
+  /*
+    Check for valid type in SRID argument.
+
+    We will allow all integer types, and strings since some connectors will
+    covert integers to strings. Binary data is not allowed. Note that when
+    calling e.g ST_POINTFROMGEOHASH("bb", NULL), the second argument is reported
+    to have binary charset, and we thus have to check field_type().
+  */
+  if (args[1]->collation.collation == &my_charset_bin &&
+      args[1]->field_type() != MYSQL_TYPE_NULL)
+  {
+    my_error(ER_INCORRECT_TYPE, MYF(0), "SRID", func_name());
+    return true;
+  }
+
+  switch (args[1]->field_type())
+  {
+  case MYSQL_TYPE_NULL:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_TINY:
+    break;
+  default:
+    my_error(ER_INCORRECT_TYPE, MYF(0), "SRID", func_name());
+    return true;
+  }
+  return false;
+}
+
+
+String *Item_func_pointfromgeohash::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == TRUE);
+
+  String argument_value;
+  String *geohash= args[0]->val_str_ascii(&argument_value);
+  longlong srid_input= args[1]->val_int();
+
+  // Return null if one or more of the input arguments is null.
+  if ((null_value= (args[0]->null_value || args[1]->null_value)))
+    return NULL;
+
+  // Only allow unsigned 32 bits integer as SRID.
+  if (srid_input < 0 || srid_input > UINT_MAX32)
+  {
+    char srid_string[MAX_BIGINT_WIDTH + 1];
+    llstr(srid_input, srid_string);
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "SRID", srid_string, func_name());
+    return error_str();
+  }
+
+  if (str->realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
+    return make_empty_result();
+  
+  if (geohash->length() == 0)
+  {
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", geohash->c_ptr(),
+             func_name());
+    return error_str();
+  }
+
+  double latitude= 0.0;
+  double longitude= 0.0;
+  uint32 srid= static_cast<uint32>(srid_input);
+  if (Item_func_latlongfromgeohash::decode_geohash(geohash, upper_latitude,
+                                                   lower_latitude,
+                                                   upper_longitude,
+                                                   lower_longitude, &latitude,
+                                                   &longitude))
+  {
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "geohash", geohash->c_ptr(),
+             func_name());
+    return error_str();
+  }
+
+  str->set_charset(&my_charset_bin);
+  str->length(0);
+  write_geometry_header(str, srid, Geometry::wkb_point);
+  str->q_append(longitude);
+  str->q_append(latitude);
+  return str;
+}
+
+
 const char *Item_func_spatial_collection::func_name() const
 {
   const char *str= NULL;

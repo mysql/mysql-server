@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -497,6 +497,7 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields)
     -   0		Key is equal to range or 'range' == 0 (no range)
     -  -1		Key is less than range
     -   1		Key is larger than range
+  @note: keep this function and key_cmp2() in sync
 */
 
 int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
@@ -534,6 +535,87 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
   return 0;                                     // Keys are equal
 }
 
+
+/**
+  Compare two given keys
+
+  @param key_part		Key part handler
+  @param key1			Key to be compared with key2
+  @param key1_length		length of 'key1'
+  @param key2                   Key to be compared with key1
+  @param key2_length		length of 'key2'
+
+  @return
+    The return value is an integral value indicating the
+    relationship between the two keys:
+    -   0                       key1 = key2
+    -  -1                       Key1 < Key2
+    -   1                       Key1 > Key2
+  @note: keep this function and key_cmp() in sync
+
+  Below comparison code is under the assumption
+  that key1_length and key2_length are same and
+  key1_length, key2_length are non zero value.
+*/
+int key_cmp2(KEY_PART_INFO *key_part,
+                 const uchar *key1, uint key1_length,
+                 const uchar *key2, uint key2_length)
+{
+  DBUG_ASSERT(key_part && key1 && key2);
+  DBUG_ASSERT((key1_length == key2_length) && key1_length != 0 );
+  uint store_length;
+
+  /* Compare all the subkeys (if it is a composite key) */
+  for (const uchar *end= key1 + key1_length; key1 < end;
+       key1+= store_length, key2+= store_length, key_part++)
+  {
+    store_length= key_part->store_length;
+    /* This key part allows null values; NULL is lower than everything */
+    if (key_part->null_bit)
+    {
+      if (*key1 != *key2)
+      {
+        /*
+          Key Format= "1 byte (NULL Indicator flag) + Key value"
+          If NULL Indicator flag is '1' that means the key is NULL value
+          and If the flag is '0' that means the key is Non-NULL value.
+
+          If null indicating flag in key1 and key2 are not same, then
+            > if key1's null flag is '1' (i.e., key1 is NULL), return -1
+            > if key1's null flag is '0' (i.e., key1 is NOT NULL), then
+              key2's null flag is '1' (since *key1 != *key2) then return 1;
+        */
+        return (*key1) ? -1 : 1;
+      }
+      else
+      {
+        /*
+          If null indicating flag in key1 and key2 are same and
+            > if it is '1' , both are NULLs and both are same, continue with
+              next key in key_part.
+            > if it is '0', then go ahead and compare the content using
+              field->key_cmp.
+        */
+        if (*key1)
+          continue;
+      }
+      /*
+        Increment the key1 and key2 pointers to point them to the actual
+        key values
+      */
+      key1++;
+      key2++;
+      store_length--;
+    }
+    /* Compare two keys using field->key_cmp */
+    int cmp;
+    if ((cmp= key_part->field->key_cmp(key1, key2)) < 0)
+      return -1;
+    if (cmp > 0)
+      return 1;
+  }
+  return 0; /* Keys are equal */
+}
 
 /**
   Compare two records in index order.

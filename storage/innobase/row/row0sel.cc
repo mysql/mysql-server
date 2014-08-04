@@ -914,7 +914,7 @@ row_sel_get_clust_rec(
 		err = lock_clust_rec_read_check_and_lock(
 			0, btr_pcur_get_block(&plan->clust_pcur),
 			clust_rec, index, offsets,
-			static_cast<enum lock_mode>(node->row_lock_mode),
+			static_cast<lock_mode>(node->row_lock_mode),
 			lock_type,
 			thr);
 
@@ -1046,7 +1046,7 @@ retry:
 
 	err = lock_sec_rec_read_check_and_lock(
 		0, cur_block, rec, index, my_offsets,
-		static_cast<enum lock_mode>(mode), type, thr);
+		static_cast<lock_mode>(mode), type, thr);
 
 	if (err == DB_LOCK_WAIT) {
 re_scan:
@@ -1140,7 +1140,7 @@ re_scan:
 
 		err = lock_sec_rec_read_check_and_lock(
 			0, &match->block, rtr_rec->r_rec, index,
-			my_offsets, static_cast<enum lock_mode>(mode),
+			my_offsets, static_cast<lock_mode>(mode),
 			type, thr);
 
 		if (err == DB_SUCCESS || err == DB_SUCCESS_LOCKED_REC) {
@@ -1202,14 +1202,15 @@ sel_set_rec_lock(
 	if (dict_index_is_clust(index)) {
 		err = lock_clust_rec_read_check_and_lock(
 			0, block, rec, index, offsets,
-			static_cast<enum lock_mode>(mode), type, thr);
+			static_cast<lock_mode>(mode), type, thr);
 	} else {
 
 		if (dict_index_is_spatial(index)) {
 			if (type == LOCK_GAP || type == LOCK_ORDINARY) {
 				ut_ad(0);
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Incorrectly request GAP lock on RTree");
+					"Incorrectly request GAP lock "
+					"on RTree");
 				return(DB_SUCCESS);
 			}
 			err = sel_set_rtr_rec_lock(pcur, rec, index, offsets,
@@ -1217,7 +1218,7 @@ sel_set_rec_lock(
 		} else {
 			err = lock_sec_rec_read_check_and_lock(
 				0, block, rec, index, offsets,
-				static_cast<enum lock_mode>(mode), type, thr);
+				static_cast<lock_mode>(mode), type, thr);
 		}
 	}
 
@@ -1520,7 +1521,7 @@ func_exit:
 /*********************************************************************//**
 Performs a select step.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_sel(
 /*====*/
@@ -2302,7 +2303,7 @@ row_sel_step(
 
 		} else {
 			sym_node_t*	table_node;
-			enum lock_mode	i_lock_mode;
+			lock_mode	i_lock_mode;
 
 			if (node->set_x_locks) {
 				i_lock_mode = LOCK_IX;
@@ -2696,13 +2697,12 @@ row_sel_convert_mysql_key_to_innobase(
 		/* Storing may use at most data_len bytes of buf */
 
 		if (UNIV_LIKELY(!is_null)) {
-			ut_a(buf + data_len <= original_buf + buf_len);
-			row_mysql_store_col_in_innobase_format(
-				dfield, buf,
-				FALSE, /* MySQL key value format col */
-				key_ptr + data_offset, data_len,
-				dict_table_is_comp(index->table));
-			buf += data_len;
+			buf = row_mysql_store_col_in_innobase_format(
+					dfield, buf,
+					FALSE, /* MySQL key value format col */
+					key_ptr + data_offset, data_len,
+					dict_table_is_comp(index->table));
+			ut_a(buf <= original_buf + buf_len);
 		}
 
 		key_ptr += data_field_len;
@@ -2741,9 +2741,6 @@ row_sel_convert_mysql_key_to_innobase(
 		field++;
 		dfield++;
 	}
-
-	DBUG_EXECUTE_IF("innodb_srch_key_buffer_full",
-		ut_a(buf == (original_buf + buf_len)););
 
 	ut_a(buf <= original_buf + buf_len);
 
@@ -3421,7 +3418,7 @@ row_sel_get_clust_rec_for_mysql(
 		err = lock_clust_rec_read_check_and_lock(
 			0, btr_pcur_get_block(&prebuilt->clust_pcur),
 			clust_rec, clust_index, *offsets,
-			static_cast<enum lock_mode>(prebuilt->select_lock_type),
+			static_cast<lock_mode>(prebuilt->select_lock_type),
 			LOCK_REC_NOT_GAP,
 			thr);
 
@@ -4605,8 +4602,7 @@ release_search_latch_if_needed:
 	mutex. */
 	ut_ad(prebuilt->sql_stat_start || trx->state == TRX_STATE_ACTIVE);
 
-	ut_ad(trx->state == TRX_STATE_NOT_STARTED
-	      || trx->state == TRX_STATE_ACTIVE);
+	ut_ad(!trx_is_started(trx) || trx->state == TRX_STATE_ACTIVE);
 
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE
@@ -5788,7 +5784,7 @@ normal_return:
 
 func_exit:
 	trx->op_info = "";
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 
@@ -5798,8 +5794,8 @@ func_exit:
 	ut_ad(prebuilt->row_read_type != ROW_READ_WITH_LOCKS
 	      || !did_semi_consistent_read);
 
-	if (UNIV_UNLIKELY(prebuilt->row_read_type != ROW_READ_WITH_LOCKS)) {
-		if (UNIV_UNLIKELY(did_semi_consistent_read)) {
+	if (prebuilt->row_read_type != ROW_READ_WITH_LOCKS) {
+		if (did_semi_consistent_read) {
 			prebuilt->row_read_type = ROW_READ_DID_SEMI_CONSISTENT;
 		} else {
 			prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;

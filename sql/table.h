@@ -1599,12 +1599,12 @@ struct TABLE_LIST
   void          set_join_cond(Item *val)
   {
     // If optimization has started, it's too late to change m_join_cond.
-    DBUG_ASSERT(m_optim_join_cond == NULL ||
-                m_optim_join_cond == (Item*)1);
+    DBUG_ASSERT(m_join_cond_optim == NULL ||
+                m_join_cond_optim == (Item*)1);
     m_join_cond= val;
   }
-  Item *optim_join_cond() const { return m_optim_join_cond; }
-  void set_optim_join_cond(Item *cond)
+  Item *join_cond_optim() const { return m_join_cond_optim; }
+  void set_join_cond_optim(Item *cond)
   {
     /*
       Either we are setting to "empty", or there must pre-exist a
@@ -1612,9 +1612,9 @@ struct TABLE_LIST
     */
     DBUG_ASSERT(cond == NULL || cond == (Item*)1 ||
                 m_join_cond != NULL);
-    m_optim_join_cond= cond;
+    m_join_cond_optim= cond;
   }
-  Item **optim_join_cond_ref() { return &m_optim_join_cond; }
+  Item **join_cond_optim_ref() { return &m_join_cond_optim; }
 
   /*
     List of tables local to a subquery or the top-level SELECT (used by
@@ -1940,7 +1940,7 @@ private:
      @todo it would be good to reset it in reinit_before_use(), if
      reinit_stmt_before_use() had a loop including join nests.
   */
-  Item          *m_optim_join_cond;
+  Item          *m_join_cond_optim;
 public:
 
   COND_EQUAL    *cond_equal;            ///< Used with outer join
@@ -2297,6 +2297,7 @@ struct Semijoin_mat_optimize
   Item_field **mat_fields;
 };
 
+
 /**
   Struct st_nested_join is used to represent how tables are connected through
   outer join operations and semi-join operations to form a query block.
@@ -2314,7 +2315,7 @@ typedef struct st_nested_join
     Used for pointing out the first table in the plan being covered by this
     join nest. It is used exclusively within make_outerjoin_info().
    */
-  struct st_join_table *first_nested;
+  plan_idx first_nested;
   /**
     Number of tables and outer join nests administered by this nested join
     object for the sake of cost analysis. Includes direct member tables as
