@@ -17,6 +17,7 @@
 #define REPLICATION_H
 
 #include <mysql.h>
+#include <list>
 
 typedef struct st_mysql MYSQL;
 
@@ -37,6 +38,8 @@ enum Trans_flags {
 */
 typedef struct Trans_param {
   uint32 server_id;
+  const char *server_uuid;
+  my_thread_id thread_id;
   uint32 flags;
 
   /*
@@ -48,6 +51,25 @@ typedef struct Trans_param {
   */
   const char *log_file;
   my_off_t log_pos;
+  /*
+    Set for the remote transaction.
+  */
+  bool local;
+
+  /*
+    Set on before_commit hook.
+  */
+  IO_CACHE *trx_cache_log;
+  ulonglong trx_cache_log_max_size;
+
+  IO_CACHE *stmt_cache_log;
+  ulonglong cache_log_max_size;
+
+  /*
+    This is the list containing the write_set of the transaction
+    that is tranferrred for the certification purpose.
+  */
+  std::list<uint32> *write_set;
 } Trans_param;
 
 /**
@@ -57,8 +79,33 @@ typedef struct Trans_observer {
   uint32 len;
 
   /**
+     This callback is called before transaction commit
+
+     This callback is called right before write binlog cache to
+     binary log.
+
+     @param param The parameter for transaction observers
+
+     @retval 0 Sucess
+     @retval 1 Failure
+  */
+  int (*before_commit)(Trans_param *param);
+
+  /**
+     This callback is called before transaction rollback
+
+     This callback is called before rollback to storage engines.
+
+     @param param The parameter for transaction observers
+
+     @retval 0 Sucess
+     @retval 1 Failure
+  */
+  int (*before_rollback)(Trans_param *param);
+
+  /**
      This callback is called after transaction commit
-     
+
      This callback is called right after commit to storage engines for
      transactional tables.
 
@@ -102,6 +149,83 @@ enum Binlog_storage_flags {
   /** Binary log was sync:ed */
   BINLOG_STORAGE_IS_SYNCED = 1
 };
+
+typedef struct Server_state_param {
+} Server_state_param;
+
+/**
+  Observer server state
+ */
+typedef struct Server_state_observer {
+  uint32 len;
+
+  /**
+    This is called just before the server is ready to accept the client
+    connections to the Server/Node. It marks the possible point where the
+    server can be said to be ready to serve client queries.
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*before_handle_connection)(Server_state_param *param);
+
+  /**
+    This callback is called before the start of the recovery
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*before_recovery)(Server_state_param *param);
+
+  /**
+    This callback is called after the end of the engine recovery.
+
+    This is called before the start of the recovery procedure ie.
+    the engine recovery.
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*after_engine_recovery)(Server_state_param *param);
+
+  /**
+    This callback is called after the end of the recovery procedure.
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*after_recovery)(Server_state_param *param);
+
+  /**
+    This callback is called before the start of the shutdown procedure.
+    Can be useful to initiate some cleanup operations in some cases.
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*before_server_shutdown)(Server_state_param *param);
+
+  /**
+    This callback is called after the end of the shutdown procedure.
+    Can be used as a checkpoint of the proper cleanup operations in some cases.
+
+    @param[in]  param Observer common parameter
+
+    @retval 0 Success
+    @retval >0 Failure
+  */
+  int (*after_server_shutdown)(Server_state_param *param);
+} Server_state_observer;
 
 /**
    Binlog storage observer parameters
@@ -437,6 +561,28 @@ int register_binlog_transmit_observer(Binlog_transmit_observer *observer, void *
    @retval 1 Observer not exists
 */
 int unregister_binlog_transmit_observer(Binlog_transmit_observer *observer, void *p);
+
+/**
+   Register a server state observer
+
+   @param observer The server state observer to register
+   @param p pointer to the internal plugin structure
+
+   @retval 0 Success
+   @retval 1 Observer already exists
+*/
+int register_server_state_observer(Server_state_observer *observer, void *p);
+
+/**
+   Unregister a server state observer
+
+   @param observer The server state observer to unregister
+   @param p pointer to the internal plugin structure
+
+   @retval 0 Success
+   @retval 1 Observer not exists
+*/
+int unregister_server_state_observer(Server_state_observer *observer, void *p);
 
 /**
    Register a binlog relay IO (slave IO thread) observer
