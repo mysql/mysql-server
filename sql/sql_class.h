@@ -3159,7 +3159,9 @@ public:
     so when destroying a global thread, do:
 
     thd->release_resources()
+    mysql_mutex_lock(&LOCK_thread_count);
     remove_global_thread(thd);
+    mysql_mutex_unlock(&LOCK_thread_count);
     delete thd;
    */
   ~THD();

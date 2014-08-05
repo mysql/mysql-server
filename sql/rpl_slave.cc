@@ -4512,9 +4512,11 @@ err:
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
 
   thd->release_resources();
+  mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   if (thd_added)
     remove_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
 
   mi->abort_slave= 0;
@@ -4714,9 +4716,12 @@ err:
     */
     thd->system_thread= NON_SYSTEM_THREAD;
     thd->release_resources();
+
+    mysql_mutex_lock(&LOCK_thread_count);
     THD_CHECK_SENTRY(thd);
     if (thd_added)
       remove_global_thread(thd);
+    mysql_mutex_unlock(&LOCK_thread_count);
     delete thd;
   }
 
@@ -5839,9 +5844,11 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   set_thd_in_use_temporary_tables(rli);  // (re)set info_thd in use for saved temp tables
 
   thd->release_resources();
+  mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   if (thd_added)
     remove_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
  /*
   Note: the order of the broadcast and unlock calls below (first broadcast, then unlock)
