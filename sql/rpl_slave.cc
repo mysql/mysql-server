@@ -3028,7 +3028,6 @@ void set_slave_thread_default_charset(THD* thd, Relay_log_info const *rli)
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 #if !defined(DBUG_OFF)
   int simulate_error= 0;
 #endif
@@ -3048,15 +3047,14 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     - yet still assigned a PROCESSLIST_ID,
       for historical reasons (displayed in SHOW PROCESSLIST).
   */
-  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
-  thd->thread_id= thd->variables.pseudo_thread_id;
+  thd->set_new_thread_id();
 
 #ifdef HAVE_PSI_INTERFACE
   /*
     Populate the PROCESSLIST_ID in the instrumentation.
   */
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
-  PSI_THREAD_CALL(set_thread_id)(psi, thd->thread_id);
+  PSI_THREAD_CALL(set_thread_id)(psi, thd->thread_id());
 #endif /* HAVE_PSI_INTERFACE */
 
   DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
@@ -3182,13 +3180,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     */
     if (!last_retrieved_gtid->empty() &&
         !gtid_state->get_executed_gtids()->contains_gtid(*last_retrieved_gtid))
-    {
-      if (retrieved_set->_remove_gtid(*last_retrieved_gtid) != RETURN_STATUS_OK)
-      {
-        global_sid_lock->unlock();
-        goto err;
-      }
-    }
+      retrieved_set->_remove_gtid(*last_retrieved_gtid);
 
     if (gtid_executed.add_gtid_set(retrieved_set) != RETURN_STATUS_OK ||
         gtid_executed.add_gtid_set(gtid_state->get_executed_gtids()) !=
@@ -4532,19 +4524,23 @@ log space");
         }
       DBUG_EXECUTE_IF("stop_io_after_reading_gtid_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == GTID_LOG_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_query_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == QUERY_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
+      );
+      DBUG_EXECUTE_IF("stop_io_after_reading_user_var_log_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == USER_VAR_EVENT)
+          thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_xid_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == XID_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_write_rows_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == WRITE_ROWS_EVENT)
-           thd->killed= THD::KILLED_NO_VALUE;
+          thd->killed= THD::KILLED_NO_VALUE;
       );
     }
   }
@@ -6914,12 +6910,9 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
       if (event_type == GTID_LOG_EVENT)
       {
         global_sid_lock->rdlock();
-        int ret= rli->add_logged_gtid(gtid.sidno, gtid.gno);
-        if (!ret)
-          rli->set_last_retrieved_gtid(gtid);
+        rli->add_logged_gtid(gtid.sidno, gtid.gno);
+        rli->set_last_retrieved_gtid(gtid);
         global_sid_lock->unlock();
-        if (ret != 0)
-          goto err;
       }
     }
     else

@@ -180,9 +180,7 @@ static THD* init_new_thd(Channel_info *channel_info)
     return NULL;
   }
 
-  thd->variables.pseudo_thread_id=
-    Global_THD_manager::get_instance()->get_inc_thread_id();
-  thd->thread_id= thd->variables.pseudo_thread_id;
+  thd->set_new_thread_id();
 
   thd->start_utime= thd->thr_create_utime= my_micro_time();
   if (channel_info->get_prior_thr_create_utime() != 0)
@@ -279,12 +277,13 @@ pthread_handler_t handle_connection(void *arg)
         and attach it to this running pthread.
       */
       PSI_thread *psi= PSI_THREAD_CALL(new_thread)
-        (key_thread_one_connection, thd, thd->thread_id);
+        (key_thread_one_connection, thd, thd->thread_id());
       PSI_THREAD_CALL(set_thread)(psi);
     }
 #endif
 
-    mysql_thread_set_psi_id(thd->thread_id);
+    mysql_thread_set_psi_id(thd->thread_id());
+    mysql_thread_set_psi_THD(thd);
     mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
 
     thd_manager->add_thd(thd);

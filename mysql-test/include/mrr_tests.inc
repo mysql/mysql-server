@@ -360,6 +360,7 @@ ANALYZE TABLE t1;
 
 SELECT id FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 --echo This must show type=index, extra=Using where
+# The filtering effect of IS NOT NULL is from stats of the range optimizer.
 explain SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 drop table t1;

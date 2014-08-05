@@ -442,6 +442,7 @@ Recovery_module::set_recovery_thread_context()
 {
   my_thread_init();
   recovery_thd= new THD;
+  recovery_thd->set_new_thread_id();
   recovery_thd->thread_stack= (char*) &recovery_thd;
   recovery_thd->store_globals();
   init_thr_lock();

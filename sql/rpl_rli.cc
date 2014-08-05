@@ -1257,9 +1257,8 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
         DBUG_RETURN(false);
       log_name= group_master_log_name;
-      log_pos= (!ev)? group_master_log_pos :
-        ((thd->variables.option_bits & OPTION_BEGIN || !ev->log_pos) ?
-         group_master_log_pos : ev->log_pos - ev->data_written);
+      log_pos= (!ev || is_in_group() || !ev->log_pos) ?
+        group_master_log_pos : ev->log_pos - ev->data_written;
     }
     else
     { /* until_condition == UNTIL_RELAY_POS */

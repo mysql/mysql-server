@@ -478,7 +478,7 @@ extern PSI_memory_key key_memory_quick_index_merge_root;
 extern PSI_memory_key key_memory_quick_ror_intersect_select_root;
 extern PSI_memory_key key_memory_quick_ror_union_select_root;
 extern PSI_memory_key key_memory_quick_group_min_max_select_root;
-extern PSI_memory_key key_memory_sql_select_test_quick_select_exec;
+extern PSI_memory_key key_memory_test_quick_select_exec;
 extern PSI_memory_key key_memory_prune_partitions_exec;
 extern PSI_memory_key key_memory_binlog_recover_exec;
 extern PSI_memory_key key_memory_blob_mem_storage;
@@ -860,7 +860,8 @@ enum options_mysqld
   OPT_HOST_CACHE_SIZE,
   OPT_TABLE_DEFINITION_CACHE,
   OPT_MDL_CACHE_SIZE,
-  OPT_MDL_HASH_INSTANCES
+  OPT_MDL_HASH_INSTANCES,
+  OPT_SKIP_INNODB
 };
 
 

@@ -241,8 +241,8 @@ void add_pke_to_list(TABLE *table, THD *thd)
 
     const char* pk=NULL;
     pk= (char *)pke.c_str();
-    DBUG_PRINT("info", ("The hashed value is %s for %lu", pk,
-                        thd->thread_id));
+    DBUG_PRINT("info", ("The hashed value is %s for %u", pk,
+                        thd->thread_id()));
     uint32 temp_1= calc_hash<const char *>(pk);
     delete[] pk_value;
     thd->add_write_set(temp_1);
@@ -1722,7 +1722,7 @@ int ha_rollback_low(THD *thd, bool all)
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
 
   // Deleting the elements from the thread_to_seq_num map.
-  delete_transaction_certification_result(thd->thread_id);
+  delete_transaction_certification_result(thd->thread_id());
   thd->clear_hash_pke_list();
   (void) RUN_HOOK(transaction, before_rollback, (thd, all));
 

@@ -117,7 +117,7 @@ int gcs_trans_before_commit(Trans_param *param)
   }
 
   DBUG_ASSERT(cache_log->type == WRITE_CACHE);
-  DBUG_PRINT("cache_log", ("thread_id: %lu, trx_cache_log_position: %llu,"
+  DBUG_PRINT("cache_log", ("thread_id: %u, trx_cache_log_position: %llu,"
                            " stmt_cache_log_position: %llu",
                            param->thread_id, trx_cache_log_position,
                            stmt_cache_log_position));

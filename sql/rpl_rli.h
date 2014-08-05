@@ -258,15 +258,12 @@ private:
 public:
   Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
   void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
-  int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
+  void add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
-    int ret= 0;
     global_sid_lock->assert_some_lock();
     DBUG_ASSERT(sidno <= global_sid_map->get_max_sidno());
     gtid_set.ensure_sidno(sidno);
-    if (gtid_set._add_gtid(sidno, gno) != RETURN_STATUS_OK)
-      ret= 1;
-    return ret;
+    gtid_set._add_gtid(sidno, gno);
   }
   const Gtid_set *get_gtid_set() const { return &gtid_set; }
 
@@ -813,13 +810,16 @@ public:
      Replication is inside a group if either:
      - The OPTION_BEGIN flag is set, meaning we're inside a transaction
      - The RLI_IN_STMT flag is set, meaning we're inside a statement
+     - There is an GTID owned by the thd, meaning we've passed a SET GTID_NEXT
 
      @retval true Replication thread is currently inside a group
      @retval false Replication thread is currently not inside a group
    */
   bool is_in_group() const {
     return (info_thd->variables.option_bits & OPTION_BEGIN) ||
-      (m_flags & (1UL << IN_STMT));
+      (m_flags & (1UL << IN_STMT)) ||
+      /* If a SET GTID_NEXT was issued we are inside of a group */
+      info_thd->owned_gtid.sidno;
   }
 
   int count_relay_log_space();

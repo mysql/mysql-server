@@ -125,7 +125,7 @@ using std::max;
    "FUNCTION" : "PROCEDURE")
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
-static void sql_kill(THD *thd, ulong id, bool only_kill_query);
+static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
 const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Sleep") },
@@ -1048,7 +1048,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
 
   /* DTRACE instrumentation, begin */
-  MYSQL_COMMAND_START(thd->thread_id, command,
+  MYSQL_COMMAND_START(thd->thread_id(), command,
                       &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
 
@@ -1224,7 +1224,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
-    MYSQL_QUERY_START(const_cast<char*>(thd->query().str), thd->thread_id,
+    MYSQL_QUERY_START(const_cast<char*>(thd->query().str), thd->thread_id(),
                       (char *) (thd->db ? thd->db : ""),
                       &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
@@ -1302,7 +1302,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 /* DTRACE begin */
       MYSQL_QUERY_START(const_cast<char*>(beginning_of_next_stmt),
-                        thd->thread_id,
+                        thd->thread_id(),
                         (char *) (thd->db ? thd->db : ""),
                         &thd->security_ctx->priv_user[0],
                         (char *) thd->security_ctx->host_or_ip);
@@ -1609,14 +1609,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    if (thd_manager->get_thread_id() & (~0xfffffffful))
-      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
-    else if (packet_length < 4)
+    DBUG_ASSERT(sizeof(my_thread_id) == 4);
+    if (packet_length < 4)
       my_error(ER_MALFORMED_PACKET, MYF(0));
     else
     {
       thd->status_var.com_stat[SQLCOM_KILL]++;
-      ulong id=(ulong) uint4korr(packet);
+      my_thread_id id= static_cast<my_thread_id>(uint4korr(packet));
       sql_kill(thd,id,false);
     }
     break;
@@ -4241,7 +4240,7 @@ end_with_restore_list:
       goto error;
     }
 
-    ulong thread_id= static_cast<ulong>(it->val_int());
+    my_thread_id thread_id= static_cast<my_thread_id>(it->val_int());
     if (thd->is_error())
       goto error;
 
@@ -5434,7 +5433,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           }
           lex->set_trg_event_type_for_tables();
           MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                                 thd->thread_id,
+                                 thd->thread_id(),
                                  (char *) (thd->db ? thd->db : ""),
                                  &thd->security_ctx->priv_user[0],
                                  (char *) thd->security_ctx->host_or_ip,
@@ -6261,7 +6260,7 @@ void add_join_on(TABLE_LIST *b, Item *expr)
 {
   if (expr)
   {
-    b->set_optim_join_cond((Item*)1); // m_optim_join_cond is not ready
+    b->set_join_cond_optim((Item*)1); // m_join_cond_optim is not ready
     if (!b->join_cond())
       b->set_join_cond(expr);
     else
@@ -6327,18 +6326,18 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
   @param only_kill_query        Should it kill the query or the connection
 
   @note
-    This is written such that we have a short lock on LOCK_thd_count
+    This is written such that we have a short lock on LOCK_thd_list
 */
 
 
-uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
+uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query)
 {
   THD *tmp= NULL;
   uint error=ER_NO_SUCH_THREAD;
   Find_thd_with_id find_thd_with_id(id);
 
   DBUG_ENTER("kill_one_thread");
-  DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
+  DBUG_PRINT("enter", ("id=%u only_kill=%d", id, only_kill_query));
   tmp= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (tmp)
   {
@@ -6392,7 +6391,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 */
 
 static
-void sql_kill(THD *thd, ulong id, bool only_kill_query)
+void sql_kill(THD *thd, my_thread_id id, bool only_kill_query)
 {
   uint error;
   if (!(error= kill_one_thread(thd, id, only_kill_query)))

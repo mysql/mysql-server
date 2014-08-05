@@ -101,6 +101,7 @@ Applier_module::set_applier_thread_context()
 {
   my_thread_init();
   applier_thd= new THD;
+  applier_thd->set_new_thread_id();
   applier_thd->thread_stack= (char*) &applier_thd;
   applier_thd->store_globals();
   init_thr_lock();

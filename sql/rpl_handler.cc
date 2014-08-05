@@ -45,14 +45,23 @@ int get_user_var_int(const char *name,
                      long long int *value, int *null_value)
 {
   my_bool null_val;
-  user_var_entry *entry= 
-    (user_var_entry*) my_hash_search(&current_thd->user_vars,
+  THD *thd= current_thd;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+
+  user_var_entry *entry=
+    (user_var_entry*) my_hash_search(&thd->user_vars,
                                   (uchar*) name, strlen(name));
   if (!entry)
+  {
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
+  }
   *value= entry->val_int(&null_val);
   if (null_value)
     *null_value= null_val;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
   return 0;
 }
 
@@ -60,14 +69,23 @@ int get_user_var_real(const char *name,
                       double *value, int *null_value)
 {
   my_bool null_val;
-  user_var_entry *entry= 
-    (user_var_entry*) my_hash_search(&current_thd->user_vars,
+  THD *thd= current_thd;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+
+  user_var_entry *entry=
+    (user_var_entry*) my_hash_search(&thd->user_vars,
                                   (uchar*) name, strlen(name));
   if (!entry)
+  {
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
+  }
   *value= entry->val_real(&null_val);
   if (null_value)
     *null_value= null_val;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
   return 0;
 }
 
@@ -76,15 +94,24 @@ int get_user_var_str(const char *name, char *value,
 {
   String str;
   my_bool null_val;
-  user_var_entry *entry= 
-    (user_var_entry*) my_hash_search(&current_thd->user_vars,
+  THD *thd= current_thd;
+
+  /* Protects thd->user_vars. */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+
+  user_var_entry *entry=
+    (user_var_entry*) my_hash_search(&thd->user_vars,
                                   (uchar*) name, strlen(name));
   if (!entry)
+  {
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
+  }
   entry->val_str(&null_val, &str, precision);
   strncpy(value, str.c_ptr(), len);
   if (null_value)
     *null_value= null_val;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
   return 0;
 }
 
@@ -227,7 +254,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
-  param.thread_id= thd->thread_id;
+  param.thread_id= thd->thread_id();
   param.local= local;
   param.trx_cache_log= trx_cache_log;
   param.stmt_cache_log= stmt_cache_log;
@@ -250,7 +277,7 @@ int Trans_delegate::before_rollback(THD *thd, bool all)
   Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
-  param.thread_id= thd->thread_id;
+  param.thread_id= thd->thread_id();
 
   bool is_real_trans=
     (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -267,7 +294,7 @@ int Trans_delegate::after_commit(THD *thd, bool all)
   DBUG_ENTER("Trans_delegate::after_commit");
   Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   param.server_uuid= server_uuid;
-  param.thread_id= thd->thread_id;
+  param.thread_id= thd->thread_id();
 
   bool is_real_trans=
     (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -290,7 +317,7 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
   DBUG_ENTER("Trans_delegate::after_rollback");
   Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   param.server_uuid= server_uuid;
-  param.thread_id= thd->thread_id;
+  param.thread_id= thd->thread_id();
 
   bool is_real_trans=
     (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
