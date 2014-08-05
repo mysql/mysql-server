@@ -1,0 +1,25 @@
+mysql-community (5.6.20-1ubuntu14.04) trusty; urgency=low
+
+  * new upstream release
+  * added fakeroot as build-dep in d/control
+  * added d/*.dirs for bench, dev and test pkg
+  * updated d/rules to make compilation verbose
+  * removed default CFLAGS, CXXFLAGS in d/rules
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 26 Jun 2014 16:13:30 +0530
+
+mysql-community (5.6.19-1ubuntu14.04) trusty; urgency=low
+
+  * new upstream release
+  * d/rules updated to rid of files removed from source
+  * modified path for source tar in source pkg
+  * obscured actual filenames in d/source/include-binaries
+  * modified d/rules to handle obscured filenames
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 05 May 2014 15:45:10 +0530
+
+mysql-community (5.6.17-1ubuntu14.04) trusty; urgency=low
+
+  * new upstream release
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 28 Feb 2014 18:06:30 +0530

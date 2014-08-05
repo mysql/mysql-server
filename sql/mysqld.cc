@@ -345,10 +345,6 @@ static PSI_rwlock_key key_rwlock_openssl;
 #endif
 #endif /* HAVE_PSI_INTERFACE */
 
-#ifdef HAVE_NPTL
-volatile sig_atomic_t ld_assume_kernel_is_set= 0;
-#endif
-
 /**
   Statement instrumentation key for replication.
 */
@@ -488,6 +484,8 @@ my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
+ulong binlogging_impossible_mode;
+const char *binlogging_impossible_err[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
@@ -709,7 +707,7 @@ SHOW_COMP_OPTION have_profiling;
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 mysql_mutex_t LOCK_thread_created;
-mysql_mutex_t LOCK_thread_count;
+mysql_mutex_t LOCK_thread_count, LOCK_thd_remove;
 mysql_mutex_t
   LOCK_status, LOCK_error_log, LOCK_uuid_generator,
   LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
@@ -830,6 +828,14 @@ Thread_iterator global_thread_list_end()
   return global_thread_list->end();
 }
 
+void copy_global_thread_list(std::set<THD*> *new_copy)
+{
+  mysql_mutex_assert_owner(&LOCK_thd_remove);
+  mysql_mutex_lock(&LOCK_thread_count);
+  *new_copy= *global_thread_list;
+  mysql_mutex_unlock(&LOCK_thread_count);
+}
+
 void add_global_thread(THD *thd)
 {
   DBUG_PRINT("info", ("add_global_thread %p", thd));
@@ -849,8 +855,16 @@ void remove_global_thread(THD *thd)
 {
   DBUG_PRINT("info", ("remove_global_thread %p current_linfo %p",
                       thd, thd->current_linfo));
-  mysql_mutex_assert_owner(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thd_remove);
+  mysql_mutex_lock(&LOCK_thread_count);
   DBUG_ASSERT(thd->release_resources_done());
+  /*
+    Used by binlog_reset_master.  It would be cleaner to use
+    DEBUG_SYNC here, but that's not possible because the THD's debug
+    sync feature has been shut down at this point.
+   */
+  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd",
+                  sleep(5););
 
   const size_t num_erased= global_thread_list->erase(thd);
   if (num_erased == 1)
@@ -858,7 +872,9 @@ void remove_global_thread(THD *thd)
   // Removing a THD that was never added is an error.
   DBUG_ASSERT(1 == num_erased);
 
+  mysql_mutex_unlock(&LOCK_thd_remove);
   mysql_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 }
 
 uint get_thread_count()
@@ -1994,6 +2010,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_slave_net_timeout);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_cond_destroy(&COND_thread_count);
+  mysql_mutex_destroy(&LOCK_thd_remove);
   mysql_cond_destroy(&COND_thread_cache);
   mysql_cond_destroy(&COND_flush_thread_cache);
   mysql_cond_destroy(&COND_manager);
@@ -2727,14 +2744,6 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
 
   thd->release_resources();
   dec_connection_count();
-
-  mysql_mutex_lock(&LOCK_thread_count);
-  /*
-    Used by binlog_reset_master.  It would be cleaner to use
-    DEBUG_SYNC here, but that's not possible because the THD's debug
-    sync feature has been shut down at this point.
-  */
-  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
   remove_global_thread(thd);
   if (kill_blocked_pthreads_flag)
   {
@@ -2747,11 +2756,6 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   ERR_remove_state(0);
 #endif
 
-  /*
-    Using global resources (like mutexes) is unsafe once we have released
-    the mutex here: the server may be shutting down.
-   */
-  mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
@@ -3052,8 +3056,7 @@ void my_init_signals(void)
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
-  if (thd_lib_detected != THD_LIB_LT)
-    sigaddset(&set,THR_SERVER_ALARM);
+  sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
   {
     my_sigset(thr_kill_signal, end_thread_signal);
@@ -3125,7 +3128,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   */
   init_thr_alarm(thread_scheduler->max_threads +
      global_system_variables.max_insert_delayed_threads + 10);
-  if (thd_lib_detected != THD_LIB_LT && (test_flags & TEST_SIGINT))
+  if (test_flags & TEST_SIGINT)
   {
     (void) sigemptyset(&set);     // Setup up SIGINT for debug
     (void) sigaddset(&set,SIGINT);    // For debugging
@@ -4182,6 +4185,8 @@ static int init_thread_environment()
                    &LOCK_thread_created, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thd_remove,
+                   &LOCK_thd_remove, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_delayed_insert,
                    &LOCK_delayed_insert, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_delayed_status,
@@ -5189,9 +5194,7 @@ int mysqld_main(int argc, char **argv)
     to be able to read defaults files and parse options.
   */
   my_progname= argv[0];
-#ifdef HAVE_NPTL
-  ld_assume_kernel_is_set= (getenv("LD_ASSUME_KERNEL") != 0);
-#endif
+
 #ifndef _WIN32
   // For windows, my_init() is called from the win specific mysqld_main
   if (my_init())                 // init my_sys library & pthreads
@@ -5301,7 +5304,7 @@ int mysqld_main(int argc, char **argv)
 
   /* Set signal used to kill MySQL */
 #if defined(SIGUSR2)
-  thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
+  thr_kill_signal= SIGUSR2;
 #else
   thr_kill_signal= SIGINT;
 #endif
@@ -9368,6 +9371,7 @@ PSI_mutex_key
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_LOCK_log_throttle_qni;
+PSI_mutex_key key_LOCK_thd_remove;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -9452,6 +9456,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
+  { &key_LOCK_thd_remove, "LOCK_thd_remove", PSI_FLAG_GLOBAL},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL }

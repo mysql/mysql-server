@@ -1491,11 +1491,11 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   {
     buff_gtid[0]= 0;
   }
- 
-  sprintf(buff_coord,
-          "Worker %lu failed executing transaction '%s' at "
-          "master log %s, end_log_pos %llu",
-          id, buff_gtid, log_name, log_pos);
+
+  my_snprintf(buff_coord, sizeof(buff_coord),
+           "Worker %lu failed executing transaction '%s' at "
+           "master log %s, end_log_pos %llu",
+           id, buff_gtid, log_name, log_pos);
   c_rli->va_report(level, err_code, buff_coord, msg, args);
 }
 

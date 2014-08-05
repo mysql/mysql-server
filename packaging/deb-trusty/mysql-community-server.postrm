@@ -1,0 +1,154 @@
+#!/bin/bash
+
+# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+if [ "$1" = purge ] && [ -e /usr/share/debconf/confmodule ];
+then
+. /usr/share/debconf/confmodule
+fi
+
+place_upstart_job_back () {
+	if [ -e "/var/lib/mysql/.mysql.conf.backup" ];
+	then
+		mv /var/lib/mysql/.mysql.conf.backup /etc/init/mysql.conf
+	fi
+}
+
+get_pcount () {
+	PSCOUNT=$(ps -ef | grep "/usr/sbin/mysqld" | wc -l)
+	echo "${PSCOUNT}"
+}
+
+server_stop () {
+	PSCOUNT=$(get_pcount)
+	COUNT=0
+	while :; do
+		COUNT=$(( COUNT+1 ))
+		echo -n .
+		if [ "${PSCOUNT}" -eq 1 ];
+		then
+			echo
+			break
+		fi
+		if [ "${COUNT}" -gt 15 ];
+		then
+			echo
+			return 1
+		fi
+		PSCOUNT=$(get_pcount)
+		sleep 1
+	done
+	return 0
+}
+
+case "$1" in
+	remove)
+
+	set -e
+
+	place_upstart_job_back
+
+	set +e
+
+	;;
+
+	purge)
+
+	set -e
+
+	place_upstart_job_back
+
+	MYSQLDATA=/var/lib/mysql
+	MYSQLLOG=/var/log/mysql
+	MYSQLRUN=/var/run/mysqld
+
+	server_stop
+
+	db_input high mysql-community-server/remove-data-dir || true
+	db_go
+	db_get mysql-community-server/remove-data-dir && RMDATADIR=${RET}
+	if [ "${RMDATADIR}" = "true" ];
+	then
+		if [ -d ${MYSQLRUN} ] || [ -L ${MYSQLRUN} ];
+		then
+			rm -rf ${MYSQLRUN}
+		fi
+
+		if [ -d ${MYSQLLOG} ] || [ -L ${MYSQLLOG} ];
+		then
+			rm -rf ${MYSQLLOG}
+		fi
+
+		if [ -d ${MYSQLDATA} ] || [ -L ${MYSQLDATA} ];
+		then
+			rm -rf ${MYSQLDATA}
+		fi
+
+		if getent passwd mysql >/dev/null;
+		then
+			userdel mysql
+		fi
+	fi
+
+	set +e
+	;;
+
+	abort-install)
+
+	set -e
+
+	place_upstart_job_back
+
+	if [ -x "/etc/init.d/mysql" ];
+	then
+		invoke-rc.d mysql start || exit $?
+	else
+	        if [ -d ${MYSQLRUN} ] || [ -L ${MYSQLRUN} ];
+		then
+			rm -rf ${MYSQLRUN}
+		fi
+
+		if [ -d ${MYSQLLOG} ] || [ -L ${MYSQLLOG} ];
+		then
+			rm -rf ${MYSQLLOG}
+		fi
+
+		if [ -d ${MYSQLDATA} ] || [ -L ${MYSQLDATA} ];
+		then
+			rm -rf ${MYSQLDATA}
+		fi
+
+		if getent passwd mysql >/dev/null;
+		then
+			userdel mysql
+		fi
+	fi
+
+	set +e
+	;;
+
+	upgrade|abort-upgrade)
+
+	;;
+
+	*)
+	exit 1
+	;;
+esac
+
+#DEBHELPER#
+
+exit 0

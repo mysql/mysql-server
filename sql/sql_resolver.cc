@@ -206,7 +206,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
                          (having->fix_fields(thd, &having) ||
                           having->check_cols(1)));
     select_lex->having_fix_field= 0;
-    select_lex->having= having;
+    having_for_explain= select_lex->having= having;
 
     select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
     if (having_fix_rc || thd->is_error())

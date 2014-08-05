@@ -487,6 +487,9 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`id`),
   FULLTEXT KEY `idx` (`a`,`b`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED
+SELECT count(*) FROM information_schema.innodb_sys_tables WHERE name LIKE "%FTS_%" AND space !=0;
+count(*)
+11
 INSERT INTO t1 (a,b) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
 ('MySQL vs. YourSQL','In the following database comparison ...'),

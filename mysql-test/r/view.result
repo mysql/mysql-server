@@ -4211,3 +4211,40 @@ OR ((pk BETWEEN 9 AND 13) AND pk = 90)
 pk
 DROP VIEW v_t1;
 DROP TABLE t1;
+#
+# BUG#14117018 - MYSQL SERVER CREATES INVALID VIEW DEFINITION
+# BUG#18405221 - SHOW CREATE VIEW OUTPUT INCORRECT
+#
+CREATE VIEW v1 AS (SELECT '' FROM DUAL);
+CREATE VIEW v2 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
+(SELECT '' FROM DUAL);
+CREATE VIEW v3 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
+(SELECT '' FROM DUAL) UNION ALL
+(SELECT '' FROM DUAL);
+CREATE VIEW v4 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
+(SELECT '' AS col2 FROM DUAL) UNION ALL
+(SELECT '' FROM DUAL);
+# Name for the column in select1 is set properly with or
+# without this fix.
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select '' AS `Name_exp_1`)	latin1	latin1_swedish_ci
+# Name for the column in select2 is set with this fix.
+# Without this fix, name would not have set for the
+# columns in select2.
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_2`)	latin1	latin1_swedish_ci
+# Name for the field item in select2 & select3 is set with this fix.
+# Without this fix, name would not have set for the
+# columns in select2 & select3.
+SHOW CREATE VIEW v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_2`) union all (select '' AS `Name_exp_3`)	latin1	latin1_swedish_ci
+# Name for the field item in select3 is set with this fix.
+# Without this fix, name would not have set for the
+# columns in select3.
+SHOW CREATE VIEW v4;
+View	Create View	character_set_client	collation_connection
+v4	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `col2`) union all (select '' AS `Name_exp_3`)	latin1	latin1_swedish_ci
+DROP VIEW v1, v2, v3, v4;

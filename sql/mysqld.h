@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -216,6 +216,15 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
+extern ulong binlogging_impossible_mode;
+enum enum_binlogging_impossible_mode
+{
+  /// Ignore the error and let server continue without binlogging
+  IGNORE_ERROR= 0,
+  /// Abort the server
+  ABORT_SERVER= 1
+};
+extern const char *binlogging_impossible_err[];
 enum enum_gtid_mode
 {
   /// Support only anonymous groups, not GTIDs.
@@ -333,7 +342,7 @@ extern PSI_mutex_key
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
-  key_LOCK_error_messages, key_LOCK_thread_count,
+  key_LOCK_error_messages, key_LOCK_thread_count, key_LOCK_thd_remove,
   key_LOCK_log_throttle_qni;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;

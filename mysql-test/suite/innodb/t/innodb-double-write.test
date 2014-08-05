@@ -9,6 +9,10 @@
 --source include/not_embedded.inc
 --source include/not_valgrind.inc
 
+# Slow shutdown and restart to make sure ibuf merge is finished
+SET GLOBAL innodb_fast_shutdown = 0;
+--source include/restart_mysqld.inc
+
 --disable_query_log
 call mtr.add_suppression("InnoDB: Database page .* contained only zeroes.");
 call mtr.add_suppression("Header page consists of zero bytes");
@@ -134,6 +138,10 @@ select f1, f2 from t1;
 select space from information_schema.innodb_sys_tables
 where name = 'test/t1' into @space_id;
 
+--echo # Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+
 --echo # Make the 2nd page dirty for table t1
 set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = @space_id;
@@ -175,6 +183,10 @@ select f1, f2 from t1;
 select space from information_schema.innodb_sys_tables
 where name = 'test/t1' into @space_id;
 
+--echo # Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+
 --echo # Make the 2nd page dirty for table t1
 set global innodb_saved_page_number_debug = 1;
 set global innodb_fil_make_page_dirty_debug = @space_id;
@@ -213,6 +225,9 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if first page of
 --echo # system tablespace is full of zeroes.
 
+--echo # Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
+
 --echo # Make the first page dirty for system tablespace
 set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = 0;
@@ -250,6 +265,9 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if first page of
 --echo # system tablespace is corrupted.
 
+--echo # Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
+
 --echo # Make the first page dirty for system tablespace
 set global innodb_saved_page_number_debug = 0;
 set global innodb_fil_make_page_dirty_debug = 0;
@@ -285,6 +303,9 @@ select f1, f2 from t1;
 --echo # ---------------------------------------------------------------
 --echo # Test Begin: Test if recovery works if 2nd page of
 --echo # system tablespace is full of zeroes.
+
+--echo # Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
 
 --echo # Make the second page dirty for system tablespace
 set global innodb_saved_page_number_debug = 1;
@@ -323,6 +344,9 @@ select f1, f2 from t1;
 --echo # ---------------------------------------------------------------
 --echo # Test Begin: Test if recovery works if 2nd page of
 --echo # system tablespace is corrupted.
+
+--echo # Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
 
 --echo # Make the second page dirty for system tablespace
 set global innodb_saved_page_number_debug = 1;

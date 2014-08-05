@@ -1647,6 +1647,19 @@ innobase_start_or_create_for_mysql(void)
 		"" IB_ATOMICS_STARTUP_MSG "");
 
 	ib_logf(IB_LOG_LEVEL_INFO,
+		"" IB_MEMORY_BARRIER_STARTUP_MSG "");
+
+#ifndef HAVE_MEMORY_BARRIER
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64 || defined __WIN__
+#else
+	ib_logf(IB_LOG_LEVEL_WARN,
+		"MySQL was built without a memory barrier capability on this"
+		" architecture, which might allow a mutex/rw_lock violation"
+		" under high thread concurrency. This may cause a hang.");
+#endif /* IA32 or AMD64 */
+#endif /* HAVE_MEMORY_BARRIER */
+
+	ib_logf(IB_LOG_LEVEL_INFO,
 		"Compressed tables use zlib " ZLIB_VERSION
 #ifdef UNIV_ZIP_DEBUG
 	      " with validation"
@@ -2619,13 +2632,6 @@ files_checked:
 		/* Can only happen if server is read only. */
 		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
-	}
-
-	/* Flush the changes made to TRX_SYS_PAGE by trx_sys_create_rsegs()*/
-	if (!srv_force_recovery && !srv_read_only_mode) {
-		bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
-		ut_a(success);
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
 
 	if (!srv_read_only_mode) {

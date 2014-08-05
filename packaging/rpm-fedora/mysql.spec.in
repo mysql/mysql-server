@@ -60,7 +60,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @VERSION@
-Release:        1%{?dist}
+Release:        2%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -124,6 +124,7 @@ Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mariadb-server
+Obsoletes:      mariadb-galera-server
 Obsoletes:      community-mysql-server < %{obs_ver}
 Obsoletes:      mysql-server < %{obs_ver}
 Provides:       mysql-server = %{version}-%{release}
@@ -214,6 +215,25 @@ Provides:       mysql-test%{?_isa} = %{version}-%{release}
 This package contains the MySQL regression test suite for MySQL
 database server.
 
+
+%package        bench
+Summary:        MySQL benchmark suite
+Group:          Applications/Databases
+%if 0%{?commercial}
+Obsoletes:      mysql-community-bench < %{version}-%{release}
+Requires:       mysql-enterprise-server%{?_isa} = %{version}-%{release}
+%else
+Requires:       mysql-community-server%{?_isa} = %{version}-%{release}
+%endif
+Obsoletes:      mariadb-bench
+Obsoletes:      community-mysql-bench < %{obs_ver}
+Obsoletes:      mysql-bench < %{obs_ver}
+Provides:       mysql-bench = %{version}-%{release}
+Provides:       mysql-bench%{?_isa} = %{version}-%{release}
+
+%description    bench
+This package contains the MySQL Benchmark Suite for MySQL database
+server.
 
 %package        devel
 Summary:        Development header files and libraries for MySQL database client applications
@@ -306,6 +326,9 @@ the embedded version of the MySQL server.
 pushd %{src_dir}
 %patch0 -p1
 %patch1 -p1
+# Avoid dtrace dep
+sed -i -e "1d" mysql-test/std_data/dtrace.d
+chmod 0664 mysql-test/std_data/dtrace.d
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -327,17 +350,20 @@ mkdir debug
 (
   cd debug
   # Attempt to remove any optimisation flags from the debug build
-  CFLAGS=$(echo "${CFLAGS}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
-  CXXFLAGS=$(echo "${CFLAGS}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /') 
+  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
+           -DCMAKE_C_FLAGS="$optflags" \
+           -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DINSTALL_SQLBENCHDIR=share \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -354,11 +380,15 @@ mkdir release
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DCMAKE_C_FLAGS="%{optflags}" \
+           -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DINSTALL_SQLBENCHDIR=share \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
@@ -658,6 +688,10 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_client_test_embedded.1*
 %attr(644, root, root) %{_mandir}/man1/mysqltest_embedded.1*
 
+%files bench
+%defattr(-, root, root, -)
+%{_datadir}/sql-bench
+
 %files embedded
 %defattr(-, root, root, -)
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
@@ -670,6 +704,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Thu Jul 10 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.20-2
+- Remove dtrace dependencies 
+
+* Wed Jun 25 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.20-1
+- Add bench package
+
 * Fri Feb 07 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.17-1
 - 5.6.17
 - Enable shared libmysqld by cmake option

@@ -1261,6 +1261,10 @@ public:
   const char *host_or_ip;
   ulong master_access;                 /* Global privileges from mysql.user */
   ulong db_access;                     /* Privileges for current db */
+  /*
+    This flag is set according to connecting user's context and not the
+    effective user.
+  */
   bool password_expired;               /* password expiration flag */
 
   void init();
@@ -3155,9 +3159,7 @@ public:
     so when destroying a global thread, do:
 
     thd->release_resources()
-    mysql_mutex_lock(&LOCK_thread_count);
     remove_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
     delete thd;
    */
   ~THD();

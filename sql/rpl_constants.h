@@ -45,6 +45,8 @@ const int BINLOG_FLAGS_INFO_SIZE= 2;
 const int BINLOG_SERVER_ID_INFO_SIZE= 4;
 const int BINLOG_NAME_SIZE_INFO_SIZE= 4;
 
+const int BINLOG_DUMP_NON_BLOCK= 1<<0;
+
 /**
    Enumeration of the reserved formats of Binlog extra row information
 */

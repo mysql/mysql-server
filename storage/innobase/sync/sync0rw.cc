@@ -381,6 +381,7 @@ rw_lock_s_lock_spin(
 lock_loop:
 
 	/* Spin waiting for the writer field to become free */
+	os_rmb;
 	while (i < SYNC_SPIN_ROUNDS && lock->lock_word <= 0) {
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
@@ -389,7 +390,7 @@ lock_loop:
 		i++;
 	}
 
-	if (i == SYNC_SPIN_ROUNDS) {
+	if (i >= SYNC_SPIN_ROUNDS) {
 		os_thread_yield();
 	}
 
@@ -476,6 +477,7 @@ rw_lock_x_lock_wait(
 
 	counter_index = (size_t) os_thread_get_curr_id();
 
+	os_rmb;
 	ut_ad(lock->lock_word <= 0);
 
 	while (lock->lock_word < 0) {
@@ -484,6 +486,7 @@ rw_lock_x_lock_wait(
 		}
 		if(i < SYNC_SPIN_ROUNDS) {
 			i++;
+			os_rmb;
 			continue;
 		}
 
@@ -559,6 +562,10 @@ rw_lock_x_lock_low(
 
 	} else {
 		os_thread_id_t	thread_id = os_thread_get_curr_id();
+
+		if (!pass) {
+			os_rmb;
+		}
 
 		/* Decrement failed: relock or failed lock */
 		if (!pass && lock->recursive
@@ -638,6 +645,7 @@ lock_loop:
 		}
 
 		/* Spin waiting for the lock_word to become free */
+		os_rmb;
 		while (i < SYNC_SPIN_ROUNDS
 		       && lock->lock_word <= 0) {
 			if (srv_spin_wait_delay) {
@@ -647,7 +655,7 @@ lock_loop:
 
 			i++;
 		}
-		if (i == SYNC_SPIN_ROUNDS) {
+		if (i >= SYNC_SPIN_ROUNDS) {
 			os_thread_yield();
 		} else {
 			goto lock_loop;
