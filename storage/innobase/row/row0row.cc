@@ -166,10 +166,16 @@ row_build_index_entry_low(
                                         }
 
 					temp_heap = mem_heap_create(1000);
+
+					const page_size_t	page_size
+						= (ext != NULL)
+						? ext->page_size
+						: dict_table_page_size(
+							index->table);
+
 					dptr = btr_copy_externally_stored_field(
 						&dlen, dptr,
-						dict_table_page_size(
-							index->table),
+						page_size,
 						flen,
 						temp_heap);
 				} else {
