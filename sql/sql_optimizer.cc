@@ -6740,8 +6740,8 @@ is_local_field (Item *field)
 {
   return field->real_item()->type() == Item::FIELD_ITEM &&
     !(field->used_tables() & OUTER_REF_TABLE_BIT) &&
-    !static_cast<Item_ident *>(field)->depended_from &&
-    !static_cast<Item_ident *>(field->real_item())->depended_from;
+    !down_cast<Item_ident *>(field)->depended_from &&
+    !down_cast<Item_ident *>(field->real_item())->depended_from;
 }
 
 
