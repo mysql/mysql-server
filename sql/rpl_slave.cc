@@ -482,7 +482,9 @@ err:
            "Slave for channel '%s" was already running"
            but error messages are in different languages and cannot be tampered
            with so, we have to handle it case by case basis, whether
-           only default channel exists or not.
+           only default channel exists or not and properly continue with
+           starting other channels if one channel fails clearly giving
+           an error message by displaying failed channels.
 */
 int start_slave(THD *thd)
 {
@@ -497,7 +499,8 @@ int start_slave(THD *thd)
   {
     mi= msr_map.get_mi(msr_map.get_default_channel());
 
-    DBUG_ASSERT(!strcmp(mi->get_channel(), msr_map.get_default_channel()));
+    DBUG_ASSERT(!strcmp(mi->get_channel(),
+                        msr_map.get_default_channel()));
 
     if ((error= start_slave(thd, mi, 1, false)))
       goto err;
@@ -508,27 +511,27 @@ int start_slave(THD *thd)
     {
       mi= it->second;
 
-      channel_exists= mi && mi->host[0];
       channel_running= mi && (mi->slave_running || mi->rli->slave_running);
 
       if (!channel_running)
       {
+        channel_exists= mi && mi->host[0];   // channel properly configured.
+
         if (channel_exists)
         {
           if ((error=start_slave(thd, mi, 1, false)))
-          {/* RITH TODO: Don't discontinue the operation */
+          {
             sql_print_error("Slave: Could not start slave for channel '%s'."
                             " operation discontinued", mi->get_channel());
             goto err;
           }
         }
-      }
-      else
-      {
-        if (!channel_exists)
+        else
+        {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_SLAVE_CHANNEL_RUNNING,
                             ER(ER_SLAVE_CHANNEL_RUNNING), mi->get_channel());
+        }
       }
     }
   }
@@ -559,22 +562,39 @@ int stop_slave(THD *thd)
    DBUG_ENTER("stop_slave(THD)");
    Master_info *mi=0;
    int error= 0;
+   bool channel_running;
 
-   /*RITH: MSR errors to be done */
-
-   for(mi_map::iterator it=msr_map.begin(); it!=msr_map.end(); it++)
+   if (msr_map.get_num_instances() == 1)
    {
-     mi= it->second;
+     mi= msr_map.get_mi(msr_map.get_default_channel());
 
-     if(mi)
+     DBUG_ASSERT(!strcmp(mi->get_channel(),
+                         msr_map.get_default_channel()));
+
+     if ((error= stop_slave(thd, mi, 1, false)))
+       goto err;
+   }
+   else
+   {
+     for(mi_map::iterator it=msr_map.begin(); it!=msr_map.end(); it++)
      {
-       if ((error= stop_slave(thd, mi, 1, false )))
+       mi= it->second;
+
+       channel_running= mi && (mi->slave_running || mi->rli->slave_running);
+
+       if(channel_running)
        {
-         sql_print_error("Slave: Could not stop slave for"
+         if ((error= stop_slave(thd, mi, 1, false )))
+         {
+           sql_print_error("Slave: Could not stop slave for"
                          " channel '%s'", mi->get_channel());
-         goto err;
+           goto err;
+         }
        }
-       // add push printf warning
+       else
+         push_warning_printf(thd, Sql_condition::SL_WARNING,
+                           ER_SLAVE_CHANNEL_STOPPED,
+                           ER(ER_SLAVE_CHANNEL_STOPPED), mi->get_channel());
      }
    }
    /* no error */
@@ -9006,7 +9026,7 @@ bool reset_slave_cmd(THD *thd)
 
     if (mi)
       res= reset_slave(thd, mi);
-    else if (!mi && strcmp(msr_map.get_default_channel(), lex->mi.channel))
+    else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
     else
       my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION), MYF(0));
@@ -9843,7 +9863,7 @@ bool add_new_channel(THD* thd, Master_info** mi, const char* channel)
 
   if (ident_check_status != IDENT_NAME_OK)
   {
-    my_error(ER_SLAVE_CHANNEL_NAME_WRONG_OR_TOO_LENGTHY, MYF(0));
+    my_error(ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG, MYF(0));
     goto err;
   }
 

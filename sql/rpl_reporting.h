@@ -136,6 +136,9 @@ public:
    For MSR, there is a need to introduce error messages per channel.
    Instead of changing the error messages in share/errmsg-utf8.txt to
    introduce the clause, FOR CHANNEL "%s", we construct a string like this.
+   There might be problem with a client applications which could print
+   error messages and see no %s.
+   @TODO: fix this.
  */
   char*  error_str_channel(char* channel_name)
   {
