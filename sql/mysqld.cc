@@ -1255,6 +1255,7 @@ static void close_connections(void)
 void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
+  (void) RUN_HOOK(server_state, before_server_shutdown, (current_thd));
 
 #if defined(_WIN32)
   {
@@ -1276,6 +1277,8 @@ void kill_mysql(void)
   }
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
+  (void) RUN_HOOK(server_state, after_server_shutdown, (current_thd));
+
   DBUG_VOID_RETURN;
 }
 
@@ -4067,6 +4070,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     sql_print_error("Can't init tc log");
     unireg_abort(1);
   }
+  (void)RUN_HOOK(server_state, before_recovery, (current_thd));
 
   if (ha_recover(0))
   {
@@ -4620,6 +4624,7 @@ int mysqld_main(int argc, char **argv)
         else
           global_sid_lock->unlock();
       }
+      (void) RUN_HOOK(server_state, after_engine_recovery, (current_thd));
     }
     else if (gtid_mode > GTID_MODE_OFF)
     {
@@ -4735,6 +4740,7 @@ int mysqld_main(int argc, char **argv)
   initialize_information_schema_acl();
 
   execute_ddl_log_recovery();
+  (void) RUN_HOOK(server_state, after_recovery, (current_thd));
 
   if (Events::init(opt_noacl || opt_bootstrap))
     unireg_abort(1);
@@ -4794,6 +4800,7 @@ int mysqld_main(int argc, char **argv)
                       opt_ndb_wait_setup);
   }
 #endif
+  (void) RUN_HOOK(server_state, before_handle_connection, (current_thd));
 
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
 
@@ -7883,6 +7890,7 @@ PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_global_sid_lock;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
+PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
 PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
 #ifdef HAVE_REPLICATION
 PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
@@ -7906,6 +7914,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
+  { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
 };
 
