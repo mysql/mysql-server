@@ -2582,7 +2582,17 @@ public:
   bool register_field_in_read_map(uchar *arg);
   bool register_field_in_bitmap(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
-  bool check_vcol_func_processor(uchar *int_arg) { return false;}
+  bool check_vcol_func_processor(uchar *int_arg)
+  {
+    int *fld_idx= (int *)int_arg;
+    // Don't allow VC to refer itself or another VC that is defined after it.
+    if (field && field->vcol_info && field->field_index >= *fld_idx)
+    {
+      *fld_idx= -1;
+      return true;
+    }
+    return false;
+  }
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   bool subst_argument_checker(uchar **arg);

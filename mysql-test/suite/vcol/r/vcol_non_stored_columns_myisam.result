@@ -5,7 +5,7 @@ SET @@session.default_storage_engine = 'MyISAM';
 # Case 2. CREATE
 #  - Column1: "real"
 #  - Column 2: virtual non-stored
-create table t1 (a int, b virtual int as (-a));
+create  table t1 (a int, b virtual int as (-a));
 insert into t1 values (1,default);
 select * from t1;
 a	b
@@ -19,7 +19,7 @@ drop table t1;
 # Case 3. CREATE
 #  - Column1: "real"
 #  - Column 2: virtual stored
-create table t1 (a int, b virtual int as (-a) stored);
+create  table t1 (a int, b virtual int as (-a) stored);
 insert into t1 values (1,default);
 select * from t1;
 a	b
@@ -33,7 +33,7 @@ drop table t1;
 # Case 4. CREATE
 #  - Column1: virtual non-stored
 #  - Column2: "real"
-create table t1 (a virtual int as (-b), b int);
+create  table t1 (a virtual int as (-b), b int);
 insert into t1 values (default,1);
 select * from t1;
 a	b
@@ -47,7 +47,7 @@ drop table t1;
 # Case 5. CREATE
 #  - Column1: virtual stored
 #  - Column2: "real"
-create table t1 (a virtual int as (-b) stored, b int);
+create  table t1 (a virtual int as (-b) stored, b int);
 insert into t1 values (default,1);
 select * from t1;
 a	b
@@ -62,7 +62,7 @@ drop table t1;
 #  - Column1: "real"
 #  - Column2: virtual non-stored
 #  - Column3: virtual stored
-create table t1 (a int, b virtual int as (-a), c virtual int as (-a) stored);
+create  table t1 (a int, b virtual int as (-a), c virtual int as (-a) stored);
 insert into t1 values (1,default,default);
 select * from t1;
 a	b	c
@@ -74,7 +74,7 @@ a	b	c
 2	-2	-2
 drop table t1;
 # Case 7. ALTER. Modify virtual stored -> virtual non-stored
-create table t1 (a int, b virtual int as (a % 2) stored);
+create  table t1 (a int, b virtual int as (a % 2) stored);
 alter table t1 modify b virtual int as (a % 2);
 ERROR HY000: 'Changing the STORED status' is not yet supported for virtual columns.
 show create table t1;
@@ -85,7 +85,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 # Case 8. ALTER. Modify virtual non-stored -> virtual stored
-create table t1 (a int, b virtual int as (a % 2));
+create  table t1 (a int, b virtual int as (a % 2));
 alter table t1 modify b virtual int as (a % 2) stored;
 ERROR HY000: 'Changing the STORED status' is not yet supported for virtual columns.
 show create table t1;
@@ -99,8 +99,8 @@ drop table t1;
 #  - Column1: "real"
 #  - Column2: virtual non-stored
 #  - Column3: virtual stored
-create table t1 (a int, b virtual int as (-a), c virtual int as (-a) stored);
-create table t2 like t1;
+create  table t1 (a int, b virtual int as (-a), c virtual int as (-a) stored);
+create  table t2 like t1;
 insert into t2 values (1,default,default);
 select * from t2;
 a	b	c
@@ -115,7 +115,7 @@ drop table t1;
 # Case 10. ALTER. Dropping a virtual non-stored column.
 #  - Column1: virtual non-stored
 #  - Column2: "real"
-create table t1 (a virtual int as (-b), b int, c varchar(5));
+create  table t1 (a virtual int as (-b), b int, c varchar(5));
 insert into t1 values (default,1,'v1');
 insert into t1 values (default,2,'v2');
 select * from t1;
@@ -137,7 +137,7 @@ drop table t1;
 # Case 11. ALTER. Dropping a virtual stored column.
 #  - Column1: virtual stored
 #  - Column2: "real"
-create table t1 (a virtual int as (-b) stored, b int, c char(5));
+create  table t1 (a virtual int as (-b) stored, b int, c char(5));
 insert into t1 values (default,1,'v1');
 insert into t1 values (default,2,'v2');
 select * from t1;
@@ -157,7 +157,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 # Case 12. ALTER. Adding a new virtual non-stored column.
-create table t1 (a int, b datetime);
+create  table t1 (a int, b datetime);
 insert into t1 values (1,'2008-09-04');
 insert into t1 values (2,'2008-09-05');
 select * from t1;
@@ -178,7 +178,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 # Case 13. ALTER. Adding a new virtual stored column.
-create table t1 (a int, b datetime);
+create  table t1 (a int, b datetime);
 insert into t1 values (1,'2008-09-04');
 insert into t1 values (2,'2008-09-05');
 select * from t1;
@@ -199,7 +199,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 # Case 14. ALTER. Changing the expression of a virtual stored column.
-create table t1 (a int, b datetime, c virtual int as (week(b)) stored);
+create  table t1 (a int, b datetime, c virtual int as (week(b)) stored);
 insert into t1 values (1,'2008-09-04',default);
 insert into t1 values (2,'2008-09-05',default);
 select * from t1;
@@ -220,7 +220,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 # Case 15. ALTER. Changing the expression of a virtual non-stored column.
-create table t1 (a int, b datetime, c virtual int as (week(b)));
+create  table t1 (a int, b datetime, c virtual int as (week(b)));
 insert into t1 values (1,'2008-09-04',default);
 insert into t1 values (2,'2008-09-05',default);
 select * from t1;

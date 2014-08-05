@@ -9157,7 +9157,6 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   Item_field *field;
   TABLE *table= 0;
   List<TABLE> tbl_list;
-//  bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
   DBUG_ASSERT(fields.elements == values.elements);
   /*
@@ -9200,12 +9199,10 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
         value->type() != Item::NULL_ITEM &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY)
     {
-//      thd->abort_on_warning= FALSE;
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
                           ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
                           rfield->field_name, table->s->table_name.str);
-//      thd->abort_on_warning= abort_on_warning_saved;
     }
     if (value->save_in_field(rfield, false) < 0)
     {
@@ -9218,7 +9215,6 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     tbl_list.push_back(table);
   }
   /* Update virtual fields*/
-//  thd->abort_on_warning= FALSE;
   if (tbl_list.elements)
   {
     tbl_list.sort((Node_cmp_func)ptr_cmp_func, NULL);
@@ -9243,10 +9239,8 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       }
     }
   }
-//  thd->abort_on_warning= abort_on_warning_saved;
   DBUG_RETURN(thd->is_error());
 err:
-//  thd->abort_on_warning= abort_on_warning_saved;
   if (table)
     table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(TRUE);
@@ -9480,7 +9474,6 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
   Item *value;
   TABLE *table= 0;
   List<TABLE> tbl_list;
-//  bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
   tbl_list.empty();
 
@@ -9512,12 +9505,10 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
         value->type() != Item::NULL_ITEM &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY)
     {
-//      thd->abort_on_warning= FALSE;
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
                           ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
                           field->field_name, table->s->table_name.str);
-//      thd->abort_on_warning= abort_on_warning_saved;
     }
     if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       goto err;
@@ -9532,7 +9523,6 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
       bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
   }
   /* Update virtual fields*/
-//  thd->abort_on_warning= FALSE;
   if (tbl_list.head())
   {
     tbl_list.sort((Node_cmp_func)ptr_cmp_func, NULL);
@@ -9557,7 +9547,6 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
       }
     }
   }
-//  thd->abort_on_warning= abort_on_warning_saved;
   DBUG_ASSERT(thd->is_error() || !v++);      // No extra value!
   DBUG_RETURN(thd->is_error());
 

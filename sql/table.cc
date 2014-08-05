@@ -1711,7 +1711,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                                        (uint)FRM_VCOL_HEADER_SIZE,
                                                      vcol_info_length);
         vcol_info->expr_str.length= vcol_info_length;
-        vcol_screen_pos+= vcol_info_length;
+        vcol_screen_pos+= vcol_info_length + FRM_VCOL_HEADER_SIZE;
         share->vfields++;
       }
     }
@@ -2173,13 +2173,13 @@ static void clear_field_flag(TABLE *table)
     FALSE                Ok, a partition field array was created
 */
 
-bool fix_fields_vcol_func(THD *thd,
-                          Item* func_expr,
-                          TABLE *table,
-                          const char *field_name)
+bool fix_fields_vcol_func(THD *thd, Field *field)
 {
   uint dir_length, home_dir_length;
   bool result= TRUE;
+  Item* func_expr= field->vcol_info->expr_item;
+  TABLE *table= field->table;
+  const char *field_name= field->field_name;
   TABLE_LIST tables;
   TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
   int error;
@@ -2188,8 +2188,9 @@ bool fix_fields_vcol_func(THD *thd,
   char* db_name;
   char db_name_string[FN_REFLEN];
   bool save_use_only_table_context;
-  Field **ptr, *field;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
+  int fld_idx= field->field_index;
+  Item *dummy;
   DBUG_ASSERT(func_expr);
   DBUG_ENTER("fix_fields_vcol_func");
 
@@ -2226,25 +2227,13 @@ bool fix_fields_vcol_func(THD *thd,
                   (uchar*) context);
   save_where= thd->where;
   thd->where= "virtual column function";
-  /* 
-    Walk through the Item tree checking if all items are valid
-    to be part of the virtual column. Needs to be done before
-    fix_fields.
-  */
-  error= func_expr->walk(&Item::check_vcol_func_processor, Item::WALK_POSTFIX,
-                         NULL);
-  if (error)
-  {
-    my_error(ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
-    clear_field_flag(table);
-    goto end;
-  }
 
   /* Save the context before fixing the fields*/
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
+
   /* Fix fields referenced to by the virtual column function */
-  error= func_expr->fix_fields(thd, (Item**)0);
+  error= func_expr->fix_fields(thd, &dummy);
   /* Restore the original context*/
   thd->lex->use_only_table_context= save_use_only_table_context;
   context->table_list= save_table_list;
@@ -2258,23 +2247,27 @@ bool fix_fields_vcol_func(THD *thd,
     goto end;
   }
   thd->where= save_where;
+  /* 
+    Walk through the Item tree checking if all items are valid
+    to be part of the virtual column. Needs to be done after fix_fields to
+    allow checking references to other virtual columns.
+  */
+  error= func_expr->walk(&Item::check_vcol_func_processor, Item::WALK_POSTFIX,
+                         (uchar*)&fld_idx);
+  if (error)
+  {
+    if (fld_idx < 0)
+      my_error(ER_VIRTUAL_COLUMN_NON_PRIOR, MYF(0), field_name);
+    else
+      my_error(ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
+    clear_field_flag(table);
+    goto end;
+  }
   if (unlikely(func_expr->const_item()))
   {
     my_error(ER_CONST_EXPR_IN_VCOL, MYF(0));
     clear_field_flag(table);
     goto end;
-  }
-  /* Ensure that this virtual column is not based on another virtual field. */
-  ptr= table->field;
-  while ((field= *(ptr++))) 
-  {
-    if ((field->flags & GET_FIXED_FIELDS_FLAG) &&
-        (field->vcol_info))
-    {
-      my_error(ER_VCOL_BASED_ON_VCOL, MYF(0));
-      clear_field_flag(table);
-      goto end;
-    }
   }
   /*
     Cleanup the fields marked with flag GET_FIXED_FIELDS_FLAG
@@ -2316,8 +2309,8 @@ bool unpack_vcol_info_from_frm(THD *thd,
 {
   DBUG_ENTER("unpack_vcol_info_from_frm");
   DBUG_ASSERT(vcol_expr);
-
-  /* 
+  DBUG_ASSERT(field->table == table);
+  /*
     Step 1: Construct a statement for the parser.
     The parsed string needs to take the following format:
     "PARSE_VCOL_EXPR (<expr_string_from_frm>)"
@@ -2325,9 +2318,9 @@ bool unpack_vcol_info_from_frm(THD *thd,
   char *vcol_expr_str;
   int str_len= 0;
   const CHARSET_INFO *old_character_set_client;
-  
+
   if (!(vcol_expr_str= (char*) alloc_root(&table->mem_root,
-                                          vcol_expr->length + 
+                                          vcol_expr->length +
                                             parse_vcol_keyword.length + 3)))
   {
     DBUG_RETURN(TRUE);
@@ -2338,8 +2331,8 @@ bool unpack_vcol_info_from_frm(THD *thd,
   str_len= parse_vcol_keyword.length;
   memcpy(vcol_expr_str + str_len, "(", 1);
   str_len++;
-  memcpy(vcol_expr_str + str_len, 
-         (char*) vcol_expr->str, 
+  memcpy(vcol_expr_str + str_len,
+         (char*) vcol_expr->str,
          vcol_expr->length);
   str_len+= vcol_expr->length;
   memcpy(vcol_expr_str + str_len, ")", 1);
@@ -2349,7 +2342,7 @@ bool unpack_vcol_info_from_frm(THD *thd,
   Parser_state parser_state;
   parser_state.init(thd, vcol_expr_str, str_len);
 
-  /* 
+  /*
     Step 2: Setup thd for parsing.
   */
   Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
@@ -2361,7 +2354,7 @@ bool unpack_vcol_info_from_frm(THD *thd,
   thd->lex->parse_vcol_expr= TRUE;
   old_character_set_client= thd->variables.character_set_client;
 
-  /* 
+  /*
     Step 3: Use the parser to build an Item object from.
   */
   if (parse_sql(thd, &parser_state, NULL))
@@ -2372,10 +2365,7 @@ bool unpack_vcol_info_from_frm(THD *thd,
   field->vcol_info= thd->lex->vcol_info;
 
   /* Validate the Item tree. */
-  if (fix_fields_vcol_func(thd,
-                           field->vcol_info->expr_item,
-                           table,
-                           field->field_name))
+  if (fix_fields_vcol_func(thd, field))
   {
     if (is_create_table)
     {
@@ -2601,6 +2591,28 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
 
   /*
+    Allocate bitmaps
+    This needs to be done prior to virtual columns as they'll call
+    fix_fields and functions might want to access bitmaps.
+  */
+
+  bitmap_size= share->column_bitmap_size;
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 5)))
+    goto err;
+  bitmap_init(&outparam->def_read_set,
+              (my_bitmap_map*) bitmaps, share->fields, FALSE);
+  bitmap_init(&outparam->def_write_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
+  bitmap_init(&outparam->tmp_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
+  bitmap_init(&outparam->cond_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
+  bitmap_init(&outparam->def_fields_set_during_insert,
+              (my_bitmap_map*) (bitmaps + bitmap_size * 4), share->fields,
+              FALSE);
+  outparam->default_column_bitmaps();
+
+  /*
     Process virtual columns, if any.
   */
   if (!(vfield_ptr = (Field **) alloc_root(&outparam->mem_root,
@@ -2705,24 +2717,6 @@ partititon_err:
     error_reported= TRUE;
     goto err;
   }
-
-  /* Allocate bitmaps */
-
-  bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 5)))
-    goto err;
-  bitmap_init(&outparam->def_read_set,
-              (my_bitmap_map*) bitmaps, share->fields, FALSE);
-  bitmap_init(&outparam->def_write_set,
-              (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
-  bitmap_init(&outparam->tmp_set,
-              (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
-  bitmap_init(&outparam->cond_set,
-              (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
-  bitmap_init(&outparam->def_fields_set_during_insert,
-              (my_bitmap_map*) (bitmaps + bitmap_size * 4), share->fields,
-              FALSE);
-  outparam->default_column_bitmaps();
 
   /* The table struct is now initialized;  Open the table */
   error= 2;
