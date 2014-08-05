@@ -1262,7 +1262,7 @@ bool Rpl_info_factory::create_channel_list(std::vector<const char*>&channel_list
 {
   DBUG_ENTER("Rpl_info_factory::create_channel_list");
 
-  char* channel_name=NULL;
+  char* channel_name= NULL;
 
   switch(mi_repository)
   {
@@ -1274,17 +1274,11 @@ bool Rpl_info_factory::create_channel_list(std::vector<const char*>&channel_list
       strcpy(channel_name, default_channel);
       channel_list.push_back((const char*)channel_name);
     }
-    else if (mi_instances > 1)
-    {
-      DBUG_ASSERT(0);  /* Not allowed*/
-    }
     break;
 
   case INFO_REPOSITORY_TABLE:
-
-      if(create_channel_list_from_mi_table(channel_list))
+    if(create_channel_list_from_mi_table(channel_list))
         DBUG_RETURN(true);
-
     break;
   case INVALID_INFO_REPOSITORY:
     /* file and table instanaces are zero, nothing to be done*/
