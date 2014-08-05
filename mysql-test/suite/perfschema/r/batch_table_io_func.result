@@ -2,6 +2,37 @@ UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
 UPDATE performance_schema.setup_instruments SET enabled = 'YES'
 WHERE name in ('wait/io/table/sql/handler',
 'wait/lock/table/sql/handler');
+drop procedure if exists before_payload;
+drop procedure if exists after_payload;
+create procedure before_payload()
+begin
+TRUNCATE TABLE performance_schema.table_io_waits_summary_by_index_usage;
+TRUNCATE TABLE performance_schema.table_io_waits_summary_by_table;
+TRUNCATE TABLE performance_schema.events_waits_history_long;
+TRUNCATE TABLE performance_schema.events_waits_history;
+TRUNCATE TABLE performance_schema.events_waits_current;
+end
+$$
+create procedure after_payload()
+begin
+select count(1) as number_seen,
+OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME,
+OPERATION, NUMBER_OF_BYTES
+from performance_schema.events_waits_history_long
+where OBJECT_SCHEMA = "test"
+    group by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, OPERATION, NUMBER_OF_BYTES;
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME,
+COUNT_STAR, COUNT_READ, COUNT_WRITE
+from performance_schema.table_io_waits_summary_by_index_usage
+where OBJECT_SCHEMA = "test"
+    order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+COUNT_STAR, COUNT_READ, COUNT_WRITE
+from performance_schema.table_io_waits_summary_by_table
+where OBJECT_SCHEMA = "test"
+    order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+end
+$$
 drop table if exists t1;
 drop table if exists t2;
 drop table if exists t3;
@@ -88,47 +119,70 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1000	0.50	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`id1` AS `id1`,`test`.`t2`.`id2` AS `id2`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`id2` AS `id2`,`test`.`t3`.`id3` AS `id3`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`id1` = `test`.`t1`.`id1`) and (`test`.`t3`.`id2` = `test`.`t2`.`id2`))
-TRUNCATE TABLE performance_schema.table_io_waits_summary_by_table;
-TRUNCATE TABLE performance_schema.events_waits_history_long;
-TRUNCATE TABLE performance_schema.events_waits_history;
-TRUNCATE TABLE performance_schema.events_waits_current;
+call before_payload();
 select t1.*, t2.*, t3.*
 from t1 join t2 using (id1) join t3 using (id2);
-select count(1) as number_seen, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME,
-OPERATION, NUMBER_OF_BYTES
-from performance_schema.events_waits_history_long
-where OBJECT_NAME = "t1"
-  group by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, OPERATION, NUMBER_OF_BYTES;
+call after_payload();
 number_seen	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OPERATION	NUMBER_OF_BYTES
 11	TABLE	test	t1	NULL	fetch	1
 1	TABLE	test	t1	NULL	read external	NULL
-select count(1) as number_seen, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME,
-OPERATION, NUMBER_OF_BYTES
-from performance_schema.events_waits_history_long
-where OBJECT_NAME = "t2"
-  group by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, OPERATION, NUMBER_OF_BYTES;
-number_seen	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OPERATION	NUMBER_OF_BYTES
 101	TABLE	test	t2	NULL	fetch	1
 1	TABLE	test	t2	NULL	read external	NULL
-select count(1) as number_seen, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME,
-OPERATION, NUMBER_OF_BYTES
-from performance_schema.events_waits_history_long
-where OBJECT_NAME = "t3"
-  group by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, OPERATION, NUMBER_OF_BYTES;
-number_seen	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OPERATION	NUMBER_OF_BYTES
 1	TABLE	test	t3	NULL	fetch	1001
 1	TABLE	test	t3	NULL	read external	NULL
-select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
-COUNT_STAR, COUNT_READ, COUNT_WRITE
-from performance_schema.table_io_waits_summary_by_table
-where OBJECT_NAME in ("t1", "t2", "t3")
-order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR	COUNT_READ	COUNT_WRITE
+TABLE	test	t0	NULL	0	0	0
+TABLE	test	t1	NULL	11	11	0
+TABLE	test	t2	NULL	101	101	0
+TABLE	test	t3	NULL	1001	1001	0
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_READ	COUNT_WRITE
+TABLE	test	t0	0	0	0
 TABLE	test	t1	11	11	0
 TABLE	test	t2	101	101	0
 TABLE	test	t3	1001	1001	0
+alter table t1 add unique index(id1);
+alter table t2 add unique index(id2);
+alter table t2 add index(id1);
+alter table t3 add unique index(id3);
+alter table t3 add index(id2);
+explain select t1.*, t2.*, t3.*
+from t1 join t2 using (id1) join t3 using (id2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	id1	NULL	NULL	NULL	10	100.00	Using where
+1	SIMPLE	t2	NULL	ref	id2,id1	id1	5	test.t1.id1	5	100.00	Using where
+1	SIMPLE	t3	NULL	ref	id2	id2	5	test.t2.id2	5	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`id1` AS `id1`,`test`.`t2`.`id2` AS `id2`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`id2` AS `id2`,`test`.`t3`.`id3` AS `id3`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`id1` = `test`.`t1`.`id1`) and (`test`.`t3`.`id2` = `test`.`t2`.`id2`))
+call before_payload();
+select t1.*, t2.*, t3.*
+from t1 join t2 using (id1) join t3 using (id2);
+call after_payload();
+number_seen	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OPERATION	NUMBER_OF_BYTES
+11	TABLE	test	t1	NULL	fetch	1
+1	TABLE	test	t1	id1	read external	NULL
+110	TABLE	test	t2	id1	fetch	1
+1	TABLE	test	t2	id2	read external	NULL
+100	TABLE	test	t3	NULL	fetch	11
+1	TABLE	test	t3	id3	read external	NULL
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	COUNT_STAR	COUNT_READ	COUNT_WRITE
+TABLE	test	t0	NULL	0	0	0
+TABLE	test	t1	NULL	11	11	0
+TABLE	test	t1	id1	0	0	0
+TABLE	test	t2	NULL	0	0	0
+TABLE	test	t2	id1	110	110	0
+TABLE	test	t2	id2	0	0	0
+TABLE	test	t3	NULL	11	11	0
+TABLE	test	t3	id2	1089	1089	0
+TABLE	test	t3	id3	0	0	0
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_READ	COUNT_WRITE
+TABLE	test	t0	0	0	0
+TABLE	test	t1	11	11	0
+TABLE	test	t2	110	110	0
+TABLE	test	t3	1100	1100	0
 drop table t0;
 drop table t1;
 drop table t2;
 drop table t3;
+drop procedure before_payload;
+drop procedure after_payload;
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
