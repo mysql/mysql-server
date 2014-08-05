@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,6 +99,7 @@ enum options_client
   OPT_CONFIG_ALL,
   OPT_SERVER_PUBLIC_KEY,
   OPT_ENABLE_CLEARTEXT_PLUGIN,
+  OPT_CONNECTION_SERVER_ID,
   OPT_MAX_CLIENT_OPTION
 };
 

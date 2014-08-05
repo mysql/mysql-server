@@ -357,6 +357,10 @@ Atomic compare-and-swap and increment for InnoDB. */
 
 # define HAVE_ATOMIC_BUILTINS
 
+# ifdef HAVE_IB_GCC_ATOMIC_BUILTINS_BYTE
+#  define HAVE_ATOMIC_BUILTINS_BYTE
+# endif
+
 # ifdef HAVE_IB_GCC_ATOMIC_BUILTINS_64
 #  define HAVE_ATOMIC_BUILTINS_64
 # endif
@@ -437,6 +441,7 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 #elif defined(HAVE_IB_SOLARIS_ATOMICS)
 
 # define HAVE_ATOMIC_BUILTINS
+# define HAVE_ATOMIC_BUILTINS_BYTE
 # define HAVE_ATOMIC_BUILTINS_64
 
 /* If not compiling with GCC or GCC doesn't support the atomic
@@ -518,6 +523,7 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 #elif defined(HAVE_WINDOWS_ATOMICS)
 
 # define HAVE_ATOMIC_BUILTINS
+# define HAVE_ATOMIC_BUILTINS_BYTE
 
 # ifndef _WIN32
 #  define HAVE_ATOMIC_BUILTINS_64
@@ -684,6 +690,51 @@ for synchronization */
 	do {							\
 		os_decrement_counter_by_amount(mutex, counter, 1);\
 	} while (0);
+
+/** barrier definitions for memory ordering */
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64 || defined __WIN__
+/* Performance regression was observed at some conditions for Intel
+architecture. Disable memory barrier for Intel architecture for now. */
+# define os_rmb
+# define os_wmb
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"Memory barrier is not used"
+#elif defined(HAVE_IB_GCC_ATOMIC_THREAD_FENCE)
+# define HAVE_MEMORY_BARRIER
+# define os_rmb	__atomic_thread_fence(__ATOMIC_ACQUIRE)
+# define os_wmb	__atomic_thread_fence(__ATOMIC_RELEASE)
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"GCC builtin __atomic_thread_fence() is used for memory barrier"
+
+#elif defined(HAVE_IB_GCC_SYNC_SYNCHRONISE)
+# define HAVE_MEMORY_BARRIER
+# define os_rmb	__sync_synchronize()
+# define os_wmb	__sync_synchronize()
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"GCC builtin __sync_synchronize() is used for memory barrier"
+
+#elif defined(HAVE_IB_MACHINE_BARRIER_SOLARIS)
+# define HAVE_MEMORY_BARRIER
+# include <mbarrier.h>
+# define os_rmb	__machine_r_barrier()
+# define os_wmb	__machine_w_barrier()
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"Solaris memory ordering functions are used for memory barrier"
+
+#elif defined(HAVE_WINDOWS_MM_FENCE) && defined(_WIN64)
+# define HAVE_MEMORY_BARRIER
+# include <mmintrin.h>
+# define os_rmb	_mm_lfence()
+# define os_wmb	_mm_sfence()
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"_mm_lfence() and _mm_sfence() are used for memory barrier"
+
+#else
+# define os_rmb
+# define os_wmb
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"Memory barrier is not used"
+#endif
 
 #ifndef UNIV_NONINL
 #include "os0sync.ic"

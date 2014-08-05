@@ -842,9 +842,7 @@ end:
 
   if (thd_added)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
     remove_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
   }
   /*
     For safety we delete the thd before signalling that bootstrap is done,
@@ -8159,7 +8157,7 @@ bool check_host_name(LEX_STRING *str)
 }
 
 
-extern int MYSQLparse(void *thd); // from sql_yacc.cc
+extern int MYSQLparse(class THD *thd); // from sql_yacc.cc
 
 
 /**

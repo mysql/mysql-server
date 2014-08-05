@@ -119,3 +119,205 @@ COUNT(DISTINCT a)
 1
 DROP TABLE t1;
 End of 5.5 tests
+#
+# Bug#17909656 - WRONG RESULTS FOR A SIMPLE QUERY WITH GROUP BY
+#
+CREATE TABLE t0 (
+i1 INTEGER NOT NULL
+);
+INSERT INTO t0 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+(11),(12),(13),(14),(15),(16),(17),(18),(19),(20),
+(21),(22),(23),(24),(25),(26),(27),(28),(29),(30);
+CREATE TABLE t1 (
+c1 CHAR(1) NOT NULL,
+i1 INTEGER NOT NULL,
+i2 INTEGER NOT NULL,
+UNIQUE KEY k1 (c1,i2)
+) ENGINE=InnoDB;
+INSERT INTO t1 SELECT 'A',i1,i1 FROM t0;
+INSERT INTO t1 SELECT 'B',i1,i1 FROM t0;
+INSERT INTO t1 SELECT 'C',i1,i1 FROM t0;
+INSERT INTO t1 SELECT 'D',i1,i1 FROM t0;
+INSERT INTO t1 SELECT 'E',i1,i1 FROM t0;
+INSERT INTO t1 SELECT 'F',i1,i1 FROM t0;
+CREATE TABLE t2 (
+c1 CHAR(1) NOT NULL,
+i1 INTEGER NOT NULL,
+i2 INTEGER NOT NULL,
+UNIQUE KEY k2 (c1,i1,i2)
+) ENGINE=InnoDB;
+INSERT INTO t2 SELECT 'A',i1,i1 FROM t0;
+INSERT INTO t2 SELECT 'B',i1,i1 FROM t0;
+INSERT INTO t2 SELECT 'C',i1,i1 FROM t0;
+INSERT INTO t2 SELECT 'D',i1,i1 FROM t0;
+INSERT INTO t2 SELECT 'E',i1,i1 FROM t0;
+INSERT INTO t2 SELECT 'F',i1,i1 FROM t0;
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+set optimizer_trace_max_mem_size=1048576;
+set @@session.optimizer_trace='enabled=on';
+set end_markers_in_json=on;
+EXPLAIN SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' AND i2 = 17) OR ( c1 = 'F')
+GROUP BY c1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	k1	k1	5	NULL	ROWS	Using where; Using index
+SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' AND i2 = 17) OR ( c1 = 'F')
+GROUP BY c1;
+c1	max(i2)
+C	17
+F	30
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query'
+AS OK FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+EXPLAIN SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' OR ( c1 = 'F' AND i2 = 17))
+GROUP BY c1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	k1	k1	5	NULL	ROWS	Using where; Using index
+SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' OR ( c1 = 'F' AND i2 = 17))
+GROUP BY c1;
+c1	max(i2)
+C	30
+F	17
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query'
+AS OK FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+EXPLAIN SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' OR c1 = 'F' ) AND ( i2 = 17 )
+GROUP BY c1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	k1	k1	5	NULL	ROWS	Using where; Using index for group-by
+SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' OR c1 = 'F' ) AND ( i2 = 17 )
+GROUP BY c1;
+c1	max(i2)
+C	17
+F	17
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query'
+AS OK FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+0
+EXPLAIN SELECT c1, max(i2) FROM t1 
+WHERE ((c1 = 'C' AND (i2 = 40 OR i2 = 30)) OR ( c1 = 'F' AND (i2 = 40 )))
+GROUP BY c1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	k1	k1	5	NULL	ROWS	Using where; Using index
+SELECT c1, max(i2) FROM t1 
+WHERE ((c1 = 'C' AND (i2 = 40 OR i2 = 30)) OR ( c1 = 'F' AND (i2 = 40 )))
+GROUP BY c1;
+c1	max(i2)
+C	30
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query'
+AS OK FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+EXPLAIN SELECT c1, i1, max(i2) FROM t2
+WHERE (c1 = 'C' OR ( c1 = 'F' AND i1 < 35)) AND ( i2 = 17 )
+GROUP BY c1,i1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	k2	k2	5	NULL	ROWS	Using where; Using index
+SELECT c1, i1, max(i2) FROM t2
+WHERE (c1 = 'C' OR ( c1 = 'F' AND i1 < 35)) AND ( i2 = 17 )
+GROUP BY c1,i1;
+c1	i1	max(i2)
+C	17	17
+F	17	17
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query'
+AS OK FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+0
+EXPLAIN SELECT c1, i1, max(i2) FROM t2 
+WHERE (((c1 = 'C' AND i1 < 40) OR ( c1 = 'F' AND i1 < 35)) AND ( i2 = 17 ))
+GROUP BY c1,i1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	k2	k2	5	NULL	ROWS	Using where; Using index
+SELECT c1, i1, max(i2) FROM t2 
+WHERE (((c1 = 'C' AND i1 < 40) OR ( c1 = 'F' AND i1 < 35)) AND ( i2 = 17 ))
+GROUP BY c1,i1;
+c1	i1	max(i2)
+C	17	17
+F	17	17
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query'
+AS OK FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+0
+EXPLAIN SELECT c1, i1, max(i2) FROM t2 
+WHERE ((c1 = 'C' AND i1 < 40) OR ( c1 = 'F' AND i1 < 35) OR ( i2 = 17 ))
+GROUP BY c1,i1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	k2	k2	9	NULL	ROWS	Using where; Using index
+SELECT c1, i1, max(i2) FROM t2 
+WHERE ((c1 = 'C' AND i1 < 40) OR ( c1 = 'F' AND i1 < 35) OR ( i2 = 17 ))
+GROUP BY c1,i1;
+c1	i1	max(i2)
+A	17	17
+B	17	17
+C	1	1
+C	2	2
+C	3	3
+C	4	4
+C	5	5
+C	6	6
+C	7	7
+C	8	8
+C	9	9
+C	10	10
+C	11	11
+C	12	12
+C	13	13
+C	14	14
+C	15	15
+C	16	16
+C	17	17
+C	18	18
+C	19	19
+C	20	20
+C	21	21
+C	22	22
+C	23	23
+C	24	24
+C	25	25
+C	26	26
+C	27	27
+C	28	28
+C	29	29
+C	30	30
+D	17	17
+E	17	17
+F	1	1
+F	2	2
+F	3	3
+F	4	4
+F	5	5
+F	6	6
+F	7	7
+F	8	8
+F	9	9
+F	10	10
+F	11	11
+F	12	12
+F	13	13
+F	14	14
+F	15	15
+F	16	16
+F	17	17
+F	18	18
+F	19	19
+F	20	20
+F	21	21
+F	22	22
+F	23	23
+F	24	24
+F	25	25
+F	26	26
+F	27	27
+F	28	28
+F	29	29
+F	30	30
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query'
+AS OK FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+0
+SET optimizer_trace_max_mem_size=DEFAULT;
+SET optimizer_trace=DEFAULT;
+SET end_markers_in_json=DEFAULT;
+DROP TABLE t0,t1,t2;

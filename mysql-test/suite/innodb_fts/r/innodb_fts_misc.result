@@ -1426,3 +1426,440 @@ SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"good database"' IN BOOLEAN MODE);
 id	a
 1	know mysql good database
 DROP TABLE t1;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES ('Test Article','blah blah
+blah'),("Matt's Noise",'this is noisy'),('February Weather','It was terrible
+this year.'),('Peter Pan','Tis a kids story.'),('Test1','nada'),('Database
+database database','foo database database database'),('Database article
+title','body with lots of words.'),('myfulltext database', 'my test fulltext
+database');
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
+id	title	body
+6	Database
+database database	foo database database database
+8	myfulltext database	my test fulltext
+database
+7	Database article
+title	body with lots of words.
+1	Test Article	blah blah
+blah
+2	Matt's Noise	this is noisy
+3	February Weather	It was terrible
+this year.
+4	Peter Pan	Tis a kids story.
+5	Test1	nada
+DELETE from articles WHERE title like "myfulltext database";
+INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
+id	title	body
+6	Database
+database database	foo database database database
+9	myfulltext database	my test fulltext database
+7	Database article
+title	body with lots of words.
+1	Test Article	blah blah
+blah
+2	Matt's Noise	this is noisy
+3	February Weather	It was terrible
+this year.
+4	Peter Pan	Tis a kids story.
+5	Test1	nada
+DELETE from articles WHERE title like "myfulltext database";
+INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
+id	title	body
+6	Database
+database database	foo database database database
+10	myfulltext database	my test fulltext database
+7	Database article
+title	body with lots of words.
+1	Test Article	blah blah
+blah
+2	Matt's Noise	this is noisy
+3	February Weather	It was terrible
+this year.
+4	Peter Pan	Tis a kids story.
+5	Test1	nada
+DROP TABLE articles;
+CREATE TABLE t1(
+a TEXT CHARSET ujis COLLATE ujis_japanese_ci,
+b TEXT CHARSET utf8mb4 COLLATE utf8mb4_turkish_ci,
+c TEXT CHARSET eucjpms COLLATE eucjpms_bin,
+d TEXT CHARSET utf8mb4,
+FULLTEXT INDEX(a),
+FULLTEXT INDEX(b),
+FULLTEXT INDEX(c),
+FULLTEXT INDEX(d)
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+('myisam', 'myisam', 'myisam', 'myisam'),
+('innodb', 'innodb', 'innodb', 'innodb'),
+('innodb myisam', 'innodb myisam', 'innodb myisam', 'innodb myisam'),
+('memory', 'memory', 'memory', 'memory'),
+('archive', 'archive', 'archive', 'archive'),
+('federated', 'federated', 'federated', 'federated'),
+('storage engine innodb', 'storage engine innodb', 'storage engine innodb', 'storage engine innodb'),
+('storage engine myisam', 'storage engine myisam', 'storage engine myisam', 'storage engine myisam'),
+('innobase', 'innobase', 'innobase', 'innobase'),
+('myisam innodb', 'myisam innodb', 'myisam innodb', 'myisam innodb'),
+('innodb myisam engines', 'innodb myisam engines', 'innodb myisam engines', 'innodb myisam engines');
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', ' ', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '&', 0x00, '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '&', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '%', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+a
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+a
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+a
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+a
+innodb myisam
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+a
+innodb myisam
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+ERROR 42000: syntax error, unexpected FTS_TERM, expecting FTS_NUMB
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', ' ', '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '&', 0x00, '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, '&', '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '%', '"'));
+b
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+b
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+b
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+b
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+b
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+b
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+b
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+ERROR 42000: syntax error, unexpected FTS_TERM, expecting FTS_NUMB
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', ' ', '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '&', 0x00, '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, '&', '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '%', '"'));
+c
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+c
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+c
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+c
+innodb
+innodb myisam
+storage engine innodb
+myisam innodb
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+c
+innodb myisam
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+c
+innodb myisam
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+c
+innodb myisam
+myisam innodb
+innodb myisam engines
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+ERROR 42000: syntax error, unexpected FTS_TERM, expecting FTS_NUMB
+ALTER TABLE t1 ENGINE = MyISAM;
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', ' ', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '&', 0x00, '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '&', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '%', '"'));
+a
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+a
+innodb
+innodb myisam
+myisam innodb
+storage engine innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+a
+innodb
+innodb myisam
+myisam innodb
+storage engine innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+a
+innodb
+innodb myisam
+myisam innodb
+storage engine innodb
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+a
+innodb myisam
+myisam innodb
+innodb myisam engines
+myisam
+innodb
+storage engine innodb
+storage engine myisam
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+a
+innodb myisam
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+a
+innodb myisam
+innodb myisam engines
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+a
+DROP TABLE t1;

@@ -100,6 +100,8 @@ extern int ftserror(const char* p);
 #define YYPARSE_PARAM state
 #define YYLEX_PARAM ((fts_ast_state_t*) state)->lexer
 
+#define YYTOKENFREE(token) fts_ast_string_free((token))
+
 typedef	int	(*fts_scanner_alt)(YYSTYPE* val, yyscan_t yyscanner);
 typedef	int	(*fts_scanner)();
 
@@ -154,9 +156,9 @@ typedef union YYSTYPE
 /* Line 293 of yacc.c  */
 #line 61 "fts0pars.y"
 
-	int		oper;
-	char*		token;
-	fts_ast_node_t*	node;
+	int			oper;
+	fts_ast_string_t*	token;
+	fts_ast_node_t*		node;
 
 
 
@@ -632,6 +634,19 @@ while (YYID (0))
 #define YYTERROR	1
 #define YYERRCODE	256
 
+#define YYERRCLEANUP						\
+do								\
+  switch (yylastchar)						\
+    {								\
+      case FTS_NUMB:						\
+      case FTS_TEXT:						\
+      case FTS_TERM:						\
+        YYTOKENFREE(yylval.token);				\
+        break;							\
+      default:							\
+        break;							\
+    }								\
+while (YYID (0))
 
 /* YYLLOC_DEFAULT -- Set CURRENT to span from RHS[1] to RHS[N].
    If N is 0, then set CURRENT to the empty location which ends
@@ -1169,6 +1184,8 @@ yyparse ()
 {
 /* The lookahead symbol.  */
 int yychar;
+/* The backup of yychar when there is an error and we're in yyerrlab. */
+int yylastchar;
 
 /* The semantic value of the lookahead symbol.  */
 YYSTYPE yylval;
@@ -1524,8 +1541,8 @@ yyreduce:
 /* Line 1806 of yacc.c  */
 #line 141 "fts0pars.y"
     {
-		fts_ast_term_set_distance((yyvsp[(1) - (3)].node), strtoul((yyvsp[(3) - (3)].token), NULL, 10));
-		free((yyvsp[(3) - (3)].token));
+		fts_ast_term_set_distance((yyvsp[(1) - (3)].node), fts_ast_string_to_ul((yyvsp[(3) - (3)].token), 10));
+		fts_ast_string_free((yyvsp[(3) - (3)].token));
 	}
     break;
 
@@ -1557,8 +1574,8 @@ yyreduce:
     {
 		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (4)].node));
 		fts_ast_add_node((yyval.node), (yyvsp[(2) - (4)].node));
-		fts_ast_term_set_distance((yyvsp[(2) - (4)].node), strtoul((yyvsp[(4) - (4)].token), NULL, 10));
-		free((yyvsp[(4) - (4)].token));
+		fts_ast_term_set_distance((yyvsp[(2) - (4)].node), fts_ast_string_to_ul((yyvsp[(4) - (4)].token), 10));
+		fts_ast_string_free((yyvsp[(4) - (4)].token));
 	}
     break;
 
@@ -1623,7 +1640,7 @@ yyreduce:
 #line 191 "fts0pars.y"
     {
 		(yyval.node)  = fts_ast_create_node_term(state, (yyvsp[(1) - (1)].token));
-		free((yyvsp[(1) - (1)].token));
+		fts_ast_string_free((yyvsp[(1) - (1)].token));
 	}
     break;
 
@@ -1633,7 +1650,7 @@ yyreduce:
 #line 196 "fts0pars.y"
     {
 		(yyval.node)  = fts_ast_create_node_term(state, (yyvsp[(1) - (1)].token));
-		free((yyvsp[(1) - (1)].token));
+		fts_ast_string_free((yyvsp[(1) - (1)].token));
 	}
     break;
 
@@ -1652,7 +1669,7 @@ yyreduce:
 #line 207 "fts0pars.y"
     {
 		(yyval.node)  = fts_ast_create_node_text(state, (yyvsp[(1) - (1)].token));
-		free((yyvsp[(1) - (1)].token));
+		fts_ast_string_free((yyvsp[(1) - (1)].token));
 	}
     break;
 
@@ -1700,6 +1717,8 @@ yyreduce:
 | yyerrlab -- here on detecting error |
 `------------------------------------*/
 yyerrlab:
+  /* Backup yychar, in case we would change it. */
+  yylastchar = yychar;
   /* Make sure we have latest lookahead translation.  See comments at
      user semantic actions for why this is necessary.  */
   yytoken = yychar == YYEMPTY ? YYEMPTY : YYTRANSLATE (yychar);
@@ -1755,7 +1774,11 @@ yyerrlab:
 	{
 	  /* Return failure if at end of input.  */
 	  if (yychar == YYEOF)
-	    YYABORT;
+	    {
+	      /* Since we don't need the token, we have to free it first. */
+	      YYERRCLEANUP;
+	      YYABORT;
+	    }
 	}
       else
 	{
@@ -1812,7 +1835,11 @@ yyerrlab1:
 
       /* Pop the current state because it cannot handle the error token.  */
       if (yyssp == yyss)
-	YYABORT;
+	{
+	  /* Since we don't need the error token, we have to free it first. */
+	  YYERRCLEANUP;
+	  YYABORT;
+	}
 
 
       yydestruct ("Error: popping",

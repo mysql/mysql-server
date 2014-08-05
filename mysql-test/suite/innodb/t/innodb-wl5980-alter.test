@@ -8,7 +8,7 @@
 --disable_query_log
 # These values can change during the test
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
-LET $regexp=/FTS_([0-9a-f_]+)([A-Z_]+)\.ibd/FTS_AUX_\2.ibd/;
+LET $regexp=/FTS_([0-9a-f_]+)([A-Z0-9_]+)\.ibd/FTS_AUX_\2.ibd/;
 
 # Set up some variables
 LET $MYSQL_DATA_DIR = `select @@datadir`;

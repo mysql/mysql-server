@@ -1,0 +1,17 @@
+#
+# Bug #19027905 ASSERT RET.SECOND DICT_CREATE_FOREIGN_CONSTRAINTS_LOW
+# DICT_CREATE_FOREIGN_CONSTR
+#
+create table t1 (f1 int primary key) engine=InnoDB;
+create table t2 (f1 int primary key,
+constraint c1 foreign key (f1) references t1(f1),
+constraint c1 foreign key (f1) references t1(f1)) engine=InnoDB;
+ERROR HY000: Cannot add foreign key constraint
+create table t2 (f1 int primary key,
+constraint c1 foreign key (f1) references t1(f1)) engine=innodb;
+alter table t2 add constraint c1 foreign key (f1) references t1(f1);
+ERROR 23000: Can't write; duplicate key in table '#sql-temporary'
+set foreign_key_checks = 0;
+alter table t2 add constraint c1 foreign key (f1) references t1(f1);
+ERROR HY000: Duplicate foreign key constraint name 'test/c1'
+drop table t2, t1;

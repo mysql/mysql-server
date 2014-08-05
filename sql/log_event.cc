@@ -5852,7 +5852,7 @@ uint Load_log_event::get_query_buffer_length()
   return
     //the DB name may double if we escape the quote character
     5 + 2*db_len + 3 +
-    18 + fname_len + 2 +                    // "LOAD DATA INFILE 'file''"
+    18 + fname_len*4 + 2 +                    // "LOAD DATA INFILE 'file''"
     11 +                                    // "CONCURRENT "
     7 +					    // LOCAL
     9 +                                     // " REPLACE or IGNORE "
@@ -5898,9 +5898,9 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
 
   if (check_fname_outside_temp_buf())
     pos= strmov(pos, "LOCAL ");
-  pos= strmov(pos, "INFILE '");
-  memcpy(pos, fname, fname_len);
-  pos= strmov(pos+fname_len, "' ");
+  pos= strmov(pos, "INFILE ");
+  pos= pretty_print_str(pos, fname, fname_len);
+  pos= strmov(pos, " ");
 
   if (sql_ex.opt_flags & REPLACE_FLAG)
     pos= strmov(pos, "REPLACE ");
@@ -8917,9 +8917,9 @@ void Execute_load_query_log_event::print(FILE* file,
   if (local_fname)
   {
     my_b_write(head, (uchar*) query, fn_pos_start);
-    my_b_printf(head, " LOCAL INFILE \'");
-    my_b_printf(head, "%s", local_fname);
-    my_b_printf(head, "\'");
+    my_b_printf(head, " LOCAL INFILE ");
+    pretty_print_str(head, local_fname, strlen(local_fname));
+
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(head, " REPLACE");
     my_b_printf(head, " INTO");
@@ -10879,6 +10879,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
     /* Continue until we find the right record or have made a full loop */
     do
     {
+  restart_ha_rnd_next:
       error= m_table->file->ha_rnd_next(m_table->record[0]);
       if (error)
         DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
@@ -10886,11 +10887,16 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
       case HA_ERR_END_OF_FILE:
         // restart scan from top
         if (++restart_count < 2)
-          error= m_table->file->ha_rnd_init(1);
+        {
+          if ((error= m_table->file->ha_rnd_init(1)))
+            goto end;
+          goto restart_ha_rnd_next;
+        }
         break;
 
       case HA_ERR_RECORD_DELETED:
         // fetch next
+        goto restart_ha_rnd_next;
       case 0:
         // we're good, check if record matches
         break;
@@ -10900,9 +10906,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
         goto end;
       }
     }
-    while ((error == HA_ERR_END_OF_FILE && restart_count < 2) ||
-           (error == HA_ERR_RECORD_DELETED) ||
-           (!error && record_compare(m_table, &m_cols)));
+    while (restart_count < 2 && record_compare(m_table, &m_cols));
   }
 
 end:

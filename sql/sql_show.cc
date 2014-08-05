@@ -2063,10 +2063,22 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
   if (!thd->killed)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
+    /* take copy of global_thread_list */
+    std::set<THD*> global_thread_list_copy;
+    DEBUG_SYNC(thd,"before_copying_threads");
+    /*
+      Allow inserts to global_thread_list. Newly added thd
+      will not be accounted for `show processlist` and
+      removal from global_thread_list is blocked as LOCK_thd_remove
+      mutex is not released yet
+     */
+    mysql_mutex_lock(&LOCK_thd_remove);
+    copy_global_thread_list(&global_thread_list_copy);
+
+    DEBUG_SYNC(thd,"after_copying_threads");
     thread_infos.reserve(get_thread_count());
-    Thread_iterator it= global_thread_list_begin();
-    Thread_iterator end= global_thread_list_end();
+    Thread_iterator it= global_thread_list_copy.begin();
+    Thread_iterator end= global_thread_list_copy.end();
     for (; it != end; ++it)
     {
       THD *tmp= *it;
@@ -2094,6 +2106,12 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                                       tmp_sctx->get_host()->length() ?
                                       tmp_sctx->get_host()->ptr() : "");
         thd_info->command=(int) tmp->get_command();
+        DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                        {
+                         if (thd_info->command == COM_BINLOG_DUMP ||
+                             thd_info->command == COM_BINLOG_DUMP_GTID)
+                           DEBUG_SYNC(thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                        });
         mysql_mutex_lock(&tmp->LOCK_thd_data);
         if ((thd_info->db= tmp->db))             // Safe test
           thd_info->db= thd->strdup(thd_info->db);
@@ -2118,7 +2136,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thread_infos.push_back(thd_info);
       }
     }
-    mysql_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thd_remove);
   }
 
   // Return list sorted by thread_id.
@@ -2164,9 +2182,19 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 
   if (!thd->killed)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
-    Thread_iterator it= global_thread_list_begin();
-    Thread_iterator end= global_thread_list_end();
+    /* take copy of global_thread_list */
+    std::set<THD*> global_thread_list_copy;
+    /*
+      Allow inserts to global_thread_list. Newly added thd
+      will not be accounted for `fill schema processlist` and
+      removal from global_thread_list is blocked as LOCK_thd_remove
+      mutex is not released yet
+     */
+    mysql_mutex_lock(&LOCK_thd_remove);
+    copy_global_thread_list(&global_thread_list_copy);
+
+    Thread_iterator it= global_thread_list_copy.begin();
+    Thread_iterator end= global_thread_list_copy.end();
     for (; it != end; ++it)
     {
       THD* tmp= *it;
@@ -2198,6 +2226,12 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
       else
         table->field[2]->store(tmp_sctx->host_or_ip,
                                strlen(tmp_sctx->host_or_ip), cs);
+      DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                      {
+                      if (tmp->get_command() == COM_BINLOG_DUMP ||
+                          tmp->get_command() == COM_BINLOG_DUMP_GTID)
+                      DEBUG_SYNC(thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                      });
       /* DB */
       mysql_mutex_lock(&tmp->LOCK_thd_data);
       if ((db= tmp->db))
@@ -2226,11 +2260,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 
       if (mysys_var)
         mysql_mutex_unlock(&mysys_var->mutex);
-      mysql_mutex_unlock(&tmp->LOCK_thd_data);
-
       /* INFO */
-      /* Lock THD mutex that protects its data when looking at it. */
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
       if (tmp->query())
       {
         size_t const width=
@@ -2242,11 +2272,11 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 
       if (schema_table_store_record(thd, table))
       {
-        mysql_mutex_unlock(&LOCK_thread_count);
+        mysql_mutex_unlock(&LOCK_thd_remove);
         DBUG_RETURN(1);
       }
     }
-    mysql_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thd_remove);
   }
 
   DBUG_RETURN(0);
@@ -2367,6 +2397,59 @@ void reset_status_vars()
 void free_status_vars()
 {
   delete_dynamic(&all_status_vars);
+}
+
+/**
+  @brief           Get the value of given status variable
+
+  @param[in]       thd        thread handler
+  @param[in]       list       list of SHOW_VAR objects in which function should
+                              search
+  @param[in]       name       name of the status variable
+  @param[in/out]   value      buffer in which value of the status variable
+                              needs to be filled in
+
+  @return          status
+    @retval        FALSE      if variable is not found in the list
+    @retval        TRUE       if variable is found in the list
+  NOTE: Currently this function is implemented just to support 'bool' status
+  variables and 'long' status variables *only*. It can be extended very easily
+  for further show_types in future if required.
+  TODO: Currently show_status_arary switch case is tightly coupled with
+  pos, end, buff, value variables and also it stores the values in a 'table'.
+  Decouple the switch case to fill the buffer value so that it can be used
+  in show_status_array() and get_status_var() to avoid duplicate code.
+ */
+
+bool get_status_var(THD* thd, SHOW_VAR *list, const char * name, char * const value)
+{
+  for (; list->name; list++)
+  {
+    int res= strcmp(list->name, name);
+    if (res == 0)
+    {
+      /*
+        if var->type is SHOW_FUNC, call the function.
+        Repeat as necessary, if new var is again SHOW_FUNC
+      */
+      SHOW_VAR tmp;
+      for (; list->type == SHOW_FUNC; list= &tmp)
+        ((mysql_show_var_func)(list->value))(thd, &tmp, value);
+      switch (list->type) {
+      case SHOW_BOOL:
+        strmov(value, *(bool*) list->value ? "ON" : "OFF");
+        break;
+      case SHOW_LONG:
+        int10_to_str(*(long*) list->value, value, 10);
+        break;
+      default:
+        /* not supported type */
+        DBUG_ASSERT(0);
+      }
+      return TRUE;
+    }
+  }
+  return FALSE;
 }
 
 /*
@@ -6506,6 +6589,7 @@ int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
+  SHOW_VAR *sys_var_array;
   int res= 0;
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
@@ -6519,10 +6603,21 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
       schema_table_idx == SCH_GLOBAL_VARIABLES)
     option_type= OPT_GLOBAL;
 
+  /*
+    Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
+    SHOW_VAR array and hold it until all variables are stored in the table.
+  */
+  mysql_mutex_lock(&LOCK_plugin_delete);
+  // Lock LOCK_system_variables_hash to prepare SHOW_VARs array.
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars, option_type),
-                         option_type, NULL, "", tables->table, upper_case_names, cond);
+  DEBUG_SYNC(thd, "acquired_LOCK_system_variables_hash");
+  sys_var_array= enumerate_sys_vars(thd, sorted_vars, option_type);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
+
+  res= show_status_array(thd, wild, sys_var_array, option_type, NULL, "",
+                         tables->table, upper_case_names, cond);
+
+  mysql_mutex_unlock(&LOCK_plugin_delete);
   DBUG_RETURN(res);
 }
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,26 +21,35 @@ MACRO (INSTALL_DEBUG_SYMBOLS targets)
     GET_TARGET_PROPERTY(location ${target} LOCATION)
     GET_TARGET_PROPERTY(type ${target} TYPE)
     IF(NOT INSTALL_LOCATION)
-      IF(type MATCHES "STATIC_LIBRARY" OR type MATCHES "MODULE_LIBRARY" OR type MATCHES "SHARED_LIBRARY")
+      IF(type MATCHES "STATIC_LIBRARY"
+          OR type MATCHES "MODULE_LIBRARY"
+          OR type MATCHES "SHARED_LIBRARY")
         SET(INSTALL_LOCATION "lib")
       ELSEIF(type MATCHES "EXECUTABLE")
         SET(INSTALL_LOCATION "bin")
       ELSE()
-        MESSAGE(FATAL_ERROR "cannot determine type of ${target}. Don't now where to install")
+        MESSAGE(FATAL_ERROR
+          "cannot determine type of ${target}. Don't now where to install")
      ENDIF()
     ENDIF()
     STRING(REPLACE ".exe" ".pdb" pdb_location ${location})
     STRING(REPLACE ".dll" ".pdb" pdb_location ${pdb_location})
     STRING(REPLACE ".lib" ".pdb" pdb_location ${pdb_location})
     IF(CMAKE_GENERATOR MATCHES "Visual Studio")
-      STRING(REPLACE "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}" pdb_location ${pdb_location})
+      STRING(REPLACE
+        "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}"
+        pdb_location ${pdb_location})
     ENDIF()
     IF(target STREQUAL "mysqld")
 	  SET(comp Server)
     ELSE()
       SET(comp Debuginfo)
     ENDIF()	  
-    INSTALL(FILES ${pdb_location} DESTINATION ${INSTALL_LOCATION} COMPONENT ${comp})
+    # No .pdb file for static libraries.
+    IF(NOT type MATCHES "STATIC_LIBRARY")
+      INSTALL(FILES ${pdb_location}
+        DESTINATION ${INSTALL_LOCATION} COMPONENT ${comp})
+    ENDIF()
   ENDFOREACH()
   ENDIF()
 ENDMACRO()

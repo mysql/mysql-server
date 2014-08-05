@@ -1,0 +1,62 @@
+###############################################################################
+--echo Bug#17283409  4-WAY DEADLOCK: ZOMBIES, PURGING BINLOGS, SHOW PROCESSLIST,
+--echo SHOW BINLOGS
+# After the fix for bug 17283409, We allow new connections while processing
+# 'SHOW PROCESSLIST' command. This test script is to prove that even though we
+# allow new connections to come in, 'SHOW PROCESSLIST' will not consider them,
+# hence there is no worry of 'SHOW PROCESSLIST' going into a infinite loop if
+# new connections are coming in continously.
+###############################################################################
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+--enable_connect_log
+connect(connection1,localhost,root,,test,$MASTER_MYPORT,);
+--connection default
+SET DEBUG_SYNC='before_copying_threads SIGNAL parked1 WAIT_FOR go';
+--send SHOW PROCESSLIST
+--connection connection1
+echo "Wait_for parked1";
+SET DEBUG_SYNC='now WAIT_FOR parked1';
+connect(connection2,localhost,root,,test,$MASTER_MYPORT,);
+connect(connection3,localhost,root,,test,$MASTER_MYPORT,);
+SET DEBUG_SYNC='now SIGNAL go';
+
+--connection default
+# We are yet to copy threads when connection 2 and connection 3 joined the
+# system. So this will show all 4 connections ( default + connection 1,2,3).
+--replace_column 1 <Id> 3 <Host> 5 <Command> 6 <Time> 7 <State> 8 <Info>
+--reap
+
+# Test 2: To prove that connections which joined after copying thread will not
+# be entertained
+SET DEBUG_SYNC='after_copying_threads SIGNAL parked1 WAIT_FOR go';
+--send SHOW PROCESSLIST
+
+--connection connection1
+echo "Wait_for parked1";
+SET DEBUG_SYNC='now WAIT_FOR parked1';
+connect(connection4,localhost,root,,test,$MASTER_MYPORT,);
+connect(connection5,localhost,root,,test,$MASTER_MYPORT,);
+SET DEBUG_SYNC='now SIGNAL go';
+--connection default
+# This will show 4 connections only ( default + connection 1,2,3 ).  Connections
+# (connection4, connection 5) which entered after reading the first element
+# from the iterator will not be processed by show processlist.
+--replace_column 1 <Id> 3 <Host> 5 <Command> 6 <Time> 7 <State> 8 <Info>
+--reap
+
+#Now try the command once again.
+# This will show 6 connections ( default + connection 1,2,3,4,5 )
+--replace_column 1 <Id> 3 <Host> 5 <Command> 6 <Time> 7 <State> 8 <Info>
+SHOW PROCESSLIST;
+
+--echo "Cleanup"
+# Reset DEBUG_SYNC
+SET DEBUG_SYNC='RESET';
+--disconnect connection1
+--disconnect connection2
+--disconnect connection3
+--disconnect connection4
+--disconnect connection5
+--disable_connect_log
+--source include/wait_until_count_sessions.inc

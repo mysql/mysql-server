@@ -249,7 +249,7 @@ table_events_statements_current::m_share=
   &table_events_statements_current::delete_all_rows,
   NULL, /* get_row_count */
   1000, /* records */
-  sizeof(PFS_simple_index), /* ref length */
+  sizeof(pos_events_statements_current), /* ref length */
   &m_table_lock,
   &m_field_def,
   false /* checked */

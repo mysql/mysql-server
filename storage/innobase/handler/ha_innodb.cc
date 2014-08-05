@@ -3497,7 +3497,7 @@ innobase_commit(
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-		/* We need current binlog position for ibbackup to work. */
+		/* We need current binlog position for mysqlbackup to work. */
 retry:
 		if (innobase_commit_concurrency > 0) {
 			mysql_mutex_lock(&commit_cond_m);
@@ -3822,7 +3822,7 @@ innobase_savepoint(
 	error = trx_savepoint_for_mysql(trx, name, (ib_int64_t)0);
 
 	if (error == DB_SUCCESS && trx->fts_trx != NULL) {
-		fts_savepoint_take(trx, name);
+		fts_savepoint_take(trx, trx->fts_trx, name);
 	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
@@ -11746,9 +11746,13 @@ ha_innobase::get_foreign_key_list(
 
 	mutex_enter(&(dict_sys->mutex));
 
-	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+	for (dict_foreign_set::iterator it
+		= prebuilt->table->foreign_set.begin();
+	     it != prebuilt->table->foreign_set.end();
+	     ++it) {
+
+		foreign = *it;
+
 		pf_key_info = get_foreign_key_info(thd, foreign);
 		if (pf_key_info) {
 			f_key_list->push_back(pf_key_info);
@@ -11784,9 +11788,13 @@ ha_innobase::get_parent_foreign_key_list(
 
 	mutex_enter(&(dict_sys->mutex));
 
-	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->referenced_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+	for (dict_foreign_set::iterator it
+		= prebuilt->table->referenced_set.begin();
+	     it != prebuilt->table->referenced_set.end();
+	     ++it) {
+
+		foreign = *it;
+
 		pf_key_info = get_foreign_key_info(thd, foreign);
 		if (pf_key_info) {
 			f_key_list->push_back(pf_key_info);
@@ -11819,8 +11827,8 @@ ha_innobase::can_switch_engines(void)
 			"determining if there are foreign key constraints";
 	row_mysql_freeze_data_dictionary(prebuilt->trx);
 
-	can_switch = !UT_LIST_GET_FIRST(prebuilt->table->referenced_list)
-			&& !UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	can_switch = prebuilt->table->referenced_set.empty()
+		&& prebuilt->table->foreign_set.empty();
 
 	row_mysql_unfreeze_data_dictionary(prebuilt->trx);
 	prebuilt->trx->op_info = "";
@@ -13598,7 +13606,7 @@ innobase_xa_prepare(
 		|| !thd_test_options(
 			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
-		/* For ibbackup to work the order of transactions in binlog
+		/* For mysqlbackup to work the order of transactions in binlog
 		and InnoDB must be the same. Consider the situation
 
 		  thread1> prepare; write to binlog; ...

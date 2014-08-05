@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -51,19 +51,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
 }
 
 [0-9]+			{
-	val->token = strdup(fts0bget_text(yyscanner));
+	val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
 
 	return(FTS_NUMB);
 }
 
 [^" \n*()+\-<>~@%]*		{
-	val->token = strdup(fts0bget_text(yyscanner));
+	val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
 
 	return(FTS_TERM);
 }
 
 \"[^\"\n]*\"		{
-	val->token = strdup(fts0bget_text(yyscanner));
+	val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
 
 	return(FTS_TEXT);
 }

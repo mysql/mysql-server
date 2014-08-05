@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -725,7 +725,14 @@ bool st_select_lex_unit::exec()
                                     0);
         if (!saved_error)
         {
+          /*
+            Save the current examined row count locally and clear the global
+            counter, so that we can accumulate the number of evaluated rows for
+            the current query block.
+          */
 	  examined_rows+= thd->get_examined_row_count();
+          thd->set_examined_row_count(0);
+
           if (union_result->flush())
           {
             thd->lex->current_select= lex_select_save;

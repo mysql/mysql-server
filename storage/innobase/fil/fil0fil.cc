@@ -112,7 +112,7 @@ completes, we decrement the count and return the file node to the LRU-list if
 the count drops to zero. */
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
-but in the MySQL Embedded Server Library and ibbackup it is not the default
+but in the MySQL Embedded Server Library and mysqlbackup it is not the default
 directory, and we must set the base file path explicitly */
 UNIV_INTERN const char*	fil_path_to_mysql_datadir	= ".";
 
@@ -2017,8 +2017,8 @@ fil_check_first_page(
 }
 
 /*******************************************************************//**
-Reads the flushed lsn, arch no, and tablespace flag fields from a data
-file at database startup.
+Reads the flushed lsn, arch no, space_id and tablespace flag fields from
+the first page of a data file at database startup.
 @retval NULL on success, or if innodb_force_recovery is set
 @return pointer to an error message string */
 UNIV_INTERN
@@ -2055,15 +2055,18 @@ fil_read_first_page(
 
 	os_file_read(data_file, page, 0, UNIV_PAGE_SIZE);
 
-	*flags = fsp_header_get_flags(page);
-
-	*space_id = fsp_header_get_space_id(page);
-
-	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
-
+	/* The FSP_HEADER on page 0 is only valid for the first file
+	in a tablespace.  So if this is not the first datafile, leave
+	*flags and *space_id as they were read from the first file and
+	do not validate the first page. */
 	if (!one_read_already) {
+		*flags = fsp_header_get_flags(page);
+		*space_id = fsp_header_get_space_id(page);
+
 		check_msg = fil_check_first_page(page);
 	}
+
+	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
 	ut_free(buf);
 
@@ -2272,13 +2275,13 @@ exists and the space id in it matches. Replays the create operation if a file
 at that path does not exist yet. If the database directory for the file to be
 created does not exist, then we create the directory, too.
 
-Note that ibbackup --apply-log sets fil_path_to_mysql_datadir to point to the
-datadir that we should use in replaying the file operations.
+Note that mysqlbackup --apply-log sets fil_path_to_mysql_datadir to point to
+the datadir that we should use in replaying the file operations.
 
 InnoDB recovery does not replay these fully since it always sets the space id
-to zero. But ibbackup does replay them.  TODO: If remote tablespaces are used,
-ibbackup will only create tables in the default directory since MLOG_FILE_CREATE
-and MLOG_FILE_CREATE2 only know the tablename, not the path.
+to zero. But mysqlbackup does replay them.  TODO: If remote tablespaces are
+used, mysqlbackup will only create tables in the default directory since
+MLOG_FILE_CREATE and MLOG_FILE_CREATE2 only know the tablename, not the path.
 
 @return end of log record, or NULL if the record was not completely
 contained between ptr and end_ptr */
@@ -2365,11 +2368,11 @@ fil_op_log_parse_or_replay(
 	}
 
 	/* Let us try to perform the file operation, if sensible. Note that
-	ibbackup has at this stage already read in all space id info to the
+	mysqlbackup has at this stage already read in all space id info to the
 	fil0fil.cc data structures.
 
 	NOTE that our algorithm is not guaranteed to work correctly if there
-	were renames of tables during the backup. See ibbackup code for more
+	were renames of tables during the backup. See mysqlbackup code for more
 	on the problem. */
 
 	switch (type) {
@@ -2784,12 +2787,12 @@ fil_delete_tablespace(
 	if (err == DB_SUCCESS) {
 #ifndef UNIV_HOTBACKUP
 		/* Write a log record about the deletion of the .ibd
-		file, so that ibbackup can replay it in the
+		file, so that mysqlbackup can replay it in the
 		--apply-log phase. We use a dummy mtr and the familiar
 		log write mechanism. */
 		mtr_t		mtr;
 
-		/* When replaying the operation in ibbackup, do not try
+		/* When replaying the operation in mysqlbackup, do not try
 		to write any log record */
 		mtr_start(&mtr);
 
@@ -4463,7 +4466,7 @@ will_not_choose:
 			" (< 4 pages 16 kB each),\n"
 			"InnoDB: or the space id in the file header"
 			" is not sensible.\n"
-			"InnoDB: This can happen in an ibbackup run,"
+			"InnoDB: This can happen in an mysqlbackup run,"
 			" and is not dangerous.\n",
 			fsp->filepath, fsp->id, fsp->filepath, size);
 		os_file_close(fsp->file);
@@ -4500,7 +4503,7 @@ will_not_choose:
 			"InnoDB: because space %s with the same id\n"
 			"InnoDB: was scanned earlier. This can happen"
 			" if you have renamed tables\n"
-			"InnoDB: during an ibbackup run.\n",
+			"InnoDB: during an mysqlbackup run.\n",
 			fsp->filepath, fsp->id, fsp->filepath,
 			space->name);
 		os_file_close(fsp->file);
@@ -5176,9 +5179,9 @@ retry:
 #ifdef UNIV_HOTBACKUP
 /********************************************************************//**
 Extends all tablespaces to the size stored in the space header. During the
-ibbackup --apply-log phase we extended the spaces on-demand so that log records
-could be applied, but that may have left spaces still too small compared to
-the size stored in the space header. */
+mysqlbackup --apply-log phase we extended the spaces on-demand so that log
+records could be applied, but that may have left spaces still too small
+compared to the size stored in the space header. */
 UNIV_INTERN
 void
 fil_extend_tablespaces_to_stored_len(void)
@@ -5675,7 +5678,7 @@ fil_io(
 	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
 #ifdef UNIV_HOTBACKUP
-	/* In ibbackup do normal i/o, not aio */
+	/* In mysqlbackup do normal i/o, not aio */
 	if (type == OS_FILE_READ) {
 		ret = os_file_read(node->handle, buf, offset, len);
 	} else {

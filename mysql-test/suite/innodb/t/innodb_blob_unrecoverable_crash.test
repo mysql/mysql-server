@@ -1,0 +1,55 @@
+--source include/not_embedded.inc
+--source include/not_crashrep.inc
+--source include/have_innodb.inc
+
+call mtr.add_suppression("InnoDB: The total blob data length");
+
+let $old_max_allowed_packet = `select @@max_allowed_packet`;
+SET GLOBAL max_allowed_packet = 100*1024*1024;
+
+--echo # Connection big_packets:
+connect(big_packets,localhost,root,,);
+connection big_packets;
+
+CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+
+# Insert a few rows (it doesn't really matter how many). These transactions
+# are committed once they are acked, so they should not be lost.
+INSERT INTO t1 (a, b) VALUES (1, '1');
+INSERT INTO t1 (a, b) VALUES (2, '2');
+INSERT INTO t1 (a, b) VALUES (3, '3');
+INSERT INTO t1 (a, b) VALUES (4, '4');
+INSERT INTO t1 (a, b) VALUES (5, '5');
+
+# The BLOB insert will fail, and should disappear. However all data committed
+# up to this point should not be lost.
+start transaction;
+--replace_regex /\(> [0-9]*\)/(> ####)/
+--error ER_TOO_BIG_ROWSIZE
+INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 20*1024*1024));
+
+--echo # Connection default:
+connection default;
+
+# We expect a restart.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # Quick shutdown and restart server
+--shutdown_server 0
+
+# Wait for the server to come back up, and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Connection default:
+connection default;
+
+# We should see (1,2,3,4,5) here.
+SELECT a FROM t1;
+
+# Clean up.
+DROP TABLE t1;
+
+--disable_query_log
+eval set global max_allowed_packet = $old_max_allowed_packet;
+--enable_query_log

@@ -22,6 +22,11 @@
 #
 #   $use_gtids
 #     If set, uses GTIDs instead of filename and offset for positions.
+#
+#   $ignore_gtids_on_sync
+#     Forces the use of master file and position, even if $use_gtids is set.
+#     This might be used if the slave will not have all the GTIDs of the master
+#     but have to read and apply all master events to the end.
 
 --let $include_filename= sync_slave_sql.inc
 --source include/begin_include_file.inc
@@ -34,10 +39,40 @@ if (!$_sss_slave_timeout)
 
 if ($rpl_debug)
 {
-  --echo use_gtids='$use_gtids' _saved_gtids='$_saved_gtids' _saved_file='$_saved_file' _saved_pos='$_saved_pos' timeout='$_sss_slave_timeout'
+  --echo use_gtids='$use_gtids' ignore_gtids_on_sync='$ignore_gtids_on_sync' _saved_gtids='$_saved_gtids' _saved_file='$_saved_file' _saved_pos='$_saved_pos' timeout='$_sss_slave_timeout'
 }
 
-if ($use_gtids)
+#
+# Verify if the SQL thread is already updated by the master position
+# regardless the use if GTIDs. If the SQL thread is already updated,
+# we can reduce the slave timeout of WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS
+# to a minimum because there in nothing else to sync.
+# As there is a possibility of missing GTIDs on slave, this reduced
+# timeout will make mtr throw an error almost promptly, without having
+# to wait 300 seconds to notice a sync problem between master and slave.
+#
+--let $_slave_master_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 1)
+--let $_slave_master_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+if ($_slave_master_file == $_saved_file)
+{
+  if ($_slave_master_pos == $_saved_pos)
+  {
+    if ($rpl_debug)
+    {
+      --echo debug: It seems that SQL thread is already synced (by verifying master file and position)
+      --echo debug: Changing slave timeout to 1 seconds
+    }
+    --let $_sss_slave_timeout= 1
+  }
+}
+
+--let $_sync_with_gtids= $use_gtids
+if ($ignore_gtids_on_sync)
+{
+  --let $_sync_with_gtids= 0
+}
+
+if ($_sync_with_gtids)
 {
   if ($rpl_debug)
   {
@@ -45,7 +80,7 @@ if ($use_gtids)
   }
   --let $_sss_result= `SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout)`
 }
-if (!$use_gtids)
+if (!$_sync_with_gtids)
 {
   if ($rpl_debug)
   {

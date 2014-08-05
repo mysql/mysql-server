@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2044,6 +2044,8 @@ ib_cursor_delete_row(
 		const rec_t*	rec;
 		ib_bool_t	page_format;
 		mtr_t		mtr;
+		rec_t*		copy = NULL;
+	        byte		ptr[UNIV_PAGE_SIZE_MAX];
 
 		page_format = static_cast<ib_bool_t>(
 			dict_table_is_comp(index->table));
@@ -2052,16 +2054,27 @@ ib_cursor_delete_row(
 
 		if (btr_pcur_restore_position(
 			BTR_SEARCH_LEAF, pcur, &mtr)) {
+			mem_heap_t*	heap = NULL;
+			ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+			ulint*		offsets	= offsets_;
+
+			rec_offs_init(offsets_);
 
 			rec = btr_pcur_get_rec(pcur);
-		} else {
-			rec = NULL;
+
+			/* Since mtr will be commited, the rec
+			will not be protected. Make a copy of
+			the rec. */
+			offsets = rec_get_offsets(
+				rec, index, offsets, ULINT_UNDEFINED, &heap);
+			ut_ad(rec_offs_size(offsets) < UNIV_PAGE_SIZE_MAX);
+			copy = rec_copy(ptr, rec, offsets);
 		}
 
 		mtr_commit(&mtr);
 
-		if (rec && !rec_get_deleted_flag(rec, page_format)) {
-			err = ib_delete_row(cursor, pcur, rec);
+		if (copy && !rec_get_deleted_flag(copy, page_format)) {
+			err = ib_delete_row(cursor, pcur, copy);
 		} else {
 			err = DB_RECORD_NOT_FOUND;
 		}
