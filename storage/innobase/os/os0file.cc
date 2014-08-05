@@ -4753,8 +4753,7 @@ os_aio_windows_handle(
 	mutex_enter(&array->mutex);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
-	    && !buf_page_cleaner_is_active
-	    && array->n_reserved == 0) {
+	    && !buf_page_cleaner_is_active) {
 		*message1 = NULL;
 		*message2 = NULL;
 		mutex_exit(&array->mutex);
@@ -5784,6 +5783,61 @@ os_aio_all_slots_free(void)
 	}
 
 	return(false);
+}
+
+/** Prints all pending IO for the array
+@param[in]	file	file where to print
+@param[in]	array	array to process */
+static
+void
+os_aio_print_pending_io_array(
+	FILE*		file,
+	os_aio_array_t*	array)
+{
+	mutex_enter(&array->mutex);
+	fprintf(file, " %lu\n", (ulong) array->n_reserved);
+	for (ulint i = 0; i < array->n_slots; i++) {
+		os_aio_slot_t* slot = array->slots + i;
+		if (slot->is_reserved) {
+			fprintf(file,
+				"%s IO for %s (offset=" UINT64PF
+				", size=%lu)\n",
+				slot->type == OS_FILE_READ ? "read" : "write",
+				slot->name, slot->offset, slot->len);
+		}
+	}
+	mutex_exit(&array->mutex);
+}
+
+/** Prints all pending IO
+@param[in]	file	file where to print */
+
+void
+os_aio_print_pending_io(
+	FILE*	file)
+{
+	fputs("Pending normal aio reads:", file);
+	os_aio_print_pending_io_array(file, os_aio_read_array);
+
+	if (os_aio_write_array != 0) {
+		fputs("Pending normal aio writes:", file);
+		os_aio_print_pending_io_array(file, os_aio_write_array);
+	}
+
+	if (os_aio_ibuf_array != 0) {
+		fputs("Pending ibuf aio reads:", file);
+		os_aio_print_pending_io_array(file, os_aio_ibuf_array);
+	}
+
+	if (os_aio_log_array != 0) {
+		fputs("Pending log i/o's:", file);
+		os_aio_print_pending_io_array(file, os_aio_log_array);
+	}
+
+	if (os_aio_sync_array != 0) {
+		fputs("Pending sync i/o's:", file);
+		os_aio_print_pending_io_array(file, os_aio_sync_array);
+	}
 }
 #endif /* UNIV_DEBUG */
 
