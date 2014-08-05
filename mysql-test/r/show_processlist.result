@@ -1,0 +1,47 @@
+Bug#17283409  4-WAY DEADLOCK: ZOMBIES, PURGING BINLOGS, SHOW PROCESSLIST,
+SHOW BINLOGS
+connect connection1,localhost,root,,test,$MASTER_MYPORT,;
+connection default;
+SET DEBUG_SYNC='before_one_element_read_from_threads_iterator SIGNAL parked1 WAIT_FOR go';
+SHOW PROCESSLIST;
+connection connection1;
+"Wait_for parked1"
+SET DEBUG_SYNC='now WAIT_FOR parked1';
+connect connection2,localhost,root,,test,$MASTER_MYPORT,;
+connect connection3,localhost,root,,test,$MASTER_MYPORT,;
+SET DEBUG_SYNC='now SIGNAL go';
+connection default;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+SET DEBUG_SYNC='after_one_element_read_from_threads_iterator SIGNAL parked1 WAIT_FOR go';
+SHOW PROCESSLIST;
+connection connection1;
+"Wait_for parked1"
+SET DEBUG_SYNC='now WAIT_FOR parked1';
+connect connection4,localhost,root,,test,$MASTER_MYPORT,;
+connect connection5,localhost,root,,test,$MASTER_MYPORT,;
+SET DEBUG_SYNC='now SIGNAL go';
+connection default;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+"Cleanup"
+SET DEBUG_SYNC='RESET';
+disconnect connection1;
+disconnect connection2;
+disconnect connection3;
+disconnect connection4;
+disconnect connection5;

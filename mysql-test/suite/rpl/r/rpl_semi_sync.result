@@ -386,6 +386,7 @@ Rpl_semi_sync_slave_status	ON
 include/stop_slave.inc
 [ on master ]
 set sql_log_bin=0;
+include/stop_dump_threads.inc
 UNINSTALL PLUGIN rpl_semi_sync_master;
 set sql_log_bin=1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled';
@@ -439,9 +440,8 @@ Rpl_semi_sync_slave_status	OFF
 #
 # Clean up
 #
+include/uninstall_semisync.inc
 include/stop_slave.inc
-UNINSTALL PLUGIN rpl_semi_sync_slave;
-UNINSTALL PLUGIN rpl_semi_sync_master;
 change master to master_user='root',master_password='';
 include/start_slave.inc
 drop table t1;

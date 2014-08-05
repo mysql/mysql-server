@@ -85,7 +85,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @VERSION@
-Release:        2%{?commercial:.1}%{?dist}
+Release:        4%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -118,7 +118,7 @@ BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global __requires_exclude ^perl\\((hostnames|lib::mtr|lib::v1|mtr_|My::)
+%global __requires_exclude ^perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so)$
 %else
 # https://fedoraproject.org/wiki/EPEL:Packaging#Generic_Filtering_on_EPEL6
@@ -166,6 +166,7 @@ Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-server < %{version}-%{release}
 Obsoletes:      mysql-server < %{version}-%{release}
 Obsoletes:      mariadb-server
+Obsoletes:      mariadb-galera-server
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 %if 0%{?systemd}
@@ -262,6 +263,25 @@ This package contains the MySQL regression test suite for MySQL
 database server.
 
 
+%package        bench
+Summary:        MySQL benchmark suite
+Group:          Applications/Databases
+%if 0%{?commercial}
+Obsoletes:      mysql-community-bench < %{version}-%{release}
+Requires:       mysql-enterprise-server%{?_isa} = %{version}-%{release}
+%else
+Requires:       mysql-community-server%{?_isa} = %{version}-%{release}
+%endif
+Obsoletes:      mariadb-bench
+Obsoletes:      community-mysql-bench < %{version}-%{release}
+Obsoletes:      mysql-bench < %{version}-%{release}
+Provides:       mysql-bench = %{version}-%{release}
+Provides:       mysql-bench%{?_isa} = %{version}-%{release}
+
+%description    bench
+This package contains the MySQL Benchmark Suite for MySQL database
+server.
+
 %package        devel
 Summary:        Development header files and libraries for MySQL database client applications
 Group:          Applications/Databases
@@ -344,6 +364,7 @@ Requires:       mysql-enterprise-common%{?_isa} = %{version}-%{release}
 Provides:       MySQL-embedded%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
+Obsoletes:      mariadb-embedded
 Obsoletes:      MySQL-embedded < %{version}-%{release}
 Obsoletes:      mysql-embedded < %{version}-%{release}
 Provides:       mysql-embedded = %{version}-%{release}
@@ -372,6 +393,7 @@ Requires:       mysql-enterprise-embedded%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-devel%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-embedded%{?_isa} = %{version}-%{release}
 %endif
+Obsoletes:      mariadb-embedded-devel
 Obsoletes:      mysql-embedded-devel < %{version}-%{release}
 Provides:       mysql-embedded-devel = %{version}-%{release}
 Provides:       mysql-embedded-devel%{?_isa} = %{version}-%{release}
@@ -472,11 +494,13 @@ mkdir debug
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
-           -DCMAKE_BUILD_TYPE=Debug %{?el7:-DENABLE_DTRACE=OFF} \
+           -DCMAKE_BUILD_TYPE=Debug \
+           -DENABLE_DTRACE=OFF \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DINSTALL_SQLBENCHDIR=share \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
@@ -495,11 +519,13 @@ mkdir release
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
-           -DCMAKE_BUILD_TYPE=RelWithDebInfo %{?el7:-DENABLE_DTRACE=OFF} \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DENABLE_DTRACE=OFF \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DINSTALL_SQLBENCHDIR=share \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
@@ -862,6 +888,10 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_client_test_embedded.1*
 %attr(644, root, root) %{_mandir}/man1/mysqltest_embedded.1*
 
+%files bench
+%defattr(-, root, root, -)
+%{_datadir}/sql-bench
+
 %files embedded
 %defattr(-, root, root, -)
 %dir %attr(755, root, root) %{_libdir}/mysql
@@ -881,6 +911,19 @@ fi
 %endif
 
 %changelog
+* Tue Jul 08 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.39-4
+- Remove perl(GD) and dtrace dependencies 
+
+* Tue Jul 01 2014 Bjorn Munch <bjorn.munch@oracle.com> - 5.5.39-3
+- Disable dtrace, as it fails on OEL6 boxes with Oracle dtrace installed
+
+* Thu Jun 26 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.39-2
+- Resolve embedded-devel conflict issue
+
+* Wed Jun 25 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.39-1
+- Add bench package
+- Enable dtrace 
+
 * Sun May 11 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.38-2
 - Increment release version to resolve upgrade conflict issue
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2479,6 +2479,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
             table->file->print_error(error, MYF(0));
             DBUG_RETURN(error);
           }
+          goto restart_rnd_next;
         }
         break;
 

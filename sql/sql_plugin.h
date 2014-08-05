@@ -40,6 +40,8 @@ extern const char *global_plugin_typelib_names[];
 
 #include <my_sys.h>
 
+extern mysql_mutex_t LOCK_plugin_delete;
+
 #ifdef DBUG_OFF
 #define plugin_ref_to_int(A) A
 #define plugin_int_to_ref(A) A
