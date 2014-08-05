@@ -1390,6 +1390,21 @@ lock_number_of_tables_locked(
 /*============== RECORD LOCK CREATION AND QUEUE MANAGEMENT =============*/
 
 /**
+@param[in] rhs			Lock to compare with
+@return true if the record lock equals rhs */
+bool
+RecLock::is_equal(const lock_t* rhs) const
+{
+	ut_ad(lock_get_type_low(rhs) == LOCK_REC);
+
+	const lock_rec_t&	other= rhs->un_member.rec_lock;
+
+	return(other.space == m_rec_id.m_space_id
+	       && other.page_no == m_rec_id.m_page_no
+	       && lock_rec_get_nth_bit(rhs, m_rec_id.m_heap_no));
+}
+
+/**
 Do some checks and prepare for creating a new record lock */
 void
 RecLock::prepare() const
@@ -1498,7 +1513,8 @@ RecLock::lock_alloc(
 
 /**
 Add the lock to the record lock hash and the transaction's lock list
-@param[in,out] lock	Newly created record lock to add to the rec hash */
+@param[in,out] lock	Newly created record lock to add to the rec hash
+@param[in] add_to_hash	If the lock should be added to the hash table */
 void
 RecLock::lock_add(lock_t* lock, bool add_to_hash)
 {
@@ -1507,9 +1523,9 @@ RecLock::lock_add(lock_t* lock, bool add_to_hash)
 
 	++lock->index->table->n_rec_locks;
 
-	ulint	key = m_rec_id.fold();
-
 	if (add_to_hash) {
+		ulint	key = m_rec_id.fold();
+
 		HASH_INSERT(lock_t, hash, lock_hash_get(m_mode), key, lock);
 	}
 
@@ -1524,6 +1540,7 @@ RecLock::lock_add(lock_t* lock, bool add_to_hash)
 Create a new lock.
 @param[in,out] trx		Transaction requesting the lock
 @param[in] owns_trx_mutex	true if caller owns the trx_t::mutex
+@param[in] prdt			Predicate lock (optional)
 @return a new lock instance */
 lock_t*
 RecLock::create(trx_t* trx, bool owns_trx_mutex, const lock_prdt_t* prdt)
@@ -1661,6 +1678,7 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 {
 	trx->abort = true;
 
+	ut_ad(trx_mutex_own(m_trx));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
 
@@ -1718,12 +1736,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 	for (lock_t* next = lock->hash; next != NULL; next = next->hash) {
 
-		const lock_rec_t&	queued_lock = next->un_member.rec_lock;
-
-		if (!lock_get_wait(next)
-		    && queued_lock.space == m_rec_id.m_space_id
-		    && queued_lock.page_no == m_rec_id.m_page_no
-		    && lock_rec_get_nth_bit(next, m_rec_id.m_heap_no)) {
+		if (!lock_get_wait(next) && is_equal(next)) {
 
 			ut_ad(next != wait_for);
 			ut_ad(next->trx != wait_for->trx);
@@ -1793,26 +1806,11 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 	if (waiting) {
 
-		const trx_t*		trx = wait_for->trx;
-		const lock_t*		lock = trx->lock.wait_lock;
-		const lock_rec_t&	block_lock = lock->un_member.rec_lock;
+		const lock_t*		lock = wait_for->trx->lock.wait_lock;
 
 		/* Check if "wait_for" is waiting for the same lock. */
 
-		if (block_lock.space != m_rec_id.m_space_id
-		    || block_lock.page_no != m_rec_id.m_page_no
-		    || !lock_rec_get_nth_bit(wait_for, m_rec_id.m_heap_no)) {
-
-			/* Move it out of the way by rolling it back. */
-
-			kill_trx = true;
-
-		} else {
-
-			/* This is the jump queue case. */
-
-			kill_trx = false;
-		}
+		kill_trx = !is_equal(lock);
 
 	} else if (wait_for->trx->read_only) {
 
@@ -1880,8 +1878,9 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 Enqueue a lock wait for normal transaction. If it is a high priority transaction
 then jump the record lock wait queue and if the transaction at the head of the
 queue is itself waiting roll it back, also do a deadlock check and resolve.
-@param[in, out] wait_for	The lock that the the joining transaction is
+@param[in, out] wait_for	The lock that the joining transaction is
 				waiting for
+@param[in] prdt			Predicate [optional]
 @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
 	DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
 	there was a deadlock, but another transaction was chosen

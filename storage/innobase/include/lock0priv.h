@@ -557,7 +557,7 @@ public:
 				prdt = NULL);
 
 	/**
-	Create a lock for a transaction that.
+	Create a lock for a transaction and initialise it.
 	@param[in, out] trx		Transaction requesting the new lock
 	@param[in] owns_trx_mutex	true if caller owns the trx_t::mutex
 	@param[in] prdt			Predicate lock (optional)
@@ -567,6 +567,11 @@ public:
 		bool		owns_trx_mutex,
 		const lock_prdt_t*
 				prdt = NULL);
+
+	/**
+	@param[in] rhs			Lock to compare with
+	@return true if the record lock equals rhs */
+	bool is_equal(const lock_t* rhs) const;
 
 	/**
 	Create the lock instance
@@ -588,7 +593,7 @@ private:
 	Enqueue a lock wait for a high priority transaction, jump the record
 	lock wait queue and if the transaction at the head of the queue is
 	itself waiting roll it back.
-	@param[in, out] wait_for	The lock that the the joining
+	@param[in, out] wait_for	The lock that the joining
 					transaction is waiting for
 	@param[in] prdt			Predicate for the predicate lock
 	@return NULL if the lock was granted */
