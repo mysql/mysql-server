@@ -4051,6 +4051,11 @@ public:
   row_version_type row_version;
   /* Next in list of all Item_trigger_field's in trigger */
   Item_trigger_field *next_trg_field;
+  /*
+    Next list of Item_trigger_field's in "sp_head::
+    m_list_of_trig_fields_item_lists".
+  */
+  SQL_I_List<Item_trigger_field> *next_trig_field_list;
   /* Index of the field in the TABLE::field array */
   uint field_idx;
   /* Pointer to Table_trigger_list object for table of this trigger */
@@ -4062,8 +4067,9 @@ public:
                      ulong priv, const bool ro)
     :Item_field(context_arg,
                (const char *)NULL, (const char *)NULL, field_name_arg),
-     row_version(row_ver_arg), field_idx((uint)-1), original_privilege(priv),
-     want_privilege(priv), table_grants(NULL), read_only (ro)
+     row_version(row_ver_arg), next_trig_field_list(NULL), field_idx((uint)-1),
+     original_privilege(priv), want_privilege(priv), table_grants(NULL),
+     read_only (ro)
   {}
   void setup_field(THD *thd, TABLE *table, GRANT_INFO *table_grant_info);
   enum Type type() const { return TRIGGER_FIELD_ITEM; }

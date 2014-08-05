@@ -77,14 +77,17 @@ CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(1, 1);
 
 --source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
 
 --source include/rpl_connection_master.inc
+# make sure that there are no zombie threads
+--source include/stop_dump_threads.inc
 
 let $debug_save= `SELECT @@GLOBAL.debug`;
 SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
 
 --source include/rpl_connection_slave.inc
-source include/restart_slave_sql.inc;
+--source include/start_slave.inc
 
 BEGIN;
 UPDATE t1 SET c2 = 2 WHERE c1 = 1;
@@ -95,6 +98,10 @@ INSERT INTO t1 VALUES(2, 2);
 INSERT INTO t2 VALUES(1);
 UPDATE t1 SET c2 = 3 WHERE c1 = 1;
 COMMIT;
+
+# wait for the dump thread reach the sync point
+--let $wait_condition= select count(*)=1 from information_schema.processlist where state LIKE '%debug sync point%' and command='Binlog Dump'
+--source include/wait_condition.inc
 
 --source include/rpl_connection_slave1.inc
 let $show_statement= SHOW PROCESSLIST;
@@ -108,7 +115,12 @@ send STOP SLAVE;
 ROLLBACK;
 
 --source include/rpl_connection_master.inc
+
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+# wait for the dump thread to come out of the
+# waiting phase before resetting the signals
+--let $wait_condition= select count(*)=0 from information_schema.processlist where state LIKE '%debug sync point%' and command='Binlog Dump'
+--source include/wait_condition.inc
 SET DEBUG_SYNC= 'RESET';
 
 --source include/rpl_connection_slave.inc
@@ -116,9 +128,22 @@ source include/wait_for_slave_to_stop.inc;
 
 --source include/rpl_connection_slave1.inc
 reap;
+
+# Slave has stopped, thence lets make sure that
+# we kill the zombie dump threads. Also, make
+# sure that we disable the DBUG_EXECUTE_IF
+# that would set the dump thread to wait
+--source include/rpl_connection_master.inc
+SET GLOBAL debug= '$debug_save';
+# make sure that there are no zombie threads
+--source include/stop_dump_threads.inc
+
+--source include/rpl_connection_slave1.inc
+# now the dump thread on the master will start
+# from a clean slate, i.e. without the
+# DBUG_EXECUTE_IF set
 source include/start_slave.inc;
 
 --source include/rpl_connection_master.inc
 DROP TABLE t1, t2;
-SET GLOBAL debug= $debug_save;
 --source include/rpl_end.inc

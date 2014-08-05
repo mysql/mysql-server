@@ -403,6 +403,7 @@ Variable_name	Value
 Rpl_semi_sync_slave_status	ON
 include/stop_slave.inc
 [ on master ]
+include/stop_dump_threads.inc
 UNINSTALL PLUGIN rpl_semi_sync_master;
 SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled';
 Variable_name	Value
@@ -454,9 +455,8 @@ Rpl_semi_sync_slave_status	OFF
 #
 # Clean up
 #
+include/uninstall_semisync.inc
 include/stop_slave.inc
-UNINSTALL PLUGIN rpl_semi_sync_slave;
-UNINSTALL PLUGIN rpl_semi_sync_master;
 change master to master_user='root',master_password='';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

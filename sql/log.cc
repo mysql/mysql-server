@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1544,7 +1544,8 @@ bool MYSQL_LOG::open(
   }
 
   if (init_and_set_log_file_name(name, new_name,
-                                 log_type_arg, io_cache_type_arg))
+                                 log_type_arg, io_cache_type_arg) ||
+      DBUG_EVALUATE_IF("fault_injection_init_name", log_type == LOG_BIN, 0))
     goto err;
 
   if (io_cache_type == SEQ_READ_APPEND)
@@ -1605,10 +1606,28 @@ bool MYSQL_LOG::open(
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Could not use %s for logging (error %d). \
-Turning logging off for the whole duration of the MySQL server process. \
-To turn it on again: fix the cause, \
-shutdown the MySQL server and restart it.", name, errno);
+  if (log_type == LOG_BIN && binlogging_impossible_mode == ABORT_SERVER)
+  {
+    THD *thd= current_thd;
+    /*
+      On fatal error when code enters here we should forcefully clear the
+      previous errors so that a new critical error message can be pushed
+      to the client side.
+     */
+    thd->clear_error();
+    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
+             "file system is read only while opening the binlog. Aborting the "
+             "server");
+    thd->protocol->end_statement();
+    _exit(EXIT_FAILURE);
+  }
+  else
+    sql_print_error("Could not open %s for logging (error %d). "
+                    "Turning logging off for the whole duration "
+                    "of the MySQL server process. To turn it on "
+                    "again: fix the cause, shutdown the MySQL "
+                    "server and restart it.",
+                    name, errno);
   if (file >= 0)
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
@@ -2187,11 +2206,20 @@ void sql_perror(const char *message)
 extern "C" my_bool reopen_fstreams(const char *filename,
                                    FILE *outstream, FILE *errstream)
 {
-  if (outstream && !my_freopen(filename, "a", outstream))
-    return TRUE;
+  int retries= 2, errors= 0;
 
-  if (errstream && !my_freopen(filename, "a", errstream))
-    return TRUE;
+  do
+  {
+    errors= 0;
+    if (errstream && !my_freopen(filename, "a", errstream))
+      errors++;
+    if (outstream && !my_freopen(filename, "a", outstream))
+      errors++;
+  }
+  while (retries-- && errors);
+
+  if (errors)
+    return true;
 
   /* The error stream must be unbuffered. */
   if (errstream)

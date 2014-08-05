@@ -4318,6 +4318,43 @@ DROP VIEW v_t1;
 DROP TABLE t1;
 
 
+--echo #
+--echo # BUG#14117018 - MYSQL SERVER CREATES INVALID VIEW DEFINITION
+--echo # BUG#18405221 - SHOW CREATE VIEW OUTPUT INCORRECT
+--echo #
+
+CREATE VIEW v1 AS (SELECT '' FROM DUAL);
+CREATE VIEW v2 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
+                  (SELECT '' FROM DUAL);
+CREATE VIEW v3 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
+                  (SELECT '' FROM DUAL) UNION ALL
+                  (SELECT '' FROM DUAL);
+CREATE VIEW v4 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
+                  (SELECT '' AS col2 FROM DUAL) UNION ALL
+                  (SELECT '' FROM DUAL);
+
+--echo # Name for the column in select1 is set properly with or
+--echo # without this fix.
+SHOW CREATE VIEW v1;
+
+--echo # Name for the column in select2 is set with this fix.
+--echo # Without this fix, name would not have set for the
+--echo # columns in select2.
+SHOW CREATE VIEW v2;
+
+--echo # Name for the field item in select2 & select3 is set with this fix.
+--echo # Without this fix, name would not have set for the
+--echo # columns in select2 & select3.
+SHOW CREATE VIEW v3;
+
+--echo # Name for the field item in select3 is set with this fix.
+--echo # Without this fix, name would not have set for the
+--echo # columns in select3.
+SHOW CREATE VIEW v4;
+
+DROP VIEW v1, v2, v3, v4;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

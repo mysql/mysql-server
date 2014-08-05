@@ -4,31 +4,43 @@ SET @old_long_query_time=           @@session.long_query_time;
 SET @old_log_slow_admin_statements= @@global.log_slow_admin_statements;
 USE test;
 CREATE TABLE log_slow_admin_statements (
-i INT PRIMARY KEY,
-j INT
-);
+i INT PRIMARY KEY AUTO_INCREMENT,
+j VARCHAR(255)
+) ENGINE=InnoDB;
 SET GLOBAL log_output = 'file,table';
 SET GLOBAL slow_query_log = on;
 SET SESSION long_query_time = 0;
 SET GLOBAL log_slow_admin_statements = on;
-ALTER TABLE log_slow_admin_statements ADD COLUMN k INT;
-INSERT INTO log_slow_admin_statements VALUES (1,2,3), (4,5,6);
+ALTER TABLE log_slow_admin_statements ADD COLUMN k INT DEFAULT 17;
+CREATE PROCEDURE add_rows()
+BEGIN
+DECLARE count INT;
+SET count = 1;
+INSERT INTO log_slow_admin_statements(j) values (REPEAT('A', 255));
+WHILE count <= 15 DO
+INSERT INTO log_slow_admin_statements(j) SELECT j FROM log_slow_admin_statements;
+SET count = count + 1;
+END WHILE;
+END
+$
+CALL add_rows();
 OPTIMIZE TABLE log_slow_admin_statements;
 Table	Op	Msg_type	Msg_text
+test.log_slow_admin_statements	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.log_slow_admin_statements	optimize	status	OK
-INSERT INTO log_slow_admin_statements VALUES (7,8,9), (10,11,12);
-ANALYZE TABLE log_slow_admin_statements;
+CHECK TABLE log_slow_admin_statements EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.log_slow_admin_statements	analyze	status	OK
+test.log_slow_admin_statements	check	status	OK
 DROP TABLE log_slow_admin_statements;
 SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE '%TABLE log_slow_admin_statements%';
 sql_text
-ALTER TABLE log_slow_admin_statements ADD COLUMN k INT
+ALTER TABLE log_slow_admin_statements ADD COLUMN k INT DEFAULT 17
 OPTIMIZE TABLE log_slow_admin_statements
-ANALYZE TABLE log_slow_admin_statements
+CHECK TABLE log_slow_admin_statements EXTENDED
 DROP TABLE log_slow_admin_statements
 SET @@global.log_output=                @old_log_output;
 SET @@global.slow_query_log=            @old_slow_query_log;
 SET @@session.long_query_time=          @old_long_query_time;
 SET @@global.log_slow_admin_statements= @old_log_slow_admin_statements;
+DROP PROCEDURE add_rows;
 TRUNCATE TABLE mysql.slow_log;

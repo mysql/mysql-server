@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -63,6 +63,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "m_string.h"
 #include "my_sys.h"
 #include "ha_prototypes.h"
+#include <algorithm>
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -1573,8 +1574,6 @@ init_fts_doc_id_for_ref(
 {
 	dict_foreign_t* foreign;
 
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
-
 	table->fk_max_recusive_level = 0;
 
 	(*depth)++;
@@ -1586,17 +1585,25 @@ init_fts_doc_id_for_ref(
 
 	/* Loop through this table's referenced list and also
 	recursively traverse each table's foreign table list */
-	while (foreign && foreign->foreign_table) {
-		if (foreign->foreign_table->fts) {
+	for (dict_foreign_set::iterator it = table->referenced_set.begin();
+	     it != table->referenced_set.end();
+	     ++it) {
+
+		foreign = *it;
+
+		if (foreign->foreign_table == NULL) {
+			break;
+		}
+
+		if (foreign->foreign_table->fts != NULL) {
 			fts_init_doc_id(foreign->foreign_table);
 		}
 
-		if (UT_LIST_GET_LEN(foreign->foreign_table->referenced_list)
-		    > 0 && foreign->foreign_table != table) {
-			init_fts_doc_id_for_ref(foreign->foreign_table, depth);
+		if (!foreign->foreign_table->referenced_set.empty()
+		    && foreign->foreign_table != table) {
+			init_fts_doc_id_for_ref(
+				foreign->foreign_table, depth);
 		}
-
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 }
 
@@ -2825,43 +2832,47 @@ row_discard_tablespace_foreign_key_checks(
 	const trx_t*		trx,	/*!< in: transaction handle */
 	const dict_table_t*	table)	/*!< in: table to be discarded */
 {
-	const dict_foreign_t*	foreign;
+
+	if (srv_read_only_mode || !trx->check_foreigns) {
+		return(DB_SUCCESS);
+	}
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
+	dict_foreign_set::iterator	it
+		= std::find_if(table->referenced_set.begin(),
+			       table->referenced_set.end(),
+			       dict_foreign_different_tables());
 
-	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
-	     foreign && foreign->foreign_table == table;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
-
+	if (it == table->referenced_set.end()) {
+		return(DB_SUCCESS);
 	}
 
-	if (!srv_read_only_mode && foreign && trx->check_foreigns) {
+	const dict_foreign_t*	foreign	= *it;
+	FILE*			ef	= dict_foreign_err_file;
 
-		FILE*	ef	= dict_foreign_err_file;
+	ut_ad(foreign->foreign_table != table);
+	ut_ad(foreign->referenced_table == table);
 
-		/* We only allow discarding a referenced table if
-		FOREIGN_KEY_CHECKS is set to 0 */
+	/* We only allow discarding a referenced table if
+	FOREIGN_KEY_CHECKS is set to 0 */
 
-		mutex_enter(&dict_foreign_err_mutex);
+	mutex_enter(&dict_foreign_err_mutex);
 
-		rewind(ef);
+	rewind(ef);
 
-		ut_print_timestamp(ef);
+	ut_print_timestamp(ef);
 
-		fputs("  Cannot DISCARD table ", ef);
-		ut_print_name(stderr, trx, TRUE, table->name);
-		fputs("\n"
-		      "because it is referenced by ", ef);
-		ut_print_name(stderr, trx, TRUE, foreign->foreign_table_name);
-		putc('\n', ef);
+	fputs("  Cannot DISCARD table ", ef);
+	ut_print_name(stderr, trx, TRUE, table->name);
+	fputs("\n"
+	      "because it is referenced by ", ef);
+	ut_print_name(stderr, trx, TRUE, foreign->foreign_table_name);
+	putc('\n', ef);
 
-		mutex_exit(&dict_foreign_err_mutex);
+	mutex_exit(&dict_foreign_err_mutex);
 
-		return(DB_CANNOT_DROP_CONSTRAINT);
-	}
-
-	return(DB_SUCCESS);
+	return(DB_CANNOT_DROP_CONSTRAINT);
 }
 
 /*********************************************************************//**
@@ -3164,7 +3175,6 @@ row_truncate_table_for_mysql(
 	dict_table_t*	table,	/*!< in: table handle */
 	trx_t*		trx)	/*!< in: transaction handle */
 {
-	dict_foreign_t*	foreign;
 	dberr_t		err;
 	mem_heap_t*	heap;
 	byte*		buf;
@@ -3256,18 +3266,17 @@ row_truncate_table_for_mysql(
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
 
-	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
-	     foreign != 0 && foreign->foreign_table == table;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
-
-		/* Do nothing. */
-	}
+	dict_foreign_set::iterator	it
+		= std::find_if(table->referenced_set.begin(),
+			       table->referenced_set.end(),
+			       dict_foreign_different_tables());
 
 	if (!srv_read_only_mode
-	    && foreign
+	    && it != table->referenced_set.end()
 	    && trx->check_foreigns) {
 
-		FILE*	ef	= dict_foreign_err_file;
+		FILE*		ef	= dict_foreign_err_file;
+		dict_foreign_t*	foreign	= *it;
 
 		/* We only allow truncating a referenced table if
 		FOREIGN_KEY_CHECKS is set to 0 */
@@ -3868,42 +3877,45 @@ row_drop_table_for_mysql(
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
 
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	if (!srv_read_only_mode && trx->check_foreigns) {
 
-	while (foreign && foreign->foreign_table == table) {
-check_next_foreign:
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
-	}
+		for (dict_foreign_set::iterator it
+			= table->referenced_set.begin();
+		     it != table->referenced_set.end();
+		     ++it) {
 
-	if (!srv_read_only_mode
-	    && foreign
-	    && trx->check_foreigns
-	    && !(drop_db && dict_tables_have_same_db(
-			 name, foreign->foreign_table_name_lookup))) {
-		FILE*	ef	= dict_foreign_err_file;
+			foreign = *it;
 
-		/* We only allow dropping a referenced table if
-		FOREIGN_KEY_CHECKS is set to 0 */
+			const bool	ref_ok = drop_db
+				&& dict_tables_have_same_db(
+					name,
+					foreign->foreign_table_name_lookup);
 
-		err = DB_CANNOT_DROP_CONSTRAINT;
+			if (foreign->foreign_table != table && !ref_ok) {
 
-		mutex_enter(&dict_foreign_err_mutex);
-		rewind(ef);
-		ut_print_timestamp(ef);
+				FILE*	ef	= dict_foreign_err_file;
 
-		fputs("  Cannot drop table ", ef);
-		ut_print_name(ef, trx, TRUE, name);
-		fputs("\n"
-		      "because it is referenced by ", ef);
-		ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
-		putc('\n', ef);
-		mutex_exit(&dict_foreign_err_mutex);
+				/* We only allow dropping a referenced table
+				if FOREIGN_KEY_CHECKS is set to 0 */
 
-		goto funct_exit;
-	}
+				err = DB_CANNOT_DROP_CONSTRAINT;
 
-	if (foreign && trx->check_foreigns) {
-		goto check_next_foreign;
+				mutex_enter(&dict_foreign_err_mutex);
+				rewind(ef);
+				ut_print_timestamp(ef);
+
+				fputs("  Cannot drop table ", ef);
+				ut_print_name(ef, trx, TRUE, name);
+				fputs("\n"
+				      "because it is referenced by ", ef);
+				ut_print_name(ef, trx, TRUE,
+					      foreign->foreign_table_name);
+				putc('\n', ef);
+				mutex_exit(&dict_foreign_err_mutex);
+
+				goto funct_exit;
+			}
+		}
 	}
 
 	/* TODO: could we replace the counter n_foreign_key_checks_running

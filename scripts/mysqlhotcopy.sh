@@ -158,6 +158,8 @@ GetOptions( \%opt,
 my @db_desc = ();
 my $tgt_name = undef;
 
+print STDERR "Warning: $0 is deprecated and will be removed in a future version.\n";
+
 usage("") if ($opt{help});
 
 if ( $opt{regexp} || $opt{suffix} || @ARGV > 2 ) {

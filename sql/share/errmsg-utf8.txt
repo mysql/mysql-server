@@ -7100,6 +7100,12 @@ ER_INNODB_FORCED_RECOVERY
 ER_AES_INVALID_IV
   eng "The initialization vector supplied to %s is too short. Must be at least %d bytes long"
   bg "Инициализационния вектор подаден на %s е прекалено къс. Трябва да е поне %d байта"
+
+ER_PLUGIN_CANNOT_BE_UNINSTALLED
+  eng "Plugin '%s' cannot be uninstalled now. %s"
+
+ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
+  eng "Cannot execute statement because it needs to be written to the binary log as multiple statements, and this is not allowed when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
 #
 #  End of 5.6 error messages.
 #

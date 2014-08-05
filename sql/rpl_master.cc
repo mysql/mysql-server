@@ -739,6 +739,7 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
   DBUG_ENTER("com_binlog_dump");
   ulong pos;
   String slave_uuid;
+  ushort flags= 0;
   const uchar* packet_position= (uchar *) packet;
   uint packet_bytes_todo= packet_length;
 
@@ -753,15 +754,17 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
     com_binlog_dump_gtid().
   */
   READ_INT(pos, 4);
-  SKIP(2); /* flags field is unused */
+  READ_INT(flags, 2);
   READ_INT(thd->server_id, 4);
+
+  DBUG_PRINT("info", ("pos=%lu flags=%d server_id=%d", pos, flags, thd->server_id));
 
   get_slave_uuid(thd, &slave_uuid);
   kill_zombie_dump_threads(&slave_uuid);
 
   general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
                     packet + 10, (long) pos);
-  mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, NULL);
+  mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, NULL, flags);
 
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
@@ -781,6 +784,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
     breaking compatitibilty. /Alfranio.
   */
   String slave_uuid;
+  ushort flags= 0;
   uint32 data_size= 0;
   uint64 pos= 0;
   char name[FN_REFLEN + 1];
@@ -796,11 +800,12 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
   if (check_global_access(thd, REPL_SLAVE_ACL))
     DBUG_RETURN(false);
 
-  SKIP(2); /* flags field is unused */
+  READ_INT(flags, 2);
   READ_INT(thd->server_id, 4);
   READ_INT(name_size, 4);
   READ_STRING(name, name_size, sizeof(name));
   READ_INT(pos, 8);
+  DBUG_PRINT("info", ("pos=%llu flags=%d server_id=%d", pos, flags, thd->server_id));
   READ_INT(data_size, 4);
   CHECK_PACKET_SIZE(data_size);
   if (slave_gtid_executed.add_gtid_encoding(packet_position, data_size) !=
@@ -815,7 +820,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
   general_log_print(thd, thd->get_command(), "Log: '%s' Pos: %llu GTIDs: '%s'",
                     name, pos, gtid_string);
   my_free(gtid_string);
-  mysql_binlog_send(thd, name, (my_off_t) pos, &slave_gtid_executed);
+  mysql_binlog_send(thd, name, (my_off_t) pos, &slave_gtid_executed, flags);
 
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
@@ -828,7 +833,7 @@ error_malformed_packet:
 
 
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
-                       const Gtid_set* slave_gtid_executed)
+                       const Gtid_set* slave_gtid_executed, int flags)
 {
   /**
     @todo: Clean up loop so that, among other things, we only have one
@@ -907,7 +912,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   LOG_POS_COORD last_skip_coord_buf= {last_skip_log_name, BIN_LOG_HEADER_SIZE},
                 *p_last_skip_coord= &last_skip_coord_buf;
   bool observe_transmission= false;
-  const uint32 NO_FLAG= 0;
 
   if (heartbeat_period != LL(0))
   {
@@ -918,7 +922,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%u), pos(%s, %lu)",
                         thd->thread_id, thd->server_id, log_ident, (ulong)pos);
   if (RUN_HOOK(binlog_transmit, transmit_start,
-               (thd, NO_FLAG, log_ident, pos, &observe_transmission)))
+               (thd, flags, log_ident, pos, &observe_transmission)))
   {
     errmsg= "Failed to run hook 'transmit_start'";
     my_errno= ER_UNKNOWN_ERROR;
@@ -998,7 +1002,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   }
 
   /* reset transmit packet for the fake rotate event below */
-  if (reset_transmit_packet(thd, NO_FLAG, &ev_offset, &errmsg,
+  if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg,
                             observe_transmission))
     GOTO_ERR;
 
@@ -1061,7 +1065,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   {
     /* reset transmit packet for the event read from binary log
        file */
-    if (reset_transmit_packet(thd, NO_FLAG, &ev_offset, &errmsg,
+    if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg,
                               observe_transmission))
       GOTO_ERR;
 
@@ -1159,7 +1163,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 
     /* reset the transmit packet for the event read from binary log
        file */
-    if (reset_transmit_packet(thd, NO_FLAG, &ev_offset, &errmsg,
+    if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg,
                               observe_transmission))
       GOTO_ERR;
     DBUG_EXECUTE_IF("semi_sync_3-way_deadlock",
@@ -1319,7 +1323,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       pos = my_b_tell(&log);
       if (observe_transmission &&
           RUN_HOOK(binlog_transmit, before_send_event,
-                   (thd, NO_FLAG, packet, log_file_name, pos)))
+                   (thd, flags, packet, log_file_name, pos)))
       {
         my_errno= ER_UNKNOWN_ERROR;
         errmsg= "run 'before_send_event' hook failed";
@@ -1387,7 +1391,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 
       if (observe_transmission &&
           RUN_HOOK(binlog_transmit, after_send_event,
-                   (thd, NO_FLAG, packet, log_file_name, skip_group ? pos : 0)))
+                   (thd, flags, packet, log_file_name, skip_group ? pos : 0)))
       {
         errmsg= "Failed to run hook 'after_send_event'";
         my_errno= ER_UNKNOWN_ERROR;
@@ -1395,7 +1399,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       }
 
       /* reset transmit packet for next loop */
-      if (reset_transmit_packet(thd, NO_FLAG, &ev_offset, &errmsg,
+      if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg,
                                 observe_transmission))
         GOTO_ERR;
     }
@@ -1453,7 +1457,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 
         /* reset the transmit packet for the event read from binary log
            file */
-        if (reset_transmit_packet(thd, NO_FLAG, &ev_offset, &errmsg,
+        if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg,
                                   observe_transmission))
           GOTO_ERR;
         
@@ -1486,8 +1490,42 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
           int ret;
           ulong signal_cnt;
 	  DBUG_PRINT("wait",("waiting for data in binary log"));
-	  if (thd->server_id==0) // for mysqlbinlog (mysqlbinlog.server_id==0)
+          /*
+            There are two ways to tell the server to not block:
+
+            - Set the BINLOG_DUMP_NON_BLOCK flag.
+              This is official, documented, not used by any mysql
+              client, but used by some external users.
+
+            - Set server_id=0.
+              This is unofficial, undocumented, and used by
+              mysqlbinlog -R since the beginning of time.
+
+            When mysqlbinlog --stop-never is used, it sets a 'fake'
+            server_id that defaults to 1 but can be set to anything
+            else using stop-never-slave-server-id. This has the
+            drawback that if the server_id conflicts with any other
+            running slave, or with any other instance of mysqlbinlog
+            --stop-never, then that other instance will be killed.  It
+            is also an unnecessary burden on the user to have to
+            specify a server_id different from all other server_ids
+            just to avoid conflicts.
+
+            As of MySQL 5.6.20 and 5.7.5, mysqlbinlog redundantly sets
+            the BINLOG_DUMP_NONBLOCK flag when one or both of the
+            following holds:
+            - the --stop-never option is *not* specified
+
+            In a far future, this means we can remove the unofficial
+            functionality that server_id=0 implies nonblocking
+            behavior. That will allow mysqlbinlog to use server_id=0
+            always. That has the advantage that mysqlbinlog
+            --stop-never cannot cause any running dump threads to be
+            killed.
+          */
+          if (thd->server_id == 0 || ((flags & BINLOG_DUMP_NON_BLOCK) != 0))
 	  {
+            DBUG_PRINT("info", ("stopping dump thread because server_id==0 or the BINLOG_DUMP_NON_BLOCK flag is set: server_id=%u flags=%d", thd->server_id, flags));
             mysql_mutex_unlock(log_lock);
             DBUG_EXECUTE_IF("inject_hb_event_on_mysqlbinlog_dump_thread",
             {
@@ -1498,7 +1536,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                 Suicide on failure, since if it happens the entire purpose of the
                 test is comprimised.
                */
-              if (reset_transmit_packet(thd, NO_FLAG, &ev_offset, &errmsg,
+              if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg,
                                         observe_transmission) ||
                   send_heartbeat_event(net, packet, p_coord, current_checksum_alg))
                 DBUG_SUICIDE();
@@ -1557,7 +1595,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
               }
 #endif
               /* reset transmit packet for the heartbeat event */
-              if (reset_transmit_packet(thd, NO_FLAG, &ev_offset, &errmsg,
+              if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg,
                                         observe_transmission))
               {
                 thd->EXIT_COND(&old_stage);
@@ -1675,7 +1713,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
             pos = my_b_tell(&log);
             if (observe_transmission &&
                 RUN_HOOK(binlog_transmit, before_send_event,
-                         (thd, NO_FLAG, packet, log_file_name, pos)))
+                         (thd, flags, packet, log_file_name, pos)))
             {
               my_errno= ER_UNKNOWN_ERROR;
               errmsg= "run 'before_send_event' hook failed";
@@ -1704,7 +1742,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
           {
             if (observe_transmission &&
                 RUN_HOOK(binlog_transmit, after_send_event,
-                         (thd, NO_FLAG, packet, log_file_name,
+                         (thd, flags, packet, log_file_name,
                           skip_group ? pos : 0)))
             {
               my_errno= ER_UNKNOWN_ERROR;
@@ -1741,7 +1779,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       mysql_file_close(file, MYF(MY_WME));
 
       /* reset transmit packet for the possible fake rotate event */
-      if (reset_transmit_packet(thd, NO_FLAG, &ev_offset, &errmsg,
+      if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg,
                                 observe_transmission))
         GOTO_ERR;
       
@@ -1778,7 +1816,7 @@ end:
   end_io_cache(&log);
   mysql_file_close(file, MYF(MY_WME));
 
-  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, NO_FLAG));
+  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   my_eof(thd);
   THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
   mysql_mutex_lock(&LOCK_thread_count);
@@ -1810,7 +1848,7 @@ err:
     error_text[sizeof(error_text) - 1]= '\0';
   }
   end_io_cache(&log);
-  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, NO_FLAG));
+  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   /*
     Exclude  iteration through thread list
     this is needed for purge_logs() - it will iterate through
@@ -2042,6 +2080,7 @@ bool show_binlogs(THD* thd)
     DBUG_RETURN(TRUE);
   
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
+  DEBUG_SYNC(thd, "show_binlogs_after_lock_log_before_lock_index");
   mysql_bin_log.lock_index();
   index_file=mysql_bin_log.get_index_file();
   

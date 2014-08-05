@@ -1,4 +1,3 @@
+ERROR 42000: Row size too large (> ####). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 f4	f8
-xxx	zzz
 f4	f8
-xxx	zzz
