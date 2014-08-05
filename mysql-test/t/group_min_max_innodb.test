@@ -138,3 +138,122 @@ SELECT COUNT(DISTINCT a) FROM t1 WHERE b = 'b';
 DROP TABLE t1;
 
 --echo End of 5.5 tests
+
+--echo #
+--echo # Bug#17909656 - WRONG RESULTS FOR A SIMPLE QUERY WITH GROUP BY
+--echo #
+
+CREATE TABLE t0 (
+  i1 INTEGER NOT NULL
+);
+
+INSERT INTO t0 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+                      (11),(12),(13),(14),(15),(16),(17),(18),(19),(20),
+                      (21),(22),(23),(24),(25),(26),(27),(28),(29),(30);
+
+CREATE TABLE t1 (
+  c1 CHAR(1) NOT NULL,
+  i1 INTEGER NOT NULL,
+  i2 INTEGER NOT NULL,
+  UNIQUE KEY k1 (c1,i2)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 SELECT 'A',i1,i1 FROM t0;
+INSERT INTO t1 SELECT 'B',i1,i1 FROM t0;
+INSERT INTO t1 SELECT 'C',i1,i1 FROM t0;
+INSERT INTO t1 SELECT 'D',i1,i1 FROM t0;
+INSERT INTO t1 SELECT 'E',i1,i1 FROM t0;
+INSERT INTO t1 SELECT 'F',i1,i1 FROM t0;
+                 
+CREATE TABLE t2 (
+  c1 CHAR(1) NOT NULL,
+  i1 INTEGER NOT NULL,
+  i2 INTEGER NOT NULL,
+  UNIQUE KEY k2 (c1,i1,i2)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 SELECT 'A',i1,i1 FROM t0;
+INSERT INTO t2 SELECT 'B',i1,i1 FROM t0;
+INSERT INTO t2 SELECT 'C',i1,i1 FROM t0;
+INSERT INTO t2 SELECT 'D',i1,i1 FROM t0;
+INSERT INTO t2 SELECT 'E',i1,i1 FROM t0;
+INSERT INTO t2 SELECT 'F',i1,i1 FROM t0;
+
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+
+let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
+eval set optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
+set @@session.optimizer_trace='enabled=on';
+set end_markers_in_json=on;
+let $show_method=
+SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query'
+AS OK FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+let query=
+SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' AND i2 = 17) OR ( c1 = 'F')
+GROUP BY c1;
+--replace_column 9 ROWS
+eval EXPLAIN $query;
+eval $query;
+eval $show_method;
+
+let query=
+SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' OR ( c1 = 'F' AND i2 = 17))
+GROUP BY c1;
+--replace_column 9 ROWS
+eval EXPLAIN $query;
+eval $query;
+eval $show_method;
+
+let query=
+SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' OR c1 = 'F' ) AND ( i2 = 17 )
+GROUP BY c1;
+--replace_column 9 ROWS
+eval EXPLAIN $query;
+eval $query;
+eval $show_method;
+
+let query=
+SELECT c1, max(i2) FROM t1 
+WHERE ((c1 = 'C' AND (i2 = 40 OR i2 = 30)) OR ( c1 = 'F' AND (i2 = 40 )))
+GROUP BY c1;
+--replace_column 9 ROWS
+eval EXPLAIN $query;
+eval $query;
+eval $show_method;
+
+let query=
+SELECT c1, i1, max(i2) FROM t2
+WHERE (c1 = 'C' OR ( c1 = 'F' AND i1 < 35)) AND ( i2 = 17 )
+GROUP BY c1,i1;
+--replace_column 9 ROWS
+eval EXPLAIN $query;
+eval $query;
+eval $show_method;
+
+let query=
+SELECT c1, i1, max(i2) FROM t2 
+WHERE (((c1 = 'C' AND i1 < 40) OR ( c1 = 'F' AND i1 < 35)) AND ( i2 = 17 ))
+GROUP BY c1,i1;
+--replace_column 9 ROWS
+eval EXPLAIN $query;
+eval $query;
+eval $show_method;
+
+let query=
+SELECT c1, i1, max(i2) FROM t2 
+WHERE ((c1 = 'C' AND i1 < 40) OR ( c1 = 'F' AND i1 < 35) OR ( i2 = 17 ))
+GROUP BY c1,i1;
+--replace_column 9 ROWS
+eval EXPLAIN $query;
+eval $query;
+eval $show_method;
+
+SET optimizer_trace_max_mem_size=DEFAULT;
+SET optimizer_trace=DEFAULT;
+SET end_markers_in_json=DEFAULT;
+
+DROP TABLE t0,t1,t2;

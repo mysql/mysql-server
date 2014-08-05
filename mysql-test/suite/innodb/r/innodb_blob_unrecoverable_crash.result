@@ -1,0 +1,23 @@
+call mtr.add_suppression("InnoDB: The total blob data length");
+SET GLOBAL max_allowed_packet = 100*1024*1024;
+# Connection big_packets:
+CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t1 (a, b) VALUES (1, '1');
+INSERT INTO t1 (a, b) VALUES (2, '2');
+INSERT INTO t1 (a, b) VALUES (3, '3');
+INSERT INTO t1 (a, b) VALUES (4, '4');
+INSERT INTO t1 (a, b) VALUES (5, '5');
+start transaction;
+INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 20*1024*1024));
+ERROR 42000: Row size too large (> ####). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
+# Connection default:
+# Quick shutdown and restart server
+# Connection default:
+SELECT a FROM t1;
+a
+1
+2
+3
+4
+5
+DROP TABLE t1;

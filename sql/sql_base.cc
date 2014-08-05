@@ -1584,14 +1584,24 @@ bool close_temporary_tables(THD *thd)
   if (gtid_mode > 0)
     thd->variables.gtid_next.set_automatic();
 
+  /*
+    We must separate transactional temp tables and
+    non-transactional temp tables in two distinct DROP statements
+    to avoid the splitting if a slave server reads from this binlog.
+  */
+
   /* Better add "if exists", in case a RESET MASTER has been done */
   const char stub[]= "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ";
   uint stub_len= sizeof(stub) - 1;
-  char buf[256];
-  String s_query= String(buf, sizeof(buf), system_charset_info);
+  char buf_trans[256], buf_non_trans[256];
+  String s_query_trans= String(buf_trans, sizeof(buf_trans), system_charset_info);
+  String s_query_non_trans= String(buf_non_trans, sizeof(buf_non_trans), system_charset_info);
   bool found_user_tables= FALSE;
+  bool found_trans_table= FALSE;
+  bool found_non_trans_table= FALSE;
 
-  memcpy(buf, stub, stub_len);
+  memcpy(buf_trans, stub, stub_len);
+  memcpy(buf_non_trans, stub, stub_len);
 
   /*
     Insertion sort of temp tables by pseudo_thread_id to build ordered list
@@ -1653,20 +1663,38 @@ bool close_temporary_tables(THD *thd)
          within the sublist of common pseudo_thread_id to create single
          DROP query 
       */
-      for (s_query.length(stub_len);
+      for (s_query_trans.length(stub_len), s_query_non_trans.length(stub_len),
+           found_trans_table= false, found_non_trans_table= false;
            table && is_user_table(table) &&
              tmpkeyval(thd, table) == thd->variables.pseudo_thread_id &&
              table->s->db.length == db.length() &&
              strcmp(table->s->db.str, db.ptr()) == 0;
            table= next)
       {
-        /*
-          We are going to add ` around the table names and possible more
-          due to special characters
-        */
-        append_identifier(thd, &s_query, table->s->table_name.str,
-                          strlen(table->s->table_name.str));
-        s_query.append(',');
+        /* Separate transactional from non-transactional temp tables */
+        if (table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
+        {
+          found_trans_table= true;
+          /*
+            We are going to add ` around the table names and possible more
+            due to special characters
+          */
+          append_identifier(thd, &s_query_trans, table->s->table_name.str,
+                            strlen(table->s->table_name.str));
+          s_query_trans.append(',');
+        }
+        else if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
+        {
+          found_non_trans_table= true;
+          /*
+            We are going to add ` around the table names and possible more
+            due to special characters
+          */
+          append_identifier(thd, &s_query_non_trans, table->s->table_name.str,
+                            strlen(table->s->table_name.str));
+          s_query_non_trans.append(',');
+        }
+
         next= table->next;
         close_temporary(table, 1, 1);
       }
@@ -1674,34 +1702,70 @@ bool close_temporary_tables(THD *thd)
       const CHARSET_INFO *cs_save= thd->variables.character_set_client;
       thd->variables.character_set_client= system_charset_info;
       thd->thread_specific_used= TRUE;
-      Query_log_event qinfo(thd, s_query.ptr(),
-                            s_query.length() - 1 /* to remove trailing ',' */,
-                            FALSE, TRUE, FALSE, 0);
-      qinfo.db= db.ptr();
-      qinfo.db_len= db.length();
-      thd->variables.character_set_client= cs_save;
 
-      thd->get_stmt_da()->set_overwrite_status(true);
-      if ((error= (mysql_bin_log.write_event(&qinfo) ||
-                   mysql_bin_log.commit(thd, true) ||
-                   error)))
+      if (found_trans_table)
       {
-        /*
-          If we're here following THD::cleanup, thence the connection
-          has been closed already. So lets print a message to the
-          error log instead of pushing yet another error into the
-          Diagnostics_area.
+        Query_log_event qinfo(thd, s_query_trans.ptr(),
+                              s_query_trans.length() - 1,
+                              FALSE, TRUE, FALSE, 0);
+        qinfo.db= db.ptr();
+        qinfo.db_len= db.length();
+        thd->variables.character_set_client= cs_save;
 
-          Also, we keep the error flag so that we propagate the error
-          up in the stack. This way, if we're the SQL thread we notice
-          that close_temporary_tables failed. (Actually, the SQL
-          thread only calls close_temporary_tables while applying old
-          Start_log_event_v3 events.)
-        */
-        sql_print_error("Failed to write the DROP statement for "
+        thd->get_stmt_da()->set_overwrite_status(true);
+        if ((error= (mysql_bin_log.write_event(&qinfo) ||
+                     mysql_bin_log.commit(thd, true) ||
+                     error)))
+        {
+          /*
+            If we're here following THD::cleanup, thence the connection
+            has been closed already. So lets print a message to the
+            error log instead of pushing yet another error into the
+            Diagnostics_area.
+
+            Also, we keep the error flag so that we propagate the error
+            up in the stack. This way, if we're the SQL thread we notice
+            that close_temporary_tables failed. (Actually, the SQL
+            thread only calls close_temporary_tables while applying old
+            Start_log_event_v3 events.)
+          */
+          sql_print_error("Failed to write the DROP statement for "
                         "temporary tables to binary log");
+        }
+        thd->get_stmt_da()->set_overwrite_status(false);
       }
-      thd->get_stmt_da()->set_overwrite_status(false);
+
+      if (found_non_trans_table)
+      {
+        Query_log_event qinfo(thd, s_query_non_trans.ptr(),
+                              s_query_non_trans.length() - 1,
+                              FALSE, TRUE, FALSE, 0);
+        qinfo.db= db.ptr();
+        qinfo.db_len= db.length();
+        thd->variables.character_set_client= cs_save;
+
+        thd->get_stmt_da()->set_overwrite_status(true);
+        if ((error= (mysql_bin_log.write_event(&qinfo) ||
+                     mysql_bin_log.commit(thd, true) ||
+                     error)))
+        {
+          /*
+            If we're here following THD::cleanup, thence the connection
+            has been closed already. So lets print a message to the
+            error log instead of pushing yet another error into the
+            Diagnostics_area.
+
+            Also, we keep the error flag so that we propagate the error
+            up in the stack. This way, if we're the SQL thread we notice
+            that close_temporary_tables failed. (Actually, the SQL
+            thread only calls close_temporary_tables while applying old
+            Start_log_event_v3 events.)
+          */
+          sql_print_error("Failed to write the DROP statement for "
+                        "temporary tables to binary log");
+        }
+        thd->get_stmt_da()->set_overwrite_status(false);
+      }
 
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
       thd->thread_specific_used= save_thread_specific_used;

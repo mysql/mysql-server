@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+ * reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -419,31 +420,54 @@ public:
   {
     DBUG_ASSERT(type_arg == MAYBE_KEY || type_arg == IMPOSSIBLE);
   }
-  inline bool is_same(SEL_ARG *arg)
+  /**
+    returns true if a range predicate is equal. Use all_same()
+    to check for equality of all the predicates on this keypart.
+  */
+  inline bool is_same(const SEL_ARG *arg) const
   {
     if (type != arg->type || part != arg->part)
-      return 0;
+      return false;
     if (type != KEY_RANGE)
-      return 1;
+      return true;
     return cmp_min_to_min(arg) == 0 && cmp_max_to_max(arg) == 0;
+  }
+  /**
+    returns true if all the predicates in the keypart tree are equal
+  */
+  bool all_same(const SEL_ARG *arg) const
+  {
+    if (type != arg->type || part != arg->part)
+      return false;
+    if (type != KEY_RANGE)
+      return true;
+    if (arg == this)
+      return true;
+    const SEL_ARG *cmp_arg= arg->first();
+    const SEL_ARG *cur_arg= first();
+    for (; cur_arg && cmp_arg && cur_arg->is_same(cmp_arg);
+         cur_arg= cur_arg->next, cmp_arg= cmp_arg->next) ;
+    if (cur_arg || cmp_arg)
+      return false;
+    return true;
   }
   inline void merge_flags(SEL_ARG *arg) { maybe_flag|=arg->maybe_flag; }
   inline void maybe_smaller() { maybe_flag=1; }
   /* Return true iff it's a single-point null interval */
   inline bool is_null_interval() { return maybe_null && max_value[0] == 1; } 
-  inline int cmp_min_to_min(SEL_ARG* arg)
+  inline int cmp_min_to_min(const SEL_ARG* arg) const
   {
     return sel_cmp(field,min_value, arg->min_value, min_flag, arg->min_flag);
   }
-  inline int cmp_min_to_max(SEL_ARG* arg)
+  inline int cmp_min_to_max(const SEL_ARG* arg) const
   {
     return sel_cmp(field,min_value, arg->max_value, min_flag, arg->max_flag);
   }
-  inline int cmp_max_to_max(SEL_ARG* arg)
+  inline int cmp_max_to_max(const SEL_ARG* arg) const
   {
     return sel_cmp(field,max_value, arg->max_value, max_flag, arg->max_flag);
   }
-  inline int cmp_max_to_min(SEL_ARG* arg)
+  inline int cmp_max_to_min(const SEL_ARG* arg) const
   {
     return sel_cmp(field,max_value, arg->min_value, max_flag, arg->min_flag);
   }
@@ -622,6 +646,7 @@ public:
   void test_use_count(SEL_ARG *root);
 #endif
   SEL_ARG *first();
+  const SEL_ARG *first() const;
   SEL_ARG *last();
   void make_root();
   inline bool simple_key()
@@ -696,6 +721,18 @@ public:
   }
   SEL_ARG *clone_tree(RANGE_OPT_PARAM *param);
 };
+
+/**
+  Helper function to compare two SEL_ARG's.
+*/
+static bool all_same(const SEL_ARG *sa1, const SEL_ARG *sa2)
+{
+  if (sa1 == NULL && sa2 == NULL)
+    return true;
+  if ((sa1 != NULL && sa2 == NULL) || (sa1 == NULL && sa2 != NULL))
+    return false;
+  return sa1->all_same(sa2);
+}
 
 class SEL_IMERGE;
 
@@ -2013,6 +2050,13 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
   return tmp;
 }
 
+/**
+  This gives the first SEL_ARG in the interval list, and the minimal element
+  in the red-black tree
+
+  @return
+  SEL_ARG   first SEL_ARG in the interval list
+*/
 SEL_ARG *SEL_ARG::first()
 {
   SEL_ARG *next_arg=this;
@@ -2021,6 +2065,11 @@ SEL_ARG *SEL_ARG::first()
   while (next_arg->left != &null_element)
     next_arg=next_arg->left;
   return next_arg;
+}
+
+const SEL_ARG *SEL_ARG::first() const
+{
+  return const_cast<SEL_ARG*>(this)->first();
 }
 
 SEL_ARG *SEL_ARG::last()
@@ -11205,6 +11254,8 @@ void QUICK_ROR_UNION_SELECT::add_keys_and_lengths(String *key_names,
 static inline uint get_field_keypart(KEY *index, Field *field);
 static inline SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree,
                                              PARAM *param, uint *param_idx);
+static bool get_sel_arg_for_keypart(Field *field, SEL_ARG *index_range_tree,
+                                    SEL_ARG **cur_range);
 static bool get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
                        KEY_PART_INFO *first_non_group_part,
                        KEY_PART_INFO *min_max_arg_part,
@@ -11269,6 +11320,16 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
          never stored after a unique key lookup in the clustered index and
          furhter index_next/prev calls can not be used. So loose index scan
          optimization can not be used in this case.
+    SA7. If Q has both AGG_FUNC(DISTINCT ...) and MIN/MAX() functions then this
+         access method is not used.
+         For above queries MIN/MAX() aggregation has to be done at
+         nested_loops_join (end_send_group). But with current design MIN/MAX()
+         is always set as part of loose index scan. Because of this mismatch
+         MIN() and MAX() values will be set incorrectly. For such queries to
+         work we need a new interface for loose index scan. This new interface
+         should only fetch records with min and max values and let
+         end_send_group to do aggregation. Until then do not use
+         loose_index_scan.
     GA1. If Q has a GROUP BY clause, then GA is a prefix of I. That is, if
          G_i = A_j => i = j.
     GA2. If Q has a DISTINCT clause, then there is a permutation of SA that
@@ -11300,6 +11361,8 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
          above tests. By transitivity then it also follows that each WA_i
          participates in the index I (if this was already tested for GA, NGA
          and C).
+    WA2. If there is a predicate on C, then it must be in conjunction
+         to all predicates on all earlier keyparts in I.
 
     C) Overall query form:
        SELECT EXPR([A_1,...,A_k], [B_1,...,B_m], [MIN(C)], [MAX(C)])
@@ -11455,6 +11518,14 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       else
         DBUG_RETURN(NULL);
     }
+  }
+
+  /* Check (SA7). */
+  if (is_agg_distinct && (have_max || have_min))
+  {
+    trace_group.add("chosen", false).
+      add_alnum("cause", "have_both_agg_distinct_and_min_max");
+    DBUG_RETURN(NULL);
   }
 
   select_items_it= List_iterator<Item>(join->fields_list);
@@ -11770,6 +11841,26 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       }
     }
 
+    /**
+      Test WA2:If there are conditions on a column C participating in
+      MIN/MAX, those conditions must be conjunctions to all earlier
+      keyparts. Otherwise, Loose Index Scan cannot be used.
+    */
+    if (tree && min_max_arg_item)
+    {
+      uint dummy;
+      SEL_ARG *index_range_tree= get_index_range_tree(cur_index, tree, param,
+                                                      &dummy);
+      SEL_ARG *cur_range= NULL;
+      if (get_sel_arg_for_keypart(min_max_arg_part->field,
+                                  index_range_tree, &cur_range) ||
+          (cur_range && cur_range->type != SEL_ARG::KEY_RANGE))
+      {
+        cause= "minmax_keypart_in_disjunctive_query";
+        goto next_index;
+      }
+    }
+
     /* If we got to this point, cur_index_info passes the test. */
     key_infix_parts= cur_key_infix_len ? (uint) 
       (first_non_infix_part - first_non_group_part) : 0;
@@ -12038,35 +12129,44 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
 
 
 /*
-  Get SEL_ARG tree, if any, for the keypart covering non grouping
-  attribute (NGA) field 'nga_field'.
+  Get the SEL_ARG tree 'tree' for the keypart covering 'field', if
+  any. 'tree' must be a unique conjunction to ALL predicates in earlier
+  keyparts of 'keypart_tree'.
 
-  This function enforces the NGA3 test: If 'keypart_tree' contains a
-  condition for 'nga_field', there can only be one range. In the
-  opposite case, this function returns with error and 'cur_range'
-  should not be used.
+  E.g., if 'keypart_tree' is for a composite index (kp1,kp2) and kp2
+  covers 'field', all these conditions satisfies the requirement:
 
-  Note that the NGA1 and NGA2 requirements, like whether or not the
-  range predicate for 'nga_field' is equality, is not tested by this
-  function.
+   1. "(kp1=2 OR kp1=3) AND kp2=10"    => returns "kp2=10"
+   2. "(kp1=2 AND kp2=10) OR (kp1=3 AND kp2=10)"  => returns "kp2=10"
+   3. "(kp1=2 AND (kp2=10 OR kp2=11)) OR (kp1=3 AND (kp2=10 OR kp2=11))"
+                                       => returns "kp2=10  OR kp2=11"
 
-  @param[in]   nga_field      The NGA field we want the SEL_ARG tree for
+   whereas these do not
+   1. "(kp1=2 AND kp2=10) OR kp1=3"
+   2. "(kp1=2 AND kp2=10) OR (kp1=3 AND kp2=11)"
+   3. "(kp1=2 AND kp2=10) OR (kp1=3 AND (kp2=10 OR kp2=11))"
+
+   This function effectively tests requirement WA2. In combination with
+   a test that the returned tree has no more than one range it is also
+   a test of NGA3.
+
+  @param[in]   field          The field we want the SEL_ARG tree for
   @param[in]   keypart_tree   Root node of the SEL_ARG* tree for the index
   @param[out]  cur_range      The SEL_ARG tree, if any, for the keypart
                               covering field 'keypart_field'
-  @retval true   'keypart_tree' contained a predicate for 'nga_field' but
-                  multiple ranges exists. 'cur_range' should not be used.
+  @retval true   'keypart_tree' contained a predicate for 'field' that
+                  is not conjunction to all predicates on earlier keyparts
   @retval false  otherwise
 */
 
 static bool
-get_sel_arg_for_keypart(Field *nga_field,
+get_sel_arg_for_keypart(Field *field,
                         SEL_ARG *keypart_tree,
                         SEL_ARG **cur_range)
 {
-  if(keypart_tree == NULL)
+  if (keypart_tree == NULL)
     return false;
-  if(keypart_tree->type != SEL_ARG::KEY_RANGE)
+  if (keypart_tree->type != SEL_ARG::KEY_RANGE)
   {
     /*
       A range predicate not usable by Loose Index Scan is found.
@@ -12076,44 +12176,37 @@ get_sel_arg_for_keypart(Field *nga_field,
     *cur_range= keypart_tree;
     return false;
   }
-  if(keypart_tree->field->eq(nga_field))
+  if (keypart_tree->field->eq(field))
   {
-    /*
-      Enforce NGA3: If a condition for nga_field has been found, only
-      a single range is allowed.
-    */
-    if (keypart_tree->prev || keypart_tree->next)
-      return true; // There are multiple ranges
-
     *cur_range= keypart_tree;
     return false;
   }
 
-  SEL_ARG *found_tree= NULL;
+  SEL_ARG *tree_first_range= NULL;
   SEL_ARG *first_kp=  keypart_tree->first();
 
-  for (SEL_ARG *cur_kp= first_kp; cur_kp && !found_tree;
-       cur_kp= cur_kp->next)
+  for (SEL_ARG *cur_kp= first_kp; cur_kp; cur_kp= cur_kp->next)
   {
+    SEL_ARG *curr_tree= NULL;
     if (cur_kp->next_key_part)
     {
-      if (get_sel_arg_for_keypart(nga_field,
+      if (get_sel_arg_for_keypart(field,
                                   cur_kp->next_key_part,
-                                  &found_tree))
+                                  &curr_tree))
         return true;
-
     }
-    /*
-       Enforce NGA3: If a condition for nga_field has been found,only
-       a single range is allowed.
-    */
-    if (found_tree && found_tree->type == SEL_ARG::KEY_RANGE && first_kp->next)
-      return true; // There are multiple ranges
+    /**
+      Check if the SEL_ARG tree for 'field' is identical for all ranges in
+      'keypart_tree
+     */
+    if (cur_kp == first_kp)
+      tree_first_range= curr_tree;
+    else if (!all_same(tree_first_range, curr_tree))
+      return true;
   }
-  *cur_range= found_tree;
+  *cur_range= tree_first_range;
   return false;
 }
-
 
 /*
   Extract a sequence of constants from a conjunction of equality predicates.
@@ -12136,7 +12229,8 @@ get_sel_arg_for_keypart(Field *nga_field,
     constant equality predicate among conds with the form (NGF_i = const_ci) or
     (const_ci = NGF_i).
     Thus all the NGF_i attributes must fill the 'gap' between the last group-by
-    attribute and the MIN/MAX attribute in the index (if present). If these
+    attribute and the MIN/MAX attribute in the index (if present).  Also ensure
+    that there is only a single range on NGF_i (NGA3). If these
     conditions hold, copy each constant from its corresponding predicate into
     key_infix, in the order its NG_i attribute appears in the index, and update
     key_infix_len with the total length of the key parts in key_infix.
@@ -12145,7 +12239,6 @@ get_sel_arg_for_keypart(Field *nga_field,
     TRUE  if the index passes the test
     FALSE o/w
 */
-
 static bool
 get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
                        KEY_PART_INFO *first_non_group_part,
@@ -12165,32 +12258,42 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
   {
     cur_range= NULL;
     /*
-      Find the range tree for the current keypart. We assume that
-      index_range_tree points to the leftmost keypart in the index.
+      Check NGA3:
+      1. get_sel_arg_for_keypart gets the range tree for the 'field' and also
+         checks for a unique conjunction of this tree with all the predicates
+         on the earlier keyparts in the index.
+      2. Check for multiple ranges on the found keypart tree.
+
+      We assume that index_range_tree points to the leftmost keypart in
+      the index.
     */
-    if(get_sel_arg_for_keypart(cur_part->field, index_range_tree, &cur_range))
+    if (get_sel_arg_for_keypart(cur_part->field, index_range_tree,
+                                &cur_range))
+      return false;
+
+    if (cur_range && cur_range->elements > 1)
       return false;
 
     if (!cur_range || cur_range->type != SEL_ARG::KEY_RANGE)
     {
       if (min_max_arg_part)
-        return FALSE; /* The current keypart has no range predicates at all. */
+        return false; /* The current keypart has no range predicates at all. */
       else
       {
         *first_non_infix_part= cur_part;
-        return TRUE;
+        return true;
       }
     }
 
     if ((cur_range->min_flag & NO_MIN_RANGE) ||
         (cur_range->max_flag & NO_MAX_RANGE) ||
         (cur_range->min_flag & NEAR_MIN) || (cur_range->max_flag & NEAR_MAX))
-      return FALSE;
+      return false;
 
     uint field_length= cur_part->store_length;
     if (cur_range->maybe_null &&
          cur_range->min_value[0] && cur_range->max_value[0])
-    { 
+    {
       /*
         cur_range specifies 'IS NULL'. In this case the argument points
         to a "null value" (a copy of is_null_string) that we do not
@@ -12208,7 +12311,7 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       *key_infix_len+= field_length;
     }
     else
-      return FALSE;
+      return false;
   }
 
   if (!min_max_arg_part && (cur_part == last_part))

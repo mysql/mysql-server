@@ -44,25 +44,7 @@ pthread_mutexattr_t my_errorcheck_mutexattr;
 #ifdef _MSC_VER
 static void install_sigabrt_handler();
 #endif
-#ifdef TARGET_OS_LINUX
 
-/*
-  Dummy thread spawned in my_thread_global_init() below to avoid
-  race conditions in NPTL pthread_exit code.
-*/
-
-static pthread_handler_t
-nptl_pthread_exit_hack_handler(void *arg __attribute((unused)))
-{
-  /* Do nothing! */
-  pthread_exit(0);
-  return 0;
-}
-
-#endif /* TARGET_OS_LINUX */
-
-
-static uint get_thread_lib(void);
 
 /** True if @c my_thread_global_init() has been called. */
 static my_bool my_thread_global_init_done= 0;
@@ -178,35 +160,6 @@ my_bool my_thread_global_init(void)
 
   if (my_thread_init())
     return 1;
-
-  thd_lib_detected= get_thread_lib();
-
-#ifdef TARGET_OS_LINUX
-  /*
-    BUG#24507: Race conditions inside current NPTL pthread_exit()
-    implementation.
-
-    To avoid a possible segmentation fault during concurrent
-    executions of pthread_exit(), a dummy thread is spawned which
-    initializes internal variables of pthread lib. See bug description
-    for a full explanation.
-
-    TODO: Remove this code when fixed versions of glibc6 are in common
-    use.
-  */
-  if (thd_lib_detected == THD_LIB_NPTL)
-  {
-    pthread_t       dummy_thread;
-    pthread_attr_t  dummy_thread_attr;
-
-    pthread_attr_init(&dummy_thread_attr);
-    pthread_attr_setdetachstate(&dummy_thread_attr, PTHREAD_CREATE_JOINABLE);
-
-    if (pthread_create(&dummy_thread,&dummy_thread_attr,
-                       nptl_pthread_exit_hack_handler, NULL) == 0)
-      (void)pthread_join(dummy_thread, NULL);
-  }
-#endif /* TARGET_OS_LINUX */
 
   mysql_mutex_init(key_THR_LOCK_lock, &THR_LOCK_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_myisam, &THR_LOCK_myisam, MY_MUTEX_INIT_SLOW);
@@ -489,21 +442,6 @@ extern void **my_thread_var_dbug()
 }
 #endif /* DBUG_OFF */
 
-
-static uint get_thread_lib(void)
-{
-#ifdef _CS_GNU_LIBPTHREAD_VERSION
-  char buff[64];
-    
-  confstr(_CS_GNU_LIBPTHREAD_VERSION, buff, sizeof(buff));
-
-  if (!strncasecmp(buff, "NPTL", 4))
-    return THD_LIB_NPTL;
-  if (!strncasecmp(buff, "linuxthreads", 12))
-    return THD_LIB_LT;
-#endif
-  return THD_LIB_OTHER;
-}
 
 #ifdef _WIN32
 /*

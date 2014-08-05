@@ -1,0 +1,45 @@
+SELECT @@GLOBAL.binlogging_impossible_mode;
+@@GLOBAL.binlogging_impossible_mode
+IGNORE_ERROR
+IGNORE_ERROR Expected
+SELECT @@SESSION.binlogging_impossible_mode;
+ERROR HY000: Variable 'binlogging_impossible_mode' is a GLOBAL variable
+SET @start_value= @@global.binlogging_impossible_mode;
+SHOW GLOBAL VARIABLES LIKE 'binlogging_impossible_mode';
+Variable_name	Value
+binlogging_impossible_mode	IGNORE_ERROR
+SET @@GLOBAL.binlogging_impossible_mode=IGNORE_ERROR;
+SELECT @@GLOBAL.binlogging_impossible_mode;
+@@GLOBAL.binlogging_impossible_mode
+IGNORE_ERROR
+IGNORE_ERROR Expected
+SET @@GLOBAL.binlogging_impossible_mode=ABORT_SERVER;
+SELECT @@GLOBAL.binlogging_impossible_mode;
+@@GLOBAL.binlogging_impossible_mode
+ABORT_SERVER
+ABORT_SERVER Expected
+SELECT @@GLOBAL.binlogging_impossible_mode = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlogging_impossible_mode';
+@@GLOBAL.binlogging_impossible_mode = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.binlogging_impossible_mode);
+COUNT(@@GLOBAL.binlogging_impossible_mode)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlogging_impossible_mode';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+SELECT COUNT(@@binlogging_impossible_mode);
+COUNT(@@binlogging_impossible_mode)
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.binlogging_impossible_mode);
+COUNT(@@GLOBAL.binlogging_impossible_mode)
+1
+1 Expected
+SET @@global.binlogging_impossible_mode= @start_value;

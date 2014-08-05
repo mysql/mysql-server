@@ -1,0 +1,75 @@
+# ==== Purpose ====
+#
+#  To check, when we have master with table having
+#  TIMESTAMP(0), DATETIME(0) or TIME(0), slave
+#  having same table but we have created them in 5.5
+#  and upgraded it.
+#  If we try to do replication, we will not get an assert.
+#
+# ==== Implementation ====
+#
+# In Master-->
+# create a table in master having TIMESTAMP(0),
+# DATETIME(0) or TIME(0).
+# In Slave-->
+# copy the frm of the table created in 5.5 and upgraded.
+# Insert value in master with row base replication on.
+#
+# ==== Related Bugs ====
+#
+#  Bug#17532932 TIMESTAMP AND DATETIMES SELF-INCOMPATIBLE
+#               DURING REPLICATION
+
+--source include/have_binlog_format_row.inc
+--source include/have_innodb.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+
+--source include/start_slave.inc
+--let $SLAVE_DATADIR=`SELECT @@DATADIR`
+
+--source include/rpl_connection_master.inc
+#
+# Creating table a MYISAM Engine, As if we create a table in INNODB, we have
+# to skip some test cases. As certain INNODB tables like
+# mysql/slave_master_info, mysql/slave_relay_log_info, mysql/slave_master_info
+# are not be there in upgraded 5.5 tables.
+#
+CREATE TABLE bug17532932(a TIMESTAMP,
+                         b DATETIME,
+                         c TIME)ENGINE=MYISAM;
+--source include/sync_slave_sql_with_master.inc
+DROP TABLE bug17532932;
+#
+# Copy 5.5 bug17532932-ibdata1 and bug17532932.frm in slave's data dir.
+# These files are created using "CREATE TABLE bug17532932(a TIMESTAMP,
+# b DATETIME, c TIME);"
+#
+# To do that, stop slave, copy .frm, .MYD, .MYI file and then start server.
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+--copy_file ./std_data/bug17532932.frm $slave_datadir/test/bug17532932.frm
+--copy_file ./std_data/bug17532932.MYD $slave_datadir/test/bug17532932.MYD
+--copy_file ./std_data/bug17532932.MYI $slave_datadir/test/bug17532932.MYI
+--source include/rpl_start_server.inc
+--source include/rpl_start_slaves.inc
+
+
+--source include/rpl_connection_master.inc
+INSERT INTO bug17532932 VALUES ("2014-04-16 12:35:51",
+                                "2010-08-26 12:15:52",
+                                "-38:59:59");
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $diff_tables= master:bug17532932, slave:bug17532932
+--source include/diff_tables.inc
+
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE bug17532932;
+
+--source include/rpl_end.inc

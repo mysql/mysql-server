@@ -80,16 +80,8 @@ void init_thr_alarm(uint max_alarms)
   sigfillset(&full_signal_set);			/* Neaded to block signals */
   mysql_mutex_init(key_LOCK_alarm, &LOCK_alarm, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_alarm, &COND_alarm, NULL);
-  if (thd_lib_detected == THD_LIB_LT)
-    thr_client_alarm= SIGALRM;
-  else
-    thr_client_alarm= SIGUSR1;
-#ifndef USE_ALARM_THREAD
-  if (thd_lib_detected != THD_LIB_LT)
-#endif
-  {
-    my_sigset(thr_client_alarm, thread_alarm);
-  }
+  thr_client_alarm= SIGUSR1;
+  my_sigset(thr_client_alarm, thread_alarm);
   sigemptyset(&s);
   sigaddset(&s, THR_SERVER_ALARM);
   alarm_thread=pthread_self();
@@ -106,11 +98,6 @@ void init_thr_alarm(uint max_alarms)
   }
 #elif defined(USE_ONE_SIGNAL_HAND)
   pthread_sigmask(SIG_BLOCK, &s, NULL);		/* used with sigwait() */
-  if (thd_lib_detected == THD_LIB_LT)
-  {
-    my_sigset(thr_client_alarm, process_alarm);        /* Linuxthreads */
-    pthread_sigmask(SIG_UNBLOCK, &s, NULL);
-  }
 #else
   my_sigset(THR_SERVER_ALARM, process_alarm);
   pthread_sigmask(SIG_UNBLOCK, &s, NULL);
@@ -293,18 +280,6 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 /*
   This must be first as we can't call DBUG inside an alarm for a normal thread
 */
-
-  if (thd_lib_detected == THD_LIB_LT &&
-      !pthread_equal(pthread_self(),alarm_thread))
-  {
-#if defined(MAIN) && !defined(__bsdi__)
-    printf("thread_alarm in process_alarm\n"); fflush(stdout);
-#endif
-#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
-    my_sigset(thr_client_alarm, process_alarm);	/* int. thread system calls */
-#endif
-    return;
-  }
 
   /*
     We have to do do the handling of the alarm in a sub function,

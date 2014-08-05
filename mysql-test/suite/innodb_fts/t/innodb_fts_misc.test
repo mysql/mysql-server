@@ -1326,3 +1326,155 @@ INSERT INTO t1 (a) VALUES
 SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"good database"' IN BOOLEAN MODE);
 
 DROP TABLE t1;
+
+# Test single term ranking
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT (title,body)
+  ) ENGINE=InnoDB;
+
+# Repeatedly insert/delete records, the ranking should be the same for
+# each of them
+INSERT INTO articles (title,body) VALUES ('Test Article','blah blah
+blah'),("Matt's Noise",'this is noisy'),('February Weather','It was terrible
+this year.'),('Peter Pan','Tis a kids story.'),('Test1','nada'),('Database
+database database','foo database database database'),('Database article
+title','body with lots of words.'),('myfulltext database', 'my test fulltext
+database');
+
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
+DELETE from articles WHERE title like "myfulltext database";
+
+INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
+
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
+DELETE from articles WHERE title like "myfulltext database";
+
+INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
+
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
+
+DROP TABLE articles;
+
+# Test for BUG 18277305 - FTS: FAILING ASSERTION: PTR[1] == '\"'
+# IN FTS_AST_CREATE_NODE_TEXT
+CREATE TABLE t1(
+	a TEXT CHARSET ujis COLLATE ujis_japanese_ci,
+	b TEXT CHARSET utf8mb4 COLLATE utf8mb4_turkish_ci,
+	c TEXT CHARSET eucjpms COLLATE eucjpms_bin,
+	d TEXT CHARSET utf8mb4,
+	FULLTEXT INDEX(a),
+	FULLTEXT INDEX(b),
+	FULLTEXT INDEX(c),
+	FULLTEXT INDEX(d)
+) ENGINE = InnoDB;
+
+INSERT INTO t1 VALUES
+	('myisam', 'myisam', 'myisam', 'myisam'),
+	('innodb', 'innodb', 'innodb', 'innodb'),
+	('innodb myisam', 'innodb myisam', 'innodb myisam', 'innodb myisam'),
+	('memory', 'memory', 'memory', 'memory'),
+	('archive', 'archive', 'archive', 'archive'),
+	('federated', 'federated', 'federated', 'federated'),
+	('storage engine innodb', 'storage engine innodb', 'storage engine innodb', 'storage engine innodb'),
+	('storage engine myisam', 'storage engine myisam', 'storage engine myisam', 'storage engine myisam'),
+	('innobase', 'innobase', 'innobase', 'innobase'),
+	('myisam innodb', 'myisam innodb', 'myisam innodb', 'myisam innodb'),
+	('innodb myisam engines', 'innodb myisam engines', 'innodb myisam engines', 'innodb myisam engines');
+
+# Test the ujis_japanese_ci
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', ' ', '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '&', 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '&', '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '%', '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+--error ER_PARSE_ERROR
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+
+
+# Test the utf8mb4_turkish_ci
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"'));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '"'));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', ' ', '"'));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, '"'));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '&', 0x00, '"'));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, '&', '"'));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', '%', '"'));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+--error ER_PARSE_ERROR
+SELECT b FROM t1 WHERE MATCH (b) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+
+# Test the eucjpms_bin
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', ' ', '"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, '"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '&', 0x00, '"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, '&', '"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', '%', '"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+--error ER_PARSE_ERROR
+SELECT c FROM t1 WHERE MATCH (c) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+
+ALTER TABLE t1 ENGINE = MyISAM;
+
+# Test the query against myisam to verify
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', ' ', '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, '"', 0x00));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '&', 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, '&', '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', '%', '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, 0x00, 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', 0x00, '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', '(', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', ')'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', 'm', 'y', 'i', 's', 'a', 'm', '"'));
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 0x00, 'i', 'n', 'n', 'o', 'd', 'b', '@', '$', 'm', 'y', 'i', 's', 'a', 'm', '%', 0x00, 0x00, '"','@', '2') IN BOOLEAN MODE);
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT('"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 'm', 'y', 'i', 's', 'a', 'm', '"','@', '4') IN BOOLEAN MODE);
+SELECT a FROM t1 WHERE MATCH (a) AGAINST (CONCAT(0x00, '"', 'i', 'n', 'n', 'o', 'd', 'b', ' ', '$', 's', 't', 'o', 'r', 'a', 'g', 'e', '"','@', '4', 0x00) IN BOOLEAN MODE);
+
+DROP TABLE t1;

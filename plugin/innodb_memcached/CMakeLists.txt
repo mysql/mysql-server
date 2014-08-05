@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,4 +17,6 @@ IF(WITH_INNODB_MEMCACHED AND UNIX)
   ADD_SUBDIRECTORY(innodb_memcache)
 ENDIF()
 
-INSTALL_SCRIPT("${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/scripts/innodb_memcached_config.sql" DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server)
+INSTALL(FILES "${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/scripts/innodb_memcached_config.sql"
+ DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
+ PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)

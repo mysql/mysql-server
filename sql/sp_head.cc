@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1609,6 +1609,23 @@ bool sp_head::show_create_routine(THD *thd, enum_sp_type type)
 bool sp_head::add_instr(THD *thd, sp_instr *instr)
 {
   m_parser_data.process_new_sp_instr(thd, instr);
+
+  if (m_type == SP_TYPE_TRIGGER && m_cur_instr_trig_field_items.elements)
+  {
+    SQL_I_List<Item_trigger_field> *instr_trig_fld_list;
+    /*
+      Move all the Item_trigger_field from "sp_head::
+      m_cur_instr_trig_field_items" to the per instruction Item_trigger_field
+      list "sp_lex_instr::m_trig_field_list" and clear "sp_head::
+      m_cur_instr_trig_field_items".
+    */
+    if ((instr_trig_fld_list= instr->get_instr_trig_field_list()) != NULL)
+    {
+      m_cur_instr_trig_field_items.save_and_clear(instr_trig_fld_list);
+      m_list_of_trig_fields_item_lists.link_in_list(instr_trig_fld_list,
+        &instr_trig_fld_list->first->next_trig_field_list);
+    }
+  }
 
   /*
     Memory root of every instruction is designated for permanent

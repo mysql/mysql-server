@@ -1,0 +1,39 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'SEMISYNC_SLAVE_PLUGIN';
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+UNINSTALL PLUGIN rpl_semi_sync_master;
+CREATE TABLE t1(i int);
+INSERT INTO t1 values (1);
+DROP TABLE t1;
+include/install_semisync.inc
+call mtr.add_suppression("Plugin 'rpl_semi_sync_slave' cannot be uninstalled now");
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+ERROR HY000: Plugin 'rpl_semi_sync_slave' cannot be uninstalled now. Stop any active semisynchronous I/O threads on this slave first.
+call mtr.add_suppression("Plugin 'rpl_semi_sync_master' cannot be uninstalled now");
+UNINSTALL PLUGIN rpl_semi_sync_master;
+ERROR HY000: Plugin 'rpl_semi_sync_master' cannot be uninstalled now. Stop any active semisynchronous slaves of this master first.
+CREATE TABLE t1(i int);
+INSERT INTO t1 values (2);
+DROP TABLE t1;
+include/assert.inc [semi sync slave status should be ON.]
+include/assert.inc [semi sync master status should be ON.]
+include/assert.inc [semi sync master clients should be 1.]
+SET GLOBAL rpl_semi_sync_master_enabled = OFF;
+include/assert.inc [semi sync master clients should be 1.]
+UNINSTALL PLUGIN rpl_semi_sync_master;
+ERROR HY000: Plugin 'rpl_semi_sync_master' cannot be uninstalled now. Stop any active semisynchronous slaves of this master first.
+include/stop_slave.inc
+SET GLOBAL rpl_semi_sync_slave_enabled = OFF;
+include/start_slave.inc
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+include/assert.inc [semi sync master clients should be 0.]
+UNINSTALL PLUGIN rpl_semi_sync_master;
+CREATE TABLE t1(i int);
+INSERT INTO t1 values (3);
+DROP TABLE t1;
+include/rpl_end.inc

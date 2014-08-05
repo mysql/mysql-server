@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2800,20 +2800,19 @@ fts_query_get_token(
 	ulint		str_len;
 	byte*		new_ptr = NULL;
 
-	str_len = ut_strlen((char*) node->term.ptr);
+	str_len = node->term.ptr->len;
 
 	ut_a(node->type == FTS_AST_TERM);
 
 	token->f_len = str_len;
-	token->f_str = node->term.ptr;
+	token->f_str = node->term.ptr->str;
 
 	if (node->term.wildcard) {
 
 		token->f_str = static_cast<byte*>(ut_malloc(str_len + 2));
 		token->f_len = str_len + 1;
 
-		/* Need to copy the NUL character too. */
-		memcpy(token->f_str, node->term.ptr, str_len + 1);
+		memcpy(token->f_str, node->term.ptr->str, str_len);
 
 		token->f_str[str_len] = '%';
 		token->f_str[token->f_len] = 0;
@@ -2848,8 +2847,8 @@ fts_query_visitor(
 
 	switch (node->type) {
 	case FTS_AST_TEXT:
-		token.f_str = node->text.ptr;
-		token.f_len = ut_strlen((char*) token.f_str);
+		token.f_str = node->text.ptr->str;
+		token.f_len = node->text.ptr->len;
 
 		if (query->oper == FTS_EXIST) {
 			ut_ad(query->intersection == NULL);
@@ -2878,8 +2877,8 @@ fts_query_visitor(
 		break;
 
 	case FTS_AST_TERM:
-		token.f_str = node->term.ptr;
-		token.f_len = ut_strlen(reinterpret_cast<char*>(token.f_str));
+		token.f_str = node->term.ptr->str;
+		token.f_len = node->term.ptr->len;
 
 		/* Add the word to our RB tree that will be used to
 		calculate this terms per document frequency. */
@@ -3191,13 +3190,9 @@ fts_query_read_node(
 	to assign the frequency on search string behalf. */
 	if (query->cur_node->type == FTS_AST_TERM
 	    && query->cur_node->term.wildcard) {
-
-		/* These cast are safe since we only care about the
-		terminating NUL character as an end of string marker. */
-		term.f_len = ut_strlen(reinterpret_cast<char*>
-			(query->cur_node->term.ptr));
+		term.f_len = query->cur_node->term.ptr->len;
 		ut_ad(FTS_MAX_WORD_LEN >= term.f_len);
-		memcpy(term.f_str, query->cur_node->term.ptr, term.f_len);
+		memcpy(term.f_str, query->cur_node->term.ptr->str, term.f_len);
 	} else {
 		term.f_len = word->f_len;
 		ut_ad(FTS_MAX_WORD_LEN >= word->f_len);
@@ -3507,14 +3502,15 @@ fts_query_prepare_result(
 			doc_freq = rbt_value(fts_doc_freq_t, node);
 
 			/* Don't put deleted docs into result */
-			if (fts_bsearch(array, 0, static_cast<int>(size), doc_freq->doc_id)
-			    >= 0) {
+			if (fts_bsearch(array, 0, static_cast<int>(size),
+					doc_freq->doc_id) >= 0) {
+				/* one less matching doc count */
+				--word_freq->doc_count;
 				continue;
 			}
 
 			ranking.doc_id = doc_freq->doc_id;
-			ranking.rank = static_cast<fts_rank_t>(
-				doc_freq->freq * word_freq->idf * word_freq->idf);
+			ranking.rank = static_cast<fts_rank_t>(doc_freq->freq);
 			ranking.words = NULL;
 
 			fts_query_add_ranking(query, result->rankings_by_id,
@@ -3525,6 +3521,25 @@ fts_query_prepare_result(
 				fts_query_free_result(result);
 				return(NULL);
 			}
+		}
+
+		/* Calculate IDF only after we exclude the deleted items */
+		fts_query_calculate_idf(query);
+
+		node = rbt_first(query->word_freqs);
+		word_freq = rbt_value(fts_word_freq_t, node);
+
+		/* Calculate the ranking for each doc */
+		for (node = rbt_first(result->rankings_by_id);
+		     node != NULL;
+		     node = rbt_next(result->rankings_by_id, node)) {
+
+			fts_ranking_t*  ranking;
+
+			ranking = rbt_value(fts_ranking_t, node);
+
+			ranking->rank = static_cast<fts_rank_t>(
+				ranking->rank * word_freq->idf * word_freq->idf);
 		}
 
 		return(result);
@@ -3898,6 +3913,7 @@ fts_query(
 	/* Get the deleted doc ids that are in the cache. */
 	fts_cache_append_deleted_doc_ids(
 		index->table->fts->cache, query.deleted->doc_ids);
+	DEBUG_SYNC_C("fts_deleted_doc_ids_append");
 
 	/* Sort the vector so that we can do a binary search over the ids. */
 	ib_vector_sort(query.deleted->doc_ids, fts_update_doc_id_cmp);
@@ -3954,7 +3970,8 @@ fts_query(
 		}
 
 		/* Calculate the inverse document frequency of the terms. */
-		if (query.error == DB_SUCCESS) {
+		if (query.error == DB_SUCCESS
+		    && query.flags != FTS_OPT_RANKING) {
 			fts_query_calculate_idf(&query);
 		}
 

@@ -1,0 +1,2 @@
+version=3
+http://mysql.mirrors.pair.com/Downloads/MySQL-5.6/mysql-([\d\.]+).tar.gz

@@ -161,8 +161,8 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
   }
   curr_buff= pbuff;
   if (prefix_msg)
-    curr_buff += sprintf(curr_buff, "%s; ", prefix_msg);
-  my_vsnprintf(curr_buff, pbuffsize, msg, args);
+    curr_buff += my_snprintf(curr_buff, pbuffsize, "%s; ", prefix_msg);
+  my_vsnprintf(curr_buff, pbuffsize - (curr_buff - pbuff), msg, args);
 
   mysql_mutex_unlock(&err_lock);
 
@@ -172,7 +172,7 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
                     m_thread_name, pbuff,
                     (curr_buff[0] && *(strend(curr_buff)-1) == '.') ? "" : ",",
                     err_code);
-#endif  
+#endif
 }
 
 Slave_reporting_capability::~Slave_reporting_capability()
