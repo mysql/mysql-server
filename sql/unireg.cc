@@ -905,7 +905,6 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
   while ((field=it++))
   {
     uint recpos;
-    uint cur_vcol_expr_len= 0;
     buff[0]= (uchar) field->row;
     buff[1]= (uchar) field->col;
     buff[2]= (uchar) field->sc_length;
@@ -933,9 +932,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     }
     if (field->vcol_info)
     {
-      buff[12]= cur_vcol_expr_len= field->vcol_info->expr_str.length +
-                (uint)FRM_VCOL_HEADER_SIZE;
-      vcol_info_length+= cur_vcol_expr_len+(uint)FRM_VCOL_HEADER_SIZE;
+      vcol_info_length+= field->vcol_info->expr_str.length;
       buff[10]|= (uchar)Field::VIRTUAL_FIELD;
     }
     int2store(buff+15, static_cast<uint16>(field->comment.length));

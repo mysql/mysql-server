@@ -1,133 +1,133 @@
 SET @@session.default_storage_engine = 'MyISAM';
 # RAND()
 create table t1 (b virtual double as (rand()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # LOAD_FILE()
 create table t1 (a varchar(64), b virtual varchar(1024) as (load_file(a)));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # CURDATE()
 create table t1 (a virtual datetime as (curdate()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # CURRENT_DATE(), CURRENT_DATE
 create table t1 (a virtual datetime as (current_date));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 create table t1 (a virtual datetime as (current_date()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # CURRENT_TIME(), CURRENT_TIME
 create table t1 (a virtual datetime as (current_time));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 create table t1 (a virtual datetime as (current_time()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP
 create table t1 (a virtual datetime as (current_timestamp()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 create table t1 (a virtual datetime as (current_timestamp));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # CURTIME()
 create table t1 (a virtual datetime as (curtime()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # LOCALTIME(), LOCALTIME
 create table t1 (a datetime, b virtual varchar(10) as (localtime()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 create table t1 (a datetime, b virtual varchar(10) as (localtime));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # LOCALTIMESTAMP, LOCALTIMESTAMP()(v4.0.6)
 create table t1 (a datetime, b virtual varchar(10) as (localtimestamp()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 create table t1 (a datetime, b virtual varchar(10) as (localtimestamp));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # NOW()
 create table t1 (a datetime, b virtual varchar(10) as (now()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # SYSDATE()
 create table t1 (a int, b virtual varchar(10) as (sysdate()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # UNIX_TIMESTAMP()
 create table t1 (a datetime, b virtual datetime as (unix_timestamp()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # UTC_DATE()
 create table t1 (a datetime, b virtual datetime as (utc_date()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # UTC_TIME()
 create table t1 (a datetime, b virtual datetime as (utc_time()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # UTC_TIMESTAMP()
 create table t1 (a datetime, b virtual datetime as (utc_timestamp()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # MATCH()
 create table t1 (a varchar(32), b virtual bool as (match a against ('sample text')));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # BENCHMARK()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (benchmark(a,3)));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # CONNECTION_ID()
 create table t1 (a virtual int as (connection_id()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # CURRENT_USER(), CURRENT_USER
 create table t1 (a virtual varchar(32) as (current_user()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 create table t1 (a virtual varchar(32) as (current_user));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # DATABASE()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (database()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # FOUND_ROWS()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (found_rows()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # GET_LOCK()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (get_lock(a,10)));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # IS_FREE_LOCK()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (is_free_lock(a)));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # IS_USED_LOCK()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (is_used_lock(a)));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # LAST_INSERT_ID()
 create table t1 (a virtual int as (last_insert_id()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # MASTER_POS_WAIT()
 create table t1 (a varchar(32), b virtual int as (master_pos_wait(a,0,2)));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # NAME_CONST()
 create table t1 (a virtual varchar(32) as (name_const('test',1)));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # RELEASE_LOCK()
 create table t1 (a varchar(32), b virtual int as (release_lock(a)));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # ROW_COUNT()
 create table t1 (a virtual int as (row_count()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # SCHEMA()
 create table t1 (a virtual varchar(32) as (schema()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # SESSION_USER()
 create table t1 (a virtual varchar(32) as (session_user()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # SLEEP()
 create table t1 (a int, b virtual int as (sleep(a)));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # SYSTEM_USER()
 create table t1 (a virtual varchar(32) as (system_user()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # USER()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (user()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # UUID_SHORT()
 create table t1 (a virtual varchar(1024) as (uuid_short()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # UUID()
 create table t1 (a virtual varchar(1024) as (uuid()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 # VALUES()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (values(a)));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # VERSION()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (version()));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # ENCRYPT()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (encrypt(a)));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # Stored procedures
 create procedure p1()
 begin
@@ -139,14 +139,14 @@ begin
 return 1;
 end //
 create table t1 (a virtual int as (p1()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 create table t1 (a virtual int as (f1()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 drop procedure p1;
 drop function f1;
 # Unknown functions
 create table t1 (a virtual int as (f1()));
-ERROR HY000: Non-deterministic expression for virtual column 'a'.
+ERROR HY000: Expression of virtual column 'a' contains a disallowed function.
 #
 # GROUP BY FUNCTIONS
 #
@@ -206,10 +206,10 @@ ERROR HY000: Invalid use of group function
 #
 # ExtractValue()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (ExtractValue(a,'//b[$@j]')));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 # UpdateXML()
 create table t1 (a varchar(1024), b virtual varchar(1024) as (UpdateXML(a,'/a','<e>fff</e>')));
-ERROR HY000: Non-deterministic expression for virtual column 'b'.
+ERROR HY000: Expression of virtual column 'b' contains a disallowed function.
 #
 # Sub-selects
 #

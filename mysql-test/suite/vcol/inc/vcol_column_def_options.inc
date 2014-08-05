@@ -111,3 +111,19 @@ create table t1 (a int, b virtual int as (a % 2));
 alter table t1 modify b virtual int as (a % 2) stored references t2(a);
 show create table t1;
 drop table t1;
+
+--echo Test virtual columns referencing other virtual columns
+create table t1 (a int unique, b virtual int as(-a), c virtual int as (b + 1));
+insert into t1 (a) values (1), (2);
+select * from t1;
+insert into t1(a) values (1) on duplicate key update a=3;
+select * from t1;
+update t1 set a=4 where a=2;
+select * from t1;
+drop table t1;
+
+--error 1958
+create table t1 (a int, b virtual int as(-b), c virtual int as (b + 1));
+--error 1958
+create table t1 (a int, b virtual int as(-c), c virtual int as (b + 1));
+
