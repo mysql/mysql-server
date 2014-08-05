@@ -30,7 +30,7 @@
 %global mysqld_group    mysql
 %global mysqldatadir    /var/lib/mysql
 
-%global release         2  
+%global release         1  
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -504,7 +504,6 @@ mkdir debug
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
-           -DENABLE_DTRACE=OFF \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            %{ssl_option} \
@@ -521,7 +520,6 @@ mkdir release
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-           -DENABLE_DTRACE=OFF \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            %{ssl_option} \
@@ -1275,9 +1273,6 @@ echo "====="                                                       >> $STATUS_HI
 # merging BK trees)
 ##############################################################################
 %changelog
-* Wed Jul 02 2014 Bjorn Munch <bjorn.munch@oracle.com>
-- Disable dtrace unconditionally, breaks after we install Oracle dtrace
-
 * Wed Oct 30 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Removed non gpl file docs/mysql.info from community packages
 
