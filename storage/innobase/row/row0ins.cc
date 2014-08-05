@@ -926,18 +926,8 @@ row_ins_invalidate_query_cache(
 	const char*	name)		/*!< in: table name prefixed with
 					database name and a '/' character */
 {
-	char*	buf;
-	char*	ptr;
 	ulint	len = strlen(name) + 1;
-
-	buf = mem_strdupl(name, len);
-
-	ptr = strchr(buf, '/');
-	ut_a(ptr);
-	*ptr = '\0';
-
-	innobase_invalidate_query_cache(thr_get_trx(thr), buf, len);
-	ut_free(buf);
+	innobase_invalidate_query_cache(thr_get_trx(thr), name, len);
 }
 
 /*********************************************************************//**
