@@ -88,6 +88,8 @@ PATENT RIGHTS GRANT:
 
 #include <algorithm>
 
+#include <string.h>
+
 #include "portability/toku_assert.h"
 
 #include "ft/serialize/block_allocator_strategy.h"
@@ -96,7 +98,7 @@ static uint64_t _align(uint64_t value, uint64_t ba_alignment) {
     return ((value + ba_alignment - 1) / ba_alignment) * ba_alignment;
 }
 
-static uint64_t _next_power_of_two(uint64_t value) {
+static uint64_t _roundup_to_power_of_two(uint64_t value) {
     uint64_t r = 4096;
     while (r < value) {
         r *= 2;
@@ -158,7 +160,7 @@ block_allocator_strategy::best_fit(struct block_allocator::blockpair *blocks_arr
     return best_bp;
 }
 
-static uint64_t padded_fit_alignment = 64 * 1024;
+static uint64_t padded_fit_alignment = 4096;
 
 // TODO: These compiler specific directives should be abstracted in a portability header
 //       portability/toku_compiler.h?
@@ -166,15 +168,16 @@ __attribute__((__constructor__))
 static void determine_padded_fit_alignment_from_env(void) {
     // TODO: Should be in portability as 'toku_os_getenv()?'
     const char *s = getenv("TOKU_BA_PADDED_FIT_ALIGNMENT");
-    if (s != nullptr) {
+    if (s != nullptr && strlen(s) > 0) {
         const int64_t alignment = strtoll(s, nullptr, 10);
-        if (alignment < 0) {
+        if (alignment <= 0) {
             fprintf(stderr, "tokuft: error: block allocator padded fit alignment found in environment (%s), "
-                            "but it's out of range (should be an integer > 0). defaulting to 10\n", s);
-            padded_fit_alignment = 64 * 1024;
+                            "but it's out of range (should be an integer > 0). defaulting to %" PRIu64 "\n",
+                            s, padded_fit_alignment);
         } else {
-            padded_fit_alignment = _next_power_of_two(alignment);
-            fprintf(stderr, "tokuft: setting block allocator padded fit alignment to %" PRIu64 "\n", padded_fit_alignment);
+            padded_fit_alignment = _roundup_to_power_of_two(alignment);
+            fprintf(stderr, "tokuft: setting block allocator padded fit alignment to %" PRIu64 "\n",
+                    padded_fit_alignment);
         }
     }
 }
@@ -196,7 +199,7 @@ __attribute__((__constructor__))
 static void determine_hot_zone_threshold_from_env(void) {
     // TODO: Should be in portability as 'toku_os_getenv()?'
     const char *s = getenv("TOKU_BA_HOT_ZONE_THRESHOLD");
-    if (s != nullptr) {
+    if (s != nullptr && strlen(s) > 0) {
         const double hot_zone = strtod(s, nullptr);
         if (hot_zone < 1 || hot_zone > 99) {
             fprintf(stderr, "tokuft: error: block allocator hot zone threshold found in environment (%s), "
