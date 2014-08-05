@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,7 +75,8 @@ int hp_get_new_block(HP_BLOCK *block, size_t *alloc_length)
     This doesn't add much overhead - with current values of sizeof(HP_PTRS) 
     and my_default_record_cache_size we get about 1/128 unused memory.
    */
-  *alloc_length=sizeof(HP_PTRS)*i+block->records_in_block* block->recbuffer;
+  *alloc_length= sizeof(HP_PTRS)* i + (ulonglong) block->records_in_block *
+                                              block->recbuffer;
   if (!(root=(HP_PTRS*) my_malloc(*alloc_length,MYF(MY_WME))))
     return 1;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,6 +39,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0rnd.h"
 #include "ut0byte.h"
 #include "trx0types.h"
+#include "ut0rbt.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "sync0sync.h"
@@ -1330,6 +1331,42 @@ ibool
 dict_set_corrupted_by_space(
 /*========================*/
 	ulint		space_id);	/*!< in: space ID */
+
+/**********************************************************************//**
+Compares the given foreign key identifier (the key in rb-tree) and the
+foreign key identifier in the given fk object (value in rb-tree).
+@return	negative, 0, or positive if foreign_id is smaller, equal,
+or greater than foreign_obj->id, respectively. */
+UNIV_INLINE
+int
+dict_foreign_rbt_cmp(
+/*=================*/
+	const void*	foreign_id,	/*!< in: the foreign key identifier
+					which is used as a key in rb-tree.  */
+	const void*	foreign_obj);	/*!< in: the foreign object itself
+					which is used as value in rb-tree. */
+
+/**********************************************************************//**
+Allocate the table->foreign_rbt, which stores all the foreign objects
+that is available in table->foreign_list.
+@return the allocated rbt object */
+UNIV_INLINE
+ib_rbt_t*
+dict_table_init_foreign_rbt(
+/*========================*/
+	dict_table_t*	table);	/*!< in: the table object whose
+				table->foreign_rbt will be initialized */
+
+/**********************************************************************//**
+Allocate the table->referened_rbt, which stores all the foreign objects
+that is available in table->referenced_list.
+@return the allocated rbt object */
+UNIV_INLINE
+ib_rbt_t*
+dict_table_init_referenced_rbt(
+/*===========================*/
+	dict_table_t*	table);	/*!< in: the table object whose
+				table->referenced_rbt will be initialized */
 
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"

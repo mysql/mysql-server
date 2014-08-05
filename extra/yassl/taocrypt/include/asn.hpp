@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -294,9 +294,9 @@ private:
     byte*     signature_;
     char      issuer_[ASN_NAME_MAX];    // Names
     char      subject_[ASN_NAME_MAX];   // Names
-    char      beforeDate_[MAX_DATE_SZ]; // valid before date
-    char      afterDate_[MAX_DATE_SZ];  // valid after date
-    bool      verify_;                  // Default to yes, but could be off
+    char      beforeDate_[MAX_DATE_SZ+1]; // valid before date, +null term
+    char      afterDate_[MAX_DATE_SZ+1];  // valid after date, +null term
+    bool      verify_;                    // Default to yes, but could be off
 
     void   ReadHeader();
     void   Decode(SignerList*, CertType);

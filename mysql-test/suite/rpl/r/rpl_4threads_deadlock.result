@@ -1,0 +1,43 @@
+include/master-slave.inc
+[connection master]
+FLUSH LOGS;
+SET @save_debug=@@global.debug;
+SET GLOBAL DEBUG='+d,before_dump_thread_acquires_current_mutex,processlist_acquiring_dump_threads_LOCK_thd_data';
+include/stop_slave.inc
+include/start_slave.inc
+"Wait_for dump_thread_signal"
+SET DEBUG_SYNC='now WAIT_FOR dump_thread_signal';
+SET DEBUG_SYNC='show_binlogs_after_lock_log_before_lock_index SIGNAL parked1 WAIT_FOR go';
+SHOW BINARY LOGS;
+"Wait_for parked1"
+SET DEBUG_SYNC='now WAIT_FOR parked1';
+SET DEBUG_SYNC='purge_logs_after_lock_index_before_thread_count SIGNAL parked2 WAIT_FOR go';
+PURGE BINARY LOGS BEFORE '9999-12-31';
+"Wait_for parked2"
+SET DEBUG_SYNC='now WAIT_FOR parked2';
+SET DEBUG_SYNC='processlist_after_LOCK_thd_count_before_LOCK_thd_data SIGNAL parked3 WAIT_FOR go';
+SELECT * FROM information_schema.processlist;
+"Wait_for parked3"
+SET DEBUG_SYNC='now WAIT_FOR parked3';
+SET DEBUG_SYNC='now SIGNAL go';
+include/stop_slave.inc
+include/start_slave.inc
+"Wait_for dump_thread_signal"
+SET DEBUG_SYNC='now WAIT_FOR dump_thread_signal';
+SET DEBUG_SYNC='show_binlogs_after_lock_log_before_lock_index SIGNAL parked1 WAIT_FOR go';
+SHOW BINARY LOGS;
+"Wait_for parked1"
+SET DEBUG_SYNC='now WAIT_FOR parked1';
+SET DEBUG_SYNC='purge_logs_after_lock_index_before_thread_count SIGNAL parked2 WAIT_FOR go';
+PURGE BINARY LOGS BEFORE '9999-12-31';
+"Wait_for parked2"
+SET DEBUG_SYNC='now WAIT_FOR parked2';
+SET DEBUG_SYNC='processlist_after_LOCK_thd_count_before_LOCK_thd_data SIGNAL parked3 WAIT_FOR go';
+SHOW PROCESSLIST;
+"Wait_for parked3"
+SET DEBUG_SYNC='now WAIT_FOR parked3';
+SET DEBUG_SYNC='now SIGNAL go';
+"Cleanup"
+SET DEBUG_SYNC='RESET';
+SET GLOBAL DEBUG=@save_debug;
+include/rpl_end.inc

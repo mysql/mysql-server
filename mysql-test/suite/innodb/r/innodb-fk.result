@@ -1,0 +1,35 @@
+#
+# Bug #18806829 OPENING INNODB TABLES WITH MANY FOREIGN KEY
+# REFERENCES IS SLOW/CRASHES SEMAPHORE
+#
+create table t1 (f1 int primary key) engine=innodb;
+insert into t1 values (5);
+insert into t1 values (2882);
+insert into t1 values (10);
+update t1 set f1 = 28 where f1 = 2882;
+select * from fk_120;
+f1
+5
+10
+28
+select * from fk_1;
+f1
+5
+10
+28
+select * from fk_50;
+f1
+5
+10
+28
+drop table t1;
+#
+# Check if restrict is working fine.
+#
+create table t1 (f1 int primary key) engine=innodb;
+delete from t1 where f1 = 29;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`fk_29`, CONSTRAINT `pc29` FOREIGN KEY (`f1`) REFERENCES `t1` (`f1`))
+select * from fk_29;
+f1
+29
+drop table t1;

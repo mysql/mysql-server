@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "event_db_repository.h"
 #include "sql_connect.h"         // init_new_connection_handler_thread
 #include "sql_acl.h"             // SUPER_ACL
+extern void delete_thd(THD *);   // Used in deinit_event_thread()
 
 /**
   @addtogroup Event_Scheduler
@@ -156,12 +157,13 @@ deinit_event_thread(THD *thd)
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net);
   DBUG_PRINT("exit", ("Event thread finishing"));
+  mysql_mutex_lock(&LOCK_thd_remove);
   mysql_mutex_lock(&LOCK_thread_count);
-  thread_count--;
   dec_thread_running();
-  delete thd;
+  delete_thd(thd);
   mysql_cond_broadcast(&COND_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thd_remove);
 }
 
 
