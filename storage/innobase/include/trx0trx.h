@@ -988,8 +988,12 @@ struct trx_t {
 					when a high priority transaction
 					is blocked on a lock wait. */
 
-	os_thread_id_t	killed_by;	/*!< The transaction that wants to
-					kill this transaction asynchronously */
+	os_thread_id_t	killed_by;	/*!< The thread ID that wants to
+					kill this transaction asynchronously.
+					This is required because we recursively
+					enter the handlerton methods and need
+					to distinguish between the kill thread
+					and the transaction thread. */
 
 	/* These fields are not protected by any mutex. */
 	const char*	op_info;	/*!< English text describing the
