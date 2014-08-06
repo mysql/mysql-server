@@ -49,8 +49,8 @@ Ndb_move_data::Ndb_move_data()
 
 Ndb_move_data::~Ndb_move_data()
 {
-  delete m_sourceattr;
-  delete m_targetattr;
+  delete [] m_sourceattr;
+  delete [] m_targetattr;
   m_sourceattr = 0;
   m_targetattr = 0;
   release_data();
