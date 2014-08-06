@@ -477,9 +477,9 @@ CREATE TABLE t1 (
   INDEX(c_datetime), INDEX(c_timestamp), INDEX(c_time), INDEX(c_year),
   INDEX(c_char));
 
-INSERT INTO t1 (c_int) VALUES (1), (2), (3), (4), (5);
-INSERT INTO t1 (c_int) SELECT 0 FROM t1;
-INSERT INTO t1 (c_int) SELECT 0 FROM t1;
+INSERT IGNORE INTO t1 (c_int) VALUES (1), (2), (3), (4), (5);
+INSERT IGNORE INTO t1 (c_int) SELECT 0 FROM t1;
+INSERT IGNORE INTO t1 (c_int) SELECT 0 FROM t1;
 
 --enable_warnings
 

@@ -22,7 +22,7 @@ insert into t1 select col1_idx+2*2, col2_idx+2*2, col3+2*2, col4+2*2, vc, vc_ft 
 insert into t1 select col1_idx+2*2*2, col2_idx+2*2*2, col3+2*2*2, col4+2*2*2, vc, vc_ft from t1;
 insert into t1 select col1_idx, col2_idx, col3, col4, 'america', 'america' from t1;
 insert into t1 select col1_idx, col2_idx, col3, col4, 'england america', 'england america' from t1;
-insert into t1 select col1_idx, col2_idx, col3, col4, 'germany england america', 'germany england america' from t1;
+insert ignore into t1 select col1_idx, col2_idx, col3, col4, 'germany england america', 'germany england america' from t1;
 insert into t2 select col1_idx,col2_idx,col3 from t1;
 analyze table t1;
 Table	Op	Msg_type	Msg_text

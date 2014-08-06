@@ -1,7 +1,7 @@
 --echo # WL#5928: Most statements should clear the diagnostic area
 
 SELECT @@max_heap_table_size INTO @old_max_heap_table_size;
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --echo #
 --echo # Throw error, run some queries that shouldn't change diagnostics.
 --echo #
@@ -641,7 +641,7 @@ DROP PROCEDURE bug15231_8|
 
 DELIMITER ;|
 
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 --echo
 
