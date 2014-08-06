@@ -50,6 +50,8 @@
 
 -- let $old_conn= $CURRENT_CONNECTION
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 -- connection master
 -- sync_slave_with_master
 
@@ -98,3 +100,5 @@ if (!$iterations)
 -- source include/rpl_row_img_parts_assertion.inc
 
 -- connection $old_conn
+
+SET sql_mode = default;

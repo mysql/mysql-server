@@ -380,7 +380,7 @@ drop table t1,t2;
 #
 # Another left join problem
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   id int(11),
   pid int(11),
@@ -410,7 +410,7 @@ INSERT INTO t2 VALUES (1,1);
 explain SELECT * from t1 left join t2 on t1.id=t2.id where t2.id IS NULL;
 SELECT * from t1 left join t2 on t1.id=t2.id where t2.id IS NULL;
 drop table t1,t2;
-
+SET sql_mode = default;
 #
 # Test problem with using key_column= constant in ON and WHERE
 #

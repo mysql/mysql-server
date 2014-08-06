@@ -50,6 +50,7 @@ set sql_mode=default;
 #
 # Bug #27513: mysql 5.0.x + NULL pointer DoS
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a INT);
 SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
 INSERT INTO t1 VALUES(1);
@@ -57,7 +58,7 @@ SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
 INSERT INTO t1 VALUES(2),(3);
 SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
 DROP TABLE t1;
-
+SET sql_mode = default;
 #
 # Bug #28677: SELECT on missing column gives extra error
 #

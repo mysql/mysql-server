@@ -356,7 +356,7 @@ connection user4;
 show grants;
 --error ER_TABLEACCESS_DENIED_ERROR
 select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
-insert into mysql.user set host='%', user='mysqltest_B';
+insert ignore into mysql.user set host='%', user='mysqltest_B';
 create user mysqltest_A@'%';
 rename user mysqltest_B@'%' to mysqltest_C@'%';
 drop user mysqltest_C@'%';

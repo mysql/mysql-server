@@ -208,7 +208,7 @@ DROP PROCEDURE p4;
 reset master;
 create table t1 (id tinyint auto_increment primary key);
 set insert_id=128;
-insert into t1 values(null);
+insert ignore into t1 values(null);
 select * from t1;
 drop table t1;
 
@@ -227,7 +227,7 @@ create table if not exists t3 like tt1;
 
 --disable_warnings
 USE mysql;
-INSERT INTO user SET host='localhost', user='@#@', password=password('Just a test');
+INSERT IGNORE INTO user SET host='localhost', user='@#@', password=password('Just a test');
 UPDATE user SET password=password('Another password') WHERE host='localhost' AND user='@#@';
 DELETE FROM user WHERE host='localhost' AND user='@#@';
 --enable_warnings
