@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(c1 CHAR(255), c2 TEXT);
 INSERT INTO t1 VALUES(REPEAT('abcdef',40), REPEAT('1',65535));
 INSERT INTO t1 VALUES(REPEAT('abc',80), REPEAT('2',65533));
@@ -70487,3 +70488,4 @@ Note	1051	Unknown table 'test.t14'
 Note	1051	Unknown table 'test.t15'
 Note	1051	Unknown table 'test.t17'
 Note	1051	Unknown table 'test.t18'
+SET sql_mode=default;

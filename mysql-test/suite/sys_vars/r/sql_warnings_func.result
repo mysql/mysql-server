@@ -5,17 +5,17 @@ CREATE TEMPORARY TABLE t1(a varchar(5), b varchar(20));
 '#-----------------------------FN_DYNVARS_167_01------------#'
 SET @@sql_warnings = DEFAULT;
 affected rows: 0
-INSERT INTO t1 VALUES('abcdef', 'val1');
+INSERT IGNORE INTO t1 VALUES('abcdef', 'val1');
 affected rows: 1
 '#-----------------------------FN_DYNVARS_167_02------------------#'
 SET @@sql_warnings = 0;
 affected rows: 0
-INSERT INTO t1 VALUES('abcdef', 'val1');
+INSERT IGNORE INTO t1 VALUES('abcdef', 'val1');
 affected rows: 1
 '#-----------------------------FN_DYNVARS_167_03---------------#'
 SET @@sql_warnings = 1;
 affected rows: 0
-INSERT INTO t1 VALUES('abcdef', 'val1');
+INSERT IGNORE INTO t1 VALUES('abcdef', 'val1');
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 1
 '#----------------------------FN_DYNVARS_167_04---------------#'

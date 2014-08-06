@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (a int not null);
 insert into t1 values (1);
 insert into t1 values (a+2);
@@ -501,6 +502,7 @@ a	b	c
 5000	NULL	5000
 -5000	NULL	-5000
 DROP TABLE t1;
+SET sql_mode = default;
 CREATE TABLE t (a CHAR(10),b INT);
 INSERT INTO t VALUES (),(),();
 INSERT INTO t(a) SELECT rand() FROM t;

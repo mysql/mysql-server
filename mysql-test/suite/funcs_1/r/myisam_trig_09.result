@@ -186,7 +186,7 @@ a	NULL	Test 3.5.9.4	7	999	995.240000000000000000000000000000
 0	0	0	0	0	0
 @tr_var_af_118	@tr_var_af_121	@tr_var_af_122	@tr_var_af_136	@tr_var_af_151	@tr_var_af_163
 0	0	0	0	0	0
-Update tb3 Set f122='Test 3.5.9.4-trig', f136=NULL, f151=DEFAULT, f163=NULL
+Update ignore tb3 Set f122='Test 3.5.9.4-trig', f136=NULL, f151=DEFAULT, f163=NULL
 where f122='Test 3.5.9.4';
 Warnings:
 Warning	1048	Column 'f136' cannot be null

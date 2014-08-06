@@ -23,7 +23,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --copy_file $MYSQLD_DATADIR/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/proc.MYI
 
 use test;
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 drop procedure if exists bug14233;
 drop function if exists bug14233;
@@ -280,3 +280,4 @@ DROP DATABASE db1;
 --echo # Restore mysql.proc
 DROP TABLE mysql.proc;
 RENAME TABLE proc_backup TO mysql.proc;
+SET sql_mode = default;

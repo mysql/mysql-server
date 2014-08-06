@@ -378,6 +378,16 @@ Opt_trace_struct& Opt_trace_struct::do_add(const char *key, Item *item)
 }
 
 
+Opt_trace_struct& Opt_trace_struct::do_add(const char *key, const Cost_estimate &value)
+{
+  char buf[32];                         // 32 is enough for digits of a double
+  my_snprintf(buf, sizeof(buf), "%g", value.total_cost());
+  DBUG_PRINT("opt", ("%s: %s", key, buf));
+  stmt->add(key, buf, strlen(buf), false, false);
+  return *this;
+}
+
+
 Opt_trace_struct& Opt_trace_struct::do_add_hex(const char *key, uint64 val)
 {
   DBUG_ASSERT(started);
