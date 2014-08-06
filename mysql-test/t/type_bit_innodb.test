@@ -37,7 +37,7 @@ select hex(a) from t1;
 drop table t1;
 
 create table t1 (a bit) engine=innodb;
-insert into t1 values (b'0'), (b'1'), (b'000'), (b'100'), (b'001');
+insert ignore into t1 values (b'0'), (b'1'), (b'000'), (b'100'), (b'001');
 select hex(a) from t1;
 # It is not deterministic which duplicate will be seen first
 --replace_regex /(.*Duplicate entry )'.*'( for key.*)/\1''\2/
@@ -46,7 +46,7 @@ alter table t1 add unique (a);
 drop table t1;
 
 create table t1 (a bit(2)) engine=innodb;
-insert into t1 values (b'00'), (b'01'), (b'10'), (b'100');
+insert ignore into t1 values (b'00'), (b'01'), (b'10'), (b'100');
 select a+0 from t1;
 alter table t1 add key (a);
 -- disable_result_log

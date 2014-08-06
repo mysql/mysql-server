@@ -339,16 +339,16 @@ fil_type_t
 fil_space_get_type(
 	ulint	id);
 
-/** @brief Note that a tablespace has been imported.
+/** Note that a tablespace has been imported.
 It is initially marked as FIL_TYPE_IMPORT so that no logging is
 done during the import process when the space ID is stamped to each page.
 Now we change it to FIL_SPACE_TABLESPACE to start redo and undo logging.
 NOTE: temporary tablespaces are never imported.
-@param[in] id tablespace identifier */
+@param[in]	id	tablespace identifier */
 
 void
 fil_space_set_imported(
-	ulint		id);
+	ulint	id);
 
 # ifdef UNIV_DEBUG
 /** Determine if a tablespace is temporary.

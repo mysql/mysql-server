@@ -1593,7 +1593,8 @@ CREATE TABLE t1 (
   KEY time_key (time_key),
   KEY datetime_key (datetime_key),
   KEY varchar_key (varchar_key)
-);
+) ENGINE=MyISaM;
+
 INSERT INTO t1 VALUES 
 (1,0, '00:16:10','2008-09-03 14:25:40','2008-09-03 14:25:40','h','h'),
 (2,7, '00:00:00','2001-01-13 00:00:00','2001-01-13 00:00:00','',''),
@@ -1629,7 +1630,7 @@ CREATE TABLE t2 (
   KEY datetime_key (datetime_key),
   KEY varchar_key (varchar_key)
 );
-INSERT INTO t2 VALUES 
+INSERT IGNORE INTO t2 VALUES 
 (10,0,'19:39:13','0000-00-00 00:00:00','0000-00-00 00:00:00','g','g'),
 (11,8,'03:43:53','0000-00-00 00:00:00','0000-00-00 00:00:00','b','b');
 SELECT OUTR.datetime_nokey AS X FROM t1 AS OUTR 
@@ -1822,8 +1823,8 @@ INSERT INTO t1 VALUES (10,7,5,'2009-06-16','2002-04-10 14:25:30','w'),
 		      (15,6,5,'2001-11-12','0000-00-00 00:00:00',''), 
 		      (16,2,9,'0000-00-00','0000-00-00 00:00:00','j'), 
 		      (29,9,1,'0000-00-00','2003-08-11 00:00:00','m');
-INSERT INTO t3 VALUES (1,9,'0000-00-00','b','b'),
-                      (2,2,'2002-09-17','h','h');
+INSERT IGNORE INTO t3 VALUES (1,9,'0000-00-00','b','b'),
+                             (2,2,'2002-09-17','h','h');
 
 SELECT t1.varchar_nokey FROM t1 JOIN t3 ON t1.datetime_nokey
 WHERE t1.varchar_nokey 
@@ -1851,7 +1852,7 @@ CREATE TABLE t1 (
   KEY datetime_key (datetime_key),
   KEY varchar_key (varchar_key)
 );
-INSERT INTO t1 VALUES
+INSERT IGNORE INTO t1 VALUES
 (1,9,'0000-00-00 00:00:00','p'),(2,0,'2002-02-09 07:38:13','v'),
 (3,8,'2001-05-03 12:08:14','t'),(4,3,'0000-00-00 00:00:00','u'),
 (5,7,'2009-07-28 03:43:30','n'),(6,0,'2009-08-04 00:00:00','l'),
@@ -6525,6 +6526,43 @@ p2, t1 p3 WHERE p0.id=p2.id6 AND p2.id7=p3.id));
 DROP TABLE t1,t2;
 
 set @@optimizer_switch=@old_opt_switch;
-# New tests go here.
 
 --echo # End of 5.6 tests
+
+--echo #
+--echo # Bug#19336348 DEBUG CRASH AT SETUP_SEMIJOIN_DUPS_ELIMINATION IN SQL/SQL_SELECT.CC
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_nokey varchar(1)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('c'),(NULL),('x');
+
+CREATE TABLE t2 (
+  pk int,
+  col_varchar_key varchar(1),
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (10,'l'),(11,'p');
+
+ANALYZE TABLE t1,t2;
+
+let $query=
+SELECT 1
+FROM t1 AS outr
+WHERE outr.col_varchar_nokey IN
+  (
+    SELECT innr.col_varchar_key
+    FROM t2 AS innr
+    WHERE innr.pk <= 7
+  )
+;
+
+eval EXPLAIN $query;
+eval $query;
+DROP TABLE t1,t2;
+
+# New tests go here.

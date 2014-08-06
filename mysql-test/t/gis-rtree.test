@@ -8,6 +8,8 @@
 
 -- source include/have_geometry.inc
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 #
 # test of rtree (using with spatial data)
 #
@@ -962,5 +964,7 @@ INSERT IGNORE INTO t1 SET a=0, b=GEOMFROMTEXT("error");
 INSERT IGNORE INTO t1 SET a=1, b=NULL;
 SELECT a, ASTEXT(b) FROM t1;
 DROP TABLE t1;
+
+SET sql_mode = default;
 
 --echo End of 5.1 tests

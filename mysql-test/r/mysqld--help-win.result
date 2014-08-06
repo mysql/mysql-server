@@ -1359,7 +1359,7 @@ slow-query-log FALSE
 slow-start-timeout 15000
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
-sql-mode NO_ENGINE_SUBSTITUTION
+sql-mode STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
 symbolic-links FALSE
 sync-binlog 0

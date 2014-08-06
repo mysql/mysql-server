@@ -869,6 +869,7 @@ t2	CREATE TABLE `t2` (
   `MAX(b)` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(f1 datetime);
 insert into t1 values (now());
 create table t2 select f2 from (select max(now()) f2 from t1) a;
@@ -881,6 +882,7 @@ show columns from t2;
 Field	Type	Null	Key	Default	Extra
 f2	datetime	NO		0000-00-00 00:00:00	
 drop table t2, t1;
+SET sql_mode = default;
 CREATE TABLE t1(
 id int PRIMARY KEY,
 a  int,

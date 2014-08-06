@@ -1,5 +1,7 @@
 --source include/have_ssl_communication.inc
 --source include/have_openssl.inc
+--source include/have_expect.inc
+--source include/not_windows.inc
 
 SET old_passwords=2;
 SELECT plugin into @plugin from mysql.user where user= 'root' and host='localhost';

@@ -200,7 +200,7 @@ class QUICK_SELECT_I
 {
 public:
   ha_rows records;  /* estimate of # of records to be retrieved */
-  double  read_time; /* time to perform this retrieval          */
+  Cost_estimate cost_est; ///> cost to perform this retrieval
   TABLE   *head;
   /*
     Index this quick select uses, or MAX_KEY for quick selects
@@ -911,8 +911,9 @@ public:
                              KEY_PART_INFO *min_max_arg_part,
                              uint group_prefix_len, uint group_key_parts,
                              uint used_key_parts, KEY *index_info, uint
-                             use_index, double read_cost, ha_rows records, uint
-                             key_infix_len, uchar *key_infix, MEM_ROOT
+                             use_index, const Cost_estimate *cost_est,
+                             ha_rows records, uint key_infix_len,
+                             uchar *key_infix, MEM_ROOT
                              *parent_alloc, bool is_index_scan);
   ~QUICK_GROUP_MIN_MAX_SELECT();
   bool add_range(SEL_ARG *sel_range);
