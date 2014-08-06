@@ -138,7 +138,7 @@ create table t2 select rpad(UUID(),100,' ');
 create table t3 select 1 union select UUID();
 create table t4 select * from t1 where 3 in (select 1 union select 2 union select UUID() union select 3);
 create table t5 select * from t1 where 3 in (select 1 union select 2 union select curdate() union select 3);
-insert into t5 select UUID() from t1 where 3 in (select 1 union select 2 union select 3 union select * from t4);
+insert ignore into t5 select UUID() from t1 where 3 in (select 1 union select 2 union select 3 union select * from t4);
 create procedure foo()
 begin
 insert into t1 values("work_25_");

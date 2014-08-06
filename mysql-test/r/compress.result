@@ -2162,6 +2162,7 @@ t2	0	PRIMARY	1	auto	A	1199	NULL	NULL		BTREE
 t2	0	fld1	1	fld1	A	1199	NULL	NULL		BTREE		
 t2	1	fld3	1	fld3	A	NULL	NULL	NULL		BTREE		
 drop table t4, t3, t2, t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 cont_nr int(11) NOT NULL auto_increment,
 ver_nr int(11) NOT NULL default '0',
@@ -2211,6 +2212,7 @@ KEY mcbs_aufnr(mcbs_aufnr),
 KEY kundentyp(kundentyp),
 KEY p_nr(p_nr,suffix)
 ) ENGINE=MyISAM;
+SET sql_mode = default;
 INSERT INTO t1 VALUES (3359356,405,3359356,'Mustermann Musterfrau',52500,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1485525,2122316,'+','','N',1909160,'MobilComSuper92000D2',NULL,NULL,'MS9ND2',3,24,'MobilCom Shop Koeln',52500,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
 INSERT INTO t1 VALUES (3359357,468,3359357,'Mustermann Musterfrau',7001,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1503580,2139699,'+','','P',1909171,'MobilComSuper9D1T10SFreisprech(Akquise)',NULL,NULL,'MS9NS1',327,24,'MobilCom Intern',7003,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
 INSERT INTO t1 VALUES (3359358,407,3359358,'Mustermann Musterfrau',7001,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1501358,2137473,'N','','N',1909159,'MobilComSuper92000D2',NULL,NULL,'MS9ND2',325,24,'MobilCom Intern',7003,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');

@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT 1 FROM (SELECT 1) as a  GROUP BY SUM(1);
 ERROR HY000: Invalid use of group function
 CREATE TABLE t1 (
@@ -3066,3 +3067,4 @@ GROUP BY table1 . pk;
 field1
 DROP TABLE AA,B;
 DROP VIEW view_AA;
+SET sql_mode = default;

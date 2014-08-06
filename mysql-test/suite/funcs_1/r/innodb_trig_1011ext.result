@@ -166,6 +166,7 @@ Testcase 3.5.10.extra:
 create table t1_sp (var136 tinyint, var151 decimal) engine = <engine_to_be_used>;
 create trigger trg before insert on t1_sp
 for each row set @counter=@counter+1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure trig_sp()
 begin
 declare done int default 0;
@@ -392,3 +393,4 @@ drop table t2;
 drop table t3;
 drop table t4;
 DROP TABLE test.tb3;
+SET sql_mode = default;

@@ -3142,7 +3142,8 @@ static Sys_var_set Sys_sql_mode(
        "Syntax: sql-mode=mode[,mode[,mode...]]. See the manual for the "
        "complete list of valid sql modes",
        SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
-       sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION), NO_MUTEX_GUARD,
+       sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
+                               MODE_STRICT_TRANS_TABLES), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
 static Sys_var_ulong Sys_max_statement_time(
