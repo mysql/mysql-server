@@ -4126,10 +4126,6 @@ buf_page_io_complete(
 				(ulong) bpage->offset);
 		}
 
-		DBUG_EXECUTE_IF("set_dict_sys_to_null",
-				dict_sys = NULL;
-				goto corrupt;);
-
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
@@ -4196,10 +4192,6 @@ corrupt:
 					      " because of"
 					      " a corrupt database page.\n",
 					      stderr);
-
-					DBUG_EXECUTE_IF(
-						"set_dict_sys_to_null",
-						DBUG_SUICIDE(););
 
 					ut_error;
 				}
