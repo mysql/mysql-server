@@ -5351,7 +5351,8 @@ bool JOIN::estimate_rowcount()
       if (records != HA_POS_ERROR)
       {
         tab->found_records= records;
-        tab->read_time= (ha_rows) (tab->quick() ? tab->quick()->read_time : 0.0);
+        tab->read_time= (ha_rows) (tab->quick() ?
+                                   tab->quick()->cost_est.total_cost() : 0.0);
       }
     }
     else
