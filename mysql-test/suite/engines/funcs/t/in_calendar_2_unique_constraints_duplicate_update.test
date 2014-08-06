@@ -1,6 +1,7 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 # Set Correct timezone to match result
 SET TIME_ZONE="+03:00";
 CREATE TABLE t1(c1 DATE NOT NULL, c2 DATE NULL, c3 DATE NULL, PRIMARY KEY(c1), UNIQUE(c2));
@@ -74,4 +75,4 @@ SELECT * FROM t1;
 DROP TABLE t1;
 # Restore timezone to default
 SET TIME_ZONE= @@global.time_zone;
-
+SET sql_mode=default;

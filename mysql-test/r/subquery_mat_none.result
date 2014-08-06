@@ -1,5 +1,6 @@
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='subquery_materialization_cost_based=off';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 drop table if exists t1, t2, t3, t1i, t2i, t3i;
 drop view if exists v1, v2, v1m, v2m;
 create table t1 (a1 char(8), a2 char(8));
@@ -1975,4 +1976,5 @@ DROP TABLE t1,t2,t3;
 # Bug #18770217 	DIFFERENT RESULT WITH SP ON 2ND EXECUTION OF QUERY WITH STRAIGHT_JOIN IN NOT IN
 #
 set @@optimizer_switch=@old_opt_switch;
+SET sql_mode = default;
 set optimizer_switch=default;

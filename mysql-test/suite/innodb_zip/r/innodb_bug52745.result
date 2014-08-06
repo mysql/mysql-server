@@ -1,5 +1,6 @@
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=on;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE bug52745 (
 a2 int(10) unsigned DEFAULT NULL,
 col37 time DEFAULT NULL,
@@ -61,7 +62,8 @@ Warnings:
 Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 Note	1291	Column 'col82' has duplicated value '' in ENUM
 Note	1291	Column 'col82' has duplicated value '' in ENUM
-INSERT INTO bug52745 SET
+SET sql_mode = default;
+INSERT IGNORE INTO bug52745 SET
 col40='0000-00-00 00:00:00',
 col51=16547,
 col53='7711484',
@@ -97,6 +99,7 @@ col88=16894,
 col89=6161,
 col90=repeat('gale',48);
 Warnings:
+Warning	1264	Out of range value for column 'col40' at row 1
 Warning	1264	Out of range value for column 'col53' at row 1
 Warning	1264	Out of range value for column 'col54' at row 1
 Warning	1265	Data truncated for column 'col59' at row 1
@@ -112,6 +115,7 @@ Warning	1265	Data truncated for column 'col79' at row 1
 Warning	1264	Out of range value for column 'col84' at row 1
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1264	Out of range value for column 'col40' at row 1
 Warning	1264	Out of range value for column 'col53' at row 1
 Warning	1264	Out of range value for column 'col54' at row 1
 Warning	1265	Data truncated for column 'col59' at row 1

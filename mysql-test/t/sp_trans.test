@@ -488,8 +488,8 @@ create table t4 (
 ) engine = innodb|
 --enable_warnings
 
-insert into t3 values (1 , 'aCh1' ) , ('2' , 'aCh2')|
-insert into t4 values (1 , 'bCh1' )|
+insert ignore into t3 values (1 , 'aCh1' ) , ('2' , 'aCh2')|
+insert ignore into t4 values (1 , 'bCh1' )|
 
 --disable_warnings
 drop procedure if exists bug3448|

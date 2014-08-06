@@ -72,6 +72,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`id` < 0) and (`test`.`t1`.`id` > 0) and multiple equal(`test`.`t2`.`id`, `test`.`t1`.`id`))
 drop table t1,t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 id int(11) NOT NULL auto_increment,
 token varchar(100) DEFAULT '' NOT NULL,
@@ -84,6 +85,7 @@ KEY token (token(15)),
 KEY timestamp (timestamp),
 UNIQUE token_2 (token(75),count,phone)
 );
+SET sql_mode = default;
 INSERT INTO t1 VALUES (21,'e45703b64de71482360de8fec94c3ade',3,7800,'n','1999-12-23 17:22:21');
 INSERT INTO t1 VALUES (22,'e45703b64de71482360de8fec94c3ade',4,5000,'y','1999-12-23 17:22:21');
 INSERT INTO t1 VALUES (18,'346d1cb63c89285b2351f0ca4de40eda',3,13200,'b','1999-12-23 11:58:04');
@@ -155,6 +157,8 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (d DATE NOT NULL);
 CREATE TABLE t2 (d DATE NOT NULL);
 INSERT INTO t1 (d) VALUES ('2001-08-01'),('0000-00-00');
+Warnings:
+Warning	1264	Out of range value for column 'd' at row 2
 SELECT * FROM t1 LEFT JOIN t2 USING (d) WHERE t2.d IS NULL;
 d
 2001-08-01
@@ -169,6 +173,10 @@ SELECT * FROM t1 WHERE 1/0 IS NULL;
 d
 2001-08-01
 0000-00-00
+Warnings:
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 Document_ID varchar(50) NOT NULL default '',
