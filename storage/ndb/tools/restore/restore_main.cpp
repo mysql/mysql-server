@@ -91,6 +91,7 @@ static bool ga_restore = false;
 static bool ga_print = false;
 static bool ga_skip_table_check = false;
 static bool ga_exclude_missing_columns = false;
+static bool ga_exclude_missing_tables = false;
 static bool opt_exclude_intermediate_sql_tables = true;
 static int _print = 0;
 static int _print_meta = 0;
@@ -280,6 +281,11 @@ static struct my_option my_long_options[] =
     "Ignore columns present in backup but not in database",
     (uchar**) &ga_exclude_missing_columns,
     (uchar**) &ga_exclude_missing_columns, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "exclude-missing-tables", NDB_OPT_NOSHORT,
+    "Ignore tables present in backup but not in database",
+    (uchar**) &ga_exclude_missing_tables,
+    (uchar**) &ga_exclude_missing_tables, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "exclude-intermediate-sql-tables", NDB_OPT_NOSHORT,
     "Do not restore intermediate tables with #sql-prefixed names",
@@ -656,6 +662,14 @@ o verify nodegroup mapping
   {
     //    ga_restore = true;
     restore->m_restore_meta = true;
+    if(ga_exclude_missing_tables)
+    {
+      //conflict in options
+      err << "Conflicting arguments found : "
+          << "Cannot use `restore-meta` and "
+          << "`exclude-missing-tables` together. Exiting..." << endl;
+      return false;
+    }
   }
 
   if (_no_restore_disk)
@@ -1134,6 +1148,38 @@ checkDbAndTableName(const TableS* table)
 }
 
 static void
+exclude_missing_tables(const RestoreMetaData& metaData)
+{
+  Uint32 i, j;
+  bool isMissing;
+  Vector<BaseString> missingTables;
+  for(i = 0; i < metaData.getNoOfTables(); i++)
+  {
+    const TableS *table= metaData[i];
+    isMissing = false;
+    for(j = 0; j < g_consumers.size(); j++)
+      isMissing |= g_consumers[j]->isMissingTable(*table);
+    if( isMissing )
+    {
+      /* add missing tables to exclude list */
+      g_exclude_tables.push_back(table->getTableName());
+      BaseString tableName = makeExternalTableName(table->getTableName());
+      save_include_exclude(OPT_EXCLUDE_TABLES, (char*)tableName.c_str());
+      missingTables.push_back(tableName);
+    }
+  }
+
+  if(missingTables.size() > 0){
+    info << "Excluded Missing tables: ";
+    for (i=0 ; i < missingTables.size(); i++)
+    {
+      info << missingTables[i] << " ";
+    }
+    info << endl;
+  }
+}
+
+static void
 free_data_callback()
 {
   for(Uint32 i= 0; i < g_consumers.size(); i++) 
@@ -1233,6 +1279,8 @@ main(int argc, char** argv)
     g_options.appfmt(" -d");
   if (ga_exclude_missing_columns)
     g_options.append(" --exclude-missing-columns");
+  if (ga_exclude_missing_tables)
+    g_options.append(" --exclude-missing-tables");
   if (ga_disable_indexes)
     g_options.append(" --disable-indexes");
   if (ga_rebuild_indexes)
@@ -1331,6 +1379,9 @@ main(int argc, char** argv)
     }
 
   }
+
+  if(ga_exclude_missing_tables)
+    exclude_missing_tables(metaData);
 
   /* report to clusterlog if applicable */
   for (i = 0; i < g_consumers.size(); i++)

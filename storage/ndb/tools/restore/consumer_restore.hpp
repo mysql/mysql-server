@@ -137,6 +137,7 @@ public:
   bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts);
   Uint32 map_ng(Uint32 ng);
   bool translate_frm(NdbDictionary::Table *table);
+  bool isMissingTable(const TableS& table);
 
   static AttrConvType check_compat_sizes(const NDBCOL &old_col,
                                          const NDBCOL &new_col);
