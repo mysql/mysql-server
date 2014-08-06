@@ -269,19 +269,11 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     bool orig_modify= modify_item;
     if (orig_type == Item::REF_ITEM)
       modify_item= 0;
-    Item_func_isnull *ifi= new Item_func_isnull(field);
-    Item * pushed_cond= Item_copy::create(const_cast<Item *>(field->field->table->file->pushed_cond));
-    Item_cond_and *new_cond;
-    new_cond= static_cast<Item_cond_and*>(and_conds(ifi, pushed_cond));
-    if (new_cond->fix_fields(thd, NULL))
-      DBUG_ASSERT(false);
-    bool res= new_cond->val_int();
-    delete new_cond;
     /*
       If item have to be able to store NULLs but underlaid field can't do it,
       create_tmp_field_from_field() can't be used for tmp field creation.
     */
-    if (res && !field->field->maybe_null())
+    if (field->maybe_null && !field->field->maybe_null())
     {
       result= create_tmp_field_from_item(thd, item, table, NULL,
                                          modify_item);
