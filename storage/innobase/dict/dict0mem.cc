@@ -35,6 +35,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "fts0priv.h"
+#include "ut0crc32.h"
 #ifndef UNIV_HOTBACKUP
 # include "ha_prototypes.h"	/* innobase_casedn_str(),
 				innobase_get_lower_case_table_names */
@@ -52,6 +53,10 @@ Created 1/8/1996 Heikki Tuuri
 /* Key to register autoinc_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	autoinc_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
+
+/** An interger randomly initialized at startup used to make a temporary
+table name as unique as possible. */
+static ib_uint32_t	dict_temp_file_num;
 
 /**********************************************************************//**
 Creates a table memory object.
@@ -614,26 +619,62 @@ dict_mem_index_free(
 	mem_heap_free(index->heap);
 }
 
-/*******************************************************************//**
-Create a temporary tablename.
-@return temporary tablename suitable for InnoDB use */
+/** Create a temporary tablename like "#sql-ibtid-inc where
+  tid = the Table ID
+  inc = a randomly initialized number that is incremented for each file
+The table ID is a 64 bit integer, can use up to 20 digits, and is
+initialized at bootstrap. The second number is 32 bits, can use up to 10
+digits, and is initialized at startup to a randomly distributed number.
+It is hoped that the combination of these two numbers will provide a
+reasonably unique temporary file name.
+@param[in]	heap	A memory heap
+@param[in]	dbtab	Table name in the form database/table name
+@param[in]	id	Table id
+@return A unique temporary tablename suitable for InnoDB use */
 UNIV_INTERN
 char*
 dict_mem_create_temporary_tablename(
-/*================================*/
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	const char*	dbtab,	/*!< in: database/table name */
-	table_id_t	id)	/*!< in: InnoDB table id */
+	mem_heap_t*	heap,
+	const char*	dbtab,
+	table_id_t	id)
 {
-	const char*	dbend   = strchr(dbtab, '/');
+	size_t		size;
+	char*		name;
+	const char*	dbend = strchr(dbtab, '/');
 	ut_ad(dbend);
-	size_t		dblen   = dbend - dbtab + 1;
-	size_t		size = tmp_file_prefix_length + 4 + 9 + 9 + dblen;
+	size_t		dblen = dbend - dbtab + 1;
 
-	char*	name = static_cast<char*>(mem_heap_alloc(heap, size));
+#ifdef HAVE_ATOMIC_BUILTINS
+	/* Increment a randomly initialized number for each temp file. */
+	os_atomic_increment_uint32(&dict_temp_file_num, 1);
+#else /* HAVE_ATOMIC_BUILTINS */
+	dict_temp_file_num++;
+#endif /* HAVE_ATOMIC_BUILTINS */
+
+	size = tmp_file_prefix_length + 3 + 20 + 1 + 10 + dblen;
+	name = static_cast<char*>(mem_heap_alloc(heap, size));
 	memcpy(name, dbtab, dblen);
 	ut_snprintf(name + dblen, size - dblen,
-		    tmp_file_prefix "-ib" UINT64PF, id);
+		    TEMP_FILE_PREFIX_INNODB UINT64PF "-" UINT32PF,
+		    id, dict_temp_file_num);
+
 	return(name);
 }
 
+/** Initialize dict memory variables */
+
+void
+dict_mem_init(void)
+{
+	/* Initialize a randomly distributed temporary file number */
+	ib_uint32_t now = static_cast<ib_uint32_t>(ut_time());
+
+	const byte* buf = reinterpret_cast<const byte*>(&now);
+	ut_ad(ut_crc32 != NULL);
+
+	dict_temp_file_num = ut_crc32(buf, sizeof(now));
+
+	DBUG_PRINT("dict_mem_init",
+		   ("Starting Temporary file number is " UINT32PF,
+		   dict_temp_file_num));
+}

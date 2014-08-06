@@ -1,0 +1,72 @@
+# Not supported in embedded
+--source include/not_embedded.inc
+
+# This test case needs to crash the server. Needs a debug server.
+--source include/have_debug.inc
+
+# Don't test this under valgrind, memory leaks will occur.
+--source include/not_valgrind.inc
+
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+--echo #
+--echo # Bug #18734396	INNODB IN-PLACE ALTER FAILURES BLOCK FUTURE ALTERS
+--echo #
+--echo # Temporary tablename will be unique. This makes sure that future
+--echo # in-place ALTERs of the same table will not be blocked due to
+--echo # temporary tablename.
+
+let datadir= `select @@datadir`;
+
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name=$MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+
+--echo # Crash the server in ha_innobase::commit_inplace_alter_table()
+CREATE TABLE t1 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=innodb;
+SET debug='d,innodb_alter_commit_crash_before_commit';
+
+let $orig_table_id = `SELECT table_id
+	FROM information_schema.innodb_sys_tables
+	WHERE name = 'test/t1'`;
+
+--echo # Write file to make mysql-test-run.pl expect crash
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # Execute the statement that causes the crash
+--error 2013
+ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
+--echo # Startup the server after the crash
+--source include/start_mysqld.inc
+
+--echo # Read and remember the temporary table name
+let $temp_table_name = `SELECT SUBSTRING(name,6)
+	FROM information_schema.innodb_sys_tables
+	WHERE name LIKE "test/#sql-ib$orig_table_id%"`;
+# This second copy is an environment variable for the perl script below.
+let temp_table_name = $temp_table_name;
+show create table t1;
+--echo # Consecutive Alter table does not create same temporary file name
+ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
+--echo # Shutdown the server to allow manual recovery
+--source include/shutdown_mysqld.inc
+
+--echo # Manual recovery begin. The dictionary was not updated
+--echo # and the files were not renamed. The rebuilt table
+--echo # was left behind on purpose, to faciliate data recovery.
+
+perl;
+my @frm_file = glob "$ENV{'datadir'}/test/#sql-*.frm";
+my $target_frm = "$ENV{'datadir'}/test/$ENV{'temp_table_name'}.frm";
+rename($frm_file[0], $target_frm);
+EOF
+--echo # Manual recovery end
+--echo # Startup the server after manual recovery
+--source include/start_mysqld.inc
+
+--echo # Drop the orphaned rebuilt table.
+--disable_query_log
+eval DROP TABLE `#mysql50#$temp_table_name`;
+--enable_query_log
+show create table t1;
+drop table t1;
