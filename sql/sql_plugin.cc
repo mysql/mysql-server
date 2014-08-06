@@ -3912,23 +3912,6 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
       plugin_load_option= (enum_plugin_load_option) *(ulong*) opts[0].value;
   }
 
-  /*
-    If InnoDB engine is the default engine for intrinsic temp table,
-    it must be loaded.
-
-    Note: Here we can't set PLUGIN_FORCE or PLUGIN_FORCE_PLUS_PERMANENT.
-    Because MTR need a contructed system variable 'innodb', such a variable
-    will not be made if set plugin_load_option to both of those options.
-  */
-  if (!my_strcasecmp(&my_charset_latin1, tmp->name.str, "innodb"))
-  {
-    if (internal_tmp_disk_storage_engine == TMP_TABLE_INNODB)
-    {
-      plugin_load_option= PLUGIN_ON;
-      opts[0].def_value= opts[1].def_value= plugin_load_option;
-    }
-  }
-
   disable_plugin= (plugin_load_option == PLUGIN_OFF);
   tmp->load_option= plugin_load_option;
 

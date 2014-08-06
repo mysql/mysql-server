@@ -1138,7 +1138,7 @@ update t1 set name='U+9FA3 <CJK>' where ujis=0x8FEDE2;
 update t1 set name='U+9FA5 <CJK>' where ujis=0x8FEDE3;
 update t1 set name='User defined range #2' where ujis >= 0x8FF5A1 and ujis <= 0x8FFEFE;
 update t1 set name='UNASSIGNED' where name='';
-update t1 set ucs2=ujis, ujis2=ucs2;
+update ignore t1 set ucs2=ujis, ujis2=ucs2;
 Warnings:
 Warning	1366	Incorrect string value: '\xA2\xAF' for column 'ucs2' at row 237
 Warning	1366	Incorrect string value: '\xA2\xB0' for column 'ucs2' at row 238
@@ -19129,7 +19129,7 @@ insert into t1 (ucs2,name) values (0xFFE0,'U+FFE0 FULLWIDTH CENT SIGN');
 insert into t1 (ucs2,name) values (0xFFE1,'U+FFE1 FULLWIDTH POUND SIGN');
 insert into t1 (ucs2,name) values (0xFFE2,'U+FFE2 FULLWIDTH NOT SIGN');
 insert into t1 (ucs2,name) values (0xFFE4,'U+FFE4 FULLWIDTH BROKEN BAR');
-update t1 set ujis=ucs2;
+update ignore t1 set ujis=ucs2;
 Warnings:
 Warning	1366	Incorrect string value: '\x00\xA5' for column 'ujis' at row 1
 Warning	1366	Incorrect string value: '\x20\x14' for column 'ujis' at row 2

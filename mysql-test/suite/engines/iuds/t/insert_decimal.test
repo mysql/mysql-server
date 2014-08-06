@@ -1,7 +1,7 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2;
 --enable_warnings
-
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 ######## Running INSERT tests for DECIMAL ########
 
 # Create tables
@@ -966,4 +966,4 @@ DROP TABLE t5;
 --error ER_M_BIGGER_THAN_D
 CREATE TABLE t7(c1 DOUBLE(5,10));
 DROP TABLE t1,t2;
-
+SET sql_mode=default;

@@ -124,14 +124,14 @@ TRUNCATE t1;
 
 INSERT INTO t1 (i) VALUES (-1), (1800), (2156), (2147483647);
 --echo # should return 4 warnings
-UPDATE t1 SET y = i;
+UPDATE IGNORE t1 SET y = i;
 --sorted_result
 SELECT y, i FROM t1;
 TRUNCATE t1;
 
 --echo # should return 4 warnings
 INSERT INTO t1 (c) VALUES (''), (' '), ('2012qwer'), ('qwer');
-UPDATE t1 SET y = c;
+UPDATE IGNORE t1 SET y = c;
 --sorted_result
 SELECT y, CONCAT('"', c, '"') FROM t1;
 

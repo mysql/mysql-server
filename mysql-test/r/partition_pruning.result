@@ -837,6 +837,7 @@ Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 6)
 DROP TABLE t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # test of RANGE and index
 CREATE TABLE t1 (a DATE, KEY(a))
 PARTITION BY RANGE (TO_DAYS(a))
@@ -2075,6 +2076,7 @@ Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '0001-01-01' and '1001-01-01')
 DROP TABLE t1;
+SET sql_mode = default;
 # Test with DATETIME column NOT NULL
 CREATE TABLE t1 (
 a int(10) unsigned NOT NULL,
@@ -3188,6 +3190,10 @@ PARTITION p1 VALUES LESS THAN (733712) COMMENT = 'LESS THAN 2008-11-01',
 PARTITION pX VALUES LESS THAN MAXVALUE);
 SELECT a,b FROM t1 WHERE b >= '2008-12-01' AND b < '2009-12-00';
 a	b
+Warnings:
+Warning	1292	Incorrect datetime value: '2009-12-00' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '2009-12-00 00:00:00' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '2009-12-00' for column 'b' at row 1
 DROP TABLE t1;
 create table t1 ( a int not null) partition by hash(a) partitions 2;
 insert into t1 values (1),(2),(3);
