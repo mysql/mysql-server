@@ -24,7 +24,7 @@
 #include <list>
 #include <set>
 #include "inplace_vector.h"
-
+#include "prealloced_array.h"
 
 /**
    We have to hold result buffers in functions that return a GEOMETRY string,
@@ -34,8 +34,9 @@
 */
 class BG_result_buf_mgr
 {
+  typedef Prealloced_array<void *, 64> Prealloced_buffers;
 public:
-  BG_result_buf_mgr() :bg_result_buf(NULL)
+  BG_result_buf_mgr() :bg_result_buf(NULL), bg_results(PSI_INSTRUMENT_ME)
   {
   }
 
@@ -47,15 +48,15 @@ public:
 
   void add_buffer(void *buf)
   {
-    bg_results.insert(buf);
+    bg_results.insert_unique(buf);
   }
 
 
   /* Free intermediate result buffers accumulated during GIS calculation. */
   void free_intermediate_result_buffers()
   {
-    bg_results.erase(bg_result_buf);
-    for (std::set<void *>::iterator itr= bg_results.begin();
+    bg_results.erase_unique(bg_result_buf);
+    for (Prealloced_buffers::iterator itr= bg_results.begin();
          itr != bg_results.end(); ++itr)
       gis_wkb_raw_free(*itr);
     bg_results.clear();
@@ -73,7 +74,7 @@ public:
   void set_result_buffer(void *buf)
   {
     bg_result_buf= buf;
-    bg_results.erase(bg_result_buf);
+    bg_results.erase_unique(bg_result_buf);
   }
 
 private:
@@ -87,7 +88,7 @@ private:
     Result buffers for intermediate set operation results, which are freed
     before val_str returns.
   */
-  std::set<void *> bg_results;
+  Prealloced_buffers bg_results;
 };
 
 
