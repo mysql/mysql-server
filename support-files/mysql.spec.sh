@@ -142,9 +142,9 @@
   %else
     %if %(test -f /etc/oracle-release && echo 1 || echo 0)
       %define elver %(rpm -qf --qf '%%{version}\\n' /etc/oracle-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
-      %if "%elver" == "6"
-        %define distro_description      Oracle Linux 6
-        %define distro_releasetag       el6
+      %if "%elver" == "6" || "%elver" == "7"
+        %define distro_description      Oracle Linux %elver
+        %define distro_releasetag       el%elver
         %define distro_buildreq         gcc-c++ ncurses-devel perl readline-devel time zlib-devel cmake libaio-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
