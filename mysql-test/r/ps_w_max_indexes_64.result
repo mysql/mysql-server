@@ -1507,6 +1507,7 @@ c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
 c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
 c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
 commit ;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 prepare stmt1 from 'delete from t1 where a=2' ;
 execute stmt1;
 select a,b from t1 where a=2;
@@ -1928,6 +1929,8 @@ a	b
 execute stmt_select2 ;
 c1	c21
 set @arg00= @arg00 + 1 ;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 drop table if exists t5 ;
 set @arg01= 8;
 set @arg02= 8.0;
@@ -3338,6 +3341,7 @@ where c1= 20 and abs(c17 - ?) < 0.01" ;
 execute stmt1 using @arg00 ;
 found
 true
+SET sql_mode = default;
 DROP TABLE t1, t9 ;
 CREATE TABLE t1
 (
@@ -3434,6 +3438,7 @@ c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
 c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
 c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
 commit ;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 prepare stmt1 from 'delete from t1 where a=2' ;
 execute stmt1;
 select a,b from t1 where a=2;
@@ -3855,6 +3860,8 @@ a	b
 execute stmt_select2 ;
 c1	c21
 set @arg00= @arg00 + 1 ;
+SET sql_mode = default;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 drop table if exists t5 ;
 set @arg01= 8;
 set @arg02= 8.0;
@@ -5265,5 +5272,6 @@ where c1= 20 and abs(c17 - ?) < 0.01" ;
 execute stmt1 using @arg00 ;
 found
 true
+SET sql_mode = default;
 DROP TABLE t1, t1_1, t1_2, t9_1, t9_2, t9;
 "End of tests"

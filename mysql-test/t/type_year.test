@@ -26,7 +26,7 @@ drop table t1;
 # Bug #27176: Assigning a string to an year column has unexpected results
 #
 create table t1(a year);
-insert into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');
+insert ignore into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');
 select * from t1;
 drop table t1;
 
@@ -139,7 +139,7 @@ DROP TABLE t2, t4;
 --echo #
 
 CREATE TABLE t1 (y YEAR NOT NULL, s VARCHAR(4));
-INSERT INTO t1 (s) VALUES ('bad');
+INSERT IGNORE INTO t1 (s) VALUES ('bad');
 INSERT INTO t1 (y, s) VALUES (0, 0), (2000, 2000), (2001, 2001);
 
 SELECT * FROM t1 ta, t1 tb WHERE ta.y = tb.y;

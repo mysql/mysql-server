@@ -5,7 +5,7 @@
 #
 # system functions
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 select database();
 select charset(database());
 select database() = "test";
@@ -40,7 +40,7 @@ show create table t1;
 drop table t1;
 
 select TRUE,FALSE,NULL;
-
+SET sql_mode = default;
 #
 # Bug#12351: CONCAT with USER()/DATEBASE() and
 # a constant and a column gets strange results

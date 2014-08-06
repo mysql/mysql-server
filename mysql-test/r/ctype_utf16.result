@@ -100,8 +100,8 @@ RPAD(_utf16 X'0420',10,_utf16 X'0421') r;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `l` varchar(10) CHARACTER SET utf16 NOT NULL DEFAULT '',
-  `r` varchar(10) CHARACTER SET utf16 NOT NULL DEFAULT ''
+  `l` varchar(10) CHARACTER SET utf16 DEFAULT NULL,
+  `r` varchar(10) CHARACTER SET utf16 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select hex(l), hex(r) from t1;
 hex(l)	hex(r)
@@ -632,7 +632,7 @@ CREATE TABLE t1 AS SELECT REPEAT('a',1) AS a LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(1) CHARACTER SET utf16 COLLATE utf16_bin NOT NULL DEFAULT ''
+  `a` varchar(1) CHARACTER SET utf16 COLLATE utf16_bin DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (_utf8mb4 0xEFBE9D),(_utf8mb4 0xF0908E84);
 INSERT INTO t1 VALUES (_utf8mb4 0xCE85),(_utf8mb4 0xF4808080);
@@ -896,6 +896,7 @@ D800DCFF
 DBFFDC00
 DBFFDCFF
 drop table t1;
+SET sql_mode = '';
 create table t1 (s1 varchar(50) character set ucs2);
 insert into t1 values (0xdf84);
 alter table t1 modify column s1 varchar(50) character set utf16;
@@ -905,9 +906,10 @@ select hex(s1) from t1;
 hex(s1)
 003F
 drop table t1;
+SET sql_mode = default;
 create table t1 (s1 varchar(5) character set ucs2, s2 varchar(5) character set utf16);
 insert into t1 (s1) values (0xdf84);
-update t1 set s2 = s1;
+update ignore t1 set s2 = s1;
 Warnings:
 Warning	1366	Incorrect string value: '\xDF\x84' for column 's2' at row 1
 select hex(s2) from t1;
@@ -960,7 +962,7 @@ left('aaa','1')
 a
 create table t1 (a int);
 insert into t1 values ('-1234.1e2');
-insert into t1 values ('-1234.1e2xxxx');
+insert ignore into t1 values ('-1234.1e2xxxx');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 insert into t1 values ('-1234.1e2    ');
@@ -972,7 +974,7 @@ a
 drop table t1;
 create table t1 (a int);
 insert into t1 values ('1 ');
-insert into t1 values ('1 x');
+insert ignore into t1 values ('1 x');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 select * from t1;
@@ -980,6 +982,7 @@ a
 1
 1
 drop table t1;
+SET sql_mode = '';
 create table t1 (a varchar(17000) character set utf16);
 Warnings:
 Note	1246	Converting column 'a' from VARCHAR to TEXT
@@ -989,6 +992,7 @@ t1	CREATE TABLE `t1` (
   `a` mediumtext CHARACTER SET utf16
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
+SET sql_mode = default;
 create table t1 (a varchar(250) character set utf16 primary key) engine=MyISAM;
 show create table t1;
 Table	Create Table
@@ -1087,7 +1091,7 @@ CREATE TABLE t1 AS SELECT repeat('a',2) as s1 LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `s1` varchar(2) CHARACTER SET utf16 NOT NULL DEFAULT ''
+  `s1` varchar(2) CHARACTER SET utf16 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES ('ab'),('AE'),('ab'),('AE');
 SELECT * FROM t1 ORDER BY s1;

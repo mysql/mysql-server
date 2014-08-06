@@ -1,5 +1,6 @@
 drop table if exists t1,t2;
 SET SQL_WARNINGS=1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 STRING_DATA char(255) default NULL,
 KEY string_data (STRING_DATA)
@@ -2690,3 +2691,4 @@ SELECT count(*) FROM t1 WHERE col1= '5cm';
 count(*)
 0
 DROP TABLE t1;
+SET sql_mode = default;

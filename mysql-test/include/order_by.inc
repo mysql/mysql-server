@@ -5,7 +5,7 @@
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   id int(6) DEFAULT '0' NOT NULL,
   idservice int(5),
@@ -1821,3 +1821,4 @@ let $query=SELECT DISTINCT a FROM t1 WHERE b=1 ORDER BY 1;
 eval EXPLAIN $query;
 eval $query;
 DROP TABLE t1;
+SET sql_mode = default;

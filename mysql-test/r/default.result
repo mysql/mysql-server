@@ -1,5 +1,6 @@
 drop table if exists t1,t2,t3,t4,t5,t6;
 drop database if exists mysqltest;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a varchar(30) binary NOT NULL DEFAULT ' ',
 b varchar(1) binary NOT NULL DEFAULT ' ',
 c varchar(4) binary NOT NULL DEFAULT '0000',
@@ -219,4 +220,5 @@ a
 NULL
 10
 drop table t1, t2;
+SET sql_mode = default;
 End of 5.0 tests.

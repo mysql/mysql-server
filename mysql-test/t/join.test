@@ -65,7 +65,7 @@ drop table t1,t2;
 #
 # problem with join
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   id int(11) NOT NULL auto_increment,
   token varchar(100) DEFAULT '' NOT NULL,
@@ -78,7 +78,7 @@ CREATE TABLE t1 (
   KEY timestamp (timestamp),
   UNIQUE token_2 (token(75),count,phone)
 );
-
+SET sql_mode = default;
 INSERT INTO t1 VALUES (21,'e45703b64de71482360de8fec94c3ade',3,7800,'n','1999-12-23 17:22:21');
 INSERT INTO t1 VALUES (22,'e45703b64de71482360de8fec94c3ade',4,5000,'y','1999-12-23 17:22:21');
 INSERT INTO t1 VALUES (18,'346d1cb63c89285b2351f0ca4de40eda',3,13200,'b','1999-12-23 11:58:04');
