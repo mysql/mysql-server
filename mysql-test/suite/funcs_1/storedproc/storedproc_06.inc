@@ -228,7 +228,7 @@ flush privileges;
 
 connect (user5_1, localhost, user_1, , db_storedproc_1);
 --source suite/funcs_1/include/show_connection.inc
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 delimiter //;
 CREATE PROCEDURE sp5_s_i () sql security definer
 BEGIN
@@ -246,7 +246,7 @@ BEGIN
    insert into db_storedproc_1.t3165 values ('inserted', 'from sp5_ins', 1000);
 END//
 delimiter ;//
-
+SET sql_mode = default;
 disconnect user5_1;
 
 connect (user5_2, localhost, user_2, , db_storedproc_1);

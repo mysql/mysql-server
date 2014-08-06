@@ -99,8 +99,8 @@ RPAD(_utf32 X'0420',10,_utf32 X'0421') r;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `l` varchar(10) CHARACTER SET utf32 NOT NULL DEFAULT '',
-  `r` varchar(10) CHARACTER SET utf32 NOT NULL DEFAULT ''
+  `l` varchar(10) CHARACTER SET utf32 DEFAULT NULL,
+  `r` varchar(10) CHARACTER SET utf32 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select hex(l), hex(r) from t1;
 hex(l)	hex(r)
@@ -631,7 +631,7 @@ CREATE TABLE t1 AS SELECT REPEAT('a',1) AS a LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(1) CHARACTER SET utf32 COLLATE utf32_bin NOT NULL DEFAULT ''
+  `a` varchar(1) CHARACTER SET utf32 COLLATE utf32_bin DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (_utf8mb4 0xEFBE9D),(_utf8mb4 0xF0908E84);
 INSERT INTO t1 VALUES (_utf8mb4 0xCE85),(_utf8mb4 0xF4808080);
@@ -867,6 +867,7 @@ select hex(a) from t1;
 hex(a)
 0010FFFF
 drop table t1;
+SET sql_mode = '';
 create table t1 (utf32 varchar(2) character set utf32);
 Wrong character with pad
 insert into t1 values (0x110000);
@@ -897,6 +898,7 @@ insert into t1 values (0x00800037);
 Warnings:
 Warning	1366	Incorrect string value: '\x00\x80\x007' for column 'utf32' at row 1
 drop table t1;
+SET sql_mode = default;
 select _utf32'a' collate utf32_general_ci = 0xfffd;
 _utf32'a' collate utf32_general_ci = 0xfffd
 0
@@ -958,7 +960,7 @@ left('aaa','1')
 a
 create table t1 (a int);
 insert into t1 values ('-1234.1e2');
-insert into t1 values ('-1234.1e2xxxx');
+insert ignore into t1 values ('-1234.1e2xxxx');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 insert into t1 values ('-1234.1e2    ');
@@ -970,7 +972,7 @@ a
 drop table t1;
 create table t1 (a int);
 insert into t1 values ('1 ');
-insert into t1 values ('1 x');
+insert ignore into t1 values ('1 x');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 select * from t1;
@@ -978,6 +980,7 @@ a
 1
 1
 drop table t1;
+SET sql_mode = '';
 create table t1 (a varchar(17000) character set utf32);
 Warnings:
 Note	1246	Converting column 'a' from VARCHAR to TEXT
@@ -987,6 +990,7 @@ t1	CREATE TABLE `t1` (
   `a` mediumtext CHARACTER SET utf32
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
+SET sql_mode = default;
 create table t1 (a varchar(250) character set utf32 primary key) engine=MyISAM;
 show create table t1;
 Table	Create Table
@@ -1007,6 +1011,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (a varchar(334) character set utf32 primary key);
 ERROR 42000: Specified key was too long; max key length is 767 bytes
+SET sql_mode = '';
 create table t1 (a varchar(333) character set utf32, key(a));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
@@ -1016,6 +1021,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+SET sql_mode = default;
 SET collation_connection=utf32_general_ci;
 CREATE TABLE t1 AS SELECT repeat('a',20) AS s1 LIMIT 0;
 SET timestamp=1216359724;
@@ -1086,7 +1092,7 @@ hex(char(0x010203 using utf32))
 00010203
 select hex(char(0x01020304 using utf32));
 hex(char(0x01020304 using utf32))
-
+NULL
 Warnings:
 Warning	1300	Invalid utf32 character string: '010203'
 create table t1 (s1 varchar(1) character set utf32, s2 text character set utf32);
@@ -1101,7 +1107,7 @@ CREATE TABLE t1 AS SELECT repeat('a',2) as s1 LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `s1` varchar(2) CHARACTER SET utf32 NOT NULL DEFAULT ''
+  `s1` varchar(2) CHARACTER SET utf32 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES ('ab'),('AE'),('ab'),('AE');
 SELECT * FROM t1 ORDER BY s1;
@@ -1177,12 +1183,12 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (utf32 CHAR(5) CHARACTER SET utf32, latin1 CHAR(5) CHARACTER SET latin1);
 INSERT INTO t1 (utf32) VALUES (0xc581);
-UPDATE t1 SET latin1 = utf32;
+UPDATE IGNORE t1 SET latin1 = utf32;
 Warnings:
 Warning	1366	Incorrect string value: '\x00\x00\xC5\x81' for column 'latin1' at row 1
 DELETE FROM t1;
 INSERT INTO t1 (utf32) VALUES (0x100cc);
-UPDATE t1 SET latin1 = utf32;
+UPDATE IGNORE t1 SET latin1 = utf32;
 Warnings:
 Warning	1366	Incorrect string value: '\x00\x01\x00\xCC' for column 'latin1' at row 1
 DROP TABLE t1;
@@ -1194,7 +1200,7 @@ CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `format(123,2,'no_NO')` varchar(37) CHARACTER SET utf32 NOT NULL DEFAULT ''
+  `format(123,2,'no_NO')` varchar(37) CHARACTER SET utf32 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t1;
 format(123,2,'no_NO')

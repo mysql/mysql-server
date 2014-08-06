@@ -805,6 +805,7 @@ CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
 INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 drop table t1, t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1101	BLOB/TEXT column 'geometry' can't have a default value
@@ -901,6 +902,7 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+SET sql_mode = default;
 CREATE TABLE t1 (foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
 INSERT INTO t1 (foo) VALUES (POINT(1,1));
 INSERT INTO t1 (foo) VALUES (POINT(1,0));
@@ -1497,8 +1499,10 @@ drop table t1;
 CREATE TABLE t1(foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
 INSERT INTO t1(foo) VALUES (NULL);
 ERROR 23000: Column 'foo' cannot be null
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t1() VALUES ();
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SET sql_mode = default;
 INSERT INTO t1(foo) VALUES ('');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 DROP TABLE t1;

@@ -1593,7 +1593,8 @@ CREATE TABLE t1 (
   KEY time_key (time_key),
   KEY datetime_key (datetime_key),
   KEY varchar_key (varchar_key)
-);
+) ENGINE=MyISaM;
+
 INSERT INTO t1 VALUES 
 (1,0, '00:16:10','2008-09-03 14:25:40','2008-09-03 14:25:40','h','h'),
 (2,7, '00:00:00','2001-01-13 00:00:00','2001-01-13 00:00:00','',''),
@@ -1629,7 +1630,7 @@ CREATE TABLE t2 (
   KEY datetime_key (datetime_key),
   KEY varchar_key (varchar_key)
 );
-INSERT INTO t2 VALUES 
+INSERT IGNORE INTO t2 VALUES 
 (10,0,'19:39:13','0000-00-00 00:00:00','0000-00-00 00:00:00','g','g'),
 (11,8,'03:43:53','0000-00-00 00:00:00','0000-00-00 00:00:00','b','b');
 SELECT OUTR.datetime_nokey AS X FROM t1 AS OUTR 
@@ -1822,8 +1823,8 @@ INSERT INTO t1 VALUES (10,7,5,'2009-06-16','2002-04-10 14:25:30','w'),
 		      (15,6,5,'2001-11-12','0000-00-00 00:00:00',''), 
 		      (16,2,9,'0000-00-00','0000-00-00 00:00:00','j'), 
 		      (29,9,1,'0000-00-00','2003-08-11 00:00:00','m');
-INSERT INTO t3 VALUES (1,9,'0000-00-00','b','b'),
-                      (2,2,'2002-09-17','h','h');
+INSERT IGNORE INTO t3 VALUES (1,9,'0000-00-00','b','b'),
+                             (2,2,'2002-09-17','h','h');
 
 SELECT t1.varchar_nokey FROM t1 JOIN t3 ON t1.datetime_nokey
 WHERE t1.varchar_nokey 
@@ -1851,7 +1852,7 @@ CREATE TABLE t1 (
   KEY datetime_key (datetime_key),
   KEY varchar_key (varchar_key)
 );
-INSERT INTO t1 VALUES
+INSERT IGNORE INTO t1 VALUES
 (1,9,'0000-00-00 00:00:00','p'),(2,0,'2002-02-09 07:38:13','v'),
 (3,8,'2001-05-03 12:08:14','t'),(4,3,'0000-00-00 00:00:00','u'),
 (5,7,'2009-07-28 03:43:30','n'),(6,0,'2009-08-04 00:00:00','l'),

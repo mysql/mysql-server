@@ -1073,6 +1073,7 @@ a
 a
 150
 drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 ( ID1 int(10) unsigned NOT NULL DEFAULT '0' , ID2 datetime NOT NULL DEFAULT '0000-00-00 00:00:00' , DATA1 varchar(10) , DATA2 double(5,4) , DATA3 datetime , PRIMARY KEY (ID1,ID2));
 CREATE TABLE t2 ( ID int(3) unsigned NOT NULL DEFAULT '0' , DATA1 timestamp DEFAULT '0000-00-00 00:00:00' , PRIMARY KEY (ID));
 (SELECT * FROM t1 AS PARTITIONED, t2 AS
@@ -1101,6 +1102,7 @@ PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
 PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1);
 ID1	ID2	DATA1	DATA2	DATA3	ID	DATA1
 drop table t1,t2;
+SET sql_mode = default;
 create table t1 (a ENUM('Yes', 'No') NOT NULL);
 create table t2 (a ENUM('aaa', 'bbb') NOT NULL);
 insert into t1 values ('No');
@@ -1158,7 +1160,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `_latin1'test' collate latin1_bin` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL DEFAULT ''
+  `_latin1'test' collate latin1_bin` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
@@ -1171,7 +1173,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL DEFAULT ''
+  `test` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
@@ -1184,7 +1186,7 @@ create table t1 as
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL DEFAULT ''
+  `test` varchar(4) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select count(*) from t1;
 count(*)
@@ -1468,6 +1470,7 @@ id
 5
 99
 drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
 create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
 show create table t2;
@@ -1483,6 +1486,7 @@ t2	CREATE TABLE `t2` (
   `f8` mediumtext CHARACTER SET utf8
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
+SET sql_mode = default;
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
 (select avg(1)) union (select avg(1)) union (select avg(1)) union

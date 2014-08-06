@@ -33,7 +33,7 @@ while ($iteration < 6)
 
 insert into t1 select col1_idx, col2_idx, col3, col4, 'america', 'america' from t1;
 insert into t1 select col1_idx, col2_idx, col3, col4, 'england america', 'england america' from t1;
-insert into t1 select col1_idx, col2_idx, col3, col4, 'germany england america', 'germany england america' from t1;
+insert ignore into t1 select col1_idx, col2_idx, col3, col4, 'germany england america', 'germany england america' from t1;
 
 insert into t1 select col1_idx, col2_idx, col3, col4, 'norway sweden', 'norway sweden' from t1 limit 5;
 

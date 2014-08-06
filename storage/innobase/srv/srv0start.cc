@@ -283,7 +283,8 @@ DECLARE_THREAD(io_handler_thread)(
 #endif /* UNIV_PFS_THREAD */
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS
-	       || buf_page_cleaner_is_active) {
+	       || buf_page_cleaner_is_active
+	       || !os_aio_all_slots_free()) {
 		fil_aio_wait(segment);
 	}
 
@@ -1114,7 +1115,8 @@ srv_shutdown_all_bg_threads()
 				}
 			}
 			os_event_set(buf_flush_event);
-			if (!buf_page_cleaner_is_active) {
+			if (!buf_page_cleaner_is_active
+			    && os_aio_all_slots_free()) {
 				os_aio_wake_all_threads_at_shutdown();
 			}
 		}
