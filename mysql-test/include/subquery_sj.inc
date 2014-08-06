@@ -6526,6 +6526,43 @@ p2, t1 p3 WHERE p0.id=p2.id6 AND p2.id7=p3.id));
 DROP TABLE t1,t2;
 
 set @@optimizer_switch=@old_opt_switch;
-# New tests go here.
 
 --echo # End of 5.6 tests
+
+--echo #
+--echo # Bug#19336348 DEBUG CRASH AT SETUP_SEMIJOIN_DUPS_ELIMINATION IN SQL/SQL_SELECT.CC
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_nokey varchar(1)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('c'),(NULL),('x');
+
+CREATE TABLE t2 (
+  pk int,
+  col_varchar_key varchar(1),
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (10,'l'),(11,'p');
+
+ANALYZE TABLE t1,t2;
+
+let $query=
+SELECT 1
+FROM t1 AS outr
+WHERE outr.col_varchar_nokey IN
+  (
+    SELECT innr.col_varchar_key
+    FROM t2 AS innr
+    WHERE innr.pk <= 7
+  )
+;
+
+eval EXPLAIN $query;
+eval $query;
+DROP TABLE t1,t2;
+
+# New tests go here.
