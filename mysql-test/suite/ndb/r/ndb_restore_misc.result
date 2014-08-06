@@ -654,3 +654,62 @@ Backup failed
 *  3001: Could not start backup
 *        Backup failed: file already exists (use 'START BACKUP <backup id>'): Temporary error: Temporary Resource error
 # Trying to start another backup as nowait with same id should not return error
+create database db1;
+use db1;
+CREATE TABLE t1 (a INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (b INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t3 (c INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (4),(5),(6);
+INSERT INTO t3 VALUES (7),(8),(9);
+truncate t1;
+truncate t2;
+drop table t3;
+#without 'exclude-missing-tables' should fail
+#calling 'exclude-missing-tables' with 'restore-meta' should fail
+#with 'exclude-missing-tables'
+select count(*) from t1;
+count(*)
+3
+select count(*) from t2;
+count(*)
+3
+#with exclusive include, exclude tables arguments
+#exclude non missing table
+truncate t1;
+truncate t2;
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+3
+#exclude missing table
+truncate t1;
+truncate t2;
+select count(*) from t1;
+count(*)
+3
+select count(*) from t2;
+count(*)
+3
+#include non missing table
+truncate t1;
+truncate t2;
+select count(*) from t1;
+count(*)
+3
+select count(*) from t2;
+count(*)
+0
+#include missing table
+truncate t1;
+truncate t2;
+select count(*) from t1;
+count(*)
+3
+select count(*) from t2;
+count(*)
+0
+#clearup
+drop database db1;
