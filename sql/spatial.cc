@@ -692,16 +692,18 @@ bool Geometry::create_point(String *result, point_xy p) const
 
 void Geometry::append_points(String *txt, uint32 n_points,
                              wkb_parser *wkb, uint32 offset) const
-{			
+{
+  DBUG_ASSERT(0.0 == 0 && 0 == -0 && -0.0 == 0.0);
+
   while (n_points--)
   {
     point_xy p;
     wkb->skip_unsafe(offset);
     wkb->scan_xy_unsafe(&p);
     if (p.x == -0)
-      p.x= 0;
+      p.x= 0.0;
     if (p.y == -0)
-      p.y= 0;
+      p.y= 0.0;
     txt->qs_append(p.x);
     txt->qs_append(' ');
     txt->qs_append(p.y);
