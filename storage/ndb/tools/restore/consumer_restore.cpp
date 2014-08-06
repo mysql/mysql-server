@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2723,6 +2723,28 @@ int BackupRestore::restoreAutoIncrement(restore_callback_t *cb,
     }
   }
   return result;
+}
+
+bool BackupRestore::isMissingTable(const TableS& table)
+{
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+  const char* tablename = table.getTableName();
+  BaseString db_name, schema_name, table_name;
+  Vector<BaseString> split;
+  BaseString tmp(tablename);
+  if (tmp.split(split, "/") != 3) {
+    return false;
+  }
+  db_name = split[0];
+  schema_name = split[1];
+  table_name = split[2];
+  m_ndb->setDatabaseName(db_name.c_str());
+  m_ndb->setSchemaName(schema_name.c_str());
+
+  const NdbDictionary::Table* tab = dict->getTable(table_name.c_str());
+
+  /* 723 == NoSuchTableExisted */
+  return ((tab == NULL) && (dict->getNdbError().code == 723));
 }
 
 void BackupRestore::cback(int result, restore_callback_t *cb)
