@@ -1127,6 +1127,8 @@ SELECT_LEX::simplify_joins(THD *thd,
       {
         *changelog|= OUTER_JOIN_TO_INNER;
         table->outer_join= 0;
+        if (table->table)
+        table->table->maybe_null= false;
       }
       if (table->join_cond())
       {
