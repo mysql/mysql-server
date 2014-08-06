@@ -293,7 +293,7 @@ DbUtil::get_systab_tableid(Signal* signal)
 
   LinearSectionPtr ptr[1];
   ptr[0].p = buf;
-  ptr[0].sz = sizeof(NAME);
+  ptr[0].sz = sizeof(buf) / sizeof(Uint32);
   sendSignal(DBDICT_REF, GSN_GET_TABINFOREQ, signal,
              GetTabInfoReq::SignalLength, JBB, ptr,1);
 }
