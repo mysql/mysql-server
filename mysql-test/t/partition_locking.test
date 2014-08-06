@@ -236,7 +236,7 @@ eval $get_handler_status_counts;
 --echo # specifier
 --echo #
 FLUSH STATUS;
-INSERT INTO t3 VALUES (-1, "ZZZzzzz", "yyyYYY", -1, DEFAULT);
+INSERT IGNORE INTO t3 VALUES (-1, "ZZZzzzz", "yyyYYY", -1, DEFAULT);
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 subpartition lock/unlock)
 
@@ -431,6 +431,7 @@ DROP TABLE t3;
 SELECT UNIX_TIMESTAMP('2011-01-01 00:00:00') as time_t,
        UNIX_TIMESTAMP('2011-01-01 00:00:00') % 3 as part,
        1234567890 % 3 as part2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t3
 (a timestamp DEFAULT 0,
  b char(10),
@@ -532,7 +533,7 @@ PARTITION BY KEY (a) PARTITIONS 3;
 SHOW CREATE TABLE t3;
 --source include/partition_default_functions.inc
 DROP TABLE t3;
-
+SET sql_mode = default;
 --echo #
 --echo # Test INSERT SELECT
 --echo #

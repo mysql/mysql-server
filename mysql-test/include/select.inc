@@ -2358,7 +2358,7 @@ DROP TABLE t1;
 #
 
 create table t1(a bigint unsigned, b bigint);
-insert into t1 values (0xfffffffffffffffff, 0xfffffffffffffffff), 
+insert ignore into t1 values (0xfffffffffffffffff, 0xfffffffffffffffff), 
   (0x10000000000000000, 0x10000000000000000), 
   (0x8fffffffffffffff, 0x8fffffffffffffff);
 select hex(a), hex(b) from t1;
@@ -3794,7 +3794,7 @@ DROP TABLE t1;
 --echo # Bug #48458: simple query tries to allocate enormous amount of
 --echo #   memory
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(a INT NOT NULL, b YEAR);
 INSERT INTO t1 VALUES ();
 CREATE TABLE t2(c INT);
@@ -3802,7 +3802,7 @@ CREATE TABLE t2(c INT);
 SELECT 1 FROM t2 JOIN t1 ON 1=1
   WHERE a != '1' AND NOT a >= b OR NOT ROW(b,a )<> ROW(a,a);
 DROP TABLE t1,t2;
-
+SET sql_mode = default;
 
 --echo #
 --echo # Bug #49199: Optimizer handles incorrectly: 
@@ -3860,7 +3860,7 @@ DROP TABLE t1;
 --echo #
 SET @old_sort_buffer_size= @@session.sort_buffer_size;
 SET @@sort_buffer_size= 40000;
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(a CHAR(0) NOT NULL);
 --disable_warnings
 INSERT INTO t1 VALUES (0), (0), (0);
@@ -3892,7 +3892,7 @@ SELECT * FROM t1 ORDER BY c, a LIMIT 5;
 
 SET @@sort_buffer_size= @old_sort_buffer_size;
 DROP TABLE t1;
-
+SET sql_mode = default;
 
 --echo End of 5.0 tests
 
@@ -3922,7 +3922,7 @@ CREATE TABLE C (
   varchar_key varchar(1)
 );
 
-INSERT INTO C VALUES 
+INSERT IGNORE INTO C VALUES 
 (1,1,1,'0000-00-00',NULL,NULL),
 (1,1,1,'0000-00-00',NULL,NULL);
 
@@ -3992,7 +3992,7 @@ CREATE TABLE `B` (
   KEY `varchar_key` (`varchar_key`)
 );
 
-INSERT INTO `B` VALUES ('2003-07-28','2003-07-28','15:13:38','0000-00-00 00:00:00','f'),('0000-00-00','0000-00-00','00:05:48','2004-07-02 14:34:13','x');
+INSERT IGNORE INTO `B` VALUES ('2003-07-28','2003-07-28','15:13:38','0000-00-00 00:00:00','f'),('0000-00-00','0000-00-00','00:05:48','2004-07-02 14:34:13','x');
 
 CREATE TABLE `BB` (
   `pk` int(11) NOT NULL AUTO_INCREMENT,
@@ -4004,7 +4004,7 @@ CREATE TABLE `BB` (
   KEY `date_key` (`date_key`)
 );
 
-INSERT INTO `BB` VALUES (10,8,'0000-00-00','i','0000-00-00'),(11,0,'2005-08-18','','2005-08-18');
+INSERT IGNORE INTO `BB` VALUES (10,8,'0000-00-00','i','0000-00-00'),(11,0,'2005-08-18','','2005-08-18');
 # Test #1
 SELECT table1 . `pk` AS field1 
   FROM 

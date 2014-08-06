@@ -131,7 +131,7 @@ connection master1;
 drop table t1;
 create table t1 (n int);
 insert into t1 values(3456);
-insert into mysql.user (Host, User, Password)
+insert ignore into mysql.user (Host, User, Password)
  VALUES ("10.10.10.%", "blafasel2", password("blafasel2"));
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 update mysql.user set Select_priv = "Y" where User= _binary"blafasel2";

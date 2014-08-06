@@ -1235,6 +1235,7 @@ i int comment
  123456789*123456789*123456789*123456789*
  123456789*123456789*123456789*123456789*');
 set @@sql_mode= @org_mode;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1
 (i int comment
  '123456789*123456789*123456789*123456789*
@@ -1264,7 +1265,7 @@ create table t1
   123456789*123456789*123456789*123456789*
   123456789*123456789*123456789*123456789*
   123456789*123456789*123456789*123456789*');
-
+SET sql_mode = default;
 select column_name, column_comment from information_schema.columns where
 table_schema = 'test' and table_name = 't1';
 drop table t1;

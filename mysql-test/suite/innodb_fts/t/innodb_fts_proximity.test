@@ -152,7 +152,7 @@ SELECT * FROM t1
 
 INSERT INTO t1 (a,b) VALUES   ('XYZ, long blob', repeat("a", 9000));
 
-INSERT INTO t1 (a,b) VALUES   (repeat("b", 9000), 'XYZ, long blob');
+INSERT IGNORE INTO t1 (a,b) VALUES   (repeat("b", 9000), 'XYZ, long blob');
 
 # 2 rows match
 SELECT count(*) FROM t1
