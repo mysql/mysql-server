@@ -825,7 +825,7 @@ drop table t1;
 # Bug#13134 "Length of VARCHAR() utf8 column is increasing when table is
 # recreated with PS/SP"
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
 execute stmt;
 --disable_warnings ONCE
@@ -839,7 +839,7 @@ insert into t1 (a) values (repeat('a', 20));
 select length(a) from t1;
 drop table t1;
 deallocate prepare stmt;
-
+SET sql_mode = default;
 #
 # Bug#16248 "WHERE (col1,col2) IN ((?,?)) gives wrong results":
 # check that ROW implementation is reexecution-friendly.
@@ -3012,7 +3012,7 @@ deallocate prepare decode;
 --echo # Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
 --echo #
 CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
-INSERT INTO t1 VALUES (0, 0),(0, 0);
+INSERT IGNORE INTO t1 VALUES (0, 0),(0, 0);
 PREPARE stmt FROM "SELECT 1 FROM t1 WHERE
 ROW(a, b) >= ROW('1', (SELECT 1 FROM t1 WHERE a > 1234))";
 --disable_warnings

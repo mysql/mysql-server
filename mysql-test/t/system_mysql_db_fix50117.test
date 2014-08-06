@@ -27,7 +27,7 @@ if (!$MYSQL_FIX_PRIVILEGE_TABLES)
 -- disable_query_log
 
 use test;
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # create system tables as in mysql-5.1.17
 
 
@@ -105,5 +105,5 @@ DROP TABLE db, user, func, plugin, tables_priv, columns_priv, procs_priv, server
 
 # check that we dropped all system tables
 show tables;
-
+SET sql_mode = default;
 # End of 4.1 tests

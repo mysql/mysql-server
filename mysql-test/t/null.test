@@ -64,6 +64,7 @@ drop table t1;
 #
 # Test inserting and updating with NULL
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a varchar(16) NOT NULL default '', b smallint(6) NOT NULL default 0, c datetime NOT NULL default '0000-00-00 00:00:00', d smallint(6) NOT NULL default 0);
 INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
 UPDATE t1 SET d=1/NULL;
@@ -90,7 +91,7 @@ INSERT INTO t1 (d) values (1/null);
 INSERT INTO t1 (d) values (null),(null);
 select * from t1;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Test to check elimination of IS NULL predicate for a non-nullable attribute
 # (bug #1990)  
@@ -122,7 +123,9 @@ insert into t1 select i*2 from t1;
 insert into t1 values(null);
 explain select * from t1 where i=2 or i is null;
 select count(*) from t1 where i=2 or i is null;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 alter table t1 change i i int not null;
+SET sql_mode = default;
 explain select * from t1 where i=2 or i is null;
 select count(*) from t1 where i=2 or i is null;
 drop table t1;

@@ -283,7 +283,9 @@ DECLARE_THREAD(io_handler_thread)(
 	}
 #endif /* UNIV_PFS_THREAD */
 
-	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS
+	       || buf_page_cleaner_is_active
+	       || !os_aio_all_slots_free()) {
 		fil_aio_wait(segment);
 	}
 
@@ -1114,7 +1116,8 @@ srv_shutdown_all_bg_threads()
 				}
 			}
 			os_event_set(buf_flush_event);
-			if (!buf_page_cleaner_is_active) {
+			if (!buf_page_cleaner_is_active
+			    && os_aio_all_slots_free()) {
 				os_aio_wake_all_threads_at_shutdown();
 			}
 		}
@@ -1137,6 +1140,10 @@ srv_shutdown_all_bg_threads()
 			"%lu threads created by InnoDB"
 			" had not exited at shutdown!",
 			(ulong) os_thread_count);
+#ifdef UNIV_DEBUG
+		os_aio_print_pending_io(stderr);
+		ut_ad(0);
+#endif /* UNIV_DEBUG */
 	} else {
 		/* Reset the start state. */
 		srv_start_state = SRV_START_STATE_NONE;

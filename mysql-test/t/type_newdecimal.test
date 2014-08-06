@@ -5,6 +5,7 @@
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # constant IN function test
 #
@@ -1667,3 +1668,5 @@ INSERT INTO t1 VALUES (1), (NULL);
 
 SELECT a FROM t1 GROUP BY 1 IN(1) INTO @b;
 DROP TABLE t1;
+
+SET sql_mode = default;

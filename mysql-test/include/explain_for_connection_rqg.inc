@@ -73,7 +73,7 @@ CREATE TABLE f1 (
   KEY col_varchar_1024_latin1_key (col_varchar_1024_latin1_key(1000))
   ) ENGINE=MyISAM AUTO_INCREMENT=8 DEFAULT CHARSET=latin1;
 
-insert into f1 values
+insert ignore into f1 values
 (1,"I'll"),
 (2,'v'),
 (3,'time'),

@@ -81,13 +81,16 @@ public:
 	}
 
 	/** Caches an index row into index tuple vector
-	@param[in]	row	table row */
+	@param[in]	row	table row
+	@param[in]	ext	externally stored column
+	prefixes, or NULL */
 	void add(
-		const dtuple_t*		row) UNIV_NOTHROW
+		const dtuple_t*		row,
+		const row_ext_t*	ext) UNIV_NOTHROW
 	{
 		dtuple_t*	dtuple;
 
-		dtuple = row_build_index_entry(row, NULL, m_index, m_heap);
+		dtuple = row_build_index_entry(row, ext, m_index, m_heap);
 
 		ut_ad(dtuple);
 
@@ -1845,7 +1848,7 @@ write_buffers:
 				ut_ad(spatial_dtuple_info[s_idx_cnt]->get_index()
 				      == buf->index);
 
-				spatial_dtuple_info[s_idx_cnt]->add(row);
+				spatial_dtuple_info[s_idx_cnt]->add(row, ext);
 
 				s_idx_cnt++;
 

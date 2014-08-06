@@ -270,7 +270,7 @@ drop table t1;
 #
 # Bug#14186 select datefield is null not updated
 #
-create table t1 (f1 date not null);
+create table t1 (f1 date not null) engine=myisam;
 insert into t1 values('2000-01-01'),('0000-00-00');
 update t1 set f1='2002-02-02' where f1 is null;
 select * from t1;
@@ -324,7 +324,7 @@ drop table t1;
 #
 # Bug #24035: performance degradation with condition int_field=big_decimal
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   request_id int unsigned NOT NULL auto_increment,
   user_id varchar(12) default NULL,
@@ -355,7 +355,7 @@ UPDATE t1 SET user_id=null WHERE request_id=999999999999999999999999999999;
 show status like '%Handler_read%';
 
 DROP TABLE t1;
-
+SET sql_mode = default;
 #
 # Bug #24010: INSERT INTO ... SELECT fails on unique constraint with data it 
 # doesn't select
@@ -492,7 +492,7 @@ DROP VIEW v1;
 --echo #
 --echo # Bug#54734 assert in Diagnostics_area::set_ok_status
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 DROP TABLE IF EXISTS t1, not_exists;
 DROP FUNCTION IF EXISTS f1;
@@ -508,7 +508,7 @@ UPDATE v1 SET pk = 7 WHERE pk > 0;
 DROP VIEW v1;
 DROP FUNCTION f1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo #
 --echo # Verify that UPDATE does the same number of handler_update
 --echo # operations, no matter if there is ORDER BY or not.

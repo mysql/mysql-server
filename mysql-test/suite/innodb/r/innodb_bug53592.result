@@ -4,9 +4,11 @@ alter table bug53592 add column b text charset utf8;
 alter table bug53592 add column c blob not null;
 create index bug53592_b on bug53592(b(81));
 create unique index bug53592_c on bug53592(c(1));
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 replace into bug53592 values (),();
 Warnings:
 Warning	1364	Field 'c' doesn't have a default value
+SET sql_mode = default;
 check table bug53592;
 Table	Op	Msg_type	Msg_text
 test.bug53592	check	status	OK
@@ -17,9 +19,11 @@ alter table bug53592 add column b text charset utf8;
 alter table bug53592 add column c blob not null;
 create index bug53592_b on bug53592(b(81));
 create unique index bug53592_c on bug53592(c(1));
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 replace into bug53592 values (),();
 Warnings:
 Warning	1364	Field 'c' doesn't have a default value
+SET sql_mode = default;
 check table bug53592;
 Table	Op	Msg_type	Msg_text
 test.bug53592	check	status	OK

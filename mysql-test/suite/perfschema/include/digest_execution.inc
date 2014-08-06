@@ -96,7 +96,7 @@ CREATE TABLE dup_table (c char(4));
 --ERROR ER_TABLE_EXISTS_ERROR
 CREATE TABLE dup_table (c char(4));
 DROP TABLE dup_table;
-INSERT INTO t11 VALUES("MySQL");
+INSERT IGNORE INTO t11 VALUES("MySQL");
 
 # -----------------------------------------------------------------------
 # Tests to show sub-statements for following statements are not
