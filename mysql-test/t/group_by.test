@@ -9,6 +9,8 @@
 drop table if exists t1,t2,t3;
 --enable_warnings
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 #
 # Simple test without tables
 
@@ -2237,3 +2239,4 @@ GROUP BY table1 . pk;
 
 DROP TABLE AA,B;
 DROP VIEW view_AA;
+SET sql_mode = default;
