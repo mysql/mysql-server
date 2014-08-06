@@ -245,9 +245,13 @@ DataBuffer2<sz, Pool>::import(const DataBufferIterator & it,
 
   if (left)
   {
-    memcpy(p->data+ind, src, 4 * left);
     if (len <= left)
+    {
+      memcpy(p->data+ind, src, 4 * len);
       return true;
+    }
+
+    memcpy(p->data+ind, src, 4 * left);
 
     src += left;
     len -= left;
