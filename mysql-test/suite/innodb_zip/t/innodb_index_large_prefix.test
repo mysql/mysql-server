@@ -146,8 +146,10 @@ set global innodb_large_prefix=0;
 create index idx1 on worklog5743_1(a2(4000));
 show warnings;
 set global innodb_large_prefix=1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 -- error ER_TOO_BIG_ROWSIZE
 create index idx2 on worklog5743_1(a2(4000));
+SET sql_mode = default;
 show warnings;
 -- error ER_TOO_BIG_ROWSIZE
 create index idx3 on worklog5743_1(a2(436));

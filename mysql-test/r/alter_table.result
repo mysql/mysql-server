@@ -1,5 +1,6 @@
 drop table if exists t1,t2;
 drop database if exists mysqltest;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (
 col1 int not null auto_increment primary key,
 col2 varchar(30) not null,
@@ -2548,3 +2549,4 @@ disconnect con1;
 disconnect con2;
 connection default;
 DROP TABLE t1;
+SET sql_mode = default;

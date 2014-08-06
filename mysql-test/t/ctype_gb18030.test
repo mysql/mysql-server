@@ -96,7 +96,7 @@ SET collation_connection=gb18030_bin;
 --echo # Bugs#12635232: VALGRIND WARNINGS: IS_IPV6, IS_IPV4, INET6_ATON,
 --echo # INETTO_NTOA + MULTIBYTE CHARSET.
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --source include/ctype_inet.inc
 
 --echo #
@@ -257,7 +257,7 @@ SELECT HEX(c), COUNT(c) FROM t1 GROUP BY c COLLATE gb18030_chinese_ci;
 DROP TABLE t1;
 
 DROP DATABASE gb18030;
-
+SET sql_mode = default;
 --echo #
 --echo # End of 5.7 tests
 --echo #
