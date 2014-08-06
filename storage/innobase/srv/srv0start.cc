@@ -1137,6 +1137,10 @@ srv_shutdown_all_bg_threads()
 			"%lu threads created by InnoDB"
 			" had not exited at shutdown!",
 			(ulong) os_thread_count);
+#ifdef UNIV_DEBUG
+		os_aio_print_pending_io(stderr);
+		ut_ad(0);
+#endif /* UNIV_DEBUG */
 	} else {
 		/* Reset the start state. */
 		srv_start_state = SRV_START_STATE_NONE;
