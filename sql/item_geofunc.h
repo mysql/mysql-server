@@ -27,18 +27,16 @@
 
 
 /**
-  We have to hold result buffers in functions that return a GEOMETRY string,
-  because such a function's result
-  geometry's buffer is directly used and set to String result object,
-  so we have to release them properly manually since they won't be released
-  at String object destruction
+   We have to hold result buffers in functions that return a GEOMETRY string,
+   because such a function's result geometry's buffer is directly used and
+   set to String result object. We have to release them properly manually
+   since they won't be released when the String result is destroyed.
 */
 class BG_result_buf_mgr
 {
 public:
-  BG_result_buf_mgr()
+  BG_result_buf_mgr() :bg_result_buf(NULL)
   {
-    bg_result_buf= NULL;
   }
 
   ~BG_result_buf_mgr()
@@ -53,6 +51,7 @@ public:
   }
 
 
+  /* Free intermediate result buffers accumulated during GIS calculation. */
   void free_intermediate_result_buffers()
   {
     bg_results.erase(bg_result_buf);
@@ -63,13 +62,11 @@ public:
   }
 
 
+  // Free the final result buffer, should be called after the result used.
   void free_result_buffer()
   {
-    if (bg_result_buf)
-    {
-      gis_wkb_raw_free(bg_result_buf);
-      bg_result_buf= NULL;
-    }
+    gis_wkb_raw_free(bg_result_buf);
+    bg_result_buf= NULL;
   }
 
 

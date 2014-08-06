@@ -501,12 +501,18 @@ String *Item_func_centroid::val_str(String *str)
   }
 
 
+/**
+   Accumulate a geometry's all vertex points into a multipoint.
+   It implements the WKB_scanner_event_handler interface so as to be registered
+   into wkb_scanner and be notified of WKB data events.
+ */
 class Point_accumulator : public WKB_scanner_event_handler
 {
   Gis_multi_point *m_mpts;
   const void *pt_start;
 public:
-  Point_accumulator(Gis_multi_point *mpts) : m_mpts(mpts), pt_start(NULL)
+  explicit Point_accumulator(Gis_multi_point *mpts)
+    :m_mpts(mpts), pt_start(NULL)
   {
   }
 
@@ -516,7 +522,8 @@ public:
   {
     if (geotype == Geometry::wkb_point)
     {
-      Gis_point pt(wkb, POINT_DATA_SIZE, Geometry::Flags_t(Geometry::wkb_point, len),
+      Gis_point pt(wkb, POINT_DATA_SIZE,
+                   Geometry::Flags_t(Geometry::wkb_point, len),
                    m_mpts->get_srid());
       m_mpts->push_back(pt);
       pt_start= wkb;
@@ -554,7 +561,7 @@ class Geometry_grouper : public WKB_scanner_event_handler
   Geometry::wkbType m_target_type;
 
 public:
-  Geometry_grouper(Group_type *out)
+  explicit Geometry_grouper(Group_type *out)
     :m_group(out), m_collection(NULL), m_gcbuf(NULL)
   {
     switch (out->get_type())
@@ -836,7 +843,8 @@ String *Item_func_convex_hull::val_str(String *str)
 
 
 template <typename Coordsys>
-bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom, String *res_hull)
+bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
+                                           String *res_hull)
 {
   typename BG_models<double, Coordsys>::Polygon hull;
   typename BG_models<double, Coordsys>::Linestring line_hull;
@@ -4086,11 +4094,11 @@ inline static void reassemble_geometry(Geometry *g)
 {
   Geometry::wkbType gtype= g->get_geotype();
   if (gtype == Geometry::wkb_polygon)
-    static_cast<Gis_polygon *>(g)->to_wkb_unparsed();
+    down_cast<Gis_polygon *>(g)->to_wkb_unparsed();
   else if (gtype == Geometry::wkb_multilinestring)
-    static_cast<Gis_multi_line_string *>(g)->reassemble();
+    down_cast<Gis_multi_line_string *>(g)->reassemble();
   else if (gtype == Geometry::wkb_multipolygon)
-    static_cast<Gis_multi_line_string *>(g)->reassemble();
+    down_cast<Gis_multi_polygon *>(g)->reassemble();
 }
 
 /**
@@ -7714,6 +7722,14 @@ double Item_func_distance::val_real()
     distance= bg_distance<bgcs::cartesian>(g1, g2, &isdone);
   else
   {
+    /*
+      Calculate the distance of two geometry collections. BG has optimized
+      algorithm to calculate distance among multipoints, multilinestrings
+      and polygons, so we compact the collection to make a single multipoint,
+      a single multilinestring, and the rest are all polygons and multipolygons,
+      and do a nested loop to calculate the minimum distances among such
+      compacted components as the final result.
+     */
     BG_geometry_collection bggc1, bggc2;
     bool initialized= false, isdone2= false, all_normalized= false;
     double min_distance= DBL_MAX, dist;
@@ -8190,6 +8206,12 @@ distance_multipolygon_geometry(const Geometry *g1, const Geometry *g2,
 }
 
 
+/*
+  Calculate distance of g1 and g2 using Boost.Geometry. We split the
+  implementation into 6 smaller functions according to the type of g1, to
+  make all functions smaller in size. Because distance is symmetric, we swap
+  parameters if the swapped type combination is already implemented.
+ */
 template <typename Coordsys>
 double Item_func_distance::bg_distance(const Geometry *g1,
                                        const Geometry *g2, bool *isdone)
