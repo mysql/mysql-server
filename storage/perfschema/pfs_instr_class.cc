@@ -1711,41 +1711,6 @@ PFS_transaction_class *sanitize_transaction_class(PFS_transaction_class *unsafe)
   return NULL;
 }
 
-#ifdef LATER
-// not needed, keeping the code around
-static void set_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
-{
-  size_t len;
-  uint index= 0;
-  uint key_count= share->keys;
-  KEY *key_info= share->key_info;
-  PFS_table_share_index *index_stat;
-
-  pfs->m_key_count= key_count;
-
-  for ( ; index < key_count; key_info++, index++)
-  {
-    index_stat= pfs->find_index_stat(index);
-    if (index_stat != NULL)
-    {
-      len= strlen(key_info->name);
-
-      memcpy(index_stat->m_key.m_name, key_info->name, len);
-      index_stat->m_key.m_name_length= len;
-
-      index_stat->m_stat.reset();
-    }
-  }
-
-  index_stat= pfs->find_index_stat(MAX_INDEXES);
-  if (index_stat != NULL)
-  {
-    index_stat->m_key.m_name_length= 0;
-    index_stat->m_stat.reset();
-  }
-}
-#endif
-
 static int compare_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 {
   if (pfs->m_key_count != share->keys)

@@ -1590,19 +1590,16 @@ void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
 
   PFS_table_lock_stat *from_stat= & table_stat->m_lock_stat;
 
-  if (from_stat->has_data())
+  PFS_table_share_lock *to_stat;
+
+  to_stat= table_share->find_or_create_lock_stat();
+  if (to_stat != NULL)
   {
-    PFS_table_share_lock *to_stat;
-
-    to_stat= table_share->find_or_create_lock_stat();
-    if (to_stat != NULL)
-    {
-      /* Aggregate to TABLE_LOCK_SUMMARY */
-      to_stat->m_stat.aggregate(from_stat);
-    }
-
-    table_stat->fast_reset_lock();
+    /* Aggregate to TABLE_LOCK_SUMMARY */
+    to_stat->m_stat.aggregate(from_stat);
   }
+
+  table_stat->fast_reset_lock();
 }
 
 /**

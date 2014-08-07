@@ -349,9 +349,6 @@ int PFS_index_row::make_row(PFS_table_share *pfs, PFS_table_share_index *pfs_ind
     }
     else
     {
-#ifdef LATER
-      m_index_name_length= sprintf(m_index_name, "(table scan)", table_index);
-#endif
       m_index_name_length= 0;
     }
     return 0;
