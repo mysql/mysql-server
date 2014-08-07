@@ -9,8 +9,6 @@
 
 log-bin=                 master-bin
 
-loose-innodb
-
 [mysqld.2]
 # Run the slave.sh script before starting this process
 #!run-slave-sh
@@ -37,8 +35,6 @@ skip-slave-start
 # on the server. The path need to have constant length otherwise
 # test results will vary, thus a relative path is used.
 slave-load-tmpdir=          ../../tmp
-
-loose-innodb
 
 
 [ENV]

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -592,7 +592,7 @@ TEST_F(GroupTest, Group_containers)
   THD *thd= (THD *)malloc(sizeof(THD));
   ASSERT_NE((THD *)NULL, thd) << errtext;
   Gtid_specification *gtid_next= &thd->variables.gtid_next;
-  thd->thread_id= 4711;
+  thd->set_new_thread_id();
   gtid_next->type= Gtid_specification::AUTOMATIC;
   my_bool &gtid_end= thd->variables.gtid_end;
   my_bool &gtid_commit= thd->variables.gtid_commit;

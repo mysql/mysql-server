@@ -1226,7 +1226,7 @@ bool st_select_lex::cleanup(bool full)
       join= NULL;
     }
     else
-      join->cleanup(false);
+      join->cleanup();
   }
 
   for (SELECT_LEX_UNIT *lex_unit= first_inner_unit(); lex_unit ;
@@ -1241,15 +1241,15 @@ bool st_select_lex::cleanup(bool full)
 }
 
 
-void st_select_lex::cleanup_all_joins(bool full)
+void st_select_lex::cleanup_all_joins()
 {
   SELECT_LEX_UNIT *unit;
   SELECT_LEX *sl;
 
   if (join)
-    join->cleanup(full);
+    join->cleanup();
 
   for (unit= first_inner_unit(); unit; unit= unit->next_unit())
     for (sl= unit->first_select(); sl; sl= sl->next_select())
-      sl->cleanup_all_joins(full);
+      sl->cleanup_all_joins();
 }

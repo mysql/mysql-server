@@ -1173,6 +1173,9 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
                               this->query().length, default_charset_info))
     DBUG_RETURN(1);
 
+  /* Protects thd->user_vars */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+
   for (Item_param **it= begin; it < end; ++it)
   {
     Item_param *param= *it;
@@ -1189,24 +1192,31 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
       */
       setup_one_conversion_function(thd, param, param->param_type);
       if (param->set_from_user_var(thd, entry))
-        DBUG_RETURN(1);
+        goto error;
       val= param->query_val_str(thd, &buf);
 
       if (param->convert_str_value(thd))
-        DBUG_RETURN(1);                           /* out of memory */
+        goto error;
 
       if (query->replace(param->pos_in_query+length, 1, *val))
-        DBUG_RETURN(1);
+        goto error;
       length+= val->length()-1;
     }
     else
     {
       if (param->set_from_user_var(thd, entry) ||
           param->convert_str_value(thd))
-        DBUG_RETURN(1);
+        goto error;
     }
   }
+
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
   DBUG_RETURN(0);
+
+error:
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+  DBUG_RETURN(1);
+
 }
 
 /**
@@ -2299,19 +2309,26 @@ static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len)
     String *var_value= &str;
     size_t unused;
     size_t len;
+
+    /* Protects thd->user_vars */
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+
+    entry= (user_var_entry*)my_hash_search(&thd->user_vars,
+                                           (uchar*)lex->prepared_stmt_code.str,
+                                           lex->prepared_stmt_code.length);
+
     /*
       Convert @var contents to string in connection character set. Although
       it is known that int/real/NULL value cannot be a valid query we still
       convert it for error messages to be uniform.
     */
-    if ((entry=
-         (user_var_entry*)my_hash_search(&thd->user_vars,
-                                         (uchar*)lex->prepared_stmt_code.str,
-                                         lex->prepared_stmt_code.length))
-        && entry->ptr())
+    if ((entry != NULL) && entry->ptr())
     {
       my_bool is_var_null;
       var_value= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
+
+      mysql_mutex_unlock(&thd->LOCK_thd_data);
+
       /*
         NULL value of variable checked early as entry->value so here
         we can't get NULL in normal conditions
@@ -2322,6 +2339,8 @@ static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len)
     }
     else
     {
+      mysql_mutex_unlock(&thd->LOCK_thd_data);
+
       /*
         variable absent or equal to NULL, so we need to set variable to
         something reasonable to get a readable error message during parsing
@@ -4000,7 +4019,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     {
       PSI_statement_locker *parent_locker;
       MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                             thd->thread_id,
+                             thd->thread_id(),
                              (char *) (thd->db ? thd->db : ""),
                              &thd->security_ctx->priv_user[0],
                              (char *) thd->security_ctx->host_or_ip,

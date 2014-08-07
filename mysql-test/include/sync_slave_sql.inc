@@ -14,6 +14,7 @@
 # --connection slave
 # [--let $slave_timeout= X]
 # [--let $use_gtids= 1]
+# [--let $wait_for_executed_gtid_set= 1]
 # --source include/sync_slave.inc
 #
 # Parameters:
@@ -27,6 +28,9 @@
 #     Forces the use of master file and position, even if $use_gtids is set.
 #     This might be used if the slave will not have all the GTIDs of the master
 #     but have to read and apply all master events to the end.
+#
+#   $wait_for_executed_gtid_set
+#     See include/sync_slave_sql_with_master.inc
 
 --let $include_filename= sync_slave_sql.inc
 --source include/begin_include_file.inc
@@ -74,12 +78,24 @@ if ($ignore_gtids_on_sync)
 
 if ($_sync_with_gtids)
 {
-  if ($rpl_debug)
+  if($wait_for_executed_gtid_set)
   {
-    --echo debug: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout)
+    if ($rpl_debug)
+    {
+      --echo debug: WAIT_FOR_EXECUTED_GTID_SET('$_saved_gtids', $_sss_slave_timeout)
+    }
+    --let $_sss_result= `SELECT -WAIT_FOR_EXECUTED_GTID_SET('$_saved_gtids', $_sss_slave_timeout)`
   }
-  --let $_sss_result= `SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout)`
+  if(!$wait_for_executed_gtid_set)
+  {
+    if ($rpl_debug)
+    {
+      --echo debug: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout)
+    }
+    --let $_sss_result= `SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout)`
+  }
 }
+
 if (!$_sync_with_gtids)
 {
   if ($rpl_debug)
@@ -96,7 +112,7 @@ if ($_sss_result == '')
 }
 if ($_sss_result == -1)
 {
-  --let $error_type= Timeout after $slave_timeout seconds.
+  --let $error_type= Timeout after $_sss_slave_timeout seconds.
 }
 
 if ($_sss_result < 0)

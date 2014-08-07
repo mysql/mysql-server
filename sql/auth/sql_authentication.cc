@@ -49,10 +49,6 @@ LEX_CSTRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
 };
   
-LEX_CSTRING old_password_plugin_name= {
-  C_STRING_WITH_LEN("mysql_old_password")
-};
-
 LEX_CSTRING sha256_password_plugin_name= {
   C_STRING_WITH_LEN("sha256_password")
 };
@@ -63,9 +59,6 @@ LEX_CSTRING validate_password_plugin_name= {
 
 LEX_CSTRING default_auth_plugin_name;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-plugin_ref old_password_plugin;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 plugin_ref native_password_plugin;
 
 my_bool disconnect_on_expired_password= TRUE;
@@ -338,9 +331,6 @@ Rsa_authentication_keys::read_rsa_keys()
  
  @param plugin_name Name of the plugin
  @param plugin_name_length Length of the string
- 
- Setting default_auth_plugin may also affect old_passwords
-
 */
 
 int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length)
@@ -384,13 +374,6 @@ void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name)
     {
       plugin_name->str= native_password_plugin_name.str;
       plugin_name->length= native_password_plugin_name.length;
-  }
-  else
-  if (my_strcasecmp(system_charset_info, old_password_plugin_name.str,
-                    plugin_name->str) == 0)
-  {
-    plugin_name->str= old_password_plugin_name.str;
-    plugin_name->length= old_password_plugin_name.length;
   }
 }
 
@@ -449,11 +432,11 @@ int check_password_policy(String *password)
 
 bool auth_plugin_is_built_in(const char *plugin_name)
 {
- return (plugin_name == native_password_plugin_name.str ||
+ return (plugin_name == native_password_plugin_name.str
 #if defined(HAVE_OPENSSL)
-         plugin_name == sha256_password_plugin_name.str ||
+         || plugin_name == sha256_password_plugin_name.str
 #endif
-         plugin_name == old_password_plugin_name.str);
+         );
 }
 
 
@@ -469,11 +452,11 @@ bool auth_plugin_is_built_in(const char *plugin_name)
 bool auth_plugin_supports_expiration(const char *plugin_name)
 {
  return (!plugin_name || !*plugin_name ||
-         plugin_name == native_password_plugin_name.str ||
+         plugin_name == native_password_plugin_name.str
 #if defined(HAVE_OPENSSL)
-         plugin_name == sha256_password_plugin_name.str ||
+         || plugin_name == sha256_password_plugin_name.str
 #endif
-         plugin_name == old_password_plugin_name.str);
+         );
 }
 
 
@@ -624,6 +607,8 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   }
 
   end= my_stpnmov(end, server_version, SERVER_VERSION_LENGTH) + 1;
+
+  DBUG_ASSERT(sizeof(my_thread_id) == 4);
   int4store((uchar*) end, mpvio->thread_id);
   end+= 4;
 
@@ -632,8 +617,8 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
     tail: that's why first part of the scramble is placed here, and second
     part at the end of packet.
   */
-  end= (char*) memcpy(end, data, SCRAMBLE_LENGTH_323);
-  end+= SCRAMBLE_LENGTH_323;
+  end= (char*) memcpy(end, data, AUTH_PLUGIN_DATA_PART_1_LENGTH);
+  end+= AUTH_PLUGIN_DATA_PART_1_LENGTH;
   *end++= 0;
  
   int2store(end, static_cast<uint16>(mpvio->client_capabilities));
@@ -646,9 +631,9 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   memset(end + 8, 0, 10);
   end+= 18;
   /* write scramble tail */
-  end= (char*) memcpy(end, data + SCRAMBLE_LENGTH_323,
-                      data_len - SCRAMBLE_LENGTH_323);
-  end+= data_len - SCRAMBLE_LENGTH_323;
+  end= (char*) memcpy(end, data + AUTH_PLUGIN_DATA_PART_1_LENGTH,
+                      data_len - AUTH_PLUGIN_DATA_PART_1_LENGTH);
+  end+= data_len - AUTH_PLUGIN_DATA_PART_1_LENGTH;
   end= strmake(end, plugin_name(mpvio->plugin)->str,
                     plugin_name(mpvio->plugin)->length);
 
@@ -656,37 +641,6 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
            net_flush(mpvio->net);
   my_afree(buff);
   DBUG_RETURN (res);
-}
-
-
-static bool secure_auth(MPVIO_EXT *mpvio)
-{
-  THD *thd;
-  if (!opt_secure_auth)
-    return 0;
-  /*
-    If the server is running in secure auth mode, short scrambles are 
-    forbidden. Extra juggling to report the same error as the old code.
-  */
-
-  thd= current_thd;
-  if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
-  {
-    my_error(ER_SERVER_IS_IN_SECURE_AUTH_MODE, MYF(0),
-             mpvio->auth_info.user_name,
-             mpvio->auth_info.host_or_ip);
-    query_logger.general_log_print(thd, COM_CONNECT,
-                                   ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
-                                   mpvio->auth_info.user_name,
-                                   mpvio->auth_info.host_or_ip);
-  }
-  else
-  {
-    my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    query_logger.general_log_print(thd, COM_CONNECT,
-                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
-  }
-  return 1;
 }
 
 
@@ -701,12 +655,6 @@ static bool secure_auth(MPVIO_EXT *mpvio)
     1           byte with the value 254
     n           client plugin to use, \0-terminated
     n           plugin provided data
-
-  In a special case of switching from native_password_plugin to
-  old_password_plugin, the packet contains only one - the first - byte,
-  plugin name is omitted, plugin data aren't needed as the scramble was
-  already sent. This one-byte packet is identical to the "use the short
-  scramble" packet in the protocol before plugins were introduced.
 
   @retval 0 ok
   @retval 1 error
@@ -726,41 +674,6 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
     ((st_mysql_auth *) (plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
 
   DBUG_ASSERT(client_auth_plugin);
-
-  /*
-    we send an old "short 4.0 scramble request", if we need to request a
-    client to use 4.0 auth plugin (short scramble) and the scramble was
-    already sent to the client
-
-    below, cached_client_reply.plugin is the plugin name that client has used,
-    client_auth_plugin is derived from mysql.user table, for the given
-    user account, it's the plugin that the client need to use to login.
-  */
-  bool switch_from_long_to_short_scramble=
-    native_password_plugin_name.str == mpvio->cached_client_reply.plugin &&
-    client_auth_plugin == old_password_plugin_name.str;
-
-  if (switch_from_long_to_short_scramble)
-    DBUG_RETURN (secure_auth(mpvio) ||
-                 my_net_write(net, switch_plugin_request_buf, 1) ||
-                 net_flush(net));
-
-  /*
-    We never request a client to switch from a short to long scramble.
-    Plugin-aware clients can do that, but traditionally it meant to
-    ask an old 4.0 client to use the new 4.1 authentication protocol.
-  */
-  bool switch_from_short_to_long_scramble=
-    old_password_plugin_name.str == mpvio->cached_client_reply.plugin && 
-    client_auth_plugin == native_password_plugin_name.str;
-
-  if (switch_from_short_to_long_scramble)
-  {
-    my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    query_logger.general_log_print(current_thd, COM_CONNECT,
-                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
-    DBUG_RETURN (1);
-  }
 
   /*
     If we're dealing with an older client we can't just send a change plugin
@@ -921,15 +834,11 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
 
   if (my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
                     native_password_plugin_name.str) != 0 &&
-      my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
-                    old_password_plugin_name.str) != 0 &&
       !(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH))
   {
     /* user account requires non-default plugin and the client is too old */
     DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
                               native_password_plugin_name.str));
-    DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
-                              old_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(current_thd, COM_CONNECT,
                                    ER(ER_NOT_SUPPORTED_AUTH_MODE));
@@ -1135,17 +1044,12 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   }
 
   /*
-    Old clients send null-terminated string as password; new clients send
-    the size (1 byte) + string (not null-terminated). Hence in case of empty
-    password both send '\0'.
-
-    This strlen() can't be easily deleted without changing protocol.
+    Clients send the size (1 byte) + string (not null-terminated).
 
     Cast *passwd to an unsigned char, so that it doesn't extend the sign for
     *passwd > 127 and become 2**32-127+ after casting to uint.
   */
-  size_t passwd_len= (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION ?
-                     (uchar) (*passwd++) : strlen(passwd));
+  size_t passwd_len= (uchar) (*passwd++);
 
   db+= passwd_len + 1;
   /*
@@ -1224,22 +1128,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
     }
   }
   else
-  {
-    if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
-      client_plugin= native_password_plugin_name.str;
-    else
-    {
-      client_plugin=  old_password_plugin_name.str;
-      /*
-        For a passwordless accounts we use native_password_plugin.
-        But when an old 4.0 client connects to it, we change it to
-        old_password_plugin, otherwise MySQL will think that server 
-        and client plugins don't match.
-      */
-      if (mpvio->acl_user->salt_len == 0)
-        mpvio->acl_user_plugin= old_password_plugin_name;
-    }
-  }
+    client_plugin= native_password_plugin_name.str;
 
   size_t bytes_remaining_in_packet= end - ptr;
 
@@ -1512,7 +1401,7 @@ static size_t parse_client_handshake_packet(MPVIO_EXT *mpvio,
       return packet_error;
     goto skip_to_ssl;
   }
-  
+
   if (mpvio->client_capabilities & CLIENT_PROTOCOL_41)
     packet_has_required_size= bytes_remaining_in_packet >= 
       AUTH_PACKET_HEADER_SIZE_PROTO_41;
@@ -1652,15 +1541,6 @@ skip_to_ssl:
     get_length_encoded_string= get_41_lenc_string;
 
   /*
-    The CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA capability depends on the
-    CLIENT_SECURE_CONNECTION. Refuse any connection which have the first but
-    not the latter.
-  */
-  if ((mpvio->client_capabilities & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) &&
-      !(mpvio->client_capabilities & CLIENT_SECURE_CONNECTION))
-    return packet_error;
-
-  /*
     In order to safely scan a head for '\0' string terminators
     we must keep track of how many bytes remain in the allocated
     buffer or we might read past the end of the buffer.
@@ -1680,22 +1560,8 @@ skip_to_ssl:
   size_t passwd_len= 0;
   char *passwd= NULL;
 
-  if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
-  {
-    /*
-      Get the password field.
-    */
-    passwd= get_length_encoded_string(&end, &bytes_remaining_in_packet,
-                                      &passwd_len);
-  }
-  else
-  {
-    /*
-      Old passwords are zero terminated strings.
-    */
-    passwd= get_string(&end, &bytes_remaining_in_packet, &passwd_len);
-  }
-
+  passwd= get_length_encoded_string(&end, &bytes_remaining_in_packet,
+                                    &passwd_len);
   if (passwd == NULL)
     return packet_error;
 
@@ -1785,26 +1651,8 @@ skip_to_ssl:
 
   if (!(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH))
   {
-    /*
-      An old client is connecting
-    */
-    if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
-      client_plugin= native_password_plugin_name.str;
-    else
-    {
-      /*
-        A really old client is connecting
-      */
-      client_plugin= old_password_plugin_name.str;
-      /*
-        For a passwordless accounts we use native_password_plugin.
-        But when an old 4.0 client connects to it, we change it to
-        old_password_plugin, otherwise MySQL will think that server 
-        and client plugins don't match.
-      */
-      if (mpvio->acl_user->salt_len == 0)
-        mpvio->acl_user_plugin= old_password_plugin_name;
-    }
+    /* An old client is connecting */
+    client_plugin= native_password_plugin_name.str;
   }
   
   /*
@@ -2042,9 +1890,6 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
     plugin= native_password_plugin;
 #ifndef EMBEDDED_LIBRARY
   else
-  if (auth_plugin_name.str == old_password_plugin_name.str)
-    plugin= old_password_plugin;
-  else
   {
     if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
                                         MYSQL_AUTHENTICATION_PLUGIN)))
@@ -2114,7 +1959,7 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->mem_root= thd->mem_root;
   mpvio->scramble= thd->scramble;
   mpvio->rand= &thd->rand;
-  mpvio->thread_id= thd->thread_id;
+  mpvio->thread_id= thd->thread_id();
   mpvio->server_status= &thd->server_status;
   mpvio->net= &thd->net;
   mpvio->ip= (char *) thd->security_ctx->get_ip()->ptr();
@@ -2271,8 +2116,6 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     {
       if (auth_plugin_name.str == native_password_plugin_name.str)
         thd->variables.old_passwords= 0;
-      if (auth_plugin_name.str == old_password_plugin_name.str)
-        thd->variables.old_passwords= 1;
       if (auth_plugin_name.str == sha256_password_plugin_name.str)
         thd->variables.old_passwords= 2;
     }
@@ -2650,61 +2493,6 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   DBUG_RETURN(CR_AUTH_HANDSHAKE);
 }
 
-static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio, 
-                                     MYSQL_SERVER_AUTH_INFO *info)
-{
-  uchar *pkt;
-  MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
-
-  /* generate the scramble, or reuse the old one */
-  if (mpvio->scramble[SCRAMBLE_LENGTH])
-    create_random_string(mpvio->scramble, SCRAMBLE_LENGTH, mpvio->rand);
-
-  /* send it to the client */
-  if (mpvio->write_packet(mpvio, (uchar*) mpvio->scramble, SCRAMBLE_LENGTH + 1))
-    return CR_AUTH_HANDSHAKE;
-
-  /* read the reply and authenticate */
-  int res= mpvio->read_packet(mpvio, &pkt);
-  if (res < 0)
-    return CR_AUTH_HANDSHAKE;
-
-  size_t pkt_len= res;
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-  return CR_OK;
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
-  /*
-    legacy: if switch_from_long_to_short_scramble,
-    the password is sent \0-terminated, the pkt_len is always 9 bytes.
-    We need to figure out the correct scramble length here.
-  */
-  if (pkt_len == SCRAMBLE_LENGTH_323 + 1)
-    pkt_len= strnlen((char*)pkt, pkt_len);
-
-  if (pkt_len == 0) /* no password */
-    return mpvio->acl_user->salt_len != 0 ? CR_AUTH_USER_CREDENTIALS : CR_OK;
-
-  if (secure_auth(mpvio))
-    return CR_AUTH_HANDSHAKE;
-
-  info->password_used= PASSWORD_USED_YES;
-
-  if (pkt_len == SCRAMBLE_LENGTH_323)
-  {
-    if (!mpvio->acl_user->salt_len)
-      return CR_AUTH_USER_CREDENTIALS;
-
-    return check_scramble_323(pkt, mpvio->scramble,
-                             (ulong *) mpvio->acl_user->salt) ?
-                             CR_AUTH_USER_CREDENTIALS : CR_OK;
-  }
-
-  my_error(ER_HANDSHAKE_ERROR, MYF(0));
-  return CR_AUTH_HANDSHAKE;
-}
-
-
 /**
   Interface for querying the MYSQL_PUBLIC_VIO about encryption state.
  
@@ -2980,13 +2768,6 @@ static struct st_mysql_auth native_password_handler=
   native_password_authenticate
 };
 
-static struct st_mysql_auth old_password_handler=
-{
-  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-  old_password_plugin_name.str,
-  old_password_authenticate
-};
-
 #if defined(HAVE_OPENSSL)
 static struct st_mysql_auth sha256_password_handler=
 {
@@ -3004,21 +2785,6 @@ mysql_declare_plugin(mysql_password)
   native_password_plugin_name.str,              /* Name             */
   "R.J.Silk, Sergei Golubchik",                 /* Author           */
   "Native MySQL authentication",                /* Description      */
-  PLUGIN_LICENSE_GPL,                           /* License          */
-  NULL,                                         /* Init function    */
-  NULL,                                         /* Deinit function  */
-  0x0100,                                       /* Version (1.0)    */
-  NULL,                                         /* status variables */
-  NULL,                                         /* system variables */
-  NULL,                                         /* config options   */
-  0,                                            /* flags            */
-},
-{
-  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
-  &old_password_handler,                        /* type descriptor  */
-  old_password_plugin_name.str,                 /* Name             */
-  "R.J.Silk, Sergei Golubchik",                 /* Author           */
-  "Old MySQL-4.0 authentication",               /* Description      */
   PLUGIN_LICENSE_GPL,                           /* License          */
   NULL,                                         /* Init function    */
   NULL,                                         /* Deinit function  */

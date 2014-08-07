@@ -80,13 +80,16 @@ public:
 	}
 
 	/** Caches an index row into index tuple vector
-	@param[in]	row	table row */
+	@param[in]	row	table row
+	@param[in]	ext	externally stored column
+	prefixes, or NULL */
 	void add(
-		const dtuple_t*		row) UNIV_NOTHROW
+		const dtuple_t*		row,
+		const row_ext_t*	ext) UNIV_NOTHROW
 	{
 		dtuple_t*	dtuple;
 
-		dtuple = row_build_index_entry(row, NULL, m_index, m_heap);
+		dtuple = row_build_index_entry(row, ext, m_index, m_heap);
 
 		ut_ad(dtuple);
 
@@ -1841,7 +1844,7 @@ write_buffers:
 				ut_ad(spatial_dtuple_info[s_idx_cnt]->get_index()
 				      == buf->index);
 
-				spatial_dtuple_info[s_idx_cnt]->add(row);
+				spatial_dtuple_info[s_idx_cnt]->add(row, ext);
 
 				s_idx_cnt++;
 
@@ -1946,6 +1949,8 @@ write_buffers:
 						clust_btr_bulk = new BtrBulk(
 							index[i], trx->id);
 						clust_btr_bulk->init();
+					} else {
+						clust_btr_bulk->latch();
 					}
 
 					err = row_merge_insert_index_tuples(
@@ -1956,6 +1961,11 @@ write_buffers:
 						err = clust_btr_bulk->finish(
 							err);
 						delete clust_btr_bulk;
+					} else {
+						/* Release latches for possible
+						log_free_chck in spatial index
+						build. */
+						clust_btr_bulk->release();
 					}
 
 					if (row != NULL) {
