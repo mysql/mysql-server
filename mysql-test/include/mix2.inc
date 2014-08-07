@@ -335,9 +335,13 @@ drop table t1;
 #
 # Test that keys are created in right order
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 eval CREATE TABLE t1 (a int not null, b int not null,c int not null,
 key(a),primary key(a,b), unique(c),key(a),unique(b)) ENGINE = $engine_type;
+
+SET sql_mode = default;
+
 --replace_column 7 #
 show index from t1;
 drop table t1;
@@ -711,6 +715,8 @@ drop table t1;
 # Test of multi-table-delete
 #
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 eval CREATE TABLE t1 (
   number bigint(20) NOT NULL default '0',
   cname char(15) NOT NULL default '',
@@ -724,12 +730,14 @@ eval CREATE TABLE t1 (
   assigned_scps int(11) default '0',
   status tinyint(4) default '0'
 ) ENGINE=$engine_type;
+
 INSERT INTO t1 VALUES (4077711111,'SeanWheeler',90,2,20020111112846,500,00000000000000,-1,2,3,1);
 INSERT INTO t1 VALUES (9197722223,'berry',90,3,20020111112809,500,20020102114532,501,4,10,0);
 INSERT INTO t1 VALUES (650,'San Francisco',0,0,20011227111336,342,00000000000000,-1,1,24,1);
 INSERT INTO t1 VALUES (302467,'Sue\'s Subshop',90,3,20020109113241,500,20020102115111,501,7,24,0);
 INSERT INTO t1 VALUES (6014911113,'SudzCarwash',520,1,20020102115234,500,20020102115259,501,33,32768,0);
 INSERT INTO t1 VALUES (333,'tubs',99,2,20020109113440,501,20020109113440,500,3,10,0);
+
 eval CREATE TABLE t2 (
   number bigint(20) NOT NULL default '0',
   cname char(15) NOT NULL default '',
@@ -754,6 +762,8 @@ select * from t1;
 select * from t2;
 select * from t2;
 drop table t1,t2;
+
+SET sql_mode = default;
 
 #
 # A simple test with some isolation levels
@@ -1458,7 +1468,7 @@ source include/varchar.inc;
 #
 # Some errors/warnings on create
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # Clean up filename -- embedded server reports whole path without .frm,
 # regular server reports relative path with .frm (argh!)
 --replace_result \\ / $MYSQL_TEST_DIR . /var/master-data/ / t1.frm t1
@@ -1470,7 +1480,7 @@ drop table t1;
 create table t1 (v varchar(65530) character set utf8);
 show create table t1;
 drop table t1;
-
+SET sql_mode = default;
 eval set default_storage_engine=$default;
 
 # InnoDB specific varchar tests

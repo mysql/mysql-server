@@ -7,6 +7,8 @@ SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 CREATE DATABASE track;
 USE track;
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 CREATE TABLE `visits` (
   `visits_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `myid` varchar(32) NOT NULL DEFAULT '',
@@ -26,6 +28,8 @@ CREATE TABLE `visits` (
   KEY `time` (`time`),
   KEY `user_id` (`user_id`)
 ) AUTO_INCREMENT=21293381 DEFAULT CHARSET=latin1;
+
+SET sql_mode = default;
 
 CREATE TABLE `visits_events` (
   `event_id` mediumint(8) unsigned NOT NULL DEFAULT '0',

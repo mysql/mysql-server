@@ -1249,7 +1249,6 @@ void
 os_aio_refresh_stats(void);
 /*======================*/
 
-#ifdef UNIV_DEBUG
 /**********************************************************************//**
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations. */
@@ -1257,6 +1256,14 @@ no pending io operations. */
 bool
 os_aio_all_slots_free(void);
 /*=======================*/
+
+#ifdef UNIV_DEBUG
+/** Prints all pending IO
+@param[in]	file	file where to print */
+
+void
+os_aio_print_pending_io(
+	FILE*	file);
 #endif /* UNIV_DEBUG */
 
 /*******************************************************************//**

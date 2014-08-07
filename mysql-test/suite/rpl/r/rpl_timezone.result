@@ -43,7 +43,7 @@ t	n
 2004-06-11 09:39:02	6
 delete from t1;
 set time_zone='UTC';
-load data infile '../../std_data/rpl_timezone2.dat' into table t1;
+load data infile '../../std_data/rpl_timezone2.dat' ignore into table t1;
 Warnings:
 Warning	1265	Data truncated for column 't' at row 1
 Warning	1261	Row 1 doesn't contain data for all columns
@@ -116,9 +116,11 @@ End of 4.1 tests
 CREATE TABLE t1 (a INT, b TIMESTAMP);
 INSERT INTO t1 VALUES (1, NOW());
 SET @@session.time_zone='Japan';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET b= '1970-01-01 08:59:59' WHERE a= 1;
 Warnings:
 Warning	1264	Out of range value for column 'b' at row 1
+SET sql_mode = default;
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	0000-00-00 00:00:00
