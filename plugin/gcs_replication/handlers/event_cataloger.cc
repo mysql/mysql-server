@@ -70,7 +70,7 @@ bool Event_cataloger::is_unique()
   return true;
 }
 
-Handler_role Event_cataloger::get_role()
+int Event_cataloger::get_role()
 {
   return EVENT_CATALOGER;
 }

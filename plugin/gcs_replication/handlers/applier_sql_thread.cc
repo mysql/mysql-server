@@ -120,7 +120,7 @@ bool Applier_sql_thread::is_unique(){
   return true;
 }
 
-Handler_role Applier_sql_thread::get_role()
+int Applier_sql_thread::get_role()
 {
   return APPLIER;
 }

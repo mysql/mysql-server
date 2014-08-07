@@ -31,12 +31,37 @@
 extern char applier_relay_log_name[];
 extern char applier_relay_log_info_name[];
 
+/* Types of action packets used in the context of the applier module */
 enum enum_packet_action
 {
   TERMINATION_PACKET=0,  //Packet for a termination action
   SUSPENSION_PACKET,     //Packet to signal something to suspend
   VIEW_CHANGE_PACKET,    //Packet to signal a view change
-  ACTION_NUMBER= 4      //The number of actions
+  ACTION_NUMBER= 3       //The number of actions
+};
+
+/*
+  @enum Event modifier
+  Enumeration type for the different kinds of pipeline event modifiers.
+*/
+enum enum_event_modifier
+{
+  TRANSACTION_BEGIN= 1, //transaction start event
+  TRANSACTION_END= 2,   //transaction end event
+  UNMARKED_EVENT= 3,    //transaction regular event
+};
+
+/**
+  @enum Handler role
+  Enumeration type for the different roles of the used handlers.
+*/
+enum enum_handler_role
+{
+  EVENT_CATALOGER= 0,
+  APPLIER= 1,
+  CERTIFIER= 2,
+  QUEUER= 3,
+  ROLE_NUMBER= 4 //The number of roles
 };
 
 /**

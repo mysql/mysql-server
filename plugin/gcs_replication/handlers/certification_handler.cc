@@ -188,7 +188,7 @@ bool Certification_handler::is_unique()
   return true;
 }
 
-Handler_role Certification_handler::get_role()
+int Certification_handler::get_role()
 {
   return CERTIFIER;
 }

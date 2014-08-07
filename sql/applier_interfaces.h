@@ -91,18 +91,8 @@ public:
   uint  len;
 };
 
-/**
-  @enum event_modifier
-  Enumeration type for the different kinds of event modifiers.
-  TODO: This should be a distinct enum created by whomever uses this
-*/
-enum enum_event_modifier
-{
-  UNDEFINED=0,       //no info available
-  TRANSACTION_BEGIN, //transaction start event
-  TRANSACTION_END,   //transaction end event
-  UNMARKED_EVENT     //transaction regular event
-};
+//Define the data packet type
+#define UNDEFINED_EVENT_MODIFIER  0
 
 /**
   @class PipelineEvent
@@ -111,11 +101,9 @@ enum enum_event_modifier
   and its transformation between the packet and log event formats as requested
   in the interface.
 
-  @Note Events can be marked as:
-    UNDEFINED              no info available
-    TRANSACTION_BEGIN      transaction start event
-    TRANSACTION_END        transaction end event
-    UNMARKED_EVENT         transaction regular event
+  @Note Events can be marked as with event modifiers.
+        This is a generic field allowing modifiers to vary with use context.
+        If not specified, this field has a default value of 0.
 */
 class PipelineEvent
 {
@@ -132,9 +120,9 @@ public:
   */
   PipelineEvent(Data_packet *base_packet,
                 Format_description_log_event *fde_event,
-                enum_event_modifier modifier= UNDEFINED)
+                int modifier= UNDEFINED_EVENT_MODIFIER)
     :packet(base_packet), log_event(NULL), event_context(modifier),
-    errBuff(NULL), format_descriptor(fde_event)
+    format_descriptor(fde_event)
   {}
 
   /**
@@ -148,9 +136,9 @@ public:
   */
  PipelineEvent(Log_event *base_event,
                Format_description_log_event *fde_event,
-               enum_event_modifier modifier= UNDEFINED)
+               int modifier= UNDEFINED_EVENT_MODIFIER)
     :packet(NULL), log_event(base_event), event_context(modifier),
-    errBuff(NULL), format_descriptor(fde_event)
+    format_descriptor(fde_event)
   {}
 
   ~PipelineEvent()
@@ -162,10 +150,6 @@ public:
     if (log_event != NULL)
     {
        delete log_event;
-    }
-    if (errBuff != NULL)
-    {
-      delete[] errBuff;
     }
   }
 
@@ -264,7 +248,7 @@ public:
 
     @param[in]  modifier    the event modifier
   */
-  void mark_event(enum_event_modifier modifier)
+  void mark_event(int modifier)
   {
     event_context= modifier;
   }
@@ -272,13 +256,9 @@ public:
   /**
     Returns the event context flag
 
-    @return Operation status
-      @retval UNDEFINED            no info available
-      @retval TRANSACTION_BEGIN    transaction start event
-      @retval TRANSACTION_END      transaction end event
-      @retval UNMARKED_EVENT       transaction regular event
+    @return
   */
-  enum_event_modifier get_event_context()
+  int get_event_context()
   {
     return event_context;
   }
@@ -305,12 +285,7 @@ public:
       delete log_event;
       log_event = NULL;
     }
-    event_context= UNDEFINED;
-    if(errBuff)
-    {
-      delete[] errBuff;
-      errBuff= NULL;
-    }
+    event_context= UNDEFINED_EVENT_MODIFIER;
   }
 
 private:
@@ -327,15 +302,16 @@ private:
   int convert_packet_to_log_event()
   {
     int error= 0;
+    const char *errmsg = 0;
 
     uint event_len= uint4korr(((uchar*)(packet->payload)) + EVENT_LEN_OFFSET);
     log_event= Log_event::read_log_event((const char*)packet->payload, event_len,
-                                         &errBuff, format_descriptor, TRUE);
+                                         &errmsg, format_descriptor, TRUE);
 
     if (unlikely(!log_event))
     {
       sql_print_error("Unable to convert a packet into an event on the applier! "
-                      "Error: %s \n", errBuff);
+                      "Error: %s \n", errmsg);
       error= 1;
     }
 
@@ -365,7 +341,7 @@ private:
       The cache is for this event only so we know what size it needs.
       Some events however can have their data_writen field set to 0,
       being my_default_record_cache_size the default size used for the cache
-      TODO: See we can optimize this
+      TODO: See if we can optimize this
     */
     open_cached_file(&cache, mysql_tmpdir, "pipeline_cache",
                      log_event->data_written, MYF(MY_WME));
@@ -395,10 +371,8 @@ private:
 private:
   Data_packet                  *packet;
   Log_event                    *log_event;
-  enum_event_modifier          event_context;
-  //Error buffer used on conversions
-  const char                         *errBuff;
-  //Format description event used on conversions
+  int                          event_context;
+  /* Format description event used on conversions */
   Format_description_log_event *format_descriptor;
 };
 
@@ -413,7 +387,8 @@ class Continuation
 {
 public:
 
- Continuation() :ready(false), error_code(0), transaction_discarded(false)
+  Continuation()
+    :ready(false), error_code(0), transaction_discarded(false)
   {
 #ifdef HAVE_PSI_INTERFACE
     PSI_mutex_info continuation_mutexes[]=
@@ -522,25 +497,15 @@ private:
 };
 
 /**
-  @enum Handler_role
-
-  Enumeration type for the different roles that handlers can have.
-*/
-enum Handler_role
-{
-  EVENT_CATALOGER= 0,
-  APPLIER= 1,
-  CERTIFIER= 2,
-  QUEUER= 3,
-  ROLE_NUMBER= 4 //The number of roles
-};
-
-/**
   @class EventHandler
 
   Interface for the application of events, them being packets or log events.
   Instances of this class can be composed among them to form execution
   pipelines.
+
+  Handlers can also have roles that define their type of activity and can be
+  used to identify them in a pipeline.
+  Roles are defined by the user of this class according to his context.
 */
 class EventHandler
 {
@@ -630,7 +595,7 @@ public:
     @param[in]      role           the role to retrieve
     @param[out]     event_handler  the retrieved event handler
   */
-  static void get_handler_by_role(EventHandler *pipeline, Handler_role role,
+  static void get_handler_by_role(EventHandler *pipeline, int role,
                                   EventHandler **event_handler)
   {
     *event_handler= NULL;
@@ -670,17 +635,12 @@ public:
     Handlers can have different roles according to the tasks they
     represent. Is based on this role that certain components can
     extract and interact with pipeline handlers. This means that if a
-    role is given to a singleton handler, no one else can has that
+    role is given to a singleton handler, no one else can have that
     role.
 
     @return the handler role
-      @retval EVENT_CATALOGER   handler for event cataloging
-      @retval APPLIER           handler for event application
-      @retval CERTIFIER         handler for certification
-      @retval QUEUER            handler for event queuing.
-      @retval OTHER             other defined roles
   */
-  virtual Handler_role get_role()= 0;
+  virtual int get_role()= 0;
 
   //pipeline destruction methods
 

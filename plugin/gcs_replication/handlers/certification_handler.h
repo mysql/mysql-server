@@ -28,7 +28,7 @@ public:
   int initialize();
   int terminate();
   bool is_unique();
-  Handler_role get_role();
+  int get_role();
 
   Certifier_interface *get_certifier();
 
