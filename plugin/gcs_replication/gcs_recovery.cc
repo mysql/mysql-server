@@ -789,3 +789,9 @@ void Recovery_module::notify_cluster_recovery_end()
   delete recovery_msg;
   delete msg;
 }
+
+bool Recovery_module::is_own_event_channel(my_thread_id id)
+{
+  DBUG_ENTER("Recovery_module::is_own_event_channel");
+  DBUG_RETURN(donor_connection_interface.is_own_event_channel(id));
+}

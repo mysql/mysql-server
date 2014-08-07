@@ -61,7 +61,12 @@ int gcs_trans_before_commit(Trans_param *param)
   DBUG_ENTER("gcs_trans_before_commit");
   int error= 0;
 
-  if (!(param->local))
+  if (!is_gcs_rpl_running())
+    DBUG_RETURN(0);
+
+  /*If the originating id belongs to a thread in the plugin, the transaction was already certified*/
+  if (applier_module->is_own_event_channel(param->thread_id)
+        || recovery_module->is_own_event_channel(param->thread_id))
     DBUG_RETURN(0);
 
   bool is_real_trans= param->flags & TRANS_IS_REAL_TRANS;
@@ -70,9 +75,6 @@ int gcs_trans_before_commit(Trans_param *param)
 
   mysql_cond_t COND_certify_wait;
   mysql_mutex_t LOCK_certify_wait;
-
-  if (!is_gcs_rpl_running())
-    DBUG_RETURN(0);
 
   int mutex_init= 0;
   // GCS cache.

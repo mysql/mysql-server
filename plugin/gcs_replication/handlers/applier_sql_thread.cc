@@ -134,3 +134,8 @@ int Applier_sql_thread::wait_for_gtid_execution(longlong timeout)
   DBUG_RETURN(error);
 }
 
+bool Applier_sql_thread::is_own_event_channel(my_thread_id id)
+{
+  DBUG_ENTER("Applier_sql_thread::is_own_event_channel");
+  DBUG_RETURN(sql_thread_interface.is_own_event_channel(id));
+}

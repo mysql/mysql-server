@@ -433,6 +433,20 @@ Applier_module::wait_for_applier_event_execution(ulonglong timeout)
   return ((Applier_sql_thread*)event_applier)->wait_for_gtid_execution(timeout);
 }
 
+bool
+Applier_module::is_own_event_channel(my_thread_id id){
+
+  EventHandler* event_applier= NULL;
+  EventHandler::get_handler_by_role(pipeline, APPLIER, &event_applier);
+
+  //No applier exists so return false
+  if (event_applier == NULL)
+    return false;
+
+  //The only event applying handler by now
+  return ((Applier_sql_thread*)event_applier)->is_own_event_channel(id);
+}
+
 Certification_handler* Applier_module::get_certification_handler(){
 
   EventHandler* event_applier= NULL;

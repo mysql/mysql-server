@@ -444,3 +444,18 @@ Replication_thread_api::get_last_delivered_gno(rpl_sidno sidno)
 
   DBUG_RETURN(last_gno);
 }
+
+bool Replication_thread_api::is_own_event_channel(my_thread_id id)
+{
+  DBUG_ENTER("Replication_thread_api::is_own_event_channel");
+
+  bool result= false;
+
+  if(rli != NULL)
+  {
+    if(rli->info_thd != NULL)
+      result= (rli->info_thd->thread_id() == id);
+  }
+
+  DBUG_RETURN(result);
+}

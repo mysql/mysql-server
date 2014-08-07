@@ -43,6 +43,8 @@ public:
   */
   int wait_for_gtid_execution(longlong timeout);
 
+  bool is_own_event_channel(my_thread_id id);
+
 private:
 
   Replication_thread_api sql_thread_interface;

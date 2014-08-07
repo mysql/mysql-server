@@ -158,6 +158,15 @@ public:
     stop_wait_timeout= timeout;
   }
 
+  /**
+     Checks if the given id matches the recovery applier thread
+     @param id  the thread id
+
+     @return if it belongs to a thread
+       @retval true   the id matches a SQL or worker thread
+       @retval false  the id doesn't match any thread
+   */
+  bool is_own_event_channel(my_thread_id id);
 
 private:
 

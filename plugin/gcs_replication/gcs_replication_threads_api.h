@@ -191,6 +191,16 @@ public:
   int wait_for_gtid_execution(longlong timeout);
 
   /**
+     Checks if the given id matches any of  the event applying threads
+     @param id  the thread id
+
+     @return if it belongs to a thread
+       @retval true   the id matches a SQL or worker thread
+       @retval false  the id doesn't match any thread
+   */
+  bool is_own_event_channel(my_thread_id id);
+
+  /**
     Returns last GNO from applier relay log from a given UUID.
 
     @param sidno    the SIDNO of the cluster UUID, so that we get the
