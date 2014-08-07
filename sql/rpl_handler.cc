@@ -614,6 +614,7 @@ int Binlog_relay_IO_delegate::thread_start(THD *thd, Master_info *mi)
   Binlog_relay_IO_param param;
   init_param(&param, mi);
   param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
 
   int ret= 0;
   FOREACH_OBSERVER(ret, thread_start, thd, (&param));
@@ -627,9 +628,24 @@ int Binlog_relay_IO_delegate::thread_stop(THD *thd, Master_info *mi)
   Binlog_relay_IO_param param;
   init_param(&param, mi);
   param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
 
   int ret= 0;
   FOREACH_OBSERVER(ret, thread_stop, thd, (&param));
+  return ret;
+}
+
+int Binlog_relay_IO_delegate::consumer_thread_stop(THD *thd,
+                                                   Master_info *mi,
+                                                   bool aborted)
+{
+  Binlog_relay_IO_param param;
+  init_param(&param, mi);
+  param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
+
+  int ret= 0;
+  FOREACH_OBSERVER(ret, consumer_thread_stop, thd, (&param, aborted));
   return ret;
 }
 
@@ -640,6 +656,7 @@ int Binlog_relay_IO_delegate::before_request_transmit(THD *thd,
   Binlog_relay_IO_param param;
   init_param(&param, mi);
   param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
 
   int ret= 0;
   FOREACH_OBSERVER(ret, before_request_transmit, thd, (&param, (uint32)flags));
@@ -654,6 +671,7 @@ int Binlog_relay_IO_delegate::after_read_event(THD *thd, Master_info *mi,
   Binlog_relay_IO_param param;
   init_param(&param, mi);
   param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
 
   int ret= 0;
   FOREACH_OBSERVER(ret, after_read_event, thd,
@@ -669,6 +687,7 @@ int Binlog_relay_IO_delegate::after_queue_event(THD *thd, Master_info *mi,
   Binlog_relay_IO_param param;
   init_param(&param, mi);
   param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
 
   uint32 flags=0;
   if (synced)
@@ -686,6 +705,7 @@ int Binlog_relay_IO_delegate::after_reset_slave(THD *thd, Master_info *mi)
   Binlog_relay_IO_param param;
   init_param(&param, mi);
   param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
 
   int ret= 0;
   FOREACH_OBSERVER(ret, after_reset_slave, thd, (&param));

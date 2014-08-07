@@ -278,6 +278,7 @@ public:
   typedef Binlog_relay_IO_observer Observer;
   int thread_start(THD *thd, Master_info *mi);
   int thread_stop(THD *thd, Master_info *mi);
+  int consumer_thread_stop(THD *thd, Master_info *mi, bool aborted);
   int before_request_transmit(THD *thd, Master_info *mi, ushort flags);
   int after_read_event(THD *thd, Master_info *mi,
                        const char *packet, ulong len,
