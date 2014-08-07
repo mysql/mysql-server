@@ -10,11 +10,13 @@ create event abc2 on schedule every 1 second do
 insert into execution_log value('abc2');
 create event abc3 on schedule every 1 second do 
 insert into execution_log value('abc3');
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table event_like like mysql.event;
 insert into event_like select * from mysql.event;
 alter table mysql.event
 change column body  body longtext character set utf8 collate utf8_bin;
 "Now we restart the server"
+SET sql_mode = default;
 use events_test;
 select @@event_scheduler;
 @@event_scheduler

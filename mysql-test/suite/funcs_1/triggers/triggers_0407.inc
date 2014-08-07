@@ -302,10 +302,10 @@ let $message= Testcase 3.5.5.4:;
 	grant SELECT on dbtest_one.* to test_general;
 	connection con1_general;
 	use dbtest_two;
-	Insert into t2 values ('1st Insert 3.5.5.4');
+	Insert ignore into t2 values ('1st Insert 3.5.5.4');
 	Select * from t2;
 	use dbtest_one;
-	Insert into dbtest_two.t2 values ('2nd Insert 3.5.5.4');
+	Insert ignore into dbtest_two.t2 values ('2nd Insert 3.5.5.4');
 	Select * from dbtest_two.t2 order by f1;
 
 #Cleanup

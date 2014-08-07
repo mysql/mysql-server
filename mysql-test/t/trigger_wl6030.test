@@ -716,7 +716,7 @@ DROP TRIGGER t1_bi;
 --echo
 --echo # - Conditional SET in a trigger, which is NOT executed for every row.
 --echo
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 delimiter |;
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
@@ -736,7 +736,7 @@ REPLACE INTO t1(a) VALUES (1), (2), (3), (4), (5), (6);
 SELECT * FROM t1;
 
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo
 --echo ###################################################################
 --echo # Test 7: Nullability of column being copied as result of INSERT SELECT.
@@ -1700,7 +1700,7 @@ SELECT * FROM t1;
 
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --echo "Test for timestamp"
 CREATE TABLE t1(a1 DATE NOT NULL, a2 TIMESTAMP NOT NULL, a3 TIMESTAMP NOT NULL);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
@@ -1711,7 +1711,7 @@ INSERT INTO t1 VALUES ('2012-12-12','2012-12-12 12:12:12','1980-01-01 01:01:01')
 
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo "Test for CHAR/VARCHAR datatype"
 CREATE TABLE t1(a1 CHAR(10) NOT NULL, a2 VARCHAR(255) NOT NULL, a3 INT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1

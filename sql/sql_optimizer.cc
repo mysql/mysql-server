@@ -2411,6 +2411,9 @@ static JOIN_TAB *alloc_jtab_array(THD *thd, uint table_count)
 
    Notice that intermediate tables will not have a POSITION reference; and they
    will not have a TABLE reference before the final stages of code generation.
+
+   @todo the block which sets tab->type should move to adjust_access_methods
+   for unification.
 */
 
 bool JOIN::get_best_combination()
@@ -2488,16 +2491,16 @@ bool JOIN::get_best_combination()
   bool err= false;
   for (uint tableno= 0; tableno < tables; tableno++)
   {
+    POSITION *const pos= best_positions + tableno;
     if (has_semijoin &&
         sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
     {
       DBUG_ASSERT(outer_target < inner_target);
 
-      POSITION *const pos_table= best_positions + tableno;
-      TABLE_LIST *const sj_nest= pos_table->table->emb_sj_nest;
+      TABLE_LIST *const sj_nest= pos->table->emb_sj_nest;
 
       // Handle this many inner tables of materialized semi-join
-      remaining_sjm_inner= pos_table->n_sj_tables;
+      remaining_sjm_inner= pos->n_sj_tables;
 
       /*
         If we fail in some allocation below, we cannot bail out immediately;
@@ -2530,14 +2533,14 @@ bool JOIN::get_best_combination()
       Semijoin_mat_exec *const sjm_exec=
         new (thd->mem_root)
         Semijoin_mat_exec(sj_nest,
-                          (pos_table->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
+                          (pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
                           remaining_sjm_inner, outer_target - 1, inner_target);
 
       tab->set_sj_mat_exec(sjm_exec);
 
       if (!sjm_exec ||
           setup_materialized_table(tab, sjm_index - 1,
-                                   pos_table, best_positions + sjm_index - 1))
+                                   pos, best_positions + sjm_index - 1))
         err= true;                              /* purecov: inspected */
 
       // Now proceed with the inner table which started this nest:
@@ -2549,16 +2552,25 @@ bool JOIN::get_best_combination()
     */
     const uint target=
       (remaining_sjm_inner--) > 0 ? inner_target++ : outer_target++;
-    JOIN_TAB *const tab= best_positions[tableno].table;
+    JOIN_TAB *const tab= pos->table;
 
     best_ref[target]= tab;
     tab->set_idx(target);
-    tab->set_rowcount((ha_rows) best_positions[tableno].rows_fetched);
-    tab->set_position(best_positions + tableno);
+    tab->set_rowcount((ha_rows) pos->rows_fetched);
+    tab->set_position(pos);
     TABLE *const table= tab->table();
     if (tab->type() != JT_CONST && tab->type() != JT_SYSTEM)
     {
-      if (!best_positions[tableno].key)
+      if (pos->sj_strategy == SJ_OPT_LOOSE_SCAN && tab->quick() &&
+          tab->quick()->index != pos->loosescan_key)
+      {
+        /*
+          We must use the duplicate-eliminating index, so this QUICK is not
+          an option.
+        */
+        tab->set_quick(NULL);
+      }
+      if (!pos->key)
       {
         if (tab->quick())
           tab->set_type(calc_join_type(tab->quick()->get_type()));
@@ -5351,7 +5363,8 @@ bool JOIN::estimate_rowcount()
       if (records != HA_POS_ERROR)
       {
         tab->found_records= records;
-        tab->read_time= (ha_rows) (tab->quick() ? tab->quick()->read_time : 0.0);
+        tab->read_time= (ha_rows) (tab->quick() ?
+                                   tab->quick()->cost_est.total_cost() : 0.0);
       }
     }
     else
@@ -6739,8 +6752,8 @@ is_local_field (Item *field)
 {
   return field->real_item()->type() == Item::FIELD_ITEM &&
     !(field->used_tables() & OUTER_REF_TABLE_BIT) &&
-    !static_cast<Item_ident *>(field)->depended_from &&
-    !static_cast<Item_ident *>(field->real_item())->depended_from;
+    !down_cast<Item_ident *>(field)->depended_from &&
+    !down_cast<Item_ident *>(field->real_item())->depended_from;
 }
 
 

@@ -28,6 +28,8 @@ EOF
 --exec $MYSQLD $args
 let SEARCH_PATTERN=\[ERROR\] InnoDB: Could not create undo tablespace '.*undo002';
 --source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
+--source include/search_pattern_in_file.inc
 --remove_file $bugdir/undo001
 --rmdir $bugdir/undo002
 --remove_file $bugdir/ibdata1
@@ -42,6 +44,8 @@ let SEARCH_PATTERN=\[ERROR\] InnoDB: Could not create undo tablespace '.*undo002
 --exec $MYSQLD $args --innodb_log_group_home_dir=/path/to/non-existent/
 let SEARCH_PATTERN=File .path.to.non-existent.ib_logfile101: 'create' returned OS error \d+;
 --source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
+--source include/search_pattern_in_file.inc
 
 --remove_file $bugdir/ibdata1
 --remove_file $bugdir/ibdata2
@@ -54,6 +58,8 @@ let SEARCH_PATTERN=File .path.to.non-existent.ib_logfile101: 'create' returned O
 --error 2
 --exec $MYSQLD $args --skip-grant-tables --innodb-unknown-parameter
 let SEARCH_PATTERN=unknown option '--innodb-unknown-parameter';
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
 --source include/search_pattern_in_file.inc
 
 --copy_file $bugdir/ibdata1 $bugdir/bak_ibdata1
@@ -71,6 +77,8 @@ let SEARCH_PATTERN=unknown option '--innodb-unknown-parameter';
 --exec $MYSQLD $args
 let SEARCH_PATTERN=The innodb_system_tablespace data file 'ibdata1' was not found but one of the other data files 'ibdata2' exists;
 --source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
+--source include/search_pattern_in_file.inc
 
 # clean up & Restore
 --source ../include/log_file_cleanup.inc
@@ -82,6 +90,8 @@ let SEARCH_PATTERN=The innodb_system_tablespace data file 'ibdata1' was not foun
 --exec $MYSQLD $args
 let SEARCH_PATTERN=Tablespace size stored in header is \d+ pages, but;
 --source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
+--source include/search_pattern_in_file.inc
 
 # clean up & Restore
 --source ../include/log_file_cleanup.inc
@@ -92,6 +102,8 @@ let SEARCH_PATTERN=Tablespace size stored in header is \d+ pages, but;
 --error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=undo tablespace.*undo001.*exists\. Creating system tablespace with existing undo tablespaces is not supported\. Please delete all undo tablespaces before creating new system tablespace\.;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
@@ -117,6 +129,8 @@ let SEARCH_PATTERN=Could not create undo tablespace.*undo001;
 --exec $MYSQLD $args
 let SEARCH_PATTERN=undo tablespace.*undo001.*exists\. Creating system tablespace with existing undo tablespaces is not supported\. Please delete all undo tablespaces before creating new system tablespace\.;
 --source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
+--source include/search_pattern_in_file.inc
 
 # clean up & Restore
 --source ../include/log_file_cleanup.inc
@@ -131,6 +145,8 @@ let SEARCH_PATTERN=undo tablespace.*undo001.*exists\. Creating system tablespace
 --exec $MYSQLD $args
 let SEARCH_PATTERN=undo tablespace.*undo003.*exists\. Creating system tablespace with existing undo tablespaces is not supported\. Please delete all undo tablespaces before creating new system tablespace\.;
 --source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
+--source include/search_pattern_in_file.inc
 
 # clean up & Restore
 --source ../include/log_file_cleanup.inc
@@ -142,6 +158,8 @@ let SEARCH_PATTERN=undo tablespace.*undo003.*exists\. Creating system tablespace
 let SEARCH_PATTERN=Expected to open 3 undo tablespaces but was able;
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN=to find only 1 undo tablespaces;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
 --source include/search_pattern_in_file.inc
 # clean up & Restore
 --source ../include/log_file_cleanup.inc
@@ -155,6 +173,8 @@ let SEARCH_PATTERN=Expected to open 3 undo tablespaces but was able;
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN=to find only 0 undo tablespaces;
 --source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
+--source include/search_pattern_in_file.inc
 
 # clean up & Restore
 --source ../include/log_file_cleanup.inc
@@ -166,6 +186,8 @@ let SEARCH_PATTERN=to find only 0 undo tablespaces;
 --error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=redo log file.*ib_logfile0.*exists\. Creating system tablespace with existing redo log files is not recommended\. Please delete all redo log files before creating new system tablespace\.;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
@@ -186,6 +208,8 @@ let SEARCH_PATTERN=redo log file.*ib_logfile0.*exists\. Creating system tablespa
 --error 1
 --exec $MYSQLD $args
 let SEARCH_PATTERN=Only one log file found;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN=\[ERROR\] Aborting;
 --source include/search_pattern_in_file.inc
 
 # clean up & Restore
