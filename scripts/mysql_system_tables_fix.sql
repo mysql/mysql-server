@@ -609,7 +609,6 @@ drop procedure mysql.die;
 ALTER TABLE user ADD plugin char(64) DEFAULT 'mysql_native_password' NOT NULL,  ADD authentication_string TEXT;
 ALTER TABLE user MODIFY plugin char(64) DEFAULT 'mysql_native_password' NOT NULL;
 UPDATE user SET plugin=IF((length(password) = 41) OR (length(password) = 0), 'mysql_native_password', '') WHERE plugin = '';
-UPDATE user SET plugin=IF(length(password) = 16, 'mysql_old_password', '') WHERE plugin = '';
 ALTER TABLE user MODIFY authentication_string TEXT;
 
 -- establish if the field is already there.
@@ -629,6 +628,23 @@ CREATE TEMPORARY TABLE tmp_proxies_priv LIKE proxies_priv;
 INSERT INTO tmp_proxies_priv VALUES ('localhost', 'root', '', '', TRUE, '', now());
 INSERT INTO proxies_priv SELECT * FROM tmp_proxies_priv WHERE @had_proxies_priv_table=0;
 DROP TABLE tmp_proxies_priv;
+
+-- Checking for any duplicate hostname and username combination are exists.
+-- If exits we will throw error.
+DROP PROCEDURE IF EXISTS mysql.count_duplicate_host_names;
+DELIMITER //
+CREATE PROCEDURE mysql.count_duplicate_host_names()
+BEGIN
+  SET @duplicate_hosts=(SELECT count(*) FROM mysql.user GROUP BY user, lower(host) HAVING count(*) > 1 LIMIT 1);
+  IF @duplicate_hosts > 1 THEN
+    SIGNAL SQLSTATE '45000'  SET MESSAGE_TEXT = 'Multiple accounts exist for @user_name, @host_name that differ only in Host lettercase; remove all except one of them';
+  END IF;
+END //
+DELIMITER ;
+CALL mysql.count_duplicate_host_names();
+-- Get warnings (if any)
+SHOW WARNINGS;
+DROP PROCEDURE mysql.count_duplicate_host_names;
 
 # Convering the host name to lower case for existing users
 UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
@@ -741,6 +757,6 @@ ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
 --
 
 ALTER TABLE user ADD password_last_changed timestamp NULL;
-UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysql_native_password','mysql_old_password','sha256_password') and password_last_changed is NULL;
+UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysql_native_password','sha256_password') and password_last_changed is NULL;
 
 ALTER TABLE user ADD password_lifetime smallint unsigned NULL;

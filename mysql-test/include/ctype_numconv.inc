@@ -275,11 +275,6 @@ create table t1 as select md5('a') as c1;
 show create table t1;
 drop table t1;
 
-select old_password('a'), hex(old_password('a'));
-create table t1 as select old_password('a') as c1;
-show create table t1;
-drop table t1;
-
 select password('a'), hex(password('a'));
 create table t1 as select password('a') as c1;
 show create table t1;
@@ -1609,8 +1604,6 @@ drop function f1;
 --echo # Bug#54668 User variable assignments get wrong type
 --echo #
 SET @x=md5('a');
-SELECT charset(@x), collation(@x);
-SET @x=old_password('a');
 SELECT charset(@x), collation(@x);
 SET @x=password('a');
 SELECT charset(@x), collation(@x);

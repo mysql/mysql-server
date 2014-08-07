@@ -2275,8 +2275,8 @@ dict_stats_save_index_stat(
 	const char*	stat_description,
 	trx_t*		trx)
 {
-	pars_info_t*	pinfo;
 	dberr_t		ret;
+	pars_info_t*	pinfo;
 	char		db_utf8[MAX_DB_UTF8_LEN];
 	char		table_utf8[MAX_TABLE_UTF8_LEN];
 

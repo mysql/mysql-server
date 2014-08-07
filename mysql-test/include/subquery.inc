@@ -6195,3 +6195,54 @@ GROUP BY a;
 --enable_ps_protocol
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #19179529 SEGMENTATION FAULT IN ADD_KEY_FIELD FOR ENGINES MYISAM AND MEMORY
+--echo #
+
+CREATE TABLE t1 (
+pk INTEGER PRIMARY KEY,
+col_int_key INTEGER NOT NULL,
+KEY (col_int_key)
+) ENGINE=MYISAM;
+
+SELECT
+( SELECT MIN(  1 ) AS SQ1_field1
+  FROM t1 AS SQ1_alias1 , t1 AS SQ1_alias2
+  WHERE  SQ1_alias2 . `pk` > alias1 . `col_int_key`  ) AS field1
+FROM t1 AS alias1 GROUP BY field1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#19224430 	ASSERT FAILED IN JOIN::REPLACE_INDEX_SUBQUERY
+--echo #
+
+CREATE TABLE t1 (
+pk INTEGER,
+col_int_nokey INTEGER,
+col_int_key INTEGER,
+col_datetime_key DATETIME,
+PRIMARY KEY (pk),
+KEY (col_int_key),
+KEY (col_datetime_key)
+)  ENGINE=MEMORY;
+
+INSERT INTO t1 VALUES (1, 1, 7, '2001-11-04 19:07:55.051133');
+
+CREATE TABLE t2(field1 INT, field2 INT) ENGINE=MEMORY;
+
+# Because t1 is a one-row constant table, subquery is rewritten (MAX
+# is read during optimization, GROUP BY is removed) and then
+# index_subquery can be used.
+let $query=
+SELECT * FROM t2 WHERE (field1, field2) IN (
+  SELECT MAX(col_datetime_key), col_int_key
+  FROM t1
+  WHERE col_int_key > col_int_nokey
+  GROUP BY col_int_key);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
