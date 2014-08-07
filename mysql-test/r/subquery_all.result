@@ -1,6 +1,7 @@
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='subquery_materialization_cost_based=off';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 select (select 2);
 (select 2)
@@ -4120,6 +4121,7 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select 2 AS `2` from `test`.`t1` where exists((/* select#2 */ select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) union (/* select#3 */ select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)))
 DROP TABLE t1,t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t0(a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1(f11 int, f12 int);
@@ -4134,6 +4136,7 @@ select count(*) from t1 where f12 =
 count(*)
 3
 drop table t0,t1,t2;
+SET sql_mode = default;
 CREATE TABLE t4 (
 f7 varchar(32) collate utf8_bin NOT NULL default '',
 f10 varchar(32) collate utf8_bin default NULL,
@@ -7677,6 +7680,7 @@ FROM t1
 GROUP BY a;
 scalar
 DROP TABLE t1,t2;
+SET sql_mode = default;
 #
 # Bug #19179529 SEGMENTATION FAULT IN ADD_KEY_FIELD FOR ENGINES MYISAM AND MEMORY
 #

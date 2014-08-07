@@ -32,7 +32,7 @@ if(`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64")`)
 let $engine_type= InnoDB;
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 # ==============================================================================
 echo;
@@ -28632,7 +28632,7 @@ SELECT @done, @x;
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 --enable_warnings
-
+SET sql_mode = default;
 
 # ==============================================================================
 # USE the same .inc to cleanup before and after the test

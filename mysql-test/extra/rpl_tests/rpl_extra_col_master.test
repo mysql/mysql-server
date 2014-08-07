@@ -254,9 +254,9 @@ some var char';
    INSERT into t4 set f1=1, f2=1, f3=1, f4='first', f7='f7: medium size blob', f10='f10:
 binary data';
    INSERT into t31 set f1=1, f2=1, f3=1, f4='first';
-   INSERT into t31 set f1=1, f2=1, f3=2, f4='second',
+   INSERT IGNORE into t31 set f1=1, f2=1, f3=2, f4='second',
      f9=2.2,  f10='seven samurai', f28=222.222, f35='222';
-   INSERT into t31 values (1, 1, 3, 'third',
+   INSERT IGNORE into t31 values (1, 1, 3, 'third',
       /* f5  BIGINT,  */            333333333333333333333333,
       /* f6  BLOB,  */              '3333333333333333333333',
       /* f7  DATE,  */              '2007-07-18',
@@ -290,7 +290,7 @@ binary data';
       /*f35 VARCHAR(257),*/         'three times three'
       );
    
-   INSERT into t31 values (1, 1, 4, 'fourth',
+   INSERT IGNORE into t31 values (1, 1, 4, 'fourth',
        /* f5  BIGINT,  */            333333333333333333333333,
        /* f6  BLOB,  */              '3333333333333333333333',
        /* f7  DATE,  */              '2007-07-18',
@@ -409,7 +409,7 @@ connection master;
    update t31 set f5=555555555555555 where f3=6;
    update t31 set f2=2 where f3=2;
    update t31 set f1=NULL where f3=1;
-   update t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
+   update ignore t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
 
 --echo
 --echo ** Delete from Master **
@@ -1036,7 +1036,7 @@ SET SQL_LOG_BIN=1;
 -- connection master
 
 -- disable_warnings
-INSERT INTO t1 VALUES (); 
+INSERT IGNORE INTO t1 VALUES (); 
 
 # insert multi-byte chars that will take more than 255 bytes 
 SET @text= REPEAT(_utf8'ç', 255);

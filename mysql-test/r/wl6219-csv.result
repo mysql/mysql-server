@@ -150,7 +150,7 @@ TRUNCATE t1;
 # test out-of-range values, should return warnings
 INSERT INTO t1 (i) VALUES (-1), (1800), (2156), (2147483647);
 # should return 4 warnings
-UPDATE t1 SET y = i;
+UPDATE IGNORE t1 SET y = i;
 Warnings:
 Warning	1264	Out of range value for column 'y' at row 1
 Warning	1264	Out of range value for column 'y' at row 2
@@ -165,7 +165,7 @@ y	i
 TRUNCATE t1;
 # should return 4 warnings
 INSERT INTO t1 (c) VALUES (''), (' '), ('2012qwer'), ('qwer');
-UPDATE t1 SET y = c;
+UPDATE IGNORE t1 SET y = c;
 Warnings:
 Warning	1366	Incorrect integer value: '' for column 'y' at row 1
 Warning	1366	Incorrect integer value: ' ' for column 'y' at row 2
