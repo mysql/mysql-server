@@ -47,17 +47,18 @@ static struct st_mysql_auth mysql_no_login_handler=
 
 mysql_declare_plugin(mysql_no_login)
 {
-  MYSQL_AUTHENTICATION_PLUGIN,
-  &mysql_no_login_handler,
-  "mysql_no_login",
-  "Todd Farmer",
-  "No login authentication plugin",
-  PLUGIN_LICENSE_GPL,
-  NULL,
-  NULL,
-  0x0100,
-  NULL,
-  NULL,
-  NULL
+  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
+  &mysql_no_login_handler,                      /* type descriptor  */
+  "mysql_no_login",                             /* Name             */
+  "Todd Farmer",                                /* Author           */
+  "No login authentication plugin",             /* Description      */
+  PLUGIN_LICENSE_GPL,                           /* License          */
+  NULL,                                         /* Init function    */
+  NULL,                                         /* Deinit function  */
+  0x0100,                                       /* Version (1.0)    */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  NULL,                                         /* config options   */
+  0,                                            /* flags            */
 }
 mysql_declare_plugin_end;
