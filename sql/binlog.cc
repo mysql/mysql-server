@@ -6985,7 +6985,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
                  before_commit,
                  (thd, all,
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
-                  (!(thd->slave_thread)),
                   thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
                   max<my_off_t>(max_binlog_cache_size,
                                 max_binlog_stmt_cache_size),
