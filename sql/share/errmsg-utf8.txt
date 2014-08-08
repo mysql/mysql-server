@@ -7256,20 +7256,22 @@ ER_INCORRECT_TYPE
 
 ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
   eng "Expression of virtual column '%s' contains a disallowed function."
-ER_DATA_CONVERSION_ERROR_FOR_VIRTUAL_COLUMN
-  eng "Generated value for virtual column '%s' cannot be converted to type '%s'."
-ER_PRIMARY_KEY_BASED_ON_VIRTUAL_COLUMN
-  eng "Primary key cannot be defined upon a virtual column."
+
 ER_KEY_BASED_ON_GENERATED_VIRTUAL_COLUMN
   eng "Key/Index cannot be defined on a non-stored virtual column."
+
 ER_WRONG_FK_OPTION_FOR_VIRTUAL_COLUMN
   eng "Cannot define foreign key with %s clause on a virtual column."
+
 ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN
   eng "The value specified for virtual column '%s' in table '%s' ignored."
+
 ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
   eng "'%s' is not yet supported for virtual columns."
+
 ER_CONST_EXPR_IN_VCOL
   eng "Constant expression in virtual column function is not allowed."
+
 ER_VIRTUAL_COLUMN_NON_PRIOR
   eng "Virtual column can refer only to virtual columns defined prior it."
 

@@ -20,6 +20,7 @@ create table t1 (a int not null,
                  b virtual int as (-a), 
 		 c virtual int as (-a) stored);
 insert into t1 (a) values (1), (1), (2), (2), (3);
+analyze table t1;
 
 # simple view
 create view v1 (d,e) as select abs(b), abs(c) from t1;

@@ -3044,8 +3044,7 @@ int prepare_create_field(Create_field *sql_field,
                           (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
     break;
   }
-  if (!(sql_field->flags & NOT_NULL_FLAG) ||
-      (sql_field->vcol_info))  /* Make virtual columns allow NULL values */
+  if (!(sql_field->flags & NOT_NULL_FLAG))
     sql_field->pack_flag|= FIELDFLAG_MAYBE_NULL;
   if (sql_field->flags & NO_DEFAULT_VALUE_FLAG)
     sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
@@ -3201,6 +3200,7 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
     {
       if ((column_definition->flags & NOT_NULL_FLAG) != 0 && // NOT NULL,
           column_definition->def == NULL &&            // no constant default,
+          column_definition->vcol_info == NULL &&      // not a virtual column
           column_definition->unireg_check == Field::NONE) // no function default
       {
         DBUG_PRINT("info", ("First TIMESTAMP column '%s' was promoted to "
@@ -4070,11 +4070,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         {
           /* Key fields must always be physically stored. */
           my_error(ER_KEY_BASED_ON_GENERATED_VIRTUAL_COLUMN, MYF(0));
-          DBUG_RETURN(TRUE);
-        }
-        if (key->type == Key::PRIMARY && sql_field->vcol_info)
-        {
-          my_error(ER_PRIMARY_KEY_BASED_ON_VIRTUAL_COLUMN, MYF(0));
           DBUG_RETURN(TRUE);
         }
 	if (!(sql_field->flags & NOT_NULL_FLAG))

@@ -16,17 +16,24 @@
 
 --echo #
 --echo # Section 1. Wrong column definition options
---echo #            - NOT NULL
 --echo #            - NULL
 --echo #            - DEFAULT <value>
 --echo #            - AUTO_INCREMENT
---echo #            - [PRIMARY] KEY
 
 --echo # NOT NULL
---error 1064
 create table t1 (a int, b virtual int as (a+1) not null);
+--error 1048
+insert into t1(a) values(null);
+insert into t1(a) values(1);
+select * from t1;
+drop table t1;
+create table t1 (a int, b virtual int as (a+1) stored not null);
+--error 1048
+insert into t1(a) values(null);
+insert into t1(a) values(1);
+select * from t1;
+drop table t1;
 create table t1 (a int);
---error 1064
 alter table t1 add column b virtual int as (a+1) not null;
 drop table t1;
 
@@ -55,15 +62,27 @@ alter table t1 add column b virtual int as (a+1) AUTO_INCREMENT;
 drop table t1;
 
 --echo # [PRIMARY] KEY
---error 1064
+--error 1951
 create table t1 (a int, b virtual int as (a+1) key);
---error 1064
+create table t1 (a int, b virtual int as (a+1) stored key);
+insert into t1 (a) values (3),(1),(2);
+select * from t1;
+drop table t1;
+--error 1951
 create table t1 (a int, b virtual int as (a+1) primary key);
+create table t1 (a int, b virtual int as (a+1) stored primary key);
+insert into t1 (a) values (3),(1),(2);
+select * from t1;
+drop table t1;
 create table t1 (a int);
---error 1064
+--error 1951
 alter table t1 add column b virtual int as (a+1) key;
---error 1064
-alter table t1 add column b virtual int as (a+1) primary key;
+alter table t1 add column b virtual int as (a+1) stored key;
+--error 1951
+alter table t1 add column c virtual int as (a+2) primary key;
+show create table t1;
+--error 1068
+alter table t1 add column c virtual int as (a+2) stored primary key;
 drop table t1;
 
 --echo # Section 2. Other column definition options
@@ -122,8 +141,8 @@ update t1 set a=4 where a=2;
 select * from t1;
 drop table t1;
 
---error 1958
+--error 1956
 create table t1 (a int, b virtual int as(-b), c virtual int as (b + 1));
---error 1958
+--error 1956
 create table t1 (a int, b virtual int as(-c), c virtual int as (b + 1));
 

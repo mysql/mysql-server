@@ -3,6 +3,9 @@ create table t1 (a int not null,
 b virtual int as (-a), 
 c virtual int as (-a) stored);
 insert into t1 (a) values (1), (1), (2), (2), (3);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 create view v1 (d,e) as select abs(b), abs(c) from t1;
 select d,e from v1;
 d	e
