@@ -83,12 +83,12 @@ analyze table t3;
 select * from t1 order by a;
 
 # Only dump a small part
-select * from t2 
+select * from t2
   where (b >= 180) and (b <= 220)
   order by b;
 
 # Only dump a small part
-select * from t3 
+select * from t3
   where (c >= 587) and (c <= 612)
   order by c;
 
