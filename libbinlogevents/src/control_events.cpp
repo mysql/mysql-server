@@ -26,19 +26,6 @@ namespace binary_log
 /**
   The variable part of the Rotate event contains the name of the next binary
   log file,  and the position of the first event in the next binary log file.
-
-  <pre>
-  The buffer layout is as follows:
-  +-----------------------------------------------------------------------+
-  | common_header | post_header | position og the first event | file name |
-  +-----------------------------------------------------------------------+
-  </pre>
-
-  @param buf Buffer contain event data in the layout specified above
-  @param event_len The length of the event written in the log file
-  @param description_event FDE used to extract the post header length, which
-                           depends on the binlog version
-  @param head Header information of the event
 */
 Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
                            const Format_description_event *description_event)
@@ -94,19 +81,6 @@ Start_event_v3::Start_event_v3(Log_event_type type_code_arg)
 
 /**
   Format_description_log_event 1st constructor.
-
-    This constructor can be used to create the event to write to the binary log
-    (when the server starts or when FLUSH LOGS), or to create artificial events
-    to parse binlogs from MySQL 3.23 or 4.x.
-    When in a client, only the 2nd use is possible.
-
-  @param binlog_ver             the binlog version for which we want to build
-                                an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
-                                x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
-                                old 4.0 (binlog version 2) is not supported;
-                                it should not be used for replication with
-                                5.0.
-  @param server_ver             a string containing the server version.
 */
 Format_description_event::Format_description_event(uint8_t binlog_ver,
                                                    const char* server_ver)
@@ -323,22 +297,6 @@ Start_event_v3::Start_event_v3(const char* buf,
   I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
   it is sent before Format_description_log_event).
 
-  The layout of the event data part  in  Format_description_event
-  <pre>
-        +=====================================+
-        | event  | binlog_version   19 : 2    | = 4
-        | data   +----------------------------+
-        |        | server_version   21 : 50   |
-        |        +----------------------------+
-        |        | create_timestamp 71 : 4    |
-        |        +----------------------------+
-        |        | header_length    75 : 1    |
-        |        +----------------------------+
-        |        | post-header      76 : n    | = array of n bytes, one byte per
-        |        | lengths for all            |   event type that the server knows
-        |        | event types                |   about
-        +=====================================+
-  </pre>
 */
 Format_description_event::
 Format_description_event(const char* buf, unsigned int event_len,
@@ -490,17 +448,6 @@ Format_description_event::~Format_description_event()
 
 /**
   Constructor of Incident_event
-  The buffer layout is as follows:
-  <pre>
-  +-----------------------------------------------------+
-  | Incident_number | message_length | Incident_message |
-  +-----------------------------------------------------+
-  </pre>
-
-  Incident number codes are listed in binlog_evnet.h.
-  The only code currently used is INCIDENT_LOST_EVENTS, which indicates that
-  there may be lost events (a "gap") in the replication stream that requires
-  databases to be resynchronized.
 */
 Incident_event::Incident_event(const char *buf, unsigned int event_len,
                                const Format_description_event *descr_event)
@@ -562,12 +509,6 @@ Xid_event(const char* buf,
 }
 
 
-/**
-  Written every time a statement uses the RAND() function; precedes other
-  events for the statement. Indicates the seed values to use for generating a
-  random number with RAND() in the next statement. This is written only before
-  a QUERY_EVENT and is not used with row-based logging
-*/
 Rand_event::Rand_event(const char* buf,
                        const Format_description_event* description_event)
   :Binary_log_event(&buf, description_event->binlog_version,
@@ -631,12 +572,6 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
   //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   uint8_t const common_header_len= description_event->common_header_len;
 
-/*
-  The layout of the buffer is as follows
-   +-------------+-------------+------------+------------+--------------+
-   | commit flag | ENCODED SID | ENCODED GNO| G_COMMIT_TS| commit_seq_no|
-   +-------------+-------------+------------+------------+--------------+
-*/
   char const *ptr_buffer= buffer;
 
   commit_flag= *ptr_buffer != 0;
@@ -673,7 +608,7 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
 }
 
 /**
-  Constructor of Previous_gtid_event
+  Constructor of Previous_gtids_event
   Decodes the gtid_executed in the last binlog file
 */
 

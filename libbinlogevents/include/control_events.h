@@ -30,31 +30,6 @@
 
 #include "binlog_event.h"
 
-/**
-  Generic return type for many functions that can succeed or fail.
-
-  This is used in conjuction with the macros below for functions where
-  the return status either indicates "success" or "failure".  It
-  provides the following features:
-
-   - The macros can be used to conveniently propagate errors from
-     called functions back to the caller.
-
-   - If a function is expected to print an error using my_error before
-     it returns an error status, then the macros assert that my_error
-     has been called.
-
-   - Does a DBUG_PRINT before returning failure.
-*/
-enum enum_return_status
-{
-  /// The function completed successfully.
-  RETURN_STATUS_OK= 0,
-  /// The function completed with error but did not report it.
-  RETURN_STATUS_UNREPORTED_ERROR= 1,
-  /// The function completed with error and has called my_error.
-  RETURN_STATUS_REPORTED_ERROR= 2
-};
 namespace binary_log
 {
 /**
@@ -132,6 +107,10 @@ public:
     R_IDENT_OFFSET= 8
   };
 
+  std::string get_event_name()
+  {
+    return "Rotate";
+  }
   /**
     This is the minimal constructor, it will set the type code as ROTATE_EVENT.
   */
@@ -141,9 +120,6 @@ public:
   }
 
   /**
-    The variable part of the Rotate event contains the name of the next binary
-    log file,  and the position of the first event in the next binary log file.
-
     <pre>
     The buffer layout is as follows:
     +-----------------------------------------------------------------------+
@@ -151,10 +127,15 @@ public:
     +-----------------------------------------------------------------------+
     </pre>
 
-    @param buf               Buffer contain event data in the layout specified above
-    @param event_len         The length of the event written in the log file
-    @param description_event FDE used to extract the post header length, which
-                             depends on the binlog version
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
   */
   Rotate_event(const char* buf, unsigned int event_len,
                const Format_description_event *description_event);
@@ -256,6 +237,11 @@ class Start_event_v3: public Binary_log_event
     which is the case when we rollover to a new log.
   */
   bool dont_set_created;
+
+  std::string get_event_name()
+  {
+    return "Start_v3";
+  }
   protected:
   /**
     Empty ctor of Start_event_v3 called when we call the
@@ -269,6 +255,13 @@ class Start_event_v3: public Binary_log_event
     that mysqld creates after startup. Log files created subsequently (when someone
     issues a FLUSH LOGS statement or the current binary log file becomes too large)
     do not contain this event.
+
+    <pre>
+    The buffer layout for fixed part is as follows:
+    +---------------------------------------------+
+    | binlog_version | server_version | timestamp |
+    +---------------------------------------------+
+    </pre>
 
     @param buf                Contains the serialized event.
     @param description_event  An FDE event, used to get the following information
@@ -363,6 +356,14 @@ public:
    mapping is done using event_type_permutation
   */
   const uint8_t *event_type_permutation;
+
+  std::string get_event_name()
+  {
+    return "Format_desc";
+  }
+  Format_description_event()
+  : Start_event_v3(FORMAT_DESCRIPTION_EVENT), post_header_len(NULL)
+  {}
   /**
     Format_description_log_event 1st constructor.
 
@@ -382,22 +383,6 @@ public:
   Format_description_event(uint8_t binlog_ver,
                            const char* server_ver);
   /**
-    The problem with this constructor is that the fixed header may have a
-    length different from this version, but we don't know this length as we
-    have not read the Format_description_log_event which says it, yet. This
-    length is in the post-header of the event, but we don't know where the
-    post-header starts.
-
-    So this type of event HAS to:
-    - either have the header's length at the beginning (in the header, at a
-    fixed position which will never be changed), not in the post-header. That
-    would make the header be "shifted" compared to other events.
-    - or have a header of size LOG_EVENT_MINIMAL_HEADER_LEN (19), in all future
-    versions, so that we know for sure.
-
-    I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
-    it is sent before Format_description_log_event).
-
     The layout of the event data part  in  Format_description_event
     <pre>
           +=====================================+
@@ -466,10 +451,15 @@ public:
   {
   }
   //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+
+  std::string get_event_name()
+  {
+    return "Stop";
+  }
   /**
     A Stop_event is occurs under these circumstances:
-       A master writes the event to the binary log when it shuts down
-       A slave writes the event to the relay log when it shuts down or when a
+    -  A master writes the event to the binary log when it shuts down
+    -  A slave writes the event to the relay log when it shuts down or when a
        RESET SLAVE statement is executed
     @param buf                Contains the serialized event.
     @param description_event  An FDE event, used to get the following information
@@ -553,6 +543,14 @@ public:
   char* get_message()
   {
     return message;
+  }
+
+  Incident_event()
+  : Binary_log_event(INCIDENT_EVENT)
+  {}
+  std::string get_event_name()
+  {
+    return "Incident";
   }
   /**
     This will create an Incident_event with an empty message and set the
@@ -642,6 +640,13 @@ public:
   {
   }
 
+  Xid_event()
+  : Binary_log_event(XID_EVENT)
+  {}
+  std::string get_event_name()
+  {
+    return "Xid";
+  }
   /**
     An XID event is generated for a commit of a transaction that modifies one or
     more tables of an XA-capable storage engine
@@ -711,6 +716,14 @@ class Rand_event: public Binary_log_event
     RAND_SEED1_OFFSET= 0,
     RAND_SEED2_OFFSET= 8
   };
+
+  std::string get_event_name()
+  {
+    return "RAND";
+  }
+  Rand_event()
+  : Binary_log_event(RAND_EVENT)
+  {}
   /**
     This will initialize the instance variables seed1 & seed2, and set the
     type_code as RAND_EVENT in the header object in Binary_log_event
@@ -728,6 +741,12 @@ class Rand_event: public Binary_log_event
     random number with RAND() in the next statement. This is written only before
     a QUERY_EVENT and is not used with row-based logging
 
+    <pre>
+    The buffer layout for variable part is as follows:
+    +----------------------------------------------+
+    | value for first seed | value for second seed |
+    +----------------------------------------------+
+    </pre>
     @param buf                Contains the serialized event.
     @param description_event  An FDE event, used to get the following information
                               -binlog_version
@@ -773,6 +792,10 @@ class Ignorable_event: public Binary_log_event
 public:
   //buf is advanced in Binary_log_event constructor to point to beginning of post-header
 
+  std::string get_event_name()
+  {
+    return "Ignorable";
+  }
   /**
     The minimal constructor and all it will do is set the type_code as
     IGNORABLE_LOG_EVENT in the header object in Binary_log_event.
@@ -781,7 +804,16 @@ public:
   : Binary_log_event(type_arg)
   {
   }
-
+  /*
+   @param buf                Contains the serialized event.
+   @param description_event  An FDE event, used to get the following information
+                             -binlog_version
+                             -server_version
+                             -post_header_len
+                             -common_header_len
+                             The content of this object
+                             depends on the binlog-version currently in use.
+  */
   Ignorable_event(const char *buf, const Format_description_event *descr_event);
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info) { }
@@ -861,22 +893,20 @@ struct Uuid
   /// Returns true if this UUID is equal the given UUID.
   bool equals(const Uuid &other) const
   { return memcmp(bytes, other.bytes, BYTE_LENGTH) == 0; }
-  /// Print this Uuid to the trace file if debug is enabled; no-op otherwise.
-  /*void dbug_print(const char *text= "") const
-  {
-#ifndef DBUG_OFF
-    char buf[TEXT_LENGTH + 1];
-    to_string(buf);
-    DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
-#endif
-  }*/
   /**
     Return true if parse() would return succeed, but don't actually
     store the result anywhere.
   */
   static bool is_valid(const char *string);
 
-  enum_return_status parse(const char *string);
+  /**
+    Stores the UUID represented by a string on the form
+    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX in this object.
+
+     @return  0   success.
+             >0   failure
+  */
+  int parse(const char *string);
   /** The number of bytes in the data of a Uuid. */
   static const size_t BYTE_LENGTH= 16;
   /** The data for this Uuid. */
@@ -966,21 +996,16 @@ class Gtid_event: public Binary_log_event
 {
 public:
   int64_t commit_seq_no;
+
+  Gtid_event()
+  : Binary_log_event(GTID_LOG_EVENT)
+  {}
+  std::string get_event_name()
+  {
+    return "Gtid";
+  }
   /**
-    ctor of Gtid_event
-    Each transaction has a coordinate in the form of a pair:
-    GTID = (SID, GNO)
-    GTID stands for Global Transaction IDentifier, SID for Source Identifier,
-    and GNO for Group Number.
-
-    SID is a 128-bit number that identifies the place where the transaction was
-    first committed. SID is normally the SERVER_UUID of a server, but may be
-    something different if the transaction was generated by something else than
-    a MySQL server.
-
-    GNO is a 64-bit sequence number: 1 for the first transaction committed on SID,
-    2 for the second transaction, and so on. No transaction can have GNO 0
-
+    Ctor of Gtid_event
 
     The layout of the buffer is as follows
     +-------------+-------------+------------+------------+--------------+
@@ -1066,9 +1091,20 @@ public:
 class Previous_gtids_event : public Binary_log_event
 {
 public:
+
+  std::string get_event_name()
+  {
+    return "Previous_gtids";
+  }
   /**
     Decodes the gtid_executed in the last binlog file
 
+    <pre>
+    The buffer layout is as follows
+    +--------------------------------------------+
+    | Gtids executed in the last binary log file |
+    +--------------------------------------------+
+    </pre>
     @param buffer             Contains the serialized event.
     @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the following information
@@ -1137,6 +1173,14 @@ protected:
 class Heartbeat_event: public Binary_log_event
 {
 public:
+
+  std::string get_event_name()
+  {
+    return "Heartbeat";
+  }
+  Heartbeat_event()
+  : Binary_log_event(HEARTBEAT_LOG_EVENT)
+  {}
   /**
     Sent by a master to a slave to let the slave know that the master is
     still alive. Events of this type do not appear in the binary or relay logs.

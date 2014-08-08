@@ -34,6 +34,7 @@
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
 #include "table_id.h"
+#include <set>
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -55,6 +56,7 @@ extern I_List<i_string_pair> binlog_rewrite_db;
 #include "sql_class.h"                          /* THD */
 #include "rpl_utility.h"                        /* Hash_slave_rows */
 #include "rpl_filter.h"
+#include "key.h"                                /* key_copy, compare_keys */
 #endif
 
 #include "binary_log.h"
@@ -392,7 +394,7 @@ typedef struct st_print_event_info
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
   uint lc_time_names_number;
   uint charset_database_number;
-  uint thread_id;
+  my_thread_id thread_id;
   bool thread_id_printed;
 
   st_print_event_info();
@@ -480,7 +482,15 @@ typedef struct st_mts_db_names
   int  num;
 } Mts_db_names;
 
+/**
+  To provide a mapping from type_code to event string
+  It returns the human readable name of this event's type.
 
+  @param  type_code   The event_type for the event
+
+  @return             The event name for the event
+*/
+std::string type_code_to_str(Log_event_type type_code);
 /**
   @class Log_event
 
@@ -904,7 +914,6 @@ public:
   /**
     Returns the human readable name of this event's type.
   */
-  const char* get_type_str();
 
   /* Return start of query time or current time */
 
@@ -1269,13 +1278,14 @@ class Query_log_event: public virtual Query_event, public Log_event
 protected:
   Log_event_header::Byte* data_buf;
 public:
+
   /*
     For events created by Query_log_event::do_apply_event (and
     Load_log_event::do_apply_event()) we need the *original* thread
     id, to be able to log the event with the original (=master's)
     thread id (fix for BUG#1686).
   */
-  ulong slave_proxy_id;
+  my_thread_id slave_proxy_id;
 
 
 #ifdef MYSQL_SERVER
@@ -1336,7 +1346,16 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  Query_log_event();
+/**
+  The simplest constructor that could possibly work.  This is used for
+  creating static objects that have a special meaning and are invisible
+  to the log.
+*/
+  Query_log_event()
+  : binary_log::Query_event(), Log_event(header(), footer(), true), data_buf(NULL)
+  {
+  }
+
   Query_log_event(const char* buf, uint event_len,
                   const Format_description_event *description_event,
                   Log_event_type event_type);
@@ -1438,10 +1457,14 @@ protected:
                      int body_offset,
                      const Format_description_event* description_event);
 public:
+  Load_log_event()
+  : Load_event(), Log_event(header(), footer(), true)
+  {
+  }
   uint get_query_buffer_length();
   void print_query(bool need_db, const char *cs, char *buf, char **end,
                    char **fn_start, char **fn_end);
-  ulong thread_id;
+  my_thread_id thread_id;
   sql_ex_info sql_ex;
 
   /* fname doesn't point to memory inside Log_event::temp_buf  */
@@ -1546,7 +1569,7 @@ public:
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3()
-  : Log_event(header(), footer())
+  : Log_event(header(), footer(), true)
   {
   }
 
@@ -1621,6 +1644,10 @@ class Format_description_log_event: public Format_description_event,
                                     public Start_log_event_v3
 {
 public:
+
+  Format_description_log_event()
+  : Start_event_v3(), Format_description_event()
+  {}
   Format_description_log_event(uint8_t binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_event
@@ -1689,7 +1716,10 @@ protected:
 class Intvar_log_event: public Intvar_event, public Log_event
 {
 public:
-
+  Intvar_log_event()
+  : Intvar_event(), Log_event(header(), footer(), true)
+  {
+  }
 #ifdef MYSQL_SERVER
   Intvar_log_event(THD* thd_arg, uchar type_arg, ulonglong val_arg,
                    enum_event_cache_type cache_type_arg,
@@ -1752,6 +1782,10 @@ private:
 class Rand_log_event: public Rand_event, public Log_event
 {
  public:
+
+  Rand_log_event()
+  : Rand_event(), Log_event(header(), footer(), true)
+  {}
 
 #ifdef MYSQL_SERVER
   Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg,
@@ -1819,6 +1853,9 @@ class Xid_log_event: public Xid_event, public Log_event
 {
  public:
 
+  Xid_log_event()
+  : Xid_event(), Log_event(header(), footer(), true)
+  {}
 #ifdef MYSQL_SERVER
   Xid_log_event(THD* thd_arg, my_xid x)
   : Xid_event(x),
@@ -1875,6 +1912,10 @@ private:
 class User_var_log_event: public User_var_event, public Log_event
 {
 public:
+  User_var_log_event()
+  : User_var_event(), Log_event(header(), footer(), true)
+  {}
+
 #ifdef MYSQL_SERVER
   bool deferred;
   query_id_t query_id;
@@ -1931,14 +1972,14 @@ private:
 class Stop_log_event: public Stop_event, public Log_event
 {
 public:
-#ifdef MYSQL_SERVER
+
   Stop_log_event()
-  : Log_event(header(), footer())
+  : Log_event(header(), footer(), true)
   {
     is_valid= true;
   }
 
-#else
+#ifndef MYSQL_SERVER
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
@@ -1997,6 +2038,10 @@ private:
 class Rotate_log_event: public Rotate_event, public Log_event
 {
 public:
+  Rotate_log_event()
+  : Rotate_event(), Log_event(header(), footer(), true)
+  {
+  }
 #ifdef MYSQL_SERVER
   Rotate_log_event(const char* new_log_ident_arg,
 		   uint ident_len_arg,
@@ -2069,6 +2114,10 @@ private:
 class Create_file_log_event: public Load_log_event, public Create_file_event
 {
 public:
+  Create_file_log_event()
+  : Create_file_event()
+  {
+  }
 
 #ifdef MYSQL_SERVER
 #ifdef HAVE_REPLICATION
@@ -2138,6 +2187,11 @@ class Append_block_log_event: public virtual Append_block_event,
                               public Log_event
 {
 public:
+  Append_block_log_event()
+  : Log_event(header(), footer(), true)
+  {
+  }
+
 #ifdef MYSQL_SERVER
   Append_block_log_event(THD* thd, const char* db_arg, uchar* block_arg,
 			 uint block_len_arg, bool using_trans);
@@ -2199,6 +2253,10 @@ class Delete_file_log_event: public Delete_file_event, public Log_event
 {
 public:
 
+  Delete_file_log_event()
+  : Delete_file_event(), Log_event(header(), footer(), true)
+  {
+  }
 #ifdef MYSQL_SERVER
   Delete_file_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
@@ -2258,6 +2316,10 @@ private:
 class Execute_load_log_event: public Execute_load_event, public Log_event
 {
 public:
+
+  Execute_load_log_event()
+  : Execute_load_event(), Log_event(header(), footer(), true)
+  {}
 #ifdef MYSQL_SERVER
   Execute_load_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
@@ -2339,6 +2401,8 @@ class Begin_load_query_log_event: public Append_block_log_event,
                                   public Begin_load_query_event
 {
 public:
+  Begin_load_query_log_event()
+  {}
 #ifdef MYSQL_SERVER
   Begin_load_query_log_event(THD* thd_arg, const char *db_arg,
                              uchar* block_arg, uint block_len_arg,
@@ -2399,7 +2463,8 @@ class Execute_load_query_log_event: public Query_log_event,
                                     public Execute_load_query_event
 {
 public:
-
+  Execute_load_query_log_event()
+  {}
 #ifdef MYSQL_SERVER
   Execute_load_query_log_event(THD* thd, const char* query_arg,
                                ulong query_length, uint fn_pos_start_arg,
@@ -2526,6 +2591,13 @@ public:
 
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
+  Table_map_log_event()
+  : Table_map_event(), Log_event(header(), footer(), true)
+  {
+    m_null_bits= 0;
+    m_field_metadata= 0;
+    m_coltype= 0;
+  }
 #ifdef MYSQL_SERVER
   Table_map_log_event(THD *thd_arg, TABLE *tbl, const Table_id& tid,
                       bool is_transactional);
@@ -2669,6 +2741,9 @@ public:
       RLE_NO_FLAGS = 0U
   };
 
+  Rows_log_event(Log_event_type type)
+  : Rows_event(type), Log_event(header(), footer(), true)
+  { m_cols.bitmap =0; }
   virtual ~Rows_log_event();
 
   void set_flags(flag_set flags_arg) { m_flags |= flags_arg; }
@@ -2834,10 +2909,39 @@ protected:
   const uchar *m_curr_row;     /* Start of the row being processed */
   const uchar *m_curr_row_end; /* One-after the end of the current row */
   uchar    *m_key;      /* Buffer to keep key value during searches */
-  uchar    *last_hashed_key;
   uint     m_key_index;
-  List<uchar> m_distinct_key_list;
-  List_iterator_fast<uchar> m_itr;
+  KEY      *m_key_info; /* Points to description of index #m_key_index */
+  class Key_compare
+  {
+public:
+    /**
+       @param  ki  Where to find KEY description
+       @note m_distinct_keys is instantiated when Rows_log_event is constructed; it
+       stores a Key_compare object internally. However at that moment, the
+       index (KEY*) to use for comparisons, is not yet known. So, at
+       instantiation, we indicate the Key_compare the place where it can
+       find the KEY* when needed (this place is Rows_log_event::m_key_info),
+       Key_compare remembers the place in member m_key_info.
+       Before we need to do comparisons - i.e. before we need to insert
+       elements, we update Rows_log_event::m_key_info once for all.
+    */
+    Key_compare(KEY **ki= NULL) : m_key_info(ki) {}
+    bool operator()(uchar *k1, uchar *k2) const
+    {
+      return key_cmp2((*m_key_info)->key_part,
+                      k1, (*m_key_info)->key_length,
+                      k2, (*m_key_info)->key_length) < 0 ;
+    }
+private:
+    KEY **m_key_info;
+  };
+  std::set<uchar *, Key_compare> m_distinct_keys;
+  std::set<uchar *, Key_compare>::iterator m_itr;
+  /**
+    A spare buffer which will be used when saving the distinct keys
+    for doing an index scan with HASH_SCAN search algorithm.
+  */
+  uchar *m_distinct_key_spare_buf;
 
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
@@ -2995,14 +3099,13 @@ private:
 
   /**
     Initializes scanning of rows. Opens an index and initailizes an iterator
-    over a list of distinct keys (m_distinct_key_list) if it is a HASH_SCAN
+    over a list of distinct keys (m_distinct_keys) if it is a HASH_SCAN
     over an index or the table if its a HASH_SCAN over the table.
   */
   int open_record_scan();
 
   /**
     Does the cleanup
-    - deallocates all the elements in m_distinct_key_list if any
     - closes the index if opened by open_record_scan
     - closes the table if opened for scanning.
   */
@@ -3023,7 +3126,7 @@ private:
   int next_record_scan(bool first_read);
 
   /**
-    Populates the m_distinct_key_list with unique keys to be modified
+    Populates the m_distinct_keys with unique keys to be modified
     during HASH_SCAN over keys.
     @return_value -0 success
                   -Err_code
@@ -3097,6 +3200,9 @@ private:
 class Write_rows_log_event : public Rows_log_event, public Write_rows_event
 {
 public:
+  Write_rows_log_event(Log_event_type type)
+  : Rows_event(type), Rows_log_event(type)
+  {}
   enum
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
@@ -3188,6 +3294,12 @@ private:
 class Update_rows_log_event : public Rows_log_event, public Update_rows_event
 {
 public:
+
+  Update_rows_log_event(Log_event_type type)
+  : Rows_event(type), Rows_log_event(type)
+  {
+    m_cols_ai.bitmap= 0;
+  }
   enum
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
@@ -3293,6 +3405,10 @@ protected:
 class Delete_rows_log_event : public Rows_log_event, public Delete_rows_event
 {
 public:
+
+  Delete_rows_log_event(Log_event_type type)
+  :  Rows_event(type), Rows_log_event(type)
+  {}
   enum
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
@@ -3368,8 +3484,12 @@ protected:
   @endinternal
 
 */
-class Incident_log_event : public Incident_event , public Log_event{
+class Incident_log_event : public Incident_event , public Log_event
+{
 public:
+  Incident_log_event()
+  : Log_event(header(), footer(), true)
+  { }
 #ifdef MYSQL_SERVER
   Incident_log_event(THD *thd_arg, enum_incident incident)
     : Incident_event(incident),
@@ -3470,8 +3590,12 @@ private:
   B_l: Namespace Binary_log
   @endinternal
 */
-class Ignorable_log_event : public virtual Ignorable_event, public Log_event {
+class Ignorable_log_event : public virtual Ignorable_event, public Log_event 
+{
 public:
+  Ignorable_log_event()
+  : Log_event(header(), footer(), true)
+  {}
 #ifndef MYSQL_CLIENT
   Ignorable_log_event(THD *thd_arg)
       : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F,
@@ -3534,6 +3658,8 @@ public:
 */
 class Rows_query_log_event : public Ignorable_log_event, public Rows_query_event{
 public:
+  Rows_query_log_event()
+  {}
 #ifndef MYSQL_CLIENT
   Rows_query_log_event(THD *thd_arg, const char * query, size_t query_len)
     : Ignorable_log_event(thd_arg)
@@ -3602,6 +3728,10 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
 class Heartbeat_log_event: public Heartbeat_event, public Log_event
 {
 public:
+  Heartbeat_log_event()
+  : Heartbeat_event(), Log_event(header(), footer(), true)
+  {}
+
   Heartbeat_log_event(const char* buf, uint event_len,
                       const Format_description_event* description_event);
 };
@@ -3650,6 +3780,9 @@ extern TYPELIB binlog_checksum_typelib;
 class Gtid_log_event : public Gtid_event, public Log_event
 {
 public:
+  Gtid_log_event()
+  : Gtid_event(), Log_event(header(), footer(), true)
+  { }
 #ifndef MYSQL_CLIENT
   /**
     Create a new event using the GTID from the given Gtid_specification,
@@ -3791,6 +3924,10 @@ B_l:Previous_gtids_event   Log_event
 class Previous_gtids_log_event : public Previous_gtids_event, public Log_event
 {
 public:
+
+  Previous_gtids_log_event()
+  : Previous_gtids_event(), Log_event(header(), footer(), true)
+  { }
 #ifndef MYSQL_CLIENT
   Previous_gtids_log_event(const Gtid_set *set);
 #endif

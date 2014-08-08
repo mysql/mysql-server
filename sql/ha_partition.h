@@ -727,7 +727,7 @@ public:
     underlying handlers must have the same implementation for it to work.
   */
   virtual uint8 table_cache_type();
-  virtual ha_rows records();
+  virtual int records(ha_rows *num_rows);
 
   /* Calculate hash value for PARTITION BY KEY tables. */
   uint32 calculate_key_hash_value(Field **field_array);

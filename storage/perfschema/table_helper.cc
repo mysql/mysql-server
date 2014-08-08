@@ -764,4 +764,35 @@ void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state)
   }
 }
 
+void PFS_variable_name_row::make_row(const char* str, uint length)
+{
+  DBUG_ASSERT(length <= sizeof(m_str));
+  if (length > 0)
+  {
+    memcpy(m_str, str, length);
+  }
+  m_length= length;
+}
+
+void PFS_variable_value_row::clear()
+{
+  my_free(m_value);
+  m_value= NULL;
+  m_value_length= 0;
+}
+
+void PFS_variable_value_row::make_row(const char* val, size_t length)
+{
+  if (length > 0)
+  {
+    m_value= (char*) my_malloc(PSI_NOT_INSTRUMENTED, length, MYF(0));
+    m_value_length= length;
+    memcpy(m_value, val, length);
+  }
+  else
+  {
+    m_value= NULL;
+    m_value_length= 0;
+  }
+}
 

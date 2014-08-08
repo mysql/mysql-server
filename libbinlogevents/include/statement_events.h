@@ -588,6 +588,10 @@ public:
   */
   int64_t commit_seq_no;
 
+  std::string get_event_name()
+  {
+    return "Query";
+  }
   /**
     The constructor will be used while creating a Query_event, to be
     written to the binary log.
@@ -607,8 +611,22 @@ public:
     The constructor receives a buffer and instantiates a Query_event filled in
     with the data from the buffer
 
+    <pre>
+    The fixed event data part buffer layout is as follows:
+    +---------------------------------------------------------------------+
+    | thread_id | query_exec_time | db_len | error_code | status_vars_len |
+    +---------------------------------------------------------------------+
+    </pre>
+
+    <pre>
+    The fixed event data part buffer layout is as follows:
+    +--------------------------------------------+
+    | Zero or more status variables | db | query |
+    +--------------------------------------------+
+    </pre>
+
     @param buf                Containing the event header and data
-    @param even_len           The length upto ehich buf contains Query event data
+    @param even_len           The length upto which buf contains Query event data
     @param description_event  FDE specific to the binlog version
 
     @param event_type         Required to determine whether the event type is
@@ -727,6 +745,14 @@ public:
     UV_CHARSET_NUMBER_SIZE= 4
   };
 
+  std::string get_event_name()
+  {
+    return "User var";
+  }
+
+  User_var_event()
+  : Binary_log_event(USER_VAR_EVENT)
+  {}
   /**
     This constructor will initialize the instance variablesi and the type_code,
     it will be used only by the server code.
@@ -748,6 +774,13 @@ public:
     events for the statement. Indicates the value to use for the
     user variable in the next statement. This is written only before a
     QUERY_EVENT and is not used with row-based logging.
+
+    The buffer layout for variable data part is as follows:
+    <pre>
+    +-------------------------------------------------------------------+
+    | name_len | name | is_null | type | charset_number | val_len | val |
+    +-------------------------------------------------------------------+
+    </pre>
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
@@ -876,6 +909,10 @@ public:
     }
   }
 
+  std::string get_event_name()
+  {
+    return "Intvar";
+  }
   /**
     Constructor receives a packet from the MySQL master or the binary
     log and decodes it to create an Intvar_event.
@@ -908,7 +945,10 @@ public:
   : Binary_log_event(INTVAR_EVENT), type(type_arg), val(val_arg)
   {
   }
-
+  Intvar_event()
+  : Binary_log_event(INTVAR_EVENT)
+  {
+  }
   ~Intvar_event() {}
 
   /*

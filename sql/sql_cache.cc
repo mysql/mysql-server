@@ -509,7 +509,7 @@ bool Query_cache::try_lock(bool use_timeout)
       m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
       if (thd)
-        m_cache_lock_thread_id= thd->thread_id;
+        m_cache_lock_thread_id= thd->thread_id();
 #endif
       break;
     }
@@ -576,7 +576,7 @@ void Query_cache::lock_and_suspend(void)
   m_cache_lock_status= Query_cache::LOCKED_NO_WAIT;
 #ifndef DBUG_OFF
   if (thd)
-    m_cache_lock_thread_id= thd->thread_id;
+    m_cache_lock_thread_id= thd->thread_id();
 #endif
   /* Wake up everybody, a whole cache flush is starting! */
   mysql_cond_broadcast(&COND_cache_status_changed);
@@ -605,7 +605,7 @@ void Query_cache::lock(void)
   m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
   if (thd)
-    m_cache_lock_thread_id= thd->thread_id;
+    m_cache_lock_thread_id= thd->thread_id();
 #endif
   mysql_mutex_unlock(&structure_guard_mutex);
 
@@ -624,7 +624,7 @@ void Query_cache::unlock(void)
 #ifndef DBUG_OFF
   THD *thd= current_thd;
   if (thd)
-    DBUG_ASSERT(m_cache_lock_thread_id == thd->thread_id);
+    DBUG_ASSERT(m_cache_lock_thread_id == thd->thread_id());
 #endif
   DBUG_ASSERT(m_cache_lock_status == Query_cache::LOCKED ||
               m_cache_lock_status == Query_cache::LOCKED_NO_WAIT);
@@ -1127,15 +1127,37 @@ void query_cache_invalidate_by_MyISAM_filename(const char *filename)
 }
 
 
-/*
-  The following function forms part of the C plugin API
+/**
+  This is a convenience function used by the innodb plugin.
 */
 extern "C"
 void mysql_query_cache_invalidate4(THD *thd,
                                    const char *key, unsigned key_length,
                                    int using_trx)
 {
-  query_cache.invalidate(thd, key, (uint32) key_length, (my_bool) using_trx);
+  char qcache_key_name[2 * (NAME_LEN + 1)];
+  char db_name[NAME_LEN + 1];
+  const char *key_ptr;
+  size_t tabname_len, dbname_len;
+
+  // Extract the database name.
+  key_ptr= strchr(key, '/');
+  memcpy(db_name, key, (key_ptr - key));
+  db_name[(key_ptr - key)]= '\0';
+
+  /*
+    Construct the key("db-name\0table$name\0") in a non-canonical format for
+    the query cache using the key("db@002dname\0table@0024name\0") which is
+    in its canonical form.
+  */
+  dbname_len= filename_to_tablename(db_name, qcache_key_name,
+                                    sizeof(qcache_key_name));
+  tabname_len= filename_to_tablename(++key_ptr,
+                                     (qcache_key_name + dbname_len + 1),
+                                     sizeof(qcache_key_name) - dbname_len - 1);
+
+  query_cache.invalidate(thd, qcache_key_name, (dbname_len + tabname_len + 2),
+                         (my_bool) using_trx);
 }
 
 

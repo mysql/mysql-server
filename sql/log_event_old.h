@@ -103,6 +103,9 @@ public:
       RLE_NO_FLAGS = 0U
   };
 
+  Old_rows_log_event()
+  : Binary_log_event(), Log_event(header(), footer(), true)
+  {}
   virtual ~Old_rows_log_event();
 
   void set_flags(flag_set flags_arg) { m_flags |= flags_arg; }
@@ -356,6 +359,14 @@ class Write_rows_log_event_old : public Old_rows_log_event
 {
   /********** BEGIN CUT & PASTE FROM Write_rows_log_event **********/
 public:
+  std::string get_event_name()
+  {
+    return "Write_rows_event_old";
+  }
+
+  Write_rows_log_event_old()
+  : Old_rows_log_event()
+  { }
 #if !defined(MYSQL_CLIENT)
   Write_rows_log_event_old(THD*, TABLE*, ulong table_id,
                            MY_BITMAP const *cols,
@@ -428,6 +439,14 @@ class Update_rows_log_event_old : public Old_rows_log_event
 {
   /********** BEGIN CUT & PASTE FROM Update_rows_log_event **********/
 public:
+  std::string get_event_name()
+  {
+    return "Update_rows_event_old";
+  }
+
+  Update_rows_log_event_old()
+  : Old_rows_log_event()
+  {}
 #ifndef MYSQL_CLIENT
   Update_rows_log_event_old(THD*, TABLE*, ulong table_id,
                             MY_BITMAP const *cols,
@@ -502,6 +521,14 @@ class Delete_rows_log_event_old : public Old_rows_log_event
 {
   /********** BEGIN CUT & PASTE FROM Update_rows_log_event **********/
 public:
+  std::string get_event_name()
+  {
+    return "Delete_rows_event_old";
+  }
+
+  Delete_rows_log_event_old()
+  : Old_rows_log_event()
+  {}
 #ifndef MYSQL_CLIENT
   Delete_rows_log_event_old(THD*, TABLE*, ulong,
                             MY_BITMAP const *cols,

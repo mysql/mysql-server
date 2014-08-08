@@ -476,7 +476,6 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
       &scanptr,
       &tabptr,
       &tcConnectptr,
-      &tcNodeFailptr,
     }; 
     init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }

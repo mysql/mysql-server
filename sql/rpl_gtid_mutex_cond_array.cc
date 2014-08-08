@@ -90,3 +90,8 @@ error:
   BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
 }
+
+bool Mutex_cond_array::check_thd_killed(const THD* thd) const
+{
+  return thd->killed;
+}

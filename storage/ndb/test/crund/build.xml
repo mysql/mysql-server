@@ -1,5 +1,5 @@
 <!--
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,14 +141,11 @@
 
   <!-- displays usage -->
   <target name="help">
-    <echo message="target name scheme:"/>
-    <echo message="  xyz                run target XYZ with debug options"/>
-    <echo message="  xyz.opt            run target XYZ with optimize options"/>
-    <echo message=""/>
-    <echo message="targets acting on all benchmarks:"/>
-    <echo message="  build"/>
-    <echo message="  compile"/>
-    <echo message="  run"/>
+    <echo message="global build targets:"/>
+    <echo message="  build              builds all benchmarks"/>
+    <echo message="  clean              deletes most generated files"/>
+    <echo message="  mostlyclean        deletes also log files"/>
+    <echo message="  distclean          deletes also database files"/>
     <echo message=""/>
     <echo message="benchmark compile targets:"/>
     <echo message="  compile.ndbjtie"/>
@@ -157,13 +154,14 @@
     <echo message="  compile.jpa"/>
     <echo message=""/>
     <echo message="benchmark execution targets:"/>
-    <echo message="  run.crund (generic driver, uses property 'loads')"/>
-    <echo message="  run.ndbjtie"/>
-    <echo message="  run.clusterj"/>
-    <echo message="  run.clusterjdbc"/>
-    <echo message="  run.mysql"/>
-    <echo message="  run.openjpa.clusterj"/>
-    <echo message="  run.openjpa.mysql"/>
+    <echo message="  run.crund[.opt]    runs driver using property 'loads'"/>
+    <echo message="                     with debug/optimize runtime flags"/>
+    <echo message="  run.ndbjtie[.opt]"/>
+    <echo message="  run.clusterj[.opt]"/>
+    <echo message="  run.clusterjdbc[.opt]"/>
+    <echo message="  run.mysql[.opt]"/>
+    <echo message="  run.openjpa.clusterj[.opt]"/>
+    <echo message="  run.openjpa.mysql[.opt]"/>
   </target>
 
   <!-- creates the build directories -->
@@ -344,18 +342,25 @@
     </javac>
   </target>
 
-  <!-- checks the path to the NDBAPI dynamic library -->
-  <target name="check.NDB_LIBDIR" unless="NDB_LIBDIR">
-    <echo message="property not set: NDB_LIBDIR"/>
+  <!-- checks the path to the NDB libs by presence of subdir 'plugin' -->
+  <target name="test.ndb.libdir0"
+	  if="NDB_LIBDIR0">
+    <available file="${NDB_LIBDIR0}/plugin" type="dir" property="ndb.libdir"
+	       value="${NDB_LIBDIR0}"/>
   </target>
-  <target name="set.ndb.libdir" depends="check.NDB_LIBDIR"
-	  if="NDB_LIBDIR">
-    <available property="ndb.libdir" file="${NDB_LIBDIR}"
-	       value="${NDB_LIBDIR}"/>
+  <target name="test.ndb.libdir1" depends="test.ndb.libdir0"
+	  if="NDB_LIBDIR1" unless="ndb.libdir">
+    <available file="${NDB_LIBDIR1}/plugin" type="dir" property="ndb.libdir"
+	       value="${NDB_LIBDIR1}"/>
+  </target>
+  <target name="set.ndb.libdir" depends="test.ndb.libdir1">
+    <!-- <echo message="property ndb.libdir: ${ndb.libdir}"/> -->
   </target>
   <target name="check.ndb.libdir" depends="set.ndb.libdir"
 	  unless="ndb.libdir">
-    <echo message="file not found: ${NDB_LIBDIR}"/>
+    <echo message="cannot find path to NDB libs: no dir 'plugin' in either"/>
+    <echo message="  property NDB_LIBDIR0: ${NDB_LIBDIR0}"/>
+    <echo message="  property NDB_LIBDIR1: ${NDB_LIBDIR1}"/>
   </target>
 
   <!-- sets the paths for running on NDBJTIE -->
@@ -1167,6 +1172,4 @@ Note that the enhancement process for subclasses introduces dependencies on -
     </java>
   </target>
   <target name="run.crund.opt" depends="set.run.opt,run.crund"/>
-
-  <target name="run.jcrund" depends="run.crund.opt"/>
 </project>

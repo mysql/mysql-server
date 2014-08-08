@@ -276,9 +276,50 @@ public:
   */
   enum_load_dup_handling dup_handling;
 
+  std::string get_event_name()
+  {
+    return "Execute_load_query";
+  }
+
+  Execute_load_query_event()
+  : Query_event(EXECUTE_LOAD_QUERY_EVENT)
+  {}
   Execute_load_query_event(uint32_t file_id_arg, uint32_t fn_pos_start,
                            uint32_t fn_pos_end, enum_load_dup_handling dup);
 
+  /**
+    The constructor receives a buffer and instantiates a Execute_load_uery_event
+    filled in with the data from the buffer.
+
+    <pre>
+    The fixed event data part buffer layout is as follows:
+    +---------------------------------------------------------------------+
+    | thread_id | query_exec_time | db_len | error_code | status_vars_len |
+    +---------------------------------------------------------------------+
+    +----------------------------------------------------+
+    | file_id | fn_pos_start | fn_pos_end | dup_handling |
+    +----------------------------------------------------+
+    </pre>
+
+    <pre>
+    The fixed event data part buffer layout is as follows:
+    +------------------------------------------------------------------+
+    | Zero or more status variables | db |  LOAD DATA INFILE statement |
+    +------------------------------------------------------------------+
+    </pre>
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+    @param event_type         Required to determine whether the event type is
+                              QUERY_EVENT or EXECUTE_LOAD_QUERY_EVENT
+  */
   Execute_load_query_event(const char* buf, unsigned int event_len,
                            const Format_description_event *description_event);
   ~Execute_load_query_event() {}
@@ -548,11 +589,41 @@ public:
   */
   bool is_concurrent;
 
+  std::string get_event_name()
+  {
+    return "Load";
+  }
   /**
     Note that for all the events related to LOAD DATA (Load_event,
     Create_file/Append/Exec/Delete, we pass description_event; however as
     logging of LOAD DATA is changed, this is only used
     for the common_header_len (post_header_len is not changed).
+
+    <pre>
+    The fixed event data part buffer layout is as follows:
+    +--------------------------------------------------------------------------------+
+    | thread_id | load_exec_time | skip_lines | table_name_len | db_len | num_fields |
+    +--------------------------------------------------------------------------------+
+    </pre>
+
+    <pre>
+    Variable data part
+    +---------------------------------------------------------------------+
+    | sql_ex_data struct | len of col names to load | col_names | tb_name |
+    +-------------------------------------------------------------- ------+
+    +----------------+
+    |db_name | fname |
+    +----------------+
+    </pre>
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
   */
   Load_event(const char* buf, unsigned int event_len,
              const Format_description_event* description_event);
@@ -628,12 +699,38 @@ public:
   unsigned int file_id;
   bool inited_from_old;
 
+  std::string get_event_name()
+  {
+    return "Create_file";
+  }
+  /**
+    The buffer layout for variable data part is as follows:
+    <pre>
+    +-------------------------------------------------------------------+
+    | name_len | name | is_null | type | charset_number | val_len | val |
+    +-------------------------------------------------------------------+
+    </pre>
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Create_file_event(const char* buf, unsigned int event_len,
                     const Format_description_event* description_event);
 
+  Create_file_event()
+  : Load_event(CREATE_FILE_EVENT), event_buf(NULL)
+  {}
   ~Create_file_event()
   {
-    bapi_free((void*) event_buf);
+     if (event_buf)
+       bapi_free((void*) event_buf);
   }
   int get_data_size()
   {
@@ -689,6 +786,32 @@ public:
   uint32_t file_id;
   const char* db; /** see comment in Append_block_event */
 
+  std::string get_event_name()
+  {
+    return "Delete_file";
+  }
+
+  Delete_file_event()
+  : Binary_log_event(DELETE_FILE_EVENT)
+  {}
+   /**
+    The buffer layout for fixed data part is as follows:
+    <pre>
+    +---------+
+    | file_id |
+    +---------+
+    </pre>
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Delete_file_event(const char* buf, unsigned int event_len,
                     const Format_description_event* description_event);
   ~Delete_file_event() {}
@@ -744,6 +867,31 @@ public:
   uint32_t file_id;
   const char* db; /** see comment in Append_block_event */
 
+  std::string get_event_name()
+  {
+    return "Exec_load";
+  }
+  Execute_load_event()
+  : Binary_log_event(EXEC_LOAD_EVENT)
+  {}
+  /**
+    The buffer layout for fixed data part is as follows:
+    <pre>
+    +---------+
+    | file_id |
+    +---------+
+    </pre>
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Execute_load_event(const char* buf, unsigned int event_len,
                      const Format_description_event *description_event);
 
@@ -833,6 +981,36 @@ public:
   */
   const char* db;
 
+  std::string get_event_name()
+  {
+    return "Append_block";
+  }
+
+  /**
+    The buffer layout for fixed data part is as follows:
+    <pre>
+    +---------+
+    | file_id |
+    +---------+
+    </pre>
+
+    The buffer layout for variabl data part is as follows:
+    <pre>
+    +-------------------+
+    | block | block_len |
+    +-------------------+
+    </pre>
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Append_block_event(const char* buf, unsigned int event_len,
                      const Format_description_event *description_event);
   ~Append_block_event() {}
@@ -866,6 +1044,38 @@ protected:
   }
 
 public:
+
+  std::string get_event_name()
+  {
+    return "Begin_load_query";
+  }
+
+
+  /**
+    The buffer layout for fixed data part is as follows:
+    <pre>
+    +---------+
+    | file_id |
+    +---------+
+    </pre>
+
+    The buffer layout for variabl data part is as follows:
+    <pre>
+    +-------------------+
+    | block | block_len |
+    +-------------------+
+    </pre>
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Begin_load_query_event(const char* buf, unsigned int event_len,
                          const Format_description_event *description_event);
   ~Begin_load_query_event() {}

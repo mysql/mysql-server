@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 #include "ndb_binlog_extra_row_info.h"
 
 #ifdef HAVE_NDB_BINLOG
+#include "ndb_mi.h"
+extern st_ndb_slave_state g_ndb_slave_state;
 
 #define NDBTAB NdbDictionary::Table
 #define NDBCOL NdbDictionary::Column
@@ -862,12 +864,14 @@ ExceptionsTableWriter::writeRow(NdbTransaction* trans,
 */
 st_ndb_slave_state::st_ndb_slave_state()
   : current_master_server_epoch(0),
+    current_master_server_epoch_committed(false),
     current_max_rep_epoch(0),
     conflict_flags(0),
     retry_trans_count(0),
     current_trans_row_conflict_count(0),
     current_trans_row_reject_count(0),
     current_trans_in_conflict_count(0),
+    last_conflicted_epoch(0),
     max_rep_epoch(0),
     sql_run_id(~Uint32(0)),
     trans_row_conflict_count(0),
@@ -930,7 +934,7 @@ st_ndb_slave_state::atTransactionAbort()
    Called by Slave SQL thread after transaction commit
 */
 void
-st_ndb_slave_state::atTransactionCommit()
+st_ndb_slave_state::atTransactionCommit(Uint64 epoch)
 {
   assert( ((trans_dependency_tracker == NULL) &&
            (trans_conflict_apply_state == SAS_NORMAL)) ||
@@ -941,8 +945,10 @@ st_ndb_slave_state::atTransactionCommit()
   /* Merge committed transaction counters into total state
    * Then reset current transaction counters
    */
+  Uint32 total_conflicts = 0;
   for (int i=0; i < CFT_NUMBER_OF_CFTS; i++)
   {
+    total_conflicts+= current_violation_count[i];
     total_violation_count[i]+= current_violation_count[i];
   }
   trans_row_conflict_count+= current_trans_row_conflict_count;
@@ -960,10 +966,215 @@ st_ndb_slave_state::atTransactionCommit()
     max_rep_epoch = current_max_rep_epoch;
   }
 
+  if (total_conflicts > 0)
+  {
+    DBUG_PRINT("info", ("Last conflicted epoch increases from %llu to %llu",
+                        last_conflicted_epoch,
+                        epoch));
+    last_conflicted_epoch = epoch;
+  }
+
   resetPerAttemptCounters();
 
   /* Clear per-epoch-transaction retry_trans_count */
   retry_trans_count = 0;
+
+  current_master_server_epoch_committed = true;
+
+  DBUG_EXECUTE_IF("ndb_slave_fail_marking_epoch_committed",
+                  {
+                    fprintf(stderr, 
+                            "Slave clearing epoch committed flag "
+                            "for epoch %llu/%llu (%llu)\n",
+                            current_master_server_epoch >> 32,
+                            current_master_server_epoch & 0xffffffff,
+                            current_master_server_epoch);
+                    current_master_server_epoch_committed = false;
+                  });
+}
+
+/**
+   verifyNextEpoch
+
+   Check that a new incoming epoch from the relay log
+   is expected given the current slave state, previous
+   epoch etc.
+   This is checking Generic replication errors, with
+   a user warning thrown in too.
+*/
+bool
+st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
+                                    Uint32 master_server_id) const
+{
+  DBUG_ENTER("verifyNextEpoch");
+#ifdef HAVE_NDB_BINLOG
+  /**
+    WRITE_ROW to ndb_apply_status injected by MySQLD
+    immediately upstream of us.
+
+    Now we do some validation of the incoming epoch transaction's
+    epoch - to make sure that we are getting a sensible sequence
+    of epochs.
+  */
+  bool first_epoch_since_slave_start = (ndb_mi_get_slave_run_id() != sql_run_id);
+  
+  DBUG_PRINT("info", ("ndb_apply_status write from upstream master."
+                      "ServerId %u, Epoch %llu/%llu (%llu) "
+                      "Current master server epoch %llu/%llu (%llu)"
+                      "Current master server epoch committed? %u",
+                      master_server_id,
+                      next_epoch >> 32,
+                      next_epoch & 0xffffffff,
+                      next_epoch,
+                      current_master_server_epoch >> 32,
+                      current_master_server_epoch & 0xffffffff,
+                      current_master_server_epoch,
+                      current_master_server_epoch_committed));
+  DBUG_PRINT("info", ("mi_slave_run_id=%u, ndb_slave_state_run_id=%u",
+                      ndb_mi_get_slave_run_id(), sql_run_id));
+  DBUG_PRINT("info", ("First epoch since slave start : %u",
+                      first_epoch_since_slave_start));
+             
+  /* Analysis of nextEpoch generally depends on whether it's the first or not */
+  if (first_epoch_since_slave_start)
+  {
+    /**
+       First epoch since slave start - might've had a CHANGE MASTER command,
+       since we were last running, so we are not too strict about epoch
+       changes, but we will warn.
+    */
+    if (next_epoch < current_master_server_epoch)
+    {
+      sql_print_warning("NDB Slave : At SQL thread start "
+                        "applying epoch %llu/%llu "
+                        "(%llu) from Master ServerId %u which is lower than previously "
+                        "applied epoch %llu/%llu (%llu).  "
+                        "Group Master Log : %s  Group Master Log Pos : %llu.  "
+                        "Check slave positioning.",
+                        next_epoch >> 32,
+                        next_epoch & 0xffffffff,
+                        next_epoch,
+                        master_server_id,
+                        current_master_server_epoch >> 32,
+                        current_master_server_epoch & 0xffffffff,
+                        current_master_server_epoch,
+                        ndb_mi_get_group_master_log_name(),
+                        ndb_mi_get_group_master_log_pos());
+      /* Slave not stopped */
+    }
+    else if (next_epoch == current_master_server_epoch)
+    {
+      /**
+         Could warn that started on already applied epoch,
+         but this is often harmless.
+      */
+    }
+    else
+    {
+      /* next_epoch > current_master_server_epoch - fine. */
+    }
+  }
+  else
+  {
+    /**
+       ! first_epoch_since_slave_start
+       
+       Slave has already applied some epoch in this run, so we expect
+       either :
+        a) previous epoch committed ok and next epoch is higher
+                                  or
+        b) previous epoch not committed and next epoch is the same
+           (Retry case)
+    */
+    if (next_epoch < current_master_server_epoch)
+    {
+      /* Should never happen */
+      sql_print_error("NDB Slave : SQL thread stopped as "
+                      "applying epoch %llu/%llu "
+                      "(%llu) from Master ServerId %u which is lower than previously "
+                      "applied epoch %llu/%llu (%llu).  "
+                      "Group Master Log : %s  Group Master Log Pos : %llu",
+                      next_epoch >> 32,
+                      next_epoch & 0xffffffff,
+                      next_epoch,
+                      master_server_id,
+                      current_master_server_epoch >> 32,
+                      current_master_server_epoch & 0xffffffff,
+                      current_master_server_epoch,
+                      ndb_mi_get_group_master_log_name(),
+                      ndb_mi_get_group_master_log_pos());
+      /* Stop the slave */
+      DBUG_RETURN(false);
+    }
+    else if (next_epoch == current_master_server_epoch)
+    {
+      /**
+         This is ok if we are retrying - e.g. the 
+         last epoch was not committed
+      */
+      if (current_master_server_epoch_committed)
+      {
+        /* This epoch is committed already, why are we replaying it? */
+        sql_print_error("NDB Slave : SQL thread stopped as attempted "
+                        "to reapply already committed epoch %llu/%llu (%llu) "
+                        "from server id %u.  "
+                        "Group Master Log : %s  Group Master Log Pos : %llu.",
+                        current_master_server_epoch >> 32,
+                        current_master_server_epoch & 0xffffffff,
+                        current_master_server_epoch,
+                        master_server_id,
+                        ndb_mi_get_group_master_log_name(),
+                        ndb_mi_get_group_master_log_pos());
+        /* Stop the slave */
+        DBUG_RETURN(false);
+      }
+      else
+      {
+        /* Probably a retry, no problem. */
+      }
+    }
+    else
+    {
+      /**
+         next_epoch > current_master_server_epoch
+      
+         This is the normal case, *unless* the previous epoch
+         did not commit - in which case it may be a bug in 
+         transaction retry.
+      */
+      if (!current_master_server_epoch_committed)
+      {
+        /**
+           We've moved onto a new epoch without committing
+           the last - probably a bug in transaction retry
+        */
+        sql_print_error("NDB Slave : SQL thread stopped as attempting to "
+                        "apply new epoch %llu/%llu (%llu) while lower "
+                        "received epoch %llu/%llu (%llu) has not been "
+                        "committed.  Master server id : %u.  "
+                        "Group Master Log : %s  Group Master Log Pos : %llu.",
+                        next_epoch >> 32,
+                        next_epoch & 0xffffffff,
+                        next_epoch,
+                        current_master_server_epoch >> 32,
+                        current_master_server_epoch & 0xffffffff,
+                        current_master_server_epoch,
+                        master_server_id,
+                        ndb_mi_get_group_master_log_name(),
+                        ndb_mi_get_group_master_log_pos());
+        /* Stop the slave */
+        DBUG_RETURN(false);
+      }
+      else
+      {
+        /* Normal case of next epoch after committing last */
+      }
+    }
+  }
+#endif
+
+  /* Epoch looks ok */
+  DBUG_RETURN(true);
 }
 
 /**
@@ -972,20 +1183,28 @@ st_ndb_slave_state::atTransactionCommit()
    Called by Slave SQL thread when applying an event to the
    ndb_apply_status table
 */
-void
+int
 st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
                                        Uint32 row_server_id,
                                        Uint64 row_epoch,
                                        bool is_row_server_id_local)
 {
+  DBUG_ENTER("atApplyStatusWrite");
   if (row_server_id == master_server_id)
   {
-    /*
-       WRITE_ROW to ndb_apply_status injected by MySQLD
-       immediately upstream of us.
-       Record epoch
-    */
+    /* This is an apply status write from the immediate master */
+
+    if (!verifyNextEpoch(row_epoch,
+                         master_server_id))
+    {
+      /* Problem with the next epoch, stop the slave SQL thread */
+      DBUG_RETURN(HA_ERR_ROWS_EVENT_APPLY);
+    }
+
+    /* Epoch ok, record that we're working on it now... */
+
     current_master_server_epoch = row_epoch;
+    current_master_server_epoch_committed = false;
     assert(! is_row_server_id_local);
   }
   else if (is_row_server_id_local)
@@ -1004,6 +1223,7 @@ st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
       current_max_rep_epoch = row_epoch;
     }
   }
+  DBUG_RETURN(0);
 }
 
 /**
@@ -1024,6 +1244,15 @@ st_ndb_slave_state::atResetSlave()
 
   retry_trans_count = 0;
   max_rep_epoch = 0;
+  last_conflicted_epoch = 0;
+
+  /* Reset current master server epoch
+   * This avoids warnings when replaying a lower
+   * epoch number after a RESET SLAVE - in this
+   * case we assume the user knows best.
+   */
+  current_master_server_epoch = 0;
+  current_master_server_epoch_committed = false;
 }
 
 
@@ -1048,6 +1277,72 @@ st_ndb_slave_state::atStartSlave()
   }
 #endif
 }
+
+bool
+st_ndb_slave_state::checkSlaveConflictRoleChange(enum_slave_conflict_role old_role,
+                                                 enum_slave_conflict_role new_role,
+                                                 const char** failure_cause)
+{
+  if (old_role == new_role)
+    return true;
+  
+  /**
+   * Initial role is SCR_NONE
+   * Allowed transitions :
+   *   SCR_NONE -> SCR_PASS
+   *   SCR_NONE -> SCR_PRIMARY
+   *   SCR_NONE -> SCR_SECONDARY
+   *   SCR_PRIMARY -> SCR_NONE
+   *   SCR_PRIMARY -> SCR_SECONDARY
+   *   SCR_SECONDARY -> SCR_NONE
+   *   SCR_SECONDARY -> SCR_PRIMARY
+   *   SCR_PASS -> SCR_NONE
+   *
+   * Disallowed transitions
+   *   SCR_PASS -> SCR_PRIMARY
+   *   SCR_PASS -> SCR_SECONDARY
+   *   SCR_PRIMARY -> SCR_PASS
+   *   SCR_SECONDARY -> SCR_PASS
+   */
+  bool bad_transition = false;
+  *failure_cause = "Internal error";
+
+  switch (old_role)
+  {
+  case SCR_NONE:
+    break;
+  case SCR_PRIMARY:
+  case SCR_SECONDARY:
+    bad_transition = (new_role == SCR_PASS);
+    break;
+  case SCR_PASS:
+    bad_transition = ((new_role == SCR_PRIMARY) ||
+                      (new_role == SCR_SECONDARY));
+    break;
+  default:
+    assert(false);
+    return false;
+  }
+
+  if (bad_transition)
+  {
+    *failure_cause = "Invalid role change.";
+    return false;
+  }
+  
+#ifdef HAVE_NDB_BINLOG
+  /* Check that Slave SQL thread is not running */
+  if (ndb_mi_get_slave_sql_running())
+  {
+    *failure_cause = "Cannot change role while Slave SQL "
+      "thread is running.  Use STOP SLAVE first.";
+    return false;
+  }
+#endif
+
+  return true;
+}
+
 
 #ifdef HAVE_NDB_BINLOG
 
@@ -1467,5 +1762,7 @@ st_ndb_slave_state::atConflictPreCommit(bool& retry_slave_trans)
   DBUG_PRINT("info", ("Allowing commit to proceed"));
   DBUG_RETURN(0);
 }
+
+
 
 #endif

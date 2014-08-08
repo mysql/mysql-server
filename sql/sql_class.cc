@@ -377,17 +377,16 @@ void thd_binlog_pos(const THD *thd,
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
   DBUG_ENTER("thd_new_connection_setup");
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
-  thd->thread_id= thd->variables.pseudo_thread_id;
+  thd->set_new_thread_id();
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_THREAD_CALL(new_thread)
-                (key_thread_one_connection, thd, thd->thread_id));
+              (key_thread_one_connection, thd, thd->thread_id()));
 #endif
   thd->set_time();
   thd->thr_create_utime= thd->start_utime= my_micro_time();
 
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   thd_manager->add_thd(thd);
 
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
@@ -755,8 +754,8 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
   const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
-                   "MySQL thread id %lu, OS thread handle %lu, query id %lu",
-                   thd->thread_id, (ulong) thd->real_id, (ulong) thd->query_id);
+                   "MySQL thread id %u, OS thread handle %lu, query id %lu",
+                   thd->thread_id(), (ulong)thd->real_id, (ulong)thd->query_id);
   str.length(0);
   str.append(header, len);
 
@@ -978,7 +977,7 @@ THD::THD(bool enable_plugins)
   current_linfo =  0;
   slave_thread = 0;
   memset(&variables, 0, sizeof(variables));
-  thread_id= 0;
+  m_thread_id= Global_THD_manager::reserved_thread_id;
   one_shot_set= 0;
   file_id = 0;
   query_id= 0;
@@ -1342,7 +1341,7 @@ void THD::init(void)
     variables.pseudo_thread_id to 0. We need to correct it here to
     avoid temporary tables replication failure.
   */
-  variables.pseudo_thread_id= thread_id;
+  variables.pseudo_thread_id= m_thread_id;
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /*
@@ -1430,6 +1429,13 @@ void THD::init_for_queries(Relay_log_info *rli)
     DBUG_ASSERT(rli_slave->info_thd == this && slave_thread);
   }
 #endif
+}
+
+
+void THD::set_new_thread_id()
+{
+  m_thread_id= Global_THD_manager::get_instance()->get_new_thread_id();
+  variables.pseudo_thread_id= m_thread_id;
 }
 
 
@@ -1538,7 +1544,11 @@ void THD::cleanup(void)
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
+  /* Protects user_vars. */
+  mysql_mutex_lock(&LOCK_thd_data);
   my_hash_free(&user_vars);
+  mysql_mutex_unlock(&LOCK_thd_data);
+
   close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
@@ -1571,6 +1581,8 @@ void THD::cleanup(void)
 void THD::release_resources()
 {
   DBUG_ASSERT(m_release_resources_done == false);
+
+  Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
@@ -1962,7 +1974,7 @@ bool THD::store_globals()
     Let mysqld define the thread id (not mysys)
     This allows us to move THD to different threads if needed.
   */
-  mysys_var->id= thread_id;
+  mysys_var->id= m_thread_id;
   real_id= pthread_self();                      // For debugging
 
   /*
@@ -4032,7 +4044,7 @@ extern "C" void thd_set_kill_status(const MYSQL_THD thd)
 */
 extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
 {
-  return((unsigned long)thd->thread_id);
+  return((unsigned long)thd->thread_id());
 }
 
 /**
@@ -4121,6 +4133,7 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
 
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 {
+  DBUG_ENTER("thd_mark_transaction_to_rollback");
   DBUG_ASSERT(thd);
   /*
     The parameter "all" has type int since the function is defined
@@ -4130,6 +4143,7 @@ extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
     specifically.
   */
   thd->mark_transaction_to_rollback((all != 0));
+  DBUG_VOID_RETURN;
 }
 
 extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)

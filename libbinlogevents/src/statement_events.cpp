@@ -139,15 +139,7 @@ Query_event::code_name(int code)
 
 
 /**
-  The constructor receives a packet from the MySQL master or the binary
-  log and decodes it to create a Query event.
-
-  @param buf                Containing the event header and data
-  @param even_len           The length upto ehich buf contains Query event data
-  @param description_event  FDE specific to the binlog version
-
-  @param event_type         Required to determine whether the event type is
-                            QUERY_EVENT or EXECUTE_LOAD_QUERY_EVENT
+  The event occurs when an updating statement is done.
 */
 Query_event::Query_event(const char* buf, unsigned int event_len,
                          const Format_description_event *description_event,
@@ -470,10 +462,7 @@ int Query_event::fill_data_buf(Log_event_header::Byte* buf, unsigned long buf_le
 }
 
 /**
-  Written every time a statement uses a user variable, precedes other
-  events for the statement. Indicates the value to use for the
-  user variable in the next statement. This is written only before a
-  QUERY_EVENT and is not used with row-based logging.
+  The constructor for User_var_event.
 */
 User_var_event::
 User_var_event(const char* buf, unsigned int event_len,
@@ -584,24 +573,19 @@ err:
     name= 0;
 }
 
-/******************************************************************
-            Intvar_event methods
-*******************************************************************/
 /**
   Constructor receives a packet from the MySQL master or the binary
   log and decodes it to create an Intvar_event.
+  Written every time a statement uses an AUTO_INCREMENT column or the
+  LAST_INSERT_ID() function; precedes other events for the statement.
+  This is written only before a QUERY_EVENT and is not used with row-based
+  logging. An INTVAR_EVENT is written with a "subtype" in the event data part:
 
-  @param buf Buffer containing header and event data.
-  @param description_event FDE corresponding to the binlog version of the
-                               log file being read currently.
+  * INSERT_ID_EVENT indicates the value to use for an AUTO_INCREMENT column in
+    the next statement.
 
-  The post header for the event is empty. Buffer layout for the variable
-  data part is as follows:
-  <pre>
-    +--------------------------------+
-    | type (4 bytes) | val (8 bytes) |
-    +--------------------------------+
-  </pre>
+  * LAST_INSERT_ID_EVENT indicates the value to use for the LAST_INSERT_ID()
+    function in the next statement.
 */
 Intvar_event::Intvar_event(const char* buf,
                            const Format_description_event* description_event)

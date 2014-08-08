@@ -356,17 +356,6 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
   return length;
 }
 
-/*
-Value::Value(Value &val)
-{
-  m_size= val.length();
-  m_storage= val.storage();
-  m_type= val.type();
-  m_metadata= val.metadata();
-  m_is_null= val.is_null();
-}
-*/
-
 Value::Value(const Value& val)
 {
   m_size= val.m_size;
@@ -485,16 +474,12 @@ int64_t Value::as_int64() const
 
 float Value::as_float() const
 {
-  // TODO: Handle cross endian replication when this library is used with
-  // mysql-binlog.
-  return *((const float *)storage());
+  return float4store((float*) m_storage);
 }
 
 double Value::as_double() const
 {
-  // TODO: Handle cross endian replication when this library is used with
-  // mysql-binlog.
-  return *((const double *)storage());
+  return doublestore((double*) m_storage);
 }
 
 void Converter::to(std::string &str, const Value &val) const

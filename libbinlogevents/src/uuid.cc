@@ -48,9 +48,8 @@ const int Uuid::hex_to_byte[]=
   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 };
 
-enum_return_status Uuid::parse(const char *s)
+int Uuid::parse(const char *s)
 {
-  //DBUG_ENTER("Uuid::parse");
   unsigned char *u= bytes;
   unsigned char *ss= (unsigned char *)s;
   for (int i= 0; i < NUMBER_OF_SECTIONS; i++)
@@ -58,29 +57,28 @@ enum_return_status Uuid::parse(const char *s)
     if (i > 0)
     {
       if (*ss != '-')
-        return RETURN_STATUS_UNREPORTED_ERROR;
+        return 1;
       ss++;
     }
     for (int j= 0; j < bytes_per_section[i]; j++)
     {
       int hi= hex_to_byte[*ss];
       if (hi == -1)
-        return RETURN_STATUS_UNREPORTED_ERROR;
+        return 1;
       ss++;
       int lo= hex_to_byte[*ss];
       if (lo == -1)
-        return RETURN_STATUS_UNREPORTED_ERROR;
+        return 1;
       ss++;
       *u= (hi << 4) + lo;
       u++;
     }
   }
-  return RETURN_STATUS_OK;
+  return 0;
 }
 
 bool Uuid::is_valid(const char *s)
 {
-  //DBUG_ENTER("Uuid::is_valid");
   const unsigned char *ss= (const unsigned char *)s;
   for (int i= 0; i < NUMBER_OF_SECTIONS; i++)
   {
@@ -124,9 +122,6 @@ size_t Uuid::to_string(const unsigned char* bytes_arg, char *buf)
     }
   }
   *buf= '\0';
-//#ifdef HAVE_MYSYS
-  //DBUG_RETURN(TEXT_LENGTH);
-//#endif
   return TEXT_LENGTH;
 }
 

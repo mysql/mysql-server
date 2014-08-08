@@ -375,6 +375,39 @@ public:
   };
 
   typedef uint16_t flag_set;
+
+  std::string get_event_name()
+  {
+    return "Table_map";
+  }
+
+  /**
+  <pre>
+  The buffer layout for fixed data part is as follows:
+  +-----------------------------------+
+  | table_id | Reserved for future use|
+  +-----------------------------------+
+  </pre>
+
+  <pre>
+  The buffer layout for variable data part is as follows:
+  +---------------------------------------------------------------------------+
+  | db len | db name | table len| table name | no of cols | array of col types|
+  +---------------------------------------------------------------------------+
+  +---------------------------------------------+
+  | metadata len | metadata block | m_null_bits |
+  +---------------------------------------------+
+  </pre>
+  @param buf                Contains the serialized event.
+  @param length             Length of the serialized event.
+  @param description_event  An FDE event, used to get the following information
+                            -binlog_version
+                            -server_version
+                            -post_header_len
+                            -common_header_len
+                            The content of this object
+                            depends on the binlog-version currently in use.
+  */
   Table_map_event(const char *buf, unsigned int event_len,
                   const Format_description_event *description_event);
   Table_map_event(const Table_id& tid, unsigned long colcnt, const char *dbnam, size_t dblen,
@@ -414,7 +447,7 @@ public:
   unsigned char* m_null_bits;
 
   Table_map_event()
-  : Binary_log_event(TABLE_MAP_EVENT),
+  : Binary_log_event(TABLE_MAP_EVENT), m_coltype(0),
     m_field_metadata_size(0),m_field_metadata(0), m_null_bits(0)
   {
   }
@@ -590,6 +623,11 @@ public:
     COMPLETE_ROWS_F = (1U << 3)
   };
 
+  std::string get_event_name()
+  {
+    return "Rows_event";
+  }
+
   /**
     Constructs an event directly. The members are assigned default values.
 
@@ -612,11 +650,29 @@ public:
    The constructor is responsible for decoding the event contained in
    the buffer.
 
-   @param buf                Containes the serialized event
-   @param event_len          Length of the event, and number of bytes
-                             to be read from the buffer
-   @param description_event  An FDE event, used to get the proper
-                             binlog version
+   <pre>
+   The buffer layout for fixed data part is as follows
+   +------------------------------------+
+   | table_id | reserved for future use |
+   +------------------------------------+
+   </pre>
+
+   <pre>
+   The buffer layout for variable data part is as follows
+   +------------------------------------------------------------------+
+   | var_header_len | column_before_image | columns_after_image | row |
+   +------------------------------------------------------------------+
+   </pre>
+
+   @param buf                Contains the serialized event.
+   @param length             Length of the serialized event.
+   @param description_event  An FDE event, used to get the following information
+                             -binlog_version
+                             -server_version
+                             -post_header_len
+                             -common_header_len
+                             The content of this object
+                             depends on the binlog-version currently in use.
  */
  Rows_event(const char *buf, unsigned int event_len,
              const Format_description_event *description_event);
@@ -698,6 +754,15 @@ public:
 class Write_rows_event : public virtual Rows_event
 {
 public:
+
+  std::string get_event_name()
+  {
+    if (header()->type_code == WRITE_ROWS_EVENT_V1)
+      return "Write_rows_v1";
+    else
+      return "Write_rows";
+  }
+
   Write_rows_event(const char *buf, unsigned int event_len,
                    const Format_description_event *description_event)
   : Rows_event(buf, event_len, description_event)
@@ -705,8 +770,8 @@ public:
     this->header()->type_code= m_type;
   };
 
-  Write_rows_event()
-  : Rows_event(WRITE_ROWS_EVENT)
+  Write_rows_event(Log_event_type type= WRITE_ROWS_EVENT)
+  : Rows_event(type)
   {
   }
 };
@@ -726,6 +791,14 @@ public:
 class Update_rows_event : public virtual Rows_event
 {
 public:
+  std::string get_event_name()
+  {
+    if (header()->type_code == UPDATE_ROWS_EVENT_V1)
+    return "Update_rows_v1";
+    else
+      return "Update_rows";
+  }
+
   Update_rows_event(const char *buf, unsigned int event_len,
                     const Format_description_event *description_event)
   : Rows_event(buf, event_len, description_event)
@@ -733,8 +806,8 @@ public:
     this->header()->type_code= m_type;
   };
 
-  Update_rows_event()
-  : Rows_event(UPDATE_ROWS_EVENT)
+  Update_rows_event(Log_event_type type= UPDATE_ROWS_EVENT)
+  : Rows_event(type)
   {
   }
 };
@@ -755,6 +828,14 @@ public:
 class Delete_rows_event : public virtual Rows_event
 {
 public:
+  std::string get_event_name()
+  {
+    if (header()->type_code == DELETE_ROWS_EVENT_V1)
+    return "Delete_rows_v1";
+    else
+      return "Delete_rows";
+  }
+
   Delete_rows_event(const char *buf, unsigned int event_len,
                     const Format_description_event *description_event)
   : Rows_event(buf, event_len, description_event)
@@ -762,8 +843,8 @@ public:
     this->header()->type_code= m_type;
   };
 
-  Delete_rows_event()
-  : Rows_event(DELETE_ROWS_EVENT)
+  Delete_rows_event(Log_event_type type= DELETE_ROWS_EVENT)
+  : Rows_event(type)
   {
   }
 };
@@ -801,9 +882,20 @@ public:
 class Rows_query_event: public virtual Ignorable_event
 {
 public:
+  std::string get_event_name()
+  {
+    return "Rows_query";
+  }
+
   /**
     It is used to write the original query in the binlog file in case of RBR
     when the session flag binlog_rows_query_log_events is set.
+
+    <pre>
+    The buffer layout is as follows:
+    +------------------------------------+
+    | The original query executed in RBR |
+    +------------------------------------+
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
@@ -823,7 +915,7 @@ public:
     ROWS_QUERY_LOG_EVENT in the header object in Binary_log_event.
   */
   Rows_query_event()
-  : Ignorable_event(ROWS_QUERY_LOG_EVENT)
+  : Ignorable_event(ROWS_QUERY_LOG_EVENT), m_rows_query(0)
   {
   }
   virtual ~Rows_query_event();

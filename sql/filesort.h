@@ -16,12 +16,9 @@
 #ifndef FILESORT_INCLUDED
 #define FILESORT_INCLUDED
 
-class SQL_SELECT;
-
 #include "my_global.h"                          /* uint, uchar */
 #include "my_base.h"                            /* ha_rows */
 #include "sql_list.h"                           /* Sql_alloc */
-class SQL_SELECT;
 class THD;
 struct TABLE;
 typedef struct st_sort_field SORT_FIELD;
@@ -30,9 +27,10 @@ class Addon_fields;
 class Field;
 
 
+class QEP_TAB;
+
 /**
   Sorting related info.
-  To be extended by another WL to include complete filesort implementation.
 */
 class Filesort: public Sql_alloc
 {
@@ -43,28 +41,21 @@ public:
   ha_rows limit;
   /** ORDER BY list with some precalculated info for filesort */
   SORT_FIELD *sortorder;
-  /** select to use for getting records */
-  SQL_SELECT *select;
-  /** TRUE <=> free select on destruction */
-  bool own_select;
   /** true means we are using Priority Queue for order by with limit. */
   bool using_pq;
   /** Addon fields descriptor */
   Addon_fields *addon_fields;
 
-  Filesort(ORDER *order_arg, ha_rows limit_arg, SQL_SELECT *select_arg):
+  Filesort(ORDER *order_arg, ha_rows limit_arg):
     order(order_arg),
     limit(limit_arg),
     sortorder(NULL),
-    select(select_arg),
-    own_select(false), 
     using_pq(false),
     addon_fields(NULL)
   {
     DBUG_ASSERT(order);
   };
 
-  ~Filesort() { cleanup(); }
   /* Prepare ORDER BY list for sorting. */
   uint make_sortorder();
 
@@ -76,7 +67,7 @@ private:
   void cleanup();
 };
 
-ha_rows filesort(THD *thd, TABLE *table, Filesort *fsort, bool sort_positions,
+ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *fsort, bool sort_positions,
                  ha_rows *examined_rows, ha_rows *found_rows);
 void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr,uchar *to);
