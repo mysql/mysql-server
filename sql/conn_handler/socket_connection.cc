@@ -645,7 +645,8 @@ Mysqld_socket_listener::Mysqld_socket_listener(std::string bind_addr_str,
 #ifdef HAVE_LIBWRAP
   m_deny_severity = LOG_WARNING;
   m_libwrap_name= my_progname + dirname_length(my_progname);
-  openlog(m_libwrap_name, LOG_PID, LOG_AUTH);
+  if (!opt_log_syslog_enable)
+    openlog(m_libwrap_name, LOG_PID, LOG_AUTH);
 #endif /* HAVE_LIBWRAP */
 }
 
@@ -797,7 +798,8 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
         which we surely don't want...
         clean_exit() - same stupid thing ...
       */
-      syslog(m_deny_severity, "refused connect from %s", eval_client(&req));
+      syslog(LOG_AUTH | m_deny_severity,
+             "refused connect from %s", eval_client(&req));
 
       if (req.sink)
         (req.sink)(req.fd);

@@ -550,7 +550,15 @@ extern my_off_t my_ftell(FILE *stream,myf MyFlags);
 // Maximum size of message  that will be logged.
 #define MAX_SYSLOG_MESSAGE_SIZE 1024
 
-int my_openlog(const char *eventSourceName);
+/* Platform-independent SysLog support */
+
+/* facilities on unixoid syslog. harmless on systemd / Win platforms. */
+typedef struct st_syslog_facility { int id; const char *name; } SYSLOG_FACILITY;
+extern SYSLOG_FACILITY syslog_facility[];
+
+enum my_syslog_options { MY_SYSLOG_PIDS= 1 };
+
+int my_openlog(const char *eventSourceName, int option, int facility);
 int my_closelog();
 int my_syslog(const CHARSET_INFO *cs, enum loglevel level, const char *msg);
 
