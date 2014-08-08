@@ -172,7 +172,7 @@ drop table t1;
 #
 
 create table t1 (a bit(8)) engine=heap;
-insert into t1 values ('1111100000');
+insert ignore into t1 values ('1111100000');
 select a+0 from t1;
 drop table t1;
 
@@ -261,7 +261,7 @@ drop table bug15583;
 #
 
 create table t1(a bit(1), b smallint unsigned);
-insert into t1 (b, a) values ('2', '1');
+insert ignore into t1 (b, a) values ('2', '1');
 select hex(a), b from t1;
 drop table t1;
 
@@ -328,10 +328,10 @@ DROP TABLE t2;
 
 CREATE TABLE t1(a BIT(13), KEY(a));
 --disable_warnings
-INSERT INTO t1(a) VALUES (65535),(65525),(65535),(65535),(65535),
-                         (65535),(65535),(65535),(65535),(65535),
-                         (65535),(65525),(65535),(65535),(65535),
-                         (65535),(65535),(65535),(65535),(65535);
+INSERT IGNORE INTO t1(a) VALUES (65535),(65525),(65535),(65535),(65535),
+                                (65535),(65535),(65535),(65535),(65535),
+                                (65535),(65525),(65535),(65535),(65535),
+                                (65535),(65535),(65535),(65535),(65535);
 --enable_warnings
 
 EXPLAIN SELECT 1 FROM t1 GROUP BY a;

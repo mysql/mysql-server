@@ -13,7 +13,7 @@
 # off cost-based choice for them.
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='subquery_materialization_cost_based=off';
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # Initialise
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
@@ -3060,6 +3060,7 @@ DROP TABLE t1,t2;
 # Bug#33675 Usage of an uninitialized memory by filesort in a subquery
 #           caused server crash.
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t0(a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1(f11 int, f12 int);
@@ -3075,7 +3076,7 @@ select count(*) from t1 where f12 =
 (select f22 from t2 where f22 = f12 order by f21 desc, f22, f23 limit 1);
 
 drop table t0,t1,t2;
-
+SET sql_mode = default;
 
 #
 # Bug#33794 "MySQL crashes executing specific query on specific dump"
@@ -6195,6 +6196,7 @@ GROUP BY a;
 --enable_ps_protocol
 
 DROP TABLE t1,t2;
+SET sql_mode = default;
 
 --echo #
 --echo # Bug #19179529 SEGMENTATION FAULT IN ADD_KEY_FIELD FOR ENGINES MYISAM AND MEMORY

@@ -228,7 +228,9 @@ select * from t3;
 a	b
 drop table t1,t2,t3;
 create table t1(a date not null);
-insert into t1 values (0);
+insert ignore into t1 values (0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
 select * from t1 where a is null;
 a
 0000-00-00
