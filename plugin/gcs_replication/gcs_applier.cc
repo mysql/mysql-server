@@ -135,7 +135,7 @@ Applier_module::inject_event_into_pipeline(PipelineEvent* pevent,
                                            Continuation* cont)
 {
   int error= 0;
-  pipeline->handle(pevent, cont);
+  pipeline->handle_event(pevent, cont);
 
   if ((error= cont->wait()))
     log_message(MY_ERROR_LEVEL, "Error at event handling! Got error: %d \n", error);

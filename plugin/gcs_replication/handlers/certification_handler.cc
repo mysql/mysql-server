@@ -44,7 +44,7 @@ Certification_handler::terminate()
 }
 
 int
-Certification_handler::handle(PipelineEvent *pevent, Continuation* cont)
+Certification_handler::handle_event(PipelineEvent *pevent, Continuation *cont)
 {
   DBUG_ENTER("Certification_handler::handle");
 
@@ -61,6 +61,12 @@ Certification_handler::handle(PipelineEvent *pevent, Continuation* cont)
       next(pevent, cont);
       DBUG_RETURN(0);
   }
+}
+
+int
+Certification_handler::handle_action(PipelineAction *action)
+{
+  return 0;
 }
 
 int

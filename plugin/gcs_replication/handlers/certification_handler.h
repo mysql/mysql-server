@@ -24,7 +24,8 @@ class Certification_handler : public EventHandler
 {
 public:
   Certification_handler();
-  int handle(PipelineEvent *ev,Continuation* cont);
+  int handle_event(PipelineEvent *ev,Continuation *cont);
+  int handle_action(PipelineAction *action);
   int initialize();
   int terminate();
   bool is_unique();

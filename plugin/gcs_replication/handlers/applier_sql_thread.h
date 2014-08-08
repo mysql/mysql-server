@@ -24,7 +24,8 @@ class Applier_sql_thread : public EventHandler
 {
 public:
   Applier_sql_thread();
-  int handle(PipelineEvent *ev,Continuation* cont);
+  int handle_event(PipelineEvent *ev,Continuation *cont);
+  int handle_action(PipelineAction *action);
   int initialize();
   int terminate();
   bool is_unique();

@@ -99,7 +99,7 @@ int Applier_sql_thread::terminate()
   DBUG_RETURN(error);
 }
 
-int Applier_sql_thread::handle(PipelineEvent *event,Continuation* cont)
+int Applier_sql_thread::handle_event(PipelineEvent *event,Continuation *cont)
 {
   DBUG_ENTER("Applier_sql_thread::handle");
 
@@ -114,6 +114,11 @@ int Applier_sql_thread::handle(PipelineEvent *event,Continuation* cont)
     next(event,cont);
 
   DBUG_RETURN(error);
+}
+
+int Applier_sql_thread::handle_action(PipelineAction *action)
+{
+  return 0;
 }
 
 bool Applier_sql_thread::is_unique(){

@@ -23,7 +23,8 @@ class Event_cataloger : public EventHandler
 {
 public:
   Event_cataloger();
-  int handle(PipelineEvent *ev,Continuation* cont);
+  int handle_event(PipelineEvent *ev,Continuation *cont);
+  int handle_action(PipelineAction *action);
   int initialize();
   int terminate();
   bool is_unique();
