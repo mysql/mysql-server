@@ -401,6 +401,7 @@ enum Binlog_relay_IO_flags {
 */
 typedef struct Binlog_relay_IO_param {
   uint32 server_id;
+  my_thread_id thread_id;
 
   /* Master host, user and port */
   char *host;
@@ -438,6 +439,18 @@ typedef struct Binlog_relay_IO_observer {
      @retval 1 Failure
   */
   int (*thread_stop)(Binlog_relay_IO_param *param);
+
+  /**
+     This callback is called when a relay log consumer thread stops
+
+     @param param   Observer common parameter
+     @param aborted thread aborted or exited on error
+
+
+     @retval 0 Sucess
+     @retval 1 Failure
+  */
+  int (*consumer_thread_stop)(Binlog_relay_IO_param *param, bool aborted);
 
   /**
      This callback is called before slave requesting binlog transmission from master
