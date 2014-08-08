@@ -14,6 +14,7 @@ f9 TINYTEXT     UNICODE,
 f10 MEDIUMTEXT  UNICODE,
 f11 LONGTEXT    UNICODE
 ) ENGINE = InnoDB;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT * FROM information_schema.columns
 WHERE table_schema LIKE 'test%'
 ORDER BY table_schema, table_name, column_name;
@@ -95,4 +96,5 @@ NULL	test	t1	f5	varchar	0	0	ucs2	ucs2_general_ci	varchar(0)
 2.0079	test	t1	f9	tinytext	127	255	ucs2	ucs2_general_ci	tinytext
 2.0000	test	t1	f10	mediumtext	8388607	16777215	ucs2	ucs2_general_ci	mediumtext
 2.0000	test	t1	f11	longtext	2147483647	4294967295	ucs2	ucs2_general_ci	longtext
+SET sql_mode = default;
 DROP TABLE t1;

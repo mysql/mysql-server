@@ -103,6 +103,7 @@ drop table t1;
 #
 # last_insert_id() madness
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (i tinyint unsigned not null auto_increment primary key);
 insert into t1 set i = 254;
 insert into t1 set i = null;
@@ -134,6 +135,7 @@ insert into t1 values (NULL, 10);
 select last_insert_id();
 
 drop table t1;
+SET sql_mode = default;
 
 create table t1(a int auto_increment,b int null,primary key(a));
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;

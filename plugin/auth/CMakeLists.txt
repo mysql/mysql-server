@@ -27,6 +27,9 @@ MYSQL_ADD_PLUGIN(qa_auth_server qa_auth_server.c
 
 MYSQL_ADD_PLUGIN(qa_auth_client qa_auth_client.c 
   MODULE_ONLY)
+  
+MYSQL_ADD_PLUGIN(mysql_no_login mysql_no_login.c 
+  MODULE_ONLY)
 
 CHECK_CXX_SOURCE_COMPILES(
 "#ifndef _GNU_SOURCE

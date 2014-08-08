@@ -1,6 +1,7 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3,t4;
 --enable_warnings
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 # Create tables
 CREATE TABLE t1(c1 TIME NOT NULL, c2 TIME NULL, PRIMARY KEY(c1));
 CREATE TABLE t2(c1 TIME NOT NULL, c2 TIME NOT NULL, PRIMARY KEY(c1,c2));
@@ -144,7 +145,7 @@ UPDATE t3 SET c1=NULL WHERE c2 < '000007';
 UPDATE IGNORE t3 SET c1=NULL WHERE c2 < '000007';
 --sorted_result
 SELECT c1 from t3 WHERE c2 < '000007';
-SET SQL_MODE=DEFAULT;
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
 
 #Duplicate keys
 --error ER_DUP_ENTRY
@@ -194,4 +195,4 @@ SELECT * FROM t3;
 SELECT * FROM t4;
 #Drop tables;
 DROP TABLE IF EXISTS t1,t2,t3,t4;
-
+SET sql_mode=default;

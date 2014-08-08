@@ -511,7 +511,7 @@ drop table t1, t2;
 #
 # Bug 7833:  Wrong datatype of aggregate column is returned
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(f1 datetime);
 insert into t1 values (now());
 create table t2 select f2 from (select max(now()) f2 from t1) a;
@@ -520,7 +520,7 @@ drop table t2;
 create table t2 select f2 from (select now() f2 from t1) a;
 show columns from t2;
 drop table t2, t1;
-
+SET sql_mode = default;
 #
 # Bug 8893: wrong result for min/max optimization with 2 indexes
 #
