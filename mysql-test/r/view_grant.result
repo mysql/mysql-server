@@ -561,6 +561,7 @@ GRANT DELETE ON mysqltest1.v_td TO readonly@localhost;
 GRANT DELETE,SELECT ON mysqltest1.v_tds TO readonly@localhost;
 SELECT * FROM mysqltest1.v_t1;
 ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO mysqltest1.v_t1 VALUES(4);
 ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DELETE FROM mysqltest1.v_t1 WHERE x = 1;
@@ -571,6 +572,7 @@ UPDATE mysqltest1.v_t1 SET x = 3;
 ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DELETE FROM mysqltest1.v_t1;
 ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SET sql_mode = default;
 SELECT 1 FROM mysqltest1.v_t1;
 ERROR HY000: View 'mysqltest1.v_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SELECT * FROM mysqltest1.t1;

@@ -1932,6 +1932,7 @@ Select AsText(Centroid(0x0103000000020000000103000000020000000500000000000000000
 ############################################################################################
 
 --echo #Checking the procedure with the Attribute of Polygon and MultPolygon class
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 delimiter |;
 --echo #create procedure to check Attributes
@@ -1981,7 +1982,7 @@ CALL poly_attri;
 
 
 --enable_warnings
-
+SET sql_mode = default;
 --echo #Dropping the created procedures.
 drop procedure poly_attri;
 

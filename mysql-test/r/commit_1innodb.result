@@ -264,7 +264,7 @@ rollback;
 select * from t2;
 a
 insert into t2 (a) values (1026);
-load data infile "../../std_data/words.dat" into table t1 (a) set a:=f2(26);
+load data infile "../../std_data/words.dat" ignore into table t1 (a) set a:=f2(26);
 ERROR 23000: Duplicate entry '26' for key 'a'
 select * from t2;
 a

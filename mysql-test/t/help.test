@@ -13,7 +13,7 @@
 #                                                   impossible_function_6
 #      impossible_category_3
 #                            impossible_function_7 
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 insert into mysql.help_category(help_category_id,name)values(10001,'impossible_category_1');
 select @category1_id:= 10001;
 insert into mysql.help_category(help_category_id,name)values(10002,'impossible_category_2');
@@ -103,5 +103,6 @@ UNLOCK TABLES;
 
 DROP TABLE t1;
 
+SET sql_mode = default;
 
 --echo End of 5.1 tests.

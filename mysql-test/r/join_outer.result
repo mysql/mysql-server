@@ -586,6 +586,7 @@ kvw5600	0
 kvw5601	0
 kvw6000	2
 drop table t1,t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 id int(11),
 pid int(11),
@@ -629,6 +630,7 @@ SELECT * from t1 left join t2 on t1.id=t2.id where t2.id IS NULL;
 id	name	id	idx
 2	no	NULL	NULL
 drop table t1,t2;
+SET sql_mode = default;
 create table t1 (bug_id mediumint, reporter mediumint);
 create table t2 (bug_id mediumint, who mediumint, index(who));
 insert into t2 values (1,1),(1,2);
