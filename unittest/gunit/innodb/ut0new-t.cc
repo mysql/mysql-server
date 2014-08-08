@@ -175,6 +175,7 @@ TEST(ut0new, edgecases)
 	ret = alloc1.allocate_large(0, &pfx);
 	EXPECT_EQ(NULL, ret);
 
+#ifdef UNIV_PFS_MEMORY
 	ret = alloc1.allocate(16);
 	ASSERT_TRUE(ret != NULL);
 	ret = alloc1.reallocate(ret, 0, __FILE__);
@@ -182,6 +183,7 @@ TEST(ut0new, edgecases)
 
 	ret = UT_NEW_ARRAY_NOKEY(byte, 0);
 	EXPECT_EQ(NULL, ret);
+#endif /* UNIV_PFS_MEMORY */
 
 	ut_allocator<big_t>	alloc2(mem_key_buf_buf_pool);
 
@@ -189,10 +191,12 @@ TEST(ut0new, edgecases)
 		= std::numeric_limits<ut_allocator<big_t>::size_type>::max()
 		/ sizeof(big_t) + 1;
 
+#ifdef UNIV_PFS_MEMORY
 	ret = alloc2.allocate(16);
 	ASSERT_TRUE(ret != NULL);
 	ret = alloc2.reallocate(ret, too_many_elements, __FILE__);
 	EXPECT_EQ(NULL, ret);
+#endif /* UNIV_PFS_MEMORY */
 
 	bool	threw = false;
 
