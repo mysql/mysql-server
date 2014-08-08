@@ -49,11 +49,6 @@ Execute_load_query_event(uint32_t file_id_arg,
 /**
   The constructor used inorder to decode EXECUTE_LOAD_QUERY_EVENT from a
   packet. It is used on the MySQL server acting as a slave.
-
-  @param buf              Buffer containing event header and data
-  @param event_len        Length upto which the buffer is to read
-  @param descriptio_event FDE specific to the binlog version, used to extract
-                          the post header length
 */
 Execute_load_query_event::
 Execute_load_query_event(const char* buf,

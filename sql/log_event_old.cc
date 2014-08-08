@@ -252,7 +252,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       default:
   rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->mysql_errno(),
                     "Error in %s event: row application failed. %s",
-                    ev->get_type_str(),
+                    (type_code_to_str(ev->common_header->type_code)).c_str(),
                     (ev_thd->is_error() ?
                      ev_thd->get_stmt_da()->message_text() :
                      ""));
@@ -272,8 +272,8 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->mysql_errno(),
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
-                ev->get_type_str(), table->s->db.str,
-                table->s->table_name.str,
+                (type_code_to_str(ev->common_header->type_code)).c_str(),
+                table->s->db.str, table->s->table_name.str,
                 ev_thd->is_error() ? ev_thd->get_stmt_da()->message_text() : "");
 
     /*
@@ -1313,7 +1313,6 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
 }
 #endif
 
-
 Old_rows_log_event::
 Old_rows_log_event(const char *buf, uint event_len, Log_event_type event_type,
                    const Format_description_event *description_event)
@@ -1548,14 +1547,14 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
                     "Error '%s' in %s event: when locking tables",
                     (actual_error ? thd->net.last_error :
                      "unexpected success or fatal error"),
-                    get_type_str());
+                    (type_code_to_str(common_header->type_code)).c_str());
         thd->is_fatal_error= 1;
       }
       else
       {
         rli->report(ERROR_LEVEL, error,
                     "Error in %s event: when locking tables",
-                    get_type_str());
+                    (type_code_to_str(common_header->type_code)).c_str());
       }
       const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
       DBUG_RETURN(error);
@@ -1711,7 +1710,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       default:
 	rli->report(ERROR_LEVEL, thd->net.last_errno,
                     "Error in %s event: row application failed. %s",
-                    get_type_str(),
+                    (type_code_to_str(common_header->type_code)).c_str(),
                     thd->net.last_error ? thd->net.last_error : "");
        thd->is_slave_error= 1;
 	break;
@@ -1750,7 +1749,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     rli->report(ERROR_LEVEL, thd->net.last_errno,
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
-                get_type_str(), table->s->db.str,
+                (type_code_to_str(common_header->type_code)).c_str(), table->s->db.str,
                 table->s->table_name.str,
                 thd->net.last_error ? thd->net.last_error : "");
 
@@ -1833,7 +1832,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",
-                  get_type_str(), m_table->s->db.str,
+                  (type_code_to_str(common_header->type_code)).c_str(), m_table->s->db.str,
                   m_table->s->table_name.str);
     error|= binlog_error;
 

@@ -3344,6 +3344,9 @@ void Item_string::print(String *str, enum_query_type query_type)
   }
   else if(query_type & QT_TO_ARGUMENT_CHARSET)
   {
+    if (print_introducer)
+      convert_and_print(&str_value, str, collation.collation);
+    else
     /*
       Convert the string literals to str->charset(),
       which is typically equal to charset_set_client.

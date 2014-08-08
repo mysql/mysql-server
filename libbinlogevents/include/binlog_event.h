@@ -841,7 +841,7 @@ public:
 /**
   Convenience function to get the human readable name of the given event type.
 */
-static const std::string get_type_str_with_para(Log_event_type type);
+virtual std::string get_event_name()= 0;
 private:
   Log_event_header m_header;
   Log_event_footer m_footer;
@@ -868,7 +868,10 @@ public:
   : Binary_log_event(UNKNOWN_EVENT)
   {
   }
-
+  std::string get_event_name()
+  {
+    return "Unknown";
+  }
   Unknown_event(const char* buf,
                 const Format_description_event *description_event);
 #ifndef HAVE_MYSYS

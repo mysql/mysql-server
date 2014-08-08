@@ -271,6 +271,7 @@ extern fil_addr_t	fil_addr_null;
 
 /** File page types (values of FIL_PAGE_TYPE) @{ */
 #define FIL_PAGE_INDEX		17855	/*!< B-tree node */
+#define FIL_PAGE_RTREE		17854	/*!< B-tree node */
 #define FIL_PAGE_UNDO_LOG	2	/*!< Undo log page */
 #define FIL_PAGE_INODE		3	/*!< Index node */
 #define FIL_PAGE_IBUF_FREE_LIST	4	/*!< Insert buffer free list */
@@ -287,6 +288,15 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_ZBLOB2
 					/*!< Last page type */
 /* @} */
+
+/** macro to check whether the page type is index (Btree or Rtree) type */
+#define fil_page_type_is_index(page_type)                          \
+        (page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_RTREE)
+
+/** Check whether the page is index page (either regular Btree index or Rtree
+index */
+#define fil_page_index_page_check(page)                         \
+        fil_page_type_is_index(fil_page_get_type(page))
 
 #ifndef UNIV_INNOCHECKSUM
 

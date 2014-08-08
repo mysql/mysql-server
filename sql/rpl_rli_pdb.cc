@@ -1671,7 +1671,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
     char llbuff[22];
     llstr(rli->get_event_relay_log_pos(), llbuff);
     my_error(ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX, MYF(0),
-             ((Log_event*) (job_item->data))->get_type_str(),
+             (type_code_to_str(((Log_event*) (job_item->data))->common_header->type_code)).c_str(),
              rli->get_event_relay_log_name(), llbuff, ev_size,
              rli->mts_pending_jobs_size_max);
     /* Waiting in slave_stop_workers() avoidance */

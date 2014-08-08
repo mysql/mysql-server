@@ -27,12 +27,6 @@
 
 bool disk = false;
 
-#define CHECK(b) if (!(b)) { \
-  g_err << "ERR: "<< step->getName() \
-         << " failed on line " << __LINE__ << endl; \
-  result = NDBT_FAILED; \
-  continue; } 
-
 int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
   Bank bank(ctx->m_cluster_connection);
   int overWriteExisting = true;
@@ -81,9 +75,10 @@ int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
     Bank bank(ctx->m_cluster_connection);
     while(!ctx->isTestStopped() && 
           ctx->getProperty(NMR_SR) <= NdbMixRestarter::SR_STOPPING)
+    {
       if(bank.performTransactions(wait, yield) == NDBT_FAILED)
 	break;
-    
+    }
     ndbout_c("runBankTransactions is stopped");
     ctx->incProperty(NMR_SR_THREADS_STOPPED);
     if(ctx->getPropertyWait(NMR_SR, NdbMixRestarter::SR_RUNNING))
@@ -94,7 +89,6 @@ int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
 
 int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
   int yield = 1; // Loops before bank returns 
-  //int result = NDBT_OK;
   
   ctx->incProperty(NMR_SR_THREADS);
   while (ctx->isTestStopped() == false) 
@@ -102,16 +96,16 @@ int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
     Bank bank(ctx->m_cluster_connection);
     while(!ctx->isTestStopped() && 
           ctx->getProperty(NMR_SR) <= NdbMixRestarter::SR_STOPPING)
+    {
       if (bank.performMakeGLs(yield) != NDBT_OK)
       {
         Uint32 state = ctx->getProperty(NMR_SR);
 	if(state != NdbMixRestarter::SR_RUNNING)
 	  break;
 	ndbout << "bank.performMakeGLs FAILED: " << state << endl;
-        abort();
 	return NDBT_FAILED;
       }
-    
+    }
     ndbout_c("runBankGL is stopped");
     ctx->incProperty(NMR_SR_THREADS_STOPPED);
     if(ctx->getPropertyWait(NMR_SR, NdbMixRestarter::SR_RUNNING))
@@ -137,14 +131,12 @@ runBankSrValidator(NDBT_Context* ctx, NDBT_Step* step)
     if (bank.performSumAccounts(wait, yield) != 0)
     {
       ndbout << "bank.performSumAccounts FAILED" << endl;
-      abort();
       return NDBT_FAILED;
     }
     
     if (bank.performValidateAllGLs() != 0)
     {
       ndbout << "bank.performValidateAllGLs FAILED" << endl;
-      abort();
       return NDBT_FAILED;
     }
     
@@ -179,7 +171,6 @@ int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
 int
 runMixRestart(NDBT_Context* ctx, NDBT_Step* step)
 {
-  //int result = NDBT_OK;
   NdbMixRestarter res;
   int runtime = ctx->getNumLoops();
   int sleeptime = ctx->getNumRecords();
@@ -188,7 +179,6 @@ runMixRestart(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.runPeriod(ctx, step, runtime, sleeptime))
   {
-    abort();
     return NDBT_FAILED;
   }
 

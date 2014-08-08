@@ -45,7 +45,7 @@
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),
-  substitution(NULL), in_cond_of_tab(INT_MIN), engine(NULL), old_engine(NULL),
+  substitution(NULL), in_cond_of_tab(NO_PLAN_IDX), engine(NULL), old_engine(NULL),
   used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
   changed(false)
 {
@@ -61,7 +61,7 @@ Item_subselect::Item_subselect():
 
 Item_subselect::Item_subselect(const POS &pos):
   super(pos), value_assigned(0), traced_before(false),
-  substitution(NULL), in_cond_of_tab(INT_MIN), engine(NULL), old_engine(NULL),
+  substitution(NULL), in_cond_of_tab(NO_PLAN_IDX), engine(NULL), old_engine(NULL),
   used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
   changed(false)
 {
@@ -142,7 +142,7 @@ void Item_subselect::cleanup()
   reset();
   value_assigned= 0;
   traced_before= false;
-  in_cond_of_tab= INT_MIN;
+  in_cond_of_tab= NO_PLAN_IDX;
   DBUG_VOID_RETURN;
 }
 
@@ -1747,7 +1747,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
         We can encounter "NULL IN (SELECT ...)". Wrap the added condition
         within a trig_cond.
       */
-      item= new Item_func_trig_cond(item, get_cond_guard(0), NULL,
+      item= new Item_func_trig_cond(item, get_cond_guard(0), NULL, NO_PLAN_IDX,
                                     Item_func_trig_cond::
                                     OUTER_FIELD_IS_NOT_NULL);
       item->set_created_by_in2exists();
@@ -1794,10 +1794,9 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
         having->set_created_by_in2exists();
         if (left_expr->maybe_null)
         {
-          if (!(having= new Item_func_trig_cond(having,
-                                                get_cond_guard(0), NULL,
-                                                Item_func_trig_cond::
-                                                OUTER_FIELD_IS_NOT_NULL)))
+          if (!(having= new
+                Item_func_trig_cond(having, get_cond_guard(0), NULL, NO_PLAN_IDX,
+                                    Item_func_trig_cond::OUTER_FIELD_IS_NOT_NULL)))
             DBUG_RETURN(RES_ERROR);
           having->set_created_by_in2exists();
         }
@@ -1830,9 +1829,9 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
       */
       if (!abort_on_null && left_expr->maybe_null)
       {
-        if (!(item= new Item_func_trig_cond(item, get_cond_guard(0), NULL,
-                                            Item_func_trig_cond::
-                                            OUTER_FIELD_IS_NOT_NULL)))
+        if (!(item=
+              new Item_func_trig_cond(item, get_cond_guard(0), NULL, NO_PLAN_IDX,
+                                      Item_func_trig_cond::OUTER_FIELD_IS_NOT_NULL)))
           DBUG_RETURN(RES_ERROR);
         item->set_created_by_in2exists();
       }
@@ -1884,7 +1883,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
         {
           if (!(new_having= new Item_func_trig_cond(new_having,
                                                     get_cond_guard(0),
-                                                    NULL,
+                                                    NULL, NO_PLAN_IDX,
                                                     Item_func_trig_cond::
                                                     OUTER_FIELD_IS_NOT_NULL)))
             DBUG_RETURN(RES_ERROR);
@@ -2093,9 +2092,10 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
       col_item->set_created_by_in2exists();
       if (!abort_on_null && left_expr->element_index(i)->maybe_null)
       {
-        if (!(col_item= new Item_func_trig_cond(col_item, get_cond_guard(i),
-                                                NULL, Item_func_trig_cond::
-                                                OUTER_FIELD_IS_NOT_NULL)))
+        if (!(col_item=
+              new Item_func_trig_cond(col_item, get_cond_guard(i),
+                                      NULL, NO_PLAN_IDX,
+                                      Item_func_trig_cond::OUTER_FIELD_IS_NOT_NULL)))
           DBUG_RETURN(RES_ERROR);
         col_item->set_created_by_in2exists();
       }
@@ -2112,8 +2112,8 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
       {
         if (!(item_nnull_test= 
               new Item_func_trig_cond(item_nnull_test, get_cond_guard(i),
-                                      NULL, Item_func_trig_cond::
-                                      OUTER_FIELD_IS_NOT_NULL)))
+                                      NULL, NO_PLAN_IDX,
+                                      Item_func_trig_cond::OUTER_FIELD_IS_NOT_NULL)))
           DBUG_RETURN(RES_ERROR);
         item_nnull_test->set_created_by_in2exists();
       }
@@ -2199,14 +2199,14 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
         */
         if (left_expr->element_index(i)->maybe_null)
         {
-          if (!(item= new Item_func_trig_cond(item, get_cond_guard(i), NULL,
-                                              Item_func_trig_cond::
-                                              OUTER_FIELD_IS_NOT_NULL)))
+          if (!(item=
+                new Item_func_trig_cond(item, get_cond_guard(i), NULL, NO_PLAN_IDX,
+                                        Item_func_trig_cond::OUTER_FIELD_IS_NOT_NULL)))
             DBUG_RETURN(RES_ERROR);
           item->set_created_by_in2exists();
           if (!(having_col_item=
                 new Item_func_trig_cond(having_col_item, get_cond_guard(i),
-                                        NULL,
+                                        NULL, NO_PLAN_IDX,
                                         Item_func_trig_cond::
                                         OUTER_FIELD_IS_NOT_NULL)))
             DBUG_RETURN(RES_ERROR);
@@ -2432,15 +2432,14 @@ void Item_in_subselect::fix_after_pullout(st_select_lex *parent_select,
 bool Item_in_subselect::init_left_expr_cache()
 {
   JOIN *outer_join;
-  Next_select_func end_select;
   bool use_result_field= FALSE;
 
   outer_join= unit->outer_select()->join;
   /*
     An IN predicate might be evaluated in a query for which all tables have
-    been optimzied away.
+    been optimized away.
   */ 
-  if (!outer_join || !outer_join->tables || !outer_join->tables_list)
+  if (!(outer_join && outer_join->qep_tab))
   {
     need_expr_cache= FALSE;
     return FALSE;
@@ -2455,7 +2454,9 @@ bool Item_in_subselect::init_left_expr_cache()
     Item::result_field. In the case end_[send | write]_group result_field is
     one row behind field.
   */
-  end_select= outer_join->join_tab[outer_join->primary_tables-1].next_select;
+  QEP_TAB *const qep_tab=
+    &outer_join->qep_tab[outer_join->primary_tables - 1];
+  Next_select_func end_select= qep_tab->next_select;
   if (end_select == end_send_group || end_select == end_write_group)
     use_result_field= TRUE;
 
@@ -2742,7 +2743,7 @@ void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache **row)
   DBUG_ASSERT(0);
 }
 
-int read_first_record_seq(JOIN_TAB *tab);
+int read_first_record_seq(QEP_TAB *tab);
 int rr_sequential(READ_RECORD *info);
 
 bool subselect_single_select_engine::exec()
@@ -2766,8 +2767,8 @@ bool subselect_single_select_engine::exec()
   if (!item->unit->executed)
   {
     item->reset_value_registration();
-    JOIN_TAB *changed_tabs[MAX_TABLES];
-    JOIN_TAB **last_changed_tab= changed_tabs;
+    QEP_TAB *changed_tabs[MAX_TABLES];
+    QEP_TAB **last_changed_tab= changed_tabs;
     if (item->have_guarded_conds())
     {
       /*
@@ -2776,36 +2777,36 @@ bool subselect_single_select_engine::exec()
         pushed down into the subquery. Those optimizations are ref[_or_null]
         acceses. Change them to be full table scans.
       */
-      for (uint i= join->const_tables; i < join->primary_tables; i++)
+      for (uint j= join->const_tables; j < join->primary_tables; j++)
       {
-        JOIN_TAB *tab=join->join_tab+i;
-        if (tab && tab->keyuse)
+        QEP_TAB *tab= join->qep_tab + j;
+        if (tab->ref().key_parts)
         {
-          for (uint i= 0; i < tab->ref.key_parts; i++)
+          for (uint i= 0; i < tab->ref().key_parts; i++)
           {
-            bool *cond_guard= tab->ref.cond_guards[i];
+            bool *cond_guard= tab->ref().cond_guards[i];
             if (cond_guard && !*cond_guard)
             {
               /*
                 Can't use BKA if switching from ref to "full scan on
-                NULL key" 
+                NULL key"
 
                 @see Item_in_optimizer::val_int()
                 @see TABLE_REF::cond_guards
                 @see push_index_cond()
                 @see setup_join_buffering()
               */
-              DBUG_ASSERT(tab->use_join_cache != JOIN_CACHE::ALG_BKA);
-              DBUG_ASSERT(tab->use_join_cache != JOIN_CACHE::ALG_BKA_UNIQUE);
+              DBUG_ASSERT(!(tab->op && tab->op->type() == QEP_operation::OT_CACHE &&
+                            static_cast<JOIN_CACHE*>(tab->op)->is_key_access()));
 
               /* Change the access method to full table scan */
               tab->save_read_first_record= tab->read_first_record;
               tab->save_read_record= tab->read_record.read_record;
               tab->read_record.read_record= rr_sequential;
               tab->read_first_record= read_first_record_seq;
-              tab->read_record.record= tab->table->record[0];
+              tab->read_record.record= tab->table()->record[0];
               tab->read_record.thd= join->thd;
-              tab->read_record.ref_length= tab->table->file->ref_length;
+              tab->read_record.ref_length= tab->table()->file->ref_length;
               tab->read_record.unlock_row= rr_unlock_row;
               *(last_changed_tab++)= tab;
               break;
@@ -2818,9 +2819,9 @@ bool subselect_single_select_engine::exec()
     join->exec();
 
     /* Enable the optimizations back */
-    for (JOIN_TAB **ptab= changed_tabs; ptab != last_changed_tab; ptab++)
+    for (QEP_TAB **ptab= changed_tabs; ptab != last_changed_tab; ptab++)
     {
-      JOIN_TAB *tab= *ptab;
+      QEP_TAB *const tab= *ptab;
       tab->read_record.record= 0;
       tab->read_record.ref_length= 0;
       tab->read_first_record= tab->save_read_first_record; 
@@ -2861,7 +2862,7 @@ bool subselect_union_engine::exec()
 bool subselect_indexsubquery_engine::scan_table()
 {
   int error;
-  TABLE *table= tab->table;
+  TABLE *table= tab->table();
   DBUG_ENTER("subselect_indexsubquery_engine::scan_table");
 
   // We never need to do a table scan of the materialized table.
@@ -2956,14 +2957,14 @@ void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
 
   *require_scan= false;
   *convert_error= false;
-  for (uint part_no= 0; part_no < tab->ref.key_parts; part_no++)
+  for (uint part_no= 0; part_no < tab->ref().key_parts; part_no++)
   {
-    store_key *s_key= tab->ref.key_copy[part_no];
+    store_key *s_key= tab->ref().key_copy[part_no];
     if (s_key == NULL)
       continue; // key is const and does not need to be reevaluated
 
     const enum store_key::store_key_result store_res= s_key->copy();
-    tab->ref.key_err= store_res;
+    tab->ref().key_err= store_res;
 
     if (s_key->null_key)
     {
@@ -2976,7 +2977,7 @@ void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
       */
       DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
 
-      const bool *cond_guard= tab->ref.cond_guards[part_no];
+      const bool *cond_guard= tab->ref().cond_guards[part_no];
 
       /*
         NULL value is from the outer_value_list if the key part has a
@@ -2996,7 +2997,7 @@ void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
 
     /*
       Check if the error is equal to STORE_KEY_FATAL. This is not expressed 
-      using the store_key::store_key_result enum because ref.key_err is a 
+      using the store_key::store_key_result enum because ref().key_err is a 
       boolean and we want to detect both TRUE and STORE_KEY_FATAL from the 
       space of the union of the values of [TRUE, FALSE] and 
       store_key::store_key_result.  
@@ -3008,7 +3009,7 @@ void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
        Error converting the left IN operand to the column type of the right
        IN operand. 
       */
-      tab->table->status= STATUS_NOT_FOUND;
+      tab->table()->status= STATUS_NOT_FOUND;
       *convert_error= true;
       DBUG_VOID_RETURN;
     }
@@ -3076,7 +3077,7 @@ bool subselect_indexsubquery_engine::exec()
   DBUG_ENTER("subselect_indexsubquery_engine::exec");
   int error;
   bool null_finding= 0;
-  TABLE *table= tab->table;
+  TABLE *table= tab->table();
   uchar *key;
   uint key_length;
   key_part_map key_parts_map;
@@ -3104,7 +3105,7 @@ bool subselect_indexsubquery_engine::exec()
   if (check_null)
   {
     /* We need to check for NULL if there wasn't a matching value */
-    *tab->ref.null_ref_key= 0;			// Search first for not null
+    *tab->ref().null_ref_key= 0;			// Search first for not null
     item_in->was_null= false;
   }
 
@@ -3122,7 +3123,7 @@ bool subselect_indexsubquery_engine::exec()
   }
 
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, !unique /* sorted */)))
+      (error= table->file->ha_index_init(tab->ref().key, !unique /* sorted */)))
   {
     (void) report_handler_error(table, error);
     DBUG_RETURN(true);
@@ -3141,9 +3142,9 @@ bool subselect_indexsubquery_engine::exec()
   }
   else
   {
-    key= tab->ref.key_buff;
-    key_length= tab->ref.key_length;
-    key_parts_map= make_prev_keypart_map(tab->ref.key_parts);
+    key= tab->ref().key_buff;
+    key_length= tab->ref().key_length;
+    key_parts_map= make_prev_keypart_map(tab->ref().key_parts);
   }
   error= table->file->ha_index_read_map(table->record[0],
                                         key,
@@ -3196,7 +3197,7 @@ bool subselect_indexsubquery_engine::exec()
           column (first keypart of the index). So we have only one NULL bit to
           turn on:
         */
-        *tab->ref.null_ref_key= 1;
+        *tab->ref().null_ref_key= 1;
         null_finding= 1;
         if ((error= (safe_index_read(tab) == 1)))
           break;
@@ -3296,10 +3297,10 @@ all other tests pass.
 
 void subselect_indexsubquery_engine::print(String *str)
 {
-  KEY *key_info= tab->table->key_info + tab->ref.key;
+  KEY *key_info= tab->table->key_info + tab->ref().key;
   str->append(STRING_WITH_LEN("<primary_index_lookup>("));
   for (uint i= 0; i < key_info->key_parts; i++)
-    tab->ref.items[i]->print(str);
+    tab->ref().items[i]->print(str);
   str->append(STRING_WITH_LEN(" in "));
   str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
   str->append(STRING_WITH_LEN(" on "));
@@ -3320,26 +3321,27 @@ void subselect_indexsubquery_engine::print(String *str,
     str->append(STRING_WITH_LEN("<primary_index_lookup>("));
   else
     str->append(STRING_WITH_LEN("<index_lookup>("));
-  tab->ref.items[0]->print(str, query_type);
+  tab->ref().items[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" in "));
-  if (tab->table->pos_in_table_list &&
-           tab->table->pos_in_table_list->uses_materialization())
+  TABLE *const table= tab->table();
+  if (table->pos_in_table_list &&
+      table->pos_in_table_list->uses_materialization())
   {
     /*
       For materialized derived tables/views use table/view alias instead of
       temporary table name, as it changes on each run and not acceptable for
       EXPLAIN EXTENDED.
     */
-    str->append(tab->table->alias, strlen(tab->table->alias));
+    str->append(table->alias, strlen(table->alias));
   }
-  else if (tab->table->s->table_category == TABLE_CATEGORY_TEMPORARY)
+  else if (table->s->table_category == TABLE_CATEGORY_TEMPORARY)
   {
     // Could be from subselect_hash_sj_engine.
     str->append(STRING_WITH_LEN("<temporary table>"));
   }
   else
-    str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
-  KEY *key_info= tab->table->key_info+ tab->ref.key;
+    str->append(table->s->table_name.str, table->s->table_name.length);
+  KEY *key_info= table->key_info+ tab->ref().key;
   str->append(STRING_WITH_LEN(" on "));
   str->append(key_info->name);
   if (check_null)
@@ -3574,23 +3576,24 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     - this JOIN_TAB has no corresponding JOIN (and doesn't need one), and
     - here we initialize only those members that are used by
       subselect_indexsubquery_engine, so these objects are incomplete.
-  */ 
-  JOIN_TAB * const tmp_tab= new (thd->mem_root) JOIN_TAB;
-  if (tmp_tab == NULL)
+  */
+
+  QEP_TAB_standalone *tmp_tab_st= new (thd->mem_root) QEP_TAB_standalone;
+  if (tmp_tab_st == NULL)
     DBUG_RETURN(TRUE);
-  tmp_tab->table= tmp_table;
-  tmp_table->reginfo.join_tab= tmp_tab;
-  tmp_tab->ref.key= 0; /* The only temp table index. */
-  tmp_tab->ref.key_length= tmp_key->key_length;
-  if (!(tmp_tab->ref.key_buff=
+  QEP_TAB *const tmp_tab= &tmp_tab_st->as_QEP_TAB();
+  tmp_tab->set_table(tmp_table);
+  tmp_tab->ref().key= 0; /* The only temp table index. */
+  tmp_tab->ref().key_length= tmp_key->key_length;
+  if (!(tmp_tab->ref().key_buff=
         (uchar*) thd->calloc(key_length)) ||
-      !(tmp_tab->ref.key_copy=
+      !(tmp_tab->ref().key_copy=
         (store_key**) thd->alloc((sizeof(store_key*) * tmp_key_parts))) ||
-      !(tmp_tab->ref.items=
+      !(tmp_tab->ref().items=
         (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
     DBUG_RETURN(TRUE);
 
-  uchar *cur_ref_buff= tmp_tab->ref.key_buff;
+  uchar *cur_ref_buff= tmp_tab->ref().key_buff;
 
   /*
     Like semijoin-materialization-lookup (see create_subquery_equalities()),
@@ -3635,11 +3638,11 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     Item_field *right_col_item;
     Field *field= tmp_table->field[part_no];
     const bool nullable= field->real_maybe_null();
-    tmp_tab->ref.items[part_no]= item_in->left_expr->element_index(part_no);
+    tmp_tab->ref().items[part_no]= item_in->left_expr->element_index(part_no);
 
     if (!(right_col_item= new Item_field(thd, context, 
                                          field)) ||
-        !(eq_cond= new Item_func_eq(tmp_tab->ref.items[part_no],
+        !(eq_cond= new Item_func_eq(tmp_tab->ref().items[part_no],
                                     right_col_item)) ||
         ((Item_cond_and*)cond)->add(eq_cond))
     {
@@ -3649,15 +3652,15 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     }
 
     if (tmp_table->hash_field)
-      tmp_tab->ref.key_copy[part_no]= 
+      tmp_tab->ref().key_copy[part_no]= 
         new store_key_hash_item(thd, field,
                            cur_ref_buff,
                            0,
                            field->pack_length(),
-                           tmp_tab->ref.items[part_no],
+                           tmp_tab->ref().items[part_no],
                            &hash);
     else
-      tmp_tab->ref.key_copy[part_no]= 
+      tmp_tab->ref().key_copy[part_no]= 
         new store_key_item(thd, field,
                            /* TODO:
                               the NULL byte is taken into account in
@@ -3668,7 +3671,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
                            cur_ref_buff + (nullable ? 1 : 0),
                            nullable ? cur_ref_buff : 0,
                            key_parts[part_no].length,
-                           tmp_tab->ref.items[part_no]);
+                           tmp_tab->ref().items[part_no]);
     if (nullable &&          // nullable column in tmp table,
         // and UNKNOWN should not be interpreted as FALSE
         !item_in->is_top_level_item())
@@ -3676,12 +3679,12 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
       // It must be the single column, or we wouldn't be here
       DBUG_ASSERT(tmp_key_parts == 1);
       // Be ready to search for NULL into inner column:
-      tmp_tab->ref.null_ref_key= cur_ref_buff;
+      tmp_tab->ref().null_ref_key= cur_ref_buff;
       mat_table_has_nulls= NEX_UNKNOWN;
     }
     else
     {
-      tmp_tab->ref.null_ref_key= NULL;
+      tmp_tab->ref().null_ref_key= NULL;
       mat_table_has_nulls= NEX_IRRELEVANT_OR_FALSE;
     }
 
@@ -3690,8 +3693,8 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     else
       cur_ref_buff+= key_parts[part_no].store_length;
   }
-  tmp_tab->ref.key_err= 1;
-  tmp_tab->ref.key_parts= tmp_key_parts;
+  tmp_tab->ref().key_err= 1;
+  tmp_tab->ref().key_parts= tmp_key_parts;
 
   if (cond->fix_fields(thd, &cond))
     DBUG_RETURN(TRUE);
@@ -3735,9 +3738,11 @@ void subselect_hash_sj_engine::cleanup()
   result->cleanup(); /* Resets the temp table as well. */
   THD * const thd= item->unit->thd;
   DEBUG_SYNC(thd, "before_index_end_in_subselect");
-  if (tab->table->file->inited)
-    tab->table->file->ha_index_end();  // Close the scan over the index
-  free_tmp_table(thd, tab->table);
+  TABLE *const table= tab->table();
+  if (table->file->inited)
+    table->file->ha_index_end();  // Close the scan over the index
+  free_tmp_table(thd, table);
+  // Note that tab->qep_cleanup() is not called
   tab= NULL;
   materialize_engine->cleanup();
   DBUG_VOID_RETURN;
@@ -3758,7 +3763,7 @@ void subselect_hash_sj_engine::cleanup()
 bool subselect_hash_sj_engine::exec()
 {
   Item_in_subselect *item_in= (Item_in_subselect *) item;
-  TABLE *const table= tab->table;
+  TABLE *const table= tab->table();
   DBUG_ENTER("subselect_hash_sj_engine::exec");
 
   /*
@@ -3794,10 +3799,13 @@ bool subselect_hash_sj_engine::exec()
 
     if (!(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
     {
-      // index must be closed before records() is called
+      // index must be closed before ha_records() is called
       if (table->file->inited)
         table->file->ha_index_or_rnd_end();
-      table->file->stats.records= table->file->records();
+      ha_rows num_rows= 0;
+      table->file->ha_records(&num_rows);
+      table->file->stats.records= num_rows;
+      res= thd->is_error();
     }
 
     /* Set tmp_param only if its usable, i.e. tmp_param->copy_field != NULL. */
@@ -3853,13 +3861,13 @@ err:
     if (mat_table_has_nulls == NEX_UNKNOWN)   // We do not know yet
     {
       // Search for NULL inside tmp table, and remember the outcome.
-      *tab->ref.null_ref_key= 1;
+      *tab->ref().null_ref_key= 1;
       if (!table->file->inited &&
-          table->file->ha_index_init(tab->ref.key, false /* sorted */))
+          table->file->ha_index_init(tab->ref().key, false /* sorted */))
         DBUG_RETURN(true);
       if (safe_index_read(tab) == 1)
         DBUG_RETURN(true);
-      *tab->ref.null_ref_key= 0; // prepare for next searches of non-NULL
+      *tab->ref().null_ref_key= 0; // prepare for next searches of non-NULL
       mat_table_has_nulls=
         (table->status == 0) ? NEX_TRUE : NEX_IRRELEVANT_OR_FALSE;
     }

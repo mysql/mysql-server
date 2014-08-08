@@ -73,7 +73,7 @@ public:
     is set or unset. The method is called while decoding a row
     for the row_event.
 
-    @param bitmap Bitmap pf columns in the row received in a row event
+    @param bitmap Bitmap of columns in the row received in a row event
     @param index  Index representing the column number queried, starting
                   from 0
     @return 1     If the column can be null

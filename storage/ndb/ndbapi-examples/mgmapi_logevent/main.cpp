@@ -16,15 +16,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
 #include <mysql.h>
 #include <ndbapi/NdbApi.hpp>
 #include <mgmapi.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-/*
- * export LD_LIBRARY_PATH=../../../../libmysql_r/.libs:../../src/.libs
- */
 
 #define MGMERROR(h) \
 { \

@@ -18,7 +18,7 @@ vb VARBINARY(19) DEFAULT  "ddd",
 blob1 BLOB,
 text1 TEXT,
 timestamp_c TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)ENGINE=NDB;
+)ENGINE=NDB PARTITION BY KEY() PARTITIONS 8;
 INSERT INTO t1 VALUES(),();
 INSERT INTO t1 VALUES(
 10, 10, 10.0, 10.0, 10.0,
@@ -66,7 +66,7 @@ b2 BIT(9) DEFAULT B'101',
 b3 BIT(23) DEFAULT B'110',
 b4 BIT(37) DEFAULT B'011',
 b5 BIT(63) DEFAULT B'101011'
-)ENGINE = NDB;
+)ENGINE=NDB PARTITION BY KEY() PARTITIONS 8;
 INSERT INTO bit1 VALUES();
 INSERT INTO bit1(b1,b4) VALUES(B'101',B'111');
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
@@ -139,11 +139,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 j Int NULL AT=FIXED ST=MEMORY DEFAULT 6
@@ -178,11 +178,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 b1 Bit(3) NULL AT=FIXED ST=MEMORY DEFAULT H'0x7
@@ -329,7 +329,8 @@ pk	BIN(b1)	BIN(b2)	BIN(b3)	BIN(b4)	BIN(b5)
 2	101	101	110	111	101011
 ALTER TABLE t1 CHANGE COLUMN j j INT DEFAULT 6,
 CHANGE COLUMN f f FLOAT NOT NULL DEFAULT 6.6,
-CHANGE COLUMN d d DOUBLE DEFAULT 8.8;
+CHANGE COLUMN d d DOUBLE DEFAULT 8.8
+PARTITION BY KEY () PARTITIONS 2;
 Warnings:
 Note	1880	TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format.
 SHOW CREATE TABLE t1;
@@ -349,6 +350,8 @@ t1	CREATE TABLE `t1` (
   `timestamp_c` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`i`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=12 DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 2 */
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -427,7 +430,7 @@ j INT DEFAULT 6,
 f FLOAT NOT NULL DEFAULT 6.6,
 d DOUBLE DEFAULT 8.8,
 UNIQUE INDEX t2_unique_index(j) 
-)ENGINE =NDB;
+)ENGINE=NDB PARTITION BY KEY() PARTITIONS 8;
 INSERT INTO t2 VALUES();
 INSERT INTO t2 VALUES();
 ERROR 23000: Duplicate entry '6' for key 't2_unique_index'
@@ -454,11 +457,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 j Int NULL AT=FIXED ST=MEMORY DEFAULT 666
@@ -487,7 +490,11 @@ DROP TABLE IF EXISTS t2;
 **************************************************************
 * Test not null-after-defaults example that failed previously
 **************************************************************
-CREATE TABLE t1 (a int primary key, b int default 12, c char not null) engine=ndb;
+CREATE TABLE t1 (
+a int primary key, 
+b int default 12,
+c char not null
+)ENGINE=NDB PARTITION BY KEY() PARTITIONS 8;
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -502,11 +509,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NULL AT=FIXED ST=MEMORY DEFAULT 12
@@ -529,7 +536,9 @@ e char(3) default 'Stu',
 f enum('NBFry','Kebab') default 'NBFry',
 g set('Chips','Pie','Fish') default 'Fish,Chips',
 h enum('Pig','Lion') not null,
-i char(2) default '66') engine=ndb;
+i char(2) default '66')
+engine = ndb
+partition by key() partitions 8;
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -544,11 +553,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NULL AT=FIXED ST=MEMORY DEFAULT 12
@@ -571,7 +580,9 @@ DROP TABLE t1;
 ******************************************
 CREATE TABLE t1 (a int primary key,
 b binary(10) default 0x4142430045464748494a,
-c varbinary(100) default 0x4142430045464748494a) engine=ndb;
+c varbinary(100) default 0x4142430045464748494a)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -580,6 +591,8 @@ t1	CREATE TABLE `t1` (
   `c` varbinary(100) DEFAULT 'ABC\0EFGHIJ',
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -594,11 +607,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Binary(10) NULL AT=FIXED ST=MEMORY DEFAULT 0x4142430045464748494A
@@ -616,7 +629,9 @@ http://dev.mysql.com/doc/refman/5.1/en/timestamp.html
 ***********************************
 Timestamp updated on insert + update
 CREATE TABLE variant (a int primary key,
-b timestamp) engine =ndb;
+b timestamp)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -624,6 +639,8 @@ variant	CREATE TABLE `variant` (
   `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -638,11 +655,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
@@ -659,7 +676,9 @@ a	b
 DROP TABLE variant;
 Full syntax for update on insert + update
 CREATE TABLE variant (a int primary key,
-b timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) engine =ndb;
+b timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -667,6 +686,8 @@ variant	CREATE TABLE `variant` (
   `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -681,11 +702,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
@@ -702,7 +723,9 @@ a	b
 DROP TABLE variant;
 Default on insert only
 CREATE TABLE variant (a int primary key,
-b timestamp DEFAULT CURRENT_TIMESTAMP) engine = ndb;
+b timestamp DEFAULT CURRENT_TIMESTAMP)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -710,6 +733,8 @@ variant	CREATE TABLE `variant` (
   `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -724,11 +749,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
@@ -746,7 +771,9 @@ DROP TABLE variant;
 Set on update only
 CREATE TABLE variant (a int primary key,
 b timestamp DEFAULT 0 ON UPDATE CURRENT_TIMESTAMP,
-c int) engine = ndb;
+c int)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -755,6 +782,8 @@ variant	CREATE TABLE `variant` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -769,11 +798,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
@@ -795,7 +824,9 @@ a	b	c
 DROP TABLE variant;
 No auto-set default 0
 CREATE TABLE variant (a int primary key,
-b timestamp DEFAULT 0) engine = ndb;
+b timestamp DEFAULT 0)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -803,6 +834,8 @@ variant	CREATE TABLE `variant` (
   `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -817,11 +850,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
@@ -838,7 +871,9 @@ a	b
 DROP TABLE variant;
 No auto-set default non-zero
 CREATE TABLE variant (a int primary key,
-b timestamp DEFAULT 19770623000001) engine = ndb;
+b timestamp DEFAULT 19770623000001)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -846,6 +881,8 @@ variant	CREATE TABLE `variant` (
   `b` timestamp NOT NULL DEFAULT '1977-06-23 00:00:01',
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -860,11 +897,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
@@ -882,7 +919,9 @@ DROP TABLE variant;
 Non-first timestamp default insert value
 CREATE TABLE variant (a int primary key,
 b timestamp DEFAULT 19770623000001,
-c timestamp DEFAULT CURRENT_TIMESTAMP) engine = ndb;
+c timestamp DEFAULT CURRENT_TIMESTAMP)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -891,6 +930,8 @@ variant	CREATE TABLE `variant` (
   `c` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -905,11 +946,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
@@ -928,7 +969,9 @@ DROP TABLE variant;
 Non-first timestamp default update value
 CREATE TABLE variant (a int primary key,
 b timestamp DEFAULT 19770623000001,
-c timestamp ON UPDATE CURRENT_TIMESTAMP) engine = ndb;
+c timestamp ON UPDATE CURRENT_TIMESTAMP)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -937,6 +980,8 @@ variant	CREATE TABLE `variant` (
   `c` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -951,11 +996,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
@@ -978,7 +1023,9 @@ DROP TABLE variant;
 Non-first timestamp set on insert+update
 CREATE TABLE variant (a int primary key,
 b timestamp DEFAULT 19770623000001,
-c timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) engine = ndb;
+c timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -987,6 +1034,8 @@ variant	CREATE TABLE `variant` (
   `c` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -1001,11 +1050,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
@@ -1023,7 +1072,9 @@ a	b	c
 DROP TABLE variant;
 Nullable timestamp no default
 CREATE TABLE variant (a int primary key,
-b timestamp NULL) engine = ndb;
+b timestamp NULL)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -1031,6 +1082,8 @@ variant	CREATE TABLE `variant` (
   `b` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -1045,11 +1098,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NULL AT=FIXED ST=MEMORY
@@ -1066,7 +1119,9 @@ a	b
 DROP TABLE variant;
 Nullable timestamp default zero
 CREATE TABLE variant (a int primary key,
-b timestamp NULL DEFAULT 0) engine = ndb;
+b timestamp NULL DEFAULT 0)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -1074,6 +1129,8 @@ variant	CREATE TABLE `variant` (
   `b` timestamp NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -1088,11 +1145,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 0
@@ -1109,7 +1166,9 @@ a	b
 DROP TABLE variant;
 Nullable timestamp default non-zero
 CREATE TABLE variant (a int primary key,
-b timestamp NULL DEFAULT 19770623000001) engine = ndb;
+b timestamp NULL DEFAULT 19770623000001)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -1117,6 +1176,8 @@ variant	CREATE TABLE `variant` (
   `b` timestamp NULL DEFAULT '1977-06-23 00:00:01',
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -1131,11 +1192,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 235861201
@@ -1152,7 +1213,9 @@ a	b
 DROP TABLE variant;
 Nullable timestamp auto insert val
 CREATE TABLE variant (a int primary key,
-b timestamp NULL DEFAULT CURRENT_TIMESTAMP) engine = ndb;
+b timestamp NULL DEFAULT CURRENT_TIMESTAMP)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -1160,6 +1223,8 @@ variant	CREATE TABLE `variant` (
   `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -1174,11 +1239,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NULL AT=FIXED ST=MEMORY
@@ -1196,7 +1261,9 @@ DROP TABLE variant;
 Nullable timestamp auto update val
 CREATE TABLE variant (a int primary key,
 b timestamp NULL ON UPDATE CURRENT_TIMESTAMP,
-c int) engine = ndb;
+c int)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -1205,6 +1272,8 @@ variant	CREATE TABLE `variant` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -1219,11 +1288,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NULL AT=FIXED ST=MEMORY
@@ -1245,7 +1314,9 @@ a	b	c
 DROP TABLE variant;
 Nullable timestamp auto insert+update val
 CREATE TABLE variant (a int primary key,
-b timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) engine = ndb;
+b timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)
+engine = ndb
+partition by key() partitions 8;
 SHOW CREATE TABLE variant;
 Table	Create Table
 variant	CREATE TABLE `variant` (
@@ -1253,6 +1324,8 @@ variant	CREATE TABLE `variant` (
   `b` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- variant --
 Version: Any
 Fragment type: HashMapPartition
@@ -1267,11 +1340,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Timestamp2(0) NULL AT=FIXED ST=MEMORY
@@ -1314,7 +1387,8 @@ CREATE TABLE t1 (
 `newOne` varchar(255) DEFAULT 'Comment field default',
 `newTwo` bigint(20) DEFAULT NULL,
 PRIMARY KEY (`i`)
-) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
+PARTITION BY KEY() PARTITIONS 8;
 CREATE TABLE bit1 (
 `pk` int(11) NOT NULL AUTO_INCREMENT,
 `b1` bit(3) DEFAULT b'111',
@@ -1323,7 +1397,8 @@ CREATE TABLE bit1 (
 `b4` bit(37) DEFAULT b'11',
 `b5` bit(63) DEFAULT b'101011',
 PRIMARY KEY (`pk`)
-) ENGINE=ndbcluster AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
+) ENGINE=ndbcluster AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
+PARTITION BY KEY() PARTITIONS 8;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1342,6 +1417,8 @@ t1	CREATE TABLE `t1` (
   `newTwo` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -1356,11 +1433,11 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
-FragmentCount: 2
+FragmentCount: 8
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-HashMap: DEFAULT-HASHMAP-3840-2
+HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 j Bigint NOT NULL AT=FIXED ST=MEMORY DEFAULT 6006

@@ -281,14 +281,22 @@ page_create_write_log(
 	buf_frame_t*	frame,	/*!< in: a buffer frame where the page is
 				created */
 	mtr_t*		mtr,	/*!< in: mini-transaction handle */
-	ibool		comp)	/*!< in: TRUE=compact page format */
+	ibool		comp,	/*!< in: TRUE=compact page format */
+	bool		is_rtree) /*!< in: whether it is R-tree */
 {
-	mlog_write_initial_log_record(frame, comp
-				      ? MLOG_COMP_PAGE_CREATE
-				      : MLOG_PAGE_CREATE, mtr);
+	mlog_id_t	type;
+
+	if (is_rtree) {
+		type = comp ? MLOG_COMP_PAGE_CREATE_RTREE
+			    : MLOG_PAGE_CREATE_RTREE;
+	} else {
+		type = comp ? MLOG_COMP_PAGE_CREATE : MLOG_PAGE_CREATE;
+	}
+
+	mlog_write_initial_log_record(frame, type, mtr);
 }
 #else /* !UNIV_HOTBACKUP */
-# define page_create_write_log(frame,mtr,comp) ((void) 0)
+# define page_create_write_log(frame,mtr,comp,is_rtree) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
 /** The page infimum and supremum of an empty page in ROW_FORMAT=REDUNDANT */
@@ -332,7 +340,8 @@ page_create_low(
 /*============*/
 	buf_block_t*	block,		/*!< in: a buffer block where the
 					page is created */
-	ulint		comp)		/*!< in: nonzero=compact page format */
+	ulint		comp,		/*!< in: nonzero=compact page format */
+	bool		is_rtree)	/*!< in: if it is an R-Tree page */
 {
 	page_t*		page;
 
@@ -347,7 +356,11 @@ page_create_low(
 
 	page = buf_block_get_frame(block);
 
-	fil_page_set_type(page, FIL_PAGE_INDEX);
+	if (is_rtree) {
+		fil_page_set_type(page, FIL_PAGE_RTREE);
+	} else {
+		fil_page_set_type(page, FIL_PAGE_INDEX);
+	}
 
 	memset(page + PAGE_HEADER, 0, PAGE_HEADER_PRIV_END);
 	page[PAGE_HEADER + PAGE_N_DIR_SLOTS + 1] = 2;
@@ -385,20 +398,22 @@ page_create_low(
 
 /** Parses a redo log record of creating a page.
 @param[in,out]	block	buffer block, or NULL
-@param[in]	comp	nonzero=compact page format */
+@param[in]	comp	nonzero=compact page format
+@param[in]	is_rtree whether it is rtree page */
 
 void
 page_parse_create(
 	buf_block_t*	block,
-	ulint		comp)
+	ulint		comp,
+	bool		is_rtree)
 {
 	if (block != NULL) {
-		page_create_low(block, comp);
+		page_create_low(block, comp, is_rtree);
 	}
 }
 
 /**********************************************************//**
-Create an uncompressed B-tree index page.
+Create an uncompressed B-tree or R-tree index page.
 @return pointer to the page */
 
 page_t*
@@ -407,11 +422,12 @@ page_create(
 	buf_block_t*	block,		/*!< in: a buffer block where the
 					page is created */
 	mtr_t*		mtr,		/*!< in: mini-transaction handle */
-	ulint		comp)		/*!< in: nonzero=compact page format */
+	ulint		comp,		/*!< in: nonzero=compact page format */
+	bool		is_rtree)	/*!< in: whether it is a R-Tree page */
 {
 	ut_ad(mtr->is_named_space(block->page.id.space()));
-	page_create_write_log(buf_block_get_frame(block), mtr, comp);
-	return(page_create_low(block, comp));
+	page_create_write_log(buf_block_get_frame(block), mtr, comp, is_rtree);
+	return(page_create_low(block, comp, is_rtree));
 }
 
 /**********************************************************//**
@@ -439,12 +455,15 @@ page_create_zip(
 {
 	page_t*			page;
 	page_zip_des_t*		page_zip = buf_block_get_page_zip(block);
+	bool			is_spatial;
 
 	ut_ad(block);
 	ut_ad(page_zip);
 	ut_ad(!index || (index && dict_table_is_comp(index->table)));
+	is_spatial = index ? dict_index_is_spatial(index)
+			   : page_comp_info->type & DICT_SPATIAL;
 
-	page = page_create_low(block, TRUE);
+	page = page_create_low(block, TRUE, is_spatial);
 	mach_write_to_2(PAGE_HEADER + PAGE_LEVEL + page, level);
 	mach_write_to_8(PAGE_HEADER + PAGE_MAX_TRX_ID + page, max_trx_id);
 
@@ -482,7 +501,7 @@ page_create_empty(
 	const page_t*	page	= buf_block_get_frame(block);
 	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
 
-	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(fil_page_index_page_check(page));
 
 	/* Multiple transactions cannot simultaneously operate on the
 	same temp-table in parallel.
@@ -500,7 +519,8 @@ page_create_empty(
 				page_header_get_field(page, PAGE_LEVEL),
 				max_trx_id, NULL, mtr);
 	} else {
-		page_create(block, mtr, page_is_comp(page));
+		page_create(block, mtr, page_is_comp(page),
+			    dict_index_is_spatial(index));
 
 		if (max_trx_id) {
 			page_update_max_trx_id(
