@@ -2568,6 +2568,7 @@ bool JOIN::get_best_combination()
           We must use the duplicate-eliminating index, so this QUICK is not
           an option.
         */
+        delete tab->quick();
         tab->set_quick(NULL);
       }
       if (!pos->key)
