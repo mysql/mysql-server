@@ -103,6 +103,5 @@ include/stop_slave_sql.inc
 SET GLOBAL slave_parallel_type = 'DATABASE';
 START SLAVE SQL_THREAD;
 ERROR HY000: slave_preserve_commit_order is not supported when slave_parallel_type is DATABASE.
-CALL mtr.add_suppression("Slave: Could not start slave for channel.*");
 SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
 include/rpl_end.inc

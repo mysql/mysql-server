@@ -117,6 +117,5 @@ if ($_show_master_host != No such row)
 --replace_column 2 ####
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port
 --source include/start_slave.inc
-CALL mtr.add_suppression("Slave: Could not start slave for channel.*");
 
 --source include/rpl_end.inc

@@ -388,6 +388,7 @@ int init_slave()
                                                         opt_rli_repository_id,
                                                         thread_mask, &msr_map)))
   {
+    /* TODO: Make this error message meaningfull. /Rith */
     sql_print_error("Failed to create or recover replication info repositories.");
     error = 1;
     goto err;
@@ -8508,10 +8509,12 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
  */
 bool rpl_master_erroneous_autoinc(THD *thd)
 {
-  if (thd->rli_slave)
+  if (thd->rli_slave && thd->rli_slave->info_thd == thd)
   {
+    Relay_log_info *c_rli= thd->rli_slave->get_c_rli();
+
     DBUG_EXECUTE_IF("simulate_bug33029", return TRUE;);
-    return rpl_master_has_bug(thd->rli_slave, 33029, FALSE, NULL, NULL);
+    return rpl_master_has_bug(c_rli, 33029, FALSE, NULL, NULL);
   }
   return FALSE;
 }
