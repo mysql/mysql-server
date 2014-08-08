@@ -2395,6 +2395,7 @@ uint QEP_TAB::sjm_query_block_id() const
   return 0;
 }
 
+
 /**
   Extend join_tab->cond by AND'ing add_cond to it
 
