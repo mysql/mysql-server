@@ -4266,6 +4266,21 @@ static Sys_var_mybool Sys_enforce_gtid_consistency(
        );
 #endif
 
+static Sys_var_mybool Sys_simplified_binlog_gtid_recovery(
+       "simplified_binlog_gtid_recovery",
+       "If this option is enabled, the server does not scan more than one "
+       "binary log for every iteration when initializing GTID sets on server "
+       "restart. Enabling this option is very useful when restarting a server "
+       "which has already generated lots of binary logs without GTID events. "
+       "Note: If this option is enabled, GLOBAL.GTID_EXECUTED and "
+       "GLOBAL.GTID_PURGED cannot be initialized correctly if binary log(s) "
+       "with GTID events were generated before binary log(s) without GTID "
+       "events, for example if gtid_mode is disabled when the server has "
+       "already generated binary log(s) with GTID events and not purged "
+       "them. ",
+       READ_ONLY GLOBAL_VAR(simplified_binlog_gtid_recovery),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static Sys_var_ulong Sys_sp_cache_size(
        "stored_program_cache",
        "The soft upper limit for number of cached stored routines for "
