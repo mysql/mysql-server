@@ -495,6 +495,47 @@ private:
 #endif
 };
 
+
+/**
+  @class PipelineAction
+
+  A wrapper for pipeline actions.
+  Pipeline actions, unlike normal events, do not transport data but execution
+  instructions to be executed.
+
+  @note On pipelines, actions unlike events, when submitted are always executed
+        synchronously, meaning that when the call returns all handlers already
+        processed it.
+        Actions are good for executing start and stop actions for example, but
+        also for configuring handlers.
+*/
+class PipelineAction
+{
+public:
+
+  PipelineAction(int action_type)
+  {
+    type= action_type;
+  }
+
+  virtual ~PipelineAction() {};
+
+  /**
+    Returns this action type.
+    The type must be defined in all child classes.
+    Different developing contexts can mean different sets of actions.
+
+    @return the action type
+  */
+  int get_action_type()
+  {
+    return type;
+  }
+
+private:
+  int type;
+};
+
 /**
   @class EventHandler
 
@@ -515,6 +556,11 @@ public:
 
   /**
     Initialization as defined in the handler implementation.
+
+    @note It's up to the developer to decide its own initialization strategy,
+    but the suggested approach is to initialize basic structures here and
+    then depend on Action packets to configure and start existing handler
+    routines.
   */
   virtual int initialize()= 0;
 
@@ -537,7 +583,22 @@ public:
     @param[in]      event           the pipeline event to be handled
     @param[in,out]  continuation    termination notification object.
   */
-  virtual int handle(PipelineEvent *event, Continuation *continuation)= 0;
+  virtual int handle_event(PipelineEvent *event, Continuation *continuation)= 0;
+
+  /**
+    Handling of an action as defined in the handler implementation.
+
+    As the handler can be included in a pipeline, somewhere in the
+    method, the handler.next(action) method shall be invoked to allow
+    the passing of the action to the next handler.
+
+    @note Actions should not be treated asynchronously and as so, Continuations
+    are not used here. Errors are returned directly or passed by in the action
+    if it includes support for such
+
+    @param[in]      action         the pipeline event to be handled
+  */
+  virtual int handle_action(PipelineAction *action)= 0;
 
   //pipeline appending methods
 
@@ -684,10 +745,26 @@ protected:
   int next(PipelineEvent *event, Continuation *continuation)
   {
     if (next_in_pipeline)
-      next_in_pipeline->handle(event, continuation);
+      next_in_pipeline->handle_event(event, continuation);
     else
       continuation->signal();
     return 0;
+  }
+
+  /**
+    Pass the action to the next handler in line.
+    If none exists, this method will return
+
+    @param[in]  action     the pipeline action to be handled
+  */
+  int next(PipelineAction *action)
+  {
+    int error= 0;
+
+    if (next_in_pipeline)
+      error= next_in_pipeline->handle_action(action);
+
+    return error;
   }
 
 private:
