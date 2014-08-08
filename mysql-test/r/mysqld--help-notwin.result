@@ -357,6 +357,25 @@ The following options may be given as the first argument:
  --log-slow-slave-statements 
  Log slow statements executed by slave thread to the slow
  log if it is open.
+ --log-syslog        Errors, warnings, and similar issues eligible for MySQL's
+ error log file may additionally be sent to the host
+ operating system's system log ("syslog").
+ --log-syslog-facility=name 
+ When logging issues using the host operating system's
+ syslog, identify as a facility of the given type (to aid
+ in log filtering).
+ --log-syslog-include-pid 
+ When logging issues using the host operating system's
+ syslog, include this MySQL server's process ID (PID).
+ This setting does not affect MySQL's own error log file.
+ (Defaults to on; use --skip-log-syslog-include-pid to disable.)
+ --log-syslog-tag=name 
+ When logging issues using the host operating system's
+ syslog, tag the entries from this particular MySQL server
+ with this ident. This will help distinguish entries from
+ MySQL servers co-existing on the same host machine. A
+ non-empty tag will be appended to the default ident of
+ 'mysqld', connected by a hyphen.
  --log-tc=name       Path to transaction coordinator log (used for
  transactions that affect more than one storage engine,
  when binary log is disabled).
@@ -1168,6 +1187,10 @@ log-short-format FALSE
 log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
+log-syslog FALSE
+log-syslog-facility daemon
+log-syslog-include-pid TRUE
+log-syslog-tag 
 log-tc tc.log
 log-tc-size 24576
 log-throttle-queries-not-using-indexes 0

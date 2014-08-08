@@ -99,7 +99,10 @@ extern "C" {
 
 #if defined(_WIN32)
 #include <conio.h>
+// Not using syslog but EventLog on Win32, so a dummy facility is enough.
+#define LOG_USER 0
 #else
+#include <syslog.h>
 #include <readline.h>
 #define HAVE_READLINE
 #define USE_POPEN
@@ -1976,7 +1979,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       return 1;
     break;
   case 'j':
-    if (my_openlog("MysqlClient")) {
+    if (my_openlog("MysqlClient", 0, LOG_USER)) {
       /* error */
       put_info(strerror(errno), INFO_ERROR, errno);
       return 1;
