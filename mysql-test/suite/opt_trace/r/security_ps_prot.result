@@ -11,6 +11,7 @@ create table t2(a varchar(100));
 insert into t2 values("first");
 create table t3(a varchar(100));
 insert into t3 values("first");
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure p1() sql security definer
 begin
 declare b int;
@@ -33,6 +34,7 @@ create trigger trg2 before insert on t2 for each row
 begin
 insert into t3 select * from t3;
 end|
+SET sql_mode = default;
 create sql security definer view v1 as select * from t1;
 create user user1@localhost identified by '';
 grant all on *.* to user1@localhost with grant option;
@@ -747,6 +749,7 @@ select user();
 user()
 user1@localhost
 set optimizer_trace="enabled=on";
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure p1() sql security definer
 begin
 declare b int;
@@ -770,6 +773,7 @@ begin
 insert into t3 select * from t3;
 end|
 create sql security definer view v1 as select * from t1;
+SET sql_mode = default;
 # Creating a view is not enough to be able to SELECT it...
 select user();
 user()
@@ -1114,6 +1118,7 @@ user1@localhost
 user1 cannot see view's body:
 show create view v1;
 ERROR 42000: SHOW VIEW command denied to user 'user1'@'localhost' for table 'v1'
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 user1 creates a procedure
 create procedure proc() sql security definer
 begin
@@ -1123,6 +1128,7 @@ select * from v1 limit 0;
 create table leak select * from information_schema.optimizer_trace;
 set optimizer_trace="enabled=off";
 end|
+SET sql_mode = default;
 select user();
 user()
 root@localhost

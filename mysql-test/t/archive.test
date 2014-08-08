@@ -1497,7 +1497,7 @@ INSERT INTO t5 VALUES (NULL, "establish justice", "to ourselves and");
 INSERT INTO t5 VALUES (32, "ensure domestic tranquility", NULL);
 INSERT INTO t5 VALUES (23, "provide for the common defense", "posterity");
 INSERT INTO t5 VALUES (NULL, "promote the general welfare", "do ordain");
-INSERT INTO t5 VALUES (NULL, "abcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabc", "do ordain");
+INSERT IGNORE INTO t5 VALUES (NULL, "abcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabcdeghijklmnopqrstuvwxyzabc", "do ordain");
 
 SELECT * FROM t5;
 

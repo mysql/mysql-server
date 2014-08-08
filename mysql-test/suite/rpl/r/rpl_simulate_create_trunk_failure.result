@@ -1,0 +1,35 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,rpl_gtid_update_on_commit_simulate_out_of_memory';
+[connection master]
+#
+# Commit a transaction on master
+#
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+[connection slave]
+#
+# Wait the slave server crash caused by 'OUT OF MEMORY' error
+# on adding GTID into @@GLOBAL.GTID_EXECUTED when applying
+# the replicated transaction.
+#
+include/rpl_start_server.inc [server_number=2]
+#
+# Verify that the transaction is committed and its GTID is
+# added into @@GLOBAL.GTID_EXECUTED and 'gtid_executed'
+# table after slave server restarts.
+#
+SET @@GLOBAL.DEBUG= @debug_save;
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	1
+include/assert.inc [Table t1 exists and is empty]
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

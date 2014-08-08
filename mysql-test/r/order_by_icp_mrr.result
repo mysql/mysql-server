@@ -1,5 +1,6 @@
 set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 drop table if exists t1,t2,t3;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 id int(6) DEFAULT '0' NOT NULL,
 idservice int(5),
@@ -2800,4 +2801,5 @@ Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1`
 SELECT DISTINCT a FROM t1 WHERE b=1 ORDER BY 1;
 a
 DROP TABLE t1;
+SET sql_mode = default;
 set optimizer_switch=default;

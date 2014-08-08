@@ -13,12 +13,11 @@
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 #
 # Check syntax for creating BLOB/TEXT
 #
-
 CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
 # PS doesn't give errors on prepare yet
@@ -634,5 +633,5 @@ SELECT COUNT(*) FROM t1 GROUP BY f1(), a;
 
 DROP FUNCTION f1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo End of 5.1 tests

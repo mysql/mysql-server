@@ -863,6 +863,7 @@ DROP TRIGGER t1_bi;
 
 # - Conditional SET in a trigger, which is NOT executed for every row.
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
 IF (MOD(NEW.a, 2) = 0) THEN
@@ -895,6 +896,7 @@ a	b
 5	0
 6	5
 DROP TABLE t1;
+SET sql_mode = default;
 
 ###################################################################
 # Test 7: Nullability of column being copied as result of INSERT SELECT.
@@ -2092,6 +2094,7 @@ a1	a2
 1	1
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 "Test for timestamp"
 CREATE TABLE t1(a1 DATE NOT NULL, a2 TIMESTAMP NOT NULL, a3 TIMESTAMP NOT NULL);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
@@ -2101,6 +2104,7 @@ INSERT INTO t1 VALUES ('2012-12-12','2012-12-12 12:12:12','1980-01-01 01:01:01')
 ERROR 23000: Column 'a1' cannot be null
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
+SET sql_mode = default;
 "Test for CHAR/VARCHAR datatype"
 CREATE TABLE t1(a1 CHAR(10) NOT NULL, a2 VARCHAR(255) NOT NULL, a3 INT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1

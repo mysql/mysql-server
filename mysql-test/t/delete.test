@@ -232,7 +232,7 @@ drop table t1,t2,t3;
 #
 
 create table t1(a date not null);
-insert into t1 values (0);
+insert ignore into t1 values (0);
 select * from t1 where a is null;
 delete from t1 where a is null;
 select count(*) from t1;

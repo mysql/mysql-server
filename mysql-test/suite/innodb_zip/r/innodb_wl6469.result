@@ -243,6 +243,7 @@ i
 7
 drop table t2;
 use test;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create temporary table t (
 a int not null,
 b blob not null,
@@ -273,7 +274,9 @@ index sk (b(3021))
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
 drop table t;
+SET sql_mode = default;
 set global innodb_large_prefix = 1;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 create temporary table t (
 a int not null,
 b blob not null,
@@ -332,3 +335,4 @@ COUNT(*)
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
 set global innodb_change_buffering = all;
+SET sql_mode=default;

@@ -64,7 +64,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (a double);
-INSERT INTO t1 VALUES ('-9e999999');
+INSERT IGNORE INTO t1 VALUES ('-9e999999');
 --exec $MYSQL_DUMP --compact test t1
 DROP TABLE t1;
 

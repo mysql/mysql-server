@@ -1,4 +1,5 @@
 drop table if exists t1,t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 set time_zone="+03:00";
 CREATE TABLE t1 (a int, t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 CREATE TABLE t2 (a int, t datetime);
@@ -642,6 +643,7 @@ SELECT TIMESTAMP('2000-01-27','23:13:41') - TIMESTAMP('2003-05-16','23:53:29');
 TIMESTAMP('2000-01-27','23:13:41') - TIMESTAMP('2003-05-16','23:53:29')
 -30389003988
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Test for bug#11747847 - 34280: create table fails if NO_ZERO_DATE
 # or NO_ZERO_IN_DATE SQL mode is set.
@@ -685,6 +687,7 @@ SET @@sql_mode= @org_mode;
 #
 # End of 5.6 tests
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # WL6292 - Test cases to test new behavior with 
 #          --explicit_defaults_for_timestamp
@@ -762,3 +765,4 @@ SELECT * FROM t1;
 c1	c2	c3
 0000-00-00 00:00:00	0000-00-00 00:00:00	0
 DROP TABLE t1;
+SET sql_mode = default;
