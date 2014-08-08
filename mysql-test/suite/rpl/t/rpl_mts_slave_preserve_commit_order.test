@@ -143,7 +143,6 @@ DROP TABLE t1;
 SET GLOBAL slave_parallel_type = 'DATABASE';
 --error ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER
 START SLAVE SQL_THREAD;
-CALL mtr.add_suppression("Slave: Could not start slave for channel.*");
 
 SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
 --let rpl_only_running_threads= 1;

@@ -11,7 +11,7 @@
 # scenarios. The second section checks START SLAVE UNTIL RELAY_LOG_FILE =
 # 'log_name', RELAY_LOG_POS = log_pos.
 ##############################################################################
-call mtr.add_suppression("Slave: Could not start slave for channel.*");
+
 # Create some events on master
 connection master;
 CREATE TABLE t1(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
