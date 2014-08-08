@@ -132,6 +132,7 @@ drop procedure bug6807|
 #
 # Bug#10100 function (and stored procedure?) recursivity problem
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION'|
 --disable_warnings
 drop function if exists bug10100f|
 drop procedure if exists bug10100p|
@@ -261,6 +262,7 @@ drop view v1|
 drop table t3|
 
 delimiter ;|
+SET sql_mode = default;
 
 
 #

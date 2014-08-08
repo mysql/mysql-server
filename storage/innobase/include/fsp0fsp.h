@@ -220,7 +220,6 @@ the extent are free and which contain old tuple version to clean. */
 #define	XDES_FULL_FRAG		3	/* extent is in full fragment list of
 					space */
 #define	XDES_FSEG		4	/* extent belongs to a segment */
-#define XDES_FSEG_FRAG		5	/* fragment extent leased to segment */
 
 /** File extent data structure size in bytes. */
 #define	XDES_SIZE							\
@@ -239,9 +238,6 @@ the extent are free and which contain old tuple version to clean. */
 
 /** Offset of the descriptor array on a descriptor page */
 #define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
-
-/* The number of reserved pages in a fragment extent. */
-#define XDES_FRAG_N_USED	2
 
 /* @} */
 

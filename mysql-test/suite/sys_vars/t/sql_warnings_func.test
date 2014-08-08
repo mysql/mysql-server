@@ -42,7 +42,7 @@ CREATE TEMPORARY TABLE t1(a varchar(5), b varchar(20));
 #
 SET @@sql_warnings = DEFAULT;
 
-INSERT INTO t1 VALUES('abcdef', 'val1');
+INSERT IGNORE INTO t1 VALUES('abcdef', 'val1');
 
 --echo '#-----------------------------FN_DYNVARS_167_02------------------#'
 #
@@ -51,7 +51,7 @@ INSERT INTO t1 VALUES('abcdef', 'val1');
 
 SET @@sql_warnings = 0;
 
-INSERT INTO t1 VALUES('abcdef', 'val1');
+INSERT IGNORE INTO t1 VALUES('abcdef', 'val1');
 
 --echo '#-----------------------------FN_DYNVARS_167_03---------------#'
 #
@@ -60,7 +60,7 @@ INSERT INTO t1 VALUES('abcdef', 'val1');
 
 SET @@sql_warnings = 1;
 
-INSERT INTO t1 VALUES('abcdef', 'val1');
+INSERT IGNORE INTO t1 VALUES('abcdef', 'val1');
 
 
 --echo '#----------------------------FN_DYNVARS_167_04---------------#'
