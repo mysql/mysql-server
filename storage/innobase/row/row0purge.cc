@@ -408,6 +408,11 @@ row_purge_remove_sec_if_poss_leaf(
 	mtr.set_named_space(index->space);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
+		/* For temp spatial index, we also skip the purge. */
+		if (dict_index_is_spatial(index)) {
+			goto func_exit_no_pcur;
+		}
+
 		/* The index->online_status may change if the
 		index->name starts with TEMP_INDEX_PREFIX (meaning
 		that the index is or was being created online). It is

@@ -15,6 +15,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifndef CLIENT_PRIV_INCLUDED
+#define CLIENT_PRIV_INCLUDED
+
 /* Common defines for all clients */
 
 #include <my_global.h>
@@ -133,3 +136,4 @@ enum options_client
   printf("WARNING: " opt \
          " is deprecated and will be removed in a future version\n")
 
+#endif
