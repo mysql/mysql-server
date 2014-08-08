@@ -13,7 +13,7 @@ drop table if exists test.no_index_tab;
 drop table if exists test.index_tab;
 --enable_warnings
 
-let $table_io_select= select COUNT(*)
+let $table_io_select= select SUM(NUMBER_OF_BYTES)
 from performance_schema.events_waits_history_long
 where event_name like 'wait/io/table/%'
 and object_schema = 'test'

@@ -72,7 +72,7 @@ id1	a
 7	700
 8	800
 9	900
-select * from t2 
+select * from t2
 where (b >= 180) and (b <= 220)
 order by b;
 id1	id2	b
@@ -81,7 +81,7 @@ id1	id2	b
 2	20	200
 2	21	210
 2	22	220
-select * from t3 
+select * from t3
 where (c >= 587) and (c <= 612)
 order by c;
 id2	id3	c
