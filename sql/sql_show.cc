@@ -5032,8 +5032,14 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     if (print_on_update_clause(field, &type, true))
       table->field[IS_COLUMNS_EXTRA]->store(type.ptr(), type.length(), cs);
     if (field->vcol_info)
+    {
       table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN("VIRTUAL"), cs);
-
+      table->field[IS_COLUMNS_GENERATION_EXPRESSION]->
+        store(field->vcol_info->expr_str.str,field->vcol_info->expr_str.length,
+              cs);
+    }
+    else
+      table->field[IS_COLUMNS_GENERATION_EXPRESSION]->set_null();
     table->field[IS_COLUMNS_COLUMN_COMMENT]->store(field->comment.str,
                                                    field->comment.length, cs);
     if (schema_table_store_record(thd, table))
@@ -7812,6 +7818,8 @@ ST_FIELD_INFO columns_fields_info[]=
   {"PRIVILEGES", 80, MYSQL_TYPE_STRING, 0, 0, "Privileges", OPEN_FRM_ONLY},
   {"COLUMN_COMMENT", COLUMN_COMMENT_MAXLEN, MYSQL_TYPE_STRING, 0, 0, 
    "Comment", OPEN_FRM_ONLY},
+  {"GENERATION_EXPRESSION", VIRTUAL_COLUMN_EXPRESSION_MAXLEN, MYSQL_TYPE_STRING,
+   0, 0, "Generation expression", OPEN_FRM_ONLY},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 

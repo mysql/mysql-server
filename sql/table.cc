@@ -2590,57 +2590,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
   }
 
-  /*
-    Allocate bitmaps
-    This needs to be done prior to virtual columns as they'll call
-    fix_fields and functions might want to access bitmaps.
-  */
-
-  bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 5)))
-    goto err;
-  bitmap_init(&outparam->def_read_set,
-              (my_bitmap_map*) bitmaps, share->fields, FALSE);
-  bitmap_init(&outparam->def_write_set,
-              (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
-  bitmap_init(&outparam->tmp_set,
-              (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
-  bitmap_init(&outparam->cond_set,
-              (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
-  bitmap_init(&outparam->def_fields_set_during_insert,
-              (my_bitmap_map*) (bitmaps + bitmap_size * 4), share->fields,
-              FALSE);
-  outparam->default_column_bitmaps();
-
-  /*
-    Process virtual columns, if any.
-  */
-  if (!(vfield_ptr = (Field **) alloc_root(&outparam->mem_root,
-                                          (uint) ((share->vfields+1)*
-                                                  sizeof(Field*)))))
-    goto err;
-
-  outparam->vfield= vfield_ptr;
-  
-  for (field_ptr= outparam->field; *field_ptr; field_ptr++)
-  {
-    if ((*field_ptr)->vcol_info)
-    {
-      if (unpack_vcol_info_from_frm(thd,
-                                    outparam,
-                                    *field_ptr,
-                                    &(*field_ptr)->vcol_info->expr_str,
-                                    is_create_table,
-                                    &error_reported))
-      {
-        error= 4; // in case no error is reported
-        goto err;
-      }
-      *(vfield_ptr++)= *field_ptr;
-    }
-  }
-  *vfield_ptr= 0;                              // End marker
-
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->partition_info_str_len && outparam->file)
   {
@@ -2717,6 +2666,57 @@ partititon_err:
     error_reported= TRUE;
     goto err;
   }
+
+  /*
+    Allocate bitmaps
+    This needs to be done prior to virtual columns as they'll call
+    fix_fields and functions might want to access bitmaps.
+  */
+
+  bitmap_size= share->column_bitmap_size;
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 5)))
+    goto err;
+  bitmap_init(&outparam->def_read_set,
+              (my_bitmap_map*) bitmaps, share->fields, FALSE);
+  bitmap_init(&outparam->def_write_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
+  bitmap_init(&outparam->tmp_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
+  bitmap_init(&outparam->cond_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
+  bitmap_init(&outparam->def_fields_set_during_insert,
+              (my_bitmap_map*) (bitmaps + bitmap_size * 4), share->fields,
+              FALSE);
+  outparam->default_column_bitmaps();
+
+  /*
+    Process virtual columns, if any.
+  */
+  if (!(vfield_ptr = (Field **) alloc_root(&outparam->mem_root,
+                                          (uint) ((share->vfields+1)*
+                                                  sizeof(Field*)))))
+    goto err;
+
+  outparam->vfield= vfield_ptr;
+  
+  for (field_ptr= outparam->field; *field_ptr; field_ptr++)
+  {
+    if ((*field_ptr)->vcol_info)
+    {
+      if (unpack_vcol_info_from_frm(thd,
+                                    outparam,
+                                    *field_ptr,
+                                    &(*field_ptr)->vcol_info->expr_str,
+                                    is_create_table,
+                                    &error_reported))
+      {
+        error= 4; // in case no error is reported
+        goto err;
+      }
+      *(vfield_ptr++)= *field_ptr;
+    }
+  }
+  *vfield_ptr= 0;                              // End marker
 
   /* The table struct is now initialized;  Open the table */
   error= 2;
