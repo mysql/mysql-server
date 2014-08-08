@@ -2575,7 +2575,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` VIRTUAL timestamp AS (timestamp(a)) NULL ON UPDATE CURRENT_TIMESTAMP
+  `b` VIRTUAL timestamp AS (timestamp(a)) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('2008-12-31',default);
 select * from t1;
@@ -2590,7 +2590,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` VIRTUAL timestamp AS (timestampadd(minute,1,a)) NULL ON UPDATE CURRENT_TIMESTAMP
+  `b` VIRTUAL timestamp AS (timestampadd(minute,1,a)) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('2003-01-02',default);
 select * from t1;

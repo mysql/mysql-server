@@ -36,7 +36,7 @@ create table t3 (a int primary key,
                  b virtual int as (-a),
 		 c virtual int as (-a) stored unique);
 insert into t3 (a) values (2),(1),(3);
-
+analyze table t1,t2,t3;
 
 --echo # select_type=SIMPLE, type=system
 let $s = select * from t2;

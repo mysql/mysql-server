@@ -457,7 +457,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
   Currently there are 160 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 160
+%expect 161
 
 /*
    Comments for TOKENS.
@@ -6280,6 +6280,13 @@ vcol_attribute:
             lex->alter_info.flags|= Alter_inplace_info::ADD_INDEX; 
           }
         | COMMENT_SYM TEXT_STRING_sys { Lex->comment= $2; }
+        | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
+        | opt_primary KEY_SYM
+          {
+            LEX *lex=Lex;
+            lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG;
+            lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
+          }
         | STORED_SYM
           {
             Lex->vcol_info->set_field_stored(TRUE);
