@@ -11,6 +11,7 @@
 # [--let $show_slave_io_error= 1]
 # [--let $slave_io_error_is_nonfatal= 1]
 # [--let $slave_io_error_replace= REGEX]
+# [--let $rpl_channel_name= NAME]
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
 # --source include/wait_for_slave_io_error.inc
@@ -41,6 +42,9 @@
 #     If set, one or more regex patterns for replacing variable
 #     text in the error message. Syntax as --replace-regex
 #
+#   $rpl_channel_name
+#     See include/wait_for_slave_param.inc.
+#
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc
 # 
@@ -59,7 +63,7 @@ let $slave_param_value= 0;
 source include/wait_for_slave_param.inc;
 let $slave_param_comparison= $old_slave_param_comparison;
 
-let $_wfsie_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
+let $_wfsie_errno= query_get_value($_slave_param_statement, Last_IO_Errno, 1);
 
 if ($slave_io_errno == '')
 {
@@ -67,7 +71,8 @@ if ($slave_io_errno == '')
   --echo !!!wait_for_slave_io_error.inc. The error we got this time was '$_wfsie_errno',
   --echo !!!so you probably want to add the following line to your test case:
   --echo !!!  --let \$slave_io_errno= $_wfsie_errno
-  query_vertical SHOW SLAVE STATUS;
+  --vertical_results
+  eval $_slave_param_statement;
   --die !!!ERROR IN TEST: you must set \$slave_io_errno before sourcing wait_for_slave_io_error.inc
 }
 
