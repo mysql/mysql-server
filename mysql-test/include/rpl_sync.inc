@@ -45,6 +45,11 @@
 --source include/begin_include_file.inc
 
 
+if ($rpl_multi_source)
+{
+  --die ERROR IN TEST: rpl_sync.inc cannot be used when $rpl_multi_source=1. If you use multi-source, you must manually sync all servers using sync_slave_sql_with_master.inc or equivalent.
+}
+
 # Compute $rpl_sync_chain if needed.  We could have done this in
 # rpl_change_topology.inc, but instead we do it here because that
 # means we only compute $rpl_sync_chain when it is needed.

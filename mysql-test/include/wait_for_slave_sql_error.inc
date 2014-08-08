@@ -8,6 +8,7 @@
 #
 # --let $slave_sql_errno= NUMBER [, NUMBER ...] [# comment]
 # [--let $show_slave_sql_error= 1]
+# [--let $rpl_channel_name= NAME]
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
 # --source include/wait_for_slave_sql_error.inc
@@ -27,6 +28,9 @@
 #   $show_slave_sql_error
 #     If set, will print the error to the query log.
 # 
+#   $rpl_channel_name
+#     See include/wait_for_slave_param.inc
+#
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc
 # 
@@ -46,7 +50,7 @@ let $slave_param= Slave_SQL_Running;
 let $slave_param_value= No;
 source include/wait_for_slave_param.inc;
 
-let $_wfsse_errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
+let $_wfsse_errno= query_get_value($_slave_param_statement, Last_SQL_Errno, 1);
 
 # Check sanity
 if ($slave_sql_errno == '') {
@@ -74,7 +78,7 @@ if (`SELECT $_wfsse_errno NOT IN ($_wfsse_slave_sql_errno)`) {
 
 if ($show_slave_sql_error)
 {
-  --let $_wait_for_slave_sql_error_error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1)
+  --let $_wait_for_slave_sql_error_error= query_get_value($_slave_param_statement, Last_SQL_Error, 1)
   # remove timestamp and mask absolute path
   --let $_wait_for_slave_sql_error_error= `SELECT REPLACE("$_wait_for_slave_sql_error_error", '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`
   --echo Last_SQL_Error = '$_wait_for_slave_sql_error_error'

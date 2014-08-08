@@ -20,6 +20,12 @@
 # --source include/rpl_end.inc
 #
 # Parameters:
+#   $rpl_skip_sync
+#     By default, all slaves are synced using rpl_sync.inc. Set this
+#     option to 1 to disable this behavior (note that you must
+#     manually sync all servers in this case). Normally you want to
+#     sync, but you need to disable sync if you use multi-source.
+#
 #   $rpl_only_running_threads
 #     If one or both of the IO and SQL threads is stopped, sync and
 #     stop only the threads that are running.  See
@@ -80,14 +86,36 @@ while ($_rpl_server)
   --dec $_rpl_server
 }
 
---source include/rpl_sync.inc
+if (!$rpl_skip_sync)
+{
+  if ($rpl_multi_source)
+  {
+    --die ERROR IN TEST: When $rpl_multi_source=1, rpl_end.inc requires $rpl_skip_sync=1 (and instead of relying on rpl_reset.inc calling rpl_sync.inc for you, you must manually sync all servers using sync_slave_sql_with_master.inc or equivalent).
+  }
+  --source include/rpl_sync.inc
+}
+
 --source include/rpl_stop_slaves.inc
 
 # mtr configures server 2 to be a slave before it runs the test. We
 # have to restore that state now, so we change topology to 1->2.
---let $rpl_topology= none
+#TODO: may be better to do like this
+# --source for_each_connection.inc
+#  restore gtid_state
 --let $use_gtids= 0
 --source include/rpl_change_topology.inc
+
+--let $rpl_topology=none
+--source include/rpl_change_topology.inc
+
+# Restore the server state by deleting all channels
+if ($rpl_multi_source)
+{
+ --let $rpl_reset_slave_all= 1
+ --let $rpl_source_file= include/rpl_reset_slave_worker.inc
+ --source include/rpl_for_each_connection.inc
+ --let $rpl_reset_slave_all= 0
+}
 
 
 --connection default
@@ -110,6 +138,7 @@ while ($_rpl_server)
 }
 
 --let $rpl_inited= 0
+--let $_rpl_server_count=
 
 # Do not restore connection, because we have disconnected it.
 --let $skip_restore_connection= 1
