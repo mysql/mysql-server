@@ -631,20 +631,18 @@ DROP TABLE tmp_proxies_priv;
 
 -- Checking for any duplicate hostname and username combination are exists.
 -- If exits we will throw error.
-DROP PROCEDURE IF EXISTS mysql.count_duplicate_host_names;
-DELIMITER //
-CREATE PROCEDURE mysql.count_duplicate_host_names()
-BEGIN
-  SET @duplicate_hosts=(SELECT count(*) FROM mysql.user GROUP BY user, lower(host) HAVING count(*) > 1 LIMIT 1);
-  IF @duplicate_hosts > 1 THEN
-    SIGNAL SQLSTATE '45000'  SET MESSAGE_TEXT = 'Multiple accounts exist for @user_name, @host_name that differ only in Host lettercase; remove all except one of them';
-  END IF;
-END //
-DELIMITER ;
-CALL mysql.count_duplicate_host_names();
+DROP PROCEDURE IF EXISTS mysql.warn_duplicate_host_names;
+CREATE PROCEDURE mysql.warn_duplicate_host_names() SIGNAL SQLSTATE '45000'  SET MESSAGE_TEXT = 'Multiple accounts exist for @user_name, @host_name that differ only in Host lettercase; remove all except one of them';
+SET @cmd='call mysql.warn_duplicate_host_names()';
+SET @duplicate_hosts=(SELECT count(*) FROM mysql.user GROUP BY user, lower(host) HAVING count(*) > 1 LIMIT 1);
+SET @str=IF(@duplicate_hosts > 1, @cmd, 'SET @dummy=0');
+
+PREPARE stmt FROM @str;
+EXECUTE stmt;
 -- Get warnings (if any)
 SHOW WARNINGS;
-DROP PROCEDURE mysql.count_duplicate_host_names;
+DROP PREPARE stmt;
+DROP PROCEDURE mysql.warn_duplicate_host_names;
 
 # Convering the host name to lower case for existing users
 UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
@@ -724,25 +722,25 @@ ALTER TABLE ndb_binlog_index
 --
 
 DROP PROCEDURE IF EXISTS mysql.warn_host_table_nonempty;
-DELIMITER //
-CREATE PROCEDURE mysql.warn_host_table_nonempty()
-BEGIN
-  SET @have_host_table=0;
-  SET @host_table_nonempty=0;
-  SET @have_host_table=(SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE 'host' AND table_schema LIKE 'mysql' AND table_type LIKE 'BASE TABLE');
+CREATE PROCEDURE mysql.warn_host_table_nonempty() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Table mysql.host is not empty. It is deprecated and will be removed in a future release.';
+SET @cmd='call mysql.warn_host_table_nonempty()';
 
-  IF @have_host_table > 0 THEN
-    SET @host_table_nonempty=(SELECT COUNT(*) FROM mysql.host);
-  END IF;
+SET @have_host_table=0;
+SET @host_table_nonempty=0;
+SET @have_host_table=(SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE 'host' AND table_schema LIKE 'mysql' AND table_type LIKE 'BASE TABLE');
 
-  IF @host_table_nonempty > 0 THEN
-    SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Table mysql.host is not empty. It is deprecated and will be removed in a future release.';
-  END IF;
-END //
-DELIMITER ;
-CALL mysql.warn_host_table_nonempty();
+SET @host_table_nonempty_str=IF(@have_host_table > 0, 'SET @host_table_nonempty=(SELECT COUNT(*) FROM mysql.host)', 'SET @dummy=0');
+PREPARE stmt FROM @host_table_nonempty_str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@host_table_nonempty > 0, @cmd, 'SET @dummy=0');
+
+PREPARE stmt FROM @str;
+EXECUTE stmt;
 -- Get warnings (if any)
 SHOW WARNINGS;
+DROP PREPARE stmt;
 DROP PROCEDURE mysql.warn_host_table_nonempty;
 
 --
