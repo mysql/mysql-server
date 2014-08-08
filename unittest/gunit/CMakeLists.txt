@@ -258,6 +258,7 @@ SET(TESTS
   mysys_my_symlink
   mysys_my_vsnprintf
   mysys_my_write
+  nullable
   opt_costmodel
   opt_recperkey
   prealloced_array
