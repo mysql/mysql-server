@@ -110,7 +110,7 @@ col_varchar_nokey VARCHAR(1),
 PRIMARY KEY (pk),
 KEY (col_varchar_key,col_int_key)
 ) ENGINE=MYISAM;
-INSERT INTO t4 (
+INSERT IGNORE INTO t4 (
 col_int_key,col_int_nokey,
 col_date_key,col_date_nokey,
 col_time_key,col_time_nokey,

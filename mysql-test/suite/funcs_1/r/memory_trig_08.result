@@ -299,6 +299,7 @@ delete from tb3 where f121='Test 3.5.8.5-if';
 
 Testcase 3.5.8.5-case:
 ----------------------
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create trigger trg3 before insert on tb3 for each row
 BEGIN
 SET new.f120=char(ascii(new.f120)-32);
@@ -390,6 +391,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 drop trigger trg3a;
 drop trigger trg3;
 delete from tb3 where f121='Test 3.5.8.5-case';
+SET sql_mode = default;
 
 Testcase 3.5.8.5-loop/leave:
 ----------------------------

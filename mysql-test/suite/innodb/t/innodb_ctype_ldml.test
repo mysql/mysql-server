@@ -114,7 +114,7 @@ DROP TABLE t1;
 # Crash happened with a user-defined utf8 collation,
 # on attempt to insert a string longer than the column can store.
 CREATE TABLE t1 (c1 VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);
-INSERT INTO t1 SELECT REPEAT('a',11);
+INSERT IGNORE INTO t1 SELECT REPEAT('a',11);
 DROP TABLE t1;
 
 #

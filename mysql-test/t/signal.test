@@ -1343,7 +1343,7 @@ end $$
 --error ER_WRONG_VALUE_FOR_VAR
 call test_signal() $$
 drop procedure test_signal $$
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure test_signal()
 begin
   DECLARE aaax VARCHAR(65);
@@ -1398,7 +1398,7 @@ end $$
 
 call test_signal() $$
 drop procedure test_signal $$
-
+SET sql_mode = default;
 # Test that HANDLER can catch conditions raised by SIGNAL
 
 create procedure test_signal()
@@ -1772,7 +1772,7 @@ end $$
 --error 1012
 call test_resignal() $$
 drop procedure test_resignal $$
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure test_resignal()
 begin
   DECLARE CONTINUE HANDLER for sqlwarning
@@ -1786,7 +1786,7 @@ end $$
 
 call test_resignal() $$
 drop procedure test_resignal $$
-
+SET sql_mode = default;
 create procedure test_resignal()
 begin
   DECLARE x integer;
@@ -1887,7 +1887,7 @@ end $$
 --error 5555
 call test_resignal() $$
 drop procedure test_resignal $$
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure test_resignal()
 begin
   DECLARE CONTINUE HANDLER for sqlwarning
@@ -1903,7 +1903,7 @@ end $$
 
 call test_resignal() $$
 drop procedure test_resignal $$
-
+SET sql_mode = default;
 create procedure test_resignal()
 begin
   DECLARE x integer;
@@ -2150,7 +2150,7 @@ drop procedure test_resignal $$
 # 3 tests:
 # {warning}
 # --> RESIGNAL SQLSTATE {warning, not found, error} SET ...
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create procedure test_resignal()
 begin
   DECLARE CONTINUE HANDLER for sqlwarning
@@ -2204,7 +2204,7 @@ end $$
 call test_resignal() $$
 show warnings $$
 drop procedure test_resignal $$
-
+SET sql_mode = default;
 # 3 tests:
 # {not found}
 # --> RESIGNAL SQLSTATE {warning, not found, error} SET ...
@@ -2677,7 +2677,7 @@ delimiter ;$$
 
 --echo # Double RESIGNAL of warning
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 delimiter $$;
 CREATE PROCEDURE p1()
 BEGIN
@@ -3068,3 +3068,4 @@ DROP PROCEDURE p9;
 DROP PROCEDURE p10;
 DROP PROCEDURE p11;
 DROP PROCEDURE p12;
+SET sql_mode = default;

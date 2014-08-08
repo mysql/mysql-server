@@ -1,4 +1,5 @@
 drop table if exists t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 select 1.1 IN (1.0, 1.2);
 1.1 IN (1.0, 1.2)
 0
@@ -2036,3 +2037,4 @@ a DECIMAL(25,20) UNSIGNED, KEY(a)
 INSERT INTO t1 VALUES (1), (NULL);
 SELECT a FROM t1 GROUP BY 1 IN(1) INTO @b;
 DROP TABLE t1;
+SET sql_mode = default;

@@ -1,3 +1,4 @@
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'mysql'
 ORDER BY table_schema, table_name, column_name;
@@ -619,3 +620,4 @@ NULL	mysql	user	max_user_connections	int	NULL	NULL	NULL	NULL	int(11) unsigned
 3.0000	mysql	user	password_expired	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 NULL	mysql	user	password_last_changed	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	user	password_lifetime	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
+SET sql_mode = default;

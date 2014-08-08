@@ -235,6 +235,7 @@ extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
 extern uint executed_gtids_compression_period;
+extern my_bool simplified_binlog_gtid_recovery;
 extern ulong binlogging_impossible_mode;
 enum enum_binlogging_impossible_mode
 {

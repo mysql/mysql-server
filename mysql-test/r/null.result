@@ -2,11 +2,18 @@ drop table if exists t1, t2;
 select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
 NULL	NULL	isnull(null)	isnull(1/0)	isnull(1/0 = null)	ifnull(null,1)	ifnull(null,"TRUE")	ifnull("TRUE","ERROR")	1/0 is null	1 is not null
 NULL	NULL	1	1	1	1	TRUE	TRUE	1	1
+Warnings:
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 explain extended select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
 Note	1003	/* select#1 */ select NULL AS `NULL`,NULL AS `NULL`,isnull(NULL) AS `isnull(null)`,isnull((1 / 0)) AS `isnull(1/0)`,isnull(((1 / 0) = NULL)) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,'TRUE') AS `ifnull(null,"TRUE")`,ifnull('TRUE','ERROR') AS `ifnull("TRUE","ERROR")`,isnull((1 / 0)) AS `1/0 is null`,(1 is not null) AS `1 is not null`
 select 1 | NULL,1 & NULL,1+NULL,1-NULL;
 1 | NULL	1 & NULL	1+NULL	1-NULL
@@ -91,6 +98,7 @@ b	ifnull(t2.b,"this is null")
 NULL	this is null
 NULL	this is null
 drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a varchar(16) NOT NULL default '', b smallint(6) NOT NULL default 0, c datetime NOT NULL default '0000-00-00 00:00:00', d smallint(6) NOT NULL default 0);
 INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
 Warnings:
@@ -141,6 +149,7 @@ a	b	c	d
 	0	0000-00-00 00:00:00	0
 	0	0000-00-00 00:00:00	0
 drop table t1;
+SET sql_mode = default;
 create table t1 (a int not null, b int not null, index idx(a));
 insert into t1 values
 (1,1), (2,2), (3,3), (4,4), (5,5), (6,6),
@@ -179,9 +188,11 @@ Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where ((
 select count(*) from t1 where i=2 or i is null;
 count(*)
 10
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 alter table t1 change i i int not null;
 Warnings:
 Warning	1265	Data truncated for column 'i' at row 513
+SET sql_mode = default;
 explain select * from t1 where i=2 or i is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i	i	4	const	7	100.00	Using index

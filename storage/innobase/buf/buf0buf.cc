@@ -5462,10 +5462,6 @@ buf_page_io_complete(
 				bpage->id.page_no());
 		}
 
-		DBUG_EXECUTE_IF("set_dict_sys_to_null",
-				dict_sys = NULL;
-				goto corrupt;);
-
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 		if (buf_page_is_corrupted(true, frame, bpage->size,
@@ -5518,10 +5514,6 @@ corrupt:
 				    && buf_mark_space_corrupt(bpage)) {
 					return(false);
 				} else {
-					DBUG_EXECUTE_IF(
-						"set_dict_sys_to_null",
-						DBUG_SUICIDE(););
-
 					ib_logf(IB_LOG_LEVEL_FATAL,
 						"Aborting because of a"
 						" corrupt database page.");

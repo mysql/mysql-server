@@ -170,6 +170,7 @@ static ulonglong auto_generate_sql_unique_query_number;
 static unsigned int auto_generate_sql_secondary_indexes;
 static ulonglong num_of_query;
 static ulonglong auto_generate_sql_number;
+static const char *sql_mode= NULL;
 const char *concurrency_str= NULL;
 static char *create_string;
 uint *concurrency;
@@ -258,6 +259,7 @@ static int generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt);
 static int drop_primary_key_list(void);
 static int create_schema(MYSQL *mysql, const char *db, statement *stmt, 
               option_string *engine_stmt);
+static void set_sql_mode(MYSQL *mysql);
 static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
                          ulonglong limit);
 pthread_handler_t run_task(void *p);
@@ -367,6 +369,7 @@ int main(int argc, char **argv)
       exit(1);
     }
   }
+  set_sql_mode(&mysql);
 
   native_mutex_init(&counter_mutex, NULL);
   native_cond_init(&count_threshold);
@@ -704,6 +707,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"sql_mode", 0, "Specify sql_mode to run mysqlslap tool", &sql_mode,
+    &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1617,6 +1622,22 @@ drop_primary_key_list(void)
   }
 
   return 0;
+}
+
+static void set_sql_mode(MYSQL *mysql)
+{
+  if (sql_mode != NULL)
+  {
+    char query[512];
+    size_t len;
+    len=  my_snprintf(query, HUGE_STRING_LENGTH, "SET sql_mode = `%s`", sql_mode);
+
+    if (run_query(mysql, query, len))
+    {
+      fprintf(stderr,"%s:%s\n", my_progname, mysql_error(mysql));
+      exit(1);
+    }
+  }
 }
 
 static int
