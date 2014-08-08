@@ -397,7 +397,7 @@ enum Binlog_relay_IO_flags {
 */
 typedef struct Binlog_relay_IO_param {
   uint32 server_id;
-  ulong thread_id;
+  my_thread_id thread_id;
 
   /* Master host, user and port */
   char *host;
