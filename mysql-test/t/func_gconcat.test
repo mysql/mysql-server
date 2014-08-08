@@ -554,7 +554,7 @@ SELECT LENGTH( GROUP_CONCAT( DISTINCT a ) ) FROM t2;
 CREATE TABLE t3( a TEXT, b INT  );
 INSERT INTO t3 VALUES( REPEAT( 'a', 65534 ), 1 );
 INSERT INTO t3 VALUES( REPEAT( 'a', 65535 ), 2 );
-INSERT INTO t3 VALUES( REPEAT( 'a', 65536 ), 3 );
+INSERT IGNORE INTO t3 VALUES( REPEAT( 'a', 65536 ), 3 );
 SELECT LENGTH( GROUP_CONCAT( a ) ) FROM t3 WHERE b = 1;
 SELECT LENGTH( GROUP_CONCAT( a ) ) FROM t3 WHERE b = 2;
 SELECT LENGTH( GROUP_CONCAT( a ) ) FROM t3 WHERE b = 3;
@@ -577,7 +577,7 @@ drop table t1;
 # Bug #31154: group_concat() and bit fields;
 #
 create table t1(a bit not null);
-insert into t1 values (), (), ();
+insert ignore into t1 values (), (), ();
 select group_concat(distinct a) from t1;
 select group_concat(distinct a order by a) from t1;
 drop table t1;

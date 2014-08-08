@@ -449,6 +449,7 @@ my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
+my_bool simplified_binlog_gtid_recovery;
 ulong binlogging_impossible_mode;
 const char *binlogging_impossible_err[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
@@ -2715,11 +2716,18 @@ rpl_make_log_name(PSI_memory_key key,
   unsigned int options=
     MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH;
 
-  /* mysql_real_data_home_ptr  may be null if no value of datadir has been
+  /* mysql_real_data_home_ptr may be null if no value of datadir has been
      specified through command-line or througha cnf file. If that is the 
      case we make mysql_real_data_home_ptr point to mysql_real_data_home
      which, in that case holds the default path for data-dir.
-  */ 
+  */
+
+  DBUG_EXECUTE_IF("emulate_empty_datadir_param",
+                  {
+                    mysql_real_data_home_ptr= NULL;
+                  };
+                 );
+
   if(mysql_real_data_home_ptr == NULL)
     mysql_real_data_home_ptr= mysql_real_data_home;
 
@@ -4524,7 +4532,8 @@ int mysqld_main(int argc, char **argv)
                                        &purged_gtids_binlog,
                                        NULL,
                                        opt_master_verify_checksum,
-                                       true/*true=need lock*/) ||
+                                       true/*true=need lock*/,
+                                       true) ||
           gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
 

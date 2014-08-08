@@ -2,6 +2,7 @@ SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 --------------------------------------------------------------------------------
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------
@@ -62,6 +63,7 @@ load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t10;
 create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
 engine = <engine_to_be_tested>;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t11;
+SET sql_mode = default;
 
 Section 3.1.10 - CALL checks:
 --------------------------------------------------------------------------------

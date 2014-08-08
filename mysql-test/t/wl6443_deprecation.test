@@ -123,5 +123,7 @@ file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 
 SELECT * FROM INFORMATION_SCHEMA.profiling;
 
+--source include/mysql_upgrade_cleanup.inc
+
 
 --echo # End of 5.7 tests
