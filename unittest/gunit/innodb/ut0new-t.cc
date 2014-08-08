@@ -57,27 +57,27 @@ TEST(ut0new, utnew)
 	C*	p;
 
 	p = UT_NEW_NOKEY(C(12));
-	EXPECT_EQ(p->m_x, 12);
+	EXPECT_EQ(12, p->m_x);
 	UT_DELETE(p);
 
 	p = UT_NEW(C(34), mem_key_buf_buf_pool);
-	EXPECT_EQ(p->m_x, 34);
+	EXPECT_EQ(34, p->m_x);
 	UT_DELETE(p);
 
 	p = UT_NEW_ARRAY_NOKEY(C, 5);
-	EXPECT_EQ(p[0].m_x, 42);
-	EXPECT_EQ(p[1].m_x, 42);
-	EXPECT_EQ(p[2].m_x, 42);
-	EXPECT_EQ(p[3].m_x, 42);
-	EXPECT_EQ(p[4].m_x, 42);
+	EXPECT_EQ(42, p[0].m_x);
+	EXPECT_EQ(42, p[1].m_x);
+	EXPECT_EQ(42, p[2].m_x);
+	EXPECT_EQ(42, p[3].m_x);
+	EXPECT_EQ(42, p[4].m_x);
 	UT_DELETE_ARRAY(p);
 
 	p = UT_NEW_ARRAY(C, 5, mem_key_buf_buf_pool);
-	EXPECT_EQ(p[0].m_x, 42);
-	EXPECT_EQ(p[1].m_x, 42);
-	EXPECT_EQ(p[2].m_x, 42);
-	EXPECT_EQ(p[3].m_x, 42);
-	EXPECT_EQ(p[4].m_x, 42);
+	EXPECT_EQ(42, p[0].m_x);
+	EXPECT_EQ(42, p[1].m_x);
+	EXPECT_EQ(42, p[2].m_x);
+	EXPECT_EQ(42, p[3].m_x);
+	EXPECT_EQ(42, p[4].m_x);
 	UT_DELETE_ARRAY(p);
 }
 
@@ -97,19 +97,19 @@ TEST(ut0new, utmalloc)
 	ut_free(p);
 
 	p = static_cast<int*>(ut_zalloc_nokey(sizeof(int)));
-	EXPECT_EQ(*p, 0);
+	EXPECT_EQ(0, *p);
 	*p = 56;
 	ut_free(p);
 
 	p = static_cast<int*>(ut_zalloc(sizeof(int), mem_key_buf_buf_pool));
-	EXPECT_EQ(*p, 0);
+	EXPECT_EQ(0, *p);
 	*p = 78;
 	ut_free(p);
 
 	p = static_cast<int*>(ut_malloc_nokey(sizeof(int)));
 	*p = 90;
 	p = static_cast<int*>(ut_realloc(p, 2 * sizeof(int)));
-	EXPECT_EQ(p[0], 90);
+	EXPECT_EQ(90, p[0]);
 	p[1] = 91;
 	ut_free(p);
 }
@@ -127,9 +127,9 @@ TEST(ut0new, utallocator)
 	v1.push_back(21);
 	v1.push_back(31);
 	v1.push_back(41);
-	EXPECT_EQ(v1[0], 21);
-	EXPECT_EQ(v1[1], 31);
-	EXPECT_EQ(v1[2], 41);
+	EXPECT_EQ(21, v1[0]);
+	EXPECT_EQ(31, v1[1]);
+	EXPECT_EQ(41, v1[2]);
 
 	/* We use "new" instead of "UT_NEW()" for simplicity here. Real InnoDB
 	code should use UT_NEW(). */
@@ -142,10 +142,72 @@ TEST(ut0new, utallocator)
 	v2->push_back(27);
 	v2->push_back(37);
 	v2->push_back(47);
-	EXPECT_EQ(v2->at(0), 27);
-	EXPECT_EQ(v2->at(1), 37);
-	EXPECT_EQ(v2->at(2), 47);
+	EXPECT_EQ(27, v2->at(0));
+	EXPECT_EQ(37, v2->at(1));
+	EXPECT_EQ(47, v2->at(2));
 	delete v2;
+}
+
+static int	n_construct = 0;
+
+class cc_t {
+public:
+	cc_t()
+	{
+		n_construct++;
+		if (n_construct % 4 == 0) {
+			throw(1);
+		}
+	}
+};
+
+struct big_t {
+	char	x[128];
+};
+
+/* test edge cases */
+TEST(ut0new, edgecases)
+{
+	ut_allocator<byte>	alloc1(mem_key_buf_buf_pool);
+	ut_new_pfx_t		pfx;
+	void*			ret;
+
+	ret = alloc1.allocate_large(0, &pfx);
+	EXPECT_EQ(NULL, ret);
+
+	ret = alloc1.allocate(16);
+	ASSERT_TRUE(ret != NULL);
+	ret = alloc1.reallocate(ret, 0, __FILE__);
+	EXPECT_EQ(NULL, ret);
+
+	ret = UT_NEW_ARRAY_NOKEY(byte, 0);
+	EXPECT_EQ(NULL, ret);
+
+	ut_allocator<big_t>	alloc2(mem_key_buf_buf_pool);
+
+	const ut_allocator<big_t>::size_type	too_many_elements
+		= std::numeric_limits<ut_allocator<big_t>::size_type>::max()
+		/ sizeof(big_t) + 1;
+
+	ret = alloc2.allocate(16);
+	ASSERT_TRUE(ret != NULL);
+	ret = alloc2.reallocate(ret, too_many_elements, __FILE__);
+	EXPECT_EQ(NULL, ret);
+
+	bool	threw = false;
+
+	try {
+		ret = alloc2.allocate(too_many_elements);
+	} catch (...) {
+		threw = true;
+	}
+	EXPECT_TRUE(threw);
+
+	ret = alloc2.allocate(too_many_elements, NULL, NULL, false, false);
+	EXPECT_EQ(NULL, ret);
+
+	cc_t*	cc = UT_NEW_ARRAY_NOKEY(cc_t, 16);
+	EXPECT_EQ(NULL, cc);
 }
 
 }
