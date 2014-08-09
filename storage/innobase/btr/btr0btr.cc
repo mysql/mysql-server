@@ -2883,19 +2883,6 @@ btr_insert_into_right_sibling(
 		return(NULL);
 	}
 
-	if (is_leaf && !dict_index_is_clust(cursor->index)) {
-		/* Update the free bits of the B-tree page in the
-		insert buffer bitmap. */
-
-		if (zip_size) {
-			ibuf_update_free_bits_zip(next_block, mtr);
-		} else {
-			ibuf_update_free_bits_if_full(
-				next_block, max_size,
-				rec_offs_size(*offsets) + PAGE_DIR_SLOT_SIZE);
-		}
-	}
-
 	ibool	compressed;
 	dberr_t	err;
 	ulint	level = btr_page_get_level(next_page, mtr);
@@ -2926,6 +2913,19 @@ btr_insert_into_right_sibling(
 		flags, cursor->index, level + 1, node_ptr, mtr);
 
 	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
+
+	if (is_leaf && !dict_index_is_clust(cursor->index)) {
+		/* Update the free bits of the B-tree page in the
+		insert buffer bitmap. */
+
+		if (zip_size) {
+			ibuf_update_free_bits_zip(next_block, mtr);
+		} else {
+			ibuf_update_free_bits_if_full(
+				next_block, max_size,
+				rec_offs_size(*offsets) + PAGE_DIR_SLOT_SIZE);
+		}
+	}
 
 	return(rec);
 }
