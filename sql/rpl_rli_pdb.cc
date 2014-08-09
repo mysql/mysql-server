@@ -1514,11 +1514,11 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
                              va_list args) const
 {
   char buff_coord[MAX_SLAVE_ERRMSG];
-  char coordinator_errmsg[MAX_SLAVE_ERRMSG];
   char buff_gtid[Gtid::MAX_TEXT_LENGTH + 1];
   const char* log_name= const_cast<Slave_worker*>(this)->get_master_log_name();
   ulonglong log_pos= const_cast<Slave_worker*>(this)->get_master_log_pos();
   const Gtid_specification *gtid_next= &info_thd->variables.gtid_next;
+  THD *thd= info_thd;
 
   if (gtid_next->type == GTID_GROUP)
   {
@@ -1531,24 +1531,30 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
     buff_gtid[0]= 0;
   }
 
-  sprintf(coordinator_errmsg,
-          "Coordinator stopped because there were error(s) in the worker(s). "
-          "The most recent failure being: Worker %lu failed executing "
-          "transaction '%s' at master log %s, end_log_pos %llu. "
-          "See error log and/or "
-          "performance_schema.replication_execute_status_by_worker table for "
-          "more details about this failure or others, if any.",
-          id, buff_gtid, log_name, log_pos);
+  if (level == ERROR_LEVEL && (!has_temporary_error(thd, err_code) ||
+      thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION)))
+  {
+    char coordinator_errmsg[MAX_SLAVE_ERRMSG];
 
-  /*
-    We want to update the errors in coordinator as well as worker.
-    The fill_coord_err_buf() function update the error number, message and
-    timestamp fields. This function is different from va_report() as va_report()
-    also logs the error message in the log apart from updating the error fields.
-    So, the worker does the job of reporting the error in the log. We just make
-    coordinator aware of the error.
-  */
-  c_rli->fill_coord_err_buf(level, err_code, coordinator_errmsg);
+    sprintf(coordinator_errmsg,
+            "Coordinator stopped because there were error(s) in the worker(s). "
+            "The most recent failure being: Worker %lu failed executing "
+            "transaction '%s' at master log %s, end_log_pos %llu. "
+            "See error log and/or "
+            "performance_schema.replication_execute_status_by_worker table for "
+            "more details about this failure or others, if any.",
+            id, buff_gtid, log_name, log_pos);
+
+    /*
+      We want to update the errors in coordinator as well as worker.
+      The fill_coord_err_buf() function update the error number, message and
+      timestamp fields. This function is different from va_report() as va_report()
+      also logs the error message in the log apart from updating the error fields.
+      So, the worker does the job of reporting the error in the log. We just make
+      coordinator aware of the error.
+    */
+    c_rli->fill_coord_err_buf(level, err_code, coordinator_errmsg);
+  }
 
   my_snprintf(buff_coord, sizeof(buff_coord),
           "Worker %lu failed executing transaction '%s' at "
