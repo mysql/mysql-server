@@ -1,0 +1,11 @@
+################################################################################
+# WL#6964 MTS support transaction retry
+#
+# It verifys database MTS supports transaction retry well.
+################################################################################
+--source include/master-slave.inc
+
+--let $mts_parallel_type= "DATABASE"
+--source extra/rpl_tests/rpl_mts_transaction_retry.inc
+
+--source include/rpl_end.inc
