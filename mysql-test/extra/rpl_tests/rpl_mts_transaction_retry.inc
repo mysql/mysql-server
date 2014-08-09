@@ -137,6 +137,7 @@ ROLLBACK;
 SET GLOBAL slave_transaction_retries = 10;
 --source include/start_slave_sql.inc
 --source include/sync_slave_sql.inc
+--source include/check_slave_no_error.inc
 
 # Lock all rows of db1.t2
 BEGIN;
@@ -169,10 +170,18 @@ INSERT INTO db2.t1 VALUES(30, NULL);
 --let $status_fail_query= SELECT GLOBAL.slave_retried_transactions
 --source include/wait_for_status_var.inc
 
+#
+# It is for verifying the fix of Bug#19282301
+# To verify the temporary error is not reported through SHOW SLAVE STATUS
+--source include/check_slave_no_error.inc
+
 # Release the lock of db1.t2
 ROLLBACK;
 
 --source include/sync_slave_sql.inc
+
+# It is for verifying the fix of Bug#19282301
+--source include/check_slave_no_error.inc
 
 --let $rpl_diff_statement= SELECT * FROM db1.t1
 --source include/rpl_diff.inc
