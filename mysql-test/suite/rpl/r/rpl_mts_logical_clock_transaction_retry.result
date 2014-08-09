@@ -83,6 +83,7 @@ ROLLBACK;
 SET GLOBAL slave_transaction_retries = 10;
 include/start_slave_sql.inc
 include/sync_slave_sql.inc
+include/check_slave_no_error.inc
 BEGIN;
 SELECT c1 FROM db1.t2 FOR UPDATE;
 c1
@@ -100,8 +101,10 @@ COMMIT;
 INSERT INTO db2.t1 VALUES(30, NULL);
 include/save_master_pos.inc
 [connection slave]
+include/check_slave_no_error.inc
 ROLLBACK;
 include/sync_slave_sql.inc
+include/check_slave_no_error.inc
 include/rpl_diff.inc
 include/rpl_diff.inc
 include/rpl_diff.inc
