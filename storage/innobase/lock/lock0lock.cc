@@ -1723,7 +1723,9 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 
 /**
 Add the lock to the head of the record lock {space, page_no} wait queue and
-the transaction's lock list.
+the transaction's lock list. If the transactions holding blocking locks are
+already marked for termination then they are not added to the hit list.
+
 @param[in, out] lock		Lock being requested
 @param[in, out] wait_for	The blocking lock
 @param[in] kill_trx		true if the transaction that m_trx is waiting
@@ -1742,7 +1744,8 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 	lock_t*	head = const_cast<lock_t*>(wait_for);
 
-	if (kill_trx) {
+	if (kill_trx && !wait_for->trx->abort) {
+
 		mark_trx_for_rollback(wait_for->trx);
 	}
 
@@ -1758,21 +1761,26 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 			ut_ad(next != lock);
 			ut_ad(next != wait_for);
-			ut_ad(next->trx != lock->trx);
-			ut_ad(next->trx != wait_for->trx);
 
-			/* If the transaction is waiting on some other lock. */
+			trx_t*	trx = next->trx;
 
-			if (next->trx->lock.wait_lock != next) {
+			ut_ad(trx != lock->trx);
+			ut_ad(trx != wait_for->trx);
+
+			/* If the transaction is waiting on some other lock.
+			The abort state cannot change while we hold the lock
+			sys mutex.*/
+
+			if (trx->lock.wait_lock != next && !trx->abort) {
 
 				ut_ad(lock_get_mode(next) == LOCK_S
 				      || lock_get_wait(next));
 
-				trx_mutex_enter(next->trx);
+				trx_mutex_enter(trx);
 
-				mark_trx_for_rollback(next->trx);
+				mark_trx_for_rollback(trx);
 
-				trx_mutex_exit(next->trx);
+				trx_mutex_exit(trx);
 			}
 		}
 	}
