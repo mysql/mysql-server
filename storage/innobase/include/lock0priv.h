@@ -624,8 +624,10 @@ private:
 	void mark_trx_for_rollback(trx_t* trx);
 
 	/**
-	Add the lock to the head of the record lock {space, page_no} wait queue
-	and the transaction's lock list.
+	Add the lock to the head of the record lock {space, page_no} wait
+	queue and the transaction's lock list. If the transactions holding
+	blocking locks are already marked for termination then they are not
+	added to the hit list.
 	@param[in, out] lock		Lock being requested
 	@param[in] wait_for		The blocking lock
 	@param[in] kill_trx		true if the transaction that m_trx
