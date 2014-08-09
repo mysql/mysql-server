@@ -1397,11 +1397,26 @@ RecLock::is_equal(const lock_t* rhs) const
 {
 	ut_ad(lock_get_type_low(rhs) == LOCK_REC);
 
-	const lock_rec_t&	other= rhs->un_member.rec_lock;
+	const lock_rec_t&	other = rhs->un_member.rec_lock;
 
 	return(other.space == m_rec_id.m_space_id
 	       && other.page_no == m_rec_id.m_page_no
 	       && lock_rec_get_nth_bit(rhs, m_rec_id.m_heap_no));
+}
+
+/**
+@param[in] lock			Lock to check
+@return true if it is the first lock in the queue */
+bool
+RecLock::is_first_lock(const lock_t* lock) const
+{
+	ut_ad(lock_get_type_low(lock) == LOCK_REC);
+
+	ulint	space = lock->un_member.rec_lock.space;
+	ulint	page_no = lock->un_member.rec_lock.page_no;
+
+	return(lock_rec_get_first_on_page_addr(
+		lock_sys->rec_hash, space, page_no) == lock);
 }
 
 /**
@@ -1719,10 +1734,12 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 	ut_ad(m_trx == lock->trx);
 	ut_ad(trx_mutex_own(m_trx));
 	ut_ad(wait_for->trx != m_trx);
+	ut_ad(is_first_lock(wait_for));
 	ut_ad(trx_is_high_priority(m_trx));
 	ut_ad(m_rec_id.m_heap_no != ULINT32_UNDEFINED);
 
 	/* We need to change the hash bucket list pointers only. */
+
 	lock_t*	head = const_cast<lock_t*>(wait_for);
 
 	if (kill_trx) {
@@ -1732,21 +1749,31 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 	lock->hash = head->hash;
 	head->hash = lock;
 
-	/* Active S locks ahead in the queue need to be rolled back. */
+	/* Active S locks ahead in the queue or transaction owns the S lock
+	but is waiting on some other lock, both need to be rolled back */
 
 	for (lock_t* next = lock->hash; next != NULL; next = next->hash) {
 
-		if (!lock_get_wait(next) && is_equal(next)) {
+		if (is_equal(next)) {
 
+			ut_ad(next != lock);
 			ut_ad(next != wait_for);
+			ut_ad(next->trx != lock->trx);
 			ut_ad(next->trx != wait_for->trx);
-			ut_ad(lock_get_mode(next) == LOCK_S);
 
-			trx_mutex_enter(next->trx);
+			/* If the transaction is waiting on some other lock. */
 
-			mark_trx_for_rollback(next->trx);
+			if (next->trx->lock.wait_lock != next) {
 
-			trx_mutex_exit(next->trx);
+				ut_ad(lock_get_mode(next) == LOCK_S
+				      || lock_get_wait(next));
+
+				trx_mutex_enter(next->trx);
+
+				mark_trx_for_rollback(next->trx);
+
+				trx_mutex_exit(next->trx);
+			}
 		}
 	}
 }
@@ -1806,11 +1833,11 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 	if (waiting) {
 
-		const lock_t*		lock = wait_for->trx->lock.wait_lock;
+		ut_ad(wait_for->trx->lock.wait_lock != NULL);
 
-		/* Check if "wait_for" is waiting for the same lock. */
+		/* Check if "wait_for" trx is waiting for the same lock. */
 
-		kill_trx = !is_equal(lock);
+		kill_trx = wait_for->trx->lock.wait_lock != wait_for;
 
 	} else if (wait_for->trx->read_only) {
 
@@ -3412,9 +3439,9 @@ lock_update_discard(
 	const buf_block_t*	block)		/*!< in: index page
 						which will be discarded */
 {
-	const page_t*	page = block->frame;
 	const rec_t*	rec;
 	ulint		heap_no;
+	const page_t*	page = block->frame;
 
 	lock_mutex_enter();
 
