@@ -56,6 +56,7 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 #define MTS_WORKER_UNDEF ((ulong) -1)
 #define MTS_MAX_WORKERS  1024
+#define MAX_SLAVE_RETRY_PAUSE 5
 
 /* 
    When using tables to store the slave workers bitmaps,
