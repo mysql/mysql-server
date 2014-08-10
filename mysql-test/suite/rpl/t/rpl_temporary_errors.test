@@ -1,8 +1,6 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
-# MTS can't yet retry temporary failing (timeout, deadlock) transaction
---source include/not_mts_slave_parallel_workers.inc
 
 call mtr.add_suppression("Deadlock found");
 
