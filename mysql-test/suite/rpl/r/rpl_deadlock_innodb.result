@@ -139,5 +139,7 @@ include/start_slave.inc
 *** Clean up ***
 DROP TABLE t1,t2,t3;
 SET global max_relay_log_size= @my_max_relay_log_size;
+CALL mtr.add_suppression(".*worker thread retried transaction.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 End of 5.1 tests
 include/rpl_end.inc
