@@ -67,7 +67,6 @@ using std::max;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
-#define MAX_SLAVE_RETRY_PAUSE 5
 /*
   a parameter of sql_slave_killed() to defer the killed status
 */
@@ -220,7 +219,7 @@ static int terminate_slave_thread(THD *thd,
                                   ulong *stop_wait_timeout,
                                   bool need_lock_term);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
-int slave_worker_exec_job(Slave_worker * w, Relay_log_info *rli);
+int slave_worker_exec_job_group(Slave_worker *w, Relay_log_info *rli);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 
 static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli);
@@ -3570,7 +3569,9 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     {
       if (ev->worker)
       {
-        Slave_job_item item= {ev}, *job_item= &item;
+        Slave_job_item item= {ev, rli->get_event_relay_log_number(),
+                              rli->get_event_start_pos() };
+        Slave_job_item *job_item= &item;
         Slave_worker *w= (Slave_worker *) ev->worker;
         // specially marked group typically with OVER_MAX_DBS_IN_EVENT_MTS db:s
         bool need_sync= ev->is_mts_group_isolated();
@@ -3744,11 +3745,16 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     }
     else
     {
+      /*
+        INTVAR_EVENT, RAND_EVENT, USER_VAR_EVENT and ROWS_QUERY_LOG_EVENT are
+        deferred event. It means ev->worker is NULL.
+      */
       DBUG_ASSERT(*ptr_ev == ev || rli->is_parallel_exec() ||
-		  (!ev->worker &&
-		   (ev->get_type_code() == INTVAR_EVENT ||
-		    ev->get_type_code() == RAND_EVENT ||
-		    ev->get_type_code() == USER_VAR_EVENT)));
+                  (!ev->worker &&
+                   (ev->get_type_code() == INTVAR_EVENT ||
+                    ev->get_type_code() == RAND_EVENT ||
+                    ev->get_type_code() == USER_VAR_EVENT ||
+                    ev->get_type_code() == ROWS_QUERY_LOG_EVENT)));
 
       rli->inc_event_relay_log_pos();
     }
@@ -4747,7 +4753,7 @@ pthread_handler_t handle_slave_worker(void *arg)
 
   while (!error)
   {
-      error= slave_worker_exec_job(w, rli);
+    error= slave_worker_exec_job_group(w, rli);
   }
 
   /* 
@@ -5397,7 +5403,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
                         sizeof(db_worker_hash_entry*),
                         SLAVE_INIT_DBS_IN_GROUP, 1);
   rli->last_assigned_worker= NULL;     // associated with curr_group_assigned
-  my_init_dynamic_array(&rli->curr_group_da, sizeof(Log_event*), 8, 2);
+  my_init_dynamic_array(&rli->curr_group_da, sizeof(Slave_job_item), 8, 2);
   // Least_occupied_workers array to hold items size of Slave_jobs_queue::len
   rli->least_occupied_workers.resize(n); 
 
@@ -7299,6 +7305,7 @@ static Log_event* next_event(Relay_log_info* rli)
         (ulong) rli->get_event_relay_log_pos()));
     }
 #endif
+    rli->set_event_start_pos(my_b_tell(cur_log));
     /*
       Relay log is always in new format - if the master is 3.23, the
       I/O thread will convert the format for us.
@@ -8120,16 +8127,6 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
         mysql_mutex_unlock(&mi->rli->data_lock);
 
-        /* MTS technical limitation no support of trans retry */
-        if (mi->rli->opt_slave_parallel_workers != 0 && slave_trans_retries != 0)
-        {
-          push_warning_printf(thd, Sql_condition::SL_NOTE,
-                              ER_MTS_FEATURE_IS_NOT_SUPPORTED,
-                              ER(ER_MTS_FEATURE_IS_NOT_SUPPORTED),
-                              "slave_transaction_retries",
-                              "In the event of a transient failure, the slave will "
-                              "not retry the transaction and will stop.");
-        }
         if (!slave_errno)
         {
           slave_errno= check_slave_sql_config_conflict(thd, mi->rli);

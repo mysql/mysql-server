@@ -369,7 +369,6 @@ my @mysqlbinlog_rules=
 #
 my @mysql_upgrade_rules=
 (
- { 'tmpdir' => sub { return shift->{ARGS}->{tmpdir}; } },
 );
 
 
