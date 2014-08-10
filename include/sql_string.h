@@ -434,6 +434,12 @@ public:
   bool append_parenthesized(long nr, int radix= 10);
   int strstr(const String &search,size_t offset=0); // Returns offset to substring or -1
   int strrstr(const String &search,size_t offset=0); // Returns offset to substring or -1
+  /**
+   * Returns substring of given characters lenght, starting at given character offset.
+   * Note that parameter indexes are character indexes and not byte indexes.
+   */
+  String substr(int offset, int count);
+
   bool replace(size_t offset, size_t arg_length,const char *to, size_t length);
   bool replace(size_t offset, size_t arg_length,const String &to);
   bool append(char chr)

@@ -4199,6 +4199,37 @@ err:
   return error;
 }
 
+/**
+  Find the relay log name following the given name from relay log index file.
+
+  @param[in|out] log_name  The name is full path name.
+
+  @return return 0 if it finds next relay log. Otherwise return the error code.
+*/
+int MYSQL_BIN_LOG::find_next_relay_log(char log_name[FN_REFLEN+1])
+{
+  LOG_INFO info;
+  int error;
+  char relative_path_name[FN_REFLEN+1];
+
+  if (fn_format(relative_path_name, log_name+dirname_length(log_name),
+                mysql_data_home, "", 0)
+      == NullS)
+    return 1;
+
+  mysql_mutex_lock(&LOCK_index);
+
+  error= find_log_pos(&info, relative_path_name, false);
+  if (error == 0)
+  {
+    error= find_next_log(&info, false);
+    if (error == 0)
+      strcpy(log_name, info.log_file_name);
+  }
+
+  mysql_mutex_unlock(&LOCK_index);
+  return error;
+}
 
 /**
   Removes files, as part of a RESET MASTER or RESET SLAVE statement,
