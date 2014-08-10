@@ -3371,8 +3371,8 @@ end:
 }
 
 bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
-                                   Gtid *last_gtid,
-                                   bool verify_checksum, bool need_lock)
+                                   Gtid *last_gtid, bool verify_checksum,
+                                   bool need_lock, bool is_server_starting)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
   DBUG_PRINT("info", ("lost_gtids=%p; so we are recovering a %s log",
@@ -3426,6 +3426,16 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     DBUG_PRINT("error", ("Error reading binlog index"));
     goto end;
   }
+  /*
+    On server starting, one new empty binlog file is created and
+    its file name is put into index file before initializing
+    GLOBAL.GTID_EXECUTED AND GLOBAL.GTID_PURGED, it is not the
+    last binlog file before the server restarts, so we remove
+    its file name from filename_list.
+  */
+  if (is_server_starting && !is_relay_log && !filename_list.empty())
+    filename_list.pop_back();
+
   error= 0;
 
   if (all_gtids != NULL)
@@ -3451,16 +3461,37 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
                                      NULL/* first_gtid */, last_gtid,
                                      sid_map, verify_checksum))
       {
-      case ERROR:
-        error= 1;
-        goto end;
-      case GOT_GTIDS:
-      case GOT_PREVIOUS_GTIDS:
-        got_gtids= true;
-        /*FALLTHROUGH*/
-      case NO_GTIDS:
-      case TRUNCATED:
-        break;
+        case ERROR:
+        {
+          error= 1;
+          goto end;
+        }
+        case GOT_GTIDS:
+        case GOT_PREVIOUS_GTIDS:
+        {
+          got_gtids= true;
+          break;
+        }
+        case NO_GTIDS:
+        {
+          /*
+            If the simplified_binlog_gtid_recovery is enabled, and the
+            last binary log does not contain any GTID event, do not
+            read any more binary logs, GLOBAL.GTID_EXECUTED and
+            GLOBAL.GTID_PURGED should be empty in the case. Otherwise,
+            initialize GTID_EXECUTED as usual.
+          */
+          if (simplified_binlog_gtid_recovery && !is_relay_log)
+          {
+            DBUG_ASSERT(all_gtids->is_empty() && lost_gtids->is_empty());
+            goto end;
+          }
+          /*FALLTHROUGH*/
+        }
+        case TRUNCATED:
+        {
+          break;
+        }
       }
     }
   }
@@ -3475,15 +3506,35 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
                                      NULL/* first_gtid */, NULL/* last_gtid */,
                                      sid_map, verify_checksum))
       {
-      case ERROR:
-        error= 1;
-        /*FALLTHROUGH*/
-      case GOT_GTIDS:
-        goto end;
-      case GOT_PREVIOUS_GTIDS:
-      case NO_GTIDS:
-      case TRUNCATED:
-        break;
+        case ERROR:
+        {
+          error= 1;
+          /*FALLTHROUGH*/
+        }
+        case GOT_GTIDS:
+        {
+          goto end;
+        }
+        case NO_GTIDS:
+        {
+          /*
+            If the simplified_binlog_gtid_recovery is enabled, and the
+            first binary log does not contain any GTID event, do not
+            read any more binary logs, GLOBAL.GTID_PURGED should be
+            empty in the case.
+          */
+          if (simplified_binlog_gtid_recovery && !is_relay_log)
+          {
+            DBUG_ASSERT(lost_gtids->is_empty());
+            goto end;
+          }
+          /*FALLTHROUGH*/
+        }
+        case GOT_PREVIOUS_GTIDS:
+        case TRUNCATED:
+        {
+          break;
+        }
       }
     }
   }
@@ -4148,6 +4199,37 @@ err:
   return error;
 }
 
+/**
+  Find the relay log name following the given name from relay log index file.
+
+  @param[in|out] log_name  The name is full path name.
+
+  @return return 0 if it finds next relay log. Otherwise return the error code.
+*/
+int MYSQL_BIN_LOG::find_next_relay_log(char log_name[FN_REFLEN+1])
+{
+  LOG_INFO info;
+  int error;
+  char relative_path_name[FN_REFLEN+1];
+
+  if (fn_format(relative_path_name, log_name+dirname_length(log_name),
+                mysql_data_home, "", 0)
+      == NullS)
+    return 1;
+
+  mysql_mutex_lock(&LOCK_index);
+
+  error= find_log_pos(&info, relative_path_name, false);
+  if (error == 0)
+  {
+    error= find_next_log(&info, false);
+    if (error == 0)
+      strcpy(log_name, info.log_file_name);
+  }
+
+  mysql_mutex_unlock(&LOCK_index);
+  return error;
+}
 
 /**
   Removes files, as part of a RESET MASTER or RESET SLAVE statement,

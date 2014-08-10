@@ -514,26 +514,24 @@ fil_space_get_type(
 	return(space->purpose);
 }
 
-/** @brief Note that a tablespace has been imported.
+/** Note that a tablespace has been imported.
 It is initially marked as FIL_TYPE_IMPORT so that no logging is
 done during the import process when the space ID is stamped to each page.
 Now we change it to FIL_SPACE_TABLESPACE to start redo and undo logging.
 NOTE: temporary tablespaces are never imported.
-@param[in] id tablespace identifier */
+@param[in]	id	tablespace identifier */
 
 void
 fil_space_set_imported(
-	ulint		id)
+	ulint	id)
 {
-	fil_space_t*	space;
-
-	ut_ad(fil_system);
+	ut_ad(fil_system != NULL);
 
 	mutex_enter(&fil_system->mutex);
 
-	space = fil_space_get_by_id(id);
+	fil_space_t*	space = fil_space_get_by_id(id);
 
-	ut_a(space);
+	ut_a(space != NULL);
 	ut_ad(space->purpose == FIL_TYPE_IMPORT);
 	space->purpose = FIL_TYPE_TABLESPACE;
 
@@ -3665,13 +3663,13 @@ a remote tablespace is found it will be changed to true.
 If the fix_dict boolean is set, then it is safe to use an internal SQL
 statement to update the dictionary tables if they are incorrect.
 
-@param[in] validate True if we should validate the tablespace.
-@param[in] fix_dict True if the dictionary is available to be fixed.
-@param[in] purpose FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-@param[in] id Tablespace ID
-@param[in] flags Tablespace flags
-@param[in] tablename Table name in the databasename/tablename format.
-@param[in] path_in Tablespace filepath if found in SYS_DATAFILES
+@param[in]	validate	True if we should validate the tablespace.
+@param[in]	fix_dict	True if the dictionary is available to be fixed.
+@param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
+@param[in]	id		Tablespace ID
+@param[in]	flags		Tablespace flags
+@param[in]	tablename	Table name in the databasename/tablename format.
+@param[in]	path_in		Tablespace filepath if found in SYS_DATAFILES
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -3763,7 +3761,7 @@ fil_open_single_table_tablespace(
 	/* Always look for a file at the default location. But don't log
 	an error if the tablespace is already open in remote or dict. */
 	ut_a(df_default.filepath());
-	const bool strict = (tablespaces_found == 0);
+	const bool	strict = (tablespaces_found == 0);
 	if (df_default.open_read_only(strict) == DB_SUCCESS) {
 		ut_ad(df_default.is_open());
 		tablespaces_found++;
@@ -3936,8 +3934,9 @@ fil_open_single_table_tablespace(
 
 skip_validate:
 	if (err == DB_SUCCESS) {
-		fil_space_t*	space	= fil_space_create(
-			tablename, id, flags, purpose);
+		fil_space_t*	space = fil_space_create(tablename, id, flags,
+							 purpose);
+
 		/* We do not measure the size of the file, that is why
 		we pass the 0 below */
 
@@ -3964,16 +3963,16 @@ fil_make_ibbackup_old_name(
 /*=======================*/
 	const char*	name)		/*!< in: original file name */
 {
-	static const char suffix[] = "_ibbackup_old_vers_";
-	char*	path;
-	ulint	len	= ::strlen(name);
+	static const char	suffix[] = "_ibbackup_old_vers_";
+	char*			path;
+	ulint			len = strlen(name);
 
-	path = static_cast<char*>(ut_malloc(len + (15 + sizeof suffix)));
+	path = static_cast<char*>(ut_malloc(len + 15 + sizeof(suffix)));
 
 	memcpy(path, name, len);
-	memcpy(path + len, suffix, (sizeof suffix) - 1);
+	memcpy(path + len, suffix, sizeof(suffix) - 1);
 	ut_sprintf_timestamp_without_extra_chars(
-		path + len + ((sizeof suffix) - 1));
+		path + len + sizeof(suffix) - 1);
 	return(path);
 }
 #endif /* UNIV_HOTBACKUP */
@@ -5414,15 +5413,14 @@ fil_flush(
 	ulint	space_id)	/*!< in: file space id (this can be a group of
 				log files or a tablespace of the database) */
 {
-	fil_space_t*	space;
 	fil_node_t*	node;
 	os_file_t	file;
 
 	mutex_enter(&fil_system->mutex);
 
-	space = fil_space_get_by_id(space_id);
+	fil_space_t*	space = fil_space_get_by_id(space_id);
 
-	if (!space
+	if (space == NULL
 	    || space->purpose == FIL_TYPE_TEMPORARY
 	    || space->stop_new_ops
 	    || space->is_being_truncated) {
@@ -5582,7 +5580,7 @@ fil_flush_file_spaces(
 	on a space that was just removed from the list by fil_flush().
 	Thus, the space could be dropped and the memory overwritten. */
 	space_ids = static_cast<ulint*>(
-		ut_malloc(n_space_ids * sizeof *space_ids));
+		ut_malloc(n_space_ids * sizeof(*space_ids)));
 
 	n_space_ids = 0;
 

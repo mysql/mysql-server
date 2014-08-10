@@ -250,3 +250,4 @@ slow_log	CREATE TABLE `slow_log` (
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 show tables;
 Tables_in_test
+SET sql_mode = default;

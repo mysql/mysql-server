@@ -67,8 +67,6 @@ commit;
 set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 set @@global.slave_transaction_retries= 1;
 start slave sql_thread;
-Warnings:
-Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 create table t2 (a int);
@@ -78,8 +76,6 @@ Warnings:
 Note	1753	UNTIL condtion is not supported in multi-threaded slave mode. Slave is started in the sequential execution mode.
 include/wait_for_slave_sql_to_stop.inc
 include/start_slave.inc
-Warnings:
-Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 drop table t1;
 drop table t2m;
 drop table t2;
