@@ -449,6 +449,7 @@ my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
+my_bool simplified_binlog_gtid_recovery;
 ulong binlogging_impossible_mode;
 const char *binlogging_impossible_err[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
@@ -4531,7 +4532,8 @@ int mysqld_main(int argc, char **argv)
                                        &purged_gtids_binlog,
                                        NULL,
                                        opt_master_verify_checksum,
-                                       true/*true=need lock*/) ||
+                                       true/*true=need lock*/,
+                                       true) ||
           gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
 
