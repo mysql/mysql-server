@@ -336,7 +336,9 @@ void PFS_object_row::set_nullable_field(uint index, Field *f)
   }
 }
 
-int PFS_index_row::make_row(PFS_table_share *pfs, PFS_table_share_index *pfs_index, uint table_index)
+int PFS_index_row::make_row(PFS_table_share *pfs,
+                            PFS_table_share_index *pfs_index,
+                            uint table_index)
 {
   if (m_object_row.make_row(pfs))
     return 1;
