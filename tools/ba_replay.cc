@@ -91,6 +91,7 @@ PATENT RIGHTS GRANT:
 
 #include <db.h>
 
+#include <getopt.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -112,8 +113,7 @@ using std::set;
 using std::string;
 using std::vector;
 
-static bool debug = false;
-static bool verbose = false;
+static int verbose = false;
 
 static void ba_replay_assert(bool pred, const char *msg, const char *line, int line_num) {
     if (!pred) {
@@ -136,14 +136,14 @@ static int64_t parse_number(char **ptr, int line_num, int base) {
 
     char *new_ptr;
     int64_t n = strtoll(line, &new_ptr, base);
-    ba_replay_assert(n >= 0, "malformed trace", line, line_num);
+    ba_replay_assert(n >= 0, "malformed trace (bad numeric token)", line, line_num);
+    ba_replay_assert(new_ptr > *ptr, "malformed trace (missing numeric token)", line, line_num);
     *ptr = new_ptr;
     return n;
 }
 
 static uint64_t parse_uint64(char **ptr, int line_num) {
     int64_t n = parse_number(ptr, line_num, 10);
-    ba_replay_assert(n >= 0, "malformed trace", *ptr, line_num);
     // we happen to know that the uint64's we deal with will
     // take less than 63 bits (they come from pointers)
     return static_cast<uint64_t>(n);
@@ -156,7 +156,7 @@ static string parse_token(char **ptr, int line_num) {
     // parse the first token, which represents the traced function
     char token[64];
     int r = sscanf(*ptr, "%64s", token);
-    ba_replay_assert(r == 1, "malformed trace", line, line_num);
+    ba_replay_assert(r == 1, "malformed trace (missing string token)", line, line_num);
     *ptr += strlen(token);
     return string(token);
 }
@@ -168,7 +168,7 @@ static block_allocator::blockpair parse_blockpair(char **ptr, int line_num) {
     uint64_t offset, size;
     int bytes_read;
     int r = sscanf(line, "[%" PRIu64 " %" PRIu64 "]%n", &offset, &size, &bytes_read);
-    ba_replay_assert(r == 2, "malformed trace", line, line_num);
+    ba_replay_assert(r == 2, "malformed trace (bad offset/size pair)", line, line_num);
     *ptr += bytes_read;
     return block_allocator::blockpair(offset, size);
 }
@@ -234,28 +234,31 @@ static vector<string> canonicalize_trace_from(FILE *file) {
 
         std::stringstream ss;
         if (fn.find("ba_trace_create") != string::npos) {
-            // either a create or a create_from_blockpairs. either way,
+            ba_replay_assert(allocator_ids.count(allocator_id) == 0, "corrupted trace: double create", line, line_num);
+            ba_replay_assert(fn == "ba_trace_create" || fn == "ba_trace_create_from_blockpairs",
+                             "corrupted trace: bad fn", line, line_num);
+
             // we only convert the allocator_id to an allocator_id_seq_num
             // in the canonical trace and leave the rest of the line as-is.
-            ba_replay_assert(allocator_ids.count(allocator_id) == 0, "corrupted trace: double create", line, line_num);
             allocator_ids[allocator_id] = allocator_id_seq_num;
             ss << fn << ' ' << allocator_id_seq_num << ' ' << trim_whitespace(ptr) << std::endl;
             allocator_id_seq_num++;
 
-            // For each blockpair created by this traceline, add its offset to the offset seq map
-            // with asn ASN_NONE so that later canonicalizations of `free' know whether to write
-            // down the asn or the raw offset.
-            //
             // First, read passed the reserve / alignment values.
             (void) parse_uint64(&ptr, line_num);
             (void) parse_uint64(&ptr, line_num);
-            offset_seq_map *map = &offset_to_seq_num_maps[allocator_id];
-            while (*trim_whitespace(ptr) != '\0') {
-                const block_allocator::blockpair bp = parse_blockpair(&ptr, line_num);
-                (*map)[bp.offset] = ASN_NONE;
+            if (fn == "ba_trace_create_from_blockpairs") {
+                // For each blockpair created by this traceline, add its offset to the offset seq map
+                // with asn ASN_NONE so that later canonicalizations of `free' know whether to write
+                // down the asn or the raw offset.
+                offset_seq_map *map = &offset_to_seq_num_maps[allocator_id];
+                while (*trim_whitespace(ptr) != '\0') {
+                    const block_allocator::blockpair bp = parse_blockpair(&ptr, line_num);
+                    (*map)[bp.offset] = ASN_NONE;
+                }
             }
-        } else if (allocator_ids.count(allocator_id) > 0) {
-            // this allocator is part of the canonical trace
+        } else {
+            ba_replay_assert(allocator_ids.count(allocator_id) > 0, "corrupted trace: unknown allocator", line, line_num);
             uint64_t canonical_allocator_id = allocator_ids[allocator_id];
 
             // this is the map that tracks allocations for this allocator
@@ -296,10 +299,9 @@ static vector<string> canonicalize_trace_from(FILE *file) {
 
                 // translate `destroy(ptr_id) to destroy(canonical_id)'
                 ss << fn << ' ' << canonical_allocator_id << ' ' << std::endl;
+            } else {
+                ba_replay_assert(false, "corrupted trace: bad fn", line, line_num);
             }
-        } else {
-            // traced an alloc/free for an allocator not created as part of this trace, skip
-            continue;
         }
         canonicalized_trace.push_back(ss.str());
 
@@ -307,7 +309,7 @@ static vector<string> canonicalize_trace_from(FILE *file) {
     }
 
     if (allocator_ids.size() != 0) {
-        fprintf(stderr, "warning: leaked allocators. this is ok if the trace is still live");
+        fprintf(stderr, "warning: leaked allocators. this might be ok if the tracing process is still running");
     }
 
     return canonicalized_trace;
@@ -389,10 +391,6 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
 
         char *line = toku_strdup(it->c_str());
         line = strip_newline(line, nullptr);
-
-        if (debug) {
-            printf("playing canonical trace line #%d: %s", line_num, line);
-        }
 
         char *ptr = trim_whitespace(line);
 
@@ -476,8 +474,7 @@ static void replay_canonicalized_trace(const vector<string> &canonicalized_trace
     }
 }
 
-// TODO: Put this in the allocation strategy class
-static const char *strategy_str(block_allocator::allocation_strategy strategy) {
+static const char *strategy_to_cstring(block_allocator::allocation_strategy strategy) {
     switch (strategy) {
     case block_allocator::allocation_strategy::BA_STRATEGY_FIRST_FIT:
         return "first-fit";
@@ -492,6 +489,23 @@ static const char *strategy_str(block_allocator::allocation_strategy strategy) {
     }
 }
 
+static block_allocator::allocation_strategy cstring_to_strategy(const char *str) {
+    if (strcmp(str, "first-fit") == 0) {
+        return block_allocator::allocation_strategy::BA_STRATEGY_FIRST_FIT;
+    }
+    if (strcmp(str, "best-fit") == 0) {
+        return block_allocator::allocation_strategy::BA_STRATEGY_BEST_FIT;
+    }
+    if (strcmp(str, "heat-zone") == 0) {
+        return block_allocator::allocation_strategy::BA_STRATEGY_HEAT_ZONE;
+    }
+    if (strcmp(str, "padded-fit") != 0) {
+        fprintf(stderr, "bad strategy string: %s\n", str);
+        abort();
+    }
+    return block_allocator::allocation_strategy::BA_STRATEGY_PADDED_FIT;
+}
+
 static void print_result_verbose(uint64_t allocator_id,
                                  block_allocator::allocation_strategy strategy,
                                  const struct fragmentation_report &report) {
@@ -503,7 +517,7 @@ static void print_result_verbose(uint64_t allocator_id,
     }
 
     printf(" allocator_id:   %20" PRId64 "\n", allocator_id);
-    printf(" strategy:       %20s\n", strategy_str(strategy));
+    printf(" strategy:       %20s\n", strategy_to_cstring(strategy));
 
     for (int i = 0; i < 2; i++) {
         const TOKU_DB_FRAGMENTATION_S *r = i == 0 ? &report.beginning : &report.end;
@@ -528,7 +542,6 @@ static void print_result_verbose(uint64_t allocator_id,
 
         // misc
         printf(" largest unused: %20" PRId64 "\n", r->largest_unused_block);
-        printf("\n");
     }
 }
 
@@ -542,38 +555,76 @@ static void print_result(uint64_t allocator_id,
     uint64_t total_end_bytes = end->data_bytes + end->unused_bytes;
     if (total_end_bytes + total_beginning_bytes < 32UL * 1024 * 1024) {
         if (verbose) {
-            printf(" ...skipping allocator_id %" PRId64 " (total bytes < 32mb)\n", allocator_id);
             printf("\n");
+            printf(" ...skipping allocator_id %" PRId64 " (total bytes < 32mb)\n", allocator_id);
         }
         return;
     }
+    printf("\n");
     if (verbose) {
         print_result_verbose(allocator_id, strategy, report);
     } else {
         printf(" %-15s: allocator %" PRId64 ", %.3lf used bytes (%.3lf before)\n",
-               strategy_str(strategy), allocator_id,
+               strategy_to_cstring(strategy), allocator_id,
                static_cast<double>(report.end.data_bytes) / total_end_bytes,
                static_cast<double>(report.beginning.data_bytes) / total_beginning_bytes);
     }
 }
 
-int main(void) {
-    // Read the raw trace from stdin
+static int only_aggregate_reports;
+
+static struct option getopt_options[] = {
+    { "verbose", no_argument, &verbose, 1 },
+    { "only-aggregate-reports", no_argument, &only_aggregate_reports, 1 },
+    { "include-strategy", required_argument, nullptr, 'i' },
+    { "exclude-strategy", required_argument, nullptr, 'x' },
+    { nullptr, 0, nullptr, 0 },
+};
+
+int main(int argc, char *argv[]) {
+    int opt;
+    set<block_allocator::allocation_strategy> candidate_strategies, excluded_strategies;
+    while ((opt = getopt_long(argc, argv, "", getopt_options, nullptr)) != -1) {
+        switch (opt) {
+        case 0:
+            break;
+        case 'i':
+            candidate_strategies.insert(cstring_to_strategy(optarg));
+            break;
+        case 'x':
+            excluded_strategies.insert(cstring_to_strategy(optarg));
+            break;
+        case '?':
+        default:
+            abort();
+        };
+    }
+    // Default to everything if nothing was explicitly included.
+    if (candidate_strategies.empty()) {
+        candidate_strategies.insert(block_allocator::allocation_strategy::BA_STRATEGY_FIRST_FIT);
+        candidate_strategies.insert(block_allocator::allocation_strategy::BA_STRATEGY_BEST_FIT);
+        candidate_strategies.insert(block_allocator::allocation_strategy::BA_STRATEGY_PADDED_FIT);
+        candidate_strategies.insert(block_allocator::allocation_strategy::BA_STRATEGY_HEAT_ZONE);
+    }
+    // ..but remove anything that was explicitly excluded
+    for (set<block_allocator::allocation_strategy>::const_iterator it = excluded_strategies.begin();
+         it != excluded_strategies.end(); it++) {
+        candidate_strategies.erase(*it);
+    }
+
+    // Run the real trace
+    //
+    // First, read the raw trace from stdin
     vector<string> canonicalized_trace = canonicalize_trace_from(stdin);
 
-    vector<enum block_allocator::allocation_strategy> candidate_strategies;
-    candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_FIRST_FIT);
-    candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_BEST_FIT);
-    candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_PADDED_FIT);
-    candidate_strategies.push_back(block_allocator::allocation_strategy::BA_STRATEGY_HEAT_ZONE);
-
-    printf("\n");
-    printf("Individual reports, by allocator:\n");
-    printf("\n");
+    if (!only_aggregate_reports) {
+        printf("\n");
+        printf("Individual reports, by allocator:\n");
+    }
 
     struct canonical_trace_stats stats;
     map<block_allocator::allocation_strategy, struct fragmentation_report> reports_by_strategy; 
-    for (vector<enum block_allocator::allocation_strategy>::const_iterator it = candidate_strategies.begin();
+    for (set<block_allocator::allocation_strategy>::const_iterator it = candidate_strategies.begin();
          it != candidate_strategies.end(); it++) {
         const block_allocator::allocation_strategy strategy(*it);
 
@@ -592,15 +643,15 @@ int main(void) {
              rp != reports.end(); rp++) {
             const struct fragmentation_report &report = rp->second;
             aggregate_report.merge(report);
-            print_result(rp->first, strategy, report);
+            if (!only_aggregate_reports) {
+                print_result(rp->first, strategy, report);
+            }
         }
         reports_by_strategy[strategy] = aggregate_report;
-        printf("\n");
     }
 
     printf("\n");
     printf("Aggregate reports, by strategy:\n");
-    printf("\n");
 
     for (map<block_allocator::allocation_strategy, struct fragmentation_report>::iterator it = reports_by_strategy.begin();
          it != reports_by_strategy.end(); it++) {
