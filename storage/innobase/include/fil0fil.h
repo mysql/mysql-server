@@ -339,16 +339,16 @@ fil_type_t
 fil_space_get_type(
 	ulint	id);
 
-/** @brief Note that a tablespace has been imported.
+/** Note that a tablespace has been imported.
 It is initially marked as FIL_TYPE_IMPORT so that no logging is
 done during the import process when the space ID is stamped to each page.
 Now we change it to FIL_SPACE_TABLESPACE to start redo and undo logging.
 NOTE: temporary tablespaces are never imported.
-@param[in] id tablespace identifier */
+@param[in]	id	tablespace identifier */
 
 void
 fil_space_set_imported(
-	ulint		id);
+	ulint	id);
 
 # ifdef UNIV_DEBUG
 /** Determine if a tablespace is temporary.
@@ -583,32 +583,18 @@ fil_recreate_tablespace(
 						TRUNCATE log record */
 	lsn_t			recv_lsn);	/*!< in: the end LSN of
 						the log record */
-/** Parse the body of a log record written about a file operation.
-
-If desired, also replays the delete or rename operation if the .ibd file
-exists and the space id in it matches.
-
-Note that mysqlbackup --apply-log sets fil_path_to_mysql_datadir to point to
-the datadir that we should use in replaying the file operations.
-
-InnoDB recovery does not replay MLOG_FILE_DELETE; MySQL Enterprise Backup does.
-
-@param[in]	type		redo log entry type
-@param[in]	ptr		redo log record body
-@param[in]	end_ptr		end of buffer
+/** Replay a file rename operation if possible.
 @param[in]	space_id	tablespace identifier
-@param[in]	replay		whether to apply the record
-@return end of log record, or NULL if the record was not completely
-contained between ptr and end_ptr */
+@param[in]	first_page_no	first page number in the file
+@param[in]	name		old file name
+@param[in]	new_name	new file name */
 
-byte*
-fil_op_log_parse_or_replay(
-	mlog_id_t	type,
-	byte*		ptr,
-	const byte*	end_ptr,
+void
+fil_op_replay_rename(
 	ulint		space_id,
-	bool		replay)
-	__attribute__((warn_unused_result));
+	ulint		first_page_no,
+	const char*	name,
+	const char*	new_name);
 /*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.
@@ -836,14 +822,13 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 	int64_t		version);/*!< in: tablespace_version should be this; if
 				you pass -1 as the value of this, then this
 				parameter is ignored */
-/*******************************************************************//**
-Returns true if a single-table tablespace exists in the memory cache.
-@return true if exists */
+/** Look up a tablespace in the memory cache.
+@param[in]	id	tablespace ID
+@return tablespace if exists, NULL if not */
 
-bool
+fil_space_t*
 fil_tablespace_exists_in_mem(
-/*=========================*/
-	ulint	id);	/*!< in: space id */
+	ulint	id);
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Returns true if a matching tablespace exists in the InnoDB tablespace memory

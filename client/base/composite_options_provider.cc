@@ -1,0 +1,87 @@
+/*
+   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   */
+
+#include <vector>
+#include "composite_options_provider.h"
+#include "i_options_provider.h"
+
+using std::vector;
+using namespace Mysql::Tools::Base::Options;
+
+
+void Composite_options_provider::add_providers(
+  I_options_provider* first, ...)
+{
+  DBUG_ASSERT(this->m_options_providers.size() == 0);
+
+  va_list options_to_add;
+  va_start(options_to_add, first);
+
+  this->add_provider(first);
+
+  for (;;)
+  {
+    Options::I_options_provider* options_provider=
+      va_arg(options_to_add, I_options_provider*);
+    if (options_provider == NULL)
+    {
+      break;
+    }
+
+    this->add_provider(options_provider);
+  }
+  va_end(options_to_add);
+}
+
+void Composite_options_provider::add_provider(
+  I_options_provider* options_provider)
+{
+  this->m_options_providers.push_back(options_provider);
+  options_provider->set_option_changed_listener(this);
+}
+
+void Composite_options_provider::options_parsed()
+{
+  vector<I_options_provider*>::iterator it;
+  for (it= this->m_options_providers.begin();
+    it != this->m_options_providers.end();
+    it++)
+  {
+    (*it)->options_parsed();
+  }
+}
+
+vector<my_option> Composite_options_provider::generate_options()
+{
+  vector<my_option> result;
+
+  // Add options for all children providers.
+  vector<I_options_provider*>::iterator it;
+  for (it= this->m_options_providers.begin();
+    it != this->m_options_providers.end();
+    it++)
+  {
+    vector<my_option> new_options= (*it)->generate_options();
+    result.insert(result.end(), new_options.begin(), new_options.end());
+  }
+
+  // Add options from this provider.
+  vector<my_option> new_options= Abstract_options_provider::generate_options();
+  result.insert(result.end(), new_options.begin(), new_options.end());
+
+  return result;
+}

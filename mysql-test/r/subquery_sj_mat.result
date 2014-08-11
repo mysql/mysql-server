@@ -11813,4 +11813,48 @@ ID
 DROP TABLE t1,t2;
 set @@optimizer_switch=@old_opt_switch;
 # End of 5.6 tests
+#
+# Bug#19336348 DEBUG CRASH AT SETUP_SEMIJOIN_DUPS_ELIMINATION IN SQL/SQL_SELECT.CC
+#
+CREATE TABLE t1 (
+col_varchar_nokey varchar(1)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('c'),(NULL),('x');
+CREATE TABLE t2 (
+pk int,
+col_varchar_key varchar(1),
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (10,'l'),(11,'p');
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN SELECT 1
+FROM t1 AS outr
+WHERE outr.col_varchar_nokey IN
+(
+SELECT innr.col_varchar_key
+FROM t2 AS innr
+WHERE innr.pk <= 7
+)
+;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	outr	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	innr	NULL	range	PRIMARY,col_varchar_key	PRIMARY	4	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `outr` semi join (`test`.`t2` `innr`) where ((`test`.`outr`.`col_varchar_nokey` = `<subquery2>`.`col_varchar_key`) and (`test`.`innr`.`pk` <= 7))
+SELECT 1
+FROM t1 AS outr
+WHERE outr.col_varchar_nokey IN
+(
+SELECT innr.col_varchar_key
+FROM t2 AS innr
+WHERE innr.pk <= 7
+)
+;
+1
+DROP TABLE t1,t2;
 set optimizer_switch=default;
