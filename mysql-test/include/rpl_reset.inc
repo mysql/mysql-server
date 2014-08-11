@@ -71,11 +71,11 @@ if (!$rpl_skip_sync)
 --source include/rpl_stop_slaves.inc
 
 # RESET SLAVE
---let $rpl_source_file= include/rpl_reset_slave_worker.inc
+--let $rpl_source_file= include/rpl_reset_slave_helper.inc
 --source include/rpl_for_each_connection.inc
 
 # RESET MASTER
---let $rpl_source_file= include/rpl_reset_master_worker.inc
+--let $rpl_source_file= include/rpl_reset_master_helper.inc
 --source include/rpl_for_each_server.inc
 
 # START SLAVE

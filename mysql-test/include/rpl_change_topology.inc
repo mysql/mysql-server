@@ -98,7 +98,7 @@
 #   example, if $rpl_topology is '1->2->3->1,2->4,5->6', then
 #   $rpl_connection_list is 'm1 s2 m2 s3 m3 s1 m2 s4 m5 s6'.
 #   The length of this variable is exactly
-#   2*(2+$rpl_server_count_length)*$rpl_connection_list.
+#   2*(2+$rpl_connection_count_length)*$rpl_connection_list.
 #
 # $rpl_sync_chain_dirty
 #   This variable is set to 1.  This tells include/rpl_sync.inc to
@@ -175,9 +175,10 @@ while ($_rpl_topology)
   --let $_rpl_master= `SELECT RPAD(SUBSTRING_INDEX('$_rpl_master_slave', '->', 1), $rpl_server_count_length, ' ')`
   # Get 's2' from 's1->s2'
   --let $_rpl_slave= `SELECT RPAD(SUBSTRING('$_rpl_master_slave', LENGTH('$_rpl_master') + 3), $rpl_server_count_length, ' ')`
-  # Check that s2 does not have another master.
+
   if (!$rpl_multi_source)
   {
+   # Check that s2 does not have another master.
     if (`SELECT LOCATE('s$_rpl_slave ', '$rpl_connection_list') != 0`)
     {
       --echo ERROR IN TEST: Server '$_rpl_slave' has more than one master in topology '$rpl_topology'
@@ -208,7 +209,7 @@ if (!$rpl_skip_change_master)
     --disable_query_log
   }
 
-  --let $rpl_source_file= include/rpl_change_topology_worker.inc
+  --let $rpl_source_file= include/rpl_change_topology_helper.inc
   --source include/rpl_for_each_connection.inc
 }
 

@@ -152,6 +152,7 @@
 #
 # $_rpl_no_server
 #   A sequence of $rpl_server_count_length spaces. Used internally by
+#   rpl_generate_sync_chain.inc
 #
 # $rpl_connection_count
 #   The number of master-slave connections. For instance, if

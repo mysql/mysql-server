@@ -22,10 +22,6 @@
 #
 # ==== Usage ====
 #
-# my_file.inc:
-# --echo $rpl_master is a master of $rpl_slave
-# EOF
-#
 # --let $rpl_source_file= FILE
 # [--let $rpl_multi_source= 1]
 # [--let $rpl_debug= 1]
