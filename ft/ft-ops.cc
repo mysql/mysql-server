@@ -3250,34 +3250,31 @@ ft_remove_handle_ref_callback(FT UU(ft), void *extra) {
     toku_list_remove(&handle->live_ft_handle_link);
 }
 
-// close an ft handle during normal operation. the underlying ft may or may not close,
-// depending if there are still references. an lsn for this close will come from the logger.
-void
-toku_ft_handle_close(FT_HANDLE ft_handle) {
-    // There are error paths in the ft_handle_open that end with ft_handle->ft==NULL.
+static void ft_handle_close(FT_HANDLE ft_handle, bool oplsn_valid, LSN oplsn) {
     FT ft = ft_handle->ft;
-    if (ft) {
-        const bool oplsn_valid = false;
-        toku_ft_remove_reference(ft, oplsn_valid, ZERO_LSN, ft_remove_handle_ref_callback, ft_handle);
+    // There are error paths in the ft_handle_open that end with ft_handle->ft == nullptr.
+    if (ft != nullptr) {
+        toku_ft_remove_reference(ft, oplsn_valid, oplsn, ft_remove_handle_ref_callback, ft_handle);
     }
     toku_free(ft_handle);
 }
 
+// close an ft handle during normal operation. the underlying ft may or may not close,
+// depending if there are still references. an lsn for this close will come from the logger.
+void toku_ft_handle_close(FT_HANDLE ft_handle) {
+    ft_handle_close(ft_handle, false, ZERO_LSN);
+}
+
 // close an ft handle during recovery. the underlying ft must close, and will use the given lsn.
-void 
-toku_ft_handle_close_recovery(FT_HANDLE ft_handle, LSN oplsn) {
-    FT ft = ft_handle->ft;
+void toku_ft_handle_close_recovery(FT_HANDLE ft_handle, LSN oplsn) {
     // the ft must exist if closing during recovery. error paths during 
     // open for recovery should close handles using toku_ft_handle_close()
-    assert(ft);
-    const bool oplsn_valid = true;
-    toku_ft_remove_reference(ft, oplsn_valid, oplsn, ft_remove_handle_ref_callback, ft_handle);
-    toku_free(ft_handle);
+    invariant_notnull(ft_handle->ft);
+    ft_handle_close(ft_handle, true, oplsn);
 }
 
 // TODO: remove this, callers should instead just use toku_ft_handle_close()
-int 
-toku_close_ft_handle_nolsn (FT_HANDLE ft_handle, char** UU(error_string)) {
+int toku_close_ft_handle_nolsn(FT_HANDLE ft_handle, char **UU(error_string)) {
     toku_ft_handle_close(ft_handle);
     return 0;
 }
