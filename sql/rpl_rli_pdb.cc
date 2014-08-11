@@ -1789,23 +1789,36 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
                                   opt_slave_sql_verify_checksum);
     if (ev != NULL)
     {
+      /* It is a event belongs to the transaction */
       if (!ev->is_mts_sequential_exec())
       {
+        int ret= 0;
+
         ev->future_event_relay_log_pos= my_b_tell(&relay_io);
         ev->mts_group_idx= gaq_index;
 
         if (is_mts_db_partitioned(rli) && ev->contains_partition_info(true))
           assign_partition_db(ev);
 
-        if (slave_worker_exec_event(ev))
+        ret= slave_worker_exec_event(ev);
+        if (ev->worker != NULL)
         {
-          if (ev->worker != NULL)
-            delete ev;
-          goto end;
+          delete ev;
+          ev= NULL;
         }
+
+        if (ret != 0)
+          goto end;
       }
-      if (ev->worker != NULL)
+      else
+      {
+        /*
+          It is a Rotate_log_event, Format_description_log_event event or other
+          type event doesn't belong to the transaction.
+        */
         delete ev;
+        ev= NULL;
+      }
     }
     else
     {
