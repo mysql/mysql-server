@@ -106,6 +106,7 @@ PATENT RIGHTS GRANT:
 #include "ft/cachetable/checkpoint.h"
 #include "ft/logger/log-internal.h"
 #include "util/rwlock.h"
+#include "util/scoped_malloc.h"
 #include "util/status.h"
 #include "util/context.h"
 
@@ -4589,7 +4590,8 @@ void checkpointer::remove_background_job() {
 }
 
 void checkpointer::end_checkpoint(void (*testcallback_f)(void*),  void* testextra) {
-    CACHEFILE *XMALLOC_N(m_checkpoint_num_files, checkpoint_cfs);
+    toku::scoped_malloc checkpoint_cfs_buf(m_checkpoint_num_files * sizeof(CACHEFILE));
+    CACHEFILE *checkpoint_cfs = reinterpret_cast<CACHEFILE *>(checkpoint_cfs_buf.get());
 
     this->fill_checkpoint_cfs(checkpoint_cfs);    
     this->checkpoint_pending_pairs();
@@ -4601,9 +4603,8 @@ void checkpointer::end_checkpoint(void (*testcallback_f)(void*),  void* testextr
     this->log_end_checkpoint();
     this->end_checkpoint_userdata(checkpoint_cfs);
 
-    //Delete list of cachefiles in the checkpoint,
+    // Delete list of cachefiles in the checkpoint,
     this->remove_cachefiles(checkpoint_cfs);
-    toku_free(checkpoint_cfs);
 }
 
 struct iterate_checkpoint_cfs {
