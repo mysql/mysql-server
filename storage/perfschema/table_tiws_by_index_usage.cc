@@ -293,7 +293,7 @@ int table_tiws_by_index_usage::rnd_next(void)
        m_pos.next_table())
   {
     table_share= &table_share_array[m_pos.m_index_1];
-    if (table_share->m_lock.is_populated())
+    if (table_share->m_lock.is_populated() && table_share->m_enabled)
     {
       uint safe_key_count= sanitize_index_count(table_share->m_key_count);
       if (m_pos.m_index_2 < safe_key_count)
@@ -323,7 +323,7 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
   set_position(pos);
 
   table_share= &table_share_array[m_pos.m_index_1];
-  if (table_share->m_lock.is_populated())
+  if (table_share->m_lock.is_populated() && table_share->m_enabled)
   {
     uint safe_key_count= sanitize_index_count(table_share->m_key_count);
     if (m_pos.m_index_2 < safe_key_count)
@@ -341,7 +341,8 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-void table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share, uint index)
+void table_tiws_by_index_usage::make_row(PFS_table_share *pfs_share,
+                                         uint index)
 {
   PFS_table_share_index *pfs_index;
   pfs_optimistic_state lock;

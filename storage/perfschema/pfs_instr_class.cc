@@ -524,6 +524,10 @@ static void set_table_share_key(PFS_table_share_key *key,
   }
 }
 
+/**
+  Find an existing table share lock instrumentation.
+  @return a table share lock.
+*/
 PFS_table_share_lock*
 PFS_table_share::find_lock_stat() const
 {
@@ -540,6 +544,10 @@ PFS_table_share::find_lock_stat() const
   return pfs;
 }
 
+/**
+  Find or create a table share lock instrumentation.
+  @return a table share lock, or NULL.
+*/
 PFS_table_share_lock*
 PFS_table_share::find_or_create_lock_stat()
 {
@@ -561,6 +569,7 @@ PFS_table_share::find_or_create_lock_stat()
   pfs= create_table_share_lock_stat();
   if (pfs == NULL)
     return NULL;
+  pfs->m_owner= this;
 
   void *old_ptr= NULL;
   ptr= pfs;
@@ -569,7 +578,6 @@ PFS_table_share::find_or_create_lock_stat()
   if (my_atomic_casptr(typed_addr, & old_ptr, ptr))
   {
     /* Ok. */
-    pfs->m_owner= this;
     return pfs;
   }
 
@@ -580,6 +588,7 @@ PFS_table_share::find_or_create_lock_stat()
   return pfs;
 }
 
+/** Destroy a table share lock instrumentation. */
 void PFS_table_share::destroy_lock_stat()
 {
   void *addr= & this->m_race_lock_stat;
@@ -596,6 +605,10 @@ void PFS_table_share::destroy_lock_stat()
   }
 }
 
+/**
+  Find an existing table share index instrumentation.
+  @return a table share index
+*/
 PFS_table_share_index*
 PFS_table_share::find_index_stat(uint index) const
 {
@@ -614,6 +627,12 @@ PFS_table_share::find_index_stat(uint index) const
   return pfs;
 }
 
+/**
+  Find or create a table share index instrumentation.
+  @param server_share
+  @index index
+  @return a table share index, or NULL
+*/
 PFS_table_share_index*
 PFS_table_share::find_or_create_index_stat(const TABLE_SHARE *server_share, uint index)
 {
@@ -637,6 +656,7 @@ PFS_table_share::find_or_create_index_stat(const TABLE_SHARE *server_share, uint
   pfs= create_table_share_index_stat(server_share, index);
   if (pfs == NULL)
     return NULL;
+  pfs->m_owner= this;
 
   void *old_ptr= NULL;
   ptr= pfs;
@@ -645,7 +665,6 @@ PFS_table_share::find_or_create_index_stat(const TABLE_SHARE *server_share, uint
   if (my_atomic_casptr(typed_addr, & old_ptr, ptr))
   {
     /* Ok. */
-    pfs->m_owner= this;
     return pfs;
   }
 
@@ -656,6 +675,7 @@ PFS_table_share::find_or_create_index_stat(const TABLE_SHARE *server_share, uint
   return pfs;
 }
 
+/** Destroy table share index instrumentation. */
 void PFS_table_share::destroy_index_stats()
 {
   uint index;
@@ -723,6 +743,10 @@ int init_table_share_lock_stat(uint table_stat_sizing)
   return result;
 }
 
+/**
+  Create a table share lock instrumentation.
+  @return table share lock instrumentation, or NULL
+*/
 PFS_table_share_lock*
 create_table_share_lock_stat()
 {
@@ -765,6 +789,7 @@ create_table_share_lock_stat()
   return NULL;
 }
 
+/** Release a table share lock instrumentation. */
 void release_table_share_lock_stat(PFS_table_share_lock *pfs)
 {
   pfs->m_owner= NULL;
@@ -790,7 +815,7 @@ int init_table_share_index_stat(uint index_stat_sizing)
 {
   int result= 0;
   table_share_index_stat_max= index_stat_sizing;
-  table_share_lock_stat_lost= 0;
+  table_share_index_stat_lost= 0;
 
   if (table_share_index_stat_max > 0)
   {
@@ -806,6 +831,10 @@ int init_table_share_index_stat(uint index_stat_sizing)
   return result;
 }
 
+/**
+  Create a table share index instrumentation.
+  @return table share index instrumentation, or NULL
+*/
 PFS_table_share_index*
 create_table_share_index_stat(const TABLE_SHARE *server_share, uint server_index)
 {
@@ -863,6 +892,7 @@ create_table_share_index_stat(const TABLE_SHARE *server_share, uint server_index
   return NULL;
 }
 
+/** Release a table share index instrumentation. */
 void release_table_share_index_stat(PFS_table_share_index *pfs)
 {
   pfs->m_owner= NULL;
@@ -1999,7 +2029,6 @@ void drop_table_share(PFS_thread *thread,
 
   lf_hash_search_unpin(pins);
 }
-
 
 /**
   Sanitize an unsafe table_share pointer.
