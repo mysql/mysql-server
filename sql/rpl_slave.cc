@@ -3823,6 +3823,88 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                          SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
 }
 
+/**
+  Let the worker applying the current group to rollback and gracefully
+  finish its work before.
+
+  @param rli The slave's relay log info.
+
+  @param ev a pointer to the event on hold before applying this rollback
+  procedure.
+
+  @retval false The rollback succeeded.
+
+  @retval true  There was an error while injecting events.
+*/
+static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
+                                                       const Log_event *ev)
+{
+  DBUG_ENTER("coord_handle_partial_binlogged_transaction");
+  /*
+    This function is called holding the rli->data_lock.
+    We must return it still holding this lock, except in the case of returning
+    error.
+  */
+  mysql_mutex_assert_owner(&rli->data_lock);
+  THD *thd= rli->info_thd;
+
+  if (!rli->curr_group_seen_begin)
+  {
+    DBUG_PRINT("info",("Injecting QUERY(BEGIN) to rollback worker"));
+    Log_event *begin_event= new Query_log_event(thd,
+                                                STRING_WITH_LEN("BEGIN"),
+                                                true, /* using_trans */
+                                                false, /* immediate */
+                                                true, /* suppress_use */
+                                                0, /* error */
+                                                true /* ignore_command */);
+    ((Query_log_event*) begin_event)->db= "";
+    begin_event->data_written= 0;
+    begin_event->server_id= ev->server_id;
+    /*
+      We must be careful to avoid SQL thread increasing its position
+      farther than the event that triggered this QUERY(BEGIN).
+    */
+    begin_event->log_pos= ev->log_pos;
+    begin_event->future_event_relay_log_pos= ev->future_event_relay_log_pos;
+
+    if (apply_event_and_update_pos(&begin_event, thd, rli) !=
+        SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK)
+    {
+      delete begin_event;
+      DBUG_RETURN(true);
+    }
+    mysql_mutex_lock(&rli->data_lock);
+  }
+
+  DBUG_PRINT("info",("Injecting QUERY(ROLLBACK) to rollback worker"));
+  Log_event *rollback_event= new Query_log_event(thd,
+                                                 STRING_WITH_LEN("ROLLBACK"),
+                                                 true, /* using_trans */
+                                                 false, /* immediate */
+                                                 true, /* suppress_use */
+                                                 0, /* error */
+                                                 true /* ignore_command */);
+  ((Query_log_event*) rollback_event)->db= "";
+  rollback_event->data_written= 0;
+  rollback_event->server_id= ev->server_id;
+  /*
+    We must be careful to avoid SQL thread increasing its position
+    farther than the event that triggered this QUERY(ROLLBACK).
+  */
+  rollback_event->log_pos= ev->log_pos;
+  rollback_event->future_event_relay_log_pos= ev->future_event_relay_log_pos;
+
+  if (apply_event_and_update_pos(&rollback_event, thd, rli) !=
+      SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK)
+  {
+    delete rollback_event;
+    DBUG_RETURN(true);
+  }
+  mysql_mutex_lock(&rli->data_lock);
+
+  DBUG_RETURN(false);
+}
 
 /**
   Top-level function for executing the next event in the relay log.
@@ -3959,6 +4041,28 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                         rli->inc_event_relay_log_pos();
                         DBUG_RETURN(0);
                       };);
+    }
+
+    /*
+      GTID protocol will put a ROTATE_EVENT from the master after each
+      (re)connection if auto positioning is enabled.
+      This means that the SQL thread might have already started to apply the
+      current group but, as the IO thread had to reconnect, it left this
+      group incomplete and will start it again from the beginning.
+      So, before applying this ROTATE_EVENT we must let the worker applying
+      the current group rollback and gracefully finish its work before
+      starting to applying the new (complete) copy of the group.
+    */
+    if (ev->get_type_code() == ROTATE_EVENT &&
+        ev->server_id != ::server_id && rli->is_parallel_exec() &&
+        rli->curr_group_seen_gtid)
+    {
+      if (coord_handle_partial_binlogged_transaction(rli, ev))
+        /*
+          In the case of an error, coord_handle_partial_binlogged_transaction
+          will not try to get the rli->data_lock again.
+        */
+        DBUG_RETURN(1);
     }
 
     /* ptr_ev can change to NULL indicating MTS coorinator passed to a Worker */
