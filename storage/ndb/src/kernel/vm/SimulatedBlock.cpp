@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1242,8 +1242,11 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
     for (Uint32 sec=0; sec < noOfSections; sec++)
     {
       Uint32 secCopy;
-      bool ok= ::dupSection(SB_SP_ARG secCopy, sections->m_ptr[sec].i);
-      ndbrequire (ok);
+      if (unlikely(! ::dupSection(SB_SP_ARG secCopy, sections->m_ptr[sec].i)))
+      {
+        handle_out_of_longsignal_memory(signal);
+        return;
+      }
       * dst ++ = secCopy;
     }
 
@@ -1289,7 +1292,12 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
                                                sections->m_ptr);
 #endif
 
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
 
   signal->header.m_noOfSections = 0;
@@ -1365,8 +1373,11 @@ SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
     for (Uint32 sec=0; sec < noOfSections; sec++)
     {
       Uint32 secCopy;
-      bool ok= ::dupSection(SB_SP_ARG secCopy, sections->m_ptr[sec].i);
-      ndbrequire (ok);
+      if (unlikely(! ::dupSection(SB_SP_ARG secCopy, sections->m_ptr[sec].i)))
+      {
+        handle_out_of_longsignal_memory(signal);
+        return;
+      }
       * dst ++ = secCopy;
     }
 
@@ -1420,7 +1431,12 @@ SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
                                                sections->m_ptr);
 #endif
 
-    ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
+    if (unlikely(! (ss == SEND_OK ||
+                    ss == SEND_BLOCKED ||
+                    ss == SEND_DISCONNECTED)))
+    {
+      handle_send_failed(ss, signal);
+    }
   }
 
   signal->header.m_noOfSections = 0;
