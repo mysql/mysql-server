@@ -61,8 +61,6 @@ SET GLOBAL slave_parallel_workers = 2;
 # into more than one relay logs.
 SET GLOBAL max_relay_log_size = 4096;
 
-SELECT @@GLOBAL.slave_parallel_type;
-
 --source include/stop_slave_sql.inc
 
 eval SET GLOBAL slave_parallel_type = $mts_parallel_type;
