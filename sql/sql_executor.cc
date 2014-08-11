@@ -1703,7 +1703,19 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
     }
     /* Check all attached conditions for inner table rows. */
     if (qep_tab->condition() && !qep_tab->condition()->val_int())
-      DBUG_RETURN(NESTED_LOOP_OK);
+    {
+      if (join->thd->killed)
+      {
+        join->thd->send_kill_message();
+        DBUG_RETURN(NESTED_LOOP_KILLED);
+      }
+
+      /* check for errors */
+      if (join->thd->is_error())
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+      else
+        DBUG_RETURN(NESTED_LOOP_OK);
+    }
   }
   qep_tab= last_inner_tab;
   /*
