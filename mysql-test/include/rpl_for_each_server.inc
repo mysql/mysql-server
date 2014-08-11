@@ -2,15 +2,10 @@
 #
 # Execute a .inc file once for server that was configured by
 # rpl_init.inc.  For each server, $rpl_server will be set to the
-# number of the server, and the currenct connection will be set to
+# number of the server, and the current connection will be set to
 # server_N, where N == $rpl_server.
 #
 # ==== Usage ====
-#
-# my_file.inc:
-# --echo Table contents on server_$rpl_server:
-# SELECT * FROM table;
-# EOF
 #
 # --let $rpl_source_file= FILE
 # [--let $rpl_debug= 1]

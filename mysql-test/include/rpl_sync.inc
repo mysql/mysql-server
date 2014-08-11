@@ -44,6 +44,13 @@
 --let $include_filename= rpl_sync.inc
 --source include/begin_include_file.inc
 
+#
+#@TODO: Ideally, just being in slave connection, we should have a way to sync
+# all the masters in one command, like below
+# --connection slave
+# --source include/rpl_sync.inc
+# For now, we disable rpl_sync.inc when multisource is used.
+#
 
 if ($rpl_multi_source)
 {
