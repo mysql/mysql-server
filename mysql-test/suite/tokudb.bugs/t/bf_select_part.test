@@ -1,0 +1,218 @@
+# Verify that index and range scans are not slow
+# on tables during create select statements
+# against hash and range partitioned tables
+# due to tokudb bulk fetch not being used
+source include/have_tokudb.inc;
+source include/have_partition.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t,t1,t2,t3;
+enable_warnings;
+
+let $maxq = 10;
+
+CREATE TABLE `t` (
+  `num` int(10) unsigned auto_increment NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+);
+
+# put 8M rows into t
+INSERT INTO t values (null,null);
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+SELECT count(*) FROM t;
+
+# Create first table from source table t
+CREATE TABLE `t1` (
+  `num` int(10) unsigned NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+) as select * from t;
+
+# Create second table from source table t
+CREATE TABLE `t2` (
+  `num` int(10) unsigned NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+) PARTITION BY HASH (num)
+PARTITIONS 8 as select * from t;
+
+# Create third table from source table t;
+CREATE TABLE `t3` (
+  `num` int(10) unsigned NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+) PARTITION BY RANGE (num)
+(PARTITION p0 VALUES LESS THAN (1000000),
+ PARTITION p1 VALUES LESS THAN (2000000),
+ PARTITION p2 VALUES LESS THAN (3000000),
+ PARTITION p3 VALUES LESS THAN (4000000),
+ PARTITION p4 VALUES LESS THAN (5000000),
+ PARTITION p5 VALUES LESS THAN (6000000),
+ PARTITION p6 VALUES LESS THAN (7000000),
+ PARTITION p7 VALUES LESS THAN MAXVALUE) as select * from t;
+
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    SELECT count(*) from t1;
+    inc $i;
+}
+let $time_elapsed_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+# echo Index scans took $time_elapsed_select seconds.;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    SELECT count(*) from t2;
+    inc $i;
+}
+
+let $time_elapsed_select_hash = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+# echo Index scans took $time_elapsed_select_hash seconds.;
+
+# This check evaluates whether the time elapsed during the select statement 
+# against a hashed partition table is on par with the select statment
+# against a non-partitioned table, which will confirm that bulk fetch is in fact being used.
+let $verdict = `select abs($time_elapsed_select_hash - $time_elapsed_select) <= $time_elapsed_select`;
+echo $verdict;
+if (!$verdict) { echo index scan t2 $time_elapsed_select_hash $time_elapsed_select; }
+
+######################################################################
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    SELECT count(*) from t1;
+    inc $i;
+}
+let $time_elapsed_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_select seconds.;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    SELECT count(*) from t3;
+    inc $i;
+}
+
+let $time_elapsed_select_range = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_select_range seconds.;
+
+# This check evaluates whether the time elapsed during the select statement 
+# against a range partition table is on par with the select statment
+# against a non-partitioned table, which will confirm that bulk fetch is in fact being used.
+let $verdict = `select abs($time_elapsed_select_range - $time_elapsed_select) <= $time_elapsed_select`;
+echo $verdict;
+if (!$verdict) { echo index scan t3 $time_elapsed_select_range $time_elapsed_select; }
+
+#########################################################################
+
+let $maxrq = 30;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxrq) {
+    SELECT count(*) from t1 where num > 7000000;
+    inc $i;
+}
+let $time_elapsed_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_select seconds.;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxrq) {
+    SELECT count(*) from t2 where num > 7000000;
+    inc $i;
+}
+
+let $time_elapsed_select_hash = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_select_hash seconds.;
+
+
+# This check evaluates whether the time elapsed during the select statement 
+# against a hash partition table is on par with the select statment
+# against a non-partitioned table, which will confirm that bulk fetch is in fact being used.
+let $verdict = `select abs($time_elapsed_select_hash - $time_elapsed_select) <= $time_elapsed_select`;
+echo $verdict;
+if (!$verdict) { echo range scan t2 $time_elapsed_select_hash $time_elapsed_select; }
+
+#########################################################################
+
+let $maxrq = 30;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxrq) {
+    SELECT count(*) from t1 where num > 7000000;
+    inc $i;
+}
+let $time_elapsed_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_select seconds.;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxrq) {
+    SELECT count(*) from t3 where num > 7000000;
+    inc $i;
+}
+
+let $time_elapsed_select_range = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_select_range seconds.;
+
+
+# This check evaluates whether the time elapsed during the select statement 
+# against a range partition table is on par with the select statment
+# against a non-partitioned table, which will confirm that bulk fetch is in fact being used.
+let $verdict = `select abs($time_elapsed_select_range - $time_elapsed_select) <= $time_elapsed_select`;
+echo $verdict;
+if (!$verdict) { echo range scan t3 $time_elapsed_select_range $time_elapsed_select; }
+
+drop table t,t1,t2,t3;
