@@ -165,15 +165,15 @@ static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 
 #ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
+mysql_pfs_key_t	io_handler_thread_key;
 mysql_pfs_key_t	io_ibuf_thread_key;
 mysql_pfs_key_t	io_log_thread_key;
 mysql_pfs_key_t	io_read_thread_key;
 mysql_pfs_key_t	io_write_thread_key;
-mysql_pfs_key_t	io_handler_thread_key;
-mysql_pfs_key_t	srv_lock_timeout_thread_key;
 mysql_pfs_key_t	srv_error_monitor_thread_key;
-mysql_pfs_key_t	srv_monitor_thread_key;
+mysql_pfs_key_t	srv_lock_timeout_thread_key;
 mysql_pfs_key_t	srv_master_thread_key;
+mysql_pfs_key_t	srv_monitor_thread_key;
 mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
