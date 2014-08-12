@@ -302,6 +302,7 @@ fil_space_belongs_in_lru(
 		return(false);
 	case FIL_TYPE_TABLESPACE:
 	case FIL_TYPE_TEMPORARY:
+	case FIL_TYPE_IMPORT:
 		return(fil_is_user_tablespace_id(space->id));
 	}
 
@@ -920,13 +921,10 @@ fil_try_to_close_file_in_LRU(
 		}
 
 		if (node->modification_counter != node->flush_counter) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Cannot close file %s, because"
-				" mod_count %ld != fl_count %ld",
-				node->name,
-				(long) node->modification_counter,
-				(long) node->flush_counter);
-
+			ib::warn() << "Cannot close file " << node->name
+				<< ", because modification count "
+				<< node->modification_counter <<
+				" != flush count " << node->flush_counter;
 		}
 
 		if (node->being_extended) {
@@ -1025,6 +1023,11 @@ retry:
 	if (count > 1) {
 		print_info = true;
 	}
+
+	DBUG_EXECUTE_IF(
+		"ib_import_flush_temp",
+		print_info = true;
+	);
 
 	/* Too many files are open, try to close some */
 close_more:
@@ -1273,7 +1276,7 @@ fil_space_create(
 	fil_system->tablespace_version++;
 	space->tablespace_version = fil_system->tablespace_version;
 
-	if ((purpose == FIL_TYPE_TABLESPACE || purpose == FIL_TYPE_TEMPORARY)
+	if (fil_type_is_data(purpose)
 	    && !recv_recovery_on
 	    && id > fil_system->max_assigned_id) {
 
@@ -1392,6 +1395,7 @@ fil_space_get_space(
 		break;
 	case FIL_TYPE_TEMPORARY:
 	case FIL_TYPE_TABLESPACE:
+	case FIL_TYPE_IMPORT:
 		ut_a(id != 0);
 
 		mutex_exit(&fil_system->mutex);
@@ -3624,7 +3628,7 @@ fil_open_single_table_tablespace(
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(!fix_dict || mutex_own(&(dict_sys->mutex)));
-	ut_ad(purpose == FIL_TYPE_TABLESPACE || purpose == FIL_TYPE_TEMPORARY);
+	ut_ad(fil_type_is_data(purpose));
 
 	if (!fsp_flags_is_valid(flags)) {
 		return(DB_CORRUPTION);
@@ -5088,9 +5092,7 @@ fil_io(
 		return(DB_TABLESPACE_DELETED);
 	}
 
-	ut_ad(mode != OS_AIO_IBUF
-	      || space->purpose == FIL_TYPE_TABLESPACE
-	      || space->purpose == FIL_TYPE_TEMPORARY);
+	ut_ad(mode != OS_AIO_IBUF || fil_type_is_data(space->purpose));
 
 	node = UT_LIST_GET_FIRST(space->chain);
 
@@ -5139,8 +5141,7 @@ fil_io(
 
 	/* Open file if closed */
 	if (!fil_node_prepare_for_io(node, fil_system, space)) {
-		if ((space->purpose == FIL_TYPE_TABLESPACE
-		     || space->purpose == FIL_TYPE_TEMPORARY)
+		if (fil_type_is_data(space->purpose)
 		    && fil_is_user_tablespace_id(space->id)) {
 			mutex_exit(&fil_system->mutex);
 
@@ -5169,8 +5170,7 @@ fil_io(
 	single-table tablespace, including rollback tablespaces. */
 	if (node->size <= cur_page_no
 	    && space->id != 0
-	    && (space->purpose == FIL_TYPE_TABLESPACE
-		|| space->purpose == FIL_TYPE_TEMPORARY)) {
+	    && fil_type_is_data(space->purpose)) {
 
 		fil_report_invalid_page_access(
 			cur_page_no, page_id.space(),
@@ -5316,6 +5316,7 @@ fil_aio_wait(
 	switch (fil_node->space->purpose) {
 	case FIL_TYPE_TABLESPACE:
 	case FIL_TYPE_TEMPORARY:
+	case FIL_TYPE_IMPORT:
 		srv_set_io_thread_op_info(segment, "complete io for buf page");
 		buf_page_io_complete(static_cast<buf_page_t*>(message));
 		return;
@@ -5395,6 +5396,7 @@ fil_flush(
 		case FIL_TYPE_TEMPORARY:
 			ut_ad(0); // we already checked for this
 		case FIL_TYPE_TABLESPACE:
+		case FIL_TYPE_IMPORT:
 			fil_n_pending_tablespace_flushes++;
 			break;
 		case FIL_TYPE_LOG:
@@ -5463,6 +5465,7 @@ skip_flush:
 		case FIL_TYPE_TEMPORARY:
 			ut_ad(0); // we already checked for this
 		case FIL_TYPE_TABLESPACE:
+		case FIL_TYPE_IMPORT:
 			fil_n_pending_tablespace_flushes--;
 			continue;
 		case FIL_TYPE_LOG:
