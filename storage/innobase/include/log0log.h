@@ -34,7 +34,7 @@ Created 12/9/1995 Heikki Tuuri
 #define log0log_h
 
 #include "univ.i"
-#include "ut0byte.h"
+#include "dyn0buf.h"
 #ifndef UNIV_HOTBACKUP
 #include "sync0mutex.h"
 #include "sync0rw.h"
@@ -265,6 +265,14 @@ log_checkpoint_get_nth_group_info(
 void
 log_write_checkpoint_info(
 	bool	sync);
+
+/** Set extra data to be written to the redo log during checkpoint.
+@param[in]	buf	data to be appended on checkpoint, or NULL
+@return pointer to previous data to be appended on checkpoint */
+
+mtr_buf_t*
+log_append_on_checkpoint(
+	mtr_buf_t*	buf);
 #else /* !UNIV_HOTBACKUP */
 /******************************************************//**
 Writes info to a buffer of a log group when log files are created in
@@ -754,6 +762,13 @@ struct log_t{
 					/*!< latest checkpoint lsn */
 	lsn_t		next_checkpoint_lsn;
 					/*!< next checkpoint lsn */
+	mtr_buf_t*	append_on_checkpoint;
+					/*!< extra redo log records to write
+					during a checkpoint, or NULL if none.
+					The pointer is protected by
+					log_sys->mutex, and the data must
+					remain constant as long as this
+					pointer is not NULL. */
 	ulint		n_pending_checkpoint_writes;
 					/*!< number of currently pending
 					checkpoint writes */

@@ -2072,7 +2072,8 @@ files_checked:
 				dict_check = DICT_CHECK_NONE_LOADED;
 			}
 
-			dict_check_tablespaces_and_store_max_id(dict_check);
+			dict_check_tablespaces_and_store_max_id(
+				recv_needed_recovery, dict_check);
 		}
 
 		/* Fix-up truncate of table if server crashed while truncate

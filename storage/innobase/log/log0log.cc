@@ -1675,6 +1675,21 @@ log_write_checkpoint_info(
 	}
 }
 
+/** Set extra data to be written to the redo log during checkpoint.
+@param[in]	buf	data to be appended on checkpoint, or NULL
+@return pointer to previous data to be appended on checkpoint */
+
+mtr_buf_t*
+log_append_on_checkpoint(
+	mtr_buf_t*	buf)
+{
+	log_mutex_enter();
+	mtr_buf_t*	old = log_sys->append_on_checkpoint;
+	log_sys->append_on_checkpoint = buf;
+	log_mutex_exit();
+	return(old);
+}
+
 /** Make a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest
 modification in the pool, and writes information about the lsn in
