@@ -3297,7 +3297,8 @@ recv_recovery_from_checkpoint_start(
 	ut_ad(recv_sys->n_addrs == 0);
 
 	if (recv_sys->mlog_checkpoint_lsn == 0) {
-		if (group->scanned_lsn != checkpoint_lsn) {
+		if (!srv_read_only_mode
+		    && group->scanned_lsn != checkpoint_lsn) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Ignoring the redo log due to"
 				" missing MLOG_CHECKPOINT"
