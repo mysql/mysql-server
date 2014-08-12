@@ -1,0 +1,141 @@
+# Verify that index and range scans are not slow
+# on tables during create select statements
+# due to tokudb bulk fetch not being used
+source include/have_tokudb.inc;
+source include/have_partition.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t,t1,t2,t3;
+enable_warnings;
+
+let $maxq = 10;
+
+CREATE TABLE `t` (
+  `num` int(10) unsigned auto_increment NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+);
+
+# put 8M rows into t
+INSERT INTO t values (null,null);
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+SELECT count(*) FROM t;
+
+# Create base table (control table) from source table t
+CREATE TABLE `t1` (
+  `num` int(10) unsigned NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+) as select * from t;
+
+# Create source hash partitioned table from source table t
+CREATE TABLE `t2` (
+  `num` int(10) unsigned NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+) PARTITION BY HASH (num)
+PARTITIONS 8 as select * from t;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    CREATE TABLE `t3` (`x` bigint);
+    SELECT count(*) from t1;
+    DROP TABLE t3;
+    inc $i;
+}
+let $time_elapsed_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_select seconds.;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    CREATE TABLE t3 AS SELECT count(*) from t2;
+    DROP TABLE t3;
+    inc $i;
+}
+
+let $time_elapsed_create_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_create_select seconds.;
+
+# This check evaluates whether the time elapsed during the create select statement is on par
+# with the select statement, which will confirm that bulk fetch is in fact being used.
+# Additionally, it is important to note that 1.5 is the multiplier applied to the time_elapsed_select
+# value because it appears that MySQL 5.5.39 uses a sorted index scan during the create select statement
+# while Percona Server 5.6 uses an unsorted index scan.
+# The issue has been resolved in MySQL 5.6 but still persists in Maria 10.0.12
+# in the defect found at https://mariadb.atlassian.net/browse/MDEV-6547.
+let $verdict = `select abs($time_elapsed_create_select - $time_elapsed_select) <= 1.5 * $time_elapsed_select`;
+echo $verdict;
+if (!$verdict) { echo index scan t2 $time_elapsed_create_select $time_elapsed_select; }
+
+let $maxrq = 30;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxrq) {
+    CREATE TABLE `t3` (`x` bigint); 
+    SELECT count(*) from t1 where num > 7000000;
+    DROP TABLE t3;
+    inc $i;
+}
+let $time_elapsed_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_select seconds.;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxrq) {
+    CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+    DROP TABLE t3;
+    inc $i;
+}
+
+let $time_elapsed_create_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_create_select seconds.;
+
+# This check evaluates whether the time elapsed during the create select statement is on par
+# with the select statement, which will confirm that bulk fetch is in fact being used.
+# Additionally, it is important to note that 1.5 is the multiplier applied to the time_elapsed_select
+# value because it appears that MySQL 5.5.39 uses a sorted index scan during the create select statement
+# while Percona Server 5.6 uses an unsorted index scan.
+# The issue has been resolved in MySQL 5.6 but still persists in Maria 10.0.12
+# in the defect found at https://mariadb.atlassian.net/browse/MDEV-6547.
+let $verdict = `select abs($time_elapsed_create_select - $time_elapsed_select) <= 1.5 * $time_elapsed_select`;
+echo $verdict;
+if (!$verdict) { echo range scan t2 $time_elapsed_create_select $time_elapsed_select; }
+
+drop table t,t1,t2;
