@@ -181,51 +181,23 @@ struct file_name_t {
 typedef std::map<ulint, file_name_t> recv_spaces_t;
 static recv_spaces_t recv_spaces;
 
-/** Parse or process a MLOG_FILE_NAME or MLOG_FILE_DELETE record.
-@param[in]	ptr		redo log record
-@param[in]	end		end of the redo log buffer
+/** Process a file name from a MLOG_FILE_* record.
+@param[in,out]	name		file name
+@param[in]	len		length of the file name
 @param[in]	space_id	the tablespace ID
-@param[in]	first_page_no	first page number in the file
-@param[in]	deleted		whether the file is being deleted
-@return pointer to next redo log record
-@retval NULL if this log record was truncated */
+@param[id]	deleted		whether this is a MLOG_FILE_DELETE record */
 static
-byte*
-fil_name_parse(
-	byte*		ptr,
-	const byte*	end,
-	ulint		space_id,
-	ulint		first_page_no,
-	bool		deleted)
+void
+fil_name_process(
+	char*	name,
+	ulint	len,
+	ulint	space_id,
+	bool	deleted)
 {
-	if (end < ptr + 2) {
-		return(NULL);
-	}
-
-	ulint	len = mach_read_from_2(ptr);
-	ptr += 2;
-
-	if (end < ptr + len) {
-		return(NULL);
-	}
-
-	if (is_predefined_tablespace(space_id)
-	    || first_page_no != 0 // TODO: multi-file user-created tablespaces
-	    || len < sizeof "/a.ibd\0"
-	    || memcmp(ptr + len - 5, DOT_IBD, 5) != 0
-	    || memchr(ptr, OS_PATH_SEPARATOR, len) == NULL) {
-		/* MLOG_FILE_NAME should only be written for
-		user-created tablespaces The name must be long enough
-		and end in .ibd. */
-		recv_sys->found_corrupt_log = TRUE;
-		return(NULL);
-	}
-
 	/* We will also insert space=NULL into the map, so that
 	further checks can ensure that a MLOG_FILE_NAME record was
 	scanned before applying any page records for the space_id. */
 
-	char*		name = reinterpret_cast<char*>(ptr);
 	os_normalize_path_for_win(name);
 	file_name_t	fname(std::string(name, len - 1), deleted);
 	std::pair<recv_spaces_t::iterator,bool> p = recv_spaces.insert(
@@ -246,7 +218,7 @@ fil_name_parse(
 		}
 
 		ut_ad(f.space == NULL);
-	} else if (p.second /* first MLOG_FILE_NAME for this space_id */
+	} else if (p.second // the first MLOG_FILE_NAME or MLOG_FILE_RENAME2
 		   || f.name != fname.name) {
 		fil_space_t*	space;
 
@@ -259,19 +231,10 @@ fil_name_parse(
 		case FIL_LOAD_OK:
 			ut_ad(space != NULL);
 
-			if (f.deleted) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace " ULINTPF
-					" '%s' has been deleted"
-					" but it was found at '%s'."
-					" This looks like a duplicate."
-					" To proceed, delete the file.",
-					space_id, f.name.c_str(), name);
-				exit(1);
-			} else if (f.space == NULL
-				   || f.space == space) {
+			if (f.space == NULL || f.space == space) {
 				f.name = fname.name;
 				f.space = space;
+				f.deleted = false;
 			} else {
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Tablespace " ULINTPF
@@ -290,8 +253,9 @@ fil_name_parse(
 		case FIL_LOAD_NOT_FOUND:
 			/* No matching tablespace was found; maybe it
 			was renamed, and we will find a subsequent
-			MLOG_FILE_NAME record. */
+			MLOG_FILE_* record. */
 			ut_ad(space == NULL);
+
 			if (srv_force_recovery) {
 				/* Without innodb_force_recovery,
 				missing tablespaces will only be
@@ -350,8 +314,116 @@ fil_name_parse(
 			break;
 		}
 	}
+}
 
-	return(ptr + len);
+/** Parse or process a MLOG_FILE_* record.
+@param[in]	ptr		redo log record
+@param[in]	end		end of the redo log buffer
+@param[in]	space_id	the tablespace ID
+@param[in]	first_page_no	first page number in the file
+@param[in]	type		MLOG_FILE_NAME or MLOG_FILE_RENAME2
+or MLOG_FILE_DELETE
+@param[in]	apply		whether to apply the record
+@return pointer to next redo log record
+@retval NULL if this log record was truncated */
+static
+byte*
+fil_name_parse(
+	byte*		ptr,
+	const byte*	end,
+	ulint		space_id,
+	ulint		first_page_no,
+	mlog_id_t	type,
+	bool		apply)
+{
+	if (end < ptr + 2) {
+		return(NULL);
+	}
+
+	ulint	len = mach_read_from_2(ptr);
+	ptr += 2;
+	if (end < ptr + len) {
+		return(NULL);
+	}
+
+	if (is_predefined_tablespace(space_id)
+	    || first_page_no != 0 // TODO: multi-file user-created tablespaces
+	    || len < sizeof "/a.ibd\0"
+	    || memcmp(ptr + len - 5, DOT_IBD, 5) != 0
+	    || memchr(ptr, OS_PATH_SEPARATOR, len) == NULL) {
+		/* MLOG_FILE_* records should only be written for
+		user-created tablespaces. The name must be long enough
+		and end in .ibd. */
+		recv_sys->found_corrupt_log = TRUE;
+		return(NULL);
+	}
+
+	byte*	end_ptr	= ptr + len;
+
+	switch (type) {
+	default:
+		ut_ad(0); // the caller checked this
+	case MLOG_FILE_NAME:
+		fil_name_process(
+			reinterpret_cast<char*>(ptr), len, space_id, false);
+		break;
+	case MLOG_FILE_DELETE:
+		fil_name_process(
+			reinterpret_cast<char*>(ptr), len, space_id, true);
+#ifdef UNIV_HOTBACKUP
+		if (apply && recv_replay_file_ops
+		    && fil_tablespace_exists_in_mem(space_id)) {
+			dberr_t	err = fil_delete_tablespace(
+				space_id, BUF_REMOVE_FLUSH_NO_WRITE);
+			ut_a(err == DB_SUCCESS);
+		}
+#endif /* UNIV_HOTBACKUP */
+		break;
+	case MLOG_FILE_RENAME2:
+		/* The new name follows the old name. */
+		byte*	new_name = end_ptr + 2;
+		if (end < new_name) {
+			return(NULL);
+		}
+
+		ulint	new_len = mach_read_from_2(end_ptr);
+
+		if (end < end_ptr + 2 + new_len) {
+			return(NULL);
+		}
+
+		end_ptr += 2 + new_len;
+
+		if (new_len < sizeof "/a.ibd\0"
+		    || memcmp(new_name + new_len - 5, DOT_IBD, 5) != 0
+		    || memchr(new_name, OS_PATH_SEPARATOR, new_len) == NULL) {
+			/* The name must be long enough and end in .ibd. */
+			recv_sys->found_corrupt_log = TRUE;
+			return(NULL);
+		}
+
+		fil_name_process(
+			reinterpret_cast<char*>(ptr), len,
+			space_id, false);
+		fil_name_process(
+			reinterpret_cast<char*>(new_name), new_len,
+			space_id, false);
+
+		if (!apply) {
+			break;
+		}
+#ifdef UNIV_HOTBACKUP
+		if (!recv_replay_file_ops) {
+			break;
+		}
+#endif /* UNIV_HOTBACKUP */
+
+		fil_op_replay_rename(space_id, first_page_no,
+				     reinterpret_cast<const char*>(ptr),
+				     reinterpret_cast<const char*>(new_name));
+	}
+
+	return(end_ptr);
 }
 
 /********************************************************//**
@@ -1012,20 +1084,13 @@ recv_parse_or_apply_log_rec_body(
 
 	switch (type) {
 	case MLOG_FILE_NAME:
+	case MLOG_FILE_DELETE:
+	case MLOG_FILE_RENAME2:
 		ut_ad(block == NULL);
 		/* Collect the file names when parsing the log,
 		before applying any log records. */
-		return(fil_name_parse(ptr, end_ptr, space_id, page_no, false));
-	case MLOG_FILE_DELETE:
-		if (!fil_name_parse(ptr, end_ptr, space_id, page_no, true)) {
-			return(NULL);
-		}
-		/* fall through */
-	case MLOG_FILE_RENAME2:
-		ut_ad(block == NULL);
-		ut_ad(!is_predefined_tablespace(space_id));
-		return(fil_op_log_parse_or_replay(
-			       type, ptr, end_ptr, space_id, apply));
+		return(fil_name_parse(ptr, end_ptr, space_id, page_no, type,
+				      apply));
 	default:
 		break;
 	}
