@@ -320,6 +320,9 @@ static void handle_ydb_error(int error) {
         sql_print_error("                                                            ");
         sql_print_error("************************************************************");
         break;
+    default:
+        sql_print_error("%s unknown error %d", tokudb_hton_name, error);
+        break;
     }
 }
 
@@ -409,6 +412,12 @@ static int tokudb_init_func(void *p) {
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
     DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));
+
+    r = db_env_set_toku_product_name(tokudb_hton_name);
+    if (r) {
+        sql_print_error("%s can not set product name error %d", tokudb_hton_name, r);
+        goto error;
+    }
 
     if ((r = db_env_create(&db_env, 0))) {
         DBUG_PRINT("info", ("db_env_create %d\n", r));
