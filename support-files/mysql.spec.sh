@@ -561,7 +561,7 @@ install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 
-mkdir -p %{$RBR}%{_sysconfdir}/my.cnf.d
+mkdir -p $RBR%{_sysconfdir}/my.cnf.d
 
 # Install all binaries
 (
