@@ -92,6 +92,7 @@ PATENT RIGHTS GRANT:
 #define MYSQL_SERVER 1
 #include "hatoku_defines.h"
 #include <db.h>
+#include <ctype.h>
 
 #include "stdint.h"
 #if defined(_WIN32)
@@ -326,6 +327,16 @@ static void handle_ydb_error(int error) {
     }
 }
 
+static int tokudb_set_product_name(void) {
+    size_t n = strlen(tokudb_hton_name);
+    char tokudb_product_name[n+1];
+    memset(tokudb_product_name, 0, sizeof tokudb_product_name);
+    for (size_t i = 0; i < n; i++)
+        tokudb_product_name[i] = tolower(tokudb_hton_name[i]);
+    int r = db_env_set_toku_product_name(tokudb_product_name);
+    return r;
+}
+
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("%p", p);
     int r;
@@ -343,6 +354,12 @@ static int tokudb_init_func(void *p) {
         goto error;
     }
 #endif
+
+    r = tokudb_set_product_name();
+    if (r) {
+        sql_print_error("%s can not set product name error %d", tokudb_hton_name, r);
+        goto error;
+    }
 
     tokudb_pthread_mutex_init(&tokudb_mutex, MY_MUTEX_INIT_FAST);
     (void) my_hash_init(&tokudb_open_tables, table_alias_charset, 32, 0, 0, (my_hash_get_key) tokudb_get_key, 0, 0);
@@ -412,12 +429,6 @@ static int tokudb_init_func(void *p) {
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
     DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));
-
-    r = db_env_set_toku_product_name(tokudb_hton_name);
-    if (r) {
-        sql_print_error("%s can not set product name error %d", tokudb_hton_name, r);
-        goto error;
-    }
 
     if ((r = db_env_create(&db_env, 0))) {
         DBUG_PRINT("info", ("db_env_create %d\n", r));
@@ -1520,7 +1531,7 @@ static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) 
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), tokudb_hton_name);
         error = -1;
     } else {
         error = tokudb_file_map(table, thd);
@@ -1667,7 +1678,7 @@ static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, CON
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), tokudb_hton_name);
         error = -1;
     } else {
         error = tokudb_fractal_tree_info(table, thd);
@@ -1879,7 +1890,7 @@ static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), tokudb_hton_name);
         error = -1;
     } else {
         error = tokudb_fractal_tree_block_map(table, thd);
@@ -2030,7 +2041,7 @@ static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), tokudb_hton_name);
         error = -1;
     } else {
         struct tokudb_trx_extra e = { thd, tables->table };
@@ -2101,7 +2112,7 @@ static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, COND *cond
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), tokudb_hton_name);
         error = -1;
     } else {
         struct tokudb_lock_waits_extra e = { thd, tables->table };
@@ -2178,7 +2189,7 @@ static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
     rw_rdlock(&tokudb_hton_initialized_lock);
 
     if (!tokudb_hton_initialized) {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), tokudb_hton_name);
         error = -1;
     } else {
         struct tokudb_locks_extra e = { thd, tables->table };
