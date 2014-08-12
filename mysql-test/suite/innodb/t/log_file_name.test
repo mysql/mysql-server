@@ -32,7 +32,7 @@ COMMIT;
 --copy_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t1.ibd
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-let $mysqld=$MYSQLD_CMD --console > $SEARCH_FILE 2>&1;
+let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
 # TODO: This could fail to refuse startup, in case there was a log
 # checkpoint after the INSERT.
