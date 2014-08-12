@@ -1,0 +1,64 @@
+###############################################################################
+# Bug#17879675:SHUTDOWN HANG IF SEMISYNC IS ENABLED AND SLAVE ABORT
+#
+# Problem:
+# ========
+# Step 1. enable semisync and set a big value for
+# rpl_semi_sync_master_timeout.
+#
+# Step 2. kill io thread of slave, so the threads on master will keep on
+# WAITING ACK FROM SLAVE.
+#
+# Step 3.shutdown the master ---hang
+#
+# Test:
+# =====
+# Stop IO thread and execute a transaction on master. The transaction thread
+# will wait for an ack as IO thread is stopped.  Now shutdown the master the
+# shutdown should not hang.  Shutdown should stop the dump thread and the
+# dump thread should wakeup the waiting transaction thread and switch off
+# semisync as there are no active slaves connected to the server.
+###############################################################################
+--source include/have_semisync_plugin.inc
+--source include/master-slave.inc
+--source include/install_semisync.inc
+# Test script is independent of binlog format.
+--source include/have_binlog_format_mixed.inc
+
+call mtr.add_suppression("Read semi-sync reply network error");
+call mtr.add_suppression("SEMISYNC: Forced shutdown. Some updates might not be replicated.");
+
+--source include/rpl_connection_master.inc
+SET GLOBAL rpl_semi_sync_master_timeout = 10000000;
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave_io.inc
+
+--source include/rpl_connection_master.inc
+--send CREATE TABLE t(f INT) ENGINE=INNODB;
+
+--source include/rpl_connection_master1.inc
+--let $status_var= rpl_semi_sync_master_wait_sessions
+--let $status_var_value= 1
+--source include/wait_for_status_var.inc
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_result_log
+--replace_regex /.*mysqladmin.*: /mysqladmin: /
+--exec $MYSQLADMIN -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT shutdown 2>&1
+--enable_result_log
+
+--source include/rpl_connection_master.inc
+--reap
+--let $rpl_server_number=1
+--source include/rpl_start_server.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/uninstall_semisync.inc
+--source include/rpl_end.inc
