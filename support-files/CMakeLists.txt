@@ -81,6 +81,7 @@ IF(UNIX)
   CONFIGURE_FILE(mysql.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
   
   CONFIGURE_FILE(MySQL-shared-compat.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/MySQL-shared-compat.spec @ONLY)
+  CONFIGURE_FILE(mysql-5.5-libmysqlclient-symbols.patch ${CMAKE_CURRENT_BINARY_DIR}/mysql-5.5-libmysqlclient-symbols.patch @ONLY)
 
   SET(bindir ${prefix}/${INSTALL_BINDIR})
   SET(sbindir ${prefix}/${INSTALL_SBINDIR})
