@@ -113,6 +113,16 @@ while ($_rpl_server <= 2)
   {
     --source include/rpl_start_slaves.inc
   }
+  if ($_rpl_server == 1)
+  {
+    # We must be sure that the IO thread has connected again with the master
+    # that has just restarted, or else the results of the test case may vary.
+    # As no new GTID was generated since last sync, we will force the use of
+    # positions on the sync.
+    --let $ignore_gtids_on_sync= 1
+    --source include/sync_slave_sql_with_master.inc
+    --let $ignore_gtids_on_sync= 0
+  }
   --inc $_rpl_server
 }
 
