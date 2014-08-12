@@ -444,7 +444,8 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 ##############################################################################
 %prep
 %setup -T -a 0 -c -n %{src_dir}
-%{?el7:%patch0 -p0}
+pushd %{src_dir}
+%{?el7:%patch0 -p1}
 ##############################################################################
 %build
 
