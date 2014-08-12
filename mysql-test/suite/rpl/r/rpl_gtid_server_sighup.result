@@ -18,6 +18,7 @@ master-bin.000002	#	Query	#	#	use `test`; DELETE FROM pid_table
 master-bin.000002	#	Query	#	#	COMMIT
 include/rpl_stop_server.inc [server_number=1]
 include/rpl_start_server.inc [server_number=1 gtids=on]
+include/sync_slave_sql_with_master.inc
 [connection server_2]
 LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
 [connection server_1]
