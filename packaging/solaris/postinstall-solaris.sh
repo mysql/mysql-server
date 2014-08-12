@@ -51,8 +51,6 @@ fi
 # Create data directory if needed
 
 [ -d "$mydatadir"       ] || mkdir -p -m 755 "$mydatadir" || exit 1
-[ -d "$mydatadir/mysql" ] || mkdir "$mydatadir/mysql"     || exit 1
-[ -d "$mydatadir/test"  ] || mkdir "$mydatadir/test"      || exit 1
 
 # Set the data directory to the right user/group
 
