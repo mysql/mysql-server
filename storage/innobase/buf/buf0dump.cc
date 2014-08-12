@@ -631,6 +631,10 @@ DECLARE_THREAD(buf_dump_thread)(
 {
 	ut_ad(!srv_read_only_mode);
 
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(buf_dump_thread_key);
+#endif /* UNIV_PFS_THREAD */
+
 	srv_buf_dump_thread_active = TRUE;
 
 	buf_dump_status(STATUS_INFO, "not started");

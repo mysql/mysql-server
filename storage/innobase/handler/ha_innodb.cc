@@ -379,6 +379,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info	all_innodb_threads[] = {
+	PSI_KEY(buf_dump_thread),
 	PSI_KEY(io_handler_thread),
 	PSI_KEY(io_ibuf_thread),
 	PSI_KEY(io_log_thread),
