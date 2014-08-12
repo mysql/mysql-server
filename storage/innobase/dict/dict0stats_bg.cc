@@ -28,6 +28,7 @@ Created Apr 25, 2012 Vasil Dimov
 #include "dict0stats_bg.h"
 #include "row0mysql.h"
 #include "srv0start.h"
+#include "ut0new.h"
 
 #ifdef UNIV_NONINL
 # include "dict0stats_bg.ic"
@@ -41,22 +42,32 @@ Created Apr 25, 2012 Vasil Dimov
 #define SHUTTING_DOWN()		(srv_shutdown_state != SRV_SHUTDOWN_NONE)
 
 /** Event to wake up the stats thread */
-os_event_t		dict_stats_event = NULL;
+os_event_t			dict_stats_event = NULL;
 
 /** This mutex protects the "recalc_pool" variable. */
 static ib_mutex_t		recalc_pool_mutex;
 
 /** The number of tables that can be added to "recalc_pool" before
 it is enlarged */
-static const ulint RECALC_POOL_INITIAL_SLOTS = 128;
+static const ulint		RECALC_POOL_INITIAL_SLOTS = 128;
+
+/** Allocator type, used by std::vector */
+typedef ut_allocator<table_id_t>
+	recalc_pool_allocator_t;
 
 /** The multitude of tables whose stats are to be automatically
 recalculated - an STL vector */
-typedef std::vector<table_id_t>	recalc_pool_t;
+typedef std::vector<table_id_t, recalc_pool_allocator_t>
+	recalc_pool_t;
 
-static recalc_pool_t		recalc_pool;
+/** Iterator type for iterating over the elements of objects of type
+recalc_pool_t. */
+typedef recalc_pool_t::iterator
+	recalc_pool_iterator_t;
 
-typedef recalc_pool_t::iterator	recalc_pool_iterator_t;
+/** Pool where we store information on which tables are to be processed
+by background statistics gathering. */
+static recalc_pool_t*		recalc_pool;
 
 /*****************************************************************//**
 Initialize the recalc pool, called once during thread initialization. */
@@ -67,7 +78,13 @@ dict_stats_recalc_pool_init()
 {
 	ut_ad(!srv_read_only_mode);
 
-	recalc_pool.reserve(RECALC_POOL_INITIAL_SLOTS);
+	recalc_pool = UT_NEW(
+		recalc_pool_t(
+			RECALC_POOL_INITIAL_SLOTS,
+			recalc_pool_t::value_type(),
+			recalc_pool_allocator_t(
+				mem_key_dict_stats_bg_recalc_pool_t)),
+		mem_key_dict_stats_bg_recalc_pool_t);
 }
 
 /*****************************************************************//**
@@ -80,7 +97,9 @@ dict_stats_recalc_pool_deinit()
 {
 	ut_ad(!srv_read_only_mode);
 
-	recalc_pool.clear();
+	recalc_pool->clear();
+
+	UT_DELETE(recalc_pool);
 }
 
 /*****************************************************************//**
@@ -100,8 +119,8 @@ dict_stats_recalc_pool_add(
 	mutex_enter(&recalc_pool_mutex);
 
 	/* quit if already in the list */
-	for (recalc_pool_iterator_t iter = recalc_pool.begin();
-	     iter != recalc_pool.end();
+	for (recalc_pool_iterator_t iter = recalc_pool->begin();
+	     iter != recalc_pool->end();
 	     ++iter) {
 
 		if (*iter == table->id) {
@@ -110,7 +129,7 @@ dict_stats_recalc_pool_add(
 		}
 	}
 
-	recalc_pool.push_back(table->id);
+	recalc_pool->push_back(table->id);
 
 	mutex_exit(&recalc_pool_mutex);
 
@@ -132,14 +151,14 @@ dict_stats_recalc_pool_get(
 
 	mutex_enter(&recalc_pool_mutex);
 
-	if (recalc_pool.empty()) {
+	if (recalc_pool->empty()) {
 		mutex_exit(&recalc_pool_mutex);
 		return(false);
 	}
 
-	*id = recalc_pool[0];
+	*id = recalc_pool->at(0);
 
-	recalc_pool.erase(recalc_pool.begin());
+	recalc_pool->erase(recalc_pool->begin());
 
 	mutex_exit(&recalc_pool_mutex);
 
@@ -162,13 +181,13 @@ dict_stats_recalc_pool_del(
 
 	ut_ad(table->id > 0);
 
-	for (recalc_pool_iterator_t iter = recalc_pool.begin();
-	     iter != recalc_pool.end();
+	for (recalc_pool_iterator_t iter = recalc_pool->begin();
+	     iter != recalc_pool->end();
 	     ++iter) {
 
 		if (*iter == table->id) {
 			/* erase() invalidates the iterator */
-			recalc_pool.erase(iter);
+			recalc_pool->erase(iter);
 			break;
 		}
 	}
