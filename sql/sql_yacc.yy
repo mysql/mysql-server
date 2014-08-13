@@ -2080,17 +2080,17 @@ master_def:
             }
             if (Lex->mi.heartbeat_period > slave_net_timeout)
             {
-              push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                                  ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                                  ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+              push_warning(YYTHD, Sql_condition::SL_WARNING,
+                           ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                           ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
             }
             if (Lex->mi.heartbeat_period < 0.001)
             {
               if (Lex->mi.heartbeat_period != 0.0)
               {
-                push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
-                                    ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
+                push_warning(YYTHD, Sql_condition::SL_WARNING,
+                             ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
+                             ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
                 Lex->mi.heartbeat_period= 0.0;
               }
               Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_DISABLE;

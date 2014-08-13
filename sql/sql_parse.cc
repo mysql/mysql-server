@@ -4012,9 +4012,9 @@ end_with_restore_list:
           goto error;
         if (specialflag & SPECIAL_NO_RESOLVE &&
             hostname_requires_resolving(user->host.str))
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-                              ER_WARN_HOSTNAME_WONT_WORK,
-                              ER(ER_WARN_HOSTNAME_WONT_WORK));
+          push_warning(thd, Sql_condition::SL_WARNING,
+                       ER_WARN_HOSTNAME_WONT_WORK,
+                       ER(ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
         DBUG_ASSERT(user->host.str != 0);
 

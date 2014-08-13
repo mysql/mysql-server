@@ -4650,9 +4650,8 @@ longlong Item_func_uncompressed_length::val_int()
   */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_ZLIB_Z_DATA_ERROR,
-                        ER(ER_ZLIB_Z_DATA_ERROR));
+    push_warning(current_thd, Sql_condition::SL_WARNING,
+                 ER_ZLIB_Z_DATA_ERROR, ER(ER_ZLIB_Z_DATA_ERROR));
     return 0;
   }
 
@@ -4763,9 +4762,8 @@ String *Item_func_uncompress::val_str(String *str)
   /* If length is less than 4 bytes, data is corrupt */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			ER_ZLIB_Z_DATA_ERROR,
-			ER(ER_ZLIB_Z_DATA_ERROR));
+    push_warning(current_thd, Sql_condition::SL_WARNING,
+                 ER_ZLIB_Z_DATA_ERROR, ER(ER_ZLIB_Z_DATA_ERROR));
     goto err;
   }
 
