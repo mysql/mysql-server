@@ -5144,7 +5144,7 @@ void THD::reset_for_next_command()
   thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
 
-  thd->query_start_used= thd->query_start_usec_used= 0;
+  thd->query_start_usec_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
   /*
     Clear the status flag that are expected to be cleared at the

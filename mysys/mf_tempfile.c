@@ -18,10 +18,6 @@
 #include "my_static.h"
 #include "mysys_err.h"
 #include <errno.h>
-#ifdef HAVE_PATHS_H
-#include <paths.h>
-#endif
-
 
 
 /*
@@ -55,8 +51,7 @@
 */
 
 File create_temp_file(char *to, const char *dir, const char *prefix,
-		      int mode __attribute__((unused)),
-		      myf MyFlags __attribute__((unused)))
+		      int mode, myf MyFlags)
 {
   File file= -1;
 #ifdef _WIN32
