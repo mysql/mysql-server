@@ -239,13 +239,14 @@ public:
 	template <class U>
 	ut_allocator(
 		const ut_allocator<U>&	other)
-#ifdef UNIV_PFS_MEMORY
-		:
-		m_key(other.get_mem_key(NULL) != mem_key_std
-		      ? other.get_mem_key(NULL)
-		      : PSI_NOT_INSTRUMENTED)
-#endif /* UNIV_PFS_MEMORY */
 	{
+#ifdef UNIV_PFS_MEMORY
+		const PSI_memory_key	other_key = other.get_mem_key(NULL);
+
+		m_key = (other_key != mem_key_std)
+			? other_key
+			: PSI_NOT_INSTRUMENTED;
+#endif /* UNIV_PFS_MEMORY */
 	}
 
 	/** Return the maximum number of objects that can be allocated by
@@ -688,7 +689,7 @@ private:
 	}
 
 	/** Performance schema key. */
-	const PSI_memory_key	m_key;
+	PSI_memory_key	m_key;
 
 #endif /* UNIV_PFS_MEMORY */
 
