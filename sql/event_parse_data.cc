@@ -475,7 +475,7 @@ void
 Event_parse_data::report_bad_value(const char *item_name, Item *bad_item)
 {
   char buff[120];
-  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  String str(buff, sizeof(buff), system_charset_info);
   String *str2= bad_item->fixed? bad_item->val_str(&str):NULL;
   my_error(ER_WRONG_VALUE, MYF(0), item_name, str2? str2->c_ptr_safe():"NULL");
 }

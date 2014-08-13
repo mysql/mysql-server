@@ -364,8 +364,8 @@ static inline uint next_power(uint value)
 */
 
 int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-                   size_t use_mem, uint division_limit,
-                   uint age_threshold)
+                   size_t use_mem, ulonglong division_limit,
+                   ulonglong age_threshold)
 {
   ulong blocks, hash_links;
   size_t length;
@@ -560,8 +560,8 @@ err:
 */
 
 int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
-                     size_t use_mem, uint division_limit,
-                     uint age_threshold)
+                     size_t use_mem, ulonglong division_limit,
+                     ulonglong age_threshold)
 {
   int blocks;
   DBUG_ENTER("resize_key_cache");
@@ -695,8 +695,8 @@ static inline void dec_counter_for_resize_op(KEY_CACHE *keycache)
     age_threshold.
 */
 
-void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
-			    uint age_threshold)
+void change_key_cache_param(KEY_CACHE *keycache, ulonglong division_limit,
+			    ulonglong age_threshold)
 {
   DBUG_ENTER("change_key_cache_param");
 

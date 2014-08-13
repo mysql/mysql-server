@@ -921,7 +921,7 @@ public:
      @retval Pointer to the copied string.
      @retval 0 if an error occured.
   */
-  char *store(const char *from, uint length)
+  char *store(const char *from, size_t length)
   {
     return (char*) memdup_root(&storage, from, length);
   }
