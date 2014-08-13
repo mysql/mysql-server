@@ -135,9 +135,12 @@ InnoDB:
 
 #include "os0proc.h" /* os_mem_alloc_large() */
 #include "os0thread.h" /* os_thread_sleep() */
-#include "ut0mem.h" /* OUT_OF_MEMORY_MSG */
 #include "ut0ut.h" /* ut_strcmp_functor, ut_basename_noext() */
 
+#define	OUT_OF_MEMORY_MSG \
+	"Check if you should increase the swap file or ulimits of your" \
+	" operating system. Note that on most 32-bit computers the process" \
+	" memory space is limited to 2 GB or 4 GB."
 
 /** Maximum number of retries to allocate memory. */
 extern const size_t	alloc_max_retries;
