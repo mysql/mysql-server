@@ -323,6 +323,11 @@ BackupRestore::m_allowed_promotion_attrs[] = {
   {NDBCOL::Text,           NDBCOL::Longvarchar,    check_compat_text_to_char,
    NULL},
 
+  // text to text promotions (uses staging table)
+  // required when part lengths of text columns are not equal 
+  {NDBCOL::Text,           NDBCOL::Text,           check_compat_text_to_text,
+   NULL},
+
   // integral promotions
   {NDBCOL::Tinyint,        NDBCOL::Smallint,       check_compat_promotion,
    convert_integral< Hint8, Hint16>},
@@ -1816,6 +1821,21 @@ BackupRestore::column_compatible_check(const char* tableName,
   return similarEnough;
 }
 
+bool is_array(NDBCOL::Type type)
+{
+  if (type == NDBCOL::Char ||
+      type == NDBCOL::Binary ||
+      type == NDBCOL::Varchar ||
+      type == NDBCOL::Varbinary ||
+      type == NDBCOL::Longvarchar ||
+      type == NDBCOL::Longvarbinary)
+  {
+    return true;
+  }
+  return false;
+ 
+}
+
 bool
 BackupRestore::table_compatible_check(TableS & tableS)
 {
@@ -2117,8 +2137,35 @@ BackupRestore::table_compatible_check(TableS & tableS)
       if (attr_desc->m_exclude)
         continue;
       attr_desc->attrId = (uint32)(j++);
-      attr_desc->convertFunc = NULL;
-      stagingTable->addColumn(*col_in_backup);
+      if(attr_desc->convertFunc)
+      {
+        const NDBCOL * col_in_kernel = tab->getColumn(col_in_backup->getName());
+       
+        // Skip built-in conversions from smaller array types 
+        // to larger array types so that they are handled by staging.
+        // This prevents staging table from growing too large and
+        // causing ndb_restore to fail with error 738: record too big.
+        NDBCOL::Type type_in_backup = col_in_backup->getType();
+        NDBCOL::Type type_in_kernel = col_in_kernel->getType();
+        if(is_array(type_in_backup) && is_array(type_in_kernel) && 
+           col_in_kernel->getLength() > col_in_backup->getLength()) 
+        {
+          stagingTable->addColumn(*col_in_backup);
+          attr_desc->convertFunc = NULL;
+        }
+        else
+        {
+          // Add column of destination type to staging table so that
+          // built-in conversion is done while loading data into
+          // staging table. 
+          stagingTable->addColumn(*col_in_kernel);
+        }
+      } 
+      else 
+      {
+        stagingTable->addColumn(*col_in_backup);
+        attr_desc->convertFunc = NULL;
+      }
     }
 
     if (m_tableChangesMask & TCM_EXCLUDE_MISSING_COLUMNS)
@@ -3229,6 +3276,28 @@ BackupRestore::check_compat_text_to_char(const NDBCOL &old_col,
   }
   return ACT_STAGING_LOSSY;
 }
+
+AttrConvType
+BackupRestore::check_compat_text_to_text(const NDBCOL &old_col,
+                                         const NDBCOL &new_col)
+{
+  if(old_col.getCharset() != new_col.getCharset()) 
+  {
+    info << "convert to field with different charset not supported" << endl; 
+    return ACT_UNSUPPORTED;
+  }
+  if(old_col.getPartSize() > new_col.getPartSize()) 
+  {
+   // TEXT/MEDIUMTEXT/LONGTEXT to TINYTEXT conversion is potentially lossy at the 
+   // Ndb level because there is a hard limit on the TINYTEXT size.
+   // TEXT/MEDIUMTEXT/LONGTEXT is not lossy at the Ndb level, but can be at the 
+   // MySQL level.
+   // Both conversions require the lossy switch, but they are not lossy in the same way.
+    return ACT_STAGING_LOSSY;
+  }
+  return ACT_STAGING_PRESERVING;
+}
+
 
 // ----------------------------------------------------------------------
 // explicit template instantiations
