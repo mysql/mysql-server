@@ -94,7 +94,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    until_log_pos(0),
    until_sql_gtids(global_sid_map),
    until_sql_gtids_first_event(true),
-   retried_trans(0),
+   trans_retries(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
    workers(PSI_NOT_INSTRUMENTED),

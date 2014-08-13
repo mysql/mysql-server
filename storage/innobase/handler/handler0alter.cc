@@ -5914,6 +5914,7 @@ ha_innobase::commit_inplace_alter_table(
 	bool			commit)
 {
 	ha_innobase_inplace_ctx*ctx0;
+	struct mtr_buf_copy_t	logs;
 
 	ctx0 = static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
@@ -6043,6 +6044,8 @@ ha_innobase::commit_inplace_alter_table(
 	or lock waits can happen in it during the data dictionary operation. */
 	row_mysql_lock_data_dictionary(trx);
 
+	ut_ad(log_append_on_checkpoint(NULL) == NULL);
+
 	/* Prevent the background statistics collection from accessing
 	the tables. */
 	for (;;) {
@@ -6170,6 +6173,24 @@ ha_innobase::commit_inplace_alter_table(
 		if (!fail) {
 			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 			ut_ad(trx_is_rseg_updated(trx));
+
+			if (mtr.get_log()->size() > 0) {
+				ut_ad(*mtr.get_log()->front()->begin()
+				      == MLOG_FILE_RENAME2);
+
+				/* Append the MLOG_FILE_RENAME2
+				records on checkpoint, as a separate
+				mini-transaction before the one that
+				contains the MLOG_CHECKPOINT marker. */
+				static const byte	multi
+					= MLOG_MULTI_REC_END;
+
+				mtr.get_log()->for_each_block(logs);
+				logs.m_buf.push(&multi, sizeof multi);
+
+				log_append_on_checkpoint(&logs.m_buf);
+			}
+
 			trx_commit_low(trx, &mtr);
 		}
 
@@ -6178,6 +6199,7 @@ ha_innobase::commit_inplace_alter_table(
 		and the .frm files must be swapped manually by
 		the administrator. No loss of data. */
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_after_commit",
+				log_make_checkpoint_at(LSN_MAX, TRUE);
 				log_buffer_flush_to_disk();
 				DBUG_SUICIDE(););
 	}
@@ -6292,6 +6314,8 @@ foreign_fail:
 		DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 				  crash_inject_count++);
 	}
+
+	log_append_on_checkpoint(NULL);
 
 	/* Invalidate the index translation table. In partitioned
 	tables, there is one TABLE_SHARE (and also only one TABLE)
