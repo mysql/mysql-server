@@ -574,9 +574,9 @@ public:
 	bool is_equal(const lock_t* rhs) const;
 
 	/**
-	@param[in] lock		Lock to check
-	@return true if it is the first lock in the queue */
-	bool is_first_lock(const lock_t* lock) const;
+	@return the first matching lock on in the "list",
+		the "head" of the list */
+	const lock_t* first_lock() const;
 
 	/**
 	Create the lock instance
