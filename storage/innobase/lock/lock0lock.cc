@@ -1754,6 +1754,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 		mark_trx_for_rollback(wait_for->trx);
 	}
 
+	/* H -> T => H -> Lock -> T */
 	lock->hash = head->hash;
 	head->hash = lock;
 
@@ -1773,7 +1774,17 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 			/* If the transaction is waiting on some other lock.
 			The abort state cannot change while we hold the lock
-			sys mutex. */
+			sys mutex.
+
+			There is one loose end. If the transaction that is
+			going to kill the aborted transactions that we are
+			ignoring here then we have to be careful that it
+			must kill these transactions, ie. it cannot be
+			interrupted before it acts on the trx_t::hit_list.
+
+			If the aborted transactions are not killed the
+			worst case should be that the high priority
+			transaction ends up waiting. */
 
 			if (trx != wait_for->trx
 			    && trx->lock.wait_lock != next
