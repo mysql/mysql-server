@@ -1138,6 +1138,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         NCHAR_STRING opt_component key_cache_name
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
         opt_constraint constraint opt_ident TEXT_STRING_sys_nonewline
+        filter_wild_db_table_string
 
 %type <lex_str_ptr>
         opt_table_alias
@@ -1962,7 +1963,7 @@ filter_string_list:
         ;
 
 filter_string:
-          TEXT_STRING_sys_nonewline
+          filter_wild_db_table_string
           {
             THD *thd= YYTHD;
             Item *string_item= new (thd->mem_root) Item_string($1.str,
@@ -12678,6 +12679,19 @@ TEXT_STRING_sys_nonewline:
             else
             {
               my_error(ER_WRONG_VALUE, MYF(0), "argument contains not-allowed LF", $1.str);
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+filter_wild_db_table_string:
+          TEXT_STRING_sys_nonewline
+          {
+            if (strcont($1.str, "."))
+              $$= $1;
+            else
+            {
+              my_error(ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN, MYF(0));
               MYSQL_YYABORT;
             }
           }
