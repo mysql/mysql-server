@@ -2303,9 +2303,12 @@ fil_recreate_tablespace(
 @param[in]	space_id	tablespace identifier
 @param[in]	first_page_no	first page number in the file
 @param[in]	name		old file name
-@param[in]	new_name	new file name */
+@param[in]	new_name	new file name
+@return	whether the operation was successfully applied
+(the name did not exist, or new_name did not exist and
+name was successfully renamed to new_name)  */
 
-void
+bool
 fil_op_replay_rename(
 	ulint		space_id,
 	ulint		first_page_no,
@@ -2327,7 +2330,7 @@ fil_op_replay_rename(
 
 	if (space == NULL
 	    || strcmp(name, UT_LIST_GET_FIRST(space->chain)->name)) {
-		return;
+		return(true);
 	}
 
 	/* Create the database directory for the new name, if
@@ -2353,17 +2356,6 @@ fil_op_replay_rename(
 
 	ut_free(dir);
 
-	char*		new_table = mem_strdupl(
-		new_name + dirlen,
-		strlen(new_name + dirlen)
-		- 4 /* remove ".ibd" */);
-
-	ut_ad(new_table[namend - new_name - dirlen]
-	      == OS_PATH_SEPARATOR);
-#if OS_PATH_SEPARATOR != '/'
-	new_table[namend - new_name - dirlen] = '/';
-#endif
-
 	/* New path must not exist. */
 	bool		exists;
 	os_file_type_t	ftype;
@@ -2376,8 +2368,19 @@ fil_op_replay_rename(
 			" because the target file exists."
 			" Remove either file and try again.",
 			name, new_name, space_id);
-		exit(1);
+		return(false);
 	}
+
+	char*		new_table = mem_strdupl(
+		new_name + dirlen,
+		strlen(new_name + dirlen)
+		- 4 /* remove ".ibd" */);
+
+	ut_ad(new_table[namend - new_name - dirlen]
+	      == OS_PATH_SEPARATOR);
+#if OS_PATH_SEPARATOR != '/'
+	new_table[namend - new_name - dirlen] = '/';
+#endif
 
 	if (!fil_rename_tablespace(
 		    space_id, name, new_table, new_name)) {
@@ -2385,6 +2388,7 @@ fil_op_replay_rename(
 	}
 
 	ut_free(new_table);
+	return(true);
 }
 
 /** File operations for tablespace */
