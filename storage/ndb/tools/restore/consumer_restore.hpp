@@ -149,6 +149,8 @@ public:
                                                 const NDBCOL &new_col);
   static AttrConvType check_compat_text_to_char(const NDBCOL &old_col,
                                                 const NDBCOL &new_col);
+  static AttrConvType check_compat_text_to_text(const NDBCOL &old_col,
+                                                const NDBCOL &new_col);
   static AttrConvType check_compat_promotion(const NDBCOL &old_col,
                                              const NDBCOL &new_col);
   static AttrConvType check_compat_lossy(const NDBCOL &old_col,
