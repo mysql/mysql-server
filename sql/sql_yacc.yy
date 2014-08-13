@@ -3733,7 +3733,7 @@ sp_proc_stmt_leave:
             */
             bool exclusive= (lab->type == sp_label::BEGIN);
 
-            uint n= pctx->diff_handlers(lab->ctx, exclusive);
+            size_t n= pctx->diff_handlers(lab->ctx, exclusive);
 
             if (n)
             {

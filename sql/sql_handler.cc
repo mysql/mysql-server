@@ -225,10 +225,10 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   aliaslen= strlen(tables->alias) + 1;
   if (!(my_multi_malloc(key_memory_THD_handler_tables_hash,
                         MYF(MY_WME),
-                        &hash_tables, (uint) sizeof(*hash_tables),
-                        &db, (uint) dblen,
-                        &name, (uint) namelen,
-                        &alias, (uint) aliaslen,
+                        &hash_tables, sizeof(*hash_tables),
+                        &db, dblen,
+                        &name, namelen,
+                        &alias, aliaslen,
                         NullS)))
   {
     DBUG_PRINT("exit",("ERROR"));

@@ -2305,7 +2305,7 @@ mysql_declare_plugin_end;
 */
 
 my_bool ha_myisam::register_query_cache_table(THD *thd, char *table_name,
-                                              uint table_name_len,
+                                              size_t table_name_len,
                                               qc_engine_callback
                                               *engine_callback,
                                               ulonglong *engine_data)
