@@ -15,7 +15,6 @@ UPDATE t1 SET c1=1 WHERE c1=0;
 LOCK TABLE t1 WRITE/* From connection 2 */;
 
 # On connection 1
-SET @con2_id = 4;
 COMMIT;
 
 # On connection 2.
@@ -41,7 +40,6 @@ include/start_transaction_high_prio.inc
 START TRANSACTION /* HIGH PRIORITY */;
 UPDATE t1 SET c1=1 WHERE c1=0;
 # On connection 2
-SET @con1_id = 5;
 COMMIT;
 UNLOCK TABLES;
 COMMIT;
