@@ -323,10 +323,6 @@ static int keycache_pthread_cond_signal(mysql_cond_t *cond);
 #endif /* defined(KEYCACHE_DEBUG) */
 
 #if !defined(DBUG_OFF)
-#if defined(inline)
-#undef inline
-#endif
-#define inline  /* disabled inline for easier debugging */
 static int fail_block(BLOCK_LINK *block);
 static int fail_hlink(HASH_LINK *hlink);
 static int cache_empty(KEY_CACHE *keycache);
