@@ -302,6 +302,7 @@ fil_space_belongs_in_lru(
 		return(false);
 	case FIL_TYPE_TABLESPACE:
 	case FIL_TYPE_TEMPORARY:
+	case FIL_TYPE_IMPORT:
 		return(fil_is_user_tablespace_id(space->id));
 	}
 
@@ -920,13 +921,10 @@ fil_try_to_close_file_in_LRU(
 		}
 
 		if (node->modification_counter != node->flush_counter) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Cannot close file %s, because"
-				" mod_count %ld != fl_count %ld",
-				node->name,
-				(long) node->modification_counter,
-				(long) node->flush_counter);
-
+			ib::warn() << "Cannot close file " << node->name
+				<< ", because modification count "
+				<< node->modification_counter <<
+				" != flush count " << node->flush_counter;
 		}
 
 		if (node->being_extended) {
@@ -1025,6 +1023,11 @@ retry:
 	if (count > 1) {
 		print_info = true;
 	}
+
+	DBUG_EXECUTE_IF(
+		"ib_import_flush_temp",
+		print_info = true;
+	);
 
 	/* Too many files are open, try to close some */
 close_more:
@@ -1273,7 +1276,7 @@ fil_space_create(
 	fil_system->tablespace_version++;
 	space->tablespace_version = fil_system->tablespace_version;
 
-	if ((purpose == FIL_TYPE_TABLESPACE || purpose == FIL_TYPE_TEMPORARY)
+	if (fil_type_is_data(purpose)
 	    && !recv_recovery_on
 	    && id > fil_system->max_assigned_id) {
 
@@ -1392,6 +1395,7 @@ fil_space_get_space(
 		break;
 	case FIL_TYPE_TEMPORARY:
 	case FIL_TYPE_TABLESPACE:
+	case FIL_TYPE_IMPORT:
 		ut_a(id != 0);
 
 		mutex_exit(&fil_system->mutex);
@@ -1993,6 +1997,28 @@ fil_op_write_log(
 	}
 }
 
+/** Write redo log for renaming a file.
+@param[in]	space_id	tablespace id
+@param[in]	first_page_no	first page number in the file
+@param[in]	old_name	tablespace file name
+@param[in]	new_name	tablespace file name after renaming
+@param[in,out]	mtr		mini-transaction */
+static
+void
+fil_name_write_rename(
+	ulint		space_id,
+	ulint		first_page_no,
+	const char*	old_name,
+	const char*	new_name,
+	mtr_t*		mtr)
+{
+	ut_ad(!is_predefined_tablespace(space_id));
+
+	fil_op_write_log(
+		MLOG_FILE_RENAME2,
+		space_id, first_page_no, old_name, new_name, mtr);
+}
+
 /** Write MLOG_FILE_NAME for a file.
 @param[in]	space_id	tablespace id
 @param[in]	first_page_no	first page number in the file
@@ -2273,185 +2299,92 @@ fil_recreate_tablespace(
 	return(err);
 }
 
-/** Parse the body of a log record written about a file operation.
-
-If desired, also replays the delete or rename operation if the .ibd file
-exists and the space id in it matches.
-
-Note that mysqlbackup --apply-log sets fil_path_to_mysql_datadir to point to
-the datadir that we should use in replaying the file operations.
-
-InnoDB recovery does not replay MLOG_FILE_DELETE; MySQL Enterprise Backup does.
-
-@param[in]	type		redo log entry type
-@param[in]	ptr		redo log record body
-@param[in]	end_ptr		end of buffer
+/** Replay a file rename operation if possible.
 @param[in]	space_id	tablespace identifier
-@param[in]	replay		whether to apply the record
-@return end of log record, or NULL if the record was not completely
-contained between ptr and end_ptr */
+@param[in]	first_page_no	first page number in the file
+@param[in]	name		old file name
+@param[in]	new_name	new file name */
 
-byte*
-fil_op_log_parse_or_replay(
-	mlog_id_t	type,
-	byte*		ptr,
-	const byte*	end_ptr,
+void
+fil_op_replay_rename(
 	ulint		space_id,
-	bool		replay)
+	ulint		first_page_no,
+	const char*	name,
+	const char*	new_name)
 {
-	const char*	name;
-	ulint		name_len;
 #ifdef UNIV_HOTBACKUP
 	ulint		tablespace_flags = 0;
+	ut_ad(recv_replay_file_ops);
 #endif /* UNIV_HOTBACKUP */
-	ulint		new_name_len;
-	const char*	new_name = NULL;
+	ut_ad(first_page_no == 0);
 
-	/* Step-1: Parse the log records. */
+	/* In order to replay the rename, the following must hold:
+	* The new name is not already used.
+	* A tablespace exists with the old name.
+	* The space ID for that tablepace matches this log entry.
+	This will prevent unintended renames during recovery. */
+	fil_space_t*	space = fil_tablespace_exists_in_mem(space_id);
 
-	/* Step-1a: Parse flags and name of table.
-	Other fields (type, space-id, page-no) are parsed before
-	invocation of this function */
-	if (end_ptr < ptr + 2) {
-		return(NULL);
+	if (space == NULL
+	    || strcmp(name, UT_LIST_GET_FIRST(space->chain)->name)) {
+		return;
 	}
 
-	name_len = mach_read_from_2(ptr);
-	ptr += 2;
-	if (end_ptr < ptr + name_len) {
-		return(NULL);
+	/* Create the database directory for the new name, if
+	it does not exist yet */
+
+	const char*	namend	= strrchr(
+		new_name, OS_PATH_SEPARATOR);
+	ut_a(namend);
+	char*		dir	= static_cast<char*>(
+		ut_malloc(namend - new_name + 1));
+
+	memcpy(dir, new_name, namend - new_name);
+	dir[namend - new_name] = 0;
+	bool		success	= os_file_create_directory(
+		dir, false);
+	ut_a(success);
+	ulint		dirlen	= 0;
+
+	if (const char* dirend = strrchr(dir,
+					 OS_PATH_SEPARATOR)) {
+		dirlen = dirend - dir + 1;
 	}
 
-	name = (const char*) ptr;
-	ptr += name_len;
-	ut_ad(::strlen(name) == name_len - 1);
-	ut_ad(!is_predefined_tablespace(space_id));
+	ut_free(dir);
 
-	/* In normal MySQL crash recovery we only replay
-	MLOG_FILE_RENAME2 operations. When applying the InnoDB redo log
-	to a hot backup in MySQL Enterprise Backup, we will replay all
-	file operations if recv_replay_file_ops holds. */
+	char*		new_table = mem_strdupl(
+		new_name + dirlen,
+		strlen(new_name + dirlen)
+		- 4 /* remove ".ibd" */);
 
-	/* Let us try to perform the file operation, if sensible. Note that
-	mysqlbackup has at this stage already read in all space id info to the
-	fil0fil.cc data structures.
-
-	NOTE that our algorithm is not guaranteed to work correctly if there
-	were renames of tables during the backup. See mysqlbackup code for more
-	on the problem. */
-
-	switch (type) {
-		fil_space_t*	space;
-	case MLOG_FILE_RENAME2:
-		if (end_ptr < ptr + 2) {
-			return(NULL);
-		}
-
-		new_name_len = mach_read_from_2(ptr);
-		ptr += 2;
-
-		if (end_ptr < ptr + new_name_len) {
-			return(NULL);
-		}
-
-		new_name = (const char*) ptr;
-		ptr += new_name_len;
-		ut_ad(::strlen(new_name) == new_name_len - 1);
-
-		if (!replay) {
-			return(ptr);
-		}
-#ifdef UNIV_HOTBACKUP
-		if (!recv_replay_file_ops) {
-			return(ptr);
-		}
-#endif /* UNIV_HOTBACKUP */
-		/* In order to replay the rename, the following must hold:
-		* The new name is not already used.
-		* A tablespace is open in memory with the old name.
-		* The space ID for that tablepace matches this log entry.
-		This will prevent unintended renames during recovery. */
-		mutex_enter(&fil_system->mutex);
-		space = fil_space_get_by_id(space_id);
-		mutex_exit(&fil_system->mutex);
-
-		if (space != NULL && space->id == space_id
-		    && !strcmp(name, UT_LIST_GET_FIRST(space->chain)->name)) {
-			/* Create the database directory for the new name, if
-			it does not exist yet */
-
-			const char*	namend	= strrchr(
-				new_name, OS_PATH_SEPARATOR);
-			ut_a(namend);
-			char*		dir	= static_cast<char*>(
-				ut_malloc(namend - new_name + 1));
-
-			memcpy(dir, new_name, namend - new_name);
-			dir[namend - new_name] = 0;
-			bool		success	= os_file_create_directory(
-				dir, false);
-			ut_a(success);
-			ulint		dirlen	= 0;
-
-			if (const char* dirend = strrchr(dir,
-							 OS_PATH_SEPARATOR)) {
-				dirlen = dirend - dir + 1;
-			}
-
-			ut_free(dir);
-
-			char*		new_table = mem_strdupl(
-				new_name + dirlen,
-				strlen(new_name + dirlen)
-				- 4 /* remove ".ibd" */);
-
-			ut_ad(new_table[namend - new_name - dirlen]
-			      == OS_PATH_SEPARATOR);
+	ut_ad(new_table[namend - new_name - dirlen]
+	      == OS_PATH_SEPARATOR);
 #if OS_PATH_SEPARATOR != '/'
-			new_table[namend - new_name - dirlen] = '/';
+	new_table[namend - new_name - dirlen] = '/';
 #endif
 
-			/* New path must not exist. */
-			bool		exists;
-			os_file_type_t	ftype;
+	/* New path must not exist. */
+	bool		exists;
+	os_file_type_t	ftype;
 
-			if (!os_file_status(new_name, &exists, &ftype)
-			    || exists) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Cannot replay rename '%s' to '%s'"
-					" for space ID " ULINTPF
-					" because the target file exists."
-					" Remove either file and try again.",
-					name, new_name, space_id);
-				exit(1);
-			}
+	if (!os_file_status(new_name, &exists, &ftype)
+	    || exists) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot replay rename '%s' to '%s'"
+			" for space ID " ULINTPF
+			" because the target file exists."
+			" Remove either file and try again.",
+			name, new_name, space_id);
+		exit(1);
+	}
 
-			if (!fil_rename_tablespace(
-				    space_id, name, new_table, new_name)) {
-				ut_error;
-			}
-
-			ut_free(new_table);
-		}
-
-		return(ptr);
-
-	case MLOG_FILE_DELETE:
-#ifdef UNIV_HOTBACKUP
-		if (replay && recv_replay_file_ops
-		    && fil_tablespace_exists_in_mem(space_id)) {
-			dberr_t	err = fil_delete_tablespace(
-				space_id, BUF_REMOVE_FLUSH_NO_WRITE);
-			ut_a(err == DB_SUCCESS);
-		}
-#endif /* UNIV_HOTBACKUP */
-		break;
-
-	default:
+	if (!fil_rename_tablespace(
+		    space_id, name, new_table, new_name)) {
 		ut_error;
 	}
 
-	return(ptr);
+	ut_free(new_table);
 }
 
 /** File operations for tablespace */
@@ -3364,9 +3297,7 @@ func_exit:
 		mtr_t		mtr;
 
 		mtr_start(&mtr);
-		fil_op_write_log(MLOG_FILE_RENAME2, id, 0, old_path, new_path,
-				 &mtr);
-		fil_name_write(id, 0, new_path, &mtr);
+		fil_name_write_rename(id, 0, old_path, new_path, &mtr);
 		mtr_commit(&mtr);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -3697,7 +3628,7 @@ fil_open_single_table_tablespace(
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(!fix_dict || mutex_own(&(dict_sys->mutex)));
-	ut_ad(purpose == FIL_TYPE_TABLESPACE || purpose == FIL_TYPE_TEMPORARY);
+	ut_ad(fil_type_is_data(purpose));
 
 	if (!fsp_flags_is_valid(flags)) {
 		return(DB_CORRUPTION);
@@ -4318,14 +4249,13 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 	return(already_deleted || being_deleted);
 }
 
-/*******************************************************************//**
-Returns true if a single-table tablespace exists in the memory cache.
-@return true if exists */
+/** Look up a tablespace in the memory cache.
+@param[in]	id	tablespace ID
+@return tablespace if exists, NULL if not */
 
-bool
+fil_space_t*
 fil_tablespace_exists_in_mem(
-/*=========================*/
-	ulint	id)	/*!< in: space id */
+	ulint	id)
 {
 	fil_space_t*	space;
 
@@ -4337,7 +4267,7 @@ fil_tablespace_exists_in_mem(
 
 	mutex_exit(&fil_system->mutex);
 
-	return(space != NULL);
+	return(space);
 }
 
 /*******************************************************************//**
@@ -5162,9 +5092,7 @@ fil_io(
 		return(DB_TABLESPACE_DELETED);
 	}
 
-	ut_ad(mode != OS_AIO_IBUF
-	      || space->purpose == FIL_TYPE_TABLESPACE
-	      || space->purpose == FIL_TYPE_TEMPORARY);
+	ut_ad(mode != OS_AIO_IBUF || fil_type_is_data(space->purpose));
 
 	node = UT_LIST_GET_FIRST(space->chain);
 
@@ -5213,8 +5141,7 @@ fil_io(
 
 	/* Open file if closed */
 	if (!fil_node_prepare_for_io(node, fil_system, space)) {
-		if ((space->purpose == FIL_TYPE_TABLESPACE
-		     || space->purpose == FIL_TYPE_TEMPORARY)
+		if (fil_type_is_data(space->purpose)
 		    && fil_is_user_tablespace_id(space->id)) {
 			mutex_exit(&fil_system->mutex);
 
@@ -5243,8 +5170,7 @@ fil_io(
 	single-table tablespace, including rollback tablespaces. */
 	if (node->size <= cur_page_no
 	    && space->id != 0
-	    && (space->purpose == FIL_TYPE_TABLESPACE
-		|| space->purpose == FIL_TYPE_TEMPORARY)) {
+	    && fil_type_is_data(space->purpose)) {
 
 		fil_report_invalid_page_access(
 			cur_page_no, page_id.space(),
@@ -5390,6 +5316,7 @@ fil_aio_wait(
 	switch (fil_node->space->purpose) {
 	case FIL_TYPE_TABLESPACE:
 	case FIL_TYPE_TEMPORARY:
+	case FIL_TYPE_IMPORT:
 		srv_set_io_thread_op_info(segment, "complete io for buf page");
 		buf_page_io_complete(static_cast<buf_page_t*>(message));
 		return;
@@ -5469,6 +5396,7 @@ fil_flush(
 		case FIL_TYPE_TEMPORARY:
 			ut_ad(0); // we already checked for this
 		case FIL_TYPE_TABLESPACE:
+		case FIL_TYPE_IMPORT:
 			fil_n_pending_tablespace_flushes++;
 			break;
 		case FIL_TYPE_LOG:
@@ -5537,6 +5465,7 @@ skip_flush:
 		case FIL_TYPE_TEMPORARY:
 			ut_ad(0); // we already checked for this
 		case FIL_TYPE_TABLESPACE:
+		case FIL_TYPE_IMPORT:
 			fil_n_pending_tablespace_flushes--;
 			continue;
 		case FIL_TYPE_LOG:
@@ -6197,17 +6126,13 @@ fil_mtr_rename_log(
 	}
 
 	if (!is_system_tablespace(old_table->space)) {
-		ut_ad(!is_predefined_tablespace(old_table->space));
-		fil_op_write_log(MLOG_FILE_RENAME2, old_table->space, 0,
-				 old_path, tmp_path, mtr);
-		fil_name_write(old_table->space, 0, tmp_path, mtr);
+		fil_name_write_rename(
+			old_table->space, 0, old_path, tmp_path, mtr);
 	}
 
 	if (!is_system_tablespace(new_table->space)) {
-		ut_ad(!is_predefined_tablespace(new_table->space));
-		fil_op_write_log(MLOG_FILE_RENAME2, new_table->space, 0,
-				 new_path, old_path, mtr);
-		fil_name_write(new_table->space, 0, old_path, mtr);
+		fil_name_write_rename(
+			new_table->space, 0, new_path, old_path, mtr);
 	}
 
 	ut_free(old_path);
@@ -6327,6 +6252,11 @@ fil_names_clear(
 	mtr_t	mtr;
 
 	ut_ad(log_mutex_own());
+
+	if (log_sys->append_on_checkpoint) {
+		mtr_write_log(log_sys->append_on_checkpoint);
+		do_write = true;
+	}
 
 	mtr.start();
 
