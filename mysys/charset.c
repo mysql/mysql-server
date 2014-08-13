@@ -932,7 +932,7 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
 }
 
 
-#ifdef BACKSLASH_MBTAIL
+#ifdef _WIN32
 static CHARSET_INFO *fs_cset_cache= NULL;
 
 CHARSET_INFO *fs_character_set()
