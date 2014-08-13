@@ -5338,6 +5338,11 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           query_logger.general_log_write(thd, COM_QUERY,
                                          thd->query().str, qlen);
       }
+
+      /* Audit_log notification when general log is disabled */
+      if (!opt_general_log && !opt_general_log_raw)
+        mysql_audit_general_log(thd, command_name[COM_QUERY].str,
+                                command_name[COM_QUERY].length);
     }
 
     if (!err)

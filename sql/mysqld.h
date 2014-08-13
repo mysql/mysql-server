@@ -118,7 +118,7 @@ extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
-extern bool volatile abort_loop;
+extern MYSQL_PLUGIN_IMPORT bool volatile abort_loop;
 extern my_bool opt_bootstrap;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
