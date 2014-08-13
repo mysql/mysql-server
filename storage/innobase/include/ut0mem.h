@@ -32,11 +32,6 @@ Created 5/30/1994 Heikki Tuuri
 # include "ut0mutex.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#define	OUT_OF_MEMORY_MSG \
-	"Check if you should increase the swap file or ulimits of your" \
-	" operating system. Note that on most 32-bit computers the process" \
-	" memory space is limited to 2 GB or 4 GB."
-
 /** Wrapper for memcpy(3).  Copy memory area when the source and
 target are not overlapping.
 @param[in,out]	dest	copy to
