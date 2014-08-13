@@ -55,6 +55,7 @@
 #include "ndb_util_thread.h"
 #include "ndb_local_connection.h"
 #include "ndb_local_schema.h"
+#include "m_ctype.h"
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal();
@@ -1525,6 +1526,28 @@ int findBlobError(NdbError& error, NdbBlob* pBlob)
 }
 
 
+/* 
+ This routine calculates the length of the blob/text after applying mysql limits
+ on blob/text sizes. If the blob contains multi-byte characters, the length is 
+ reduced till the end of the last well-formed char, so that data is not truncated 
+ in the middle of a multi-byte char.
+ */
+uint64 calc_ndb_blob_len(CHARSET_INFO *cs, uchar *blob_ptr, uint64 maxlen)
+{
+  int errors = 0;
+  
+  const char *begin = (const char*) blob_ptr;
+  const char *end = (const char*) (blob_ptr+maxlen);
+  
+  // avoid truncation in the middle of a multi-byte character by 
+  // stopping at end of last well-formed character before max length
+  uint32 numchars = cs->cset->numchars(cs, begin, end);
+  uint64 len64 = cs->cset->well_formed_len(cs, begin, end, numchars, &errors);
+  assert(len64 <= maxlen);
+
+  return len64; 
+}
+
 int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
 {
   ha_ndbcluster *ha= (ha_ndbcluster *)arg;
@@ -1643,6 +1666,18 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
         my_ptrdiff_t ptrdiff=
           ha->m_blob_destination_record - ha->table->record[0];
         field_blob->move_field_offset(ptrdiff);
+
+        if(len > field_blob->max_data_length())
+        {
+          len = calc_ndb_blob_len(field_blob->charset(),
+                                  buf, field_blob->max_data_length());
+
+          // push a warning
+          push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                      WARN_DATA_TRUNCATED,
+                      "Truncated value from TEXT field \'%s\'", field_blob->field_name);
+        }
+
         field_blob->set_ptr(len, buf);
         field_blob->set_notnull();
         field_blob->move_field_offset(-ptrdiff);
@@ -6161,6 +6196,18 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
         {
           res= ndb_blob->getLength(len64);
           DBUG_ASSERT(res == 0 && len64 <= (Uint64)0xffffffff);
+
+          if(len64 > field_blob->max_data_length())
+          {
+            len64 = calc_ndb_blob_len(ndb_blob->getColumn()->getCharset(), 
+                                    blob_ptr, field_blob->max_data_length());
+
+            // push a warning
+            push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        WARN_DATA_TRUNCATED,
+                        "Truncated value from TEXT field \'%s\'", field_blob->field_name);
+
+          }
           field->set_notnull();
         }
         /* Need not set_null(), as we initialized null bits to 1 above. */

@@ -125,6 +125,7 @@ private:
   Attr* m_sourceattr;
   Attr* m_targetattr;
   void set_type(Attr& attr, const NdbDictionary::Column* c);
+  Uint32 calc_str_len_truncated(CHARSET_INFO *cs, char *data, uint32 maxlen);
   int check_nopk(const Attr& attr1, const Attr& attr2);
   int check_promotion(const Attr& attr1, const Attr& attr2);
   int check_demotion(const Attr& attr1, const Attr& attr2);
