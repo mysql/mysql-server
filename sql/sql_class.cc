@@ -2680,7 +2680,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   bool blob_flag=0;
   bool string_results= FALSE, non_string_results= FALSE;
   unit= u;
-  if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
+  if (strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
     strmake(path,exchange->file_name,FN_REFLEN-1);
 
   write_cs= exchange->cs ? exchange->cs : &my_charset_bin;

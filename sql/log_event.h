@@ -2262,7 +2262,7 @@ public:
     it reads this augmented event. SQL thread does not write 
     Q_MASTER_DATA_WRITTEN_CODE to the slave's server binlog.
   */
-  uint32 master_data_written;
+  size_t master_data_written;
   /*
     number of updated databases by the query and their names. This info
     is requested by both Coordinator and Worker.
@@ -2617,13 +2617,13 @@ public:
                    char **fn_start, char **fn_end);
   my_thread_id thread_id;
   my_thread_id slave_proxy_id;
-  uint32 table_name_len;
+  size_t table_name_len;
   /*
     No need to have a catalog, as these events can only come from 4.x.
     TODO: this may become false if Dmitri pushes his new LOAD DATA INFILE in
     5.0 only (not in 4.x).
   */
-  uint32 db_len;
+  size_t db_len;
   size_t fname_len;
   uint32 num_fields;
   const char* fields;
