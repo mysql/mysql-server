@@ -1405,18 +1405,23 @@ RecLock::is_equal(const lock_t* rhs) const
 }
 
 /**
-@param[in] lock			Lock to check
-@return true if it is the first lock in the queue */
-bool
-RecLock::is_first_lock(const lock_t* lock) const
+@return the first matching lock on in the "list", the "head" of the list */
+const lock_t*
+RecLock::first_lock() const
 {
-	ut_ad(lock_get_type_low(lock) == LOCK_REC);
+	for (const lock_t* lock = lock_rec_get_first_on_page_addr(
+		lock_sys->rec_hash, m_rec_id.m_space_id, m_rec_id.m_page_no);
+	     lock != NULL;
+	     lock = lock_rec_get_next_on_page_const(lock)) {
+	     
+		if (is_equal(lock)) {
+			return(lock);
+		}
+	}
 
-	ulint	space = lock->un_member.rec_lock.space;
-	ulint	page_no = lock->un_member.rec_lock.page_no;
+	ut_error;
 
-	return(lock_rec_get_first_on_page_addr(
-		lock_sys->rec_hash, space, page_no) == lock);
+	return(NULL);
 }
 
 /**
@@ -1736,7 +1741,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 	ut_ad(m_trx == lock->trx);
 	ut_ad(trx_mutex_own(m_trx));
 	ut_ad(wait_for->trx != m_trx);
-	ut_ad(is_first_lock(wait_for));
+	ut_ad(first_lock() == wait_for);
 	ut_ad(trx_is_high_priority(m_trx));
 	ut_ad(m_rec_id.m_heap_no != ULINT32_UNDEFINED);
 
@@ -1765,13 +1770,14 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 			trx_t*	trx = next->trx;
 
 			ut_ad(trx != lock->trx);
-			ut_ad(trx != wait_for->trx);
 
 			/* If the transaction is waiting on some other lock.
 			The abort state cannot change while we hold the lock
-			sys mutex.*/
+			sys mutex. */
 
-			if (trx->lock.wait_lock != next && !trx->abort) {
+			if (trx != wait_for->trx
+			    && trx->lock.wait_lock != next
+			    && !trx->abort) {
 
 				ut_ad(lock_get_mode(next) == LOCK_S
 				      || lock_get_wait(next));
@@ -1875,29 +1881,29 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 		UT_LIST_ADD_LAST(m_trx->lock.trx_locks, lock);
 
-		/* Prepare the transaction for a wait and
-		possible grant when we rollback the transaction
-		that is blocking our lock. */
-
 		set_wait_state(lock);
 
 		lock_set_lock_and_trx_wait(lock, m_trx);
 
 		trx_mutex_exit(m_trx);
 
-		/* Rollback the transaction that is blocking us */
+		/* Rollback the transaction that is blocking us. It should
+		be the one that is at the head of the queue. Note this
+		doesn't guarantee that our lock will be granted. We will kill
+		other blocking transactions later in trx_kill_blocking(). */
 
 		rollback_blocking_trx(wait_for->trx->lock.wait_lock);
 
 		trx_mutex_exit(wait_for->trx);
 
-		/* Lock should be granted, we were the first in the queue. */
-
-		ut_a(!lock_get_wait(lock));
-
 		trx_mutex_enter(m_trx);
 
-		return(NULL);
+		/* There is no guaranteed that the lock will have been granted
+		even if we were the first in the queue. There could be other
+		transactions that hold e.g., a granted S lock but are waiting
+		for another lock. They will be rolled back later. */
+
+		return(lock_get_wait(lock) ? lock : NULL);
 
 	} else {
 
