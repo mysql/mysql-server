@@ -3124,7 +3124,8 @@ static Sys_var_set Sys_sql_mode(
        "Syntax: sql-mode=mode[,mode[,mode...]]. See the manual for the "
        "complete list of valid sql modes",
        SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
-       sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION), NO_MUTEX_GUARD,
+       sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
+                               MODE_STRICT_TRANS_TABLES), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
 static Sys_var_ulong Sys_max_statement_time(
@@ -4250,9 +4251,9 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                      slave_net_timeout,
                      (active_mi ? active_mi->heartbeat_period : 0.0)));
   if (active_mi != NULL && slave_net_timeout < active_mi->heartbeat_period)
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                        ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                 ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
   mysql_mutex_lock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_slave_net_timeout);
@@ -4548,6 +4549,21 @@ static Sys_var_mybool Sys_enforce_gtid_consistency(
 #else
        );
 #endif
+
+static Sys_var_mybool Sys_simplified_binlog_gtid_recovery(
+       "simplified_binlog_gtid_recovery",
+       "If this option is enabled, the server does not scan more than one "
+       "binary log for every iteration when initializing GTID sets on server "
+       "restart. Enabling this option is very useful when restarting a server "
+       "which has already generated lots of binary logs without GTID events. "
+       "Note: If this option is enabled, GLOBAL.GTID_EXECUTED and "
+       "GLOBAL.GTID_PURGED cannot be initialized correctly if binary log(s) "
+       "with GTID events were generated before binary log(s) without GTID "
+       "events, for example if gtid_mode is disabled when the server has "
+       "already generated binary log(s) with GTID events and not purged "
+       "them. ",
+       READ_ONLY GLOBAL_VAR(simplified_binlog_gtid_recovery),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_sp_cache_size(
        "stored_program_cache",

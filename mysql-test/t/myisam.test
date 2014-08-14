@@ -15,7 +15,7 @@
 drop table if exists t1,t2;
 --enable_warnings
 SET SQL_WARNINGS=1;
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # Test problem with CHECK TABLE;
 #
@@ -1822,4 +1822,4 @@ SELECT count(*) FROM t1 WHERE col1_id= 1414;
 DELETE FROM t1 WHERE col1= '5cm' AND col1_dummy= '5cm';
 SELECT count(*) FROM t1 WHERE col1= '5cm';
 DROP TABLE t1;
-
+SET sql_mode = default;

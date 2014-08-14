@@ -45,7 +45,6 @@
 #cmakedefine HAVE_LANGINFO_H 1
 #cmakedefine HAVE_MALLOC_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
-#cmakedefine HAVE_PATHS_H 1
 #cmakedefine HAVE_POLL_H 1
 #cmakedefine HAVE_PWD_H 1
 #cmakedefine HAVE_STRINGS_H 1
@@ -193,7 +192,6 @@
 #cmakedefine HAVE_UINT 1
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
-#cmakedefine HAVE_FP_EXCEPT 1
 
 /* Code tests*/
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@

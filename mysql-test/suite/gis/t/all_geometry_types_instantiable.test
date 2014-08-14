@@ -273,7 +273,7 @@ INSERT INTO gis_polygon VALUES
 INSERT INTO gis_polygon VALUES
 (338, PolyFromWKB(AsWKB(Polygon(LineString(Point(NULL), Point(NULL), Point(NULL), Point(NULL))))));
 
-INSERT INTO gis_polygon VALUES
+INSERT IGNORE INTO gis_polygon VALUES
 (339, PolyFromWKB(AsWKB(Polygon(LineString(Point('a', 'b'), Point(1, 1), Point(2, 2), Point(1, 1), Point(0, 0)))))),
 (340, PolyFromWKB(AsWKB(Polygon(LineString(Point(-0, 'b'), Point(1, 1), Point(2, 2), Point(1, 1), Point(0, 0)))))),
 (341, PolyFromWKB(AsWKB(Polygon(LineString(Point(-0, 'b'), Point(1, 1), Point(2, 2), Point(1, 1), Point('$', 0)))))),
@@ -350,7 +350,7 @@ INSERT INTO gis_multi_point VALUES
 INSERT INTO gis_multi_point VALUES
 (438, MPointFromWKB(AsWKB(MultiPoint(Point(-0), Point(0 0)))));
 
-INSERT INTO gis_multi_point VALUES
+INSERT IGNORE INTO gis_multi_point VALUES
 (439, MPointFromWKB(AsWKB(MultiPoint(Point('NULL', '/8*7-9%4'))))),
 (440, MPointFromWKB(AsWKB(MultiPoint(Point('NULL', '8*7-9%4ab*rt&gh#rtg'))))),
 (441, MPointFromWKB(AsWKB(MultiPoint(Point('NULL', '88.999999999999999'))))),
@@ -430,7 +430,7 @@ INSERT INTO gis_multi_line VALUES
 INSERT INTO gis_multi_line VALUES
 (536, MLineFromWKB(AsWKB(MultiLineString(LineString(Point(NULL), Point(NULL)), LineString(Point(NULL), Point(NULL), Point(NULL))))));
 
-INSERT INTO gis_multi_line VALUES
+INSERT IGNORE INTO gis_multi_line VALUES
 (537, MLineFromWKB(AsWKB(MultiLineString(LineString(Point('NULL', '/8*7-9%4')))))),
 (538, MLineFromWKB(AsWKB(MultiLineString(LineString(Point('NULL', '8*7-9%4ab*rt&gh#rtg')))))),
 (539, MLineFromWKB(AsWKB(MultiLineString(LineString(Point('NULL', '88.999999999999999')))))),

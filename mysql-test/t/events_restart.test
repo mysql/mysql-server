@@ -39,6 +39,7 @@ create event abc3 on schedule every 1 second do
 # type of the 'body' field to blob.
 #
 # First, let's do a backup to not depend on actual definition of mysql.event
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table event_like like mysql.event;
 insert into event_like select * from mysql.event;
 # Now let's alter the table and restart the server
@@ -47,7 +48,7 @@ alter table mysql.event
 --echo "Now we restart the server"
 
 --source include/restart_mysqld.inc
-
+SET sql_mode = default;
 use events_test;
 # Event scheduler should be disabled: the system tables are damaged
 select @@event_scheduler;

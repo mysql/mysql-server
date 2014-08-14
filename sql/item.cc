@@ -2707,16 +2707,16 @@ const char *Item_ident::full_name() const
     return field_name ? field_name : item_name.is_set() ? item_name.ptr() : "tmp_field";
   if (db_name && db_name[0])
   {
-    tmp=(char*) sql_alloc((uint) strlen(db_name)+(uint) strlen(table_name)+
-			  (uint) strlen(field_name)+3);
+    tmp=(char*) sql_alloc(strlen(db_name) + strlen(table_name) +
+			  strlen(field_name) + 3);
     strxmov(tmp,db_name,".",table_name,".",field_name,NullS);
   }
   else
   {
     if (table_name[0])
     {
-      tmp= (char*) sql_alloc((uint) strlen(table_name) +
-			     (uint) strlen(field_name) + 2);
+      tmp= (char*) sql_alloc(strlen(table_name) +
+			     strlen(field_name) + 2);
       strxmov(tmp, table_name, ".", field_name, NullS);
     }
     else
@@ -2752,7 +2752,7 @@ void Item_ident::print(String *str, enum_query_type query_type)
   {
     const char *nm= (field_name && field_name[0]) ?
                       field_name : item_name.is_set() ? item_name.ptr() : "tmp_field";
-    append_identifier(thd, str, nm, (uint) strlen(nm));
+    append_identifier(thd, str, nm, strlen(nm));
     return;
   }
 
@@ -2764,24 +2764,24 @@ void Item_ident::print(String *str, enum_query_type query_type)
       if (!((query_type & QT_NO_DEFAULT_DB) &&
             db_is_default_db(d_name, d_name_len, thd)))
       {
-        append_identifier(thd, str, d_name, (uint)d_name_len);
+        append_identifier(thd, str, d_name, d_name_len);
         str->append('.');
       }
     }
-    append_identifier(thd, str, t_name, (uint)strlen(t_name));
+    append_identifier(thd, str, t_name, strlen(t_name));
     str->append('.');
-    append_identifier(thd, str, field_name, (uint)strlen(field_name));
+    append_identifier(thd, str, field_name, strlen(field_name));
   }
   else
   {
     if (table_name[0])
     {
-      append_identifier(thd, str, t_name, (uint) strlen(t_name));
+      append_identifier(thd, str, t_name, strlen(t_name));
       str->append('.');
-      append_identifier(thd, str, field_name, (uint) strlen(field_name));
+      append_identifier(thd, str, field_name, strlen(field_name));
     }
     else
-      append_identifier(thd, str, field_name, (uint) strlen(field_name));
+      append_identifier(thd, str, field_name, strlen(field_name));
   }
 }
 
