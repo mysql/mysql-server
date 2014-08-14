@@ -566,6 +566,19 @@ rec_set_n_owned_new(
 	}
 }
 
+#ifdef UNIV_DEBUG
+/** Check if the info bits are valid.
+@param[in]	bits	info bits to check
+@return true if valid */
+inline
+bool
+rec_info_bits_valid(
+	ulint	bits)
+{
+	return(0 == (bits & ~(REC_INFO_DELETED_FLAG | REC_INFO_MIN_REC_FLAG)));
+}
+#endif /* UNIV_DEBUG */
+
 /******************************************************//**
 The following function is used to retrieve the info bits of a record.
 @return info bits */
@@ -576,9 +589,11 @@ rec_get_info_bits(
 	const rec_t*	rec,	/*!< in: physical record */
 	ulint		comp)	/*!< in: nonzero=compact page format */
 {
-	return(rec_get_bit_field_1(
-		       rec, comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
-		       REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT));
+	const ulint	val = rec_get_bit_field_1(
+		rec, comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
+		REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
+	ut_ad(rec_info_bits_valid(val));
+	return(val);
 }
 
 /******************************************************//**
@@ -590,6 +605,7 @@ rec_set_info_bits_old(
 	rec_t*	rec,	/*!< in: old-style physical record */
 	ulint	bits)	/*!< in: info bits */
 {
+	ut_ad(rec_info_bits_valid(bits));
 	rec_set_bit_field_1(rec, bits, REC_OLD_INFO_BITS,
 			    REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
 }
@@ -602,6 +618,7 @@ rec_set_info_bits_new(
 	rec_t*	rec,	/*!< in/out: new-style physical record */
 	ulint	bits)	/*!< in: info bits */
 {
+	ut_ad(rec_info_bits_valid(bits));
 	rec_set_bit_field_1(rec, bits, REC_NEW_INFO_BITS,
 			    REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
 }
