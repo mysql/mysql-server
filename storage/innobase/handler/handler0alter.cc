@@ -5286,6 +5286,8 @@ innobase_update_foreign_cache(
 				 fk_tables);
 
 	if (err == DB_CANNOT_ADD_CONSTRAINT) {
+		fk_tables.clear();
+
 		/* It is possible there are existing foreign key are
 		loaded with "foreign_key checks" off,
 		so let's retry the loading with charset_check is off */
@@ -5308,7 +5310,23 @@ innobase_update_foreign_cache(
 		}
 	}
 
-	ut_ad(fk_tables.empty());
+	/* For complete loading of foreign keys, all associated tables must
+	also be loaded. */
+	while (err == DB_SUCCESS && !fk_tables.empty()) {
+		dict_table_t*	table = dict_load_table(
+			fk_tables.front(), true, DICT_ERR_IGNORE_NONE);
+
+		if (table == NULL) {
+			err = DB_TABLE_NOT_FOUND;
+			ib::error()
+				<< "Failed to load table '" << table->name
+				<< "' which has a foreign key constraint with"
+				<< " table '" << user_table->name << "'.";
+			break;
+		}
+
+		fk_tables.pop_front();
+	}
 
 	DBUG_RETURN(err);
 }
