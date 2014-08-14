@@ -78,13 +78,11 @@ dict_stats_recalc_pool_init()
 {
 	ut_ad(!srv_read_only_mode);
 
-	recalc_pool = UT_NEW(
-		recalc_pool_t(
-			RECALC_POOL_INITIAL_SLOTS,
-			recalc_pool_t::value_type(),
-			recalc_pool_allocator_t(
-				mem_key_dict_stats_bg_recalc_pool_t)),
-		mem_key_dict_stats_bg_recalc_pool_t);
+	const PSI_memory_key	key = mem_key_dict_stats_bg_recalc_pool_t;
+
+	recalc_pool = UT_NEW(recalc_pool_t(recalc_pool_allocator_t(key)), key);
+
+	recalc_pool->reserve(RECALC_POOL_INITIAL_SLOTS);
 }
 
 /*****************************************************************//**
