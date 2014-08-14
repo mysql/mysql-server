@@ -30,6 +30,8 @@ Created 2012-Feb-26 Sunny Bains
 #include <queue>
 #include <functional>
 
+#include "ut0new.h"
+
 /** Allocate the memory for the object in blocks. We keep the objects sorted
 on pointer so that they are closer together in case they have to be iterated
 over in a list. */
@@ -144,8 +146,9 @@ private:
 
 	/* We only need to compare on pointer address. */
 	typedef std::priority_queue<
-		Element*, std::vector<Element*>, std::greater<Element*> >
-		pqueue_t;
+		Element*,
+		std::vector<Element*, ut_allocator<Element*> >,
+		std::greater<Element*> >	pqueue_t;
 
 	/** Release the object to the free pool
 	@param elem element to free */
@@ -350,7 +353,7 @@ private:
 	PoolManager(const PoolManager&);
 	PoolManager& operator=(const PoolManager&);
 
-	typedef std::vector<PoolType*> Pools;
+	typedef std::vector<PoolType*, ut_allocator<PoolType*> >	Pools;
 
 	/** Size of each block */
 	size_t		m_size;

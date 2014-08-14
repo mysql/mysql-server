@@ -58,10 +58,13 @@ Created 3/26/1996 Heikki Tuuri
 static const ulint MAX_DETAILED_ERROR_LEN = 256;
 
 /** Set of table_id */
-typedef std::set<table_id_t>	table_id_set;
+typedef std::set<
+	table_id_t,
+	std::less<table_id_t>,
+	ut_allocator<table_id_t> >	table_id_set;
 
 /** Dummy session used currently in MySQL interface */
-sess_t*		trx_dummy_sess = NULL;
+sess_t*	trx_dummy_sess = NULL;
 
 /*************************************************************//**
 Set detailed error message for the transaction. */

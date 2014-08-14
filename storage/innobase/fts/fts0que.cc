@@ -35,6 +35,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0pars.h"
 #include "fts0types.h"
 #include "fts0plugin.h"
+#include "ut0new.h"
 
 #ifdef UNIV_NONINL
 #include "fts0types.ic"
@@ -60,7 +61,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 // FIXME: Need to have a generic iterator that traverses the ilist.
 
-typedef std::vector<fts_string_t>	word_vector_t;
+typedef std::vector<fts_string_t, ut_allocator<fts_string_t> >	word_vector_t;
 
 struct fts_word_freq_t;
 
@@ -181,7 +182,7 @@ struct fts_select_t {
 					the FTS index */
 };
 
-typedef std::vector<ulint>       pos_vector_t;
+typedef std::vector<ulint, ut_allocator<ulint> >       pos_vector_t;
 
 /** structure defines a set of ranges for original documents, each of which
 has a minimum position and maximum position. Text in such range should

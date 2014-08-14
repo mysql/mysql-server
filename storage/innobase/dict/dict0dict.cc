@@ -2780,14 +2780,13 @@ dict_index_find_cols(
 	dict_table_t*	table,	/*!< in: table */
 	dict_index_t*	index)	/*!< in: index */
 {
-	ulint			i;
-	std::vector<ulint>	col_added;
+	std::vector<ulint, ut_allocator<ulint> >	col_added;
 
-	ut_ad(table && index);
+	ut_ad(table != NULL && index != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(mutex_own(&(dict_sys->mutex)) || dict_table_is_intrinsic(table));
 
-	for (i = 0; i < index->n_fields; i++) {
+	for (ulint i = 0; i < index->n_fields; i++) {
 		ulint		j;
 		dict_field_t*	field = dict_index_get_nth_field(index, i);
 

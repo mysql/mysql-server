@@ -35,6 +35,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "hash0hash.h"
 #include "page0size.h"
 #include "mtr0types.h"
+#include "ut0new.h"
 #ifndef UNIV_HOTBACKUP
 #include "ibuf0types.h"
 #include "log0log.h"
@@ -49,7 +50,7 @@ class truncate_t;
 struct btr_create_t;
 class page_id_t;
 
-typedef std::list<char*> space_name_list_t;
+typedef std::list<char*, ut_allocator<char*> >	space_name_list_t;
 
 /** File types */
 enum fil_type_t {

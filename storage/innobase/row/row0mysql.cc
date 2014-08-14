@@ -64,10 +64,12 @@ Created 9/17/2000 Heikki Tuuri
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0undo.h"
-#include <deque>
 #include "row0ext.h"
-#include <vector>
+#include "ut0new.h"
+
 #include <algorithm>
+#include <deque>
+#include <vector>
 
 const char* MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION =
 	"A new raw disk partition was initialized. We do not allow database"
@@ -1914,7 +1916,7 @@ private:
 };
 
 
-typedef	std::vector<btr_pcur_t>	cursors_t;
+typedef	std::vector<btr_pcur_t, ut_allocator<btr_pcur_t> >	cursors_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
 Function will maintain cursor to the entries to invoke explicity rollback
