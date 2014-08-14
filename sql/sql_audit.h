@@ -71,19 +71,30 @@ static inline size_t make_user_name(THD *thd, char *buf)
 */
  
 static inline
-void mysql_audit_general_log(THD *thd, time_t time,
-                             const char *user, size_t userlen,
-                             const char *cmd, size_t cmdlen,
-                             const char *query, size_t querylen)
+void mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
 {
 #ifndef EMBEDDED_LIBRARY
   if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
   {
     MYSQL_LEX_STRING sql_command, ip, host, external_user;
+    LEX_CSTRING query= EMPTY_CSTR;
     static MYSQL_LEX_STRING empty= { C_STRING_WITH_LEN("") };
+    char user_buff[MAX_USER_HOST_SIZE + 1];
+    const char *user= user_buff;
+    size_t userlen= make_user_name(thd, user_buff);
+    time_t time= (time_t) thd->start_time.tv_sec;
 
     if (thd)
     {
+      if (!thd->rewritten_query.length())
+        mysql_rewrite_query(thd);
+      if (thd->rewritten_query.length())
+      {
+        query.str= thd->rewritten_query.ptr();
+        query.length= thd->rewritten_query.length();
+      }
+      else
+        query= thd->query();
       ip.str= (char *) thd->security_ctx->get_ip()->ptr();
       ip.length= thd->security_ctx->get_ip()->length();
       host.str= (char *) thd->security_ctx->get_host()->ptr();
@@ -104,9 +115,9 @@ void mysql_audit_general_log(THD *thd, time_t time,
       : global_system_variables.character_set_client;
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
-                       0, time, user, userlen, cmd, cmdlen, query, querylen,
-                       clientcs, static_cast<ha_rows>(0),
-                       sql_command, host, external_user, ip);
+                       0, time, user, userlen, cmd, cmdlen, query.str,
+                       query.length, clientcs, 0, sql_command, host, external_user, ip);
+
   }
 #endif
 }

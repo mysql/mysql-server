@@ -55,9 +55,9 @@ AAAAAAAAAAAAAAAA
 5555555555555555
 drop table t1;
 create table t1 (a bit) engine=innodb;
-insert into t1 values (b'0'), (b'1'), (b'000'), (b'100'), (b'001');
+insert ignore into t1 values (b'0'), (b'1'), (b'000'), (b'100'), (b'001');
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 4
+Warning	1406	Data too long for column 'a' at row 4
 select hex(a) from t1;
 hex(a)
 0
@@ -69,9 +69,9 @@ alter table t1 add unique (a);
 ERROR 23000: Duplicate entry '' for key 'a'
 drop table t1;
 create table t1 (a bit(2)) engine=innodb;
-insert into t1 values (b'00'), (b'01'), (b'10'), (b'100');
+insert ignore into t1 values (b'00'), (b'01'), (b'10'), (b'100');
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 4
+Warning	1406	Data too long for column 'a' at row 4
 select a+0 from t1;
 a+0
 0

@@ -36,8 +36,31 @@ INSERT INTO c1 VALUES (3);
 echo [on slave];
 SHOW TABLES LIKE '%1';
 
-connection master;
-echo [on master];
+# Bug#18095449  REPLICATE_WILD_DO_TABLE AND REPLICATE_WILD_IGNORE_TABLE
+# ACCEPTING INVALID VALUES
+connection slave;
+echo [on slave];
+--let $status_items= Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table
+--source include/show_slave_status.inc
+
+# Try executing CHANGE REPLICATION with invalid values
+source include/stop_slave.inc;
+--error ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('testa%');
+--error ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('testb%');
+--error ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('db1.t1%', 'testa%');
+--error ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('db2.t2%', 'testb%');
+--error ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('');
+source include/start_slave.inc;
+
+# After executing a failed CHANGE REPLICATION FILTER,
+# verify the values.
+--let $status_items= Replicate_Wild_Do_Table, Replicate_Wild_Ignore_Table
+--source include/show_slave_status.inc
 
 # Clean up
 connection master;

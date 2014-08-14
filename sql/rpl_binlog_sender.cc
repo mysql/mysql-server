@@ -522,10 +522,16 @@ void Binlog_sender::init_heartbeat_period()
 {
   my_bool null_value;
   LEX_STRING name=  { C_STRING_WITH_LEN("master_heartbeat_period")};
+
+  /* Protects m_thd->user_vars. */
+  mysql_mutex_lock(&m_thd->LOCK_thd_data);
+
   user_var_entry *entry=
     (user_var_entry*) my_hash_search(&m_thd->user_vars, (uchar*) name.str,
                                      name.length);
   m_heartbeat_period= entry ? entry->val_int(&null_value) : 0;
+
+  mysql_mutex_unlock(&m_thd->LOCK_thd_data);
 }
 
 int Binlog_sender::check_start_file()
@@ -619,6 +625,10 @@ void Binlog_sender::init_checksum_alg()
   user_var_entry *entry;
 
   m_slave_checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
+
+  /* Protects m_thd->user_vars. */
+  mysql_mutex_lock(&m_thd->LOCK_thd_data);
+
   entry= (user_var_entry*) my_hash_search(&m_thd->user_vars,
                                           (uchar*) name.str, name.length);
   if (entry)
@@ -627,6 +637,8 @@ void Binlog_sender::init_checksum_alg()
       find_type((char*) entry->ptr(), &binlog_checksum_typelib, 1) - 1;
     DBUG_ASSERT(m_slave_checksum_alg < BINLOG_CHECKSUM_ALG_ENUM_END);
   }
+
+  mysql_mutex_unlock(&m_thd->LOCK_thd_data);
 
   /*
     m_event_checksum_alg should be set to the checksum algorithm in
@@ -863,8 +875,8 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
   DBUG_ENTER("send_heartbeat_event");
   const char* filename= m_linfo.log_file_name;
   const char* p= filename + dirname_length(filename);
-  uint32 ident_len= (uint32) strlen(p);
-  uint32 event_len= ident_len + LOG_EVENT_HEADER_LEN +
+  size_t ident_len= strlen(p);
+  size_t event_len= ident_len + LOG_EVENT_HEADER_LEN +
     (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
   DBUG_PRINT("info", ("log_file_name %s, log_pos %llu", p, log_pos));
@@ -974,7 +986,7 @@ inline int Binlog_sender::check_event_count()
 #endif
 
 
-inline bool Binlog_sender::grow_packet(uint32 extra_size)
+inline bool Binlog_sender::grow_packet(size_t extra_size)
 {
   DBUG_ENTER("Binlog_sender::grow_packet");
   size_t cur_buffer_size= m_packet.alloced_length();

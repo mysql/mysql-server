@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS t1, t2, t3, t, tp, tsp, tmp;
 --echo # Bug#11894100: EXCHANGE PARTITION CAN'T BE EXECUTED IF
 --echo #               ROW_FORMAT WAS SET EXPLICITLY
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --echo # Same definition (both have ROW_FORMAT set)
 CREATE TABLE t1 (
  id int(11) NOT NULL AUTO_INCREMENT,
@@ -665,3 +665,5 @@ SELECT * FROM tsp PARTITION (sp3);
 --echo # Test with REBUILD where the rows does not match the current partition
 
 DROP TABLE t, tp, tsp;
+
+SET sql_mode = default;

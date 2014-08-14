@@ -401,12 +401,14 @@ t	collation(t)
 SELECT t, collation(t),FORMAT(MATCH t AGAINST ('Osnabruck'),6) FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
 t	collation(t)	FORMAT(MATCH t AGAINST ('Osnabruck'),6)
 aus Osnabrück	utf8_general_ci	1.591140
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
 Warnings:
 Warning	1366	Incorrect string value: '\xD0\xAD\xD1\x82\xD0\xBE...' for column 't' at row 3
 Warning	1366	Incorrect string value: '\xD0\x9E\xD1\x82\xD0\xBB...' for column 't' at row 4
 Warning	1366	Incorrect string value: '\xD0\x9D\xD0\xB5 \xD0...' for column 't' at row 5
 Warning	1366	Incorrect string value: '\xD0\xB8 \xD0\xB1\xD1...' for column 't' at row 6
+SET sql_mode = default;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 t	collation(t)
 aus Osnabrück	latin1_german2_ci

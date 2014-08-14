@@ -1639,6 +1639,13 @@ public:
   Protocol *protocol;			// Current protocol
   Protocol_text   protocol_text;	// Normal protocol
   Protocol_binary protocol_binary;	// Binary protocol
+  /**
+    Hash for user variables.
+    User variables are per session,
+    but can also be monitored outside of the session,
+    so a lock is needed to prevent race conditions.
+    Protected by @c LOCK_thd_data.
+  */
   HASH    user_vars;			// hash for user variables
   String  packet;			// dynamic buffer for network I/O
   String  convert_buffer;               // buffer for charset conversions
@@ -1648,8 +1655,10 @@ public:
   struct  system_status_var *initial_status_var; /* used by show status */
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
-    Protects THD data accessed from other threads:
+    Protects THD data accessed from other threads.
+    The attributes protected are:
     - thd->mysys_var (used by KILL statement and shutdown).
+    - thd->user_vars (user variables, inspected by monitoring)
     Is locked when THD is deleted.
   */
   mysql_mutex_t LOCK_thd_data;
@@ -2096,9 +2105,6 @@ public:
 
   Global_read_lock global_read_lock;
   Field      *dup_field;
-#ifndef _WIN32
-  sigset_t signals;
-#endif
 
   Vio* active_vio;
 
@@ -2642,7 +2648,7 @@ public:
     Reset to FALSE when we leave the sub-statement mode.
   */
   bool       is_fatal_sub_stmt_error;
-  bool	     query_start_used, query_start_usec_used;
+  bool	     query_start_usec_used;
   bool       rand_used, time_zone_used;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
@@ -2928,7 +2934,6 @@ public:
   }
   inline time_t query_start()
   {
-    query_start_used= 1;
     return start_time.tv_sec;
   }
   inline long query_start_usec()
@@ -2938,7 +2943,7 @@ public:
   }
   inline timeval query_start_timeval()
   {
-    query_start_used= query_start_usec_used= true;
+    query_start_usec_used= true;
     return start_time;
   }
   timeval query_start_timeval_trunc(uint decimals);
@@ -4671,7 +4676,8 @@ public:
   bool is_derived_table() const { return MY_TEST(sel); }
   inline void change_db(char *db_name)
   {
-    db.str= db_name; db.length= (uint) strlen(db_name);
+    db.str= db_name;
+    db.length= strlen(db_name);
   }
 };
 
@@ -4682,6 +4688,7 @@ class user_var_entry
   char *m_ptr;          // Value
   size_t m_length;      // Value length
   Item_result m_type;   // Value type
+  THD *m_owner;
 
   void reset_value()
   { m_ptr= NULL; m_length= 0; }
@@ -4744,8 +4751,10 @@ class user_var_entry
     @param name - Name of the user_var_entry instance.
     @cs         - charset information of the user_var_entry instance.
   */
-  void init(const Simple_cstring &name, const CHARSET_INFO *cs)
+  void init(THD *thd, const Simple_cstring &name, const CHARSET_INFO *cs)
   {
+    DBUG_ASSERT(thd != NULL);
+    m_owner= thd;
     copy_name(name);
     reset_value();
     update_query_id= 0;
@@ -4761,8 +4770,8 @@ class user_var_entry
       the variable as "already logged" (line below) so that it won't be logged
       by Item_func_get_user_var (because that's not necessary).
     */
-    used_query_id= current_thd->query_id;
-    set_type(STRING_RESULT);
+    used_query_id= thd->query_id;
+    m_type= STRING_RESULT;
   }
 
   /**
@@ -4775,6 +4784,21 @@ class user_var_entry
     @retval        true on memory allocation error
   */
   bool store(const void *from, size_t length, Item_result type);
+
+  /**
+    Assert the user variable is locked.
+    This is debug code only.
+    The thread LOCK_thd_data mutex protects:
+    - the thd->user_vars hash itself
+    - the values in the user variable itself.
+    The protection is required for monitoring,
+    as a different thread can inspect this session
+    user variables, on a live session.
+  */
+  inline void assert_locked() const
+  {
+    mysql_mutex_assert_owner(&m_owner->LOCK_thd_data);
+  }
 
 public:
   user_var_entry() {}                         /* Remove gcc warning */
@@ -4803,7 +4827,11 @@ public:
     Set type of to the given value.
     @param type  Data type.
   */
-  void set_type(Item_result type) { m_type= type; }
+  void set_type(Item_result type)
+  {
+    assert_locked();
+    m_type= type;
+  }
   /**
     Set value to NULL
     @param type  Data type.
@@ -4811,9 +4839,10 @@ public:
 
   void set_null_value(Item_result type)
   {
+    assert_locked();
     free_value();
     reset_value();
-    set_type(type);
+    m_type= type;
   }
 
   /**
@@ -4824,8 +4853,14 @@ public:
     @retval  Address of the allocated and initialized user_var_entry instance.
     @retval  NULL on allocation error.
   */
-  static user_var_entry *create(const Name_string &name, const CHARSET_INFO *cs)
+  static user_var_entry *create(THD *thd, const Name_string &name, const CHARSET_INFO *cs)
   {
+    if (check_column_name(name.ptr()))
+    {
+      my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
+      return NULL;
+    }
+
     user_var_entry *entry;
     size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
                  (name.length() + 1) + extra_size;
@@ -4833,7 +4868,7 @@ public:
                                              size, MYF(MY_WME |
                                                        ME_FATALERROR))))
       return NULL;
-    entry->init(name, cs);
+    entry->init(thd, name, cs);
     return entry;
   }
 
@@ -4843,19 +4878,23 @@ public:
   */
   void destroy()
   {
+    assert_locked();
     free_value();  // Free the external value buffer
     my_free(this); // Free the instance itself
   }
+
+  void lock();
+  void unlock();
 
   /* Routines to access the value and its type */
   const char *ptr() const { return m_ptr; }
   size_t length() const { return m_length; }
   Item_result type() const { return m_type; }
   /* Item-alike routines to access the value */
-  double val_real(my_bool *null_value);
+  double val_real(my_bool *null_value) const;
   longlong val_int(my_bool *null_value) const;
-  String *val_str(my_bool *null_value, String *str, uint decimals);
-  my_decimal *val_decimal(my_bool *null_value, my_decimal *result);
+  String *val_str(my_bool *null_value, String *str, uint decimals) const;
+  my_decimal *val_decimal(my_bool *null_value, my_decimal *result) const;
 };
 
 class multi_delete :public select_result_interceptor

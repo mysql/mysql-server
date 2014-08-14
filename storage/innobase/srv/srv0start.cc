@@ -282,7 +282,9 @@ DECLARE_THREAD(io_handler_thread)(
 	}
 #endif /* UNIV_PFS_THREAD */
 
-	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS
+	       || buf_page_cleaner_is_active
+	       || !os_aio_all_slots_free()) {
 		fil_aio_wait(segment);
 	}
 
@@ -1104,12 +1106,19 @@ srv_shutdown_all_bg_threads()
 
 		if (srv_start_state_is_set(SRV_START_STATE_IO)) {
 			/* e. Exit the i/o threads */
-			if (!srv_read_only_mode
-			    && recv_sys->heap != NULL) {
-				os_event_set(recv_sys->flush_start);
+			if (!srv_read_only_mode) {
+				if (recv_sys->flush_start != NULL) {
+					os_event_set(recv_sys->flush_start);
+				}
+				if (recv_sys->flush_end != NULL) {
+					os_event_set(recv_sys->flush_end);
+				}
 			}
 			os_event_set(buf_flush_event);
-			os_aio_wake_all_threads_at_shutdown();
+			if (!buf_page_cleaner_is_active
+			    && os_aio_all_slots_free()) {
+				os_aio_wake_all_threads_at_shutdown();
+			}
 		}
 
 		/* f. dict_stats_thread is signaled from
@@ -1130,6 +1139,10 @@ srv_shutdown_all_bg_threads()
 			"%lu threads created by InnoDB"
 			" had not exited at shutdown!",
 			(ulong) os_thread_count);
+#ifdef UNIV_DEBUG
+		os_aio_print_pending_io(stderr);
+		ut_ad(0);
+#endif /* UNIV_DEBUG */
 	} else {
 		/* Reset the start state. */
 		srv_start_state = SRV_START_STATE_NONE;
@@ -2056,7 +2069,8 @@ files_checked:
 				dict_check = DICT_CHECK_NONE_LOADED;
 			}
 
-			dict_check_tablespaces_and_store_max_id(dict_check);
+			dict_check_tablespaces_and_store_max_id(
+				recv_needed_recovery, dict_check);
 		}
 
 		/* Fix-up truncate of table if server crashed while truncate
@@ -2360,35 +2374,6 @@ files_checked:
 
 			return(srv_init_abort(DB_ERROR));
 		}
-	}
-
-	{
-		/* We use this mutex to test the return value of
-		pthread_mutex_trylock on successful locking. HP-UX
-		does NOT return 0, though Linux et al do. */
-
-		SysMutex	mutex;
-
-		/* Check that OS utexes work as expected */
-		mutex_create("test_mutex", &mutex);
-
-		if (mutex_enter_nowait(&mutex) != 0) {
-
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"pthread_mutex_trylock returns"
-				" an unexpected value on success!"
-				" Cannot continue.");
-
-			exit(EXIT_FAILURE);
-		}
-
-		mutex_exit(&mutex);
-
-		mutex_enter(&mutex);
-
-		mutex_exit(&mutex);
-
-		mutex_free(&mutex);
 	}
 
 	if (srv_print_verbose_log) {

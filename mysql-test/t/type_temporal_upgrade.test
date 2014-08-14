@@ -2,7 +2,7 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --echo #
 --echo # Test with a saved table from 5.5
 --echo #
@@ -94,3 +94,4 @@ SELECT f_datetime, HEX(WEIGHT_STRING(f_datetime)) FROM t1;
 DROP TABLE t1; 
 
 SET time_zone=DEFAULT;
+SET sql_mode = default;

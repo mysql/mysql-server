@@ -124,6 +124,7 @@ table_tiws_by_index_usage.h
 table_tiws_by_table.h
 table_tlws_by_table.h
 table_users.h
+table_uvar_by_thread.h
 cursor_by_thread_connect_attr.h
 table_session_connect.h
 table_session_connect_attrs.h
@@ -224,6 +225,7 @@ table_tiws_by_index_usage.cc
 table_tiws_by_table.cc
 table_tlws_by_table.cc
 table_users.cc
+table_uvar_by_thread.cc
 cursor_by_thread_connect_attr.cc
 table_session_connect.cc
 table_session_connect_attrs.cc

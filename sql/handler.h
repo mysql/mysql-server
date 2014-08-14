@@ -1562,7 +1562,7 @@ public:
   {}
 
   /// Returns sum of time-consuming costs, i.e., not counting memory cost
-  double total_cost()      const { return io_cost + cpu_cost + import_cost; }
+  double total_cost() const  { return io_cost + cpu_cost + import_cost; }
   double get_io_cost()     const { return io_cost; }
   double get_cpu_cost()    const { return cpu_cost; }
   double get_import_cost() const { return import_cost; }
@@ -1577,16 +1577,29 @@ public:
   { 
     return !(io_cost || cpu_cost || import_cost || mem_cost);
   }
-
+  /**
+    Whether or not the total cost is the maximal double
+    
+    @return true if total cost is the maximal double, false otherwise
+  */
+  bool is_max_cost()  const { return io_cost == DBL_MAX; }
   /// Reset all costs to zero
   void reset()
   {
     io_cost= cpu_cost= import_cost= mem_cost= 0;
   }
+  /// Set current cost to the maximal double
+  void set_max_cost()
+  {
+    reset();
+    io_cost= DBL_MAX;
+  }
 
   /// Multiply io, cpu and import costs by parameter
   void multiply(double m)
   {
+    DBUG_ASSERT(!is_max_cost());
+
     io_cost *= m;
     cpu_cost *= m;
     import_cost *= m;
@@ -1595,6 +1608,8 @@ public:
 
   Cost_estimate& operator+= (const Cost_estimate &other)
   {
+    DBUG_ASSERT(!is_max_cost() && !other.is_max_cost());
+
     io_cost+= other.io_cost;
     cpu_cost+= other.cpu_cost;
     import_cost+= other.import_cost;
@@ -1607,20 +1622,60 @@ public:
   {
     Cost_estimate result= *this;
     result+= other;
+
     return result;
   }
 
+  Cost_estimate operator- (const Cost_estimate &other)
+  {
+    Cost_estimate result;
+
+    DBUG_ASSERT(!other.is_max_cost());
+
+    result.io_cost= io_cost - other.io_cost;
+    result.cpu_cost= cpu_cost - other.cpu_cost;
+    result.import_cost= import_cost - other.import_cost;
+    result.mem_cost= mem_cost - other.mem_cost;
+    return result;
+  }
+
+  bool operator> (const Cost_estimate &other) const
+  {
+    return total_cost() > other.total_cost() ? true : false;
+  }
+
+  bool operator< (const Cost_estimate &other) const
+  {
+    return other > *this ? true : false;
+  }
+
   /// Add to IO cost
-  void add_io(double add_io_cost) { io_cost+= add_io_cost; }
+  void add_io(double add_io_cost)
+  {
+    DBUG_ASSERT(!is_max_cost());
+    io_cost+= add_io_cost;
+  }
 
   /// Add to CPU cost
-  void add_cpu(double add_cpu_cost) { cpu_cost+= add_cpu_cost; }
+  void add_cpu(double add_cpu_cost)
+  {
+    DBUG_ASSERT(!is_max_cost());
+    cpu_cost+= add_cpu_cost;
+  }
 
   /// Add to import cost
-  void add_import(double add_import_cost) { import_cost+= add_import_cost; }
+  void add_import(double add_import_cost)
+  {
+    DBUG_ASSERT(!is_max_cost());
+    import_cost+= add_import_cost;
+  }
 
   /// Add to memory cost
-  void add_mem(double add_mem_cost) { mem_cost+= add_mem_cost; }
+  void add_mem(double add_mem_cost)
+  {
+    DBUG_ASSERT(!is_max_cost());
+    mem_cost+= add_mem_cost;
+  }
 };
 
 void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted, 
@@ -2834,7 +2889,7 @@ public:
   */
 
   virtual my_bool register_query_cache_table(THD *thd, char *table_key,
-                                             uint key_length,
+                                             size_t key_length,
                                              qc_engine_callback
                                              *engine_callback,
                                              ulonglong *engine_data)

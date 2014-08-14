@@ -1140,6 +1140,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         NCHAR_STRING opt_component key_cache_name
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
         opt_constraint constraint opt_ident TEXT_STRING_sys_nonewline
+        filter_wild_db_table_string
 
 %type <lex_str_ptr>
         opt_table_alias
@@ -1964,7 +1965,7 @@ filter_string_list:
         ;
 
 filter_string:
-          TEXT_STRING_sys_nonewline
+          filter_wild_db_table_string
           {
             THD *thd= YYTHD;
             Item *string_item= new (thd->mem_root) Item_string($1.str,
@@ -2081,17 +2082,17 @@ master_def:
             }
             if (Lex->mi.heartbeat_period > slave_net_timeout)
             {
-              push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                                  ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                                  ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+              push_warning(YYTHD, Sql_condition::SL_WARNING,
+                           ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                           ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
             }
             if (Lex->mi.heartbeat_period < 0.001)
             {
               if (Lex->mi.heartbeat_period != 0.0)
               {
-                push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
-                                    ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
+                push_warning(YYTHD, Sql_condition::SL_WARNING,
+                             ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
+                             ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
                 Lex->mi.heartbeat_period= 0.0;
               }
               Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_DISABLE;
@@ -3754,7 +3755,7 @@ sp_proc_stmt_leave:
             */
             bool exclusive= (lab->type == sp_label::BEGIN);
 
-            uint n= pctx->diff_handlers(lab->ctx, exclusive);
+            size_t n= pctx->diff_handlers(lab->ctx, exclusive);
 
             if (n)
             {
@@ -12714,6 +12715,19 @@ TEXT_STRING_sys_nonewline:
             else
             {
               my_error(ER_WRONG_VALUE, MYF(0), "argument contains not-allowed LF", $1.str);
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+filter_wild_db_table_string:
+          TEXT_STRING_sys_nonewline
+          {
+            if (strcont($1.str, "."))
+              $$= $1;
+            else
+            {
+              my_error(ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN, MYF(0));
               MYSQL_YYABORT;
             }
           }

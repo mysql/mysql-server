@@ -68,7 +68,6 @@ using std::max;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
-#define MAX_SLAVE_RETRY_PAUSE 5
 /*
   a parameter of sql_slave_killed() to defer the killed status
 */
@@ -224,7 +223,7 @@ static int terminate_slave_thread(THD *thd,
                                   ulong *stop_wait_timeout,
                                   bool need_lock_term);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
-int slave_worker_exec_job(Slave_worker * w, Relay_log_info *rli);
+int slave_worker_exec_job_group(Slave_worker *w, Relay_log_info *rli);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 
 static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli);
@@ -3737,7 +3736,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-    int4store(ptr_buffer, BINLOG_NAME_INFO_SIZE);
+    int4store(ptr_buffer, static_cast<uint32>(BINLOG_NAME_INFO_SIZE));
     ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
     memset(ptr_buffer, 0, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
@@ -4080,7 +4079,9 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     {
       if (ev->worker)
       {
-        Slave_job_item item= {ev}, *job_item= &item;
+        Slave_job_item item= {ev, rli->get_event_relay_log_number(),
+                              rli->get_event_start_pos() };
+        Slave_job_item *job_item= &item;
         Slave_worker *w= (Slave_worker *) ev->worker;
         // specially marked group typically with OVER_MAX_DBS_IN_EVENT_MTS db:s
         bool need_sync= ev->is_mts_group_isolated();
@@ -4254,11 +4255,16 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     }
     else
     {
+      /*
+        INTVAR_EVENT, RAND_EVENT, USER_VAR_EVENT and ROWS_QUERY_LOG_EVENT are
+        deferred event. It means ev->worker is NULL.
+      */
       DBUG_ASSERT(*ptr_ev == ev || rli->is_parallel_exec() ||
-		  (!ev->worker &&
-		   (ev->get_type_code() == INTVAR_EVENT ||
-		    ev->get_type_code() == RAND_EVENT ||
-		    ev->get_type_code() == USER_VAR_EVENT)));
+                  (!ev->worker &&
+                   (ev->get_type_code() == INTVAR_EVENT ||
+                    ev->get_type_code() == RAND_EVENT ||
+                    ev->get_type_code() == USER_VAR_EVENT ||
+                    ev->get_type_code() == ROWS_QUERY_LOG_EVENT)));
 
       rli->inc_event_relay_log_pos();
     }
@@ -4337,6 +4343,88 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                          SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
 }
 
+/**
+  Let the worker applying the current group to rollback and gracefully
+  finish its work before.
+
+  @param rli The slave's relay log info.
+
+  @param ev a pointer to the event on hold before applying this rollback
+  procedure.
+
+  @retval false The rollback succeeded.
+
+  @retval true  There was an error while injecting events.
+*/
+static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
+                                                       const Log_event *ev)
+{
+  DBUG_ENTER("coord_handle_partial_binlogged_transaction");
+  /*
+    This function is called holding the rli->data_lock.
+    We must return it still holding this lock, except in the case of returning
+    error.
+  */
+  mysql_mutex_assert_owner(&rli->data_lock);
+  THD *thd= rli->info_thd;
+
+  if (!rli->curr_group_seen_begin)
+  {
+    DBUG_PRINT("info",("Injecting QUERY(BEGIN) to rollback worker"));
+    Log_event *begin_event= new Query_log_event(thd,
+                                                STRING_WITH_LEN("BEGIN"),
+                                                true, /* using_trans */
+                                                false, /* immediate */
+                                                true, /* suppress_use */
+                                                0, /* error */
+                                                true /* ignore_command */);
+    ((Query_log_event*) begin_event)->db= "";
+    begin_event->data_written= 0;
+    begin_event->server_id= ev->server_id;
+    /*
+      We must be careful to avoid SQL thread increasing its position
+      farther than the event that triggered this QUERY(BEGIN).
+    */
+    begin_event->log_pos= ev->log_pos;
+    begin_event->future_event_relay_log_pos= ev->future_event_relay_log_pos;
+
+    if (apply_event_and_update_pos(&begin_event, thd, rli) !=
+        SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK)
+    {
+      delete begin_event;
+      DBUG_RETURN(true);
+    }
+    mysql_mutex_lock(&rli->data_lock);
+  }
+
+  DBUG_PRINT("info",("Injecting QUERY(ROLLBACK) to rollback worker"));
+  Log_event *rollback_event= new Query_log_event(thd,
+                                                 STRING_WITH_LEN("ROLLBACK"),
+                                                 true, /* using_trans */
+                                                 false, /* immediate */
+                                                 true, /* suppress_use */
+                                                 0, /* error */
+                                                 true /* ignore_command */);
+  ((Query_log_event*) rollback_event)->db= "";
+  rollback_event->data_written= 0;
+  rollback_event->server_id= ev->server_id;
+  /*
+    We must be careful to avoid SQL thread increasing its position
+    farther than the event that triggered this QUERY(ROLLBACK).
+  */
+  rollback_event->log_pos= ev->log_pos;
+  rollback_event->future_event_relay_log_pos= ev->future_event_relay_log_pos;
+
+  if (apply_event_and_update_pos(&rollback_event, thd, rli) !=
+      SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK)
+  {
+    delete rollback_event;
+    DBUG_RETURN(true);
+  }
+  mysql_mutex_lock(&rli->data_lock);
+
+  DBUG_RETURN(false);
+}
 
 /**
   Top-level function for executing the next event in the relay log.
@@ -4473,6 +4561,28 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                         rli->inc_event_relay_log_pos();
                         DBUG_RETURN(0);
                       };);
+    }
+
+    /*
+      GTID protocol will put a ROTATE_EVENT from the master after each
+      (re)connection if auto positioning is enabled.
+      This means that the SQL thread might have already started to apply the
+      current group but, as the IO thread had to reconnect, it left this
+      group incomplete and will start it again from the beginning.
+      So, before applying this ROTATE_EVENT we must let the worker applying
+      the current group rollback and gracefully finish its work before
+      starting to applying the new (complete) copy of the group.
+    */
+    if (ev->get_type_code() == ROTATE_EVENT &&
+        ev->server_id != ::server_id && rli->is_parallel_exec() &&
+        rli->curr_group_seen_gtid)
+    {
+      if (coord_handle_partial_binlogged_transaction(rli, ev))
+        /*
+          In the case of an error, coord_handle_partial_binlogged_transaction
+          will not try to get the rli->data_lock again.
+        */
+        DBUG_RETURN(1);
     }
 
     /* ptr_ev can change to NULL indicating MTS coorinator passed to a Worker */
@@ -5269,7 +5379,7 @@ pthread_handler_t handle_slave_worker(void *arg)
 
   while (!error)
   {
-      error= slave_worker_exec_job(w, rli);
+    error= slave_worker_exec_job_group(w, rli);
   }
 
   /* 
@@ -5919,7 +6029,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
                         sizeof(db_worker_hash_entry*),
                         SLAVE_INIT_DBS_IN_GROUP, 1);
   rli->last_assigned_worker= NULL;     // associated with curr_group_assigned
-  my_init_dynamic_array(&rli->curr_group_da, sizeof(Log_event*), 8, 2);
+  my_init_dynamic_array(&rli->curr_group_da, sizeof(Slave_job_item), 8, 2);
   // Least_occupied_workers array to hold items size of Slave_jobs_queue::len
   rli->least_occupied_workers.resize(n); 
 
@@ -5971,7 +6081,7 @@ end:
     the table performance_schema.table_replication_execute_status_by_worker
     between stop slave and next start slave.
   */
-  for (int i= rli->workers_copy_pfs.size() - 1; i >= 0; i--)
+  for (int i= static_cast<int>(rli->workers_copy_pfs.size()) - 1; i >= 0; i--)
     delete rli->workers_copy_pfs[i];
   rli->workers_copy_pfs.clear();
 
@@ -7228,7 +7338,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error= ER_SLAVE_HEARTBEAT_FAILURE;
       error_msg.append(STRING_WITH_LEN("inconsistent heartbeat event content;"));
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
-      error_msg.append(hb.get_log_ident(), (uint) strlen(hb.get_log_ident()));
+      error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
       llstr(hb.log_pos, llbuf);
       error_msg.append(llbuf, strlen(llbuf));
@@ -7300,7 +7410,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error= ER_SLAVE_HEARTBEAT_FAILURE;
       error_msg.append(STRING_WITH_LEN("heartbeat is not compatible with local info;"));
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
-      error_msg.append(hb.get_log_ident(), (uint) strlen(hb.get_log_ident()));
+      error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
       llstr(hb.log_pos, llbuf);
       error_msg.append(llbuf, strlen(llbuf));
@@ -7823,6 +7933,7 @@ static Log_event* next_event(Relay_log_info* rli)
         (ulong) rli->get_event_relay_log_pos()));
     }
 #endif
+    rli->set_event_start_pos(my_b_tell(cur_log));
     /*
       Relay log is always in new format - if the master is 3.23, the
       I/O thread will convert the format for us.
@@ -8726,16 +8837,6 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report, bool for_one_chann
 
         mysql_mutex_unlock(&mi->rli->data_lock);
 
-        /* MTS technical limitation no support of trans retry */
-        if (mi->rli->opt_slave_parallel_workers != 0 && slave_trans_retries != 0)
-        {
-          push_warning_printf(thd, Sql_condition::SL_NOTE,
-                              ER_MTS_FEATURE_IS_NOT_SUPPORTED,
-                              ER(ER_MTS_FEATURE_IS_NOT_SUPPORTED),
-                              "slave_transaction_retries",
-                              "In the event of a transient failure, the slave will "
-                              "not retry the transaction and will stop.");
-        }
         if (!slave_errno)
         {
           slave_errno= check_slave_sql_config_conflict(thd, mi->rli);

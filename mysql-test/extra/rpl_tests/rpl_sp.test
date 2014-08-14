@@ -291,8 +291,9 @@ select * from mysql.proc where db='mysqltest1';
 # Let's check a failing-in-the-middle function
 connection master;
 delete from t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 alter table t2 add unique (a);
-
+SET sql_mode = default;
 drop function fn1;
 
 delimiter |;
