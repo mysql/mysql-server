@@ -2,12 +2,9 @@
 # in alphabetical order. This also helps with merge conflict resolution.
 
 
-innodb.innodb_wl6326_big                 # 2013-09-04 mleich Mention the test as long as I fear sporadic failures in PB2.
-innodb_zip.innodb_wl6501_1               # Bug#19233510 2014-07-23 anitha  Test unstable after WL#7277 was pushed
 main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.func_math fails on FreeBSD in PB2
 main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
 
-parts.partition_debug_innodb             # Bug#14150368 2013-03-07 anitha Failing very frequently on PB2
 rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
 rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-02-09 anitha Fails very frequently on windows
