@@ -99,11 +99,6 @@ private:
       return;
 
     void *p= my_malloc(m_psi_key, sizeof(objtype) * array_size, MYF(MY_FAE));
-    if (p == NULL)
-    {
-      m_outof_mem= true;
-      return;
-    }
 
     try
     {
