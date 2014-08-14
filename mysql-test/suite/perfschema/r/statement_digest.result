@@ -1,3 +1,4 @@
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 ####################################
 # SETUP
 ####################################
@@ -79,7 +80,7 @@ CREATE TABLE dup_table (c char(4));
 CREATE TABLE dup_table (c char(4));
 ERROR 42S01: Table 'dup_table' already exists
 DROP TABLE dup_table;
-INSERT INTO t11 VALUES("MySQL");
+INSERT IGNORE INTO t11 VALUES("MySQL");
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
 PREPARE stmt FROM "SELECT * FROM t12";
@@ -135,7 +136,7 @@ statements_digest	a0d0e81f34159610efa77abec392d4b2	DROP SCHEMA statements_digest
 statements_digest	5a1d3b8737c14a91b90d116ee44907f9	SELECT ? FROM no_such_table 	1	0	0	1
 statements_digest	a7cd54d66b9ef3c7b62a641237fcb6b8	CREATE TABLE dup_table ( c CHARACTER (?) ) 	2	0	0	1
 statements_digest	6ff346135c511edc9fdc47ba2a619444	DROP TABLE dup_table 	1	0	0	0
-statements_digest	f076085fcc439c80695b28596480939a	INSERT INTO t11 VALUES (?) 	1	1	1	0
+statements_digest	c1c23462cb69791775b237628ae6d306	INSERT IGNORE INTO t11 VALUES (?) 	1	1	1	0
 statements_digest	32a06bfa93118f6a2f6c9559e344d9f9	SHOW WARNINGS 	1	0	0	0
 statements_digest	9b979fa51532d220be76bfb8d9443b17	PREPARE stmt FROM ? 	1	0	0	0
 statements_digest	31fe466395e1cfec6b1fa74eaa54c8d1	EXECUTE stmt 	2	0	0	0
@@ -161,3 +162,4 @@ DROP TABLE IF EXISTS t6;
 DROP TABLE IF EXISTS t11;
 DROP TABLE IF EXISTS t12;
 DROP DATABASE IF EXISTS statements_digest;
+SET sql_mode=default;

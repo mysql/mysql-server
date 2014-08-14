@@ -57,7 +57,7 @@ drop table t1;
 create table t1 (a bit);
 insert into t1 values (b'0'), (b'1'), (b'000'), (b'100'), (b'001');
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 4
+Warning	1406	Data too long for column 'a' at row 4
 select hex(a) from t1;
 hex(a)
 0
@@ -71,7 +71,7 @@ drop table t1;
 create table t1 (a bit(2));
 insert into t1 values (b'00'), (b'01'), (b'10'), (b'100');
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 4
+Warning	1406	Data too long for column 'a' at row 4
 select a+0 from t1;
 a+0
 0
@@ -468,9 +468,9 @@ h
 a
 drop table t1;
 create table t1 (a bit(8)) engine=heap;
-insert into t1 values ('1111100000');
+insert ignore into t1 values ('1111100000');
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
+Warning	1406	Data too long for column 'a' at row 1
 select a+0 from t1;
 a+0
 255
@@ -612,9 +612,9 @@ NULL	NULL
 11111111	11111111
 drop table bug15583;
 create table t1(a bit(1), b smallint unsigned);
-insert into t1 (b, a) values ('2', '1');
+insert ignore into t1 (b, a) values ('2', '1');
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
+Warning	1406	Data too long for column 'a' at row 1
 select hex(a), b from t1;
 hex(a)	b
 1	2
@@ -682,7 +682,7 @@ COUNT(DISTINCT b,c)
 2
 DROP TABLE t2;
 CREATE TABLE t1(a BIT(13), KEY(a));
-INSERT INTO t1(a) VALUES (65535),(65525),(65535),(65535),(65535),
+INSERT IGNORE INTO t1(a) VALUES (65535),(65525),(65535),(65535),(65535),
 (65535),(65535),(65535),(65535),(65535),
 (65535),(65525),(65535),(65535),(65535),
 (65535),(65535),(65535),(65535),(65535);

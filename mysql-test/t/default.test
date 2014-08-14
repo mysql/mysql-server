@@ -5,7 +5,7 @@
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6;
 drop database if exists mysqltest;
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # Bug 10838
 # Insert causes warnings for no default values and corrupts tables
@@ -164,6 +164,6 @@ insert into t1 (a) select b from t2 on duplicate key update a=default(b);
 select * from t1;
 
 drop table t1, t2;
-
+SET sql_mode = default;
 --echo End of 5.0 tests.
 

@@ -6,7 +6,7 @@
 --disable_warnings
 drop table if exists test.setup_objects;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # Save the setup
 create table test.setup_objects as
   select * from performance_schema.setup_objects;
@@ -90,4 +90,4 @@ truncate table performance_schema.setup_objects;
 insert into performance_schema.setup_objects
   select * from test.setup_objects;
 drop table test.setup_objects;
-
+SET sql_mode = default;

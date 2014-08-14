@@ -44,7 +44,7 @@ drop table t1;
 
 CREATE TABLE t1 (data BLOB) ENGINE=myisam;
 INSERT INTO t1 (data) VALUES (NULL);
-UPDATE t1 set data=repeat('a',18*1024*1024);
+UPDATE IGNORE t1 set data=repeat('a',18*1024*1024);
 select length(data) from t1;
 drop table t1;
 

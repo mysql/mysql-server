@@ -5,7 +5,7 @@
 --disable_warnings
 drop table if exists t1, t2, t3;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   event_date date DEFAULT '0000-00-00' NOT NULL,
   type int(11) DEFAULT '0' NOT NULL,
@@ -2154,3 +2154,4 @@ ORDER BY alias1.col_varchar_key;
 
 DROP TABLE t1;
 SET tmp_table_size=@old_tmp_table_size;
+SET sql_mode = default;

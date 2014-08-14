@@ -9,3 +9,5 @@
 --echo #
 --exec $MYSQL_UPGRADE --skip-verbose --ssl --force 2>&1
 --exit
+
+--source include/mysql_upgrade_cleanup.inc

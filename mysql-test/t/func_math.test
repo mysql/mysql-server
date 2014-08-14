@@ -525,7 +525,7 @@ as foo;
 --echo #            my_gcvt: Assertion `width > 0 && to != ((void *)0)' failed
 --echo #
 CREATE TABLE t1(a char(0));
-INSERT INTO t1 (SELECT -pi());
+INSERT IGNORE INTO t1 (SELECT -pi());
 DROP TABLE t1;
 
 --echo #

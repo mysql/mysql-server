@@ -7242,6 +7242,9 @@ ER_REPLACE_INACCESSIBLE_ROWS
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS
   eng "Do not support online operation on table with GIS index"
 
+ER_ILLEGAL_USER_VAR 42000 S1009
+  eng "User variable name '%-.100s' is illegal"
+
 ER_GTID_MODE_OFF
   eng "Cannot %s when GTID_MODE = OFF."
 
@@ -7250,6 +7253,9 @@ ER_UNSUPPORTED_BY_REPLICATION_THREAD
 
 ER_INCORRECT_TYPE
   eng "Incorrect type for argument %s in function %s."
+
+ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+  eng "Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'"
 
 ER_SLAVE_CHANNEL_DOES_NOT_EXIST
   eng "Slave channel '%s' does not exist."

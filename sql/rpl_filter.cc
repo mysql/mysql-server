@@ -251,7 +251,7 @@ Rpl_filter::db_ok_with_wild_table(const char *db)
 
   char hash_key[NAME_LEN+2];
   char *end;
-  int len;
+  size_t len;
   end= my_stpcpy(hash_key, db);
   *end++= '.';
   len= end - hash_key ;
@@ -476,7 +476,7 @@ Rpl_filter::add_table_rule_to_array(Table_rule_array* a, const char* table_spec)
 {
   const char* dot = strchr(table_spec, '.');
   if (!dot) return 1;
-  uint len = (uint)strlen(table_spec);
+  size_t len = strlen(table_spec);
   TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(key_memory_TABLE_RULE_ENT,
                                                  sizeof(TABLE_RULE_ENT)
 						 + len, MYF(MY_WME));
@@ -760,7 +760,7 @@ Rpl_filter::init_table_rule_array(Table_rule_array* a, bool* a_inited)
 
 
 TABLE_RULE_ENT* 
-Rpl_filter::find_wild(Table_rule_array *a, const char* key, int len)
+Rpl_filter::find_wild(Table_rule_array *a, const char* key, size_t len)
 {
   const char* key_end= key + len;
 

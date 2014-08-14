@@ -44,11 +44,11 @@ upd_create(
 {
 	upd_t*	update;
 
-	update = (upd_t*) mem_heap_zalloc(heap, sizeof(upd_t));
+	update = static_cast<upd_t*>(mem_heap_zalloc(
+			heap, sizeof(upd_t) + sizeof(upd_field_t) * n));
 
 	update->n_fields = n;
-	update->fields = (upd_field_t*)
-		mem_heap_zalloc(heap, sizeof(upd_field_t) * n);
+	update->fields = reinterpret_cast<upd_field_t*>(&update[1]);
 	update->heap = heap;
 
 	return(update);

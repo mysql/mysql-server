@@ -28,7 +28,7 @@ static int bootstrap_error= 0;
 
 static char *fgets_fn(char *buffer, size_t size, MYSQL_FILE* input, int *error)
 {
-  char *line= mysql_file_fgets(buffer, size, input);
+  char *line= mysql_file_fgets(buffer, static_cast<int>(size), input);
   if (error)
     *error= (line == NULL) ? ferror(input->m_file) : 0;
   return line;

@@ -6,7 +6,7 @@
 # Force the feature, to test it as much as possible:
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='subquery_materialization_cost_based=off';
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 drop table if exists t1, t2, t3, t1i, t2i, t3i;
 drop view if exists v1, v2, v1m, v2m;
@@ -1507,3 +1507,4 @@ DROP TABLE t1,t2,t3;
 }
 
 set @@optimizer_switch=@old_opt_switch;
+SET sql_mode = default;

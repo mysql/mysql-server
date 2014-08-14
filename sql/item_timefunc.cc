@@ -546,14 +546,14 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
         if (!l_time->month)
           return 1;
         str->append(locale->month_names->type_names[l_time->month-1],
-                    (uint) strlen(locale->month_names->type_names[l_time->month-1]),
+                    strlen(locale->month_names->type_names[l_time->month-1]),
                     system_charset_info);
         break;
       case 'b':
         if (!l_time->month)
           return 1;
         str->append(locale->ab_month_names->type_names[l_time->month-1],
-                    (uint) strlen(locale->ab_month_names->type_names[l_time->month-1]),
+                    strlen(locale->ab_month_names->type_names[l_time->month-1]),
                     system_charset_info);
         break;
       case 'W':
@@ -562,7 +562,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
         weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
                               l_time->day),0);
         str->append(locale->day_names->type_names[weekday],
-                    (uint) strlen(locale->day_names->type_names[weekday]),
+                    strlen(locale->day_names->type_names[weekday]),
                     system_charset_info);
         break;
       case 'a':
@@ -571,7 +571,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
         weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
                              l_time->day),0);
         str->append(locale->ab_day_names->type_names[weekday],
-                    (uint) strlen(locale->ab_day_names->type_names[weekday]),
+                    strlen(locale->ab_day_names->type_names[weekday]),
                     system_charset_info);
         break;
       case 'D':
@@ -1255,7 +1255,7 @@ String* Item_func_monthname::val_str(String* str)
     return (String *) 0;
 
   month_name= locale->month_names->type_names[ltime.month - 1];
-  str->copy(month_name, (uint) strlen(month_name), &my_charset_utf8_bin,
+  str->copy(month_name, strlen(month_name), &my_charset_utf8_bin,
 	    collation.collation, &err);
   return str;
 }
@@ -1419,7 +1419,7 @@ String* Item_func_dayname::val_str(String* str)
     return (String*) 0;
   
   day_name= locale->day_names->type_names[weekday];
-  str->copy(day_name, (uint) strlen(day_name), &my_charset_utf8_bin,
+  str->copy(day_name, strlen(day_name), &my_charset_utf8_bin,
 	    collation.collation, &err);
   return str;
 }
@@ -3200,15 +3200,15 @@ String *Item_func_get_format::val_str_ascii(String *str)
        (format_name= format->format_name);
        format++)
   {
-    uint format_name_len;
-    format_name_len= (uint) strlen(format_name);
+    size_t format_name_len;
+    format_name_len= strlen(format_name);
     if (val_len == format_name_len &&
-	!my_strnncoll(&my_charset_latin1, 
-		      (const uchar *) val->ptr(), val_len, 
+	!my_strnncoll(&my_charset_latin1,
+		      (const uchar *) val->ptr(), val_len,
 		      (const uchar *) format_name, val_len))
     {
       const char *format_str= get_date_time_format_str(format, type);
-      str->set(format_str, (uint) strlen(format_str), &my_charset_numeric);
+      str->set(format_str, strlen(format_str), &my_charset_numeric);
       return str;
     }
   }

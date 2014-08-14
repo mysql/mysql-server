@@ -690,7 +690,7 @@ select atan(10 AS p1, 20 AS p2);
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 SELECT STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL (INTERVAL(1,2,3) + 1) MINUTE;
 SELECT "1997-12-31 23:59:59" + INTERVAL 1 SECOND;
@@ -711,7 +711,7 @@ CREATE TABLE t1 (a INT, b DATETIME);
 INSERT INTO t1 VALUES (INTERVAL(3,2,1) + 1, "1997-12-31 23:59:59" + INTERVAL 1 SECOND);
 SELECT * FROM t1 WHERE a = INTERVAL(3,2,1) + 1;
 DROP TABLE t1;
-
+SET sql_mode = default;
 #
 # Bug#28317 Left Outer Join with {oj outer-join}
 #

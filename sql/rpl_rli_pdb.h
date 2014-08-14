@@ -83,6 +83,8 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 typedef struct slave_job_item
 {
   void *data;
+  uint relay_number;
+  my_off_t relay_pos;
 } Slave_job_item;
 
 /**
@@ -470,6 +472,10 @@ public:
       gaq_index= val;
   };
 
+  int slave_worker_exec_event(Log_event *ev);
+  bool retry_transaction(uint start_relay_number, my_off_t start_relay_pos,
+                         uint end_relay_number, my_off_t end_relay_pos);
+
   bool set_info_search_keys(Rpl_info_handler *to);
 
 
@@ -496,6 +502,10 @@ private:
   bool write_info(Rpl_info_handler *to);
   Slave_worker& operator=(const Slave_worker& info);
   Slave_worker(const Slave_worker& info);
+  bool worker_sleep(ulong seconds);
+  bool read_and_apply_events(uint start_relay_number, my_off_t start_relay_pos,
+                             uint end_relay_number, my_off_t end_relay_pos);
+  void assign_partition_db(Log_event *ev);
 };
 
 TABLE* mts_move_temp_table_to_entry(TABLE*, THD*, db_worker_hash_entry*);
