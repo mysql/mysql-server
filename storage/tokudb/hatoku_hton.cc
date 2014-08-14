@@ -1408,6 +1408,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
 #if TOKUDB_CHECK_JEMALLOC
     MYSQL_SYSVAR(check_jemalloc),
 #endif
+    MYSQL_SYSVAR(bulk_fetch),
     NULL
 };
 
