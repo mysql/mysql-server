@@ -286,8 +286,15 @@ volatile ulint	buf_withdraw_clock;
 /** Map of buffer pool chunks by its first frame address
 This is newly made by initialization of buffer pool and buf_resize_thread.
 Currently, no need mutex protection for update. */
-typedef std::map<const byte*, buf_chunk_t*> buf_pool_chunk_map_t;
-static buf_pool_chunk_map_t*	buf_chunk_map_reg;
+typedef std::map<
+	const byte*,
+	buf_chunk_t*,
+	std::less<const byte*>,
+	ut_allocator<std::pair<const byte*, buf_chunk_t*> > >
+	buf_pool_chunk_map_t;
+
+static buf_pool_chunk_map_t*			buf_chunk_map_reg;
+
 /** Chunk map to be used to lookup.
 The map pointed by this should not be updated */
 static buf_pool_chunk_map_t*	buf_chunk_map_ref = NULL;

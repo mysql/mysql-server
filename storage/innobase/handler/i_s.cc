@@ -50,6 +50,7 @@ Created July 18, 2007 Vasil Dimov
 #include "btr0btr.h"
 #include "page0zip.h"
 #include "fsp0sysspace.h"
+#include "ut0new.h"
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
@@ -4209,7 +4210,8 @@ struct temp_table_info_t{
 	char		m_is_compressed[64];
 };
 
-typedef std::vector<temp_table_info_t> temp_table_info_cache_t;
+typedef std::vector<temp_table_info_t, ut_allocator<temp_table_info_t> >
+	temp_table_info_cache_t;
 
 /*******************************************************************//**
 Fill Information Schema table INNODB_TEMP_TABLE_INFO for a particular

@@ -44,17 +44,19 @@ Created 2012-08-21 Sunny Bains
 #include <vector>
 #include <string>
 
-extern	ulint	srv_max_n_threads;
+extern ulint	srv_max_n_threads;
 
 /** For checking whether this module has been initialised or not. */
-static bool sync_check_initialised = false;
+static bool	sync_check_initialised = false;
 
 /** Debug mutex for control structures, should not be tracked
 by this module. */
-typedef OSTrackMutex<TrackPolicy> SyncMutex;
+typedef OSTrackMutex<TrackPolicy>
+	SyncMutex;
 
 /** Thread specific latches. This is ordered on level in descending order. */
-typedef std::vector<const latch_t*> Latches;
+typedef std::vector<const latch_t*, ut_allocator<const latch_t*> >
+	Latches;
 
 /** Latch meta-data */
 struct latch_meta_t {
@@ -122,7 +124,12 @@ struct latch_meta_t {
 
 
 /** Map from latch name to latch meta-data */
-typedef std::map<std::string, latch_meta_t> LatchMap;
+typedef std::map<
+	std::string,
+	latch_meta_t,
+	std::less<std::string>,
+	ut_allocator<std::pair<const std::string, latch_meta_t> > >
+	LatchMap;
 
 /** Mapping from latch name to latch meta data. This map is created and
 populated at startup and deleted on shutdown. It is read-only at all
@@ -197,7 +204,12 @@ struct SyncDebug {
 	};
 
 	/** For tracking a thread's latches. */
-	typedef std::map<os_thread_id_t, Latches*, os_thread_id_less> ThreadMap;
+	typedef std::map<
+		os_thread_id_t,
+		Latches*,
+		os_thread_id_less,
+		ut_allocator<std::pair<const os_thread_id_t, Latches*> > >
+		ThreadMap;
 
 	/**
 	Construct */

@@ -40,10 +40,9 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "trx0types.h"
 #include "row0types.h"
-#include <deque>
+#include "ut0new.h"
 
-/** A stack of table names related through foreign key constraints */
-typedef std::deque<const char*> dict_names_t;
+#include <deque>
 
 #ifndef UNIV_HOTBACKUP
 # include "sync0mutex.h"

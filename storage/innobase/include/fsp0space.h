@@ -30,6 +30,8 @@ Created 2013-7-26 by Kevin Lewis
 #include "fsp0file.h"
 #include "fsp0fsp.h"
 #include "fsp0types.h"
+#include "ut0new.h"
+
 #include <vector>
 
 /** Data structure that contains the information about shared tablespaces.
@@ -37,7 +39,7 @@ Currently this can be the system tablespace or a temporary table tablespace */
 class Tablespace {
 
 public:
-	typedef std::vector<Datafile> files_t;
+	typedef std::vector<Datafile, ut_allocator<Datafile> >	files_t;
 
 	/** Data file information - each Datafile can be accessed globally */
 	files_t		m_files;

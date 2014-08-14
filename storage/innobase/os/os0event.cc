@@ -84,8 +84,8 @@ static WakeConditionVariableProc wake_condition_variable;
 typedef pthread_cond_t		os_cond_t;
 #endif /* _WIN32 */
 
-typedef std::list<os_event_t> os_event_list_t;
-typedef os_event_list_t::iterator event_iter_t;
+typedef std::list<os_event_t, ut_allocator<os_event_t> >	os_event_list_t;
+typedef os_event_list_t::iterator				event_iter_t;
 
 /** InnoDB condition variable. */
 struct os_event {

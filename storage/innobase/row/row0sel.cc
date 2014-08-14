@@ -59,6 +59,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "buf0lru.h"
 #include "ha_prototypes.h"
 #include "srv0mon.h"
+#include "ut0new.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -993,8 +994,6 @@ err_exit:
 	}
 	return(err);
 }
-
-typedef std::vector<rtr_rec_t>             rtr_rec_vector;
 
 /*********************************************************************//**
 Sets a lock on a page of R-Tree record. This is all or none action,

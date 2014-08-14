@@ -29,6 +29,7 @@ Created 2013-7-26 by Kevin Lewis
 #include "os0file.h"
 #include "page0page.h"
 #include "srv0start.h"
+#include "ut0new.h"
 
 /** Initialize the name, size and order of this datafile
 @param[in]	name		space name, shutdown() will free it
@@ -553,10 +554,17 @@ Datafile::find_space_id()
 	     page_size <= UNIV_PAGE_SIZE_MAX; page_size <<= 1) {
 
 		/* map[space_id] = count of pages */
-		std::map<ulint, ulint> verify;
+		typedef std::map<
+			ulint,
+			ulint,
+			std::less<ulint>,
+			ut_allocator<std::pair<const ulint, ulint > > >
+			verify_t;
 
-		ulint page_count = 64;
-		ulint valid_pages = 0;
+		verify_t	verify;
+
+		ulint		page_count = 64;
+		ulint		valid_pages = 0;
 
 		/* Adjust the number of pages to analyze based on file size */
 		while ((page_count * page_size) > file_size) {
@@ -620,22 +628,22 @@ Datafile::find_space_id()
 		const ulint	pages_corrupted = 3;
 		for (ulint missed = 0; missed <= pages_corrupted; ++missed) {
 
-			for (std::map<ulint, ulint>::iterator m = verify.begin();
-			     m != verify.end();
-			     ++m) {
+			for (verify_t::const_iterator it = verify.begin();
+			     it != verify.end();
+			     ++it) {
 
 				ib_logf(IB_LOG_LEVEL_INFO, "space_id:%lu, "
 					"Number of pages matched: %lu/%lu "
-					"(%lu)", m->first, m->second,
+					"(%lu)", it->first, it->second,
 					valid_pages, page_size);
 
-				if (m->second == (valid_pages - missed)) {
+				if (it->second == (valid_pages - missed)) {
 
 					ib_logf(IB_LOG_LEVEL_INFO,
 						"Chosen space:%lu\n",
-						m->first);
+						it->first);
 
-					m_space_id = m->first;
+					m_space_id = it->first;
 					return(DB_SUCCESS);
 				}
 			}
