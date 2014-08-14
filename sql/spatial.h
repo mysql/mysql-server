@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef _spatial_h
-#define _spatial_h
+#ifndef SPATIAL_INCLUDED
+#define SPATIAL_INCLUDED
 
 #include "sql_string.h"                         /* String, LEX_STRING */
 #include <my_compiler.h>
