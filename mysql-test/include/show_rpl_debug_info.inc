@@ -91,7 +91,7 @@ while ($_rpl_server)
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
   --echo **** In multisource replication, information on all channels ****
-  query_vertical SHOW SLAVE STATUS
+  query_vertical SHOW SLAVE STATUS;
   --echo
   --echo **** SHOW MASTER STATUS on $CURRENT_CONNECTION ****
   query_vertical SHOW MASTER STATUS;

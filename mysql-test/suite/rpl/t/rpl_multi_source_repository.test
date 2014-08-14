@@ -4,7 +4,7 @@
 # MSR works only with slave repository type= TABLE.
 #
 # This tests test the following.
-# 1. Start three servers. By default, slave repository if of type FILE
+# 1. Start three servers. By default, slave repository is of type FILE
 # 2. setup a master-slave replication between server 1 and server 2
 #     (a default channel exists between server 1 and server 2)
 # 3. Execute CHANGE MASTER to create a new channel.
@@ -30,6 +30,8 @@
 --echo #  There shall be an error
 --let $rpl_connection_name=server_2
 --source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
 --eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
@@ -40,6 +42,7 @@ SET @@GLOBAL.master_info_repository="TABLE";
 
 call mtr.add_suppression("Slave: Cannot create new master info structure when repositories are of type FILE. Convert slave repositories  to TABLE to replicate from multiple sources");
 
+--replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
 --eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
@@ -48,6 +51,8 @@ call mtr.add_suppression("Slave: Cannot create new master info structure when re
 SET @@GLOBAL.master_info_repository="FILE";
 SET @@GLOBAL.relay_log_info_repository="TABLE";
 
+
+--replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
 --eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
@@ -57,12 +62,14 @@ SET @@GLOBAL.relay_log_info_repository="TABLE";
 SET @@GLOBAL.master_info_repository="TABLE";
 SET @@GLOBAL.relay_log_info_repository="TABLE";
 
+--replace_result $SERVER_MYPORT_3 MASTER_PORT
 --eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3"
 
 --echo # Slave now is a multisourced slave.
 --echo # Restart the slave and check that slave threads are not started because
 --echo # the repositories are of type FILE
-call mtr.add_suppression("Slave: This slave was a multisourced slave previously*");call mtr.add_suppression("Failed to create or recover replication info repositories");
+call mtr.add_suppression("Slave: This slave was a multisourced slave previously*");
+call mtr.add_suppression("Failed to create or recover replication info repositories");
 
 --let $rpl_server_number=2
 --source include/rpl_restart_server.inc
@@ -73,10 +80,10 @@ call mtr.add_suppression("Slave: This slave was a multisourced slave previously*
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_configuration] =0;
 --source include/assert.inc
 
-# subsequent commands shall should with ER_SLAVE_CONFIGURATION i.e slave not setup
-# but due to bug19344559 is setup. The error  currently fails with
+# subsequent commands shall fail with ER_SLAVE_CONFIGURATION i.e slave not setup
+# but due to bug19344559 is setup. The error currently fails with
 #  ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
-# --error ER_BAD_SLAVE
+# --error ER_SLAVE_CONFIGURATION
 # --eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3"
 
 --echo #
@@ -90,8 +97,21 @@ call mtr.add_suppression("Slave: This slave was a multisourced slave previously*
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_configuration] =2;
 --source include/assert.inc
 
+# Clean up.
+# Delete channel_3 and restart server with FILE
+#
+# Stop slave for channel_3
+STOP SLAVE FOR CHANNEL 'channel_3';
+
+# Reset slave for channel_3
+RESET SLAVE FOR CHANNEL 'channel_3';
+
+--let $rpl_server_number=2
+--let $rpl_server_parameters=--master-info-repository=FILE --relay-log-info-repository=FILE
+--source include/rpl_restart_server.inc
+
 #End MSR setup
---let $rpl_skip_sync=1
+--let $rpl_only_running_threads= 1
 --source include/rpl_end.inc
 
 

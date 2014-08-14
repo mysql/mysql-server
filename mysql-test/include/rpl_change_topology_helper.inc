@@ -108,8 +108,7 @@ if ($_rpl_change_topology_helper_skip)
     --let $_master_auto_position= query_get_value(SHOW SLAVE STATUS $rpl_for_channel_clause, Auto_Position, 1)
       if ($_master_auto_position == 1)
       {
-    # eval CHANGE MASTER TO MASTER_AUTO_POSITION= 0 $rpl_for_channel_clause;
-           CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+        CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
       }
   }
 }
