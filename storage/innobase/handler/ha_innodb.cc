@@ -13987,7 +13987,7 @@ ha_innobase::register_query_cache_table(
 	THD*		thd,		/*!< in: user thread handle */
 	char*		table_key,	/*!< in: normalized path to the
 					table */
-	uint		key_length,	/*!< in: length of the normalized
+	size_t		key_length,	/*!< in: length of the normalized
 					path to the table */
 	qc_engine_callback*
 			call_back,	/*!< out: pointer to function for

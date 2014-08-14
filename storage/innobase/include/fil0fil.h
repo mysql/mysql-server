@@ -57,12 +57,27 @@ enum fil_type_t {
 	/** temporary tablespace (temporary undo log or tables) */
 	FIL_TYPE_TEMPORARY,
 	/** a tablespace that is being imported (no logging until finished) */
-	FIL_TYPE_IMPORT = FIL_TYPE_TEMPORARY,
+	FIL_TYPE_IMPORT,
 	/** persistent tablespace (for system, undo log or tables) */
 	FIL_TYPE_TABLESPACE,
 	/** redo log covering changes to files of FIL_TYPE_TABLESPACE */
 	FIL_TYPE_LOG
 };
+
+/** Check if fil_type is any of FIL_TYPE_TEMPORARY, FIL_TYPE_IMPORT
+or FIL_TYPE_TABLESPACE.
+@param[in]	type	variable of type fil_type_t
+@return true if any of FIL_TYPE_TEMPORARY, FIL_TYPE_IMPORT
+or FIL_TYPE_TABLESPACE */
+inline
+bool
+fil_type_is_data(
+	fil_type_t	type)
+{
+	return(type == FIL_TYPE_TEMPORARY
+	       || type == FIL_TYPE_IMPORT
+	       || type == FIL_TYPE_TABLESPACE);
+}
 
 /** Tablespace or log data space */
 struct fil_space_t {
@@ -588,14 +603,18 @@ fil_recreate_tablespace(
 @param[in]	space_id	tablespace identifier
 @param[in]	first_page_no	first page number in the file
 @param[in]	name		old file name
-@param[in]	new_name	new file name */
+@param[in]	new_name	new file name
+@return	whether the operation was successfully applied
+(the name did not exist, or new_name did not exist and
+name was successfully renamed to new_name)  */
 
-void
+bool
 fil_op_replay_rename(
 	ulint		space_id,
 	ulint		first_page_no,
 	const char*	name,
-	const char*	new_name);
+	const char*	new_name)
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.

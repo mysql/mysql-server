@@ -7019,9 +7019,8 @@ upgrade_old_temporal_types(THD *thd, Alter_info *alter_info)
   }
 
   // Report a NOTE informing about the upgrade.
-  push_warning_printf(thd, Sql_condition::SL_NOTE,
-                      ER_OLD_TEMPORALS_UPGRADED,
-                      ER(ER_OLD_TEMPORALS_UPGRADED));
+  push_warning(thd, Sql_condition::SL_NOTE,
+               ER_OLD_TEMPORALS_UPGRADED, ER(ER_OLD_TEMPORALS_UPGRADED));
   DBUG_RETURN(false);
 }
 
