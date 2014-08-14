@@ -1563,6 +1563,8 @@ end:
       gtid_state->update_on_commit(thd);
   }
 
+  thd->tx_priority= 0;
+
   DBUG_RETURN(error);
 }
 
@@ -1768,6 +1770,9 @@ int ha_rollback_trans(THD *thd, bool all)
         Transaction_ctx::SESSION) &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     trn_ctx->push_unsafe_rollback_warnings(thd);
+
+  thd->tx_priority= 0;
+
   DBUG_RETURN(error);
 }
 
