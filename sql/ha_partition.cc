@@ -2612,7 +2612,7 @@ bool ha_partition::create_handler_file(const char *name)
   int4store(file_buffer + PAR_NUM_PARTS_OFFSET, tot_parts);
   int4store(file_buffer + PAR_ENGINES_OFFSET +
             (tot_partition_words * PAR_WORD_SIZE),
-            tot_name_len);
+            static_cast<uint32>(tot_name_len));
   for (i= 0; i < tot_len_words; i++)
     chksum^= uint4korr(file_buffer + PAR_WORD_SIZE * i);
   int4store(file_buffer + PAR_CHECKSUM_OFFSET, chksum);
@@ -8075,7 +8075,7 @@ void ha_partition::print_error(int error, myf errflag)
     DBUG_ASSERT(m_err_rec);
     if (m_err_rec)
     {
-      uint max_length;
+      size_t max_length;
       char buf[MAX_KEY_LENGTH];
       String str(buf,sizeof(buf),system_charset_info);
       uint32 part_id;
@@ -8109,7 +8109,7 @@ void ha_partition::print_error(int error, myf errflag)
                       table->s->table_name.str,
                       str.c_ptr_safe());
 
-      max_length= (MYSQL_ERRMSG_SIZE - (uint) strlen(ER(ER_ROW_IN_WRONG_PARTITION)));
+      max_length= (MYSQL_ERRMSG_SIZE - strlen(ER(ER_ROW_IN_WRONG_PARTITION)));
       if (str.length() >= max_length)
       {
         str.length(max_length-4);

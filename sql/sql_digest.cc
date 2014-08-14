@@ -112,12 +112,12 @@ inline int read_identifier(const sql_digest_storage* digest_storage,
 */
 inline void store_token_identifier(sql_digest_storage* digest_storage,
                                    uint token,
-                                   uint id_length, const char *id_name)
+                                   size_t id_length, const char *id_name)
 {
   DBUG_ASSERT(digest_storage->m_byte_count >= 0);
   DBUG_ASSERT(digest_storage->m_byte_count <= MAX_DIGEST_STORAGE_SIZE);
 
-  uint bytes_needed= 2 * SIZE_OF_A_TOKEN + id_length;
+  size_t bytes_needed= 2 * SIZE_OF_A_TOKEN + id_length;
   if (digest_storage->m_byte_count + bytes_needed <= MAX_DIGEST_STORAGE_SIZE)
   {
     unsigned char* dest= & digest_storage->m_token_array[digest_storage->m_byte_count];

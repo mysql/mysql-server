@@ -2379,35 +2379,6 @@ files_checked:
 		}
 	}
 
-	{
-		/* We use this mutex to test the return value of
-		pthread_mutex_trylock on successful locking. HP-UX
-		does NOT return 0, though Linux et al do. */
-
-		SysMutex	mutex;
-
-		/* Check that OS utexes work as expected */
-		mutex_create("test_mutex", &mutex);
-
-		if (mutex_enter_nowait(&mutex) != 0) {
-
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"pthread_mutex_trylock returns"
-				" an unexpected value on success!"
-				" Cannot continue.");
-
-			exit(EXIT_FAILURE);
-		}
-
-		mutex_exit(&mutex);
-
-		mutex_enter(&mutex);
-
-		mutex_exit(&mutex);
-
-		mutex_free(&mutex);
-	}
-
 	if (srv_print_verbose_log) {
 		ib::info() << INNODB_VERSION_STR
 			<< " started; log sequence number "
