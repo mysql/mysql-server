@@ -96,6 +96,7 @@ private:
   void pipe_protocol_callback(char* not_used __attribute__((unused)));
 #endif
   void protocol_callback(char* not_used __attribute__((unused)));
+  void secure_auth_callback(char* argument __attribute__((unused)));
 
   static bool mysql_inited;
 
