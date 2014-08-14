@@ -2747,7 +2747,7 @@ public:
   explicit Item_func_version(const POS &pos)
     : Item_static_string_func(pos, NAME_STRING("version()"),
                               server_version,
-                              (uint) strlen(server_version),
+                              strlen(server_version),
                               system_charset_info,
                               DERIVATION_SYSCONST)
   {}

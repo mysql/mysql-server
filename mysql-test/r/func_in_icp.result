@@ -510,6 +510,8 @@ CREATE TABLE t1 (id int not null);
 INSERT INTO t1 VALUES (1),(2);
 SELECT id FROM t1 WHERE id IN(4564, (SELECT IF(1=0,1,1/0)) );
 id
+Warnings:
+Warning	1365	Division by 0
 DROP TABLE t1;
 End of 5.0 tests
 create table t1(f1 char(1));
@@ -661,9 +663,9 @@ c_char CHAR(10) NOT NULL,
 INDEX(c_int), INDEX(c_decimal), INDEX(c_float), INDEX(c_bit), INDEX(c_date),
 INDEX(c_datetime), INDEX(c_timestamp), INDEX(c_time), INDEX(c_year),
 INDEX(c_char));
-INSERT INTO t1 (c_int) VALUES (1), (2), (3), (4), (5);
-INSERT INTO t1 (c_int) SELECT 0 FROM t1;
-INSERT INTO t1 (c_int) SELECT 0 FROM t1;
+INSERT IGNORE INTO t1 (c_int) VALUES (1), (2), (3), (4), (5);
+INSERT IGNORE INTO t1 (c_int) SELECT 0 FROM t1;
+INSERT IGNORE INTO t1 (c_int) SELECT 0 FROM t1;
 EXPLAIN SELECT * FROM t1 WHERE c_int IN (1, 2, 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	c_int	c_int	4	NULL	3	100.00	Using index condition

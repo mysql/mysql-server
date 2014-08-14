@@ -115,7 +115,7 @@ private:
   void table_rule_ent_hash_to_str(String* s, HASH* h, bool inited);
   void table_rule_ent_dynamic_array_to_str(String* s, Table_rule_array* a,
                                            bool inited);
-  TABLE_RULE_ENT* find_wild(Table_rule_array *a, const char* key, int len);
+  TABLE_RULE_ENT* find_wild(Table_rule_array *a, const char* key, size_t len);
 
   int build_table_hash_from_array(Table_rule_array *table_array,
                                   HASH *table_hash,

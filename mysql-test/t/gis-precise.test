@@ -149,11 +149,11 @@ SELECT ASTEXT(TOUCHES(@a, GEOMFROMTEXT('point(0 0)'))) t;
 --error ER_GIS_INVALID_DATA
 select st_union((cast(linestring(point(6,-68), point(-22,-4)) as binary(13))),
                 st_intersection(point(6,8),multipoint(point(3,1),point(-4,-6),point(1,6),point(-3,-5),point(5,4))));
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --error ER_GIS_INVALID_DATA
 select st_difference((convert(st_polygonfromwkb(linestring(point(1,1))) using gb18030)),
                      st_geomcollfromwkb(point(1,1)));
-
+SET sql_mode = default;
 select mpointfromwkb(st_intersection(linestring(point(-59,82),point(32,29)), point(2,-5)));
 
 SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))'),GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))')));

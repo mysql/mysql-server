@@ -341,7 +341,8 @@ void field_real::add()
 {
   char buff[MAX_FIELD_WIDTH], *ptr, *end;
   double num= item->val_result();
-  uint length, zero_count, decs;
+  size_t length;
+  uint zero_count, decs;
   TREE_ELEMENT *element;
 
   if (item->null_value)
@@ -362,7 +363,7 @@ void field_real::add()
   {
     buff[sizeof(buff)-1]=0;			// Safety
     my_snprintf(buff, sizeof(buff)-1, "%-.*f", (int) decs, num);
-    length = (uint) strlen(buff);
+    length= strlen(buff);
 
     // We never need to check further than this
     end = buff + length - 1 - decs + max_notzero_dec_len;
@@ -781,7 +782,7 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
       sprintf(buff, "INT(%d)", num_info.integers);
     else
       sprintf(buff, "BIGINT(%d)", num_info.integers);
-    answer->append(buff, (uint) strlen(buff));
+    answer->append(buff, strlen(buff));
     if (ev_num_info.llval >= 0 && ev_num_info.min_dval >= 0)
       answer->append(STRING_WITH_LEN(" UNSIGNED"));
     if (num_info.zerofill)
@@ -799,12 +800,12 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
     else if ((max_length * (total_rows - nulls)) < (sum + total_rows))
     {
       sprintf(buff, "CHAR(%d)", (int) max_length);
-      answer->append(buff, (uint) strlen(buff));
+      answer->append(buff, strlen(buff));
     }
     else
     {
       sprintf(buff, "VARCHAR(%d)", (int) max_length);
-      answer->append(buff, (uint) strlen(buff));
+      answer->append(buff, strlen(buff));
     }
   }
   else if (max_length < (1L << 16))
@@ -854,7 +855,7 @@ void field_real::get_opt_type(String *answer,
       sprintf(buff, "INT(%d)", len);
     else
       sprintf(buff, "BIGINT(%d)", len);
-    answer->append(buff, (uint) strlen(buff));
+    answer->append(buff, strlen(buff));
     if (min_arg >= 0)
       answer->append(STRING_WITH_LEN(" UNSIGNED"));
   }
@@ -873,7 +874,7 @@ void field_real::get_opt_type(String *answer,
     else
       sprintf(buff, "DOUBLE(%d,%d)", (int) max_length - (item->decimals + 1) + max_notzero_dec_len,
 	      max_notzero_dec_len);
-    answer->append(buff, (uint) strlen(buff));
+    answer->append(buff, strlen(buff));
   }
   // if item is FIELD_ITEM, it _must_be_ Field_num in this class
   if (item->type() == Item::FIELD_ITEM &&
@@ -902,7 +903,7 @@ void field_longlong::get_opt_type(String *answer,
     sprintf(buff, "INT(%d)", (int) max_length);
   else
     sprintf(buff, "BIGINT(%d)", (int) max_length);
-  answer->append(buff, (uint) strlen(buff));
+  answer->append(buff, strlen(buff));
   if (min_arg >= 0)
     answer->append(STRING_WITH_LEN(" UNSIGNED"));
 
@@ -931,7 +932,7 @@ void field_ulonglong::get_opt_type(String *answer,
   else
     sprintf(buff, "BIGINT(%d) UNSIGNED", (int) max_length);
   // if item is FIELD_ITEM, it _must_be_ Field_num in this class
-  answer->append(buff, (uint) strlen(buff));
+  answer->append(buff, strlen(buff));
   if (item->type() == Item::FIELD_ITEM &&
       // a single number shouldn't be zerofill
       max_length != 1 &&

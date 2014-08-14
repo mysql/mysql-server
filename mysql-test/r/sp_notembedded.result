@@ -92,6 +92,7 @@ ERROR 70100: Query execution was interrupted
 call bug6807()|
 ERROR 70100: Query execution was interrupted
 drop procedure bug6807|
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION'|
 drop function if exists bug10100f|
 drop procedure if exists bug10100p|
 drop procedure if exists bug10100t|
@@ -198,6 +199,7 @@ drop procedure bug10100pd|
 drop procedure bug10100pc|
 drop view v1|
 drop table t3|
+SET sql_mode = default;
 drop procedure if exists bug15298_1;
 drop procedure if exists bug15298_2;
 grant all privileges on test.* to 'mysqltest_1'@'localhost';

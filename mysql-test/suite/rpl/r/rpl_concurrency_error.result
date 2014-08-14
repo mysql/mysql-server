@@ -24,7 +24,7 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 SET AUTOCOMMIT = 1;
 BEGIN;
-UPDATE t SET f = 'magenta 2' WHERE f = 'red';
+UPDATE IGNORE t SET f = 'magenta 2' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (5 + (2 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
@@ -41,7 +41,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'yellow 2' WHERE i = 3
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'magenta 2' WHERE f = 'red'
+master-bin.000001	#	Query	#	#	use `test`; UPDATE IGNORE t SET f = 'magenta 2' WHERE f = 'red'
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t VALUES (5 + (2 * 10),"brown")
 master-bin.000001	#	Query	#	#	ROLLBACK
 SET AUTOCOMMIT = 1;
@@ -51,7 +51,7 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 SET AUTOCOMMIT = 1;
 BEGIN;
-UPDATE t SET f = 'dark blue 2' WHERE f = 'red';
+UPDATE IGNORE t SET f = 'dark blue 2' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (6 + (2 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
@@ -66,7 +66,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'gray 2' WHERE i = 3
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'dark blue 2' WHERE f = 'red'
+master-bin.000001	#	Query	#	#	use `test`; UPDATE IGNORE t SET f = 'dark blue 2' WHERE f = 'red'
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t VALUES (6 + (2 * 10),"brown")
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 SET AUTOCOMMIT = 0;
@@ -74,7 +74,7 @@ UPDATE t SET f = 'yellow 1' WHERE i = 3;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 SET AUTOCOMMIT = 0;
-UPDATE t SET f = 'magenta 1' WHERE f = 'red';
+UPDATE IGNORE t SET f = 'magenta 1' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (5 + (1 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
@@ -91,7 +91,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'yellow 1' WHERE i = 3
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'magenta 1' WHERE f = 'red'
+master-bin.000001	#	Query	#	#	use `test`; UPDATE IGNORE t SET f = 'magenta 1' WHERE f = 'red'
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t VALUES (5 + (1 * 10),"brown")
 master-bin.000001	#	Query	#	#	ROLLBACK
 SET AUTOCOMMIT = 0;
@@ -99,7 +99,7 @@ UPDATE t SET f = 'gray 1' WHERE i = 3;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
 SET AUTOCOMMIT = 0;
-UPDATE t SET f = 'dark blue 1' WHERE f = 'red';
+UPDATE IGNORE t SET f = 'dark blue 1' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (6 + (1 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
@@ -114,7 +114,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'gray 1' WHERE i = 3
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'dark blue 1' WHERE f = 'red'
+master-bin.000001	#	Query	#	#	use `test`; UPDATE IGNORE t SET f = 'dark blue 1' WHERE f = 'red'
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t VALUES (6 + (1 * 10),"brown")
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc

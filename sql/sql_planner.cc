@@ -788,7 +788,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
       account here for range/index_merge access. Find out why this is so.
     */
     scan_and_filter_cost= prefix_rowcount *
-      (tab->quick()->read_time +
+      (tab->quick()->cost_est.total_cost() +
        cost_model->row_evaluate_cost(tab->found_records -
                                      *rows_after_filtering));
   }
@@ -1008,7 +1008,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
       !table->covering_keys.is_clear_all() && best_ref &&                 //(3)
       (!tab->quick() ||                                                     //(3)
        (tab->quick()->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&//(3)
-        best_ref->read_cost < tab->quick()->read_time)))                    //(3)
+        best_ref->read_cost < tab->quick()->cost_est.total_cost())))        //(3)
   {
     if (tab->quick())
     {
@@ -1717,12 +1717,12 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
   if (quick_uses_applicable_index && idx == join->const_tables)
   {
     Opt_trace_object trace_range(trace, "range_scan");
-    trace_range.add("cost", tab->quick()->read_time);
+    trace_range.add("cost", tab->quick()->cost_est);
     // @TODO: this the right part restriction:
-    if (tab->quick()->read_time < pos->read_cost)
+    if (tab->quick()->cost_est.total_cost() < pos->read_cost)
     {
       pos->loosescan_key= tab->quick()->index;
-      pos->read_cost= tab->quick()->read_time;
+      pos->read_cost= tab->quick()->cost_est.total_cost();
       // this is ok because idx == join->const_tables
       pos->rows_fetched= rows2double(tab->quick()->records);
       pos->loosescan_parts= quick_max_keypart + 1;

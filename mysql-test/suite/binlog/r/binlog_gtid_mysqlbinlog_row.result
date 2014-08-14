@@ -340,6 +340,7 @@ INSERT INTO t1 VALUES (NOW(), NOW(), NOW(), NOW(), NOW(), NOW());
 INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
 DROP TABLE t1;
 SET @ts='2001-01-01 00:00:00.123456';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 c85 TIMESTAMP(6), c86 TIMESTAMP(5), c87 TIMESTAMP(4),
 c88 TIMESTAMP(3), c89 TIMESTAMP(2), c90 TIMESTAMP(1)
@@ -350,6 +351,7 @@ INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
 DROP TABLE t1;
 SET timestamp=1000000000;
 SET time_zone=default;
+SET sql_mode = default;
 CREATE TABLE t1 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0);
 CREATE TABLE t2 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0);
 INSERT INTO t1 SET a=1;
@@ -377,7 +379,7 @@ use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.sql_mode=1075838976/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
@@ -4791,6 +4793,7 @@ SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1012681220/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
 CREATE TABLE t1 (
 c85 TIMESTAMP(6), c86 TIMESTAMP(5), c87 TIMESTAMP(4),
 c88 TIMESTAMP(3), c89 TIMESTAMP(2), c90 TIMESTAMP(1)
@@ -4879,6 +4882,7 @@ SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
+SET @@session.sql_mode=1075838976/*!*/;
 CREATE TABLE t1 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0)
 /*!*/;
 # at #
