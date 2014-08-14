@@ -7341,6 +7341,8 @@ bool Xid_log_event::do_commit(THD *thd)
 int Xid_log_event::do_apply_event_worker(Slave_worker *w)
 {
   int error= 0;
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   Slave_committed_queue *coordinator_gaq= w->c_rli->gaq;
 
   /* For a slave Xid_log_event is COMMIT */
