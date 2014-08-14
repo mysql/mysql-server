@@ -197,6 +197,8 @@ bool trans_commit(THD *thd)
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
 
+  thd->tx_priority= 0;
+
   DBUG_RETURN(MY_TEST(res));
 }
 
@@ -287,6 +289,8 @@ bool trans_rollback(THD *thd)
 
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
+
+  thd->tx_priority= 0;
 
   DBUG_RETURN(MY_TEST(res));
 }
