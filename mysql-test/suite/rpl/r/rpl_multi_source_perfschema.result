@@ -11,34 +11,33 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 # Test case 1: Create multiple sources and make sure that
 # number of sources= number of rows in all the performance schema tables.
-#
-# expect 0s on master
+# On master, where replication is not setup, it shall show 0 rows.
 [connection server_1]
-include/assert.inc [Number of rows should be zero when valid column channel_name is provided in the where clause]
-include/assert.inc [Number of rows should be zero when valid column channel_name is provided in the where clause]
-include/assert.inc [Number of rows should be zero when valid column channel_name is provided in the where clause]
-include/assert.inc [Number of rows should be zero when valid column channel_name is provided in the where clause]
-include/assert.inc [Number of rows should be zero when valid column channel_name is provided in the where clause]
-include/assert.inc [Number of rows should be zero when valid column channel_name is provided in the where clause]
+include/assert.inc [Number of rows =0 on master for repliation_connection_configuration table.]
+include/assert.inc [Number of rows =0 on master for repliation_connection_status table.]
+include/assert.inc [Number of rows =0 on master for repliation_execute_configuration table.]
+include/assert.inc [Number of rows =0 on master for repliation_execute_status table.]
+include/assert.inc [Number of rows=0 on master for replication_execut_status_by coordinator table.]
+include/assert.inc [Number of rows=0 on master for replication_execut_status_by_worker table.]
 #
-# Test case 2: on the slave number of rows should be zero for a non existent channel
+# Test case 2: On the slave,  number of rows should be zero for a non existent channel
 #
 [connection server_2]
-include/assert.inc [Number of rows should be zero]
-include/assert.inc [Number of rows should be zero]
-include/assert.inc [Number of rows should be zero]
-include/assert.inc [Number of rows should be zero]
-include/assert.inc [Number of rows should be zero]
-include/assert.inc [Number of rows should be zero]
+include/assert.inc [Number of rows=0 on slave for a non existent channel for repliation_connection_configuration table.]
+include/assert.inc [Number of rows=0 on slave for a non existent channel for repliation_connection_status table.]
+include/assert.inc [Number of rows=0 on slave for a non existent channel for repliation_execute_configuration table.]
+include/assert.inc [Number of rows=0 on slave for a non existent channel for repliation_execute_status table.]
+include/assert.inc [Number of rows=0 on slave for a non existent channel for repliation_execute_status_by_coordinaotor table.]
+include/assert.inc [Number of rows=0 on slave for a non existent channel for replication_execute_status_by_worker table.]
 #
 #  Test case 3: Rows on multi sourced slave, shall be 2. In workers table it should be
 #               2*@@global.slave_parallel_workers
 USE performance_schema;
-include/assert.inc [there shall be 2 rows for 2 configured channels.]
-include/assert.inc [there shall be 2 rows for 2 configured channels.]
-include/assert.inc [there shall be 2 rows for 2 configured channels.]
-include/assert.inc [there shall be 2 rows for 2 configured channels.]
-include/assert.inc [there shall be 2 rows for 2 configured channels.]
+include/assert.inc [there shall be 2 rows for replication_connection_configuration]
+include/assert.inc [there shall be 2 rows for replication_connection_status]
+include/assert.inc [there shall be 2 rows for replication_execute_configuration]
+include/assert.inc [there shall be 2 rows for replication_execute_status]
+include/assert.inc [there shall be 2 rows for replication_connection_configuration]
 include/assert.inc [there shall be 2*global_slave_parallel_workers rows for 2 configured channels.]
 #
 # Test case 4: Verify that selects work on named channels
@@ -57,57 +56,52 @@ STOP SLAVE FOR CHANNEL 'channel_1';
 # Test case 5: Verify that selects work on named channels even
 #              after a channel is stopped. test that service state is OFF
 #
-include/assert.inc [pfs query shall return the correct query value of the channel_1 port.]
-include/assert.inc [service state of receiver thread shall be OFF]
-include/assert.inc [service state shall be OFF]
-include/assert.inc [service state of coordinator shall be OFF]
+include/assert.inc [After stop slave for channel, replication_connection_configuration is intact]
+include/assert.inc [After stop slave for channel, service state is OFF for connection_status table.]
+include/assert.inc [After stop slave for channel, service state is OFF for execute_status table.]
+include/assert.inc [After stop slave for channel, service state is OFF by replication_execute_status_by_coordinator table.]
 #
-#  Test case 6a): Do a sanity check that joins can be performed as replication tables
-#               contain multiple rows now.
+#  Test case 6): Do a sanity check that joins can be performed as replication tables
+#                 contain multiple rows now.
 (select * from replication_connection_status, replication_execute_status_by_coordinator where replication_connection_status.channel_name= replication_execute_status_by_coordinator.channel_name);
 CHANNEL_NAME	channel_1
-SOURCE_UUID	a6eb8606-2121-11e4-a03c-0811960cc264
-THREAD_ID	NULL
+SOURCE_UUID	#
+THREAD_ID	#
 SERVICE_STATE	OFF
 RECEIVED_TRANSACTION_SET	
 LAST_ERROR_NUMBER	0
 LAST_ERROR_MESSAGE	
 LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
 CHANNEL_NAME	channel_1
-THREAD_ID	NULL
+THREAD_ID	#
 SERVICE_STATE	OFF
 LAST_ERROR_NUMBER	0
 LAST_ERROR_MESSAGE	
 LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
 CHANNEL_NAME	channel_3
-SOURCE_UUID	a9344ccc-2121-11e4-a03c-0811960cc264
-THREAD_ID	22
+SOURCE_UUID	#
+THREAD_ID	#
 SERVICE_STATE	ON
 RECEIVED_TRANSACTION_SET	
 LAST_ERROR_NUMBER	0
 LAST_ERROR_MESSAGE	
 LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
 CHANNEL_NAME	channel_3
-THREAD_ID	23
+THREAD_ID	#
 SERVICE_STATE	ON
 LAST_ERROR_NUMBER	0
 LAST_ERROR_MESSAGE	
 LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
-#
-# Test case 6b): Perform join on eplication_execute_status_by_worker and slave_worker_info table.
-#              For the same worker_ids, print one column from each table.
-#
-(select * from mysql.slave_worker_info, replication_execute_status_by_worker where replication_execute_status_by_worker.worker_id=mysql.slave_worker_info.id);
 #
 # Test case 7: Delete channel_3 and count the number of rows in each table.
 #
 STOP SLAVE FOR CHANNEL 'channel_3';
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
-include/assert.inc [there shall be 1 rows after a channel is deleted.]
-include/assert.inc [there shall be 1 rows after a channel is deleted.]
-include/assert.inc [there shall be 1 rows after a channel is deleted.]
-include/assert.inc [there shall be 1 rows after a channel is deleted.]
-include/assert.inc [there shall be 1 rows after a channel is deleted.]
+include/assert.inc [there shall be 1 in replication connection_configuration table after a channel is deleted.]
+include/assert.inc [there shall be 1 in replication connection_status table after a channel is deleted.]
+include/assert.inc [there shall be 1 in replication execute_config table after a channel is deleted.]
+include/assert.inc [there shall be 1 in replication execute_status table after a channel is deleted.]
+include/assert.inc [there shall be 1 in replication execute_status_by_coordinator table after a channel is deleted.]
 include/assert.inc [there shall be 1*global_slave_parallel_workers rows after a channel is deleted.]
 #
 #  Test case 8: Do a complete delete and see if the number of rows are zero

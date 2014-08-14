@@ -114,17 +114,17 @@ if ($rpl_multi_source)
   if (!$rpl_skip_delete_channels)
   {
     --let $rpl_reset_slave_all= 1
-      --let $rpl_source_file= include/rpl_reset_slave_helper.inc
-      --source include/rpl_for_each_connection.inc
-      --let $rpl_reset_slave_all= 0
+    --let $rpl_source_file= include/rpl_reset_slave_helper.inc
+    --source include/rpl_for_each_connection.inc
+    --let $rpl_reset_slave_all= 0
   }
 }
 
 # mtr configures server 2 to be a slave before it runs the test. We
 # have to restore that state now, so we change topology to 1->2.
-#TODO: may be better to do like this
-# --source for_each_connection.inc
-#  restore gtid_state
+
+# rpl_change_topology executes CHANGE MASTER for each connection.
+# we restore the gtid state by sourcing rpl_change_topology below
 --let $use_gtids= 0
 --source include/rpl_change_topology.inc
 
@@ -153,8 +153,7 @@ while ($_rpl_server)
 
 --let $rpl_inited= 0
 --let $_rpl_server_count=
-# set multisource to 0
---let $rpl_multi_source=0
+--let $rpl_multi_source= 0
 
 # Do not restore connection, because we have disconnected it.
 --let $skip_restore_connection= 1
