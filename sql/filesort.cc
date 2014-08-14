@@ -1294,7 +1294,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
       else
       {
         uchar *ptr= field->pack(to, field->ptr);
-        int sz= ptr - to;
+        int sz= static_cast<int>(ptr - to);
         res_len += sz;
         if (packed_addon_fields)
           to+= sz;

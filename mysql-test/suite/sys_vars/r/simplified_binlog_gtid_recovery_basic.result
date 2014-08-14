@@ -1,0 +1,21 @@
+SELECT @@GLOBAL.simplified_binlog_gtid_recovery;
+@@GLOBAL.simplified_binlog_gtid_recovery
+0
+SELECT @@SESSION.simplified_binlog_gtid_recovery;
+ERROR HY000: Variable 'simplified_binlog_gtid_recovery' is a GLOBAL variable
+SHOW GLOBAL VARIABLES LIKE 'simplified_binlog_gtid_recovery';
+Variable_name	Value
+simplified_binlog_gtid_recovery	OFF
+SHOW SESSION VARIABLES LIKE 'simplified_binlog_gtid_recovery';
+Variable_name	Value
+simplified_binlog_gtid_recovery	OFF
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='simplified_binlog_gtid_recovery';
+VARIABLE_NAME	VARIABLE_VALUE
+SIMPLIFIED_BINLOG_GTID_RECOVERY	OFF
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='simplified_binlog_gtid_recovery';
+VARIABLE_NAME	VARIABLE_VALUE
+SIMPLIFIED_BINLOG_GTID_RECOVERY	OFF
+SET GLOBAL simplified_binlog_gtid_recovery=1;
+ERROR HY000: Variable 'simplified_binlog_gtid_recovery' is a read only variable
+SET SESSION simplified_binlog_gtid_recovery=1;
+ERROR HY000: Variable 'simplified_binlog_gtid_recovery' is a read only variable

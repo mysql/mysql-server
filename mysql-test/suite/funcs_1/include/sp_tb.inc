@@ -1,5 +1,5 @@
 --disable_abort_on_error
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 USE test;
 
 --disable_warnings
@@ -86,4 +86,4 @@ eval CREATE TABLE t9 (f1 int, f2 char(25), f3 int) ENGINE = $engine_type;
 --replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval
 LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/funcs_1/t9.txt' INTO TABLE t9;
-
+SET sql_mode = default;

@@ -481,10 +481,12 @@ rw_lock_x_lock_func_nowait(
 		if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
 			/* There are 1 x-locks */
 			lock->lock_word -= X_LOCK_DECR;
-		} else {
-			ut_ad(lock->lock_word <= -X_LOCK_DECR);
+		} else if (lock->lock_word <= -X_LOCK_DECR) {
 			/* There are 2 or more x-locks */
 			lock->lock_word--;
+		} else {
+			/* Failure */
+			return(FALSE);
 		}
 
 		/* Watch for too many recursive locks */

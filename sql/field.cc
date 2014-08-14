@@ -7032,7 +7032,7 @@ void Field_string::sql_type(String &res) const
 {
   THD *thd= table->in_use;
   const CHARSET_INFO *cs=res.charset();
-  ulong length;
+  size_t length;
 
   length= cs->cset->snprintf(cs,(char*) res.ptr(),
                              res.alloced_length(), "%s(%d)",
@@ -7465,7 +7465,7 @@ int Field_varstring::key_cmp(const uchar *a,const uchar *b)
 
 void Field_varstring::make_sort_key(uchar *to, size_t length)
 {
-  uint tot_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
+  size_t tot_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
 
   if (field_charset == &my_charset_bin)
   {
@@ -7502,7 +7502,7 @@ void Field_varstring::sql_type(String &res) const
 {
   THD *thd= table->in_use;
   const CHARSET_INFO *cs=res.charset();
-  ulong length;
+  size_t length;
 
   length= cs->cset->snprintf(cs,(char*) res.ptr(),
                              res.alloced_length(), "%s(%d)",
@@ -9964,7 +9964,11 @@ bool Create_field::init(THD *thd, const char *fld_name,
   case MYSQL_TYPE_NULL:
     break;
   case MYSQL_TYPE_NEWDECIMAL:
-    my_decimal_trim(&length, &decimals);
+    {
+      ulong precision= static_cast<ulong>(length);
+      my_decimal_trim(&precision, &decimals);
+      length= precision;
+    } 
     if (length > DECIMAL_MAX_PRECISION)
     {
       my_error(ER_TOO_BIG_PRECISION, MYF(0), static_cast<int>(length),
@@ -10035,7 +10039,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     if (fld_length && !fld_decimals)
     {
-      uint tmp_length= length;
+      size_t tmp_length= length;
       if (tmp_length > PRECISION_FOR_DOUBLE)
       {
         my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
@@ -10096,7 +10100,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
       DBUG_ASSERT(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
       if (length != UINT_MAX)  /* avoid overflow; is safe because of min() */
         length= ((length+1)/2)*2;
-      length= min<ulong>(length, MAX_DATETIME_COMPRESSED_WIDTH);
+      length= min<size_t>(length, MAX_DATETIME_COMPRESSED_WIDTH);
     }
     
     /*
@@ -10220,7 +10224,7 @@ enum_field_types get_blob_type_from_length(ulong length)
   Make a field from the .frm file info
 */
 
-uint32 calc_pack_length(enum_field_types type,uint32 length)
+size_t calc_pack_length(enum_field_types type, size_t length)
 {
   switch (type) {
   case MYSQL_TYPE_VAR_STRING:
@@ -10279,7 +10283,7 @@ uint pack_length_to_packflag(uint type)
 }
 
 
-Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
+Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag,
 		  enum_field_types field_type,
@@ -10316,7 +10320,8 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
   if (is_temporal_real_type(field_type))
     field_charset= &my_charset_numeric;
 
-  DBUG_PRINT("debug", ("field_type: %d, field_length: %u, interval: %p, pack_flag: %s%s%s%s%s",
+  DBUG_PRINT("debug", ("field_type: %d, field_length: %zu, "
+                       "interval: %p, pack_flag: %s%s%s%s%s",
                        field_type, field_length, interval,
                        FLAGSTR(pack_flag, FIELDFLAG_BINARY),
                        FLAGSTR(pack_flag, FIELDFLAG_INTERVAL),

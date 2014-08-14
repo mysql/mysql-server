@@ -1,3 +1,4 @@
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point  (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
 CREATE TABLE gis_line  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
@@ -1543,3 +1544,4 @@ Handler activated
 Handler activated
 DROP PROCEDURE p1;
 DROP TABLE t1;
+SET sql_mode = default;

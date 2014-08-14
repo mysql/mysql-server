@@ -214,6 +214,7 @@ drop procedure p1|
 # statements do not substitute SP variables with their values for binlog, so
 # SP variables must be not accessible in Dynamic SQL.
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION'|
 create procedure p1()
 begin
   declare a char(10);
@@ -227,6 +228,7 @@ call p1()|
 --error ER_BAD_FIELD_ERROR
 call p1()|
 drop procedure p1|
+SET sql_mode = default|
 #
 # J. Use of placeholders in Dynamic SQL.
 # 

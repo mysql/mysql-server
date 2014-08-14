@@ -96,7 +96,7 @@ CREATE TABLE dup_table (c char(4));
 CREATE TABLE dup_table (c char(4));
 ERROR 42S01: Table 'dup_table' already exists
 DROP TABLE dup_table;
-INSERT INTO t11 VALUES("MySQL");
+INSERT IGNORE INTO t11 VALUES("MySQL");
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
 PREPARE stmt FROM "SELECT * FROM t12";
@@ -151,7 +151,7 @@ statements_digest	fd673eff746778302416b6dcc29ed9fa	DROP SCHEMA statements_digest
 statements_digest	4bd233d313b87d0d1e89e3909904587b	SELECT ? FROM no_such_table 	1
 statements_digest	8391373c0813d355c73cb0ac57eb1c16	CREATE TABLE dup_table ( c CHARACTER (?) ) 	2
 statements_digest	f28808d1c05e70f8f814db8defcf59d7	DROP TABLE dup_table 	1
-statements_digest	28516a3e9b87538ccd1e4aa06e808f09	INSERT INTO t11 VALUES (?) 	1
+statements_digest	280118891539650afabc44d6394803b1	INSERT IGNORE INTO t11 VALUES (?) 	1
 statements_digest	2cc21601986a2c05b014584e94b62f11	SHOW WARNINGS 	1
 statements_digest	e9aed8743cdb82809222622d9d556404	PREPARE stmt FROM ? 	1
 statements_digest	6b343ebf720214f641d3955a6fbf520f	EXECUTE stmt 	2

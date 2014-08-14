@@ -317,7 +317,7 @@ static bool get_server_from_table_to_cache(TABLE *table)
   /* get each field into the server struct ptr */
   ptr= get_field(&mem, table->field[SERVERS_FIELD_NAME]);
   server->server_name= ptr ? ptr : blank;
-  server->server_name_length= (uint) strlen(server->server_name);
+  server->server_name_length= strlen(server->server_name);
   ptr= get_field(&mem, table->field[SERVERS_FIELD_HOST]);
   server->host= ptr ? ptr : blank;
   ptr= get_field(&mem, table->field[SERVERS_FIELD_DB]);

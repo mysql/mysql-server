@@ -1,0 +1,186 @@
+# Crash-safe InnoDB ALTER operations
+
+--source include/not_valgrind.inc
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/not_crashrep.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let datadir= `select @@datadir`;
+
+# These are from include/shutdown_mysqld.inc and allow to call start_mysqld.inc
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+
+--echo #
+--echo # Bug #14669848 CRASH DURING ALTER MAKES ORIGINAL TABLE INACCESSIBLE
+--echo #
+--echo # -- Scenario 1:
+--echo # Crash the server in ha_innobase::commit_inplace_alter_table()
+--echo # just after committing the dictionary changes.
+
+CREATE TABLE t1 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=innodb;
+INSERT INTO t1 VALUES (1,2),(3,4);
+SET DEBUG='d,innodb_alter_commit_crash_after_commit';
+
+let $orig_table_id = `SELECT table_id
+	FROM information_schema.innodb_sys_tables
+	WHERE name = 'test/t1'`;
+
+# Write file to make mysql-test-run.pl expect crash
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
+
+--echo # Restart mysqld after the crash and reconnect.
+--source include/start_mysqld.inc
+
+let $temp_table_name = `SELECT SUBSTR(name, 6)
+	FROM information_schema.innodb_sys_tables
+	WHERE table_id = $orig_table_id`;
+
+--echo # Manual *.frm recovery begin.
+
+--move_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/$temp_table_name.frm
+
+perl;
+my @frm_file = glob "$ENV{'datadir'}/test/#sql-*.frm";
+my $t1_frm = "$ENV{'datadir'}/test/t1.frm";
+rename($frm_file[0], $t1_frm);
+EOF
+
+--echo # Manual recovery end
+
+--echo # Drop the orphaned original table.
+--disable_query_log
+eval DROP TABLE `#mysql50#$temp_table_name`;
+--enable_query_log
+
+--echo # Files in datadir after manual recovery.
+--list_files $MYSQLD_DATADIR/test
+
+SHOW TABLES;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (5,6),(7,8);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=InnoDB;
+ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
+DROP TABLE t1;
+
+call mtr.add_suppression("table 'test/");
+
+--echo # -- Scenario 2:
+--echo # Crash the server in ha_innobase::commit_inplace_alter_table()
+--echo # just before committing the dictionary changes, but after
+--echo # writing the MLOG_FILE_RENAME records. As the mini-transaction
+--echo # is not committed, the renames will not be replayed.
+
+CREATE TABLE t2 (f1 int not null, f2 int not null) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,2),(3,4);
+SET DEBUG='d,innodb_alter_commit_crash_before_commit';
+
+let $orig_table_id = `SELECT table_id
+	FROM information_schema.innodb_sys_tables
+	WHERE name = 'test/t2'`;
+
+# Write file to make mysql-test-run.pl expect crash
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+ALTER TABLE t2 ADD PRIMARY KEY (f2, f1);
+
+--echo # Startup the server after the crash
+--source include/start_mysqld.inc
+
+--echo # Read and remember the temporary table name
+let $temp_table_name = `SELECT SUBSTRING(name,6)
+	FROM information_schema.innodb_sys_tables
+	WHERE name LIKE "test/#sql-ib$orig_table_id%"`;
+# This second copy is an environment variable for the perl script below.
+let temp_table_name = $temp_table_name;
+
+--echo # Manual *.frm recovery begin. The dictionary was not updated
+--echo # and the files were not renamed. The rebuilt table
+--echo # was left behind on purpose, to faciliate data recovery.
+
+perl;
+my @frm_file = glob "$ENV{'datadir'}/test/#sql-*.frm";
+my $target_frm = "$ENV{'datadir'}/test/$ENV{'temp_table_name'}.frm";
+rename($frm_file[0], $target_frm);
+EOF
+
+--echo # Manual recovery end
+
+--echo # Drop the orphaned rebuilt table.
+--disable_query_log
+eval DROP TABLE `#mysql50#$temp_table_name`;
+--enable_query_log
+
+SHOW TABLES;
+INSERT INTO t2 VALUES (5,6),(7,8);
+SELECT * from t2;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=InnoDB;
+ALTER TABLE t2 ADD PRIMARY KEY (f2, f1);
+DROP TABLE t2;
+--list_files $MYSQLD_DATADIR/test
+
+--echo # -------------------------
+--echo # End of Testing Scenario 2
+--echo # -------------------------
+
+--echo #
+--echo # Bug#19330255 WL#7142 - CRASH DURING ALTER TABLE LEADS TO
+--echo # DATA DICTIONARY INCONSISTENCY
+--echo #
+
+CREATE TABLE t1(a int PRIMARY KEY, b varchar(255), c int NOT NULL);
+INSERT INTO t1 SET a=1,c=2;
+SET DEBUG='d,innodb_alter_commit_crash_after_commit';
+
+let $orig_table_id = `select table_id from
+  information_schema.innodb_sys_tables where name = 'test/t1'`;
+
+# Write file to make mysql-test-run.pl expect crash
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+ALTER TABLE t1 ADD INDEX (b), CHANGE c d int;
+
+--echo # Restart mysqld after the crash and reconnect.
+--source include/start_mysqld.inc
+
+let $temp_table_name = `SELECT SUBSTR(name, 6)
+	FROM information_schema.innodb_sys_tables
+	WHERE table_id = $orig_table_id`;
+
+--echo # Manual *.frm recovery begin.
+--move_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/$temp_table_name.frm
+
+perl;
+my @frm_file = glob "$ENV{'datadir'}/test/#sql-*.frm";
+my $t1_frm = "$ENV{'datadir'}/test/t1.frm";
+rename($frm_file[0], $t1_frm);
+EOF
+
+--echo # Manual recovery end
+
+--echo # Drop the orphaned original table.
+--disable_query_log
+eval DROP TABLE `#mysql50#$temp_table_name`;
+--enable_query_log
+
+--echo # Files in datadir after manual recovery.
+--list_files $MYSQLD_DATADIR/test
+
+SHOW TABLES;
+SHOW CREATE TABLE t1;
+UPDATE t1 SET d=NULL;
+SELECT * FROM t1;
+DROP TABLE t1;

@@ -8,7 +8,6 @@
 #         InnoDB changing from using the index which the push condition
 #         where for to use the clustered index due to "SELECT ... FOR UPDATE".
 #
-
 CREATE TABLE t1 (
   c1 CHAR(1),
   c2 CHAR(10),
@@ -239,7 +238,7 @@ DROP TABLE t1, t2, t3;
 --echo # Bug#42580 - Innodb's ORDER BY ..LIMIT returns no rows for 
 --echo #             null-safe operator <=> NULL
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(
   c1 DATE NOT NULL, 
   c2 DATE NULL, 
@@ -263,13 +262,13 @@ SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c1,c2 LIMIT 2;
 
 --echo
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo #
 --echo # Bug#43617 - Innodb returns wrong results with timestamp's range value 
 --echo #             in IN clause
 --echo # (Note: Fixed by patch for BUG#42580)
 --echo #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(
   c1 TIMESTAMP NOT NULL, 
   c2 TIMESTAMP NULL, 
@@ -315,7 +314,7 @@ ORDER BY c2 DESC LIMIT 2;
 
 --echo
 DROP TABLE t1;
-
+SET sql_mode = default;
 --echo #
 --echo # Bug#43249 - Innodb returns zero time for the time column 
 --echo #             with <=> NULL order by limit 
@@ -369,11 +368,13 @@ ANALYZE TABLE t1;
 
 --echo
 --echo # Execute select with invalid timestamp, desc ordering
+SET sql_mode = '';
 SELECT *
 FROM t1 
 WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' 
 ORDER BY ts DESC
 LIMIT 2; 
+SET sql_mode = default;
 
 --echo
 --echo # Should use index condition
@@ -753,7 +754,6 @@ set optimizer_switch= @save_optimizer_switch_bug58816;
 --echo # Bug#58837: ICP crash or valgrind error due to uninitialized 
 --echo #            value in innobase_index_cond
 --echo #
-
 CREATE TABLE t1 (
   t1_int INT,
   t1_time TIME
@@ -765,7 +765,7 @@ CREATE TABLE t2 (
 );
 
 --disable_warnings
-INSERT INTO t2 VALUES ();
+INSERT IGNORE INTO t2 VALUES ();
 INSERT INTO t1 VALUES ();
 --enable_warnings
 
@@ -799,7 +799,6 @@ WHERE NOT EXISTS
 --echo
 
 DROP TABLE t1,t2;
-
 --echo #
 --echo # Bug#59186 Wrong results of join when ICP is enabled
 --echo #
@@ -886,7 +885,6 @@ DROP TABLE t1;
 --echo # Bug #11766678 - 59843:
 --echo # USING UNINITIALISED VALUE IN USES_INDEX_FIELDS_ONLY
 --echo #
-
 CREATE TABLE t1 (
   col999 FLOAT NOT NULL,
   COL1000 VARBINARY(179) NOT NULL,
@@ -894,11 +892,10 @@ CREATE TABLE t1 (
   KEY idx4267 (col1000, col1003)
 );
 
-INSERT INTO t1 VALUES (),();
+INSERT IGNORE INTO t1 VALUES (),();
 SELECT col999 FROM t1 WHERE col1000 = "3" AND col1003 <=> sysdate();
 
 DROP TABLE t1;
-
 --echo #
 --echo # Bug#11873324 "WRONG RESULT WITH ICP AND STRAIGHT_JOIN"
 --echo #

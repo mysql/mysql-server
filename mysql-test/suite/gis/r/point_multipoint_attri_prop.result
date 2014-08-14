@@ -1808,7 +1808,8 @@ SELECT IsSimple(0x010100000001000000010100000000000000000000000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
 SELECT IsSimple(0x000000000300000001000000000100000000000000004024000000000000);
 ERROR HY000: Geometry byte string must be little endian.
-#check with procedures to work with the point and Multipoint properties 
+#check with procedures to work with the point and Multipoint properties
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #create procedure to check GeometryType
 CREATE PROCEDURE geom_type()
 BEGIN
@@ -1938,6 +1939,7 @@ CALL issimple;
 IsSimple(PointFromText('point(-0 0)'))
 1
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SET sql_mode = default;
 #Dropping the created procedures.
 drop procedure geom_type;
 drop procedure srid;

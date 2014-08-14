@@ -549,8 +549,8 @@ drop table t1, t2;
 #
 
 create table t1 (c1 INT, c2 INT UNSIGNED);
-insert into t1 values ('21474836461','21474836461');
-insert into t1 values ('-21474836461','-21474836461');
+insert ignore into t1 values ('21474836461','21474836461');
+insert ignore into t1 values ('-21474836461','-21474836461');
 show warnings;
 select * from t1;
 drop table t1;

@@ -2581,7 +2581,7 @@ innobase_invalidate_query_cache(
 	trx_t*		trx,		/*!< in: transaction which
 					modifies the table */
 	const char*	full_name,	/*!< in: concatenation of
-					database name, null char NUL,
+					database name, path separator,
 					table name, null char NUL;
 					NOTE that in Windows this is
 					always in LOWER CASE! */
@@ -13982,7 +13982,7 @@ ha_innobase::register_query_cache_table(
 	THD*		thd,		/*!< in: user thread handle */
 	char*		table_key,	/*!< in: normalized path to the
 					table */
-	uint		key_length,	/*!< in: length of the normalized
+	size_t		key_length,	/*!< in: length of the normalized
 					path to the table */
 	qc_engine_callback*
 			call_back,	/*!< out: pointer to function for
