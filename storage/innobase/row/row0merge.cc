@@ -240,7 +240,8 @@ public:
 private:
 	/** Cache index rows made from a cluster index scan. Usually
 	for rows on single cluster index page */
-	typedef std::vector<dtuple_t*>	idx_tuple_vec;
+	typedef std::vector<dtuple_t*, ut_allocator<dtuple_t*> >
+		idx_tuple_vec;
 
 	/** vector used to cache index rows made from cluster index scan */
 	idx_tuple_vec*		m_dtuple_vec;

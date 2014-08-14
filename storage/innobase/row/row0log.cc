@@ -38,8 +38,9 @@ Created 2011-05-26 Marko Makela
 #include "que0que.h"
 #include "srv0mon.h"
 #include "handler0alter.h"
+#include "ut0new.h"
 
-#include<map>
+#include <map>
 
 /** Table row modification operations during online table rebuild.
 Delete-marked records are not copied to the rebuilt table. */
@@ -145,7 +146,12 @@ If a page number maps to 0, it is an off-page column that has been freed.
 If a page number maps to a nonzero number, the number is a byte offset
 into the index->online_log, indicating that the page is safe to access
 when applying log records starting from that offset. */
-typedef std::map<ulint, row_log_table_blob_t> page_no_map;
+typedef std::map<
+	ulint,
+	row_log_table_blob_t,
+	std::less<ulint>,
+	ut_allocator<std::pair<const ulint, row_log_table_blob_t> > >
+	page_no_map;
 
 /** @brief Buffer for logging modifications during online index creation
 

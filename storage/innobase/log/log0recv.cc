@@ -50,6 +50,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "trx0rec.h"
 #include "fil0fil.h"
 #include "fsp0sysspace.h"
+#include "ut0new.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0rea.h"
 # include "srv0srv.h"
@@ -178,14 +179,19 @@ struct file_name_t {
 };
 
 /** Map of dirty tablespaces during recovery */
-typedef std::map<ulint, file_name_t> recv_spaces_t;
-static recv_spaces_t recv_spaces;
+typedef std::map<
+	ulint,
+	file_name_t,
+	std::less<ulint>,
+	ut_allocator<std::pair<const ulint, file_name_t> > >	recv_spaces_t;
+
+static recv_spaces_t	recv_spaces;
 
 /** Process a file name from a MLOG_FILE_* record.
 @param[in,out]	name		file name
 @param[in]	len		length of the file name
 @param[in]	space_id	the tablespace ID
-@param[id]	deleted		whether this is a MLOG_FILE_DELETE record */
+@param[in]	deleted		whether this is a MLOG_FILE_DELETE record */
 static
 void
 fil_name_process(
@@ -3671,7 +3677,10 @@ recv_reset_log_files_for_backup(
 const byte*
 recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 {
-	std::vector<const byte*> matches;
+	typedef std::vector<const byte*, ut_allocator<const byte*> >
+		matches_t;
+
+	matches_t	matches;
 	const byte*	result = 0;
 
 	for (list::iterator i = pages.begin(); i != pages.end(); ++i) {
@@ -3688,8 +3697,9 @@ recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 		lsn_t max_lsn	= 0;
 		lsn_t page_lsn	= 0;
 
-		for (std::vector<const byte*>::iterator i = matches.begin();
-		     i != matches.end(); ++i) {
+		for (matches_t::iterator i = matches.begin();
+		     i != matches.end();
+		     ++i) {
 
 			page_lsn = mach_read_from_8(*i + FIL_PAGE_LSN);
 

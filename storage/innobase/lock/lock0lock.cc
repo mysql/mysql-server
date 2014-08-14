@@ -43,6 +43,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "btr0btr.h"
 #include "dict0boot.h"
+#include "ut0new.h"
 
 #include <set>
 
@@ -5291,9 +5292,13 @@ bool
 lock_validate()
 /*===========*/
 {
-	typedef	std::pair<ulint, ulint> page_addr_t;
-	typedef std::set<page_addr_t> page_addr_set;
-	page_addr_set pages;
+	typedef	std::pair<ulint, ulint>		page_addr_t;
+	typedef std::set<
+		page_addr_t,
+		std::less<page_addr_t>,
+		ut_allocator<page_addr_t> >	page_addr_set;
+
+	page_addr_set	pages;
 
 	lock_mutex_enter();
 	mutex_enter(&trx_sys->mutex);

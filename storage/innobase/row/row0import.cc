@@ -41,6 +41,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "row0mysql.h"
 #include "srv0start.h"
 #include "row0quiesce.h"
+#include "ut0new.h"
 
 #include <vector>
 
@@ -598,7 +599,7 @@ struct FetchIndexRootPages : public AbstractCallback {
 		ulint		m_page_no;	/*!< Root page number */
 	};
 
-	typedef std::vector<Index> Indexes;
+	typedef std::vector<Index, ut_allocator<Index> >	Indexes;
 
 	/** Constructor
 	@param trx covering (user) transaction
