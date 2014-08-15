@@ -835,7 +835,9 @@ INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
   ('i', 'b', 'a', GeomFromText('POINT(216 18)')),
   ('w', 'y', 'g', GeomFromText('POINT(119 236)')),
   ('h', 'y', 'p', GeomFromText('POINT(161 24)'));
+CHECK TABLE t1 EXTENDED;
 UPDATE t1 set spatial_point=GeomFromText('POINT(33 100)') where  c1 like 't%';
+CHECK TABLE t1 EXTENDED;
 UPDATE t1 set spatial_point=GeomFromText('POINT(41 46)') where  c1 like 'f%';
 CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
