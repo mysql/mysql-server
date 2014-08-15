@@ -1776,10 +1776,10 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 			The abort state cannot change while we hold the lock
 			sys mutex.
 
-			There is one loose end. If the transaction that is
-			going to kill the aborted transactions that we are
-			ignoring here then we have to be careful that it
-			must kill these transactions, ie. it cannot be
+			There is one loose end. We are ignoring transactions
+			that are marked for abort by some other transaction.
+			We have to be careful that the other transaction must
+			kill these (skipped) transactions, ie. it cannot be
 			interrupted before it acts on the trx_t::hit_list.
 
 			If the aborted transactions are not killed the
