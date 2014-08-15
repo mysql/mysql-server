@@ -183,13 +183,27 @@ struct TrxFactory {
 	@param trx Transaction instance to initialise */
 	static void init(trx_t* trx)
 	{
+		/* Explicitly call the constructor of the already
+		allocated object. trx_t objects are allocated by
+		ut_zalloc() in Pool::Pool() which would not call
+		the constructors of the trx_t members. */
+		new(&trx->mod_tables) trx_mod_tables_t();
+
+		new(&trx->lock.rec_pool) lock_pool_t();
+
+		new(&trx->lock.table_pool) lock_pool_t();
+
+		new(&trx->lock.table_locks) lock_pool_t();
+
+		new(&trx->hit_list) trx_list_t();
+
+		trx->xid = new (std::nothrow) xid_t();
+
 		trx_init(trx);
 
 		trx->state = TRX_STATE_NOT_STARTED;
 
 		trx->dict_operation_lock_mode = 0;
-
-		trx->xid = new (std::nothrow) xid_t();
 
 		trx->detailed_error = reinterpret_cast<char*>(
 			ut_zalloc(MAX_DETAILED_ERROR_LEN));
@@ -205,20 +219,6 @@ struct TrxFactory {
 
 		mutex_create("trx", &trx->mutex);
 		mutex_create("trx_undo", &trx->undo_mutex);
-
-		/* Explicitly call the constructor of the already
-		allocated object. trx_t objects are allocated by
-		ut_zalloc() in Pool::Pool() which would not call
-		the constructors of the trx_t members. */
-		new(&trx->mod_tables) trx_mod_tables_t();
-
-		new(&trx->lock.rec_pool) lock_pool_t();
-
-		new(&trx->lock.table_pool) lock_pool_t();
-
-		new(&trx->lock.table_locks) lock_pool_t();
-
-		new(&trx->hit_list) trx_list_t();
 
 		lock_trx_alloc_locks(trx);
 	}
