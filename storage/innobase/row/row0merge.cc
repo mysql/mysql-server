@@ -616,7 +616,10 @@ row_merge_buf_add(
 			dfield_set_len(field, len);
 		}
 
-		ut_ad(len <= col->len || DATA_LARGE_MTYPE(col->mtype));
+		ut_ad(len <= col->len
+		      || DATA_LARGE_MTYPE(col->mtype)
+		      || (col->mtype == DATA_POINT
+			  && len == DATA_MBR_LEN));
 
 		fixed_len = ifield->fixed_len;
 		if (fixed_len && !dict_table_is_comp(index->table)
