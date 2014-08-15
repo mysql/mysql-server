@@ -7332,8 +7332,7 @@ ha_innobase::unlock_row(void)
 	DBUG_ENTER("ha_innobase::unlock_row");
 
 	/* Consistent read does not take any locks, thus there is
-	nothing to unlock.
-	There is no locking for intrinsic table. */
+	nothing to unlock.  There is no locking for intrinsic table. */
 
 	if (m_prebuilt->select_lock_type == LOCK_NONE
 	    || dict_table_is_intrinsic(m_prebuilt->table)) {
@@ -7341,6 +7340,10 @@ ha_innobase::unlock_row(void)
 	}
 
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
+
+	if (trx_in_innodb.is_aborted()) {
+		DBUG_VOID_RETURN;
+	}
 
 	ut_ad(!dict_table_is_intrinsic(m_prebuilt->table));
 

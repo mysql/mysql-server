@@ -165,6 +165,12 @@ trx_init(
 	trx->in_innodb &= ~TRX_FORCE_ROLLBACK_ASYNC;
 
 	trx->in_innodb &= ~TRX_FORCE_ROLLBACK_COMPLETE;
+
+	/* Note: It's possible that this list is not empty if a transaction
+	was interrupted after it collected the victim transactions and before
+	it got a chance to roll them back asynchronously. */
+
+	trx->hit_list.clear();
 }
 
 /** For managing the life-cycle of the trx_t instance that we get
@@ -1214,6 +1220,7 @@ trx_start_low(
 {
 	ut_ad(!trx->in_rollback);
 	ut_ad(!trx->is_recovered);
+	ut_ad(trx->hit_list.empty());
 	ut_ad(trx->start_line != 0);
 	ut_ad(trx->start_file != 0);
 	ut_ad(trx->roll_limit == 0);
