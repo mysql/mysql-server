@@ -33,6 +33,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "fts0fts.h"
+#include "gis0geo.h"
 #include "trx0sys.h"
 
 /*			PHYSICAL RECORD (OLD STYLE)
@@ -311,6 +312,7 @@ rec_init_offsets_comp_ordinary(
 
 		if (!field->fixed_len
 		    || (temp && !dict_col_get_fixed_size(col, temp))) {
+			ut_ad(col->mtype != DATA_POINT);
 			/* Variable-length field: read the length */
 			len = *lens--;
 			/* If the maximum length of the field is up
@@ -444,9 +446,12 @@ rec_init_offsets(
 			}
 
 			if (UNIV_UNLIKELY(!field->fixed_len)) {
-				/* Variable-length field: read the length */
 				const dict_col_t*	col
 					= dict_field_get_col(field);
+				/* DATA_POINT should always be a fixed
+				length column. */
+				ut_ad(col->mtype != DATA_POINT);
+				/* Variable-length field: read the length */
 				len = *lens--;
 				/* If the maximum length of the field
 				is up to 255 bytes, the actual length
@@ -850,6 +855,8 @@ rec_get_converted_size_comp_prefix_low(
 		}
 
 		ut_ad(len <= col->len || DATA_LARGE_MTYPE(col->mtype)
+                      || (DATA_POINT_MTYPE(col->mtype)
+			  && len == DATA_MBR_LEN)
 		      || (col->len == 0 && col->mtype == DATA_VARCHAR));
 
 		fixed_len = field->fixed_len;
@@ -1275,6 +1282,8 @@ rec_convert_dtuple_to_rec_comp(
 			*lens-- = (byte) (len >> 8) | 0xc0;
 			*lens-- = (byte) len;
 		} else {
+			/* DATA_POINT would have a fixed_len */
+			ut_ad(dtype_get_mtype(type) != DATA_POINT);
 			ut_ad(len <= dtype_get_len(type)
 			      || DATA_LARGE_MTYPE(dtype_get_mtype(type))
 			      || !strcmp(index->name,

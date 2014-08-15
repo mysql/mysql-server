@@ -534,12 +534,12 @@ sp_head::~sp_head()
 }
 
 
-Field *sp_head::create_result_field(uint field_max_length,
+Field *sp_head::create_result_field(size_t field_max_length,
                                     const char *field_name,
                                     TABLE *table)
 {
-  uint field_length= !m_return_field_def.length ?
-                     field_max_length : m_return_field_def.length;
+  size_t field_length= !m_return_field_def.length ?
+    field_max_length : m_return_field_def.length;
 
   Field *field=
     ::make_field(table->s,                     /* TABLE_SHARE ptr */

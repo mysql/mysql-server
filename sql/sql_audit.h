@@ -71,7 +71,7 @@ static inline size_t make_user_name(THD *thd, char *buf)
 */
  
 static inline
-void mysql_audit_general_log(THD *thd, const char *cmd, uint cmdlen)
+void mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
 {
 #ifndef EMBEDDED_LIBRARY
   if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
@@ -81,7 +81,7 @@ void mysql_audit_general_log(THD *thd, const char *cmd, uint cmdlen)
     static MYSQL_LEX_STRING empty= { C_STRING_WITH_LEN("") };
     char user_buff[MAX_USER_HOST_SIZE + 1];
     const char *user= user_buff;
-    uint userlen= make_user_name(thd, user_buff);
+    size_t userlen= make_user_name(thd, user_buff);
     time_t time= (time_t) thd->start_time.tv_sec;
 
     if (thd)

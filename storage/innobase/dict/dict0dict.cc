@@ -593,6 +593,44 @@ dict_table_close_and_drop(
 	row_merge_drop_table(trx, table);
 }
 
+/** Check if the table has a given column.
+@param[in]	table		table object
+@param[in]	col_name	column name
+@param[in]	col_nr		column number guessed, 0 as default
+@return column number if the table has the specified column,
+otherwise table->n_def */
+
+ulint
+dict_table_has_column(
+	const dict_table_t*	table,
+	const char*		col_name,
+	ulint			col_nr)
+{
+	ulint		col_max = table->n_def;
+
+	ut_ad(table);
+	ut_ad(col_name);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	if (col_nr < col_max
+	    && innobase_strcasecmp(
+		col_name, dict_table_get_col_name(table, col_nr)) == 0) {
+		return(col_nr);
+	}
+
+	/** The order of column may changed, check it with other columns */
+	for (ulint i = 0; i < col_max; i++) {
+		if (i != col_nr
+		    && innobase_strcasecmp(
+			col_name, dict_table_get_col_name(table, i)) == 0) {
+
+			return(i);
+		}
+	}
+
+	return(col_max);
+}
+
 /**********************************************************************//**
 Returns a column's name.
 @return column name. NOTE: not guaranteed to stay valid if table is
@@ -2542,8 +2580,8 @@ too_big:
 			= dict_field_get_col(field);
 		bool	is_spatial = (dict_index_is_spatial(new_index)
 				      && (i == 0)
-				      && (field->col->mtype
-						 == DATA_GEOMETRY));
+				      && DATA_GEOMETRY_MTYPE(
+						field->col->mtype));
 
 		/* In dtuple_convert_big_rec(), variable-length columns
 		that are longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE
@@ -2853,8 +2891,22 @@ dict_index_add_col(
 	field = dict_index_get_nth_field(index, index->n_def - 1);
 
 	field->col = col;
-	field->fixed_len = (unsigned int) dict_col_get_fixed_size(
-		col, dict_table_is_comp(table));
+	/* DATA_POINT is a special type, whose fixed_len should be:
+	1) DATA_MBR_LEN, when it's indexed in R-TREE. In this case,
+	it must be the first col to be added.
+	2) DATA_POINT_LEN(be equal to fixed size of column), when it's
+	indexed in B-TREE,
+	3) DATA_POINT_LEN, if a POINT col is the PRIMARY KEY, and we are
+	adding the PK col to other B-TREE/R-TREE. */
+	/* TODO: We suppose the dimension is 2 now. */
+	if (dict_index_is_spatial(index) && DATA_POINT_MTYPE(col->mtype)
+	    && index->n_def == 1) {
+		field->fixed_len = DATA_MBR_LEN;
+	} else {
+		field->fixed_len = static_cast<unsigned int>(
+					dict_col_get_fixed_size(
+					col, dict_table_is_comp(table)));
+	}
 
 	if (prefix_len && field->fixed_len > prefix_len) {
 		field->fixed_len = (unsigned int) prefix_len;
@@ -6075,44 +6127,20 @@ dict_table_schema_check(
 	be O(n_cols) if the columns are in the same order in both arrays. */
 
 	for (i = 0; i < req_schema->n_cols; i++) {
-		ulint	j;
+		ulint	j = dict_table_has_column(
+			table, req_schema->columns[i].name, i);
 
-		/* check if i'th column is the same in both arrays */
-		if (innobase_strcasecmp(req_schema->columns[i].name,
-			       dict_table_get_col_name(table, i)) == 0) {
+		if (j == table->n_def) {
 
-			/* we found the column in table->cols[] quickly */
-			j = i;
-		} else {
+			ut_snprintf(errstr, errstr_sz,
+				    "required column %s"
+				    " not found in table %s.",
+				    req_schema->columns[i].name,
+				    ut_format_name(
+					    req_schema->table_name,
+					    TRUE, buf, sizeof(buf)));
 
-			/* columns in both arrays are not in the same order,
-			do a full scan of the second array */
-			for (j = 0; j < table->n_def; j++) {
-				const char*	name;
-
-				name = dict_table_get_col_name(table, j);
-
-				if (innobase_strcasecmp(name,
-					req_schema->columns[i].name) == 0) {
-
-					/* found the column on j'th
-					position */
-					break;
-				}
-			}
-
-			if (j == table->n_def) {
-
-				ut_snprintf(errstr, errstr_sz,
-					    "required column %s"
-					    " not found in table %s.",
-					    req_schema->columns[i].name,
-					    ut_format_name(
-						    req_schema->table_name,
-						    TRUE, buf, sizeof(buf)));
-
-				return(DB_ERROR);
-			}
+			return(DB_ERROR);
 		}
 
 		/* we found a column with the same name on j'th position,

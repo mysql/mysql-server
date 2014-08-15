@@ -2179,7 +2179,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
     if (unlikely(version != plugin_array_version))
     {
       mysql_mutex_lock(&LOCK_plugin);
-      for (uint i=idx; i < total; i++)
+      for (size_t i=idx; i < total; i++)
         if (plugins[i] && plugins[i]->state & state_mask)
           plugins[i]=0;
       mysql_mutex_unlock(&LOCK_plugin);
