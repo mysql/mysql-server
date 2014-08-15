@@ -602,14 +602,18 @@ fil_recreate_tablespace(
 @param[in]	space_id	tablespace identifier
 @param[in]	first_page_no	first page number in the file
 @param[in]	name		old file name
-@param[in]	new_name	new file name */
+@param[in]	new_name	new file name
+@return	whether the operation was successfully applied
+(the name did not exist, or new_name did not exist and
+name was successfully renamed to new_name)  */
 
-void
+bool
 fil_op_replay_rename(
 	ulint		space_id,
 	ulint		first_page_no,
 	const char*	name,
-	const char*	new_name);
+	const char*	new_name)
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.

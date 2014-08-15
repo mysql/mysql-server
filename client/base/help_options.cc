@@ -39,9 +39,15 @@ void Help_options::create_options()
 
 void Help_options::help_callback(char* argument __attribute__((unused)))
 {
+  this->print_usage();
+  exit(0);
+}
+
+void Mysql::Tools::Base::Options::Help_options::print_usage()
+{
   std::string first_year_str=
     (static_cast<std::ostringstream*>(&(
-      std::ostringstream() << this->m_program->get_first_release_year()) )
+      std::ostringstream() << this->m_program->get_first_release_year()))
     ->str());
   string copyright;
 
@@ -60,11 +66,10 @@ void Help_options::help_callback(char* argument __attribute__((unused)))
   }
 
   printf("%s  Ver %s Distrib %s, for %s (%s)\n%s\n%s\n",
-          this->m_program->get_name().c_str(),
-          this->m_program->get_version().c_str(),
-          MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE,
-          copyright.c_str(),
-          this->m_program->get_description().c_str());
+    this->m_program->get_name().c_str(),
+    this->m_program->get_version().c_str(),
+    MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE,
+    copyright.c_str(),
+    this->m_program->get_description().c_str());
   my_print_help(this->m_program->get_options_array());
-  exit(0);
 }
