@@ -143,3 +143,8 @@ void Abstract_program::aggregate_options()
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
   this->m_options.push_back(sentinel);
 }
+
+void Mysql::Tools::Base::Abstract_program::print_usage()
+{
+  this->m_help_options.print_usage();
+}

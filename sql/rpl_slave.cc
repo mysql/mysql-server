@@ -3226,7 +3226,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-    int4store(ptr_buffer, BINLOG_NAME_INFO_SIZE);
+    int4store(ptr_buffer, static_cast<uint32>(BINLOG_NAME_INFO_SIZE));
     ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
     memset(ptr_buffer, 0, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
@@ -5559,7 +5559,7 @@ end:
     the table performance_schema.table_replication_execute_status_by_worker
     between stop slave and next start slave.
   */
-  for (int i= rli->workers_copy_pfs.size() - 1; i >= 0; i--)
+  for (int i= static_cast<int>(rli->workers_copy_pfs.size()) - 1; i >= 0; i--)
     delete rli->workers_copy_pfs[i];
   rli->workers_copy_pfs.clear();
 
@@ -6814,7 +6814,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error= ER_SLAVE_HEARTBEAT_FAILURE;
       error_msg.append(STRING_WITH_LEN("inconsistent heartbeat event content;"));
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
-      error_msg.append(hb.get_log_ident(), (uint) strlen(hb.get_log_ident()));
+      error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
       llstr(hb.log_pos, llbuf);
       error_msg.append(llbuf, strlen(llbuf));
@@ -6886,7 +6886,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error= ER_SLAVE_HEARTBEAT_FAILURE;
       error_msg.append(STRING_WITH_LEN("heartbeat is not compatible with local info;"));
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
-      error_msg.append(hb.get_log_ident(), (uint) strlen(hb.get_log_ident()));
+      error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
       llstr(hb.log_pos, llbuf);
       error_msg.append(llbuf, strlen(llbuf));

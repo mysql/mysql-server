@@ -976,7 +976,7 @@ THD::THD(bool enable_plugins)
   security_ctx= &main_security_ctx;
   no_errors= 0;
   password= 0;
-  query_start_used= query_start_usec_used= 0;
+  query_start_usec_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
@@ -1216,7 +1216,6 @@ struct timeval THD::query_start_timeval_trunc(uint decimals)
 {
   struct timeval tv;
   tv.tv_sec= start_time.tv_sec;
-  query_start_used= 1;
   if (decimals)
   {
     tv.tv_usec= start_time.tv_usec;
@@ -2702,7 +2701,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   bool blob_flag=0;
   bool string_results= FALSE, non_string_results= FALSE;
   unit= u;
-  if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
+  if (strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
     strmake(path,exchange->file_name,FN_REFLEN-1);
 
   write_cs= exchange->cs ? exchange->cs : &my_charset_bin;

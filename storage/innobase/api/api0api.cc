@@ -2057,7 +2057,8 @@ ib_col_is_capped(
 		|| dtype_get_mtype(dtype) == DATA_MYSQL
 		|| dtype_get_mtype(dtype) == DATA_VARMYSQL
 		|| dtype_get_mtype(dtype) == DATA_FIXBINARY
-		|| dtype_get_mtype(dtype) == DATA_BINARY)
+		|| dtype_get_mtype(dtype) == DATA_BINARY
+		|| dtype_get_mtype(dtype) == DATA_POINT)
 	       && dtype_get_len(dtype) > 0));
 }
 
@@ -2161,7 +2162,12 @@ ib_col_set_value(
 		len = col_len;
 		break;
 
+	case DATA_POINT:
+		memcpy(dst, src, len);
+		break;
+
 	case DATA_BLOB:
+	case DATA_VAR_POINT:
 	case DATA_GEOMETRY:
 	case DATA_BINARY:
 	case DATA_DECIMAL:
