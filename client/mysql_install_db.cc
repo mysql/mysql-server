@@ -1459,6 +1459,9 @@ int main(int argc,char *argv[])
     copy(command_line.begin(), command_line.end(),
          infix_ostream_iterator<Path>(error, " "));
     error << endl;
+    cerr << "-- server log begin --" << endl;
+    cerr << output << endl;
+    cerr << "-- server log end --" << endl;
     return 1;
   }
   else if (output.find("ERROR") != string::npos)
