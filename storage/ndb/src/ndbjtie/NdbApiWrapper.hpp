@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -62,6 +62,13 @@ struct NdbApiWrapper {
 // ---------------------------------------------------------------------------
 
 // mapped by "com_mysql_ndbjtie_ndbapi_Ndb.h"
+
+    static int 
+    Ndb__getAutoIncrementValue
+    ( Ndb & obj , const NdbDictionary::Table * p1, Uint64 & ret, Uint32 batch, Uint64 step, Uint64 start )
+    {
+        return obj.getAutoIncrementValue(p1, ret, batch, step, start);
+    }
 
     static const char *
     Ndb__getDatabaseName
@@ -442,6 +449,13 @@ struct NdbApiWrapper {
 // ---------------------------------------------------------------------------
 
 // mapped by "com_mysql_ndbjtie_ndbapi_NdbDictionary_Column.h"
+
+    static bool
+    NdbDictionary__Column__getAutoIncrement
+    ( const NdbDictionary::Column & obj )
+    {
+        return obj.getAutoIncrement();
+    }
 
     static const char *
     NdbDictionary__Column__getName
