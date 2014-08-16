@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ import com.mysql.jtie.ArrayWrapper;
 
 public class Ndb extends Wrapper implements NdbConst
 {
+    public final native int getAutoIncrementValue(NdbDictionary.TableConst aTable, long[] ret, int cacheSize, long step, long start);
     public final native String/*_const char *_*/ getDatabaseName() /*_const_*/;
     public final native String/*_const char *_*/ getDatabaseSchemaName() /*_const_*/;
     public final native NdbDictionary.Dictionary/*_NdbDictionary.Dictionary *_*/ getDictionary() /*_const_*/;

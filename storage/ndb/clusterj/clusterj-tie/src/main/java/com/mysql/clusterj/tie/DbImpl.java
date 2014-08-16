@@ -112,6 +112,15 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     /** The number of ScanOptions deleted */
     private int numberOfScanOptionsDeleted;
 
+    /** The autoincrement batch size */
+    private int autoIncrementBatchSize;
+
+    /** The autoincrement step */
+    private long autoIncrementStep;
+
+    /** The autoincrement start */
+    private long autoIncrementStart;
+
     public DbImpl(ClusterConnectionImpl clusterConnection, Ndb ndb, int maxTransactions) {
         this.clusterConnection = clusterConnection;
         this.ndb = ndb;
@@ -459,6 +468,30 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     public void delete(ScanOptions scanOptions) {
         ++numberOfScanOptionsDeleted;
         ScanOptions.delete(scanOptions);
+    }
+
+    /** Get the autoincrement value for the table. This method is called from NdbRecordOperationImpl.insert
+     * to get the next autoincrement value.
+     */
+    public long getAutoincrementValue(Table table) {
+        long autoIncrementValue;
+        // get a new autoincrement value
+        long[] ret = new long[] {0L, autoIncrementBatchSize, autoIncrementStep, autoIncrementStart};
+        int returnCode = ndb.getAutoIncrementValue(((TableImpl)table).ndbTable, ret,
+                autoIncrementBatchSize, autoIncrementStep, autoIncrementStart);
+        handleError(returnCode, ndb);
+        autoIncrementValue = ret[0];
+        if (logger.isDetailEnabled()) {
+            logger.detail("getAutoIncrementValue(...batchSize: " + autoIncrementBatchSize +
+                " step: " + autoIncrementStep + " start: " + autoIncrementStart + ") returned " + autoIncrementValue);
+        }
+        return autoIncrementValue;
+    }
+
+    public void initializeAutoIncrement(long[] autoIncrement) {
+        this.autoIncrementBatchSize = (int)autoIncrement[0];
+        this.autoIncrementStep = autoIncrement[1];
+        this.autoIncrementStart = autoIncrement[2];
     }
 
 }
