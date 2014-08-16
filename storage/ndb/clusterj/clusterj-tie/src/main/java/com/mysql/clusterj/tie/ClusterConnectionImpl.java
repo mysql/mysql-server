@@ -72,6 +72,8 @@ public class ClusterConnectionImpl
     /** The dictionary used to create NdbRecords */
     Dictionary dictionaryForNdbRecord = null;
 
+    private long[] autoIncrement;
+
     private static final String USE_SMART_VALUE_HANDLER_NAME = "com.mysql.clusterj.UseSmartValueHandler";
 
     private static final boolean USE_SMART_VALUE_HANDLER =
@@ -113,6 +115,7 @@ public class ClusterConnectionImpl
             }
         }
         DbImpl result = new DbImpl(this, ndb, maxTransactions);
+        result.initializeAutoIncrement(autoIncrement);
         dbs.put(result, null);
         return result;
     }
@@ -330,5 +333,9 @@ public class ClusterConnectionImpl
     public NdbRecordOperationImpl newNdbRecordOperationImpl(DbImpl db, Table storeTable) {
         return new NdbRecordOperationImpl(this, db, storeTable);
     }
-            
+
+    public void initializeAutoIncrement(long[] autoIncrement) {
+        this.autoIncrement = autoIncrement;
+    }
+
 }

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -282,6 +282,23 @@ Java_com_mysql_ndbjtie_ndbapi_NDBAPI_return_1ndb_1object(JNIEnv * env, jclass cl
 // ---------------------------------------------------------------------------
 
 //#include "com_mysql_ndbjtie_ndbapi_Ndb.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb
+ * Method:    getAutoIncrementValue
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;[JIJJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_mysql_ndbjtie_ndbapi_Ndb_getAutoIncrementValue
+  (JNIEnv * env, jobject obj, jobject table, jlongArray ret, jint batch, jlong step, jlong start)
+{
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_getAutoIncrementValue__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2L__2I(JNIEnv *, jobject, jobject, jlongarray, jint, jlong, jlong)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_t, ttrait_int, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_Uint64_r_a, ttrait_Uint32, ttrait_Uint64, ttrait_Uint64, &Ndb::getAutoIncrementValue >(env, obj, table, ret, batch, step, start);
+#else
+    return gcall_fr< ttrait_int, ttrait_c_m_n_n_Ndb_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_Uint64_r_a, ttrait_Uint32, ttrait_Uint64, ttrait_Uint64, &NdbApiWrapper::Ndb__getAutoIncrementValue >(env, NULL, obj, table, ret, batch, step, start);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb
@@ -1302,6 +1319,22 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024AutoGrowSpecification_delete(JN
 // ---------------------------------------------------------------------------
 
 //#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Column.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Column
+ * Method:    getAutoIncrement
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Column_getAutoIncrement(JNIEnv * env, jobject obj)
+{
+    TRACE("jboolean Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Column_getAutoIncrement(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Column_ct, ttrait_bool, &NdbDictionary::Column::getAutoIncrement >(env, obj);
+#else
+    return gcall_fr< ttrait_bool, ttrait_c_m_n_n_NdbDictionary_Column_cr, &NdbApiWrapper::NdbDictionary__Column__getAutoIncrement >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Column
