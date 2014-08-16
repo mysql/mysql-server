@@ -75,7 +75,7 @@ IF(WIN32)
     # copy logging.properties to all clusterj subprojects
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/logging.properties 
                    ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${CLUSTERJ_PROJECT}/
-                   COPYONLY NEWLINE_STYLE WIN32)
+                   COPYONLY)
   ENDFOREACH(CLUSTERJ_PROJECT in CLUSTERJ_PROJECTS)
 
   # build the mvn_install_ndbjtie for windows
