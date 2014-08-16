@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,6 +69,10 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     int CLUSTER_CONNECT_TIMEOUT_AFTER;
     String CLUSTER_DATABASE;
     int CLUSTER_MAX_TRANSACTIONS;
+    int CLUSTER_CONNECT_AUTO_INCREMENT_BATCH_SIZE;
+    long CLUSTER_CONNECT_AUTO_INCREMENT_STEP;
+    long CLUSTER_CONNECT_AUTO_INCREMENT_START;
+
 
     /** Node ids obtained from the property PROPERTY_CONNECTION_POOL_NODEIDS */
     List<Integer> nodeIds = new ArrayList<Integer>();
@@ -170,6 +174,12 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                 Constants.DEFAULT_PROPERTY_CLUSTER_DATABASE);
         CLUSTER_MAX_TRANSACTIONS = getIntProperty(props, PROPERTY_CLUSTER_MAX_TRANSACTIONS,
                 Constants.DEFAULT_PROPERTY_CLUSTER_MAX_TRANSACTIONS);
+        CLUSTER_CONNECT_AUTO_INCREMENT_BATCH_SIZE = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_BATCH_SIZE,
+                Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_BATCH_SIZE);
+        CLUSTER_CONNECT_AUTO_INCREMENT_STEP = getLongProperty(props, PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_STEP,
+                Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_STEP);
+        CLUSTER_CONNECT_AUTO_INCREMENT_START = getLongProperty(props, PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_START,
+                Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_START);
         CLUSTER_CONNECTION_SERVICE = getStringProperty(props, PROPERTY_CLUSTER_CONNECTION_SERVICE);
         createClusterConnectionPool();
         // now get a Session and complete a transaction to make sure that the cluster is ready
@@ -253,6 +263,11 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                     local.message("ERR_Connecting", props), ex);
         }
         this.pooledConnections.add(result);
+        result.initializeAutoIncrement(new long[] {
+                CLUSTER_CONNECT_AUTO_INCREMENT_BATCH_SIZE,
+                CLUSTER_CONNECT_AUTO_INCREMENT_STEP,
+                CLUSTER_CONNECT_AUTO_INCREMENT_START
+        });
         return result;
     }
 
@@ -456,6 +471,33 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         if (property instanceof String) {
             try {
                 int result = Integer.parseInt((String)property);
+                return result;
+            } catch (NumberFormatException ex) {
+                throw new ClusterJFatalUserException(
+                        local.message("ERR_NumericFormat", propertyName, property));
+            }
+        }
+        throw new ClusterJUserException(local.message("ERR_NumericFormat", propertyName, property));
+    }
+
+    /** Get the property from the properties map as a long. If the user has not
+     * provided a value in the props, use the supplied default value.
+     * @param props the properties
+     * @param propertyName the name of the property
+     * @param defaultValue the value to return if there is no property by that name
+     * @return the value from the properties or the default value
+     */
+    protected static long getLongProperty(Map<?, ?> props, String propertyName, long defaultValue) {
+        Object property = props.get(propertyName);
+        if (property == null) {
+            return defaultValue;
+        }
+        if (Number.class.isAssignableFrom(property.getClass())) {
+            return ((Number)property).longValue();
+        }
+        if (property instanceof String) {
+            try {
+                long result = Long.parseLong((String)property);
                 return result;
             } catch (NumberFormatException ex) {
                 throw new ClusterJFatalUserException(
