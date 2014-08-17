@@ -1581,19 +1581,25 @@ select (_utf8mb4 X'616263FF');
 #
 eval CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL) ENGINE $engine;
 INSERT INTO t1 VALUES (70000, 1092), (70001, 1085), (70002, 1065);
+--source include/turn_off_only_full_group_by.inc
 --sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 --sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1;
+# We will make 'b' unique, so GROUP BY will be ok.
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 ALTER TABLE t1 ADD UNIQUE (b);
 --sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
+# Not unique anymore:
+--source include/turn_off_only_full_group_by.inc
 DROP INDEX b ON t1;
 --sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 ALTER TABLE t1 ADD INDEX (b);
 --sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) from t1 GROUP BY b;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1;
 
 --echo #

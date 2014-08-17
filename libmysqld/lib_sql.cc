@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2000, 2013
+ * Copyright (c)  2000, 2014
  * SWsoft  company
  *
  * This material is provided "as is", with absolutely no warranty expressed
@@ -723,8 +723,7 @@ void *create_embedded_thd(int client_flag)
   thd->client_capabilities= client_flag;
   thd->real_id= pthread_self();
 
-  thd->db= NULL;
-  thd->db_length= 0;
+  thd->reset_db(NULL_CSTR);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   thd->security_ctx->db_access= DB_ACLS;
   thd->security_ctx->master_access= ~NO_ACCESS;
@@ -768,7 +767,7 @@ emb_transfer_connect_attrs(MYSQL *mysql)
 int check_embedded_connection(MYSQL *mysql, const char *db)
 {
   int result;
-  LEX_STRING db_str = { (char*)db, db ? strlen(db) : 0 };
+  LEX_CSTRING db_lex_cstr= to_lex_cstring(db);
   THD *thd= (THD*)mysql->thd;
 
   /* the server does the same as the client */
@@ -787,7 +786,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   sctx->master_access= GLOBAL_ACLS;       // Full rights
   emb_transfer_connect_attrs(mysql);
   /* Change database if necessary */
-  if (!(result= (db && db[0] && mysql_change_db(thd, &db_str, FALSE))))
+  if (!(result= (db && db[0] && mysql_change_db(thd, db_lex_cstr, false))))
     my_ok(thd);
   thd->protocol->end_statement();
   emb_read_query_result(mysql);
