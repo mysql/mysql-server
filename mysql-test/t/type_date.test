@@ -80,12 +80,14 @@ CREATE TABLE t1(AFIELD INT);
 INSERT INTO t1 VALUES(1);
 CREATE TABLE t2(GMT  VARCHAR(32));
 INSERT INTO t2 VALUES('GMT-0800');
+--source include/turn_off_only_full_group_by.inc
 SELECT DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ', t2.GMT))
 FROM t1, t2 GROUP BY t1.AFIELD;
 INSERT INTO t1 VALUES(1);
 SELECT DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ', t2.GMT)),
        DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ', t2.GMT))
 FROM t1,t2 GROUP BY t1.AFIELD;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1,t2;
 
 #

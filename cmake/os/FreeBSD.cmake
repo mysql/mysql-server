@@ -16,6 +16,25 @@
 
 # This file includes FreeBSD specific options and quirks, related to system checks
 
+INCLUDE(CheckCSourceRuns)
+
+# We require at least Clang 3.3.
+IF(NOT FORCE_UNSUPPORTED_COMPILER)
+  IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    CHECK_C_SOURCE_RUNS("
+      int main()
+      {
+        return (__clang_major__ < 3) ||
+               (__clang_major__ == 3 && __clang_minor__ < 3);
+      }" HAVE_SUPPORTED_CLANG_VERSION)
+    IF(NOT HAVE_SUPPORTED_CLANG_VERSION)
+      MESSAGE(FATAL_ERROR "Clang 3.3 or newer is required!")
+    ENDIF()
+  ELSE()
+    MESSAGE(FATAL_ERROR "Unsupported compiler!")
+  ENDIF()
+ENDIF()
+
 # Should not be needed any more, but kept for easy resurrection if needed
 #   #Legacy option, maybe not needed anymore , taken as is from autotools build
 #   ADD_DEFINITIONS(-DNET_RETRY_COUNT=1000000)

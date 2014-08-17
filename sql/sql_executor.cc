@@ -402,7 +402,7 @@ JOIN::optimize_distinct()
   for (int i= primary_tables - 1; i >= 0; --i)
   {
     QEP_TAB *last_tab= qep_tab + i;
-    if (select_lex->select_list_tables & last_tab->table()->map)
+    if (select_lex->select_list_tables & last_tab->table_ref->map())
       break;
     last_tab->not_used_in_distinct= true;
   }
@@ -640,7 +640,7 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 
 static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
 {
-  if (!(cond->used_tables() & tab->table()->map))
+  if (!(cond->used_tables() & tab->table_ref->map()))
     return;
 
   if (cond->type() == Item::COND_ITEM)
@@ -678,13 +678,15 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
         */  
         if (!possible_keys.is_clear_all())
         {
-          TABLE *tab= field->table;
-          Key_use *use;
-          for (use= stat->keyuse(); use && use->table == tab; use++)
+          TABLE *const table= field->table;
+          for (Key_use *use= stat->keyuse();
+               use && use->table_ref == item_field->table_ref;
+               use++)
+          {
             if (possible_keys.is_set(use->key) && 
-                tab->key_info[use->key].key_part[use->keypart].field ==
-                field)
-              tab->const_key_parts[use->key]|= use->keypart_map;
+                table->key_info[use->key].key_part[use->keypart].field == field)
+              table->const_key_parts[use->key]|= use->keypart_map;
+          }
         }
       }
     }
@@ -1848,7 +1850,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     pos->rows_fetched= 0.0;
     pos->prefix_rowcount= 0.0;
     pos->ref_depend_map= 0;
-    if (!table->pos_in_table_list->outer_join || error > 0)
+    if (!tab->table_ref->outer_join || error > 0)
       DBUG_RETURN(error);
   }
 
@@ -2418,8 +2420,9 @@ int join_init_read_record(QEP_TAB *tab)
 
 int join_materialize_derived(QEP_TAB *tab)
 {
-  THD *thd= tab->table()->in_use;
-  TABLE_LIST *derived= tab->table()->pos_in_table_list;
+  THD *const thd= tab->table()->in_use;
+  TABLE_LIST *const derived= tab->table_ref;
+
   DBUG_ASSERT(derived->uses_materialization() && !tab->materialized);
 
   if (derived->materializable_is_const()) // Has been materialized by optimizer
@@ -4381,17 +4384,18 @@ static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
 
   for (uint tableno= 0; tableno < join->const_tables; tableno++)
   {
-    TABLE *tbl= join->qep_tab[tableno].table();
+    QEP_TAB *const tab= join->qep_tab + tableno;
+    TABLE *const table= tab->table();
     /*
-      tbl->status and tbl->null_row must be in sync: either both set
+      table->status and table->null_row must be in sync: either both set
       or none set. Otherwise, an additional table_map parameter is
       needed to save/restore_const_null_info() these separately
     */
-    DBUG_ASSERT(tbl->null_row ? (tbl->status & STATUS_NULL_ROW) :
-                               !(tbl->status & STATUS_NULL_ROW));
+    DBUG_ASSERT(table->null_row ? (table->status & STATUS_NULL_ROW) :
+                                 !(table->status & STATUS_NULL_ROW));
 
-    if (!tbl->null_row)
-      *save_nullinfo|= tbl->map;
+    if (!table->null_row)
+      *save_nullinfo|= tab->table_ref->map();
   }
 }
 
@@ -4417,15 +4421,15 @@ static void restore_const_null_info(JOIN *join, table_map save_nullinfo)
 
   for (uint tableno= 0; tableno < join->const_tables; tableno++)
   {
-    TABLE *tbl= join->qep_tab[tableno].table();
-    if ((save_nullinfo & tbl->map))
+    QEP_TAB *const tab= join->qep_tab + tableno;
+    if ((save_nullinfo & tab->table_ref->map()))
     {
       /*
         The table had null_row=false and STATUS_NULL_ROW set when
         save_const_null_info was called
       */
-      tbl->null_row= false;
-      tbl->status&= ~STATUS_NULL_ROW;
+      tab->table()->null_row= false;
+      tab->table()->status&= ~STATUS_NULL_ROW;
     }
   }
 }

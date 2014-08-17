@@ -77,12 +77,12 @@ my_bool validate_user_plugins= TRUE;
   @param access the schema ACL specific rules
 */
 void ACL_internal_schema_registry::register_schema
-  (const LEX_STRING *name, const ACL_internal_schema_access *access)
+  (const LEX_STRING &name, const ACL_internal_schema_access *access)
 {
   DBUG_ASSERT(m_registry_array_size < array_elements(registry_array));
 
   /* Not thread safe, and does not need to be. */
-  registry_array[m_registry_array_size].m_name= name;
+  registry_array[m_registry_array_size].m_name= &name;
   registry_array[m_registry_array_size].m_access= access;
   m_registry_array_size++;
 }
@@ -1043,7 +1043,7 @@ void rebuild_check_host(void)
 */
 
 bool acl_getroot(Security_context *sctx, char *user, char *host,
-                 char *ip, char *db)
+                 char *ip, const char *db)
 {
   int res= 1;
   ACL_USER *acl_user= 0;

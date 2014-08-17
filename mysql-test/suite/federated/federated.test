@@ -221,7 +221,9 @@ SELECT * FROM federated.t1 ORDER BY id DESC;
 SELECT * FROM federated.t1 ORDER BY name;
 SELECT * FROM federated.t1 ORDER BY name DESC;
 SELECT * FROM federated.t1 ORDER BY name ASC;
+--source include/turn_off_only_full_group_by.inc
 SELECT * FROM federated.t1 GROUP BY other;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 # ::delete_row
 DELETE FROM federated.t1 WHERE id = 5; 
@@ -304,7 +306,9 @@ SELECT * FROM federated.t1 ORDER BY id DESC;
 SELECT * FROM federated.t1 ORDER BY name;
 SELECT * FROM federated.t1 ORDER BY name DESC;
 SELECT * FROM federated.t1 ORDER BY name ASC;
+--source include/turn_off_only_full_group_by.inc
 SELECT * FROM federated.t1 GROUP BY other;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 # ::delete_row
 DELETE FROM federated.t1 WHERE id = 5; 

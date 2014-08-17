@@ -20,6 +20,10 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
 /**
   Get high-resolution time.
 

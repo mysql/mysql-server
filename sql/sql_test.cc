@@ -28,22 +28,19 @@
 #include "sql_optimizer.h"  // JOIN
 #include "opt_explain.h"    // join_type_str
 #include <hash.h>
-#if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
-#include <malloc.h>
-#elif defined(HAVE_MALLOC_INFO) && defined(HAVE_SYS_MALLOC_H)
-#include <sys/malloc.h>
-#endif
-
 #ifndef EMBEDDED_LIBRARY
 #include "events.h"
 #endif
-
 #include "table_cache.h" // table_cache_manager
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "prealloced_array.h"
 
 #include <algorithm>
 #include <functional>
+
+#if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
+#include <malloc.h>
+#endif
 
 const char *lock_descriptions[TL_WRITE_ONLY + 1] =
 {
@@ -181,9 +178,9 @@ void print_keyuse_array(Opt_trace_context *trace,
                        keyuse.optimize, keyuse.used_tables,
                        (ulong)keyuse.ref_table_rows, keyuse.keypart_map));
     Opt_trace_object(trace).
-      add_utf8_table(keyuse.table).
+      add_utf8_table(keyuse.table_ref->table).
       add_utf8("field", (keyuse.keypart == FT_KEYPART) ? "<fulltext>" :
-               keyuse.table->key_info[keyuse.key].
+               keyuse.table_ref->table->key_info[keyuse.key].
                key_part[keyuse.keypart].field->field_name).
       add("equals", keyuse.val).
       add("null_rejecting", keyuse.null_rejecting);

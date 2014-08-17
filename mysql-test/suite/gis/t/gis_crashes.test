@@ -114,3 +114,4 @@ SHOW VARIABLES LIKE '%engine%';
 --error ER_GIS_INVALID_DATA
 SELECT ST_Intersects(GeomFromWKB(AsWKB(GeomFromText('MULTIPOLYGON(((4 4,9 10.0002,4 4),(5 0,2 6,5 0)))'))),GeomFromWKB(MULTIPOINT(POINT(8,9))));
 
+SELECT astext(ST_ConvexHull(GeomFromText('POINT(10 10)')));
