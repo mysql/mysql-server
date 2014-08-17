@@ -1951,12 +1951,24 @@ RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 	prepare();
 
-	lock_t*	lock;
+	lock_t*		lock;
+	const trx_t*	victim_trx;
 
-	/* Currently, if both are high priority transactions then the
-	requesting transaction will be rolled back. */
+	/* We don't rollback internal (basically background statistics
+       	gathering) transactions. The problem is that we cannot currently
+	block them using the TrxInInnoDB() mechanism. */
 
-	const trx_t*	victim_trx = trx_arbitrate(m_trx, wait_for->trx);
+	if (wait_for->trx->mysql_thd == NULL) {
+
+		victim_trx = NULL;
+
+	} else {
+
+		/* Currently, if both are high priority transactions then
+		the requesting transaction will be rolled back. */
+
+		victim_trx = trx_arbitrate(m_trx, wait_for->trx);
+	}
 
 	if (victim_trx == m_trx || victim_trx == NULL) {
 
