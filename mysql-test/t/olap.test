@@ -428,6 +428,7 @@ DROP TABLE t1, t2;
 --echo #
 
 CREATE TABLE t1 (f1 DATETIME);
+--source include/turn_off_only_full_group_by.inc
 INSERT INTO  t1 VALUES ('2012-12-20 00:00:00'), (NULL);
 
 SELECT f1 FROM t1 GROUP BY
@@ -450,5 +451,7 @@ SELECT f1 FROM t1 GROUP BY
 (SELECT f1 FROM t1 HAVING f1 < '12:12:12') WITH ROLLUP;
 
 DROP TABLE t1;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 --echo End of 5.5 tests

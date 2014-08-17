@@ -1150,7 +1150,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                                !insert_into_view, insert_table_ref);
     table_map map= 0;
     if (!res)
-      map= (*insert_table_ref)->table->map;
+      map= (*insert_table_ref)->map();
 
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(),
@@ -1202,7 +1202,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                              !insert_into_view, insert_table_ref);
     table_map map= 0;
     if (!res)
-      map= (*insert_table_ref)->table->map;
+      map= (*insert_table_ref)->map();
 
     if (!res && duplic == DUP_UPDATE)
     {

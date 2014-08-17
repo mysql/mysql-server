@@ -522,7 +522,7 @@ void buildSHA_CertVerify(SSL& ssl, byte* digest)
 // some clients still send sslv2 client hello
 void ProcessOldClientHello(input_buffer& input, SSL& ssl)
 {
-    if (input.get_remaining() < 2) {
+    if (input.get_error() || input.get_remaining() < 2) {
         ssl.SetError(bad_input);
         return;
     }
@@ -549,20 +549,24 @@ void ProcessOldClientHello(input_buffer& input, SSL& ssl)
 
     byte len[2];
 
-    input.read(len, sizeof(len));
+    len[0] = input[AUTO];
+    len[1] = input[AUTO];
     ato16(len, ch.suite_len_);
 
-    input.read(len, sizeof(len));
+    len[0] = input[AUTO];
+    len[1] = input[AUTO];
     uint16 sessionLen;
     ato16(len, sessionLen);
     ch.id_len_ = sessionLen;
 
-    input.read(len, sizeof(len));
+    len[0] = input[AUTO];
+    len[1] = input[AUTO];
     uint16 randomLen;
     ato16(len, randomLen);
 
-    if (ch.suite_len_ > MAX_SUITE_SZ || sessionLen > ID_LEN ||
-                                        randomLen > RAN_LEN) {
+    if (input.get_error() || ch.suite_len_ > MAX_SUITE_SZ ||
+                             ch.suite_len_ > input.get_remaining() ||
+                             sessionLen > ID_LEN || randomLen > RAN_LEN) {
         ssl.SetError(bad_input);
         return;
     }
@@ -580,13 +584,12 @@ void ProcessOldClientHello(input_buffer& input, SSL& ssl)
     ch.suite_len_ = j;
 
     if (ch.id_len_)
-        input.read(ch.session_id_, ch.id_len_);
+        input.read(ch.session_id_, ch.id_len_);   // id_len_ from sessionLen
 
     if (randomLen < RAN_LEN)
         memset(ch.random_, 0, RAN_LEN - randomLen);
     input.read(&ch.random_[RAN_LEN - randomLen], randomLen);
  
-
     ch.Process(input, ssl);
 }
 
@@ -783,6 +786,9 @@ int DoProcessReply(SSL& ssl)
             ssl.verifyState(hdr);
         }
 
+        if (ssl.GetError())
+            return 0;
+
         // make sure we have enough input in buffer to process this record
         if (needHdr || hdr.length_ > buffer.get_remaining()) {
             // put header in front for next time processing
@@ -795,6 +801,9 @@ int DoProcessReply(SSL& ssl)
 
         while (buffer.get_current() < hdr.length_ + RECORD_HEADER + offset) {
             // each message in record, can be more than 1 if not encrypted
+            if (ssl.GetError())
+                return 0;
+
             if (ssl.getSecurity().get_parms().pending_ == false) { // cipher on
                 // sanity check for malicious/corrupted/illegal input
                 if (buffer.get_remaining() < hdr.length_) {

@@ -157,8 +157,8 @@ insert into t1 values (geomfromtext('POLYGON((0 0, 10 10, 0 8, 0 0))'));
 insert into t1 values (geomfromtext('POLYGON((1 1, 10 10, 0 8, 1 1))'));
 select astext(geom), area(geom),area(ST_buffer(geom,2)) from t1;
 astext(geom)	area(geom)	area(ST_buffer(geom,2))
-POLYGON((0 0,10 10,0 8,0 0))	40	117.2416763959153
-POLYGON((1 1,10 10,0 8,1 1))	36	108.55539589266459
+POLYGON((0 0,10 10,0 8,0 0))	40	117.24167639591529
+POLYGON((1 1,10 10,0 8,1 1))	36	108.55539589266458
 select NUMPOINTS(EXTERIORRING(ST_buffer(geom,2))) from t1;
 NUMPOINTS(EXTERIORRING(ST_buffer(geom,2)))
 133

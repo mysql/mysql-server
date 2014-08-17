@@ -697,7 +697,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   table->alias= table_alias;
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
-  table->map=1;
   table->temp_pool_slot = temp_pool_slot;
   table->copy_blobs= 1;
   table->in_use= thd;
@@ -1522,7 +1521,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   table->alias= "weedout-tmp";
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
-  table->map=1;
   table->temp_pool_slot = temp_pool_slot;
   table->copy_blobs= 1;
   table->in_use= thd;
@@ -2446,8 +2444,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
         This could happen only with result of derived table/view
         materialization.
       */
-      DBUG_ASSERT(table->pos_in_table_list &&
-                  table->pos_in_table_list->uses_materialization());
+      DBUG_ASSERT(tab->table_ref && tab->table_ref->uses_materialization());
       tab->quick()->set_handler(table->file);
     }
   }

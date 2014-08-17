@@ -103,3 +103,6 @@ default_tmp_storage_engine	MyISAM
 internal_tmp_disk_storage_engine	MYISAM
 SELECT ST_Intersects(GeomFromWKB(AsWKB(GeomFromText('MULTIPOLYGON(((4 4,9 10.0002,4 4),(5 0,2 6,5 0)))'))),GeomFromWKB(MULTIPOINT(POINT(8,9))));
 ERROR 22023: Invalid GIS data provided to function st_disjoint.
+SELECT astext(ST_ConvexHull(GeomFromText('POINT(10 10)')));
+astext(ST_ConvexHull(GeomFromText('POINT(10 10)')))
+POINT(10 10)

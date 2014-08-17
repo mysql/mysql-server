@@ -39,7 +39,6 @@
 #include <mysqld_error.h>
 #include <my_sys.h>
 #include <m_string.h>
-#include <my_net.h>
 #include <violite.h>
 #include <signal.h>
 #include <errno.h>
