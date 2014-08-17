@@ -32,7 +32,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifndef _WIN32
+#ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
 #include <my_getopt.h>

@@ -19,7 +19,7 @@ create table t2(a varchar(100));
 insert into t2 values("first");
 create table t3(a varchar(100));
 insert into t3 values("first");
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 delimiter |;
 create procedure p1() sql security definer
 begin
@@ -452,7 +452,7 @@ connect (con_user1, localhost, user1,, somedb);
 connection con_user1;
 select user();
 set optimizer_trace="enabled=on";
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 delimiter |;
 create procedure p1() sql security definer
 begin
@@ -712,7 +712,7 @@ select user();
 --echo user1 cannot see view's body:
 --error 1142
 show create view v1;
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 --echo user1 creates a procedure
 delimiter |;
 create procedure proc() sql security definer

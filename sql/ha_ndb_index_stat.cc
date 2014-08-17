@@ -2469,7 +2469,7 @@ Ndb_index_stat_thread::do_run()
   mysql_mutex_lock(&LOCK_server_started);
   while (!mysqld_server_started)
   {
-    set_timespec(abstime, 1);
+    set_timespec(&abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
 	                 &abstime);
     if (is_stop_requested())
@@ -2528,7 +2528,7 @@ Ndb_index_stat_thread::do_run()
   bool enable_ok;
   enable_ok= false;
 
-  set_timespec(abstime, 0);
+  set_timespec(&abstime, 0);
   for (;;)
   {
     native_mutex_lock(&LOCK);
@@ -2609,7 +2609,7 @@ Ndb_index_stat_thread::do_run()
       msecs= opt.get(Ndb_index_stat_opt::Iloop_busy);
     DBUG_PRINT("index_stat", ("sleep %dms", msecs));
 
-    set_timespec_nsec(abstime, msecs * 1000000ULL);
+    set_timespec_nsec(&abstime, msecs * 1000000ULL);
 
     /* Update status variable */
     glob.th_enable= enable_ok;
@@ -2729,7 +2729,7 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
                               st->id, count));
     ndb_index_stat_thread.wakeup();
 
-    set_timespec(abstime, 1);
+    set_timespec(&abstime, 1);
     ret= native_cond_timedwait(&ndb_index_stat_thread.stat_cond,
                                &ndb_index_stat_thread.stat_mutex,
                                &abstime);
@@ -2803,7 +2803,7 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
                               st->id, count));
     ndb_index_stat_thread.wakeup();
 
-    set_timespec(abstime, 1);
+    set_timespec(&abstime, 1);
     ret= native_cond_timedwait(&ndb_index_stat_thread.stat_cond,
                                &ndb_index_stat_thread.stat_mutex,
                                &abstime);

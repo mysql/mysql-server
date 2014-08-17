@@ -28,6 +28,8 @@
 # prepared statement.
 --source ../include/no_protocol.inc
 
+--source include/turn_off_only_full_group_by.inc
+
 # Set this to enable debugging output
 let $my_socket_debug= 0;
 
@@ -328,6 +330,8 @@ if (`SELECT @tables_match = 0`)
 --echo
 --connection default
 DROP DATABASE mysqltest;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 exit;
 

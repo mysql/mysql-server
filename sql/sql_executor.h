@@ -334,6 +334,7 @@ class QEP_TAB : public Sql_alloc, public QEP_shared_owner
 public:
   QEP_TAB() :
     QEP_shared_owner(),
+    table_ref(NULL),
     flush_weedout_table(NULL),
     check_weed_out_table(NULL),
     firstmatch_return(NO_PLAN_IDX),
@@ -472,6 +473,8 @@ public:
   bool pfs_batch_update(JOIN *join);
 
 public:
+  /// Pointer to table reference
+  TABLE_LIST *table_ref;
 
   /* Variables for semi-join duplicate elimination */
   SJ_TMP_TABLE *flush_weedout_table;

@@ -19,6 +19,8 @@
 #include <my_pthread.h>
 #include "heap.h"			/* Structs & some defines */
 #include "my_tree.h"
+#include "m_string.h"
+#include "my_sys.h"
 C_MODE_START
 
 /*

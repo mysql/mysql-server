@@ -91,8 +91,6 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
   TABLE_LIST *const delete_table_ref= table_list->updatable_base_table();
   TABLE *const table= delete_table_ref->table;
 
-  table->map= 1;
-
   if (mysql_prepare_delete(thd, delete_table_ref))
     DBUG_RETURN(TRUE);
 
@@ -361,7 +359,7 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
       rows= limit;
     else
     {
-      table->pos_in_table_list->fetch_number_of_rows();
+      delete_table_ref->fetch_number_of_rows();
       rows= table->file->stats.records;
     }
     qep_tab.set_quick_optim();
@@ -818,7 +816,7 @@ multi_delete::initialize_tables(JOIN *join)
   for (TABLE_LIST *walk= delete_tables; walk; walk= walk->next_local)
   {
     TABLE_LIST *const ref= walk->correspondent_table->updatable_base_table();
-    delete_table_map|= ref->table->map;
+    delete_table_map|= ref->map();
     if (delete_while_scanning &&
         unique_table(thd, ref, join->tables_list, false))
     {
@@ -833,7 +831,8 @@ multi_delete::initialize_tables(JOIN *join)
   for (uint i= 0; i < join->primary_tables; i++)
   {
     TABLE *const table= join->best_ref[i]->table();
-    if (!(table->map & delete_table_map))
+    const table_map map= join->best_ref[i]->table_ref->map();
+    if (!(map & delete_table_map))
       continue;
 
     // We are going to delete from this table
@@ -841,9 +840,9 @@ multi_delete::initialize_tables(JOIN *join)
     table->no_cache= 1;
     table->covering_keys.clear_all();
     if (table->file->has_transactions())
-      transactional_table_map|= table->map;
+      transactional_table_map|= map;
     else
-      non_transactional_table_map|= table->map;
+      non_transactional_table_map|= map;
     if (table->triggers &&
         table->triggers->has_triggers(TRG_EVENT_DELETE,
                                       TRG_ACTION_AFTER))
@@ -864,9 +863,9 @@ multi_delete::initialize_tables(JOIN *join)
       1. deleting from one of the const tables, or
       2. deleting from the first non-const table
   */
-  table_map possible_tables= join->const_table_map;                   // 1
+  table_map possible_tables= join->const_table_map;                       // 1
   if (join->primary_tables > join->const_tables)
-    possible_tables|= join->best_ref[join->const_tables]->table()->map;  // 2
+    possible_tables|= join->best_ref[join->const_tables]->table_ref->map();// 2
   if (delete_while_scanning)
     delete_immediate= delete_table_map & possible_tables;
 
@@ -876,11 +875,12 @@ multi_delete::initialize_tables(JOIN *join)
   TABLE  **table_ptr= tables;
   for (uint i= 0; i < join->primary_tables; i++)
   {
-    TABLE *const table= join->best_ref[i]->table();
+    const table_map map= join->best_ref[i]->table_ref->map();
 
-    if (!(table->map & delete_table_map & ~delete_immediate))
+    if (!(map & delete_table_map & ~delete_immediate))
       continue;
 
+    TABLE *const table= join->best_ref[i]->table();
     if (!(*tempfile++= new Unique(refpos_order_cmp,
                                   (void *) table->file,
                                   table->file->ref_length,
@@ -922,13 +922,15 @@ bool multi_delete::send_data(List<Item> &values)
 
   for (uint i= 0; i < join->primary_tables; i++)
   {
-    TABLE *const table= join->qep_tab[i].table();
+    const table_map map= join->qep_tab[i].table_ref->map();
 
     // Check whether this table is being deleted from
-    if (!(table->map & delete_table_map))
+    if (!(map & delete_table_map))
       continue;
 
-    const bool immediate= table->map & delete_immediate;
+    const bool immediate= map & delete_immediate;
+
+    TABLE *const table= join->qep_tab[i].table();
 
     DBUG_ASSERT(immediate || table == tables[unique_counter]);
 
@@ -953,7 +955,7 @@ bool multi_delete::send_data(List<Item> &values)
                                             TRG_ACTION_BEFORE, FALSE))
         DBUG_RETURN(true);
       table->status|= STATUS_DELETED;
-      if (table->map & non_transactional_table_map)
+      if (map & non_transactional_table_map)
         non_transactional_deleted= true;
       if (!(error=table->file->ha_delete_row(table->record[0])))
       {
@@ -1190,7 +1192,7 @@ int multi_delete::do_table_deletes(TABLE *table)
     if (!local_error)
     {
       deleted++;
-      if (table->map & non_transactional_table_map)
+      if (table->pos_in_table_list->map() & non_transactional_table_map)
         non_transactional_deleted= true;
 
       if (table->triggers &&

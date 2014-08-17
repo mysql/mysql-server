@@ -601,7 +601,7 @@ int JOIN_CACHE_BKA::init()
       for (uint i= 0; i < ref->key_parts; i++)
       {
         Item *ref_item= ref->items[i]; 
-        if (!(tab->table()->map & ref_item->used_tables()))
+        if (!(tab->table_ref->map() & ref_item->used_tables()))
 	  continue;
 	 ref_item->walk(&Item::add_field_to_set_processor,
                       Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
@@ -1706,9 +1706,9 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       STATUS_UPDATED cannot be on as multi-table DELETE/UPDATE never use join
       buffering. So we only have three bits to save.
     */
-    TABLE * const table= qep_tab[- cnt].table();
-    const uint8 status= table->status;
-    const table_map map= table->map;
+    TABLE_LIST * const tr= qep_tab[- cnt].table_ref;
+    const uint8 status= tr->table->status;
+    const table_map map= tr->map();
     DBUG_ASSERT((status & (STATUS_DELETED | STATUS_UPDATED)) == 0);
     if (status & STATUS_GARBAGE)
       saved_status_bits[0]|= map;
@@ -1716,7 +1716,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       saved_status_bits[1]|= map;
     if (status & STATUS_NULL_ROW)
       saved_status_bits[2]|= map;
-    table->status= 0;                           // Record exists.
+    tr->table->status= 0;                           // Record exists.
   }
 
   const bool outer_join_first_inner= qep_tab->is_first_inner_for_outer_join();
@@ -1810,8 +1810,8 @@ finish:
       We must restore the status of outer tables as it was before entering
       this function.
     */
-    TABLE * const table= qep_tab[- cnt].table();
-    const table_map map= table->map;
+    TABLE_LIST *const tr= qep_tab[- cnt].table_ref;
+    const table_map map= tr->map();
     uint8 status= 0;
     if (saved_status_bits[0] & map)
       status|= STATUS_GARBAGE;
@@ -1819,7 +1819,7 @@ finish:
       status|= STATUS_NOT_FOUND;
     if (saved_status_bits[2] & map)
       status|= STATUS_NULL_ROW;
-    table->status= status;
+    tr->table->status= status;
   }
   restore_last_record();
   reset_cache(true);

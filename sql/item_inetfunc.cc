@@ -15,7 +15,9 @@
 
 #include "item_inetfunc.h"
 
-#include "my_net.h"
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
 
 ///////////////////////////////////////////////////////////////////////////
 

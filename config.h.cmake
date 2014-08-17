@@ -34,8 +34,6 @@
 /* Header files */
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
-#cmakedefine HAVE_CRYPT_H 1
-#cmakedefine HAVE_CXXABI_H 1
 #cmakedefine HAVE_DIRENT_H 1
 #cmakedefine HAVE_DLFCN_H 1
 #cmakedefine HAVE_EXECINFO_H 1
@@ -48,26 +46,18 @@
 #cmakedefine HAVE_POLL_H 1
 #cmakedefine HAVE_PWD_H 1
 #cmakedefine HAVE_STRINGS_H 1
-#cmakedefine HAVE_SYNCH_H 1
 #cmakedefine HAVE_SYS_CDEFS_H 1
 #cmakedefine HAVE_SYS_IOCTL_H 1
-#cmakedefine HAVE_SYS_MALLOC_H 1
 #cmakedefine HAVE_SYS_MMAN_H 1
-#cmakedefine HAVE_SYS_PRCTL_H 1
 #cmakedefine HAVE_SYS_RESOURCE_H 1
 #cmakedefine HAVE_SYS_SELECT_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1
 #cmakedefine HAVE_TERM_H 1
-#cmakedefine HAVE_ASM_TERMBITS_H 1
 #cmakedefine HAVE_TERMIOS_H 1
 #cmakedefine HAVE_TERMIO_H 1
-#cmakedefine HAVE_TERMCAP_H 1
 #cmakedefine HAVE_UNISTD_H 1
-#cmakedefine HAVE_UTIME_H 1
-#cmakedefine HAVE_SYS_UTIME_H 1
 #cmakedefine HAVE_SYS_WAIT_H 1
 #cmakedefine HAVE_SYS_PARAM_H 1
-#cmakedefine HAVE_SYS_VADVISE_H 1
 #cmakedefine HAVE_FNMATCH_H 1
 #cmakedefine HAVE_SYS_UN_H 1
 #cmakedefine HAVE_VIS_H 1
@@ -251,6 +241,23 @@
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
 #cmakedefine DEFAULT_TMPDIR @DEFAULT_TMPDIR@
+#cmakedefine INSTALL_SBINDIR "@default_prefix@/@INSTALL_SBINDIR@"
+#cmakedefine INSTALL_BINDIR "@default_prefix@/@INSTALL_BINDIR@"
+#cmakedefine INSTALL_MYSQLSHAREDIR "@default_prefix@/@INSTALL_MYSQLSHAREDIR@"
+#cmakedefine INSTALL_SHAREDIR "@default_prefix@/@INSTALL_SHAREDIR@"
+#cmakedefine INSTALL_PLUGINDIR "@default_prefix@/@INSTALL_PLUGINDIR@"
+#cmakedefine INSTALL_INCLUDEDIR "@default_prefix@/@INSTALL_INCLUDEDIR@"
+#cmakedefine INSTALL_SCRIPTDIR "@default_prefix@/@INSTALL_SCRIPTDIR@"
+#cmakedefine INSTALL_MYSQLDATADIR "@default_prefix@/@INSTALL_MYSQLDATADIR@"
+#cmakedefine INSTALL_PLUGINTESTDIR "@INSTALL_PLUGINTESTDIR@"
+#cmakedefine INSTALL_INFODIR "@default_prefix@/@INSTALL_INFODIR@"
+#cmakedefine INSTALL_MYSQLTESTDIR "@default_prefix@/@INSTALL_MYSQLTESTDIR@"
+#cmakedefine INSTALL_SQLBENCHDIR "@default_prefix@/@INSTALL_SQLBENCHDIR@"
+#cmakedefine INSTALL_DOCREADMEDIR "@default_prefix@/@INSTALL_DOCREADMEDIR@"
+#cmakedefine INSTALL_DOCDIR "@default_prefix@/@INSTALL_DOCDIR@"
+#cmakedefine INSTALL_MANDIR "@default_prefix@/@INSTALL_MANDIR@"
+#cmakedefine INSTALL_SUPPORTFILESDIR "@default_prefix@/@INSTALL_SUPPORTFILESDIR@"
+#cmakedefine INSTALL_LIBDIR "@default_prefix@/@INSTALL_LIBDIR@"
 
 /*
  * Readline

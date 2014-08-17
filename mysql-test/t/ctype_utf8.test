@@ -1464,14 +1464,20 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
 INSERT INTO t1 VALUES (70000, 1092), (70001, 1085), (70002, 1065);
+
+--source include/turn_off_only_full_group_by.inc
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 ALTER TABLE t1 ADD UNIQUE (b);
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 DROP INDEX b ON t1;
+--source include/turn_off_only_full_group_by.inc
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 ALTER TABLE t1 ADD INDEX (b);
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) from t1 GROUP BY b;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
 DROP TABLE t1;
 
 --echo End of 5.0 tests
