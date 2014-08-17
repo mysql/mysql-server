@@ -1333,10 +1333,12 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t2 VALUES (1);
 
+--source include/turn_off_only_full_group_by.inc
 SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 
 SELECT FOUND_ROWS();
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1, t2;
 
 --echo # Bug #17669551 CRASH/ASSERT AT SELECT_CREATE::PREPARE2 AT

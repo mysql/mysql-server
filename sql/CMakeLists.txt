@@ -78,6 +78,7 @@ SET(SQL_SHARED_SOURCES
   field_conv.cc 
   filesort.cc
   filesort_utils.cc
+  aggregate_check.cc
   gcalc_slicescan.cc
   gcalc_tools.cc
   gstream.cc
@@ -525,10 +526,6 @@ ADD_CUSTOM_TARGET(distclean
 
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
-# Copy db.opt into data/test/
-SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
-INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
-
 # Install initial database on windows
 IF(NOT CMAKE_CROSSCOMPILING)
   IF(DEBUG_EXTNAME)
@@ -548,6 +545,10 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
     SET (CONFIG_PARAM -DCONFIG=${CMAKE_CFG_INTDIR})
   ENDIF()
   MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/data)
+  # Copy db.opt into data/test/
+  SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
+  INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
+
   ADD_CUSTOM_COMMAND(
      OUTPUT initdb.dep
      COMMAND ${CMAKE_COMMAND}

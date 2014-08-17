@@ -85,6 +85,9 @@
 #include <errno.h>
 #include <ctype.h>
 
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 #ifdef HAVE_FNMATCH_H
 #include <fnmatch.h>
 #else
@@ -93,6 +96,8 @@
 
 #if defined(_WIN32)
 #include <process.h>
+#else
+#include <signal.h>
 #endif
 
 #ifndef DBUG_OFF
