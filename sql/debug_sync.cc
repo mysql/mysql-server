@@ -1925,7 +1925,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
       else
         old_mutex= NULL;
 
-      set_timespec(abstime, action->timeout);
+      set_timespec(&abstime, action->timeout);
       DBUG_EXECUTE("debug_sync_exec", {
           DBUG_PRINT("debug_sync_exec",
                      ("wait for '%s'  at: '%s'",

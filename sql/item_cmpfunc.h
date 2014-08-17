@@ -937,6 +937,9 @@ protected:
   Item_func_coalesce(const POS &pos, Item *a, Item *b)
     : Item_func_numhybrid(pos, a, b)
   {}
+  Item_func_coalesce(const POS &pos, Item *a)
+    : Item_func_numhybrid(pos, a)
+  {}
 public:
   Item_func_coalesce(const POS &pos, PT_item_list *list);
   double real_op();
@@ -972,6 +975,21 @@ public:
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
   uint decimal_precision() const;
+};
+
+
+/**
+   ANY_VALUE(expr) is like expr except that it is not checked by
+   aggregate_check logic. It serves as a solution for users who want to
+   bypass this logic.
+*/
+class Item_func_any_value :public Item_func_coalesce
+{
+public:
+  Item_func_any_value(const POS &pos, Item *a) :Item_func_coalesce(pos, a) {}
+  const char *func_name() const { return "any_value"; }
+  bool aggregate_check_group(uchar *arg);
+  bool aggregate_check_distinct(uchar *arg);
 };
 
 

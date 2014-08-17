@@ -120,7 +120,7 @@ class Key_use {
 public:
   // We need the default constructor for unit testing.
   Key_use()
-    : table(NULL),
+    : table_ref(NULL),
       val(NULL),
       used_tables(0),
       key(0),
@@ -136,12 +136,12 @@ public:
       read_cost(0.0)
   {}
 
-  Key_use(TABLE *table_arg, Item *val_arg, table_map used_tables_arg,
+  Key_use(TABLE_LIST *table_ref_arg, Item *val_arg, table_map used_tables_arg,
           uint key_arg, uint keypart_arg, uint optimize_arg,
           key_part_map keypart_map_arg, ha_rows ref_table_rows_arg,
           bool null_rejecting_arg, bool *cond_guard_arg,
           uint sj_pred_no_arg) :
-  table(table_arg), val(val_arg), used_tables(used_tables_arg),
+  table_ref(table_ref_arg), val(val_arg), used_tables(used_tables_arg),
   key(key_arg), keypart(keypart_arg), optimize(optimize_arg),
   keypart_map(keypart_map_arg), ref_table_rows(ref_table_rows_arg),
   null_rejecting(null_rejecting_arg), cond_guard(cond_guard_arg),
@@ -149,7 +149,7 @@ public:
   read_cost(0.0)
   {}
 
-  TABLE *table;            ///< table owning the index
+  TABLE_LIST *table_ref;   ///< table owning the index
 
   /**
     Value used for lookup into @c key. It may be an Item_field, a
@@ -580,6 +580,7 @@ public:
     *m_join_cond_ref= cond;
   }
 
+  /// Set the combined condition for a table (may be performed several times)
   void set_condition(Item *to)
   {
     if (condition() != to)
@@ -594,6 +595,8 @@ public:
   void set_use_join_cache(uint u) { m_use_join_cache= u; }
   Key_use *keyuse() const { return m_keyuse; }
   void set_keyuse(Key_use *k) { m_keyuse= k; }
+
+  TABLE_LIST    *table_ref;     /**< points to table reference               */
 
 private:
 
@@ -688,6 +691,7 @@ private:
 inline
 JOIN_TAB::JOIN_TAB() :
     QEP_shared_owner(),
+    table_ref(NULL),
     m_keyuse(NULL),
     m_join_cond_ref(NULL),
     cond_equal(NULL),
@@ -756,13 +760,13 @@ public:
     // Sorting distinct tables, so a table should not be compared with itself
     DBUG_ASSERT(jt1 != jt2);
 
-    if (jt1->dependent & jt2->table()->map)
+    if (jt1->dependent & jt2->table_ref->map())
       return false;
-    if (jt2->dependent & jt1->table()->map)
+    if (jt2->dependent & jt1->table_ref->map())
       return true;
 
-    const bool jt1_keydep_jt2= jt1->key_dependent & jt2->table()->map;
-    const bool jt2_keydep_jt1= jt2->key_dependent & jt1->table()->map;
+    const bool jt1_keydep_jt2= jt1->key_dependent & jt2->table_ref->map();
+    const bool jt2_keydep_jt1= jt2->key_dependent & jt1->table_ref->map();
 
     if (jt1_keydep_jt2 && !jt2_keydep_jt1)
       return false;
@@ -802,9 +806,9 @@ public:
     DBUG_ASSERT(!jt1->emb_sj_nest);
     DBUG_ASSERT(!jt2->emb_sj_nest);
 
-    if (jt1->dependent & jt2->table()->map)
+    if (jt1->dependent & jt2->table_ref->map())
       return false;
-    if (jt2->dependent & jt1->table()->map)
+    if (jt2->dependent & jt1->table_ref->map())
       return true;
 
     return jt1 < jt2;

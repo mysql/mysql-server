@@ -71,8 +71,10 @@ public:
     t1_join_tab.set_table(&t1);
     t1.pos_in_table_list= &t1_table_list;
 
+    t1_table_list.table= &t1;
     t1_table_list.embedding= NULL;
     t1_table_list.derived_keys_ready= true;
+    t1_table_list.set_tableno(0);
   }
 
   virtual void SetUp()
@@ -208,7 +210,7 @@ TEST_F(OptRefTest, addKeyFieldsFromInOneRowWithCols)
   EXPECT_EQ(key_map(0), t1_join_tab.const_keys);
   EXPECT_EQ(indexes, t1_join_tab.keys());
 
-  EXPECT_EQ(t2.map, t1_join_tab.key_dependent);
+  EXPECT_EQ(t2.pos_in_table_list->map(), t1_join_tab.key_dependent);
 }
 
 TEST_F(OptRefTest, addKeyFieldsFromEq)

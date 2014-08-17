@@ -2334,7 +2334,7 @@ int log_loaded_block(IO_CACHE* file)
     lf_info->last_pos_in_file= my_b_get_pos_in_file(file);
     if (lf_info->wrote_create_file)
     {
-      Append_block_log_event a(lf_info->thd, lf_info->thd->db, buffer,
+      Append_block_log_event a(lf_info->thd, lf_info->thd->db().str, buffer,
                                min(block_len, max_event_size),
                                lf_info->log_delayed);
       if (mysql_bin_log.write_event(&a))
@@ -2342,7 +2342,7 @@ int log_loaded_block(IO_CACHE* file)
     }
     else
     {
-      Begin_load_query_log_event b(lf_info->thd, lf_info->thd->db,
+      Begin_load_query_log_event b(lf_info->thd, lf_info->thd->db().str,
                                    buffer,
                                    min(block_len, max_event_size),
                                    lf_info->log_delayed);
@@ -8415,7 +8415,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
   */
   if (mysql_bin_log.is_open() && (variables.option_bits & OPTION_BIN_LOG) &&
       !(variables.binlog_format == BINLOG_FORMAT_STMT &&
-        !binlog_filter->db_ok(db)))
+        !binlog_filter->db_ok(m_db.str)))
   {
     /*
       Compute one bit field with the union of all the engine
@@ -8868,7 +8868,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
                         mysql_bin_log.is_open(),
                         (variables.option_bits & OPTION_BIN_LOG),
                         variables.binlog_format,
-                        binlog_filter->db_ok(db)));
+                        binlog_filter->db_ok(m_db.str)));
 #endif
 
   DBUG_RETURN(0);

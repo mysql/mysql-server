@@ -877,21 +877,11 @@ Diff: EXPLAIN NORMAL vs OTHER
 -              "attached_condition": "<if>(is_not_null_compl(alias2..alias3), (`test`.`alias3`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`), true)"
 +              ]
              }
-@@ -124,2 +124,3 @@
-                     "filtered": 5,
-+                    "using_where": true,
-                     "using_index": true,
-@@ -133,4 +134,3 @@
-                       "pk"
--                    ],
--                    "attached_condition": "((`test`.`sq1_alias2`.`pk` <> `test`.`alias1`.`pk`) and (`test`.`sq1_alias2`.`pk` <= `test`.`alias1`.`col_int_key`))"
-+                    ]
-                   }
-@@ -249,2 +249,3 @@
+@@ -243,2 +243,3 @@
                    "filtered": 100,
 +                  "using_where": true,
                    "cost_info": {
-@@ -258,3 +259,2 @@
+@@ -252,3 +253,2 @@
                    ],
 -                  "attached_condition": "<in_optimizer>((`test`.`sq2_alias1`.`col_varchar_nokey`,`test`.`sq2_alias1`.`col_varchar_nokey`),(`test`.`sq2_alias1`.`col_varchar_nokey`,`test`.`sq2_alias1`.`col_varchar_nokey`) in ( <materialize> (/* select#4 */ select `test`.`c_sq1_alias1`.`col_varchar_key` AS `c_sq1_field1`,max(`test`.`c_sq1_alias1`.`col_varchar_nokey`) AS `c_sq1_field2` from `test`.`cc` `c_sq1_alias1` having 1 ), <primary_index_lookup>(`test`.`sq2_alias1`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`test`.`sq2_alias1`.`col_varchar_nokey` = `materialized-subquery`.`c_sq1_field1`) and (`test`.`sq2_alias1`.`col_varchar_nokey` = `materialized-subquery`.`c_sq1_field2`)))))",
                    "attached_subqueries": [

@@ -427,7 +427,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   if ((!thread_var->abort || in_wait_list) && before_lock_wait)
     (*before_lock_wait)();
 
-  set_timespec(wait_timeout, lock_wait_timeout);
+  set_timespec(&wait_timeout, lock_wait_timeout);
   while (!thread_var->abort || in_wait_list)
   {
     int rc= mysql_cond_timedwait(cond, &data->lock->mutex, &wait_timeout);

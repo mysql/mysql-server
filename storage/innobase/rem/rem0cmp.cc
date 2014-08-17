@@ -40,8 +40,6 @@ Created 7/1/1994 Heikki Tuuri
 #include <page0cur.h>
 #include <algorithm>
 
-using std::min;
-
 /*		ALPHABETICAL ORDER
 		==================
 

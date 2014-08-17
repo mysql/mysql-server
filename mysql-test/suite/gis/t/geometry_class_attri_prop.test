@@ -371,13 +371,9 @@ INSERT into gis_geometry SELECT * FROM gis_geometrycollection;
 
 --echo #Checking the integrity of the above insert statements 
 select count(g) from gis_geometry;
-
 select count(astext(g)) from gis_geometry;
-
 select count(distinct(g)) from gis_geometry;
-
 select count(distinct(astext(g))) from gis_geometry;
-
 
 ############################################################################################
 # Displaying the spatial data from all the spatial objects created                         #
@@ -401,7 +397,6 @@ Select fid, AsText(g) from gis_geometry;
 select fid,GeometryType(g) from gis_geometry where g is not NULL;
 select count(GeometryType(g)) FROM gis_geometry;
 
-
 ############################################################################################
 # Checking the SRID of the spatial objects inserted into geometry class                    #
 ############################################################################################
@@ -409,7 +404,6 @@ select count(GeometryType(g)) FROM gis_geometry;
 --echo #Checking the SRID of the spatial objects inserted into geometry class
 select fid,SRID(g) from gis_geometry where g is not NULL;
 select count(SRID(g)) FROM gis_geometry;
-
 
 ############################################################################################
 # Checking the X, Y coordinate for the point geometry class                                #
@@ -422,7 +416,6 @@ select count(X(g)) FROM gis_geometry;
 
 select count(Y(g)) FROM gis_geometry;
 
-
 ############################################################################################
 # Checking the Dimension function for all the spatial objects                              #
 ############################################################################################
@@ -431,15 +424,15 @@ select count(Y(g)) FROM gis_geometry;
 select fid, Dimension(g), GeometryType(g) FROM gis_geometry where g is not null;
 select count(dimension(g)) FROM gis_geometry;
 
-
 ############################################################################################
 # Checking the Envelope function for all the spatial objects                               #
 ############################################################################################
 
 --echo #Checking the Envelope function for all the spatial objects
+--error ER_GIS_INVALID_DATA
 select fid, AsText(Envelope(g)), GeometryType(g) FROM gis_geometry where g is not NULL;
+--error ER_GIS_INVALID_DATA
 select count(AsText(Envelope(g))) FROM gis_geometry;
-
 
 ############################################################################################
 # Checking if the geometries are simple or not                                             #
@@ -449,14 +442,12 @@ select count(AsText(Envelope(g))) FROM gis_geometry;
 select fid, IsSimple(g), GeometryType(g) FROM gis_geometry where g is not NULL;
 select count(IsSimple(g)) FROM gis_geometry;
 
-
 ############################################################################################
 # Checking if the geometries (LineString and MultiLineString) are Closed or not            #
 ############################################################################################
 --echo #Checking if the geometries (LineString and MultiLineString) are Closed or not
 select fid, IsClosed(g), GeometryType(g) FROM gis_geometry where GeometryType(g)='LINESTRING' or GeometryType(g)='MULTILINESTRING';
 select count(IsClosed(g)) FROM gis_geometry;
-
 
 ############################################################################################
 # Checking the procedures to work with the Geometry type properties                        #
@@ -475,7 +466,6 @@ delimiter ;|
 --echo #call the proc
 CALL geom_type;
 
-
 delimiter |;
 --echo #create procedure to check SRID
 CREATE PROCEDURE srid()
@@ -487,7 +477,6 @@ delimiter ;|
 
 --echo #call the proc
 CALL srid;
-
 
 delimiter |;
 --echo #create procedure to check coordinates on Point
@@ -502,7 +491,6 @@ delimiter ;|
 --echo #call the proc
 CALL coord_point;
 
-
 delimiter |;
 --echo #create procedure to check Dimension
 CREATE PROCEDURE dimension()
@@ -515,7 +503,6 @@ delimiter ;|
 --echo #call the proc
 CALL dimension;
 
-
 delimiter |;
 --echo #create procedure to check Envelope
 CREATE PROCEDURE envelope()
@@ -526,8 +513,8 @@ END |
 delimiter ;|
 
 --echo #call the proc
+--error ER_GIS_INVALID_DATA
 CALL envelope;
-
 
 delimiter |;
 --echo #create procedure to check IsSimple
@@ -541,7 +528,6 @@ delimiter ;|
 --echo #call the proc
 CALL issimple;
 
-
 delimiter |;
 --echo #create procedure to check IsClosed
 CREATE PROCEDURE isclosed()
@@ -552,7 +538,6 @@ END |
 delimiter ;|
 --echo #call the proc
 CALL isclosed;
-
 
 --echo #Dropping the created procedures.
 drop procedure geom_type;
@@ -589,46 +574,37 @@ Update gis_geometry set Trig_flag=1 where fid=111;
 --echo #Checking the spatial data in the gis_geometry_1 table.
 select count(1) from gis_geometry_1;
 
-
 --echo #Checking the geometry class properties on the spatial data in the gis_geometry_1 table
 --echo ""
 --echo #Checking the geometry types of the spatial objects inserted into geometry class
 select fid,GeometryType(g) from gis_geometry_1 where g is not NULL;
 select count(GeometryType(g)) FROM gis_geometry_1;
 
-
 --echo #Checking the SRID of the spatial objects inserted into geometry class
 select fid,SRID(g) from gis_geometry_1 where g is not NULL;
 select count(SRID(g)) FROM gis_geometry_1;
-
 
 --echo #Checking the X, Y coordinate for the point geometry class
 select fid, X(g),Y(g) FROM gis_geometry_1 where GeometryType(g)='POINT';
 --echo # the null geometry types should not be included here
 select count(X(g)) FROM gis_geometry_1;
-
 select count(Y(g)) FROM gis_geometry_1;
-
 
 --echo #Checking the Dimension function for all the spatial objects
 select fid, Dimension(g), GeometryType(g) FROM gis_geometry_1 where g is not null;
 select count(dimension(g)) FROM gis_geometry_1;
 
-
 --echo #Checking the Envelope function for all the spatial objects
 select fid, AsText(Envelope(g)), GeometryType(g) FROM gis_geometry_1 where g is not NULL;
 select count(AsText(Envelope(g))) FROM gis_geometry_1;
-
 
 --echo #Checking if the geometries are simple or not
 select fid, IsSimple(g), GeometryType(g) FROM gis_geometry_1 where g is not NULL;
 select count(IsSimple(g)) FROM gis_geometry_1;
 
-
 --echo #Checking if the geometries (LineString and MultiLineString) are Closed or not
 select fid, IsClosed(g), GeometryType(g) FROM gis_geometry_1 where GeometryType(g)='LINESTRING' or GeometryType(g)='MULTILINESTRING';
 select count(IsClosed(g)) FROM gis_geometry_1;
-
 
 --echo # Cleaning up the trigger
 drop trigger geom_trigger;
@@ -686,99 +662,63 @@ drop table gis_geometry_1;
 --echo #Checking the aggregate functions on the geometry class properties 
 --echo #Checking the SUM function
 Select sum(GeometryType(g)) from gis_geometry;
-
 Select sum(SRID(g)) from gis_geometry;
-
 Select sum(X(g)) from gis_geometry;
-
 Select sum(Dimension(g)) from gis_geometry;
 --error ER_WRONG_ARGUMENTS
 Select sum(Envelope(g)) from gis_geometry;
-
 Select sum(IsSimple(g)) from gis_geometry;
-
 Select sum(IsClosed(g)) from gis_geometry;
-
 
 --echo #Checking the MIN function
 Select min(GeometryType(g)) from gis_geometry;
-
 Select min(SRID(g)) from gis_geometry;
-
 Select min(X(g)) from gis_geometry;
-
 Select min(Dimension(g)) from gis_geometry;
-
+--error ER_GIS_INVALID_DATA
 Select min(AsText(Envelope(g))) from gis_geometry;
-
 Select min(IsSimple(g)) from gis_geometry;
-
 Select min(IsClosed(g)) from gis_geometry;
-
 
 --echo #Checking the MAX function
 Select max(GeometryType(g)) from gis_geometry;
-
 Select max(SRID(g)) from gis_geometry;
-
 Select max(X(g)) from gis_geometry;
-
 Select max(Dimension(g)) from gis_geometry;
-
+--error ER_GIS_INVALID_DATA
 Select max(AsText(Envelope(g))) from gis_geometry;
-
 Select max(IsSimple(g)) from gis_geometry;
-
 Select max(IsClosed(g)) from gis_geometry;
-
 
 --echo #Checking the STD function
 Select std(GeometryType(g)) from gis_geometry;
-
 Select std(SRID(g)) from gis_geometry;
-
 Select std(X(g)) from gis_geometry;
-
 Select std(Dimension(g)) from gis_geometry;
-
+--error ER_GIS_INVALID_DATA
 Select std(AsText(Envelope(g))) from gis_geometry;
-
 Select std(IsSimple(g)) from gis_geometry;
-
 Select std(IsClosed(g)) from gis_geometry;
-
 
 --echo #Checking the distinct function
 Select count(distinct(GeometryType(g))) from gis_geometry;
-
 Select count(distinct(SRID(g))) from gis_geometry;
-
 Select count(distinct(X(g))) from gis_geometry;
-
 Select count(distinct(Dimension(g))) from gis_geometry;
-
+--error ER_GIS_INVALID_DATA
 Select count(distinct(AsText(Envelope(g)))) from gis_geometry;
-
 Select count(distinct(IsSimple(g))) from gis_geometry;
-
 Select count(distinct(IsClosed(g))) from gis_geometry;
-
 
 --echo #Checking the AVG function
 Select avg(GeometryType(g)) from gis_geometry;
-
 Select avg(SRID(g)) from gis_geometry;
-
 Select avg(X(g)) from gis_geometry;
-
 Select avg(Dimension(g)) from gis_geometry;
-
+--error ER_GIS_INVALID_DATA
 Select avg(AsText(Envelope(g))) from gis_geometry;
-
 Select avg(IsSimple(g)) from gis_geometry;
-
 Select avg(IsClosed(g)) from gis_geometry;
-
 
 --echo #Final Cleanup
 --disable_warnings

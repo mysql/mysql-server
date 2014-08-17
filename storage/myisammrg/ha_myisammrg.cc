@@ -1594,7 +1594,8 @@ void ha_myisammrg::append_create_info(String *packet)
   for (first= open_table= children_l;;
        open_table= open_table->next_global)
   {
-    LEX_STRING db= { open_table->db, open_table->db_length };
+    LEX_STRING db= { const_cast<char*>(open_table->db),
+                    open_table->db_length };  
 
     if (open_table != first)
       packet->append(',');

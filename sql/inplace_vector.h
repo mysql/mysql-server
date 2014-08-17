@@ -99,13 +99,16 @@ private:
       return;
 
     void *p= my_malloc(m_psi_key, sizeof(objtype) * array_size, MYF(MY_FAE));
-    if (p == NULL)
+
+    try
+    {
+      m_obj_arrays.push_back(static_cast<objtype *>(p));
+    }
+    catch (...)
     {
       m_outof_mem= true;
-      return;
+      my_free(p);
     }
-
-    m_obj_arrays.push_back(static_cast<objtype *>(p));
   }
 
   Inplace_vector(const Inplace_vector &);
