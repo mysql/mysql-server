@@ -227,6 +227,15 @@ Area(GeomFromText(@star_collection_elems))
 SELECT Area(GeomFromText(@star_collection_multilinestr));
 Area(GeomFromText(@star_collection_multilinestr))
 665
+SELECT Area(GeomFromText('GEOMETRYCOLLECTION()'));
+Area(GeomFromText('GEOMETRYCOLLECTION()'))
+0
+SELECT Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
+0
+SELECT Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
+Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'))
+0
 SELECT Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'));
 Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'))
 0
@@ -434,6 +443,15 @@ ST_Area(GeomFromText(@star_collection_elems))
 SELECT ST_Area(GeomFromText(@star_collection_multilinestr));
 ST_Area(GeomFromText(@star_collection_multilinestr))
 665
+SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION()'));
+ST_Area(GeomFromText('GEOMETRYCOLLECTION()'))
+0
+SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
+0
+SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
+ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'))
+0
 SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'));
 ST_Area(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'))
 0
@@ -788,9 +806,25 @@ ST_Area(GeomFromWKB(0x0000000007000000010000000003000000010000000400000000000000
 #====================================================================================
 # Invalid function calls
 #====================================================================================
+#---------------------------------------------------------------------------------------
+# Area()
+SELECT Area();
+ERROR 42000: Incorrect parameter count in the call to native function 'Area'
 SELECT Area(NULL);
 Area(NULL)
 NULL
+SELECT Area(GeomFromText('POINT()'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT Area(GeomFromText('LINESTRING()'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT Area(GeomFromText('POLYGON(())'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT Area(GeomFromText('MULTIPOINT()'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT Area(GeomFromText('MULTILINESTRING(())'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT Area(GeomFromText('MULTIPOLYGON((()))'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(GeomFromText('POINT(a 0)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(GeomFromText('POINT(! 0)'));
@@ -821,17 +855,12 @@ SELECT Area(GeomFromText('POLYGON((0 0,5 5))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
 SELECT Area(GeomFromText('POLYGON((0 0,5 5,10 10))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
+SELECT Area(GeomFromText('POLYGON((0 0,0 5,10 10),(0 0))'));
+ERROR 22023: Invalid GIS data provided to function st_area.
 SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION()'));
-Area(GeomFromText('GEOMETRYCOLLECTION()'))
-0
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
-Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
-0
-SELECT Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
-Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'))
-0
+SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(0x000000000200000000000000000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
 SELECT Area(0x010100000001000000010100000000000000000000);
@@ -846,9 +875,25 @@ SELECT Area(0x010300000002000000010300000002000000050000);
 ERROR HY000: Geometry byte string must be little endian.
 SELECT Area(0x010400000002000000010100000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
+#---------------------------------------------------------------------------------------
+# ST_Area()
+SELECT ST_Area();
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_Area'
 SELECT ST_Area(NULL);
 ST_Area(NULL)
 NULL
+SELECT ST_Area(GeomFromText('POINT()'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT ST_Area(GeomFromText('LINESTRING()'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT ST_Area(GeomFromText('POLYGON(())'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT ST_Area(GeomFromText('MULTIPOINT()'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT ST_Area(GeomFromText('MULTILINESTRING(())'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT ST_Area(GeomFromText('MULTIPOLYGON((()))'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Area(GeomFromText('POINT(a 0)'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Area(GeomFromText('POINT(! 0)'));
@@ -879,17 +924,12 @@ SELECT ST_Area(GeomFromText('POLYGON((0 0,5 5))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
 SELECT ST_Area(GeomFromText('POLYGON((0 0,5 5,10 10))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
+SELECT ST_Area(GeomFromText('POLYGON((0 0,0 5,10 10),(0 0))'));
+ERROR 22023: Invalid GIS data provided to function st_area.
 SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))'));
 ERROR 22023: Invalid GIS data provided to function st_area.
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION()'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION()'))
-0
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
-0
-SELECT ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
-ST_Area(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'))
-0
+SELECT ST_Area(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Area(0x000000000200000000000000000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
 SELECT ST_Area(0x010100000001000000010100000000000000000000);
