@@ -155,8 +155,6 @@ POLYGON((0 0,30 0,30 25,0 25,0 0))
 SELECT AsText(Envelope(GeomFromText(@star_elem_vertical)));
 AsText(Envelope(GeomFromText(@star_elem_vertical)))
 POLYGON((5 0,25 0,25 25,5 25,5 0))
-SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5))')));
-ERROR 22023: Invalid GIS data provided to function st_envelope.
 SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,0 5,5 5))')));
 AsText(Envelope(GeomFromText('POLYGON((0 0,0 5,5 5))')))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
@@ -190,8 +188,6 @@ POLYGON((0 0,30 0,30 25,0 25,0 0))
 SELECT AsText(Envelope(GeomFromText(@star_of_elems)));
 AsText(Envelope(GeomFromText(@star_of_elems)))
 POLYGON((0 0,30 0,30 25,0 25,0 0))
-SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)))')));
-ERROR 22023: Invalid GIS data provided to function st_envelope.
 SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')));
 AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
@@ -237,6 +233,15 @@ POLYGON((0 0,30 0,30 25,0 25,0 0))
 SELECT AsText(Envelope(GeomFromText(@star_collection_multilinestr)));
 AsText(Envelope(GeomFromText(@star_collection_multilinestr)))
 POLYGON((0 0,30 0,30 30,0 30,0 0))
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION()')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION()')))
+NULL
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
+NULL
+SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
+AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')))
+NULL
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
 AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
@@ -378,8 +383,6 @@ POLYGON((0 0,30 0,30 25,0 25,0 0))
 SELECT AsText(ST_Envelope(GeomFromText(@star_elem_vertical)));
 AsText(ST_Envelope(GeomFromText(@star_elem_vertical)))
 POLYGON((5 0,25 0,25 25,5 25,5 0))
-SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,5 5))')));
-ERROR 22023: Invalid GIS data provided to function st_envelope.
 SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 5,5 5))')));
 AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 5,5 5))')))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
@@ -413,8 +416,6 @@ POLYGON((0 0,30 0,30 25,0 25,0 0))
 SELECT AsText(ST_Envelope(GeomFromText(@star_of_elems)));
 AsText(ST_Envelope(GeomFromText(@star_of_elems)))
 POLYGON((0 0,30 0,30 25,0 25,0 0))
-SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)))')));
-ERROR 22023: Invalid GIS data provided to function st_envelope.
 SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')));
 AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
@@ -460,6 +461,15 @@ POLYGON((0 0,30 0,30 25,0 25,0 0))
 SELECT AsText(ST_Envelope(GeomFromText(@star_collection_multilinestr)));
 AsText(ST_Envelope(GeomFromText(@star_collection_multilinestr)))
 POLYGON((0 0,30 0,30 30,0 30,0 0))
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION()')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION()')))
+NULL
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
+NULL
+SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
+AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')))
+NULL
 SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
 AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
@@ -820,9 +830,25 @@ POLYGON((0 0,10 0,10 10,0 10,0 0))
 #====================================================================================
 # Invalid function calls
 #====================================================================================
+#---------------------------------------------------------------------------------------
+# Envelope()
+SELECT AsText(Envelope());
+ERROR 42000: Incorrect parameter count in the call to native function 'Envelope'
 SELECT AsText(Envelope(NULL));
 AsText(Envelope(NULL))
 NULL
+SELECT AsText(Envelope(GeomFromText('POINT()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('LINESTRING()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('POLYGON(())')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('MULTIPOINT()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('MULTILINESTRING(())')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON((()))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(GeomFromText('POINT(a 0)')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(GeomFromText('POINT(! 0)')));
@@ -853,19 +879,14 @@ SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
 SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,0 5,10 10),(0 0))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((10 10)))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
 SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
-SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION()')));
-AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION()')))
-NULL
-SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
-AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
-NULL
-SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
-AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')))
-NULL
+SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(0x000000000200000000000000000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
 SELECT AsText(Envelope(0x010100000001000000010100000000000000000000));
@@ -880,9 +901,25 @@ SELECT AsText(Envelope(0x010300000002000000010300000002000000050000));
 ERROR HY000: Geometry byte string must be little endian.
 SELECT AsText(Envelope(0x010400000002000000010100000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
+#---------------------------------------------------------------------------------------
+# ST_Envelope()
+SELECT AsText(ST_Envelope());
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_Envelope'
 SELECT AsText(ST_Envelope(NULL));
 AsText(ST_Envelope(NULL))
 NULL
+SELECT AsText(ST_Envelope(GeomFromText('POINT()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('LINESTRING()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON(())')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOINT()')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('MULTILINESTRING(())')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON((()))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Envelope(GeomFromText('POINT(a 0)')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Envelope(GeomFromText('POINT(! 0)')));
@@ -907,25 +944,20 @@ SELECT AsText(ST_Envelope(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))')))' at line 1
 SELECT AsText(ST_Envelope(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
-SELECT AsText(Envelope(GeomFromText('POLYGON((0 0))')));
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
-SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5))')));
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,5 5))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
-SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,5 5,10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
-SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((10 10)))')));
+SELECT AsText(ST_Envelope(GeomFromText('POLYGON((0 0,0 5,10 10),(0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
-SELECT AsText(Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((10 10)))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
-SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION()')));
-AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION()')))
-NULL
-SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
-AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
-NULL
-SELECT AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')));
-AsText(ST_Envelope(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))')))
-NULL
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
+ERROR 22023: Invalid GIS data provided to function st_envelope.
+SELECT AsText(ST_Envelope(GeomFromText('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(ST_Envelope(0x000000000200000000000000000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
 SELECT AsText(ST_Envelope(0x010100000001000000010100000000000000000000));
