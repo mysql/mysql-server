@@ -201,15 +201,15 @@ INSERT INTO gis_point SELECT * FROM gis_point;
 
 CHECK TABLE gis_point;
 
-SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
 
 SELECT COUNT(*), AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
 SELECT COUNT(*), AsText(p1) FROM gis_point WHERE Within(p1, @poly1) GROUP BY p1;
 SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
 SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
 SELECT COUNT(*), AsText(p1) FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4) GROUP BY p1;
-SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1;
-SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT Within(p1, @mpoly) GROUP BY p1;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1, p2;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT Within(p1, @mpoly) GROUP BY p1, p2;
 
 -- echo ======================================================================
 -- echo Build another new table with the same schema, will insert data from this table to the orignal one
@@ -224,7 +224,7 @@ INSERT INTO p VALUES(PointFromText('POINT(-4.2 -6.98)'), PointFromText('POINT(-1
 INSERT INTO p SELECT * FROM p WHERE Within(p1, GeomFromText('POLYGON((0 0, 0 2000, 2000 2000, 2000 -2000, 0 -2000, 0 0))'));
 INSERT INTO p SELECT * FROM p WHERE Within(p1, GeomFromText('POLYGON((0 0, -10 0, -100 -100, 0 -50, 0 0))'));
 
-SELECT COUNT(*), AsText(p1), AsText(p2) FROM p GROUP BY p1;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM p GROUP BY p1, p2;
 
 INSERT INTO gis_point SELECT * FROM p;
 INSERT INTO gis_point SELECT * FROM p;
@@ -236,7 +236,7 @@ INSERT INTO gis_point SELECT * FROM p;
 
 CHECK TABLE gis_point;
 
-SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
 
 SELECT COUNT(*), AsText(p1) FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4) GROUP BY p1;
 
@@ -284,7 +284,7 @@ DROP TABLE p;
 -- echo Delete those rows selected from another table
 -- echo =============================================
 
-SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
 
 UPDATE gis_point SET p2 = PointFromText('POINT(2000 2000)') WHERE ST_Contains(GeomFromText('POLYGON((-100 100, -400 100, -400 400, -100 400, -100 100))'), p2) OR ST_Contains(GeomFromText('POLYGON((-0.0001 -0.0002, -0.0001 0.00002, 0.00000005 0.000001, 0.0000025 -0.001, -0.0001 -0.0002))'), p2);
 
@@ -301,17 +301,20 @@ INSERT INTO gis_point VALUES
 -- echo Following results should be almost the same with those at the beginning
 -- echo ======================================================================
 
-SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1;
-SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(GeomFromText('POLYGON((-1000 -1000, -1000 1000, 1000 1000, 1001 -1001, -1000 -1000))'), p1) GROUP BY p1;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
+SELECT COUNT(*), AsText(p1), AsText(p2)
+FROM gis_point
+WHERE ST_Contains(GeomFromText('POLYGON((-1000 -1000, -1000 1000, 1000 1000, 1001 -1001, -1000 -1000))'), p1)
+GROUP BY p1, p2;
 
-SELECT AsText(p1), AsText(p2) FROM gis_point GROUP BY p1;
+SELECT AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
 SELECT COUNT(*), AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
 SELECT COUNT(*), AsText(p1) FROM gis_point WHERE Within(p1, @poly1) GROUP BY p1;
 SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
 SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
 SELECT COUNT(*), AsText(p1) FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4) GROUP BY p1;
-SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1;
-SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT Within(p1, @mpoly) GROUP BY p1;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1, p2;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT Within(p1, @mpoly) GROUP BY p1, p2;
 
 CHECK TABLE gis_point;
 

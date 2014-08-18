@@ -7224,6 +7224,10 @@ ER_AGGREGATE_IN_ORDER_NOT_SELECT
 
 ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
   eng "Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'"
+
+ER_NET_OK_PACKET_TOO_LARGE 08S01
+  eng "OK packet too large"
+
 #
 #  End of 5.7 error messages.
 #

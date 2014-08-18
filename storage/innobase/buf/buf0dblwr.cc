@@ -208,18 +208,17 @@ start_again:
 		return(true);
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Doublewrite buffer not found: creating new");
+	ib::info() << "Doublewrite buffer not found: creating new";
+
 	ulint min_doublewrite_size = 
 		( ( 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
 		  + FSP_EXTENT_SIZE / 2
 		  + 100)
 		* UNIV_PAGE_SIZE);
 	if (buf_pool_get_curr_size() <  min_doublewrite_size) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot create doublewrite buffer: you must"
+		ib::error() << "Cannot create doublewrite buffer: you must"
 			" increase your buffer pool size. Cannot continue"
-			" operation.");
+			" operation.";
 
 		return(false);
 	}
@@ -234,10 +233,9 @@ start_again:
 	buf_block_dbg_add_level(block2, SYNC_NO_ORDER_CHECK);
 
 	if (block2 == NULL) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot create doublewrite buffer: you must"
+		ib::error() << "Cannot create doublewrite buffer: you must"
 			" increase your tablespace size."
-			" Cannot continue operation.");
+			" Cannot continue operation.";
 
 		/* We exit without committing the mtr to prevent
 		its modifications to the database getting to disk */
@@ -253,10 +251,9 @@ start_again:
 		new_block = fseg_alloc_free_page(
 			fseg_header, prev_page_no + 1, FSP_UP, &mtr);
 		if (new_block == NULL) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot create doublewrite buffer: you must"
-				" increase your tablespace size."
-				" Cannot continue operation.");
+			ib::error() << "Cannot create doublewrite buffer: "
+				" you must increase your tablespace size."
+				" Cannot continue operation.";
 
 			return(false);
 		}
@@ -338,7 +335,7 @@ start_again:
 	/* Remove doublewrite pages from LRU */
 	buf_pool_invalidate();
 
-	ib_logf(IB_LOG_LEVEL_INFO, "Doublewrite buffer created");
+	ib::info() <<  "Doublewrite buffer created";
 
 	goto start_again;
 }
@@ -409,8 +406,7 @@ buf_dblwr_init_or_load_pages(
 
 		reset_space_ids = TRUE;
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Resetting space id's in the doublewrite buffer");
+		ib::info() << "Resetting space id's in the doublewrite buffer";
 	}
 
 	/* Read the pages from the doublewrite buffer to memory */
@@ -496,12 +492,11 @@ buf_dblwr_process(void)
 			/* Do not report the warning if the tablespace is
 			truncated as it's reasonable */
 			if (!srv_is_tablespace_truncated(space_id)) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Page " ULINTPF
-					" in the doublewrite buffer is"
-					" not within space bounds:"
-					" page " ULINTPF ":" ULINTPF,
-					page_no_dblwr, space_id, page_no);
+
+				ib::warn() << "Page " << page_no_dblwr
+					<< " in the doublewrite buffer is"
+					" not within space bounds: page "
+					<< page_id_t(space_id, page_no);
 			}
 		} else {
 			bool			found;
@@ -519,37 +514,34 @@ buf_dblwr_process(void)
 			if (buf_page_is_corrupted(
 				true, read_buf, page_size,
 				fsp_is_checksum_disabled(space_id))) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Database page corruption or a failed"
-					" file read of"
-					" page " ULINTPF ":" ULINTPF "."
-					" Trying to recover it from the"
-					" doublewrite buffer.",
-					space_id, page_no);
+
+				ib::warn() << "Database page corruption or"
+					<< " a failed file read of page "
+					<< page_id_t(space_id, page_no)
+					<< ". Trying to recover it from the"
+					<< " doublewrite buffer.";
 
 				if (buf_page_is_corrupted(
 					true, page, page_size,
 					fsp_is_checksum_disabled(space_id))) {
 
-					ib_logf(IB_LOG_LEVEL_ERROR,
-						"Dump of the page:");
+					ib::error() << "Dump of the page:";
 					buf_page_print(
 						read_buf, page_size,
 						BUF_PAGE_PRINT_NO_CRASH);
-					ib_logf(IB_LOG_LEVEL_ERROR,
-						"Dump of corresponding page"
-						" in doublewrite buffer:");
+					ib::error() << "Dump of corresponding"
+						" page in doublewrite buffer:";
+
 					buf_page_print(
 						page, page_size,
 						BUF_PAGE_PRINT_NO_CRASH);
 
-					ib_logf(IB_LOG_LEVEL_FATAL,
-						"The page in the doublewrite"
-						" buffer is corrupt. Cannot"
-						" continue operation. You"
-						" can try to recover the"
-						" database with"
-						" innodb_force_recovery=6");
+					ib::fatal() << "The page in the"
+						" doublewrite buffer is"
+						" corrupt. Cannot continue"
+						" operation. You can try to"
+						" recover the database with"
+						" innodb_force_recovery=6";
 				}
 			} else if (buf_page_is_zeroes(read_buf, page_size)
 				   && !buf_page_is_zeroes(page, page_size)
@@ -567,15 +559,14 @@ buf_dblwr_process(void)
 			/* Write the good page from the doublewrite
 			buffer to the intended position. */
 
-			fil_io(OS_FILE_WRITE, true,
-			       page_id_t(space_id, page_no), page_size,
-			       0, page_size.physical(),
-			       const_cast<byte*>(page), NULL);
+			const page_id_t	page_id(space_id, page_no);
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Recovered page " ULINTPF ":" ULINTPF
-				" from the doublewrite buffer.",
-				space_id, page_no);
+			fil_io(OS_FILE_WRITE, true, page_id, page_size, 0,
+			       page_size.physical(), const_cast<byte*>(page),
+			       NULL);
+
+			ib::info() << "Recovered page " << page_id
+				<< " from the doublewrite buffer.";
 		}
 	}
 
@@ -695,17 +686,16 @@ buf_dblwr_check_page_lsn(
 			   - FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
 		   4)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The page to be written"
-			" seems corrupt!."
+		const ulint	lsn1 = mach_read_from_4(
+			page + FIL_PAGE_LSN + 4);
+		const ulint	lsn2 = mach_read_from_4(
+			page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM
+			+ 4);
+
+		ib::error() << "The page to be written seems corrupt!"
 			" The low 4 bytes of LSN fields do not match"
-			" (" ULINTPF " != " ULINTPF ")!"
-			" Noticed in the buffer pool.",
-			mach_read_from_4(
-				page + FIL_PAGE_LSN + 4),
-			mach_read_from_4(
-				page + UNIV_PAGE_SIZE
-				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4));
+			" (" << lsn1 << " != " << lsn2 << ")!"
+			" Noticed in the buffer pool.";
 	}
 }
 
@@ -720,13 +710,11 @@ buf_dblwr_assert_on_corrupt_block(
 {
 	buf_page_print(block->frame, univ_page_size, BUF_PAGE_PRINT_NO_CRASH);
 
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Apparent corruption of an index page n:o %lu in space"
-		" %lu to be written to data file. We intentionally crash"
+	ib::fatal() << "Apparent corruption of an index page "
+		<< block->page.id
+		<< " to be written to data file. We intentionally crash"
 		" the server to prevent corrupt data from ending up in"
-		" data files.",
-		(ulong) block->page.id.page_no(),
-		(ulong) block->page.id.space());
+		" data files.";
 }
 
 /********************************************************************//**
