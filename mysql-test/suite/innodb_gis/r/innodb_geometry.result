@@ -158,7 +158,7 @@ fid	AsText(g)
 #2.1 check DDL functionality on GIS datatypes
 CREATE TABLE tab(c1 POINT,c2 LINESTRING,c3 POLYGON,C4 MULTIPOINT,c5 MULTILINESTRING ,
 c6 MULTIPOLYGON,c7 GEOMETRYCOLLECTION ,c8 GEOMETRY) ENGINE=InnoDB;
-#check information schema for all the columns refer to 14
+#check information schema for all the columns refer to 14, except POINT which is 15
 SELECT sc.name, sc.pos, sc.mtype
 FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
@@ -166,7 +166,7 @@ ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/tab'
 ORDER BY sc.name;
 name	pos	mtype
-c1	0	14
+c1	0	16
 c2	1	14
 c3	2	14
 C4	3	14
@@ -674,18 +674,18 @@ tab3	CREATE TABLE `tab3` (
   `c7` geometrycollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=16
-#check information schema for all the columns refer to 14
+#check information schema for all the columns refer to 14, except POINT which is 15
 SELECT sc.name, sc.pos, sc.mtype
 FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID
-WHERE st.NAME='test/tab'
+WHERE st.NAME='test/tab3'
 ORDER BY sc.name;
 name	pos	mtype
-c0	0	14
+c1	0	16
 c2	1	14
 c3	2	14
-c4	3	14
+C4	3	14
 c5	4	14
 c6	5	14
 c7	6	14
