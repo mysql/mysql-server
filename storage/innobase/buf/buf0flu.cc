@@ -539,9 +539,8 @@ buf_flush_ready_for_replace(
 		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	}
 
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Buffer block %p state %u in the LRU list!",
-		reinterpret_cast<const void*>(bpage), bpage->state);
+	ib::fatal() << "Buffer block " << bpage << " state " <<  bpage->state
+		<< " in the LRU list!";
 
 	return(FALSE);
 }
@@ -824,8 +823,8 @@ buf_flush_init_for_writing(
 			return;
 		}
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The compressed page to be written seems corrupt:");
+		ib::error() << "The compressed page to be written"
+			" seems corrupt:";
 		ut_print_buf(stderr, page, size);
 		fputs("\nInnoDB: Possibly older version of the page:", stderr);
 		ut_print_buf(stderr, page_zip->data, size);
@@ -2646,9 +2645,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"page_cleaner thread running, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "page_cleaner thread running, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	buf_page_cleaner_is_active = TRUE;

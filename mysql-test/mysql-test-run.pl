@@ -2467,7 +2467,6 @@ sub environment_setup {
   $ENV{'MYSQL_IMPORT'}=                client_arguments("mysqlimport");
   $ENV{'MYSQL_SHOW'}=                  client_arguments("mysqlshow");
   $ENV{'MYSQL_CONFIG_EDITOR'}=         client_arguments_no_grp_suffix("mysql_config_editor");
-  $ENV{'MYSQL_INSTALL_DB'}=         client_arguments_no_grp_suffix("mysql_install_db");
   $ENV{'MYSQL_BINLOG'}=                client_arguments("mysqlbinlog");
   $ENV{'MYSQL'}=                       client_arguments("mysql");
   $ENV{'MYSQL_SLAVE'}=                 client_arguments("mysql", ".2");

@@ -546,7 +546,7 @@ static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   NULL, NULL, FALSE);
 
 static MYSQL_THDVAR_BOOL(create_intrinsic, PLUGIN_VAR_OPCMDARG,
-  "If set then \"CREATE TEMMPORARY\" syntax will create intrinsic tables.",
+  "If set then \"CREATE TEMPORARY TABLE\" will create intrinsic tables.",
   NULL, NULL, FALSE);
 
 static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
@@ -565,7 +565,7 @@ static MYSQL_THDVAR_STR(ft_user_stopword_table,
 
 static MYSQL_THDVAR_BOOL(optimize_point_storage, PLUGIN_VAR_OPCMDARG,
   "Optimize POINT storage as fixed length, rather than variable length"
-  " (on by default)", NULL, NULL, FALSE);
+  " (disabled by default)", NULL, NULL, FALSE);
 
 static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_dump_status",

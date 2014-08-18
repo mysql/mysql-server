@@ -2014,7 +2014,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
   cs->lineno++;
   if (cs->stack->flags & PID_ON)
   {
-    (void) fprintf(cs->stack->out_file, "%-7s: ", my_thread_name());
+    (void) fprintf(cs->stack->out_file, "T@%u: ", mysys_thread_var()->id);
   }
   if (cs->stack->flags & NUMBER_ON)
     (void) fprintf(cs->stack->out_file, "%5d: ", cs->lineno);

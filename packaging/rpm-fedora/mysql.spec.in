@@ -75,6 +75,7 @@ Source3:        mysql.conf
 Source4:        my_config.h
 Source6:        mysql_config.sh
 Patch0:         mysql-5.7-libmysqlclient-symbols.patch
+Patch1:         mysql-5.6.16-mysql-install.patch
 BuildRequires:  cmake
 BuildRequires:  perl
 BuildRequires:  time
@@ -329,6 +330,7 @@ the embedded version of the MySQL server.
 %setup -q -T -a 0 -c -n %{src_dir}
 pushd %{src_dir}
 %patch0 -p1
+#patch1 -p1
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -437,7 +439,6 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
-rm -rf %{buildroot}%{_bindir}/mysqlhotcopy
 
 %check
 %if 0%{?runselftest}

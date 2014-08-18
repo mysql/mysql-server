@@ -1968,7 +1968,7 @@ bool THD::store_globals()
     have the mysys_var reference (which in fact refers to the worker
     threads local storage with key THR_KEY_mysys. 
   */
-  mysys_var=my_thread_var;
+  mysys_var= mysys_thread_var();
   DBUG_PRINT("debug", ("mysys_var: 0x%llx", (ulonglong) mysys_var));
   /*
     Let mysqld define the thread id (not mysys)

@@ -195,7 +195,7 @@ SELECT id,LEFT(bfield,20) FROM t1;
 # testcase misc
 let MYSQLD_DATADIR= `select @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-let $args=--loose-console > $SEARCH_FILE 2>&1;
+let $args=--loose-console --core-file > $SEARCH_FILE 2>&1;
 
 # Stop the server
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
