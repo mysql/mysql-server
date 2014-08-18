@@ -886,8 +886,7 @@ void destroy_cond(PFS_cond *pfs)
 
 PFS_thread* PFS_thread::get_current_thread()
 {
-  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  return pfs;
+  return static_cast<PFS_thread*>(my_get_thread_local(THR_PFS));
 }
 
 void PFS_thread::reset_session_connect_attrs()

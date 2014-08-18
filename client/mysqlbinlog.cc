@@ -2311,7 +2311,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     Log_event *ev= NULL;
     Log_event_type type= UNKNOWN_EVENT;
 
-    len= cli_safe_read(mysql);
+    len= cli_safe_read(mysql, NULL);
     if (len == packet_error)
     {
       error("Got error reading packet from server: %s", mysql_error(mysql));

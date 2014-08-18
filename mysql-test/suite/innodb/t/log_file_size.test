@@ -54,8 +54,8 @@ INSERT INTO t1 VALUES (123);
 
 let MYSQLD_DATADIR= `select @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-let $args=--loose-console > $SEARCH_FILE 2>&1;
-let crash=$args --innodb-force-recovery-crash;
+let $args=--loose-console --core-file > $SEARCH_FILE 2>&1;
+let crash=--loose-console > $SEARCH_FILE 2>&1 --innodb-force-recovery-crash;
 
 BEGIN;
 DELETE FROM t1;
