@@ -33,7 +33,6 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ydb/preload-db-nested.tdb
   ydb/stress-gc.tdb
   ydb/stress-gc2.tdb
-  ydb/stress-test.bdb
   ydb/stress-test.tdb
   ydb/test-5138.tdb
   ydb/test-prepare.tdb
@@ -45,7 +44,6 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ydb/test-xa-prepare.tdb
   ydb/test4573-logtrim.tdb
   ydb/test_3645.tdb
-  ydb/test_groupcommit_perf.bdb
   ydb/test_groupcommit_perf.tdb
   ydb/test_large_update_broadcast_small_cachetable.tdb
   ydb/test_update_broadcast_stress.tdb

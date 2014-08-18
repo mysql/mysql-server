@@ -20,7 +20,6 @@ if [ ! -d build ] ; then
         -D USE_GTAGS=OFF \
         -D USE_CSCOPE=OFF \
         -D USE_ETAGS=OFF \
-        -D USE_BDB=OFF \
         -D USE_GCOV=ON \
         -D CMAKE_LINK_DEPENDS_NO_SHARED=ON \
         -G Ninja \

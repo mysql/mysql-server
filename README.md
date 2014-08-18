@@ -35,7 +35,6 @@ mkdir build
 cd build
 CC=gcc47 CXX=g++47 cmake \
     -D CMAKE_BUILD_TYPE=Debug \
-    -D USE_BDB=OFF \
     -D BUILD_TESTING=OFF \
     -D USE_VALGRIND=OFF \
     -D CMAKE_INSTALL_PREFIX=../prefix/ \
@@ -84,15 +83,10 @@ There are some large data files not stored in the git repository, that
 will be made available soon.  For now, the tests that use these files will
 not run.
 
-Many of the tests are linked with both TokuFT and Berkeley DB, as a sanity
-check on the tests themselves.  To build these tests, you will need
-Berkeley DB and its header files installed.  If you do not have Berkeley
-DB installed, just don't pass `USE_BDB=ON`.
-
 In the build directory from above:
 
 ```sh
-cmake -D BUILD_TESTING=ON [-D USE_BDB=ON] ..
+cmake -D BUILD_TESTING=ON ..
 ctest -D ExperimentalStart \
       -D ExperimentalConfigure \
       -D ExperimentalBuild \
