@@ -4370,6 +4370,7 @@ static bool tokudb_do_bulk_fetch(THD *thd) {
     case SQLCOM_CREATE_TABLE:
     case SQLCOM_INSERT_SELECT:
     case SQLCOM_REPLACE_SELECT:
+    case SQLCOM_DELETE:
         return THDVAR(thd, bulk_fetch) != 0;
     default:
         return false;
