@@ -61,7 +61,7 @@ static void scheduler_wait_lock_end()
 static void scheduler_wait_sync_begin()
 {
   MYSQL_CALLBACK(Connection_handler_manager::event_functions,
-                 thd_wait_begin, (current_thd, THD_WAIT_TABLE_LOCK));
+                 thd_wait_begin, (current_thd, THD_WAIT_SYNC));
 }
 
 static void scheduler_wait_sync_end()

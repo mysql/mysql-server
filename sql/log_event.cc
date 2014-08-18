@@ -1315,7 +1315,7 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
   int4store(header, now);              // timestamp
   header[EVENT_TYPE_OFFSET]= get_type_code();
   int4store(header+ SERVER_ID_OFFSET, server_id);
-  int4store(header+ EVENT_LEN_OFFSET, data_written);
+  int4store(header+ EVENT_LEN_OFFSET, static_cast<uint32>(data_written));
   int4store(header+ LOG_POS_OFFSET, static_cast<uint32>(log_pos));
   /*
     recording checksum of FD event computed with dropped
@@ -3016,9 +3016,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         Slave_job_item job_item= {this, rli->get_event_relay_log_number(),
                                   rli->get_event_start_pos()};
         // B-event is appended to the Deferred Array associated with GCAP
-        insert_dynamic(&rli->curr_group_da, &job_item);
+        rli->curr_group_da.push_back(job_item);
 
-        DBUG_ASSERT(rli->curr_group_da.elements == 1);
+        DBUG_ASSERT(rli->curr_group_da.size() == 1);
 
         if (starts_group())
         {
@@ -3043,7 +3043,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                                   rli->get_event_relay_log_pos()};
 
         // B-event is appended to the Deferred Array associated with GCAP
-        insert_dynamic(&rli->curr_group_da, &job_item);
+        rli->curr_group_da.push_back(job_item);
         DBUG_RETURN(NULL);
       }
     }
@@ -3058,7 +3058,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                                 rli->get_event_relay_log_pos()};
 
       // B-event is appended to the Deferred Array associated with GCAP
-      insert_dynamic(&rli->curr_group_da, &job_item);
+      rli->curr_group_da.push_back(job_item);
       rli->curr_group_seen_begin= true;
       rli->mts_end_group_sets_max_dbs= true;
       if (!rli->curr_group_seen_gtid && schedule_next_event(this, rli))
@@ -3067,7 +3067,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         DBUG_RETURN(NULL);
       }
 
-      DBUG_ASSERT(rli->curr_group_da.elements == 2);
+      DBUG_ASSERT(rli->curr_group_da.size() == 2);
       DBUG_ASSERT(starts_group());
       DBUG_RETURN (ret_worker);
     }
@@ -3114,11 +3114,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                 (rli->curr_group_seen_begin && rli->curr_group_seen_gtid &&
                  ends_group()) ||
                 (rli->mts_end_group_sets_max_dbs &&
-                 ((rli->curr_group_da.elements == 3 && rli->curr_group_seen_gtid) ||
-                 (rli->curr_group_da.elements == 2 && !rli->curr_group_seen_gtid)) &&
-                 ((*(Log_event **) dynamic_array_ptr(&rli->curr_group_da,
-                                     rli->curr_group_da.elements - 1))->
-                                get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
+                 ((rli->curr_group_da.size() == 3 && rli->curr_group_seen_gtid) ||
+                  (rli->curr_group_da.size() == 2 && !rli->curr_group_seen_gtid)) &&
+                 ((rli->curr_group_da.back().data->
+                   get_type_code() == BEGIN_LOAD_QUERY_EVENT))));
 
     // partioning info is found which drops the flag
     rli->mts_end_group_sets_max_dbs= false;
@@ -3191,13 +3190,11 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     {
       ret_worker= rli->last_assigned_worker;
 
-      DBUG_ASSERT(rli->curr_group_assigned_parts.elements > 0 ||
+      DBUG_ASSERT(rli->curr_group_assigned_parts.size() > 0 ||
                   ret_worker->id == 0);
     }
     else // int_, rand_, user_ var:s, load-data events
     {
-      Log_event *ptr_curr_ev= this;
-
       if (!(get_type_code() == INTVAR_EVENT ||
             get_type_code() == RAND_EVENT ||
             get_type_code() == USER_VAR_EVENT ||
@@ -3216,7 +3213,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         DBUG_RETURN(ret_worker);
       }
 
-      insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
+      Slave_job_item job_item= {this, rli->get_event_relay_log_number(),
+                                rli->get_event_start_pos()};
+      rli->curr_group_da.push_back(job_item);
 
       DBUG_ASSERT(!ret_worker);
       DBUG_RETURN (ret_worker);
@@ -3382,7 +3381,7 @@ int Log_event::apply_event(Relay_log_info *rli)
           a separator beetwen two master's binlog therefore requiring
           Workers to sync.
         */
-        if (rli->curr_group_da.elements > 0 &&
+        if (rli->curr_group_da.size() > 0 &&
             is_mts_db_partitioned(rli))
         {
           char llbuff[22];
@@ -3422,7 +3421,7 @@ int Log_event::apply_event(Relay_log_info *rli)
 
 #ifndef DBUG_OFF
         /* all Workers are idle as done through wait_for_workers_to_finish */
-        for (uint k= 0; k < rli->curr_group_da.elements; k++)
+        for (uint k= 0; k < rli->curr_group_da.size(); k++)
         {
           DBUG_ASSERT(!(rli->workers[k]->usage_partition));
           DBUG_ASSERT(!(rli->workers[k]->jobs.len));
@@ -3450,10 +3449,8 @@ int Log_event::apply_event(Relay_log_info *rli)
                 Begin/Commit. That's a pattern forcing sequential
                 applying of LOAD-DATA.
               */
-              (*(Log_event **)
-               dynamic_array_ptr(&rli->curr_group_da,
-                                 rli->curr_group_da.elements - 1))-> 
-              get_type_code() == BEGIN_LOAD_QUERY_EVENT);
+              (rli->curr_group_da.back().data->
+               get_type_code() == BEGIN_LOAD_QUERY_EVENT));
 
   worker= NULL;
   rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
@@ -3477,18 +3474,17 @@ err:
       The current one will be deleted as an event never destined/assigned
       to any Worker in Coordinator's regular execution path.
     */
-    for (uint k= 0; k < rli->curr_group_da.elements; k++)
+    for (uint k= 0; k < rli->curr_group_da.size(); k++)
     {
-      Log_event *ev_buf=
-        *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, k);
+      Log_event *ev_buf= rli->curr_group_da[k].data;
       if (this != ev_buf)
         delete ev_buf;
     }
-    rli->curr_group_da.elements= 0;
+    rli->curr_group_da.clear();
   }
   else
   {
-    DBUG_ASSERT(worker || rli->curr_group_assigned_parts.elements == 0);
+    DBUG_ASSERT(worker || rli->curr_group_assigned_parts.size() == 0);
   }
 
   DBUG_RETURN((!rli_thd->is_error() ||
@@ -3704,7 +3700,7 @@ bool Query_log_event::write(IO_CACHE* file)
       for master_data_written in log_event.h for details.
     */
     *start++= Q_MASTER_DATA_WRITTEN_CODE;
-    int4store(start, master_data_written);
+    int4store(start, static_cast<uint32>(master_data_written));
     start+= 4;
   }
 
@@ -3928,9 +3924,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     @todo this means that if we have no catalog, then it is replicated
     as an existing catalog of length zero. is that safe? /sven
   */
-  catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
+  catalog_len = (catalog) ? strlen(catalog) : 0;
   /* status_vars_len is set just before writing the event */
-  db_len = (db) ? (uint32) strlen(db) : 0;
+  db_len = (db) ? strlen(db) : 0;
   if (thd_arg->variables.collation_database != thd_arg->db_charset)
     charset_database_number= thd_arg->variables.collation_database->number;
   
@@ -4556,7 +4552,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     Query_cache::send_result_to_client() in case the query cache is On.
    */
 #if !defined(MYSQL_CLIENT)
-  size_t db_length= (size_t)db_len;
+  size_t db_length= db_len;
   memcpy(start + data_len + 1, &db_length, sizeof(size_t));
 #endif
   DBUG_VOID_RETURN;
@@ -6366,9 +6362,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
 
   /* db can never be a zero pointer in 4.0 */
-  db_len = (uint32) strlen(db);
-  table_name_len = (uint32) strlen(table_name);
-  fname_len = (fname) ? (uint) strlen(fname) : 0;
+  db_len = strlen(db);
+  table_name_len = strlen(table_name);
+  fname_len = (fname) ? strlen(fname) : 0;
   sql_ex.field_term = ex->field.field_term->ptr();
   sql_ex.field_term_len = (uint8) ex->field.field_term->length();
   sql_ex.enclosed = ex->field.enclosed->ptr();
@@ -6511,7 +6507,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   fname = db + db_len + 1;
   if ((db_len > data_len) || (fname > buf_end))
     goto err;
-  fname_len = (uint) strlen(fname);
+  fname_len = strlen(fname);
   if ((fname_len > data_len) || (fname + fname_len > buf_end))
     goto err;
   // null termination is accomplished by the caller doing buf[event_len]=0
@@ -7023,7 +7019,7 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
                                    uint flags_arg)
   :Log_event(Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING),
    new_log_ident(new_log_ident_arg), pos(pos_arg),ident_len(ident_len_arg ?
-   ident_len_arg : (uint) strlen(new_log_ident_arg)), flags(flags_arg)
+   ident_len_arg : strlen(new_log_ident_arg)), flags(flags_arg)
 {
 #ifndef DBUG_OFF
   char buff[22];
@@ -7620,6 +7616,8 @@ bool Xid_log_event::do_commit(THD *thd_arg)
 int Xid_log_event::do_apply_event_worker(Slave_worker *w)
 {
   int error= 0;
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   Slave_committed_queue *coordinator_gaq= w->c_rli->gaq;
 
   /* For a slave Xid_log_event is COMMIT */
@@ -12355,7 +12353,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (!(memory= my_multi_malloc(key_memory_log_event,
                                 MYF(MY_WME),
-                                &table_list, (uint) sizeof(RPL_TABLE_LIST),
+                                &table_list, sizeof(RPL_TABLE_LIST),
                                 &db_mem, (uint) NAME_LEN + 1,
                                 &tname_mem, (uint) NAME_LEN + 1,
                                 NullS)))
@@ -13541,7 +13539,7 @@ int Rows_query_log_event::pack_info(Protocol *protocol)
 {
   char *buf;
   size_t bytes;
-  ulong len= sizeof("# ") + (ulong) strlen(m_rows_query);
+  size_t len= sizeof("# ") + strlen(m_rows_query);
   if (!(buf= (char*) my_malloc(key_memory_log_event,
                                len, MYF(MY_WME))))
     return 1;
@@ -13592,7 +13590,7 @@ Rows_query_log_event::write_data_body(IO_CACHE *file)
    that length will be ignored and the complete query will be read.
   */
   DBUG_RETURN(write_str_at_most_255_bytes(file, m_rows_query,
-              (uint) strlen(m_rows_query)));
+              strlen(m_rows_query)));
 }
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -13958,7 +13956,7 @@ int Previous_gtids_log_event::add_to_set(Gtid_set *target) const
   PROPAGATE_REPORTED_ERROR_INT(target->add_gtid_encoding(buf,
                                                          buf_size + add_size,
                                                          &end_pos));
-  DBUG_ASSERT(end_pos <= (size_t) buf_size);
+  DBUG_ASSERT(end_pos <= buf_size);
   DBUG_RETURN(0);
 }
 
