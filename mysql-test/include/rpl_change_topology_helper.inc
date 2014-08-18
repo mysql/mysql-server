@@ -41,7 +41,7 @@
 # $_rpl_old_connection_list), then we skip executing this file.
 #
 # ==== Note ===
-# This file uses $rpl_for_channel_clause in CHANGE MASTER command, which is
+# This file uses $rpl_channel_name in CHANGE MASTER command, which is
 # set in rpl_for_each_connection.inc
 #
 
@@ -98,7 +98,15 @@ if (!$_rpl_change_topology_helper_skip)
   }
 
   --replace_regex /[0-9]{4}/####/
-  eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_change_topology_helper_port, MASTER_USER = 'root', $_rpl_change_topology_helper_position MASTER_CONNECT_RETRY = 1 $rpl_for_channel_clause;
+    if (!$rpl_multi_source)
+    {
+      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_change_topology_helper_port, MASTER_USER = 'root', $_rpl_change_topology_helper_position MASTER_CONNECT_RETRY = 1;
+    }
+    if ($rpl_multi_source)
+    {
+      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_change_topology_helper_port, MASTER_USER = 'root', $_rpl_change_topology_helper_position MASTER_CONNECT_RETRY = 1 FOR CHANNEL '$rpl_channel_name';
+    }
+
 }
 
 if ($_rpl_change_topology_helper_skip)
@@ -108,7 +116,14 @@ if ($_rpl_change_topology_helper_skip)
     --let $_master_auto_position= query_get_value(SHOW SLAVE STATUS $rpl_for_channel_clause, Auto_Position, 1)
       if ($_master_auto_position == 1)
       {
-        CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+        if (!$rpl_multi_source)
+        {
+          CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+        }
+        if ($rpl_multi_source)
+        {
+          eval CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL '$rpl_channel_name';
+        }
       }
   }
 }
@@ -118,7 +133,7 @@ if (!$_rpl_change_topology_helper_skip)
 {
   # This un-configures the server so that it's not a slave.
   # After BUG#28796, such configuration is not possible any more.
-  #CHANGE MASTER TO MASTER_HOST = '' $rpl_for_channel_clause;
+  #CHANGE MASTER TO MASTER_HOST = '' FOR CHANNEL '$rpl_channel_name';
 }
 
 

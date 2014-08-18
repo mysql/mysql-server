@@ -29,8 +29,8 @@ SET @@GLOBAL.master_info_repository="TABLE";
 SET @@GLOBAL.relay_log_info_repository="TABLE";
 CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PORT=MASTER_PORT FOR CHANNEL "channel_3";
 Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	#	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	#	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 # Slave now is a multisourced slave.
 # Restart the slave and check that slave threads are not started because
 # the repositories are of type FILE

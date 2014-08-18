@@ -11,10 +11,6 @@
 #   If $rpl_multi_source is set, the name of the channel by which
 #   the slave connects to the master. Otherwise the empty string.
 #
-# $rpl_channel_clause
-#   If $rpl_multi_source is set, FOR CHANNEL 'channel_$rpl_channel_name'.
-#   Otherwise the empty string.
-#
 # $rpl_connection_number
 #   1 for the first connection, 2 for the second connection, etc.
 #
@@ -32,7 +28,7 @@
 #     The file that will be sourced.
 #
 #   $rpl_multi_source
-#     If this is set, $rpl_channel_name and $rpl_channel_clause are set.
+#     If this is set, $rpl_channel_name is set.
 #
 #   $rpl_debug
 #     See include/rpl_init.inc
@@ -49,15 +45,11 @@ while ($rpl_connection_number <= $rpl_connection_count)
   --let $_rfec_offset= 1 + ($rpl_connection_number - 1) * 2 * (2 + $rpl_server_count_length)
   --let $rpl_master= `SELECT SUBSTRING('$rpl_connection_list', $_rfec_offset + 1, $rpl_server_count_length)`
   --let $rpl_slave= `SELECT SUBSTRING('$rpl_connection_list', $_rfec_offset + 1 + $rpl_server_count_length + 2, $rpl_server_count_length)`
+
+  --let $rpl_channel_name=
   if ($rpl_multi_source)
   {
     --let $rpl_channel_name= channel_$rpl_master
-    --let $rpl_for_channel_clause= FOR CHANNEL  '$rpl_channel_name'
-  }
-  if (!$rpl_multi_source)
-  {
-    --let $rpl_channel_name=
-    --let $rpl_for_channel_clause=
   }
 
   if ($rpl_debug)
@@ -76,7 +68,6 @@ while ($rpl_connection_number <= $rpl_connection_count)
 --let $rpl_slave=
 --let $rpl_connection_number=
 --let $rpl_channel_name=
---let $rpl_for_channel_clause=
 
 --let $include_filename= rpl_for_each_connection.inc [$rpl_source_file]
 --source include/end_include_file.inc

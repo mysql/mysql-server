@@ -1,12 +1,27 @@
 # Auxiliary file used by rpl_reset.inc
+# This file uses $rpl_channel_name set in rpl_for_each_connection.inc
 
 if (!$rpl_reset_slave_all)
 {
-    eval RESET SLAVE $rpl_for_channel_clause;
+  if (!$rpl_multi_source)
+  {
+    RESET SLAVE;
+  }
+  if ($rpl_multi_source)
+  {
+    eval RESET SLAVE FOR CHANNEL '$rpl_channel_name';
+  }
 }
 
 if ($rpl_reset_slave_all)
 {
-    eval RESET SLAVE ALL $rpl_for_channel_clause;
+  if (!$rpl_multi_source)
+  {
+    RESET SLAVE ALL;
+  }
+  if ($rpl_multi_source)
+  {
+    eval RESET SLAVE ALL FOR CHANNEL  '$rpl_channel_name';
+  }
 }
 
