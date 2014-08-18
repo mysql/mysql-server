@@ -220,11 +220,11 @@ void my_dbopt_cleanup(void)
 static my_bool get_dbopt(const char *dbname, HA_CREATE_INFO *create)
 {
   my_dbopt_t *opt;
-  uint length;
+  size_t length;
   my_bool error= 1;
-  
-  length= (uint) strlen(dbname);
-  
+
+  length= strlen(dbname);
+
   mysql_rwlock_rdlock(&LOCK_dboptions);
   if ((opt= (my_dbopt_t*) my_hash_search(&dboptions, (uchar*) dbname, length)))
   {
@@ -251,12 +251,12 @@ static my_bool get_dbopt(const char *dbname, HA_CREATE_INFO *create)
 static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
 {
   my_dbopt_t *opt;
-  uint length;
+  size_t length;
   my_bool error= 0;
   DBUG_ENTER("put_dbopt");
 
-  length= (uint) strlen(dbname);
-  
+  length= strlen(dbname);
+
   mysql_rwlock_wrlock(&LOCK_dboptions);
   if (!(opt= (my_dbopt_t*) my_hash_search(&dboptions, (uchar*) dbname,
                                           length)))
@@ -265,7 +265,7 @@ static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
     char *tmp_name;
     if (!my_multi_malloc(key_memory_dboptions_hash,
                          MYF(MY_WME | MY_ZEROFILL),
-                         &opt, (uint) sizeof(*opt), &tmp_name, (uint) length+1,
+                         &opt, sizeof(*opt), &tmp_name, length+1,
                          NullS))
     {
       error= 1;

@@ -242,7 +242,7 @@ fil_name_process(
 					" '%s' and '%s'."
 					" You must delete one of them.",
 					space_id, f.name.c_str(), name);
-				exit(1);
+				recv_sys->found_corrupt_fs = true;
 			}
 			break;
 
@@ -301,7 +301,8 @@ fil_name_process(
 					" is broken, and you cannot remove"
 					" the .ibd file, you can set"
 					" --innodb_force_recovery.");
-				exit(1);
+				recv_sys->found_corrupt_fs = true;
+				break;
 			}
 
 			ib_logf(IB_LOG_LEVEL_INFO,
@@ -346,17 +347,14 @@ fil_name_parse(
 		return(NULL);
 	}
 
-	if (is_predefined_tablespace(space_id)
-	    || first_page_no != 0 // TODO: multi-file user-created tablespaces
-	    || len < sizeof "/a.ibd\0"
-	    || memcmp(ptr + len - 5, DOT_IBD, 5) != 0
-	    || memchr(ptr, OS_PATH_SEPARATOR, len) == NULL) {
-		/* MLOG_FILE_* records should only be written for
-		user-created tablespaces. The name must be long enough
-		and end in .ibd. */
-		recv_sys->found_corrupt_log = TRUE;
-		return(NULL);
-	}
+	/* MLOG_FILE_* records should only be written for
+	user-created tablespaces. The name must be long enough
+	and end in .ibd. */
+	bool corrupt = is_predefined_tablespace(space_id)
+		|| first_page_no != 0 // TODO: multi-file user tablespaces
+		|| len < sizeof "/a.ibd\0"
+		|| memcmp(ptr + len - 5, DOT_IBD, 5) != 0
+		|| memchr(ptr, OS_PATH_SEPARATOR, len) == NULL;
 
 	byte*	end_ptr	= ptr + len;
 
@@ -364,10 +362,18 @@ fil_name_parse(
 	default:
 		ut_ad(0); // the caller checked this
 	case MLOG_FILE_NAME:
+		if (corrupt) {
+			recv_sys->found_corrupt_log = true;
+			break;
+		}
 		fil_name_process(
 			reinterpret_cast<char*>(ptr), len, space_id, false);
 		break;
 	case MLOG_FILE_DELETE:
+		if (corrupt) {
+			recv_sys->found_corrupt_log = true;
+			break;
+		}
 		fil_name_process(
 			reinterpret_cast<char*>(ptr), len, space_id, true);
 #ifdef UNIV_HOTBACKUP
@@ -380,6 +386,10 @@ fil_name_parse(
 #endif /* UNIV_HOTBACKUP */
 		break;
 	case MLOG_FILE_RENAME2:
+		if (corrupt) {
+			recv_sys->found_corrupt_log = true;
+		}
+
 		/* The new name follows the old name. */
 		byte*	new_name = end_ptr + 2;
 		if (end < new_name) {
@@ -394,12 +404,14 @@ fil_name_parse(
 
 		end_ptr += 2 + new_len;
 
-		if (new_len < sizeof "/a.ibd\0"
-		    || memcmp(new_name + new_len - 5, DOT_IBD, 5) != 0
-		    || memchr(new_name, OS_PATH_SEPARATOR, new_len) == NULL) {
-			/* The name must be long enough and end in .ibd. */
-			recv_sys->found_corrupt_log = TRUE;
-			return(NULL);
+		corrupt = corrupt
+			|| new_len < sizeof "/a.ibd\0"
+			|| memcmp(new_name + new_len - 5, DOT_IBD, 5) != 0
+			|| !memchr(new_name, OS_PATH_SEPARATOR, new_len);
+
+		if (corrupt) {
+			recv_sys->found_corrupt_log = true;
+			break;
 		}
 
 		fil_name_process(
@@ -418,9 +430,12 @@ fil_name_parse(
 		}
 #endif /* UNIV_HOTBACKUP */
 
-		fil_op_replay_rename(space_id, first_page_no,
-				     reinterpret_cast<const char*>(ptr),
-				     reinterpret_cast<const char*>(new_name));
+		if (!fil_op_replay_rename(
+			    space_id, first_page_no,
+			    reinterpret_cast<const char*>(ptr),
+			    reinterpret_cast<const char*>(new_name))) {
+			recv_sys->found_corrupt_fs = true;
+		}
 	}
 
 	return(end_ptr);
@@ -645,7 +660,8 @@ recv_sys_init(
 	recv_sys->last_block = static_cast<byte*>(ut_align(
 		recv_sys->last_block_buf_start, OS_FILE_LOG_BLOCK_SIZE));
 
-	recv_sys->found_corrupt_log = FALSE;
+	recv_sys->found_corrupt_log = false;
+	recv_sys->found_corrupt_fs = false;
 	recv_sys->mlog_checkpoint_lsn = 0;
 
 	recv_max_page_lsn = 0;
@@ -1413,7 +1429,7 @@ recv_parse_or_apply_log_rec_body(
 		break;
 	default:
 		ptr = NULL;
-		recv_sys->found_corrupt_log = TRUE;
+		recv_sys->found_corrupt_log = true;
 	}
 
 	if (index) {
@@ -2262,7 +2278,7 @@ recv_parse_log_rec(
 	case MLOG_MULTI_REC_END | MLOG_SINGLE_REC_FLAG:
 	case MLOG_DUMMY_RECORD | MLOG_SINGLE_REC_FLAG:
 	case MLOG_CHECKPOINT | MLOG_SINGLE_REC_FLAG:
-		recv_sys->found_corrupt_log = TRUE;
+		recv_sys->found_corrupt_log = true;
 		return(0);
 	}
 
@@ -2311,16 +2327,19 @@ recv_calc_lsn_on_data_add(
 	return(lsn + lsn_len);
 }
 
-/*******************************************************//**
-Prints diagnostic info of corrupt log. */
+/** Prints diagnostic info of corrupt log.
+@param[in]	ptr	pointer to corrupt log record
+@param[in]	type	type of the log record (could be garbage)
+@param[in]	space	tablespace ID (could be garbage)
+@param[in]	page_no	page number (could be garbage)
+@return whether processing should continue */
 static
-void
+bool
 recv_report_corrupt_log(
-/*====================*/
-	byte*	ptr,	/*!< in: pointer to corrupt log record */
-	byte	type,	/*!< in: type of the record */
-	ulint	space,	/*!< in: space id, this may also be garbage */
-	ulint	page_no)/*!< in: page number, this may also be garbage */
+	const byte*	ptr,
+	int		type,
+	ulint		space,
+	ulint		page_no)
 {
 	ib_logf(IB_LOG_LEVEL_ERROR,
 		"############### CORRUPT LOG RECORD FOUND ##################");
@@ -2358,8 +2377,9 @@ recv_report_corrupt_log(
 
 #ifndef UNIV_HOTBACKUP
 	if (!srv_force_recovery) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
+		ib_logf(IB_LOG_LEVEL_INFO,
 			"Set innodb_force_recovery to ignore this error.");
+		return(false);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2369,8 +2389,7 @@ recv_report_corrupt_log(
 		" Please run CHECK TABLE on your InnoDB tables to check"
 		" that they are ok! If mysqld crashes after this recovery; %s",
 		FORCE_RECOVERY_MSG);
-
-	fflush(stderr);
+	return(true);
 }
 
 /** Whether to store redo log records to the hash table */
@@ -2388,7 +2407,8 @@ hash table to wait merging to file pages.
 @param[in]	checkpoint_lsn	the LSN of the latest checkpoint
 @param[in]	store		whether to store page operations
 @param[in]	apply		whether to apply the records
-@return whether MLOG_CHECKPOINT record was seen the first time */
+@return whether MLOG_CHECKPOINT record was seen the first time,
+or corruption was noticed */
 static __attribute__((warn_unused_result))
 bool
 recv_parse_log_recs(
@@ -2442,14 +2462,18 @@ loop:
 		len = recv_parse_log_rec(&type, ptr, end_ptr, &space,
 					 &page_no, apply, &body);
 
-		if (len == 0 || recv_sys->found_corrupt_log) {
-			if (recv_sys->found_corrupt_log) {
-
-				recv_report_corrupt_log(
-					ptr, type, space, page_no);
-			}
-
+		if (len == 0) {
 			return(false);
+		}
+
+		if (recv_sys->found_corrupt_log) {
+			recv_report_corrupt_log(
+				ptr, type, space, page_no);
+			return(true);
+		}
+
+		if (recv_sys->found_corrupt_fs) {
+			return(true);
 		}
 
 		new_recovered_lsn = recv_calc_lsn_on_data_add(old_lsn, len);
@@ -2567,7 +2591,11 @@ loop:
 				recv_sys->found_corrupt_log = true;
 				recv_report_corrupt_log(
 					ptr, type, space, page_no);
-				return(false);
+				return(true);
+			}
+
+			if (recv_sys->found_corrupt_fs) {
+				return(true);
 			}
 
 			recv_previous_parsed_rec_type = type;
@@ -2624,10 +2652,14 @@ loop:
 				&type, ptr, end_ptr, &space, &page_no,
 				apply, &body);
 
-			if (recv_sys->found_corrupt_log) {
+			if (recv_sys->found_corrupt_log
+			    && !recv_report_corrupt_log(
+				    ptr, type, space, page_no)) {
+				return(true);
+			}
 
-				recv_report_corrupt_log(ptr,
-							type, space, page_no);
+			if (recv_sys->found_corrupt_fs) {
+				return(true);
 			}
 
 			ut_a(len != 0);
@@ -2776,9 +2808,9 @@ Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.  Unless
 UNIV_HOTBACKUP is defined, this function will apply log records
 automatically when the hash table becomes full.
-@return TRUE if not able to scan any more in this log group */
+@return true if not able to scan any more in this log group */
 static
-ibool
+bool
 recv_scan_log_recs(
 /*===============*/
 	ulint		available_memory,/*!< in: we let the hash table of recs
@@ -2907,7 +2939,7 @@ recv_scan_log_recs(
 						"Recovery skipped,"
 						" --innodb-read-only set!");
 
-					return(TRUE);
+					return(true);
 				}
 			}
 #endif /* !UNIV_HOTBACKUP */
@@ -2922,13 +2954,14 @@ recv_scan_log_recs(
 					"Log parsing buffer overflow."
 					" Recovery may have failed!");
 
-				recv_sys->found_corrupt_log = TRUE;
+				recv_sys->found_corrupt_log = true;
 
 #ifndef UNIV_HOTBACKUP
 				if (!srv_force_recovery) {
-					ib_logf(IB_LOG_LEVEL_FATAL,
+					ib_logf(IB_LOG_LEVEL_ERROR,
 						"Set innodb_force_recovery"
 						" to ignore this error.");
+					return(true);
 				}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2971,7 +3004,9 @@ recv_scan_log_recs(
 
 		if (recv_parse_log_recs(checkpoint_lsn,
 					*store_to_hash, apply)) {
-			ut_ad(recv_sys->mlog_checkpoint_lsn
+			ut_ad(recv_sys->found_corrupt_log
+			      || recv_sys->found_corrupt_fs
+			      || recv_sys->mlog_checkpoint_lsn
 			      == recv_sys->recovered_lsn);
 			return(true);
 		}
@@ -3059,6 +3094,10 @@ recv_group_scan_log_recs(
 			 RECV_SCAN_SIZE,
 			 checkpoint_lsn,
 			 start_lsn, contiguous_lsn, &group->scanned_lsn));
+
+	if (recv_sys->found_corrupt_log || recv_sys->found_corrupt_fs) {
+		DBUG_RETURN(false);
+	}
 
 	DBUG_PRINT("ib_log", ("%s " LSN_PF
 			      " completed for log group " ULINTPF,
@@ -3251,6 +3290,7 @@ recv_recovery_from_checkpoint_start(
 			   (byte*)"ibbackup", (sizeof "ibbackup") - 1)) {
 
 		if (srv_read_only_mode) {
+			log_mutex_exit();
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Cannot restore from mysqlbackup, InnoDB"
@@ -3293,11 +3333,18 @@ recv_recovery_from_checkpoint_start(
 	/* Look for MLOG_CHECKPOINT. */
 	contiguous_lsn = checkpoint_lsn;
 	recv_group_scan_log_recs(group, &contiguous_lsn, false);
-	/* The first scan should not have stored any records. */
+	/* The first scan should not have stored or applied any records. */
 	ut_ad(recv_sys->n_addrs == 0);
+	ut_ad(!recv_sys->found_corrupt_fs);
+
+	if (recv_sys->found_corrupt_log && !srv_force_recovery) {
+		log_mutex_exit();
+		return(DB_ERROR);
+	}
 
 	if (recv_sys->mlog_checkpoint_lsn == 0) {
-		if (group->scanned_lsn != checkpoint_lsn) {
+		if (!srv_read_only_mode
+		    && group->scanned_lsn != checkpoint_lsn) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Ignoring the redo log due to"
 				" missing MLOG_CHECKPOINT"
@@ -3312,6 +3359,12 @@ recv_recovery_from_checkpoint_start(
 		contiguous_lsn = checkpoint_lsn;
 		rescan = recv_group_scan_log_recs(
 			group, &contiguous_lsn, false);
+
+		if ((recv_sys->found_corrupt_log && !srv_force_recovery)
+		    || recv_sys->found_corrupt_fs) {
+			log_mutex_exit();
+			return(DB_ERROR);
+		}
 	}
 
 	/* NOTE: we always do a 'recovery' at startup, but only if
@@ -3345,7 +3398,7 @@ recv_recovery_from_checkpoint_start(
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Can't initiate database recovery,"
 					" running in read-only-mode.");
-				mutex_exit(&log_sys->mutex);
+				log_mutex_exit();
 				return(DB_READ_ONLY);
 			}
 
@@ -3359,13 +3412,20 @@ recv_recovery_from_checkpoint_start(
 		err = recv_init_crash_recovery_spaces();
 
 		if (err != DB_SUCCESS) {
-			mutex_exit(&log_sys->mutex);
+			log_mutex_exit();
 			return(err);
 		}
 
 		if (rescan) {
 			contiguous_lsn = checkpoint_lsn;
 			recv_group_scan_log_recs(group, &contiguous_lsn, true);
+
+			if ((recv_sys->found_corrupt_log
+			     && !srv_force_recovery)
+			    || recv_sys->found_corrupt_fs) {
+				log_mutex_exit();
+				return(DB_ERROR);
+			}
 		}
 	} else {
 		ut_ad(!rescan || recv_sys->n_addrs == 0);

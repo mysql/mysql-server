@@ -691,8 +691,15 @@ private:
 void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
                   uint code, const char *message_text);
 
+/*
+  Note that this __attribute__ check cannot detect number/type mismatch
+  since the format string is not known at compile time.
+  It can however detect if push_warning_printf() is used without any
+  printf arguments. In such cases, use push_warning() instead.
+*/
 void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
-                         uint code, const char *format, ...);
+                         uint code, const char *format, ...)
+                         __attribute__((format(printf, 4, 5)));
 
 /**
   Generates a warning that a feature is deprecated.

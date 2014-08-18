@@ -355,11 +355,14 @@ struct recv_sys_t{
 	lsn_t		recovered_lsn;
 				/*!< the log records have been parsed up to
 				this lsn */
-	ibool		found_corrupt_log;
-				/*!< this is set to TRUE if we during log
-				scan find a corrupt log block, or a corrupt
-				log record, or there is a log parsing
-				buffer overflow */
+	bool		found_corrupt_log;
+				/*!< set when finding a corrupt log
+				block or record, or there is a log
+				parsing buffer overflow */
+	bool		found_corrupt_fs;
+				/*!< set when an inconsistency with
+				the file system contents is detected
+				during log scan or apply */
 	lsn_t		mlog_checkpoint_lsn;
 				/*!< the LSN of a MLOG_CHECKPOINT
 				record, or 0 if none was parsed */
