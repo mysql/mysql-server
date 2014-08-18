@@ -539,6 +539,7 @@ static int tokudb_init_func(void *p) {
 
     if (r) {
         DBUG_PRINT("info", ("env->open %d", r));
+        handle_ydb_error(r);
         goto error;
     }
 
