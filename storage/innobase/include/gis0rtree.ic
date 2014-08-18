@@ -48,8 +48,8 @@ rtr_page_cal_mbr(
 
 	rtr_mbr->xmin = DBL_MAX;
 	rtr_mbr->ymin = DBL_MAX;
-	rtr_mbr->xmax = DBL_MIN;
-	rtr_mbr->ymax = DBL_MIN;
+	rtr_mbr->xmax = -DBL_MAX;
+	rtr_mbr->ymax = -DBL_MAX;
 
 	mbr = reinterpret_cast<double*>(rtr_mbr);
 

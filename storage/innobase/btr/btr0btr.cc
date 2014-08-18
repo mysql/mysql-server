@@ -4206,24 +4206,44 @@ btr_index_rec_validate(
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	for (i = 0; i < n; i++) {
-		ulint	fixed_size = dict_col_get_fixed_size(
-			dict_index_get_nth_col(index, i), page_is_comp(page));
+		dict_field_t*	field = dict_index_get_nth_field(index, i);
+		ulint		fixed_size = dict_col_get_fixed_size(
+						dict_field_get_col(field),
+						page_is_comp(page));
 
 		rec_get_nth_field_offs(offsets, i, &len);
 
 		/* Note that if fixed_size != 0, it equals the
-		length of a fixed-size column in the clustered index.
+		length of a fixed-size column in the clustered index,
+		except the DATA_POINT, whose length would be MBR_LEN
+		when it's indexed in a R-TREE. We should adjust it here.
 		A prefix index of the column is of fixed, but different
 		length.  When fixed_size == 0, prefix_len is the maximum
 		length of the prefix index column. */
 
-		if ((dict_index_get_nth_field(index, i)->prefix_len == 0
+		if (dict_field_get_col(field)->mtype == DATA_POINT) {
+			ut_ad(fixed_size == DATA_POINT_LEN);
+			if (dict_index_is_spatial(index)) {
+				/* For DATA_POINT data, when it has R-tree
+				index, the fixed_len is the MBR of the point.
+				But if it's a primary key and on R-TREE
+				as the PK pointer, the length shall be
+				DATA_POINT_LEN as well. */
+				ut_ad((field->fixed_len == DATA_MBR_LEN
+				       && i == 0)
+				      || (field->fixed_len == DATA_POINT_LEN
+					  && i != 0));
+				fixed_size = field->fixed_len;
+			}
+		}
+
+		if ((field->prefix_len == 0
 		     && len != UNIV_SQL_NULL && fixed_size
 		     && len != fixed_size)
-		    || (dict_index_get_nth_field(index, i)->prefix_len > 0
+		    || (field->prefix_len > 0
 			&& len != UNIV_SQL_NULL
 			&& len
-			> dict_index_get_nth_field(index, i)->prefix_len)) {
+			> field->prefix_len)) {
 
 			btr_index_rec_validate_report(page, rec, index);
 			ib_logf(IB_LOG_LEVEL_ERROR,
