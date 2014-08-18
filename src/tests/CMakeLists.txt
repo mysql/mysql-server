@@ -160,10 +160,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     endforeach(av)
   endforeach(ov)
 
-  if (NOT (CMAKE_SYSTEM_NAME MATCHES Darwin OR
-           (CMAKE_CXX_COMPILER_ID STREQUAL Intel AND
-            CMAKE_BUILD_TYPE STREQUAL Release)
-           OR USE_GCOV))
+  if (NOT (CMAKE_SYSTEM_NAME MATCHES Darwin OR USE_GCOV))
     declare_custom_tests(helgrind1.tdb)
     add_test(NAME ydb/helgrind_helgrind1.tdb
       COMMAND valgrind --quiet --tool=helgrind --error-exitcode=1 --log-file=helgrind1.tdb.deleteme $<TARGET_FILE:helgrind1.tdb>)

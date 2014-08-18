@@ -186,7 +186,7 @@ static void test_merge_internal (int a[], int na, int b[], int nb, bool dups) {
 static void test_merge (void) {
     {
 	int avals[]={1,2,3,4,5};
-	int *bvals = NULL; //icc won't let us use a zero-sized array explicitly or by [] = {} construction.
+	int *bvals = NULL;
 	test_merge_internal(avals, 5, bvals, 0, false);
 	test_merge_internal(bvals, 0, avals, 5, false);
     }
