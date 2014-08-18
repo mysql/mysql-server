@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <mysql/service_rpl_transaction_ctx.h>
 #include "gcs_plugin.h"
 #include "observer_trans.h"
 #include "gcs_plugin_utils.h"
@@ -73,10 +74,6 @@ int gcs_trans_before_commit(Trans_param *param)
   if (!is_real_trans)
     DBUG_RETURN(0);
 
-  mysql_cond_t COND_certify_wait;
-  mysql_mutex_t LOCK_certify_wait;
-
-  int mutex_init= 0;
   // GCS cache.
   Transaction_context_log_event *tcle= NULL;
   rpl_gno snapshot_timestamp;
@@ -91,14 +88,6 @@ int gcs_trans_before_commit(Trans_param *param)
   my_off_t cache_log_position= 0;
   const my_off_t trx_cache_log_position= my_b_tell(param->trx_cache_log);
   const my_off_t stmt_cache_log_position= my_b_tell(param->stmt_cache_log);
-
-  mutex_init= init_cond_mutex(&COND_certify_wait, &LOCK_certify_wait);
-  if (mutex_init)
-  {
-    log_message(MY_ERROR_LEVEL, "Failed to initialize the mutex and condtion");
-    error= 1;
-    goto err;
-  }
 
   if (trx_cache_log_position > 0 && stmt_cache_log_position == 0)
   {
@@ -200,10 +189,9 @@ int gcs_trans_before_commit(Trans_param *param)
     goto err;
   }
 
-  if ((add_transaction_wait_cond(param->thread_id, &COND_certify_wait,
-                                 &LOCK_certify_wait)))
+  if (certification_latch.registerTicket(param->thread_id))
   {
-    log_message(MY_ERROR_LEVEL, "Insertion of the condition variables in the map failed.");
+    log_message(MY_ERROR_LEVEL, "Failed to register for certification outcome");
     error= 1;
     goto err;
   }
@@ -216,18 +204,16 @@ int gcs_trans_before_commit(Trans_param *param)
     goto err;
   }
 
-  mysql_mutex_lock(&LOCK_certify_wait);
-  while ((get_transaction_certification_result(param->thread_id)).second == -1)
-    mysql_cond_wait(&COND_certify_wait, &LOCK_certify_wait);
-  mysql_mutex_unlock(&LOCK_certify_wait);
-  delete_transaction_wait_cond(param->thread_id);
+  if (certification_latch.waitTicket(param->thread_id))
+  {
+    log_message(MY_ERROR_LEVEL, "Failed to wait for certification outcome");
+    error= 1;
+    goto err;
+  }
 
 err:
   delete tcle;
-  if (!mutex_init)
-    destroy_cond_mutex(&COND_certify_wait, &LOCK_certify_wait);
   close_cached_file(&cache);
-  mutex_init= 0;
   DBUG_RETURN(error);
 }
 

@@ -17,7 +17,6 @@
 #include "gcs_plugin.h"
 #include "observer_server_state.h"
 #include "observer_trans.h"
-#include "gcs_commit_validation.h"
 #include <sql_class.h>                          // THD
 #include <gcs_replication.h>
 #include "gcs_event_handlers.h"
@@ -63,6 +62,9 @@ ulong gcs_recovery_retry_count= 0;
 
 //Generic components variables
 ulong gcs_components_stop_timeout= LONG_TIMEOUT;
+
+//Certification latch
+Wait_ticket<my_thread_id> certification_latch;
 
 //GCS module variables
 char *gcs_group_pointer= NULL;
@@ -623,8 +625,6 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
                 "Failure on GCS Cluster handler initialization");
     return 1;
   }
-
-  init_validation_structures();
 
   if(register_server_state_observer(&server_state_observer, (void *)plugin_info_ptr))
   {

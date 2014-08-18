@@ -1721,8 +1721,6 @@ int ha_rollback_low(THD *thd, bool all)
     all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
 
-  // Deleting the elements from the thread_to_seq_num map.
-  delete_transaction_certification_result(thd->thread_id());
   thd->clear_hash_pke_list();
   (void) RUN_HOOK(transaction, before_rollback, (thd, all));
 

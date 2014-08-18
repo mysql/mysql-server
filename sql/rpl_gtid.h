@@ -2870,9 +2870,13 @@ public:
     type==GTID_GROUP and gno<=0.
 
     @param thd The THD that this Gtid_state belongs to.
+    @param specified_sidno Externaly generated sidno.
+    @param specified_gno   Externaly generated gno.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR
   */
-  enum_return_status generate_automatic_gno(THD *thd);
+  enum_return_status generate_automatic_gno(THD *thd,
+                                            rpl_sidno specified_sidno= 0,
+                                            rpl_gno specified_gno= 0);
 #endif // ifndef MYSQL_CLIENT
   /**
     Return true if this Group_cache contains the given GTID.

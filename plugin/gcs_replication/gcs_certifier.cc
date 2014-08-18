@@ -265,7 +265,6 @@ rpl_gno Certifier::certify(rpl_gno snapshot_timestamp,
                            std::list<const char*> *write_set)
 {
   DBUG_ENTER("Certifier::certify");
-  rpl_gno seq_no;
   rpl_gno result= 0;
 
   if (!is_initialized())
@@ -275,11 +274,15 @@ rpl_gno Certifier::certify(rpl_gno snapshot_timestamp,
     DBUG_RETURN(-1);
 
   mysql_mutex_lock(&LOCK_certifier_map);
+  DBUG_EXECUTE_IF("gcs_force_1_negative_certification", {
+                  DBUG_SET("-d,gcs_force_1_negative_certification");
+                  goto err;});
+
   for (std::list<const char*>::iterator it= write_set->begin();
        it != write_set->end();
        ++it)
   {
-    seq_no= get_seqno(*it);
+    rpl_gno seq_no= get_seqno(*it);
     DBUG_PRINT("info", ("sequence number in certifier: %llu", seq_no));
     DBUG_PRINT("info", ("snapshot timestamp in certifier: %llu", snapshot_timestamp));
     /*
@@ -289,7 +292,7 @@ rpl_gno Certifier::certify(rpl_gno snapshot_timestamp,
       be negatively certified.
     */
     if(seq_no > snapshot_timestamp)
-      DBUG_RETURN(result);
+      goto err;
   }
   /*
     If the sequence number of the transaction that is being certified
@@ -306,11 +309,12 @@ rpl_gno Certifier::certify(rpl_gno snapshot_timestamp,
       it != write_set->end();
       ++it)
   {
-    seq_no= get_seqno(*it);
     add_item(*it, (result));
   }
 
   update_certified_transaction_count(result>0);
+
+err:
   mysql_mutex_unlock(&LOCK_certifier_map);
   DBUG_RETURN(result);
 }

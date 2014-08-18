@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "certification_handler.h"
-#include "../gcs_commit_validation.h"
 #include "../observer_trans.h"
 #include <gcs_replication.h>
 
@@ -86,21 +85,28 @@ Certification_handler::certify(PipelineEvent *pevent, Continuation *cont)
     /*
       Local transaction.
       After a certification we need to wake up the waiting thread on the
-      plugin to proceed with the transaction processing. Here we use the
-      global array of conditions. We extract the condition variable
-      corresponding to the thread_id and store it temporarily in a variable.
-      This will be used later in the code to signal the thread after the
-      sequence number is updated.
+      plugin to proceed with the transaction processing.
+      Sequence number <= 0 means abort, so we need to pass a negative value to
+      transaction context.
     */
-    mysql_cond_t *cond_i=
-        get_transaction_wait_cond(tcle->get_thread_id()).first;
-    mysql_mutex_t *mutex_i=
-        get_transaction_wait_cond(tcle->get_thread_id()).second;
+    Transaction_termination_ctx transaction_termination_ctx;
+    transaction_termination_ctx.m_thread_id= tcle->get_thread_id();
+    if (seq_number > 0)
+    {
+      transaction_termination_ctx.m_rollback_transaction= FALSE;
+      transaction_termination_ctx.m_generated_gtid= TRUE;
+      transaction_termination_ctx.m_sidno= gcs_cluster_sidno;
+      transaction_termination_ctx.m_seqno= seq_number;
+    }
+    else
+    {
+      transaction_termination_ctx.m_rollback_transaction= TRUE;
+      transaction_termination_ctx.m_generated_gtid= FALSE;
+      transaction_termination_ctx.m_sidno= -1;
+      transaction_termination_ctx.m_seqno= -1;
+    }
 
-    mysql_mutex_lock(mutex_i);
-    if (add_transaction_certification_result(tcle->get_thread_id(),
-                                             seq_number,
-                                             gcs_cluster_sidno))
+    if (set_transaction_ctx(transaction_termination_ctx))
     {
       log_message(MY_ERROR_LEVEL,
                   "Unable to update certification result on server side, thread_id: %lu",
@@ -109,16 +115,12 @@ Certification_handler::certify(PipelineEvent *pevent, Continuation *cont)
       DBUG_RETURN(1);
     }
 
-    if (cond_i == NULL || mutex_i == NULL)
+    if (certification_latch.releaseTicket(tcle->get_thread_id()))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Got NULL when retrieving the structures for signaling the waiting thread: %lu",
-                  tcle->get_thread_id());
+      log_message(MY_ERROR_LEVEL, "Failed to notify certification outcome");
       cont->signal(1,true);
       DBUG_RETURN(1);
     }
-    mysql_cond_signal(cond_i);
-    mysql_mutex_unlock(mutex_i);
 
     //The pipeline ended for this transaction
     cont->signal(0,true);

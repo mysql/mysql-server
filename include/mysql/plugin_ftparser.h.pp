@@ -132,6 +132,21 @@ extern void my_free(void *ptr);
 extern void * my_memdup(PSI_memory_key key, const void *from, size_t length, myf_t flags);
 extern char * my_strdup(PSI_memory_key key, const char *from, myf_t flags);
 extern char * my_strndup(PSI_memory_key key, const char *from, size_t length, myf_t flags);
+#include <mysql/service_rpl_transaction_ctx.h>
+struct st_transaction_termination_ctx
+{
+  unsigned long m_thread_id;
+  unsigned int m_flags;
+  char m_rollback_transaction;
+  char m_generated_gtid;
+  int m_sidno;
+  long m_seqno;
+};
+typedef struct st_transaction_termination_ctx Transaction_termination_ctx;
+extern struct rpl_transaction_ctx_service_st {
+  int (*set_transaction_ctx)(Transaction_termination_ctx transaction_termination_ctx);
+} *rpl_transaction_ctx_service;
+int set_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;

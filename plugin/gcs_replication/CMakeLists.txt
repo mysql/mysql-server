@@ -40,7 +40,6 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     pipeline_factory.h pipeline_factory.cc
     gcs_replication_threads_api.h gcs_replication_threads_api.cc
     gcs_applier.h gcs_applier.cc
-    gcs_commit_validation.cc gcs_commit_validation.h
     gcs_recovery_message.cc gcs_recovery_message.h
     gcs_recovery.cc gcs_recovery.h
     gcs_certifier_stats_interface.h

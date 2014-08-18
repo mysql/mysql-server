@@ -72,6 +72,8 @@ extern int gcs_communication_event_handle;
 extern int gcs_control_event_handler;
 extern int gcs_control_exchanged_data_handle;
 
+//Certification latch
+extern Wait_ticket<my_thread_id> certification_latch;
 //Appliers module variables
 extern ulong handler_pipeline_type;
 //GCS module variables

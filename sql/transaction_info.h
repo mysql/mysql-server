@@ -28,6 +28,7 @@
 #include "thr_malloc.h"                // init_sql_alloc
 #include "sql_cache.h"                 // query_cache
 #include "mdl.h"                       // MDL_savepoint
+#include "rpl_transaction_ctx.h"       // Rpl_transaction_ctx
 
 class THD;
 
@@ -352,6 +353,7 @@ public:
     m_changed_tables= NULL;
     m_savepoints= NULL;
     m_xid_state.cleanup();
+    m_rpl_transaction_ctx.cleanup();
     free_root(&m_mem_root,MYF(MY_KEEP_PREALLOC));
     DBUG_VOID_RETURN;
   }
@@ -545,6 +547,20 @@ private:
     else
       return true;
   }
+
+public:
+  Rpl_transaction_ctx *get_rpl_transaction_ctx()
+  {
+    return &m_rpl_transaction_ctx;
+  }
+
+  const Rpl_transaction_ctx *get_rpl_transaction_ctx() const
+  {
+    return &m_rpl_transaction_ctx;
+  }
+
+private:
+  Rpl_transaction_ctx m_rpl_transaction_ctx;
 };
 
 #endif

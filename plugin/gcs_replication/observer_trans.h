@@ -18,8 +18,6 @@
 
 #include "gcs_plugin.h"
 #include "my_stacktrace.h"
-#include <replication.h>
-#include "gcs_commit_validation.h"
 #include "gcs_communication_interface.h"
 #include "gcs_binding_factory.h"
 

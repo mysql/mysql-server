@@ -72,6 +72,10 @@ static struct mysql_malloc_service_st mysql_malloc_handler=
   my_strndup
 };
 
+static struct rpl_transaction_ctx_service_st rpl_transaction_ctx_handler= {
+  set_transaction_ctx,
+};
+
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
@@ -82,6 +86,8 @@ static struct st_service_ref list_of_services[]=
   { "my_plugin_log_service", VERSION_my_plugin_log, &my_plugin_log_handler },
   { "mysql_string_service",
     VERSION_mysql_string, &mysql_string_handler },
-  { "mysql_malloc_service", VERSION_mysql_malloc, &mysql_malloc_handler }
+  { "mysql_malloc_service", VERSION_mysql_malloc, &mysql_malloc_handler },
+  { "rpl_transaction_ctx_service",
+    VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler }
 };
 

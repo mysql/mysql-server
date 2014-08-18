@@ -123,14 +123,17 @@ Group_cache::add_empty_group(const Gtid &gtid)
 #endif
 
 
-enum_return_status Group_cache::generate_automatic_gno(THD *thd)
+enum_return_status Group_cache::generate_automatic_gno(THD *thd,
+                                                       rpl_sidno specified_sidno,
+                                                       rpl_gno specified_gno)
 {
   DBUG_ENTER("Group_cache::generate_automatic_gno");
   DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
   DBUG_ASSERT(thd->variables.gtid_next_list.get_gtid_set() == NULL);
+  DBUG_ASSERT(specified_sidno >= 0 && specified_gno >= 0);
   int n_groups= get_n_groups();
   enum_group_type automatic_type= INVALID_GROUP;
-  Gtid automatic_gtid= { 0, 0 };
+  Gtid automatic_gtid= { specified_sidno, specified_gno };
   for (int i= 0; i < n_groups; i++)
   {
     Cached_group *group= get_unsafe_pointer(i);
@@ -145,10 +148,12 @@ enum_return_status Group_cache::generate_automatic_gno(THD *thd)
         else
         {
           automatic_type= GTID_GROUP;
-          automatic_gtid.sidno= gtid_state->get_server_sidno();
+          if (automatic_gtid.sidno == 0)
+            automatic_gtid.sidno= gtid_state->get_server_sidno();
           gtid_state->lock_sidno(automatic_gtid.sidno);
-          automatic_gtid.gno=
-            gtid_state->get_automatic_gno(automatic_gtid.sidno);
+          if (automatic_gtid.gno == 0)
+            automatic_gtid.gno=
+              gtid_state->get_automatic_gno(automatic_gtid.sidno);
           if (automatic_gtid.gno == -1)
           {
             gtid_state->unlock_sidno(automatic_gtid.sidno);
