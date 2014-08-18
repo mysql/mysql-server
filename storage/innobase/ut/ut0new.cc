@@ -163,7 +163,6 @@ ut_new_boot()
 		"ut0mem",
 		"ut0pool",
 		"ut0rbt",
-		"ut0vec",
 		"ut0wqueue",
 	};
 	static const size_t	n_auto = UT_ARR_SIZE(auto_event_names);
