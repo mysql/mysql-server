@@ -2268,9 +2268,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
 
     if (want_access)
     {
-      GRANT_COLUMN *grant_column= 
-        column_hash_search(grant_table, field_name,
-                           (uint) strlen(field_name));
+      GRANT_COLUMN *grant_column=
+        column_hash_search(grant_table, field_name, strlen(field_name));
       if (grant_column)
         using_column_privileges= TRUE;
       if (!grant_column || (~grant_column->rights & want_access))
@@ -2549,7 +2548,7 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
   else
   {
     grant_column= column_hash_search(grant_table, field_name,
-                                     (uint) strlen(field_name));
+                                     strlen(field_name));
     if (!grant_column)
       priv= (grant->privilege | grant_table->privs);
     else

@@ -623,6 +623,7 @@ extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);
 extern int my_copystat(const char *from, const char *to, int MyFlags);
 extern char * my_filename(File fd);
+extern my_bool my_chmod(const char *filename, ulong PermFlags, myf my_flags);
 
 #ifdef EXTRA_DEBUG
 void my_print_open_files(void);
@@ -877,7 +878,6 @@ extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
                                       char *to, size_t to_length,
                                       const char *from, size_t length);
 #ifdef _WIN32
-#define BACKSLASH_MBTAIL
 /* File system character set */
 extern CHARSET_INFO *fs_character_set(void);
 #endif
