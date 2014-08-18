@@ -1,0 +1,12 @@
+###############################################################################
+#
+# Bug#17280176 TRANSACTIONS SKIPPED ON SLAVE AFTER "STOP/START SLAVE" USING
+#              GTID REPLICATION
+#
+###############################################################################
+#
+# This test will verify if the slave SQL thread and the slave IO thread behave
+# correctly when the IO thread is restarted in the middle of a transaction.
+#
+
+--source extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test

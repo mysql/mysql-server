@@ -3140,6 +3140,12 @@ static Sys_var_ulong Sys_max_statement_time(
 #define SSL_OPT(X) NO_CMD_LINE
 #endif
 
+/*
+  If you are adding new system variable for SSL communication, please take a
+  look at do_auto_cert_generation() function in sql_authentication.cc and
+  add new system variable in checks if required.
+*/
+
 static Sys_var_charptr Sys_ssl_ca(
        "ssl_ca",
        "CA file in PEM format (check OpenSSL docs, implies --ssl)",
@@ -3179,6 +3185,21 @@ static Sys_var_charptr Sys_ssl_crlpath(
        READ_ONLY GLOBAL_VAR(opt_ssl_crlpath), SSL_OPT(OPT_SSL_CRLPATH),
        IN_FS_CHARSET, DEFAULT(0));
 
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+static Sys_var_mybool Sys_auto_generate_certs(
+       "auto_generate_certs",
+       "Auto generate SSL certificates at server startup if none of the SSL "
+       "system variables are specified and certificate files are not present "
+       "in data directory.",
+       READ_ONLY GLOBAL_VAR(opt_auto_generate_certs),
+       CMD_LINE(OPT_ARG),
+       DEFAULT(TRUE),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(NULL),
+       ON_UPDATE(NULL),
+       NULL);
+#endif /* HAVE_OPENSSL && !HAVE_YASSL */
 
 // why ENUM and not BOOL ?
 static const char *updatable_views_with_limit_names[]= {"NO", "YES", 0};
@@ -4251,9 +4272,9 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                      slave_net_timeout,
                      (active_mi ? active_mi->heartbeat_period : 0.0)));
   if (active_mi != NULL && slave_net_timeout < active_mi->heartbeat_period)
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                        ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                 ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
   mysql_mutex_lock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_slave_net_timeout);

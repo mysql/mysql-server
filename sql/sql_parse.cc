@@ -4012,9 +4012,9 @@ end_with_restore_list:
           goto error;
         if (specialflag & SPECIAL_NO_RESOLVE &&
             hostname_requires_resolving(user->host.str))
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-                              ER_WARN_HOSTNAME_WONT_WORK,
-                              ER(ER_WARN_HOSTNAME_WONT_WORK));
+          push_warning(thd, Sql_condition::SL_WARNING,
+                       ER_WARN_HOSTNAME_WONT_WORK,
+                       ER(ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
         DBUG_ASSERT(user->host.str != 0);
 
@@ -5144,7 +5144,7 @@ void THD::reset_for_next_command()
   thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
 
-  thd->query_start_used= thd->query_start_usec_used= 0;
+  thd->query_start_usec_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
   /*
     Clear the status flag that are expected to be cleared at the
@@ -5338,6 +5338,11 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           query_logger.general_log_write(thd, COM_QUERY,
                                          thd->query().str, qlen);
       }
+
+      /* Audit_log notification when general log is disabled */
+      if (!opt_general_log && !opt_general_log_raw)
+        mysql_audit_general_log(thd, command_name[COM_QUERY].str,
+                                command_name[COM_QUERY].length);
     }
 
     if (!err)

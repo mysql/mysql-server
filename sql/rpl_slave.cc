@@ -3216,7 +3216,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-    int4store(ptr_buffer, BINLOG_NAME_INFO_SIZE);
+    int4store(ptr_buffer, static_cast<uint32>(BINLOG_NAME_INFO_SIZE));
     ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
     memset(ptr_buffer, 0, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
@@ -3576,9 +3576,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
         if (rli->mts_group_status == Relay_log_info::MTS_END_GROUP)
         {
           // CGAP cleanup
-          for (uint i= rli->curr_group_assigned_parts.elements; i > 0; i--)
-            delete_dynamic_element(&rli->
-                                   curr_group_assigned_parts, i - 1);
+          rli->curr_group_assigned_parts.clear();
           // reset the B-group and Gtid-group marker
           rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
           if (is_mts_db_partitioned(rli)||
@@ -3594,33 +3592,25 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
         ev->mts_group_idx= rli->gaq->assigned_group_index;
 
         bool append_item_to_jobs_error= false;
-        if (rli->curr_group_da.elements > 0)
+        if (rli->curr_group_da.size() > 0)
         {
           /*
             the current event sorted out which partion the current group
             belongs to. It's time now to processed deferred array events.
           */
-          for (uint i= 0; i < rli->curr_group_da.elements; i++)
+          for (uint i= 0; i < rli->curr_group_da.size(); i++)
           { 
-            Slave_job_item da_item;
-            get_dynamic(&rli->curr_group_da, (uchar*) &da_item.data, i);
+            Slave_job_item da_item= rli->curr_group_da[i];
             DBUG_PRINT("mts", ("Assigning job %llu to worker %lu",
-                      ((Log_event* )da_item.data)->log_pos, w->id));
-            static_cast<Log_event*>(da_item.data)->mts_group_idx=
+                      (da_item.data)->log_pos, w->id));
+            da_item.data->mts_group_idx=
               rli->gaq->assigned_group_index; // similarly to above
             if (!append_item_to_jobs_error)
               append_item_to_jobs_error= append_item_to_jobs(&da_item, w, rli);
             if (append_item_to_jobs_error)
               delete static_cast<Log_event*>(da_item.data);
           }
-          if (rli->curr_group_da.elements > rli->curr_group_da.max_element)
-          {
-            // reallocate to less mem
-            rli->curr_group_da.elements= rli->curr_group_da.max_element;
-            rli->curr_group_da.max_element= 0;
-            freeze_size(&rli->curr_group_da); // restores max_element
-          }
-          rli->curr_group_da.elements= 0;
+          rli->curr_group_da.clear();
         }
         if (append_item_to_jobs_error)
           DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR);
@@ -3823,6 +3813,88 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                          SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
 }
 
+/**
+  Let the worker applying the current group to rollback and gracefully
+  finish its work before.
+
+  @param rli The slave's relay log info.
+
+  @param ev a pointer to the event on hold before applying this rollback
+  procedure.
+
+  @retval false The rollback succeeded.
+
+  @retval true  There was an error while injecting events.
+*/
+static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
+                                                       const Log_event *ev)
+{
+  DBUG_ENTER("coord_handle_partial_binlogged_transaction");
+  /*
+    This function is called holding the rli->data_lock.
+    We must return it still holding this lock, except in the case of returning
+    error.
+  */
+  mysql_mutex_assert_owner(&rli->data_lock);
+  THD *thd= rli->info_thd;
+
+  if (!rli->curr_group_seen_begin)
+  {
+    DBUG_PRINT("info",("Injecting QUERY(BEGIN) to rollback worker"));
+    Log_event *begin_event= new Query_log_event(thd,
+                                                STRING_WITH_LEN("BEGIN"),
+                                                true, /* using_trans */
+                                                false, /* immediate */
+                                                true, /* suppress_use */
+                                                0, /* error */
+                                                true /* ignore_command */);
+    ((Query_log_event*) begin_event)->db= "";
+    begin_event->data_written= 0;
+    begin_event->server_id= ev->server_id;
+    /*
+      We must be careful to avoid SQL thread increasing its position
+      farther than the event that triggered this QUERY(BEGIN).
+    */
+    begin_event->log_pos= ev->log_pos;
+    begin_event->future_event_relay_log_pos= ev->future_event_relay_log_pos;
+
+    if (apply_event_and_update_pos(&begin_event, thd, rli) !=
+        SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK)
+    {
+      delete begin_event;
+      DBUG_RETURN(true);
+    }
+    mysql_mutex_lock(&rli->data_lock);
+  }
+
+  DBUG_PRINT("info",("Injecting QUERY(ROLLBACK) to rollback worker"));
+  Log_event *rollback_event= new Query_log_event(thd,
+                                                 STRING_WITH_LEN("ROLLBACK"),
+                                                 true, /* using_trans */
+                                                 false, /* immediate */
+                                                 true, /* suppress_use */
+                                                 0, /* error */
+                                                 true /* ignore_command */);
+  ((Query_log_event*) rollback_event)->db= "";
+  rollback_event->data_written= 0;
+  rollback_event->server_id= ev->server_id;
+  /*
+    We must be careful to avoid SQL thread increasing its position
+    farther than the event that triggered this QUERY(ROLLBACK).
+  */
+  rollback_event->log_pos= ev->log_pos;
+  rollback_event->future_event_relay_log_pos= ev->future_event_relay_log_pos;
+
+  if (apply_event_and_update_pos(&rollback_event, thd, rli) !=
+      SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK)
+  {
+    delete rollback_event;
+    DBUG_RETURN(true);
+  }
+  mysql_mutex_lock(&rli->data_lock);
+
+  DBUG_RETURN(false);
+}
 
 /**
   Top-level function for executing the next event in the relay log.
@@ -3959,6 +4031,28 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                         rli->inc_event_relay_log_pos();
                         DBUG_RETURN(0);
                       };);
+    }
+
+    /*
+      GTID protocol will put a ROTATE_EVENT from the master after each
+      (re)connection if auto positioning is enabled.
+      This means that the SQL thread might have already started to apply the
+      current group but, as the IO thread had to reconnect, it left this
+      group incomplete and will start it again from the beginning.
+      So, before applying this ROTATE_EVENT we must let the worker applying
+      the current group rollback and gracefully finish its work before
+      starting to applying the new (complete) copy of the group.
+    */
+    if (ev->get_type_code() == ROTATE_EVENT &&
+        ev->server_id != ::server_id && rli->is_parallel_exec() &&
+        rli->curr_group_seen_gtid)
+    {
+      if (coord_handle_partial_binlogged_transaction(rli, ev))
+        /*
+          In the case of an error, coord_handle_partial_binlogged_transaction
+          will not try to get the rli->data_lock again.
+        */
+        DBUG_RETURN(1);
     }
 
     /* ptr_ev can change to NULL indicating MTS coorinator passed to a Worker */
@@ -5388,12 +5482,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   */
   rli->init_workers(max(n, rli->recovery_parallel_workers));
 
-  // CGAP dynarray holds id:s of partitions of the Current being executed Group
-  my_init_dynamic_array(&rli->curr_group_assigned_parts,
-                        sizeof(db_worker_hash_entry*),
-                        SLAVE_INIT_DBS_IN_GROUP, 1);
   rli->last_assigned_worker= NULL;     // associated with curr_group_assigned
-  my_init_dynamic_array(&rli->curr_group_da, sizeof(Slave_job_item), 8, 2);
   // Least_occupied_workers array to hold items size of Slave_jobs_queue::len
   rli->least_occupied_workers.resize(n); 
 
@@ -5445,7 +5534,7 @@ end:
     the table performance_schema.table_replication_execute_status_by_worker
     between stop slave and next start slave.
   */
-  for (int i= rli->workers_copy_pfs.size() - 1; i >= 0; i--)
+  for (int i= static_cast<int>(rli->workers_copy_pfs.size()) - 1; i >= 0; i--)
     delete rli->workers_copy_pfs[i];
   rli->workers_copy_pfs.clear();
 
@@ -5607,11 +5696,11 @@ end:
   rli->least_occupied_workers.clear();
 
   // Destroy buffered events of the current group prior to exit.
-  for (uint i= 0; i < rli->curr_group_da.elements; i++)
-    delete *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, i);
-  delete_dynamic(&rli->curr_group_da);             // GCDA
+  for (uint i= 0; i < rli->curr_group_da.size(); i++)
+    delete rli->curr_group_da[i].data;
+  rli->curr_group_da.clear();                      // GCDA
 
-  delete_dynamic(&rli->curr_group_assigned_parts); // GCAP
+  rli->curr_group_assigned_parts.clear();          // GCAP
   rli->deinit_workers();
   rli->workers_array_initialized= false;
   rli->slave_parallel_workers= 0;
@@ -6700,7 +6789,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error= ER_SLAVE_HEARTBEAT_FAILURE;
       error_msg.append(STRING_WITH_LEN("inconsistent heartbeat event content;"));
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
-      error_msg.append(hb.get_log_ident(), (uint) strlen(hb.get_log_ident()));
+      error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
       llstr(hb.log_pos, llbuf);
       error_msg.append(llbuf, strlen(llbuf));
@@ -6772,7 +6861,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error= ER_SLAVE_HEARTBEAT_FAILURE;
       error_msg.append(STRING_WITH_LEN("heartbeat is not compatible with local info;"));
       error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
-      error_msg.append(hb.get_log_ident(), (uint) strlen(hb.get_log_ident()));
+      error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
       error_msg.append(STRING_WITH_LEN(" log_pos "));
       llstr(hb.log_pos, llbuf);
       error_msg.append(llbuf, strlen(llbuf));
