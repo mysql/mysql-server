@@ -1,7 +1,7 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -530,4 +530,9 @@ bool check_global_access(THD *thd, ulong want_access);
 
 /* sql_user_table */
 void close_acl_tables(THD *thd);
+
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+extern my_bool opt_auto_generate_certs;
+bool do_auto_cert_generation();
+#endif /* HAVE_OPENSSL && !HAVE_YASSL */
 #endif /* AUTH_COMMON_INCLUDED */
