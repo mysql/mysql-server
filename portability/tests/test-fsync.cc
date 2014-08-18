@@ -221,7 +221,6 @@ time_fsyncs_many_files(int N, int bytes, int fds[/*N*/]) {
     }
 }
 
-//sync() does not appear to have an analogue on windows.
 static void
 time_sync_fsyncs_many_files(int N, int bytes, int fds[/*N*/]) {
     if (verbose>1) {
