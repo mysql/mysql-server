@@ -1092,7 +1092,8 @@ bool process_execute(const string &exec, Fwd_iterator begin,
     ::close(read_pipe[1]);
     ::close(write_pipe[0]);
     ::close(write_pipe[1]);
-    execve(local_filename, execve_args, 0);
+    char *const arg[]={(char *)NULL};
+    execve(local_filename, execve_args, arg);
     /* always failure if we get here! */
     error << "Child process exited with errno= " << errno << endl;
     exit(1);
