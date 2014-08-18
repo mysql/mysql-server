@@ -69,7 +69,7 @@ void
 print_where(Item *cond,const char *info, enum_query_type query_type)
 {
   char buff[256];
-  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  String str(buff, sizeof(buff), system_charset_info);
   str.length(0);
   if (cond)
     cond->print(&str, query_type);

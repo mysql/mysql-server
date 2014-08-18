@@ -381,9 +381,10 @@ public:
 
       DBUG_EXECUTE_IF("show_io_cache_size",
                       {
-                        ulong file_size= my_seek(cache_log.file,
-                                               0L,MY_SEEK_END,MYF(MY_WME+MY_FAE));
-                        sql_print_error("New size:%ld", file_size);
+                        my_off_t file_size= my_seek(cache_log.file,
+                                                    0L,MY_SEEK_END,MYF(MY_WME+MY_FAE));
+                        sql_print_error("New size:%llu",
+                                        static_cast<ulonglong>(file_size));
                       });
     }
 
@@ -4067,7 +4068,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   int error= 0;
   char *full_fname= linfo->log_file_name;
   char full_log_name[FN_REFLEN], fname[FN_REFLEN];
-  uint log_name_len= 0, fname_len= 0;
+  size_t log_name_len= 0, fname_len= 0;
   DBUG_ENTER("find_log_pos");
   full_log_name[0]= full_fname[0]= 0;
 
@@ -4090,7 +4091,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
     }
   }
 
-  log_name_len= log_name ? (uint) strlen(full_log_name) : 0;
+  log_name_len= log_name ? strlen(full_log_name) : 0;
   DBUG_PRINT("enter", ("log_name: %s, full_log_name: %s", 
                        log_name ? log_name : "NULL", full_log_name));
 
@@ -4118,7 +4119,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
       error= LOG_INFO_EOF;
       break;
     }
-    fname_len= (uint) strlen(full_fname);
+    fname_len= strlen(full_fname);
 
     // if the log entry matches, null string matching anything
     if (!log_name ||
@@ -6019,8 +6020,8 @@ uint MYSQL_BIN_LOG::next_file_id()
   @return 0 or number of unprocessed yet bytes of the event excluding 
             the checksum part.
 */
-  static ulong fix_log_event_crc(uchar *buf, uint off, uint event_len,
-                                 uint length, ha_checksum *crc)
+  static ulong fix_log_event_crc(uchar *buf, uint off, size_t event_len,
+                                 size_t length, ha_checksum *crc)
 {
   ulong ret;
   uchar *event_begin= buf + off;
