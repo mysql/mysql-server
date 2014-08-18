@@ -1432,7 +1432,9 @@ row_mysql_to_innobase(
 		      || dtype->mtype == DATA_DOUBLE
 		      || dtype->mtype == DATA_DECIMAL
 		      || dtype->mtype == DATA_BLOB
-		      || dtype->mtype == DATA_GEOMETRY);
+		      || dtype->mtype == DATA_GEOMETRY
+		      || dtype->mtype == DATA_POINT
+		      || dtype->mtype == DATA_VAR_POINT);
 
 #ifdef UNIV_DEBUG
 		if (dtype_get_mysql_type(dtype) == DATA_MYSQL_TRUE_VARCHAR) {
@@ -1448,7 +1450,8 @@ row_mysql_to_innobase(
 			ptr += templ->mysql_length_bytes;
 		} else if (dtype->mtype == DATA_BLOB) {
 			ptr = row_mysql_read_blob_ref(&col_len, ptr, col_len);
-		} else if (dtype->mtype == DATA_GEOMETRY) {
+		} else if (DATA_GEOMETRY_MTYPE(dtype->mtype)) {
+			/* Point, Var-Point, Geometry */
 			ptr = row_mysql_read_geometry(&col_len, ptr, col_len);
 		}
 
