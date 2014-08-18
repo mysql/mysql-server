@@ -2032,24 +2032,24 @@ void Item_func_trim::print(String *str, enum_query_type query_type)
   @return Size of the password.
 */
 
-static int calculate_password(String *str, char *buffer)
+static size_t calculate_password(String *str, char *buffer)
 {
   DBUG_ASSERT(str);
   if (str->length() == 0) // PASSWORD('') returns ''
     return 0;
-  
-  int buffer_len= 0;
+
+  size_t buffer_len= 0;
   THD *thd= current_thd;
   int old_passwords= 0;
   if (thd)
     old_passwords= thd->variables.old_passwords;
-  
+
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
     my_make_scrambled_password(buffer, str->ptr(),
                                str->length());
-    buffer_len= (int) strlen(buffer) + 1;
+    buffer_len= strlen(buffer) + 1;
   }
   else
 #endif
@@ -2187,7 +2187,7 @@ String *Item_func_encrypt::val_str(String *str)
     null_value= 1;
     return 0;
   }
-  str->set(tmp, (uint) strlen(tmp), &my_charset_bin);
+  str->set(tmp, strlen(tmp), &my_charset_bin);
   str->copy();
   mysql_mutex_unlock(&LOCK_crypt);
   return str;
@@ -3897,7 +3897,7 @@ String *Item_func_charset::val_str(String *str)
 
   const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
   null_value= 0;
-  str->copy(cs->csname, (uint) strlen(cs->csname),
+  str->copy(cs->csname, strlen(cs->csname),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
@@ -3909,7 +3909,7 @@ String *Item_func_collation::val_str(String *str)
   const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
 
   null_value= 0;
-  str->copy(cs->name, (uint) strlen(cs->name),
+  str->copy(cs->name, strlen(cs->name),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
@@ -4650,9 +4650,8 @@ longlong Item_func_uncompressed_length::val_int()
   */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_ZLIB_Z_DATA_ERROR,
-                        ER(ER_ZLIB_Z_DATA_ERROR));
+    push_warning(current_thd, Sql_condition::SL_WARNING,
+                 ER_ZLIB_Z_DATA_ERROR, ER(ER_ZLIB_Z_DATA_ERROR));
     return 0;
   }
 
@@ -4763,9 +4762,8 @@ String *Item_func_uncompress::val_str(String *str)
   /* If length is less than 4 bytes, data is corrupt */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			ER_ZLIB_Z_DATA_ERROR,
-			ER(ER_ZLIB_Z_DATA_ERROR));
+    push_warning(current_thd, Sql_condition::SL_WARNING,
+                 ER_ZLIB_Z_DATA_ERROR, ER(ER_ZLIB_Z_DATA_ERROR));
     goto err;
   }
 

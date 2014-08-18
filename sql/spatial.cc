@@ -131,7 +131,7 @@ geometrycollection_class("GEOMETRYCOLLECTION",Geometry::wkb_geometrycollection,
 
 /***************************** Geometry *******************************/
 
-Geometry::Class_info *Geometry::find_class(const char *name, uint32 len)
+Geometry::Class_info *Geometry::find_class(const char *name, size_t len)
 {
   for (Class_info **cur_rt= ci_collection;
        cur_rt < ci_collection_end; cur_rt++)
@@ -1065,7 +1065,8 @@ uint32 Gis_line_string::get_data_size() const
   if (is_length_verified())
     return get_nbytes();
 
-  uint32 n_points, len;
+  uint32 n_points;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
   if (wkb.scan_n_points_and_check_data(&n_points))
     return GET_SIZE_ERROR;
@@ -1737,7 +1738,8 @@ void Gis_polygon::make_rings()
 
 uint32 Gis_polygon::get_data_size() const
 {
-  uint32 n_linear_rings, len;
+  uint32 n_linear_rings;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -2243,7 +2245,8 @@ void own_rings(Geometry *geo0)
 /***************************** MultiPoint *******************************/
 uint32 Gis_multi_point::get_data_size() const
 {
-  uint32 n_points, len;
+  uint32 n_points;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -2404,7 +2407,8 @@ const Geometry::Class_info *Gis_multi_point::get_class_info() const
 /***************************** MultiLineString *******************************/
 uint32 Gis_multi_line_string::get_data_size() const
 {
-  uint32 n_line_strings, len;
+  uint32 n_line_strings;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -2656,7 +2660,8 @@ const Geometry::Class_info *Gis_multi_line_string::get_class_info() const
 /***************************** MultiPolygon *******************************/
 uint32 Gis_multi_polygon::get_data_size() const
 {
-  uint32 n_polygons, len;
+  uint32 n_polygons;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -3004,7 +3009,8 @@ Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
 
 uint32 Gis_geometry_collection::get_data_size() const
 {
-  uint32 n_objects= 0, len;
+  uint32 n_objects= 0;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
   Geometry_buffer buffer;
   Geometry *geom;
