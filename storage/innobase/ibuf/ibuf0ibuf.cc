@@ -931,6 +931,7 @@ ibuf_set_free_bits_func(
 			break;
 		}
 		/* fall through */
+	case FIL_TYPE_TEMPORARY:
 	case FIL_TYPE_IMPORT:
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}

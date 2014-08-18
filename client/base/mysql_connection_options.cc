@@ -101,7 +101,9 @@ void Mysql_connection_options::create_options()
     "The socket file to use for connection.")
     ->set_short_character('S');
   this->create_new_option(&this->m_secure_auth, "secure-auth",
-    "Refuse client connecting to server if it uses old (pre-4.1.1) protocol.");
+      "Refuse client connecting to server if it uses old (pre-4.1.1) protocol. Deprecated. Always TRUE")
+    ->add_callback(new Instance_callback<void, char*, Mysql_connection_options>
+      (this, &Mysql_connection_options::secure_auth_callback));
   this->create_new_option(&this->m_user, "user",
     "User for login if not current user.")
     ->set_short_character('u');
@@ -202,7 +204,18 @@ void Mysql_connection_options::protocol_callback(
 {
   this->m_protocol=
     find_type_or_exit(this->m_protocol_string.value().c_str(), &sql_protocol_typelib,
-      "protocol");
+    "protocol");
+}
+
+void Mysql_connection_options::secure_auth_callback(
+  char* not_used __attribute__((unused)))
+{
+  CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
+  if (!this->m_secure_auth)
+  {
+    this->m_program->print_usage();
+    exit(1);
+  }
 }
 
 
