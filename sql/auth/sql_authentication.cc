@@ -25,6 +25,13 @@
 #include "sql_db.h"                     /* mysql_change_db */
 #include "connection_handler_manager.h"
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
+#include "sys_vars.h"
+#include <fstream>                      /* std::fstream */
+#include <string>                       /* std::string */
+#include <algorithm>                    /* for_each */
+#include <stdexcept>                    /* Exception handling */
+#include <vector>                       /* std::vector */
+#include <stdint.h>
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 #include <openssl/rsa.h>
@@ -73,9 +80,20 @@ my_bool disconnect_on_expired_password= TRUE;
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
 
+#define DEFAULT_SSL_CA_CERT     "ca.pem"
+#define DEFAULT_SSL_CA_KEY      "ca-key.pem"
+#define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
+#define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
+#define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
+#define DEFAULT_SSL_CLIENT_KEY  "client-key.pem"
+
+my_bool opt_auto_generate_certs= TRUE;
+
 char *auth_rsa_private_key_path;
 char *auth_rsa_public_key_path;
+my_bool auth_rsa_auto_generate_rsa_keys= TRUE;
 
+static bool do_auto_rsa_keys_generation();
 static Rsa_authentication_keys g_rsa_keys;
 
 #endif /* HAVE_YASSL */
@@ -2545,7 +2563,8 @@ public:
 
 bool init_rsa_keys(void)
 {
-  return (g_rsa_keys.read_rsa_keys());
+  return ((do_auto_rsa_keys_generation() == false) ||
+          g_rsa_keys.read_rsa_keys());
 }
 #endif /* HAVE_YASSL */
 
@@ -2752,12 +2771,949 @@ static MYSQL_SYSVAR_STR(public_key_path, auth_rsa_public_key_path,
         PLUGIN_VAR_READONLY,
         "A fully qualified path to the public RSA key used for authentication",
         NULL, NULL, AUTH_DEFAULT_RSA_PUBLIC_KEY);
+static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, auth_rsa_auto_generate_rsa_keys,
+        PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG,
+        "Auto generate RSA keys at server startup if correpsonding "
+        "system variables are not specified and key files are not present "
+        "at the default location.",
+        NULL, NULL, TRUE);
 
 static struct st_mysql_sys_var* sha256_password_sysvars[]= {
   MYSQL_SYSVAR(private_key_path),
   MYSQL_SYSVAR(public_key_path),
+  MYSQL_SYSVAR(auto_generate_rsa_keys),
   0
 };
+
+
+typedef std::string Sql_string_t;
+
+/*
+  Exception free resize
+
+  @param content [in/out] : string handle
+  @param size [in] : New size
+
+
+  @returns
+    @retval false : Error
+    @retval true : Successfully resized
+*/
+static
+bool resize_no_exception(Sql_string_t &content, size_t size)
+{
+  try
+  {
+    content.resize(size);
+  }
+  catch (const std::length_error& le)
+  {
+    return false;
+  }
+  catch (std::bad_alloc& ba)
+  {
+    return false;
+  }
+  return true;
+}
+
+
+/**
+
+  FILE_IO : Wrapper around std::fstream
+  1> Provides READ/WRITE handle to a file
+  2> Records error on READ/WRITE operations
+  3> Closes file before destruction
+
+*/
+
+class File_IO
+{
+public:
+  File_IO(const File_IO& src)
+    : m_file_name(src.file_name()),
+      m_read(src.read_mode()),
+      m_error_state(src.get_error())
+  {
+    m_file.open(m_file_name.c_str(),
+                m_read ? std::ios::in :
+                         std::ios::out|std::ios::trunc);
+  }
+
+  File_IO & operator=(const File_IO& src)
+  {
+    m_file_name= src.file_name();
+    m_read= src.read_mode();
+    m_file.open(m_file_name.c_str(),
+                m_read ? std::ios::in :
+                         std::ios::out|std::ios::trunc);
+
+    return *this;
+  }
+
+  ~File_IO()
+  {
+    close();
+  }
+
+  /*
+    Close an already open file.
+  */
+  void close()
+  {
+    if (m_file.is_open())
+      m_file.close();
+  }
+
+  /*
+    Get name of the file. Used by copy constructor
+  */
+  const Sql_string_t & file_name() const
+  { return m_file_name; }
+
+  /*
+    Get file IO mode. Used by copy constructor.
+  */
+  bool read_mode() const
+  { return m_read; }
+
+  /*
+    Get READ/WRITE error status.
+  */
+  bool get_error() const
+  { return m_error_state; }
+
+  /*
+    Set error. Used by >> and << functions.
+  */
+  void set_error()
+  { m_error_state= true; }
+
+  void reset_error()
+  { m_error_state= false; }
+
+  File_IO & operator>>(Sql_string_t &s);
+  File_IO & operator<<(const Sql_string_t &output_string);
+
+protected:
+  File_IO() {};
+  File_IO(const Sql_string_t filename, bool read)
+    : m_file_name(filename),
+      m_read(read),
+      m_error_state(false)
+  {
+    m_file.open(m_file_name.c_str(),
+                m_read ? std::ios::in :
+                         std::ios::out|std::ios::trunc);
+  }
+private:
+  Sql_string_t m_file_name;
+  bool m_read;
+  bool m_error_state;
+  std::fstream m_file;
+  /* Only File_creator can create File_IO */
+  friend class File_creator;
+};
+
+
+/*
+  Read an open file.
+
+  @param op [in/out] : Handle to FILE_IO
+  @param s [out] : String buffer
+
+  Assumption : Caller will free string buffer
+
+  returns File_IO reference. Optionally sets error.
+*/
+File_IO &
+File_IO::operator>>(Sql_string_t &s)
+{
+  DBUG_ASSERT(read_mode() && m_file.is_open());
+
+  m_file.seekg(0, std::ios::end);
+  if (resize_no_exception(s, m_file.tellg()) == false)
+    set_error();
+  else
+  {
+    m_file.seekg(0, std::ios::beg);
+    m_file.read(&s[0], s.size());
+    close();
+  }
+  return *this;
+}
+
+
+/*
+  Write into an open file
+
+  @param op [in/out] : Handle to File_IO
+  @parma output_string[in] : content to be written
+
+  Assumption : string must be non-empty.
+
+  @returns File_IO reference. Optionally sets error.
+*/
+File_IO &
+File_IO::operator<<(const Sql_string_t &output_string)
+{
+  DBUG_ASSERT(!read_mode() && m_file.is_open());
+
+  if (!output_string.size())
+    set_error();
+  else
+    m_file << output_string;
+
+  close();
+  return *this;
+}
+
+
+/*
+  Helper class to create a File_IO handle.
+  Can be extended in future to set more file specific properties.
+  Frees allocated memory in destructor.
+*/
+class File_creator
+{
+public:
+  File_creator() {};
+
+  ~File_creator()
+  {
+    for(std::vector<File_IO *>::iterator it= m_file_vector.begin();
+        it != m_file_vector.end();
+        ++it)
+      delete(*it);
+  }
+
+  /*
+    Note : Do not free memory.
+  */
+  File_IO * operator()(const Sql_string_t filename, bool read=false)
+  {
+    File_IO * f= new File_IO(filename, read);
+    m_file_vector.push_back(f);
+    return f;
+  }
+
+private:
+  std::vector<File_IO *> m_file_vector;
+};
+
+
+/*
+  This class encapsulates OpenSSL specific details of RSA key generation.
+  It provides interfaces to:
+
+  1> Get RSA structure
+  2> Get EVP_PKEY structure
+  3> Write Private/Public key into a string
+  4> Free RSA/EVP_PKEY structures
+*/
+class RSA_gen
+{
+public:
+  RSA_gen(uint32_t key_size= 2048, uint32_t exponent= RSA_F4)
+    : m_key_size(key_size),
+      m_exponent(exponent) {};
+
+  ~RSA_gen() {};
+
+  /**
+    Passing key type is a violation against the principle of generic
+    programming when this operator is used in an algorithm
+    but it at the same time increases usefulness of this class when used
+    stand alone.
+   */
+  RSA *operator()(void)
+  {
+    /* generate RSA keys */
+    RSA *rsa= RSA_generate_key(m_key_size, m_exponent, NULL, NULL);
+    return rsa; // pass ownership
+  }
+
+private:
+
+  uint32_t m_key_size;
+  uint32_t m_exponent;
+};
+
+
+EVP_PKEY *evp_pkey_generate(RSA *rsa)
+{
+  if (rsa)
+  {
+    EVP_PKEY *pkey= EVP_PKEY_new();
+    EVP_PKEY_assign_RSA(pkey, rsa);
+    return pkey;
+  }
+  return NULL;
+}
+
+
+/*
+  Write private key in a string buffer
+
+  @param rsa [in] : Handle to RSA structure where private key is stored
+
+  @returns Sql_string_t object with private key stored in it.
+*/
+static
+Sql_string_t rsa_priv_key_write(RSA *rsa)
+{
+  DBUG_ASSERT(rsa);
+  BIO *buf= BIO_new(BIO_s_mem());
+  Sql_string_t read_buffer;
+  if (PEM_write_bio_RSAPrivateKey(buf, rsa, NULL, NULL,
+                                  0, NULL, NULL))
+  {
+    size_t len= BIO_pending(buf);
+    if (resize_no_exception(read_buffer, len+1) == true)
+    {
+      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      read_buffer[len]='\0';
+    }
+  }
+  BIO_free(buf);
+  return read_buffer;
+}
+
+
+/*
+  Write public key in a string buffer
+
+  @param rsa [in] : Handle to RSA structure where public key is stored
+
+  @returns Sql_string_t object with public key stored in it.
+*/
+static
+Sql_string_t rsa_pub_key_write(RSA *rsa)
+{
+  DBUG_ASSERT(rsa);
+  BIO *buf= BIO_new(BIO_s_mem());
+  Sql_string_t read_buffer;
+  if (PEM_write_bio_RSA_PUBKEY(buf, rsa))
+  {
+    size_t len= BIO_pending(buf);
+    if (resize_no_exception(read_buffer, len+1) == true)
+    {
+      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      read_buffer[len]='\0';
+    }
+  }
+  BIO_free(buf);
+  return read_buffer;
+}
+
+
+/*
+  This class encapsulates OpenSSL specific details of X509 certificate
+  generation. It provides interfaces to:
+
+  1> Generate X509 certificate
+  2> Read/Write X509 certificate from/to a string
+  3> Read/Write Private key from/to a string
+  4> Free X509/EVP_PKEY structures
+*/
+class X509_gen
+{
+public:
+  X509 * operator()(EVP_PKEY *pkey,
+                    const Sql_string_t cn,
+                    uint32_t serial,
+                    uint32_t notbefore,
+                    uint32_t notafter,
+                    bool self_sign= true,
+                    X509 *ca_x509= NULL,
+                    EVP_PKEY *ca_pkey= NULL)
+  {
+    X509 *x509= X509_new();
+    ASN1_INTEGER_set(X509_get_serialNumber(x509), serial);
+    X509_gmtime_adj(X509_get_notBefore(x509), notbefore);
+    X509_gmtime_adj(X509_get_notAfter(x509), notafter);
+    /* Set public key */
+    X509_set_pubkey(x509, pkey);
+    X509_NAME *name= X509_get_subject_name(x509);
+    X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
+      (const unsigned char *)cn.c_str(), -1, -1, 0);
+
+    X509_set_issuer_name(x509,
+                         self_sign ? name : X509_get_subject_name(ca_x509));
+    X509_sign(x509, self_sign ? pkey : ca_pkey, EVP_sha256());
+
+    return x509;
+  }
+};
+
+
+/*
+  Read a X509 certificate into X509 format
+
+  @param input_string [in] : Content of X509 certificate file.
+
+  @returns Handle to X509 structure.
+
+  Assumption : Caller will free X509 object
+*/
+static
+X509 * x509_cert_read(const Sql_string_t &input_string)
+{
+  X509 * x509= NULL;
+
+  if (!input_string.size())
+    return x509;
+
+  BIO *buf= BIO_new(BIO_s_mem());
+  BIO_write(buf, input_string.c_str(), input_string.size());
+  x509= PEM_read_bio_X509(buf, NULL, NULL, NULL);
+  BIO_free(buf);
+  return x509;
+}
+
+
+/*
+  Write X509 certificate into a string
+
+  @param cert [in] : Certificate information in X509 format.
+
+  @returns certificate information in string format.
+*/
+static
+Sql_string_t x509_cert_write(X509 *cert)
+{
+  DBUG_ASSERT(cert);
+  BIO *buf= BIO_new(BIO_s_mem());
+  Sql_string_t read_buffer;
+  if (PEM_write_bio_X509(buf, cert))
+  {
+    size_t len= BIO_pending(buf);
+    if (resize_no_exception(read_buffer, len+1) == true)
+    {
+      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      read_buffer[len]='\0';
+    }
+  }
+  BIO_free(buf);
+  return read_buffer;
+}
+
+
+/*
+  Read Private key into EVP_PKEY structure
+
+  @param input_string [in] : Content of private key file.
+
+  @returns Handle to EVP_PKEY structure.
+
+  Assumption : Caller will free EVP_PKEY object
+*/
+static
+EVP_PKEY * x509_key_read(const Sql_string_t &input_string)
+{
+  EVP_PKEY *pkey= NULL;
+  RSA *rsa= NULL;
+
+  if (!input_string.size())
+    return pkey;
+
+  BIO *buf= BIO_new(BIO_s_mem());
+  BIO_write(buf, input_string.c_str(), input_string.size());
+  rsa= PEM_read_bio_RSAPrivateKey(buf, NULL, NULL, NULL);
+  pkey= evp_pkey_generate(rsa);
+  BIO_free(buf);
+  return pkey;
+}
+
+
+/*
+  Write X509 certificate into a string
+
+  @param pkey [in] : Private key information.
+
+  @returns private key information in string format.
+*/
+static
+Sql_string_t x509_key_write(EVP_PKEY *pkey)
+{
+  DBUG_ASSERT(pkey);
+  BIO *buf= BIO_new(BIO_s_mem());
+  RSA *rsa= EVP_PKEY_get1_RSA(pkey);
+  Sql_string_t read_buffer;
+  if (PEM_write_bio_RSAPrivateKey(buf, rsa, NULL, NULL,
+                                  10, NULL, NULL))
+  {
+    size_t len= BIO_pending(buf);
+    if (resize_no_exception(read_buffer, len+1) == true)
+    {
+      BIO_read(buf, (void *)read_buffer.c_str(), len);
+      read_buffer[len]='\0';
+    }
+  }
+  BIO_free(buf);
+  RSA_free(rsa);
+  return read_buffer;
+}
+
+
+/*
+  Algorithm to create X509 certificate.
+  Relies on:
+  1> RSA key generator
+  2> X509 certificate generator
+  3> FILE reader/writer
+
+  Overwrites key/certificate files if already present.
+
+  @param rsa_gen [in] : RSA generator
+  @param cn [in] : Common name field of X509 certificate.
+  @param serial [in] : Certificate serial number
+  @param cert_filename [in] : File name for X509 certificate
+  @param key_filename [in] : File name for private key
+  @param filecr [in] : File creator
+  @param ca_key_file [in] : CA private key file
+  @param ca_cert_file [in] : CA certificate file
+
+  @returns generation status
+    @retval false : Error in key/certificate generation.
+    @retval true : key/certificate files are generated successfully.
+*/
+
+template <typename RSA_generator_func, typename File_creation_func>
+bool create_x509_certificate(RSA_generator_func &rsa_gen,
+                             const Sql_string_t cn,
+                             uint32_t serial,
+                             const Sql_string_t cert_filename,
+                             const Sql_string_t key_filename,
+                             File_creation_func &filecr,
+                             const Sql_string_t ca_key_file= "",
+                             const Sql_string_t ca_cert_file= "")
+{
+  bool ret_val= true;
+  bool self_sign= true;
+  Sql_string_t ca_key_str;
+  Sql_string_t ca_cert_str;
+  RSA *rsa= NULL;
+  EVP_PKEY *pkey= NULL;
+  EVP_PKEY *ca_key= NULL;
+  X509 *x509= NULL;
+  X509 *ca_x509= NULL;
+  File_IO *x509_key_file_ostream= NULL;
+  File_IO *x509_cert_file_ostream= NULL;
+  File_IO *x509_ca_key_file_istream= NULL;
+  File_IO *x509_ca_cert_file_istream= NULL;
+  X509_gen x509_gen;
+
+  x509_key_file_ostream= filecr(key_filename);
+
+  /* Generate private key for X509 certificate */
+  rsa= rsa_gen();
+  DBUG_EXECUTE_IF("null_rsa_error",
+                  {
+                    RSA_free(rsa);
+                    rsa= NULL;
+                  });
+
+  if (!rsa)
+  {
+    sql_print_error("Could not generate RSA private key "
+                    "required for X509 certificate.");
+    ret_val= false;
+    goto end;
+  }
+
+  /* Obtain EVP_PKEY */
+  pkey= evp_pkey_generate(rsa);
+
+  /* Write private key information to file and set file permission */
+  (*x509_key_file_ostream) << x509_key_write(pkey);
+  DBUG_EXECUTE_IF("key_file_write_error",
+                  {
+                    x509_key_file_ostream->set_error();
+                  });
+  if (x509_key_file_ostream->get_error())
+  {
+    sql_print_error("Could not write key file: %s", key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+  if (MY_TEST(my_chmod(key_filename.c_str(),
+      USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME))))
+  {
+    sql_print_error("Could not set file permission for %s",
+                    key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+  /*
+    Read CA key/certificate files in PEM format.
+  */
+  if (ca_key_file.size() && ca_cert_file.size())
+  {
+    x509_ca_key_file_istream= filecr(ca_key_file, true);
+    x509_ca_cert_file_istream= filecr(ca_cert_file, true);
+    (*x509_ca_key_file_istream) >> ca_key_str;
+    ca_key= x509_key_read(ca_key_str);
+    DBUG_EXECUTE_IF("ca_key_read_error",
+                    {
+                      EVP_PKEY_free(ca_key);
+                      ca_key= NULL;
+                    });
+    if (!ca_key)
+    {
+      sql_print_error("Could not read CA key file: %s", ca_key_file.c_str());
+      ret_val= false;
+      goto end;
+    }
+
+    (*x509_ca_cert_file_istream) >> ca_cert_str;
+    ca_x509= x509_cert_read(ca_cert_str);
+    DBUG_EXECUTE_IF("ca_cert_read_error",
+                    {
+                      X509_free(ca_x509);
+                      ca_x509= NULL;
+                    });
+    if (!ca_x509)
+    {
+      sql_print_error("Could not read CA certificate file: %s", ca_cert_file.c_str());
+      ret_val= false;
+      goto end;
+    }
+
+    self_sign= false;
+  }
+
+  /* Create X509 certificate with validity of 1 year */
+  x509= x509_gen(pkey, cn, serial, 0, 365L*24*60*60,
+                 self_sign, ca_x509, ca_key);
+  DBUG_EXECUTE_IF("x509_cert_generation_error",
+                  {
+                    X509_free(x509);
+                    x509= NULL;
+                  });
+  if (!x509)
+  {
+    sql_print_error("Could not generate X509 certificate.");
+    ret_val= false;
+    goto end;
+  }
+
+  /* Write X509 certificate to file and set permission */
+  x509_cert_file_ostream= filecr(cert_filename);
+  (*x509_cert_file_ostream)<< x509_cert_write(x509);
+  DBUG_EXECUTE_IF("cert_pub_key_write_error",
+                  {
+                    x509_cert_file_ostream->set_error();
+                  });
+  if (x509_cert_file_ostream->get_error())
+  {
+    sql_print_error("Could not write certificate file: %s", cert_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+  if (MY_TEST(my_chmod(cert_filename.c_str(),
+               USER_READ|USER_WRITE|GROUP_READ|OTHERS_READ,
+               MYF(MY_FAE+MY_WME))))
+  {
+    sql_print_error("Could not set file permission for %s",
+                    cert_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+end:
+
+  if (pkey)
+    EVP_PKEY_free(pkey);                /* Frees rsa too */
+  if (ca_key)
+    EVP_PKEY_free(ca_key);
+  if (x509)
+    X509_free(x509);
+  if (ca_x509)
+    X509_free(ca_x509);
+  return ret_val;
+}
+
+
+/*
+  Algorithm to generate RSA key pair.
+  Relies on:
+  1> RSA generator
+  2> File reader/writer
+
+  Overwrites existing Private/Public key file if any.
+
+  @param rsa_gen [in] : RSA key pair generator
+  @param priv_key_filename [in] : File name of private key
+  @param pub_key_filename [in] : File name of public key
+  @param filecr [in] : File creator
+
+  @returns status of RSA key pair generation.
+    @retval false Error in RSA key pair generation.
+    @retval true Private/Public keys are successfully generated.
+*/
+template <typename RSA_generator_func, typename File_creation_func>
+bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
+                         const Sql_string_t priv_key_filename,
+                         const Sql_string_t pub_key_filename,
+                         File_creation_func &filecr)
+{
+  bool ret_val= true;
+  File_IO * priv_key_file_ostream= NULL;
+  File_IO * pub_key_file_ostream= NULL;
+
+  DBUG_ASSERT(priv_key_filename.size() && pub_key_filename.size());
+
+  RSA *rsa= rsa_gen();
+  DBUG_EXECUTE_IF("null_rsa_error",
+                  {
+                    RSA_free(rsa);
+                    rsa= NULL;
+                  });
+
+  if (!rsa)
+  {
+    sql_print_error("Could not generate RSA Private/Public key pair");
+    ret_val= false;
+    goto end;
+  }
+
+  priv_key_file_ostream= filecr(priv_key_filename);
+  (*priv_key_file_ostream)<< rsa_priv_key_write(rsa);
+
+  DBUG_EXECUTE_IF("key_file_write_error",
+                  {
+                    priv_key_file_ostream->set_error();
+                  });
+  if (priv_key_file_ostream->get_error())
+  {
+    sql_print_error("Could not write private key file: %s", priv_key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+  if (MY_TEST(my_chmod(priv_key_filename.c_str(),
+               USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME))))
+  {
+    sql_print_error("Could not set file permission for %s",
+                    priv_key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+  pub_key_file_ostream= filecr(pub_key_filename);
+  (*pub_key_file_ostream)<< rsa_pub_key_write(rsa);
+  DBUG_EXECUTE_IF("cert_pub_key_write_error",
+                  {
+                    pub_key_file_ostream->set_error();
+                  });
+
+  if (pub_key_file_ostream->get_error())
+  {
+    sql_print_error("Could not write public key file: %s", pub_key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+  if (MY_TEST(my_chmod(pub_key_filename.c_str(),
+               USER_READ|USER_WRITE|GROUP_READ|OTHERS_READ,
+               MYF(MY_FAE+MY_WME))))
+  {
+    sql_print_error("Could not set file permission for %s",
+                    pub_key_filename.c_str());
+    ret_val= false;
+    goto end;
+  }
+
+end:
+  if (rsa)
+    RSA_free(rsa);
+  return ret_val;
+}
+
+
+/*
+  Check auto_generate_certs option and generate
+  SSL certificates if required.
+
+  SSL Certificates are generated iff following conditions are met.
+  1> auto_generate_certs is set to ON.
+  2> None of the SSL system variables are specified.
+  3> Following files are not present in data directory.
+     a> ca.pem
+     b> server_cert.pem
+     c> server_key.pem
+
+  If above mentioned conditions are satisfied, following action will be taken:
+
+  1> 6 File are generated and placed data directory:
+     a> ca.pem
+     b> ca_key.pem
+     c> server_cert.pem
+     d> server_key.pem
+     e> client_cert.pem
+     f> client_key.pem
+
+     ca.pem is self signed auto generated CA certificate. server_cert.pem
+     and client_cert.pem are signed using auto genreated CA.
+
+     ca_key.pem, client_cert.pem and client_key.pem are overwritten if
+     they are present in data directory.
+
+  Path of following system variables are set if certificates are either
+  generated or already present in data directory.
+  a> ssl-ca
+  b> ssl-cert
+  c> ssl-key
+*/
+bool do_auto_cert_generation()
+{
+  if (opt_auto_generate_certs == true)
+  {
+    MY_STAT cert_stat, cert_key, ca_stat;
+    /*
+      Do not generate SSL certificates/RSA keys,
+      If any of the SSL/RSA key option was given.
+    */
+
+    if ((opt_ssl_cert && opt_ssl_cert[0]) |
+        (opt_ssl_key && opt_ssl_key[0]) ||
+        (opt_ssl_ca && opt_ssl_ca[0]) ||
+        (opt_ssl_capath && opt_ssl_capath[0]) ||
+        (opt_ssl_crl && opt_ssl_crl[0]) ||
+        (opt_ssl_crlpath && opt_ssl_crlpath[0]) ||
+        (opt_ssl_cipher && opt_ssl_cipher[0]))
+    {
+      sql_print_information("Skipping generation of SSL certificates "
+                            "as options related to SSL are specified.");
+      return true;
+    }
+    else if (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) ||
+             my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) ||
+             my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)))
+    {
+      /*
+        We only care for ca certificate, server certificate and server key
+        files. Rest of the files will be overwritten if present.
+      */
+      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
+      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
+      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+      sql_print_information("Skipping generation of SSL certificates as "
+                            "certificate files are present in data "
+                            "directory.");
+      return true;
+    }
+    else
+    {
+      /* Initialize the key pair generator. It can also be used stand alone */
+      RSA_gen rsa_gen;
+      /*
+         Initialize the file creator.
+       */
+      File_creator fcr;
+      Sql_string_t ca_name= "MySQL_Server_";
+      Sql_string_t server_name= "MySQL_Server_";
+      Sql_string_t client_name= "MySQL_Server_";
+
+      ca_name.append(server_version);
+      ca_name.append("_Auto_Generated_CA_Certificate");
+      server_name.append(server_version);
+      server_name.append("_Auto_Generated_Server_Certificate");
+      client_name.append(server_version);
+      client_name.append("_Auto_Generated_Client_Certificate");
+      /* Create and write the certa and keys on disk */
+      if ((create_x509_certificate(rsa_gen, ca_name, 1, DEFAULT_SSL_CA_CERT,
+                                   DEFAULT_SSL_CA_KEY, fcr) == false) ||
+          (create_x509_certificate(rsa_gen, server_name, 2,
+                                   DEFAULT_SSL_SERVER_CERT,
+                                   DEFAULT_SSL_SERVER_KEY, fcr,
+                                   DEFAULT_SSL_CA_KEY,
+                                   DEFAULT_SSL_CA_CERT) == false) ||
+          (create_x509_certificate(rsa_gen, client_name, 3,
+                                   DEFAULT_SSL_CLIENT_CERT,
+                                   DEFAULT_SSL_CLIENT_KEY, fcr,
+                                   DEFAULT_SSL_CA_KEY,
+                                   DEFAULT_SSL_CA_CERT) == false))
+      {
+        return false;
+      }
+      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
+      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
+      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+      sql_print_information("Auto generated SSL certificates are placed "
+                            "in data directory.");
+    }
+    return true;
+  }
+  else
+  {
+    sql_print_information("Skipping generation of SSL certificates as "
+                          "--auto_generate_certs is set to OFF.");
+    return true;
+  }
+}
+
+
+/*
+  Check sha256_password_auto_generate_rsa_keys option and generate
+  RSA key pair if required.
+
+  RSA key pair is generated iff following conditions are met.
+  1> sha256_password_auto_generate_rsa_keys is set to ON.
+  2> sha256_password_private_key_path or sha256_password_public_key_path
+     are pointing to non-default locations.
+  3> Following files are not present in data directory.
+     a> private_key.pem
+     b> public_key.pem
+
+  If above mentioned conditions are satified private_key.pem and
+  public_key.pem files are generated and placed in data directory.
+*/
+static bool do_auto_rsa_keys_generation()
+{
+  if (auth_rsa_auto_generate_rsa_keys == true)
+  {
+    MY_STAT priv_stat, pub_stat;
+    if (strcmp(auth_rsa_private_key_path, AUTH_DEFAULT_RSA_PRIVATE_KEY) ||
+        strcmp(auth_rsa_public_key_path, AUTH_DEFAULT_RSA_PUBLIC_KEY))
+    {
+      sql_print_information("Skipping generation of RSA key pair as "
+                            "options related to RSA keys are specified.");
+      return true;
+    }
+    else if (my_stat(AUTH_DEFAULT_RSA_PRIVATE_KEY, &priv_stat, MYF(0)) ||
+             my_stat(AUTH_DEFAULT_RSA_PUBLIC_KEY, &pub_stat, MYF(0)))
+    {
+      sql_print_information("Skipping generation of RSA key pair as "
+                            "key files are present in data directory.");
+      return true;
+    }
+    else
+    {
+      /* Initialize the key pair generator. */
+      RSA_gen rsa_gen;
+      /* Initialize the file creator. */
+      File_creator fcr;
+
+      if (create_RSA_key_pair(rsa_gen, "private_key.pem", "public_key.pem",
+                              fcr) == false)
+        return false;
+
+      sql_print_information("Auto generated RSA key files are "
+                            "placed in data directory.");
+      return true;
+    }
+  }
+  else
+  {
+    sql_print_information("Skipping generation of RSA key pair as "
+                          "--sha256_password_auto_generate_rsa_keys "
+                          "is set to OFF.");
+    return true;
+  }
+}
 #endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */
 
