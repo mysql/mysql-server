@@ -4455,8 +4455,8 @@ bool mysql_unpack_partition(THD *thd,
     cases it is not needed. This is a consequence of that item trees are
     not serialisable.
   */
-    uint part_func_len= part_info->part_func_len;
-    uint subpart_func_len= part_info->subpart_func_len;
+    size_t part_func_len= part_info->part_func_len;
+    size_t subpart_func_len= part_info->subpart_func_len;
     char *part_func_string= NULL;
     char *subpart_func_string= NULL;
     if ((part_func_len &&

@@ -799,7 +799,7 @@ public:
     @return newly created and initialized Field-instance,
     or NULL in case of error.
   */
-  Field *create_result_field(uint field_max_length,
+  Field *create_result_field(size_t field_max_length,
                              const char *field_name,
                              TABLE *table);
 

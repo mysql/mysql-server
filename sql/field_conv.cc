@@ -483,8 +483,8 @@ static void do_expand_string(Copy_field *copy)
 
   @return Number of bytes that should be copied from 'from' to 'to'.
 */
-static uint get_varstring_copy_length(Field_varstring *to,
-                                      const Field_varstring *from)
+static size_t get_varstring_copy_length(Field_varstring *to,
+                                        const Field_varstring *from)
 {
   const CHARSET_INFO * const cs= from->charset();
   const bool is_multibyte_charset= (cs->mbmaxlen != 1);
@@ -501,7 +501,7 @@ static uint get_varstring_copy_length(Field_varstring *to,
     int well_formed_error;
     const char *from_beg= reinterpret_cast<char*>(from->ptr + from->length_bytes);
     const uint to_char_length= (to_byte_length) / cs->mbmaxlen;
-    const uint from_byte_length= bytes_to_copy;
+    const size_t from_byte_length= bytes_to_copy;
     bytes_to_copy=
       cs->cset->well_formed_len(cs, from_beg,
                                 from_beg + from_byte_length,
@@ -548,7 +548,7 @@ static void copy_field_varstring(Field_varstring * const to,
   DBUG_ASSERT(length_bytes == to->length_bytes);
   DBUG_ASSERT(length_bytes == 1 || length_bytes == 2);
 
-  const uint bytes_to_copy= get_varstring_copy_length(to, from);
+  const size_t bytes_to_copy= get_varstring_copy_length(to, from);
   if (length_bytes == 1)
     *to->ptr= static_cast<uchar>(bytes_to_copy);
   else

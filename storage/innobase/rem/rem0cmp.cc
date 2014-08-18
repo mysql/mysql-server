@@ -312,6 +312,8 @@ cmp_gis_field(
 					not UNIV_SQL_NULL */
 {
 	if (mode == PAGE_CUR_MBR_EQUAL) {
+		/* TODO: Since the DATA_GEOMETRY is not used in compare
+		function, we could pass it instead of a specific type now */
 		return(cmp_geometry_field(DATA_GEOMETRY, DATA_GIS_MBR,
 					  a, a_length, b, b_length));
 	} else {
@@ -387,6 +389,8 @@ cmp_whole_field(
 	case DATA_MYSQL:
 		return(innobase_mysql_cmp(prtype,
 					  a, a_length, b, b_length));
+	case DATA_POINT:
+	case DATA_VAR_POINT:
 	case DATA_GEOMETRY:
 		return(cmp_geometry_field(mtype, prtype, a, a_length, b,
 				b_length));
@@ -446,6 +450,11 @@ cmp_data(
 	case DATA_SYS:
 		pad = ULINT_UNDEFINED;
 		break;
+	case DATA_POINT:
+	case DATA_VAR_POINT:
+		/* Since DATA_POINT has a fixed length of DATA_POINT_LEN,
+		currently, pad is not needed. Meanwhile, DATA_VAR_POINT acts
+		the same as DATA_GEOMETRY */
 	case DATA_GEOMETRY:
 		ut_ad(prtype & DATA_BINARY_TYPE);
 		pad = ULINT_UNDEFINED;

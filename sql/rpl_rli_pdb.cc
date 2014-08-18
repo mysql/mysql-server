@@ -341,22 +341,22 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
 
   if (from->get_info((int *) &temp_internal_id, (int) 0) ||
       from->get_info(group_relay_log_name,
-                     (size_t) sizeof(group_relay_log_name),
+                     sizeof(group_relay_log_name),
                      (char *) "") ||
       from->get_info((ulong *) &temp_group_relay_log_pos,
                      (ulong) 0) ||
       from->get_info(group_master_log_name,
-                     (size_t) sizeof(group_master_log_name),
+                     sizeof(group_master_log_name),
                      (char *) "") ||
       from->get_info((ulong *) &temp_group_master_log_pos,
                      (ulong) 0) ||
       from->get_info(checkpoint_relay_log_name,
-                     (size_t) sizeof(checkpoint_relay_log_name),
+                     sizeof(checkpoint_relay_log_name),
                      (char *) "") ||
       from->get_info((ulong *) &temp_checkpoint_relay_log_pos,
                      (ulong) 0) ||
       from->get_info(checkpoint_master_log_name,
-                     (size_t) sizeof(checkpoint_master_log_name),
+                     sizeof(checkpoint_master_log_name),
                      (char *) "") ||
       from->get_info((ulong *) &temp_checkpoint_master_log_pos,
                      (ulong) 0) ||
@@ -578,7 +578,7 @@ static void free_entry(db_worker_hash_entry *entry)
 
   DBUG_ENTER("free_entry");
 
-  DBUG_PRINT("info", ("free_entry %s, %d", entry->db, (int) strlen(entry->db)));
+  DBUG_PRINT("info", ("free_entry %s, %zu", entry->db, strlen(entry->db)));
 
   DBUG_ASSERT(c_thd->system_thread == SYSTEM_THREAD_SLAVE_SQL);
 
@@ -800,7 +800,6 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                db_worker_hash_entry **ptr_entry,
                                bool need_temp_tables, Slave_worker *last_worker)
 {
-  uint i;
   Slave_worker_array *workers= &rli->workers;
 
   /*
@@ -822,14 +821,14 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
   db_worker_hash_entry *entry= NULL;
   my_hash_value_type hash_value;
-  uchar dblength= (uint) strlen(dbname);
+  size_t dblength= strlen(dbname);
 
 
   // Search in CGAP
-  for (i= 0; i < rli->curr_group_assigned_parts.elements; i++)
+  for (db_worker_hash_entry **it= rli->curr_group_assigned_parts.begin();
+       it != rli->curr_group_assigned_parts.end(); ++it)
   {
-    entry= * (db_worker_hash_entry **)
-      dynamic_array_ptr(&rli->curr_group_assigned_parts, i);
+    entry= *it;
     if ((uchar) entry->db_len != dblength)
       continue;
     else
@@ -840,7 +839,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       }
   }
 
-  DBUG_PRINT("info", ("Searching for %s, %d", dbname, dblength));
+  DBUG_PRINT("info", ("Searching for %s, %zu", dbname, dblength));
 
   hash_value= my_calc_hash(&mapping_db_to_worker, (uchar*) dbname,
                            dblength);
@@ -863,13 +862,13 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
     mysql_mutex_unlock(&slave_worker_hash_lock);
 
-    DBUG_PRINT("info", ("Inserting %s, %d", dbname, dblength));
+    DBUG_PRINT("info", ("Inserting %s, %zu", dbname, dblength));
     /*
       Allocate an entry to be inserted and if the operation fails
       an error is returned.
     */
     if (!(db= (char *) my_malloc(key_memory_db_worker_hash_entry,
-                                 (size_t) dblength + 1, MYF(0))))
+                                 dblength + 1, MYF(0))))
       goto err;
     if (!(entry= (db_worker_hash_entry *)
           my_malloc(key_memory_db_worker_hash_entry,
@@ -938,7 +937,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       entry= NULL;
       goto err;
     }
-    DBUG_PRINT("info", ("Inserted %s, %d", entry->db, (int) strlen(entry->db)));
+    DBUG_PRINT("info", ("Inserted %s, %zu", entry->db, strlen(entry->db)));
   }
   else
   {
@@ -965,7 +964,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       PSI_stage_info old_stage;
 
       DBUG_ASSERT(last_worker != NULL &&
-                  rli->curr_group_assigned_parts.elements > 0);
+                  rli->curr_group_assigned_parts.size() > 0);
 
       // future assignenment and marking at the same time
       entry->worker= last_worker;
@@ -1029,7 +1028,7 @@ err:
   {
     DBUG_PRINT("info",
                ("Updating %s with worker %lu", entry->db, entry->worker->id));
-    insert_dynamic(&rli->curr_group_assigned_parts, (uchar*) &entry);
+    rli->curr_group_assigned_parts.push_back(entry);
     *ptr_entry= entry;
   }
   DBUG_RETURN(entry ? entry->worker : NULL);
@@ -1993,7 +1992,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
 {
   THD *thd= rli->info_thd;
   int ret= -1;
-  ulong ev_size= ((Log_event*) (job_item->data))->data_written;
+  size_t ev_size= ((Log_event*) (job_item->data))->data_written;
   ulonglong new_pend_size;
   PSI_stage_info old_stage;
 
@@ -2029,7 +2028,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
     if (rli->wq_size_waits_cnt % 10 == 1)
       sql_print_information("Multi-threaded slave: Coordinator has waited "
                             "%lu times hitting slave_pending_jobs_size_max; "
-                            "current event size = %lu.",
+                            "current event size = %zu.",
                             rli->wq_size_waits_cnt, ev_size);
     mysql_mutex_lock(&rli->pending_jobs_lock);
 

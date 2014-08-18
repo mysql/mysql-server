@@ -724,7 +724,7 @@ public:
   bool as_wkb(String *wkb, bool shallow_copy) const;
   bool as_geometry(String *wkb, bool shallow_copy) const;
 
-  void set_data_ptr(const void *data, uint32 data_len)
+  void set_data_ptr(const void *data, size_t data_len)
   {
     m_ptr= const_cast<void *>(data);
     set_nbytes(data_len);
@@ -794,7 +794,7 @@ protected:
     return ((type_id < wkb_first) || (type_id > wkb_last)) ?
       NULL : ci_collection[type_id];
   }
-  static Class_info *find_class(const char *name, uint32 len);
+  static Class_info *find_class(const char *name, size_t len);
   void append_points(String *txt, uint32 n_points,
                      wkb_parser *wkb, uint32 offset) const;
   bool create_point(String *result, wkb_parser *wkb) const;
@@ -2864,7 +2864,7 @@ public:
       if (get_geotype() != Geometry::wkb_polygon_inner_rings)
       {
         DBUG_ASSERT(uint4korr(get_ucptr()) == ngeo);
-        int4store(get_ucptr(), sz);
+        int4store(get_ucptr(), static_cast<uint32>(sz));
       }
       return;
     }

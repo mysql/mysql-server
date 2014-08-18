@@ -80,13 +80,6 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 
 #define NUMBER_OF_FIELDS_TO_IDENTIFY_WORKER 2
 
-typedef struct slave_job_item
-{
-  void *data;
-  uint relay_number;
-  my_off_t relay_pos;
-} Slave_job_item;
-
 /**
    The class defines a type of queue with a predefined max size that is
    implemented using the circular memory buffer.
