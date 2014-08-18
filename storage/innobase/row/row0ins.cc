@@ -2541,7 +2541,7 @@ last successful insert. To be used when data is sorted.
 @param[in]	thr	query thread
 
 @return error code */
-
+static
 dberr_t
 row_ins_sorted_clust_index_entry(
 	ulint		flags,

@@ -1019,6 +1019,7 @@ static void test_wl4435_2()
   rc= mysql_stmt_execute(ps); \
   check_execute(ps, rc); \
   \
+  if (!(mysql->server_capabilities & CLIENT_DEPRECATE_EOF)) \
   DIE_UNLESS(mysql->server_status & SERVER_PS_OUT_PARAMS); \
   DIE_UNLESS(mysql_stmt_field_count(ps) == 1); \
   \
