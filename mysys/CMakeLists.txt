@@ -33,7 +33,8 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				string.c thr_cond.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
-				my_rdtsc.c psi_noop.c my_syslog.c)
+				my_rdtsc.c psi_noop.c my_syslog.c
+				my_chmod.c)
 
 IF (WIN32)
   LIST(APPEND MYSYS_SOURCES
