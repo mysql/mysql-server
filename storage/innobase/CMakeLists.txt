@@ -131,7 +131,6 @@ SET(INNOBASE_SOURCES
 	trx/trx0trx.cc
 	trx/trx0undo.cc
 	usr/usr0sess.cc
-	ut/ut0bh.cc
 	ut/ut0byte.cc
 	ut/ut0crc32.cc
 	ut/ut0dbg.cc
