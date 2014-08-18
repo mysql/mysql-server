@@ -98,7 +98,10 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
    workers(PSI_NOT_INSTRUMENTED),
-   workers_array_initialized(false), slave_parallel_workers(0),
+   workers_array_initialized(false),
+   curr_group_assigned_parts(PSI_NOT_INSTRUMENTED),
+   curr_group_da(PSI_NOT_INSTRUMENTED),
+   slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
    checkpoint_group(opt_mts_checkpoint_group),
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
@@ -193,7 +196,7 @@ Relay_log_info::~Relay_log_info()
 
     if(workers_copy_pfs.size())
     {
-      for (int i= workers_copy_pfs.size() - 1; i >= 0; i--)
+      for (int i= static_cast<int>(workers_copy_pfs.size()) - 1; i >= 0; i--)
         delete workers_copy_pfs[i];
       workers_copy_pfs.clear();
     }
@@ -2174,7 +2177,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
     overwritten by the second row later.
   */
   if (from->prepare_info_for_read() ||
-      from->get_info(group_relay_log_name, (size_t) sizeof(group_relay_log_name),
+      from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
                      (char *) ""))
     DBUG_RETURN(TRUE);
 
@@ -2184,7 +2187,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
       *first_non_digit=='\0' && lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY)
   {
     /* Seems to be new format => read group relay log name */
-    if (from->get_info(group_relay_log_name, (size_t) sizeof(group_relay_log_name),
+    if (from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
                        (char *) ""))
       DBUG_RETURN(TRUE);
   }
@@ -2194,7 +2197,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   if (from->get_info((ulong *) &temp_group_relay_log_pos,
                      (ulong) BIN_LOG_HEADER_SIZE) ||
       from->get_info(group_master_log_name,
-                     (size_t) sizeof(group_relay_log_name),
+                     sizeof(group_relay_log_name),
                      (char *) "") ||
       from->get_info((ulong *) &temp_group_master_log_pos,
                      (ulong) 0))

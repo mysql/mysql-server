@@ -362,7 +362,7 @@ Opt_trace_struct& Opt_trace_struct::do_add_null(const char *key)
 Opt_trace_struct& Opt_trace_struct::do_add(const char *key, Item *item)
 {
   char buff[256];
-  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  String str(buff, sizeof(buff), system_charset_info);
   str.length(0);
   if (item != NULL)
   {
