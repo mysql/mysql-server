@@ -22,6 +22,7 @@
 #   - success
 #
 #
+--source include/have_slave_repository_type_file.inc
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 
@@ -63,6 +64,7 @@ SET @@GLOBAL.master_info_repository="TABLE";
 SET @@GLOBAL.relay_log_info_repository="TABLE";
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
+--replace_column 2 #
 --eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3"
 
 --echo # Slave now is a multisourced slave.
