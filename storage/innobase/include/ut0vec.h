@@ -263,53 +263,6 @@ ib_heap_allocator_free(
 /*===================*/
 	ib_alloc_t*	ib_ut_alloc);	/* in: alloc instace to free */
 
-/********************************************************************
-Wrapper for ut_free(). */
-UNIV_INLINE
-void
-ib_ut_free(
-/*=======*/
-	ib_alloc_t*	allocator,	/* in: allocator */
-	void*		ptr);		/* in: size in bytes */
-
-/********************************************************************
-Wrapper for ut_malloc_nokey(). */
-UNIV_INLINE
-void*
-ib_ut_malloc(
-/*=========*/
-					/* out: pointer to allocated memory */
-	ib_alloc_t*	allocator,	/* in: allocator */
-	ulint		size);		/* in: size in bytes */
-
-/********************************************************************
-Wrapper for ut_realloc(). */
-UNIV_INLINE
-void*
-ib_ut_resize(
-/*=========*/
-					/* out: pointer to reallocated
-					memory */
-	ib_alloc_t*	allocator,	/* in: allocator */
-	void*		old_ptr,	/* in: pointer to memory */
-	ulint		old_size,	/* in: old size in bytes */
-	ulint		new_size);	/* in: new size in bytes */
-
-/********************************************************************
-Create a heap allocator that uses the passed in heap. */
-UNIV_INLINE
-ib_alloc_t*
-ib_ut_allocator_create(void);
-/*=========================*/
-
-/********************************************************************
-Create a heap allocator that uses the passed in heap. */
-UNIV_INLINE
-void
-ib_ut_allocator_free(
-/*=================*/
-	ib_alloc_t*	ib_ut_alloc);	/* in: alloc instace to free */
-
 /* Allocator used by ib_vector_t. */
 struct ib_alloc_t {
 	ib_mem_alloc_t	mem_malloc;	/* For allocating memory */
