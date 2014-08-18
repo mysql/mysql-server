@@ -104,7 +104,8 @@ int ReplSemiSyncSlave::slaveReply(MYSQL *mysql,
   uchar reply_buffer[REPLY_MAGIC_NUM_LEN
                      + REPLY_BINLOG_POS_LEN
                      + REPLY_BINLOG_NAME_LEN];
-  int  reply_res, name_len = strlen(binlog_filename);
+  int reply_res;
+  size_t name_len = strlen(binlog_filename);
 
   function_enter(kWho);
 

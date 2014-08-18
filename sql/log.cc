@@ -1083,6 +1083,10 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
 */
 static bool log_command(THD *thd, enum_server_command command)
 {
+  /* Audit notification when no general log handler present */
+  mysql_audit_general_log(thd, command_name[(uint) command].str,
+                          command_name[(uint) command].length);
+
   if (what_to_log & (1L << (uint) command))
   {
     if ((thd->variables.option_bits & OPTION_LOG_OFF)
@@ -1116,12 +1120,6 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   size_t user_host_len= make_user_name(thd, user_host_buff);
   ulonglong current_utime= thd->current_utime();
-
-  mysql_audit_general_log(thd, current_utime / 1000000,
-                          user_host_buff, user_host_len,
-                          command_name[(uint) command].str,
-                          command_name[(uint) command].length,
-                          query, query_length);
 
   bool error= false;
   for (Log_event_handler **current_handler= general_log_handler_list;

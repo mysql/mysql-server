@@ -2105,9 +2105,6 @@ public:
 
   Global_read_lock global_read_lock;
   Field      *dup_field;
-#ifndef _WIN32
-  sigset_t signals;
-#endif
 
   Vio* active_vio;
 
@@ -2651,7 +2648,7 @@ public:
     Reset to FALSE when we leave the sub-statement mode.
   */
   bool       is_fatal_sub_stmt_error;
-  bool	     query_start_used, query_start_usec_used;
+  bool	     query_start_usec_used;
   bool       rand_used, time_zone_used;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
@@ -2937,7 +2934,6 @@ public:
   }
   inline time_t query_start()
   {
-    query_start_used= 1;
     return start_time.tv_sec;
   }
   inline long query_start_usec()
@@ -2947,7 +2943,7 @@ public:
   }
   inline timeval query_start_timeval()
   {
-    query_start_used= query_start_usec_used= true;
+    query_start_usec_used= true;
     return start_time;
   }
   timeval query_start_timeval_trunc(uint decimals);
@@ -4680,7 +4676,8 @@ public:
   bool is_derived_table() const { return MY_TEST(sel); }
   inline void change_db(char *db_name)
   {
-    db.str= db_name; db.length= (uint) strlen(db_name);
+    db.str= db_name;
+    db.length= strlen(db_name);
   }
 };
 
