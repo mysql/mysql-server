@@ -51,7 +51,8 @@ SYSLOG_FACILITY syslog_facility[] = {
 
 
 #ifdef _WIN32
-static HANDLE hEventLog= NULL;                  // global
+#define MSG_DEFAULT       0xC0000064L
+static  HANDLE hEventLog= NULL;                  // global
 #endif
 
 /**
@@ -93,7 +94,7 @@ int my_syslog(const CHARSET_INFO *cs __attribute__((unused)),
     buff[nchars / sizeof(wchar_t)]= L'\0';
     u16buf= buff;
 
-    if (!ReportEventW(hEventLog, _level, 0, 0, NULL, 1, 0,
+    if (!ReportEventW(hEventLog, _level, 0, MSG_DEFAULT, NULL, 1, 0,
                       (LPCWSTR*) &u16buf, NULL))
       goto err;
   }
@@ -270,15 +271,15 @@ int my_closelog(void)
   closelog();
   DBUG_RETURN(0);
 #else
-  if (hEventLog || (! DeregisterEventSource(hEventLog)))
+  if (hEventLog && (! DeregisterEventSource(hEventLog)))
     goto err;
 
   hEventLog= NULL;
   DBUG_RETURN(0);
 
 err:
-    // map error appropriately
-    my_osmaperr(GetLastError());
-    DBUG_RETURN(-1);
+  // map error appropriately
+  my_osmaperr(GetLastError());
+  DBUG_RETURN(-1);
 #endif
 }

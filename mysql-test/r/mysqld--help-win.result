@@ -359,6 +359,7 @@ The following options may be given as the first argument:
  --log-syslog        Errors, warnings, and similar issues eligible for MySQL's
  error log file may additionally be sent to the host
  operating system's system log ("syslog").
+ (Defaults to on; use --skip-log-syslog to disable.)
  --log-syslog-tag=name 
  When logging issues using the host operating system's
  syslog, tag the entries from this particular MySQL server
@@ -1185,7 +1186,7 @@ log-short-format FALSE
 log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
-log-syslog TRUE
+log-syslog FALSE
 log-syslog-tag 
 log-tc tc.log
 log-tc-size 24576
