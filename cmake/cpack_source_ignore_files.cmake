@@ -34,6 +34,7 @@ $\\\\.bz2
 /_CPack_Packages/
 scripts/make_binary_distribution$
 scripts/mysql_config$
+scripts/mysql_install_db$
 scripts/mysql_secure_installation$
 scripts/mysql_server_config$
 scripts/mysqld_multi$

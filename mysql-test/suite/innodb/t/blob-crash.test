@@ -141,7 +141,7 @@ SET GLOBAL innodb_log_checkpoint_now=ON;
 
 --echo # Starting server with --innodb-force-recovery-crash=99
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
-let args = --loose-console > $SEARCH_FILE 2>&1;
+let args = --loose-console --core-file > $SEARCH_FILE 2>&1;
 let crash = $args --innodb-force-recovery-crash;
 
 --error 3

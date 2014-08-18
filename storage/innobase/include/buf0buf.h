@@ -39,6 +39,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "os0proc.h"
 #include "log0log.h"
 #include "srv0srv.h"
+#include <ostream>
 
 // Forward declaration
 struct fil_addr_t;
@@ -312,7 +313,28 @@ private:
 
 	/* Disable implicit copying. */
 	void operator=(const page_id_t&);
+
+	/** Declare the overloaded global operator<< as a friend of this
+	class. Refer to the global declaration for further details.  Print
+	the given page_id_t object.
+	@param[in,out]	out	the output stream
+	@param[in]	page_id	the page_id_t object to be printed
+	@return the output stream */
+        friend
+        std::ostream&
+        operator<<(
+                std::ostream&           out,
+                const page_id_t&        page_id);
 };
+
+/** Print the given page_id_t object.
+@param[in,out]	out	the output stream
+@param[in]	page_id	the page_id_t object to be printed
+@return the output stream */
+std::ostream&
+operator<<(
+	std::ostream&		out,
+	const page_id_t&	page_id);
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
@@ -2245,6 +2267,15 @@ struct buf_pool_t{
 #endif
 	/* @} */
 };
+
+/** Print the given buf_pool_t object.
+@param[in,out]	out		the output stream
+@param[in]	buf_pool	the buf_pool_t object to be printed
+@return the output stream */
+std::ostream&
+operator<<(
+        std::ostream&		out,
+        const buf_pool_t&	buf_pool);
 
 /** @name Accessors for buf_pool->mutex.
 Use these instead of accessing buf_pool->mutex directly. */
