@@ -39,7 +39,7 @@ char *fn_ext(const char *name)
   DBUG_ENTER("fn_ext");
   DBUG_PRINT("mfunkt",("name: '%s'",name));
 
-#if defined(FN_DEVCHAR) || defined(BASKSLASH_MBTAIL)
+#if defined(FN_DEVCHAR) || defined(_WIN32)
   {
     char buff[FN_REFLEN];
     size_t res_length;

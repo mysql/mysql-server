@@ -838,15 +838,15 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
       if (prot.store(STRING_WITH_LEN("def"), cs, thd_charset) ||
-	  prot.store(field.db_name, (uint) strlen(field.db_name),
+	  prot.store(field.db_name, strlen(field.db_name),
 		     cs, thd_charset) ||
-	  prot.store(field.table_name, (uint) strlen(field.table_name),
+	  prot.store(field.table_name, strlen(field.table_name),
 		     cs, thd_charset) ||
-	  prot.store(field.org_table_name, (uint) strlen(field.org_table_name),
+	  prot.store(field.org_table_name, strlen(field.org_table_name),
 		     cs, thd_charset) ||
-	  prot.store(field.col_name, (uint) strlen(field.col_name),
+	  prot.store(field.col_name, strlen(field.col_name),
 		     cs, thd_charset) ||
-	  prot.store(field.org_col_name, (uint) strlen(field.org_col_name),
+	  prot.store(field.org_col_name, strlen(field.org_col_name),
 		     cs, thd_charset) ||
 	  local_packet->realloc(local_packet->length()+12))
 	goto err;
@@ -900,9 +900,9 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
     }
     else
     {
-      if (prot.store(field.table_name, (uint) strlen(field.table_name),
+      if (prot.store(field.table_name, strlen(field.table_name),
 		     cs, thd_charset) ||
-	  prot.store(field.col_name, (uint) strlen(field.col_name),
+	  prot.store(field.col_name, strlen(field.col_name),
 		     cs, thd_charset) ||
 	  local_packet->realloc(local_packet->length()+10))
 	goto err;

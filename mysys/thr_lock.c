@@ -1477,14 +1477,12 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
                       "pthread_attr_setdetachstate", errno);
     exit(1);
   }
-#ifndef pthread_attr_setstacksize		/* void return value */
   if ((error=pthread_attr_setstacksize(&thr_attr,65536L)))
   {
     my_message_stderr(0, "Got error %d from "
                       "pthread_attr_setstacksize", error);
     exit(1);
   }
-#endif
   for (i=0 ; i < (int) array_elements(lock_counts) ; i++)
   {
     param=(int*) malloc(sizeof(int));

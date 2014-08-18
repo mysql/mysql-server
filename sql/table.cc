@@ -216,7 +216,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 static uchar *get_field_name(Field **buff, size_t *length,
                              my_bool not_used __attribute__((unused)))
 {
-  *length= (uint) strlen((*buff)->field_name);
+  *length= strlen((*buff)->field_name);
   return (uchar*) (*buff)->field_name;
 }
 
@@ -3694,7 +3694,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   /* Fix alias if table name changes. */
   if (strcmp(alias, tl->alias))
   {
-    uint length= (uint) strlen(tl->alias)+1;
+    size_t length= strlen(tl->alias)+1;
     alias= (char*) my_realloc(key_memory_TABLE,
                               (char*) alias, length, MYF(MY_WME));
     memcpy((char*) alias, tl->alias, length);
