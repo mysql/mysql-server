@@ -119,7 +119,7 @@ enum {MAX_FILE_SIZE=256};
 
 static LOADER_STATUS_S loader_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(loader_status, k, c, t, "loader: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(loader_status, k, c, t, "loader: " l, inc)
 
 static void
 status_init(void) {

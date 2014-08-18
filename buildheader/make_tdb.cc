@@ -341,8 +341,8 @@ static void print_defines (void) {
         dodefine_from_track(txn_flags, DB_TXN_READ_ONLY);
     }
     
-    /* TOKUDB specific error codes*/
-    printf("/* TOKUDB specific error codes */\n");
+    /* TokuFT specific error codes*/
+    printf("/* TokuFT specific error codes */\n");
     dodefine(TOKUDB_OUT_OF_LOCKS);
     dodefine(TOKUDB_SUCCEEDED_EARLY);
     dodefine(TOKUDB_FOUND_BUT_REJECTED);
@@ -422,7 +422,7 @@ static void print_db_env_struct (void) {
                              "int (*cleaner_set_iterations)               (DB_ENV*, uint32_t) /* Change the number of attempts on each cleaner invokation.  0 means disabled. */",
                              "int (*cleaner_get_iterations)               (DB_ENV*, uint32_t*) /* Retrieve the number of attempts on each cleaner invokation.  0 means disabled. */",
                              "int (*checkpointing_postpone)               (DB_ENV*) /* Use for 'rename table' or any other operation that must be disjoint from a checkpoint */",
-                             "int (*checkpointing_resume)                 (DB_ENV*) /* Alert tokudb 'postpone' is no longer necessary */",
+                             "int (*checkpointing_resume)                 (DB_ENV*) /* Alert tokuft that 'postpone' is no longer necessary */",
                              "int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */",
                              "int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */",
                              "int (*set_default_bt_compare)               (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
@@ -575,7 +575,7 @@ static void print_db_txn_struct (void) {
     STRUCT_SETUP(DB_TXN, prepare,     "int (*%s) (DB_TXN*, uint8_t gid[DB_GID_SIZE])");
     STRUCT_SETUP(DB_TXN, discard,     "int (*%s) (DB_TXN*, uint32_t)");
     STRUCT_SETUP(DB_TXN, id,          "uint32_t (*%s) (DB_TXN *)");
-    STRUCT_SETUP(DB_TXN, mgrp,        "DB_ENV *%s /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/");
+    STRUCT_SETUP(DB_TXN, mgrp,        "DB_ENV *%s /* In TokuFT, mgrp is a DB_ENV, not a DB_TXNMGR */");
     STRUCT_SETUP(DB_TXN, parent,      "DB_TXN *%s");
     const char *extra[] = {
 	"int (*txn_stat)(DB_TXN *, struct txn_stat **)", 
@@ -639,9 +639,9 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
 
     printf("#define DB_VERSION_MAJOR %d\n", DB_VERSION_MAJOR);
     printf("#define DB_VERSION_MINOR %d\n", DB_VERSION_MINOR);
-    printf("/* As of r40364 (post TokuDB 5.2.7), the patch version number is 100+ the BDB header patch version number.*/\n");
+    printf("/* As of r40364 (post TokuFT 5.2.7), the patch version number is 100+ the BDB header patch version number.*/\n");
     printf("#define DB_VERSION_PATCH %d\n", 100+DB_VERSION_PATCH);
-    printf("#define DB_VERSION_STRING \"Tokutek: TokuDB %d.%d.%d\"\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, 100+DB_VERSION_PATCH);
+    printf("#define DB_VERSION_STRING \"Tokutek: TokuFT %d.%d.%d\"\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, 100+DB_VERSION_PATCH);
 
 #ifndef DB_GID_SIZE
 #define DB_GID_SIZE DB_XIDDATASIZE

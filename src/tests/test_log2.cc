@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 
 
 /* Test to see if we can do logging and recovery. */
-/* This is very specific to TokuDB.  It won't work with Berkeley DB. */
+/* This is very specific to TokuFT.  It won't work with Berkeley DB. */
 
 
 #include <db.h>

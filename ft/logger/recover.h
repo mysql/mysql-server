@@ -105,9 +105,9 @@ PATENT RIGHTS GRANT:
 typedef void (*prepared_txn_callback_t)(DB_ENV *env, struct tokutxn *txn);
 typedef void (*keep_cachetable_callback_t)(DB_ENV *env, struct cachetable *ct);
 
-// Run tokudb recovery from the log
+// Run tokuft recovery from the log
 // Returns 0 if success
-int tokudb_recover(DB_ENV *env,
+int tokuft_recover(DB_ENV *env,
 		   prepared_txn_callback_t prepared_txn_callback,
 		   keep_cachetable_callback_t keep_cachetable_callback,
 		   struct tokulogger *logger,
@@ -119,20 +119,20 @@ int tokudb_recover(DB_ENV *env,
                    generate_row_for_del_func generate_row_for_del,
                    size_t cachetable_size);
 
-// Effect: Check the tokudb logs to determine whether or not we need to run recovery.
+// Effect: Check the tokuft logs to determine whether or not we need to run recovery.
 // If the log is empty or if there is a clean shutdown at the end of the log, then we
 // dont need to run recovery.
 // Returns: true if we need recovery, otherwise false.
-int tokudb_needs_recovery(const char *logdir, bool ignore_empty_log);
+int tokuft_needs_recovery(const char *logdir, bool ignore_empty_log);
 
 // Return 0 if recovery log exists, ENOENT if log is missing
-int tokudb_recover_log_exists(const char * log_dir);
+int tokuft_recover_log_exists(const char * log_dir);
 
 // For test only - set callbacks for recovery testing
 void toku_recover_set_callback (void (*)(void*), void*);
 void toku_recover_set_callback2 (void (*)(void*), void*);
 
-extern int tokudb_recovery_trace;
+extern int tokuft_recovery_trace;
 
 int toku_recover_lock (const char *lock_dir, int *lockfd);
 

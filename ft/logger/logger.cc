@@ -1391,7 +1391,7 @@ void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn) {
 
 static LOGGER_STATUS_S logger_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(logger_status, k, c, t, "logger: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(logger_status, k, c, t, "logger: " l, inc)
 
 static void
 status_init(void) {

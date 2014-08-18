@@ -152,7 +152,7 @@ run_test(void) {
     toku_recover_set_callback(recover_callback_at_turnaround, NULL);
 
     // run recovery
-    r = tokudb_recover(NULL,
+    r = tokuft_recover(NULL,
 		       NULL_prepared_txn_callback,
 		       NULL_keep_cachetable_callback,
 		       NULL_logger, TOKU_TEST_FILENAME, TOKU_TEST_FILENAME, 0, 0, 0, NULL, 0); 

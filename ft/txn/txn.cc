@@ -107,7 +107,7 @@ PATENT RIGHTS GRANT:
 
 static TXN_STATUS_S txn_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(txn_status, k, c, t, "txn: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(txn_status, k, c, t, "txn: " l, inc)
 
 void
 txn_status_init(void) {

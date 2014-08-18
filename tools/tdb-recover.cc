@@ -120,7 +120,7 @@ int recovery_main (int argc, const char *const argv[]) {
 	return(1);
     }
 
-    int r = tokudb_recover(nullptr,
+    int r = tokuft_recover(nullptr,
 			   nullptr,
 			   nullptr,
 			   nullptr,

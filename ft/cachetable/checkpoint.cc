@@ -147,7 +147,7 @@ PATENT RIGHTS GRANT:
 
 static CHECKPOINT_STATUS_S cp_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(cp_status, k, c, t, "checkpoint: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(cp_status, k, c, t, "checkpoint: " l, inc)
 
 static void
 status_init(void) {

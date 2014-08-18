@@ -217,7 +217,7 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
 
     // If either header is too new, the dictionary is unreadable
     if (r0 == TOKUDB_DICTIONARY_TOO_NEW || r1 == TOKUDB_DICTIONARY_TOO_NEW) {
-        fprintf(stderr, "This dictionary was created with too new a version of TokuDB.  Aborting.\n");
+        fprintf(stderr, "This dictionary was created with a version of TokuFT that is too new.  Aborting.\n");
         abort();
     }
     if (h0_acceptable) {

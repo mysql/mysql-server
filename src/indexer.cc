@@ -117,7 +117,7 @@ PATENT RIGHTS GRANT:
 
 static INDEXER_STATUS_S indexer_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(indexer_status, k, c, t, "indexer: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(indexer_status, k, c, t, "indexer: " l, inc)
 
 static void
 status_init(void) {
@@ -688,7 +688,7 @@ abort_indexer(DB_INDEXER *indexer) {
 }
 
 
-// derived from ha_tokudb::estimate_num_rows
+// derived from the handlerton's estimate_num_rows()
 static int
 update_estimated_rows(DB_INDEXER *indexer) {
     int error;

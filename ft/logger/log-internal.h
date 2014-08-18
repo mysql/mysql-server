@@ -157,7 +157,7 @@ struct tokulogger {
     DIR *dir; // descriptor for directory
     int fd;
     CACHETABLE ct;
-    int lg_max; // The size of the single file in the log.  Default is 100MB in TokuDB
+    int lg_max; // The size of the single file in the log.  Default is 100MB.
 
     // To access these, you must have the input lock
     LSN lsn; // the next available lsn

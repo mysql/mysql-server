@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 #include <util/partitioned_counter.h>
 #include <util/constexpr.h>
 
-#define TOKUDB_STATUS_INIT(array,k,c,t,l,inc) do { \
+#define TOKUFT_STATUS_INIT(array,k,c,t,l,inc) do {   \
     array.status[k].keyname = #k;                    \
     array.status[k].columnname = #c;                 \
     array.status[k].type    = t;                     \
@@ -105,7 +105,7 @@ PATENT RIGHTS GRANT:
     constexpr_static_assert((inc) == TOKU_ENGINE_STATUS                      \
             || strcmp(#c, "nullptr"), "Missing column name.");               \
     constexpr_static_assert(static_strncasecmp(#c, "TOKU", strlen("TOKU")),  \
-                  "Do not start column names with toku/tokudb.  Names get TOKUDB_ prefix automatically."); \
+                  "Do not start column names with toku."); \
     array.status[k].include = static_cast<toku_engine_status_include_type>(inc);  \
     if (t == PARCOUNT) {                                               \
         array.status[k].value.parcount = create_partitioned_counter(); \

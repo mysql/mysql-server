@@ -483,7 +483,7 @@ void locktree_manager::locktree_escalator::run(locktree_manager *mgr, void (*esc
     mgr->add_escalator_wait_time(t1 - t0);
 }
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(status, k, c, t, "locktree: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(status, k, c, t, "locktree: " l, inc)
 
 void locktree_manager::status_init(void) {
     STATUS_INIT(LTM_SIZE_CURRENT,             LOCKTREE_MEMORY_SIZE, UINT64,   "memory size", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);

@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 
 
 /* Test to see if we can do logging and recovery. */
-/* This is very specific to TokuDB.  It won't work with Berkeley DB. */
+/* This is very specific to TokuFT.  It won't work with Berkeley DB. */
 /* This test_log10 inserts to a db, closes, reopens, and inserts more to db.  We want to make sure that the recovery of the buffers works. */
 /* Lots of stuff gets inserted. */
 

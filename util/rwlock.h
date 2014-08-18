@@ -99,7 +99,7 @@ PATENT RIGHTS GRANT:
  *     Overview
  *****************************************
  *
- * TokuDB employs readers/writers locks for the ephemeral locks (e.g.,
+ * TokuFT employs readers/writers locks for the ephemeral locks (e.g.,
  * on FT nodes) Why not just use the toku_pthread_rwlock API?
  *
  *   1) we need multiprocess rwlocks (not just multithreaded)

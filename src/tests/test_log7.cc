@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 
 
 /* Test to see if we can do logging and recovery. */
-/* This is very specific to TokuDB.  It won't work with Berkeley DB. */
+/* This is very specific to TokuFT.  It won't work with Berkeley DB. */
 /* This test_log7 is like test_log5 except maxcount is larger. */
 
 

@@ -120,7 +120,7 @@ struct hot_flusher_extra {
 
 static FT_HOT_STATUS_S hot_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(hot_status, k, c, t, "hot: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(hot_status, k, c, t, "hot: " l, inc)
 
 #define STATUS_VALUE(x) hot_status.status[x].value.num
 

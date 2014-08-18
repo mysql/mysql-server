@@ -210,7 +210,7 @@ static void setup(void) {
         src_db_dir = db_v5_dir;
     }
     else {
-        fprintf(stderr, "unsupported TokuDB version %d to upgrade\n", SRC_VERSION);
+        fprintf(stderr, "unsupported TokuFT version %d to upgrade\n", SRC_VERSION);
         assert(0);
     }
 

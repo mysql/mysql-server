@@ -125,7 +125,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2013 Tokutek Inc.  All r
 
 // Include ydb_lib.cc here so that its constructor/destructor gets put into
 // ydb.o, to make sure they don't get erased at link time (when linking to
-// a static libtokudb.a that was compiled with gcc).  See #5094.
+// a static libtokufractaltree.a that was compiled with gcc).  See #5094.
 #include "ydb_lib.cc"
 
 #ifdef TOKUTRACE
@@ -186,7 +186,7 @@ typedef struct {
 static YDB_LAYER_STATUS_S ydb_layer_status;
 #define STATUS_VALUE(x) ydb_layer_status.status[x].value.num
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ydb_layer_status, k, c, t, l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(ydb_layer_status, k, c, t, l, inc)
 
 static void
 ydb_layer_status_init (void) {
@@ -252,14 +252,14 @@ static void
 env_fs_report_in_yellow(DB_ENV *UU(env)) {
     char tbuf[26];
     time_t tnow = time(NULL);
-    fprintf(stderr, "%.24s Tokudb file system space is low\n", ctime_r(&tnow, tbuf)); fflush(stderr);
+    fprintf(stderr, "%.24s TokuFT file system space is low\n", ctime_r(&tnow, tbuf)); fflush(stderr);
 }
 
 static void
 env_fs_report_in_red(DB_ENV *UU(env)) {
     char tbuf[26];
     time_t tnow = time(NULL);
-    fprintf(stderr, "%.24s Tokudb file system space is really low and access is restricted\n", ctime_r(&tnow, tbuf)); fflush(stderr);
+    fprintf(stderr, "%.24s TokuFT file system space is really low and access is restricted\n", ctime_r(&tnow, tbuf)); fflush(stderr);
 }
 
 static inline uint64_t
@@ -268,7 +268,7 @@ env_fs_redzone(DB_ENV *env, uint64_t total) {
 }
 
 #define ZONEREPORTLIMIT 12
-// Check the available space in the file systems used by tokudb and erect barriers when available space gets low.
+// Check the available space in the file systems used by tokuft and erect barriers when available space gets low.
 static int
 env_fs_poller(void *arg) {
     DB_ENV *env = (DB_ENV *) arg;
@@ -445,7 +445,7 @@ static void keep_cachetable_callback (DB_ENV *env, CACHETABLE cachetable)
 static int 
 ydb_do_recovery (DB_ENV *env) {
     assert(env->i->real_log_dir);
-    int r = tokudb_recover(env,
+    int r = tokuft_recover(env,
                            toku_keep_prepared_txn_callback,
                            keep_cachetable_callback,
                            env->i->logger,
@@ -459,7 +459,7 @@ ydb_do_recovery (DB_ENV *env) {
 static int 
 needs_recovery (DB_ENV *env) {
     assert(env->i->real_log_dir);
-    int recovery_needed = tokudb_needs_recovery(env->i->real_log_dir, true);
+    int recovery_needed = tokuft_needs_recovery(env->i->real_log_dir, true);
     return recovery_needed ? DB_RUNRECOVERY : 0;
 }
 
@@ -521,7 +521,7 @@ typedef struct {
 
 static PERSISTENT_UPGRADE_STATUS_S persistent_upgrade_status;
 
-#define PERSISTENT_UPGRADE_STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(persistent_upgrade_status, k, c, t, "upgrade: " l, inc)
+#define PERSISTENT_UPGRADE_STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(persistent_upgrade_status, k, c, t, "upgrade: " l, inc)
 
 static void
 persistent_upgrade_status_init (void) {
@@ -671,7 +671,7 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
 // return 0 if log exists or ENOENT if log does not exist
 static int
 ydb_recover_log_exists(DB_ENV *env) {
-    int r = tokudb_recover_log_exists(env->i->real_log_dir);
+    int r = tokuft_recover_log_exists(env->i->real_log_dir);
     return r;
 }
 
@@ -834,20 +834,20 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     HANDLE_EXTRA_FLAGS(env, flags, 
                        DB_CREATE|DB_PRIVATE|DB_INIT_LOG|DB_INIT_TXN|DB_RECOVER|DB_INIT_MPOOL|DB_INIT_LOCK|DB_THREAD);
 
-    // DB_CREATE means create if env does not exist, and Tokudb requires it because
-    // Tokudb requries DB_PRIVATE.
+    // DB_CREATE means create if env does not exist, and TokuFT requires it because
+    // TokuFT requries DB_PRIVATE.
     if ((flags & DB_PRIVATE) && !(flags & DB_CREATE)) {
         r = toku_ydb_do_error(env, ENOENT, "DB_PRIVATE requires DB_CREATE (seems gratuitous to us, but that's BDB's behavior\n");
         goto cleanup;
     }
 
     if (!(flags & DB_PRIVATE)) {
-        r = toku_ydb_do_error(env, ENOENT, "TokuDB requires DB_PRIVATE\n");
+        r = toku_ydb_do_error(env, ENOENT, "TokuFT requires DB_PRIVATE\n");
         goto cleanup;
     }
 
     if ((flags & DB_INIT_LOG) && !(flags & DB_INIT_TXN)) {
-        r = toku_ydb_do_error(env, EINVAL, "TokuDB requires transactions for logging\n");
+        r = toku_ydb_do_error(env, EINVAL, "TokuFT requires transactions for logging\n");
         goto cleanup;
     }
 
@@ -959,13 +959,13 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
 
 // This is probably correct, but it will be pain...
 //    if ((flags & DB_THREAD)==0) {
-//        r = toku_ydb_do_error(env, EINVAL, "TokuDB requires DB_THREAD");
+//        r = toku_ydb_do_error(env, EINVAL, "TokuFT requires DB_THREAD");
 //        goto cleanup;
 //    }
     unused_flags &= ~DB_THREAD;
 
     if (unused_flags!=0) {
-        r = toku_ydb_do_error(env, EINVAL, "Extra flags not understood by tokudb: %u\n", unused_flags);
+        r = toku_ydb_do_error(env, EINVAL, "Extra flags not understood by tokuft: %u\n", unused_flags);
         goto cleanup;
     }
 
@@ -1209,7 +1209,7 @@ env_close(DB_ENV * env, uint32_t flags) {
     unlock_single_process(env);
     toku_free(env->i);
     toku_free(env);
-    toku_sync_fetch_and_add(&tokudb_num_envs, -1);
+    toku_sync_fetch_and_add(&tokuft_num_envs, -1);
     if (flags != 0) {
         r = EINVAL;
     }
@@ -1384,7 +1384,7 @@ env_set_flags(DB_ENV * env, uint32_t flags, int onoff) {
         flags  &= ~DB_AUTO_COMMIT;
     }
     if (flags != 0 && onoff) {
-        return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support any nonzero ENV flags other than DB_AUTO_COMMIT\n");
+        return toku_ydb_do_error(env, EINVAL, "TokuFT does not (yet) support any nonzero ENV flags other than DB_AUTO_COMMIT\n");
     }
     if   (onoff) env->i->open_flags |=  change;
     else         env->i->open_flags &= ~change;
@@ -1430,7 +1430,7 @@ env_get_lg_max(DB_ENV * env, uint32_t *lg_maxp) {
 static int 
 env_set_lk_detect(DB_ENV * env, uint32_t UU(detect)) {
     HANDLE_PANICKED_ENV(env);
-    return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support set_lk_detect\n");
+    return toku_ydb_do_error(env, EINVAL, "TokuFT does not (yet) support set_lk_detect\n");
 }
 
 static int 
@@ -1775,7 +1775,7 @@ typedef struct {
 
 static FS_STATUS_S fsstat;
 
-#define FS_STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(fsstat, k, c, t, "filesystem: " l, inc)
+#define FS_STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(fsstat, k, c, t, "filesystem: " l, inc)
 
 static void
 fs_status_init(void) {
@@ -1846,7 +1846,7 @@ typedef struct {
 
 static MEMORY_STATUS_S memory_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(memory_status, k, c, t, "memory: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(memory_status, k, c, t, "memory: " l, inc)
 
 static void
 memory_status_init(void) {
@@ -2673,7 +2673,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
 
     *envp = result;
     r = 0;
-    toku_sync_fetch_and_add(&tokudb_num_envs, 1);
+    toku_sync_fetch_and_add(&tokuft_num_envs, 1);
 cleanup:
     if (r!=0) {
         if (result) {
@@ -3058,15 +3058,15 @@ db_strerror(int error) {
         case TOKUDB_OUT_OF_LOCKS:
             return "Out of locks";
         case TOKUDB_DICTIONARY_TOO_OLD:
-            return "Dictionary too old for this version of TokuDB";
+            return "Dictionary too old for this version of TokuFT";
         case TOKUDB_DICTIONARY_TOO_NEW:
-            return "Dictionary too new for this version of TokuDB";
+            return "Dictionary too new for this version of TokuFT";
         case TOKUDB_CANCELED:
             return "User cancelled operation";
         case TOKUDB_NO_DATA:
             return "Ran out of data (not EOF)";
         case TOKUDB_HUGE_PAGES_ENABLED:
-            return "Transparent huge pages are enabled but TokuDB's memory allocator will oversubscribe main memory with transparent huge pages.  This check can be disabled by setting the environment variable TOKU_HUGE_PAGES_OK.";
+            return "Transparent huge pages are enabled but TokuFT's memory allocator will oversubscribe main memory with transparent huge pages.  This check can be disabled by setting the environment variable TOKU_HUGE_PAGES_OK.";
     }
 
     static char unknown_result[100];    // Race condition if two threads call this at the same time. However even in a bad case, it should be some sort of null-terminated string.

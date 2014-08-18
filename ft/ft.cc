@@ -1090,8 +1090,6 @@ void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space) {
 #error
 #endif
 
-
-
 #define xstr(X) str(X)
 #define str(X) #X
 #define static_version_string xstr(DB_VERSION_MAJOR) "." \
@@ -1101,10 +1099,9 @@ void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space) {
 struct toku_product_name_strings_struct toku_product_name_strings;
 
 char toku_product_name[TOKU_MAX_PRODUCT_NAME_LENGTH];
-void
-tokudb_update_product_name_strings(void) {
-    //DO ALL STRINGS HERE.. maybe have a separate FT layer version as well
-    { // Version string
+void tokuft_update_product_name_strings(void) {
+    // DO ALL STRINGS HERE.. maybe have a separate FT layer version as well
+    {
         int n = snprintf(toku_product_name_strings.db_version,
                          sizeof(toku_product_name_strings.db_version),
                          "%s %s", toku_product_name, static_version_string);
@@ -1156,7 +1153,7 @@ toku_single_process_lock(const char *lock_dir, const char *which, int *lockfd) {
     *lockfd = toku_os_lock_file(lockfname);
     if (*lockfd < 0) {
         int e = get_error_errno();
-        fprintf(stderr, "Couldn't start tokudb because some other tokudb process is using the same directory [%s] for [%s]\n", lock_dir, which);
+        fprintf(stderr, "Couldn't start tokuft because some other tokuft process is using the same directory [%s] for [%s]\n", lock_dir, which);
         return e;
     }
     return 0;
@@ -1174,10 +1171,10 @@ toku_single_process_unlock(int *lockfd) {
     return 0;
 }
 
-int tokudb_num_envs = 0;
+int tokuft_num_envs = 0;
 int
 db_env_set_toku_product_name(const char *name) {
-    if (tokudb_num_envs > 0) {
+    if (tokuft_num_envs > 0) {
         return EINVAL;
     }
     if (!name || strlen(name) < 1) {
@@ -1188,7 +1185,7 @@ db_env_set_toku_product_name(const char *name) {
     }
     if (strncmp(toku_product_name, name, sizeof(toku_product_name))) {
         strcpy(toku_product_name, name);
-        tokudb_update_product_name_strings();
+        tokuft_update_product_name_strings();
     }
     return 0;
 }
