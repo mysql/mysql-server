@@ -514,7 +514,9 @@ typedef struct PSI_table_locker* (*start_table_io_wait_v1_t)
    enum PSI_table_io_operation op,
    uint index,
    const char *src_file, uint src_line);
-typedef void (*end_table_io_wait_v1_t)(struct PSI_table_locker *locker);
+typedef void (*end_table_io_wait_v1_t)
+  (struct PSI_table_locker *locker,
+   ulonglong numrows);
 typedef struct PSI_table_locker* (*start_table_lock_wait_v1_t)
   (struct PSI_table_locker_state_v1 *state,
    struct PSI_table *table,

@@ -1722,8 +1722,14 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
 
   if (qep_tab->first_unmatched == NO_PLAN_IDX)
   {
+    const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
+    if (pfs_batch_update)
+      qep_tab->table()->file->start_psi_batch_mode();
     /* Find all records from join_tab that match records from join buffer */
-    rc= join_matching_records(skip_last);   
+    rc= join_matching_records(skip_last);
+    if (pfs_batch_update)
+      qep_tab->table()->file->end_psi_batch_mode();
+
     if (rc != NESTED_LOOP_OK)
       goto finish;
     if (outer_join_first_inner)

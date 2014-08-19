@@ -2072,20 +2072,66 @@ public:
 
   /**
     Instrumented table associated with this handler.
-    This member should be set to NULL when no instrumentation is in place,
-    so that linking an instrumented/non instrumented server/plugin works.
-    For example:
-    - the server is compiled with the instrumentation.
-    The server expects either NULL or valid pointers in m_psi.
-    - an engine plugin is compiled without instrumentation.
-    The plugin can not leave this pointer uninitialized,
-    or can not leave a trash value on purpose in this pointer,
-    as this would crash the server.
   */
   PSI_table *m_psi;
 
+private:
+#ifdef HAVE_PSI_TABLE_INTERFACE
+
+  /** Internal state of the batch instrumentation. */
+  enum batch_mode_t
+  {
+    /** Batch mode not used. */
+    PSI_BATCH_MODE_NONE,
+    /** Batch mode used, before first table io. */
+    PSI_BATCH_MODE_STARTING,
+    /** Batch mode used, after first table io. */
+    PSI_BATCH_MODE_STARTED
+  };
+
+  /**
+    Batch mode state.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  batch_mode_t m_psi_batch_mode;
+  /**
+    The number of rows in the batch.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  ulonglong m_psi_numrows;
+  /**
+    The current event in a batch.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  PSI_table_locker *m_psi_locker;
+  /**
+    Storage for the event in a batch.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  PSI_table_locker_state m_psi_locker_state;
+#endif
+
+public:
   virtual void unbind_psi();
   virtual void rebind_psi();
+  /**
+    Put the handler in 'batch' mode when collecting
+    table io instrumented events.
+    When operating in batch mode:
+    - a single start event is generated in the performance schema.
+    - all table io performed between @c start_psi_batch_mode
+      and @c end_psi_batch_mode is not instrumented:
+      the number of rows affected is counted instead in @c m_psi_numrows.
+    - a single end event is generated in the performance schema
+      when the batch mode ends with @c end_psi_batch_mode.
+  */
+  void start_psi_batch_mode();
+  /** End a batch started with @c start_psi_batch_mode. */
+  void end_psi_batch_mode();
 
 private:
   friend class DsMrr_impl;
@@ -2115,7 +2161,13 @@ public:
     pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    m_psi(NULL), m_lock_type(F_UNLCK), ha_share(NULL)
+    m_psi(NULL),
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    m_psi_batch_mode(PSI_BATCH_MODE_NONE),
+    m_psi_numrows(0),
+    m_psi_locker(NULL),
+#endif
+    m_lock_type(F_UNLCK), ha_share(NULL)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
@@ -2123,6 +2175,11 @@ public:
     }
   virtual ~handler(void)
   {
+    DBUG_ASSERT(m_psi == NULL);
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
+    DBUG_ASSERT(m_psi_locker == NULL);
+#endif
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
