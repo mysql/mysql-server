@@ -1484,7 +1484,7 @@ convert_error_code_to_mysql(
 		return(0);
 
 	case DB_INTERRUPTED:
-                thd_set_kill_status(thd ? thd : current_thd);
+		thd_set_kill_status(thd != NULL ? thd : current_thd);
 		return(-1);
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
@@ -2519,7 +2519,7 @@ innobase_query_caching_of_table_permitted(
 				retrieve it */
 	char*	full_name,	/*!< in: normalized path to the table */
 	uint	full_name_len,	/*!< in: length of the normalized path
-                                to the table */
+				to the table */
 	ulonglong *unused)	/*!< unused for this engine */
 {
 	bool	is_autocommit;
@@ -3197,7 +3197,7 @@ innobase_change_buffering_inited_ok:
 			/* The user has not set the value. We should
 			set it based on innodb_io_capacity. */
 			srv_max_io_capacity =
-				(ulong) ut_max(2 * srv_io_capacity, 2000);
+				ut_max(2 * srv_io_capacity, 2000UL);
 		}
 
 	} else if (srv_max_io_capacity < srv_io_capacity) {
@@ -4106,14 +4106,12 @@ innobase_close_thd(
 ** InnoDB database tables
 *****************************************************************************/
 
-/****************************************************************//**
-Get the record format from the data dictionary.
+/** Get the record format from the data dictionary.
 @return one of ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
 ROW_TYPE_COMPRESSED, ROW_TYPE_DYNAMIC */
 
 enum row_type
 ha_innobase::get_row_type() const
-/*=============================*/
 {
 	if (m_prebuilt && m_prebuilt->table) {
 		const ulint	flags = m_prebuilt->table->flags;
@@ -7692,16 +7690,18 @@ ha_innobase::index_read(
 		srv_stats.n_rows_read.add(
 			thd_get_thread_id(m_prebuilt->trx->mysql_thd), 1);
 		break;
+
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
 		table->status = STATUS_NOT_FOUND;
 		break;
+
 	case DB_END_OF_INDEX:
 		error = HA_ERR_KEY_NOT_FOUND;
 		table->status = STATUS_NOT_FOUND;
 		break;
-	case DB_TABLESPACE_DELETED:
 
+	case DB_TABLESPACE_DELETED:
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_DISCARDED,
@@ -7710,16 +7710,17 @@ ha_innobase::index_read(
 		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
-	case DB_TABLESPACE_NOT_FOUND:
 
+	case DB_TABLESPACE_NOT_FOUND:
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			ER_TABLESPACE_MISSING, MYF(0),
+			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
 		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
+
 	default:
 		error = convert_error_code_to_mysql(
 			ret, m_prebuilt->table->flags, m_user_thd);
@@ -8010,7 +8011,6 @@ ha_innobase::general_fetch(
 		table->status = STATUS_NOT_FOUND;
 		break;
 	case DB_TABLESPACE_DELETED:
-
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_DISCARDED,
@@ -8020,7 +8020,6 @@ ha_innobase::general_fetch(
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
 	case DB_TABLESPACE_NOT_FOUND:
-
 		ib_senderrf(
 			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_MISSING,
@@ -8735,27 +8734,29 @@ create_table_check_doc_id_col(
 	return(false);
 }
 
-/*****************************************************************//**
-Creates a table definition to an InnoDB database. */
+/** Creates a table definition to an InnoDB database.
+@param[in,out]	trx		Dictionary transaction
+@param[in]	form		Information on table columns and indexes
+@param[in]	table_name	Table name
+@param[in]	temp_path	If this is a table explicitly created by
+the user with the TEMPORARY keyword, then this parameter is the dir path
+where the table should be placed if we create an .ibd file for it.
+(But there is no .ibd extension in the path). Otherwise this is a
+valid pointer to a zero length-string
+@param[in]	remote_path	Remote path or zero length-string.
+@param[in]	flags		Table flags
+@param[in]	flags2		Table flags2
+@return ER_* level error */
 static __attribute__((warn_unused_result))
 int
 create_table_def(
-/*=============*/
-	trx_t*		trx,		/*!< in: InnoDB transaction handle */
-	const TABLE*	form,		/*!< in: information on table
-					columns and indexes */
-	const char*	table_name,	/*!< in: table name */
-	const char*	temp_path,	/*!< in: if this is a table explicitly
-					created by the user with the
-					TEMPORARY keyword, then this
-					parameter is the dir path where the
-					table should be placed if we create
-					an .ibd file for it (no .ibd extension
-					in the path, though). Otherwise this
-					is a zero length-string */
-	const char*	remote_path,	/*!< in: Remote path or zero length-string */
-	ulint		flags,		/*!< in: table flags */
-	ulint		flags2)		/*!< in: table flags2 */
+	trx_t*		trx,
+	const TABLE*	form,
+	const char*	table_name,
+	const char*	temp_path,
+	const char*	remote_path,
+	ulint		flags,
+	ulint		flags2)
 {
 	THD*		thd = trx->mysql_thd;
 	dict_table_t*	table;
@@ -9251,14 +9252,13 @@ create_clustered_index_when_no_primary(
 	return(convert_error_code_to_mysql(error, flags, NULL));
 }
 
-/*****************************************************************//**
-Return a display name for the row format
+/** Return a display name for the row format
+@param[in]	row_format	Row Format
 @return row format name */
 
 const char*
 get_row_format_name(
-/*================*/
-	enum row_type	row_format)		/*!< in: Row Format */
+	enum row_type	row_format)
 {
 	switch (row_format) {
 	case ROW_TYPE_COMPACT:
@@ -9281,8 +9281,8 @@ get_row_format_name(
 }
 
 /** If file-per-table is missing, issue warning and set ret false */
-#define CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(use_file_per_table)	\
-	if (!use_file_per_table) {					\
+#define CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(file_per_table)	\
+	if (!file_per_table) {					\
 		push_warning_printf(					\
 			thd, Sql_condition::SL_WARNING,			\
 			ER_ILLEGAL_HA_CREATE_OPTION,			\
@@ -9313,14 +9313,14 @@ create_option_data_directory_is_valid(
 /*==================================*/
 	THD*		thd,		/*!< in: connection thread. */
 	HA_CREATE_INFO*	create_info,	/*!< in: create info. */
-	bool		use_file_per_table)	/*!< in: srv_file_per_table */
+	bool		file_per_table)	/*!< in: srv_file_per_table */
 {
 	bool		is_valid = true;
 
 	ut_ad(create_info->data_file_name);
 
 	/* Use DATA DIRECTORY only with file-per-table. */
-	if (!use_file_per_table) {
+	if (!file_per_table) {
 		push_warning(
 			thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9354,10 +9354,10 @@ create_options_are_invalid(
 /*=======================*/
 	THD*		thd,		/*!< in: connection thread. */
 	HA_CREATE_INFO*	create_info,	/*!< in: create info. */
-	bool		use_file_per_table)	/*!< in: srv_file_per_table */
+	bool		file_per_table)	/*!< in: srv_file_per_table */
 {
 	ibool	kbs_specified	= FALSE;
-	const char*	ret	= NULL;
+	const char*	ret = NULL;
 	enum row_type	row_format	= create_info->row_type;
 
 	ut_ad(thd != NULL);
@@ -9380,7 +9380,7 @@ create_options_are_invalid(
 		case 8:
 		case 16:
 			/* Valid KEY_BLOCK_SIZE, check its dependencies. */
-			if (!use_file_per_table) {
+			if (!file_per_table) {
 				push_warning(
 					thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9430,13 +9430,13 @@ create_options_are_invalid(
 	other incompatibilities. */
 	switch (row_format) {
 	case ROW_TYPE_COMPRESSED:
-		CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(use_file_per_table);
+		CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(file_per_table);
 		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
 		break;
 	case ROW_TYPE_DYNAMIC:
 		if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 			CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(
-				use_file_per_table);
+				file_per_table);
 		}
 		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
 		/* fall through since dynamic also shuns KBS */
@@ -9459,7 +9459,7 @@ create_options_are_invalid(
 	case ROW_TYPE_NOT_USED:
 		push_warning(
 			thd, Sql_condition::SL_WARNING,
-			ER_ILLEGAL_HA_CREATE_OPTION,		\
+			ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: invalid ROW_FORMAT specifier.");
 		ret = "ROW_TYPE";
 		break;
@@ -9467,7 +9467,7 @@ create_options_are_invalid(
 
 	if (create_info->data_file_name
 	    && !create_option_data_directory_is_valid(
-		    thd, create_info, use_file_per_table)) {
+		    thd, create_info, file_per_table)) {
 		ret = "DATA DIRECTORY";
 	}
 
@@ -9540,7 +9540,7 @@ ha_innobase::parse_table_name(
 	char*		remote_path)	/*!< out: remote path of table */
 {
 	THD*		thd = ha_thd();
-	bool		use_file_per_table =
+	bool		file_per_table =
 				!!(flags2 & DICT_TF2_USE_FILE_PER_TABLE);
 
 	DBUG_ENTER("ha_innobase::parse_table_name");
@@ -9557,7 +9557,7 @@ ha_innobase::parse_table_name(
 	returns error if it is in full path format, but not creating a temp.
 	table. Currently InnoDB does not support symbolic link on Windows. */
 
-	if (use_file_per_table
+	if (file_per_table
 	    && !mysqld_embedded
 	    && !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 
@@ -9584,7 +9584,7 @@ ha_innobase::parse_table_name(
 	/* Make sure DATA DIRECTORY is compatible with other options. */
 	if (create_info->data_file_name) {
 		if (!create_option_data_directory_is_valid(
-			    thd,create_info,use_file_per_table)) {
+			    thd, create_info, file_per_table)) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				WARN_OPTION_IGNORED,
@@ -9607,21 +9607,25 @@ ha_innobase::parse_table_name(
 	DBUG_RETURN(0);
 }
 
-/*****************************************************************//**
-Determines InnoDB table flags.
+/** Determines InnoDB table flags.
+If strict_mode=OFF, this will adjust the flags to what should be assumed.
+@param[in]	form		Table information from MySQL
+@param[in]	create_info	Create information from MySQL describing
+				columns and indexes.
+@param[in]	thd		Connection information from MySQL
+@param[in]	file_per_table	Whether to create a single-table tablespace.
+@param[out]	flags		DICT_TF flags
+@param[out]	flags2		DICT_TF2 flags
 @retval true if successful, false if error */
 
 bool
 innobase_table_flags(
-/*=================*/
-	const TABLE*		form,		/*!< in: table */
-	const HA_CREATE_INFO*	create_info,	/*!< in: information
-						on table columns and indexes */
-	THD*			thd,		/*!< in: connection */
-	bool			use_file_per_table,/*!< in: whether to create
-						outside system tablespace */
-	ulint*			flags,		/*!< out: DICT_TF flags */
-	ulint*			flags2)		/*!< out: DICT_TF2 flags */
+	const TABLE*		form,
+	const HA_CREATE_INFO*	create_info,
+	THD*			thd,
+	bool			file_per_table,
+	ulint*			flags,
+	ulint*			flags2)
 {
 	DBUG_ENTER("innobase_table_flags");
 
@@ -9631,6 +9635,9 @@ innobase_table_flags(
 	enum row_type	row_format;
 	rec_format_t	innodb_row_format = REC_FORMAT_COMPACT;
 	bool		use_data_dir;
+	const ulint	zip_ssize_max =
+		ut_min(static_cast<ulint>(UNIV_PAGE_SSIZE_MAX),
+		       static_cast<ulint>(PAGE_ZIP_SSIZE_MAX));
 
 	/* Cache the value of innodb_file_format, in case it is
 	modified by another thread while the table is being created. */
@@ -9660,7 +9667,7 @@ innobase_table_flags(
 		} else if (key->flags & HA_SPATIAL) {
 			if (create_info->options & HA_LEX_CREATE_TMP_TABLE
 			    && THDVAR(thd, create_intrinsic)
-			    && !use_file_per_table) {
+			    && !file_per_table) {
 				my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 				DBUG_RETURN(false);
 			}
@@ -9694,8 +9701,7 @@ index_bad:
 		ulint zssize;		/* Zip Shift Size */
 		ulint kbsize;		/* Key Block Size */
 		for (zssize = kbsize = 1;
-		     zssize <= ut_min(UNIV_PAGE_SSIZE_MAX,
-				      PAGE_ZIP_SSIZE_MAX);
+		     zssize <= zip_ssize_max;
 		     zssize++, kbsize <<= 1) {
 			if (kbsize == create_info->key_block_size) {
 				zip_ssize = zssize;
@@ -9704,7 +9710,7 @@ index_bad:
 		}
 
 		/* Make sure compressed row format is allowed. */
-		if (!use_file_per_table) {
+		if (!file_per_table) {
 			push_warning(
 				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9723,8 +9729,7 @@ index_bad:
 		}
 
 		if (!zip_allowed
-		    || zssize > ut_min(UNIV_PAGE_SSIZE_MAX,
-				       PAGE_ZIP_SSIZE_MAX)) {
+		    || zssize > zip_ssize_max) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9761,8 +9766,7 @@ index_bad:
 			/* ROW_FORMAT=COMPRESSED without KEY_BLOCK_SIZE
 			implies half the maximum KEY_BLOCK_SIZE(*1k) or
 			UNIV_PAGE_SIZE, whichever is less. */
-			zip_ssize = ut_min(UNIV_PAGE_SSIZE_MAX,
-					   PAGE_ZIP_SSIZE_MAX) - 1;
+			zip_ssize = zip_ssize_max - 1;
 		}
 	}
 
@@ -9775,10 +9779,10 @@ index_bad:
 
 	case ROW_TYPE_COMPRESSED:
 	case ROW_TYPE_DYNAMIC:
-		/* Check for use_file_per_table only if
+		/* Check for file_per_table only if
 		row_format = compressed (temp + non_temp table)
 		row_format = dynamic (non_temp table) */
-		if ((!use_file_per_table
+		if ((!file_per_table
 		     && (row_format == ROW_TYPE_COMPRESSED
 			 || (row_format == ROW_TYPE_DYNAMIC && !is_temp)))) {
 			push_warning_printf(
@@ -9816,15 +9820,17 @@ index_bad:
 		break;
 	}
 
-	/* Set the table flags */
 	if (!zip_allowed) {
 		zip_ssize = 0;
 	}
 
-	use_data_dir = use_file_per_table
+	/* DATA DIRECTORY cannot be used with INNODB_FILE_PER_TABLE = OFF
+	nor with TEMPORARY tables. */
+	use_data_dir = file_per_table
 		       && ((create_info->data_file_name != NULL)
 		       && !(create_info->options & HA_LEX_CREATE_TMP_TABLE));
 
+	/* Set the table flags */
 	dict_tf_set(flags, innodb_row_format, zip_ssize, use_data_dir);
 
 	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
@@ -9833,12 +9839,12 @@ index_bad:
 		/* Intrinsic table reside only in shared temporary tablespace.*/
 		if ((THDVAR(thd, create_intrinsic)
 		     || create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)
-		    && !use_file_per_table) {
+		    && !file_per_table) {
 			*flags2 |= DICT_TF2_INTRINSIC;
 		}
 	}
 
-	if (use_file_per_table) {
+	if (file_per_table) {
 		*flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
 	}
 
@@ -9908,7 +9914,7 @@ ha_innobase::create(
 	dict_table_t*	innobase_table = NULL;
 	const char*	stmt;
 	size_t		stmt_len;
-	bool		use_file_per_table;
+	bool		file_per_table;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -9920,14 +9926,14 @@ ha_innobase::create(
 	is not under dict_sys mutex protection, and could be changed
 	while creating the table. So we read the current value here
 	and make all further decisions based on this. */
-	use_file_per_table = srv_file_per_table;
+	file_per_table = srv_file_per_table;
 
 	/* Ignore file-per-table if using a temporary, non-compressed
 	table. */
-	if (use_file_per_table
+	if (file_per_table
 		&& innobase_table_is_noncompressed_temporary(
-			create_info, use_file_per_table)) {
-		use_file_per_table = false;
+			create_info, file_per_table)) {
+		file_per_table = false;
 	}
 
 	if (form->s->fields > REC_MAX_N_USER_FIELDS) {
@@ -9938,13 +9944,13 @@ ha_innobase::create(
 
 	/* Validate create options if innodb_strict_mode is set. */
 	if (create_options_are_invalid(
-			thd, create_info, use_file_per_table)) {
+			thd, create_info, file_per_table)) {
 		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
 	}
 
 	/* Create the table flags and flags2 */
 	if (!innobase_table_flags(form, create_info,
-				  thd, use_file_per_table,
+				  thd, file_per_table,
 				  &flags, &flags2)) {
 		DBUG_RETURN(-1);
 	}
@@ -12437,7 +12443,7 @@ ha_innobase::get_foreign_key_list(
 
 	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 
 	for (dict_foreign_set::iterator it
 		= m_prebuilt->table->foreign_set.begin();
@@ -12454,7 +12460,7 @@ ha_innobase::get_foreign_key_list(
 		}
 	}
 
-	mutex_exit(&(dict_sys->mutex));
+	mutex_exit(&dict_sys->mutex);
 
 	m_prebuilt->trx->op_info = "";
 
@@ -12479,7 +12485,7 @@ ha_innobase::get_parent_foreign_key_list(
 
 	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 
 	for (dict_foreign_set::iterator it
 		= m_prebuilt->table->referenced_set.begin();
@@ -12496,7 +12502,7 @@ ha_innobase::get_parent_foreign_key_list(
 		}
 	}
 
-	mutex_exit(&(dict_sys->mutex));
+	mutex_exit(&dict_sys->mutex);
 
 	m_prebuilt->trx->op_info = "";
 
@@ -14042,7 +14048,9 @@ ha_innobase::register_query_cache_table(
 	*call_back = innobase_query_caching_of_table_permitted;
 
 	return(innobase_query_caching_of_table_permitted(
-			thd, table_key, key_length, engine_data));
+			thd, table_key,
+			static_cast<uint>(key_length),
+			engine_data));
 }
 
 /******************************************************************//**
@@ -16564,7 +16572,7 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment,
   NULL, NULL, 64L, 1L, 1000L, 0);
 
 /* If the default value of innodb_buffer_pool_size is increased to be more than
-BUF_POOL_SIZE_THRESHOLD (srv/srv0start.cc), then SRV_BUF_POOL_INSTANCES_NOT_SET
+BUF_POOL_SIZE_THRESHOLD (srv/srv0start.cc), then srv_buf_pool_instances_default
 can be removed and 8 used instead. The problem with the current setup is that
 with 128MiB default buffer pool size and 8 instances by default we would emit
 a warning when no options are specified. */
@@ -16572,7 +16580,8 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, innodb_buffer_pool_size_update,
-  128*1024*1024L, SRV_BUF_POOL_MIN_SIZE, LONGLONG_MAX, 1024*1024L);
+  128*1024*1024L, static_cast<longlong>(srv_buf_pool_min_size),
+  LONGLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -16597,7 +16606,7 @@ static MYSQL_SYSVAR_ULONG(doublewrite_batch_size, srv_doublewrite_batch_size,
 static MYSQL_SYSVAR_ULONG(buffer_pool_instances, srv_buf_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
-  NULL, NULL, SRV_BUF_POOL_INSTANCES_NOT_SET, 0, MAX_BUFFER_POOLS, 0);
+  NULL, NULL, srv_buf_pool_instances_default, 0, MAX_BUFFER_POOLS, 0);
 
 static MYSQL_SYSVAR_STR(buffer_pool_filename, srv_buf_dump_filename,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,

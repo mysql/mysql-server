@@ -261,7 +261,7 @@ void
 dict_mutex_enter_for_mysql(void)
 /*============================*/
 {
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 }
 
 /********************************************************************//**
@@ -271,7 +271,7 @@ void
 dict_mutex_exit_for_mysql(void)
 /*===========================*/
 {
-	mutex_exit(&(dict_sys->mutex));
+	mutex_exit(&dict_sys->mutex);
 }
 
 /** Allocate and init a dict_table_t's stats latch.
@@ -1056,7 +1056,7 @@ dict_table_open_on_name(
 	DBUG_PRINT("dict_table_open_on_name", ("table: '%s'", table_name));
 
 	if (!dict_locked) {
-		mutex_enter(&(dict_sys->mutex));
+		mutex_enter(&dict_sys->mutex);
 	}
 
 	ut_ad(table_name);
@@ -1206,7 +1206,7 @@ dict_table_add_to_cache(
 	ulint	id_fold;
 
 	ut_ad(dict_lru_validate());
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	dict_table_add_system_columns(table, heap);
 
@@ -1519,7 +1519,7 @@ dict_table_rename_in_cache(
 	ulint		fold;
 	char		old_name[MAX_FULL_NAME_LEN + 1];
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* store the old/current name to an automatic variable */
 	if (strlen(table->name) + 1 <= sizeof(old_name)) {
@@ -1916,7 +1916,7 @@ dict_table_change_id_in_cache(
 	table_id_t	new_id)	/*!< in: new id to set */
 {
 	ut_ad(table);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Remove the table from the hash table of id's */
@@ -1948,7 +1948,7 @@ dict_table_remove_from_cache_low(
 	ut_ad(dict_lru_validate());
 	ut_a(table->n_ref_count == 0);
 	ut_a(table->n_rec_locks == 0);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Remove the foreign constraints from the cache */
@@ -2504,7 +2504,7 @@ dict_index_add_to_cache(
 	ulint		i;
 
 	ut_ad(index);
-	ut_ad(mutex_own(&(dict_sys->mutex)) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 	ut_ad(index->n_def == index->n_fields);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(!dict_index_is_online_ddl(index));
@@ -2729,7 +2729,7 @@ dict_index_remove_from_cache_low(
 	ut_ad(table && index);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* No need to acquire the dict_index_t::lock here because
 	there can't be any active operations on this index (or table). */
@@ -2830,7 +2830,7 @@ dict_index_find_cols(
 
 	ut_ad(table != NULL && index != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-	ut_ad(mutex_own(&(dict_sys->mutex)) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 
 	for (ulint i = 0; i < index->n_fields; i++) {
 		ulint		j;
@@ -3069,7 +3069,7 @@ dict_index_build_internal_clust(
 
 	ut_ad(table && index);
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(mutex_own(&(dict_sys->mutex)) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Create a new index object with certainly enough fields */
@@ -3242,7 +3242,7 @@ dict_index_build_internal_non_clust(
 
 	ut_ad(table && index);
 	ut_ad(!dict_index_is_clust(index));
-	ut_ad(mutex_own(&(dict_sys->mutex)) || dict_table_is_intrinsic(table));
+	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* The clustered index should be the first in the list of indexes */
@@ -3336,7 +3336,7 @@ dict_index_build_internal_fts(
 	ut_ad(table && index);
 	ut_ad(index->type == DICT_FTS);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
@@ -3456,7 +3456,7 @@ dict_foreign_remove_from_cache(
 /*===========================*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign constraint */
 {
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_a(foreign);
 
 	if (foreign->referenced_table != NULL) {
@@ -3481,7 +3481,7 @@ dict_foreign_find(
 	dict_table_t*	table,		/*!< in: table object */
 	dict_foreign_t*	foreign)	/*!< in: foreign constraint */
 {
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	ut_ad(dict_foreign_set_validate(table->foreign_set));
 	ut_ad(dict_foreign_set_validate(table->referenced_set));
@@ -3624,7 +3624,7 @@ dict_foreign_add_to_cache(
 	DBUG_ENTER("dict_foreign_add_to_cache");
 	DBUG_PRINT("dict_foreign_add_to_cache", ("id: %s", foreign->id));
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	for_table = dict_table_check_if_in_cache_low(
 		foreign->foreign_table_name_lookup);
@@ -4435,7 +4435,7 @@ dict_create_foreign_constraints_low(
 	dict_foreign_set_free	local_fk_set_free(local_fk_set);
 
 	ut_ad(!srv_read_only_mode || handler);
-	ut_ad(mutex_own(&(dict_sys->mutex)) || handler);
+	ut_ad(mutex_own(&dict_sys->mutex) || handler);
 
 	if (handler == NULL) {
 		table = dict_table_get_low(name);
@@ -5083,7 +5083,7 @@ dict_foreign_parse_drop_constraints(
 
 	ptr = str;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 loop:
 	ptr = dict_scan_to(ptr, "DROP");
 
@@ -5187,7 +5187,7 @@ dict_index_get_if_in_cache_low(
 /*===========================*/
 	index_id_t	index_id)	/*!< in: index id */
 {
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	return(dict_index_find_on_id_low(index_id));
 }
@@ -5208,11 +5208,11 @@ dict_index_get_if_in_cache(
 		return(NULL);
 	}
 
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 
 	index = dict_index_get_if_in_cache_low(index_id);
 
-	mutex_exit(&(dict_sys->mutex));
+	mutex_exit(&dict_sys->mutex);
 
 	return(index);
 }
@@ -5530,7 +5530,7 @@ dict_print_info_on_foreign_keys(
 {
 	dict_foreign_t*	foreign;
 
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 
 	for (dict_foreign_set::iterator it = table->foreign_set.begin();
 	     it != table->foreign_set.end();
@@ -5596,7 +5596,7 @@ dict_print_info_on_foreign_keys(
 		}
 	}
 
-	mutex_exit(&(dict_sys->mutex));
+	mutex_exit(&dict_sys->mutex);
 }
 
 /********************************************************************//**

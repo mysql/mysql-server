@@ -360,11 +360,12 @@ limit both with this same constant. */
 /** Largest compressed page size */
 #define UNIV_ZIP_SIZE_MAX	(1 << UNIV_ZIP_SIZE_SHIFT_MAX)
 
-/** Largest possible ssize (The convention 'ssize' is used
-for 'log2 minus 9' or the number of shifts starting with 512.)
+/** Largest possible ssize for an uncompressed page.
+(The convention 'ssize' is used for 'log2 minus 9' or the number of
+shifts starting with 512.)
 This max number varies depending on UNIV_PAGE_SIZE. */
 #define UNIV_PAGE_SSIZE_MAX					\
-	(UNIV_PAGE_SIZE_SHIFT - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
+	static_cast<ulint>(UNIV_PAGE_SIZE_SHIFT - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
 
 /** Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32
