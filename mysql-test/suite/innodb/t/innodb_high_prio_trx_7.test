@@ -195,8 +195,8 @@ DROP TABLES t1,t2;
 
 
 --echo # Scenario:5
---echo # Multiple high proi transaction at a same time.
---echo # Outcome : Transaction which is marked high prio first completes first and other high prio tnx get error
+--echo # Multiple concurrent high prio transactions with the same priority.
+--echo # Outcome : Transaction which is marked high prio first completes first and other high prio txn get error
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
@@ -206,40 +206,44 @@ INSERT INTO t1 VALUES (0);
 --connect(con3,localhost,root,,test)
 --connect(con4,localhost,root,,test)
 --connect(con5,localhost,root,,test)
+
 --connection con1
 --source include/start_transaction_high_prio.inc
-# statement rollback won't make tnx as non high prio
+# statement rollback won't make txn as non high prio
 --error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (0);
 UPDATE t1 SET c1=1 WHERE c1=0;
+
 --connection con2
 --source include/start_transaction_high_prio.inc
---echo # connection 2: dedalock on update - tnx rollback
+--echo # connection 2: dedalock on update - txn rollback
 INSERT INTO t1 VALUES (20);
 --error ER_LOCK_DEADLOCK
 UPDATE t1 SET c1=2 WHERE c1=0;
+
 --connection con3
 --source include/start_transaction_high_prio.inc
---echo # connection 3: dedalock on update - tnx rollback
+--echo # connection 3: dedalock on update - txn rollback
 INSERT INTO t1 VALUES (20);
 --error ER_LOCK_DEADLOCK
 DELETE FROM t1 WHERE c1=0;
 
 --connection con4
 --source include/start_transaction_high_prio.inc
---echo # connection 2: deadlock on insert as trying to insert same row - tnx rollback
+--echo # connection 2: deadlock on insert as trying to insert same row - txn rollback
 --error ER_LOCK_DEADLOCK
 INSERT INTO t1 VALUES (1);
+
 --connection con5
 --source include/start_transaction_high_prio.inc
---echo # connection 2: Insert goes but as it new row
+--echo # connection 5: Insert goes but as it new row
 INSERT INTO t1 VALUES (50);
 
 --connection con1
 COMMIT;
 INSERT INTO t1 VALUES (3);
 UPDATE t1 SET c1=4 WHERE c1=1;
-# Deadlock as con5 inserting same row and its tnx is not complete
+# Deadlock as con5 inserting same row and its txn is not complete
 --error ER_LOCK_DEADLOCK
 INSERT INTO t1 VALUES (50);
 
