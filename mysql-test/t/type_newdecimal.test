@@ -1670,3 +1670,17 @@ SELECT a FROM t1 GROUP BY 1 IN(1) INTO @b;
 DROP TABLE t1;
 
 SET sql_mode = default;
+
+--echo #
+--echo # Bug#18509896: 0.00000000042 MOD 10 = 0.42000000000
+--echo #
+
+CREATE TABLE t (id SERIAL, d DECIMAL(65,30));
+INSERT INTO t VALUES (),(),(),(),(),(),(),(),();
+INSERT INTO t VALUES (),(),(),(),(),(),(),(),();
+INSERT INTO t VALUES (),(),(),(),(),(),(),(),();
+UPDATE t SET d = CONCAT('1e-', id);
+SELECT d, d MOD 1 FROM t;
+DROP TABLE t;
+
+--echo # End of test for Bug#18509896
