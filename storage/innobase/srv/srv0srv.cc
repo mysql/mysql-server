@@ -191,28 +191,32 @@ srv_printf_innodb_monitor() will request mutex acquisition
 with mutex_enter(), which will wait until it gets the mutex. */
 #define MUTEX_NOWAIT(mutex_skipped)	((mutex_skipped) < MAX_MUTEX_NOWAIT)
 
-/* requested size in bytes */
+/** Requested size in bytes */
 ulint	srv_buf_pool_size	= ULINT_MAX;
+/** Minimum pool size in bytes */
+const ulint	srv_buf_pool_min_size	= 5 * 1024 * 1024;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
 ulong	srv_buf_pool_chunk_unit;
-/* requested number of buffer pool instances */
+/** Requested number of buffer pool instances */
 ulong	srv_buf_pool_instances;
-/* number of locks to protect buf_pool->page_hash */
+/** Default number of buffer pool instances */
+const ulong	srv_buf_pool_instances_default = 0;
+/** Number of locks to protect buf_pool->page_hash */
 ulong	srv_n_page_hash_locks = 16;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 ulong	srv_LRU_scan_depth	= 1024;
-/** whether or not to flush neighbors of a block */
+/** Whether or not to flush neighbors of a block */
 ulong	srv_flush_neighbors	= 1;
-/* previously requested size */
+/** Previously requested size */
 ulint	srv_buf_pool_old_size	= 0;
-/* current size as scaling factor for the other components */
+/** Current size as scaling factor for the other components */
 ulint	srv_buf_pool_base_size	= 0;
-/* current size in kilobytes */
+/** Current size in bytes */
 ulint	srv_buf_pool_curr_size	= 0;
-/* dump that may % of each buffer pool during BP dump */
+/** Dump this % of each buffer pool during BP dump */
 ulong	srv_buf_pool_dump_pct;
-/* size in bytes */
+/** Lock table size in bytes */
 ulint	srv_lock_table_size	= ULINT_MAX;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
@@ -2471,9 +2475,9 @@ srv_do_purge(
 		ulint	undo_trunc_freq =
 			purge_sys->undo_trunc.get_rseg_truncate_frequency();
 
-		ulint	rseg_truncate_frequency =
-			ut_min(srv_purge_rseg_truncate_frequency,
-			       undo_trunc_freq);
+		ulint	rseg_truncate_frequency = ut_min(
+			static_cast<ulint>(srv_purge_rseg_truncate_frequency),
+			undo_trunc_freq);
 
 		if (!(count++ % rseg_truncate_frequency)) {
 			/* Force a truncate of the history list. */

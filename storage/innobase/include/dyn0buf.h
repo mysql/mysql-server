@@ -61,10 +61,10 @@ public:
 		/**
 		Gets the number of used bytes in a block.
 		@return	number of bytes used */
-		ib_uint32_t  used() const
+		ulint used() const
 			__attribute__((warn_unused_result))
 		{
-			return(m_used & ~DYN_BLOCK_FULL_FLAG);
+			return(static_cast<ulint>(m_used & ~DYN_BLOCK_FULL_FLAG));
 		}
 
 		/**
@@ -117,7 +117,7 @@ public:
 			Type	ptr = reinterpret_cast<Type>(end());
 
 			m_used += size;
-			ut_ad(m_used <= ib_uint32_t(MAX_DATA_SIZE));
+			ut_ad(m_used <= static_cast<ib_uint32_t>(MAX_DATA_SIZE));
 
 			return(ptr);
 		}
@@ -131,7 +131,7 @@ public:
 			ut_ad(ptr <= begin() + m_buf_end);
 
 			/* We have done the boundary check above */
-			m_used = ib_uint32_t(ptr - begin());
+			m_used = static_cast<ib_uint32_t>(ptr - begin());
 
 			ut_ad(m_used <= MAX_DATA_SIZE);
 			ut_d(m_buf_end = 0);
@@ -162,7 +162,7 @@ public:
 		};
 
 		/** Storage */
-		byte            m_data[MAX_DATA_SIZE];
+		byte		m_data[MAX_DATA_SIZE];
 
 		/** Doubly linked list node. */
 		block_node_t	m_node;

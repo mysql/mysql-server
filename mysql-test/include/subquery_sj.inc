@@ -4173,7 +4173,8 @@ INSERT INTO t1 VALUES
 (15,2,'a','x'),
 (16,1,'d','d'),
 (17,8,'y','y'),
-(18,6,'t','u');
+(18,6,'t','u'),
+(19,6,'t','u');
 
 CREATE TABLE t2 (
   pk int NOT NULL,

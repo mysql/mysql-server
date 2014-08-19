@@ -131,7 +131,8 @@ trx_rsegf_undo_find_free(
 
 #ifdef UNIV_DEBUG
 	if (trx_rseg_n_slots_debug) {
-		max_slots = ut_min(trx_rseg_n_slots_debug, TRX_RSEG_N_SLOTS);
+		max_slots = ut_min(static_cast<ulint>(trx_rseg_n_slots_debug),
+				   static_cast<ulint>(TRX_RSEG_N_SLOTS));
 	}
 #endif
 

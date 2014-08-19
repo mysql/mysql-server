@@ -366,6 +366,15 @@ rtr_update_mbr_field(
 				goto update_mbr;
 			}
 
+			/* Record could be repositioned */
+			rec = btr_cur_get_rec(cursor);
+
+#ifdef UNIV_DEBUG
+			/* Make sure it is still the first record */
+			rec_info = rec_get_info_bits(
+					rec, rec_offs_comp(offsets));
+			ut_ad(rec_info & REC_INFO_MIN_REC_FLAG);
+#endif /* UNIV_DEBUG */
 		}
 
 		if (!rtr_update_mbr_field_in_place(index, rec,

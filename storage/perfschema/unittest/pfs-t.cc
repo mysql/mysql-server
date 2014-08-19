@@ -329,6 +329,20 @@ void test_bad_registration()
   ok(dummy_rwlock_key == 0, "zero key");
 
   dummy_rwlock_key= 9999;
+  PSI_rwlock_info bad_rwlock_2_sx[]=
+  {
+    { & dummy_rwlock_key,
+      /* 109 chars name */
+      "12345678901234567890123456789012345678901234567890"
+      "12345678901234567890123456789012345678901234567890"
+      "123456789",
+      PSI_RWLOCK_FLAG_SX}
+  };
+
+  psi->register_rwlock("Y", bad_rwlock_2_sx, 1);
+  ok(dummy_rwlock_key == 0, "zero key SX");
+
+  dummy_rwlock_key= 9999;
   PSI_rwlock_info bad_rwlock_3[]=
   {
     { & dummy_rwlock_key,
@@ -344,6 +358,23 @@ void test_bad_registration()
 
   psi->register_rwlock("X", bad_rwlock_3, 1);
   ok(dummy_rwlock_key == 2, "assigned key");
+
+  dummy_rwlock_key= 9999;
+  PSI_rwlock_info bad_rwlock_3_sx[]=
+  {
+    { & dummy_rwlock_key,
+      /* 108 chars name */
+      "12345678901234567890123456789012345678901234567890"
+      "12345678901234567890123456789012345678901234567890"
+      "12345678",
+      PSI_RWLOCK_FLAG_SX}
+  };
+
+  psi->register_rwlock("YY", bad_rwlock_3_sx, 1);
+  ok(dummy_rwlock_key == 0, "zero key SX");
+
+  psi->register_rwlock("Y", bad_rwlock_3_sx, 1);
+  ok(dummy_rwlock_key == 3, "assigned key SX");
 
   /*
     Test that length('wait/synch/cond/' (16) + category + '/' (1)) < 32
@@ -1822,7 +1853,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(229);
+  plan(232);
 
   MY_INIT("pfs-t");
   do_all_tests();
