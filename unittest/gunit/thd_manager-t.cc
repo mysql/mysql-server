@@ -288,6 +288,7 @@ TEST_F(ThreadManagerTest, ThreadID)
 #if !defined(DBUG_OFF)
 TEST_F(ThreadManagerTest, ThreadIDDeathTest)
 {
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   my_thread_id thread_id= thd_manager->get_new_thread_id();
   thd_manager->release_thread_id(thread_id);
   // Releasing the same ID twice should assert.

@@ -44,7 +44,7 @@
 #include "trigger_loader.h"   // Trigger_loader::trg_file_exists()
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"
-#include "sql_prepare.h"
+#include "sql_prepare.h"   // Reprepare_observer
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>

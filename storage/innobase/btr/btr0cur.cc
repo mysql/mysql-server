@@ -1683,13 +1683,12 @@ retry_page_get:
 				from level==leftmost_from_level. */
 				retrying_for_search_prev = true;
 
-				prev_tree_blocks
-					= static_cast<buf_block_t**>(
-						ut_malloc(sizeof(buf_block_t*)
+				prev_tree_blocks = static_cast<buf_block_t**>(
+					ut_malloc_nokey(sizeof(buf_block_t*)
 							* leftmost_from_level));
-				prev_tree_savepoints
-					= static_cast<ulint*>(
-						ut_malloc(sizeof(ulint)
+
+				prev_tree_savepoints = static_cast<ulint*>(
+					ut_malloc_nokey(sizeof(ulint)
 							* leftmost_from_level));
 
 				/* back to the level (leftmost_from_level+1) */
@@ -4479,7 +4478,7 @@ btr_cur_pessimistic_update(
 		}
 	}
 
-	if (big_rec_vec) {
+	if (big_rec_vec != NULL && !dict_table_is_intrinsic(index->table)) {
 		ut_ad(page_is_leaf(page));
 		ut_ad(dict_index_is_clust(index));
 		ut_ad(flags & BTR_KEEP_POS_FLAG);
@@ -4490,6 +4489,11 @@ btr_cur_pessimistic_update(
 		We must keep the index->lock when we created a
 		big_rec, so that row_upd_clust_rec() can store the
 		big_rec in the same mini-transaction. */
+
+		ut_ad(mtr_memo_contains_flagged(mtr,
+						dict_index_get_lock(index),
+						MTR_MEMO_X_LOCK |
+						MTR_MEMO_SX_LOCK));
 
 		mtr_sx_lock(dict_index_get_lock(index), mtr);
 	}

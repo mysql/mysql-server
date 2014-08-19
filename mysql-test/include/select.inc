@@ -4265,7 +4265,7 @@ DROP TABLE t1;
 --echo #
 --echo # Bug #57203 Assertion `field_length <= 255' failed.
 --echo #
-
+--error ER_WRONG_ARGUMENTS
 SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)"))))) 
 UNION ALL 
 SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)")))))
