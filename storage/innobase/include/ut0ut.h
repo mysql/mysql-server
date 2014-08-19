@@ -100,27 +100,9 @@ do {								\
 } while (0)
 #endif /* !UNIV_HOTBACKUP */
 
-template <class T> T ut_min(T a, T b) { return(a < b ? a : b); }
-template <class T> T ut_max(T a, T b) { return(a > b ? a : b); }
+#define ut_max	std::max
+#define ut_min	std::min
 
-/******************************************************//**
-Calculates the minimum of two ulints.
-@return minimum */
-UNIV_INLINE
-ulint
-ut_min(
-/*===*/
-	ulint	 n1,	/*!< in: first number */
-	ulint	 n2);	/*!< in: second number */
-/******************************************************//**
-Calculates the maximum of two ulints.
-@return maximum */
-UNIV_INLINE
-ulint
-ut_max(
-/*===*/
-	ulint	 n1,	/*!< in: first number */
-	ulint	 n2);	/*!< in: second number */
 /******************************************************//**
 Compares two ulints.
 @return 1 if a > b, 0 if a == b, -1 if a < b */

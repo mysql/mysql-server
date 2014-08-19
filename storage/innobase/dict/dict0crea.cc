@@ -287,7 +287,7 @@ dict_build_tablespace(
 	const char*	path;
 	mtr_t		mtr;
 	ulint		space = 0;
-	bool		use_file_per_table;
+	bool		file_per_table;
 
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 
@@ -302,7 +302,7 @@ dict_build_tablespace(
 
 	trx->table_id = table->id;
 
-	use_file_per_table = dict_table_use_file_per_table(table);
+	file_per_table = dict_table_use_file_per_table(table);
 
 	/* Always set this bit for all new created tables */
 	DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_AUX_HEX_NAME);
@@ -310,7 +310,7 @@ dict_build_tablespace(
 			DICT_TF2_FLAG_UNSET(table,
 					    DICT_TF2_FTS_AUX_HEX_NAME););
 
-	if (use_file_per_table) {
+	if (file_per_table) {
 		/* This table will not use the system tablespace.
 		Get a new space id. */
 		dict_hdr_get_new_id(NULL, NULL, &space, table, false);
@@ -420,7 +420,7 @@ dict_create_sys_indexes_tuple(
 	dfield_t*	dfield;
 	byte*		ptr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(index);
 	ut_ad(heap);
 
@@ -634,7 +634,7 @@ dict_build_index_def_step(
 	dtuple_t*	row;
 	trx_t*		trx;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	trx = thr_get_trx(thr);
 
@@ -752,7 +752,7 @@ dict_create_index_tree_step(
 	dict_table_t*	sys_indexes;
 	dtuple_t*	search_tuple;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	index = node->index;
 
@@ -887,7 +887,7 @@ dict_drop_index_tree(
 	ulint		space;
 	ulint		root_page_no;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
 
 	ptr = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__PAGE_NO, &len);
@@ -1279,7 +1279,7 @@ dict_create_table_step(
 	trx_t*		trx;
 
 	ut_ad(thr);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	trx = thr_get_trx(thr);
 
@@ -1382,7 +1382,7 @@ dict_create_index_step(
 	trx_t*		trx;
 
 	ut_ad(thr);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	trx = thr_get_trx(thr);
 
@@ -1890,7 +1890,7 @@ dict_create_add_foreigns_to_dictionary(
 	dict_foreign_t*	foreign;
 	dberr_t		error;
 
-	ut_ad(mutex_own(&(dict_sys->mutex))
+	ut_ad(mutex_own(&dict_sys->mutex)
 	      || dict_table_is_intrinsic(table));
 
 	if (dict_table_is_intrinsic(table)) {

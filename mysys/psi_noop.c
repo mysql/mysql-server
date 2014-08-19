@@ -388,7 +388,8 @@ start_table_io_wait_noop(struct PSI_table_locker_state_v1 *state NNN,
   return NULL;
 }
 
-static void end_table_io_wait_noop(PSI_table_locker* locker NNN)
+static void end_table_io_wait_noop(PSI_table_locker* locker NNN,
+                                   ulonglong numrows NNN)
 {
   return;
 }

@@ -558,7 +558,12 @@ enum PSI_mutex_operation
 };
 typedef enum PSI_mutex_operation PSI_mutex_operation;
 
-/** Operation performed on an instrumented rwlock. */
+/**
+  Operation performed on an instrumented rwlock.
+  For basic READ / WRITE lock,
+  operations are "READ" or "WRITE".
+  For SX-locks, operations are "SHARED", "SHARED-EXCLUSIVE" or "EXCLUSIVE".
+*/
 enum PSI_rwlock_operation
 {
   /** Read lock. */
@@ -568,7 +573,21 @@ enum PSI_rwlock_operation
   /** Read lock attempt. */
   PSI_RWLOCK_TRYREADLOCK= 2,
   /** Write lock attempt. */
-  PSI_RWLOCK_TRYWRITELOCK= 3
+  PSI_RWLOCK_TRYWRITELOCK= 3,
+
+  /** Shared lock. */
+  PSI_RWLOCK_SHAREDLOCK= 4,
+  /** Shared Exclusive lock. */
+  PSI_RWLOCK_SHAREDEXCLUSIVELOCK= 5,
+  /** Exclusive lock. */
+  PSI_RWLOCK_EXCLUSIVELOCK= 6,
+  /** Shared lock attempt. */
+  PSI_RWLOCK_TRYSHAREDLOCK= 7,
+  /** Shared Exclusive lock attempt. */
+  PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK= 8,
+  /** Exclusive lock attempt. */
+  PSI_RWLOCK_TRYEXCLUSIVELOCK= 9
+
 };
 typedef enum PSI_rwlock_operation PSI_rwlock_operation;
 
@@ -1810,8 +1829,11 @@ typedef struct PSI_table_locker* (*start_table_io_wait_v1_t)
 /**
   Record a table instrumentation io wait end event.
   @param locker a table locker for the running thread
+  @param numrows the number of rows involved in io
 */
-typedef void (*end_table_io_wait_v1_t)(struct PSI_table_locker *locker);
+typedef void (*end_table_io_wait_v1_t)
+  (struct PSI_table_locker *locker,
+   ulonglong numrows);
 
 /**
   Record a table instrumentation lock wait start event.

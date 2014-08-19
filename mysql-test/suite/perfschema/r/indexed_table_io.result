@@ -30,19 +30,19 @@ truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
 # Printing of 100 inserts per table is suppressed
 update performance_schema.setup_consumers set enabled='NO';
-select COUNT(*)
+select SUM(NUMBER_OF_BYTES)
 from performance_schema.events_waits_history_long
 where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'no_index_tab';
-COUNT(*)
+SUM(NUMBER_OF_BYTES)
 100
-select COUNT(*)
+select SUM(NUMBER_OF_BYTES)
 from performance_schema.events_waits_history_long
 where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'index_tab';
-COUNT(*)
+SUM(NUMBER_OF_BYTES)
 100
 select count(*) from test.no_index_tab;
 count(*)
@@ -56,12 +56,12 @@ select avg(a) from test.no_index_tab;
 avg(a)
 50.5000
 update performance_schema.setup_consumers set enabled='NO';
-select COUNT(*)
+select SUM(NUMBER_OF_BYTES)
 from performance_schema.events_waits_history_long
 where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'no_index_tab';
-COUNT(*)
+SUM(NUMBER_OF_BYTES)
 101
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
@@ -69,12 +69,12 @@ select avg(a) from test.index_tab;
 avg(a)
 50.5000
 update performance_schema.setup_consumers set enabled='NO';
-select COUNT(*)
+select SUM(NUMBER_OF_BYTES)
 from performance_schema.events_waits_history_long
 where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'index_tab';
-COUNT(*)
+SUM(NUMBER_OF_BYTES)
 101
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
@@ -82,12 +82,12 @@ select 1 as my_column from test.no_index_tab where a = 50;
 my_column
 1
 update performance_schema.setup_consumers set enabled='NO';
-select COUNT(*)
+select SUM(NUMBER_OF_BYTES)
 from performance_schema.events_waits_history_long
 where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'no_index_tab';
-COUNT(*)
+SUM(NUMBER_OF_BYTES)
 101
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
@@ -95,34 +95,34 @@ select 1 as my_column from test.index_tab where a = 50;
 my_column
 1
 update performance_schema.setup_consumers set enabled='NO';
-select COUNT(*)
+select SUM(NUMBER_OF_BYTES)
 from performance_schema.events_waits_history_long
 where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'index_tab';
-COUNT(*)
+SUM(NUMBER_OF_BYTES)
 1
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
 delete from test.no_index_tab where a = 51;
 update performance_schema.setup_consumers set enabled='NO';
-select COUNT(*)
+select SUM(NUMBER_OF_BYTES)
 from performance_schema.events_waits_history_long
 where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'no_index_tab';
-COUNT(*)
+SUM(NUMBER_OF_BYTES)
 102
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
 delete from test.index_tab where a = 51;
 update performance_schema.setup_consumers set enabled='NO';
-select COUNT(*)
+select SUM(NUMBER_OF_BYTES)
 from performance_schema.events_waits_history_long
 where event_name like 'wait/io/table/%'
 and object_schema = 'test'
 and object_name =  'index_tab';
-COUNT(*)
+SUM(NUMBER_OF_BYTES)
 2
 show status like 'performance_schema_%';
 Variable_name	Value
