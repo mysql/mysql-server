@@ -378,6 +378,14 @@ public:
   ulonglong get_master_log_pos() { return master_log_pos; };
   ulonglong set_master_log_pos(ulong val) { return master_log_pos= val; };
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
+  /*
+    When commit fails clear bitmap for executed worker group. Revert back the
+    positions to the old positions that existed before commit using the checkpoint.
+
+    @param Slave_job_group a pointer to Slave_job_group struct instance which
+    holds group master log pos, group relay log pos and checkpoint positions.
+  */
+  void rollback_positions(Slave_job_group *ptr_g);
   bool reset_recovery_info();
   /**
      Different from the parent method in that this does not delete
