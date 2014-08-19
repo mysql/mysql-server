@@ -671,6 +671,7 @@ SELECT 1;
 
 create table `t1` (`col002` point)engine=innodb;
 insert into t1 values (),(),();
+--error ER_WRONG_ARGUMENTS
 select min(`col002`) from t1 union select `col002` from t1;
 drop table t1;
 
