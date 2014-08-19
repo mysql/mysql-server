@@ -470,6 +470,8 @@ public:
   void push_index_cond(const JOIN_TAB *join_tab,
                        uint keyno, Opt_trace_object *trace_obj);
 
+  bool pfs_batch_update(JOIN *join);
+
 public:
   /// Pointer to table reference
   TABLE_LIST *table_ref;
