@@ -26,6 +26,7 @@ Created 2012-09-23 Sunny Bains
 #include "os0event.h"
 #include "ut0mutex.h"
 #include "ha_prototypes.h"
+#include "ut0new.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -83,8 +84,8 @@ static WakeConditionVariableProc wake_condition_variable;
 typedef pthread_cond_t		os_cond_t;
 #endif /* _WIN32 */
 
-typedef std::list<os_event_t> os_event_list_t;
-typedef os_event_list_t::iterator event_iter_t;
+typedef std::list<os_event_t, ut_allocator<os_event_t> >	os_event_list_t;
+typedef os_event_list_t::iterator				event_iter_t;
 
 /** InnoDB condition variable. */
 struct os_event {
@@ -618,7 +619,7 @@ os_event_create(
 						event, if NULL the event
 						is created without a name */
 {
-	return(new(std::nothrow) os_event(name));
+	return(UT_NEW_NOKEY(os_event(name)));
 }
 
 /**
@@ -708,9 +709,9 @@ os_event_destroy(
 	os_event_t&	event)			/*!< in/own: event to free */
 
 {
-	if (event != 0) {
-		delete event;
-		event = 0;
+	if (event != NULL) {
+		UT_DELETE(event);
+		event = NULL;
 	}
 }
 
