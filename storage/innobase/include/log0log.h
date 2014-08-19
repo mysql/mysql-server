@@ -154,6 +154,13 @@ UNIV_INLINE
 ib_uint64_t
 log_get_lsn(void);
 /*=============*/
+/************************************************************//**
+Gets the current lsn.
+@return	current lsn */
+UNIV_INLINE
+lsn_t
+log_get_lsn_nowait(void);
+/*=============*/
 /****************************************************************
 Gets the log group capacity. It is OK to read the value without
 holding log_sys->mutex because it is constant.

@@ -92,6 +92,7 @@ mutex_test_and_set(
 		ut_a(mutex->lock_word == 0);
 
 		mutex->lock_word = 1;
+                os_wmb;
 	}
 
 	return((byte)ret);
@@ -147,6 +148,7 @@ mutex_get_waiters(
 
 	ptr = &(mutex->waiters);
 
+        os_rmb;
 	return(*ptr);		/* Here we assume that the read of a single
 				word from memory is atomic */
 }
@@ -181,6 +183,7 @@ mutex_exit_func(
 	to wake up possible hanging threads if
 	they are missed in mutex_signal_object. */
 
+        os_isync;
 	if (mutex_get_waiters(mutex) != 0) {
 
 		mutex_signal_object(mutex);

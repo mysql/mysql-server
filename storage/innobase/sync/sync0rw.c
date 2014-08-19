@@ -40,6 +40,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 #include "ha_prototypes.h"
+#include "my_cpu.h"
 
 /*
 	IMPLEMENTATION OF THE RW_LOCK
@@ -390,15 +391,19 @@ rw_lock_s_lock_spin(
 lock_loop:
 
 	/* Spin waiting for the writer field to become free */
+        os_rmb;
+        HMT_low();
 	while (i < SYNC_SPIN_ROUNDS && lock->lock_word <= 0) {
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
 
 		i++;
+                os_rmb;
 	}
-
-	if (i == SYNC_SPIN_ROUNDS) {
+        HMT_medium();
+	if (lock->lock_word <= 0)
+        {
 		os_thread_yield();
 	}
 
@@ -498,16 +503,19 @@ rw_lock_x_lock_wait(
 	ulint index;
 	ulint i = 0;
 
+        os_rmb;
 	ut_ad(lock->lock_word <= 0);
-
+        HMT_low();
 	while (lock->lock_word < 0) {
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
 		if(i < SYNC_SPIN_ROUNDS) {
 			i++;
+                        os_rmb;
 			continue;
 		}
+                HMT_medium();
 
 		/* If there is still a reader, then go to sleep.*/
 		rw_x_spin_round_count += i;
@@ -544,7 +552,9 @@ rw_lock_x_lock_wait(
 			sync_array_free_cell(sync_primary_wait_array,
 					     index);
 		}
+                HMT_low();
 	}
+        HMT_medium();
 	rw_x_spin_round_count += i;
 }
 
@@ -582,6 +592,8 @@ rw_lock_x_lock_low(
                                     file_name, line);
 
 	} else {
+               if (!pass)
+                 os_rmb;
 		/* Decrement failed: relock or failed lock */
 		if (!pass && lock->recursive
 		    && os_thread_eq(lock->writer_thread, curr_thread)) {
@@ -647,6 +659,8 @@ lock_loop:
 		}
 
 		/* Spin waiting for the lock_word to become free */
+                os_rmb;
+                HMT_low();
 		while (i < SYNC_SPIN_ROUNDS
 		       && lock->lock_word <= 0) {
 			if (srv_spin_wait_delay) {
@@ -655,7 +669,9 @@ lock_loop:
 			}
 
 			i++;
+                        os_rmb;
 		}
+                HMT_medium();
 		if (i == SYNC_SPIN_ROUNDS) {
 			os_thread_yield();
 		} else {

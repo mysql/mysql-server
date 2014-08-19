@@ -200,14 +200,14 @@ rw_lock_lock_word_decr(
 	ulint		amount)		/*!< in: amount to decrement */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-        lint local_lock_word = lock->lock_word;
-	while (local_lock_word > 0) {
+	lint local_lock_word;
+        os_rmb;
+	while ((local_lock_word= lock->lock_word) > 0) {
 		if (os_compare_and_swap_lint(&lock->lock_word,
 					     local_lock_word,
 					     local_lock_word - amount)) {
 			return(TRUE);
 		}
-		local_lock_word = lock->lock_word;
 	}
 	return(FALSE);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
