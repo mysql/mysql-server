@@ -4478,7 +4478,7 @@ btr_cur_pessimistic_update(
 		}
 	}
 
-	if (big_rec_vec) {
+	if (big_rec_vec != NULL && !dict_table_is_intrinsic(index->table)) {
 		ut_ad(page_is_leaf(page));
 		ut_ad(dict_index_is_clust(index));
 		ut_ad(flags & BTR_KEEP_POS_FLAG);
@@ -4489,6 +4489,11 @@ btr_cur_pessimistic_update(
 		We must keep the index->lock when we created a
 		big_rec, so that row_upd_clust_rec() can store the
 		big_rec in the same mini-transaction. */
+
+		ut_ad(mtr_memo_contains_flagged(mtr,
+						dict_index_get_lock(index),
+						MTR_MEMO_X_LOCK |
+						MTR_MEMO_SX_LOCK));
 
 		mtr_sx_lock(dict_index_get_lock(index), mtr);
 	}

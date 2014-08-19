@@ -435,7 +435,7 @@ public:
   */
   virtual void update_field()=0;
   virtual bool keep_field_type(void) const { return 0; }
-  virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
+  virtual void fix_length_and_dec();
   virtual Item *result_item(Field *field)
     { return new Item_field(field); }
   table_map used_tables() const { return used_tables_cache; }

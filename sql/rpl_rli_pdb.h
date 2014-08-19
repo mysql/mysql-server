@@ -80,13 +80,6 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 
 #define NUMBER_OF_FIELDS_TO_IDENTIFY_WORKER 2
 
-typedef struct slave_job_item
-{
-  void *data;
-  uint relay_number;
-  my_off_t relay_pos;
-} Slave_job_item;
-
 /**
    The class defines a type of queue with a predefined max size that is
    implemented using the circular memory buffer.
@@ -420,6 +413,13 @@ public:
   ulonglong get_master_log_pos() { return master_log_pos; };
   ulonglong set_master_log_pos(ulong val) { return master_log_pos= val; };
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
+  /*
+    When commit fails clear bitmap for executed worker group. Revert back the
+    positions to the old positions that existed before commit using the checkpoint.
+
+    @param Slave_job_group a pointer to Slave_job_group struct instance which
+    holds group master log pos, group relay log pos and checkpoint positions.
+  */
   void rollback_positions(Slave_job_group *ptr_g);
   bool reset_recovery_info();
   /**

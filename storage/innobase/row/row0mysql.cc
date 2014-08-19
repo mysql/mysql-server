@@ -602,8 +602,9 @@ row_mysql_store_col_in_innobase_format(
 	} else if (type == DATA_BLOB) {
 
 		ptr = row_mysql_read_blob_ref(&col_len, mysql_data, col_len);
-	} else if (type == DATA_GEOMETRY) {
-		/* We still use blob to store geometry data */
+	} else if (DATA_GEOMETRY_MTYPE(type)) {
+		/* We use blob to store geometry data except DATA_POINT
+		internally, but in MySQL Layer the datatype is always blob. */
 		ptr = row_mysql_read_geometry(&col_len, mysql_data, col_len);
 	}
 
