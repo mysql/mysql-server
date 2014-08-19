@@ -739,15 +739,14 @@ fil_node_open_file(
 			ut_error;
 		}
 
-		if (UNIV_UNLIKELY(space_id != space->id)) {
+		if (space_id != space->id) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
 				"Tablespace id is %lu in the data"
 				" dictionary but in file %s it is %lu!",
 				space->id, node->name, space_id);
 		}
 
-		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
-				  || space_id == 0)) {
+		if (space_id == ULINT_UNDEFINED || space_id == 0) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
 				"Tablespace id %lu in file %s is not sensible",
 				(ulong) space_id, node->name);
@@ -1433,17 +1432,16 @@ fil_space_get_space(
 	return(space);
 }
 
-/*******************************************************************//**
-Returns the path from the first fil_node_t found for the space ID sent.
+/** Returns the path from the first fil_node_t found with this space ID.
 The caller is responsible for freeing the memory allocated here for the
 value returned.
+@param[in]	id	Tablespace ID
 @return own: A copy of fil_node_t::path, NULL if space ID is zero
 or not found. */
 
 char*
 fil_space_get_first_path(
-/*=====================*/
-	ulint		id)	/*!< in: space id */
+	ulint		id)
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
@@ -1775,9 +1773,7 @@ fil_set_max_space_id_if_bigger(
 	ulint	max_id)	/*!< in: maximum known id */
 {
 	if (max_id >= SRV_LOG_SPACE_FIRST_ID) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Max tablespace id is too high, %lu",
-			(ulong) max_id);
+		ib::fatal() << "Max tablespace id is too high, " << max_id;
 	}
 
 	mutex_enter(&fil_system->mutex);
@@ -3685,7 +3681,7 @@ fil_open_single_table_tablespace(
 	ut_ad(!fix_dict || rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_ad(!fix_dict || mutex_own(&(dict_sys->mutex)));
+	ut_ad(!fix_dict || mutex_own(&dict_sys->mutex));
 	ut_ad(fil_type_is_data(purpose));
 
 	if (!fsp_flags_is_valid(flags)) {
@@ -4546,7 +4542,7 @@ fil_write_zeros(
 {
 	ut_a(len > 0);
 
-	ulint	n_bytes = ut_min(1024 * 1024, len);
+	ulint	n_bytes = ut_min(static_cast<ulint>(1024 * 1024), len);
 	byte*	ptr = reinterpret_cast<byte*>(ut_zalloc_nokey(n_bytes
 							      + page_size));
 	byte*	buf = reinterpret_cast<byte*>(ut_align(ptr, page_size));

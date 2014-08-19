@@ -1056,17 +1056,6 @@ public:
   Geometry::wkbType get_geotype() const
   {
     char gt= static_cast<char>(m_flags.geotype);
-    /*
-      This function may be called on an object that was created with the
-      default constructor Geometry(), so we have to allow wkb_invalid_type.
-      The 'wkb_invalid_type' can be seen as a general geometry type
-      corresponding to class Geometry, when the object is created in-memory
-      not from wkb data, this value is allowed. Other types correspond to
-      concrete children class of Geometry, and it's checked that a geometry
-      object created from WKB/GEOMETRY byte string must have one of these
-      values.
-     */
-    DBUG_ASSERT(gt >= Geometry::wkb_invalid_type && gt <= Geometry::wkb_last);
     return static_cast<Geometry::wkbType>(gt);
   }
 
@@ -2943,7 +2932,7 @@ void Gis_wkb_vector<T>::resize(size_t sz)
            needed= (sz - ngeo) * (ptsz + (is_mpt ? WKB_HEADER_SIZE : 0)),
            nalloc, cap= get_nbytes();
 
-    if (left < needed)
+    if (left <= needed)
     {
       nalloc= cap + 32 * (left + needed);
       ptr= get_cptr();
@@ -3206,7 +3195,12 @@ void Gis_wkb_vector<T>::reassemble()
   totlen+= (nbytes ? nbytes : (is_inns ? 0 : sizeof(uint32)));
 
   size_t len= 0, total_len= 0, last_i= 0, numgeoms= 0;
-  char *ptr= static_cast<char *>(gis_wkb_alloc(totlen)), *q= NULL;
+  // Allocate extra space as free space for the WKB buffer, and write it as
+  // defined pattern.
+  const size_t extra_wkb_free_space= 32;
+  char *ptr= static_cast<char *>(gis_wkb_alloc(totlen + extra_wkb_free_space));
+  // The header(object count) is already copied.
+  char *q= ptr;
 
   if (ptr == NULL)
   {
@@ -3216,9 +3210,8 @@ void Gis_wkb_vector<T>::reassemble()
     set_ownmem(false);
     goto exit;
   }
-
-  // The header(object count) is already copied.
-  q= ptr;
+  memset(ptr + totlen, 0xff, extra_wkb_free_space - 1);
+  ptr[totlen + extra_wkb_free_space - 1]= '\0';
 
   // Starting step two of the algorithm --- Reassembling.
   // Assemble the ins and outs into a single chunk.
