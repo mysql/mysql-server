@@ -2954,6 +2954,7 @@ void Item_func_format::fix_length_and_dec()
     locale= args[2]->basic_const_item() ? get_locale(args[2]) : NULL;
   else
     locale= &my_locale_en_US; /* Two arguments */
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -3720,6 +3721,15 @@ String *Item_func_lpad::val_str(String *str)
 err:
   null_value= 1;
   return 0;
+}
+
+
+void Item_func_conv::fix_length_and_dec()
+{
+  collation.set(default_charset());
+  max_length=64;
+  maybe_null= 1;
+  reject_geometry_args(arg_count, args, this);
 }
 
 

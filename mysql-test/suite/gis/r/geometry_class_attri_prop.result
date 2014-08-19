@@ -1592,8 +1592,7 @@ Select sum(Dimension(g)) from gis_geometry;
 sum(Dimension(g))
 91
 Select sum(Envelope(g)) from gis_geometry;
-sum(Envelope(g))
-0
+ERROR HY000: Incorrect arguments to sum(
 Select sum(IsSimple(g)) from gis_geometry;
 sum(IsSimple(g))
 60
