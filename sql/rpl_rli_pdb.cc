@@ -490,6 +490,15 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group* ptr_g, bool 
   DBUG_RETURN(flush_info(force));
 }
 
+void Slave_worker::rollback_positions(Slave_job_group* ptr_g)
+{
+  if (!is_transactional())
+  {
+    bitmap_clear_bit(&group_executed, ptr_g->checkpoint_seqno);
+    flush_info(false);
+  }
+}
+
 static HASH mapping_db_to_worker;
 static bool inited_hash_workers= FALSE;
 
