@@ -3471,9 +3471,6 @@ err_exit:
 	delete ctx;
 	ha_alter_info->handler_ctx = NULL;
 
-	/* There might be work for utility threads.*/
-	srv_active_wake_master_thread();
-
 	DBUG_RETURN(true);
 }
 
@@ -4711,7 +4708,6 @@ func_exit:
 	}
 
 	trx_commit_for_mysql(prebuilt->trx);
-	srv_active_wake_master_thread();
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 	DBUG_RETURN(fail);
 }
