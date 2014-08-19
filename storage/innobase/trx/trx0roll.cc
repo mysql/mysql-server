@@ -204,6 +204,14 @@ trx_rollback_for_mysql(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	TrxInInnoDB	trx_in_innodb(trx, true);
+
+	if (trx_in_innodb.is_aborted()
+	    && trx->killed_by != os_thread_get_curr_id()) {
+
+		return(DB_FORCED_ABORT);
+	}
+
 	/* We are reading trx->state without holding trx_sys->mutex
 	here, because the rollback should be invoked for a running
 	active MySQL transaction (or recovered prepared transaction)
