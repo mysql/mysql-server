@@ -603,6 +603,13 @@ void
 trx_kill_blocking(trx_t* trx);
 
 /**
+Check if redo/noredo rseg is modified for insert/update.
+@param[in] trx		Transaction to check */
+UNIV_INLINE
+bool
+trx_is_rseg_updated(const trx_t* trx);
+
+/**
 Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
 wait timeout to 0 instead of the user configured value that comes
@@ -1323,10 +1330,14 @@ Bear in mind (3) and (4) when using the hash index.
 */
 extern rw_lock_t*	btr_search_latch_temp;
 
-/** Track if a transaction is executing inside InnoDB code */
+/** Track if a transaction is executing inside InnoDB code. It acts
+like a gate between the Server and InnoDB.  */
 class TrxInInnoDB {
 public:
-	TrxInInnoDB(trx_t* trx)
+	/**
+	@param[in,out] trx	Transaction entering InnoDB via the handler
+	@param[in] disable	true if called from COMMIT/ROLLBACK method */
+	TrxInInnoDB(trx_t* trx, bool disable = false)
 		:
 		m_trx(trx)
 	{
@@ -1337,11 +1348,31 @@ public:
 		ut_ad((m_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK)
 		      < (TRX_FORCE_ROLLBACK_MASK - 1));
 
+		/* If it hasn't already been marked for async rollback.
+		and it will be committed/rolled back. */
+
+		if (!is_forced_rollback()
+		    && disable
+		    && trx_is_rseg_updated(trx)
+		    && !is_async_rollback()) {
+
+			ut_ad(is_started());
+			ut_ad(trx->killed_by == 0);
+
+			/* This transaction has crossed the point of no
+			return and cannot be rolled back asynchronously
+			now. It must commit or rollback synhronously. */
+
+			m_trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
+		}
+
 		++m_trx->in_innodb;
 
 		trx_mutex_exit(m_trx);
 	}
 
+	/**
+	Destructor */
 	~TrxInInnoDB()
 	{
 		trx_mutex_enter(m_trx);
@@ -1353,13 +1384,35 @@ public:
 		trx_mutex_exit(m_trx);
 	}
 
+	/**
+	@return true if the transaction has been marked for asynchronous
+		rollback */
 	bool is_aborted() const
 	{
 		return(m_trx->abort
 		       || m_trx->state == TRX_STATE_FORCED_ROLLBACK);
 	}
 
+	/**
+	@return true if the transaction can't be rolled back asynchronously */
+	bool is_rolback_disabled() const
+	{
+		return((m_trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE) > 0);
+	}
+
+	/**
+	@return true if the rollback is being initiated by the thread that
+		marked the transaction for asynchronous rollback */
+	bool is_async_rollback() const
+	{
+		ut_ad(trx_mutex_own(m_trx));
+
+		return(m_trx->killed_by == os_thread_get_curr_id());
+	}
+
 private:
+	/**
+	Wait for the asynchronous rollback to complete, if it is in progress */
 	void wait()
 	{
 		ut_ad(trx_mutex_own(m_trx));
@@ -1375,14 +1428,14 @@ private:
 
 			trx_mutex_exit(m_trx);
 
-			/* FIXME: Use an event here? */
-
 			os_thread_sleep(20);
 
 			trx_mutex_enter(m_trx);
 		}
 	}
 
+	/**
+	@return true if transaction is started */
 	bool is_started() const
 	{
 		ut_ad(trx_mutex_own(m_trx));
@@ -1390,13 +1443,8 @@ private:
 		return(trx_is_started(m_trx));
 	}
 
-	bool is_async_rollback() const
-	{
-		ut_ad(trx_mutex_own(m_trx));
-
-		return(m_trx->killed_by == os_thread_get_curr_id());
-	}
-
+	/*
+	@return true if it is a forced rollback, asynchronously */
 	bool is_forced_rollback() const
 	{
 		ut_ad(trx_mutex_own(m_trx));
@@ -1405,7 +1453,9 @@ private:
 	}
 
 private:
-	trx_t*		m_trx;
+	/**
+	Transaction instance crossing the handler boundary from the Server. */
+	trx_t*			m_trx;
 };
 
 /** The latch protecting the adaptive search system */

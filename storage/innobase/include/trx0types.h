@@ -51,6 +51,10 @@ static const ulint TRX_SYS_SPACE = 0;
 /** Random value to check for corruption of trx_t */
 static const ulint TRX_MAGIC_N = 91118598;
 
+/** If this flag is set then the transaction cannot be rolled back
+asynchronously. */
+static const ib_uint32_t TRX_FORCE_ROLLBACK_DISABLE = 1 << 28;
+
 /** Was the transaction rolled back asynchronously or by the
 owning thread. This flag is relevant only if TRX_FORCE_ROLLBACK
 is set.  */
@@ -63,8 +67,8 @@ static const ib_uint32_t TRX_FORCE_ROLLBACK_COMPLETE = 1 << 30;
 /** Mark the transaction for forced rollback */
 static const ib_uint32_t TRX_FORCE_ROLLBACK = 1 << 31;
 
-/** For masking out the above three flags */
-static const ib_uint32_t TRX_FORCE_ROLLBACK_MASK = 0x1FFFFFFF;
+/** For masking out the above four flags */
+static const ib_uint32_t TRX_FORCE_ROLLBACK_MASK = 0xFFFFFFF;
 
 /** Transaction execution states when trx->state == TRX_STATE_ACTIVE */
 enum trx_que_t {

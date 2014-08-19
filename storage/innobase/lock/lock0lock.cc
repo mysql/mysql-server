@@ -1701,6 +1701,7 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 	ut_ad(trx_mutex_own(m_trx));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
+	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
 
 	/* Note that we will attempt an async rollback. The _ASYNC
 	flag will be cleared if the transaction is rolled back
@@ -1751,6 +1752,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 	if (kill_trx && !wait_for->trx->abort) {
 
+
 		mark_trx_for_rollback(wait_for->trx);
 	}
 
@@ -1795,7 +1797,11 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 				trx_mutex_enter(trx);
 
-				mark_trx_for_rollback(trx);
+				if (!(trx->in_innodb
+				      & TRX_FORCE_ROLLBACK_DISABLE)) {
+
+					mark_trx_for_rollback(trx);
+				}
 
 				trx_mutex_exit(trx);
 			}
@@ -1860,9 +1866,12 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 		ut_ad(wait_for->trx->lock.wait_lock != NULL);
 
-		/* Check if "wait_for" trx is waiting for the same lock. */
+		/* Check if "wait_for" trx is waiting for the same lock
+		and we can roll it back asynchronously. */
 
-		kill_trx = wait_for->trx->lock.wait_lock != wait_for;
+		kill_trx = wait_for->trx->lock.wait_lock != wait_for
+			   && !(wait_for->trx->in_innodb
+				& TRX_FORCE_ROLLBACK_DISABLE);
 
 	} else if (wait_for->trx->read_only) {
 
@@ -1874,7 +1883,8 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 		/* Rollback any running non-ro blocking transactions */
 
-		kill_trx = true;
+		kill_trx = !(wait_for->trx->in_innodb
+			     & TRX_FORCE_ROLLBACK_DISABLE);
 	}
 
 	/* Move the lock being requested to the head of
@@ -1955,7 +1965,7 @@ RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 	const trx_t*	victim_trx;
 
 	/* We don't rollback internal (basically background statistics
-       	gathering) transactions. The problem is that we cannot currently
+       	gathering) transactions. The problem is that we don't currently
 	block them using the TrxInInnoDB() mechanism. */
 
 	if (wait_for->trx->mysql_thd == NULL) {
