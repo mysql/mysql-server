@@ -85,31 +85,31 @@ include/rpl_stop_slaves.inc
 #  Test case 2: 2.a) Test that different tables in the same database
 #                    are replicated to the slave
 [connection server_1]
-CREATE DATABASE DBT;
-CREATE TABLE DBT.t11(a int);
-INSERT INTO DBT.t11 values (11*10);
-INSERT INTO DBT.t11 values (11*9);
-INSERT INTO DBT.t11 values (11*8);
-INSERT INTO DBT.t11 values (11*7);
-INSERT INTO DBT.t11 values (11*6);
-INSERT INTO DBT.t11 values (11*5);
-INSERT INTO DBT.t11 values (11*4);
-INSERT INTO DBT.t11 values (11*3);
-INSERT INTO DBT.t11 values (11*2);
-INSERT INTO DBT.t11 values (11*1);
+CREATE DATABASE dbcommon;
+CREATE TABLE dbcommon.t11(a int);
+INSERT INTO dbcommon.t11 values (11*10);
+INSERT INTO dbcommon.t11 values (11*9);
+INSERT INTO dbcommon.t11 values (11*8);
+INSERT INTO dbcommon.t11 values (11*7);
+INSERT INTO dbcommon.t11 values (11*6);
+INSERT INTO dbcommon.t11 values (11*5);
+INSERT INTO dbcommon.t11 values (11*4);
+INSERT INTO dbcommon.t11 values (11*3);
+INSERT INTO dbcommon.t11 values (11*2);
+INSERT INTO dbcommon.t11 values (11*1);
 [connection server_3]
-CREATE DATABASE IF NOT EXISTS DBT;
-CREATE TABLE DBT.t33(a int);
-INSERT INTO DBT.t33 values(33*10);
-INSERT INTO DBT.t33 values(33*9);
-INSERT INTO DBT.t33 values(33*8);
-INSERT INTO DBT.t33 values(33*7);
-INSERT INTO DBT.t33 values(33*6);
-INSERT INTO DBT.t33 values(33*5);
-INSERT INTO DBT.t33 values(33*4);
-INSERT INTO DBT.t33 values(33*3);
-INSERT INTO DBT.t33 values(33*2);
-INSERT INTO DBT.t33 values(33*1);
+CREATE DATABASE IF NOT EXISTS dbcommon;
+CREATE TABLE dbcommon.t33(a int);
+INSERT INTO dbcommon.t33 values(33*10);
+INSERT INTO dbcommon.t33 values(33*9);
+INSERT INTO dbcommon.t33 values(33*8);
+INSERT INTO dbcommon.t33 values(33*7);
+INSERT INTO dbcommon.t33 values(33*6);
+INSERT INTO dbcommon.t33 values(33*5);
+INSERT INTO dbcommon.t33 values(33*4);
+INSERT INTO dbcommon.t33 values(33*3);
+INSERT INTO dbcommon.t33 values(33*2);
+INSERT INTO dbcommon.t33 values(33*1);
 #
 # 2.b Start replication from the masters
 #
@@ -128,20 +128,20 @@ include/sync_slave_sql_with_master.inc
 SHOW DATABASES;
 Database
 information_schema
-DBT
 db1
 db3
+dbcommon
 mtr
 mysql
 performance_schema
 test
-USE DBT;
+USE dbcommon;
 SHOW TABLES;
-Tables_in_DBT
+Tables_in_dbcommon
 t11
 t33
-include/assert.inc [Slave should have 10 rows in DBT.t11]
-include/assert.inc [Slave should have 10 rows in DBT.t33]
+include/assert.inc [Slave should have 10 rows in dbcommon.t11]
+include/assert.inc [Slave should have 10 rows in dbcommon.t33]
 #
 # Stop slave (on server_2) for test case 3.
 #
@@ -150,29 +150,29 @@ include/rpl_stop_slaves.inc
 # Test case 3: 3.a) Update nonconflicting data on the same table
 #                 and see if they are replicated to the slave.
 [connection server_1]
-CREATE TABLE DBT.t101(a int, PRIMARY KEY (a));
-INSERT INTO DBT.t101 values (101*10);
-INSERT INTO DBT.t101 values (101*9);
-INSERT INTO DBT.t101 values (101*8);
-INSERT INTO DBT.t101 values (101*7);
-INSERT INTO DBT.t101 values (101*6);
-INSERT INTO DBT.t101 values (101*5);
-INSERT INTO DBT.t101 values (101*4);
-INSERT INTO DBT.t101 values (101*3);
-INSERT INTO DBT.t101 values (101*2);
-INSERT INTO DBT.t101 values (101*1);
+CREATE TABLE dbcommon.t101(a int, PRIMARY KEY (a));
+INSERT INTO dbcommon.t101 values (101*10);
+INSERT INTO dbcommon.t101 values (101*9);
+INSERT INTO dbcommon.t101 values (101*8);
+INSERT INTO dbcommon.t101 values (101*7);
+INSERT INTO dbcommon.t101 values (101*6);
+INSERT INTO dbcommon.t101 values (101*5);
+INSERT INTO dbcommon.t101 values (101*4);
+INSERT INTO dbcommon.t101 values (101*3);
+INSERT INTO dbcommon.t101 values (101*2);
+INSERT INTO dbcommon.t101 values (101*1);
 [connection server_3]
-CREATE TABLE IF NOT EXISTS DBT.t101(a int, PRIMARY KEY (a));
-INSERT INTO DBT.t101 values(33*10);
-INSERT INTO DBT.t101 values(33*9);
-INSERT INTO DBT.t101 values(33*8);
-INSERT INTO DBT.t101 values(33*7);
-INSERT INTO DBT.t101 values(33*6);
-INSERT INTO DBT.t101 values(33*5);
-INSERT INTO DBT.t101 values(33*4);
-INSERT INTO DBT.t101 values(33*3);
-INSERT INTO DBT.t101 values(33*2);
-INSERT INTO DBT.t101 values(33*1);
+CREATE TABLE IF NOT EXISTS dbcommon.t101(a int, PRIMARY KEY (a));
+INSERT INTO dbcommon.t101 values(33*10);
+INSERT INTO dbcommon.t101 values(33*9);
+INSERT INTO dbcommon.t101 values(33*8);
+INSERT INTO dbcommon.t101 values(33*7);
+INSERT INTO dbcommon.t101 values(33*6);
+INSERT INTO dbcommon.t101 values(33*5);
+INSERT INTO dbcommon.t101 values(33*4);
+INSERT INTO dbcommon.t101 values(33*3);
+INSERT INTO dbcommon.t101 values(33*2);
+INSERT INTO dbcommon.t101 values(33*1);
 #
 #  3.b Start replication from the masters
 #
@@ -188,40 +188,40 @@ include/sync_slave_sql_with_master.inc
 #
 #  check that data has been replicated to the slave.
 #
-USE DBT;
+USE dbcommon;
 SHOW TABLES;
-Tables_in_DBT
+Tables_in_dbcommon
 t101
 t11
 t33
-include/assert.inc [Slave should have 20 rows in DBT.t101]
+include/assert.inc [Slave should have 20 rows in dbcommon.t101]
 #
 # Test case 4: Update tables on both masters with conflicting data
 #              In this case, slave shall stop on a SQL thread.
 [connection server_1]
-INSERT INTO DBT.t101 values(1729);
+INSERT INTO dbcommon.t101 values(1729);
 [connection server_3]
-INSERT INTO DBT.t101 values (1729);
+INSERT INTO dbcommon.t101 values (1729);
 #
 # 4.b sync the slave with server_1
 #
 [connection server_1]
 include/sync_slave_sql_with_master.inc
 call mtr.add_suppression("Slave SQL:.* 'Duplicate entry '1729' for key 'PRIMARY'' on query.*");
-call mtr.add_suppression("Slave SQL: Could not execute Write_rows event on table DBT.t101; Duplicate entry '1729' for key 'PRIMARY'*");
+call mtr.add_suppression("Slave SQL: Could not execute Write_rows event on table dbcommon.t101; Duplicate entry '1729' for key 'PRIMARY'*");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Slave SQL:.* Duplicate entry '1729' for key 'PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY.*");
 include/wait_for_slave_sql_error.inc [errno=1062]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
-DELETE FROM DBT.t101 where a=1729;
-START SLAVE FOR CHANNEL "channel_3";
+DELETE FROM dbcommon.t101 where a=1729;
+include/start_slave.inc
 connection_server_1
 DROP DATABASE db1;
-DROP DATABASE DBT;
+DROP DATABASE dbcommon;
 include/sync_slave_sql_with_master.inc
 connection_server_3
 DROP DATABASE db3;
-DROP DATABASE IF EXISTS DBT;
+DROP DATABASE IF EXISTS dbcommon;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
 RESET SLAVE ALL FOR CHANNEL  'channel_1';

@@ -29,43 +29,43 @@
 --echo #
 --echo # Create a new channel from the slave to the third server.
 --echo #  There shall be an error
---let $rpl_connection_name=server_2
+--let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3";
+--eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
 --echo #  Convert only master_info_repository to table.
 --echo #  The same error shall persist
-STOP SLAVE;
-SET @@GLOBAL.master_info_repository="TABLE";
+--source include/stop_slave.inc
+SET @@GLOBAL.master_info_repository ="TABLE";
 
 call mtr.add_suppression("Slave: Cannot create new master info structure when repositories are of type FILE. Convert slave repositories  to TABLE to replicate from multiple sources");
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3";
+--eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
 --echo #  Convert only relay log info repository to TABLE
 --echo #  The same error shall remain
-SET @@GLOBAL.master_info_repository="FILE";
-SET @@GLOBAL.relay_log_info_repository="TABLE";
+SET @@GLOBAL.master_info_repository = "FILE";
+SET @@GLOBAL.relay_log_info_repository = "TABLE";
 
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3";
+--eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
 --echo #
 --echo # Convert both repositories to TABLE. CHANGE MASTER command passes
 --echo #
-SET @@GLOBAL.master_info_repository="TABLE";
-SET @@GLOBAL.relay_log_info_repository="TABLE";
+#As relay_log_info_repository is already set to TABLE, set master_info_repository to TABLE
+SET @@GLOBAL.master_info_repository = "TABLE";
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
 --replace_column 2 #
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3"
+--eval CHANGE MASTER TO MASTER_HOST ="127.0.0.1", MASTER_USER ="root", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3"
 
 --echo # Slave now is a multisourced slave.
 --echo # Restart the slave and check that slave threads are not started because
@@ -86,7 +86,7 @@ call mtr.add_suppression("Failed to create or recover replication info repositor
 # but due to bug19344559 is setup. The error currently fails with
 #  ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
 # --error ER_SLAVE_CONFIGURATION
-# --eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3"
+# --eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3"
 
 --echo #
 --echo #   Test that if slave server is started with TABLE, replication proceeds
@@ -96,19 +96,22 @@ call mtr.add_suppression("Failed to create or recover replication info repositor
 --source include/rpl_restart_server.inc
 #assert that two rows are present
 --let $assert_text= there shall be only 2 rows as slave is restarted properly
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_configuration] =2;
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_configuration] = 2;
 --source include/assert.inc
 
 # Clean up.
 # Delete channel_3 and restart server with FILE
 #
 # Stop slave for channel_3
-STOP SLAVE FOR CHANNEL 'channel_3';
+--let $rpl_channel_name= channel_3
+--source include/stop_slave.inc
 
 # Reset slave for channel_3
-RESET SLAVE FOR CHANNEL 'channel_3';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';
 
---let $rpl_server_number=2
+--let $rpl_channel_name=
+
+--let $rpl_server_number= 2
 --let $rpl_server_parameters=--master-info-repository=FILE --relay-log-info-repository=FILE
 --source include/rpl_restart_server.inc
 

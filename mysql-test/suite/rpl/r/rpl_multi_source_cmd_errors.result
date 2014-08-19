@@ -12,17 +12,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 #  1. Test ER_SLAVE_MULTIPLE_CHANNELS_CMD
 #
-CHANGE MASTER TO MASTER_USER="root";
+CHANGE MASTER TO MASTER_USER = "root";
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 SHOW RELAYLOG EVENTS;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 SELECT MASTER_POS_WAIT("dummy-bin.000001", 4);
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
-START SLAVE UNTIL MASTER_LOG_FILE="dummy-bin.0000001", MASTER_LOG_POS=1729
+START SLAVE UNTIL MASTER_LOG_FILE = "dummy-bin.0000001", MASTER_LOG_POS = 1729
 #--error ER_SLAVE_MULTIPLE_CHANNELS_CMD
 #SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("1111-1111-1111-1111:1");
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
-START SLAVE UNTIL MASTER_LOG_FILE="dummy-bin.000001", MASTER_LOG_POS=4;
+START SLAVE UNTIL MASTER_LOG_FILE = "dummy-bin.000001", MASTER_LOG_POS = 4;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 #
 # 2. Test errors of commands on an invalid channel
@@ -48,28 +48,28 @@ NULL
 #  3a) Test that proper error messages are sent out when invalid
 #      channel names are given for change master command.
 #
-CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root" FOR CHANNEL "A123456789A123456789A123456789A123456789A123456789A123456789A123456789";
+CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root" FOR CHANNEL "A123456789A123456789A123456789A123456789A123456789A123456789A123456789";
 ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
-CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root" FOR CHANNEL "         ";
+CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root" FOR CHANNEL "         ";
 ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
 #
 #  3b) Test that error messages are delivered if a new channel is
 #       created with same host and port.
 #
-CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="rpl", MASTER_PORT=MASTER_PORT FOR CHANNEL "channel_with_already_existing_host_port";;
+CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "rpl", MASTER_PORT = MASTER_PORT FOR CHANNEL "channel_with_already_existing_host_port";;
 ERROR HY000: A slave channel 'channel_3' already exists for the given host and port combination.
 #
 #   3c)Create a new channel without host,port initially.
 #       Later provide already existing {host, port} to the channel.
 #       An error shall occur.
-CHANGE MASTER TO MASTER_LOG_POS=4 FOR CHANNEL "channel_with_wrong_info";
-CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="rpl", MASTER_PORT=MASTER_PORT FOR CHANNEL "channel_with_wrong_info";;
+CHANGE MASTER TO MASTER_LOG_POS = 4 FOR CHANNEL "channel_with_wrong_info";
+CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "rpl", MASTER_PORT = MASTER_PORT FOR CHANNEL "channel_with_wrong_info";;
 ERROR HY000: A slave channel 'channel_3' already exists for the given host and port combination.
 #
 #  3.d) Check that maximum channels permitted error is issued.
 #
-SET GLOBAL DEBUG= "+d, max_replication_channels_exceeded";
-CHANGE MASTER TO MASTER_LOG_POS=4 FOR CHANNEL "257th_channel";
+SET GLOBAL DEBUG = "+d, max_replication_channels_exceeded";
+CHANGE MASTER TO MASTER_LOG_POS = 4 FOR CHANNEL "257th_channel";
 ERROR HY000: Maximum number of replication channels allowed exceeded.
 SET GLOBAL DEBUG=@old_debug;
 # Assert that none of the above channels have been created

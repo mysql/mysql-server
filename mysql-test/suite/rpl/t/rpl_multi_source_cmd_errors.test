@@ -16,7 +16,7 @@
 --echo #
 --echo # set up masters server_1 and server_3 with server_2 being a slave.
 --echo #.
---let $rpl_multi_source=1
+--let $rpl_multi_source= 1
 --let $rpl_topology= 1->2,3->2
 --source include/rpl_init.inc
 
@@ -29,7 +29,7 @@
 --echo #  1. Test ER_SLAVE_MULTIPLE_CHANNELS_CMD
 --echo #
 --error ER_SLAVE_MULTIPLE_CHANNELS_CMD
-CHANGE MASTER TO MASTER_USER="root";
+CHANGE MASTER TO MASTER_USER = "root";
 
 --error ER_SLAVE_MULTIPLE_CHANNELS_CMD
 SHOW RELAYLOG EVENTS;
@@ -38,13 +38,13 @@ SHOW RELAYLOG EVENTS;
 SELECT MASTER_POS_WAIT("dummy-bin.000001", 4);
 
 --error ER_SLAVE_MULTIPLE_CHANNELS_CMD
-START SLAVE UNTIL MASTER_LOG_FILE="dummy-bin.0000001", MASTER_LOG_POS=1729
+START SLAVE UNTIL MASTER_LOG_FILE = "dummy-bin.0000001", MASTER_LOG_POS = 1729
 
 #--error ER_SLAVE_MULTIPLE_CHANNELS_CMD
 #SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("1111-1111-1111-1111:1");
 
 --error ER_SLAVE_MULTIPLE_CHANNELS_CMD
-START SLAVE UNTIL MASTER_LOG_FILE="dummy-bin.000001", MASTER_LOG_POS=4;
+START SLAVE UNTIL MASTER_LOG_FILE = "dummy-bin.000001", MASTER_LOG_POS = 4;
 
 
 --echo #
@@ -75,10 +75,10 @@ SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("1111-1111-1111-1111:1", 2, "non_existe
 --echo #      channel names are given for change master command.
 --echo #
 --error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
-CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root" FOR CHANNEL "A123456789A123456789A123456789A123456789A123456789A123456789A123456789";
+CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root" FOR CHANNEL "A123456789A123456789A123456789A123456789A123456789A123456789A123456789";
 
 --error ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
-CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root" FOR CHANNEL "         ";
+CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root" FOR CHANNEL "         ";
 
 
 --echo #
@@ -87,33 +87,33 @@ CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root" FOR CHANNEL "      
 --echo #
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="rpl", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_with_already_existing_host_port";
+--eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "rpl", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_with_already_existing_host_port";
 
 --echo #
 --echo #   3c)Create a new channel without host,port initially.
 --echo #       Later provide already existing {host, port} to the channel.
 --echo #       An error shall occur.
-CHANGE MASTER TO MASTER_LOG_POS=4 FOR CHANNEL "channel_with_wrong_info";
+CHANGE MASTER TO MASTER_LOG_POS = 4 FOR CHANNEL "channel_with_wrong_info";
 
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="rpl", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_with_wrong_info";
+--eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "rpl", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_with_wrong_info";
 
 --echo #
 --echo #  3.d) Check that maximum channels permitted error is issued.
 --echo #
---let @old_debug= @@global.debug
-SET GLOBAL DEBUG= "+d, max_replication_channels_exceeded";
+--let @old_debug = @@global.debug
+SET GLOBAL DEBUG = "+d, max_replication_channels_exceeded";
 --error ER_SLAVE_MAX_CHANNELS_EXCEEDED
-CHANGE MASTER TO MASTER_LOG_POS=4 FOR CHANNEL "257th_channel";
+CHANGE MASTER TO MASTER_LOG_POS = 4 FOR CHANNEL "257th_channel";
 
 SET GLOBAL DEBUG=@old_debug;
 
 --echo # Assert that none of the above channels have been created
 --echo # and number of channels configured must be still 2.
 --let $assert_text= there shall be only two rows representing 2 channels.
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_configuration] =2 ;
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_configuration] = 2 ;
 --source include/assert.inc
 
 # End MSR setup.
