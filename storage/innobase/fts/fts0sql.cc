@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -123,7 +123,7 @@ fts_get_table_name_prefix(
 
 	prefix_name_len = dbname_len + 4 + len + 1;
 
-	prefix_name = static_cast<char*>(ut_malloc(prefix_name_len));
+	prefix_name = static_cast<char*>(ut_malloc_nokey(prefix_name_len));
 
 	len = sprintf(prefix_name, "%.*sFTS_%s",
 		      dbname_len, fts_table->parent, table_id);
