@@ -103,20 +103,13 @@ SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -3,3 +3,3 @@
  1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
--1	PRIMARY	table3	NULL	eq_ref	PRIMARY,col_int_key	PRIMARY	4	table2.pk	1	5.00	Using where
+-1	PRIMARY	table3	NULL	eq_ref	PRIMARY,col_int_key	PRIMARY	4	table2.pk	1	12.50	Using where
 +1	PRIMARY	table3	NULL	eq_ref	PRIMARY,col_int_key	PRIMARY	4	table2.pk	1	100.00	Using where
  3	DEPENDENT SUBQUERY	subquery2_t1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
 QUERY: SELECT     (SELECT   MAX( DISTINCT sq1_alias1.col_int_key ) AS sq1_field1 FROM ( cc AS sq1_alias1 , bb AS sq1_alias2 ) WHERE sq1_alias2.pk <> alias1.pk AND sq1_alias2.pk <= alias1.col_int_key ) AS field1 , COUNT(  alias1.col_varchar_key ) AS field2 FROM ( bb AS alias1 LEFT OUTER JOIN ( ( cc AS alias2 INNER JOIN cc AS alias3 ON (alias3.col_int_key = alias2.col_int_key  ) ) ) ON (alias3.col_varchar_nokey = alias2.col_varchar_key  ) ) WHERE (   EXISTS ( (SELECT   sq2_alias1.col_varchar_nokey AS sq2_field1 FROM c AS sq2_alias1 WHERE  ( sq2_alias1.col_varchar_nokey , sq2_alias1.col_varchar_nokey )  IN (SELECT   c_sq1_alias1.col_varchar_key AS c_sq1_field1 , MAX(  c_sq1_alias1.col_varchar_nokey ) AS c_sq1_field2 FROM cc AS c_sq1_alias1    ) GROUP BY sq2_field1 ) ) ) OR ( alias1.col_int_key > 51 AND alias1.col_int_key < ( 51 + 209 ) OR alias1.col_int_key > 51 AND alias1.col_int_key < ( 51 + 159 ) ) OR  (SELECT  SQL_SMALL_RESULT MIN(  sq3_alias1.pk ) AS sq3_field1 FROM ( c AS sq3_alias1 RIGHT OUTER JOIN c AS sq3_alias2 ON (sq3_alias2.col_int_key = sq3_alias1.pk  ) )  ) IS NOT NULL  GROUP BY field1 HAVING field2 <> 5 ORDER BY alias1.col_time_key ASC , field2  , CONCAT( alias2.col_varchar_key, alias3.col_varchar_key )
 STATUS: EQUAL
 QUERY: SELECT     (SELECT 5 FROM dummy ) AS field1 FROM ( b AS table1 INNER JOIN ( ( ( SELECT   subquery2_t1.* FROM ( cc AS subquery2_t1 INNER JOIN cc AS subquery2_t2 ON (subquery2_t2.col_varchar_key = subquery2_t1.col_varchar_key  ) )  ) AS table2 LEFT  JOIN cc AS table3 ON (table3.col_int_key = table2.pk  ) ) ) ON (table3.col_varchar_key = table2.col_varchar_key  ) ) WHERE (   EXISTS ( (SELECT   subquery3_t2.col_varchar_nokey AS subquery3_field1 FROM ( d AS subquery3_t1 INNER JOIN bb AS subquery3_t2 ON (subquery3_t2.col_int_key = subquery3_t1.pk  ) )   ) ) ) OR ( table1.col_varchar_key = 'w' AND table1.col_varchar_key = table3.col_varchar_key ) ORDER BY table1.col_varchar_key DESC /*+JavaDB:Postgres: NULLS LAST */ , field1 /*+JavaDB:Postgres: NULLS FIRST */ LIMIT 10 OFFSET 6
-STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
-Diff: EXPLAIN NORMAL vs OTHER
-@@ -3,3 +3,3 @@
- 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
--1	PRIMARY	table3	NULL	ref	col_int_key,col_varchar_key	col_int_key	5	table2.pk	1	5.00	Using where
-+1	PRIMARY	table3	NULL	ref	col_int_key,col_varchar_key	col_int_key	5	table2.pk	1	100.00	Using where
- 4	SUBQUERY	subquery3_t2	NULL	ALL	col_int_key	NULL	NULL	NULL	1	100.00	Using where
+STATUS: EQUAL
 QUERY: SELECT    alias1.col_time_key AS field1 , alias2.col_varchar_key AS field2 FROM ( b AS alias1 , ( SELECT   sq1_alias1.* FROM cc AS sq1_alias1  ) AS alias2 , c AS alias3 ) WHERE (   EXISTS ( (SELECT 5 FROM DUAL ) ) ) OR ( alias1.col_varchar_key  IN ('e' , 'USA') OR alias1.col_varchar_key  IN ('USA') )  GROUP BY field1, field2 HAVING field2 > 'e' 
 STATUS: EQUAL
 QUERY: SELECT     (SELECT 'z' FROM dummy ) AS field1 , table1.pk AS field2 , table1.col_time_key AS field3 , table2.col_datetime_key AS field4 , table1.col_datetime_key AS field5 , table2.pk AS field6 FROM ( ( SELECT   subquery2_t1.* FROM ( c AS subquery2_t1 INNER JOIN cc AS subquery2_t2 ON (subquery2_t2.pk = subquery2_t1.pk  ) )  ) AS table1 INNER JOIN ( SELECT   subquery3_t1.* FROM ( b AS subquery3_t1 LEFT  JOIN c AS subquery3_t2 ON (subquery3_t2.pk = subquery3_t1.pk  ) )  ) AS table2 ON (table2.pk = table1.col_int_key  ) ) WHERE (   EXISTS ( (SELECT   subquery4_t1.col_varchar_key AS subquery4_field1 FROM ( cc AS subquery4_t1 LEFT OUTER JOIN c AS subquery4_t2 ON (subquery4_t2.pk = subquery4_t1.col_int_key  ) )   ) ) ) OR ( table1.pk = 141 AND table1.pk = 79 ) ORDER BY table1.col_datetime_key DESC /*+JavaDB:Postgres: NULLS LAST */

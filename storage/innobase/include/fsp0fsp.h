@@ -565,14 +565,13 @@ fseg_print(
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* UNIV_BTR_PRINT */
 
-/********************************************************************//**
-Determine if the tablespace is compressed from dict_table_t::flags.
-@return TRUE if compressed, FALSE if not compressed */
+/** Determine if the tablespace is compressed from tablespace flags.
+@param[in]	flags	Tablespace flags
+@return true if compressed, false if not compressed */
 UNIV_INLINE
-ibool
+bool
 fsp_flags_is_compressed(
-/*====================*/
-	ulint	flags);	/*!< in: tablespace flags */
+	ulint	flags);
 
 /** Calculates the descriptor index within a descriptor page.
 @param[in]	page_size	page size

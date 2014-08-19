@@ -272,23 +272,32 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern my_bool	srv_load_corrupted;
 
-#define SRV_BUF_POOL_MIN_SIZE	(5 * 1024 * 1024UL)
-extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
-extern ulong	srv_buf_pool_chunk_unit;/*!< requested unit size of chunks in bytes */
-#define SRV_BUF_POOL_INSTANCES_NOT_SET	0
-extern ulong	srv_buf_pool_instances; /*!< requested number of buffer pool instances */
-extern ulong	srv_n_page_hash_locks;	/*!< number of locks to
-					protect buf_pool->page_hash */
-extern ulong	srv_LRU_scan_depth;	/*!< Scan depth for LRU
-					flush batch */
-extern ulong	srv_flush_neighbors;	/*!< whether or not to flush
-					neighbors of a block */
-extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
-extern ulint	srv_buf_pool_base_size;	/*!< current size as scaling factor
-					for the other components */
-extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
-extern ulong	srv_buf_pool_dump_pct;	/*!< dump that may % of each buffer
-					pool during BP dump */
+/** Requested size in bytes */
+extern ulint		srv_buf_pool_size;
+/** Minimum pool size in bytes */
+extern const ulint	srv_buf_pool_min_size;
+/** Requested buffer pool chunk size. Each buffer pool instance consists
+of one or more chunks. */
+extern ulong		srv_buf_pool_chunk_unit;
+/** Requested number of buffer pool instances */
+extern ulong		srv_buf_pool_instances;
+/** Default number of buffer pool instances */
+extern const ulong	srv_buf_pool_instances_default;
+/** Number of locks to protect buf_pool->page_hash */
+extern ulong	srv_n_page_hash_locks;
+/** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
+extern ulong	srv_LRU_scan_depth;
+/** Whether or not to flush neighbors of a block */
+extern ulong	srv_flush_neighbors;
+/** Previously requested size */
+extern ulint	srv_buf_pool_old_size;
+/** Current size as scaling factor for the other components */
+extern ulint	srv_buf_pool_base_size;
+/** Current size in bytes */
+extern ulint	srv_buf_pool_curr_size;
+/** Dump this % of each buffer pool during BP dump */
+extern ulong	srv_buf_pool_dump_pct;
+/** Lock table size in bytes */
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
@@ -383,8 +392,6 @@ extern ibool	srv_priority_boost;
 
 extern ulint	srv_truncated_status_writes;
 extern ulint	srv_available_undo_logs;
-
-extern	ulint	srv_lock_table_size;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 extern my_bool	srv_ibuf_disable_background_merge;
