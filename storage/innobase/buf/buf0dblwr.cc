@@ -128,7 +128,7 @@ buf_dblwr_init(
 	ulint	buf_size;
 
 	buf_dblwr = static_cast<buf_dblwr_t*>(
-		ut_zalloc(sizeof(buf_dblwr_t)));
+		ut_zalloc_nokey(sizeof(buf_dblwr_t)));
 
 	/* There are two blocks of same size in the doublewrite
 	buffer. */
@@ -153,17 +153,17 @@ buf_dblwr_init(
 		doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK2);
 
 	buf_dblwr->in_use = static_cast<bool*>(
-		ut_zalloc(buf_size * sizeof(bool)));
+		ut_zalloc_nokey(buf_size * sizeof(bool)));
 
 	buf_dblwr->write_buf_unaligned = static_cast<byte*>(
-		ut_malloc((1 + buf_size) * UNIV_PAGE_SIZE));
+		ut_malloc_nokey((1 + buf_size) * UNIV_PAGE_SIZE));
 
 	buf_dblwr->write_buf = static_cast<byte*>(
 		ut_align(buf_dblwr->write_buf_unaligned,
 			 UNIV_PAGE_SIZE));
 
 	buf_dblwr->buf_block_arr = static_cast<buf_page_t**>(
-		ut_zalloc(buf_size * sizeof(void*)));
+		ut_zalloc_nokey(buf_size * sizeof(void*)));
 }
 
 /****************************************************************//**
@@ -370,7 +370,8 @@ buf_dblwr_init_or_load_pages(
 
 	/* We do the file i/o past the buffer pool */
 
-	unaligned_read_buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+	unaligned_read_buf = static_cast<byte*>(
+		ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
 
 	read_buf = static_cast<byte*>(
 		ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));
@@ -473,7 +474,8 @@ buf_dblwr_process(void)
 	byte*		unaligned_read_buf;
 	recv_dblwr_t&	recv_dblwr	= recv_sys->dblwr;
 
-	unaligned_read_buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+	unaligned_read_buf = static_cast<byte*>(
+		ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
 
 	read_buf = static_cast<byte*>(
 		ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));

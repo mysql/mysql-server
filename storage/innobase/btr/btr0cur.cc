@@ -1683,13 +1683,12 @@ retry_page_get:
 				from level==leftmost_from_level. */
 				retrying_for_search_prev = true;
 
-				prev_tree_blocks
-					= static_cast<buf_block_t**>(
-						ut_malloc(sizeof(buf_block_t*)
+				prev_tree_blocks = static_cast<buf_block_t**>(
+					ut_malloc_nokey(sizeof(buf_block_t*)
 							* leftmost_from_level));
-				prev_tree_savepoints
-					= static_cast<ulint*>(
-						ut_malloc(sizeof(ulint)
+
+				prev_tree_savepoints = static_cast<ulint*>(
+					ut_malloc_nokey(sizeof(ulint)
 							* leftmost_from_level));
 
 				/* back to the level (leftmost_from_level+1) */
