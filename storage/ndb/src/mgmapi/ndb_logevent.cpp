@@ -489,13 +489,42 @@ int memcpy_atoi(void *dst, const char *str, int sz)
 
 extern "C"
 int ndb_logevent_get_next(const NdbLogEventHandle h,
-			  struct ndb_logevent *dst,
-			  unsigned timeout_in_milliseconds)
+                           struct ndb_logevent *dst,
+                           unsigned timeout_in_milliseconds)
+{
+  int rc = ndb_logevent_get_next2(h,
+                                  dst,
+                                  timeout_in_milliseconds);
+  if (rc == 1)
+  {
+    /**
+     * Undo effect of bug#16723708 fix to maintain
+     * backwards compatibility
+     */
+    Uint32 category = (Uint32) dst->category;
+    switch(category)
+    {
+    case NDB_MGM_ILLEGAL_EVENT_CATEGORY:
+      category = (Uint32) LogLevel::llInvalid;
+      break;
+    default:
+      category -= CFG_MIN_LOGLEVEL;
+    }
+    dst->category = (enum ndb_mgm_event_category) category;
+  }
+
+  return rc;
+}
+
+extern "C"
+int ndb_logevent_get_next2(const NdbLogEventHandle h,
+                           struct ndb_logevent *dst,
+                           unsigned timeout_in_milliseconds)
 {
   if (timeout_in_milliseconds == 0)
   {
     int res;
-    while ((res = ndb_logevent_get_next(h, dst, 60000))==0);
+    while ((res = ndb_logevent_get_next2(h, dst, 60000))==0);
     return res;
   }
 
