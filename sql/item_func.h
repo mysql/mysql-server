@@ -26,6 +26,10 @@ extern "C"				/* Bug in BSDI include file */
 }
 #endif
 
+extern void reject_geometry_args(uint arg_count, Item **args,
+                                 Item_result_field *me);
+
+
 class Item_func :public Item_result_field
 {
   typedef Item_result_field super;
@@ -728,11 +732,7 @@ public:
   const char *func_name() const { return "cast_as_signed"; }
   longlong val_int();
   longlong val_int_from_str(int *error);
-  void fix_length_and_dec()
-  {
-    fix_char_length(std::min<uint32>(args[0]->max_char_length(),
-                                     MY_INT64_NUM_DECIMAL_DIGITS));
-  }
+  void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
 };
@@ -1018,11 +1018,7 @@ class Item_dec_func :public Item_real_func
   Item_dec_func(const POS &pos, Item *a) :Item_real_func(pos, a) {}
 
   Item_dec_func(const POS &pos, Item *a,Item *b) :Item_real_func(pos, a,b) {}
-  void fix_length_and_dec()
-  {
-    decimals=NOT_FIXED_DEC; max_length=float_length(decimals);
-    maybe_null=1;
-  }
+  void fix_length_and_dec();
 };
 
 class Item_func_exp :public Item_dec_func
@@ -1234,6 +1230,7 @@ public:
   */
   table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
   bool fix_fields(THD *thd, Item **ref);
+  void fix_length_and_dec();
   void cleanup() { first_eval= TRUE; Item_real_func::cleanup(); }
 private:
   void seed_random (Item * val);  
@@ -1246,6 +1243,7 @@ public:
   Item_func_sign(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   const char *func_name() const { return "sign"; }
   longlong val_int();
+  void fix_length_and_dec();
 };
 
 
@@ -1260,8 +1258,7 @@ public:
   {}
   double val_real();
   const char *func_name() const { return name; }
-  void fix_length_and_dec()
-  { decimals= NOT_FIXED_DEC; max_length= float_length(decimals); }
+  void fix_length_and_dec();
 };
 
 
