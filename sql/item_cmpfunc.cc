@@ -605,6 +605,18 @@ void Item_bool_func2::fix_length_and_dec()
     DBUG_VOID_RETURN;
   }
 
+  /*
+    Geometry item cannot participate in an arithmetic or string comparison or
+    a full text search, except in equal/not equal comparison.
+    We allow geometry arguments in equal/not equal, since such
+    comparisons are used now and are meaningful, although it simply compares
+    the GEOMETRY byte string rather than doing a geometric equality comparison.
+  */
+  const Functype func_type= functype();
+  if (func_type == LT_FUNC || func_type == LE_FUNC || func_type == GE_FUNC ||
+      func_type == GT_FUNC || func_type == FT_FUNC)
+    reject_geometry_args(arg_count, args, this);
+
   thd= current_thd;
   if (!thd->lex->is_ps_or_view_context_analysis())
   {
@@ -2698,6 +2710,12 @@ void Item_func_between::fix_length_and_dec()
   if (cmp_type == STRING_RESULT &&
       agg_arg_charsets_for_comparison(cmp_collation, args, 3))
    return;
+
+  /*
+    See comments for the code block doing similar checks in
+    Item_bool_func2::fix_length_and_dec().
+  */
+  reject_geometry_args(arg_count, args, this);
 
   /*
     Detect the comparison of DATE/DATETIME items.

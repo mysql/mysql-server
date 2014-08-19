@@ -30,6 +30,8 @@ Created 2013-7-26 by Kevin Lewis
 #include "fsp0file.h"
 #include "fsp0fsp.h"
 #include "fsp0types.h"
+#include "ut0new.h"
+
 #include <vector>
 
 /** Data structure that contains the information about shared tablespaces.
@@ -37,7 +39,7 @@ Currently this can be the system tablespace or a temporary table tablespace */
 class Tablespace {
 
 public:
-	typedef std::vector<Datafile> files_t;
+	typedef std::vector<Datafile, ut_allocator<Datafile> >	files_t;
 
 	/** Data file information - each Datafile can be accessed globally */
 	files_t		m_files;
@@ -60,11 +62,11 @@ public:
 		ut_ad(m_files.empty());
 		ut_ad(m_space_id == ULINT_UNDEFINED);
 		if (m_name != NULL) {
-			::free(m_name);
+			ut_free(m_name);
 			m_name = NULL;
 		}
 		if (m_path != NULL) {
-			::free(m_path);
+			ut_free(m_path);
 			m_path = NULL;
 		}
 	}
@@ -78,7 +80,7 @@ public:
 	void set_name(const char* name)
 	{
 		ut_ad(m_name == NULL);
-		m_name = ::strdup(name);
+		m_name = mem_strdup(name);
 		ut_ad(m_name != NULL);
 	}
 
@@ -94,7 +96,7 @@ public:
 	void set_path(const char* path)
 	{
 		ut_ad(m_path == NULL);
-		m_path = ::strdup(path);
+		m_path = mem_strdup(path);
 		ut_ad(m_path != NULL);
 
 		os_normalize_path_for_win(m_path);

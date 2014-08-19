@@ -32,6 +32,8 @@ Created 9/20/1997 Heikki Tuuri
 #include "hash0hash.h"
 #include "log0log.h"
 #include "mtr0types.h"
+#include "ut0new.h"
+
 #include <list>
 
 #ifdef UNIV_HOTBACKUP
@@ -299,10 +301,10 @@ struct recv_dblwr_t {
 	@retval NULL if no page was found */
 	const byte* find_page(ulint space_id, ulint page_no);
 
-	typedef std::list<const byte*> list;
+	typedef std::list<const byte*, ut_allocator<const byte*> >	list;
 
 	/** Recovered doublewrite buffer page frames */
-	list pages;
+	list	pages;
 };
 
 /** Recovery system data structure */

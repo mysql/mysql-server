@@ -234,7 +234,7 @@ fts_lexer_create(
 	ulint		query_len)
 {
 	fts_lexer_t*	fts_lexer = static_cast<fts_lexer_t*>(
-		ut_malloc(sizeof(fts_lexer_t)));
+		ut_malloc_nokey(sizeof(fts_lexer_t)));
 
 	if (boolean_mode) {
 		fts0blex_init(&fts_lexer->yyscanner);

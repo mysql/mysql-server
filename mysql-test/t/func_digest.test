@@ -505,3 +505,12 @@ SELECT * FROM t1 WHERE a=sha2('a',224);
 DROP TABLE t1;
 SET NAMES latin1;
 
+--echo #
+--echo # Bug#18899869 SHA2(X, NULL) YIELDS SHA2(X, 0) INSTEAD OF NULL
+--echo # Bug#72856    SHA2(x, NULL) yields SHA2(x, 0) instead of NULL
+--echo #
+
+SELECT SHA2("hello", 1);
+SELECT SHA2("hello", 0);
+SELECT SHA2("hello", NULL);
+SELECT SHA2("hello", -4294966784); # 512 when cast to uint

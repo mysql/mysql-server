@@ -27,6 +27,11 @@ include/assert.inc [Value returned by SSS and PS table for SSL_Crl_Path should b
 include/assert.inc [Value returned by SSS and PS table for Connection_Retry_Interval should be same.]
 include/assert.inc [Value returned by SSS and PS table for Connection_Retry_Count should be same.]
 
+# Heartbeat_Interval is part of I_S and P_S. We will compare the
+# two to make sure both match.
+
+include/assert.inc [Value returned by IS and PS table for Heartbeat_Interval should be same.]
+
 # Change configuration parameters and verify that these changes
 # are shown correctly by SELECTs from PS table.
 

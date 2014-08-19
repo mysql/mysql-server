@@ -48,6 +48,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0undo.h"
 #include "trx0xa.h"
 #include "usr0sess.h"
+#include "ut0new.h"
 #include "ut0pool.h"
 #include "ut0vec.h"
 
@@ -57,10 +58,13 @@ Created 3/26/1996 Heikki Tuuri
 static const ulint MAX_DETAILED_ERROR_LEN = 256;
 
 /** Set of table_id */
-typedef std::set<table_id_t>	table_id_set;
+typedef std::set<
+	table_id_t,
+	std::less<table_id_t>,
+	ut_allocator<table_id_t> >	table_id_set;
 
 /** Dummy session used currently in MySQL interface */
-sess_t*		trx_dummy_sess = NULL;
+sess_t*	trx_dummy_sess = NULL;
 
 /*************************************************************//**
 Set detailed error message for the transaction. */
@@ -171,10 +175,10 @@ struct TrxFactory {
 
 		trx->dict_operation_lock_mode = 0;
 
-		trx->xid = new (std::nothrow) xid_t();
+		trx->xid = UT_NEW_NOKEY(xid_t());
 
 		trx->detailed_error = reinterpret_cast<char*>(
-			ut_zalloc(MAX_DETAILED_ERROR_LEN));
+			ut_zalloc_nokey(MAX_DETAILED_ERROR_LEN));
 
 		trx->lock.lock_heap = mem_heap_create_typed(
 			1024, MEM_HEAP_FOR_LOCK_HEAP);
@@ -190,7 +194,7 @@ struct TrxFactory {
 
 		/* Explicitly call the constructor of the already
 		allocated object. trx_t objects are allocated by
-		ut_zalloc() in Pool::Pool() which would not call
+		ut_zalloc_nokey() in Pool::Pool() which would not call
 		the constructors of the trx_t members. */
 		new(&trx->mod_tables) trx_mod_tables_t();
 
@@ -225,7 +229,7 @@ struct TrxFactory {
 
 		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-		delete trx->xid;
+		UT_DELETE(trx->xid);
 		ut_free(trx->detailed_error);
 
 		mutex_free(&trx->mutex);
@@ -357,7 +361,7 @@ static const ulint MAX_TRX_BLOCK_SIZE = 1024 * 1024 * 4;
 void
 trx_pool_init()
 {
-	trx_pools = new (std::nothrow) trx_pools_t(MAX_TRX_BLOCK_SIZE);
+	trx_pools = UT_NEW_NOKEY(trx_pools_t(MAX_TRX_BLOCK_SIZE));
 
 	ut_a(trx_pools != 0);
 }
@@ -367,7 +371,7 @@ trx_pool_init()
 void
 trx_pool_close()
 {
-	delete trx_pools;
+	UT_DELETE(trx_pools);
 
 	trx_pools = 0;
 }
@@ -1885,6 +1889,12 @@ trx_commit_in_memory(
 		}
 
 		trx->commit_lsn = lsn;
+
+		/* Tell server some activity has happened, since the trx
+		does changes something. Background utility threads like
+		master thread, purge thread or page_cleaner thread might
+		have some work to do. */
+		srv_active_wake_master_thread();
 	}
 
 	/* Free all savepoints, starting from the first. */

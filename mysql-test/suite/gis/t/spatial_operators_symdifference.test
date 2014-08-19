@@ -12,16 +12,8 @@
 
 
 --source include/force_myisam_default.inc
-#SET default_storage_engine=MyISAM;
-#SET default_tmp_storage_engine=MyISAM;
-
---source include/have_debug.inc
 --source include/not_embedded.inc
 --source include/have_geometry.inc
-
-# Turn on the geometry data print.
---echo #Turn on the geometry data print.
-SET SESSION debug="+d,row_print_geometry_data";
 
 #Confirming the storage engine
 --echo #Confirming the storage engine

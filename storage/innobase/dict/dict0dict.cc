@@ -73,6 +73,8 @@ dict_index_t*	dict_ind_redundant;
 #include "srv0start.h"
 #include "sync0sync.h"
 #include "trx0undo.h"
+#include "ut0new.h"
+
 #include <vector>
 #include <algorithm>
 
@@ -282,7 +284,7 @@ dict_table_stats_latch_alloc(
 {
 	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
 
-	table->stats_latch = new(std::nothrow) rw_lock_t;
+	table->stats_latch = UT_NEW_NOKEY(rw_lock_t());
 
 	ut_a(table->stats_latch != NULL);
 
@@ -299,7 +301,7 @@ dict_table_stats_latch_free(
 	dict_table_t*	table)
 {
 	rw_lock_free(table->stats_latch);
-	delete table->stats_latch;
+	UT_DELETE(table->stats_latch);
 }
 
 /** Create a dict_table_t's stats latch or delay for lazy creation.
@@ -985,7 +987,7 @@ void
 dict_init(void)
 /*===========*/
 {
-	dict_sys = static_cast<dict_sys_t*>(ut_zalloc(sizeof(*dict_sys)));
+	dict_sys = static_cast<dict_sys_t*>(ut_zalloc_nokey(sizeof(*dict_sys)));
 
 	UT_LIST_INIT(dict_sys->table_LRU, &dict_table_t::table_LRU);
 	UT_LIST_INIT(dict_sys->table_non_LRU, &dict_table_t::table_LRU);
@@ -2816,14 +2818,13 @@ dict_index_find_cols(
 	dict_table_t*	table,	/*!< in: table */
 	dict_index_t*	index)	/*!< in: index */
 {
-	ulint			i;
-	std::vector<ulint>	col_added;
+	std::vector<ulint, ut_allocator<ulint> >	col_added;
 
-	ut_ad(table && index);
+	ut_ad(table != NULL && index != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(mutex_own(&(dict_sys->mutex)) || dict_table_is_intrinsic(table));
 
-	for (i = 0; i < index->n_fields; i++) {
+	for (ulint i = 0; i < index->n_fields; i++) {
 		ulint		j;
 		dict_field_t*	field = dict_index_get_nth_field(index, i);
 
@@ -3174,7 +3175,7 @@ dict_index_build_internal_clust(
 
 	/* Remember the table columns already contained in new_index */
 	indexed = static_cast<ibool*>(
-		ut_zalloc(table->n_cols * sizeof *indexed));
+		ut_zalloc_nokey(table->n_cols * sizeof *indexed));
 
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -3260,7 +3261,7 @@ dict_index_build_internal_non_clust(
 
 	/* Remember the table columns already contained in new_index */
 	indexed = static_cast<ibool*>(
-		ut_zalloc(table->n_cols * sizeof *indexed));
+		ut_zalloc_nokey(table->n_cols * sizeof *indexed));
 
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -4200,7 +4201,7 @@ dict_strip_comments(
 
 	DBUG_PRINT("dict_strip_comments", ("%s", sql_string));
 
-	str = static_cast<char*>(ut_malloc(sql_length + 1));
+	str = static_cast<char*>(ut_malloc_nokey(sql_length + 1));
 
 	sptr = sql_string;
 	ptr = str;
