@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,7 @@ Created 2/2/1994 Heikki Tuuri
 #include "univ.i"
 #include "dict0types.h"
 #include "mtr0types.h"
+#include "ut0new.h"
 
 #include <map>
 
@@ -118,7 +119,12 @@ struct page_zip_stat_t {
 };
 
 /** Compression statistics types */
-typedef std::map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index_t;
+typedef std::map<
+	index_id_t,
+	page_zip_stat_t,
+	std::less<index_id_t>,
+	ut_allocator<std::pair<const index_id_t, page_zip_stat_t> > >
+	page_zip_stat_per_index_t;
 
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
 extern page_zip_stat_t			page_zip_stat[PAGE_ZIP_SSIZE_MAX];
