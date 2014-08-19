@@ -1772,8 +1772,6 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 			trx_t*	trx = next->trx;
 
-			ut_ad(trx != lock->trx);
-
 			/* If the transaction is waiting on some other lock.
 			The abort state cannot change while we hold the lock
 			sys mutex.
@@ -1788,7 +1786,8 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 			worst case should be that the high priority
 			transaction ends up waiting. */
 
-			if (trx != wait_for->trx
+			if (trx != lock->trx
+			    && trx != wait_for->trx
 			    && trx->lock.wait_lock != next
 			    && !trx->abort) {
 
