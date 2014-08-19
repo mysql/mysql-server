@@ -222,9 +222,9 @@ static TYPELIB innodb_checksum_algorithm_typelib = {
 };
 
 /* The following counter is used to convey information to InnoDB
-about server activity: in selects it is not sensible to call
-srv_active_wake_master_thread after each fetch or search, we only do
-it every INNOBASE_WAKE_INTERVAL'th step. */
+about server activity: in case of normal DML ops it is not
+sensible to call srv_active_wake_master_thread after each
+operation, we only do it every INNOBASE_WAKE_INTERVAL'th step. */
 
 #define INNOBASE_WAKE_INTERVAL	32
 static ulong	innobase_active_counter	= 0;
@@ -3705,12 +3705,6 @@ innobase_commit(
 	trx->fts_next_doc_id = 0;
 
 	innobase_srv_conc_force_exit_innodb(trx);
-
-	/* Tell the InnoDB server that there might be work for utility
-	threads: */
-	if (!read_only) {
-		srv_active_wake_master_thread();
-	}
 
 	DBUG_RETURN(0);
 }
@@ -10614,11 +10608,6 @@ ha_innobase::delete_table(
 		log_buffer_flush_to_disk();
 	}
 
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
 	innobase_commit_low(trx);
 
 	trx_free_for_mysql(trx);
@@ -10700,11 +10689,6 @@ innobase_drop_database(
 	with innodb_flush_log_at_trx_commit = 0 */
 
 	log_buffer_flush_to_disk();
-
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
 
 	innobase_commit_low(trx);
 
@@ -10855,11 +10839,6 @@ ha_innobase::rename_table(
 	dberr_t	error = innobase_rename_table(trx, from, to);
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
-
-	/* Tell the InnoDB server that there might be work for
-	utility threads. */
-
-	srv_active_wake_master_thread();
 
 	innobase_commit_low(trx);
 
@@ -14185,8 +14164,6 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-	bool	read_only = trx->read_only || trx->id == 0;
-
 	thd_get_xid(thd, (MYSQL_XID*) trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
@@ -14234,13 +14211,6 @@ innobase_xa_prepare(
 		SQL statement */
 
 		trx_mark_sql_stat_end(trx);
-	}
-
-	/* Tell the InnoDB server that there might be work for utility
-	threads: */
-
-	if (!read_only) {
-		srv_active_wake_master_thread();
 	}
 
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
