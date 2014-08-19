@@ -62,7 +62,7 @@
   in @c m_psi_numrows, so that @c end_psi_batch_mode()
   generates a single event for the batch.
   @param OP the table operation to be performed
-  @param INDEX the table index used if any, or MAY_KEY.
+  @param INDEX the table index used if any, or MAX_KEY.
   @param PAYLOAD instrumented code to execute
   @sa handler::end_psi_batch_mode.
 */
@@ -94,32 +94,32 @@
 /**
   @def MYSQL_TABLE_LOCK_WAIT
   Instrumentation helper for table io_waits.
-  @param PSI the instrumented table
   @param OP the table operation to be performed
   @param FLAGS per table operation flags.
   @param PAYLOAD the code to instrument.
   @sa MYSQL_END_TABLE_WAIT.
 */
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  #define MYSQL_TABLE_LOCK_WAIT(PSI, OP, FLAGS, PAYLOAD) \
-    {                                                    \
-      if (PSI != NULL)                                   \
-      {                                                  \
-        PSI_table_locker *locker;                        \
-        PSI_table_locker_state state;                    \
-        locker= PSI_TABLE_CALL(start_table_lock_wait)    \
-          (& state, PSI, OP, FLAGS, __FILE__, __LINE__); \
-        PAYLOAD                                          \
-        if (locker != NULL)                              \
-          PSI_TABLE_CALL(end_table_lock_wait)(locker);   \
-      }                                                  \
-      else                                               \
-      {                                                  \
-        PAYLOAD                                          \
-      }                                                  \
+  #define MYSQL_TABLE_LOCK_WAIT(OP, FLAGS, PAYLOAD)    \
+    {                                                  \
+      if (m_psi != NULL)                               \
+      {                                                \
+        PSI_table_locker *locker;                      \
+        PSI_table_locker_state state;                  \
+        locker= PSI_TABLE_CALL(start_table_lock_wait)  \
+          (& state, m_psi, OP, FLAGS,                  \
+          __FILE__, __LINE__);                         \
+        PAYLOAD                                        \
+        if (locker != NULL)                            \
+          PSI_TABLE_CALL(end_table_lock_wait)(locker); \
+      }                                                \
+      else                                             \
+      {                                                \
+        PAYLOAD                                        \
+      }                                                \
     }
 #else
-  #define MYSQL_TABLE_LOCK_WAIT(PSI, OP, FLAGS, PAYLOAD) \
+  #define MYSQL_TABLE_LOCK_WAIT(OP, FLAGS, PAYLOAD) \
     PAYLOAD
 #endif
 
@@ -7310,7 +7310,7 @@ int handler::ha_external_lock(THD *thd, int lock_type)
 
   ha_statistic_increment(&SSV::ha_external_lock_count);
 
-  MYSQL_TABLE_LOCK_WAIT(m_psi, PSI_TABLE_EXTERNAL_LOCK, lock_type,
+  MYSQL_TABLE_LOCK_WAIT(PSI_TABLE_EXTERNAL_LOCK, lock_type,
     { error= external_lock(thd, lock_type); })
 
   /*
