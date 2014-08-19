@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -850,19 +850,14 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
 }    
 
 
-/* 
+/**
   Calculate the increment of the MRR buffer for a record write       
 
-  SYNOPSIS
-    aux_buffer_incr()
+  This implementation of the virtual function aux_buffer_incr
+  determines for how much the size of the MRR buffer should be
+  increased when another record is added to the cache.
 
-  DESCRIPTION
-    This implementation of the virtual function aux_buffer_incr determines
-    for how much the size of the MRR buffer should be increased when another
-    record is added to the cache.   
-
-  RETURN
-    the increment of the size of the MRR buffer for the next record
+  @return the increment of the size of the MRR buffer for the next record
 */
 
 uint JOIN_CACHE_BKA::aux_buffer_incr()
@@ -870,17 +865,19 @@ uint JOIN_CACHE_BKA::aux_buffer_incr()
   uint incr= 0;
   TABLE_REF *ref= &qep_tab->ref();
   TABLE *tab= qep_tab->table();
-  uint rec_per_key= tab->key_info[ref->key].rec_per_key[ref->key_parts-1];
-  set_if_bigger(rec_per_key, 1);
+
   if (records == 1)
     incr=  ref->key_length + tab->file->ref_length;
   /*
     When adding a new record to the join buffer this can match
-    multiple keys in this table. We use rec_per_key as estimate for
+    multiple keys in this table. We use "records per key" as estimate for
     the number of records that will match and reserve space in the
     DS-MRR sort buffer for this many record references.
   */
-  incr+= tab->file->stats.mrr_length_per_rec * rec_per_key;
+  rec_per_key_t rec_per_key=
+    tab->key_info[ref->key].records_per_key(ref->key_parts - 1);
+  set_if_bigger(rec_per_key, 1.0f);
+  incr+= static_cast<uint>(tab->file->stats.mrr_length_per_rec * rec_per_key);
   return incr; 
 }
 

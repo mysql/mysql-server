@@ -1511,7 +1511,7 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
 
-		if (srv_buf_pool_instances == SRV_BUF_POOL_INSTANCES_NOT_SET) {
+		if (srv_buf_pool_instances == srv_buf_pool_instances_default) {
 #if defined(_WIN32) && !defined(_WIN64)
 			/* Do not allocate too large of a buffer pool on
 			Windows 32-bit systems, which can have trouble
@@ -1528,11 +1528,11 @@ innobase_start_or_create_for_mysql(void)
 	} else {
 		/* If buffer pool is less than 1 GiB, assume fewer
 		threads. Also use only one buffer pool instance. */
-		if (srv_buf_pool_instances != SRV_BUF_POOL_INSTANCES_NOT_SET
+		if (srv_buf_pool_instances != srv_buf_pool_instances_default
 		    && srv_buf_pool_instances != 1) {
 			/* We can't distinguish whether the user has explicitly
 			started mysqld with --innodb-buffer-pool-instances=0,
-			(SRV_BUF_POOL_INSTANCES_NOT_SET is 0) or has not
+			(srv_buf_pool_instances_default is 0) or has not
 			specified that option at all. Thus we have the
 			limitation that if the user started with =0, we
 			will not emit a warning here, but we should actually

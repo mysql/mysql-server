@@ -358,8 +358,9 @@ row_merge_buf_create(
 	ulint			buf_size;
 	mem_heap_t*		heap;
 
-	max_tuples = srv_sort_buf_size
-		/ ut_max(1, dict_index_get_min_size(index));
+	max_tuples = static_cast<ulint>(srv_sort_buf_size)
+		/ ut_max(static_cast<ulint>(1),
+			 dict_index_get_min_size(index));
 
 	buf_size = (sizeof *buf);
 
@@ -3605,8 +3606,9 @@ row_merge_rename_tables_dict(
 			   " WHERE NAME = :new_name;\n"
 			   "END;\n", FALSE, trx);
 
-	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old
-	table is in a non-system tablespace where space > 0. */
+	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old table being
+	renamed is a single-table tablespace, which must be implicitly
+	renamed along with the table. */
 	if (err == DB_SUCCESS
 	    && !is_system_tablespace(old_table->space)
 	    && !old_table->ibd_file_missing) {
@@ -3634,8 +3636,9 @@ row_merge_rename_tables_dict(
 		ut_free(tmp_path);
 	}
 
-	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
-	table is in a non-system tablespace where space > 0. */
+	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new table being
+	renamed is a single-table tablespace, which must be implicitly
+	renamed along with the table. */
 	if (err == DB_SUCCESS
 	    && !is_system_tablespace(new_table->space)) {
 		/* Make pathname to update SYS_DATAFILES. */
