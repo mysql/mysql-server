@@ -231,19 +231,22 @@ void Item_func_sha::fix_length_and_dec()
   fix_length_and_charset(SHA1_HASH_SIZE * 2, default_charset());
 }
 
+/*
+  SHA2(str, hash_length)
+  The second argument indicates the desired bit length of the
+  result, which must have a value of 224, 256, 384, 512, or 0 
+  (which is equivalent to 256).
+*/
 String *Item_func_sha2::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
-  String *input_string;
-  unsigned char *input_ptr;
-  size_t input_len;
   uint digest_length= 0;
 
   str->set_charset(&my_charset_bin);
 
-  input_string= args[0]->val_str(str);
+  String *input_string= args[0]->val_str(str);
   if (input_string == NULL)
   {
     null_value= TRUE;
@@ -252,12 +255,19 @@ String *Item_func_sha2::val_str_ascii(String *str)
 
   null_value= args[0]->null_value;
   if (null_value)
-    return (String *) NULL;
+    return NULL;
 
-  input_ptr= (unsigned char *) input_string->ptr();
-  input_len= input_string->length();
+  const unsigned char *input_ptr=
+    pointer_cast<const unsigned char*>(input_string->ptr());
+  size_t input_len= input_string->length();
 
-  switch ((uint) args[1]->val_int()) {
+  longlong hash_length= args[1]->val_int();
+  null_value= args[1]->null_value;
+  // Give error message in switch below.
+  if (null_value)
+    hash_length= -1;
+
+  switch (hash_length) {
 #ifndef OPENSSL_NO_SHA512
   case 512:
     digest_length= SHA512_DIGEST_LENGTH;
@@ -280,6 +290,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
     break;
 #endif
   default:
+    // For const values we have already warned in fix_length_and_dec.
     if (!args[1]->const_item())
       push_warning_printf(current_thd,
         Sql_condition::SL_WARNING,
@@ -322,7 +333,18 @@ void Item_func_sha2::fix_length_and_dec()
   max_length = 0;
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  int sha_variant= args[1]->const_item() ? args[1]->val_int() : 512;
+  longlong sha_variant;
+  if (args[1]->const_item())
+  {
+    sha_variant= args[1]->val_int();
+    // Give error message in switch below.
+    if (args[1]->null_value)
+      sha_variant= -1;
+  }
+  else
+  {
+    sha_variant= 512;
+  }
 
   switch (sha_variant) {
 #ifndef OPENSSL_NO_SHA512
