@@ -1380,10 +1380,14 @@ SHA2( SHA2( x'ff', 224), 224 ) is not NULL
 1
 SELECT SHA2( SHA2( x'ff', NULL), 224 ) is not NULL;
 SHA2( SHA2( x'ff', NULL), 224 ) is not NULL
-1
+0
+Warnings:
+Warning	1583	Incorrect parameters in the call to native function 'sha2'
 SELECT SHA2( SHA2( x'ff', 224), NULL ) is not NULL;
 SHA2( SHA2( x'ff', 224), NULL ) is not NULL
-1
+0
+Warnings:
+Warning	1583	Incorrect parameters in the call to native function 'sha2'
 SELECT SHA2( (select x'ff'), 224 ) is not NULL;
 SHA2( (select x'ff'), 224 ) is not NULL
 1
@@ -1392,7 +1396,9 @@ SHA2( (select x'ff'), least(224, 500) ) is not NULL
 1
 SELECT SHA2( (select 1), NULL ) is not NULL;
 SHA2( (select 1), NULL ) is not NULL
-1
+0
+Warnings:
+Warning	1583	Incorrect parameters in the call to native function 'sha2'
 SELECT LENGTH(SHA2( '', 224 )) / 2 * 8           = 224;
 LENGTH(SHA2( '', 224 )) / 2 * 8           = 224
 1
@@ -1437,3 +1443,25 @@ SELECT * FROM t1 WHERE a=sha2('a',224);
 a
 DROP TABLE t1;
 SET NAMES latin1;
+#
+# Bug#18899869 SHA2(X, NULL) YIELDS SHA2(X, 0) INSTEAD OF NULL
+# Bug#72856    SHA2(x, NULL) yields SHA2(x, 0) instead of NULL
+#
+SELECT SHA2("hello", 1);
+SHA2("hello", 1)
+NULL
+Warnings:
+Warning	1583	Incorrect parameters in the call to native function 'sha2'
+SELECT SHA2("hello", 0);
+SHA2("hello", 0)
+2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
+SELECT SHA2("hello", NULL);
+SHA2("hello", NULL)
+NULL
+Warnings:
+Warning	1583	Incorrect parameters in the call to native function 'sha2'
+SELECT SHA2("hello", -4294966784);
+SHA2("hello", -4294966784)
+NULL
+Warnings:
+Warning	1583	Incorrect parameters in the call to native function 'sha2'

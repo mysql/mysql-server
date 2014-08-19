@@ -459,7 +459,7 @@ trx_sys_init_at_db_start(void)
 	/* We create the min binary heap here and pass ownership to
 	purge when we init the purge sub-system. Purge is responsible
 	for freeing the binary heap. */
-	purge_queue = new(std::nothrow) purge_pq_t();
+	purge_queue = UT_NEW_NOKEY(purge_pq_t());
 	ut_a(purge_queue != NULL);
 
 	mtr_start(&mtr);
@@ -540,7 +540,7 @@ trx_sys_create(void)
 {
 	ut_ad(trx_sys == NULL);
 
-	trx_sys = static_cast<trx_sys_t*>(ut_zalloc(sizeof(*trx_sys)));
+	trx_sys = static_cast<trx_sys_t*>(ut_zalloc_nokey(sizeof(*trx_sys)));
 
 	mutex_create("trx_sys", &trx_sys->mutex);
 
@@ -548,9 +548,10 @@ trx_sys_create(void)
 	UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);
 	UT_LIST_INIT(trx_sys->mysql_trx_list, &trx_t::mysql_trx_list);
 
-	trx_sys->mvcc = new(std::nothrow) MVCC(1024);
+	trx_sys->mvcc = UT_NEW_NOKEY(MVCC(1024));
 
-	new(&trx_sys->rw_trx_ids) trx_ids_t();
+	new(&trx_sys->rw_trx_ids) trx_ids_t(ut_allocator<trx_id_t>(
+			mem_key_trx_sys_t_rw_trx_ids));
 
 	new(&trx_sys->rw_trx_set) TrxIdSet();
 }
@@ -1211,7 +1212,7 @@ trx_sys_close(void)
 		}
 	}
 
-	delete trx_sys->mvcc;
+	UT_DELETE(trx_sys->mvcc);
 
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);

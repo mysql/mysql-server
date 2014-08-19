@@ -926,12 +926,7 @@ public:
   {}
   const char *func_name() const { return "conv"; }
   String *val_str(String *);
-  void fix_length_and_dec()
-  {
-    collation.set(default_charset());
-    max_length=64;
-    maybe_null= 1;
-  }
+  void fix_length_and_dec();
 };
 
 
