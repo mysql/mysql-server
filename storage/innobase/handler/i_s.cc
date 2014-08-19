@@ -135,8 +135,8 @@ struct buf_page_info_t{
 	index_id_t	index_id;	/*!< Index ID if a index page */
 };
 
-/** maximum number of buffer page info we would cache. */
-#define MAX_BUF_INFO_CACHED		10000
+/** Maximum number of buffer page info we would cache. */
+const ulint	MAX_BUF_INFO_CACHED = 10000;
 
 #define OK(expr)		\
 	if ((expr) != 0) {	\
@@ -6427,7 +6427,7 @@ i_s_sys_tables_fill_table(
 	}
 
 	heap = mem_heap_create(1000);
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
 
 	rec = dict_startscan_system(&pcur, &mtr, SYS_TABLES);

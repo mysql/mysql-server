@@ -1419,6 +1419,7 @@ lock_rec_create_low(
 	ut_ad(lock_mutex_own());
 	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
 	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
+	ut_ad(!trx->is_dd_trx);
 
 #ifdef UNIV_DEBUG
 	/* Non-locking autocommit read-only transactions should not set
@@ -3950,6 +3951,7 @@ lock_release(
 
 	ut_ad(lock_mutex_own());
 	ut_ad(!trx_mutex_own(trx));
+	ut_ad(!trx->is_dd_trx);
 
 	for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
 	     lock != NULL;
