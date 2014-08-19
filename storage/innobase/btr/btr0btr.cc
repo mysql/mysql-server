@@ -2642,6 +2642,7 @@ insert_empty:
 	}
 
 	if (!srv_read_only_mode
+	    && !dict_table_is_intrinsic(cursor->index->table)
 	    && insert_will_fit
 	    && page_is_leaf(page)
 	    && !dict_index_is_online_ddl(cursor->index)) {
