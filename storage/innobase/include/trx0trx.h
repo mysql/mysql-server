@@ -1200,7 +1200,11 @@ struct trx_t {
 	/*------------------------------*/
 	char*		detailed_error;	/*!< detailed error message for last
 					error, or empty. */
-
+#ifdef UNIV_DEBUG
+	bool		is_dd_trx;	/*!< True if the transaction is used for
+					doing Non-locking Read-only Read
+					Committed on DD tables */
+#endif /* UNIV_DEBUG */
 	ulint		magic_n;
 };
 
