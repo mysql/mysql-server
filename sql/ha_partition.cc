@@ -7784,7 +7784,7 @@ int ha_partition::records(ha_rows *num_rows)
   {
     int error= m_file[i]->ha_records(num_rows);
     if (error != 0)
-      return error;
+      DBUG_RETURN(error);
     tot_rows+= *num_rows;
   }
   *num_rows= tot_rows;

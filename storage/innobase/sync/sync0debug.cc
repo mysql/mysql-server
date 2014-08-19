@@ -43,6 +43,7 @@ Created 2012-08-21 Sunny Bains
 #include <map>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 extern ulint	srv_max_n_threads;
 
@@ -314,15 +315,22 @@ struct SyncDebug {
 		    && latch->m_level != SYNC_LEVEL_VARYING) {
 
 			Latches*	latches = thread_latches(true);
+			Latches::iterator	it = std::find(
+				latches->begin(), latches->end(), latch);
 
 			ut_a(latches->empty()
 			     || latch->m_level == SYNC_LEVEL_VARYING
 			     || latch->m_level == SYNC_NO_ORDER_CHECK
 			     || latches->back()->m_level == SYNC_LEVEL_VARYING
 			     || latches->back()->m_level == SYNC_NO_ORDER_CHECK
-			     || latches->back()->m_level >= latch->m_level);
+			     || latches->back()->m_level >= latch->m_level
+			     || it != latches->end());
 
-			latches->push_back(latch);
+			if (it == latches->end()) {
+				latches->push_back(latch);
+			} else {
+				latches->insert(it, latch);
+			}
 		}
 	}
 

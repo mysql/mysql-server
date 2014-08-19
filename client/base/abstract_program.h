@@ -80,6 +80,11 @@ public:
    */
   virtual int execute(vector<string> positional_options)= 0;
 
+  /**
+   Prints usage message. Does not end the program execution.
+  */
+  void print_usage();
+
 protected:
   Abstract_program();
 

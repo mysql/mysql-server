@@ -608,6 +608,19 @@ dict_table_get_col_name(
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			col_nr)	/*!< in: column number */
 	__attribute__((nonnull, warn_unused_result));
+
+/** Check if the table has a given column.
+@param[in]	table		table object
+@param[in]	col_name	column name
+@param[in]	col_nr		column number guessed, 0 as default
+@return column number if the table has the specified column,
+otherwise table->n_def */
+ulint
+dict_table_has_column(
+	const dict_table_t*	table,
+	const char*		col_name,
+	ulint			col_nr = 0);
+
 /**********************************************************************//**
 Outputs info on foreign keys of a table. */
 

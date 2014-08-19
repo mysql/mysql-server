@@ -916,7 +916,11 @@ BtrBulk::finish(
 					       root_page_no, m_root_level);
 
 		mtr_start(&mtr);
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		if (m_index->is_redo_skipped) {
+			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+                } else {
+			mtr.set_named_space(dict_index_get_space(m_index));
+		}
 		mtr_x_lock(dict_index_get_lock(m_index), &mtr);
 
 		ut_ad(last_page_no != FIL_NULL);

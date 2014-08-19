@@ -972,7 +972,7 @@ rw_lock_add_debug_info(
 		if ((lock_type == RW_LOCK_X
 		     && lock->lock_word <  -X_LOCK_HALF_DECR)
 		    || (lock_type == RW_LOCK_SX
-		       && (lock->lock_word < 0 || lock->sx_recursive > 1))) {
+		       && (lock->lock_word < 0 || lock->sx_recursive == 1))) {
 
 			sync_check_lock(lock);
 		} else {
