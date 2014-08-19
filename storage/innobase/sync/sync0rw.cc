@@ -205,7 +205,7 @@ rw_lock_debug_t*
 rw_lock_debug_create(void)
 /*======================*/
 {
-	return((rw_lock_debug_t*) ut_malloc(sizeof(rw_lock_debug_t)));
+	return((rw_lock_debug_t*) ut_malloc_nokey(sizeof(rw_lock_debug_t)));
 }
 
 /******************************************************************//**

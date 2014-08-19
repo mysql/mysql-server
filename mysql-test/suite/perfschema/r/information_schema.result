@@ -284,11 +284,11 @@ file_summary_by_event_name	50	0
 file_summary_by_instance	10000	0
 host_cache	279	0
 hosts	100	0
-memory_summary_by_account_by_event_name	25000	0
-memory_summary_by_host_by_event_name	25000	0
-memory_summary_by_thread_by_event_name	50000	0
-memory_summary_by_user_by_event_name	25000	0
-memory_summary_global_by_event_name	250	0
+memory_summary_by_account_by_event_name	102400	0
+memory_summary_by_host_by_event_name	102400	0
+memory_summary_by_thread_by_event_name	204800	0
+memory_summary_by_user_by_event_name	102400	0
+memory_summary_global_by_event_name	1024	0
 metadata_locks	10000	0
 mutex_instances	5000	0
 objects_summary_global_by_type	5500	0
@@ -305,7 +305,7 @@ session_account_connect_attrs	409600	0
 session_connect_attrs	409600	0
 setup_actors	1	0
 setup_consumers	15	0
-setup_instruments	974	0
+setup_instruments	1748	0
 setup_objects	20	0
 setup_timers	5	0
 socket_instances	1000	0

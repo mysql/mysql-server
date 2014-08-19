@@ -415,19 +415,21 @@ extern srv_stats_t	srv_stats;
 
 # ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
-extern mysql_pfs_key_t	page_cleaner_thread_key;
-extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
+extern mysql_pfs_key_t	buf_dump_thread_key;
+extern mysql_pfs_key_t	dict_stats_thread_key;
+extern mysql_pfs_key_t	io_handler_thread_key;
 extern mysql_pfs_key_t	io_ibuf_thread_key;
 extern mysql_pfs_key_t	io_log_thread_key;
 extern mysql_pfs_key_t	io_read_thread_key;
 extern mysql_pfs_key_t	io_write_thread_key;
-extern mysql_pfs_key_t	io_handler_thread_key;
-extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
-extern mysql_pfs_key_t	srv_error_monitor_thread_key;
-extern mysql_pfs_key_t	srv_monitor_thread_key;
-extern mysql_pfs_key_t	srv_master_thread_key;
-extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	page_cleaner_thread_key;
 extern mysql_pfs_key_t	recv_writer_thread_key;
+extern mysql_pfs_key_t	srv_error_monitor_thread_key;
+extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
+extern mysql_pfs_key_t	srv_master_thread_key;
+extern mysql_pfs_key_t	srv_monitor_thread_key;
+extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
 
 /* This macro register the current thread and its key with performance
 schema */
