@@ -780,4 +780,18 @@ struct timespec {
 #define set_timespec(ABSTIME,SEC) \
   set_timespec_nsec((ABSTIME),(SEC)*1000000000ULL)
 
+/* File permissions */
+#define USER_READ       (1L << 0)
+#define USER_WRITE      (1L << 1)
+#define USER_EXECUTE    (1L << 2)
+#define GROUP_READ      (1L << 3)
+#define GROUP_WRITE     (1L << 4)
+#define GROUP_EXECUTE   (1L << 5)
+#define OTHERS_READ     (1L << 6)
+#define OTHERS_WRITE    (1L << 7)
+#define OTHERS_EXECUTE  (1L << 8)
+#define USER_RWX        USER_READ | USER_WRITE | USER_EXECUTE
+#define GROUP_RWX       GROUP_READ | GROUP_WRITE | GROUP_EXECUTE
+#define OTHERS_RWX      OTHERS_READ | OTHERS_WRITE | OTHERS_EXECUTE
+
 #endif  // MY_GLOBAL_INCLUDED

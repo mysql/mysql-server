@@ -1032,13 +1032,44 @@ void Item_func_num1::fix_num_length_and_dec()
   max_length= args[0]->max_length;
 }
 
+/*
+  Reject geometry arguments, should be called in fix_length_and_dec for
+  SQL functions/operators where geometries are not suitable as operands.
+ */
+void reject_geometry_args(uint arg_count, Item **args, Item_result_field *me)
+{
+  /*
+    We want to make sure the operands are not GEOMETRY strings because
+    it's meaningless for them to participate in arithmetic and/or numerical
+    calculations.
+
+    When a variable holds a MySQL Geometry byte string, it is regarded as a
+    string rather than a MYSQL_TYPE_GEOMETRY, so here we can't catch an illegal
+    variable argument which was assigned with a geometry.
+
+    Item::field_type() requires the item not be of ROW_RESULT, since a row
+    isn't a field.
+  */
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if (args[i]->result_type() != ROW_RESULT &&
+        args[i]->field_type() == MYSQL_TYPE_GEOMETRY)
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), me->func_name());
+      break;
+    }
+  }
+
+  return;
+}
+
 
 void Item_func_numhybrid::fix_length_and_dec()
 {
   fix_num_length_and_dec();
   find_num_type();
+  reject_geometry_args(arg_count, args, this);
 }
-
 
 String *Item_func_numhybrid::val_str(String *str)
 {
@@ -1272,6 +1303,14 @@ void Item_func_signed::print(String *str, enum_query_type query_type)
   args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as signed)"));
 
+}
+
+
+void Item_func_signed::fix_length_and_dec()
+{
+  fix_char_length(std::min<uint32>(args[0]->max_char_length(),
+                                   MY_INT64_NUM_DECIMAL_DIGITS));
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -1682,7 +1721,7 @@ err:
 my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
 {
   my_decimal value1, *val1;
-  my_decimal value2, *val2= 
+  my_decimal value2, *val2;
 
   val1= args[0]->val_decimal(&value1);
   if ((null_value= args[0]->null_value))
@@ -2002,6 +2041,7 @@ void Item_func_int_div::fix_length_and_dec()
                   MY_INT64_NUM_DECIMAL_DIGITS : char_length);
   maybe_null=1;
   unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -2474,6 +2514,15 @@ double Item_func_latlongfromgeohash::val_real()
 }
 
 
+void Item_dec_func::fix_length_and_dec()
+{
+  decimals= NOT_FIXED_DEC;
+  max_length= float_length(decimals);
+  maybe_null= 1;
+  reject_geometry_args(arg_count, args, this);
+}
+
+
 /** Gateway to natural LOG function. */
 double Item_func_ln::val_real()
 {
@@ -2709,6 +2758,7 @@ void Item_func_integer::fix_length_and_dec()
   uint tmp=float_length(decimals);
   set_if_smaller(max_length,tmp);
   decimals=0;
+  reject_geometry_args(arg_count, args, this);
 }
 
 void Item_func_int_val::fix_num_length_and_dec()
@@ -2865,6 +2915,8 @@ void Item_func_round::fix_length_and_dec()
   bool     val1_unsigned;
   
   unsigned_flag= args[0]->unsigned_flag;
+  reject_geometry_args(arg_count, args, this);
+
   if (!args[1]->const_item())
   {
     decimals= args[0]->decimals;
@@ -3076,6 +3128,13 @@ void Item_func_rand::seed_random(Item *arg)
 }
 
 
+void Item_func_rand::fix_length_and_dec()
+{
+  Item_real_func::fix_length_and_dec();
+  reject_geometry_args(arg_count, args, this);
+}
+
+
 bool Item_func_rand::fix_fields(THD *thd,Item **ref)
 {
   if (Item_real_func::fix_fields(thd, ref))
@@ -3135,12 +3194,28 @@ double Item_func_rand::val_real()
   return my_rnd(rand);
 }
 
+
+void Item_func_sign::fix_length_and_dec()
+{
+  Item_int_func::fix_length_and_dec();
+  reject_geometry_args(arg_count, args, this);
+}
+
+
 longlong Item_func_sign::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
   null_value=args[0]->null_value;
   return value < 0.0 ? -1 : (value > 0 ? 1 : 0);
+}
+
+
+void Item_func_units::fix_length_and_dec()
+{
+  decimals= NOT_FIXED_DEC;
+  max_length= float_length(decimals);
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -3213,6 +3288,7 @@ void Item_func_min_max::fix_length_and_dec()
   else if (cmp_type == REAL_RESULT)
     fix_char_length(float_length(decimals));
   cached_field_type= agg_field_type(args, arg_count);
+  reject_geometry_args(arg_count, args, this);
 }
 
 
