@@ -160,11 +160,10 @@ trx_init(
 
 	trx->killed_by = 0;
 
-	trx->in_innodb &= ~TRX_FORCE_ROLLBACK;
+	/* Note: Do not set to 0, the ref count is decremented inside
+	the TrxInInnoDB() destructor. We only need to clear the flags. */
 
-	trx->in_innodb &= ~TRX_FORCE_ROLLBACK_ASYNC;
-
-	trx->in_innodb &= ~TRX_FORCE_ROLLBACK_COMPLETE;
+	trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
 
 	/* Note: It's possible that this list is not empty if a transaction
 	was interrupted after it collected the victim transactions and before
@@ -1232,6 +1231,7 @@ trx_start_low(
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_COMPLETE));
+	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
 
 	/* Check whether it is an AUTOCOMMIT SELECT */
 	trx->auto_commit = (trx->api_trx && trx->api_auto_commit)
@@ -2263,6 +2263,14 @@ trx_commit_for_mysql(
 /*=================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	TrxInInnoDB	trx_in_innodb(trx, true);
+
+	if (trx_in_innodb.is_aborted()
+	    && trx->killed_by != os_thread_get_curr_id()) {
+
+		return(DB_FORCED_ABORT);
+	}
+
 	/* Because we do not do the commit by sending an Innobase
 	sig to the transaction, we must here make sure that trx has been
 	started. */
@@ -3163,6 +3171,7 @@ trx_kill_blocking(trx_t* trx)
 		trx_mutex_enter(victim_trx);
 
 		ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK);
+		ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
 
 		while ((victim_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0
 		       && trx_is_started(victim_trx)) {
