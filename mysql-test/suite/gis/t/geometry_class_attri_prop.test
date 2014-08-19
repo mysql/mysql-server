@@ -700,7 +700,7 @@ Select sum(SRID(g)) from gis_geometry;
 Select sum(X(g)) from gis_geometry;
 
 Select sum(Dimension(g)) from gis_geometry;
-
+--error ER_WRONG_ARGUMENTS
 Select sum(Envelope(g)) from gis_geometry;
 
 Select sum(IsSimple(g)) from gis_geometry;

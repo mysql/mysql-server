@@ -188,7 +188,7 @@ page_cur_rec_field_extends(
 	    || type->mtype == DATA_FIXBINARY
 	    || type->mtype == DATA_BINARY
 	    || type->mtype == DATA_BLOB
-	    || type->mtype == DATA_GEOMETRY
+	    || DATA_GEOMETRY_MTYPE(type->mtype)
 	    || type->mtype == DATA_VARMYSQL
 	    || type->mtype == DATA_MYSQL) {
 
