@@ -783,14 +783,18 @@ int table_events_waits_common::read_row_values(TABLE *table,
         operation= &operation_names_map[(int) m_row.m_operation - 1];
         set_field_varchar_utf8(f, operation->str, operation->length);
         break;
-      case 17: /* NUMBER_OF_BYTES */
+      case 17: /* NUMBER_OF_BYTES (also used for ROWS) */
         if ((m_row.m_operation == OPERATION_TYPE_FILEREAD) ||
             (m_row.m_operation == OPERATION_TYPE_FILEWRITE) ||
             (m_row.m_operation == OPERATION_TYPE_FILECHSIZE) ||
             (m_row.m_operation == OPERATION_TYPE_SOCKETSEND) ||
             (m_row.m_operation == OPERATION_TYPE_SOCKETRECV) ||
             (m_row.m_operation == OPERATION_TYPE_SOCKETSENDTO) ||
-            (m_row.m_operation == OPERATION_TYPE_SOCKETRECVFROM))
+            (m_row.m_operation == OPERATION_TYPE_SOCKETRECVFROM) ||
+            (m_row.m_operation == OPERATION_TYPE_TABLE_FETCH) ||
+            (m_row.m_operation == OPERATION_TYPE_TABLE_WRITE_ROW) ||
+            (m_row.m_operation == OPERATION_TYPE_TABLE_UPDATE_ROW) ||
+            (m_row.m_operation == OPERATION_TYPE_TABLE_DELETE_ROW))
           set_field_ulonglong(f, m_row.m_number_of_bytes);
         else
           f->set_null();

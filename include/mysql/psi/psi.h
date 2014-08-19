@@ -1828,8 +1828,11 @@ typedef struct PSI_table_locker* (*start_table_io_wait_v1_t)
 /**
   Record a table instrumentation io wait end event.
   @param locker a table locker for the running thread
+  @param numrows the number of rows involved in io
 */
-typedef void (*end_table_io_wait_v1_t)(struct PSI_table_locker *locker);
+typedef void (*end_table_io_wait_v1_t)
+  (struct PSI_table_locker *locker,
+   ulonglong numrows);
 
 /**
   Record a table instrumentation lock wait start event.
