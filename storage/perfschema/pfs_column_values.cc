@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,6 +30,9 @@ LEX_STRING mutex_instrument_prefix=
 
 LEX_STRING rwlock_instrument_prefix=
 { C_STRING_WITH_LEN("wait/synch/rwlock/") };
+
+LEX_STRING sxlock_instrument_prefix=
+{ C_STRING_WITH_LEN("wait/synch/sxlock/") };
 
 LEX_STRING cond_instrument_prefix=
 { C_STRING_WITH_LEN("wait/synch/cond/") };

@@ -185,7 +185,7 @@ is found in a remote location, not the default data directory. */
 /** Zero relative shift position of the PAGE_SSIZE field */
 #define FSP_FLAGS_POS_PAGE_SSIZE	(FSP_FLAGS_POS_ATOMIC_BLOBS	\
 					+ FSP_FLAGS_WIDTH_ATOMIC_BLOBS)
-/** Zero relative shift position of the start of the UNUSED bits */
+/** Zero relative shift position of the start of the DATA_DIR bit */
 #define FSP_FLAGS_POS_DATA_DIR		(FSP_FLAGS_POS_PAGE_SSIZE	\
 					+ FSP_FLAGS_WIDTH_PAGE_SSIZE)
 /** Zero relative shift position of the start of the UNUSED bits */
