@@ -1,7 +1,0 @@
-[mysqld]
-tmpdir=/data/mysql/tmp
-max_connections=1024
-table_open_cache=1024
-loose_tokudb_cache_size=8G
-loose_tokudb_directio=1
-
