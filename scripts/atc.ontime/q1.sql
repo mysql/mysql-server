@@ -1,1 +1,0 @@
-SELECT DayOfWeek, count(*) AS c FROM ontime WHERE Year BETWEEN 2000 AND 2008 GROUP BY DayOfWeek ORDER BY c DESC;
