@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +57,8 @@ struct st_row_connect_status {
   ulonglong thread_id;
   bool thread_id_is_null;
   enum_rpl_connect_status_service_state service_state;
+  ulonglong count_received_heartbeats;
+  ulonglong last_heartbeat_timestamp;
   char* received_transaction_set;
   int received_transaction_set_length;
   uint last_error_number;
