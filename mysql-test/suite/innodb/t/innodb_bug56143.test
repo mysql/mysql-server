@@ -584,3 +584,7 @@ SHOW CREATE TABLE bug56143_2;
 -- disable_result_log
 DROP TABLE bug56143_1;
 DROP TABLE bug56143_2;
+
+-- enable_query_log
+-- enable_result_log
+-- source suite/innodb/include/check_pfs_mem_other_is_zero.inc

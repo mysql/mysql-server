@@ -45,6 +45,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "trx0trx.h"
 #include "srv0mon.h"
 #include "gis0geo.h"
+#include "ut0new.h"
 
 /**************************************************************//**
 Checks if the page in the cursor can be merged with given page.
@@ -2608,8 +2609,9 @@ func_start:
 insert_empty:
 		ut_ad(!split_rec);
 		ut_ad(!insert_left);
-		buf = (byte*) ut_malloc(rec_get_converted_size(cursor->index,
-							       tuple, n_ext));
+		buf = UT_NEW_ARRAY_NOKEY(
+			byte,
+			rec_get_converted_size(cursor->index, tuple, n_ext));
 
 		first_rec = rec_convert_dtuple_to_rec(buf, cursor->index,
 						      tuple, n_ext);
@@ -2632,7 +2634,7 @@ insert_empty:
 						offsets, tuple, n_ext, heap);
 	} else {
 		if (!insert_left) {
-			ut_free(buf);
+			UT_DELETE_ARRAY(buf);
 			buf = NULL;
 		}
 
@@ -2642,6 +2644,7 @@ insert_empty:
 	}
 
 	if (!srv_read_only_mode
+	    && !dict_table_is_intrinsic(cursor->index->table)
 	    && insert_will_fit
 	    && page_is_leaf(page)
 	    && !dict_index_is_online_ddl(cursor->index)) {

@@ -222,9 +222,9 @@ static TYPELIB innodb_checksum_algorithm_typelib = {
 };
 
 /* The following counter is used to convey information to InnoDB
-about server activity: in selects it is not sensible to call
-srv_active_wake_master_thread after each fetch or search, we only do
-it every INNOBASE_WAKE_INTERVAL'th step. */
+about server activity: in case of normal DML ops it is not
+sensible to call srv_active_wake_master_thread after each
+operation, we only do it every INNOBASE_WAKE_INTERVAL'th step. */
 
 #define INNOBASE_WAKE_INTERVAL	32
 static ulong	innobase_active_counter	= 0;
@@ -379,19 +379,21 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info	all_innodb_threads[] = {
-	PSI_KEY(trx_rollback_clean_thread),
+	PSI_KEY(buf_dump_thread),
+	PSI_KEY(dict_stats_thread),
+	PSI_KEY(io_handler_thread),
 	PSI_KEY(io_ibuf_thread),
 	PSI_KEY(io_log_thread),
 	PSI_KEY(io_read_thread),
 	PSI_KEY(io_write_thread),
-	PSI_KEY(io_handler_thread),
-	PSI_KEY(srv_lock_timeout_thread),
-	PSI_KEY(srv_error_monitor_thread),
-	PSI_KEY(srv_monitor_thread),
-	PSI_KEY(srv_master_thread),
-	PSI_KEY(srv_purge_thread),
 	PSI_KEY(page_cleaner_thread),
-	PSI_KEY(recv_writer_thread)
+	PSI_KEY(recv_writer_thread),
+	PSI_KEY(srv_error_monitor_thread),
+	PSI_KEY(srv_lock_timeout_thread),
+	PSI_KEY(srv_master_thread),
+	PSI_KEY(srv_monitor_thread),
+	PSI_KEY(srv_purge_thread),
+	PSI_KEY(trx_rollback_clean_thread),
 };
 # endif /* UNIV_PFS_THREAD */
 
@@ -1381,7 +1383,7 @@ thd_to_innodb_session(
 		return(innodb_session);
 	}
 
-	innodb_session = new (std::nothrow) innodb_session_t();
+	innodb_session = UT_NEW_NOKEY(innodb_session_t());
 	return(innodb_session);
 }
 
@@ -3039,6 +3041,10 @@ innobase_init(
 
 	os_innodb_umask = (ulint) my_umask;
 
+	/* Setup the memory alloc/free tracing mechanisms before calling
+	any functions that could possibly allocate memory. */
+	ut_new_boot();
+
 	/* First calculate the default path for innodb_data_home_dir etc.,
 	in case the user has not given any value.
 
@@ -3739,12 +3745,6 @@ innobase_commit(
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
-	/* Tell the InnoDB server that there might be work for utility
-	threads: */
-	if (!read_only) {
-		srv_active_wake_master_thread();
-	}
-
 	DBUG_RETURN(0);
 }
 
@@ -4095,7 +4095,7 @@ innobase_close_connection(
 		trx_free_for_mysql(trx);
 	}
 
-	delete thd_to_innodb_session(thd);
+	UT_DELETE(thd_to_innodb_session(thd));
 
 	thd_to_innodb_session(thd) = NULL;
 
@@ -4682,9 +4682,8 @@ innobase_build_index_translation(
 	if (mysql_num_index > share->idx_trans_tbl.array_size) {
 
 		index_mapping = reinterpret_cast<dict_index_t**>(
-			my_realloc(PSI_INSTRUMENT_ME, index_mapping,
-				   mysql_num_index * sizeof(*index_mapping),
-				   MYF(MY_ALLOW_ZERO_PTR)));
+			ut_realloc(index_mapping,
+				   mysql_num_index * sizeof(*index_mapping)));
 
 		if (index_mapping == NULL) {
 			/* Report an error if index_mapping continues to be
@@ -4711,7 +4710,7 @@ innobase_build_index_translation(
 		index_mapping[count] = dict_table_get_index_on_name(
 			ib_table, table->key_info[count].name);
 
-		if (!index_mapping[count]) {
+		if (index_mapping[count] == 0) {
 			sql_print_error("Cannot find index %s in InnoDB"
 					" index dictionary.",
 					table->key_info[count].name);
@@ -4737,7 +4736,7 @@ innobase_build_index_translation(
 func_exit:
 	if (!ret) {
 		/* Build translation table failed. */
-		my_free(index_mapping);
+		ut_free(index_mapping);
 
 		share->idx_trans_tbl.array_size = 0;
 		share->idx_trans_tbl.index_count = 0;
@@ -4769,7 +4768,7 @@ innobase_index_lookup(
 	uint		keynr)	/*!< in: index number for the requested
 				index */
 {
-	if (!share->idx_trans_tbl.index_mapping
+	if (share->idx_trans_tbl.index_mapping == NULL
 	    || keynr >= share->idx_trans_tbl.index_count) {
 		return(NULL);
 	}
@@ -6255,7 +6254,7 @@ ha_innobase::build_template(
 
 	if (!m_prebuilt->mysql_template) {
 		m_prebuilt->mysql_template = (mysql_row_templ_t*)
-			ut_malloc(n_fields * sizeof(mysql_row_templ_t));
+			ut_malloc_nokey(n_fields * sizeof(mysql_row_templ_t));
 	}
 
 	m_prebuilt->template_type = whole_row
@@ -7825,7 +7824,7 @@ ha_innobase::innobase_get_index(
 			/* Can't find index with keynr in the translation
 			table. Only print message if the index translation
 			table exists */
-			if (m_share->idx_trans_tbl.index_mapping) {
+			if (m_share->idx_trans_tbl.index_mapping != NULL) {
 				sql_print_warning("InnoDB could not find"
 						  " index %s key no %u for"
 						  " table %s through its"
@@ -10658,11 +10657,6 @@ ha_innobase::delete_table(
 		log_buffer_flush_to_disk();
 	}
 
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
 	innobase_commit_low(trx);
 
 	trx_free_for_mysql(trx);
@@ -10744,11 +10738,6 @@ innobase_drop_database(
 	with innodb_flush_log_at_trx_commit = 0 */
 
 	log_buffer_flush_to_disk();
-
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
 
 	innobase_commit_low(trx);
 
@@ -10899,11 +10888,6 @@ ha_innobase::rename_table(
 	dberr_t	error = innobase_rename_table(trx, from, to);
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
-
-	/* Tell the InnoDB server that there might be work for
-	utility threads. */
-
-	srv_active_wake_master_thread();
 
 	innobase_commit_low(trx);
 
@@ -11377,7 +11361,7 @@ innobase_get_mysql_key_number_for_index(
 
 	/* If index translation table exists, we will first check
 	the index through index translation table for a match. */
-	if (share->idx_trans_tbl.index_mapping) {
+	if (share->idx_trans_tbl.index_mapping != NULL) {
 		for (i = 0; i < share->idx_trans_tbl.index_count; i++) {
 			if (share->idx_trans_tbl.index_mapping[i] == index) {
 				return(i);
@@ -13429,7 +13413,7 @@ free_share(
 		thr_lock_delete(&share->lock);
 
 		/* Free any memory from index translation table */
-		my_free(share->idx_trans_tbl.index_mapping);
+		ut_free(share->idx_trans_tbl.index_mapping);
 
 		my_free(share);
 
@@ -14229,8 +14213,6 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-	bool	read_only = trx->read_only || trx->id == 0;
-
 	thd_get_xid(thd, (MYSQL_XID*) trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
@@ -14278,13 +14260,6 @@ innobase_xa_prepare(
 		SQL statement */
 
 		trx_mark_sql_stat_end(trx);
-	}
-
-	/* Tell the InnoDB server that there might be work for utility
-	threads: */
-
-	if (!read_only) {
-		srv_active_wake_master_thread();
 	}
 
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE

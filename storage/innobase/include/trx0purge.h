@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,9 +35,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "fil0fil.h"
 #include "read0types.h"
-
-// Forward declaration
-struct ib_bh_t;
 
 /** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
@@ -225,10 +222,6 @@ struct trx_purge_t{
 			rseg_iter;	/*!< Iterator to get the next rseg
 					to process */
 
-	/*-----------------------------*/
-	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
-					rseg_queue_t::trx_no. It is protected
-					by the bh_mutex */
 	purge_pq_t*	purge_queue;	/*!< Binary min-heap, ordered on
 					TrxUndoRsegs::trx_no. It is protected
 					by the pq_mutex */
