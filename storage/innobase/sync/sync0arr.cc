@@ -198,11 +198,11 @@ sync_array_create(
 	ut_a(n_cells > 0);
 
 	/* Allocate memory for the data structures */
-	sync_array_t*	arr = new(std::nothrow) sync_array_t;
+	sync_array_t*	arr = UT_NEW_NOKEY(sync_array_t());
 
 	memset(arr, 0x0, sizeof(*arr));
 
-	arr->array = new(std::nothrow) sync_cell_t[n_cells];
+	arr->array = UT_NEW_ARRAY_NOKEY(sync_cell_t, n_cells);
 
 	ulint	sz = sizeof(sync_cell_t) * n_cells;
 
@@ -234,8 +234,8 @@ sync_array_free(
 
 	mutex_free(&arr->mutex);
 
-	delete[] arr->array;
-	delete arr;
+	UT_DELETE_ARRAY(arr->array);
+	UT_DELETE(arr);
 }
 
 /********************************************************************//**
@@ -1175,11 +1175,7 @@ sync_array_init(
 
 	sync_array_size = srv_sync_array_size;
 
-	/* We have to use ut_malloc() because the mutex infrastructure
-	hasn't been initialised yet. It is required by ut_malloc() and
-	the heap functions. */
-
-	sync_wait_array = new(std::nothrow) sync_array_t*[sync_array_size];
+	sync_wait_array = UT_NEW_ARRAY_NOKEY(sync_array_t*, sync_array_size);
 
 	ulint	n_slots = 1 + (n_threads - 1) / sync_array_size;
 
@@ -1200,7 +1196,7 @@ sync_array_close(void)
 		sync_array_free(sync_wait_array[i]);
 	}
 
-	delete[] sync_wait_array;
+	UT_DELETE_ARRAY(sync_wait_array);
 	sync_wait_array = NULL;
 }
 

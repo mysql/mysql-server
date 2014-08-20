@@ -15,16 +15,8 @@
 
 
 --source include/force_myisam_default.inc
-#SET default_storage_engine=MyISAM;
-#SET default_tmp_storage_engine=MyISAM;
-
-#--source include/have_debug.inc
 --source include/not_embedded.inc
 --source include/have_geometry.inc
-
-# Turn on the geometry data print.
-#--echo #Turn on the geometry data print.
-#SET SESSION debug="+d,row_print_geometry_data";
 
 #Confirming the storage engine
 --echo #Confirming the storage engine
@@ -43,13 +35,13 @@ DROP TABLE IF EXISTS gis_multi_point, gis_multi_line, gis_multi_polygon;
 DROP TABLE IF EXISTS gis_geometrycollection, gis_geometry;
 --enable_warnings
 
-CREATE TABLE gis_point  (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
-CREATE TABLE gis_line  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
-CREATE TABLE gis_polygon   (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
+CREATE TABLE gis_point (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
+CREATE TABLE gis_line(fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
+CREATE TABLE gis_polygon (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
 CREATE TABLE gis_multi_point (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOINT);
 CREATE TABLE gis_multi_line (fid INTEGER NOT NULL PRIMARY KEY, g MULTILINESTRING);
-CREATE TABLE gis_multi_polygon  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON);
-CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_multi_polygon (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
 CREATE TABLE gis_geometry (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 
 ############################################################################################
@@ -62,9 +54,9 @@ INSERT INTO gis_point VALUES
 (101, PointFromText('POINT(10 10)')),
 (102, PointFromText('POINT(20 10)')),
 (103, PointFromText('POINT(20 20)')),
-(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)')))),
+(104, PointFromText('POINT(0 0)')),
 (105, PointFromText('POINT(0 0)')),
-(106, PointFromText('POINT(0 0)')),
+(106, PointFromWKB(AsWKB(PointFromText('POINT(10 20)')))),
 (107, PointFromWKB(AsWKB(PointFromText('POINT(0 0)')))),
 (108, PointFromWKB(AsWKB(PointFromText('POINT(99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999)'))));
 
@@ -658,11 +650,11 @@ BEGIN
   CLOSE c;
   Select GeometryType(v);
   Select SRID(v);
-  Select  X(v),Y(v);
-  Select  Dimension(v), GeometryType(v);
-  Select  AsText(Envelope(v)), GeometryType(v);
-  Select  IsSimple(v), GeometryType(v);
-  Select  IsClosed(v), GeometryType(v);
+  Select X(v),Y(v);
+  Select Dimension(v), GeometryType(v);
+  Select AsText(Envelope(v)), GeometryType(v);
+  Select IsSimple(v), GeometryType(v);
+  Select IsClosed(v), GeometryType(v);
 END|
 delimiter ;|
 

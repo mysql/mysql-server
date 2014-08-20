@@ -98,6 +98,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "os0event.h"
 # include "zlib.h"
 # include "ut0crc32.h"
+# include "ut0new.h"
 
 /** Log sequence number immediately after startup */
 lsn_t	srv_start_lsn;
@@ -160,15 +161,17 @@ static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 
 #ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
+mysql_pfs_key_t	buf_dump_thread_key;
+mysql_pfs_key_t	dict_stats_thread_key;
+mysql_pfs_key_t	io_handler_thread_key;
 mysql_pfs_key_t	io_ibuf_thread_key;
 mysql_pfs_key_t	io_log_thread_key;
 mysql_pfs_key_t	io_read_thread_key;
 mysql_pfs_key_t	io_write_thread_key;
-mysql_pfs_key_t	io_handler_thread_key;
-mysql_pfs_key_t	srv_lock_timeout_thread_key;
 mysql_pfs_key_t	srv_error_monitor_thread_key;
-mysql_pfs_key_t	srv_monitor_thread_key;
+mysql_pfs_key_t	srv_lock_timeout_thread_key;
 mysql_pfs_key_t	srv_master_thread_key;
+mysql_pfs_key_t	srv_monitor_thread_key;
 mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
@@ -1572,7 +1575,7 @@ innobase_start_or_create_for_mysql(void)
 		if (srv_innodb_status) {
 
 			srv_monitor_file_name = static_cast<char*>(
-				ut_malloc(
+				ut_malloc_nokey(
 					strlen(fil_path_to_mysql_datadir)
 					+ 20 + sizeof "/innodb_status."));
 
