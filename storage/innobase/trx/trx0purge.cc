@@ -701,7 +701,7 @@ namespace undo {
 		}
 
 		ulint	sz = UNIV_PAGE_SIZE;
-		void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+		void*	buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 		if (buf == NULL) {
 			os_file_close(handle);
 			delete[] log_file_name;
@@ -758,7 +758,7 @@ namespace undo {
 		}
 
 		ulint	sz = UNIV_PAGE_SIZE;
-		void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+		void*	buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 		if (buf == NULL) {
 			os_file_close(handle);
 			os_file_delete(innodb_log_file_key, log_file_name);
@@ -820,7 +820,7 @@ namespace undo {
 			}
 
 			ulint	sz = UNIV_PAGE_SIZE;
-			void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+			void*	buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 			if (buf == NULL) {
 				os_file_close(handle);
 				os_file_delete(innodb_log_file_key,
