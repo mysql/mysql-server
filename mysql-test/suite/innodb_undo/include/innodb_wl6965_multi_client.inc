@@ -67,7 +67,7 @@ drop table t1, t2;
 drop PROCEDURE populate_t1;
 drop PROCEDURE populate_t2;
 #
---sleep 20
+--sleep 30 
 let SEARCH_PATTERN = Truncating UNDO tablespace;
 --source include/search_pattern.inc
 
