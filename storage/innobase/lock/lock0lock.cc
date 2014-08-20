@@ -1691,7 +1691,7 @@ RecLock::rollback_blocking_trx(lock_t* lock) const
 	lock_cancel_waiting_and_release(lock);
 
 	/* Remove the blocking transaction from the hit list. */
-	m_trx->hit_list.remove(lock->trx);
+	m_trx->hit_list.remove(TrxVersion(lock->trx));
 }
 
 /**
@@ -1702,6 +1702,7 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 {
 	trx->abort = true;
 
+	ut_ad(!trx->read_only);
 	ut_ad(trx_mutex_own(m_trx));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
@@ -1717,7 +1718,7 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 
 	trx->killed_by = os_thread_get_curr_id();
 
-	m_trx->hit_list.push_back(trx);
+	m_trx->hit_list.push_back(TrxVersion(trx));
 
 	THD*	thd = trx->mysql_thd;
 
@@ -1757,7 +1758,6 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 	if (kill_trx && !wait_for->trx->abort) {
 
-
 		mark_trx_for_rollback(wait_for->trx);
 	}
 
@@ -1792,6 +1792,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 			transaction ends up waiting. */
 
 			if (trx != lock->trx
+			    && !trx->read_only
 			    && trx != wait_for->trx
 			    && trx->lock.wait_lock != next
 			    && !trx->abort) {
