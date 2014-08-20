@@ -102,7 +102,7 @@ private:
   /**
     Compares option structures by long name. Keeps --help first.
    */
-  static bool options_by_name_comparer(my_option& a, my_option& b);
+  static bool options_by_name_comparer(const my_option& a, const my_option& b);
 
   /*
     Redirects call to option_parsed of main Abstract_program instance.
