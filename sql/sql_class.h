@@ -729,12 +729,6 @@ public:
 
   enum_state state;
 
-  /* We build without RTTI, so dynamic_cast can't be used. */
-  enum Type
-  {
-    STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
-  };
-
   Query_arena(MEM_ROOT *mem_root_arg, enum enum_state state_arg) :
     free_list(0), mem_root(mem_root_arg), state(state_arg)
   { INIT_ARENA_DBUG_INFO; }
@@ -744,7 +738,6 @@ public:
   */
   Query_arena() { INIT_ARENA_DBUG_INFO; }
 
-  virtual Type type() const;
   virtual ~Query_arena() {};
 
   inline bool is_stmt_prepare() const { return state == STMT_INITIALIZED; }
@@ -778,184 +771,61 @@ public:
 };
 
 
-class Server_side_cursor;
+class Prepared_statement;
 
 /**
-  @class Statement
-  @brief State of a single command executed against this connection.
+  Container for all prepared statements created/used in a connection.
 
-  One connection can contain a lot of simultaneously running statements,
-  some of which could be:
-   - prepared, that is, contain placeholders,
-   - opened as cursors. We maintain 1 to 1 relationship between
-     statement and cursor - if user wants to create another cursor for his
-     query, we create another statement for it. 
-  To perform some action with statement we reset THD part to the state  of
-  that statement, do the action, and then save back modified state from THD
-  to the statement. It will be changed in near future, and Statement will
-  be used explicitly.
-*/
-
-class Statement: public Query_arena
-{
-  Statement(const Statement &rhs);              /* not implemented: */
-  Statement &operator=(const Statement &rhs);   /* non-copyable */
-public:
-  /*
-    Uniquely identifies each statement object in thread scope; change during
-    statement lifetime. FIXME: must be const
-  */
-   ulong id;
-
-  /*
-    MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
-                        handler of fields used is set
-    MARK_COLUMNS_READ:  Means a bit in read set is set to inform handler
-	                that the field is to be read. If field list contains
-                        duplicates, then thd->dup_field is set to point
-                        to the last found duplicate.
-    MARK_COLUMNS_WRITE: Means a bit is set in write set to inform handler
-			that it needs to update this field in write_row
-                        and update_row.
-  */
-  enum enum_mark_columns mark_used_columns;
-
-  LEX_STRING name; /* name for named prepared statements */
-  LEX *lex;                                     // parse tree descriptor
-
-  /**
-    The query associated with this statement.
-
-    In order to enforce a safe access pattern when it is used by
-    THD, it is private and its getter/setter are protected.
-    It is assumed that other classes inheriting from Statement
-    (Prepared_Statement) access the query string from one thread only.
-
-    See comments for THD's setters/getters about how to access this
-    safely from multiple threads.
-  */
-private:
-  LEX_CSTRING m_query_string;
-
-protected:
-  virtual const LEX_CSTRING& query() const { return m_query_string; }
-
-  void set_query(const LEX_CSTRING& string_arg)
-  {
-    m_query_string= string_arg;
-  }
-
-public:
-  /*
-    In some cases, we may want to modify the query (i.e. replace
-    passwords with their hashes before logging the statement etc.).
-
-    In case the query was rewritten, the original query will live in
-    m_query_string, while the rewritten query lives in rewritten_query.
-    If rewritten_query is empty, m_query_string should be logged.
-    If rewritten_query is non-empty, the rewritten query it contains
-    should be used in logs (general log, slow query log, binary log).
-
-    Currently, password obfuscation is the only rewriting we do; more
-    may follow at a later date, both pre- and post parsing of the query.
-    Rewriting of binloggable statements must preserve all pertinent
-    information.
-  */
-  String      rewritten_query;
-
-  /**
-    Name of the current (default) database.
-
-    If there is the current (default) database, "db" contains its name. If
-    there is no current (default) database, "db" is NULL and "db_length" is
-    0. In other words, "db", "db_length" must either be NULL, or contain a
-    valid database name.
-
-    @note this attribute is set and alloced by the slave SQL thread (for
-    the THD of that thread); that thread is (and must remain, for now) the
-    only responsible for freeing this member.
-  */
-
-  char *db;
-  size_t db_length;
-
-public:
-
-  /* This constructor is called for backup statements */
-  Statement() {}
-
-  Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
-            enum_state state_arg, ulong id_arg);
-  virtual ~Statement();
-
-  /* Assign execution context (note: not all members) of given stmt to self */
-  void set_statement(Statement *stmt);
-  /* return class type */
-  virtual Type type() const;
-#ifdef HAVE_PSI_PS_INTERFACE 
-  virtual PSI_prepared_stmt* get_PS_prepared_stmt()
-  {
-    /* One should never reach here. */
-    DBUG_ASSERT(0);
-    return NULL;
-  }
-#endif
-};
-
-
-/**
-  Container for all statements created/used in a connection.
-  Statements in Statement_map have unique Statement::id (guaranteed by id
-  assignment in Statement::Statement)
+  Prepared statements in Prepared_statement_map have unique id
+  (guaranteed by id assignment in Prepared_statement::Prepared_statement).
   Non-empty statement names are unique too: attempt to insert a new statement
-  with duplicate name causes older statement to be deleted
+  with duplicate name causes older statement to be deleted.
 
-  Statements are auto-deleted when they are removed from the map and when the
-  map is deleted.
+  Prepared statements are auto-deleted when they are removed from the map
+  and when the map is deleted.
 */
 
-class Statement_map
+class Prepared_statement_map
 {
 public:
-  Statement_map();
+  Prepared_statement_map();
 
-  int insert(THD *thd, Statement *statement);
+  /**
+    Insert a new statement to the thread-local prepared statement map.
 
-  Statement *find_by_name(LEX_STRING *name)
-  {
-    Statement *stmt;
-    stmt= (Statement*)my_hash_search(&names_hash, (uchar*)name->str,
-                                     name->length);
-    return stmt;
-  }
+    If there was an old statement with the same name, replace it with the
+    new one. Otherwise, check if max_prepared_stmt_count is not reached yet,
+    increase prepared_stmt_count, and insert the new statement. It's okay
+    to delete an old statement and fail to insert the new one.
 
-  Statement *find(ulong id)
-  {
-    if (last_found_statement == 0 || id != last_found_statement->id)
-    {
-      Statement *stmt;
-      stmt= (Statement *) my_hash_search(&st_hash, (uchar *) &id, sizeof(id));
-      if (stmt && stmt->name.str)
-        return NULL;
-      last_found_statement= stmt;
-    }
-    return last_found_statement;
-  }
-  /*
-    Close all cursors of this connection that use tables of a storage
-    engine that has transaction-specific state and therefore can not
-    survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
-    CURRENTLY NOT IMPLEMENTED!
+    All named prepared statements are also present in names_hash.
+    Prepared statement names in names_hash are unique.
+    The statement is added only if prepared_stmt_count < max_prepard_stmt_count
+    m_last_found_statement always points to a valid statement or is 0
+
+    @retval 0  success
+    @retval 1  error: out of resources or max_prepared_stmt_count limit has been
+                      reached. An error is sent to the client, the statement
+                      is deleted.
   */
-  void close_transient_cursors() { }
-  void erase(Statement *statement);
-  /* Erase all statements (calls Statement destructor) */
+  int insert(THD *thd, Prepared_statement *statement);
+
+  /** Find prepared statement by name. */
+  Prepared_statement *find_by_name(LEX_STRING *name);
+
+  /** Find prepared statement by ID. */
+  Prepared_statement *find(ulong id);
+
+  /** Erase all prepared statements (calls Prepared_statement destructor). */
+  void erase(Prepared_statement *statement);
+
   void reset();
-  ~Statement_map();
+
+  ~Prepared_statement_map();
 private:
   HASH st_hash;
   HASH names_hash;
-  Statement *last_found_statement;
+  Prepared_statement *m_last_found_statement;
 };
 
 /**
@@ -1580,24 +1450,78 @@ class Modification_plan;
 */
 
 class THD :public MDL_context_owner,
-           public Statement,
+           public Query_arena,
            public Open_tables_state
 {
 private:
   inline bool is_stmt_prepare() const
-  { DBUG_ASSERT(0); return Statement::is_stmt_prepare(); }
+  { DBUG_ASSERT(0); return Query_arena::is_stmt_prepare(); }
 
   inline bool is_stmt_prepare_or_first_sp_execute() const
-  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_sp_execute(); }
+  { DBUG_ASSERT(0); return Query_arena::is_stmt_prepare_or_first_sp_execute(); }
 
   inline bool is_stmt_prepare_or_first_stmt_execute() const
-  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_stmt_execute(); }
+  { DBUG_ASSERT(0); return Query_arena::is_stmt_prepare_or_first_stmt_execute(); }
 
   inline bool is_conventional() const
-  { DBUG_ASSERT(0); return Statement::is_conventional(); }
+  { DBUG_ASSERT(0); return Query_arena::is_conventional(); }
 
 public:
   MDL_context mdl_context;
+
+  /*
+    MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
+                        handler of fields used is set
+    MARK_COLUMNS_READ:  Means a bit in read set is set to inform handler
+                        that the field is to be read. If field list contains
+                        duplicates, then thd->dup_field is set to point
+                        to the last found duplicate.
+    MARK_COLUMNS_WRITE: Means a bit is set in write set to inform handler
+                        that it needs to update this field in write_row
+                        and update_row.
+  */
+  enum enum_mark_columns mark_used_columns;
+
+  LEX *lex;                                     // parse tree descriptor
+
+private:
+  /**
+    The query associated with this statement.
+  */
+  LEX_CSTRING m_query_string;
+
+public:
+  /**
+    Name of the current (default) database.
+
+    If there is the current (default) database, "db" contains its name. If
+    there is no current (default) database, "db" is NULL and "db_length" is
+    0. In other words, "db", "db_length" must either be NULL, or contain a
+    valid database name.
+
+    @note this attribute is set and alloced by the slave SQL thread (for
+    the THD of that thread); that thread is (and must remain, for now) the
+    only responsible for freeing this member.
+  */
+  char *db;
+  size_t db_length;
+
+  /**
+    In some cases, we may want to modify the query (i.e. replace
+    passwords with their hashes before logging the statement etc.).
+
+    In case the query was rewritten, the original query will live in
+    m_query_string, while the rewritten query lives in rewritten_query.
+    If rewritten_query is empty, m_query_string should be logged.
+    If rewritten_query is non-empty, the rewritten query it contains
+    should be used in logs (general log, slow query log, binary log).
+
+    Currently, password obfuscation is the only rewriting we do; more
+    may follow at a later date, both pre- and post parsing of the query.
+    Rewriting of binloggable statements must preserve all pertinent
+    information.
+  */
+  String      rewritten_query;
 
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
@@ -1690,8 +1614,8 @@ public:
   */
   mysql_mutex_t LOCK_query_plan;
 
-  /* all prepared statements and cursors of this connection */
-  Statement_map stmt_map;
+  /** All prepared statements of this connection. */
+  Prepared_statement_map stmt_map;
   /*
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
@@ -3623,9 +3547,6 @@ private:
                   const char* msg);
 
 public:
-  void set_n_backup_statement(Statement *stmt, Statement *backup);
-  void restore_backup_statement(Statement *stmt, Statement *backup);
-
   void set_command(enum enum_server_command command);
 
   inline enum enum_server_command get_command() const
@@ -3646,13 +3567,13 @@ public:
     Read(other thread)-write(by owner) conflicts are avoided by LOCK_thd_query.
     Read(by owner)-write(by owner) won't happen as THD=thread.
   */
-  virtual const LEX_CSTRING& query() const
+  const LEX_CSTRING &query() const
   {
 #ifndef DBUG_OFF
     if (current_thd != this)
       mysql_mutex_assert_owner(&LOCK_thd_query);
 #endif
-    return Statement::query();
+    return m_query_string;
   }
 
   /**

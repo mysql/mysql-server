@@ -132,6 +132,9 @@ trx_rollback_to_savepoint_low(
 
 	mem_heap_free(heap);
 
+	/* There might be work for utility threads.*/
+	srv_active_wake_master_thread();
+
 	MONITOR_DEC(MONITOR_TRX_ACTIVE);
 }
 
@@ -149,19 +152,9 @@ trx_rollback_to_savepoint(
 {
 	ut_ad(!trx_mutex_own(trx));
 
-	/* Tell Innobase server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
 	trx_start_if_not_started_xa(trx, true);
 
 	trx_rollback_to_savepoint_low(trx, savept);
-
-	/* Tell Innobase server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
 
 	return(trx->error_state);
 }
@@ -175,8 +168,6 @@ trx_rollback_for_mysql_low(
 /*=======================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	srv_active_wake_master_thread();
-
 	trx->op_info = "rollback";
 
 	/* If we are doing the XA recovery of prepared transactions,
@@ -189,8 +180,6 @@ trx_rollback_for_mysql_low(
 	trx->op_info = "";
 
 	ut_a(trx->error_state == DB_SUCCESS);
-
-	srv_active_wake_master_thread();
 
 	return(trx->error_state);
 }
@@ -505,7 +494,8 @@ trx_savepoint_for_mysql(
 
 	/* Create a new savepoint and add it as the last in the list */
 
-	savep = static_cast<trx_named_savept_t*>(ut_malloc(sizeof(*savep)));
+	savep = static_cast<trx_named_savept_t*>(
+		ut_malloc_nokey(sizeof(*savep)));
 
 	savep->name = mem_strdup(savepoint_name);
 

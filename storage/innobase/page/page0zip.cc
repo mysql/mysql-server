@@ -3296,7 +3296,7 @@ page_zip_validate_low(
 
 	/* page_zip_decompress() expects the uncompressed page to be
 	UNIV_PAGE_SIZE aligned. */
-	temp_page_buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+	temp_page_buf = static_cast<byte*>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
 	temp_page = static_cast<byte*>(ut_align(temp_page_buf, UNIV_PAGE_SIZE));
 
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);

@@ -33,6 +33,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "dict0types.h"
 #include "trx0types.h"
+#include "ut0new.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "lock0types.h"
@@ -711,7 +712,7 @@ The tranasction must be in the mysql_trx_list. */
 # define assert_trx_nonlocking_or_in_list(trx) ((void)0)
 #endif /* UNIV_DEBUG */
 
-typedef std::vector<ib_lock_t*> lock_pool_t;
+typedef std::vector<ib_lock_t*, ut_allocator<ib_lock_t*> >	lock_pool_t;
 
 /*******************************************************************//**
 Latching protocol for trx_lock_t::que_state.  trx_lock_t::que_state
@@ -809,7 +810,10 @@ struct trx_lock_t {
 transaction. We store pointers to the table objects in memory because
 we know that a table object will not be destroyed while a transaction
 that modified it is running. */
-typedef std::set<dict_table_t*>	trx_mod_tables_t;
+typedef std::set<
+	dict_table_t*,
+	std::less<dict_table_t*>,
+	ut_allocator<dict_table_t*> >	trx_mod_tables_t;
 
 /** The transaction handle
 
@@ -885,7 +889,7 @@ enum trx_rseg_type_t {
 	TRX_RSEG_TYPE_NOREDO		/*!< non-redo rollback segment. */
 };
 
-typedef std::list<trx_t*> trx_list_t;
+typedef std::list<trx_t*, ut_allocator<trx_t*> >	trx_list_t;
 
 struct trx_t {
 	TrxMutex	mutex;		/*!< Mutex protecting the fields

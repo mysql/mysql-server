@@ -43,6 +43,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "btr0btr.h"
 #include "dict0boot.h"
+#include "ut0new.h"
 
 #include <set>
 
@@ -434,7 +435,7 @@ lock_sys_create(
 
 	lock_sys_sz = sizeof(*lock_sys) + OS_THREAD_MAX_N * sizeof(srv_slot_t);
 
-	lock_sys = static_cast<lock_sys_t*>(ut_zalloc(lock_sys_sz));
+	lock_sys = static_cast<lock_sys_t*>(ut_zalloc_nokey(lock_sys_sz));
 
 	void*	ptr = &lock_sys[1];
 
@@ -5665,9 +5666,13 @@ bool
 lock_validate()
 /*===========*/
 {
-	typedef	std::pair<ulint, ulint> page_addr_t;
-	typedef std::set<page_addr_t> page_addr_set;
-	page_addr_set pages;
+	typedef	std::pair<ulint, ulint>		page_addr_t;
+	typedef std::set<
+		page_addr_t,
+		std::less<page_addr_t>,
+		ut_allocator<page_addr_t> >	page_addr_set;
+
+	page_addr_set	pages;
 
 	lock_mutex_enter();
 	mutex_enter(&trx_sys->mutex);
@@ -7510,7 +7515,7 @@ void
 lock_trx_alloc_locks(trx_t* trx)
 {
 	ulint	sz = REC_LOCK_SIZE * REC_LOCK_CACHE;
-	byte*	ptr = reinterpret_cast<byte*>(ut_malloc(sz));
+	byte*	ptr = reinterpret_cast<byte*>(ut_malloc_nokey(sz));
 
 	/* We allocate one big chunk and then distribute it among
 	the rest of the elements. The allocated chunk pointer is always
@@ -7522,7 +7527,7 @@ lock_trx_alloc_locks(trx_t* trx)
 	}
 
 	sz = TABLE_LOCK_SIZE * TABLE_LOCK_CACHE;
-	ptr = reinterpret_cast<byte*>(ut_malloc(sz));
+	ptr = reinterpret_cast<byte*>(ut_malloc_nokey(sz));
 
 	for (ulint i = 0; i < TABLE_LOCK_CACHE; ++i, ptr += TABLE_LOCK_SIZE) {
 		trx->lock.table_pool.push_back(
