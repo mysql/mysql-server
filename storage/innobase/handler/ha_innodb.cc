@@ -14049,28 +14049,6 @@ ha_innobase::register_query_cache_table(
 			thd, table_key, key_length, engine_data));
 }
 
-/*******************************************************************//**
-Get the bin log name. */
-
-const char*
-ha_innobase::get_mysql_bin_log_name()
-/*=================================*/
-{
-	return(trx_sys_mysql_bin_log_name);
-}
-
-/*******************************************************************//**
-Get the bin log offset (or file position). */
-
-ulonglong
-ha_innobase::get_mysql_bin_log_pos()
-/*================================*/
-{
-	ut_ad(trx_sys_mysql_bin_log_pos >= 0);
-
-	return(static_cast<ulonglong>(trx_sys_mysql_bin_log_pos));
-}
-
 /******************************************************************//**
 This function is used to find the storage length in bytes of the first n
 characters for prefix indexes using a multibyte character set. The function
