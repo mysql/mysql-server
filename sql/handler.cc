@@ -1459,10 +1459,6 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
     DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
-    /* Close all cursors that can not survive COMMIT */
-    if (is_real_trans)                          /* not a statement commit */
-      thd->stmt_map.close_transient_cursors();
-
     rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
     trn_ctx->set_rw_ha_count(trx_scope, rw_ha_count);
     /* rw_trans is TRUE when we in a transaction changing data */
@@ -1652,10 +1648,6 @@ int ha_rollback_low(THD *thd, bool all)
 
   if (ha_info)
   {
-    /* Close all cursors that can not survive ROLLBACK */
-    if (all)                          /* not a statement commit */
-      thd->stmt_map.close_transient_cursors();
-
     for (; ha_info; ha_info= ha_info_next)
     {
       int err;

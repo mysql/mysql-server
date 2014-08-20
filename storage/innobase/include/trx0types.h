@@ -28,6 +28,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "ut0byte.h"
 #include "ut0mutex.h"
+#include "ut0new.h"
 
 #include <set>
 #include <queue>
@@ -157,7 +158,8 @@ typedef ib_mutex_t TrxSysMutex;
 scheduled for purge. */
 class TrxUndoRsegs {
 private:
-	typedef std::vector<trx_rseg_t*> trx_rsegs_t;
+	typedef std::vector<trx_rseg_t*, ut_allocator<trx_rseg_t*> >
+		trx_rsegs_t;
 public:
 	typedef trx_rsegs_t::iterator iterator;
 
@@ -246,9 +248,11 @@ private:
 };
 
 typedef std::priority_queue<
-	TrxUndoRsegs, std::vector<TrxUndoRsegs>, TrxUndoRsegs> purge_pq_t;
+	TrxUndoRsegs,
+	std::vector<TrxUndoRsegs, ut_allocator<TrxUndoRsegs> >,
+	TrxUndoRsegs>	purge_pq_t;
 
-typedef std::vector<trx_id_t> trx_ids_t;
+typedef std::vector<trx_id_t, ut_allocator<trx_id_t> >	trx_ids_t;
 
 /** Mapping read-write transactions from id to transaction instance, for
 creating read views and during trx id lookup for MVCC and locking. */
@@ -293,6 +297,7 @@ struct TrxTrackCmp {
 };
 
 //typedef std::unordered_set<TrxTrack, TrxTrackHash, TrxTrackHashCmp> TrxIdSet;
-typedef std::set<TrxTrack, TrxTrackCmp> TrxIdSet;
+typedef std::set<TrxTrack, TrxTrackCmp, ut_allocator<TrxTrack> >
+	TrxIdSet;
 
 #endif /* trx0types_h */

@@ -145,6 +145,12 @@ public:
   */
   static void set_field_timestamp(Field *f, ulonglong value);
   /**
+    Helper, assign a value to a double field.
+    @param f the field to set
+    @param value the value to assign
+  */
+  static void set_field_double(Field *f, double value);
+  /**
     Helper, read a value from an enum field.
     @param f the field to read
     @return the field value

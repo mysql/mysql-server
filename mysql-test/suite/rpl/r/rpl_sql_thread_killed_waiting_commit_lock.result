@@ -25,8 +25,13 @@ SET DEBUG_SYNC= 'now SIGNAL signal.commit_continue';
 # Kill sql thread
 include/wait_for_slave_sql_error.inc [errno=1317, 1756]
 # Restart sql thread to let it finish the replication
-START SLAVE SQL_THREAD;
+SET @@GLOBAL.DEBUG= '-d,dbug.reached_commit';
 UNLOCK TABLES;
+include/assert.inc [Exec_Master_Log_Pos in SHOW SLAVE STATUS must be equal to mater_log_pos in slave's repository]
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
 SET @@GLOBAL.DEBUG= '$debug_saved';
 [connection master]
 DROP TABLE t1;
