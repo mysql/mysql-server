@@ -9,22 +9,22 @@ USE test;
 DROP TABLE IF EXISTS gis_point, gis_line, gis_polygon;
 DROP TABLE IF EXISTS gis_multi_point, gis_multi_line, gis_multi_polygon;
 DROP TABLE IF EXISTS gis_geometrycollection, gis_geometry;
-CREATE TABLE gis_point  (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
-CREATE TABLE gis_line  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
-CREATE TABLE gis_polygon   (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
+CREATE TABLE gis_point (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
+CREATE TABLE gis_line(fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
+CREATE TABLE gis_polygon (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
 CREATE TABLE gis_multi_point (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOINT);
 CREATE TABLE gis_multi_line (fid INTEGER NOT NULL PRIMARY KEY, g MULTILINESTRING);
-CREATE TABLE gis_multi_polygon  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON);
-CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_multi_polygon (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
 CREATE TABLE gis_geometry (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 #INSERT valid entries to Point class
 INSERT INTO gis_point VALUES
 (101, PointFromText('POINT(10 10)')),
 (102, PointFromText('POINT(20 10)')),
 (103, PointFromText('POINT(20 20)')),
-(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)')))),
+(104, PointFromText('POINT(0 0)')),
 (105, PointFromText('POINT(0 0)')),
-(106, PointFromText('POINT(0 0)')),
+(106, PointFromWKB(AsWKB(PointFromText('POINT(10 20)')))),
 (107, PointFromWKB(AsWKB(PointFromText('POINT(0 0)')))),
 (108, PointFromWKB(AsWKB(PointFromText('POINT(99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999)'))));
 #INSERT invalid entries to Point class
@@ -322,9 +322,9 @@ fid	AsText(g)
 101	POINT(10 10)
 102	POINT(20 10)
 103	POINT(20 20)
-104	POINT(10 20)
+104	POINT(0 0)
 105	POINT(0 0)
-106	POINT(0 0)
+106	POINT(10 20)
 107	POINT(0 0)
 108	POINT(1e308 1e308)
 Select fid, AsText(g) from gis_line;
@@ -414,9 +414,9 @@ fid	AsText(g)
 101	POINT(10 10)
 102	POINT(20 10)
 103	POINT(20 20)
-104	POINT(10 20)
+104	POINT(0 0)
 105	POINT(0 0)
-106	POINT(0 0)
+106	POINT(10 20)
 107	POINT(0 0)
 108	POINT(1e308 1e308)
 201	LINESTRING(0 0,0 10,10 0)
@@ -663,9 +663,9 @@ fid	X(g)	Y(g)
 101	10	10
 102	20	10
 103	20	20
-104	10	20
+104	0	0
 105	0	0
-106	0	0
+106	10	20
 107	0	0
 108	1e308	1e308
 # the null geometry types should not be included here
@@ -1068,9 +1068,9 @@ fid	X(g)	Y(g)
 101	10	10
 102	20	10
 103	20	20
-104	10	20
+104	0	0
 105	0	0
-106	0	0
+106	10	20
 107	0	0
 108	1e308	1e308
 count(X(g))
@@ -1384,11 +1384,11 @@ FETCH c INTO v;
 CLOSE c;
 Select GeometryType(v);
 Select SRID(v);
-Select  X(v),Y(v);
-Select  Dimension(v), GeometryType(v);
-Select  AsText(Envelope(v)), GeometryType(v);
-Select  IsSimple(v), GeometryType(v);
-Select  IsClosed(v), GeometryType(v);
+Select X(v),Y(v);
+Select Dimension(v), GeometryType(v);
+Select AsText(Envelope(v)), GeometryType(v);
+Select IsSimple(v), GeometryType(v);
+Select IsClosed(v), GeometryType(v);
 END|
 #Calling the cursor
 CALL geom_cursor();
@@ -1433,7 +1433,7 @@ Select sum(Dimension(g)) from gis_geometry;
 sum(Dimension(g))
 91
 Select sum(Envelope(g)) from gis_geometry;
-ERROR 22023: Invalid GIS data provided to function st_envelope.
+ERROR HY000: Incorrect arguments to sum(
 Select sum(IsSimple(g)) from gis_geometry;
 sum(IsSimple(g))
 60

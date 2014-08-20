@@ -3016,9 +3016,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         Slave_job_item job_item= {this, rli->get_event_relay_log_number(),
                                   rli->get_event_start_pos()};
         // B-event is appended to the Deferred Array associated with GCAP
-        insert_dynamic(&rli->curr_group_da, &job_item);
+        rli->curr_group_da.push_back(job_item);
 
-        DBUG_ASSERT(rli->curr_group_da.elements == 1);
+        DBUG_ASSERT(rli->curr_group_da.size() == 1);
 
         if (starts_group())
         {
@@ -3043,7 +3043,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                                   rli->get_event_relay_log_pos()};
 
         // B-event is appended to the Deferred Array associated with GCAP
-        insert_dynamic(&rli->curr_group_da, &job_item);
+        rli->curr_group_da.push_back(job_item);
         DBUG_RETURN(NULL);
       }
     }
@@ -3058,7 +3058,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                                 rli->get_event_relay_log_pos()};
 
       // B-event is appended to the Deferred Array associated with GCAP
-      insert_dynamic(&rli->curr_group_da, &job_item);
+      rli->curr_group_da.push_back(job_item);
       rli->curr_group_seen_begin= true;
       rli->mts_end_group_sets_max_dbs= true;
       if (!rli->curr_group_seen_gtid && schedule_next_event(this, rli))
@@ -3067,7 +3067,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         DBUG_RETURN(NULL);
       }
 
-      DBUG_ASSERT(rli->curr_group_da.elements == 2);
+      DBUG_ASSERT(rli->curr_group_da.size() == 2);
       DBUG_ASSERT(starts_group());
       DBUG_RETURN (ret_worker);
     }
@@ -3114,11 +3114,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                 (rli->curr_group_seen_begin && rli->curr_group_seen_gtid &&
                  ends_group()) ||
                 (rli->mts_end_group_sets_max_dbs &&
-                 ((rli->curr_group_da.elements == 3 && rli->curr_group_seen_gtid) ||
-                 (rli->curr_group_da.elements == 2 && !rli->curr_group_seen_gtid)) &&
-                 ((*(Log_event **) dynamic_array_ptr(&rli->curr_group_da,
-                                     rli->curr_group_da.elements - 1))->
-                                get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
+                 ((rli->curr_group_da.size() == 3 && rli->curr_group_seen_gtid) ||
+                  (rli->curr_group_da.size() == 2 && !rli->curr_group_seen_gtid)) &&
+                 ((rli->curr_group_da.back().data->
+                   get_type_code() == BEGIN_LOAD_QUERY_EVENT))));
 
     // partioning info is found which drops the flag
     rli->mts_end_group_sets_max_dbs= false;
@@ -3191,13 +3190,11 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     {
       ret_worker= rli->last_assigned_worker;
 
-      DBUG_ASSERT(rli->curr_group_assigned_parts.elements > 0 ||
+      DBUG_ASSERT(rli->curr_group_assigned_parts.size() > 0 ||
                   ret_worker->id == 0);
     }
     else // int_, rand_, user_ var:s, load-data events
     {
-      Log_event *ptr_curr_ev= this;
-
       if (!(get_type_code() == INTVAR_EVENT ||
             get_type_code() == RAND_EVENT ||
             get_type_code() == USER_VAR_EVENT ||
@@ -3216,7 +3213,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         DBUG_RETURN(ret_worker);
       }
 
-      insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
+      Slave_job_item job_item= {this, rli->get_event_relay_log_number(),
+                                rli->get_event_start_pos()};
+      rli->curr_group_da.push_back(job_item);
 
       DBUG_ASSERT(!ret_worker);
       DBUG_RETURN (ret_worker);
@@ -3382,7 +3381,7 @@ int Log_event::apply_event(Relay_log_info *rli)
           a separator beetwen two master's binlog therefore requiring
           Workers to sync.
         */
-        if (rli->curr_group_da.elements > 0 &&
+        if (rli->curr_group_da.size() > 0 &&
             is_mts_db_partitioned(rli))
         {
           char llbuff[22];
@@ -3422,7 +3421,7 @@ int Log_event::apply_event(Relay_log_info *rli)
 
 #ifndef DBUG_OFF
         /* all Workers are idle as done through wait_for_workers_to_finish */
-        for (uint k= 0; k < rli->curr_group_da.elements; k++)
+        for (uint k= 0; k < rli->curr_group_da.size(); k++)
         {
           DBUG_ASSERT(!(rli->workers[k]->usage_partition));
           DBUG_ASSERT(!(rli->workers[k]->jobs.len));
@@ -3450,10 +3449,8 @@ int Log_event::apply_event(Relay_log_info *rli)
                 Begin/Commit. That's a pattern forcing sequential
                 applying of LOAD-DATA.
               */
-              (*(Log_event **)
-               dynamic_array_ptr(&rli->curr_group_da,
-                                 rli->curr_group_da.elements - 1))-> 
-              get_type_code() == BEGIN_LOAD_QUERY_EVENT);
+              (rli->curr_group_da.back().data->
+               get_type_code() == BEGIN_LOAD_QUERY_EVENT));
 
   worker= NULL;
   rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
@@ -3477,18 +3474,17 @@ err:
       The current one will be deleted as an event never destined/assigned
       to any Worker in Coordinator's regular execution path.
     */
-    for (uint k= 0; k < rli->curr_group_da.elements; k++)
+    for (uint k= 0; k < rli->curr_group_da.size(); k++)
     {
-      Log_event *ev_buf=
-        *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, k);
+      Log_event *ev_buf= rli->curr_group_da[k].data;
       if (this != ev_buf)
         delete ev_buf;
     }
-    rli->curr_group_da.elements= 0;
+    rli->curr_group_da.clear();
   }
   else
   {
-    DBUG_ASSERT(worker || rli->curr_group_assigned_parts.elements == 0);
+    DBUG_ASSERT(worker || rli->curr_group_assigned_parts.size() == 0);
   }
 
   DBUG_RETURN((!rli_thd->is_error() ||
@@ -7620,6 +7616,8 @@ bool Xid_log_event::do_commit(THD *thd_arg)
 int Xid_log_event::do_apply_event_worker(Slave_worker *w)
 {
   int error= 0;
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   Slave_committed_queue *coordinator_gaq= w->c_rli->gaq;
 
   /* For a slave Xid_log_event is COMMIT */
@@ -7667,6 +7665,11 @@ err:
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
   int error= 0;
+  char saved_group_master_log_name[FN_REFLEN];
+  char saved_group_relay_log_name[FN_REFLEN];
+  volatile my_off_t saved_group_master_log_pos;
+  volatile my_off_t saved_group_relay_log_pos;
+
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
@@ -7676,6 +7679,16 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
                                  "COMMIT /* implicit, from Xid_log_event */");
 
   mysql_mutex_lock(&rli_ptr->data_lock);
+
+  /*
+    Save the rli positions they need to be reset back in case of commit fails.
+  */
+  strmake(saved_group_master_log_name, rli_ptr->get_group_master_log_name(),
+          FN_REFLEN - 1);
+  saved_group_master_log_pos= rli_ptr->get_group_master_log_pos();
+  strmake(saved_group_relay_log_name, rli_ptr->get_group_relay_log_name(),
+          FN_REFLEN - 1);
+  saved_group_relay_log_pos= rli_ptr->get_group_relay_log_pos();
 
   DBUG_PRINT("info", ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
     rli_ptr->get_group_master_log_name(),
@@ -7728,10 +7741,35 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
                         XID_STATE::XA_IDLE);
                   });
   error= do_commit(thd);
-  if(error)
+  if (error)
+  {
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in Xid_log_event: Commit could not be completed, '%s'",
                 thd->get_stmt_da()->message_text());
+
+    rli_ptr->set_group_master_log_name(saved_group_master_log_name);
+    rli_ptr->notify_group_master_log_name_update();
+    rli_ptr->set_group_master_log_pos(saved_group_master_log_pos);
+    rli_ptr->set_group_relay_log_name(saved_group_relay_log_name);
+    rli_ptr->notify_group_relay_log_name_update();
+    rli_ptr->set_group_relay_log_pos(saved_group_relay_log_pos);
+
+    DBUG_PRINT("info", ("Rolling back to group master %s %llu  group relay %s"
+                        " %llu\n", rli_ptr->get_group_master_log_name(),
+                        rli_ptr->get_group_master_log_pos(),
+                        rli_ptr->get_group_relay_log_name(),
+                        rli_ptr->get_group_relay_log_pos()));
+
+    /*
+      If relay log repository is TABLE, we do not have to revert back to
+      original positions in TABLE, since the new position changes will not be
+      persisted in TABLE with failed commit; In case of FILE, we need to
+      revert back the new positions, hence we need to flush original positions
+      into FILE.
+    */
+    if (!rli_ptr->is_transactional())
+      rli_ptr->flush_info(false);
+  }
 err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);

@@ -698,6 +698,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
     &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"sql_mode", 0, "Specify sql-mode to run mysqlslap tool.", &sql_mode,
+    &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"user", 'u', "User for login if not current user.", &user,
     &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -707,8 +709,6 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"sql_mode", 0, "Specify sql_mode to run mysqlslap tool", &sql_mode,
-    &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

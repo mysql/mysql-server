@@ -34,6 +34,7 @@
 #
 # # At the beginning of include/my_file.inc:
 # --let $include_filename= my_file.inc
+# [--let $include_silent= 1]
 # [--let $rpl_debug= 1]
 # --source include/begin_include_file.inc
 #
