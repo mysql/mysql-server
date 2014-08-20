@@ -33,7 +33,6 @@
 using std::min;
 using std::max;
 
-
 bool Item_sum::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -483,6 +482,20 @@ void Item_sum::fix_num_length_and_dec()
     set_if_bigger(decimals,args[i]->decimals);
   max_length=float_length(decimals);
 }
+
+
+void Item_sum::fix_length_and_dec()
+{
+  maybe_null=1;
+  null_value=1;
+
+  const Sumfunctype t= sum_func();
+
+  // None except these 3 types are allowed for geometry arguments.
+  if (!(t == COUNT_FUNC || t == COUNT_DISTINCT_FUNC || t == SUM_BIT_FUNC))
+    reject_geometry_args(arg_count, args, this);
+}
+
 
 Item *Item_sum::get_tmp_table_item(THD *thd)
 {
@@ -1431,6 +1444,7 @@ void Item_sum_sum::fix_length_and_dec()
   DBUG_ENTER("Item_sum_sum::fix_length_and_dec");
   maybe_null=null_value=1;
   decimals= args[0]->decimals;
+
   switch (args[0]->numeric_context_result_type()) {
   case REAL_RESULT:
     hybrid_type= REAL_RESULT;
@@ -1454,6 +1468,9 @@ void Item_sum_sum::fix_length_and_dec()
   default:
     DBUG_ASSERT(0);
   }
+
+  reject_geometry_args(arg_count, args, this);
+
   DBUG_PRINT("info", ("Type: %s (%d, %d)",
                       (hybrid_type == REAL_RESULT ? "REAL_RESULT" :
                        hybrid_type == DECIMAL_RESULT ? "DECIMAL_RESULT" :
@@ -1899,6 +1916,7 @@ void Item_sum_variance::fix_length_and_dec()
   decimals= NOT_FIXED_DEC;
   max_length= float_length(decimals);
 
+  reject_geometry_args(arg_count, args, this);
   DBUG_PRINT("info", ("Type: REAL_RESULT (%d, %d)", max_length, (int)decimals));
   DBUG_VOID_RETURN;
 }

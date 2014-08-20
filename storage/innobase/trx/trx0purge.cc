@@ -218,7 +218,8 @@ trx_purge_sys_create(
 	purge_pq_t*	purge_queue)		/*!< in, own: UNDO log min
 						binary heap */
 {
-	purge_sys = static_cast<trx_purge_t*>(ut_zalloc(sizeof(*purge_sys)));
+	purge_sys = static_cast<trx_purge_t*>(
+		ut_zalloc_nokey(sizeof(*purge_sys)));
 
 	purge_sys->state = PURGE_STATE_INIT;
 	purge_sys->event = os_event_create(0);
@@ -262,7 +263,7 @@ trx_purge_sys_create(
 
 	purge_sys->view_active = true;
 
-	purge_sys->rseg_iter = new TrxUndoRsegsIterator(purge_sys);
+	purge_sys->rseg_iter = UT_NEW_NOKEY(TrxUndoRsegsIterator(purge_sys));
 }
 
 /************************************************************************
@@ -289,16 +290,16 @@ trx_purge_sys_close(void)
 	rw_lock_free(&purge_sys->latch);
 	mutex_free(&purge_sys->pq_mutex);
 
-	if (purge_sys->purge_queue) {
-		delete purge_sys->purge_queue;
-		purge_sys->purge_queue = 0;
+	if (purge_sys->purge_queue != NULL) {
+		UT_DELETE(purge_sys->purge_queue);
+		purge_sys->purge_queue = NULL;
 	}
 
 	os_event_destroy(purge_sys->event);
 
 	purge_sys->event = NULL;
 
-	delete purge_sys->rseg_iter;
+	UT_DELETE(purge_sys->rseg_iter);
 
 	ut_free(purge_sys);
 
