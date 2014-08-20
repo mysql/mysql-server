@@ -1377,10 +1377,10 @@ public:
 
 		if (!is_forced_rollback()
 		    && disable
-		    && trx_is_rseg_updated(trx)
+		    && is_started()
+		    && !trx_is_autocommit_non_locking(m_trx)
 		    && !is_async_rollback()) {
 
-			ut_ad(is_started());
 			ut_ad(trx->killed_by == 0);
 
 			/* This transaction has crossed the point of no
@@ -1435,6 +1435,15 @@ public:
 	}
 
 private:
+	/*
+	@return true if it is a forced rollback, asynchronously */
+	bool is_forced_rollback() const
+	{
+		ut_ad(trx_mutex_own(m_trx));
+
+		return((m_trx->in_innodb & TRX_FORCE_ROLLBACK)) > 0;
+	}
+
 	/**
 	Wait for the asynchronous rollback to complete, if it is in progress */
 	void wait()
@@ -1466,20 +1475,13 @@ private:
 
 		return(trx_is_started(m_trx));
 	}
-
-	/*
-	@return true if it is a forced rollback, asynchronously */
-	bool is_forced_rollback() const
-	{
-		ut_ad(trx_mutex_own(m_trx));
-
-		return((m_trx->in_innodb & TRX_FORCE_ROLLBACK)) > 0;
-	}
-
 private:
 	/**
 	Transaction instance crossing the handler boundary from the Server. */
 	trx_t*			m_trx;
+
+	/**
+	true if it is a Auto-Commit-Non-Locking-Read-Only transaction */
 };
 
 /** The latch protecting the adaptive search system */
