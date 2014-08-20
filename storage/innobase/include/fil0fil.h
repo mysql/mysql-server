@@ -627,6 +627,17 @@ fil_delete_tablespace(
 	buf_remove_t	buf_remove);	/*!< in: specify the action to take
 					on the tables pages in the buffer
 					pool */
+
+/** Truncate the tablespace to needed size.
+@param[in]	space_id	id of tablespace to truncate
+@param[in]	size_in_pages	truncate size.
+@return true if truncate was successful. */
+
+bool
+fil_truncate_tablespace(
+	ulint		space_id,
+	ulint		size_in_pages);
+
 /** Check if an index tree is freed by checking a descriptor bit of
 index root page.
 @param[in]	space_id	space id

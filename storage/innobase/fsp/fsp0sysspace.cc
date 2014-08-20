@@ -387,7 +387,8 @@ SysTablespace::set_size(
 
 	bool	success = os_file_set_size(
 		file.m_filepath, file.m_handle,
-		(os_offset_t) file.m_size << UNIV_PAGE_SIZE_SHIFT);
+		(os_offset_t) file.m_size << UNIV_PAGE_SIZE_SHIFT,
+		m_ignore_read_only ? false : srv_read_only_mode);
 
 	if (success) {
 		ib_logf(IB_LOG_LEVEL_INFO,
