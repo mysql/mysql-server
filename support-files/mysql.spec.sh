@@ -442,7 +442,6 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 ##############################################################################
 %prep
 %setup -T -a 0 -c -n %{src_dir}
-
 ##############################################################################
 %build
 
@@ -561,6 +560,8 @@ install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
+
+mkdir -p $RBR%{_sysconfdir}/my.cnf.d
 
 # Install all binaries
 (
@@ -1088,6 +1089,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
+%dir %{_sysconfdir}/my.cnf.d
 
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults
