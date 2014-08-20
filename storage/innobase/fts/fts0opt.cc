@@ -408,7 +408,7 @@ fts_optimize_read_node(
 
 		case 4: /* ILIST */
 			node->ilist_size_alloc = node->ilist_size = len;
-			node->ilist = static_cast<byte*>(ut_malloc(len));
+			node->ilist = static_cast<byte*>(ut_malloc_nokey(len));
 			memcpy(node->ilist, data, len);
 			break;
 
@@ -725,7 +725,9 @@ fts_fetch_index_words(
 		if (zip->zp->avail_out == 0) {
 			byte*		block;
 
-			block = static_cast<byte*>(ut_malloc(zip->block_sz));
+			block = static_cast<byte*>(
+				ut_malloc_nokey(zip->block_sz));
+
 			ib_vector_push(zip->blocks, &block);
 
 			zip->zp->next_out = block;
@@ -782,7 +784,9 @@ fts_zip_deflate_end(
 
 		ut_a(zip->zp->avail_out == 0);
 
-		block = static_cast<byte*>(ut_malloc(FTS_MAX_WORD_LEN + 1));
+		block = static_cast<byte*>(
+			ut_malloc_nokey(FTS_MAX_WORD_LEN + 1));
+
 		ib_vector_push(zip->blocks, &block);
 
 		zip->zp->next_out = block;
@@ -1191,12 +1195,12 @@ fts_optimize_encode_node(
 		new_size = enc_len > FTS_ILIST_MAX_SIZE
 			? enc_len : FTS_ILIST_MAX_SIZE;
 
-		node->ilist = static_cast<byte*>(ut_malloc(new_size));
+		node->ilist = static_cast<byte*>(ut_malloc_nokey(new_size));
 		node->ilist_size_alloc = new_size;
 
 	} else if ((node->ilist_size + enc_len) > node->ilist_size_alloc) {
 		ulint	new_size = node->ilist_size + enc_len;
-		byte*	ilist = static_cast<byte*>(ut_malloc(new_size));
+		byte*	ilist = static_cast<byte*>(ut_malloc_nokey(new_size));
 
 		memcpy(ilist, node->ilist, node->ilist_size);
 

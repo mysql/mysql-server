@@ -1499,7 +1499,7 @@ trx_undo_mem_create(
 
 	ut_a(id < TRX_RSEG_N_SLOTS);
 
-	undo = static_cast<trx_undo_t*>(ut_malloc(sizeof(*undo)));
+	undo = static_cast<trx_undo_t*>(ut_malloc_nokey(sizeof(*undo)));
 
 	if (undo == NULL) {
 

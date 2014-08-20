@@ -48,6 +48,8 @@ Created 1/8/1996 Heikki Tuuri
 #include "buf0buf.h"
 #include "gis0type.h"
 #include "os0once.h"
+#include "ut0new.h"
+
 #include <set>
 #include <algorithm>
 
@@ -926,7 +928,10 @@ struct dict_foreign_matches_id {
 	const char*	m_id;
 };
 
-typedef std::set<dict_foreign_t*, dict_foreign_compare> dict_foreign_set;
+typedef std::set<
+	dict_foreign_t*,
+	dict_foreign_compare,
+	ut_allocator<dict_foreign_t*> >	dict_foreign_set;
 
 /*********************************************************************//**
 Frees a foreign key struct. */
