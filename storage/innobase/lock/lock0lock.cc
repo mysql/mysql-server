@@ -1688,6 +1688,9 @@ RecLock::rollback_blocking_trx(lock_t* lock) const
 	lock->trx->lock.was_chosen_as_deadlock_victim = true;
 
 	lock_cancel_waiting_and_release(lock);
+
+	/* Remove the blocking transaction from the hit list. */
+	m_trx->hit_list.remove(lock->trx);
 }
 
 /**
@@ -1722,7 +1725,8 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 		char	buffer[1024];
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Blocking transaction: %s",
+			"Blocking transaction: ID: " TRX_ID_FMT " - %s",
+			trx->id,
 			thd_security_context(thd, buffer, sizeof(buffer), 512));
 	}
 }

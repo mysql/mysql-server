@@ -3819,16 +3819,24 @@ innobase_rollback(
 		}
 
 		trx_deregister_from_2pc(trx);
+
+	} else if (trx_in_innodb.is_aborted()) {
+
+		error = DB_FORCED_ABORT;
+
+		trx->state = TRX_STATE_NOT_STARTED;
+
 	} else {
+
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
 
-		if (trx_in_innodb.is_aborted()) {
+		if (error == DB_FORCED_ABORT) {
 
-			error = DB_FORCED_ABORT;
+			trx->state = TRX_STATE_NOT_STARTED;
 		}
 	}
 
-	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
+	DBUG_RETURN(convert_error_code_to_mysql(error, 0, trx->mysql_thd));
 }
 
 /*****************************************************************//**
@@ -3865,7 +3873,7 @@ innobase_rollback_trx(
 		trx->will_lock = 0;
 	}
 
-	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
+	DBUG_RETURN(convert_error_code_to_mysql(error, 0, trx->mysql_thd));
 }
 
 /*****************************************************************//**

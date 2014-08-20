@@ -218,11 +218,12 @@ trx_rollback_for_mysql(
 	that is associated with the current thread. */
 
 	switch (trx->state) {
-	case TRX_STATE_NOT_STARTED:
 	case TRX_STATE_FORCED_ROLLBACK:
+	case TRX_STATE_NOT_STARTED:
 		trx->will_lock = 0;
 		ut_ad(trx->in_mysql_trx_list);
-		return(DB_SUCCESS);
+		return(trx->state == TRX_STATE_NOT_STARTED
+		       ? DB_SUCCESS : DB_FORCED_ABORT);
 
 	case TRX_STATE_ACTIVE:
 		ut_ad(trx->in_mysql_trx_list);
@@ -260,8 +261,10 @@ trx_rollback_last_sql_stat_for_mysql(
 	ut_ad(trx->in_mysql_trx_list);
 
 	switch (trx->state) {
-	case TRX_STATE_NOT_STARTED:
 	case TRX_STATE_FORCED_ROLLBACK:
+		return(DB_FORCED_ABORT);
+
+	case TRX_STATE_NOT_STARTED:
 		return(DB_SUCCESS);
 
 	case TRX_STATE_ACTIVE:

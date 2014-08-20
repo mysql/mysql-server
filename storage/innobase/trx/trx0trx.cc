@@ -3197,25 +3197,29 @@ trx_kill_blocking(trx_t* trx)
 
 		} else if (trx_is_started(victim_trx)) {
 
+			trx_id_t	id = victim_trx->id;
+
 			ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
 
 			trx_rollback_for_mysql(victim_trx);
 
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Killed transaction: %s",
+				"Killed transaction: ID: " TRX_ID_FMT " - %s",
+				id,
 				thd_security_context(
 					victim_trx->mysql_thd,
 					buffer, sizeof(buffer), 512));
 
 		} else {
 
-			/* Note that it was rolled back synchronously. */
+			/* Note that it was rolled back synchronously. Its
+			ID will also be reset. */
 
 			victim_trx->in_innodb &= ~TRX_FORCE_ROLLBACK_ASYNC;
 
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Transaction completed before"
-				" forced rollback : %s",
+				" forced rollback %s",
 				thd_security_context(
 					victim_trx->mysql_thd,
 					buffer, sizeof(buffer), 512));
