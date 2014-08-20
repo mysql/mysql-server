@@ -14794,13 +14794,6 @@ innodb_buffer_pool_size_update(
 {
 	long long	in_val = *static_cast<const long long*>(save);
 
-#ifdef UNIV_LOG_DEBUG
-	/* UNIV_LOG_DEBUG might not release blocks from the buffer pool,
-	even after recv_recovery_from_checkpoint_finish().
-	Cannot resize the buffer pool. */
-	return;
-#endif /* UNIV_LOG_DEBUG */
-
 	if (!srv_was_started) {
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
