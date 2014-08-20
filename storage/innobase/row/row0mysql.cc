@@ -1507,8 +1507,11 @@ row_insert_for_mysql_using_cursor(
 	     node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry)) {
 
 		node->index = index;
-		row_ins_index_entry_set_vals(
+		err = row_ins_index_entry_set_vals(
 			node->index, node->entry, node->row);
+		if (err != DB_SUCCESS) {
+			break;
+		}
 
 		if (dict_index_is_clust(index)) {
 			err = row_ins_clust_index_entry(
