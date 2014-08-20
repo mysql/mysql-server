@@ -66,6 +66,15 @@ typedef std::set<
 /** Dummy session used currently in MySQL interface */
 sess_t*	trx_dummy_sess = NULL;
 
+/** Constructor */
+TrxVersion::TrxVersion(trx_t* trx)
+	:
+	m_trx(trx),
+	m_version(trx->version)
+{
+	/* No op */
+}
+
 /*************************************************************//**
 Set detailed error message for the transaction. */
 
@@ -198,7 +207,7 @@ struct TrxFactory {
 
 		new(&trx->lock.table_locks) lock_pool_t();
 
-		new(&trx->hit_list) trx_list_t();
+		new(&trx->hit_list) hit_list_t();
 
 		trx->xid = new (std::nothrow) xid_t();
 
@@ -282,7 +291,7 @@ struct TrxFactory {
 
 		trx->lock.table_locks.~lock_pool_t();
 
-		trx->hit_list.~trx_list_t();
+		trx->hit_list.~hit_list_t();
 	}
 
 	/** Enforce any invariants here, this is called before the transaction
@@ -1236,8 +1245,9 @@ trx_start_low(
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
-	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_COMPLETE));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
+
+	++trx->version;
 
 	/* Check whether it is an AUTOCOMMIT SELECT */
 	trx->auto_commit = (trx->api_trx && trx->api_auto_commit)
@@ -3157,15 +3167,21 @@ trx_kill_blocking(trx_t* trx)
 	}
 
 	/** Kill the transactions in the lock acquisition order old -> new. */
-	trx_list_t::reverse_iterator	end = trx->hit_list.rend();
+	hit_list_t::reverse_iterator	end = trx->hit_list.rend();
 
-	for (trx_list_t::reverse_iterator it = trx->hit_list.rbegin();
+	for (hit_list_t::reverse_iterator it = trx->hit_list.rbegin();
 	     it != end;
 	     ++it) {
 
-		trx_t*	victim_trx = *it;
+		trx_t*	victim_trx = it->m_trx;
 
 		ut_ad(victim_trx != trx);
+
+		/* We don't kill transactions that are tagged
+		explicitly as READ ONLY. */
+
+		ut_a(!victim_trx->read_only);
+
 
 		/* We should never kill background transactions. */
 
@@ -3185,7 +3201,8 @@ trx_kill_blocking(trx_t* trx)
 		ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK);
 		ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
 
-		while ((victim_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0
+		while (victim_trx->version == it->m_version
+		       && (victim_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0
 		       && trx_is_started(victim_trx)) {
 
 			trx_mutex_exit(victim_trx);
@@ -3195,19 +3212,16 @@ trx_kill_blocking(trx_t* trx)
 			trx_mutex_enter(victim_trx);
 		}
 
-		ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK);
+		bool	rollback = victim_trx->version == it->m_version;
+
+		ut_ad((victim_trx->in_innodb & TRX_FORCE_ROLLBACK)
+		      || !rollback);
 
 		trx_mutex_exit(victim_trx);
 
 		char	buffer[1024];
 
-		/* We don't kill transactions that are tagged explicitly
-		as READ ONLY. */
-		if (victim_trx->read_only) {
-
-			trx->killed_by = 0;
-
-		} else if (trx_is_started(victim_trx)) {
+		if (trx_is_started(victim_trx) && rollback) {
 
 			trx_id_t	id = victim_trx->id;
 
@@ -3218,20 +3232,6 @@ trx_kill_blocking(trx_t* trx)
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Killed transaction: ID: " TRX_ID_FMT " - %s",
 				id,
-				thd_security_context(
-					victim_trx->mysql_thd,
-					buffer, sizeof(buffer), 512));
-
-		} else {
-
-			/* Note that it was rolled back synchronously. Its
-			ID will also be reset. */
-
-			victim_trx->in_innodb &= ~TRX_FORCE_ROLLBACK_ASYNC;
-
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Transaction completed before"
-				" forced rollback %s",
 				thd_security_context(
 					victim_trx->mysql_thd,
 					buffer, sizeof(buffer), 512));

@@ -889,7 +889,21 @@ enum trx_rseg_type_t {
 	TRX_RSEG_TYPE_NOREDO		/*!< non-redo rollback segment. */
 };
 
-typedef std::list<trx_t*, ut_allocator<trx_t*> >	trx_list_t;
+struct TrxVersion {
+	TrxVersion(trx_t* trx);
+
+	/**
+	@return true if the trx_t instance is the same */
+	bool operator==(const TrxVersion& rhs) const
+	{
+		return(rhs.m_trx == m_trx);
+	}
+
+	trx_t*		m_trx;
+	ulint		m_version;
+};
+
+typedef std::list<TrxVersion, ut_allocator<TrxVersion> > hit_list_t;
 
 struct trx_t {
 	TrxMutex	mutex;		/*!< Mutex protecting the fields
@@ -995,7 +1009,7 @@ struct trx_t {
 					this transaction must abort when
 					it can */
 
-	trx_list_t	hit_list;	/*!< List of transactions to kill,
+	hit_list_t	hit_list;	/*!< List of transactions to kill,
 					when a high priority transaction
 					is blocked on a lock wait. */
 
@@ -1231,6 +1245,12 @@ struct trx_t {
 					the state to COMMITTED_IN_MEMORY to
 					signify that it is no longer
 					"active". */
+
+	/** Version of this instance. It is incremented each time the
+	instance is re-used in trx_start_low(). It is used to track
+	whether a transaction has been restarted since it was tagged
+	for asynchronous rollback. */
+	ulint		version;
 
 	XID*		xid;		/*!< X/Open XA transaction
 					identification to identify a
