@@ -243,15 +243,29 @@ INSERT INTO t1 VALUES (50);
 COMMIT;
 INSERT INTO t1 VALUES (3);
 UPDATE t1 SET c1=4 WHERE c1=1;
-# Deadlock as con5 inserting same row and its txn is not complete
---error ER_LOCK_DEADLOCK
-INSERT INTO t1 VALUES (50);
+let $con1_id=`SELECT CONNECTION_ID()`;
+
+# con1 has already done commit hence its no longer high prio txn
+# Insert waits for con5 to complete.
+--send INSERT INTO t1 VALUES (50)
 
 # con2 transaction rollbacked due to deadlock error
 # con3 transaction rollbacked due to deadlock error
 # con4 transaction rollbacked due to deadlock error
 --connection con5
+# Check con1 insert is waiting
+--disable_query_log
+eval SET @con1_id = $con1_id;
+--enable_query_log
+let $wait_timeout = 10;
+let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE id = @con1_id AND INFO = 'INSERT INTO t1 VALUES (50)';
+--source include/wait_condition.inc
 COMMIT;
+
+--connection con1
+--error ER_DUP_ENTRY
+--reap
 
 --connection default
 --let $assert_text= 'There is a 1 in t1'
