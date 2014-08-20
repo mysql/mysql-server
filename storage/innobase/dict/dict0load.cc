@@ -2418,7 +2418,7 @@ err_exit:
 			}
 
 			if (filepath != NULL) {
-				::ut_free(filepath);
+				ut_free(filepath);
 			}
 		}
 	}

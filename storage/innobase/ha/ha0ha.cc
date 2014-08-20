@@ -84,7 +84,7 @@ ib_create(
 	}
 
 	table->heaps = static_cast<mem_heap_t**>(
-		ut_malloc(n_sync_obj * sizeof(void*)));
+		ut_malloc_nokey(n_sync_obj * sizeof(void*)));
 
 	for (ulint i = 0; i < n_sync_obj; i++) {
 		table->heaps[i] = mem_heap_create_typed(
@@ -127,7 +127,7 @@ ib_recreate(
 	ut_free(table->heaps);
 
 	new_table->heaps = static_cast<mem_heap_t**>(
-		ut_malloc(new_table->n_sync_obj * sizeof(void*)));
+		ut_malloc_nokey(new_table->n_sync_obj * sizeof(void*)));
 
 	for (ulint i = 0; i < new_table->n_sync_obj; i++) {
 		new_table->heaps[i] = mem_heap_create_typed(

@@ -732,7 +732,7 @@ os_io_init_simple(void)
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
 	for (ulint i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
-		os_file_seek_mutexes[i] = new(std::nothrow) SysMutex();
+		os_file_seek_mutexes[i] = UT_NEW_NOKEY(SysMutex());
 		mutex_create("os_file_seek_mutex", os_file_seek_mutexes[i]);
 	}
 }
@@ -785,8 +785,8 @@ os_file_opendir(
 {
 	os_file_dir_t		dir;
 #ifdef _WIN32
-	LPWIN32_FIND_DATA	lpFindFileData;
-	char			path[OS_FILE_MAX_PATH + 3];
+	WIN32_FIND_DATA	FindFileData;
+	char		path[OS_FILE_MAX_PATH + 3];
 
 	ut_a(strlen(dirname) < OS_FILE_MAX_PATH);
 
@@ -797,12 +797,7 @@ os_file_opendir(
 	the first entry in the directory. Since it is '.', that is no problem,
 	as we will skip over the '.' and '..' entries anyway. */
 
-	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
-		ut_malloc(sizeof(WIN32_FIND_DATA)));
-
-	dir = FindFirstFile((LPCTSTR) path, lpFindFileData);
-
-	ut_free(lpFindFileData);
+	dir = FindFirstFile((LPCTSTR) path, &FindFileData);
 
 	if (dir == INVALID_HANDLE_VALUE) {
 
@@ -812,6 +807,12 @@ os_file_opendir(
 
 		return(NULL);
 	}
+
+	/* Ensure that the first entry opened is indeed "." because we are
+	going to skip it (going to call FindNextFile() without considering
+	the value of FindFileData) and we do not want to skip some real
+	file. */
+	ut_ad(strcmp(FindFileData.cFileName, ".") == 0);
 
 	return(dir);
 #else
@@ -872,31 +873,29 @@ os_file_readdir_next_file(
 	os_file_stat_t*	info)	/*!< in/out: buffer where the info is returned */
 {
 #ifdef _WIN32
-	LPWIN32_FIND_DATA	lpFindFileData;
-	BOOL			ret;
+	WIN32_FIND_DATA	FindFileData;
+	BOOL		ret;
 
-	lpFindFileData = static_cast<LPWIN32_FIND_DATA>(
-		ut_malloc(sizeof(WIN32_FIND_DATA)));
 next_file:
-	ret = FindNextFile(dir, lpFindFileData);
+	ret = FindNextFile(dir, &FindFileData);
 
 	if (ret) {
-		ut_a(strlen((char*) lpFindFileData->cFileName)
+		ut_a(strlen((char*) FindFileData.cFileName)
 		     < OS_FILE_MAX_PATH);
 
-		if (strcmp((char*) lpFindFileData->cFileName, ".") == 0
-		    || strcmp((char*) lpFindFileData->cFileName, "..") == 0) {
+		if (strcmp((char*) FindFileData.cFileName, ".") == 0
+		    || strcmp((char*) FindFileData.cFileName, "..") == 0) {
 
 			goto next_file;
 		}
 
-		strcpy(info->name, (char*) lpFindFileData->cFileName);
+		strcpy(info->name, (char*) FindFileData.cFileName);
 
-		info->size = static_cast<int64_t>(lpFindFileData->nFileSizeLow)
-			+ (static_cast<int64_t>(lpFindFileData->nFileSizeHigh)
+		info->size = static_cast<int64_t>(FindFileData.nFileSizeLow)
+			+ (static_cast<int64_t>(FindFileData.nFileSizeHigh)
 			   << 32);
 
-		if (lpFindFileData->dwFileAttributes
+		if (FindFileData.dwFileAttributes
 		    & FILE_ATTRIBUTE_REPARSE_POINT) {
 			/* TODO: test Windows symlinks */
 			/* TODO: MySQL has apparently its own symlink
@@ -904,7 +903,7 @@ next_file:
 			redirect a database directory:
 			REFMAN "windows-symbolic-links.html" */
 			info->type = OS_FILE_TYPE_LINK;
-		} else if (lpFindFileData->dwFileAttributes
+		} else if (FindFileData.dwFileAttributes
 			   & FILE_ATTRIBUTE_DIRECTORY) {
 			info->type = OS_FILE_TYPE_DIR;
 		} else {
@@ -914,19 +913,16 @@ next_file:
 
 			info->type = OS_FILE_TYPE_FILE;
 		}
-	}
 
-	ut_free(lpFindFileData);
-
-	if (ret) {
 		return(0);
-	} else if (GetLastError() == ERROR_NO_MORE_FILES) {
-
-		return(1);
-	} else {
-		os_file_handle_error_no_exit(NULL, "readdir_next_file", false);
-		return(-1);
 	}
+
+	if (GetLastError() == ERROR_NO_MORE_FILES) {
+		return(1);
+	}
+
+	os_file_handle_error_no_exit(NULL, "readdir_next_file", false);
+	return(-1);
 #else
 	struct dirent*	ent;
 	char*		full_path;
@@ -978,7 +974,7 @@ next_file:
 	strcpy(info->name, ent->d_name);
 
 	full_path = static_cast<char*>(
-		ut_malloc(strlen(dirname) + strlen(ent->d_name) + 10));
+		ut_malloc_nokey(strlen(dirname) + strlen(ent->d_name) + 10));
 
 	sprintf(full_path, "%s/%s", dirname, ent->d_name);
 
@@ -2098,7 +2094,10 @@ os_file_set_size(
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
-	os_offset_t	size)	/*!< in: file size */
+	os_offset_t	size,	/*!< in: file size */
+	bool		read_only_mode)
+				/*!< in: if true, read only mode
+				checks are enforced. */
 {
 	os_offset_t	current_size;
 	bool		ret;
@@ -2111,7 +2110,7 @@ os_file_set_size(
 	/* Write up to 1 megabyte at a time. */
 	buf_size = ut_min(64, (ulint) (size / UNIV_PAGE_SIZE))
 		* UNIV_PAGE_SIZE;
-	buf2 = static_cast<byte*>(ut_malloc(buf_size + UNIV_PAGE_SIZE));
+	buf2 = static_cast<byte*>(ut_malloc_nokey(buf_size + UNIV_PAGE_SIZE));
 
 	/* Align the buffer for possible raw i/o */
 	buf = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
@@ -2133,7 +2132,16 @@ os_file_set_size(
 			n_bytes = buf_size;
 		}
 
+#ifdef UNIV_HOTBACKUP
 		ret = os_file_write(name, file, buf, current_size, n_bytes);
+#else
+		/* Using OS_AIO_SYNC mode on *unix will result in fall back
+		to os_file_write/read for Windows there it will use special
+		mechanism to wait before it returns back. */
+		ret = os_aio(
+			OS_FILE_WRITE, OS_AIO_SYNC, name, file, buf,
+			current_size, n_bytes, read_only_mode, NULL, NULL);
+#endif /* UNIV_HOTBACKUP */
 		if (!ret) {
 			ut_free(buf2);
 			goto error_handling;
@@ -3266,7 +3274,7 @@ os_file_make_new_pathname(
 
 	/* allocate a new path and move the old directory path to it. */
 	new_path_len = dir_len + strlen(base_name) + sizeof "/.ibd";
-	new_path = static_cast<char*>(ut_malloc(new_path_len));
+	new_path = static_cast<char*>(ut_malloc_nokey(new_path_len));
 	memcpy(new_path, old_path, dir_len);
 
 	ut_snprintf(new_path + dir_len,
@@ -3590,7 +3598,7 @@ os_aio_native_aio_supported(void)
 
 	memset(&io_event, 0x0, sizeof(io_event));
 
-	byte*	buf = static_cast<byte*>(ut_malloc(UNIV_PAGE_SIZE * 2));
+	byte*	buf = static_cast<byte*>(ut_malloc_nokey(UNIV_PAGE_SIZE * 2));
 	byte*	ptr = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
 
 	struct iocb	iocb;
@@ -3665,7 +3673,7 @@ os_aio_array_create(
 	ut_a(n > 0);
 	ut_a(n_segments > 0);
 
-	array = static_cast<os_aio_array_t*>(ut_zalloc(sizeof(*array)));
+	array = static_cast<os_aio_array_t*>(ut_zalloc_nokey(sizeof(*array)));
 
 	mutex_create("os_aio_mutex", &array->mutex);
 
@@ -3678,10 +3686,11 @@ os_aio_array_create(
 	array->n_segments = n_segments;
 
 	array->slots = static_cast<os_aio_slot_t*>(
-		ut_zalloc(n * sizeof(*array->slots)));
+		ut_zalloc_nokey(n * sizeof(*array->slots)));
 
 #ifdef _WIN32
-	array->handles = static_cast<HANDLE*>(ut_malloc(n * sizeof(HANDLE)));
+	array->handles = static_cast<HANDLE*>(
+		ut_malloc_nokey(n * sizeof(HANDLE)));
 #endif /* _WIN32 */
 
 #if defined(LINUX_NATIVE_AIO)
@@ -3698,7 +3707,7 @@ os_aio_array_create(
 	per segment in the array. */
 
 	array->aio_ctx = static_cast<io_context**>(
-		ut_malloc(n_segments * sizeof(*array->aio_ctx)));
+		ut_malloc_nokey(n_segments * sizeof(*array->aio_ctx)));
 
 	for (ulint i = 0; i < n_segments; ++i) {
 		if (!os_aio_linux_create_io_ctx(n/n_segments,
@@ -3715,7 +3724,7 @@ os_aio_array_create(
 
 	/* Initialize the event array. One event per slot. */
 	io_event = static_cast<struct io_event*>(
-		ut_zalloc(n * sizeof(*io_event)));
+		ut_zalloc_nokey(n * sizeof(*io_event)));
 
 	array->aio_events = io_event;
 
@@ -3885,7 +3894,8 @@ os_aio_init(
 	os_aio_validate();
 
 	os_aio_segment_wait_events = static_cast<os_event_t*>(
-		ut_malloc(n_segments * sizeof *os_aio_segment_wait_events));
+		ut_malloc_nokey(n_segments
+				* sizeof *os_aio_segment_wait_events));
 
 	for (ulint i = 0; i < n_segments; ++i) {
 		os_aio_segment_wait_events[i] = os_event_create(0);
@@ -3924,7 +3934,7 @@ os_aio_free(void)
 #ifndef UNIV_HOTBACKUP
 	for (ulint i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
 		mutex_free(os_file_seek_mutexes[i]);
-		delete os_file_seek_mutexes[i];
+		UT_DELETE(os_file_seek_mutexes[i]);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -5356,7 +5366,7 @@ consecutive_loop:
 		combined_buf2 = NULL;
 	} else {
 		combined_buf2 = static_cast<byte*>(
-			ut_malloc(total_len + UNIV_PAGE_SIZE));
+			ut_malloc_nokey(total_len + UNIV_PAGE_SIZE));
 
 		ut_a(combined_buf2);
 

@@ -29,6 +29,7 @@ Created 2013-7-26 by Kevin Lewis
 #include "os0file.h"
 #include "page0page.h"
 #include "srv0start.h"
+#include "ut0new.h"
 
 /** Initialize the name, size and order of this datafile
 @param[in]	name		space name, shutdown() will free it
@@ -242,7 +243,7 @@ void
 Datafile::set_filepath(const char* filepath)
 {
 	free_filepath();
-	m_filepath = static_cast<char*>(ut_malloc(::strlen(filepath) + 1));
+	m_filepath = static_cast<char*>(ut_malloc_nokey(strlen(filepath) + 1));
 	::strcpy(m_filepath, filepath);
 	set_filename();
 }
@@ -253,7 +254,7 @@ void
 Datafile::free_filepath()
 {
 	if (m_filepath != NULL) {
-		::ut_free(m_filepath);
+		ut_free(m_filepath);
 		m_filepath = NULL;
 		m_filename = NULL;
 	}
@@ -274,7 +275,7 @@ Datafile::read_first_page(bool read_only_mode)
 	}
 
 	m_first_page_buf = static_cast<byte*>
-		(ut_malloc(2 * UNIV_PAGE_SIZE));
+		(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
 
 	/* Align the memory for a possible read from a raw device */
 
@@ -304,7 +305,7 @@ void
 Datafile::free_first_page()
 {
 	if (m_first_page_buf) {
-		::ut_free(m_first_page_buf);
+		ut_free(m_first_page_buf);
 		m_first_page_buf = NULL;
 		m_first_page = NULL;
 	}
@@ -512,8 +513,8 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 			prev_name, prev_filepath, m_space_id,
 			m_name, m_filepath);
 
-		::ut_free(prev_name);
-		::ut_free(prev_filepath);
+		ut_free(prev_name);
+		ut_free(prev_filepath);
 
 		m_is_valid = false;
 		free_first_page();
@@ -553,10 +554,17 @@ Datafile::find_space_id()
 	     page_size <= UNIV_PAGE_SIZE_MAX; page_size <<= 1) {
 
 		/* map[space_id] = count of pages */
-		std::map<ulint, ulint> verify;
+		typedef std::map<
+			ulint,
+			ulint,
+			std::less<ulint>,
+			ut_allocator<std::pair<const ulint, ulint > > >
+			verify_t;
 
-		ulint page_count = 64;
-		ulint valid_pages = 0;
+		verify_t	verify;
+
+		ulint		page_count = 64;
+		ulint		valid_pages = 0;
 
 		/* Adjust the number of pages to analyze based on file size */
 		while ((page_count * page_size) > file_size) {
@@ -566,7 +574,7 @@ Datafile::find_space_id()
 		ib_logf(IB_LOG_LEVEL_INFO, "Page size:%lu Pages to analyze:"
 			"%lu", page_size, page_count);
 
-		byte* buf = static_cast<byte*>(ut_malloc(2*page_size));
+		byte* buf = static_cast<byte*>(ut_malloc_nokey(2*page_size));
 		byte* page = static_cast<byte*>(ut_align(buf, page_size));
 
 		for (ulint j = 0; j < page_count; ++j) {
@@ -611,7 +619,7 @@ Datafile::find_space_id()
 			}
 		}
 
-		::ut_free(buf);
+		ut_free(buf);
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Page size: %lu, Possible space_id count:%lu",
@@ -620,22 +628,22 @@ Datafile::find_space_id()
 		const ulint	pages_corrupted = 3;
 		for (ulint missed = 0; missed <= pages_corrupted; ++missed) {
 
-			for (std::map<ulint, ulint>::iterator m = verify.begin();
-			     m != verify.end();
-			     ++m) {
+			for (verify_t::const_iterator it = verify.begin();
+			     it != verify.end();
+			     ++it) {
 
 				ib_logf(IB_LOG_LEVEL_INFO, "space_id:%lu, "
 					"Number of pages matched: %lu/%lu "
-					"(%lu)", m->first, m->second,
+					"(%lu)", it->first, it->second,
 					valid_pages, page_size);
 
-				if (m->second == (valid_pages - missed)) {
+				if (it->second == (valid_pages - missed)) {
 
 					ib_logf(IB_LOG_LEVEL_INFO,
 						"Chosen space:%lu\n",
-						m->first);
+						it->first);
 
-					m_space_id = m->first;
+					m_space_id = it->first;
 					return(DB_SUCCESS);
 				}
 			}
@@ -766,7 +774,7 @@ RemoteDatafile::shutdown()
 	Datafile::shutdown();
 
 	if (m_link_filepath != 0) {
-		::ut_free(m_link_filepath);
+		ut_free(m_link_filepath);
 		m_link_filepath = 0;
 	}
 }
@@ -797,9 +805,9 @@ RemoteDatafile::create_link_file(
 		/* Truncate will call this with an existing
 		link file which contains the same filepath. */
 		bool same = !strcmp(prev_filepath, filepath);
-		::ut_free(prev_filepath);
+		ut_free(prev_filepath);
 		if (same) {
-			::ut_free(link_filepath);
+			ut_free(link_filepath);
 			return(DB_SUCCESS);
 		}
 	}
@@ -833,7 +841,7 @@ RemoteDatafile::create_link_file(
 		}
 
 		/* file is not open, no need to close it. */
-		::ut_free(link_filepath);
+		ut_free(link_filepath);
 		return(err);
 	}
 
@@ -845,7 +853,7 @@ RemoteDatafile::create_link_file(
 	/* Close the file, we only need it at startup */
 	os_file_close(file);
 
-	::ut_free(link_filepath);
+	ut_free(link_filepath);
 
 	return(err);
 }
@@ -862,7 +870,7 @@ RemoteDatafile::delete_link_file(
 	if (link_filepath != NULL) {
 		os_file_delete_if_exists(innodb_data_file_key, link_filepath, NULL);
 
-		::ut_free(link_filepath);
+		ut_free(link_filepath);
 	}
 }
 
@@ -895,7 +903,8 @@ RemoteDatafile::read_link_file(
 
 	file = fopen(*link_filepath, "r+b");
 	if (file) {
-		filepath = static_cast<char*>(ut_malloc(OS_FILE_MAX_PATH));
+		filepath = static_cast<char*>(
+			ut_malloc_nokey(OS_FILE_MAX_PATH));
 
 		os_file_read_string(file, filepath, OS_FILE_MAX_PATH);
 		fclose(file);

@@ -69,6 +69,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0checksum.h"
 #include "sync0sync.h"
 #include "buf0dump.h"
+#include "ut0new.h"
 
 #include <new>
 #include <map>
@@ -285,8 +286,15 @@ volatile ulint	buf_withdraw_clock;
 /** Map of buffer pool chunks by its first frame address
 This is newly made by initialization of buffer pool and buf_resize_thread.
 Currently, no need mutex protection for update. */
-typedef std::map<const byte*, buf_chunk_t*> buf_pool_chunk_map_t;
-static buf_pool_chunk_map_t*	buf_chunk_map_reg;
+typedef std::map<
+	const byte*,
+	buf_chunk_t*,
+	std::less<const byte*>,
+	ut_allocator<std::pair<const byte*, buf_chunk_t*> > >
+	buf_pool_chunk_map_t;
+
+static buf_pool_chunk_map_t*			buf_chunk_map_reg;
+
 /** Chunk map to be used to lookup.
 The map pointed by this should not be updated */
 static buf_pool_chunk_map_t*	buf_chunk_map_ref = NULL;
@@ -1222,8 +1230,8 @@ buf_chunk_init(
 
 	DBUG_EXECUTE_IF("ib_buf_chunk_init_fails", return(NULL););
 
-	chunk->mem_size = mem_size;
-	chunk->mem = os_mem_alloc_large(&chunk->mem_size);
+	chunk->mem = buf_pool->allocator.allocate_large(mem_size,
+							&chunk->mem_pfx);
 
 	if (UNIV_UNLIKELY(chunk->mem == NULL)) {
 
@@ -1240,7 +1248,7 @@ buf_chunk_init(
 	it is bigger, we may allocate more blocks than requested. */
 
 	frame = (byte*) ut_align(chunk->mem, UNIV_PAGE_SIZE);
-	chunk->size = chunk->mem_size / UNIV_PAGE_SIZE
+	chunk->size = chunk->mem_pfx.m_size / UNIV_PAGE_SIZE
 		- (frame != chunk->mem);
 
 	/* Subtract the space needed for block descriptors. */
@@ -1438,6 +1446,9 @@ buf_pool_init_instance(
 
 	mutex_create("buf_pool_zip", &buf_pool->zip_mutex);
 
+	new(&buf_pool->allocator)
+		ut_allocator<unsigned char>(mem_key_buf_buf_pool);
+
 	buf_pool_mutex_enter(buf_pool);
 
 	if (buf_pool_size > 0) {
@@ -1446,7 +1457,7 @@ buf_pool_init_instance(
 		chunk_size = srv_buf_pool_chunk_unit;
 
 		buf_pool->chunks =
-			reinterpret_cast<buf_chunk_t*>(ut_zalloc(
+			reinterpret_cast<buf_chunk_t*>(ut_zalloc_nokey(
 				buf_pool->n_chunks * sizeof(*chunk)));
 		buf_pool->chunks_old = NULL;
 
@@ -1482,7 +1493,8 @@ buf_pool_init_instance(
 #endif /* UNIV_SYNC_DEBUG */
 					}
 
-					os_mem_free_large(chunk->mem, chunk->mem_size);
+					buf_pool->allocator.deallocate_large(
+						chunk->mem, &chunk->mem_pfx);
 				}
 				ut_free(buf_pool->chunks);
 				buf_pool_mutex_exit(buf_pool);
@@ -1527,13 +1539,13 @@ buf_pool_init_instance(
 		buf_pool->no_flush[i] = os_event_create(0);
 	}
 
-	buf_pool->watch = (buf_page_t*) ut_zalloc(
+	buf_pool->watch = (buf_page_t*) ut_zalloc_nokey(
 		sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
 	for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
 		buf_pool->watch[i].buf_pool_index = buf_pool->instance_no;
 	}
 
-	/* All fields are initialized by ut_zalloc(). */
+	/* All fields are initialized by ut_zalloc_nokey(). */
 
 	buf_pool->try_LRU_scan = TRUE;
 
@@ -1609,7 +1621,8 @@ buf_pool_free_instance(
 # endif /* UNIV_SYNC_DEBUG */
 		}
 
-		os_mem_free_large(chunk->mem, chunk->mem_size);
+		buf_pool->allocator.deallocate_large(
+			chunk->mem, &chunk->mem_pfx);
 	}
 
 	for (ulint i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; ++i) {
@@ -1620,6 +1633,8 @@ buf_pool_free_instance(
 	ha_clear(buf_pool->page_hash);
 	hash_table_free(buf_pool->page_hash);
 	hash_table_free(buf_pool->zip_hash);
+
+	buf_pool->allocator.~ut_allocator();
 }
 
 /********************************************************************//**
@@ -1643,10 +1658,10 @@ buf_pool_init(
 	buf_pool_withdrawing = false;
 	buf_withdraw_clock = 0;
 
-	buf_pool_ptr = (buf_pool_t*) ut_zalloc(
+	buf_pool_ptr = (buf_pool_t*) ut_zalloc_nokey(
 		n_instances * sizeof *buf_pool_ptr);
 
-	buf_chunk_map_reg = new buf_pool_chunk_map_t();
+	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
 
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_t*	ptr	= &buf_pool_ptr[i];
@@ -1683,7 +1698,7 @@ buf_pool_free(
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
 
-	delete buf_chunk_map_reg;
+	UT_DELETE(buf_chunk_map_reg);
 	buf_chunk_map_reg = buf_chunk_map_ref = NULL;
 
 	ut_free(buf_pool_ptr);
@@ -2421,7 +2436,7 @@ withdraw_retry:
 		hash_lock_x_all(buf_pool->page_hash);
 	}
 
-	buf_chunk_map_reg = new buf_pool_chunk_map_t();
+	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
 
 	/* add/delete chunks */
 	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
@@ -2454,8 +2469,8 @@ withdraw_retry:
 #endif /* UNIV_SYNC_DEBUG */
 				}
 
-				os_mem_free_large(chunk->mem,
-						  chunk->mem_size);
+				buf_pool->allocator.deallocate_large(
+					chunk->mem, &chunk->mem_pfx);
 
 				sum_freed += chunk->size;
 
@@ -2482,7 +2497,7 @@ withdraw_retry:
 			buf_chunk_t*	new_chunks;
 			new_chunks =
 				reinterpret_cast<buf_chunk_t*>(
-					ut_zalloc(
+					ut_zalloc_nokey(
 						buf_pool->n_chunks_new
 						* sizeof(*chunk)));
 
@@ -2611,7 +2626,7 @@ withdraw_retry:
 		}
 	}
 
-	delete chunk_map_old;
+	UT_DELETE(chunk_map_old);
 	buf_pool_resizing = false;
 
 	/* Normalize other components, if the new size is too different */
@@ -6015,9 +6030,9 @@ buf_print_instance(
 	size = buf_pool->curr_size;
 
 	index_ids = static_cast<index_id_t*>(
-		ut_malloc(size * sizeof *index_ids));
+		ut_malloc_nokey(size * sizeof *index_ids));
 
-	counts = static_cast<ulint*>(ut_malloc(sizeof(ulint) * size));
+	counts = static_cast<ulint*>(ut_malloc_nokey(sizeof(ulint) * size));
 
 	buf_pool_mutex_enter(buf_pool);
 	buf_flush_list_mutex_enter(buf_pool);
@@ -6577,7 +6592,7 @@ buf_print_io(
 	one extra buf_pool_info_t, the last one stores
 	aggregated/total values from all pools */
 	if (srv_buf_pool_instances > 1) {
-		pool_info = (buf_pool_info_t*) ut_zalloc((
+		pool_info = (buf_pool_info_t*) ut_zalloc_nokey((
 			srv_buf_pool_instances + 1) * sizeof *pool_info);
 
 		pool_info_total = &pool_info[srv_buf_pool_instances];
@@ -6586,7 +6601,7 @@ buf_print_io(
 
 		pool_info_total = pool_info =
 			static_cast<buf_pool_info_t*>(
-				ut_zalloc(sizeof *pool_info));
+				ut_zalloc_nokey(sizeof *pool_info));
 	}
 
 	for (i = 0; i < srv_buf_pool_instances; i++) {

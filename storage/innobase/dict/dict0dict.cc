@@ -73,6 +73,8 @@ dict_index_t*	dict_ind_redundant;
 #include "srv0start.h"
 #include "sync0sync.h"
 #include "trx0undo.h"
+#include "ut0new.h"
+
 #include <vector>
 #include <algorithm>
 
@@ -282,7 +284,7 @@ dict_table_stats_latch_alloc(
 {
 	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
 
-	table->stats_latch = new(std::nothrow) rw_lock_t;
+	table->stats_latch = UT_NEW_NOKEY(rw_lock_t());
 
 	ut_a(table->stats_latch != NULL);
 
@@ -299,7 +301,7 @@ dict_table_stats_latch_free(
 	dict_table_t*	table)
 {
 	rw_lock_free(table->stats_latch);
-	delete table->stats_latch;
+	UT_DELETE(table->stats_latch);
 }
 
 /** Create a dict_table_t's stats latch or delay for lazy creation.
@@ -591,6 +593,44 @@ dict_table_close_and_drop(
 #endif /* UNIV_DEBUG || UNIV_DDL_DEBUG */
 
 	row_merge_drop_table(trx, table);
+}
+
+/** Check if the table has a given column.
+@param[in]	table		table object
+@param[in]	col_name	column name
+@param[in]	col_nr		column number guessed, 0 as default
+@return column number if the table has the specified column,
+otherwise table->n_def */
+
+ulint
+dict_table_has_column(
+	const dict_table_t*	table,
+	const char*		col_name,
+	ulint			col_nr)
+{
+	ulint		col_max = table->n_def;
+
+	ut_ad(table);
+	ut_ad(col_name);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	if (col_nr < col_max
+	    && innobase_strcasecmp(
+		col_name, dict_table_get_col_name(table, col_nr)) == 0) {
+		return(col_nr);
+	}
+
+	/** The order of column may changed, check it with other columns */
+	for (ulint i = 0; i < col_max; i++) {
+		if (i != col_nr
+		    && innobase_strcasecmp(
+			col_name, dict_table_get_col_name(table, i)) == 0) {
+
+			return(i);
+		}
+	}
+
+	return(col_max);
 }
 
 /**********************************************************************//**
@@ -947,7 +987,7 @@ void
 dict_init(void)
 /*===========*/
 {
-	dict_sys = static_cast<dict_sys_t*>(ut_zalloc(sizeof(*dict_sys)));
+	dict_sys = static_cast<dict_sys_t*>(ut_zalloc_nokey(sizeof(*dict_sys)));
 
 	UT_LIST_INIT(dict_sys->table_LRU, &dict_table_t::table_LRU);
 	UT_LIST_INIT(dict_sys->table_non_LRU, &dict_table_t::table_LRU);
@@ -2542,8 +2582,8 @@ too_big:
 			= dict_field_get_col(field);
 		bool	is_spatial = (dict_index_is_spatial(new_index)
 				      && (i == 0)
-				      && (field->col->mtype
-						 == DATA_GEOMETRY));
+				      && DATA_GEOMETRY_MTYPE(
+						field->col->mtype));
 
 		/* In dtuple_convert_big_rec(), variable-length columns
 		that are longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE
@@ -2778,14 +2818,13 @@ dict_index_find_cols(
 	dict_table_t*	table,	/*!< in: table */
 	dict_index_t*	index)	/*!< in: index */
 {
-	ulint			i;
-	std::vector<ulint>	col_added;
+	std::vector<ulint, ut_allocator<ulint> >	col_added;
 
-	ut_ad(table && index);
+	ut_ad(table != NULL && index != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(mutex_own(&(dict_sys->mutex)) || dict_table_is_intrinsic(table));
 
-	for (i = 0; i < index->n_fields; i++) {
+	for (ulint i = 0; i < index->n_fields; i++) {
 		ulint		j;
 		dict_field_t*	field = dict_index_get_nth_field(index, i);
 
@@ -2853,8 +2892,22 @@ dict_index_add_col(
 	field = dict_index_get_nth_field(index, index->n_def - 1);
 
 	field->col = col;
-	field->fixed_len = (unsigned int) dict_col_get_fixed_size(
-		col, dict_table_is_comp(table));
+	/* DATA_POINT is a special type, whose fixed_len should be:
+	1) DATA_MBR_LEN, when it's indexed in R-TREE. In this case,
+	it must be the first col to be added.
+	2) DATA_POINT_LEN(be equal to fixed size of column), when it's
+	indexed in B-TREE,
+	3) DATA_POINT_LEN, if a POINT col is the PRIMARY KEY, and we are
+	adding the PK col to other B-TREE/R-TREE. */
+	/* TODO: We suppose the dimension is 2 now. */
+	if (dict_index_is_spatial(index) && DATA_POINT_MTYPE(col->mtype)
+	    && index->n_def == 1) {
+		field->fixed_len = DATA_MBR_LEN;
+	} else {
+		field->fixed_len = static_cast<unsigned int>(
+					dict_col_get_fixed_size(
+					col, dict_table_is_comp(table)));
+	}
 
 	if (prefix_len && field->fixed_len > prefix_len) {
 		field->fixed_len = (unsigned int) prefix_len;
@@ -3122,7 +3175,7 @@ dict_index_build_internal_clust(
 
 	/* Remember the table columns already contained in new_index */
 	indexed = static_cast<ibool*>(
-		ut_zalloc(table->n_cols * sizeof *indexed));
+		ut_zalloc_nokey(table->n_cols * sizeof *indexed));
 
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -3208,7 +3261,7 @@ dict_index_build_internal_non_clust(
 
 	/* Remember the table columns already contained in new_index */
 	indexed = static_cast<ibool*>(
-		ut_zalloc(table->n_cols * sizeof *indexed));
+		ut_zalloc_nokey(table->n_cols * sizeof *indexed));
 
 	/* Mark the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -4148,7 +4201,7 @@ dict_strip_comments(
 
 	DBUG_PRINT("dict_strip_comments", ("%s", sql_string));
 
-	str = static_cast<char*>(ut_malloc(sql_length + 1));
+	str = static_cast<char*>(ut_malloc_nokey(sql_length + 1));
 
 	sptr = sql_string;
 	ptr = str;
@@ -6075,44 +6128,20 @@ dict_table_schema_check(
 	be O(n_cols) if the columns are in the same order in both arrays. */
 
 	for (i = 0; i < req_schema->n_cols; i++) {
-		ulint	j;
+		ulint	j = dict_table_has_column(
+			table, req_schema->columns[i].name, i);
 
-		/* check if i'th column is the same in both arrays */
-		if (innobase_strcasecmp(req_schema->columns[i].name,
-			       dict_table_get_col_name(table, i)) == 0) {
+		if (j == table->n_def) {
 
-			/* we found the column in table->cols[] quickly */
-			j = i;
-		} else {
+			ut_snprintf(errstr, errstr_sz,
+				    "required column %s"
+				    " not found in table %s.",
+				    req_schema->columns[i].name,
+				    ut_format_name(
+					    req_schema->table_name,
+					    TRUE, buf, sizeof(buf)));
 
-			/* columns in both arrays are not in the same order,
-			do a full scan of the second array */
-			for (j = 0; j < table->n_def; j++) {
-				const char*	name;
-
-				name = dict_table_get_col_name(table, j);
-
-				if (innobase_strcasecmp(name,
-					req_schema->columns[i].name) == 0) {
-
-					/* found the column on j'th
-					position */
-					break;
-				}
-			}
-
-			if (j == table->n_def) {
-
-				ut_snprintf(errstr, errstr_sz,
-					    "required column %s"
-					    " not found in table %s.",
-					    req_schema->columns[i].name,
-					    ut_format_name(
-						    req_schema->table_name,
-						    TRUE, buf, sizeof(buf)));
-
-				return(DB_ERROR);
-			}
+			return(DB_ERROR);
 		}
 
 		/* we found a column with the same name on j'th position,
