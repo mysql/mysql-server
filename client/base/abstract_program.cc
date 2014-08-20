@@ -154,7 +154,7 @@ void Abstract_program::print_usage()
   this->m_help_options.print_usage();
 }
 
-bool Abstract_program::options_by_name_comparer(my_option& a, my_option& b)
+bool Abstract_program::options_by_name_comparer(const my_option& a, const my_option& b)
 {
   if (strcmp(a.name, "help") == 0)
     return true;
