@@ -407,10 +407,9 @@ buf_read_page(
 
 	tablespace_version = fil_space_get_version(page_id.space());
 
-	/* We do the i/o in the synchronous aio mode to save thread
-	switches: hence TRUE */
+	/* We do the i/o in the asynchronous aio mode: hence FALSE */
 
-	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE, page_id,
+	count = buf_read_page_low(&err, false, BUF_READ_ANY_PAGE, page_id,
 				  page_size, FALSE, tablespace_version);
 	srv_stats.buf_pool_reads.add(count);
 	if (err == DB_TABLESPACE_DELETED) {
