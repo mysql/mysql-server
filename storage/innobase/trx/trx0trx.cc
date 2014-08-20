@@ -3212,6 +3212,8 @@ trx_kill_blocking(trx_t* trx)
 			trx_mutex_enter(victim_trx);
 		}
 
+		ut_ad(it->m_version <= victim_trx->version);
+
 		bool	rollback = victim_trx->version == it->m_version;
 
 		ut_ad((victim_trx->in_innodb & TRX_FORCE_ROLLBACK)
@@ -3226,6 +3228,8 @@ trx_kill_blocking(trx_t* trx)
 			trx_id_t	id = victim_trx->id;
 
 			ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
+
+			ut_ad(victim_trx->version == it->m_version);
 
 			trx_rollback_for_mysql(victim_trx);
 
