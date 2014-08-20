@@ -26,10 +26,9 @@ COMMIT;
 --echo
 --echo # On connection 1
 --connection con1
+# Note: DEADLOCK implies a full ROLLBACK
 --error ER_LOCK_DEADLOCK
 UPDATE t1 SET c1=1 WHERE c1=0;
---error ER_ERROR_DURING_COMMIT
-COMMIT;
 
 --connection default
 --let $assert_text= 'There is a 2 in t1'
