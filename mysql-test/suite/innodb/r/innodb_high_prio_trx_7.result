@@ -97,8 +97,8 @@ UNLOCK TABLES;
 include/assert.inc ['There is a 1 in t1']
 DROP TABLES t1,t2;
 # Scenario:5
-# Multiple high proi transaction at a same time.
-# Outcome : Transaction which is marked high prio first completes first and other high prio tnx get error
+# Multiple concurrent high prio transactions with the same priority.
+# Outcome : Transaction which is marked high prio first completes first and other high prio txn get error
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
 include/start_transaction_high_prio.inc
@@ -108,31 +108,31 @@ ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
 UPDATE t1 SET c1=1 WHERE c1=0;
 include/start_transaction_high_prio.inc
 START TRANSACTION /* HIGH PRIORITY */;
-# connection 2: dedalock on update - tnx rollback
+# connection 2: dedalock on update - txn rollback
 INSERT INTO t1 VALUES (20);
 UPDATE t1 SET c1=2 WHERE c1=0;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 include/start_transaction_high_prio.inc
 START TRANSACTION /* HIGH PRIORITY */;
-# connection 3: dedalock on update - tnx rollback
+# connection 3: dedalock on update - txn rollback
 INSERT INTO t1 VALUES (20);
 DELETE FROM t1 WHERE c1=0;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 include/start_transaction_high_prio.inc
 START TRANSACTION /* HIGH PRIORITY */;
-# connection 2: deadlock on insert as trying to insert same row - tnx rollback
+# connection 2: deadlock on insert as trying to insert same row - txn rollback
 INSERT INTO t1 VALUES (1);
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 include/start_transaction_high_prio.inc
 START TRANSACTION /* HIGH PRIORITY */;
-# connection 2: Insert goes but as it new row
+# connection 5: Insert goes but as it new row
 INSERT INTO t1 VALUES (50);
 COMMIT;
 INSERT INTO t1 VALUES (3);
 UPDATE t1 SET c1=4 WHERE c1=1;
 INSERT INTO t1 VALUES (50);
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 COMMIT;
+ERROR 23000: Duplicate entry '50' for key 'PRIMARY'
 include/assert.inc ['There is a 1 in t1']
 # Expected values : 3,4,50
 SELECT * FROM t1 ;
