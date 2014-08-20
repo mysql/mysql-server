@@ -210,8 +210,16 @@ TEST(ut0new, edgecases)
 	ret = alloc2.allocate(too_many_elements, NULL, NULL, false, false);
 	EXPECT_EQ(NULL, ret);
 
-	cc_t*	cc = UT_NEW_ARRAY_NOKEY(cc_t, 16);
-	EXPECT_EQ(NULL, cc);
+	threw = false;
+	try {
+		cc_t*	cc = UT_NEW_ARRAY_NOKEY(cc_t, 16);
+		/* Not reached, but silence a compiler warning
+		about unused 'cc': */
+		ASSERT_TRUE(cc != NULL);
+	} catch (...) {
+		threw = true;
+	}
+	EXPECT_TRUE(threw);
 }
 
 }
