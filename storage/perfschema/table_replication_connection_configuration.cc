@@ -116,12 +116,17 @@ static const TABLE_FIELD_TYPE field_types[]=
     {C_STRING_WITH_LEN("CONNECTION_RETRY_COUNT")},
     {C_STRING_WITH_LEN("bigint")},
     {NULL, 0}
-  }
+  },
+  {
+    {C_STRING_WITH_LEN("HEARTBEAT_INTERVAL")},
+    {C_STRING_WITH_LEN("double(10,3)")},
+    {NULL, 0}
+   }
 };
 
 TABLE_FIELD_DEF
 table_replication_connection_configuration::m_field_def=
-{ 16, field_types };
+{ 17, field_types };
 
 PFS_engine_table_share
 table_replication_connection_configuration::m_share=
@@ -279,6 +284,8 @@ void table_replication_connection_configuration::make_row()
 
   m_row.connection_retry_count= (ulong) active_mi->retry_count;
 
+  m_row.heartbeat_interval= (double)active_mi->heartbeat_period;
+
   mysql_mutex_unlock(&active_mi->rli->data_lock);
   mysql_mutex_unlock(&active_mi->data_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
@@ -357,6 +364,9 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
         break;
       case 15: /** connect_retry_count */
         set_field_ulonglong(f, m_row.connection_retry_count);
+        break;
+      case 16:/** number of seconds after which heartbeat will be sent */
+        set_field_double(f, m_row.heartbeat_interval);
         break;
       default:
         DBUG_ASSERT(false);

@@ -188,7 +188,7 @@ page_cur_rec_field_extends(
 	    || type->mtype == DATA_FIXBINARY
 	    || type->mtype == DATA_BINARY
 	    || type->mtype == DATA_BLOB
-	    || type->mtype == DATA_GEOMETRY
+	    || DATA_GEOMETRY_MTYPE(type->mtype)
 	    || type->mtype == DATA_VARMYSQL
 	    || type->mtype == DATA_MYSQL) {
 
@@ -923,7 +923,7 @@ page_cur_parse_insert_rec(
 		buf = buf1;
 	} else {
 		buf = static_cast<byte*>(
-			ut_malloc(mismatch_index + end_seg_len));
+			ut_malloc_nokey(mismatch_index + end_seg_len));
 	}
 
 	/* Build the inserted record to buf */
