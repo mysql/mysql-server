@@ -183,6 +183,8 @@ trx_init(
 	it got a chance to roll them back asynchronously. */
 
 	trx->hit_list.clear();
+
+	++trx->version;
 }
 
 /** For managing the life-cycle of the trx_t instance that we get
