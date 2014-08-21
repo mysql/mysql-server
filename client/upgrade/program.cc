@@ -220,12 +220,12 @@ public:
       ->set_value(true);
 
     this->create_new_option(&this->m_write_binlog, "write-binlog",
-      "All commands including mysqlcheck are binlogged. Disabled by default; "
-      "use when commands should be sent to replication slaves.");
+      "Write all executed SQL statements to binary log. Disabled by default; "
+      "use when statements should be sent to replication slaves.");
 
     this->create_new_option(&this->m_ignore_errors, "force",
-        "Force execution of mysqlcheck even if mysql_upgrade "
-        "has already been executed for the current version of MySQL.")
+        "Force execution of SQL statements even if mysql_upgrade has already "
+        "been executed for the current version of MySQL.")
       ->set_short_character('f');
   }
 

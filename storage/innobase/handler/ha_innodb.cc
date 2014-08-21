@@ -943,15 +943,13 @@ innobase_start_trx_and_assign_read_view(
 	THD*		thd);		/* in: MySQL thread handle of the
 					user for whom the transaction should
 					be committed */
-/****************************************************************//**
-Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
-the logs, and the name of this function should be innobase_checkpoint.
-@return TRUE if error */
+/** Flush InnoDB redo logs to the file system.
+@param[in]	hton	InnoDB handlerton
+@return false */
 static
 bool
 innobase_flush_logs(
-/*================*/
-	handlerton*	hton);		/*!< in: InnoDB handlerton */
+	handlerton*	hton);
 
 /************************************************************************//**
 Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
@@ -3459,18 +3457,14 @@ innobase_end(
 	DBUG_RETURN(err);
 }
 
-/****************************************************************//**
-Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
-the logs, and the name of this function should be innobase_checkpoint.
-@return TRUE if error */
+/** Flush InnoDB redo logs to the file system.
+@param[in]	hton	InnoDB handlerton
+@return false */
 static
 bool
 innobase_flush_logs(
-/*================*/
-	handlerton*	hton)	/*!< in/out: InnoDB handlerton */
+	handlerton*	hton)
 {
-	bool	result = 0;
-
 	DBUG_ENTER("innobase_flush_logs");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -3478,7 +3472,7 @@ innobase_flush_logs(
 		log_buffer_flush_to_disk();
 	}
 
-	DBUG_RETURN(result);
+	DBUG_RETURN(false);
 }
 
 /*****************************************************************//**
@@ -14049,28 +14043,6 @@ ha_innobase::register_query_cache_table(
 			thd, table_key, key_length, engine_data));
 }
 
-/*******************************************************************//**
-Get the bin log name. */
-
-const char*
-ha_innobase::get_mysql_bin_log_name()
-/*=================================*/
-{
-	return(trx_sys_mysql_bin_log_name);
-}
-
-/*******************************************************************//**
-Get the bin log offset (or file position). */
-
-ulonglong
-ha_innobase::get_mysql_bin_log_pos()
-/*================================*/
-{
-	ut_ad(trx_sys_mysql_bin_log_pos >= 0);
-
-	return(static_cast<ulonglong>(trx_sys_mysql_bin_log_pos));
-}
-
 /******************************************************************//**
 This function is used to find the storage length in bytes of the first n
 characters for prefix indexes using a multibyte character set. The function
@@ -14793,13 +14765,6 @@ innodb_buffer_pool_size_update(
 	const void*			save)
 {
 	long long	in_val = *static_cast<const long long*>(save);
-
-#ifdef UNIV_LOG_DEBUG
-	/* UNIV_LOG_DEBUG might not release blocks from the buffer pool,
-	even after recv_recovery_from_checkpoint_finish().
-	Cannot resize the buffer pool. */
-	return;
-#endif /* UNIV_LOG_DEBUG */
 
 	if (!srv_was_started) {
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -16907,6 +16872,27 @@ static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
 
+static MYSQL_SYSVAR_ULONGLONG(max_undo_log_size, srv_max_undo_log_size,
+  PLUGIN_VAR_OPCMDARG,
+  "Maximum size of UNDO tablespace in MB (If UNDO tablespace grows"
+  " beyond ths size it will be truncated in due-course). ",
+  NULL, NULL,
+  1024 * 1024 * 1024L,
+  10 * 1024 * 1024L,
+  ~0ULL, 0);
+
+static MYSQL_SYSVAR_ULONG(purge_rseg_truncate_frequency,
+  srv_purge_rseg_truncate_frequency,
+  PLUGIN_VAR_OPCMDARG,
+  "Dictates rate at which UNDO records are purged. Value N means"
+  " purge rollback segment(s) on every Nth iteration of purge invocation",
+  NULL, NULL, 128, 1, 128, 0);
+
+static MYSQL_SYSVAR_BOOL(undo_log_truncate, srv_undo_log_truncate,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable or Disable Truncate of UNDO tablespace.",
+  NULL, NULL, FALSE);
+
 /* Alias for innodb_undo_logs, this config variable is deprecated. */
 static MYSQL_SYSVAR_ULONG(rollback_segments, srv_undo_logs,
   PLUGIN_VAR_OPCMDARG,
@@ -17246,6 +17232,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),
+  MYSQL_SYSVAR(max_undo_log_size),
+  MYSQL_SYSVAR(purge_rseg_truncate_frequency),
+  MYSQL_SYSVAR(undo_log_truncate),
   MYSQL_SYSVAR(rollback_segments),
   MYSQL_SYSVAR(undo_directory),
   MYSQL_SYSVAR(undo_tablespaces),
