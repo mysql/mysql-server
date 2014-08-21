@@ -988,7 +988,6 @@ public:
   */
   key_map covering_keys;
   key_map quick_keys, merge_keys;
-  key_map used_keys;  /* Indexes that cover all fields used by the query */
   
   /*
     possible_quick_keys is a superset of quick_keys to use with EXPLAIN of
@@ -1113,12 +1112,10 @@ public:
     this table and constants)
   */
   ha_rows       quick_condition_rows;
-  table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
 
   uint          lock_position;          /* Position in MYSQL_LOCK.table */
   uint          lock_data_start;        /* Start pos. in MYSQL_LOCK.locks */
   uint          lock_count;             /* Number of locks */
-  uint		tablenr,used_fields;
   uint          temp_pool_slot;		/* Used by intern temp tables */
   uint		db_stat;		/* mode of file as in handler.h */
   int		current_lock;           /* Type of lock on table */
@@ -1156,7 +1153,9 @@ public:
     See TABLE_LIST::process_index_hints().
   */
   my_bool force_index_group;
-  my_bool distinct,const_table,no_rows;
+  my_bool distinct;
+  my_bool const_table;
+  my_bool no_rows;
 
   /**
      If set, the optimizer has found that row retrieval should access index 
@@ -1574,6 +1573,7 @@ struct TABLE_LIST
                              enum thr_lock_type lock_type_arg)
   {
     memset(this, 0, sizeof(*this));
+    m_map= 1;
     db= (char*) db_name_arg;
     db_length= db_length_arg;
     table_name= (char*) table_name_arg;
@@ -1636,6 +1636,13 @@ struct TABLE_LIST
   Name_resolution_context *context_of_embedding;
 
 private:
+  /**
+    The members below must be kept aligned so that (1 << m_tableno) == m_map.
+    A table that takes part in a join operation must be assigned a unique
+    table number.
+  */
+  uint          m_tableno;              ///< Table number within query block
+  table_map     m_map;                  ///< Table map, derived from m_tableno
   /**
      If this table or join nest is the Y in "X [LEFT] JOIN Y ON C", this
      member points to C. May also be generated from JOIN ... USING clause.
@@ -1929,6 +1936,23 @@ public:
   /* List to carry partition names from PARTITION (...) clause in statement */
   List<String> *partition_names;
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+  /// Set table number
+  void set_tableno(uint tableno)
+  {
+    DBUG_ASSERT(tableno < MAX_TABLES);
+    m_tableno= tableno;
+    m_map= (table_map)1 << tableno;
+  }
+  /// Return table number
+  uint tableno() const { return m_tableno; }
+
+  /// Return table map derived from table number
+  table_map map() const
+  {
+    DBUG_ASSERT(((table_map)1 << m_tableno) == m_map);
+    return m_map;
+  }
 
 private:
   /*

@@ -15,7 +15,7 @@ update t1 set c2 = 'oracle' where  keyc > 20000;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 commit;
 drop table t1;
---sleep 30 
+--sleep 40 
 --source include/search_pattern.inc
 --enable_reconnect
 --source include/wait_until_connected_again.inc

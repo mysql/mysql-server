@@ -7264,6 +7264,7 @@ void Item_func_match::init_search()
   if (!fixed)
     DBUG_VOID_RETURN;
 
+  TABLE *const table= table_ref->table;
   /* Check if init_search() has been called before */
   if (ft_handler && !master)
   {
@@ -7363,10 +7364,7 @@ static void update_table_read_set(Field *field)
   TABLE *table= field->table;
 
   if (!bitmap_fast_test_and_set(table->read_set, field->field_index))
-  {
-    table->used_fields++;
     table->covering_keys.intersect(field->part_of_key);
-  }
 }
 
 
@@ -7413,7 +7411,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
       return TRUE;
     }
     allows_multi_table_search &= 
-      allows_search_on_non_indexed_columns(((Item_field *)item)->field->table);
+      allows_search_on_non_indexed_columns(((Item_field *)item)->table_ref);
   }
 
   /*
@@ -7429,8 +7427,8 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return TRUE;
   }
-  table=((Item_field *)item)->field->table;
-  if (!(table->file->ha_table_flags() & HA_CAN_FULLTEXT))
+  table_ref= ((Item_field *)item)->table_ref;
+  if (!(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT))
   {
     my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
     return 1;
@@ -7442,6 +7440,8 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     can have FTS_DOC_ID column. Atm this is the only way
     to distinguish MyISAM and InnoDB engines.
   */
+  TABLE *const table= table_ref->table;
+
   if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT))
   {
     Field *doc_id_field= table->fts_doc_id_field;
@@ -7488,6 +7488,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
 bool Item_func_match::fix_index()
 {
   Item_field *item;
+  TABLE *table;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, keynr;
   uint max_cnt=0, mkeys=0, i;
 
@@ -7501,9 +7502,10 @@ bool Item_func_match::fix_index()
   if (key == NO_SUCH_KEY)
     return 0;
   
-  if (!table) 
+  if (!table_ref) 
     goto err;
 
+  table= table_ref->table;
   for (keynr=0 ; keynr < table->s->keys ; keynr++)
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
@@ -7567,7 +7569,7 @@ bool Item_func_match::fix_index()
   }
 
 err:
-  if (allows_search_on_non_indexed_columns(table))
+  if (allows_search_on_non_indexed_columns(table_ref))
   {
     key=NO_SUCH_KEY;
     return 0;
@@ -7589,7 +7591,7 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 
   Item_func_match *ifm=(Item_func_match*) item;
 
-  if (key == ifm->key && table == ifm->table &&
+  if (key == ifm->key && table_ref == ifm->table_ref &&
       key_item()->eq(ifm->key_item(), binary_cmp))
     return 1;
 
@@ -7604,6 +7606,7 @@ double Item_func_match::val_real()
   if (ft_handler == NULL)
     DBUG_RETURN(-1.0);
 
+  TABLE *const table= table_ref->table;
   if (key != NO_SUCH_KEY && table->null_row) /* NULL row from an outer join */
     DBUG_RETURN(0.0);
 

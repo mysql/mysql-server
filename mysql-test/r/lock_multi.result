@@ -2674,3 +2674,53 @@ disconnect con_trigger;
 disconnect con_merge;
 DROP VIEW v1;
 DROP TABLES tm, t2, t3, t1;
+#
+# Test for bug #11764618 "DEADLOCK WHEN DDL UNDER LOCK TABLES
+#                         WRITE, READ + PREPARE".
+#
+connect  con1,localhost,root,,test,,;
+connect  con2,localhost,root,,test,,;
+connect  con3,localhost,root,,test,,;
+connection default;
+create table t1(i int);
+create table t2(i int);
+create table t3(i int);
+create table t4(i int);
+lock tables t1 write, t3 read;
+connection con1;
+begin;
+select count(*) from t4;
+count(*)
+0
+# Sending:
+insert into t3 values (1);;
+connection con2;
+# Wait until 'con1' acquires SR metadata lock on 't4'
+# and blocks on 't3'. Before WL#6671 waiting has happened
+# on THR_LOCK lock which led to deadlock.
+# Sending:
+rename table t2 to t0, t4 to t2, t0 to t4;;
+connection con3;
+# Wait until RENAME acquires X metadata lock on 't2'
+# and blocks on 't4'.
+# Sending:
+prepare stmt1 from 'select * from t1, t2';;
+connection default;
+# Wait until PREPARE acquires S metadata lock on 't1'
+# and blocks on 't2'.
+# This ALTER TABLE upgrades SNRW lock on t1 to X lock.
+# In the past this caused deadlock.
+alter table t1 add column j int;
+unlock tables;
+connection con1;
+# Reap INSERT
+commit;
+connection con2;
+# Reap RENAME
+connection con3;
+# Reap PREPARE
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+drop tables t1, t2, t3, t4;

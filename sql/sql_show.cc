@@ -255,10 +255,9 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
 int fill_plugins(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_plugins");
-  TABLE *table= tables->table;
 
   if (plugin_foreach_with_mask(thd, show_plugins, MYSQL_ANY_PLUGIN,
-                               ~PLUGIN_IS_FREED, table))
+                               ~PLUGIN_IS_FREED, tables->table))
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);
@@ -2781,7 +2780,7 @@ static bool show_status_array(THD *thd, const char *wild,
                               SHOW_VAR *variables,
                               enum enum_var_type value_type,
                               struct system_status_var *status_var,
-                              const char *prefix, TABLE *table,
+                              const char *prefix, TABLE_LIST *tl,
                               bool ucase_names,
                               Item *cond)
 {
@@ -2798,13 +2797,15 @@ static bool show_status_array(THD *thd, const char *wild,
   const CHARSET_INFO *charset= system_charset_info;
   DBUG_ENTER("show_status_array");
 
+  TABLE *const table= tl->table;
+
   thd->count_cuted_fields= CHECK_FIELD_WARN;  
 
   prefix_end=my_stpnmov(name_buffer, prefix, sizeof(name_buffer)-1);
   if (*prefix)
     *prefix_end++= '_';
   len=name_buffer + sizeof(name_buffer) - prefix_end;
-  partial_cond= make_cond_for_info_schema(cond, table->pos_in_table_list);
+  partial_cond= make_cond_for_info_schema(cond, tl);
 
   for (; variables->name; variables++)
   {
@@ -2827,7 +2828,7 @@ static bool show_status_array(THD *thd, const char *wild,
     if (show_type == SHOW_ARRAY)
     {
       show_status_array(thd, wild, (SHOW_VAR *) var->value, value_type,
-                        status_var, name_buffer, table, ucase_names, partial_cond);
+                        status_var, name_buffer, tl, ucase_names, partial_cond);
     }
     else
     {
@@ -5792,14 +5793,13 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
         List<Item> *fields= &tables->view->select_lex->item_list;
         List_iterator<Item> it(*fields);
         Item *item;
-        Item_field *field;
         /*
           check that at least one column in view is updatable
         */
         while ((item= it++))
         {
-          if ((field= item->field_for_view_update()) && field->field &&
-              !field->field->table->pos_in_table_list->schema_table)
+          Item_field *item_field= item->field_for_view_update();
+          if (item_field && !item_field->table_ref->schema_table)
           {
             updatable_view= 1;
             break;
@@ -6814,7 +6814,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   res= show_status_array(thd, wild, sys_var_array, option_type, NULL, "",
-                         tables->table, upper_case_names, cond);
+                         tables, upper_case_names, cond);
 
   mysql_mutex_unlock(&LOCK_plugin_delete);
   DBUG_RETURN(res);
@@ -6864,7 +6864,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   all_status_vars.push_back(st_mysql_show_var());
   res= show_status_array(thd, wild,
                          &all_status_vars[0],
-                         option_type, tmp1, "", tables->table,
+                         option_type, tmp1, "", tables,
                          upper_case_names, cond);
   all_status_vars.pop_back(); // Pop the empty element.
 
@@ -7401,6 +7401,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   table_list->table_name= table->s->table_name.str;
   table_list->table_name_length= table->s->table_name.length;
   table_list->table= table;
+  table->pos_in_table_list= table_list;
   table->next= thd->derived_tables;
   thd->derived_tables= table;
   table_list->select_lex->options |= OPTION_SCHEMA_TABLE;
@@ -7605,10 +7606,10 @@ bool get_schema_tables_result(JOIN *join,
   for (uint i= 0; i < join->tables; i++)
   {
     QEP_TAB *const tab= join->qep_tab + i;
-    if (!tab->table() || !tab->table()->pos_in_table_list)
+    if (!tab->table() || !tab->table_ref)
       break;
 
-    TABLE_LIST *table_list= tab->table()->pos_in_table_list;
+    TABLE_LIST *const table_list= tab->table_ref;
     if (table_list->schema_table && thd->fill_information_schema_tables())
     {
       bool is_subselect= join->select_lex->master_unit() &&

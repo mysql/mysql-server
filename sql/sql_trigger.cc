@@ -218,6 +218,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     tables->table->use_all_columns();
   }
   table= tables->table;
+  table->pos_in_table_list= tables;
 
   /* Later on we will need it to downgrade the lock */
   mdl_ticket= table->mdl_ticket;

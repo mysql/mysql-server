@@ -2774,7 +2774,7 @@ int test_quick_select(THD *thd, key_map keys_to_use,
     param.baseflag= head->file->ha_table_flags();
     param.prev_tables=prev_tables | const_tables;
     param.read_tables=read_tables;
-    param.current_table= head->map;
+    param.current_table= head->pos_in_table_list->map();
     param.table=head;
     param.keys=0;
     param.mem_root= &alloc;
@@ -3322,7 +3322,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   range_par->table= table;
   /* range_par->cond doesn't need initialization */
   range_par->prev_tables= range_par->read_tables= 0;
-  range_par->current_table= table->map;
+  range_par->current_table= table->pos_in_table_list->map();
 
   range_par->keys= 1; // one index
   range_par->using_real_indexes= FALSE;
@@ -6410,7 +6410,7 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
     Field *field= item_field->field;
     Item_result cmp_type= field->cmp_type();
 
-    if (!((ref_tables | field->table->map) & param_comp))
+    if (!((ref_tables | item_field->table_ref->map()) & param_comp))
       ftree= get_func_mm_tree(param, predicand, op, value, cmp_type, inv);
     Item_equal *item_equal= item_field->item_equal;
     if (item_equal != NULL)
@@ -6420,7 +6420,8 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
       while ((item= it++))
       {
         Field *f= item->field;
-        if (!field->eq(f) && !((ref_tables | f->table->map) & param_comp))
+        if (!field->eq(f) &&
+            !((ref_tables | item->table_ref->map()) & param_comp))
         {
           tree= get_func_mm_tree(param, item, op, value, cmp_type, inv);
           ftree= !ftree ? tree : tree_and(param, ftree, tree);
@@ -6636,7 +6637,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     {
       Field *field= field_item->field;
       Item_result cmp_type= field->cmp_type();
-      if (!((ref_tables | field->table->map) & param_comp))
+      if (!((ref_tables | field_item->table_ref->map()) & param_comp))
       {
         tree= get_mm_parts(param, item_equal, field, Item_func::EQ_FUNC,
 		           value,cmp_type);
