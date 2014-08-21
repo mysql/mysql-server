@@ -22,15 +22,6 @@
 #  /usr/man/bin/makewhatis "$BASEDIR/mysql/man"
 #fi
 
-USERNAME=`id mysql | sed 's/(/ /;s/)//' | awk ' { print $2 }'`
-if [ $? -eq 0 ]; then
-  echo "mysql user exists ....OK to continue Installation"
-  su - "$USERNAME"
-else
-  echo "mysql user does not exists....continuing as existing user"
-  exit 1
-fi
-
 mygroup=mysql
 myuser=mysql
 mydatadir=/var/lib/mysql
