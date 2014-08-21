@@ -1683,6 +1683,7 @@ void close_thread_table(THD *thd, TABLE **table_ptr)
                                  table->s->db.str, table->s->table_name.str,
                                  MDL_SHARED));
   table->mdl_ticket= NULL;
+  table->pos_in_table_list= NULL;
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   *table_ptr=table->next;
@@ -5255,7 +5256,6 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
       thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
     DBUG_RETURN(true);
 
-  thd->current_tablenr= 0;
 restart:
   /*
     Close HANDLER tables which are marked for flush or against which there
@@ -5901,7 +5901,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   DBUG_ASSERT(thd->locked_tables_mode < LTM_PRELOCKED);
 
   THD_STAGE_INFO(thd, stage_opening_tables);
-  thd->current_tablenr= 0;
+
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= FRMTYPE_TABLE;
 
@@ -6528,7 +6528,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
     if (thd->slave_thread)
       modify_slave_open_temp_tables(thd, 1);
   }
-  tmp_table->pos_in_table_list= 0;
+  tmp_table->pos_in_table_list= NULL;
 
   tmp_table->set_created();
 
@@ -6628,7 +6628,6 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
     }
     if (table->get_fields_in_item_tree)
       field->flags|= GET_FIXED_FIELDS_FLAG;
-    table->used_fields++;
   }
   else if (table->get_fields_in_item_tree)
     field->flags|= GET_FIXED_FIELDS_FLAG;
@@ -8715,7 +8714,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
                   List<TABLE_LIST> *from_clause, TABLE_LIST *tables,
                   TABLE_LIST **leaves, bool select_insert)
 {
-  uint tablenr= 0;
+  uint tableno= 0;
   DBUG_ENTER("setup_tables");
 
   DBUG_ASSERT ((select_insert && !tables->next_name_resolution_table) || !tables || 
@@ -8733,7 +8732,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
   TABLE_LIST *table_list;
   for (table_list= *leaves;
        table_list;
-       table_list= table_list->next_leaf, tablenr++)
+       table_list= table_list->next_leaf, tableno++)
   {
     TABLE *table= table_list->table;
     table->pos_in_table_list= table_list;
@@ -8742,16 +8741,16 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     {
       /* new counting for SELECT of INSERT ... SELECT command */
       first_select_table= 0;
-      tablenr= 0;
+      tableno= 0;
     }
-    setup_table_map(table, table_list, tablenr);
+    if (tableno >= MAX_TABLES)
+    {
+      my_error(ER_TOO_MANY_TABLES, MYF(0), static_cast<int>(MAX_TABLES));
+      DBUG_RETURN(true);
+    }
+    setup_table_map(table, table_list, tableno);
     if (table_list->process_index_hints(table))
       DBUG_RETURN(1);
-  }
-  if (tablenr > MAX_TABLES)
-  {
-    my_error(ER_TOO_MANY_TABLES,MYF(0), static_cast<int>(MAX_TABLES));
-    DBUG_RETURN(1);
   }
   for (table_list= tables;
        table_list;
@@ -8945,8 +8944,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     */
     if (table)
     {
-      thd->lex->used_tables|= table->map;
-      thd->lex->current_select()->select_list_tables|= table->map;
+      thd->lex->used_tables|= tables->map();
+      thd->lex->current_select()->select_list_tables|= tables->map();
     }
 
     /*
@@ -9032,12 +9031,11 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           field_table= nj_col->table_ref->table;
           if (field_table)
           {
-            thd->lex->used_tables|= field_table->map;
+            thd->lex->used_tables|= nj_col->table_ref->map();
             thd->lex->current_select()->select_list_tables|=
-              field_table->map;
+              nj_col->table_ref->map();
             field_table->covering_keys.intersect(field->part_of_key);
             field_table->merge_keys.merge(field->part_of_key);
-            field_table->used_fields++;
           }
         }
       }
@@ -9049,14 +9047,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       }
       thd->lex->current_select()->cur_pos_in_all_fields++;
     }
-    /*
-      In case of stored tables, all fields are considered as used,
-      while in the case of views, the fields considered as used are the
-      ones marked in setup_tables during fix_fields of view columns.
-      For NATURAL joins, used_tables is updated in the IF above.
-    */
-    if (table)
-      table->used_fields= table->s->fields;
   }
   if (found)
     DBUG_RETURN(FALSE);

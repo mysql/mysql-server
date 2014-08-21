@@ -2454,7 +2454,18 @@ class Item_field :public Item_ident
 protected:
   void set_field(Field *field);
 public:
-  Field *field,*result_field;
+  /**
+    Table containing this resolved field. This is required e.g for calculation
+    of table map. Notice that for the following types of "tables",
+    no TABLE_LIST object is assigned and hence table_ref is NULL:
+     - Temporary tables assigned by join optimizer for sorting and aggregation.
+     - Stored procedure dummy tables.
+    For fields referencing such tables, table number is always 0, and other
+    uses of table_ref is not needed.
+  */
+  TABLE_LIST *table_ref;
+  Field *field;
+  Field *result_field;
   Item_equal *item_equal;
   bool no_const_subst;
   /*
@@ -2569,8 +2580,7 @@ public:
   bool is_outer_field() const
   {
     DBUG_ASSERT(fixed);
-    return field->table->pos_in_table_list->outer_join ||
-           field->table->pos_in_table_list->outer_join_nest();
+    return table_ref->outer_join || table_ref->outer_join_nest();
   }
   Field::geometry_type get_geometry_type() const
   {

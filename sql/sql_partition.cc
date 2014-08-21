@@ -927,7 +927,6 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
     return TRUE;
   context->resolve_in_table_list_only(table_list);
   lex->use_only_table_context= TRUE;
-  table->map= 1; //To ensure correct calculation of const item
   table->get_fields_in_item_tree= TRUE;
   table_list->table= table;
   table_list->cacheable_table= false;
@@ -953,7 +952,6 @@ static void
 end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
 {
   LEX *lex= thd->lex;
-  table->map= 0;
   table->get_fields_in_item_tree= FALSE;
   lex_end(lex);
   thd->lex= old_lex;
