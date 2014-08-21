@@ -188,26 +188,6 @@ extern "C" {
 
 // Deprecated functions.
 #if !defined(TOKU_ALLOW_DEPRECATED)
-#   if defined(__ICL) || defined(__ICC) // Intel Compiler
-#       pragma deprecated (creat, fstat, stat, getpid, syscall, sysconf, mkdir, strdup)
-//#       pragma poison   off_t
-//#       pragma poison   pthread_attr_t       pthread_t
-//#       pragma poison   pthread_mutexattr_t  pthread_mutex_t
-//#       pragma poison   pthread_condattr_t   pthread_cond_t
-//#       pragma poison   pthread_rwlockattr_t pthread_rwlock_t
-//#       pragma poison   timespec
-#    ifndef DONT_DEPRECATE_WRITES
-#       pragma poison   write                pwrite
-#    endif
-#    ifndef DONT_DEPRECATE_MALLOC
-#       pragma deprecated (malloc, free, realloc)
-#    endif
-#    ifndef DONT_DEPRECATE_ERRNO
-#       pragma deprecated (errno)
-#    endif
-#    pragma poison   dup2
-#    pragma poison   _dup2
-#   else
 int      creat(const char *pathname, mode_t mode)   __attribute__((__deprecated__));
 int      fstat(int fd, struct stat *buf)            __attribute__((__deprecated__));
 int      stat(const char *path, struct stat *buf)   __attribute__((__deprecated__));
@@ -281,7 +261,6 @@ extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecat
 #pragma GCC poison __sync_synchronize
 #pragma GCC poison __sync_lock_test_and_set
 #pragma GCC poison __sync_release
-#   endif
 #endif
 
 #if defined(__cplusplus)
