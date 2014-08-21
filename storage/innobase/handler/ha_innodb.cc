@@ -222,9 +222,9 @@ static TYPELIB innodb_checksum_algorithm_typelib = {
 };
 
 /* The following counter is used to convey information to InnoDB
-about server activity: in selects it is not sensible to call
-srv_active_wake_master_thread after each fetch or search, we only do
-it every INNOBASE_WAKE_INTERVAL'th step. */
+about server activity: in case of normal DML ops it is not
+sensible to call srv_active_wake_master_thread after each
+operation, we only do it every INNOBASE_WAKE_INTERVAL'th step. */
 
 #define INNOBASE_WAKE_INTERVAL	32
 static ulong	innobase_active_counter	= 0;
@@ -379,19 +379,21 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info	all_innodb_threads[] = {
-	PSI_KEY(trx_rollback_clean_thread),
+	PSI_KEY(buf_dump_thread),
+	PSI_KEY(dict_stats_thread),
+	PSI_KEY(io_handler_thread),
 	PSI_KEY(io_ibuf_thread),
 	PSI_KEY(io_log_thread),
 	PSI_KEY(io_read_thread),
 	PSI_KEY(io_write_thread),
-	PSI_KEY(io_handler_thread),
-	PSI_KEY(srv_lock_timeout_thread),
-	PSI_KEY(srv_error_monitor_thread),
-	PSI_KEY(srv_monitor_thread),
-	PSI_KEY(srv_master_thread),
-	PSI_KEY(srv_purge_thread),
 	PSI_KEY(page_cleaner_thread),
-	PSI_KEY(recv_writer_thread)
+	PSI_KEY(recv_writer_thread),
+	PSI_KEY(srv_error_monitor_thread),
+	PSI_KEY(srv_lock_timeout_thread),
+	PSI_KEY(srv_master_thread),
+	PSI_KEY(srv_monitor_thread),
+	PSI_KEY(srv_purge_thread),
+	PSI_KEY(trx_rollback_clean_thread),
 };
 # endif /* UNIV_PFS_THREAD */
 
@@ -941,15 +943,13 @@ innobase_start_trx_and_assign_read_view(
 	THD*		thd);		/* in: MySQL thread handle of the
 					user for whom the transaction should
 					be committed */
-/****************************************************************//**
-Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
-the logs, and the name of this function should be innobase_checkpoint.
-@return TRUE if error */
+/** Flush InnoDB redo logs to the file system.
+@param[in]	hton	InnoDB handlerton
+@return false */
 static
 bool
 innobase_flush_logs(
-/*================*/
-	handlerton*	hton);		/*!< in: InnoDB handlerton */
+	handlerton*	hton);
 
 /************************************************************************//**
 Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
@@ -1348,7 +1348,7 @@ thd_to_innodb_session(
 		return(innodb_session);
 	}
 
-	innodb_session = new (std::nothrow) innodb_session_t();
+	innodb_session = UT_NEW_NOKEY(innodb_session_t());
 	return(innodb_session);
 }
 
@@ -3006,6 +3006,10 @@ innobase_init(
 
 	os_innodb_umask = (ulint) my_umask;
 
+	/* Setup the memory alloc/free tracing mechanisms before calling
+	any functions that could possibly allocate memory. */
+	ut_new_boot();
+
 	/* First calculate the default path for innodb_data_home_dir etc.,
 	in case the user has not given any value.
 
@@ -3453,18 +3457,14 @@ innobase_end(
 	DBUG_RETURN(err);
 }
 
-/****************************************************************//**
-Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
-the logs, and the name of this function should be innobase_checkpoint.
-@return TRUE if error */
+/** Flush InnoDB redo logs to the file system.
+@param[in]	hton	InnoDB handlerton
+@return false */
 static
 bool
 innobase_flush_logs(
-/*================*/
-	handlerton*	hton)	/*!< in/out: InnoDB handlerton */
+	handlerton*	hton)
 {
-	bool	result = 0;
-
 	DBUG_ENTER("innobase_flush_logs");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -3472,7 +3472,7 @@ innobase_flush_logs(
 		log_buffer_flush_to_disk();
 	}
 
-	DBUG_RETURN(result);
+	DBUG_RETURN(false);
 }
 
 /*****************************************************************//**
@@ -3705,12 +3705,6 @@ innobase_commit(
 	trx->fts_next_doc_id = 0;
 
 	innobase_srv_conc_force_exit_innodb(trx);
-
-	/* Tell the InnoDB server that there might be work for utility
-	threads: */
-	if (!read_only) {
-		srv_active_wake_master_thread();
-	}
 
 	DBUG_RETURN(0);
 }
@@ -4054,7 +4048,7 @@ innobase_close_connection(
 		trx_free_for_mysql(trx);
 	}
 
-	delete thd_to_innodb_session(thd);
+	UT_DELETE(thd_to_innodb_session(thd));
 
 	thd_to_innodb_session(thd) = NULL;
 
@@ -4641,9 +4635,8 @@ innobase_build_index_translation(
 	if (mysql_num_index > share->idx_trans_tbl.array_size) {
 
 		index_mapping = reinterpret_cast<dict_index_t**>(
-			my_realloc(PSI_INSTRUMENT_ME, index_mapping,
-				   mysql_num_index * sizeof(*index_mapping),
-				   MYF(MY_ALLOW_ZERO_PTR)));
+			ut_realloc(index_mapping,
+				   mysql_num_index * sizeof(*index_mapping)));
 
 		if (index_mapping == NULL) {
 			/* Report an error if index_mapping continues to be
@@ -4670,7 +4663,7 @@ innobase_build_index_translation(
 		index_mapping[count] = dict_table_get_index_on_name(
 			ib_table, table->key_info[count].name);
 
-		if (!index_mapping[count]) {
+		if (index_mapping[count] == 0) {
 			sql_print_error("Cannot find index %s in InnoDB"
 					" index dictionary.",
 					table->key_info[count].name);
@@ -4696,7 +4689,7 @@ innobase_build_index_translation(
 func_exit:
 	if (!ret) {
 		/* Build translation table failed. */
-		my_free(index_mapping);
+		ut_free(index_mapping);
 
 		share->idx_trans_tbl.array_size = 0;
 		share->idx_trans_tbl.index_count = 0;
@@ -4728,7 +4721,7 @@ innobase_index_lookup(
 	uint		keynr)	/*!< in: index number for the requested
 				index */
 {
-	if (!share->idx_trans_tbl.index_mapping
+	if (share->idx_trans_tbl.index_mapping == NULL
 	    || keynr >= share->idx_trans_tbl.index_count) {
 		return(NULL);
 	}
@@ -6221,7 +6214,7 @@ ha_innobase::build_template(
 
 	if (!m_prebuilt->mysql_template) {
 		m_prebuilt->mysql_template = (mysql_row_templ_t*)
-			ut_malloc(n_fields * sizeof(mysql_row_templ_t));
+			ut_malloc_nokey(n_fields * sizeof(mysql_row_templ_t));
 	}
 
 	m_prebuilt->template_type = whole_row
@@ -7817,7 +7810,7 @@ ha_innobase::innobase_get_index(
 			/* Can't find index with keynr in the translation
 			table. Only print message if the index translation
 			table exists */
-			if (m_share->idx_trans_tbl.index_mapping) {
+			if (m_share->idx_trans_tbl.index_mapping != NULL) {
 				sql_print_warning("InnoDB could not find"
 						  " index %s key no %u for"
 						  " table %s through its"
@@ -10652,11 +10645,6 @@ ha_innobase::delete_table(
 		log_buffer_flush_to_disk();
 	}
 
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
 	innobase_commit_low(trx);
 
 	trx_free_for_mysql(trx);
@@ -10738,11 +10726,6 @@ innobase_drop_database(
 	with innodb_flush_log_at_trx_commit = 0 */
 
 	log_buffer_flush_to_disk();
-
-	/* Tell the InnoDB server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
 
 	innobase_commit_low(trx);
 
@@ -10893,11 +10876,6 @@ ha_innobase::rename_table(
 	dberr_t	error = innobase_rename_table(trx, from, to);
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
-
-	/* Tell the InnoDB server that there might be work for
-	utility threads. */
-
-	srv_active_wake_master_thread();
 
 	innobase_commit_low(trx);
 
@@ -11371,7 +11349,7 @@ innobase_get_mysql_key_number_for_index(
 
 	/* If index translation table exists, we will first check
 	the index through index translation table for a match. */
-	if (share->idx_trans_tbl.index_mapping) {
+	if (share->idx_trans_tbl.index_mapping != NULL) {
 		for (i = 0; i < share->idx_trans_tbl.index_count; i++) {
 			if (share->idx_trans_tbl.index_mapping[i] == index) {
 				return(i);
@@ -13423,7 +13401,7 @@ free_share(
 		thr_lock_delete(&share->lock);
 
 		/* Free any memory from index translation table */
-		my_free(share->idx_trans_tbl.index_mapping);
+		ut_free(share->idx_trans_tbl.index_mapping);
 
 		my_free(share);
 
@@ -14103,28 +14081,6 @@ ha_innobase::register_query_cache_table(
 			thd, table_key, key_length, engine_data));
 }
 
-/*******************************************************************//**
-Get the bin log name. */
-
-const char*
-ha_innobase::get_mysql_bin_log_name()
-/*=================================*/
-{
-	return(trx_sys_mysql_bin_log_name);
-}
-
-/*******************************************************************//**
-Get the bin log offset (or file position). */
-
-ulonglong
-ha_innobase::get_mysql_bin_log_pos()
-/*================================*/
-{
-	ut_ad(trx_sys_mysql_bin_log_pos >= 0);
-
-	return(static_cast<ulonglong>(trx_sys_mysql_bin_log_pos));
-}
-
 /******************************************************************//**
 This function is used to find the storage length in bytes of the first n
 characters for prefix indexes using a multibyte character set. The function
@@ -14223,8 +14179,6 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-	bool	read_only = trx->read_only || trx->id == 0;
-
 	thd_get_xid(thd, (MYSQL_XID*) trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
@@ -14272,13 +14226,6 @@ innobase_xa_prepare(
 		SQL statement */
 
 		trx_mark_sql_stat_end(trx);
-	}
-
-	/* Tell the InnoDB server that there might be work for utility
-	threads: */
-
-	if (!read_only) {
-		srv_active_wake_master_thread();
 	}
 
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
@@ -14856,13 +14803,6 @@ innodb_buffer_pool_size_update(
 	const void*			save)
 {
 	long long	in_val = *static_cast<const long long*>(save);
-
-#ifdef UNIV_LOG_DEBUG
-	/* UNIV_LOG_DEBUG might not release blocks from the buffer pool,
-	even after recv_recovery_from_checkpoint_finish().
-	Cannot resize the buffer pool. */
-	return;
-#endif /* UNIV_LOG_DEBUG */
 
 	if (!srv_was_started) {
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -16970,6 +16910,27 @@ static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
 
+static MYSQL_SYSVAR_ULONGLONG(max_undo_log_size, srv_max_undo_log_size,
+  PLUGIN_VAR_OPCMDARG,
+  "Maximum size of UNDO tablespace in MB (If UNDO tablespace grows"
+  " beyond ths size it will be truncated in due-course). ",
+  NULL, NULL,
+  1024 * 1024 * 1024L,
+  10 * 1024 * 1024L,
+  ~0ULL, 0);
+
+static MYSQL_SYSVAR_ULONG(purge_rseg_truncate_frequency,
+  srv_purge_rseg_truncate_frequency,
+  PLUGIN_VAR_OPCMDARG,
+  "Dictates rate at which UNDO records are purged. Value N means"
+  " purge rollback segment(s) on every Nth iteration of purge invocation",
+  NULL, NULL, 128, 1, 128, 0);
+
+static MYSQL_SYSVAR_BOOL(undo_log_truncate, srv_undo_log_truncate,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable or Disable Truncate of UNDO tablespace.",
+  NULL, NULL, FALSE);
+
 /* Alias for innodb_undo_logs, this config variable is deprecated. */
 static MYSQL_SYSVAR_ULONG(rollback_segments, srv_undo_logs,
   PLUGIN_VAR_OPCMDARG,
@@ -17309,6 +17270,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),
+  MYSQL_SYSVAR(max_undo_log_size),
+  MYSQL_SYSVAR(purge_rseg_truncate_frequency),
+  MYSQL_SYSVAR(undo_log_truncate),
   MYSQL_SYSVAR(rollback_segments),
   MYSQL_SYSVAR(undo_directory),
   MYSQL_SYSVAR(undo_tablespaces),

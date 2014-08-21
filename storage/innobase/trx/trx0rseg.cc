@@ -197,12 +197,14 @@ trx_rseg_mem_create(
 	trx_ulogf_t*	undo_log_hdr;
 	ulint		sum_of_undo_sizes;
 
-	rseg = static_cast<trx_rseg_t*>(ut_zalloc(sizeof(trx_rseg_t)));
+	rseg = static_cast<trx_rseg_t*>(ut_zalloc_nokey(sizeof(trx_rseg_t)));
 
 	rseg->id = id;
 	rseg->space = space;
 	rseg->page_size.copy_from(page_size);
 	rseg->page_no = page_no;
+	rseg->trx_ref_count = 0;
+	rseg->skip_allocation = false;
 
 	if (fsp_is_system_temporary(space)) {
 		mutex_create("noredo_rseg", &rseg->mutex);

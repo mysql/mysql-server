@@ -569,7 +569,7 @@ static Sys_var_ulong Sys_pfs_max_memory_classes(
        "performance_schema_max_memory_classes",
        "Maximum number of memory pool instruments.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_memory_class_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
        DEFAULT(PFS_MAX_MEMORY_CLASS),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 

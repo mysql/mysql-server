@@ -59,6 +59,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "buf0lru.h"
 #include "ha_prototypes.h"
 #include "srv0mon.h"
+#include "ut0new.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -522,7 +523,7 @@ sel_col_prefetch_buf_alloc(
 	ut_ad(que_node_get_type(column) == QUE_NODE_SYMBOL);
 
 	column->prefetch_buf = static_cast<sel_buf_t*>(
-		ut_malloc(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
+		ut_malloc_nokey(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
 
 	for (i = 0; i < SEL_MAX_N_PREFETCH; i++) {
 		sel_buf = column->prefetch_buf + i;
@@ -993,8 +994,6 @@ err_exit:
 	}
 	return(err);
 }
-
-typedef std::vector<rtr_rec_t>             rtr_rec_vector;
 
 /*********************************************************************//**
 Sets a lock on a page of R-Tree record. This is all or none action,
@@ -3728,7 +3727,7 @@ row_sel_prefetch_cache_init(
 
 	/* Reserve space for the magic number. */
 	sz = UT_ARR_SIZE(prebuilt->fetch_cache) * (prebuilt->mysql_row_len + 8);
-	ptr = static_cast<byte*>(ut_malloc(sz));
+	ptr = static_cast<byte*>(ut_malloc_nokey(sz));
 
 	for (i = 0; i < UT_ARR_SIZE(prebuilt->fetch_cache); i++) {
 

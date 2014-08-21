@@ -18,6 +18,7 @@
 #include "client_priv.h"
 #include "abstract_program.h"
 #include "my_default.h"
+#include <algorithm>
 
 using namespace Mysql::Tools::Base;
 
@@ -138,13 +139,26 @@ void Abstract_program::aggregate_options()
 
   this->m_options= this->generate_options();
 
+  // Sort by lexical order of long names.
+  std::sort(this->m_options.begin(), this->m_options.end(),
+    &Abstract_program::options_by_name_comparer);
+
   // Adding sentinel, handle_options assume input as array with sentinel.
   my_option sentinel=
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
   this->m_options.push_back(sentinel);
 }
 
-void Mysql::Tools::Base::Abstract_program::print_usage()
+void Abstract_program::print_usage()
 {
   this->m_help_options.print_usage();
+}
+
+bool Abstract_program::options_by_name_comparer(const my_option& a, const my_option& b)
+{
+  if (strcmp(a.name, "help") == 0)
+    return true;
+  if (strcmp(b.name, "help") == 0)
+    return false;
+  return strcmp(a.name, b.name) < 0;
 }

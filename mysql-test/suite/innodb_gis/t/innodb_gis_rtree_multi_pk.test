@@ -1,11 +1,7 @@
 # WL#6745 InnoDB R-tree support
 # This test case will test basic R-tree support features.
 
-# Not supported in embedded
---source include/not_embedded.inc
-
 --source include/have_innodb.inc
---source include/have_debug.inc
 
 # Create table with R-tree index.
 create table t1 (i int, i2 char(10), g geometry not null, primary key (i, i2), spatial index (g))engine=innodb;

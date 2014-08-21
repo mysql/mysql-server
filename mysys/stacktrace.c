@@ -481,45 +481,66 @@ void my_write_core(int unused)
 {
   char path[MAX_PATH];
   char dump_fname[MAX_PATH]= "core.dmp";
-  MINIDUMP_EXCEPTION_INFORMATION info;
-  HANDLE hFile;
 
   if(!exception_ptrs)
     return;
-
-  info.ExceptionPointers= exception_ptrs;
-  info.ClientPointers= FALSE;
-  info.ThreadId= GetCurrentThreadId();
 
   if(GetModuleFileName(NULL, path, sizeof(path)))
   {
     _splitpath(path, NULL, NULL,dump_fname,NULL);
     strncat(dump_fname, ".dmp", sizeof(dump_fname));
   }
+  my_create_minidump(dump_fname, 0, 0);
+}
 
-  hFile= CreateFile(dump_fname, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
+
+/** Create a minidump.
+  @param name    path of minidump file.
+  @param process HANDLE to process. (0 for own process).
+  @param pid     Process id.
+*/
+
+void my_create_minidump(const char *name, HANDLE process, DWORD pid)
+{
+  char path[MAX_PATH];
+  MINIDUMP_EXCEPTION_INFORMATION info;
+  HANDLE hFile;
+
+  if (process == 0)
+  {
+    /* Does not need to CloseHandle() for the below. */
+    process= GetCurrentProcess();
+    pid= GetCurrentProcessId();
+    info.ExceptionPointers= exception_ptrs;
+    info.ClientPointers= FALSE;
+    info.ThreadId= GetCurrentThreadId();
+  }
+
+  hFile= CreateFile(name, GENERIC_WRITE, 0, 0, CREATE_ALWAYS,
     FILE_ATTRIBUTE_NORMAL, 0);
   if(hFile)
   {
-    /* Create minidump */
-    if(MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(),
-      hFile, MiniDumpNormal, &info, 0, 0))
+    /* Create minidump, use info only if same process. */
+    if(MiniDumpWriteDump(process, pid,
+      hFile,
+      MiniDumpNormal | MiniDumpWithThreadInfo | MiniDumpWithProcessThreadData,
+      process ? NULL : &info, 0, 0))
     {
       my_safe_printf_stderr("Minidump written to %s\n",
-                            _fullpath(path, dump_fname, sizeof(path)) ?
-                            path : dump_fname);
+                            _fullpath(path, name, sizeof(path)) ?
+                            path : name);
     }
     else
     {
-      my_safe_printf_stderr("MiniDumpWriteDump() failed, last error %u\n",
-                            (uint) GetLastError());
+      my_safe_printf_stderr("MiniDumpWriteDump() failed, last error %d\n",
+                            GetLastError());
     }
     CloseHandle(hFile);
   }
   else
   {
-    my_safe_printf_stderr("CreateFile(%s) failed, last error %u\n",
-                          dump_fname, (uint) GetLastError());
+    my_safe_printf_stderr("CreateFile(%s) failed, last error %d\n",
+                          name, GetLastError());
   }
 }
 
