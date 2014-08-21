@@ -181,9 +181,9 @@ void print_keyuse_array(Opt_trace_context *trace,
                        keyuse.optimize, keyuse.used_tables,
                        (ulong)keyuse.ref_table_rows, keyuse.keypart_map));
     Opt_trace_object(trace).
-      add_utf8_table(keyuse.table).
+      add_utf8_table(keyuse.table_ref->table).
       add_utf8("field", (keyuse.keypart == FT_KEYPART) ? "<fulltext>" :
-               keyuse.table->key_info[keyuse.key].
+               keyuse.table_ref->table->key_info[keyuse.key].
                key_part[keyuse.keypart].field->field_name).
       add("equals", keyuse.val).
       add("null_rejecting", keyuse.null_rejecting);

@@ -2255,7 +2255,7 @@ public:
   bool join_key;
   DTCollation cmp_collation;
   FT_INFO *ft_handler;
-  TABLE *table;
+  TABLE_LIST *table_ref;
   /**
      Master item means that if idendical items are present in the
      statement, they use the same FT handler. FT handler is initialized
@@ -2276,9 +2276,9 @@ public:
   */
   Item_func_match(const POS &pos, PT_item_list *a, Item *against_arg, uint b):
     Item_real_func(pos, a), against(against_arg), key(0), flags(b),
-    join_key(0), ft_handler(0), table(0), master(0), concat_ws(0),
-    hints(NULL), simple_expression(false)
-  { }
+    join_key(false), ft_handler(NULL), table_ref(NULL),
+    master(NULL), concat_ws(NULL), hints(NULL), simple_expression(false)
+  {}
   
   virtual bool itemize(Parse_context *pc, Item **res);
 
@@ -2291,9 +2291,9 @@ public:
       ft_handler->please->close_search(ft_handler);
       delete hints;
     }
-    ft_handler= 0;
-    concat_ws= 0;
-    table= 0;           // required by Item_func_match::eq()
+    ft_handler= NULL;
+    concat_ws= NULL;
+    table_ref= NULL;           // required by Item_func_match::eq()
     DBUG_VOID_RETURN;
   }
   virtual Item *key_item() const { return against; }
@@ -2321,7 +2321,7 @@ public:
   ulonglong get_count()
   {
     DBUG_ASSERT(ft_handler);
-    DBUG_ASSERT(table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
+    DBUG_ASSERT(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
 
     return ((FT_INFO_EXT *)ft_handler)->could_you->
       count_matches((FT_INFO_EXT *)ft_handler);
@@ -2339,7 +2339,7 @@ public:
     if (hints->get_flags() & FT_SORTED)
       return true;
 
-    if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    if ((table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return false;
 
     DBUG_ASSERT(ft_handler);
@@ -2357,7 +2357,7 @@ public:
   {
     DBUG_ASSERT(ft_handler);
 
-    if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    if ((table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return false;
 
     return ((FT_INFO_EXT *)ft_handler)->could_you->get_flags() & 
@@ -2489,22 +2489,22 @@ private:
            fulltext API (e.g., MyISAM), while it is not supported for other 
            engines (e.g., InnoDB)
 
-     @param table_arg Table for which storage engine to check
+     @param tr Table for which storage engine to check
 
      @retval true if BOOLEAN search on non-indexed columns is supported
      @retval false otherwise
    */
-  bool allows_search_on_non_indexed_columns(TABLE* table_arg)
+  bool allows_search_on_non_indexed_columns(const TABLE_LIST *tr)
   {
     // Only Boolean search may support non_indexed columns
     if (!(flags & FT_BOOL))
       return false;
 
-    DBUG_ASSERT(table_arg && table_arg->file);
+    DBUG_ASSERT(tr && tr->table->file);
 
     // Assume that if extended fulltext API is not supported,
     // non-indexed columns are allowed.  This will be true for MyISAM.
-    if ((table_arg->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    if ((tr->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return true;
 
     return false;

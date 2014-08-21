@@ -153,6 +153,17 @@ buf_read_page_low(
 		sync = true;
 	}
 
+	/** To test the recovery of the update in place operation,
+	it's expected that buf_page_io_complete() would be called later,
+	and finally both ibuf_merge_or_delete_for_page() and
+	ibuf_insert_to_index_page() would be called. The injection is
+	in ibuf_insert_to_index_page() with the same mark here.
+	Since the caller buf_read_page() passes sync=false instead of =true
+	now, we have to set it to true here so that all above functions
+	would be invoked and logs would be flushed. */
+	DBUG_EXECUTE_IF("crash_after_log_ibuf_upd_inplace",
+			sync = true;);
+
 	/* The following call will also check if the tablespace does not exist
 	or is being dropped; if we succeed in initing the page in the buffer
 	pool for read, then DISCARD cannot proceed until the read has
