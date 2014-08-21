@@ -35,3 +35,7 @@ tags
 
 # Common symlinks used in compiling
 third_party/jemalloc
+
+# Common cmake build directories
+build
+dbg
