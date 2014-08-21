@@ -328,11 +328,11 @@ xid_reads_committed_xid(TXNID tl1, TXNID xc, const xid_omt_t &snapshot_txnids, c
 //
 static void
 ule_simple_garbage_collection(ULE ule, txn_gc_info *gc_info) {
-    uint32_t curr_index = 0;
-    uint32_t num_entries;
     if (ule->num_cuxrs == 1) {
-        goto done;
+        return;
     }
+
+    uint32_t curr_index = 0;
     if (gc_info->mvcc_needed) {
         // starting at the top of the committed stack, find the first
         // uxr with a txnid that is less than oldest_referenced_xid
@@ -342,24 +342,21 @@ ule_simple_garbage_collection(ULE ule, txn_gc_info *gc_info) {
                 break;
             }
         }
-    }
-    else {
+    } else {
         // if mvcc is not needed, we can need the top committed
         // value and nothing else
         curr_index = ule->num_cuxrs - 1;
     }
-    // curr_index is now set to the youngest uxr older than oldest_referenced_xid
-    if (curr_index == 0) {
-        goto done;
-    }
 
-    // now get rid of the entries below curr_index
-    num_entries = ule->num_cuxrs + ule->num_puxrs - curr_index;
-    memmove(&ule->uxrs[0], &ule->uxrs[curr_index], num_entries * sizeof(ule->uxrs[0]));
-    ule->uxrs[0].xid = TXNID_NONE; //New 'bottom of stack' loses its TXNID
-    ule->num_cuxrs -= curr_index;
-    
-done:;
+    // curr_index is now set to the youngest uxr older than oldest_referenced_xid
+    // so if it's not the bottom of the stack..
+    if (curr_index != 0) {
+        // ..then we need to get rid of the entries below curr_index
+        uint32_t num_entries = ule->num_cuxrs + ule->num_puxrs - curr_index;
+        memmove(&ule->uxrs[0], &ule->uxrs[curr_index], num_entries * sizeof(ule->uxrs[0]));
+        ule->uxrs[0].xid = TXNID_NONE; // New 'bottom of stack' loses its TXNID
+        ule->num_cuxrs -= curr_index;
+    }
 }
 
 // TODO: Clean this up
@@ -367,15 +364,12 @@ extern bool garbage_collection_debug;
 
 static void
 ule_garbage_collect(ULE ule, const xid_omt_t &snapshot_xids, const rx_omt_t &referenced_xids, const xid_omt_t &live_root_txns) {
-    if (ule->num_cuxrs == 1) goto done;
-    // will fail if too many num_cuxrs
-    bool necessary_static[MAX_TRANSACTION_RECORDS];
-    bool *necessary;
-    necessary = necessary_static;
-    if (ule->num_cuxrs >= MAX_TRANSACTION_RECORDS) {
-        XMALLOC_N(ule->num_cuxrs, necessary);
+    if (ule->num_cuxrs == 1) {
+        return;
     }
-    memset(necessary, 0, sizeof(necessary[0])*ule->num_cuxrs);
+
+    toku::scoped_calloc necessary_buf(ule->num_cuxrs * sizeof(bool));
+    bool *necessary = reinterpret_cast<bool *>(necessary_buf.get());
 
     uint32_t curr_committed_entry;
     curr_committed_entry = ule->num_cuxrs - 1;
@@ -405,24 +399,21 @@ ule_garbage_collect(ULE ule, const xid_omt_t &snapshot_xids, const rx_omt_t &ref
         }
 
         tl1 = toku_get_youngest_live_list_txnid_for(xc, snapshot_xids, referenced_xids);
-        if (tl1 == xc) {
-            // if tl1 == xc, that means xc should be live and show up in 
-            // live_root_txns, which we check above. So, if we get
-            // here, something is wrong.
-            assert(false);
-        }
+
+        // if tl1 == xc, that means xc should be live and show up in live_root_txns, which we check above.
+        invariant(tl1 != xc);
+
         if (tl1 == TXNID_NONE) {
             // set tl1 to youngest live transaction older than ule->uxrs[curr_committed_entry]->xid
             tl1 = get_next_older_txnid(xc, snapshot_xids);
             if (tl1 == TXNID_NONE) {
-                //Remainder is garbage, we're done
+                // remainder is garbage, we're done
                 break;
             }
         }
-        if (garbage_collection_debug)
-        {
+        if (garbage_collection_debug) {
             int r = snapshot_xids.find_zero<TXNID, toku_find_xid_by_xid>(tl1, nullptr, nullptr);
-            invariant(r==0); //make sure that the txn you are claiming is live is actually live
+            invariant_zero(r); // make sure that the txn you are claiming is live is actually live
         }
         //
         // tl1 should now be set
@@ -436,30 +427,23 @@ ule_garbage_collect(ULE ule, const xid_omt_t &snapshot_xids, const rx_omt_t &ref
             curr_committed_entry--;
         }
     } 
-    uint32_t first_free;
-    first_free = 0;
-    uint32_t i;
-    for (i = 0; i < ule->num_cuxrs; i++) {
-        //Shift values to 'delete' garbage values.
+    uint32_t first_free = 0;
+    for (uint32_t i = 0; i < ule->num_cuxrs; i++) {
+        // Shift values to 'delete' garbage values.
         if (necessary[i]) {
             ule->uxrs[first_free] = ule->uxrs[i];
             first_free++;
         }
     }
-    uint32_t saved;
-    saved = first_free;
+    uint32_t saved = first_free;
     invariant(saved <= ule->num_cuxrs);
     invariant(saved >= 1);
     ule->uxrs[0].xid = TXNID_NONE; //New 'bottom of stack' loses its TXNID
     if (first_free != ule->num_cuxrs) {
-        //Shift provisional values
+        // Shift provisional values
         memmove(&ule->uxrs[first_free], &ule->uxrs[ule->num_cuxrs], ule->num_puxrs * sizeof(ule->uxrs[0]));
     }
     ule->num_cuxrs = saved;
-    if (necessary != necessary_static) {
-        toku_free(necessary);
-    }
-done:;
 }
 
 static size_t ule_packed_memsize(ULE ule) {
