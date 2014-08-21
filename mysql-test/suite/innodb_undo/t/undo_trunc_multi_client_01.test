@@ -14,6 +14,7 @@
 # TC check if truncate is completed in given time frame. When
 # test is run under valgrind there is no such time assurance.
 --source include/not_valgrind.inc
+--source include/big_test.inc
 
 ################################################################################
 # Test-case will test following scenarios.
@@ -36,7 +37,7 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
 # 1. Perform DML action using multiple clients and multiple undo tablespace.
 #
 #
---source suite/innodb_undo/include/innodb_wl6965_multi_client.inc
+--source suite/innodb_undo/include/undo_trunc_multi_client.inc
 
 #-----------------------------------------------------------------------------
 #
