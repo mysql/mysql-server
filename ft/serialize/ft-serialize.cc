@@ -149,7 +149,7 @@ toku_serialize_descriptor_contents_to_fd(int fd, DESCRIPTOR desc, DISKOFF offset
 static void
 deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, int layout_version) {
     if (layout_version <= FT_LAYOUT_VERSION_13) {
-        // in older versions of TokuDB the Descriptor had a 4 byte
+        // in older versions of tokuft, the descriptor had a 4 byte
         // version, which we skip over
         (void) rbuf_int(rb);
     }

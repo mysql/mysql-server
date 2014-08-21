@@ -109,7 +109,7 @@ PATENT RIGHTS GRANT:
 
 static FT_UPGRADE_STATUS_S ft_upgrade_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ft_upgrade_status, k, c, t, "ft upgrade: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(ft_upgrade_status, k, c, t, "ft upgrade: " l, inc)
 
 static void
 status_init(void)
@@ -415,7 +415,7 @@ compress_ftnode_sub_block(struct sub_block *sb, enum toku_compression_method met
     
     //
     // This probably seems a bit complicated. Here is what is going on.
-    // In TokuDB 5.0, sub_blocks were compressed and the compressed data
+    // In TokuFT 5.0, sub_blocks were compressed and the compressed data
     // was checksummed. The checksum did NOT include the size of the compressed data
     // and the size of the uncompressed data. The fields of sub_block only reference the
     // compressed data, and it is the responsibility of the user of the sub_block
@@ -448,7 +448,7 @@ compress_ftnode_sub_block(struct sub_block *sb, enum toku_compression_method met
     // two integers at the beginning, the size and uncompressed size, and then the compressed
     // data. sb->xsum contains the checksum of this entire thing.
     // 
-    // In TokuDB 5.0, sb->compressed_ptr only contained the compressed data, sb->xsum
+    // In TokuFT 5.0, sb->compressed_ptr only contained the compressed data, sb->xsum
     // checksummed only the compressed data, and the checksumming of the sizes were not
     // done here.
     //

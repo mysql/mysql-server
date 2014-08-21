@@ -114,7 +114,7 @@ static YDB_DB_LAYER_STATUS_S ydb_db_layer_status;
 #endif
 #define STATUS_VALUE(x) ydb_db_layer_status.status[x].value.num
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ydb_db_layer_status, k, c, t, l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(ydb_db_layer_status, k, c, t, l, inc)
 
 static void
 ydb_db_layer_status_init (void) {

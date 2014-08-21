@@ -106,7 +106,7 @@ run (void) {
     //   add (1,101) to the tree
     // In another concurrent txn
     //   look up (1,102) and do  DB_NEXT
-    // That should be fine in TokuDB.
+    // That should be fine in TokuFT.
     // It fails before #938 is fixed.
     // It also fails for BDB for other reasons (page-level locking vs. row-level locking)
     {

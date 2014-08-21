@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 
 
 /* Like test_log2 except abort. */
-/* This is very specific to TokuDB.  It won't work with Berkeley DB. */
+/* This is very specific to TokuFT.  It won't work with Berkeley DB. */
 
 
 #include <db.h>

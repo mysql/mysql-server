@@ -131,7 +131,7 @@ static uint32_t ule_get_innermost_numbytes(ULE ule, uint32_t keylen);
 
 static LE_STATUS_S le_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(le_status, k, c, t, "le: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(le_status, k, c, t, "le: " l, inc)
 
 void toku_ule_status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.

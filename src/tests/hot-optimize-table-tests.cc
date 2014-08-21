@@ -148,7 +148,7 @@ hot_test_setup(void)
     // Remove any previous environment.
     toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
-    // Set up a new TokuDB.
+    // Set up a new environment.
     { int chk_r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
     { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);

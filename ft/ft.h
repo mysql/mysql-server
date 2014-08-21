@@ -219,7 +219,7 @@ struct toku_thread_pool *get_ft_pool(void);
 int toku_single_process_lock(const char *lock_dir, const char *which, int *lockfd);
 int toku_single_process_unlock(int *lockfd);
 
-void tokudb_update_product_name_strings(void);
+void tokuft_update_product_name_strings(void);
 #define TOKU_MAX_PRODUCT_NAME_LENGTH (256)
 extern char toku_product_name[TOKU_MAX_PRODUCT_NAME_LENGTH];
 
@@ -232,4 +232,4 @@ struct toku_product_name_strings_struct {
 };
 
 extern struct toku_product_name_strings_struct toku_product_name_strings;
-extern int tokudb_num_envs;
+extern int tokuft_num_envs;

@@ -107,7 +107,7 @@ PATENT RIGHTS GRANT:
  */
 static FT_FLUSHER_STATUS_S ft_flusher_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ft_flusher_status, k, c, t, "ft flusher: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(ft_flusher_status, k, c, t, "ft flusher: " l, inc)
 
 #define STATUS_VALUE(x) ft_flusher_status.status[x].value.num
 void toku_ft_flusher_status_init(void) {

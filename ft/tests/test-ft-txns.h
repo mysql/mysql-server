@@ -136,7 +136,7 @@ static inline void test_setup_and_recover(const char *envdir, TOKULOGGER *logger
     CKERR(r);
 
     DB_ENV *CAST_FROM_VOIDP(ctv, (void *) &ct);  // Use intermediate to avoid compiler warning.
-    r = tokudb_recover(ctv,
+    r = tokuft_recover(ctv,
                        NULL_prepared_txn_callback,
                        xid_lsn_keep_cachetable_callback,
                        logger,

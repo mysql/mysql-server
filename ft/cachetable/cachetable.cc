@@ -129,7 +129,7 @@ static CACHETABLE_STATUS_S ct_status;
 
 // Note, toku_cachetable_get_status() is below, after declaration of cachetable.
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ct_status, k, c, t, "cachetable: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(ct_status, k, c, t, "cachetable: " l, inc)
 
 static void
 status_init(void) {

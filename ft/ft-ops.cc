@@ -237,7 +237,7 @@ basement nodes, bulk fetch,  and partial fetch:
  */
 static FT_STATUS_S ft_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ft_status, k, c, t, "ft: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUFT_STATUS_INIT(ft_status, k, c, t, "ft: " l, inc)
 
 static toku_mutex_t ft_open_close_lock;
 

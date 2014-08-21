@@ -130,7 +130,7 @@ run_test(void) {
         strncat(buf, testfile, TOKU_PATH_MAX);
         r = system(buf); CKERR(r);
     }
-    r = tokudb_recover(NULL,
+    r = tokuft_recover(NULL,
 		       NULL_prepared_txn_callback,
 		       NULL_keep_cachetable_callback,
 		       NULL_logger,

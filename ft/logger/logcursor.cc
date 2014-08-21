@@ -191,7 +191,7 @@ static int lc_check_lsn(TOKULOGCURSOR lc, int dir) {
 //        int index = lc->cur_logfiles_index;
 //        fprintf(stderr, "Bad LSN: %d %s direction = %d, lsn.lsn = %" PRIu64 ", cur_lsn.lsn=%" PRIu64 "\n", 
 //                index, lc->logfiles[index], dir, lsn.lsn, lc->cur_lsn.lsn);
-        if (tokudb_recovery_trace) 
+        if (tokuft_recovery_trace) 
             printf("DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, 0);
         return LC_LSN_ERROR;
     }
@@ -307,10 +307,10 @@ static int lc_log_read(TOKULOGCURSOR lc)
         toku_log_free_log_entry_resources(&(lc->entry));
         time_t tnow = time(NULL);
         if (r==DB_BADFORMAT) {
-            fprintf(stderr, "%.24s Tokudb bad log format in %s\n", ctime(&tnow), lc->logfiles[lc->cur_logfiles_index]);
+            fprintf(stderr, "%.24s TokuFT bad log format in %s\n", ctime(&tnow), lc->logfiles[lc->cur_logfiles_index]);
         }
         else {
-            fprintf(stderr, "%.24s Tokudb unexpected log format error '%s' in %s\n", ctime(&tnow), strerror(r), lc->logfiles[lc->cur_logfiles_index]);
+            fprintf(stderr, "%.24s TokuFT unexpected log format error '%s' in %s\n", ctime(&tnow), strerror(r), lc->logfiles[lc->cur_logfiles_index]);
         }
     }
     return r;
@@ -339,10 +339,10 @@ static int lc_log_read_backward(TOKULOGCURSOR lc)
         toku_log_free_log_entry_resources(&(lc->entry));
         time_t tnow = time(NULL);
         if (r==DB_BADFORMAT) {
-            fprintf(stderr, "%.24s Tokudb bad log format in %s\n", ctime(&tnow), lc->logfiles[lc->cur_logfiles_index]);
+            fprintf(stderr, "%.24s TokuFT bad log format in %s\n", ctime(&tnow), lc->logfiles[lc->cur_logfiles_index]);
         }
         else {
-            fprintf(stderr, "%.24s Tokudb uUnexpected log format error '%s' in %s\n", ctime(&tnow), strerror(r), lc->logfiles[lc->cur_logfiles_index]);
+            fprintf(stderr, "%.24s TokuFT uUnexpected log format error '%s' in %s\n", ctime(&tnow), strerror(r), lc->logfiles[lc->cur_logfiles_index]);
         }
     }
     return r;
@@ -460,10 +460,10 @@ int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry **le) {
             // probably a corrupted last log entry due to a crash
             // try scanning forward from the beginning to find the last good entry
             time_t tnow = time(NULL);
-            fprintf(stderr, "%.24s Tokudb recovery repairing log\n", ctime(&tnow));
+            fprintf(stderr, "%.24s TokuFT recovery repairing log\n", ctime(&tnow));
             r = lc_fix_bad_logfile(lc);
             if ( r != 0 ) {
-                fprintf(stderr, "%.24s Tokudb recovery repair unsuccessful\n", ctime(&tnow));
+                fprintf(stderr, "%.24s TokuFT recovery repair unsuccessful\n", ctime(&tnow));
                 return DB_BADFORMAT;
             }
             // try reading again
