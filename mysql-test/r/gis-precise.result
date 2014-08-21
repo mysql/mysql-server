@@ -967,6 +967,8 @@ AsText(ConvexHull(GeomFromText('GeometryCollection(POLYGON((0 0)))')))
 LINESTRING(0 0,0 0,0 0)
 SELECT AsText(Centroid(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
 ERROR 22023: Invalid GIS data provided to function st_centroid.
+SELECT ST_DISTANCE(GeomFromText('POLYGON((0 0, 1 1))'), GeomFromText('POLYGON((1 0, 0 1))'));
+ERROR 22023: Invalid GIS data provided to function st_distance.
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN

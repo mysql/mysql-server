@@ -2283,11 +2283,18 @@ const Geometry::Class_info *Gis_polygon::get_class_info() const
   */
 void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes)
 {
-  DBUG_ASSERT(geo0->get_geotype() == Geometry::wkb_polygon);
+  DBUG_ASSERT(geo0->get_geotype() == Geometry::wkb_polygon && pnbytes != NULL);
   const Gis_polygon *geo= static_cast<const Gis_polygon *>(geo0);
   Gis_polygon::ring_type *out_ring= outer_ring(geo);
   Gis_polygon::inner_container_type *inn_rings= geo->inner_rings();
   size_t &nbytes= *pnbytes;
+
+  if (out_ring == NULL)
+  {
+    DBUG_ASSERT(inn_rings == NULL);
+    *pnbytes= 0;
+    return NULL;
+  }
 
   // Inner rings may have out of line rings.
   if (inn_rings)
