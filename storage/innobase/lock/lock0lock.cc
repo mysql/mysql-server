@@ -1576,10 +1576,10 @@ RecLock::lock_add(lock_t* lock, bool add_to_hash)
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(lock->trx));
 
-	++lock->index->table->n_rec_locks;
-
 	if (add_to_hash) {
 		ulint	key = m_rec_id.fold();
+
+		++lock->index->table->n_rec_locks;
 
 		HASH_INSERT(lock_t, hash, lock_hash_get(m_mode), key, lock);
 	}
@@ -1799,6 +1799,8 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 	lock->hash = head->hash;
 	head->hash = lock;
 
+	++lock->index->table->n_rec_locks;
+
 	typedef std::set<trx_t*> Trxs;
 
 	Trxs	trxs;
@@ -1840,7 +1842,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 		    && (it = trxs.find(trx)) == trxs.end()) {
 
 			ut_ad(lock_get_mode(next) == LOCK_S
-			      || lock_get_wait(next));
+			      || trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
 			trx_mutex_enter(trx);
 
@@ -2558,6 +2560,7 @@ lock_rec_dequeue_from_page(
 	space = in_lock->un_member.rec_lock.space;
 	page_no = in_lock->un_member.rec_lock.page_no;
 
+	ut_ad(in_lock->index->table->n_rec_locks > 0);
 	in_lock->index->table->n_rec_locks--;
 
 	lock_hash = lock_hash_get(in_lock->type_mode);
@@ -2610,6 +2613,7 @@ lock_rec_discard(
 	space = in_lock->un_member.rec_lock.space;
 	page_no = in_lock->un_member.rec_lock.page_no;
 
+	ut_ad(in_lock->index->table->n_rec_locks > 0);
 	in_lock->index->table->n_rec_locks--;
 
 	HASH_DELETE(lock_t, hash, lock_hash_get(in_lock->type_mode),
