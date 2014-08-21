@@ -1391,30 +1391,6 @@ lock_number_of_tables_locked(
 /*============== RECORD LOCK CREATION AND QUEUE MANAGEMENT =============*/
 
 /**
-Equivalent means, <type, space, page_no, heap_no, trx> only, mode is ignored.
-@param[in] lhs			Lock to compare
-@param[in] rhs			Lock to compare
-@return true if lhs is equivalent to rhs */
-bool
-RecLock::is_equivalent(const lock_t* lhs, const lock_t* rhs) const
-{
-	ut_ad(lock_get_type_low(lhs) == LOCK_REC);
-	ut_ad(lock_get_type_low(rhs) == LOCK_REC);
-
-	const lock_rec_t&	l = lhs->un_member.rec_lock;
-	const lock_rec_t&	r = rhs->un_member.rec_lock;
-
-	ut_ad(l.space == m_rec_id.m_space_id);
-	ut_ad(l.page_no == m_rec_id.m_page_no);
-
-	return(lhs->trx == rhs->trx
-	       && l.space == r.space
-	       && l.page_no == r.page_no
-	       && lock_rec_get_nth_bit(lhs, m_rec_id.m_heap_no)
-	       && lock_rec_get_nth_bit(rhs, m_rec_id.m_heap_no));
-}
-
-/**
 Check of the lock is on m_rec_id.
 @param[in] lock			Lock to compare with
 @return true if the record lock is on m_rec_id*/
@@ -1431,32 +1407,6 @@ RecLock::is_on_row(const lock_t* lock) const
 	return(other.space == m_rec_id.m_space_id
 	       && other.page_no == m_rec_id.m_page_no
 	       && lock_rec_get_nth_bit(lock, m_rec_id.m_heap_no));
-}
-
-/**
-Check that the first lock matches the passed in lock. It is possible that
-it is not actually the first lock. The first record lock must be on the same
-rec and held by the same transaction. This happen for example  if the
-transaction initially had an X lock with the NO_GAP set and later widened
-the lock to a GAP lock.
-@param first			Expected first lock
-@return true if it holds */
-bool
-RecLock::is_first_lock(const lock_t* first) const
-{
-	for (const lock_t* lock = lock_rec_get_first_on_page_addr(
-		lock_sys->rec_hash, m_rec_id.m_space_id, m_rec_id.m_page_no);
-	     lock != NULL;
-	     lock = lock_rec_get_next_on_page_const(lock)) {
-	     
-		if (is_on_row(lock)) {
-			return(is_equivalent(lock, first));
-		}
-	}
-
-	ut_error;
-
-	return(NULL);
 }
 
 /**
@@ -1782,7 +1732,6 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 	ut_ad(m_trx == lock->trx);
 	ut_ad(trx_mutex_own(m_trx));
 	ut_ad(wait_for->trx != m_trx);
-	ut_ad(is_first_lock(wait_for));
 	ut_ad(trx_is_high_priority(m_trx));
 	ut_ad(m_rec_id.m_heap_no != ULINT32_UNDEFINED);
 
