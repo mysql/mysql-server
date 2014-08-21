@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -888,7 +888,7 @@ pfs_rw_lock_s_lock_low(
 
 		/* Instrumented to inform we are aquiring a shared rwlock */
 		locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-			&state, lock->pfs_psi, PSI_RWLOCK_SHAREDLOCK,
+			&state, lock->pfs_psi, PSI_RWLOCK_TRYSHAREDLOCK,
 			file_name, static_cast<uint>(line));
 
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
