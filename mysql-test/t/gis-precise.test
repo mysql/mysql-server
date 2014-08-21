@@ -614,5 +614,6 @@ Select st_distance(st_geomfromtext('geometrycollection(polygon((0 0,0 10,10 10,1
 SELECT AsText(ConvexHull(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
 --error ER_GIS_INVALID_DATA
 SELECT AsText(Centroid(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
-
+--error ER_GIS_INVALID_DATA
+SELECT ST_DISTANCE(GeomFromText('POLYGON((0 0, 1 1))'), GeomFromText('POLYGON((1 0, 0 1))'));
 --source include/gis_debug.inc
