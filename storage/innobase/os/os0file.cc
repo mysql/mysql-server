@@ -2094,7 +2094,10 @@ os_file_set_size(
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
-	os_offset_t	size)	/*!< in: file size */
+	os_offset_t	size,	/*!< in: file size */
+	bool		read_only_mode)
+				/*!< in: if true, read only mode
+				checks are enforced. */
 {
 	os_offset_t	current_size;
 	bool		ret;
@@ -2129,7 +2132,16 @@ os_file_set_size(
 			n_bytes = buf_size;
 		}
 
+#ifdef UNIV_HOTBACKUP
 		ret = os_file_write(name, file, buf, current_size, n_bytes);
+#else
+		/* Using OS_AIO_SYNC mode on *unix will result in fall back
+		to os_file_write/read for Windows there it will use special
+		mechanism to wait before it returns back. */
+		ret = os_aio(
+			OS_FILE_WRITE, OS_AIO_SYNC, name, file, buf,
+			current_size, n_bytes, read_only_mode, NULL, NULL);
+#endif /* UNIV_HOTBACKUP */
 		if (!ret) {
 			ut_free(buf2);
 			goto error_handling;

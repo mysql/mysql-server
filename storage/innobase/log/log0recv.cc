@@ -3690,7 +3690,8 @@ recv_reset_log_files_for_backup(
 			"Setting log file size to %llu",
 			log_file_size);
 
-		success = os_file_set_size(name, log_file, log_file_size);
+		success = os_file_set_size(
+			name, log_file, log_file_size, srv_read_only_mode);
 
 		if (!success) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
