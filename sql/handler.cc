@@ -67,24 +67,48 @@
   @sa handler::end_psi_batch_mode.
 */
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  #define MYSQL_TABLE_IO_WAIT(OP, INDEX, PAYLOAD)       \
-    {                                                   \
-      if ((m_psi != NULL) && ! m_psi_batch_mode)        \
-      {                                                 \
-        PSI_table_locker *sub_locker;                   \
-        sub_locker= PSI_TABLE_CALL(start_table_io_wait) \
-          (& m_psi_locker_state, m_psi, OP, INDEX,      \
-           __FILE__, __LINE__);                         \
-        PAYLOAD                                         \
-        if (sub_locker != NULL)                         \
-          PSI_TABLE_CALL(end_table_io_wait)             \
-            (sub_locker, 1);                            \
-      }                                                 \
-      else                                              \
-      {                                                 \
-        m_psi_numrows++;                                \
-        PAYLOAD                                         \
-      }                                                 \
+  #define MYSQL_TABLE_IO_WAIT(OP, INDEX, PAYLOAD)             \
+    {                                                         \
+      if (m_psi != NULL)                                      \
+      {                                                       \
+        switch (m_psi_batch_mode)                             \
+        {                                                     \
+          case PSI_BATCH_MODE_NONE:                           \
+          {                                                   \
+            PSI_table_locker *sub_locker= NULL;               \
+            sub_locker= PSI_TABLE_CALL(start_table_io_wait)   \
+              (& m_psi_locker_state, m_psi, OP, INDEX,        \
+               __FILE__, __LINE__);                           \
+            PAYLOAD                                           \
+            if (sub_locker != NULL)                           \
+              PSI_TABLE_CALL(end_table_io_wait)               \
+                (sub_locker, 1);                              \
+            break;                                            \
+          }                                                   \
+          case PSI_BATCH_MODE_STARTING:                       \
+          {                                                   \
+            m_psi_locker= PSI_TABLE_CALL(start_table_io_wait) \
+              (& m_psi_locker_state, m_psi, OP, INDEX,        \
+               __FILE__, __LINE__);                           \
+            PAYLOAD                                           \
+            m_psi_numrows++;                                  \
+            m_psi_batch_mode= PSI_BATCH_MODE_STARTED;         \
+            break;                                            \
+          }                                                   \
+          case PSI_BATCH_MODE_STARTED:                        \
+          {                                                   \
+            PAYLOAD                                           \
+            m_psi_numrows++;                                  \
+            break;                                            \
+          }                                                   \
+          default:                                            \
+            DBUG_ASSERT(false);                               \
+        }                                                     \
+      }                                                       \
+      else                                                    \
+      {                                                       \
+        PAYLOAD                                               \
+      }                                                       \
     }
 #else
   #define MYSQL_TABLE_IO_WAIT(OP, INDEX, PAYLOAD) \
@@ -2387,29 +2411,24 @@ void handler::rebind_psi()
 void handler::start_psi_batch_mode()
 {
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  DBUG_ASSERT(! m_psi_batch_mode);
+  DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
   DBUG_ASSERT(m_psi_locker == NULL);
-  m_psi_batch_mode= true;
+  m_psi_batch_mode= PSI_BATCH_MODE_STARTING;
   m_psi_numrows= 0;
-  if (m_psi != NULL)
-  {
-    m_psi_locker= PSI_TABLE_CALL(start_table_io_wait)
-      (& m_psi_locker_state, m_psi, PSI_TABLE_FETCH_ROW, active_index,
-       __FILE__, __LINE__);
-  }
 #endif
 }
 
 void handler::end_psi_batch_mode()
 {
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  DBUG_ASSERT(m_psi_batch_mode);
-  m_psi_batch_mode= false;
+  DBUG_ASSERT(m_psi_batch_mode != PSI_BATCH_MODE_NONE);
   if (m_psi_locker != NULL)
   {
+    DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_STARTED);
     PSI_TABLE_CALL(end_table_io_wait)(m_psi_locker, m_psi_numrows);
     m_psi_locker= NULL;
   }
+  m_psi_batch_mode= PSI_BATCH_MODE_NONE;
 #endif
 }
 
@@ -2501,7 +2520,7 @@ int handler::ha_close(void)
 #ifdef HAVE_PSI_TABLE_INTERFACE
   PSI_TABLE_CALL(close_table)(m_psi);
   m_psi= NULL; /* instrumentation handle, invalid after close_table() */
-  DBUG_ASSERT(! m_psi_batch_mode);
+  DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
   DBUG_ASSERT(m_psi_locker == NULL);
 #endif
   // TODO: set table= NULL to mark the handler as closed?

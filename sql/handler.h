@@ -2064,12 +2064,24 @@ public:
 
 private:
 #ifdef HAVE_PSI_TABLE_INTERFACE
+
+  /** Internal state of the batch instrumentation. */
+  enum batch_mode_t
+  {
+    /** Batch mode not used. */
+    PSI_BATCH_MODE_NONE,
+    /** Batch mode used, before first table io. */
+    PSI_BATCH_MODE_STARTING,
+    /** Batch mode used, after first table io. */
+    PSI_BATCH_MODE_STARTED
+  };
+
   /**
-    True when table io records are collected in batch.
+    Batch mode state.
     @sa start_psi_batch_mode.
     @sa end_psi_batch_mode.
   */
-  bool m_psi_batch_mode;
+  batch_mode_t m_psi_batch_mode;
   /**
     The number of rows in the batch.
     @sa start_psi_batch_mode.
@@ -2138,7 +2150,7 @@ public:
     auto_inc_intervals_count(0),
     m_psi(NULL),
 #ifdef HAVE_PSI_TABLE_INTERFACE
-    m_psi_batch_mode(false),
+    m_psi_batch_mode(PSI_BATCH_MODE_NONE),
     m_psi_numrows(0),
     m_psi_locker(NULL),
 #endif
@@ -2152,7 +2164,7 @@ public:
   {
     DBUG_ASSERT(m_psi == NULL);
 #ifdef HAVE_PSI_TABLE_INTERFACE
-    DBUG_ASSERT(! m_psi_batch_mode);
+    DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
     DBUG_ASSERT(m_psi_locker == NULL);
 #endif
     DBUG_ASSERT(m_lock_type == F_UNLCK);
