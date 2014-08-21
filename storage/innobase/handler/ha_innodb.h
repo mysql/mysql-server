@@ -268,10 +268,6 @@ class ha_innobase: public handler
 		qc_engine_callback*	call_back,
 		ulonglong*		engine_data);
 
-	static const char *get_mysql_bin_log_name();
-
-	static ulonglong get_mysql_bin_log_pos();
-
 	bool primary_key_is_clustered();
 
 	int cmp_ref(const uchar* ref1, const uchar* ref2);
