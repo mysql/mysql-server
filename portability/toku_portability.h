@@ -107,11 +107,6 @@ PATENT RIGHTS GRANT:
 
 #define DEV_NULL_FILE "/dev/null"
 
-// HACK Poison these mcaros so no one uses them
-#define TOKU_WINDOWS ,
-#define TOKU_WINDOWS_32 ,
-#define TOKU_WINDOWS_64 ,
-
 // include here, before they get deprecated
 #include <toku_atomic.h>
 
