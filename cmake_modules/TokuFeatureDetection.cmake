@@ -2,11 +2,6 @@
 find_package(Threads)
 find_package(ZLIB REQUIRED)
 
-option(USE_BDB "Build some tools and tests with bdb (requires a proper BerkeleyDB include directory and library)." ON)
-if(USE_BDB)
-  find_package(BDB REQUIRED)
-endif()
-
 option(USE_VALGRIND "Build to run safely under valgrind (often slower)." ON)
 if(USE_VALGRIND)
   find_package(Valgrind REQUIRED)

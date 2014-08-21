@@ -20,7 +20,6 @@ if [ ! -d build ] ; then
         -D USE_GTAGS=OFF \
         -D USE_CSCOPE=OFF \
         -D USE_ETAGS=OFF \
-        -D USE_BDB=ON \
         -D CMAKE_LINK_DEPENDS_NO_SHARED=ON \
         -G Ninja \
         -D RUN_LONG_TESTS=ON \
@@ -41,6 +40,6 @@ ctest -j16 \
     -E '/drd|/helgrind'
 ctest -j16 \
     -D NightlyMemCheck \
-    -E '^ydb/.*\.bdb|test1426\.tdb|/drd|/helgrind'
+    -E 'test1426\.tdb|/drd|/helgrind'
 set -e
 ctest -D NightlySubmit

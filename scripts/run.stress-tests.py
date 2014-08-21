@@ -552,7 +552,6 @@ def rebuild(tokudb, builddir, tokudb_data, cc, cxx, tests):
     newenv['CXX'] = cxx
     r = call(['cmake',
               '-DCMAKE_BUILD_TYPE=Debug',
-              '-DUSE_BDB=OFF',
               '-DUSE_GTAGS=OFF',
               '-DUSE_CTAGS=OFF',
               '-DUSE_ETAGS=OFF',
