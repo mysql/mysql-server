@@ -971,7 +971,7 @@ bool Item_field::add_field_to_set_processor(uchar *arg)
   DBUG_ENTER("Item_field::add_field_to_set_processor");
   DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
   TABLE *table= (TABLE *) arg;
-  if (field->table == table)
+  if (table_ref->table == table)
     bitmap_set_bit(&table->tmp_set, field->field_index);
   DBUG_RETURN(FALSE);
 }
@@ -2493,8 +2493,8 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
 
 Item_field::Item_field(Field *f)
   :Item_ident(0, NullS, *f->table_name, f->field_name),
-   item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   item_equal(NULL), no_const_subst(false),
+   have_privileges(0), any_privileges(false)
 {
   set_field(f);
   /*
@@ -2515,8 +2515,8 @@ Item_field::Item_field(Field *f)
 Item_field::Item_field(THD *thd, Name_resolution_context *context_arg,
                        Field *f)
   :Item_ident(context_arg, f->table->s->db.str, *f->table_name, f->field_name),
-   item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   item_equal(NULL), no_const_subst(false),
+   have_privileges(0), any_privileges(false)
 {
   /*
     We always need to provide Item_field with a fully qualified field
@@ -2557,8 +2557,9 @@ Item_field::Item_field(Name_resolution_context *context_arg,
                        const char *db_arg,const char *table_name_arg,
                        const char *field_name_arg)
   :Item_ident(context_arg, db_arg,table_name_arg,field_name_arg),
-   field(0), result_field(0), item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   table_ref(NULL), field(NULL), result_field(NULL),
+   item_equal(NULL), no_const_subst(false),
+   have_privileges(0), any_privileges(false)
 {
   SELECT_LEX *select= current_thd->lex->current_select();
   collation.set(DERIVATION_IMPLICIT);
@@ -2570,8 +2571,9 @@ Item_field::Item_field(const POS &pos,
                        const char *db_arg,const char *table_name_arg,
                        const char *field_name_arg)
   :Item_ident(pos, db_arg,table_name_arg, field_name_arg),
-   field(0), result_field(0), item_equal(0), no_const_subst(0),
-   have_privileges(0), any_privileges(0)
+   table_ref(NULL), field(NULL), result_field(NULL),
+   item_equal(NULL), no_const_subst(false),
+   have_privileges(0), any_privileges(false)
 {
   collation.set(DERIVATION_IMPLICIT);
 }
@@ -2600,6 +2602,7 @@ bool Item_field::itemize(Parse_context *pc, Item **res)
 
 Item_field::Item_field(THD *thd, Item_field *item)
   :Item_ident(thd, item),
+   table_ref(item->table_ref),
    field(item->field),
    result_field(item->result_field),
    item_equal(item->item_equal),
@@ -2667,6 +2670,9 @@ adjust_max_effective_column_length(Field *field_par, uint32 max_length)
 
 void Item_field::set_field(Field *field_par)
 {
+  table_ref= field_par->table->pos_in_table_list;
+  DBUG_ASSERT(!table_ref || table_ref->table == field_par->table);
+
   field=result_field=field_par;			// for easy coding with fields
   maybe_null= field->maybe_null() || field->is_tmp_nullable();
   decimals= field->decimals();
@@ -2987,17 +2993,19 @@ bool Item_field::eq(const Item *item, bool binary_cmp) const
 
 table_map Item_field::used_tables() const
 {
-  if (field->table->const_table)
-    return 0;					// const item
-  return (depended_from ? OUTER_REF_TABLE_BIT : field->table->map);
+  if (!table_ref)
+    return 1;                      // Temporary table; always table 0
+  if (table_ref->table->const_table)
+    return 0;                      // const item
+  return depended_from ? OUTER_REF_TABLE_BIT : table_ref->map();
 }
 
 
 table_map Item_field::resolved_used_tables() const
 {
-  if (field->table->const_table)
-    return 0;					// const item
-  return field->table->map;
+  // Used by resolver only, so can never reach a "const" table.
+  DBUG_ASSERT(!table_ref->table->const_table);
+  return table_ref->map();
 }
 
 void Item_ident::fix_after_pullout(st_select_lex *parent_select,
@@ -3081,8 +3089,12 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
 Item *Item_field::get_tmp_table_item(THD *thd)
 {
   Item_field *new_item= new Item_field(thd, this);
-  if (new_item)
-    new_item->field= new_item->result_field;
+  if (!new_item)
+    return NULL;                   /* purecov: inspected */
+
+  new_item->field= new_item->result_field;
+  new_item->table_ref= NULL;      // Internal temporary table has no table_ref
+
   return new_item;
 }
 
@@ -4848,7 +4860,7 @@ void mark_select_range_as_dependent(THD *thd,
     }
     else
       prev_subselect_item->used_tables_cache|=
-        found_field->table->map;
+        found_field->table->pos_in_table_list->map();
     prev_subselect_item->const_item_cache= 0;
     mark_as_dependent(thd, last_select, current_sel, resolved_item,
                       dependent);
@@ -5214,7 +5226,8 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         }
         if (*from_field != view_ref_found)
         {
-          prev_subselect_item->used_tables_cache|= (*from_field)->table->map;
+          prev_subselect_item->used_tables_cache|=
+            (*from_field)->table->pos_in_table_list->map();
           prev_subselect_item->const_item_cache= 0;
           set_field(*from_field);
           if (!last_checked_context->select_lex->having_fix_field &&
@@ -5639,7 +5652,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       if (!bitmap_is_set(other_bitmap, field->field_index))
       {
         /* First usage of column */
-        table->used_fields++;                     // Used to optimize loops
         /* purecov: begin inspected */
         table->covering_keys.intersect(field->part_of_key);
         /* purecov: end */
@@ -5731,6 +5743,7 @@ void Item_field::cleanup()
     it will be linked correctly next time by name of field and table alias.
     I.e. we can drop 'field'.
    */
+  table_ref= NULL;
   field= result_field= 0;
   item_equal= NULL;
   null_value= FALSE;
@@ -5952,7 +5965,9 @@ Item *Item_field::replace_equal_field(uchar *arg)
     }
     Item_field *subst= item_equal->get_subst_item(this);
     DBUG_ASSERT(subst);
-    if (field->table != subst->field->table && !field->eq(subst->field))
+    DBUG_ASSERT(table_ref == subst->table_ref ||
+                table_ref->table != subst->table_ref->table);
+    if (table_ref != subst->table_ref && !field->eq(subst->field))
       return subst;
   }
   return this;
@@ -6144,7 +6159,7 @@ bool Item::can_be_evaluated_now() const
 
   If max_length > CONVERT_IF_BIGGER_TO_BLOB create a blob @n
   If max_length > 0 create a varchar @n
-  If max_length == 0 create a CHAR(0) 
+  If max_length == 0 create a CHAR(0) (or VARCHAR(0) if we are grouping)
 
   @param table		Table for which the field is created
 */
@@ -6162,8 +6177,19 @@ Field *Item::make_string_field(TABLE *table)
     field= new Field_varstring(max_length, maybe_null, item_name.ptr(),
                                table->s, collation.collation);
   else
-    field= new Field_string(max_length, maybe_null, item_name.ptr(),
-                            collation.collation);
+  {
+    /*
+     marker == 4 : see create_tmp_table()
+     With CHAR(0) end_update() may write garbage into the next field.
+    */
+    if (max_length == 0 && marker == 4 && maybe_null &&
+        field_type() == MYSQL_TYPE_VAR_STRING && type() != Item::TYPE_HOLDER)
+      field= new Field_varstring(max_length, maybe_null, item_name.ptr(),
+                                 table->s, collation.collation);
+    else
+      field= new Field_string(max_length, maybe_null, item_name.ptr(),
+                              collation.collation);
+  }
   if (field)
     field->init(table);
   return field;
@@ -7520,7 +7546,8 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
               } while (outer_context && outer_context->select_lex &&
                        cached_table->select_lex != outer_context->select_lex);
             }
-            prev_subselect_item->used_tables_cache|= from_field->table->map;
+            prev_subselect_item->used_tables_cache|=
+              from_field->table->pos_in_table_list->map();
             prev_subselect_item->const_item_cache= 0;
             break;
           }

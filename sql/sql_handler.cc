@@ -239,6 +239,7 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   hash_tables->db= db;
   hash_tables->table_name= name;
   hash_tables->alias= alias;
+  hash_tables->set_tableno(0);
   memcpy(hash_tables->db, tables->db, dblen);
   memcpy(hash_tables->table_name, tables->table_name, namelen);
   memcpy(hash_tables->alias, tables->alias, aliaslen);
@@ -252,7 +253,6 @@ bool Sql_cmd_handler_open::execute(THD *thd)
                    MDL_TRANSACTION);
   /* for now HANDLER can be used only for real TABLES */
   hash_tables->required_type= FRMTYPE_TABLE;
-
   /* add to hash */
   if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
   {
@@ -477,11 +477,8 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   }
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  if (tables &&
-      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
-  {
+  if (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
     DBUG_RETURN(true);
-  }
 
   /*
     There is no need to check for table permissions here, because
@@ -576,13 +573,6 @@ retry:
     if (error)
       goto err0;
   }
-
-  /*
-     Table->map should be set before we call fix_fields.
-     And we consider that handle statement operate on table number 0.
-  */
-  table->tablenr= 0;
-  table->map= (table_map)1 << table->tablenr;
 
   /* save open_tables state */
   backup_open_tables= thd->open_tables;

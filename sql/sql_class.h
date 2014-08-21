@@ -1044,7 +1044,6 @@ public:
     of the main statement is called.
   */
   enum enum_locked_tables_mode locked_tables_mode;
-  uint current_tablenr;
 
   enum enum_flags {
     BACKUPS_AVAIL = (1U << 0)     /* There are backups available */

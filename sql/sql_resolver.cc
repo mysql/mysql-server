@@ -1106,7 +1106,7 @@ SELECT_LEX::simplify_joins(THD *thd,
     }
     else
     {
-      used_tables= table->table->map;
+      used_tables= table->map();
       if (*cond)
         not_null_tables= (*cond)->not_null_tables();
     }
@@ -1182,17 +1182,15 @@ SELECT_LEX::simplify_joins(THD *thd,
     */ 
     if (table->join_cond())
     {
-      table->dep_tables|= table->join_cond()->used_tables(); 
-      if (table->embedding)
-      {
-        table->dep_tables&= ~table->embedding->nested_join->used_tables;
+      table->dep_tables|= table->join_cond()->used_tables();
 
-        // Embedding table depends on tables used in embedded join conditions. 
-        table->embedding->on_expr_dep_tables|=
-          table->join_cond()->used_tables();
-      }
-      else
-        table->dep_tables&= ~table->table->map;
+      // At this point the joined tables always have an embedding join nest:
+      DBUG_ASSERT(table->embedding);
+
+      table->dep_tables&= ~table->embedding->nested_join->used_tables;
+
+      // Embedding table depends on tables used in embedded join conditions. 
+      table->embedding->on_expr_dep_tables|= table->join_cond()->used_tables();
     }
 
     if (prev_table)
@@ -1205,7 +1203,7 @@ SELECT_LEX::simplify_joins(THD *thd,
         prev_table->dep_tables|= table->on_expr_dep_tables;
         table_map prev_used_tables= prev_table->nested_join ?
 	                            prev_table->nested_join->used_tables :
-	                            prev_table->table->map;
+	                            prev_table->map();
         /* 
           If join condition contains only references to inner tables
           we still make the inner tables dependent on the outer tables.
@@ -1591,10 +1589,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   uint table_no= leaf_table_count;
   /* n. Walk through child's tables and adjust table->map */
   for (tl= subq_select->leaf_tables; tl; tl= tl->next_leaf, table_no++)
-  {
-    tl->table->tablenr= table_no;
-    tl->table->map= ((table_map)1) << table_no;
-  }
+    tl->set_tableno(table_no);
 
   derived_table_count+= subq_select->derived_table_count;
   materialized_table_count+=

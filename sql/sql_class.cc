@@ -894,7 +894,6 @@ void Open_tables_state::set_open_tables_state(Open_tables_state *state)
   this->extra_lock= state->extra_lock;
 
   this->locked_tables_mode= state->locked_tables_mode;
-  this->current_tablenr= state->current_tablenr;
 
   this->state_flags= state->state_flags;
 

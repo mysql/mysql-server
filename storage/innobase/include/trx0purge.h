@@ -272,10 +272,10 @@ namespace undo {
 			m_undo_for_trunc = ULINT_UNDEFINED;
 			m_rseg_for_trunc.clear();
 
-		/* Sync with global value as we are done with
-		truncate now. */
-		m_purge_rseg_truncate_frequency =
-			srv_purge_rseg_truncate_frequency;
+			/* Sync with global value as we are done with
+			truncate now. */
+			m_purge_rseg_truncate_frequency =
+				srv_purge_rseg_truncate_frequency;
 		}
 
 		/** Get the tablespace id to start scanning from.
@@ -313,7 +313,7 @@ namespace undo {
 		@return true if marked for truncate, else false. */
 		static bool is_tablespace_truncated(ulint space_id)
 		{
-			return(find(s_spaces_to_truncate.begin(),
+			return(std::find(s_spaces_to_truncate.begin(),
 				    s_spaces_to_truncate.end(), space_id)
 			       != s_spaces_to_truncate.end());
 		}
