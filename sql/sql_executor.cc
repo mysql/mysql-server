@@ -3033,16 +3033,18 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
     */
   if (field->is_real_null() != field->is_real_null(diff))   // 1
     return true;
+
+  const size_t src_len= field->data_length();
+  const size_t dst_len= field->data_length(diff);
   // Trailing space can't be skipped and length is different
-  if (!field->is_text_key_type() &&
-      field->data_length() != field->data_length(diff))     // 2
+  if (!field->is_text_key_type() && src_len != dst_len)     // 2
     return true;
 
-    if (field->cmp_max(field->ptr, field->ptr + diff,       // 3
-                       field->data_length()))
-      return true;
+  if (field->cmp_max(field->ptr, field->ptr + diff,       // 3
+                     std::max(src_len, dst_len)))
+    return true;
 
-    return false;
+  return false;
 }
 
 /**
