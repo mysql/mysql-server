@@ -943,15 +943,13 @@ innobase_start_trx_and_assign_read_view(
 	THD*		thd);		/* in: MySQL thread handle of the
 					user for whom the transaction should
 					be committed */
-/****************************************************************//**
-Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
-the logs, and the name of this function should be innobase_checkpoint.
-@return TRUE if error */
+/** Flush InnoDB redo logs to the file system.
+@param[in]	hton	InnoDB handlerton
+@return false */
 static
 bool
 innobase_flush_logs(
-/*================*/
-	handlerton*	hton);		/*!< in: InnoDB handlerton */
+	handlerton*	hton);
 
 /************************************************************************//**
 Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
@@ -3459,18 +3457,14 @@ innobase_end(
 	DBUG_RETURN(err);
 }
 
-/****************************************************************//**
-Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
-the logs, and the name of this function should be innobase_checkpoint.
-@return TRUE if error */
+/** Flush InnoDB redo logs to the file system.
+@param[in]	hton	InnoDB handlerton
+@return false */
 static
 bool
 innobase_flush_logs(
-/*================*/
-	handlerton*	hton)	/*!< in/out: InnoDB handlerton */
+	handlerton*	hton)
 {
-	bool	result = 0;
-
 	DBUG_ENTER("innobase_flush_logs");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -3478,7 +3472,7 @@ innobase_flush_logs(
 		log_buffer_flush_to_disk();
 	}
 
-	DBUG_RETURN(result);
+	DBUG_RETURN(false);
 }
 
 /*****************************************************************//**

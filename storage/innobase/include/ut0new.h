@@ -519,7 +519,7 @@ public:
 
 			deallocate(first);
 
-			return(NULL);
+			throw;
 		}
 
 		return(first);
