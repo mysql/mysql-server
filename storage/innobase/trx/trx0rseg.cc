@@ -203,6 +203,8 @@ trx_rseg_mem_create(
 	rseg->space = space;
 	rseg->page_size.copy_from(page_size);
 	rseg->page_no = page_no;
+	rseg->trx_ref_count = 0;
+	rseg->skip_allocation = false;
 
 	if (fsp_is_system_temporary(space)) {
 		mutex_create("noredo_rseg", &rseg->mutex);

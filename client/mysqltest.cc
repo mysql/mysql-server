@@ -1472,8 +1472,10 @@ static void cleanup_and_exit(int exit_code)
 
 void print_file_stack()
 {
-  for (struct st_test_file* err_file= cur_file;
-       err_file != file_stack;
+  fprintf(stderr, "file %s at line %d:\n",
+          cur_file->file_name, cur_file->lineno);
+  for (struct st_test_file* err_file= cur_file - 1;
+       err_file >= file_stack;
        err_file--)
   {
     fprintf(stderr, "included from %s at line %d:\n",
@@ -1500,8 +1502,7 @@ void die(const char *fmt, ...)
   fprintf(stderr, "mysqltest: ");
   if (cur_file && cur_file != file_stack)
   {
-    fprintf(stderr, "In included file \"%s\": \n",
-            cur_file->file_name);
+    fprintf(stderr, "In included ");
     print_file_stack();
   }
   
@@ -1539,8 +1540,7 @@ void abort_not_supported_test(const char *fmt, ...)
   /* Print include filestack */
   fprintf(stderr, "The test '%s' is not supported by this installation\n",
           file_stack->file_name);
-  fprintf(stderr, "Detected in file %s at line %d\n",
-          cur_file->file_name, cur_file->lineno);
+  fprintf(stderr, "Detected in ");
   print_file_stack();
 
   /* Print error message */
@@ -4920,9 +4920,77 @@ static bool kill_process(int pid)
 
   CloseHandle(proc);
 #else
-  killed= (kill(pid, 9) == 0);
+  killed= (kill(pid, SIGKILL) == 0);
 #endif
   return killed;
+}
+
+
+/**
+  Abort process.
+
+  @param pid  Process id.
+  @param path Path to create minidump file in.
+*/
+static void abort_process(int pid, const char *path)
+{
+#ifdef _WIN32
+  HANDLE proc;
+  proc= OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+  verbose_msg("Aborting pid %d (handle: %p)\n", pid, proc);
+  if (proc != NULL)
+  {
+    char name[FN_REFLEN], *end;
+    BOOL is_debugged;
+
+    if (path)
+    {
+      /* Append mysqld.<pid>.dmp to the path. */
+      strncpy(name, path, sizeof(name) - 1);
+      name[sizeof(name) - 1]= '\0';
+      end= name + strlen(name);
+      /* Make sure "/mysqld.nnnnnnnnnn.dmp" fits */
+      if ((end - name) < (sizeof(name) - 23))
+      {
+        if (end[-1] != FN_LIBCHAR && end[-1] != FN_LIBCHAR2)
+        {
+          end[0]= FN_LIBCHAR2;   // datadir path normally uses '/'.
+          end++;
+        }
+        my_snprintf(end, sizeof(name) + name - end - 1, "mysqld.%d.dmp", pid);
+
+        verbose_msg("Creating minidump.\n");
+        my_create_minidump(name, proc, pid);
+      }
+      else
+        die("Path too long for creating minidump!\n");
+    }
+    /* If running in a debugger, send a break, otherwise terminate. */
+    if (CheckRemoteDebuggerPresent(proc, &is_debugged) && is_debugged)
+    {
+      if (!DebugBreakProcess(proc))
+      {
+        DWORD err= GetLastError();
+        verbose_msg("DebugBreakProcess failed: %d\n", err);
+      }
+      else
+        verbose_msg("DebugBreakProcess succeeded!\n");
+      CloseHandle(proc);
+    }
+    else
+    {
+      CloseHandle(proc);
+      (void) kill_process(pid);
+    }
+  }
+  else
+  {
+    DWORD err= GetLastError();
+    verbose_msg("OpenProcess failed: %d\n", err);
+  }
+#else
+  kill(pid, SIGABRT);
+#endif
 }
 
 
@@ -4944,7 +5012,7 @@ void do_shutdown_server(struct st_command *command)
 {
   long timeout=60;
   int pid, error= 0;
-  DYNAMIC_STRING ds_pidfile_name;
+  DYNAMIC_STRING ds_file_name;
   MYSQL* mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
   const struct command_arg shutdown_args[] = {
@@ -4967,7 +5035,7 @@ void do_shutdown_server(struct st_command *command)
 
   /* Get the servers pid_file name and use it to read pid */
   if (query_get_string(mysql, "SHOW VARIABLES LIKE 'pid_file'", 1,
-                       &ds_pidfile_name))
+                       &ds_file_name))
     die("Failed to get pid_file from server");
 
   /* Read the pid from the file */
@@ -4975,9 +5043,9 @@ void do_shutdown_server(struct st_command *command)
     int fd;
     char buff[32];
 
-    if ((fd= my_open(ds_pidfile_name.str, O_RDONLY, MYF(0))) < 0)
-      die("Failed to open file '%s'", ds_pidfile_name.str);
-    dynstr_free(&ds_pidfile_name);
+    if ((fd= my_open(ds_file_name.str, O_RDONLY, MYF(0))) < 0)
+      die("Failed to open file '%s'", ds_file_name.str);
+    dynstr_free(&ds_file_name);
 
     if (my_read(fd, (uchar*)&buff,
                 sizeof(buff), MYF(0)) <= 0){
@@ -4994,10 +5062,24 @@ void do_shutdown_server(struct st_command *command)
 
   if (timeout)
   {
-    /* Tell server to shutdown if timeout > 0. */
-    if (mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
+    /* Check if we should generate a minidump on timeout. */
+    if (query_get_string(mysql, "SHOW VARIABLES LIKE 'core_file'", 1,
+                         &ds_file_name) || strcmp("ON", ds_file_name.str))
     {
-      error= -1;   /* Failed to issue shutdown command. */
+      dynstr_free(&ds_file_name);
+    }
+    else
+    {
+      /* Get the data dir and use it as path for a minidump if needed. */
+      if (query_get_string(mysql, "SHOW VARIABLES LIKE 'datadir'", 1,
+                           &ds_file_name))
+        die("Failed to get datadir from server");
+    }
+
+    /* Tell server to shutdown if timeout > 0. */
+    if (timeout > 0 && mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
+    {
+      error= 1;   /* Failed to issue shutdown command. */
       goto end;
     }
 
@@ -5007,17 +5089,22 @@ void do_shutdown_server(struct st_command *command)
       if (!is_process_active(pid))
       {
         DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
-        DBUG_VOID_RETURN;
+        goto end;
       }
-      if (timeout)
+      if (timeout > 0)
       {
         DBUG_PRINT("info", ("Sleeping, timeout: %ld", timeout));
         my_sleep(1000000L);
       }
     } while(timeout-- > 0);
-    error= -2;
+    error= 2;
+    /*
+      Abort to make it easier to find the hang/problem.
+    */
+    abort_process(pid, ds_file_name.str);
+    dynstr_free(&ds_file_name);
   }
-  else
+  else /* timeout == 0 */
   {
     /* Kill the server */
     DBUG_PRINT("info", ("Killing server, pid: %d", pid));
@@ -5026,7 +5113,7 @@ void do_shutdown_server(struct st_command *command)
       so also check if the process is active before setting error.
     */
     if (!kill_process(pid) && is_process_active(pid))
-      error= -3;
+      error= 3;
   }
 
 end:
