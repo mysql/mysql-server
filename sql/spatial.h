@@ -2518,6 +2518,7 @@ Gis_wkb_vector<T> &Gis_wkb_vector<T>::operator=(const Gis_wkb_vector<T> &rhs)
   if (m_owner == NULL)
     m_owner= rhs.get_owner();
 
+  size_t nbytes_free= get_nbytes_free();
   clear_wkb_data();
 
   if (rhs.get_ptr() == NULL)
@@ -2538,7 +2539,7 @@ Gis_wkb_vector<T> &Gis_wkb_vector<T>::operator=(const Gis_wkb_vector<T> &rhs)
     If have no enough space, reallocate with extra space padded with required
     bytes;
    */
-  if (m_ptr == NULL || current_size() + get_nbytes_free() < rhs.get_nbytes())
+  if (m_ptr == NULL || get_nbytes() + nbytes_free < rhs.get_nbytes())
   {
     gis_wkb_free(m_ptr);
     m_ptr= gis_wkb_alloc(rhs.get_nbytes() + 32/* some extra space. */);
@@ -2746,6 +2747,8 @@ void Gis_wkb_vector<T>::push_back(const T &val)
   DBUG_ASSERT(val.get_geotype() == wkb_point ||
               val.get_geotype() == wkb_polygon ||
               val.get_geotype() == wkb_linestring);
+
+  DBUG_ASSERT(val.get_ptr() != NULL);
 
   size_t cap= 0, nalloc= 0;
   size_t vallen, needed;
