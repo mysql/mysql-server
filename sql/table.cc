@@ -3700,8 +3700,6 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
     memcpy((char*) alias, tl->alias, length);
   }
 
-  tablenr= thd->current_tablenr++;
-  used_fields= 0;
   const_table= 0;
   null_row= 0;
   maybe_null= 0;
@@ -4320,7 +4318,7 @@ bool TABLE_LIST::check_single_table(TABLE_LIST **table_arg,
   {
     if (tbl->table)
     {
-      if (tbl->table->map & map)
+      if (tbl->map() & map)
       {
 	if (*table_arg)
 	  return TRUE;

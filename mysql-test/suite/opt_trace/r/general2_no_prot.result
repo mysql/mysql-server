@@ -982,6 +982,12 @@ TRACE
                 "table": "`t2`"
               }
             ] /* refine_plan */
+          },
+          {
+            "sort_using_internal_table": {
+              "condition_for_sort": "(not(<in_optimizer>(<cache>(('v','i')),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))",
+              "having_after_sort": null
+            } /* sort_using_internal_table */
           }
         ] /* steps */
       } /* join_optimization */

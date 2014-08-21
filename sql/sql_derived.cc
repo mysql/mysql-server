@@ -333,7 +333,7 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
   */
   if (!derived->uses_materialization() || !table || table->is_created() ||
       (derived->select_lex->join != NULL &&
-       (derived->select_lex->join->const_table_map & table->map)))
+       (derived->select_lex->join->const_table_map & derived->map())))
   {
     /*
       At this point, JT_CONST derived tables should be null rows. Otherwise

@@ -2066,13 +2066,18 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
                    ((Item_ref*)(item_i))->ref_type() == Item_ref::OUTER_REF));
       if (item_i-> check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
+      Item_ref *const left=
+        new Item_ref(&select_lex->context,
+                     (*optimizer->get_cache())->addr(i),
+                     (char *)"<no matter>", (char *)in_left_expr_name);
+      if (left == NULL)
+        DBUG_RETURN(RES_ERROR);              /* purecov: inspected */
+
+      // Make the left expression "outer" relative to the subquery
+      if (!left_expr->element_index(i)->const_item())
+        left->depended_from= select_lex->outer_select();
       Item_bool_func *item_eq=
-        new Item_func_eq(new
-                         Item_ref(&select_lex->context,
-                                  (*optimizer->get_cache())->
-                                  addr(i),
-                                  (char *)"<no matter>",
-                                  (char *)in_left_expr_name),
+        new Item_func_eq(left,
                          new
                          Item_ref(&select_lex->context,
                                   pitem_i,
@@ -3077,13 +3082,14 @@ bool subselect_indexsubquery_engine::exec()
   DBUG_ENTER("subselect_indexsubquery_engine::exec");
   int error;
   bool null_finding= 0;
-  TABLE *table= tab->table();
+  TABLE *const table= tab->table();
   uchar *key;
   uint key_length;
   key_part_map key_parts_map;
   ulonglong tmp_hash;
+
   // 'tl' is NULL if this is a tmp table created by subselect_hash_sj_engine.
-  TABLE_LIST *tl= table->pos_in_table_list;
+  TABLE_LIST *const tl= tab->table_ref;
   Item_in_subselect *const item_in= static_cast<Item_in_subselect*>(item);
   item_in->value= false;
   table->status= 0;
@@ -3259,7 +3265,7 @@ table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
   {
     TABLE *tbl= table->table;
     if (tbl && tbl->const_table)
-      map|= tbl->map;
+      map|= table->map();
   }
   return map;
 }
@@ -3324,8 +3330,7 @@ void subselect_indexsubquery_engine::print(String *str,
   tab->ref().items[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" in "));
   TABLE *const table= tab->table();
-  if (table->pos_in_table_list &&
-      table->pos_in_table_list->uses_materialization())
+  if (tab->table_ref && tab->table_ref->uses_materialization())
   {
     /*
       For materialized derived tables/views use table/view alias instead of
