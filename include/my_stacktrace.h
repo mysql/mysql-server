@@ -36,6 +36,7 @@ char *my_demangle(const char *mangled_name, int *status);
 #endif
 #ifdef _WIN32
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
+void my_create_minidump(const char *name, HANDLE process, DWORD pid);
 #endif
 #endif /* HAVE_BACKTRACE || HAVE_PRINTSTACK || _WIN32 */
 

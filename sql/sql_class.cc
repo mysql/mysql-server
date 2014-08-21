@@ -64,6 +64,7 @@
 #include "mysqld_thd_manager.h"           // Global_THD_manager
 #include "sql_timer.h"                          // thd_timer_destroy
 #include "parse_tree_nodes.h"
+#include "sql_prepare.h"                  // Prepared_statement
 
 #include <mysql/psi/mysql_statement.h>
 #include "mysql/psi/mysql_ps.h"
@@ -895,8 +896,12 @@ void Open_tables_state::reset_open_tables_state()
 
 
 THD::THD(bool enable_plugins)
-   :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
-              /* statement id */ 0),
+  :Query_arena(&main_mem_root, STMT_CONVENTIONAL_EXECUTION),
+   mark_used_columns(MARK_COLUMNS_READ),
+   lex(&main_lex),
+   m_query_string(NULL_CSTR),
+   db(NULL),
+   db_length(0),
    rli_fake(0), rli_slave(NULL),
 #ifdef EMBEDDED_LIBRARY
    mysql(NULL),
@@ -3388,13 +3393,6 @@ void select_dumpvar::cleanup()
 }
 
 
-Query_arena::Type Query_arena::type() const
-{
-  DBUG_ASSERT(0); /* Should never be called */
-  return STATEMENT;
-}
-
-
 void Query_arena::free_items()
 {
   Item *next;
@@ -3421,60 +3419,6 @@ void Query_arena::set_query_arena(Query_arena *set)
 void Query_arena::cleanup_stmt()
 {
   DBUG_ASSERT(! "Query_arena::cleanup_stmt() not implemented");
-}
-
-/*
-  Statement functions
-*/
-
-Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
-                     enum_state state_arg, ulong id_arg)
-  :Query_arena(mem_root_arg, state_arg),
-  id(id_arg),
-  mark_used_columns(MARK_COLUMNS_READ),
-  lex(lex_arg),
-  db(NULL),
-  db_length(0)
-{
-  name.str= NULL;
-  m_query_string= NULL_CSTR;
-}
-
-
-Query_arena::Type Statement::type() const
-{
-  return STATEMENT;
-}
-
-
-void Statement::set_statement(Statement *stmt)
-{
-  id=             stmt->id;
-  mark_used_columns=   stmt->mark_used_columns;
-  lex=            stmt->lex;
-  set_query(stmt->query());
-}
-
-
-void THD::set_n_backup_statement(Statement *stmt, Statement *backup)
-{
-  DBUG_ENTER("Statement::set_n_backup_statement");
-  mysql_mutex_lock(&LOCK_thd_data);
-  backup->set_statement(this);
-  set_statement(stmt);
-  mysql_mutex_unlock(&LOCK_thd_data);
-  DBUG_VOID_RETURN;
-}
-
-
-void THD::restore_backup_statement(Statement *stmt, Statement *backup)
-{
-  DBUG_ENTER("Statement::restore_backup_statement");
-  mysql_mutex_lock(&LOCK_thd_data);
-  stmt->set_statement(this);
-  set_statement(backup);
-  mysql_mutex_unlock(&LOCK_thd_data);
-  DBUG_VOID_RETURN;
 }
 
 
@@ -3519,28 +3463,24 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
   DBUG_VOID_RETURN;
 }
 
-Statement::~Statement()
-{
-}
-
 C_MODE_START
 
 static uchar *
 get_statement_id_as_hash_key(const uchar *record, size_t *key_length,
                              my_bool not_used __attribute__((unused)))
 {
-  const Statement *statement= (const Statement *) record; 
+  const Prepared_statement *statement= (const Prepared_statement *) record;
   *key_length= sizeof(statement->id);
-  return (uchar *) &((const Statement *) statement)->id;
+  return (uchar *) &((const Prepared_statement *) statement)->id;
 }
 
 static void delete_statement_as_hash_key(void *key)
 {
-  delete (Statement *) key;
+  delete (Prepared_statement *) key;
 }
 
-static uchar *get_stmt_name_hash_key(Statement *entry, size_t *length,
-                                    my_bool not_used __attribute__((unused)))
+static uchar *get_stmt_name_hash_key(Prepared_statement *entry, size_t *length,
+                                     my_bool not_used __attribute__((unused)))
 {
   *length= entry->name.length;
   return (uchar*) entry->name.str;
@@ -3548,8 +3488,8 @@ static uchar *get_stmt_name_hash_key(Statement *entry, size_t *length,
 
 C_MODE_END
 
-Statement_map::Statement_map() :
-  last_found_statement(0)
+Prepared_statement_map::Prepared_statement_map()
+ :m_last_found_statement(NULL)
 {
   enum
   {
@@ -3565,28 +3505,7 @@ Statement_map::Statement_map() :
 }
 
 
-/*
-  Insert a new statement to the thread-local statement map.
-
-  DESCRIPTION
-    If there was an old statement with the same name, replace it with the
-    new one. Otherwise, check if max_prepared_stmt_count is not reached yet,
-    increase prepared_stmt_count, and insert the new statement. It's okay
-    to delete an old statement and fail to insert the new one.
-
-  POSTCONDITIONS
-    All named prepared statements are also present in names_hash.
-    Statement names in names_hash are unique.
-    The statement is added only if prepared_stmt_count < max_prepard_stmt_count
-    last_found_statement always points to a valid statement or is 0
-
-  RETURN VALUE
-    0  success
-    1  error: out of resources or max_prepared_stmt_count limit has been
-       reached. An error is sent to the client, the statement is deleted.
-*/
-
-int Statement_map::insert(THD *thd, Statement *statement)
+int Prepared_statement_map::insert(THD *thd, Prepared_statement *statement)
 {
   if (my_hash_insert(&st_hash, (uchar*) statement))
   {
@@ -3621,7 +3540,7 @@ int Statement_map::insert(THD *thd, Statement *statement)
   prepared_stmt_count++;
   mysql_mutex_unlock(&LOCK_prepared_stmt_count);
 
-  last_found_statement= statement;
+  m_last_found_statement= statement;
   return 0;
 
 err_max:
@@ -3634,10 +3553,32 @@ err_st_hash:
 }
 
 
-void Statement_map::erase(Statement *statement)
+Prepared_statement *Prepared_statement_map::find_by_name(LEX_STRING *name)
 {
-  if (statement == last_found_statement)
-    last_found_statement= 0;
+  return reinterpret_cast<Prepared_statement*>
+    (my_hash_search(&names_hash, (uchar*)name->str, name->length));
+}
+
+
+Prepared_statement *Prepared_statement_map::find(ulong id)
+{
+  if (m_last_found_statement == NULL || id != m_last_found_statement->id)
+  {
+    Prepared_statement *stmt=
+      reinterpret_cast<Prepared_statement*>
+      (my_hash_search(&st_hash, (uchar *) &id, sizeof(id)));
+    if (stmt && stmt->name.str)
+      return NULL;
+    m_last_found_statement= stmt;
+  }
+  return m_last_found_statement;
+}
+
+
+void Prepared_statement_map::erase(Prepared_statement *statement)
+{
+  if (statement == m_last_found_statement)
+    m_last_found_statement= NULL;
   if (statement->name.str)
     my_hash_delete(&names_hash, (uchar *) statement);
 
@@ -3649,7 +3590,7 @@ void Statement_map::erase(Statement *statement)
 }
 
 
-void Statement_map::reset()
+void Prepared_statement_map::reset()
 {
   /* Must be first, hash_free will reset st_hash.records */
   if (st_hash.records > 0)
@@ -3657,7 +3598,8 @@ void Statement_map::reset()
 #ifdef HAVE_PSI_PS_INTERFACE
     for (uint i=0 ; i < st_hash.records ; i++)
     {
-      Statement *stmt= (Statement *)my_hash_element(&st_hash, i);
+      Prepared_statement *stmt=
+        reinterpret_cast<Prepared_statement *>(my_hash_element(&st_hash, i));
       MYSQL_DESTROY_PS(stmt->get_PS_prepared_stmt());
     }
 #endif
@@ -3668,11 +3610,11 @@ void Statement_map::reset()
   }
   my_hash_reset(&names_hash);
   my_hash_reset(&st_hash);
-  last_found_statement= 0;
+  m_last_found_statement= NULL;
 }
 
 
-Statement_map::~Statement_map()
+Prepared_statement_map::~Prepared_statement_map()
 {
   /*
     We do not want to grab the global LOCK_prepared_stmt_count mutex here.
@@ -3683,6 +3625,7 @@ Statement_map::~Statement_map()
   my_hash_free(&names_hash);
   my_hash_free(&st_hash);
 }
+
 
 bool select_dumpvar::send_data(List<Item> &items)
 {
@@ -4533,13 +4476,11 @@ void THD::set_command(enum enum_server_command command)
 }
 
 
-/** Assign a new value to thd->query.  */
-
 void THD::set_query(const LEX_CSTRING& query_arg)
 {
   DBUG_ASSERT(this == current_thd);
   mysql_mutex_lock(&LOCK_thd_query);
-  Statement::set_query(query_arg);
+  m_query_string= query_arg;
   mysql_mutex_unlock(&LOCK_thd_query);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE

@@ -368,6 +368,20 @@ trx_undo_free_prepared(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: PREPARED transaction */
 	UNIV_COLD __attribute__((nonnull));
+
+/* Forward declaration. */
+namespace undo {
+	class Truncate;
+};
+
+/** Truncate UNDO tablespace, reinitialize header and rseg.
+@param[in]	undo_trunc	UNDO tablespace handler
+@return true if success else false. */
+
+bool
+trx_undo_truncate_tablespace(
+	undo::Truncate*	undo_trunc);
+
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses the redo log entry of an undo log page initialization.
