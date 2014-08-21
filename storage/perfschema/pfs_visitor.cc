@@ -590,7 +590,7 @@ void PFS_object_iterator::visit_all_tables(PFS_object_visitor *visitor)
   PFS_table_share *share_last= table_share_array + table_share_max;
   for ( ; share < share_last; share++)
   {
-    if (share->m_lock.is_populated())
+    if (share->m_lock.is_populated() && share->m_enabled)
     {
       visitor->visit_table_share(share);
     }
@@ -603,7 +603,9 @@ void PFS_object_iterator::visit_all_tables(PFS_object_visitor *visitor)
   {
     if (table->m_lock.is_populated())
     {
-      visitor->visit_table(table);
+      PFS_table_share *safe_share= sanitize_table_share(table->m_share);
+      if (safe_share != NULL && safe_share->m_enabled)
+        visitor->visit_table(table);
     }
   }
 }
@@ -612,6 +614,9 @@ void PFS_object_iterator::visit_tables(PFS_table_share *share,
                                        PFS_object_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+
+  if (!share->m_enabled)
+    return;
 
   visitor->visit_table_share(share);
 
@@ -632,6 +637,9 @@ void PFS_object_iterator::visit_table_indexes(PFS_table_share *share,
                                               PFS_object_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+
+  if(!share->m_enabled)
+    return;
 
   visitor->visit_table_share_index(share, index);
 
