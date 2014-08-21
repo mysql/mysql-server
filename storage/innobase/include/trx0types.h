@@ -187,6 +187,20 @@ public:
 		m_rsegs.push_back(rseg);
 	}
 
+	/** Erase the element pointed by given iterator.
+	@param[in]	iterator	iterator */
+	void erase(iterator& it)
+	{
+		m_rsegs.erase(it);
+	}
+
+	/** Number of registered rsegs.
+	@return size of rseg list. */
+	ulint size() const
+	{
+		return(m_rsegs.size());
+	}
+
 	/**
 	@return an iterator to the first element */
 	iterator begin()
