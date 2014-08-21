@@ -15758,7 +15758,7 @@ ha_ndbcluster::cond_push(const Item *cond)
   DBUG_ENTER("ha_ndbcluster::cond_push");
 
 #if 1
-  if (cond->used_tables() & ~table->map)
+  if (cond->used_tables() & ~table->pos_in_table_list->map())
   {
     /**
      * 'cond' refers fields from other tables, or other instances 
@@ -15775,7 +15775,7 @@ ha_ndbcluster::cond_push(const Item *cond)
     or other instances of this table.
     (This was a legacy bug in optimizer)
   */
-  DBUG_ASSERT(!(cond->used_tables() & ~table->map));
+  DBUG_ASSERT(!(cond->used_tables() & ~table->pos_in_table_list->map()));
 #endif
   if (!m_cond) 
     m_cond= new ha_ndbcluster_cond;
