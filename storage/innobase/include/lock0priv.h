@@ -569,14 +569,28 @@ public:
 				prdt = NULL);
 
 	/**
-	@param[in] rhs			Lock to compare with
-	@return true if the record lock equals rhs */
-	bool is_equal(const lock_t* rhs) const;
+	Equivalent means, <type, space, page_no, heap_no, trx> only,
+	mode is ignored in the comparison.
+	@param[in] lhs			Lock to compare
+	@param[in] rhs			Lock to compare
+	@return true if the record lock is equivalent rhs */
+	bool is_equivalent(const lock_t* lhs, const lock_t* rhs) const;
 
 	/**
-	@return the first matching lock on in the "list",
-		the "head" of the list */
-	const lock_t* first_lock() const;
+	Check of the lock is on m_rec_id.
+	@param[in] lock			Lock to compare with
+	@return true if the record lock is on m_rec_id*/
+	bool is_on_row(const lock_t* lock) const;
+
+	/**
+	Check that the first lock matches the passed in lock. It is possible
+	that it is not actually the first lock. The first record lock must
+	be on the same rec and held by the same transaction. This happen
+	for example  if the transaction initially had an X lock with the
+	NO_GAP set and later widened the lock to a GAP lock.
+	@param first			Expected first lock
+	@return true if it holds */
+	bool is_first_lock(const lock_t* first) const;
 
 	/**
 	Create the lock instance
