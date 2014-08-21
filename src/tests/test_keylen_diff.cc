@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuDB, Tokutek Fractal Tree Indexing Library.
+  TokuFT, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2014 Tokutek, Inc.
 
 DISCLAIMER:
