@@ -2833,6 +2833,92 @@ field9, field10, field11, field12, field13, field14, field15, field16,
 field17, alias1 . `col_date_key` , alias2 .`pk` ASC  );
 field1	field2	field3	field4	field5	field6	field7	field8	field9	field10	field11	field12	field13	field14	field15	field16	field17
 DROP TABLE C,CC,transforms;
+#
+# BUG#19274972: RESULT DIFF SEEN FOR QUERIES WITH
+#               DISTINCT AND ORDER BY
+#
+CREATE TABLE t1 (
+col_varchar_10_latin1_key varchar(10),
+pk int(11) NOT NULL,
+col_varchar_10_latin1 varchar(10),
+col_int_key int(11),
+PRIMARY KEY (pk),
+KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+('OAYEP',1,'yeah',183566336),
+('u',2,'vvgnejnnoj',-638058496),
+('h',3,'LJKVO',2),
+('x',4,'l',-1954938880),
+('JVYHY',5,'at',9),
+('b',6,'ojcnhnzfih',1995505664),
+('she',7,'jcnhnzfihl',6),
+('BTXLX',8,'GONBZ',162267136),
+('d',9,'nhnzfihlaj',8),
+('VSOED',10,'q',2),
+('nzfihlajoz',11,'o',8),
+('WCJYY',12,'FQNYF',-1901068288),
+('r' ,13,'f',-220659712),
+('u',14,'f',6),
+('DFKKY',15,'ozgqcypkrh',1),
+('if',16,'it',8),
+('from',17,'KKFED',-1065615360),
+('IBMRH',18,'back',5),
+('pkrhtylkoy',19,'WELBV',2),
+('b',20,'d',2131558400);
+CREATE TABLE t2 (
+col_varchar_1024_utf8_key varchar(1024),
+pk int(11) NOT NULL,
+col_varchar_1024_latin1_key varchar(1024),
+col_int_key int(11),
+PRIMARY KEY (pk),
+KEY col_varchar_1024_utf8_key (col_varchar_1024_utf8_key(333)),
+KEY col_varchar_1024_latin1_key (col_varchar_1024_latin1_key(1000)),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+('MFDLE',1,'no',1358168064),
+('v',2,'really',154664960),
+(repeat('mcrxjxxfpo',100),3,repeat('mcrxjxxfpo',100),1),
+('o',4,'CEJHM',3),
+('j',5,'CRDLM',174915584),
+('m',6,'that\'s',7),
+('YVMBM',7,'is',4),
+('h',8,'as',8),
+('y',9,'not',686096384),
+('m',10,repeat('mcrxjxxfpo',100),8),
+(repeat('mcrxjxxfpo',100),11,'v',2),
+('and', 12,'b',6),
+('from',13,'OJSUT',9),
+('you',14,repeat('mcrxjxxfpo',100),1),
+('mr',15,'ZMJFI',9),
+('TYZOE',16,'I\'ll',-363069440),
+('HLKEJ',17,'v',-767492096),
+('OINER',18,repeat('mcrxjxxfpo',100),-102170624),
+(repeat('mcrxjxxfpo',100),19,'i',7),
+('one',20,'CPIUQ',469303296),
+(repeat('mcrxjxxfpo',100),21,'IGLXO',1140391936),
+('ERRUY',22,'WKQHJ',1),
+('q',23,repeat('mcrxjxxfpo',100),1694564352),
+('CYGKG',24,'o',7),
+('BIWWF',25,'good',-1532035072);
+SELECT DISTINCT
+table1.col_varchar_1024_latin1_key AS field1,
+table1.col_varchar_1024_latin1_key AS field2
+FROM
+t2 AS table1 RIGHT JOIN t1 AS table2 ON table1.pk = table2.col_int_key
+WHERE
+table1.col_int_key NOT BETWEEN 7 AND ( 7 + 1000 ) OR table1.pk >= 7
+AND  table1.col_varchar_1024_utf8_key < table2.col_varchar_10_latin1_key
+ORDER BY field1,field2 DESC;
+field1	field2
+as	as
+CRDLM	CRDLM
+no	no
+not	not
+really	really
+DROP TABLE t1,t2;
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
 #
