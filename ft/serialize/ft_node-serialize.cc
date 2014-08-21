@@ -101,6 +101,7 @@ PATENT RIGHTS GRANT:
 #include "ft/serialize/block_table.h"
 #include "ft/serialize/compress.h"
 #include "ft/serialize/ft_node-serialize.h"
+#include "ft/serialize/sub_block.h"
 #include "util/sort.h"
 #include "util/threadpool.h"
 #include "util/status.h"
@@ -247,9 +248,6 @@ enum {
                             4+   // layout_version_original
                             4),  // build_id
 };
-
-#include "sub_block.h"
-#include "sub_block_map.h"
 
 // uncompressed header offsets
 enum {
@@ -1713,12 +1711,15 @@ deserialize_and_upgrade_internal_node(FTNODE node,
     }
 
     // Read in the child buffer maps.
-    struct sub_block_map child_buffer_map[node->n_children];
     for (int i = 0; i < node->n_children; ++i) {
-        // The following fields are read in the
-        // sub_block_map_deserialize() call:
-        // 19. index 20. offset 21. size
-        sub_block_map_deserialize(&child_buffer_map[i], rb);
+        // The following fields were previously used by the `sub_block_map'
+        // They include:
+        // - 4 byte index
+        (void) rbuf_int(rb);
+        // - 4 byte offset
+        (void) rbuf_int(rb);
+        // - 4 byte size
+        (void) rbuf_int(rb);
     }
 
     // We need to setup this node's partitions, but we can't call the
@@ -1838,9 +1839,15 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
 
     // 11. Deserialize the partition maps, though they are not used in the
     // newer versions of ftnodes.
-    struct sub_block_map part_map[npartitions];
-    for (int i = 0; i < npartitions; ++i) {
-        sub_block_map_deserialize(&part_map[i], rb);
+    for (int i = 0; i < node->n_children; ++i) {
+        // The following fields were previously used by the `sub_block_map'
+        // They include:
+        // - 4 byte index
+        (void) rbuf_int(rb);
+        // - 4 byte offset
+        (void) rbuf_int(rb);
+        // - 4 byte size
+        (void) rbuf_int(rb);
     }
 
     // Copy all of the leaf entries into the single basement node.
