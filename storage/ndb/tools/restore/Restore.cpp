@@ -321,11 +321,25 @@ RestoreMetaData::readMetaTableList() {
   const Uint32 tabCount = sectionInfo[1] - 2;
 
   void *tmp;
-  if (buffer_get_ptr(&tmp, 4, tabCount) != tabCount){
-    err << "readMetaTableList read tabCount error" << endl;
+  Uint32 tabsRead = 0;
+  while (tabsRead < tabCount){
+    int count = buffer_get_ptr(&tmp, 4, tabCount - tabsRead);
+    if(count == 0)
+      break;
+    tabsRead += count;
+  }
+  if (tabsRead != tabCount){
+    err << "readMetaTableList read tabCount error, expected count = " << tabCount << ", actual count =" << tabsRead << endl;
     return 0;
   }
-  
+#ifndef DBUG_OFF
+  if(m_error_insert == NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER)
+  {
+    // clear error insert
+    m_error_insert = 0;
+    m_buffer_sz = 64*1024;
+  }
+#endif  
   return tabCount;
 }
 
@@ -1316,6 +1330,9 @@ BackupFile::BackupFile(void (* _free_data_callback)())
   m_file_size = 0;
   m_file_pos = 0;
   m_is_undolog = false;
+#ifndef DBUG_OFF
+  m_error_insert = 0;
+#endif
 }
 
 BackupFile::~BackupFile()
@@ -1658,6 +1675,20 @@ bool
 BackupFile::validateFooter(){
   return true;
 }
+
+#ifndef DBUG_OFF
+void BackupFile::error_insert(unsigned int code)
+{
+  if(code == NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER)
+  {
+    // Reduce size of buffer to test buffer overflow
+    // handling. The buffer must still be large enough to
+    // accommodate the file header.
+    m_buffer_sz = 256;
+    m_error_insert = NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER;
+  }
+}
+#endif
 
 bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
 {
