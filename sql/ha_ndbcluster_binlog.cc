@@ -2411,19 +2411,20 @@ class Ndb_schema_event_handler {
 
     uint32 thd_server_id_save= thd->server_id;
     DBUG_ASSERT(sizeof(thd_server_id_save) == sizeof(thd->server_id));
-    char *thd_db_save= thd->db;
+    LEX_CSTRING thd_db_save= thd->db();
     thd->server_id = loggedServerId;
-    thd->db= schema->db;
+    LEX_CSTRING schema_db_lex_cstr= {schema->db, strlen(schema->db)};
+    thd->reset_db(schema_db_lex_cstr);
     int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
     thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
                       schema->query_length, FALSE,
   #ifdef NDB_THD_BINLOG_QUERY_HAS_DIRECT
                       TRUE,
   #endif
-                      schema->name[0] == 0 || thd->db[0] == 0,
+                      schema->name[0] == 0 || thd->db().str[0] == 0,
                       errcode);
     thd->server_id= thd_server_id_save;
-    thd->db= thd_db_save;
+    thd->reset_db(thd_db_save);
 
     // Commit the binlog write
     (void)trans_commit_stmt(thd);
@@ -6724,7 +6725,7 @@ injectApplyStatusWriteRow(injector::transaction& trans,
   apply_status_table->field[3]->store((longlong)0, true);
   apply_status_table->field[4]->store((longlong)0, true);
 #ifndef DBUG_OFF
-  const LEX_STRING& name= apply_status_table->s->table_name;
+  const LEX_STRING &name= apply_status_table->s->table_name;
   DBUG_PRINT("info", ("use_table: %.*s",
                       (int) name.length, name.str));
 #endif
@@ -7101,8 +7102,8 @@ restart_cluster_failure:
   ndb_notify_tables_writable();
 
   {
-    static char db[]= "";
-    thd->db= db;
+    static LEX_CSTRING db_lex_cstr= EMPTY_CSTR;
+    thd->reset_db(db_lex_cstr);
   }
 
   log_verbose(1, "Startup and setup completed");
@@ -7643,7 +7644,7 @@ restart_cluster_failure:
   injector_ndb= 0;
   schema_ndb= 0;
   native_mutex_unlock(&injector_mutex);
-  thd->db= 0; // as not to try to free memory
+  thd->reset_db(NULL_CSTR); // as not to try to free memory
 
   /*
     This will cause the util thread to start to try to initialize again

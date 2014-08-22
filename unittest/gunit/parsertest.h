@@ -1,6 +1,6 @@
 #ifndef PARSERTEST_INCLUDED
 #define PARSERTEST_INCLUDED
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,12 +64,13 @@ protected:
     Mock_error_handler handler(thd(), expected_error_code);
     lex_start(thd());
 
-    if (thd()->db == NULL)
+    if (thd()->db().str == NULL)
     {
       // The THD DTOR will do my_free() on this.
       char *db= static_cast<char*>(my_malloc(PSI_NOT_INSTRUMENTED, 3, MYF(0)));
       sprintf(db, "db");
-      thd()->db= db;
+      LEX_CSTRING db_lex_cstr= { db, strlen(db) };
+      thd()->reset_db(db_lex_cstr);
     }
 
     lex_start(thd());

@@ -437,8 +437,7 @@ private:
     the THD of that thread); that thread is (and must remain, for now) the
     only responsible for freeing this member.
   */
-  char *db;
-  size_t db_length;
+  LEX_CSTRING m_db;
 
   /**
     The memory root to allocate parsed tree elements (instances of Item,
@@ -468,7 +467,7 @@ public:
   void deallocate();
 private:
   void setup_set_params();
-  bool set_db(const char *db, size_t db_length);
+  bool set_db(const LEX_CSTRING &db_length);
   bool set_parameters(String *expanded_query,
                       uchar *packet, uchar *packet_end);
   bool execute(String *expanded_query, bool open_cursor);

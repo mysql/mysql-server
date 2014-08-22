@@ -4652,7 +4652,7 @@ err:
                   mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
   (void) RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
   thd->reset_query();
-  thd->reset_db(NULL, 0);
+  thd->reset_db(NULL_CSTR);
   if (mysql)
   {
     /*
@@ -6091,7 +6091,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   */
   thd->set_catalog(NULL_CSTR);
   thd->reset_query();
-  thd->reset_db(NULL, 0);
+  thd->reset_db(NULL_CSTR);
 
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&rli->run_lock);

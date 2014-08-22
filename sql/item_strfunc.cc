@@ -2325,13 +2325,13 @@ String *Item_func_database::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   THD *thd= current_thd;
-  if (thd->db == NULL)
+  if (thd->db().str == NULL)
   {
     null_value= 1;
     return 0;
   }
   else
-    str->copy(thd->db, thd->db_length, system_charset_info);
+    str->copy(thd->db().str, thd->db().length, system_charset_info);
   return str;
 }
 

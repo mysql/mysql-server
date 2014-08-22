@@ -2811,12 +2811,12 @@ static void print_join(THD *thd,
 */
 bool db_is_default_db(const char *db, size_t db_len, const THD *thd)
 {
-  return thd != NULL && thd->db != NULL &&
-    thd->db_length == db_len && !memcmp(db, thd->db, db_len);
+  return thd != NULL && thd->db().str != NULL &&
+    thd->db().length == db_len && !memcmp(db, thd->db().str, db_len);
 }
 
 
-/**
+/*.*
   Print table as it should be in join list.
 
   @param str   string where table should be printed

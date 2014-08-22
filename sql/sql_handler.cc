@@ -88,8 +88,9 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *table);
     Pointer to the TABLE_LIST struct.
 */
 
-static char *mysql_ha_hash_get_key(TABLE_LIST *tables, size_t *key_len_p,
-                                   my_bool first __attribute__((unused)))
+static const char *mysql_ha_hash_get_key(TABLE_LIST *tables,
+                                         size_t *key_len_p,
+                                         my_bool first __attribute__((unused)))
 {
   *key_len_p= strlen(tables->alias) + 1 ; /* include '\0' in comparisons */
   return tables->alias;
@@ -240,9 +241,10 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   hash_tables->table_name= name;
   hash_tables->alias= alias;
   hash_tables->set_tableno(0);
-  memcpy(hash_tables->db, tables->db, dblen);
-  memcpy(hash_tables->table_name, tables->table_name, namelen);
-  memcpy(hash_tables->alias, tables->alias, aliaslen);
+  memcpy(const_cast<char*>(hash_tables->db), tables->db, dblen);
+  memcpy(const_cast<char*>(hash_tables->table_name),
+         tables->table_name, namelen);
+  memcpy(const_cast<char*>(hash_tables->alias), tables->alias, aliaslen);
   /*
     We can't request lock with explicit duration for this table
     right from the start as open_tables() can't handle properly

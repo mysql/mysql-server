@@ -3113,8 +3113,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   flags((uint) IS_IN_USE),
   with_log(false),
   m_name(NULL_CSTR),
-  db(NULL),
-  db_length(0)
+  m_db(NULL_CSTR)
 {
   init_sql_alloc(key_memory_prepared_statement_main_mem_root,
                  &main_mem_root, thd_arg->variables.query_alloc_block_size,
@@ -3221,20 +3220,19 @@ bool Prepared_statement::set_name(const LEX_CSTRING &name_arg)
 */
 
 bool
-Prepared_statement::set_db(const char *db_arg, size_t db_length_arg)
+Prepared_statement::set_db(const LEX_CSTRING &db_arg)
 {
   /* Remember the current database. */
-  if (db_arg && db_length_arg)
+  if (db_arg.str && db_arg.length)
   {
-    db= this->strmake(db_arg, db_length_arg);
-    db_length= db_length_arg;
+    m_db.str= this->strmake(db_arg.str, db_arg.length);
+    m_db.length= db_arg.length;
   }
   else
   {
-    db= NULL;
-    db_length= 0;
+    m_db= NULL_CSTR;
   }
-  return db_arg != NULL && db == NULL;
+  return db_arg.str != NULL && m_db.str == NULL;
 }
 
 /**************************************************************************
@@ -3283,7 +3281,7 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   if (! (lex= new (mem_root) st_lex_local))
     DBUG_RETURN(TRUE);
 
-  if (set_db(thd->db, thd->db_length))
+  if (set_db(thd->db()))
     DBUG_RETURN(TRUE);
 
   /*
@@ -3667,7 +3665,6 @@ Prepared_statement::reprepare()
   char saved_cur_db_name_buf[NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
-  LEX_STRING stmt_db_name= { db, db_length };
   bool cur_db_changed;
   bool error;
 
@@ -3677,7 +3674,7 @@ Prepared_statement::reprepare()
 
   thd->status_var.com_stmt_reprepare++;
 
-  if (mysql_opt_change_db(thd, &stmt_db_name, &saved_cur_db_name, TRUE,
+  if (mysql_opt_change_db(thd, m_db, &saved_cur_db_name, TRUE,
                           &cur_db_changed))
     return TRUE;
 
@@ -3686,7 +3683,7 @@ Prepared_statement::reprepare()
           validate_metadata(&copy));
 
   if (cur_db_changed)
-    mysql_change_db(thd, &saved_cur_db_name, TRUE);
+    mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), TRUE);
 
   if (! error)
   {
@@ -3787,9 +3784,9 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
   /* Swap names, the old name is allocated in the wrong memory root */
   swap_variables(LEX_CSTRING, m_name, copy->m_name);
   /* Ditto */
-  swap_variables(char *, db, copy->db);
+  swap_variables(LEX_CSTRING, m_db, copy->m_db);
 
-  DBUG_ASSERT(db_length == copy->db_length);
+  DBUG_ASSERT(m_db.length == copy->m_db.length);
   DBUG_ASSERT(param_count == copy->param_count);
   DBUG_ASSERT(thd == copy->thd);
   last_error[0]= '\0';
@@ -3828,8 +3825,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;
-
-  LEX_STRING stmt_db_name= { db, db_length };
 
   thd->status_var.com_stmt_execute++;
 
@@ -3898,8 +3893,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     NULL (prepared statements can be created while no current database
     selected).
   */
-
-  if (mysql_opt_change_db(thd, &stmt_db_name, &saved_cur_db_name, TRUE,
+  if (mysql_opt_change_db(thd, m_db, &saved_cur_db_name, TRUE,
                           &cur_db_changed))
   {
     flags&= ~ (uint) IS_IN_USE;
@@ -3957,7 +3951,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       PSI_statement_locker *parent_locker;
       MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                              thd->thread_id(),
-                             (char *) (thd->db ? thd->db : ""),
+                             (char *) (thd->db().str != NULL ?
+                                       thd->db().str : ""),
                              &thd->security_ctx->priv_user[0],
                              (char *) thd->security_ctx->host_or_ip,
                              1);
@@ -4001,7 +3996,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   */
 
   if (cur_db_changed)
-    mysql_change_db(thd, &saved_cur_db_name, TRUE);
+    mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true);
 
   /* Assert that if an error, no cursor is open */
   DBUG_ASSERT(! (error && cursor));
