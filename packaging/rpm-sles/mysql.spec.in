@@ -54,6 +54,11 @@
 %global license_type          GPLv2
 %endif
 
+%if 0%{?sles_version} == 011
+%global dist                  .sles11
+%global sles11                1
+%endif
+
 Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
@@ -77,6 +82,7 @@ BuildRequires:  libaio-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
+%{?sles11:BuildRequires: gcc47 gcc47-c++}
 %if 0%{?systemd}
 BuildRequires:  systemd
 %endif
@@ -146,6 +152,9 @@ PreReq:         insserv
 PreReq:         sed
 PreReq:         pwdutils
 %endif
+Conflicts:      otherproviders(mysql)
+Conflicts:      otherproviders(mysql-debug)
+Conflicts:      otherproviders(mysql-tools)
 
 %description    server
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -184,6 +193,7 @@ Obsoletes:      MySQL-client < %{version}-%{release}
 Provides:       mysql-client = %{version}-%{release}
 Obsoletes:      mysql-client < %{version}-%{release}
 Obsoletes:      mariadb
+Conflicts:      otherproviders(mysql-client)
 
 %description    client
 This package contains the standard MySQL clients and administration
@@ -218,6 +228,7 @@ Obsoletes:      MySQL-test < %{version}-%{release}
 Obsoletes:      mysql-test < %{version}-%{release}
 Obsoletes:      mariadb-test
 Provides:       mysql-test = %{version}-%{release}
+Conflicts:      otherproviders(mysql-test)
 
 %description    test
 This package contains the MySQL regression test suite for MySQL
@@ -237,6 +248,7 @@ Obsoletes:      mariadb-bench
 Obsoletes:      community-mysql-bench < %{version}-%{release}
 Obsoletes:      mysql-bench < %{version}-%{release}
 Provides:       mysql-bench = %{version}-%{release}
+Conflicts:      otherproviders(mysql-bench)
 
 %description    bench
 This package contains the MySQL Benchmark Suite for MySQL database
@@ -353,6 +365,9 @@ if [ "x$(id -u)" = "x0" ] ; then
 fi
 %endif
 
+%{?sles11:export CC=/usr/bin/gcc-4.7}
+%{?sles11:export CXX=/usr/bin/g++-4.7}
+
 # Build debug versions of mysqld and libmysqld.a
 mkdir debug
 (
@@ -410,7 +425,8 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ensure that needed directories exists
 install -d -m 0755 %{buildroot}/var/lib/mysql
-install -d -m 0755 %{buildroot}/var/run/mysqld
+install -d -m 0755 %{buildroot}/var/run/mysql
+install -d -m 0660 %{buildroot}/var/log/mysql
 
 # Install all binaries
 cd $MBD/release
@@ -418,7 +434,7 @@ make DESTDIR=%{buildroot} install
 
 # Install logrotate and autostart
 install -D -m 0644 $MBD/release/support-files/mysql-log-rotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
-install -D -m 0644 $MBD/release/packaging/rpm-oel/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
+install -D -m 0644 $MBD/release/packaging/rpm-sles/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 install -D -m 0755 %{SOURCE1} %{buildroot}%{_bindir}/mysql-systemd-start
@@ -485,7 +501,7 @@ rm -r $(readlink var) var
 %post server
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
 /bin/chmod 0755 "$datadir"
-/bin/touch /var/log/mysqld.log
+/bin/touch /var/log/mysql/mysqld.log
 %if 0%{?systemd}
 %systemd_post mysqld.service
 /sbin/service mysqld enable >/dev/null 2>&1 || :
@@ -630,7 +646,8 @@ fi
 %endif
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %dir %attr(755, mysql, mysql) /var/lib/mysql
-%dir %attr(755, mysql, mysql) /var/run/mysqld
+%dir %attr(755, mysql, mysql) /var/run/mysql
+%dir %attr(660, mysql, mysql) /var/log/mysql
 
 %files common
 %defattr(-, root, root, -)
