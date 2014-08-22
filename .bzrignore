@@ -412,6 +412,8 @@ client/rpl_tblmap.cc
 client/rpl_utility.h
 client/rpl_utility.cc
 client/select_test
+client/sql_commands_system_data.h
+client/sql_commands_system_tables.h
 client/sql_const.h
 client/sql_string.cpp
 client/ssl_test
