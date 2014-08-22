@@ -209,7 +209,7 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   (thd)->security_ctx->get_host()->length(),\
   (thd)->security_ctx->get_ip()->ptr(),\
   (thd)->security_ctx->get_ip()->length(),\
-  (thd)->db, (thd)->db ? strlen((thd)->db) : 0)
+  (thd)->db().str, (thd)->db().length)
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode)\
   mysql_audit_notify(\
@@ -229,6 +229,6 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   (thd)->security_ctx->get_host()->length(),\
   (thd)->security_ctx->get_ip()->ptr(),\
   (thd)->security_ctx->get_ip()->length(),\
-  (thd)->db, (thd)->db ? strlen((thd)->db) : 0)
+  (thd)->db().str, (thd)->db().length)
 
 #endif /* SQL_AUDIT_INCLUDED */

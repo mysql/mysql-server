@@ -899,8 +899,7 @@ THD::THD(bool enable_plugins)
    mark_used_columns(MARK_COLUMNS_READ),
    lex(&main_lex),
    m_query_string(NULL_CSTR),
-   db(NULL),
-   db_length(0),
+   m_db(NULL_CSTR),
    rli_fake(0), rli_slave(NULL),
 #ifdef EMBEDDED_LIBRARY
    mysql(NULL),
@@ -1664,8 +1663,8 @@ THD::~THD()
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
-  my_free(db);
-  db= NULL;
+  my_free(const_cast<char*>(m_db.str));
+  m_db= NULL_CSTR;
   get_transaction()->free_memory(MYF(0));
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
@@ -2639,7 +2638,8 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 
   if (!dirname_length(exchange->file_name))
   {
-    strxnmov(path, FN_REFLEN-1, mysql_real_data_home, thd->db ? thd->db : "",
+    strxnmov(path, FN_REFLEN-1, mysql_real_data_home,
+             thd->db().str ? thd->db().str : "",
              NullS);
     (void) fn_format(path, exchange->file_name, path, "", option);
   }
@@ -4091,7 +4091,7 @@ extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 
 extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
 {
-  return binlog_filter->db_ok(thd->db);
+  return binlog_filter->db_ok(thd->db().str);
 }
 
 extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)

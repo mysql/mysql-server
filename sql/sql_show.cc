@@ -1451,9 +1451,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
    */
   if (show_database)
   {
+
     const LEX_STRING *const db=
       table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
-    if (!thd->db || strcmp(db->str, thd->db))
+    if (!thd->db().str || strcmp(db->str, thd->db().str))
     {
       append_identifier(thd, packet, db->str, db->length);
       packet->append(STRING_WITH_LEN("."));
@@ -1964,7 +1965,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
                                                        MODE_MAXDB |
                                                        MODE_ANSI)) != 0;
 
-  if (!thd->db || strcmp(thd->db, table->view_db.str))
+  if (!thd->db().str || strcmp(thd->db().str, table->view_db.str))
     /*
       print compact view name if the view belongs to the current database
     */
@@ -2148,7 +2149,7 @@ public:
                     });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
-    const char *db= inspect_thd->db;
+    const char *db= inspect_thd->db().str;
     if (db)
       thd_info->db= m_client_thd->strdup(db);
 
@@ -2322,7 +2323,7 @@ public:
                     });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
-    const char *db= inspect_thd->db;
+    const char *db= inspect_thd->db().str;
     if (db)
     {
       table->field[3]->store(db, strlen(db), system_charset_info);
@@ -2956,10 +2957,11 @@ bool schema_table_store_record(THD *thd, TABLE *table)
 
 
 static int make_table_list(THD *thd, SELECT_LEX *sel,
-                           LEX_STRING *db_name, LEX_STRING *table_name)
+                           const LEX_CSTRING &db_name,
+                           const LEX_CSTRING &table_name)
 {
   Table_ident *table_ident;
-  table_ident= new Table_ident(thd, *db_name, *table_name, 1);
+  table_ident= new Table_ident(thd, db_name, table_name, 1);
   if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return 1;
   return 0;
@@ -3581,7 +3583,7 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
                         Query_arena::STMT_CONVENTIONAL_EXECUTION),
               backup_arena, *old_arena;
   LEX *old_lex= thd->lex, temp_lex, *lex;
-  LEX_STRING db_name, table_name;
+  LEX_CSTRING db_name_lex_cstr, table_name_lex_cstr;
   TABLE_LIST *table_list;
   bool result= true;
 
@@ -3622,9 +3624,9 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
     These copies are used for make_table_list() while unaltered values
     are passed to process_table() functions.
   */
-  if (!thd->make_lex_string(&db_name, orig_db_name->str,
+  if (!thd->make_lex_string(&db_name_lex_cstr, orig_db_name->str,
                             orig_db_name->length, FALSE) ||
-      !thd->make_lex_string(&table_name, orig_table_name->str,
+      !thd->make_lex_string(&table_name_lex_cstr, orig_table_name->str,
                             orig_table_name->length, FALSE))
     goto end;
 
@@ -3633,7 +3635,8 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
     temporary LEX. The latter is required to correctly open views and
     produce table describing their structure.
   */
-  if (make_table_list(thd, lex->select_lex, &db_name, &table_name))
+  if (make_table_list(thd, lex->select_lex, db_name_lex_cstr,
+                      table_name_lex_cstr))
     goto end;
 
   table_list= lex->select_lex->table_list.first;
@@ -4247,10 +4250,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     LEX_STRING db_name, table_name;
 
-    db_name.str= lsel->table_list.first->db;
+    db_name.str= const_cast<char*>(lsel->table_list.first->db);
     db_name.length= lsel->table_list.first->db_length;
 
-    table_name.str= lsel->table_list.first->table_name;
+    table_name.str= const_cast<char*>(lsel->table_list.first->table_name);
     table_name.length= lsel->table_list.first->table_name_length;
 
     error= fill_schema_table_by_open(thd, TRUE,
@@ -7478,8 +7481,13 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
                        INFORMATION_SCHEMA_NAME.length, 0);
   thd->make_lex_string(&table, schema_table->table_name,
                        strlen(schema_table->table_name), 0);
+
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
-      !sel->add_table_to_list(thd, new Table_ident(thd, db, table, 0),
+      !sel->add_table_to_list(thd,
+                              new Table_ident(thd,
+                                              to_lex_cstring(db),
+                                              to_lex_cstring(table),
+                                              0),
                               0, 0, TL_READ, MDL_SHARED_READ))
   {
     DBUG_RETURN(1);
@@ -8635,7 +8643,7 @@ static
 TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 {
   char trn_path_buff[FN_REFLEN];
-  LEX_STRING db;
+  LEX_CSTRING db;
   LEX_STRING tbl_name;
   TABLE_LIST *table;
 
@@ -8759,7 +8767,7 @@ static IS_internal_schema_access is_internal_schema_access;
 
 void initialize_information_schema_acl()
 {
-  ACL_internal_schema_registry::register_schema(&INFORMATION_SCHEMA_NAME,
+  ACL_internal_schema_registry::register_schema(INFORMATION_SCHEMA_NAME,
                                                 &is_internal_schema_access);
 }
 
