@@ -785,15 +785,23 @@ runBug16656639(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
-int makeTmpTable(NdbDictionary::Table& tab, const char *name)
+int makeTmpTable(NdbDictionary::Table& tab, NdbDictionary::Index &idx, const char *tableName, const char *columnName)
 {
-  tab.setName(name);
+  tab.setName(tableName);
   tab.setLogging(true);
   {
-    NdbDictionary::Column col("_id");
+    // create column
+    NdbDictionary::Column col(columnName);
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
     tab.addColumn(col);
+
+    // create index on column
+    idx.setTable(tableName);
+    idx.setName("idx1");
+    idx.setType(NdbDictionary::Index::OrderedIndex);
+    idx.setLogging(false);
+    idx.addColumnName(columnName);
   }
   NdbError error;
   return tab.validate(error);
@@ -804,18 +812,24 @@ runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
   NdbDictionary::Table tab;
+  NdbDictionary::Index idx;
   const char *tablename = "#sql-dummy"; 
+  const char *colname = "_id"; 
   
   Ndb* const ndb = GETNDB(step);
   NdbDictionary::Dictionary* const dict = ndb->getDictionary();
 
   // create "#sql-dummy" table
-  if(makeTmpTable(tab, tablename) == -1) {
+  if(makeTmpTable(tab, idx, tablename, colname) == -1) {
     g_err << "Validation of #sql table failed" << endl;
     return NDBT_FAILED;
   }
   if (dict->createTable(tab) == -1) {
     g_err << "Failed to create #sql table." << endl;
+    return NDBT_FAILED;
+  }
+  if (dict->createIndex(idx) == -1) {
+    g_err << "Failed to create index, error: " << dict->getNdbError() << endl;
     return NDBT_FAILED;
   }
 
@@ -845,6 +859,65 @@ runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
 
   return NDBT_OK;
 }   
+
+int
+runBug19202654(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbBackup backup;
+  NdbDictionary::Dictionary* const dict = GETNDB(step)->getDictionary();
+
+  g_err << "Creating 35 ndb tables." << endl;
+  for(int i=0; i<35; i++)
+  {
+    char tablename[10];
+    sprintf(tablename, "t%d", i);
+    const char *colname = "id";
+    NdbDictionary::Table tab;
+    NdbDictionary::Index idx;
+
+    if(makeTmpTable(tab, idx, tablename, colname) == -1) {
+      g_err << "Failed to validate table " << tablename << ", error: " << dict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    // Create large number of dictionary objects
+    if (dict->createTable(tab) == -1) {
+      g_err << "Failed to create table " << tablename << ", error: " << dict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    // Create an index per table to double the number of dictionary objects
+    if (dict->createIndex(idx) == -1) {
+      g_err << "Failed to create index, error: " << dict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+  
+  g_err << "Starting backup." << endl;
+  unsigned backupId = 0;
+  if (backup.start(backupId) == -1) {
+    g_err << "Failed to start backup." << endl;
+    return NDBT_FAILED;
+  }
+
+  g_err << "Dropping 35 ndb tables." << endl;
+  for(int i=0; i<35; i++)
+  {
+    char tablename[10];
+    sprintf(tablename, "t%d", i);
+    if (dict->dropTable(tablename) == -1) {
+      g_err << "Failed to drop table " << tablename << ", error: " << dict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  g_err << "Restoring from backup with error insert and no metadata or data restore." << endl;
+  // just load metadata and exit
+  if (backup.restore(backupId, false, false, 1) != 0) {
+    g_err << "Failed to restore from backup." << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBackup);
 TESTCASE("BackupOne", 
 	 "Test that backup and restore works on one table \n"
@@ -989,6 +1062,11 @@ TESTCASE("Bug16656639", "")
 TESTCASE("Bug17882305", "")
 {
   INITIALIZER(runBug17882305);
+}
+TESTCASE("Bug19202654", 
+         "Test restore with a large number of tables")
+{
+  INITIALIZER(runBug19202654);
 }
 NDBT_TESTSUITE_END(testBackup);
 
