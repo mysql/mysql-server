@@ -780,7 +780,7 @@ exit:
   @retval  true   Error
 */
 
-bool mysql_rm_db(THD *thd,const char *db,bool if_exists, bool silent)
+bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
 {
   ulong deleted_tables= 0;
   bool error= true;
@@ -794,10 +794,10 @@ bool mysql_rm_db(THD *thd,const char *db,bool if_exists, bool silent)
   DBUG_ENTER("mysql_rm_db");
 
 
-  if (lock_schema_name(thd, db))
+  if (lock_schema_name(thd, db.str))
     DBUG_RETURN(true);
 
-  length= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
+  length= build_table_filename(path, sizeof(path) - 1, db.str, "", "", 0);
   my_stpcpy(path+length, MY_DB_OPT_FILE);		// Append db option file name
   del_dbopt(path);				// Remove dboption hash entry
   path[length]= '\0';				// Remove file name
@@ -807,19 +807,19 @@ bool mysql_rm_db(THD *thd,const char *db,bool if_exists, bool silent)
   {
     if (!if_exists)
     {
-      my_error(ER_DB_DROP_EXISTS, MYF(0), db);
+      my_error(ER_DB_DROP_EXISTS, MYF(0), db.str);
       DBUG_RETURN(true);
     }
     else
     {
       push_warning_printf(thd, Sql_condition::SL_NOTE,
-			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db);
+			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db.str);
       error= false;
       goto update_binlog;
     }
   }
 
-  if (find_db_tables_and_rm_known_files(thd, dirp, db, path, &tables,
+  if (find_db_tables_and_rm_known_files(thd, dirp, db.str, path, &tables,
                                         &found_other_files))
     goto exit;
 
@@ -827,7 +827,7 @@ bool mysql_rm_db(THD *thd,const char *db,bool if_exists, bool silent)
     Disable drop of enabled log tables, must be done before name locking.
     This check is only needed if we are dropping the "mysql" database.
   */
-  if ((my_strcasecmp(system_charset_info, MYSQL_SCHEMA_NAME.str, db) == 0))
+  if ((my_strcasecmp(system_charset_info, MYSQL_SCHEMA_NAME.str, db.str) == 0))
   {
     for (table= tables; table; table= table->next_local)
     {
@@ -841,7 +841,7 @@ bool mysql_rm_db(THD *thd,const char *db,bool if_exists, bool silent)
 
   /* Lock all tables and stored routines about to be dropped. */
   if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0) ||
-      lock_db_routines(thd, db))
+      lock_db_routines(thd, db.str))
     goto exit;
 
   /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
@@ -881,10 +881,10 @@ bool mysql_rm_db(THD *thd,const char *db,bool if_exists, bool silent)
 
     ha_drop_database(path);
     tmp_disable_binlog(thd);
-    query_cache.invalidate(db);
-    (void) sp_drop_db_routines(thd, db); /* @todo Do not ignore errors */
+    query_cache.invalidate(db.str);
+    (void) sp_drop_db_routines(thd, db.str); /* @todo Do not ignore errors */
 #ifndef EMBEDDED_LIBRARY
-    Events::drop_schema_events(thd, db);
+    Events::drop_schema_events(thd, db.str);
 #endif
     reenable_binlog(thd);
 
@@ -911,7 +911,7 @@ update_binlog:
     {
       /* The client used the old obsolete mysql_drop_db() call */
       query= path;
-      id_len= my_strmov_quoted_identifier(thd, buffer_temp, db, strlen(db));
+      id_len= my_strmov_quoted_identifier(thd, buffer_temp, db.str, db.length);
       buffer_temp[id_len] ='\0';
       query_length=
         static_cast<size_t>(strxmov(path, "DROP DATABASE ", buffer_temp, "",
@@ -932,8 +932,8 @@ update_binlog:
         database" and not the threads current database, which is the
         default.
       */
-      qinfo.db     = db;
-      qinfo.db_len = strlen(db);
+      qinfo.db     = db.str;
+      qinfo.db_len = db.length;
 
       /*
         These DDL methods and logging are protected with the exclusive
@@ -954,13 +954,12 @@ update_binlog:
     char *query, *query_pos, *query_end, *query_data_start;
     char temp_identifier[ 2 * FN_REFLEN + 2];
     TABLE_LIST *tbl;
-    size_t db_len, id_length=0;
+    size_t id_length=0;
 
     if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
     query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
     query_end= query + MAX_DROP_TABLE_Q_LEN;
-    db_len= strlen(db);
 
     for (tbl= tables; tbl; tbl= tbl->next_local)
     {
@@ -984,7 +983,8 @@ update_binlog:
           These DDL methods and logging are protected with the exclusive
           metadata lock on the schema.
         */
-        if (write_to_binlog(thd, query, query_pos -1 - query, db, db_len))
+        if (write_to_binlog(thd, query, query_pos -1 - query, db.str,
+                            db.length))
         {
           error= true;
           goto exit;
@@ -1000,12 +1000,13 @@ update_binlog:
 
     if (query_pos != query_data_start)
     {
-      thd->add_to_binlog_accessed_dbs(db);
+      thd->add_to_binlog_accessed_dbs(db.str);
       /*
         These DDL methods and logging are protected with the exclusive
         metadata lock on the schema.
       */
-      if (write_to_binlog(thd, query, query_pos -1 - query, db, db_len))
+      if (write_to_binlog(thd, query, query_pos -1 - query, db.str,
+                          db.length))
       {
         error= true;
         goto exit;
@@ -1020,7 +1021,7 @@ exit:
     SELECT DATABASE() in the future). For this we free() thd->db and set
     it to 0.
   */
-  if (thd->db().str && !strcmp(thd->db().str, db) && !error)
+  if (thd->db().str && !strcmp(thd->db().str, db.str) && !error)
   {
     mysql_change_db_impl(thd, NULL_CSTR, 0, thd->variables.collation_server);
     /*
@@ -1879,7 +1880,7 @@ bool mysql_upgrade_db(THD *thd, const LEX_CSTRING &old_db)
     to execute them again.
     mysql_rm_db() also "unuses" if we drop the current database.
   */
-  error= mysql_rm_db(thd, old_db.str, 0, 1);
+  error= mysql_rm_db(thd, old_db, 0, 1);
 
   /* Step8: logging */
   if (mysql_bin_log.is_open())

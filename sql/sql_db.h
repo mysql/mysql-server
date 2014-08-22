@@ -26,7 +26,7 @@ typedef struct st_mysql_lex_string LEX_STRING;
 int mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create,
                     bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
-bool mysql_rm_db(THD *thd,const char *db,bool if_exists, bool silent);
+bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent);
 bool mysql_upgrade_db(THD *thd, const LEX_CSTRING &old_db);
 bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
                      bool force_switch);
