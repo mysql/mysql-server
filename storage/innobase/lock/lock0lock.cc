@@ -1757,8 +1757,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 	Trxs	trxs;
 
-	/* Active S locks ahead in the queue or transaction owns the S lock
-	but is waiting on some other lock, both need to be rolled back */
+	/* Locks ahead in the queue need to be rolled back */
 
 	for (lock_t* next = lock->hash; next != NULL; next = next->hash) {
 
@@ -1767,7 +1766,6 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 		if (!is_on_row(next)
 		    || trx->read_only
 		    || trx == lock->trx
-		    || trx->lock.wait_lock != next
 		    || trx == wait_for->trx) {
 
 			continue;
@@ -1794,19 +1792,13 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 		trx_mutex_enter(trx);
 
-		if (!trx->abort && (it = trxs.find(trx)) == trxs.end()) {
+		if (!trx->abort
+		    && (trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE) == 0
+		    && (it = trxs.find(trx)) == trxs.end()) {
 
-			ut_ad(lock_get_mode(next) == LOCK_S
-			      || trx->lock.que_state == TRX_QUE_LOCK_WAIT);
+			mark_trx_for_rollback(trx);
 
-			/* We can't roll it back */
-
-			if (!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE)) {
-
-				mark_trx_for_rollback(trx);
-
-				trxs.insert(it, trx);
-			}
+			trxs.insert(it, trx);
 		}
 
 		trx_mutex_exit(trx);
@@ -1913,6 +1905,8 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 	transactions we do the rollback before we enter lock wait. */
 
 	if (waiting && kill_trx) {
+
+		ut_ad(!add_to_hash);
 
 		UT_LIST_ADD_LAST(m_trx->lock.trx_locks, lock);
 
