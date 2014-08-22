@@ -1762,7 +1762,14 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 	for (lock_t* next = lock->hash; next != NULL; next = next->hash) {
 
-		if (!is_on_row(next)) {
+		trx_t*		trx = next->trx;
+
+		if (!is_on_row(next)
+		    || trx->read_only
+		    || trx == lock->trx
+		    || trx->lock.wait_lock != next
+		    || trx == wait_for->trx) {
+
 			continue;
 		}
 
@@ -1770,7 +1777,6 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 		ut_ad(next != wait_for);
 
 		Trxs::iterator	it;
-		trx_t*		trx = next->trx;
 
 		/* If the transaction is waiting on some other lock.
 		The abort state cannot change while we hold the lock
@@ -1782,18 +1788,13 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 		kill these (skipped) transactions, ie. it cannot be
 		interrupted before it acts on the trx_t::hit_list.
 
-		If the aborted transactions are not killed the
-		worst case should be that the high priority
-		transaction ends up waiting. */
+		If the aborted transactions are not killed the worst
+		case should be that the high priority transaction
+		ends up waiting, it should not affect correctness. */
 
 		trx_mutex_enter(trx);
 
-		if (trx != lock->trx
-		    && !trx->read_only
-		    && trx != wait_for->trx
-		    && trx->lock.wait_lock != next
-		    && !trx->abort
-		    && (it = trxs.find(trx)) == trxs.end()) {
+		if (!trx->abort && (it = trxs.find(trx)) == trxs.end()) {
 
 			ut_ad(lock_get_mode(next) == LOCK_S
 			      || trx->lock.que_state == TRX_QUE_LOCK_WAIT);
