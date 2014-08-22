@@ -57,10 +57,6 @@
 #include "sql_trigger.h"               // change_trigger_table_name
 #include <mysql/psi/mysql_table.h>
 
-#ifdef _WIN32
-#include <io.h>
-#endif
-
 #include <algorithm>
 using std::max;
 using std::min;

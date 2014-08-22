@@ -20,6 +20,10 @@
 
 #include "my_global.h"                          /* myf */
 
+#if !defined(_WIN32)
+#include <pthread.h>
+#endif
+
 #ifndef ETIME
 #define ETIME ETIMEDOUT				/* For FreeBSD */
 #endif
@@ -165,12 +169,6 @@ static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
 #define pthread_attr_setscope(A,B) pthread_dummy(0)
 
 #else /* Normal threads */
-
-#include <pthread.h>
-#include <sched.h>
-#ifdef HAVE_SYNCH_H
-#include <synch.h>
-#endif
 
 #define pthread_key(T,V) pthread_key_t V
 #define my_pthread_getspecific_ptr(T,V) my_pthread_getspecific(T,(V))

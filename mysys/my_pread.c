@@ -18,10 +18,6 @@
 #include "my_base.h"
 #include <m_string.h>
 #include <errno.h>
-#if !defined (_WIN32)
-#include <unistd.h>
-#endif
-
 
 
 /*
