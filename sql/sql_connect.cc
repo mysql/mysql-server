@@ -751,7 +751,7 @@ void end_connection(THD *thd)
 
       sql_print_information(ER(ER_NEW_ABORTING_CONNECTION),
                             thd->thread_id(),
-                            (thd->db ? thd->db : "unconnected"),
+                            (thd->db().str ? thd->db().str : "unconnected"),
                             sctx->user ? sctx->user : "unauthenticated",
                             sctx->host_or_ip,
                             (thd->get_stmt_da()->is_error() ?
@@ -797,7 +797,7 @@ static void prepare_new_connection_state(THD* thd)
 
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
                         thd->thread_id(),
-                        thd->db ? thd->db : "unconnected",
+                        thd->db().str ? thd->db().str : "unconnected",
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, "init_connect command failed");
       sql_print_warning("%s", thd->get_stmt_da()->message_text());
@@ -814,7 +814,7 @@ static void prepare_new_connection_state(THD* thd)
       if (packet_length != packet_error)
         my_error(ER_NEW_ABORTING_CONNECTION, MYF(0),
                  thd->thread_id(),
-                 thd->db ? thd->db : "unconnected",
+                 thd->db().str ? thd->db().str : "unconnected",
                  sctx->user ? sctx->user : "unauthenticated",
                  sctx->host_or_ip, "init_connect command failed");
 

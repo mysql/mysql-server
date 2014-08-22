@@ -1057,8 +1057,8 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
       continue;
 
     /* Check if user has SELECT privilege for any column in the table */
-    table_list.db=         share->db.str;
-    table_list.table_name= share->table_name.str;
+    table_list.db=         const_cast<char*>(share->db.str);
+    table_list.table_name= const_cast<char*>(share->table_name.str);
     table_list.grant.privilege=0;
 
     if (check_table_access(thd,SELECT_ACL,&table_list, TRUE, 1, TRUE))
@@ -2895,7 +2895,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   TABLE *table;
   const char *key;
   size_t key_length;
-  char	*alias= table_list->alias;
+  const char *alias= table_list->alias;
   uint flags= ot_ctx->get_flags();
   MDL_ticket *mdl_ticket;
   int error;

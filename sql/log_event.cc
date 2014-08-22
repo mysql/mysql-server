@@ -402,7 +402,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
 static void set_thd_db(THD *thd, const char *db, size_t db_len)
 {
   char lcase_db_buf[NAME_LEN +1]; 
-  LEX_STRING new_db;
+  LEX_CSTRING new_db;
   new_db.length= db_len;
   if (lower_case_table_names)
   {
@@ -415,7 +415,7 @@ static void set_thd_db(THD *thd, const char *db, size_t db_len)
 
   new_db.str= (char*) rpl_filter->get_rewrite_db(new_db.str,
                                                  &new_db.length);
-  thd->set_db(new_db.str, new_db.length);
+  thd->set_db(new_db);
 }
 
 #endif
@@ -3890,7 +3890,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
                           Log_event::EVENT_STMT_CACHE,
              Log_event::EVENT_NORMAL_LOGGING),
    data_buf(0), query(query_arg), catalog(thd_arg->catalog().str),
-   db(thd_arg->db), q_len((uint32) query_length),
+   db(thd_arg->db().str), q_len((uint32) query_length),
    thread_id(thd_arg->thread_id()),
    /* save the original thread id; we already know the server id */
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
@@ -4864,7 +4864,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     Colleagues: please never free(thd->catalog) in MySQL. This would
     lead to bugs as here thd->catalog is a part of an alloced block,
     not an entire alloced block (see
-    Query_log_event::do_apply_event()). Same for thd->db.  Thank
+    Query_log_event::do_apply_event()). Same for thd->db().str.  Thank
     you.
   */
 
@@ -4881,7 +4881,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   /*
     Setting the character set and collation of the current database thd->db.
    */
-  load_db_opt_by_name(thd, thd->db, &db_options);
+  load_db_opt_by_name(thd, thd->db().str, &db_options);
   if (db_options.default_table_charset)
     thd->db_charset= db_options.default_table_charset;
   thd->variables.auto_increment_increment= auto_increment_increment;
@@ -5067,7 +5067,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         DBUG_ASSERT(thd->m_statement_psi == NULL);
         thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                     stmt_info_rpl.m_key,
-                                                    thd->db, thd->db_length,
+                                                    thd->db().str,
+                                                    thd->db().length,
                                                     thd->charset(), NULL);
         THD_STAGE_INFO(thd, stage_starting);
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
@@ -5209,7 +5210,7 @@ compare_errors:
                     (actual_error ?
                      thd->get_stmt_da()->message_text() :
                      "unexpected success or fatal error"),
-                    print_slave_db_safe(thd->db), query_arg);
+                    print_slave_db_safe(thd->db().str), query_arg);
       }
       thd->is_slave_error= 1;
     }
@@ -5272,7 +5273,7 @@ end:
     TABLE uses the db.table syntax.
   */
   thd->set_catalog(NULL_CSTR);
-  thd->set_db(NULL, 0);                 /* will free the current database */
+  thd->set_db(NULL_CSTR);                 /* will free the current database */
   thd->reset_query();
   thd->lex->sql_command= SQLCOM_END;
   DBUG_PRINT("info", ("end: query= 0"));
@@ -6746,7 +6747,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
             ::do_apply_event(), then the companion SET also have so
             we don't need to reset_one_shot_variables().
   */
-  if (rpl_filter->db_ok(thd->db))
+  if (rpl_filter->db_ok(thd->db().str))
   {
     thd->set_time(&when);
     thd->set_query_id(next_query_id());
@@ -6757,14 +6758,14 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     my_stpcpy(table_buf, table_name);
     if (lower_case_table_names)
       my_casedn_str(system_charset_info, table_buf);
-    tables.init_one_table(thd->strmake(thd->db, thd->db_length),
-                          thd->db_length,
+    tables.init_one_table(thd->strmake(thd->db().str, thd->db().length),
+                          thd->db().length,
                           table_buf, strlen(table_buf),
                           table_buf, TL_WRITE);
     tables.updating= 1;
 
     // the table will be opened in mysql_load    
-    if (rpl_filter->is_on() && !rpl_filter->tables_ok(thd->db, &tables))
+    if (rpl_filter->is_on() && !rpl_filter->tables_ok(thd->db().str, &tables))
     {
       // TODO: this is a bug - this needs to be moved to the I/O thread
       if (net)
@@ -6877,7 +6878,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
                           llstr(log_pos,llbuff),
                           const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                           (ulong) thd->cuted_fields,
-                          print_slave_db_safe(thd->db));
+                          print_slave_db_safe(thd->db().str));
       }
       if (net)
         net->pkt_nr= thd->net.pkt_nr;
@@ -6896,9 +6897,9 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
 
 error:
   thd->net.vio = 0; 
-  const char *remember_db= thd->db;
+  const char *remember_db= thd->db().str;
   thd->set_catalog(NULL_CSTR);
-  thd->set_db(NULL, 0);                   /* will free the current database */
+  thd->set_db(NULL_CSTR);                   /* will free the current database */
   thd->reset_query();
   thd->get_stmt_da()->set_overwrite_status(true);
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);

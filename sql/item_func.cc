@@ -7790,7 +7790,8 @@ Item_func_sp::Item_func_sp(const POS &pos,
   maybe_null= 1;
   with_stored_program= true;
   THD *thd= current_thd;
-  m_name= new (thd->mem_root) sp_name(db_name, fn_name, use_explicit_name);
+  m_name= new (thd->mem_root) sp_name(to_lex_cstring(db_name), fn_name,
+                                      use_explicit_name);
 }
 
 
@@ -7812,13 +7813,12 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res)
   if (m_name->m_db.str == NULL) // use the default database name
   {
     /* Cannot match the function since no database is selected */
-    if (thd->db == NULL)
+    if (thd->db().str == NULL)
     {
       my_error(ER_NO_DB_ERROR, MYF(0));
       return true;
     }
-    m_name->m_db.str= thd->db;
-    m_name->m_db.length= thd->db_length;
+    m_name->m_db= thd->db();
   }
 
   m_name->init_qname(thd);

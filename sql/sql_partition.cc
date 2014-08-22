@@ -918,8 +918,8 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
   */
   thd->lex= lex;
   if ((!(table_ident= new Table_ident(thd,
-                                      table->s->table_name,
-                                      table->s->db, TRUE))) ||
+                                      to_lex_cstring(table->s->table_name),
+                                      to_lex_cstring(table->s->db), TRUE))) ||
       (!(table_list= select_lex->add_table_to_list(thd,
                                                    table_ident,
                                                    NULL,

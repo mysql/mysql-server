@@ -634,4 +634,9 @@ inline LEX_STRING to_lex_string(const LEX_CSTRING &s)
   return str;
 }
 
+inline LEX_CSTRING to_lex_cstring(const char *s)
+{
+  LEX_CSTRING cstr= { s, s != NULL ? strlen(s) : 0 };
+  return cstr;
+}
 #endif /* SQL_STRING_INCLUDED */

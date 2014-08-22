@@ -5661,7 +5661,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (any_privileges)
   {
-    char *db, *tab;
+    const char *db, *tab;
     db= cached_table->get_db_name();
     tab= cached_table->get_table_name();
     if (!(have_privileges= (get_column_grant(thd, &field->table->grant,
