@@ -598,32 +598,32 @@ void locktree::manager::get_status(LTM_STATUS statp) {
     STATUS_VALUE(LTM_LONG_WAIT_ESCALATION_COUNT) = m_long_wait_escalation_count;
     STATUS_VALUE(LTM_LONG_WAIT_ESCALATION_TIME) = m_long_wait_escalation_time;    
 
-    mutex_lock();
-
     uint64_t lock_requests_pending = 0;
     uint64_t sto_num_eligible = 0;
     uint64_t sto_end_early_count = 0;
     tokutime_t sto_end_early_time = 0;
 
-    struct lt_counters lt_counters = m_lt_counters;
-    
-    size_t num_locktrees = m_locktree_map.size();
-    for (size_t i = 0; i < num_locktrees; i++) {
-        locktree *lt;
-        int r = m_locktree_map.fetch(i, &lt);
-        invariant_zero(r);
+    size_t num_locktrees = 0;
+    struct lt_counters lt_counters = {};
 
-        toku_mutex_lock(&lt->m_lock_request_info.mutex);
-        lock_requests_pending += lt->m_lock_request_info.pending_lock_requests.size();
-        add_lt_counters(&lt_counters, &lt->m_lock_request_info.counters);
-        toku_mutex_unlock(&lt->m_lock_request_info.mutex);
-
-        sto_num_eligible += lt->sto_txnid_is_valid_unsafe() ? 1 : 0;
-        sto_end_early_count += lt->m_sto_end_early_count;
-        sto_end_early_time += lt->m_sto_end_early_time;
+    if (toku_mutex_trylock(&m_mutex) == 0) {
+        lt_counters = m_lt_counters;
+        num_locktrees = m_locktree_map.size();
+        for (size_t i = 0; i < num_locktrees; i++) {
+            locktree *lt;
+            int r = m_locktree_map.fetch(i, &lt);
+            invariant_zero(r);
+            if (toku_mutex_trylock(&lt->m_lock_request_info.mutex) == 0) {
+                lock_requests_pending += lt->m_lock_request_info.pending_lock_requests.size();
+                add_lt_counters(&lt_counters, &lt->m_lock_request_info.counters);
+                toku_mutex_unlock(&lt->m_lock_request_info.mutex);
+            }
+            sto_num_eligible += lt->sto_txnid_is_valid_unsafe() ? 1 : 0;
+            sto_end_early_count += lt->m_sto_end_early_count;
+            sto_end_early_time += lt->m_sto_end_early_time;
+        }
+        mutex_unlock();
     }
-
-    mutex_unlock();
 
     STATUS_VALUE(LTM_NUM_LOCKTREES) = num_locktrees;
     STATUS_VALUE(LTM_LOCK_REQUESTS_PENDING) = lock_requests_pending;

@@ -213,6 +213,21 @@ toku_mutex_lock(toku_mutex_t *mutex) {
 #endif
 }
 
+static inline int
+toku_mutex_trylock(toku_mutex_t *mutex) {
+    int r = pthread_mutex_trylock(&mutex->pmutex);
+#if TOKU_PTHREAD_DEBUG
+    if (r == 0) {
+        invariant(mutex->valid);
+        invariant(!mutex->locked);
+        invariant(mutex->owner == 0);
+        mutex->locked = true;
+        mutex->owner = pthread_self();
+    }
+#endif
+    return r;
+}
+
 static inline void
 toku_mutex_unlock(toku_mutex_t *mutex) {
 #if TOKU_PTHREAD_DEBUG
