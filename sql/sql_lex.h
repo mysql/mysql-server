@@ -2794,7 +2794,7 @@ public:
   */
   TABLE_LIST *create_last_non_select_table;
   /* Prepared statements SQL syntax:*/
-  LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
+  LEX_CSTRING prepared_stmt_name; /* Statement name (in all queries) */
   /*
     Prepared statement query text or name of variable that holds the
     prepared statement (in PREPARE ... queries)

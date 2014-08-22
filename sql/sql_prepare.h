@@ -417,7 +417,6 @@ public:
   */
   LEX_CSTRING m_query_string;
 
-  LEX_STRING name; /* name for named prepared statements */
   /* Performance Schema interface for a prepared statement. */
   PSI_prepared_stmt* m_prepared_stmt;
 
@@ -425,6 +424,7 @@ private:
   Select_fetch_protocol_binary result;
   uint flags;
   bool with_log;
+  LEX_CSTRING m_name; /* name for named prepared statements */
   /**
     Name of the current (default) database.
 
@@ -449,7 +449,9 @@ public:
   Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
   virtual void cleanup_stmt();
-  bool set_name(LEX_STRING *name);
+  bool set_name(const LEX_CSTRING &name);
+  const LEX_CSTRING &name() const
+  { return m_name; }
   void close_cursor();
   bool is_in_use() const { return flags & (uint) IS_IN_USE; }
   bool is_sql_prepare() const { return flags & (uint) IS_SQL_PREPARE; }
