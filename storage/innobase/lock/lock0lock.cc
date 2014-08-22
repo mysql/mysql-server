@@ -1892,12 +1892,21 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 			     & TRX_FORCE_ROLLBACK_DISABLE);
 	}
 
+	bool	add_to_hash;
+
 	/* Move the lock being requested to the head of
 	the wait queue so that if the transaction that
 	we are waiting for is rolled back we get dibs
 	on the row. */
 
-	jump_queue(lock, wait_for, kill_trx);
+	if (!wait_for->trx-read_only) {
+
+		jump_queue(lock, wait_for, kill_trx);
+
+		add_to_hash = false;
+	} else {
+		add_to_hash = true;
+	}
 
 	/* Only if the blocking transaction is itself waiting, but
 	waiting on a different lock we do the rollback here. For active
@@ -1935,7 +1944,7 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 		trx_mutex_exit(wait_for->trx);
 
-		lock_add(lock, false);
+		lock_add(lock, add_to_hash);
 	}
 
 	return(lock);
