@@ -1999,6 +1999,10 @@ max-time: 600
 cmd: atrt-testBackup
 args: -n Bug17882305 T1
 
+max-time: 600
+cmd: atrt-testBackup
+args: -n Bug19202654 T1
+
 max-time : 600
 cmd: testNodeRestart
 args: -n DeleteRestart T1
