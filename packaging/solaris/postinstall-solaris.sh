@@ -37,7 +37,7 @@ fi
 
 mybasedir="$basedir/@@instdir@@"
 mystart1="$mybasedir/support-files/mysql.server"
-myinstdb="$mybasedir/scripts/mysql_install_db"
+myinstdb="$mybasedir/bin/mysql_install_db"
 mystart=/etc/init.d/mysql
 
 # Check: Is this a first installation, or an upgrade ?
@@ -51,8 +51,6 @@ fi
 # Create data directory if needed
 
 [ -d "$mydatadir"       ] || mkdir -p -m 755 "$mydatadir" || exit 1
-[ -d "$mydatadir/mysql" ] || mkdir "$mydatadir/mysql"     || exit 1
-[ -d "$mydatadir/test"  ] || mkdir "$mydatadir/test"      || exit 1
 
 # Set the data directory to the right user/group
 
@@ -79,10 +77,9 @@ if [ -n "$INSTALL" ] ; then
   # We install/update the system tables
   (
     cd "$mybasedir"
-    scripts/mysql_install_db \
-	  --rpm \
+    bin/mysql_install_db \
 	  --user=mysql \
-	  --skip-random-passwords \
+	  --insecure \
 	  --basedir="$mybasedir" \
 	  --datadir=$mydatadir
   )
@@ -111,7 +108,7 @@ cp -f "$mystart1.in" "$mystart.in" || exit 1
 
 # We rewrite some scripts
 
-for script in "$mystart" "$mystart1" "$myinstdb" ; do
+for script in "$mystart" "$mystart1"; do
   script_in="$script.in"
   sed -e "s,@basedir@,$mybasedir,g" \
       -e "s,@datadir@,$mydatadir,g" "$script_in" > "$script"

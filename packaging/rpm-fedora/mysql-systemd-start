@@ -27,7 +27,7 @@ install_db () {
     [ -d "$datadir/mysql" ] && exit 0
 
     # Create initial db
-    /usr/bin/mysql_install_db --rpm --datadir="$datadir" --user=mysql
+    /usr/bin/mysql_install_db --datadir="$datadir" --user=mysql
     exit 0
 }
 
