@@ -1739,6 +1739,9 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 	lock_t*	head = const_cast<lock_t*>(wait_for);
 
+	/* If it is already marked for asynchronous rollback, we don't
+	roll it back */
+
 	if (kill_trx && !wait_for->trx->abort) {
 
 		mark_trx_for_rollback(wait_for->trx);
@@ -1783,6 +1786,8 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 		worst case should be that the high priority
 		transaction ends up waiting. */
 
+		trx_mutex_enter(trx);
+
 		if (trx != lock->trx
 		    && !trx->read_only
 		    && trx != wait_for->trx
@@ -1793,7 +1798,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 			ut_ad(lock_get_mode(next) == LOCK_S
 			      || trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
-			trx_mutex_enter(trx);
+			/* We can't roll it back */
 
 			if (!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE)) {
 
@@ -1801,9 +1806,9 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 
 				trxs.insert(it, trx);
 			}
-
-			trx_mutex_exit(trx);
 		}
+
+		trx_mutex_exit(trx);
 	}
 }
 
