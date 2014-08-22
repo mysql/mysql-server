@@ -233,12 +233,12 @@ public:
   ulong assigned_group_index;
 
   Slave_committed_queue (const char *log, ulong max, uint n)
-    : circular_buffer_queue(max), inited(false)
+    : circular_buffer_queue<Slave_job_group>(max), inited(false)
   {
     uint k;
     ulonglong l= 0;
     
-    if (max >= (ulong) -1 || !circular_buffer_queue::inited_queue)
+    if (max >= (ulong) -1 || !inited_queue)
       return;
     else
       inited= TRUE;
@@ -283,7 +283,8 @@ public:
   */
   ulong en_queue(Slave_job_group *item)
   {
-    return assigned_group_index= circular_buffer_queue::en_queue(item);
+    return assigned_group_index=
+      circular_buffer_queue<Slave_job_group>::en_queue(item);
   }
 
 };
@@ -332,7 +333,7 @@ ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item)
 class Slave_jobs_queue : public circular_buffer_queue<Slave_job_item>
 {
 public:
-  Slave_jobs_queue() : circular_buffer_queue() {}
+  Slave_jobs_queue() : circular_buffer_queue<Slave_job_item>() {}
   /* 
      Coordinator marks with true, Worker signals back at queue back to
      available
