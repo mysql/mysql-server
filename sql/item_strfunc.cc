@@ -2925,7 +2925,7 @@ void Item_func_geohash::encode_bit(double *upper_value, double *lower_value,
 */
 char Item_func_geohash::char_to_base32(char char_input)
 {
-  DBUG_ASSERT(char_input >= 0 && char_input <= 31);
+  DBUG_ASSERT(char_input <= 31);
 
   if (char_input < 10)
     return char_input + '0';
