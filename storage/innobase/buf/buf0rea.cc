@@ -452,7 +452,7 @@ buf_read_page_async(
 
 	tablespace_version = fil_space_get_version(space);
 
-	count = buf_read_page_low(&err, false, BUF_READ_ANY_PAGE
+	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE
 				  | OS_AIO_SIMULATED_WAKE_LATER
 				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
 				  space, zip_size, FALSE,
