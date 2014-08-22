@@ -223,7 +223,8 @@ int
 NdbBackup::execRestore(bool _restore_data,
 		       bool _restore_meta,
 		       int _node_id,
-		       unsigned _backup_id){
+		       unsigned _backup_id,
+                       unsigned _error_insert){
   ndbout << "getBackupDataDir "<< _node_id <<endl;
 
   const char* path = getBackupDataDirForNode(_node_id);
@@ -251,6 +252,25 @@ NdbBackup::execRestore(bool _restore_data,
   
   ndbout << "scp res: " << res << endl;
 
+  if(res == 0 && !_restore_meta && !_restore_data)
+  {
+    tmp.assfmt("%sndb_restore -c \"%s:%d\" -n %d -b %d", 
+#if 1
+               "",
+#else
+               "valgrind --leak-check=yes -v "
+#endif
+               ndb_mgm_get_connected_host(handle),
+               ndb_mgm_get_connected_port(handle),
+               _node_id, 
+               _backup_id);
+    if(_error_insert > 0)
+      tmp.appfmt(" --error-insert=%u", _error_insert);
+
+    ndbout << "buf: "<< tmp.c_str() <<endl;
+    res = system(tmp.c_str());
+  }
+
   if (res == 0 && _restore_meta)
   {
     /** don't restore DD objects */
@@ -265,6 +285,8 @@ NdbBackup::execRestore(bool _restore_data,
                ndb_mgm_get_connected_port(handle),
                _node_id, 
                _backup_id);
+    if(_error_insert > 0)
+      tmp.appfmt(" --error-insert=%u", _error_insert);
     
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
@@ -283,6 +305,8 @@ NdbBackup::execRestore(bool _restore_data,
                ndb_mgm_get_connected_port(handle),
                _node_id, 
                _backup_id);
+    if(_error_insert > 0)
+      tmp.appfmt(" --error-insert=%u", _error_insert);
     
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
@@ -294,7 +318,7 @@ NdbBackup::execRestore(bool _restore_data,
 }
 
 int 
-NdbBackup::restore(unsigned _backup_id, bool restore_meta){
+NdbBackup::restore(unsigned _backup_id, bool restore_meta, bool restore_data, unsigned error_insert){
   
   if (!isConnected())
     return -1;
@@ -302,18 +326,24 @@ NdbBackup::restore(unsigned _backup_id, bool restore_meta){
   if (getStatus() != 0)
     return -1;
 
+  if(!restore_meta && !restore_data &&
+    (execRestore(false, false, ndbNodes[0].node_id, _backup_id, error_insert) !=0))
+    return -1;
+
   if(restore_meta && // if metadata restore enabled 
     // restore metadata for first node
-    (execRestore(false, true, ndbNodes[0].node_id, _backup_id) !=0))
+    (execRestore(false, true, ndbNodes[0].node_id, _backup_id, error_insert) !=0))
     return -1;
 
   // Restore data once for each node
-  for(unsigned i = 0; i < ndbNodes.size(); i++)
+  if(restore_data)
   {
-    if(execRestore(true, false, ndbNodes[i].node_id, _backup_id) != 0)
-      return -1;
+    for(unsigned i = 0; i < ndbNodes.size(); i++)
+    {
+      if(execRestore(true, false, ndbNodes[i].node_id, _backup_id, error_insert) != 0)
+        return -1;
+    }
   }
-  
   return 0;
 }
 

@@ -31,6 +31,9 @@
 #include <version.h>
 
 #define NDB_RESTORE_STAGING_SUFFIX "$ST"
+#ifndef DBUG_OFF
+#define NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER 1
+#endif
 
 enum TableChangesMask
 {
@@ -335,7 +338,9 @@ protected:
   void * m_buffer_ptr;
   Uint32 m_buffer_sz;
   Uint32 m_buffer_data_left;
-
+#ifndef DBUG_OFF
+  unsigned m_error_insert;
+#endif
   Uint64 m_file_size;
   Uint64 m_file_pos;
   
@@ -374,6 +379,9 @@ public:
 
   Uint64 get_file_size() const { return m_file_size; }
   Uint64 get_file_pos() const { return m_file_pos; }
+#ifndef DBUG_OFF
+  void error_insert(unsigned int code); 
+#endif
 
 private:
   void
