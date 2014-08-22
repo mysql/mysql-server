@@ -1489,6 +1489,11 @@ private:
   */
   LEX_CSTRING m_query_string;
 
+  /**
+    Currently selected catalog.
+  */
+  LEX_CSTRING m_catalog;
+
 public:
   /**
     Name of the current (default) database.
@@ -1622,11 +1627,6 @@ public:
   char	  *thread_stack;
 
   /**
-    Currently selected catalog.
-  */
-  char *catalog;
-
-  /**
     @note
     Some members of THD (currently 'Statement::db',
     'catalog' and 'query')  are set and alloced by the slave SQL thread
@@ -1725,6 +1725,12 @@ public:
       modification_plan= plan_arg;
     }
   } query_plan;
+
+  const LEX_CSTRING &catalog() const
+  { return m_catalog; }
+
+  void set_catalog(const LEX_CSTRING &catalog)
+  { m_catalog= catalog; }
 
 private:
   unsigned int m_current_stage_key;

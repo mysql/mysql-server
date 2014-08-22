@@ -3889,7 +3889,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 	     using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                           Log_event::EVENT_STMT_CACHE,
              Log_event::EVENT_NORMAL_LOGGING),
-   data_buf(0), query(query_arg), catalog(thd_arg->catalog),
+   data_buf(0), query(query_arg), catalog(thd_arg->catalog().str),
    db(thd_arg->db), q_len((uint32) query_length),
    thread_id(thd_arg->thread_id()),
    /* save the original thread id; we already know the server id */
@@ -4867,7 +4867,15 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     Query_log_event::do_apply_event()). Same for thd->db.  Thank
     you.
   */
-  thd->catalog= catalog_len ? (char *) catalog : (char *)"";
+
+  if (catalog_len)
+  {
+    LEX_CSTRING catalog_lex_cstr= { catalog, catalog_len};
+    thd->set_catalog(catalog_lex_cstr);
+  }
+  else
+    thd->set_catalog(EMPTY_CSTR);
+
   set_thd_db(thd, db, db_len);
 
   /*
@@ -5263,7 +5271,7 @@ end:
     don't suffer from these assignments to 0 as DROP TEMPORARY
     TABLE uses the db.table syntax.
   */
-  thd->catalog= 0;
+  thd->set_catalog(NULL_CSTR);
   thd->set_db(NULL, 0);                 /* will free the current database */
   thd->reset_query();
   thd->lex->sql_command= SQLCOM_END;
@@ -6889,7 +6897,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
 error:
   thd->net.vio = 0; 
   const char *remember_db= thd->db;
-  thd->catalog= 0;
+  thd->set_catalog(NULL_CSTR);
   thd->set_db(NULL, 0);                   /* will free the current database */
   thd->reset_query();
   thd->get_stmt_da()->set_overwrite_status(true);

@@ -955,7 +955,8 @@ THD::THD(bool enable_plugins)
                  global_system_variables.query_prealloc_size);
   stmt_arena= this;
   thread_stack= 0;
-  catalog= (char*)"std"; // the only catalog we have for now
+  m_catalog.str= "std";
+  m_catalog.length= 3;
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
   no_errors= 0;
