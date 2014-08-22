@@ -811,7 +811,7 @@ public:
   int insert(THD *thd, Prepared_statement *statement);
 
   /** Find prepared statement by name. */
-  Prepared_statement *find_by_name(LEX_STRING *name);
+  Prepared_statement *find_by_name(const LEX_CSTRING &name);
 
   /** Find prepared statement by ID. */
   Prepared_statement *find(ulong id);

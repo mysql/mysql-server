@@ -3482,8 +3482,8 @@ static void delete_statement_as_hash_key(void *key)
 static uchar *get_stmt_name_hash_key(Prepared_statement *entry, size_t *length,
                                      my_bool not_used __attribute__((unused)))
 {
-  *length= entry->name.length;
-  return (uchar*) entry->name.str;
+  *length= entry->name().length;
+  return reinterpret_cast<uchar *>(const_cast<char *>(entry->name().str));
 }
 
 C_MODE_END
@@ -3517,7 +3517,7 @@ int Prepared_statement_map::insert(THD *thd, Prepared_statement *statement)
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     goto err_st_hash;
   }
-  if (statement->name.str && my_hash_insert(&names_hash, (uchar*) statement))
+  if (statement->name().str && my_hash_insert(&names_hash, (uchar*) statement))
   {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     goto err_names_hash;
@@ -3544,7 +3544,7 @@ int Prepared_statement_map::insert(THD *thd, Prepared_statement *statement)
   return 0;
 
 err_max:
-  if (statement->name.str)
+  if (statement->name().str)
     my_hash_delete(&names_hash, (uchar*) statement);
 err_names_hash:
   my_hash_delete(&st_hash, (uchar*) statement);
@@ -3553,10 +3553,11 @@ err_st_hash:
 }
 
 
-Prepared_statement *Prepared_statement_map::find_by_name(LEX_STRING *name)
+Prepared_statement
+*Prepared_statement_map::find_by_name(const LEX_CSTRING &name)
 {
   return reinterpret_cast<Prepared_statement*>
-    (my_hash_search(&names_hash, (uchar*)name->str, name->length));
+    (my_hash_search(&names_hash, (uchar*)name.str, name.length));
 }
 
 
@@ -3567,7 +3568,7 @@ Prepared_statement *Prepared_statement_map::find(ulong id)
     Prepared_statement *stmt=
       reinterpret_cast<Prepared_statement*>
       (my_hash_search(&st_hash, (uchar *) &id, sizeof(id)));
-    if (stmt && stmt->name.str)
+    if (stmt && stmt->name().str)
       return NULL;
     m_last_found_statement= stmt;
   }
@@ -3579,7 +3580,7 @@ void Prepared_statement_map::erase(Prepared_statement *statement)
 {
   if (statement == m_last_found_statement)
     m_last_found_statement= NULL;
-  if (statement->name.str)
+  if (statement->name().str)
     my_hash_delete(&names_hash, (uchar *) statement);
 
   my_hash_delete(&st_hash, (uchar *) statement);

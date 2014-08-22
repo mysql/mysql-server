@@ -1644,7 +1644,7 @@ deallocate:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
-            lex->prepared_stmt_name= $3;
+            lex->prepared_stmt_name= to_lex_cstring($3);
           }
         ;
 
@@ -1659,7 +1659,7 @@ prepare:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_PREPARE;
-            lex->prepared_stmt_name= $2;
+            lex->prepared_stmt_name= to_lex_cstring($2);
             /*
               We don't know know at this time whether there's a password
               in prepare_src, so we err on the side of caution.  Setting
@@ -1696,7 +1696,7 @@ execute:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_EXECUTE;
-            lex->prepared_stmt_name= $2;
+            lex->prepared_stmt_name= to_lex_cstring($2);
           }
           execute_using
           {}
