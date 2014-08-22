@@ -521,11 +521,12 @@ void my_create_minidump(const char *name, HANDLE process, DWORD pid)
     FILE_ATTRIBUTE_NORMAL, 0);
   if(hFile)
   {
+    MINIDUMP_TYPE mdt= (MINIDUMP_TYPE) (MiniDumpNormal |
+                                        MiniDumpWithThreadInfo |
+                                        MiniDumpWithProcessThreadData);
     /* Create minidump, use info only if same process. */
-    if(MiniDumpWriteDump(process, pid,
-      hFile,
-      MiniDumpNormal | MiniDumpWithThreadInfo | MiniDumpWithProcessThreadData,
-      process ? NULL : &info, 0, 0))
+    if(MiniDumpWriteDump(process, pid, hFile, mdt,
+                         process ? NULL : &info, 0, 0))
     {
       my_safe_printf_stderr("Minidump written to %s\n",
                             _fullpath(path, name, sizeof(path)) ?
