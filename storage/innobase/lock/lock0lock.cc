@@ -1847,16 +1847,23 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 	trx_mutex_enter(wait_for->trx);
 
-	bool	kill_trx;
+#ifdef UNIV_DEBUG
+	ulint	version = wait_for->trx->version;
+#endif /* UNIV_DEBUG */
+
+	bool	read_only = wait_for->trx->read_only;
 
 	bool	waiting = wait_for->trx->lock.que_state == TRX_QUE_LOCK_WAIT;
 
 	/* If the transaction that is blocking m_trx is itself waiting then
-	we kill it unless it is waiting for the same lock that m_trx wants.
-	For the latter case we don't kill it but jump the queue.
+	we kill it in this method, unless it is waiting for the same lock
+	that m_trx wants. For the latter case we kill it before doing the
+	lock wait.
 
 	If the transaction is not waiting but is a read-only transaction
 	started with START TRANSACTION READ ONLY then we wait for it. */
+
+	bool	kill_trx;
 
 	if (waiting) {
 
@@ -1866,11 +1873,11 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 		and we can roll it back asynchronously. */
 
 		kill_trx = wait_for->trx->lock.wait_lock != wait_for
-			   && !wait_for->trx->read_only
+			   && !read_only
 			   && !(wait_for->trx->in_innodb
 				& TRX_FORCE_ROLLBACK_DISABLE);
 
-	} else if (wait_for->trx->read_only) {
+	} else if (read_only) {
 
 		/* Wait for running read-only transactions */
 
@@ -1891,7 +1898,7 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 	we are waiting for is rolled back we get dibs
 	on the row. */
 
-	if (!wait_for->trx-read_only) {
+	if (!read_only) {
 
 		jump_queue(lock, wait_for, kill_trx);
 
@@ -1925,6 +1932,13 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 		trx_mutex_exit(wait_for->trx);
 
+		/* This state should not change even if we release the
+		wait_for->trx->mutex. These can only change if we release
+		the lock_sys_t::mutex.  */
+
+		ut_ad(version == wait_for->trx->version);
+		ut_ad(read_only == wait_for->trx->read_only);
+
 		trx_mutex_enter(m_trx);
 
 		/* There is no guaranteed that the lock will have been granted
@@ -1940,6 +1954,13 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 		lock_add(lock, add_to_hash);
 	}
+
+	/* This state should not change even if we release the
+	wait_for->trx->mutex. These can only change if we release
+	the lock_sys_t::mutex.  */
+
+	ut_ad(version == wait_for->trx->version);
+	ut_ad(read_only == wait_for->trx->read_only);
 
 	return(lock);
 }
