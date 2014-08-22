@@ -3214,6 +3214,7 @@ trx_kill_blocking(trx_t* trx)
 	     ++it) {
 
 		trx_t*	victim_trx = it->m_trx;
+		ulint	version = it->m_version;
 
 		ut_ad(victim_trx != trx);
 
@@ -3238,10 +3239,9 @@ trx_kill_blocking(trx_t* trx)
 
 		trx_mutex_enter(victim_trx);
 
-		ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK);
 		ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
 
-		while (victim_trx->version == it->m_version
+		while (victim_trx->version == version
 		       && (victim_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0
 		       && trx_is_started(victim_trx)) {
 
