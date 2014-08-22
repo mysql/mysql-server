@@ -329,9 +329,9 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
     DBUG_RETURN(error);
   }
   {
-    if (unlikely(error= part_info->get_partition_id(part_info,
-                                                    new_part_id,
-                                                    new_func_value)))
+    if (unlikely((error= part_info->get_partition_id(part_info,
+                                                     new_part_id,
+                                                     new_func_value))))
     {
       DBUG_RETURN(error);
     }
