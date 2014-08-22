@@ -3000,7 +3000,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       rli->curr_group_isolated= FALSE;
       group.reset(log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
-      gaq->assigned_group_index= gaq->en_queue((void *) &group);
+      gaq->assigned_group_index= gaq->en_queue(&group);
       DBUG_PRINT("info",("gaq_idx= %ld  gaq->size=%ld",
                          gaq->assigned_group_index,
                          gaq->size));
