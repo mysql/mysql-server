@@ -53,9 +53,6 @@
 #include "datadict.h"   // dd_frm_type()
 #include "sql_hset.h"   // Hash_set
 #include "sql_tmp_table.h" // free_tmp_table
-#ifdef  _WIN32
-#include <io.h>
-#endif
 #include "table_cache.h" // Table_cache_manager, Table_cache
 
 
@@ -1201,7 +1198,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
   if (!wait_for_refresh)
     DBUG_RETURN(result);
 
-  set_timespec(abstime, timeout);
+  set_timespec(&abstime, timeout);
 
   if (thd->locked_tables_mode)
   {
@@ -2849,7 +2846,7 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
       share->has_old_version())
   {
     struct timespec abstime;
-    set_timespec(abstime, wait_timeout);
+    set_timespec(&abstime, wait_timeout);
     res= share->wait_for_old_version(thd, &abstime, deadlock_weight);
   }
   mysql_mutex_unlock(&LOCK_open);

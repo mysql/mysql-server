@@ -532,7 +532,7 @@ bool Query_cache::try_lock(bool use_timeout)
       if (use_timeout)
       {
         struct timespec waittime;
-        set_timespec_nsec(waittime,(ulong)(50000000L));  /* Wait for 50 msec */
+        set_timespec_nsec(&waittime, 50000000UL);  /* Wait for 50 msec */
         int res= mysql_cond_timedwait(&COND_cache_status_changed,
                                       &structure_guard_mutex, &waittime);
         if (res == ETIMEDOUT)

@@ -17,7 +17,6 @@
 
 #include "socket_connection.h"
 
-#include "my_net.h"                     // addrinfo
 #include "violite.h"                    // Vio
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
@@ -26,6 +25,7 @@
 #include "sql_class.h"                  // THD
 
 #include <algorithm>
+#include <signal.h>
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif

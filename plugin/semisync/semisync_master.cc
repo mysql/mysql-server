@@ -687,7 +687,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     int wait_result;
     PSI_stage_info old_stage;
 
-    set_timespec(start_ts, 0);
+    set_timespec(&start_ts, 0);
 #if defined(ENABLED_DEBUG_SYNC)
     /* debug sync may not be initialized for a master */
     if (current_thd->debug_sync_control)
@@ -1386,7 +1386,7 @@ static int getWaitTime(const struct timespec& start_ts)
   start_usecs = timespec_to_usec(&start_ts);
 
   /* Get the wait time interval. */
-  set_timespec(end_ts, 0);
+  set_timespec(&end_ts, 0);
 
   /* Ending time in microseconds(us). */
   end_usecs = timespec_to_usec(&end_ts);

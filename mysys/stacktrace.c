@@ -13,15 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_stacktrace.h>
+#include "my_stacktrace.h"
 
 #ifndef _WIN32
+#include "my_pthread.h"
+#include "m_string.h"
 #include <signal.h>
-#include <my_pthread.h>
-#include <m_string.h>
-#ifdef HAVE_STACKTRACE
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#include <strings.h>
+#endif
+#ifdef HAVE_STACKTRACE
 
 #ifdef __linux__
 #include <ctype.h>          /* isprint */

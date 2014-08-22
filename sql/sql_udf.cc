@@ -37,12 +37,13 @@
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
 
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
+
 #ifdef HAVE_DLOPEN
-extern "C"
-{
 #include <stdarg.h>
 #include <hash.h>
-}
 
 static bool initialized = 0;
 static MEM_ROOT mem;

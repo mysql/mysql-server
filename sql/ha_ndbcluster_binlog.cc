@@ -500,7 +500,7 @@ static void ndbcluster_binlog_wait(THD *thd)
     {
       count--;
       struct timespec abstime;
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       native_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
     }
     native_mutex_unlock(&injector_mutex);
@@ -2016,7 +2016,7 @@ end:
       struct timespec abstime;
       int i;
       int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       int ret= native_cond_timedwait(&injector_cond,
                                      &ndb_schema_object->mutex,
                                      &abstime);
@@ -5903,7 +5903,7 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
   while (share->op)
   {
     struct timespec abstime;
-    set_timespec(abstime, 1);
+    set_timespec(&abstime, 1);
     int ret= native_cond_timedwait(&injector_cond,
                                    &share->mutex,
                                    &abstime);
@@ -6913,7 +6913,7 @@ restart_cluster_failure:
   while (!mysqld_server_started)
   {
     struct timespec abstime;
-    set_timespec(abstime, 1);
+    set_timespec(&abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
                          &abstime);
     if (is_stop_requested())
@@ -6989,7 +6989,7 @@ restart_cluster_failure:
       }
       /* ndb not connected yet */
       struct timespec abstime;
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       native_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
       if (is_stop_requested())
       {

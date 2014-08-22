@@ -4716,7 +4716,7 @@ class Interruptible_wait
         the absolute time passes, the timed wait call will fail
         automatically with a timeout error.
       */
-      set_timespec_nsec(m_abs_timeout, timeout);
+      set_timespec_nsec(&m_abs_timeout, timeout);
     }
 
     /** The timed wait. */
@@ -4747,17 +4747,17 @@ int Interruptible_wait::wait(mysql_cond_t *cond, mysql_mutex_t *mutex)
   while (1)
   {
     /* Wait for a fixed interval. */
-    set_timespec_nsec(timeout, m_interrupt_interval);
+    set_timespec_nsec(&timeout, m_interrupt_interval);
 
     /* But only if not past the absolute timeout. */
-    if (cmp_timespec(timeout, m_abs_timeout) > 0)
+    if (cmp_timespec(&timeout, &m_abs_timeout) > 0)
       timeout= m_abs_timeout;
 
     error= mysql_cond_timedwait(cond, mutex, &timeout);
     if (error == ETIMEDOUT || error == ETIME)
     {
       /* Return error if timed out or connection is broken. */
-      if (!cmp_timespec(timeout, m_abs_timeout) || !m_thd->is_connected())
+      if (!cmp_timespec(&timeout, &m_abs_timeout) || !m_thd->is_connected())
         break;
     }
     /* Otherwise, propagate status to the caller. */

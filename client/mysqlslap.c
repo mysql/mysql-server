@@ -88,8 +88,11 @@ TODO:
 #include <stdarg.h>
 #include <sslopt-vars.h>
 #include <sys/types.h>
-#ifndef _WIN32
+#ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
 #endif
 #include <ctype.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -1833,7 +1836,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   {
     struct timespec abstime;
 
-    set_timespec(abstime, 3);
+    set_timespec(&abstime, 3);
     native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
   }
   native_mutex_unlock(&counter_mutex);

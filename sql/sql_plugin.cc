@@ -42,6 +42,10 @@
 
 #include <algorithm>
 
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
+
 using std::min;
 using std::max;
 

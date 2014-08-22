@@ -46,9 +46,6 @@
 #include "sql_audit.h"
 #include <m_ctype.h>
 #include <sys/stat.h>
-#ifdef	_WIN32
-#include <io.h>
-#endif
 #include <mysys_err.h>
 #include <limits.h>
 
