@@ -6089,7 +6089,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
     should already have done these assignments (each event which sets these
     variables is supposed to set them to 0 before terminating)).
   */
-  thd->catalog= 0;
+  thd->set_catalog(NULL_CSTR);
   thd->reset_query();
   thd->reset_db(NULL, 0);
 
