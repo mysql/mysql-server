@@ -5494,7 +5494,6 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   */
 
   rli->gaq= new Slave_committed_queue(rli->get_group_master_log_name(),
-                                      sizeof(Slave_job_group),
                                       rli->checkpoint_group, n);
   if (!rli->gaq->inited)
     return 1;
