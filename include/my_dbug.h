@@ -18,12 +18,6 @@
 
 #include "my_global.h"                          /* MYSQL_PLUGIN_IMPORT */
 
-#ifndef _WIN32
-#include <sys/types.h>
-#include <unistd.h>
-#include <signal.h>
-#endif  /* not _WIN32 */
-
 #ifdef  __cplusplus
 extern "C" {
 #endif

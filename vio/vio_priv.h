@@ -55,8 +55,6 @@ int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event);
 int vio_socket_timeout(Vio *vio, uint which, my_bool old_mode);
 
 #ifdef HAVE_OPENSSL
-#include "my_net.h"			/* needed because of struct in_addr */
-
 size_t	vio_ssl_read(Vio *vio,uchar* buf,	size_t size);
 size_t	vio_ssl_write(Vio *vio,const uchar* buf, size_t size);
 

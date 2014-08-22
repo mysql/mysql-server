@@ -20,6 +20,10 @@
 #include "test_utils.h"
 #include "thread_utils.h"
 
+#ifdef _WIN32
+#include <process.h> // getpid
+#endif
+
 using my_testing::Server_initializer;
 
 /**

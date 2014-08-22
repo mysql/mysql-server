@@ -1653,7 +1653,7 @@ bool Slave_worker::worker_sleep(ulong seconds)
   mysql_cond_t *cond= &jobs_cond;
 
   /* Absolute system time at which the sleep time expires. */
-  set_timespec(abstime, seconds);
+  set_timespec(&abstime, seconds);
 
   mysql_mutex_lock(lock);
   info_thd->ENTER_COND(cond, lock, NULL, NULL);
