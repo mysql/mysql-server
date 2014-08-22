@@ -1672,10 +1672,10 @@ RecLock::rollback_blocking_trx(lock_t* lock) const
 
 	lock->trx->lock.was_chosen_as_deadlock_victim = true;
 
-	lock_cancel_waiting_and_release(lock);
-
 	/* Remove the blocking transaction from the hit list. */
-	m_trx->hit_list.remove(TrxVersion(lock->trx));
+	m_trx->hit_list.remove(hit_list_t::value_type(lock->trx));
+
+	lock_cancel_waiting_and_release(lock);
 }
 
 /**
@@ -1702,7 +1702,7 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 
 	trx->killed_by = os_thread_get_curr_id();
 
-	m_trx->hit_list.push_back(TrxVersion(trx));
+	m_trx->hit_list.push_back(hit_list_t::value_type(trx));
 
 	THD*	thd = trx->mysql_thd;
 
@@ -1868,6 +1868,7 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 		and we can roll it back asynchronously. */
 
 		kill_trx = wait_for->trx->lock.wait_lock != wait_for
+			   && !wait_for->trx->read_only
 			   && !(wait_for->trx->in_innodb
 				& TRX_FORCE_ROLLBACK_DISABLE);
 
