@@ -7,6 +7,7 @@
 # ################################################################################
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+--source include/not_gcs_plugin.inc
 # Adding big test option for this test.
 --source include/big_test.inc
 --source include/master-slave.inc

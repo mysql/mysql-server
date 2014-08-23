@@ -28,6 +28,7 @@
 #
 #
 
+--source include/not_gcs_plugin.inc
 --source include/master-slave.inc
 --source include/have_myisam.inc
 

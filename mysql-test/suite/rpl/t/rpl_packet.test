@@ -9,6 +9,7 @@
 # BUG#55322: SHOW BINLOG EVENTS increases @@SESSION.MAX_ALLOWED_PACKET
 
 # max-out size db name 
+--source include/not_gcs_plugin.inc
 source include/master-slave.inc;
 source include/have_binlog_format_row.inc;
 

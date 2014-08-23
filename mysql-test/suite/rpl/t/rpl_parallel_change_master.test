@@ -5,6 +5,7 @@
 # Related bugs:
 # Bug 12995174 - MTS: UNEXPECTED RECOVERY ATTEMPT ENDS WITH ER_MASTER_INFO OR ASSERTION 
 
+--source include/not_gcs_plugin.inc
 --source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 --source include/have_slave_parallel_type_database.inc

@@ -34,6 +34,7 @@
 #  Bug#18358253: RPL.RPL_PERFSCHEMA_EXECUTE_STATUS_BY_WORKER HAS SPORADIC FAILURES ON PB2
 #
 
+--source include/not_gcs_plugin.inc
 source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;

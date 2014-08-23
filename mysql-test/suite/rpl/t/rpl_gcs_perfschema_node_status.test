@@ -10,7 +10,6 @@
 
 --connection server1
 --echo server1
---source include/install_gcs_replication.inc
 
 # This is a valid name being given to the group name
 --eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
@@ -87,8 +86,6 @@ INSERT INTO t1 values (4);
 --connection server2
 --echo server2
 
---source include/install_gcs_replication.inc
-
 SET @debug_save= @@GLOBAL.DEBUG;
 
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
@@ -118,11 +115,6 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 
 --let $gcs_node_state= ONLINE
 --source include/rpl_gcs_wait_for_node_state.inc
-
---source include/uninstall_gcs_replication.inc
-
-#cleanup
-drop table t1;
 
 --connection server1
 --echo server1
@@ -172,6 +164,8 @@ drop table t1;
 --let $assert_cond= "$applier_module_status" = "ON"
 --source include/assert.inc
 
+--connection server1
+DROP TABLE t1;
 
 --echo ####################################
 --echo The values being checked after stop
@@ -199,9 +193,5 @@ drop table t1;
 --let $assert_cond= "$applier_module_status" = "OFF"
 --source include/assert.inc
 
-# cleanup
-
-connection server1;
-drop table t1;
---source include/uninstall_gcs_replication.inc
-
+--connection server2
+--source include/stop_gcs_replication.inc

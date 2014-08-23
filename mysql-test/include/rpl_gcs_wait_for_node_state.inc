@@ -32,7 +32,7 @@
 --let $include_filename= rpl_gcs_wait_for_node_state.inc
 --source include/begin_include_file.inc
 
-if (!$gcs_group_name)
+if ($gcs_group_name == '')
 {
   --die ERROR IN TEST: the "gcs_group_name" variable must be set
 }

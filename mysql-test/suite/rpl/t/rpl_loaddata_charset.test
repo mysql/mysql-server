@@ -1,6 +1,7 @@
 #
 # Check LOAD DATA + character sets + replication
 #
+--source include/not_gcs_plugin.inc
 source include/master-slave.inc;
 
 #

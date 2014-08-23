@@ -1,5 +1,6 @@
 # Testing if "flush logs" command bouncing resulting in logs created in a loop 
 # in case of bi-directional replication
+--source include/not_gcs_plugin.inc
 -- source include/not_relay_log_info_table.inc
 --let $rpl_topology= 1->2->1
 --source include/rpl_init.inc

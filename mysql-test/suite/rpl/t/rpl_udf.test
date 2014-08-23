@@ -5,6 +5,7 @@
 # statement based format. This tests work completed in WL#3629.   #
 ###################################################################
 
+--source include/not_gcs_plugin.inc
 --source include/master-slave.inc
 --source include/have_myisam.inc
 

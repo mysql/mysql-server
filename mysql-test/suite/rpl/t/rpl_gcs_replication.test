@@ -5,7 +5,6 @@
 # update of the plugin status variables.
 
 --source include/have_gcs_replication_plugin.inc
---source include/install_gcs_replication.inc
 
 call mtr.add_suppression("The group name *.*");
 --let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9429563
@@ -49,5 +48,3 @@ START GCS_REPLICATION;
 --eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
 
 --source include/stop_gcs_replication.inc
-
---source include/uninstall_gcs_replication.inc

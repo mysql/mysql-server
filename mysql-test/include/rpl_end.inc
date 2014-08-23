@@ -16,6 +16,7 @@
 #
 # [--let $rpl_only_running_threads= 1]
 # [--let $rpl_debug= 1]
+# [--let $rpl_gcs= 1]
 # [--let $rpl_gtid_utils= 1]
 # --source include/rpl_end.inc
 #
@@ -27,6 +28,11 @@
 #
 #   $rpl_debug
 #     See include/rpl_init.inc
+#
+#   $rpl_gcs
+#     This checks for whether we have GCS_REPLICATION enabled or not. Based
+#     on the check this parameter we execute change master or not in this
+#     inc file.
 #
 #   $rpl_gtid_utils
 #     Source include/gtid_utils_end.inc on every server.
@@ -81,12 +87,35 @@ while ($_rpl_server)
 }
 
 --source include/rpl_sync.inc
---source include/rpl_stop_slaves.inc
+
+if ($rpl_gcs)
+{
+  --let $_rpl_server= $rpl_server_count
+  while ($_rpl_server)
+  {
+    --let $rpl_connection_name= server_$_rpl_server
+    --source include/rpl_connection.inc
+
+    --let $_gcs_node_state= `SELECT SERVICE_STATE FROM performance_schema.replication_connection_status`
+    if ($_gcs_node_state != 'OFF')
+    {
+      --source include/stop_gcs_replication.inc
+    }
+    --dec $_rpl_server
+  }
+}
+
+if (!$rpl_gcs)
+{
+  --source include/rpl_stop_slaves.inc
+}
 
 # mtr configures server 2 to be a slave before it runs the test. We
 # have to restore that state now, so we change topology to 1->2.
 --let $rpl_topology= none
 --let $use_gtids= 0
+--let $rpl_gcs= 0
+
 --source include/rpl_change_topology.inc
 
 

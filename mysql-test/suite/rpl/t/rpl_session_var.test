@@ -1,6 +1,7 @@
 # Replication of session variables.
 # FOREIGN_KEY_CHECKS is tested in rpl_insert_id.test
 
+--source include/not_gcs_plugin.inc
 source include/master-slave.inc;
 source include/have_myisam.inc;
 

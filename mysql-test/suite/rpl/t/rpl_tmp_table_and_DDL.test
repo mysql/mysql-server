@@ -5,6 +5,7 @@
 # does not exist' base on myisam engine.
 #
 
+--source include/not_gcs_plugin.inc
 source include/master-slave.inc;
 source include/have_binlog_format_row.inc;
 source include/have_myisam.inc;

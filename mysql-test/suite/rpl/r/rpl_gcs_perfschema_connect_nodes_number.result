@@ -1,4 +1,9 @@
 include/have_gcs_replication_plugin.inc
+include/master-slave.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
 
 ###########################################################
 # 1. No nodes on group.
@@ -8,7 +13,6 @@ include/rpl_gcs_wait_for_number_of_nodes.inc
 
 ###########################################################
 # 2. One node on group.
-include/install_gcs_replication.inc
 include/start_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
@@ -16,7 +20,6 @@ include/rpl_gcs_wait_for_number_of_nodes.inc
 
 ###########################################################
 # 3. Two nodes on group.
-include/install_gcs_replication.inc
 include/start_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
@@ -24,7 +27,6 @@ include/rpl_gcs_wait_for_number_of_nodes.inc
 
 ###########################################################
 # 4. Three nodes on group.
-include/install_gcs_replication.inc
 include/start_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
@@ -38,7 +40,6 @@ GROUP_NAME	NODE_ID	NODE_HOST	NODE_PORT	NODE_STATE
 ###########################################################
 # 5. Two nodes on group.
 include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
@@ -46,7 +47,6 @@ include/rpl_gcs_wait_for_number_of_nodes.inc
 ###########################################################
 # 6. One node on group.
 include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
@@ -54,7 +54,7 @@ include/rpl_gcs_wait_for_number_of_nodes.inc
 ###########################################################
 # 7. No nodes on group.
 include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
+include/rpl_end.inc

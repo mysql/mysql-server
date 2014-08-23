@@ -15,6 +15,7 @@
 #
 # (iii) master and slave tables do not differ
 #
+--source include/not_gcs_plugin.inc
 -- source include/master-slave.inc
 -- source include/not_windows.inc
 -- source include/not_lowercase1.inc

@@ -3,6 +3,7 @@
 ################################################################################
 # Please, check ./extra/rpl_tests/rpl_start_stop_slave.test
 ################################################################################
+--source include/not_gcs_plugin.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
 --source include/have_innodb.inc

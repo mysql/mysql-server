@@ -3,6 +3,7 @@
 #   RBR breaks for CHAR() UTF8 fields > 85 chars
 #############################################################
 
+--source include/not_gcs_plugin.inc
 source include/master-slave.inc;
 source include/have_binlog_format_row.inc;
 

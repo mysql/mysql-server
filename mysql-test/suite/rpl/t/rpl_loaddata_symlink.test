@@ -3,6 +3,7 @@
 # This test verifies if loading data infile will work fine 
 # if the path of the load data file is a symbolic link.
 #
+--source include/not_gcs_plugin.inc
 --source include/master-slave.inc
 --source include/not_windows.inc
 --source include/have_binlog_format_statement.inc

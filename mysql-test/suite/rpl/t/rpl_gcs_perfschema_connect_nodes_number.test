@@ -4,6 +4,9 @@
 #
 --source include/have_gcs_replication_plugin.inc
 --let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9429500
+--let $rpl_skip_gcs_replication_start= 1
+--let $rpl_server_count= 3
+--source include/master-slave.inc
 
 --echo
 --echo ###########################################################
@@ -25,7 +28,6 @@
 --echo ###########################################################
 --echo # 2. One node on group.
 --connection server1
---source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --connection server1
@@ -45,7 +47,6 @@
 --echo ###########################################################
 --echo # 3. Two nodes on group.
 --connection server2
---source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --connection server1
@@ -65,7 +66,6 @@
 --echo ###########################################################
 --echo # 4. Three nodes on group.
 --connection server3
---source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --connection server1
@@ -89,7 +89,6 @@ SELECT * FROM performance_schema.replication_connection_nodes;
 --echo # 5. Two nodes on group.
 --connection server1
 --source include/stop_gcs_replication.inc
---source include/uninstall_gcs_replication.inc
 
 --connection server1
 --let $gcs_number_of_nodes= 0
@@ -109,7 +108,6 @@ SELECT * FROM performance_schema.replication_connection_nodes;
 --echo # 6. One node on group.
 --connection server2
 --source include/stop_gcs_replication.inc
---source include/uninstall_gcs_replication.inc
 
 --connection server1
 --let $gcs_number_of_nodes= 0
@@ -129,7 +127,6 @@ SELECT * FROM performance_schema.replication_connection_nodes;
 --echo # 7. No nodes on group.
 --connection server3
 --source include/stop_gcs_replication.inc
---source include/uninstall_gcs_replication.inc
 
 --let $gcs_number_of_nodes= 0
 --connection server1
@@ -142,3 +139,5 @@ SELECT * FROM performance_schema.replication_connection_nodes;
 --connection server3
 --let $gcs_number_of_nodes= 0
 --source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--source include/rpl_end.inc

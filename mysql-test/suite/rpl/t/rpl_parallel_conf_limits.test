@@ -8,6 +8,7 @@
 # B. @@global.slave_parallel_workers
 #
 
+--source include/not_gcs_plugin.inc
 --source include/master-slave.inc
 # no support for Query-log-event in this test
 --source include/have_binlog_format_row.inc

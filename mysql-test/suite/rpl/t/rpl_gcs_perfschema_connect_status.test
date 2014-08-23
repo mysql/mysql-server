@@ -11,10 +11,10 @@
 #  - Verify that the fileds are not preserved when plugin is uninstalled.
 
 --source include/have_gcs_replication_plugin.inc
---source include/install_gcs_replication.inc
 
---let $gcs_group_name=  8a94f356-aab3-11de-86aa-b80aa9429561
+--let $gcs_group_name= 8a94f356-aab3-11de-86aa-b80aa9429561
 
+--connection server1
 # This is a valid name being given to the group name
 --eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
 
@@ -102,10 +102,4 @@
 
 --let $assert_text= The value of source_uuid should be NULL
 --let $assert_cond= "$source_uuid"= ""
---source include/assert.inc
-
---source include/uninstall_gcs_replication.inc
-
---let $assert_text= When plugin is not loaded, the table should return an empty set.
---let $assert_cond= [select count(*) from performance_schema.replication_connection_status] = 0
 --source include/assert.inc

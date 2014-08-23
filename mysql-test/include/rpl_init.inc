@@ -51,6 +51,7 @@
 #    [--let $rpl_debug= 1]
 #    [--let $slave_timeout= NUMBER]
 #    [--let $use_gtids= 1]
+#    [--let $rpl_gcs= 1]
 #    [--let $rpl_gtid_utils= 1]
 #    --source include/rpl_init.inc
 #
@@ -107,6 +108,11 @@
 #
 #    $use_gtids
 #      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
+#
+#    $rpl_gcs
+#      This checks for whether we have GCS_REPLICATION enabled or not. Based
+#      on the check this parameter we execute change master or not in this
+#      inc file.
 #
 #    $rpl_gtid_utils
 #      Create stored functions for GTID manipulation on every server (see
@@ -185,6 +191,12 @@ if (!$rpl_debug)
 # database, set autoinc variables.
 --let $_rpl_server= $rpl_server_count
 --let $underscore= _
+
+if ($gcs_group_name == '')
+{
+  --let $gcs_group_name= `SELECT UUID()`
+}
+
 while ($_rpl_server)
 {
   # Connect.
@@ -248,6 +260,13 @@ while ($_rpl_server)
     --let $server_10_datadir= `SELECT @@datadir`
   }
 
+  if($rpl_gcs)
+  {
+    if(!$rpl_skip_gcs_replication_start)
+    {
+      --source include/start_gcs_replication.inc
+    }
+  }
   --dec $_rpl_server
 }
 
@@ -299,7 +318,10 @@ if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOB
 
 if (!$rpl_skip_start_slave)
 {
-  --source include/rpl_start_slaves.inc
+  if(!$rpl_gcs)
+  {
+    --source include/rpl_start_slaves.inc
+  }
 }
 
 

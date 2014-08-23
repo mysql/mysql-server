@@ -4,7 +4,6 @@
 # test for MIXED mode.
 source include/have_binlog_format_mixed.inc;
 -- source include/not_gtid_enabled.inc
-
 # UNTIL is not supported yet (TODO: support and remove the guard)
 -- source include/not_mts_slave_parallel_workers.inc
 

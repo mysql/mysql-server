@@ -13,6 +13,9 @@
 #
 --source include/have_gcs_replication_plugin.inc
 --let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9429573
+--let $rpl_skip_gcs_replication_start= 1
+--let $rpl_server_count= 4
+--source include/master-slave.inc
 
 #
 # a counter to be used with source include/rpl_gcs_error_out.inc
@@ -23,7 +26,7 @@
 # First prepare four nodes and manually create a table on each.
 #
 --connection server1
---source include/install_gcs_replication.inc
+call mtr.add_suppression("could not form the cluster");
 
 if (`select view_id <> 0 from performance_schema.replication_connection_status`)
 {
@@ -32,14 +35,7 @@ if (`select view_id <> 0 from performance_schema.replication_connection_status`)
     --die
 }
 
---connection server2
---source include/install_gcs_replication.inc
-
---connection server3
---source include/install_gcs_replication.inc
-
 --connection server4
---source include/install_gcs_replication.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
@@ -260,14 +256,5 @@ while ($s_cnt)
 #  Cleanup
 #
 DROP TABLE t1;
-sleep 5;
 
---let $s_cnt=4
-while ($s_cnt)
-{
-  --connection server$s_cnt
-  --source include/stop_gcs_replication.inc
-  --source include/uninstall_gcs_replication.inc
-  dec $s_cnt;
-}
-
+--source include/rpl_end.inc

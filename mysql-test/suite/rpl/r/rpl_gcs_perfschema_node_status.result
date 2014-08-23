@@ -1,6 +1,5 @@
 include/have_gcs_replication_plugin.inc
 server1
-include/install_gcs_replication.inc
 SET GLOBAL gcs_replication_plugin_group_name= "8a84f397-aaa4-18df-89ab-c70aa9823561";
 ###################
 Test start values
@@ -24,7 +23,6 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 INSERT INTO t1 values (4);
 server2
-include/install_gcs_replication.inc
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
 SET GLOBAL gcs_replication_plugin_group_name= "8a84f397-aaa4-18df-89ab-c70aa9823561";
@@ -40,8 +38,6 @@ server2
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 include/rpl_gcs_wait_for_node_state.inc
-include/uninstall_gcs_replication.inc
-drop table t1;
 server1
 include/assert.inc [The value of group name should be 8a84f397-aaa4-18df-89ab-c70aa9823561]
 include/assert.inc [The value of node_id should be equal to server UUID after starting gcs]
@@ -52,6 +48,7 @@ include/assert.inc [The value of Certification_db_size should be 5 after startin
 include/assert.inc [The value of Stable_set should be empty currently for the gcs]
 include/assert.inc [The value of Last_certified_transaction should be the gtid of the last applied transaction.]
 include/assert.inc [The value of Applier_module_status should be ON after starting gcs]
+DROP TABLE t1;
 ####################################
 The values being checked after stop
 ####################################
@@ -59,5 +56,4 @@ include/stop_gcs_replication.inc
 include/assert.inc [The value of group name should be 8a84f397-aaa4-18df-89ab-c70aa9823561]
 include/assert.inc [The value of group name should be NULL]
 include/assert.inc [The value of Applier_module_status should be OFF before starting gcs]
-drop table t1;
-include/uninstall_gcs_replication.inc
+include/stop_gcs_replication.inc

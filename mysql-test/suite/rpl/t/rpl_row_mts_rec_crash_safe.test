@@ -1,3 +1,4 @@
+--source include/not_gcs_plugin.inc
 --source include/big_test.inc
 --source include/master-slave.inc
 --source include/have_slave_parallel_type_database.inc

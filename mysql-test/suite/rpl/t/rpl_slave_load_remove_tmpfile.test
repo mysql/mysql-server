@@ -17,6 +17,7 @@
 # BUG#42861: Assigning invalid directories to --slave-load-tmpdir crashes the slave
 # BUG#11872422: rpl_slave_load_remove_tmpfile fails sporadically in pb2
 
+--source include/not_gcs_plugin.inc
 --source include/have_binlog_format_statement.inc
 --source include/have_innodb.inc
 --source include/have_debug.inc

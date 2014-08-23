@@ -5,6 +5,7 @@
 # Test: To test the replication of the bit field                            #
 #############################################################################
 
+--source include/not_gcs_plugin.inc
 -- source include/master-slave.inc
 
 

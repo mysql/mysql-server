@@ -1,12 +1,9 @@
 include/have_gcs_replication_plugin.inc
-set @@session.sql_log_bin=off;
-set @@session.sql_log_bin=on;
-include/install_gcs_replication.inc
-include/start_gcs_replication.inc
-set @@session.sql_log_bin=off;
-set @@session.sql_log_bin=on;
-include/install_gcs_replication.inc
-include/start_gcs_replication.inc
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 BEGIN;
@@ -23,7 +20,7 @@ INSERT INTO t1 VALUES (6);
 COMMIT;
 CREATE TEMPORARY TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1000);
-sleeping
+include/sync_slave_sql_with_master.inc
 
 server1
 SELECT @@GLOBAL.GTID_EXECUTED;
@@ -46,7 +43,4 @@ include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/diff_tables.inc [server1:test.t2, server2:test.t2]
 
 DROP TABLE t1, t2, t3;
-include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
-include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
+include/rpl_end.inc

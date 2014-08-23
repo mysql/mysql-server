@@ -9,6 +9,7 @@
 # START SLAVE UNTIL SQL_AFTER_GTIDS with different sets of missing and/or
 # already applied GTIDs.
 #
+--source include/not_gcs_plugin.inc
 --source include/master-slave.inc
 --source include/rpl_set_gtid_mode.inc
 

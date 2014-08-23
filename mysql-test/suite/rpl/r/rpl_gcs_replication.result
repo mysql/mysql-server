@@ -1,5 +1,4 @@
 include/have_gcs_replication_plugin.inc
-include/install_gcs_replication.inc
 call mtr.add_suppression("The group name *.*");
 [ON THE NODE]
 SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-invalid";
@@ -16,4 +15,3 @@ ERROR HY000: The START GCS_REPLICATION failed since the cluster is already runni
 SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429563";
 ERROR 42000: Variable 'gcs_replication_plugin_group_name' can't be set to the value of '8a94f357-aab4-11df-86ab-c80aa9429563'
 include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc

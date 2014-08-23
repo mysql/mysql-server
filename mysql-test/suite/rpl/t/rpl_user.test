@@ -1,5 +1,4 @@
 # BUG#33862 completely failed DROP USER statement gets replicated
-
 --source include/master-slave.inc
 
 #

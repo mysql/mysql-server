@@ -3,12 +3,8 @@ include/have_gcs_replication_plugin.inc
 # 1. Start servers, on which server2 has applier stopped so
 # that all remote transactions are only queued on relay log.
 # Execute some transactions on server1.
-RESET MASTER;
-include/install_gcs_replication.inc
 include/start_gcs_replication.inc
-RESET MASTER;
 SET @@GLOBAL.DEBUG= '+d,gcs_applier_do_not_start_sql_thread';
-include/install_gcs_replication.inc
 include/start_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -36,10 +32,9 @@ include/start_gcs_replication.inc
 # 5. Shutdown.
 include/rpl_gcs_wait_for_number_of_nodes.inc
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
 RESET MASTER;
 SET @@GLOBAL.DEBUG= @debug_saved;
 include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
 RESET MASTER;

@@ -9,6 +9,9 @@
 
 --source include/have_gcs_replication_plugin.inc
 --let $gcs_group_name= 55d07150-9a4d-11e3-a5e2-0800200c9a66
+--let $rpl_skip_gcs_replication_start= 1
+--let $rpl_server_count= 3
+--source include/master-slave.inc
 
 --echo #
 --echo # Setup a new 2 node cluster
@@ -17,7 +20,6 @@
 --connection server1
 call mtr.add_suppression(".*Error when configuring the connection to the donor");
 
---source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --let $gcs_number_of_nodes= 1
@@ -31,7 +33,6 @@ INSERT INTO t1 VALUES (1);
 --let $first_donor_gtid= `SELECT @@GLOBAL.GTID_EXECUTED`
 
 --connection server2
---source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --let $gcs_number_of_nodes= 2
@@ -44,7 +45,6 @@ INSERT INTO t1 VALUES (1);
 SET @debug_save= @@GLOBAL.DEBUG;
 
 --connection server3
---source include/install_gcs_replication.inc
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
 SET GLOBAL gcs_replication_plugin_group_name= "55d07150-9a4d-11e3-a5e2-0800200c9a66";
 START GCS_REPLICATION;
@@ -81,14 +81,5 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 --source include/start_gcs_replication.inc
 
 DROP TABLE t1;
---sleep 2
 
---let $server_count=3
-while ($server_count)
-{
-  --connection server$server_count
-  --echo server$server_count
-  --source include/stop_gcs_replication.inc
-  --source include/uninstall_gcs_replication.inc
-  --dec $server_count
-}
+--source include/rpl_end.inc

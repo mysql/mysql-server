@@ -9,6 +9,8 @@
 # GLOBAL.GTID_PURGED correctly when binlog is disabled.
 #
 
+--source include/not_gcs_plugin.inc
+
 --source include/master-slave.inc
 --source include/have_gtid.inc
 --source include/have_debug.inc

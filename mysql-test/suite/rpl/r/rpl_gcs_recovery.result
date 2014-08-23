@@ -1,9 +1,13 @@
 include/have_gcs_replication_plugin.inc
+include/master-slave.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
 #
 # Setup a new cluster
 #
 server1
-include/install_gcs_replication.inc
 include/start_gcs_replication.inc
 # Add some data for recovery
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -17,10 +21,8 @@ INSERT INTO t1 VALUES (3);
 #
 #Add 2 more nodes
 server2
-include/install_gcs_replication.inc
 include/start_gcs_replication.inc
 server3
-include/install_gcs_replication.inc
 include/start_gcs_replication.inc
 #After recovery all nodes must see 3 other nodes
 #After recovery all nodes must have the data present in the donor.
@@ -54,6 +56,8 @@ include/assert.inc [On the recovered node, the table should contain 6 elements]
 #Test if the cluster responds to requests
 server2
 INSERT INTO t1 VALUES (7);
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 #
 # 3) Testing a second recovery round on a node
@@ -74,12 +78,4 @@ include/diff_tables.inc [server1:test.t1, server2:test.t1]
 # Cleaning up
 #
 DROP TABLE t1;
-server3
-include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
-server2
-include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
-server1
-include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
+include/rpl_end.inc

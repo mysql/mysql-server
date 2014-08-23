@@ -1,5 +1,6 @@
 # This test check if the option slave-preserve-commit-order stops the newer
 # workers from committing if one of the older workers have errored out.
+--source include/not_gcs_plugin.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/master-slave.inc

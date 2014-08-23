@@ -13,12 +13,14 @@
 #   [--let $slave_timeout= NUMBER]
 #   [--let $use_gtids= 1]
 #   [--let $rpl_gtid_utils= 1]
+#   [--let $rpl_skip_gcs_replication_start= 1]
 #   --source include/master-slave.inc
 #
 # Parameters:
 #   $rpl_check_server_ids, $rpl_skip_reset_master_and_slave,
 #   $rpl_skip_change_master, $rpl_skip_start_slave, $rpl_debug,
-#   $slave_timeout, $use_gtids, $rpl_gtid_utils
+#   $slave_timeout, $use_gtids, $rpl_gtid_utils,
+#   $rpl_skip_gcs_replication_start
 #     See include/rpl_init.inc
 #
 #   $rpl_server_count
@@ -34,6 +36,12 @@ if ($rpl_server_count)
 }
 --source include/begin_include_file.inc
 
+--source include/rpl_gcs_plugin_installed.inc
+if ($gcs_installed)
+{
+  --let $wait_for_executed_gtid_set= 1
+  --let $rpl_gcs= 1
+}
 
 --let $rpl_topology= 1->2
 --source include/rpl_init.inc

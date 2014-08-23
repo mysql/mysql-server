@@ -1,6 +1,7 @@
 #
 # Test of replicating some difficult functions
 #
+--source include/not_gcs_plugin.inc
 source include/master-slave.inc;
 source include/not_gtid_enabled.inc;
 

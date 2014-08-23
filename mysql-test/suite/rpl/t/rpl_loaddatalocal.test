@@ -6,6 +6,7 @@
 # only the first 4KB, 8KB or 16KB usually.
 # - the loaded file's first line was not written entirely to the
 # master's binlog (1st char was absent)
+--source include/not_gcs_plugin.inc
 source include/master-slave.inc;
 source include/not_gtid_enabled.inc;
 

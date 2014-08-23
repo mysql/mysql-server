@@ -14,19 +14,25 @@
 --source include/have_gcs_replication_plugin.inc
 
 --let $gcs_group_name= b5eb4110-a3a2-11e3-a5e2-0800200c9a66
+--let $rpl_skip_gcs_replication_start= 1
+--let $rpl_server_count= 3
+--source include/master-slave.inc
+
 --let $gcs_rec_invalid_user= "thisusernamehasmorethan48characterssoitisinvalid."
 --let $gcs_rec_invalid_password= "thispasswordhasmorethan32chara..."
+
+--let $debug_save_count= `SELECT @@GLOBAL.gcs_replication_plugin_recovery_retry_count`
+--let $debug_save_user= `SELECT @@GLOBAL.gcs_replication_plugin_recovery_user`
 
 --let $gcs_rec_user= gcs_user
 --let $gcs_rec_password= gcs_password
 --let $gcs_rec_bad_password= gcs_bad_password
 
 --echo #
---echo # Install and start the donor node
+--echo # Start the donor node
 --echo #
 
 --connection server1
---source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --let $gcs_number_of_nodes= 1
@@ -49,9 +55,11 @@ FLUSH PRIVILEGES;
 --echo #
 
 --connection server2
---source include/install_gcs_replication.inc
+
+set session sql_log_bin=0;
 call mtr.add_suppression("The given user name for recovery*");
 call mtr.add_suppression("The given password for recovery*");
+set session sql_log_bin=1;
 
 --error ER_WRONG_VALUE_FOR_VAR
 --eval SET GLOBAL gcs_replication_plugin_recovery_user= $gcs_rec_invalid_user
@@ -90,10 +98,10 @@ source include/assert.inc;
 SET @debug_save= @@GLOBAL.DEBUG;
 
 --connection server3
-
---source include/install_gcs_replication.inc
+set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("Maximum number of retries when*");
+set session sql_log_bin=1;
 
 --eval SET GLOBAL gcs_replication_plugin_recovery_user= $gcs_rec_user
 --eval SET GLOBAL gcs_replication_plugin_recovery_password= $gcs_rec_bad_password
@@ -126,8 +134,6 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 
 # Remove the plugin on the failed node
 
---source include/uninstall_gcs_replication.inc
-
 --connection server2
 let $wait_condition= select number_of_nodes = 2 from performance_schema.replication_connection_status;
 --source include/wait_condition.inc
@@ -137,15 +143,12 @@ let $wait_condition= select number_of_nodes = 2 from performance_schema.replicat
 --echo #
 
 --eval DROP USER "$gcs_rec_user"
-DROP TABLE t1;
---sleep 2
+--connection server3
+--eval SET GLOBAL gcs_replication_plugin_recovery_user= $debug_save_user
+--eval SET GLOBAL gcs_replication_plugin_recovery_retry_count= $debug_save_count
 
---let $server_count=2
-while ($server_count)
-{
-  --connection server$server_count
-  --echo server$server_count
-  --source include/stop_gcs_replication.inc
-  --source include/uninstall_gcs_replication.inc
-  --dec $server_count
-}
+--connection server2
+--eval SET GLOBAL gcs_replication_plugin_recovery_user= $debug_save_user
+DROP TABLE t1;
+
+--source include/rpl_end.inc

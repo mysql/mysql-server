@@ -1,8 +1,10 @@
 include/have_gcs_replication_plugin.inc
-include/install_gcs_replication.inc
-include/install_gcs_replication.inc
-include/install_gcs_replication.inc
-include/install_gcs_replication.inc
+include/master-slave.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("could not form the cluster");
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 include/stop_gcs_replication.inc
 include/stop_gcs_replication.inc
@@ -15,11 +17,4 @@ include/start_gcs_replication.inc
 include/start_gcs_replication.inc
 include/start_gcs_replication.inc
 DROP TABLE t1;
-include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
-include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
-include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
-include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
+include/rpl_end.inc

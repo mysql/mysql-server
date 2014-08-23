@@ -20,6 +20,7 @@
 # Coordinator does not schedule the event and is waiting till all workers have 
 # released their partitions and signalled.
 
+--source include/not_gcs_plugin.inc
 --source include/master-slave.inc
 
 # 

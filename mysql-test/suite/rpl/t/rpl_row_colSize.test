@@ -5,7 +5,7 @@
 # The changes include the ability to replicate with the master   #
 # having columns that are smaller (shorter) than the slave.      #
 ##################################################################
-
+--source include/not_gcs_plugin.inc
 -- source include/master-slave.inc
 -- source include/have_binlog_format_row.inc
 

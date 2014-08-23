@@ -19,6 +19,7 @@
 # 2. For non-transactional engines slave should stop on
 # start position of the group.
 #############################################################
+--source include/not_gcs_plugin.inc
 --source include/have_innodb.inc
 --source include/have_myisam.inc
 --source include/have_slave_parallel_type_database.inc

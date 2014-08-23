@@ -123,7 +123,7 @@ while ($_rpl_i) {
     }
   }
 
-  # This happens at the beginning of a new sync subchain and at the
+# This happens at the beginning of a new sync subchain and at the
   # end of the full sync chain.
   if (!$_rpl_server)
   {
@@ -141,6 +141,44 @@ while ($_rpl_i) {
   --inc $_rpl_i
 }
 
+if ($rpl_gcs)
+{
+  --let $_rpl_old_con= $CURRENT_CONNECTION
+  --let $_rpl_server= $rpl_server_count
+
+  while ($_rpl_server)
+  {
+    --let $rpl_connection_name= server_$_rpl_server
+    --source include/rpl_connection.inc
+
+    if ($biggest_gtid_executed == '')
+    {
+      --let $biggest_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+      --let $biggest_gtid_executed_server= server_$_rpl_server
+    }
+
+    --let $gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+    --let $diff_between_gtid= `SELECT GTID_SUBTRACT('$gtid_executed', '$biggest_gtid_executed')`
+    if ($diff_between_gtid != '')
+    {
+      --let $biggest_gtid_executed= $gtid_executed
+      --let $biggest_gtid_executed_server= server_$_rpl_server
+    }
+    --dec $_rpl_server
+  }
+
+  --let $_rpl_server= $rpl_server_count
+  while ($_rpl_server)
+  {
+    --let $rpl_connection_name= server_$_rpl_server
+    --source include/rpl_connection.inc
+    --let $sync_slave_connection= $biggest_gtid_executed_server
+    --source include/sync_slave_sql_with_master.inc
+
+    --dec $_rpl_server
+  }
+  --connection $_rpl_old_con
+}
 
 --let $include_filename= rpl_sync.inc
 --source include/end_include_file.inc

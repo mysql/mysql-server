@@ -12,6 +12,7 @@
 # deletes their contents through the merge table. Finally, the slave
 # is synchronized with the master and (after the fix) it won't crash.
 # 
+--source include/not_gcs_plugin.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_row.inc
 --source include/have_myisam.inc

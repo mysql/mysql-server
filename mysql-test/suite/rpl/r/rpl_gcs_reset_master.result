@@ -1,15 +1,21 @@
 include/have_gcs_replication_plugin.inc
-include/install_gcs_replication.inc
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
 #Test a reset command before start.
 RESET MASTER;
 include/start_gcs_replication.inc
-include/install_gcs_replication.inc
 include/start_gcs_replication.inc
 #Create a table and insert some data
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
+include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUES (3);
+include/sync_slave_sql_with_master.inc
 #Both nodes must have the same GTID set
 include/assert.inc [On node 2, all executed GTID should belong to the cluster]
 include/assert.inc [On node 1, all executed GTID should belong to the cluster]
@@ -30,7 +36,4 @@ INSERT INTO t1 VALUES (5);
 include/assert.inc [On all nodes, the table should exist and have 5 elements]
 include/assert.inc [On all nodes, the table should exist and have 5 elements]
 DROP TABLE t1;
-include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
-include/stop_gcs_replication.inc
-include/uninstall_gcs_replication.inc
+include/rpl_end.inc

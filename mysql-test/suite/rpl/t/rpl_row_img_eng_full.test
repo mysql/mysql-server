@@ -4,9 +4,9 @@
 # This file contains tests for WL#5096 and bug fixes. 
 #
 
+-- source include/not_gtid_enabled.inc
 -- source include/have_binlog_format_row.inc
 -- source include/have_myisam.inc
--- source include/not_gtid_enabled.inc
 
 --let $rpl_topology= 1->2->3
 --source include/rpl_init.inc

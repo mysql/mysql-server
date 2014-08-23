@@ -1,6 +1,14 @@
 --let $include_filename= have_gcs_replication_plugin.inc
 --source include/begin_include_file.inc
 
+# Synchronous replication will work only for RBR mode of replication thus tests
+# using it are restricted to this mode only.
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+--source include/have_gtid.inc
+
 #
 # Check if server has support for loading plugins
 #
@@ -8,19 +16,9 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
   --skip Requires dynamic loading
 }
 
-#
-# Check if the variable GCS_REPLICATION_PLUGIN is set
-#
-if (!$GCS_RPL_PLUGIN)
+if (!`select count(*) from information_schema.plugins where PLUGIN_NAME like 'gcs_replication_plugin'`)
 {
-  skip Need GCS_REPLICATION plugin;
-}
-
-#
-# Check if --plugin-dir was setup for GCS REPLICATION
-#
-if (`SELECT CONCAT('--plugin-dir=', REPLACE(@@plugin_dir, '\\\\', '/'))!='$GCS_RPL_PLUGIN_OPT/'`) {
-  --skip GCS plugin requires that --plugin-dir is set to the gcs_replication plugin dir (either the .opt file does not contain \$GCS_RPL_PLUGIN_OPT or another plugin is in use)
+  --skip Need GCS_REPLICATION plugin
 }
 
 # Allow $SERVER_MYPORT_1 as alias for $MASTER_MYPORT

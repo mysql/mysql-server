@@ -5,6 +5,7 @@
 # when semi-sync is enabled
 #
 # ################################################################################
+--source include/not_gcs_plugin.inc
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 # Adding big test option for this test.

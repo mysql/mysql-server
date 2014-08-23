@@ -80,7 +80,7 @@ SELECT * FROM test.regular_tbl ORDER BY fkid LIMIT 2;
 --replace_column 2 date-time 3 USER 4 UUID
 SELECT * FROM test.regular_tbl ORDER BY fkid DESC LIMIT 2;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 show create table test.byrange_tbl;
 show create table test.regular_tbl;

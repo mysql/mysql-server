@@ -25,6 +25,7 @@
 #
 
 # Don't test this under valgrind, memory leaks will occur
+--source include/not_gcs_plugin.inc
 -- source include/not_valgrind.inc
 -- source include/not_embedded.inc
 -- source include/master-slave.inc

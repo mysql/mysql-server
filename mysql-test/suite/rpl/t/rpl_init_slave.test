@@ -1,5 +1,5 @@
 source include/master-slave.inc;
-
+--source include/not_gcs_plugin.inc
 #
 # Test of init_slave variable
 #

@@ -3,7 +3,7 @@
 #This test case is not written for NDB, result files do not 
 #match when NDB is the default engine
 -- source include/not_ndb_default.inc
-
+--source include/not_gcs_plugin.inc
 -- source include/master-slave.inc
 -- source include/have_myisam.inc
 

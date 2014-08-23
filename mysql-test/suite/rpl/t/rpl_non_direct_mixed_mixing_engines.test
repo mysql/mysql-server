@@ -3,6 +3,7 @@
 # tables. For further details, please, read WL#2687 and WL#5072.
 ###################################################################################
 --source include/big_test.inc
+--source include/not_gcs_plugin.inc
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 --source include/have_innodb.inc

@@ -2,6 +2,7 @@
 # BUG#49562: SBR out of sync when using numeric data types + user variable
 #
 
+--source include/not_gcs_plugin.inc
 -- source include/master-slave.inc
 -- source include/have_binlog_format_statement.inc
 -- source include/have_myisam.inc

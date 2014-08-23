@@ -45,7 +45,7 @@
 # ==== References ====
 #
 # Created as part in WL#3584: Global Transaction Identifiers.
-
+--source include/not_gcs_plugin.inc
 --source include/have_innodb.inc
 --source include/have_gtid.inc
 --source include/not_valgrind.inc

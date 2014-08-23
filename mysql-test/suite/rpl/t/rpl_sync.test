@@ -21,7 +21,7 @@
 #    5 - Verifies if the slave is sync with the master which means that the information
 #    loss was circumvented by the recovery process.
 ########################################################################################
-
+--source include/not_gcs_plugin.inc
 ########################################################################################
 #                                Configuring the environment
 ########################################################################################

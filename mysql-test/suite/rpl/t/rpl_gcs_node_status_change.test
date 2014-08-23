@@ -11,6 +11,9 @@
 
 --source include/have_gcs_replication_plugin.inc
 --let $gcs_group_name= 89ab83b0-9f17-11e3-a5e2-0800200c9a66
+--let $rpl_skip_gcs_replication_start= 1
+--let $rpl_server_count= 3
+--source include/master-slave.inc
 
 SET @debug_save= @@GLOBAL.DEBUG;
 
@@ -20,7 +23,6 @@ SET @debug_save= @@GLOBAL.DEBUG;
 
 --connection server1
 --echo server1
---source include/install_gcs_replication.inc
 
 --echo # Set the debug flag to block recovery
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
@@ -44,7 +46,6 @@ SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
 
 --connection server2
 --echo server2
---source include/install_gcs_replication.inc
 
 --echo # Set the debug flag to block recovery
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
@@ -88,7 +89,6 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 
 --connection server3
 --echo server3
---source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --echo # Node should be marked as online
@@ -115,7 +115,7 @@ while ($server_count)
   --connection server$server_count
   --echo server$server_count
   SET @@GLOBAL.DEBUG= @debug_save;
-  --source include/stop_gcs_replication.inc
-  --source include/uninstall_gcs_replication.inc
   --dec $server_count
 }
+
+--source include/rpl_end.inc

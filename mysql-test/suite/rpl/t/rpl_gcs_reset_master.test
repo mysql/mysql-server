@@ -2,13 +2,16 @@
 # These commands end up causing the nodes to purge their relay logs
 
 --source include/have_gcs_replication_plugin.inc
+
 --let $gcs_group_name= c90c3c80-fde4-11e3-a3ac-0800200c9a66
+--let $rpl_skip_gcs_replication_start= 1
+--source include/master-slave.inc
+
 #The time we wait for things to appear on both nodes.
 #TODO: replace by a sync call
 --let $sync_wait_time= 2
 
 --connection server1
---source include/install_gcs_replication.inc
 
 --echo #Test a reset command before start.
 RESET MASTER;
@@ -16,14 +19,14 @@ RESET MASTER;
 --source include/start_gcs_replication.inc
 
 --connection server2
---source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --echo #Create a table and insert some data
 --connection server1
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
---sleep $sync_wait_time # sleep for the table to appear on node 2
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
 
 --connection server2
 INSERT INTO t1 VALUES (1);
@@ -31,10 +34,14 @@ INSERT INTO t1 VALUES (1);
 --connection server1
 INSERT INTO t1 VALUES (2);
 
+--let $sync_slave_connection=server2
+--source include/sync_slave_sql_with_master.inc
+
 --connection server2
 INSERT INTO t1 VALUES (3);
 
---sleep $sync_wait_time # sleep for the gtid to stabilize
+--let $sync_slave_connection=server1
+--source include/sync_slave_sql_with_master.inc
 
 --echo #Both nodes must have the same GTID set
 --let $server_count=2
@@ -99,11 +106,4 @@ while ($server_count)
 }
 
 DROP TABLE t1;
---sleep $sync_wait_time #sleep for the drop to reach both nodes
-
---source include/stop_gcs_replication.inc
---source include/uninstall_gcs_replication.inc
-
---connection server2
---source include/stop_gcs_replication.inc
---source include/uninstall_gcs_replication.inc
+--source include/rpl_end.inc

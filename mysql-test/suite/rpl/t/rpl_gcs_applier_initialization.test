@@ -5,13 +5,19 @@
 
 --source include/have_debug.inc
 --source include/have_gcs_replication_plugin.inc
---source include/install_gcs_replication.inc
 
+--let $gcs_group_name= 2d249320-2e06-11e3-aa6e-0800200c9a66
+--let $rpl_skip_gcs_replication_start= 1
+--source include/master-slave.inc
+
+set session sql_log_bin=0;
 call mtr.add_suppression("An handler, marked as unique *.*");
 call mtr.add_suppression("Cannot start the applier as a *.*");
 call mtr.add_suppression("On shutdown there was a timeout on the applier *.*");
+set session sql_log_bin=1;
 
---let $gcs_group_name= 2d249320-2e06-11e3-aa6e-0800200c9a66
+--let $debug_save_timeout= `SELECT @@GLOBAL.gcs_replication_plugin_components_stop_timeout`
+
 --eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
 
 SET @debug_save= @@GLOBAL.DEBUG;
@@ -50,9 +56,10 @@ SET @@GLOBAL.DEBUG= @debug_save;
 #give it time to die
 --sleep 5
 
+--eval SET GLOBAL gcs_replication_plugin_components_stop_timeout= $debug_save_timeout
 #start and stop commands should work properly
 --source include/start_gcs_replication.inc
 --source include/stop_gcs_replication.inc
 
 SET @@GLOBAL.DEBUG= @debug_save;
---source include/uninstall_gcs_replication.inc
+--source include/rpl_end.inc

@@ -8,6 +8,7 @@
 # correctly on slave when binlog is enabled and log_slave_updates is diabled.
 #
 
+--source include/not_gcs_plugin.inc
 --source include/master-slave.inc
 --source include/have_gtid.inc
 --source include/have_debug.inc

@@ -9,6 +9,9 @@
 
 --source include/have_gcs_replication_plugin.inc
 --let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9429562
+--let $rpl_skip_gcs_replication_start= 1
+--let $rpl_server_count= 3
+--source include/master-slave.inc
 
 --echo #
 --echo # Setup a new cluster
@@ -16,7 +19,6 @@
 
 --connection server1
 --echo server1
---source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --echo # Add some data for recovery
@@ -35,12 +37,10 @@ INSERT INTO t1 VALUES (3);
 --echo #Add 2 more nodes
 --connection server2
 --echo server2
---source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --connection server3
 --echo server3
---source include/install_gcs_replication.inc
 --source include/start_gcs_replication.inc
 
 --echo #After recovery all nodes must see 3 other nodes
@@ -130,6 +130,16 @@ INSERT INTO t1 VALUES (7);
 --let $wait_condition= select count(*) = 7 from t1;
 --source include/wait_condition.inc
 
+# we are using this because we want to sync a pair of servers instead of the
+# whole cluster. sync_slave_with_master is a legacy name.
+
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
+
+--let $sync_slave_connection= server3
+--source include/sync_slave_sql_with_master.inc
+
+connection server2;
 --let  $diff_tables= server1:test.t1, server2:test.t1
 --source include/diff_tables.inc
 
@@ -174,12 +184,4 @@ INSERT INTO t1 VALUES (9);
 DROP TABLE t1;
 --sleep 2
 
---let $server_count=3
-while ($server_count)
-{
-  --connection server$server_count
-  --echo server$server_count
-  --source include/stop_gcs_replication.inc
-  --source include/uninstall_gcs_replication.inc
-  --dec $server_count
-}
+--source include/rpl_end.inc

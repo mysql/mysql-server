@@ -5,7 +5,7 @@
 # However, before fix of bug#48350, 'TRUNCATE ...' statement on a temporary
 # table was binlogged in RBR.
 #
-
+--source include/not_gcs_plugin.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_row.inc
 

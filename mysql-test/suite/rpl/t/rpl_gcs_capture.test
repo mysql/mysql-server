@@ -1,22 +1,10 @@
 --source include/have_gcs_replication_plugin.inc
-
 # This test is only checking that capture code does not cause
 # errors, for complete testing it will need to be completed when
 # WL#6826, WL#6833, WL#6834, WL#6842, WL#6829, WL#6855 and WL#7237
 # are finished.
 --let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9429562
-
---connection server1
-set @@session.sql_log_bin=off;
-set @@session.sql_log_bin=on;
---source include/install_gcs_replication.inc
---source include/start_gcs_replication.inc
-
---connection server2
-set @@session.sql_log_bin=off;
-set @@session.sql_log_bin=on;
---source include/install_gcs_replication.inc
---source include/start_gcs_replication.inc
+--source include/master-slave.inc
 
 --connection server1
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -46,8 +34,8 @@ CREATE TEMPORARY TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --connection server2
 INSERT INTO t1 VALUES (1000);
 
---echo sleeping
---sleep 10
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
 --connection server1
 --echo
 --echo server1
@@ -68,11 +56,4 @@ SHOW TABLES FROM test;
 
 --connection server1
 DROP TABLE t1, t2, t3;
---sleep 2
-
---source include/stop_gcs_replication.inc
---source include/uninstall_gcs_replication.inc
-
---connection server2
---source include/stop_gcs_replication.inc
---source include/uninstall_gcs_replication.inc
+--source include/rpl_end.inc

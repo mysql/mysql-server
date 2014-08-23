@@ -5,7 +5,6 @@
 # DDL and DML testing for this table is addressed in other tests.
 
 --source include/have_gcs_replication_plugin.inc
---source include/install_gcs_replication.inc
 
 --let $gcs_group_name= 8a84f357-aaa4-10df-85ab-c70aa9429562
 
@@ -94,10 +93,4 @@
 --let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
 --let $assert_text= The value of node_state should be offline after restarting server
 --let $assert_cond= "$node_state" = "OFFLINE"
---source include/assert.inc
-
---source include/uninstall_gcs_replication.inc
-
---let $assert_text= When plugin is not loaded, the table should return an empty set.
---let $assert_cond= [select count(*) from performance_schema.replication_connection_nodes] = 0;
 --source include/assert.inc

@@ -10,6 +10,7 @@
 # bytes from mi object, we ended up with a garbage value in the select
 # SOURCE_UUID field from P_S.replication_connect_status
 ################################################################################
+--source include/not_gcs_plugin.inc
 --source include/have_debug_sync.inc
 --source include/master-slave.inc
 # Testing it in one mode is enough

@@ -25,7 +25,7 @@
 #   In step iv), before the bug was fixed, the test case would fail
 #   with mysqlbinlog reporting that it was unable to succeed in
 #   reading the event.
-
+--source include/not_gcs_plugin.inc
 -- source include/master-slave.inc
 -- source include/have_innodb.inc
 -- source include/have_binlog_format_row.inc
