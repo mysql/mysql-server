@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -507,6 +507,8 @@ void RIPEMD160::Transform()
 
 #ifdef _MSC_VER
     __declspec(naked) 
+#else
+    __attribute__ ((noinline))
 #endif
 void RIPEMD160::AsmTransform(const byte* data, word32 times)
 {
@@ -520,12 +522,11 @@ void RIPEMD160::AsmTransform(const byte* data, word32 times)
         ".intel_syntax noprefix;" \
         "push ebx;" \
         "push ebp;"
-
     #define EPILOG()  \
         "pop ebp;" \
         "pop ebx;" \
-               "emms;" \
-               ".att_syntax;" \
+       	"emms;" \
+       	".att_syntax;" \
             : \
             : "c" (this), "D" (data), "d" (times) \
             : "%esi", "%eax", "memory", "cc" \
@@ -571,7 +572,7 @@ void RIPEMD160::AsmTransform(const byte* data, word32 times)
 #ifdef _MSC_VER
     AS1( loopStart: )  // loopStart
 #else
-    AS1( 0: )          // loopStart for some gas (need numeric for jump back
+    AS1( 0: )          // loopStart for some gas (need numeric for jump back 
 #endif
 
     AS2(    movd  mm2, edx              )   // store times_
@@ -830,7 +831,7 @@ void RIPEMD160::AsmTransform(const byte* data, word32 times)
     AS1(    jnz   0b )         // loopStart
 #endif
 
-    // inline adjust
+    // inline adjust 
     AS2(    add   esp, 24               )   // fix room on stack
 
     EPILOG()

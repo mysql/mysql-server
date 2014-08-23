@@ -1,15 +1,15 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
- 
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
- 
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
- 
+
    You should have received a copy of the GNU General Public License
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
@@ -236,7 +236,7 @@ void Rabbit::Process(byte* output, const byte* input, word32 msglen)
         NextState(Work);
 
         /* Generate 16 bytes of pseudo-random data */
-        tmp[0] = LITTLE32(workCtx_.x[0] ^ 
+        tmp[0] = LITTLE32(workCtx_.x[0] ^
                   (workCtx_.x[5]>>16) ^ U32V(workCtx_.x[3]<<16));
         tmp[1] = LITTLE32(workCtx_.x[2] ^ 
                   (workCtx_.x[7]>>16) ^ U32V(workCtx_.x[5]<<16));
