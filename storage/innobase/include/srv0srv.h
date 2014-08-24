@@ -238,8 +238,20 @@ extern ulint	srv_undo_tablespaces_open;
 /** The number of undo segments to use */
 extern ulong	srv_undo_logs;
 
+/** Maximum size of undo tablespace. */
+extern unsigned long long	srv_max_undo_log_size;
+
+/** Rate at which UNDO records should be purged. */
+extern ulong	srv_purge_rseg_truncate_frequency;
+
+/** Enable or Disable Truncate of UNDO tablespace. */
+extern my_bool	srv_undo_log_truncate;
+
 /** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
 extern const ulong	srv_tmp_undo_logs;
+
+/** Default size of UNDO tablespace while it is created new. */
+extern const ulint	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char*	srv_log_group_home_dir;
 
@@ -415,19 +427,21 @@ extern srv_stats_t	srv_stats;
 
 # ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
-extern mysql_pfs_key_t	page_cleaner_thread_key;
-extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
+extern mysql_pfs_key_t	buf_dump_thread_key;
+extern mysql_pfs_key_t	dict_stats_thread_key;
+extern mysql_pfs_key_t	io_handler_thread_key;
 extern mysql_pfs_key_t	io_ibuf_thread_key;
 extern mysql_pfs_key_t	io_log_thread_key;
 extern mysql_pfs_key_t	io_read_thread_key;
 extern mysql_pfs_key_t	io_write_thread_key;
-extern mysql_pfs_key_t	io_handler_thread_key;
-extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
-extern mysql_pfs_key_t	srv_error_monitor_thread_key;
-extern mysql_pfs_key_t	srv_monitor_thread_key;
-extern mysql_pfs_key_t	srv_master_thread_key;
-extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	page_cleaner_thread_key;
 extern mysql_pfs_key_t	recv_writer_thread_key;
+extern mysql_pfs_key_t	srv_error_monitor_thread_key;
+extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
+extern mysql_pfs_key_t	srv_master_thread_key;
+extern mysql_pfs_key_t	srv_monitor_thread_key;
+extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
 
 /* This macro register the current thread and its key with performance
 schema */

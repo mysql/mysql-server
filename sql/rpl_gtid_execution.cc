@@ -71,7 +71,6 @@ int gtid_acquire_ownership_single(THD *thd)
     // GTID owned by someone (other thread)
     else
     {
-      DBUG_ASSERT(owner != thd->id);
       // The call below releases the read lock on global_sid_lock and
       // the mutex lock on SIDNO.
       gtid_state->wait_for_gtid(thd, gtid_next);

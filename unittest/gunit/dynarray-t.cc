@@ -40,8 +40,8 @@
 */
 static inline bool operator<(const Key_use &a, const Key_use &b)
 {
-  if (a.table->tablenr != b.table->tablenr)
-    return a.table->tablenr < b.table->tablenr;
+  if (a.table_ref->tableno() != b.table_ref->tableno())
+    return a.table_ref->tableno() < b.table_ref->tableno();
   if (a.key != b.key)
     return a.key < b.key;
   if (a.keypart != b.keypart)
@@ -63,7 +63,7 @@ static inline bool operator<(const Key_use &a, const Key_use &b)
 static inline bool operator==(const Key_use &lhs, const Key_use &rhs)
 {
   return
-    lhs.table->tablenr == rhs.table->tablenr &&
+    lhs.table_ref->tableno() == rhs.table_ref->tableno() &&
     lhs.key            == rhs.key            &&
     lhs.keypart        == rhs.keypart        &&
     MY_TEST((lhs.used_tables & ~OUTER_REF_TABLE_BIT))
@@ -78,7 +78,7 @@ static inline bool operator==(const Key_use &lhs, const Key_use &rhs)
 static inline std::ostream &operator<<(std::ostream &s, const Key_use &v)
 {
   return s << "{"
-           << v.table->tablenr << ", "
+           << v.table_ref->tableno() << ", "
            << v.key            << ", "
            << v.keypart        << ", "
            << v.used_tables    << ", "
@@ -97,8 +97,8 @@ namespace dynarray_unittest {
 inline int sort_keyuse(Key_use *a, Key_use *b)
 {
   int res;
-  if (a->table->tablenr != b->table->tablenr)
-    return (int) (a->table->tablenr - b->table->tablenr);
+  if (a->table_ref->tableno() != b->table_ref->tableno())
+    return (int) (a->table_ref->tableno() - b->table_ref->tableno());
   if (a->key != b->key)
     return (int) (a->key - b->key);
   if (a->keypart != b->keypart)
@@ -114,12 +114,12 @@ inline int sort_keyuse(Key_use *a, Key_use *b)
 
 
 // We generate some random data at startup, for testing of sorting.
-void generate_test_data(Key_use *keys, TABLE *tables, int n)
+void generate_test_data(Key_use *keys, TABLE_LIST *tables, int n)
 {
   int ix;
   for (ix= 0; ix < n; ++ix)
   {
-    tables[ix].tablenr= ix % 3;
+    tables[ix].set_tableno(ix % 3);
     keys[ix]=
       Key_use(&tables[ix],
               NULL,                           // Item      *val
@@ -194,13 +194,13 @@ public:
   std::vector<Key_use>    m_keyuse_vec;
 private:
   static Key_use test_data[num_elements];
-  static TABLE   table_list[num_elements];
+  static TABLE_LIST table_list[num_elements];
 
   GTEST_DISALLOW_COPY_AND_ASSIGN_(DynArrayTest);
 };
 
 Key_use DynArrayTest::test_data[num_elements];
-TABLE   DynArrayTest::table_list[num_elements];
+TABLE_LIST DynArrayTest::table_list[num_elements];
 
 
 // Test insert_dynamic() and my_qsort().
@@ -295,14 +295,14 @@ public:
   static size_t  destroy_counter;
 private:
   static Key_use test_data[num_elements];
-  static TABLE   table_list[num_elements];
+  static TABLE_LIST table_list[num_elements];
 
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MemRootTest);
 };
 
 size_t  MemRootTest::destroy_counter;
 Key_use MemRootTest::test_data[num_elements];
-TABLE   MemRootTest::table_list[num_elements];
+TABLE_LIST MemRootTest::table_list[num_elements];
 
 
 // Test Mem_root_array::push_back() and my_qsort()

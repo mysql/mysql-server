@@ -2148,7 +2148,8 @@ SET @cmd="CREATE TABLE performance_schema.replication_connection_configuration("
   "SSL_CRL_FILE VARCHAR(255) not null,"
   "SSL_CRL_PATH VARCHAR(255) not null,"
   "CONNECTION_RETRY_INTERVAL INTEGER not null,"
-  "CONNECTION_RETRY_COUNT BIGINT unsigned NOT NULL"
+  "CONNECTION_RETRY_COUNT BIGINT unsigned not null,"
+  "HEARTBEAT_INTERVAL DOUBLE(10,3) unsigned not null COMMENT 'Number of seconds after which a heartbeat will be sent .'"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -2165,6 +2166,8 @@ SET @cmd="CREATE TABLE performance_schema.replication_connection_status("
   "SOURCE_UUID CHAR(36) collate utf8_bin not null,"
   "THREAD_ID BIGINT unsigned,"
   "SERVICE_STATE ENUM('ON','OFF','CONNECTING') not null,"
+  "COUNT_RECEIVED_HEARTBEATS bigint unsigned NOT NULL DEFAULT 0,"
+  "LAST_HEARTBEAT_TIMESTAMP TIMESTAMP(0) not null COMMENT 'Shows when the most recent heartbeat signal was received.',"
   "RECEIVED_TRANSACTION_SET TEXT not null,"
   "LAST_ERROR_NUMBER INTEGER not null,"
   "LAST_ERROR_MESSAGE VARCHAR(1024) not null,"
@@ -2197,7 +2200,8 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.replication_execute_status("
   "CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,"
   "SERVICE_STATE ENUM('ON','OFF') not null,"
-  "REMAINING_DELAY INTEGER unsigned"
+  "REMAINING_DELAY INTEGER unsigned,"
+  "COUNT_TRANSACTIONS_RETRIES BIGINT unsigned not null"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

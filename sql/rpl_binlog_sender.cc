@@ -492,7 +492,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
 
   do
   {
-    set_timespec_nsec(ts, m_heartbeat_period);
+    set_timespec_nsec(&ts, m_heartbeat_period);
     ret= mysql_bin_log.wait_for_update_bin_log(m_thd, &ts);
     if (ret != ETIMEDOUT && ret != ETIME)
       break;

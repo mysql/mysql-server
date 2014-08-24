@@ -602,6 +602,13 @@ void PFS_engine_table::set_field_timestamp(Field *f, ulonglong value)
   f2->store_timestamp(& tm);
 }
 
+void PFS_engine_table::set_field_double(Field *f, double value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DOUBLE);
+  Field_double *f2= (Field_double*) f;
+  f2->store(value);
+}
+
 ulonglong PFS_engine_table::get_field_enum(Field *f)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
@@ -697,7 +704,7 @@ void initialize_performance_schema_acl(bool bootstrap)
   */
   if (! bootstrap)
   {
-    ACL_internal_schema_registry::register_schema(&PERFORMANCE_SCHEMA_str,
+    ACL_internal_schema_registry::register_schema(PERFORMANCE_SCHEMA_str,
                                                   &pfs_internal_access);
   }
 }

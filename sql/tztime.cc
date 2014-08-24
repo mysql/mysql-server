@@ -1603,7 +1603,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   TABLE *table;
   Tz_names_entry *tmp_tzname;
   my_bool return_val= 1;
-  char db[]= "mysql";
+  LEX_CSTRING db= { C_STRING_WITH_LEN("mysql") };
   int res;
   DBUG_ENTER("my_tz_init");
 
@@ -1663,13 +1663,12 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     without time zone description tables. Now try to load information about
     leap seconds shared by all time zones.
   */
-
-  thd->set_db(db, sizeof(db)-1);
+  thd->set_db(db);
   memset(&tz_tables[0], 0, sizeof(TABLE_LIST));
   tz_tables[0].alias= tz_tables[0].table_name=
     (char*)"time_zone_leap_second";
   tz_tables[0].table_name_length= 21;
-  tz_tables[0].db= db;
+  tz_tables[0].db= db.str;
   tz_tables[0].db_length= sizeof(db)-1;
   tz_tables[0].lock_type= TL_READ;
 

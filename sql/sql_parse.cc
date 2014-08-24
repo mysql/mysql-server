@@ -170,7 +170,7 @@ const LEX_STRING command_name[]={
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
   return rpl_filter->is_on() && tables && !thd->sp_runtime_ctx &&
-         !rpl_filter->tables_ok(thd->db, tables);
+         !rpl_filter->tables_ok(thd->db().str, tables);
 }
 
 /**
@@ -1115,9 +1115,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->status_var.com_stat[SQLCOM_CHANGE_DB]++;
     thd->convert_string(&tmp, system_charset_info,
 			packet, packet_length, thd->charset());
-    if (!mysql_change_db(thd, &tmp, FALSE))
+
+    LEX_CSTRING tmp_cstr= {tmp.str, tmp.length};
+    if (!mysql_change_db(thd, tmp_cstr, FALSE))
     {
-      query_logger.general_log_write(thd, command, thd->db, thd->db_length);
+      query_logger.general_log_write(thd, command,
+                                     thd->db().str, thd->db().length);
       my_ok(thd);
     }
     break;
@@ -1149,8 +1152,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     USER_CONN *save_user_connect=
       const_cast<USER_CONN*>(thd->get_user_connect());
-    char *save_db= thd->db;
-    size_t save_db_length= thd->db_length;
+    LEX_CSTRING save_db= thd->db();
     Security_context save_security_ctx= *thd->security_ctx;
 
     auth_rc= acl_authenticate(thd, packet_length);
@@ -1160,7 +1162,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->set_user_connect(save_user_connect);
-      thd->reset_db(save_db, save_db_length);
+      thd->reset_db(save_db);
 
       my_error(ER_ACCESS_DENIED_CHANGE_USER_ERROR, MYF(0),
                thd->security_ctx->user,
@@ -1177,7 +1179,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
       mysql_mutex_lock(&thd->LOCK_thd_data);
-      my_free(save_db);
+      my_free(const_cast<char*>(save_db.str));
+      save_db= NULL_CSTR;
       mysql_mutex_unlock(&thd->LOCK_thd_data);
       my_free(save_security_ctx.user);
 
@@ -1223,7 +1226,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
     MYSQL_QUERY_START(const_cast<char*>(thd->query().str), thd->thread_id(),
-                      (char *) (thd->db ? thd->db : ""),
+                      (char *) (thd->db().str ? thd->db().str : ""),
                       &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
     const char *packet_end= thd->query().str + thd->query().length;
@@ -1301,7 +1304,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 /* DTRACE begin */
       MYSQL_QUERY_START(const_cast<char*>(beginning_of_next_stmt),
                         thd->thread_id(),
-                        (char *) (thd->db ? thd->db : ""),
+                        (char *) (thd->db().str ? thd->db().str : ""),
                         &thd->security_ctx->priv_user[0],
                         (char *) thd->security_ctx->host_or_ip);
 
@@ -1309,9 +1312,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->m_digest= & thd->m_digest_state;
 
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
-                                                  com_statement_info[command].m_key,
-                                                  thd->db, thd->db_length,
-                                                  thd->charset(), NULL);
+                                          com_statement_info[command].m_key,
+                                          thd->db().str, thd->db().length,
+                                          thd->charset(), NULL);
       THD_STAGE_INFO(thd, stage_starting);
       MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
@@ -2194,7 +2197,7 @@ mysql_execute_command(THD *thd)
         lex->sql_command != SQLCOM_SAVEPOINT &&
         lex->sql_command != SQLCOM_ROLLBACK &&
         lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
-        !rpl_filter->db_ok(thd->db))
+        !rpl_filter->db_ok(thd->db().str))
       DBUG_RETURN(0);
 
     if (lex->sql_command == SQLCOM_DROP_TRIGGER)
@@ -3593,9 +3596,10 @@ end_with_restore_list:
     }
   case SQLCOM_CHANGE_DB:
   {
-    LEX_STRING db_str= { (char *) select_lex->db, strlen(select_lex->db) };
+    const LEX_CSTRING db_str= { (char *) select_lex->db,
+                                strlen(select_lex->db) };
 
-    if (!mysql_change_db(thd, &db_str, FALSE))
+    if (!mysql_change_db(thd, db_str, FALSE))
       my_ok(thd);
 
     break;
@@ -3795,7 +3799,7 @@ end_with_restore_list:
 #endif
     if (check_access(thd, DROP_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
-    res= mysql_rm_db(thd, lex->name.str, lex->drop_if_exists, 0);
+    res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists, 0);
     break;
   }
   case SQLCOM_ALTER_DB_UPGRADE:
@@ -3818,7 +3822,8 @@ end_with_restore_list:
       res= 1;
       break;
     }
-    res= mysql_upgrade_db(thd, db);
+    LEX_CSTRING db_name= {db->str, db->length};
+    res= mysql_upgrade_db(thd, db_name);
     if (!res)
       my_ok(thd);
     break;
@@ -3883,10 +3888,19 @@ end_with_restore_list:
       break;
     }
     case SQLCOM_ALTER_EVENT:
+    {
+      LEX_STRING db_lex_str= NULL_STR;
+      if (lex->spname)
+      {
+        db_lex_str.str= const_cast<char*>(lex->spname->m_db.str);
+        db_lex_str.length= lex->spname->m_db.length;
+      }
+
       res= Events::update_event(thd, lex->event_parse_data,
-                                lex->spname ? &lex->spname->m_db : NULL,
+                                lex->spname ? &db_lex_str : NULL,
                                 lex->spname ? &lex->spname->m_name : NULL);
       break;
+    }
     default:
       DBUG_ASSERT(0);
     }
@@ -3904,15 +3918,23 @@ end_with_restore_list:
   /* lex->unit->cleanup() is called outside, no need to call it here */
   break;
   case SQLCOM_SHOW_CREATE_EVENT:
-    res= Events::show_create_event(thd, lex->spname->m_db,
+  {
+    LEX_STRING db_lex_str= {const_cast<char*>(lex->spname->m_db.str),
+                              lex->spname->m_db.length};
+    res= Events::show_create_event(thd, db_lex_str,
                                    lex->spname->m_name);
     break;
+  }
   case SQLCOM_DROP_EVENT:
+  {
+    LEX_STRING db_lex_str= {const_cast<char*>(lex->spname->m_db.str),
+                              lex->spname->m_db.length};
     if (!(res= Events::drop_event(thd,
-                                  lex->spname->m_db, lex->spname->m_name,
+                                  db_lex_str, lex->spname->m_name,
                                   lex->drop_if_exists)))
         my_ok(thd);
     break;
+  }
 #else
     my_error(ER_NOT_SUPPORTED_YET,MYF(0),"embedded server");
     break;
@@ -4566,7 +4588,7 @@ end_with_restore_list:
       }
 #endif
 
-      char *db= lex->spname->m_db.str;
+      const char *db= lex->spname->m_db.str;
       char *name= lex->spname->m_name.str;
 
       if (check_routine_access(thd, ALTER_PROC_ACL, db, name,
@@ -5372,7 +5394,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           lex->set_trg_event_type_for_tables();
           MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                                  thd->thread_id(),
-                                 (char *) (thd->db ? thd->db : ""),
+                                 (char *) (thd->db().str ? thd->db().str : ""),
                                  &thd->security_ctx->priv_user[0],
                                  (char *) thd->security_ctx->host_or_ip,
                                  0);
@@ -5515,7 +5537,7 @@ bool mysql_test_parse_for_slave(THD *thd)
                lex->sql_command != SQLCOM_SAVEPOINT &&
                lex->sql_command != SQLCOM_ROLLBACK &&
                lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
-               !rpl_filter->db_ok(thd->db))
+               !rpl_filter->db_ok(thd->db().str))
         ignorable= true;
     }
     thd->m_digest= parent_digest;
@@ -5689,7 +5711,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 {
   TABLE_LIST *ptr;
   TABLE_LIST *previous_table_ref= NULL; /* The table preceding the current one. */
-  char *alias_str;
+  const char *alias_str;
   LEX *lex= thd->lex;
   DBUG_ENTER("add_table_to_list");
 
@@ -5711,8 +5733,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
       DBUG_RETURN(0);
     }
   }
+  LEX_STRING db= to_lex_string(table->db);
   if (table->is_derived_table() == FALSE && table->db.str &&
-      (check_and_convert_db_name(&table->db, FALSE) != IDENT_NAME_OK))
+      (check_and_convert_db_name(&db, FALSE) != IDENT_NAME_OK))
     DBUG_RETURN(0);
 
   if (!alias)					/* Alias is case sensitive */
@@ -5731,20 +5754,22 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (table->db.str)
   {
     ptr->is_fqtn= TRUE;
-    ptr->db= table->db.str;
+    ptr->db= const_cast<char*>(table->db.str);
     ptr->db_length= table->db.length;
   }
-  else if (lex->copy_db_to(&ptr->db, &ptr->db_length))
+  else if (lex->copy_db_to((char**)&ptr->db, &ptr->db_length))
     DBUG_RETURN(0);
   else
     ptr->is_fqtn= FALSE;
 
-  ptr->alias= alias_str;
+  ptr->alias= const_cast<char*>(alias_str);
   ptr->is_alias= alias ? TRUE : FALSE;
   if (lower_case_table_names && table->table.length)
-    table->table.length= my_casedn_str(files_charset_info, table->table.str);
-  ptr->table_name=table->table.str;
-  ptr->table_name_length=table->table.length;
+    table->table.length= my_casedn_str(files_charset_info,
+                                       const_cast<char*>(table->table.str));
+  ptr->table_name= const_cast<char*>(table->table.str);
+  ptr->table_name_length= table->table.length;
+  ptr->set_tableno(0);
   ptr->lock_type=   lock_type;
   ptr->updating=    MY_TEST(table_options & TL_OPTION_UPDATING);
   /* TODO: remove TL_OPTION_FORCE_INDEX as it looks like it's not used */
@@ -5779,7 +5804,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                ptr->table_name, INFORMATION_SCHEMA_NAME.str);
       DBUG_RETURN(0);
     }
-    ptr->schema_table_name= ptr->table_name;
+    ptr->schema_table_name= const_cast<char*>(ptr->table_name);
     ptr->schema_table= schema_table;
   }
   ptr->select_lex= this;

@@ -41,7 +41,7 @@ struct TABLE_LIST;
 bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
 
 bool add_table_for_trigger(THD *thd,
-                           const LEX_STRING &db_name,
+                           const LEX_CSTRING &db_name,
                            const LEX_STRING &trigger_name,
                            bool continue_if_not_exist,
                            TABLE_LIST **table);

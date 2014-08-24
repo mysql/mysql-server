@@ -319,7 +319,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
-    char* db = table->db;
+    const char* db = table->db;
     bool fatal_error=0;
     bool open_error;
 

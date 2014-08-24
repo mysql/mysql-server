@@ -48,6 +48,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0undo.h"
 #include "trx0xa.h"
 #include "usr0sess.h"
+#include "ut0new.h"
 #include "ut0pool.h"
 #include "ut0vec.h"
 
@@ -57,10 +58,13 @@ Created 3/26/1996 Heikki Tuuri
 static const ulint MAX_DETAILED_ERROR_LEN = 256;
 
 /** Set of table_id */
-typedef std::set<table_id_t>	table_id_set;
+typedef std::set<
+	table_id_t,
+	std::less<table_id_t>,
+	ut_allocator<table_id_t> >	table_id_set;
 
 /** Dummy session used currently in MySQL interface */
-sess_t*		trx_dummy_sess = NULL;
+sess_t*	trx_dummy_sess = NULL;
 
 /*************************************************************//**
 Set detailed error message for the transaction. */
@@ -171,10 +175,10 @@ struct TrxFactory {
 
 		trx->dict_operation_lock_mode = 0;
 
-		trx->xid = new (std::nothrow) xid_t();
+		trx->xid = UT_NEW_NOKEY(xid_t());
 
 		trx->detailed_error = reinterpret_cast<char*>(
-			ut_zalloc(MAX_DETAILED_ERROR_LEN));
+			ut_zalloc_nokey(MAX_DETAILED_ERROR_LEN));
 
 		trx->lock.lock_heap = mem_heap_create_typed(
 			1024, MEM_HEAP_FOR_LOCK_HEAP);
@@ -190,7 +194,7 @@ struct TrxFactory {
 
 		/* Explicitly call the constructor of the already
 		allocated object. trx_t objects are allocated by
-		ut_zalloc() in Pool::Pool() which would not call
+		ut_zalloc_nokey() in Pool::Pool() which would not call
 		the constructors of the trx_t members. */
 		new(&trx->mod_tables) trx_mod_tables_t();
 
@@ -225,7 +229,7 @@ struct TrxFactory {
 
 		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-		delete trx->xid;
+		UT_DELETE(trx->xid);
 		ut_free(trx->detailed_error);
 
 		mutex_free(&trx->mutex);
@@ -357,7 +361,7 @@ static const ulint MAX_TRX_BLOCK_SIZE = 1024 * 1024 * 4;
 void
 trx_pool_init()
 {
-	trx_pools = new (std::nothrow) trx_pools_t(MAX_TRX_BLOCK_SIZE);
+	trx_pools = UT_NEW_NOKEY(trx_pools_t(MAX_TRX_BLOCK_SIZE));
 
 	ut_a(trx_pools != 0);
 }
@@ -367,7 +371,7 @@ trx_pool_init()
 void
 trx_pool_close()
 {
-	delete trx_pools;
+	UT_DELETE(trx_pools);
 
 	trx_pools = 0;
 }
@@ -716,6 +720,10 @@ trx_resurrect_insert(
 	ut_d(trx->start_line = __LINE__);
 
 	trx->rsegs.m_redo.rseg = rseg;
+	/* For transactions with active data will not have rseg size = 1
+	or will not qualify for purge limit criteria. So it is safe to increment
+	this trx_ref_count w/o mutex protection. */
+	++trx->rsegs.m_redo.rseg->trx_ref_count;
 	*trx->xid = undo->xid;
 	trx->id = undo->trx_id;
 	trx->rsegs.m_redo.insert_undo = undo;
@@ -844,6 +852,10 @@ trx_resurrect_update(
 	trx_rseg_t*	rseg)	/*!< in/out: rollback segment */
 {
 	trx->rsegs.m_redo.rseg = rseg;
+	/* For transactions with active data will not have rseg size = 1
+	or will not qualify for purge limit criteria. So it is safe to increment
+	this trx_ref_count w/o mutex protection. */
+	++trx->rsegs.m_redo.rseg->trx_ref_count;
 	*trx->xid = undo->xid;
 	trx->id = undo->trx_id;
 	trx->rsegs.m_redo.update_undo = undo;
@@ -1019,45 +1031,72 @@ get_next_redo_rseg(
 	}
 
 #ifdef UNIV_DEBUG
-	ulint start_scan_slot = slot;
-	bool look_for_rollover = false;
+	ulint	start_scan_slot = slot;
+	bool	look_for_rollover = false;
 #endif /* UNIV_DEBUG */
 
-	for (;;) {
-		rseg = trx_sys->rseg_array[slot];
+	bool	allocated = false;
+
+	while (!allocated) {
+
+		for (;;) {
+			rseg = trx_sys->rseg_array[slot];
 
 #ifdef UNIV_DEBUG
-		/* Ensure that we are not revisiting the same
-		slot that we have already inspected. */
-		if (look_for_rollover) {
-			ut_ad(start_scan_slot != slot);
-		}
-		look_for_rollover = true;
+			/* Ensure that we are not revisiting the same
+			slot that we have already inspected. */
+			if (look_for_rollover) {
+				ut_ad(start_scan_slot != slot);
+			}
+			look_for_rollover = true;
 #endif /* UNIV_DEBUG */
 
-		slot = (slot + 1) % max_undo_logs;
-
-		/* Skip slots allocated for noredo rsegs */
-		while (trx_sys_is_noredo_rseg_slot(slot)) {
 			slot = (slot + 1) % max_undo_logs;
+
+			/* Skip slots allocated for noredo rsegs */
+			while (trx_sys_is_noredo_rseg_slot(slot)) {
+				slot = (slot + 1) % max_undo_logs;
+			}
+
+			if (rseg == NULL) {
+				continue;
+			} else if (rseg->space == srv_sys_space.space_id()
+				   && n_tablespaces > 0
+				   && trx_sys->rseg_array[slot] != NULL
+				   && trx_sys->rseg_array[slot]->space
+					!= srv_sys_space.space_id()) {
+				/** If undo-tablespace is configured, skip
+				rseg from system-tablespace and try to use
+				undo-tablespace rseg unless it is not possible
+				due to lower limit of undo-logs. */
+				continue;
+			} else if (rseg->skip_allocation) {
+				/** This rseg resides in the tablespace that
+				has been marked for truncate so avoid using this
+				rseg. Also, this is possible only if there are
+				at-least 2 UNDO tablespaces active and 2 redo
+				rsegs active (other than default system bound
+				rseg-0). */
+				ut_ad(n_tablespaces > 1);
+				ut_ad(max_undo_logs
+					>= (1 + srv_tmp_undo_logs + 2));
+				continue;
+			}
+			break;
 		}
 
-		if (rseg == NULL) {
-			continue;
-		} else if (rseg->space == srv_sys_space.space_id()
-			   && n_tablespaces > 0
-			   && trx_sys->rseg_array[slot] != NULL
-			   && trx_sys->rseg_array[slot]->space
-			   != srv_sys_space.space_id()) {
-			/* If undo-tablespace is configured, skip
-			rseg from system-tablespace and try to use
-			undo-tablespace rseg unless it is not possible
-			due to lower limit of undo-logs. */
-			continue;
+		/* By now we have only selected the rseg but not marked it
+		allocated. By marking it allocated we are ensuring that it will
+		never be selected for UNDO truncate purge. */
+		mutex_enter(&rseg->mutex);
+		if (!rseg->skip_allocation) {
+			rseg->trx_ref_count++;
+			allocated = true;
 		}
-		break;
+		mutex_exit(&rseg->mutex);
 	}
 
+	ut_ad(rseg->trx_ref_count > 0);
 	ut_ad(!trx_sys_is_noredo_rseg_slot(rseg->id));
 	return(rseg);
 }
@@ -1490,6 +1529,10 @@ trx_write_serialisation_history(
 			undo_hdr_page = trx_undo_set_state_at_finish(
 				trx->rsegs.m_redo.update_undo, mtr);
 
+			/* Delay update of rseg_history_len if we plan to add
+			non-redo update_undo too. This is to avoid immediate
+			invocation of purge as we need to club these 2 segments
+			with same trx-no as single unit. */
 			bool update_rseg_len =
 				!(trx->rsegs.m_noredo.update_undo != NULL);
 
@@ -1832,6 +1875,14 @@ trx_commit_in_memory(
 		}
 	}
 
+	if (trx->rsegs.m_redo.rseg != NULL) {
+		trx_rseg_t*	rseg = trx->rsegs.m_redo.rseg;
+		mutex_enter(&rseg->mutex);
+		ut_ad(rseg->trx_ref_count > 0);
+		--rseg->trx_ref_count;
+		mutex_exit(&rseg->mutex);
+	}
+
 	if (mtr != NULL) {
 		if (trx->rsegs.m_redo.insert_undo != NULL) {
 			trx_undo_insert_cleanup(&trx->rsegs.m_redo, false);
@@ -1885,6 +1936,12 @@ trx_commit_in_memory(
 		}
 
 		trx->commit_lsn = lsn;
+
+		/* Tell server some activity has happened, since the trx
+		does changes something. Background utility threads like
+		master thread, purge thread or page_cleaner thread might
+		have some work to do. */
+		srv_active_wake_master_thread();
 	}
 
 	/* Free all savepoints, starting from the first. */
@@ -3029,21 +3086,12 @@ trx_set_rw_mode(
 	that both threads are synced by acquring trx->mutex to avoid decision
 	based on in-consistent view formed during promotion. */
 
-	/* From a correctness point of view this can be done
-	outside the trx_sys->mutex. However, we have some
-	debug assertions that rely on the invariant that if
-	!read-only and rseg != 0 then the transaction should be
-	on the on the rw-trx-list. It is not an expensive
-	function therefore it should do little harm in lumping
-	it here for the non-debug case. It can always be moved
-	out and the code #ifdefed to handle both variations. */
-
-	mutex_enter(&trx_sys->mutex);
-
 	trx->rsegs.m_redo.rseg = trx_assign_rseg_low(
 		srv_undo_logs, srv_undo_tablespaces, TRX_RSEG_TYPE_REDO);
 
 	ut_ad(trx->rsegs.m_redo.rseg != 0);
+
+	mutex_enter(&trx_sys->mutex);
 
 	ut_ad(trx->id == 0);
 	trx->id = trx_sys_get_new_trx_id();

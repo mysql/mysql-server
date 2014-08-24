@@ -402,7 +402,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
 static void set_thd_db(THD *thd, const char *db, size_t db_len)
 {
   char lcase_db_buf[NAME_LEN +1]; 
-  LEX_STRING new_db;
+  LEX_CSTRING new_db;
   new_db.length= db_len;
   if (lower_case_table_names)
   {
@@ -415,7 +415,7 @@ static void set_thd_db(THD *thd, const char *db, size_t db_len)
 
   new_db.str= (char*) rpl_filter->get_rewrite_db(new_db.str,
                                                  &new_db.length);
-  thd->set_db(new_db.str, new_db.length);
+  thd->set_db(new_db);
 }
 
 #endif
@@ -3000,7 +3000,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       rli->curr_group_isolated= FALSE;
       group.reset(log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
-      gaq->assigned_group_index= gaq->en_queue((void *) &group);
+      gaq->assigned_group_index= gaq->en_queue(&group);
       DBUG_PRINT("info",("gaq_idx= %ld  gaq->size=%ld",
                          gaq->assigned_group_index,
                          gaq->size));
@@ -3016,9 +3016,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         Slave_job_item job_item= {this, rli->get_event_relay_log_number(),
                                   rli->get_event_start_pos()};
         // B-event is appended to the Deferred Array associated with GCAP
-        insert_dynamic(&rli->curr_group_da, &job_item);
+        rli->curr_group_da.push_back(job_item);
 
-        DBUG_ASSERT(rli->curr_group_da.elements == 1);
+        DBUG_ASSERT(rli->curr_group_da.size() == 1);
 
         if (starts_group())
         {
@@ -3043,7 +3043,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                                   rli->get_event_relay_log_pos()};
 
         // B-event is appended to the Deferred Array associated with GCAP
-        insert_dynamic(&rli->curr_group_da, &job_item);
+        rli->curr_group_da.push_back(job_item);
         DBUG_RETURN(NULL);
       }
     }
@@ -3058,7 +3058,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                                 rli->get_event_relay_log_pos()};
 
       // B-event is appended to the Deferred Array associated with GCAP
-      insert_dynamic(&rli->curr_group_da, &job_item);
+      rli->curr_group_da.push_back(job_item);
       rli->curr_group_seen_begin= true;
       rli->mts_end_group_sets_max_dbs= true;
       if (!rli->curr_group_seen_gtid && schedule_next_event(this, rli))
@@ -3067,7 +3067,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         DBUG_RETURN(NULL);
       }
 
-      DBUG_ASSERT(rli->curr_group_da.elements == 2);
+      DBUG_ASSERT(rli->curr_group_da.size() == 2);
       DBUG_ASSERT(starts_group());
       DBUG_RETURN (ret_worker);
     }
@@ -3114,11 +3114,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                 (rli->curr_group_seen_begin && rli->curr_group_seen_gtid &&
                  ends_group()) ||
                 (rli->mts_end_group_sets_max_dbs &&
-                 ((rli->curr_group_da.elements == 3 && rli->curr_group_seen_gtid) ||
-                 (rli->curr_group_da.elements == 2 && !rli->curr_group_seen_gtid)) &&
-                 ((*(Log_event **) dynamic_array_ptr(&rli->curr_group_da,
-                                     rli->curr_group_da.elements - 1))->
-                                get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
+                 ((rli->curr_group_da.size() == 3 && rli->curr_group_seen_gtid) ||
+                  (rli->curr_group_da.size() == 2 && !rli->curr_group_seen_gtid)) &&
+                 ((rli->curr_group_da.back().data->
+                   get_type_code() == BEGIN_LOAD_QUERY_EVENT))));
 
     // partioning info is found which drops the flag
     rli->mts_end_group_sets_max_dbs= false;
@@ -3191,13 +3190,11 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     {
       ret_worker= rli->last_assigned_worker;
 
-      DBUG_ASSERT(rli->curr_group_assigned_parts.elements > 0 ||
+      DBUG_ASSERT(rli->curr_group_assigned_parts.size() > 0 ||
                   ret_worker->id == 0);
     }
     else // int_, rand_, user_ var:s, load-data events
     {
-      Log_event *ptr_curr_ev= this;
-
       if (!(get_type_code() == INTVAR_EVENT ||
             get_type_code() == RAND_EVENT ||
             get_type_code() == USER_VAR_EVENT ||
@@ -3216,7 +3213,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         DBUG_RETURN(ret_worker);
       }
 
-      insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
+      Slave_job_item job_item= {this, rli->get_event_relay_log_number(),
+                                rli->get_event_start_pos()};
+      rli->curr_group_da.push_back(job_item);
 
       DBUG_ASSERT(!ret_worker);
       DBUG_RETURN (ret_worker);
@@ -3382,7 +3381,7 @@ int Log_event::apply_event(Relay_log_info *rli)
           a separator beetwen two master's binlog therefore requiring
           Workers to sync.
         */
-        if (rli->curr_group_da.elements > 0 &&
+        if (rli->curr_group_da.size() > 0 &&
             is_mts_db_partitioned(rli))
         {
           char llbuff[22];
@@ -3422,7 +3421,7 @@ int Log_event::apply_event(Relay_log_info *rli)
 
 #ifndef DBUG_OFF
         /* all Workers are idle as done through wait_for_workers_to_finish */
-        for (uint k= 0; k < rli->curr_group_da.elements; k++)
+        for (uint k= 0; k < rli->curr_group_da.size(); k++)
         {
           DBUG_ASSERT(!(rli->workers[k]->usage_partition));
           DBUG_ASSERT(!(rli->workers[k]->jobs.len));
@@ -3450,10 +3449,8 @@ int Log_event::apply_event(Relay_log_info *rli)
                 Begin/Commit. That's a pattern forcing sequential
                 applying of LOAD-DATA.
               */
-              (*(Log_event **)
-               dynamic_array_ptr(&rli->curr_group_da,
-                                 rli->curr_group_da.elements - 1))-> 
-              get_type_code() == BEGIN_LOAD_QUERY_EVENT);
+              (rli->curr_group_da.back().data->
+               get_type_code() == BEGIN_LOAD_QUERY_EVENT));
 
   worker= NULL;
   rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
@@ -3477,18 +3474,17 @@ err:
       The current one will be deleted as an event never destined/assigned
       to any Worker in Coordinator's regular execution path.
     */
-    for (uint k= 0; k < rli->curr_group_da.elements; k++)
+    for (uint k= 0; k < rli->curr_group_da.size(); k++)
     {
-      Log_event *ev_buf=
-        *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, k);
+      Log_event *ev_buf= rli->curr_group_da[k].data;
       if (this != ev_buf)
         delete ev_buf;
     }
-    rli->curr_group_da.elements= 0;
+    rli->curr_group_da.clear();
   }
   else
   {
-    DBUG_ASSERT(worker || rli->curr_group_assigned_parts.elements == 0);
+    DBUG_ASSERT(worker || rli->curr_group_assigned_parts.size() == 0);
   }
 
   DBUG_RETURN((!rli_thd->is_error() ||
@@ -3893,8 +3889,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 	     using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                           Log_event::EVENT_STMT_CACHE,
              Log_event::EVENT_NORMAL_LOGGING),
-   data_buf(0), query(query_arg), catalog(thd_arg->catalog),
-   db(thd_arg->db), q_len((uint32) query_length),
+   data_buf(0), query(query_arg), catalog(thd_arg->catalog().str),
+   db(thd_arg->db().str), q_len((uint32) query_length),
    thread_id(thd_arg->thread_id()),
    /* save the original thread id; we already know the server id */
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
@@ -4868,16 +4864,24 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     Colleagues: please never free(thd->catalog) in MySQL. This would
     lead to bugs as here thd->catalog is a part of an alloced block,
     not an entire alloced block (see
-    Query_log_event::do_apply_event()). Same for thd->db.  Thank
+    Query_log_event::do_apply_event()). Same for thd->db().str.  Thank
     you.
   */
-  thd->catalog= catalog_len ? (char *) catalog : (char *)"";
+
+  if (catalog_len)
+  {
+    LEX_CSTRING catalog_lex_cstr= { catalog, catalog_len};
+    thd->set_catalog(catalog_lex_cstr);
+  }
+  else
+    thd->set_catalog(EMPTY_CSTR);
+
   set_thd_db(thd, db, db_len);
 
   /*
     Setting the character set and collation of the current database thd->db.
    */
-  load_db_opt_by_name(thd, thd->db, &db_options);
+  load_db_opt_by_name(thd, thd->db().str, &db_options);
   if (db_options.default_table_charset)
     thd->db_charset= db_options.default_table_charset;
   thd->variables.auto_increment_increment= auto_increment_increment;
@@ -5063,7 +5067,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         DBUG_ASSERT(thd->m_statement_psi == NULL);
         thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                     stmt_info_rpl.m_key,
-                                                    thd->db, thd->db_length,
+                                                    thd->db().str,
+                                                    thd->db().length,
                                                     thd->charset(), NULL);
         THD_STAGE_INFO(thd, stage_starting);
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
@@ -5205,7 +5210,7 @@ compare_errors:
                     (actual_error ?
                      thd->get_stmt_da()->message_text() :
                      "unexpected success or fatal error"),
-                    print_slave_db_safe(thd->db), query_arg);
+                    print_slave_db_safe(thd->db().str), query_arg);
       }
       thd->is_slave_error= 1;
     }
@@ -5267,8 +5272,8 @@ end:
     don't suffer from these assignments to 0 as DROP TEMPORARY
     TABLE uses the db.table syntax.
   */
-  thd->catalog= 0;
-  thd->set_db(NULL, 0);                 /* will free the current database */
+  thd->set_catalog(NULL_CSTR);
+  thd->set_db(NULL_CSTR);                 /* will free the current database */
   thd->reset_query();
   thd->lex->sql_command= SQLCOM_END;
   DBUG_PRINT("info", ("end: query= 0"));
@@ -6742,7 +6747,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
             ::do_apply_event(), then the companion SET also have so
             we don't need to reset_one_shot_variables().
   */
-  if (rpl_filter->db_ok(thd->db))
+  if (rpl_filter->db_ok(thd->db().str))
   {
     thd->set_time(&when);
     thd->set_query_id(next_query_id());
@@ -6753,14 +6758,14 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     my_stpcpy(table_buf, table_name);
     if (lower_case_table_names)
       my_casedn_str(system_charset_info, table_buf);
-    tables.init_one_table(thd->strmake(thd->db, thd->db_length),
-                          thd->db_length,
+    tables.init_one_table(thd->strmake(thd->db().str, thd->db().length),
+                          thd->db().length,
                           table_buf, strlen(table_buf),
                           table_buf, TL_WRITE);
     tables.updating= 1;
 
     // the table will be opened in mysql_load    
-    if (rpl_filter->is_on() && !rpl_filter->tables_ok(thd->db, &tables))
+    if (rpl_filter->is_on() && !rpl_filter->tables_ok(thd->db().str, &tables))
     {
       // TODO: this is a bug - this needs to be moved to the I/O thread
       if (net)
@@ -6873,7 +6878,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
                           llstr(log_pos,llbuff),
                           const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                           (ulong) thd->cuted_fields,
-                          print_slave_db_safe(thd->db));
+                          print_slave_db_safe(thd->db().str));
       }
       if (net)
         net->pkt_nr= thd->net.pkt_nr;
@@ -6892,9 +6897,9 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
 
 error:
   thd->net.vio = 0; 
-  const char *remember_db= thd->db;
-  thd->catalog= 0;
-  thd->set_db(NULL, 0);                   /* will free the current database */
+  const char *remember_db= thd->db().str;
+  thd->set_catalog(NULL_CSTR);
+  thd->set_db(NULL_CSTR);                   /* will free the current database */
   thd->reset_query();
   thd->get_stmt_da()->set_overwrite_status(true);
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
@@ -7669,6 +7674,11 @@ err:
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
   int error= 0;
+  char saved_group_master_log_name[FN_REFLEN];
+  char saved_group_relay_log_name[FN_REFLEN];
+  volatile my_off_t saved_group_master_log_pos;
+  volatile my_off_t saved_group_relay_log_pos;
+
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
@@ -7678,6 +7688,16 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
                                  "COMMIT /* implicit, from Xid_log_event */");
 
   mysql_mutex_lock(&rli_ptr->data_lock);
+
+  /*
+    Save the rli positions they need to be reset back in case of commit fails.
+  */
+  strmake(saved_group_master_log_name, rli_ptr->get_group_master_log_name(),
+          FN_REFLEN - 1);
+  saved_group_master_log_pos= rli_ptr->get_group_master_log_pos();
+  strmake(saved_group_relay_log_name, rli_ptr->get_group_relay_log_name(),
+          FN_REFLEN - 1);
+  saved_group_relay_log_pos= rli_ptr->get_group_relay_log_pos();
 
   DBUG_PRINT("info", ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
     rli_ptr->get_group_master_log_name(),
@@ -7730,10 +7750,35 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
                         XID_STATE::XA_IDLE);
                   });
   error= do_commit(thd);
-  if(error)
+  if (error)
+  {
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in Xid_log_event: Commit could not be completed, '%s'",
                 thd->get_stmt_da()->message_text());
+
+    rli_ptr->set_group_master_log_name(saved_group_master_log_name);
+    rli_ptr->notify_group_master_log_name_update();
+    rli_ptr->set_group_master_log_pos(saved_group_master_log_pos);
+    rli_ptr->set_group_relay_log_name(saved_group_relay_log_name);
+    rli_ptr->notify_group_relay_log_name_update();
+    rli_ptr->set_group_relay_log_pos(saved_group_relay_log_pos);
+
+    DBUG_PRINT("info", ("Rolling back to group master %s %llu  group relay %s"
+                        " %llu\n", rli_ptr->get_group_master_log_name(),
+                        rli_ptr->get_group_master_log_pos(),
+                        rli_ptr->get_group_relay_log_name(),
+                        rli_ptr->get_group_relay_log_pos()));
+
+    /*
+      If relay log repository is TABLE, we do not have to revert back to
+      original positions in TABLE, since the new position changes will not be
+      persisted in TABLE with failed commit; In case of FILE, we need to
+      revert back the new positions, hence we need to flush original positions
+      into FILE.
+    */
+    if (!rli_ptr->is_transactional())
+      rli_ptr->flush_info(false);
+  }
 err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);

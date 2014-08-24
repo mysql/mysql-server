@@ -1494,12 +1494,10 @@ NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
-SET SQL_MODE=ONLY_FULL_GROUP_BY;
 SELECT a FROM t1 HAVING COUNT(*)>2;
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.a'; this is incompatible with sql_mode=only_full_group_by
 SELECT COUNT(*), a FROM t1;
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
-SET SQL_MODE=DEFAULT;
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.a'; this is incompatible with sql_mode=only_full_group_by
 SELECT a FROM t1 HAVING COUNT(*)>2;
 a
 1
@@ -1554,13 +1552,7 @@ LIMIT 1)
 FROM D AS X 
 WHERE X.int_key < 13  
 GROUP BY int_nokey LIMIT 1;
-(SELECT COUNT( int_nokey ) 
-FROM derived1 AS X 
-WHERE 
-X.int_nokey < 61 
-GROUP BY pk 
-LIMIT 1)
-1
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.X.pk' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE derived1;
 DROP TABLE D;
 CREATE TABLE t1 (a INT, b INT);
@@ -1573,13 +1565,13 @@ SELECT COUNT(*) FROM t1 where a=1;
 COUNT(*)
 3
 SELECT COUNT(*),a FROM t1;
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.a'; this is incompatible with sql_mode=only_full_group_by
 SELECT COUNT(*) FROM t1 a JOIN t1 b ON a.a= b.a;
 COUNT(*)
 9
 SELECT COUNT(*), (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a) 
 FROM t1 outr;
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.outr.a'; this is incompatible with sql_mode=only_full_group_by
 SELECT COUNT(*) FROM t1 a JOIN t1 outr 
 ON a.a= (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a);
 COUNT(*)

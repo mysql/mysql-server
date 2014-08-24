@@ -1190,6 +1190,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1(b INT);
 CREATE TABLE t2(a INT, b INT, c INT, d INT);
 
+--source include/turn_off_only_full_group_by.inc
 EXPLAIN SELECT
 (
   SELECT
@@ -1197,6 +1198,7 @@ EXPLAIN SELECT
   FROM t1
 )
 FROM t2 GROUP BY a;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE t1, t2;
 

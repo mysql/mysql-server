@@ -265,7 +265,7 @@ buf_LRU_drop_page_hash_for_tablespace(
 		return;
 	}
 
-	ulint*	page_arr = static_cast<ulint*>(ut_malloc(
+	ulint*	page_arr = static_cast<ulint*>(ut_malloc_nokey(
 			sizeof(ulint) * BUF_LRU_DROP_SEARCH_SIZE));
 
 	ulint	num_entries = 0;

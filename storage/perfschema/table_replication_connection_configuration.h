@@ -85,6 +85,7 @@ struct st_row_connect_config {
   uint ssl_crl_path_length;
   uint connection_retry_interval;
   ulong connection_retry_count;
+  double heartbeat_interval;
 };
 
 /** Table PERFORMANCE_SCHEMA.TABLE_REPLICATION_CONNECTION_CONFIGURATION. */
