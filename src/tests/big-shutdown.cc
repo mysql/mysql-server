@@ -97,6 +97,10 @@ PATENT RIGHTS GRANT:
 #include <endian.h>
 #include <toku_time.h>
 
+#ifndef htobe64
+#define htobe64(x) __bswap_64(x)
+#endif
+
 // Insert max_rows key/val pairs into the db
 static void do_inserts(DB_ENV *env, DB *db, uint64_t max_rows, size_t val_size) {
     char val_data[val_size]; memset(val_data, 0, val_size);
