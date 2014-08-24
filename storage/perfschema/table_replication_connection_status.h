@@ -63,6 +63,8 @@ struct st_row_connect_status {
   ulonglong thread_id;
   bool thread_id_is_null;
   enum_rpl_connect_status_service_state service_state;
+  ulonglong count_received_heartbeats;
+  ulonglong last_heartbeat_timestamp;
   char* received_transaction_set;
   int received_transaction_set_length;
   uint last_error_number;

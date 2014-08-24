@@ -58,7 +58,7 @@ public:
     if (number_columns != 0)
     {
       table= &fake_table;
-      current_table= table->map;
+      current_table= table->pos_in_table_list->map();
     }
     else
     {

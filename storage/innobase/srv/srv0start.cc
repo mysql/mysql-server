@@ -98,6 +98,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "os0event.h"
 # include "zlib.h"
 # include "ut0crc32.h"
+# include "ut0new.h"
 
 /** Log sequence number immediately after startup */
 lsn_t	srv_start_lsn;
@@ -154,25 +155,23 @@ static char*	srv_monitor_file_name;
 /** Minimum expected tablespace size. (10M) */
 static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 
-/** Default undo tablespace size in UNIV_PAGEs count (10MB). */
-static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
-	((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
-
 /** */
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
 #ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
+mysql_pfs_key_t	buf_dump_thread_key;
+mysql_pfs_key_t	dict_stats_thread_key;
+mysql_pfs_key_t	io_handler_thread_key;
 mysql_pfs_key_t	io_ibuf_thread_key;
 mysql_pfs_key_t	io_log_thread_key;
 mysql_pfs_key_t	io_read_thread_key;
 mysql_pfs_key_t	io_write_thread_key;
-mysql_pfs_key_t	io_handler_thread_key;
-mysql_pfs_key_t	srv_lock_timeout_thread_key;
 mysql_pfs_key_t	srv_error_monitor_thread_key;
-mysql_pfs_key_t	srv_monitor_thread_key;
+mysql_pfs_key_t	srv_lock_timeout_thread_key;
 mysql_pfs_key_t	srv_master_thread_key;
+mysql_pfs_key_t	srv_monitor_thread_key;
 mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
@@ -329,7 +328,8 @@ create_log_file(
 
 	ret = os_file_set_size(name, *file,
 			       (os_offset_t) srv_log_file_size
-			       << UNIV_PAGE_SIZE_SHIFT);
+			       << UNIV_PAGE_SIZE_SHIFT,
+			       srv_read_only_mode);
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR, "Cannot set log file"
 			" %s to size %lu MB", name, (ulong) srv_log_file_size
@@ -572,7 +572,9 @@ srv_undo_tablespace_create(
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Database physically writes the file full: wait...");
 
-		ret = os_file_set_size(name, fh, size << UNIV_PAGE_SIZE_SHIFT);
+		ret = os_file_set_size(
+			name, fh, size << UNIV_PAGE_SIZE_SHIFT,
+			srv_read_only_mode);
 
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_INFO,
@@ -761,11 +763,12 @@ srv_undo_tablespaces_init(
 						tablespaces successfully
 						discovered and opened */
 {
-	ulint		i;
-	dberr_t		err = DB_SUCCESS;
-	ulint		prev_space_id = 0;
-	ulint		n_undo_tablespaces;
-	ulint		undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
+	ulint			i;
+	dberr_t			err = DB_SUCCESS;
+	ulint			prev_space_id = 0;
+	ulint			n_undo_tablespaces;
+	ulint			undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
+	undo::undo_spaces_t	fix_up_undo_spaces;
 
 	*n_opened = 0;
 
@@ -811,6 +814,40 @@ srv_undo_tablespaces_init(
 	if (!create_new_db) {
 		n_undo_tablespaces = trx_rseg_get_n_undo_tablespaces(
 			undo_tablespace_ids);
+
+		/* Check if any of the UNDO tablespace needs fix-up because
+		server crashed while truncate was active on UNDO tablespace.*/
+		for (i = 0; i < n_undo_tablespaces; ++i) {
+
+			undo::Truncate	undo_trunc;
+
+			if (undo_trunc.needs_fix_up(undo_tablespace_ids[i])) {
+
+				char	name[OS_FILE_MAX_PATH];
+
+				ut_snprintf(name, sizeof(name),
+					    "%s%cundo%03lu",
+					    srv_undo_dir, OS_PATH_SEPARATOR,
+					    undo_tablespace_ids[i]);
+
+				os_file_delete(innodb_data_file_key, name);
+
+				err = srv_undo_tablespace_create(
+					name,
+					SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
+
+				if (err != DB_SUCCESS) {
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Could not fix-up undo "
+						" tablespace truncate '%s'.",
+						name);
+					return(err);
+				}
+
+				fix_up_undo_spaces.push_back(
+					undo_tablespace_ids[i]);
+			}
+		}
 	} else {
 		n_undo_tablespaces = n_conf_tablespaces;
 
@@ -924,6 +961,70 @@ srv_undo_tablespaces_init(
 		}
 
 		mtr_commit(&mtr);
+	}
+
+	if (fix_up_undo_spaces.size() != 0) {
+
+		/* Step-1: Initialize the tablespace header and rsegs header. */
+		mtr_t		mtr;
+		trx_sysf_t*	sys_header;
+
+		mtr_start(&mtr);
+		/* Turn off REDO logging. We are in server start mode and fixing
+		UNDO tablespace even before REDO log is read. Let's say we
+		do REDO logging here then this REDO log record will be applied
+		as part of the current recovery process. We surely don't need
+		that as this is fix-up action parallel to REDO logging. */
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		sys_header = trx_sysf_get(&mtr);
+
+		for (undo::undo_spaces_t::const_iterator it
+			= fix_up_undo_spaces.begin();
+		     it != fix_up_undo_spaces.end();
+		     ++it) {
+
+			undo::Truncate::add_space_to_trunc_list(*it);
+
+			fsp_header_init(
+				*it, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+
+			mtr_x_lock(fil_space_get_latch(*it, NULL), &mtr);
+
+			for (ulint i = 0; i < TRX_SYS_N_RSEGS; i++) {
+
+				ulint	space_id = trx_sysf_rseg_get_space(
+						sys_header, i, &mtr);
+
+				if (space_id == *it) {
+					trx_rseg_header_create(
+						*it, univ_page_size, ULINT_MAX,
+						i, &mtr);
+				}
+			}
+
+			undo::Truncate::clear_trunc_list();
+		}
+		mtr_commit(&mtr);
+
+		/* Step-2: Flush the dirty pages from the buffer pool. */
+		for (undo::undo_spaces_t::const_iterator it
+			= fix_up_undo_spaces.begin();
+		     it != fix_up_undo_spaces.end();
+		     ++it) {
+
+			trx_t		trx;
+			trx.mysql_thd = NULL;
+
+			buf_LRU_flush_or_remove_pages(
+				TRX_SYS_SPACE, BUF_REMOVE_FLUSH_WRITE, &trx);
+
+			buf_LRU_flush_or_remove_pages(
+				*it, BUF_REMOVE_FLUSH_WRITE, &trx);
+
+			/* Remove the DDL log file now. */
+			undo::Truncate	undo_trunc;
+			undo_trunc.done_logging(*it);
+		}
 	}
 
 	return(DB_SUCCESS);
@@ -1474,7 +1575,7 @@ innobase_start_or_create_for_mysql(void)
 		if (srv_innodb_status) {
 
 			srv_monitor_file_name = static_cast<char*>(
-				ut_malloc(
+				ut_malloc_nokey(
 					strlen(fil_path_to_mysql_datadir)
 					+ 20 + sizeof "/innodb_status."));
 

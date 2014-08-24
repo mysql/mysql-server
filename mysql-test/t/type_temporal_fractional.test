@@ -6433,6 +6433,8 @@ CREATE TABLE t1 (
   KEY col_time_not_null_key (col_time_not_null_key),
   KEY col_time_4_not_null_key (col_time_4_not_null_key))
 /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+--source include/turn_off_only_full_group_by.inc
+
 SELECT col_datetime_3_key , COUNT( col_timestamp_5_key )
 FROM t1 FORCE KEY
   (PRIMARY, col_datetime_5_not_null_key, col_datetime_6_key, col_time_5_key, col_time_2_key) 
@@ -6465,6 +6467,8 @@ AND
 AND
 (col_datetime_4_not_null_key IS NULL OR col_time_5_key BETWEEN '20051201163954.001782' AND '0000-00-00 00:00:00')
 GROUP BY col_datetime_6_not_null_key;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1;
 
 

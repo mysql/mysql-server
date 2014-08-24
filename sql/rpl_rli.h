@@ -35,6 +35,13 @@ extern uint sql_slave_skip_counter;
 
 typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
 
+typedef struct slave_job_item
+{
+  Log_event *data;
+  uint relay_number;
+  my_off_t relay_pos;
+} Slave_job_item;
+
 /*******************************************************************************
 Replication SQL Thread
 
@@ -569,8 +576,11 @@ public:
   /*
     Container for references of involved partitions for the current event group
   */
-  DYNAMIC_ARRAY curr_group_assigned_parts;
-  DYNAMIC_ARRAY curr_group_da;  // deferred array to hold partition-info-free events
+  // CGAP dynarray holds id:s of partitions of the Current being executed Group
+  Prealloced_array<db_worker_hash_entry*, 4, true> curr_group_assigned_parts;
+  // deferred array to hold partition-info-free events
+  Prealloced_array<Slave_job_item, 8, true> curr_group_da;  
+
   bool curr_group_seen_gtid;   // current group started with Gtid-event or not
   bool curr_group_seen_begin;   // current group started with B-event or not
   bool curr_group_isolated;     // current group requires execution in isolation

@@ -34,8 +34,6 @@
 /* Header files */
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
-#cmakedefine HAVE_CRYPT_H 1
-#cmakedefine HAVE_CXXABI_H 1
 #cmakedefine HAVE_DIRENT_H 1
 #cmakedefine HAVE_DLFCN_H 1
 #cmakedefine HAVE_EXECINFO_H 1
@@ -48,26 +46,18 @@
 #cmakedefine HAVE_POLL_H 1
 #cmakedefine HAVE_PWD_H 1
 #cmakedefine HAVE_STRINGS_H 1
-#cmakedefine HAVE_SYNCH_H 1
 #cmakedefine HAVE_SYS_CDEFS_H 1
 #cmakedefine HAVE_SYS_IOCTL_H 1
-#cmakedefine HAVE_SYS_MALLOC_H 1
 #cmakedefine HAVE_SYS_MMAN_H 1
-#cmakedefine HAVE_SYS_PRCTL_H 1
 #cmakedefine HAVE_SYS_RESOURCE_H 1
 #cmakedefine HAVE_SYS_SELECT_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1
 #cmakedefine HAVE_TERM_H 1
-#cmakedefine HAVE_ASM_TERMBITS_H 1
 #cmakedefine HAVE_TERMIOS_H 1
 #cmakedefine HAVE_TERMIO_H 1
-#cmakedefine HAVE_TERMCAP_H 1
 #cmakedefine HAVE_UNISTD_H 1
-#cmakedefine HAVE_UTIME_H 1
-#cmakedefine HAVE_SYS_UTIME_H 1
 #cmakedefine HAVE_SYS_WAIT_H 1
 #cmakedefine HAVE_SYS_PARAM_H 1
-#cmakedefine HAVE_SYS_VADVISE_H 1
 #cmakedefine HAVE_FNMATCH_H 1
 #cmakedefine HAVE_SYS_UN_H 1
 #cmakedefine HAVE_VIS_H 1

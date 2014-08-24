@@ -709,7 +709,7 @@ public:
     possible, and in which condition tree the subquery predicate is located.
   */
   enum Resolve_place { RESOLVE_NONE, RESOLVE_JOIN_NEST, RESOLVE_CONDITION,
-                       RESOLVE_HAVING };
+                       RESOLVE_HAVING, RESOLVE_SELECT_LIST };
   Resolve_place resolve_place; ///< Indicates part of query being resolved
   TABLE_LIST *resolve_nest;    ///< Used when resolving outer join condition
   char *db;
@@ -726,6 +726,7 @@ private:
 
   /// Condition to be evaluated on grouped rows after grouping.
   Item *m_having_cond;
+
 public:
 
   /**
@@ -892,23 +893,6 @@ public:
   bool no_wrap_view_item;
   /* exclude this select from check of unique_table() */
   bool exclude_from_table_unique_test;
-  /* List of table columns which are not under an aggregate function */
-  List<Item_field> non_agg_fields;
-
-  /// @See cur_pos_in_all_fields below
-  static const int ALL_FIELDS_UNDEF_POS= INT_MIN;
-
-  /**
-     Used only for ONLY_FULL_GROUP_BY.
-     When we call fix_fields(), this member should be set as follows:
-     - if the item should honour ONLY_FULL_GROUP_BY (i.e. is in the SELECT
-     list or is a hidden ORDER BY item), cur_pos_in_all_fields is the position
-     of the item in join->all_fields with this convention: position of the
-     first item of the SELECT list is 0; item before this (in direction of the
-     front) has position -1, whereas item after has position 1.
-     - otherwise, cur_pos_in_all_fields is ALL_FIELDS_UNDEF_POS.
-  */
-  int cur_pos_in_all_fields;
 
   /* 
     This is a copy of the original JOIN USING list that comes from
@@ -929,6 +913,7 @@ public:
     this select level.
   */
   table_map select_list_tables;
+  table_map outer_join;       ///< Bitmap of all inner tables from outer joins
   /// First select_lex removed as part of some transformation, or NULL
   st_select_lex *removed_select;
 
@@ -1052,15 +1037,12 @@ public:
   bool is_part_of_union() { return master_unit()->is_union(); }
 
   /*
-    For MODE_ONLY_FULL_GROUP_BY we need to maintain two flags:
-     - Non-aggregated fields are used in this select.
-     - Aggregate functions are used in this select.
-    In MODE_ONLY_FULL_GROUP_BY only one of these may be true.
+    For MODE_ONLY_FULL_GROUP_BY we need to know if
+    this query block is the aggregation query of at least one aggregate
+    function.
   */
-  bool non_agg_field_used() const { return m_non_agg_field_used; }
   bool agg_func_used()      const { return m_agg_func_used; }
 
-  void set_non_agg_field_used(bool val) { m_non_agg_field_used= val; }
   void set_agg_func_used(bool val)      { m_agg_func_used= val; }
 
   /// Lookup for SELECT_LEX type
@@ -1114,7 +1096,6 @@ public:
                                ulong max_statement_time);
 
 private:
-  bool m_non_agg_field_used;
   bool m_agg_func_used;
 
   /// Helper for fix_prepare_information()
@@ -1145,6 +1126,7 @@ public:
   int setup_conds(THD *thd);
   int prepare(JOIN *join);
   void reset_nj_counters(List<TABLE_LIST> *join_list= NULL);
+  bool check_only_full_group_by(THD *thd);
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -2797,7 +2779,7 @@ public:
   */
   TABLE_LIST *create_last_non_select_table;
   /* Prepared statements SQL syntax:*/
-  LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
+  LEX_CSTRING prepared_stmt_name; /* Statement name (in all queries) */
   /*
     Prepared statement query text or name of variable that holds the
     prepared statement (in PREPARE ... queries)

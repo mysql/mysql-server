@@ -80,7 +80,7 @@ enum
 };
 
 /* Drop all routines in database 'db' */
-int sp_drop_db_routines(THD *thd, char *db);
+int sp_drop_db_routines(THD *thd, const char *db);
 
 /**
    Acquires exclusive metadata lock on all stored routines in the
@@ -92,7 +92,7 @@ int sp_drop_db_routines(THD *thd, char *db);
    @retval  false  Success
    @retval  true   Failure
  */
-bool lock_db_routines(THD *thd, char *db);
+bool lock_db_routines(THD *thd, const char *db);
 
 sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                          sp_cache **cp, bool cache_only);

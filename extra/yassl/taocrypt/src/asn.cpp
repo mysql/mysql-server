@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -773,7 +773,7 @@ void CertDecoder::GetName(NameType nt)
     while (source_.get_index() < length) {
         GetSet();
         if (source_.GetError().What() == SET_E) {
-            source_.SetError(NO_ERROR_E);  // extensions may only have sequence
+            source_.SetError(NO_ERROR_E);  // extensions may only have sequence 
             source_.prev();
         }
         GetSequence();
@@ -844,10 +844,8 @@ void CertDecoder::GetName(NameType nt)
             if (source_.IsLeft(length) == false) return;
 
             if (email) {
-                if (!(ptr = AddTag(ptr, buf_end, "/emailAddress=", 14, length))) {
-                    source_.SetError(CONTENT_E);
-                    return;
-                }
+                if (!(ptr = AddTag(ptr, buf_end, "/emailAddress=", 14, length)))
+                    return; 
             }
 
             source_.advance(length);
@@ -1080,12 +1078,10 @@ word32 DER_Encoder::SetAlgoID(HashType aOID, byte* output)
                                       0x02, 0x02, 0x05, 0x00};
     static const byte sha256AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
                                          0x04, 0x02, 0x01, 0x05, 0x00 };
-#ifdef WORD64_AVAILABLE
     static const byte sha384AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
                                          0x04, 0x02, 0x02, 0x05, 0x00 };
     static const byte sha512AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
                                          0x04, 0x02, 0x03, 0x05, 0x00 };
-#endif
     int algoSz = 0;
     const byte* algoName = 0;
 
@@ -1100,7 +1096,6 @@ word32 DER_Encoder::SetAlgoID(HashType aOID, byte* output)
         algoName = sha256AlgoID;
         break;
 
-#ifdef WORD64_AVAILABLE
     case SHA384h:
         algoSz = sizeof(sha384AlgoID);
         algoName = sha384AlgoID;
@@ -1110,7 +1105,6 @@ word32 DER_Encoder::SetAlgoID(HashType aOID, byte* output)
         algoSz = sizeof(sha512AlgoID);
         algoName = sha512AlgoID;
         break;
-#endif
 
     case MD2h:
         algoSz = sizeof(md2AlgoID);

@@ -44,7 +44,7 @@ btr_pcur_create_for_mysql(void)
 	btr_pcur_t*	pcur;
 	DBUG_ENTER("btr_pcur_create_for_mysql");
 
-	pcur = (btr_pcur_t*) ut_malloc(sizeof(btr_pcur_t));
+	pcur = (btr_pcur_t*) ut_malloc_nokey(sizeof(btr_pcur_t));
 
 	pcur->btr_cur.index = NULL;
 	btr_pcur_init(pcur);
@@ -207,7 +207,7 @@ btr_pcur_copy_stored_position(
 	if (pcur_donate->old_rec_buf) {
 
 		pcur_receive->old_rec_buf = (byte*)
-			ut_malloc(pcur_donate->buf_size);
+			ut_malloc_nokey(pcur_donate->buf_size);
 
 		ut_memcpy(pcur_receive->old_rec_buf, pcur_donate->old_rec_buf,
 			  pcur_donate->buf_size);

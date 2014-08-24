@@ -102,7 +102,10 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
    workers(PSI_NOT_INSTRUMENTED),
-   workers_array_initialized(false), slave_parallel_workers(0),
+   workers_array_initialized(false),
+   curr_group_assigned_parts(PSI_NOT_INSTRUMENTED),
+   curr_group_da(PSI_NOT_INSTRUMENTED),
+   slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
    checkpoint_group(opt_mts_checkpoint_group),
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
@@ -138,7 +141,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
   until_log_name[0]= ign_master_log_name_end[0]= 0;
-  set_timespec_nsec(last_clock, 0);
+  set_timespec_nsec(&last_clock, 0);
   memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
   inited_hash_workers= FALSE;
@@ -689,7 +692,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   DBUG_PRINT("enter",("log_name: '%s'  log_pos: %lu  timeout: %lu",
                       log_name->c_ptr_safe(), (ulong) log_pos, (ulong) timeout));
 
-  set_timespec(abstime,timeout);
+  set_timespec(&abstime, timeout);
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,
@@ -887,7 +890,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
   DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid->c_ptr_safe(),
              timeout));
 
-  set_timespec(abstime, timeout);
+  set_timespec(&abstime, timeout);
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
                   &stage_waiting_for_the_slave_thread_to_advance_position,

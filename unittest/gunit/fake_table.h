@@ -28,6 +28,20 @@ using std::string;
 static const uint MAX_TABLE_COLUMNS= sizeof(int) * 8;
 
 /*
+  A fake class for setting up TABLE_LIST object, required for table id mgmt.
+*/
+class Fake_TABLE_LIST : public TABLE_LIST
+{
+public:
+  Fake_TABLE_LIST()
+  {
+  }
+  ~Fake_TABLE_LIST()
+  {
+  }
+};
+
+/*
   A fake class to make setting up a TABLE object a little easier.
 */
 class Fake_TABLE_SHARE : public TABLE_SHARE
@@ -68,6 +82,7 @@ class Fake_TABLE: public TABLE
   // make room for up to 8 keyparts per index
   KEY_PART_INFO m_key_part_infos[max_keys][8];
 
+  Fake_TABLE_LIST  table_list;
   Fake_TABLE_SHARE table_share;
   MY_BITMAP write_set_struct;
   uint32 write_set_buf;
@@ -91,13 +106,14 @@ class Fake_TABLE: public TABLE
     read_set= &read_set_struct;
     write_set= &write_set_struct;
     next_number_field= NULL; // No autoinc column
-
+    pos_in_table_list= &table_list;
+    table_list.table= this;
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields, false));
     EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields, false));
 
     const_table= false;
     maybe_null= 0;
-    map= 1ULL << highest_table_id;              /* ID bit of table */
+    table_list.set_tableno(highest_table_id);
     highest_table_id= (highest_table_id + 1) % MAX_TABLES;
     key_info= &m_keys[0];
     for (int i= 0; i < max_keys; i++)

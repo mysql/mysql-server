@@ -17,6 +17,18 @@
 #define _my_sys_h
 
 #include "my_global.h"                  /* C_MODE_START, C_MODE_END */
+#include "my_pthread.h"
+#include "m_ctype.h"                    /* for CHARSET_INFO */
+
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
+#ifdef _WIN32
+#include <malloc.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 C_MODE_START
 
@@ -36,14 +48,7 @@ C_MODE_START
 # define MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
 #endif /* HAVE_VALGRIND */
 
-#include <my_pthread.h>
-
-#include <m_ctype.h>                    /* for CHARSET_INFO */
-#include <stdarg.h>
 #include <typelib.h>
-#ifdef _WIN32
-#include <malloc.h> /*for alloca*/
-#endif
 
 #define MY_INIT(name)   { my_progname= name; my_init(); }
 
@@ -206,9 +211,6 @@ extern uint    my_large_page_size;
 #define my_large_free(A) my_free((A))
 #endif /* HAVE_LINUX_LARGE_PAGES */
 
-#if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
-#define alloca __builtin_alloca
-#endif /* GNUC */
 #define my_alloca(SZ) alloca((size_t) (SZ))
 #define my_afree(PTR) {}
 
@@ -623,6 +625,7 @@ extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);
 extern int my_copystat(const char *from, const char *to, int MyFlags);
 extern char * my_filename(File fd);
+extern my_bool my_chmod(const char *filename, ulong PermFlags, myf my_flags);
 
 #ifdef EXTRA_DEBUG
 void my_print_open_files(void);

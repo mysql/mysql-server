@@ -344,7 +344,7 @@ if ($rpl_check_server_ids)
 }
 
 # Determine if we should use gtids or not.
-if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+if (!`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE = 'ON'`)
 {
   --let $use_gtids=1
 }

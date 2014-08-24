@@ -304,12 +304,12 @@ bool acl_trans_commit_and_close_tables(THD *thd)
 void acl_notify_htons(THD* thd, const char* query, size_t query_length)
 {
   DBUG_ENTER("acl_notify_htons");
-  DBUG_PRINT("enter", ("db: %s", thd->db));
+  DBUG_PRINT("enter", ("db: %s", thd->db().str));
   DBUG_PRINT("enter", ("query: '%s', length: %zu", query, query_length));
 
   ha_binlog_log_query(thd, NULL, LOGCOM_ACL_NOTIFY,
                       query, query_length,
-                      thd->db, "");
+                      thd->db().str, "");
   DBUG_VOID_RETURN;
 }
 

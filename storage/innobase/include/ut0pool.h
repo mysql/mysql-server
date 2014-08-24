@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,8 @@ Created 2012-Feb-26 Sunny Bains
 #include <vector>
 #include <queue>
 #include <functional>
+
+#include "ut0new.h"
 
 /** Allocate the memory for the object in blocks. We keep the objects sorted
 on pointer so that they are closer together in case they have to be iterated
@@ -60,7 +62,7 @@ struct Pool {
 
 		ut_a(m_start == 0);
 
-		m_start = reinterpret_cast<Element*>(ut_zalloc(m_size));
+		m_start = reinterpret_cast<Element*>(ut_zalloc_nokey(m_size));
 
 		m_last = m_start;
 
@@ -144,8 +146,9 @@ private:
 
 	/* We only need to compare on pointer address. */
 	typedef std::priority_queue<
-		Element*, std::vector<Element*>, std::greater<Element*> >
-		pqueue_t;
+		Element*,
+		std::vector<Element*, ut_allocator<Element*> >,
+		std::greater<Element*> >	pqueue_t;
 
 	/** Release the object to the free pool
 	@param elem element to free */
@@ -297,9 +300,9 @@ private:
 
 			ut_ad(n_pools == m_pools.size());
 
-			pool = new (std::nothrow) PoolType(m_size);
+			pool = UT_NEW_NOKEY(PoolType(m_size));
 
-			if (pool != 0) {
+			if (pool != NULL) {
 
 				ut_ad(n_pools <= m_pools.size());
 
@@ -338,7 +341,7 @@ private:
 		for (it = m_pools.begin(); it != end; ++it) {
 			PoolType*	pool = *it;
 
-			delete pool;
+			UT_DELETE(pool);
 		}
 
 		m_pools.clear();
@@ -350,7 +353,7 @@ private:
 	PoolManager(const PoolManager&);
 	PoolManager& operator=(const PoolManager&);
 
-	typedef std::vector<PoolType*> Pools;
+	typedef std::vector<PoolType*, ut_allocator<PoolType*> >	Pools;
 
 	/** Size of each block */
 	size_t		m_size;

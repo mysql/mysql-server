@@ -1351,7 +1351,7 @@ terminate_slave_thread(THD *thd,
       alarm. To protect againts it, resend the signal until it reacts
     */
     struct timespec abstime;
-    set_timespec(abstime,2);
+    set_timespec(&abstime,2);
 #ifndef DBUG_OFF
     int error=
 #endif
@@ -3624,7 +3624,7 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
   mysql_cond_t *cond= &info->sleep_cond;
 
   /* Absolute system time at which the sleep time expires. */
-  set_timespec(abstime, seconds);
+  set_timespec(&abstime, seconds);
 
   mysql_mutex_lock(lock);
   thd->ENTER_COND(cond, lock, NULL, NULL);
@@ -4096,9 +4096,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
         if (rli->mts_group_status == Relay_log_info::MTS_END_GROUP)
         {
           // CGAP cleanup
-          for (uint i= rli->curr_group_assigned_parts.elements; i > 0; i--)
-            delete_dynamic_element(&rli->
-                                   curr_group_assigned_parts, i - 1);
+          rli->curr_group_assigned_parts.clear();
           // reset the B-group and Gtid-group marker
           rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
           if (is_mts_db_partitioned(rli)||
@@ -4114,33 +4112,25 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
         ev->mts_group_idx= rli->gaq->assigned_group_index;
 
         bool append_item_to_jobs_error= false;
-        if (rli->curr_group_da.elements > 0)
+        if (rli->curr_group_da.size() > 0)
         {
           /*
             the current event sorted out which partion the current group
             belongs to. It's time now to processed deferred array events.
           */
-          for (uint i= 0; i < rli->curr_group_da.elements; i++)
+          for (uint i= 0; i < rli->curr_group_da.size(); i++)
           { 
-            Slave_job_item da_item;
-            get_dynamic(&rli->curr_group_da, (uchar*) &da_item.data, i);
+            Slave_job_item da_item= rli->curr_group_da[i];
             DBUG_PRINT("mts", ("Assigning job %llu to worker %lu",
-                      ((Log_event* )da_item.data)->log_pos, w->id));
-            static_cast<Log_event*>(da_item.data)->mts_group_idx=
+                      (da_item.data)->log_pos, w->id));
+            da_item.data->mts_group_idx=
               rli->gaq->assigned_group_index; // similarly to above
             if (!append_item_to_jobs_error)
               append_item_to_jobs_error= append_item_to_jobs(&da_item, w, rli);
             if (append_item_to_jobs_error)
               delete static_cast<Log_event*>(da_item.data);
           }
-          if (rli->curr_group_da.elements > rli->curr_group_da.max_element)
-          {
-            // reallocate to less mem
-            rli->curr_group_da.elements= rli->curr_group_da.max_element;
-            rli->curr_group_da.max_element= 0;
-            freeze_size(&rli->curr_group_da); // restores max_element
-          }
-          rli->curr_group_da.elements= 0;
+          rli->curr_group_da.clear();
         }
         if (append_item_to_jobs_error)
           DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR);
@@ -5184,7 +5174,7 @@ err:
                   mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
   (void) RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
   thd->reset_query();
-  thd->reset_db(NULL, 0);
+  thd->reset_db(NULL_CSTR);
   if (mysql)
   {
     /*
@@ -5807,8 +5797,8 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     in the SQL Thread's execution path and the elapsed time is calculated
     here to check if it is time to execute it.
   */
-  set_timespec_nsec(curr_clock, 0);
-  ulonglong diff= diff_timespec(curr_clock, rli->last_clock);
+  set_timespec_nsec(&curr_clock, 0);
+  ulonglong diff= diff_timespec(&curr_clock, &rli->last_clock);
   if (!force && diff < period)
   {
     /*
@@ -5915,7 +5905,7 @@ end:
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
     DBUG_SUICIDE();
 #endif
-  set_timespec_nsec(rli->last_clock, 0);
+  set_timespec_nsec(&rli->last_clock, 0);
 
   DBUG_RETURN(error);
 }
@@ -6024,12 +6014,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   */
   rli->init_workers(max(n, rli->recovery_parallel_workers));
 
-  // CGAP dynarray holds id:s of partitions of the Current being executed Group
-  my_init_dynamic_array(&rli->curr_group_assigned_parts,
-                        sizeof(db_worker_hash_entry*),
-                        SLAVE_INIT_DBS_IN_GROUP, 1);
   rli->last_assigned_worker= NULL;     // associated with curr_group_assigned
-  my_init_dynamic_array(&rli->curr_group_da, sizeof(Slave_job_item), 8, 2);
   // Least_occupied_workers array to hold items size of Slave_jobs_queue::len
   rli->least_occupied_workers.resize(n); 
 
@@ -6041,7 +6026,6 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   */
 
   rli->gaq= new Slave_committed_queue(rli->get_group_master_log_name(),
-                                      sizeof(Slave_job_group),
                                       rli->checkpoint_group, n);
   if (!rli->gaq->inited)
     return 1;
@@ -6243,11 +6227,11 @@ end:
   rli->least_occupied_workers.clear();
 
   // Destroy buffered events of the current group prior to exit.
-  for (uint i= 0; i < rli->curr_group_da.elements; i++)
-    delete *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, i);
-  delete_dynamic(&rli->curr_group_da);             // GCDA
+  for (uint i= 0; i < rli->curr_group_da.size(); i++)
+    delete rli->curr_group_da[i].data;
+  rli->curr_group_da.clear();                      // GCDA
 
-  delete_dynamic(&rli->curr_group_assigned_parts); // GCAP
+  rli->curr_group_assigned_parts.clear();          // GCAP
   rli->deinit_workers();
   rli->workers_array_initialized= false;
   rli->slave_parallel_workers= 0;
@@ -6638,9 +6622,9 @@ llstr(rli->get_group_master_log_pos(), llbuff));
     should already have done these assignments (each event which sets these
     variables is supposed to set them to 0 before terminating)).
   */
-  thd->catalog= 0;
+  thd->set_catalog(NULL_CSTR);
   thd->reset_query();
-  thd->reset_db(NULL, 0);
+  thd->reset_db(NULL_CSTR);
 
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&rli->run_lock);
@@ -8170,7 +8154,7 @@ static Log_event* next_event(Relay_log_info* rli)
             if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
               period= 10000000ULL;
 
-            set_timespec_nsec(waittime, period);
+            set_timespec_nsec(&waittime, period);
             ret= rli->relay_log.wait_for_update_relay_log(thd, &waittime);
           } while ((ret == ETIMEDOUT || ret == ETIME) /* todo:remove */ &&
                    signal_cnt == rli->relay_log.signal_cnt && !thd->killed);

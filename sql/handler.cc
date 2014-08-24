@@ -1459,10 +1459,6 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
     DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
-    /* Close all cursors that can not survive COMMIT */
-    if (is_real_trans)                          /* not a statement commit */
-      thd->stmt_map.close_transient_cursors();
-
     rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
     trn_ctx->set_rw_ha_count(trx_scope, rw_ha_count);
     /* rw_trans is TRUE when we in a transaction changing data */
@@ -1652,10 +1648,6 @@ int ha_rollback_low(THD *thd, bool all)
 
   if (ha_info)
   {
-    /* Close all cursors that can not survive ROLLBACK */
-    if (all)                          /* not a statement commit */
-      thd->stmt_map.close_transient_cursors();
-
     for (; ha_info; ha_info= ha_info_next)
     {
       int err;
@@ -7300,7 +7292,7 @@ int handler::ha_write_row(uchar *buf)
   if (unlikely(error))
     DBUG_RETURN(error);
 
-  if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
+  if (unlikely((error= binlog_log_row(table, 0, buf, log_func))))
     DBUG_RETURN(error); /* purecov: inspected */
 
   DEBUG_SYNC_C("ha_write_row_end");
@@ -7331,7 +7323,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
-  if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
+  if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))))
     return error;
   return 0;
 }
@@ -7359,7 +7351,7 @@ int handler::ha_delete_row(const uchar *buf)
   MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;
-  if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
+  if (unlikely((error= binlog_log_row(table, buf, 0, log_func))))
     return error;
   return 0;
 }

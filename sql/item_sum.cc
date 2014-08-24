@@ -29,10 +29,10 @@
 #include "uniques.h"
 #include "parse_tree_helpers.h"
 #include "parse_tree_nodes.h"
+#include "aggregate_check.h"
 
 using std::min;
 using std::max;
-
 
 bool Item_sum::itemize(Parse_context *pc, Item **res)
 {
@@ -108,7 +108,6 @@ bool Item_sum::init_sum_func_check(THD *thd)
   aggr_sel= NULL;
   max_arg_level= -1;
   max_sum_func_level= -1;
-  outer_fields.empty();
   return FALSE;
 }
 
@@ -241,66 +240,6 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     set_if_bigger(in_sum_func->max_sum_func_level, max_sum_func_level);
   }
 
-  /*
-    Check that non-aggregated fields and sum functions aren't mixed in the
-    same select in the ONLY_FULL_GROUP_BY mode.
-  */
-  if (outer_fields.elements)
-  {
-    Item_field *field;
-    /*
-      Here we compare the nesting level of the select to which an outer field
-      belongs to with the aggregation level of the sum function. All fields in
-      the outer_fields list are checked.
-
-      If the nesting level is equal to the aggregation level then the field is
-        aggregated by this sum function.
-      If the nesting level is less than the aggregation level then the field
-        belongs to an outer select. In this case if there is an embedding sum
-        function add current field to functions outer_fields list. If there is
-        no embedding function then the current field treated as non aggregated
-        and the select it belongs to is marked accordingly.
-      If the nesting level is greater than the aggregation level then it means
-        that this field was added by an inner sum function.
-        Consider an example:
-
-          select avg ( <-- we are here, checking outer.f1
-            select (
-              select sum(outer.f1 + inner.f1) from inner
-            ) from outer)
-          from most_outer;
-
-        In this case we check that no aggregate functions are used in the
-        select the field belongs to. If there are some then an error is
-        raised.
-    */
-    List_iterator<Item_field> of(outer_fields);
-    while ((field= of++))
-    {
-      SELECT_LEX *sel= field->cached_table->select_lex;
-      if (sel->nest_level < aggr_level)
-      {
-        if (in_sum_func)
-        {
-          /*
-            Let upper function decide whether this field is a non
-            aggregated one.
-          */
-          in_sum_func->outer_fields.push_back(field);
-        }
-        else
-          sel->set_non_agg_field_used(true);
-      }
-      if (sel->nest_level > aggr_level &&
-          (sel->agg_func_used()) &&
-          !sel->group_list.elements)
-      {
-        my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
-                   ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
-        return TRUE;
-      }
-    }
-  }
   aggr_sel->set_agg_func_used(true);
   update_used_tables();
   thd->lex->in_sum_func= in_sum_func;
@@ -484,6 +423,20 @@ void Item_sum::fix_num_length_and_dec()
   max_length=float_length(decimals);
 }
 
+
+void Item_sum::fix_length_and_dec()
+{
+  maybe_null=1;
+  null_value=1;
+
+  const Sumfunctype t= sum_func();
+
+  // None except these 3 types are allowed for geometry arguments.
+  if (!(t == COUNT_FUNC || t == COUNT_DISTINCT_FUNC || t == SUM_BIT_FUNC))
+    reject_geometry_args(arg_count, args, this);
+}
+
+
 Item *Item_sum::get_tmp_table_item(THD *thd)
 {
   Item_sum* sum_item= (Item_sum *) copy_or_same(thd);
@@ -569,6 +522,90 @@ bool Item_sum::clean_up_after_removal(uchar *arg)
   }
 
   return false;
+}
+
+
+/// @note Please keep in sync with Item_func::eq().
+bool Item_sum::eq(const Item *item, bool binary_cmp) const
+{
+  /* Assume we don't have rtti */
+  if (this == item)
+    return true;
+  if (item->type() != type())
+    return false;
+  const Item_sum *const item_sum= static_cast<const Item_sum *>(item);
+  const enum Sumfunctype my_sum_func= sum_func();
+  if (item_sum->sum_func() != my_sum_func)
+    return false;
+  if (arg_count != item_sum->arg_count ||
+      (my_sum_func != Item_sum::UDF_SUM_FUNC &&
+       func_name() != item_sum->func_name()) ||
+      (my_sum_func == Item_sum::UDF_SUM_FUNC &&
+       my_strcasecmp(system_charset_info, func_name(), item_sum->func_name())))
+    return false;
+  for (uint i= 0; i < arg_count ; i++)
+  {
+    if (!args[i]->eq(item_sum->args[i], binary_cmp))
+      return false;
+  }
+  return true;
+}
+
+
+bool Item_sum::aggregate_check_distinct(uchar *arg)
+{
+  DBUG_ASSERT(fixed);
+  Distinct_check *dc= reinterpret_cast<Distinct_check *>(arg);
+
+  if (dc->is_stopped(this))
+    return false;
+
+  /*
+    In the Standard, ORDER BY cannot contain an aggregate function;
+    we are less strict, we allow it.
+    However, if the aggregate in ORDER BY is not in the SELECT list, it
+    might not be functionally dependent on all selected expressions, and thus
+    might produce random order in combination with DISTINCT; then we reject
+    it.
+
+    One case where the aggregate is surely functionally dependent on the
+    selected expressions, is if all GROUP BY expressions are in the SELECT
+    list. But in that case DISTINCT is redundant and we have removed it in
+    SELECT_LEX::prepare().
+  */
+  if (aggr_sel == dc->select)
+    return true;
+
+  return false;
+}
+
+
+bool Item_sum::aggregate_check_group(uchar *arg)
+{
+  DBUG_ASSERT(fixed);
+  Group_check *gc= reinterpret_cast<Group_check *>(arg);
+
+  if (gc->is_stopped(this))
+    return false;
+
+  if (aggr_sel != gc->select)
+  {
+    /*
+      If aggr_sel is inner to gc's select_lex, this aggregate function might
+      reference some columns of gc, so we need to analyze its arguments.
+      If it is outer, analyzing its arguments should not cause a problem, we
+      will meet outer references which we will ignore.
+    */
+    return false;
+  }
+
+  if (gc->is_fd_on_source(this))
+  {
+    gc->stop_at(this);
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -1431,6 +1468,7 @@ void Item_sum_sum::fix_length_and_dec()
   DBUG_ENTER("Item_sum_sum::fix_length_and_dec");
   maybe_null=null_value=1;
   decimals= args[0]->decimals;
+
   switch (args[0]->numeric_context_result_type()) {
   case REAL_RESULT:
     hybrid_type= REAL_RESULT;
@@ -1454,6 +1492,9 @@ void Item_sum_sum::fix_length_and_dec()
   default:
     DBUG_ASSERT(0);
   }
+
+  reject_geometry_args(arg_count, args, this);
+
   DBUG_PRINT("info", ("Type: %s (%d, %d)",
                       (hybrid_type == REAL_RESULT ? "REAL_RESULT" :
                        hybrid_type == DECIMAL_RESULT ? "DECIMAL_RESULT" :
@@ -1899,6 +1940,7 @@ void Item_sum_variance::fix_length_and_dec()
   decimals= NOT_FIXED_DEC;
   max_length= float_length(decimals);
 
+  reject_geometry_args(arg_count, args, this);
   DBUG_PRINT("info", ("Type: REAL_RESULT (%d, %d)", max_length, (int)decimals));
   DBUG_VOID_RETURN;
 }
