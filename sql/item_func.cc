@@ -514,7 +514,7 @@ void Item_func::print_op(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-
+/// @note Please keep in sync with Item_sum::eq().
 bool Item_func::eq(const Item *item, bool binary_cmp) const
 {
   /* Assume we don't have rtti */

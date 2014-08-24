@@ -11,6 +11,7 @@
 DROP TABLE IF EXISTS t1;
 DROP PROCEDURE IF EXISTS p1;
 --enable_warnings
+--source include/turn_off_only_full_group_by.inc
 
 CREATE TABLE t1 ( number INT NOT NULL, alpha CHAR(6) NOT NULL );
 INSERT INTO t1 VALUES (1413006,'idlfmv'),
@@ -30,6 +31,8 @@ FROM t1 GROUP BY new LIMIT 1;
 
 SELECT number, alpha, CONCAT_WS('<------------------>',number,alpha) AS new
 FROM t1 GROUP BY new LIMIT 1;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1;
 
 #

@@ -78,6 +78,7 @@ SET(SQL_SHARED_SOURCES
   field_conv.cc 
   filesort.cc
   filesort_utils.cc
+  aggregate_check.cc
   gcalc_slicescan.cc
   gcalc_tools.cc
   gstream.cc
