@@ -191,9 +191,14 @@ void toku_cachetable_begin_checkpoint (CHECKPOINTER cp, struct tokulogger *logge
 void toku_cachetable_end_checkpoint(CHECKPOINTER cp, struct tokulogger *logger, 
                                    void (*testcallback_f)(void*),  void * testextra);
 
+
 // Shuts down checkpoint thread
 // Requires no locks be held that are taken by the checkpoint function
 void toku_cachetable_minicron_shutdown(CACHETABLE ct);
+
+// Prepare to close the cachetable.  This informs the cachetable that it is about to be closed
+// so that it can tune its checkpoint resource use.
+void toku_cachetable_prepare_close(CACHETABLE ct);
 
 // Close the cachetable.
 // Effects: All of the memory objects are flushed to disk, and the cachetable is destroyed.

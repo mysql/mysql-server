@@ -1,6 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-
+#ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -29,7 +29,7 @@ COPYING CONDITIONS NOTICE:
 
 COPYRIGHT NOTICE:
 
-  TokuFT, Tokutek Fractal Tree Indexing Library.
+  TokuDB, Tokutek Fractal Tree Indexing Library.
   Copyright (C) 2007-2013 Tokutek, Inc.
 
 DISCLAIMER:
@@ -86,57 +86,105 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#pragma once
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "ft/ft.h"
-#include "ft/node.h"
-#include "ft/serialize/sub_block.h"
-#include "ft/serialize/rbuf.h"
-#include "ft/serialize/wbuf.h"
-#include "ft/serialize/block_table.h"
+// Create a lot of dirty nodes, kick off a checkpoint, and close the environment.
+// Measure the time it takes to close the environment since we are speeding up that
+// function.
 
-unsigned int toku_serialize_ftnode_size(FTNODE node);
-int toku_serialize_ftnode_to_memory(FTNODE node, FTNODE_DISK_DATA *ndd,
-                                    unsigned int basementnodesize,
-                                    enum toku_compression_method compression_method,
-                                    bool do_rebalancing, bool in_parallel,
-                                    size_t *n_bytes_to_write, size_t *n_uncompressed_bytes,
-                                    char **bytes_to_write);
-int toku_serialize_ftnode_to(int fd, BLOCKNUM, FTNODE node, FTNODE_DISK_DATA *ndd, bool do_rebalancing, FT ft, bool for_checkpoint);
-int toku_serialize_rollback_log_to(int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized_log, bool is_serialized,
-                                    FT ft, bool for_checkpoint);
-void toku_serialize_rollback_log_to_memory_uncompressed(ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized);
+#include "test.h"
+#include <endian.h>
+#include <toku_time.h>
 
-int toku_deserialize_rollback_log_from(int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT ft);
-int toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, ftnode_fetch_extra *bfe);
-int toku_deserialize_bp_from_compressed(FTNODE node, int childnum, ftnode_fetch_extra *bfe);
-int toku_deserialize_ftnode_from(int fd, BLOCKNUM off, uint32_t fullhash, FTNODE *node, FTNODE_DISK_DATA *ndd, ftnode_fetch_extra *bfe);
+// Insert max_rows key/val pairs into the db
+static void do_inserts(DB_ENV *env, DB *db, uint64_t max_rows, size_t val_size) {
+    char val_data[val_size]; memset(val_data, 0, val_size);
+    int r;
+    DB_TXN *txn = nullptr;
+    r = env->txn_begin(env, nullptr, &txn, 0);
+    CKERR(r);
 
-void toku_serialize_set_parallel(bool);
+    for (uint64_t i = 1; i <= max_rows; i++) {
+        // pick a sequential key but it does not matter for this test.
+        uint64_t k[2] = {
+            htobe64(i), random64(),
+        };
+        DBT key = { .data = k, .size = sizeof k };
+        DBT val = { .data = val_data, .size = (uint32_t) val_size };
+        r = db->put(db, txn, &key, &val, 0);
+        CKERR(r);
 
-// used by nonleaf node partial eviction
-void toku_create_compressed_partition_from_available(FTNODE node, int childnum,
-                                                     enum toku_compression_method compression_method, SUB_BLOCK sb);
+        if ((i % 1000) == 0) {
+            if (verbose)
+                fprintf(stderr, "put %" PRIu64 "\n", i);
+            r = txn->commit(txn, 0);
+            CKERR(r);
+            r = env->txn_begin(env, nullptr, &txn, 0);
+            CKERR(r);
+        }
+    }
 
-// <CER> For verifying old, non-upgraded nodes (versions 13 and 14).
-int decompress_from_raw_block_into_rbuf(uint8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum);
+    r = txn->commit(txn, 0);
+    CKERR(r);
+}
 
-// used by verify
-int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version);
-void read_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum, FT ft, struct rbuf *rb);
-int read_compressed_sub_block(struct rbuf *rb, struct sub_block *sb);
-int verify_ftnode_sub_block(struct sub_block *sb);
-void just_decompress_sub_block(struct sub_block *sb);
+// Create a cache with a lot of dirty nodes, kick off a checkpoint, and measure the time to
+// close the environment.
+static void big_shutdown(void) {
+    int r;
 
-// used by ft-node-deserialize.cc
-void initialize_ftnode(FTNODE node, BLOCKNUM blocknum);
-int read_and_check_magic(struct rbuf *rb);
-int read_and_check_version(FTNODE node, struct rbuf *rb);
-void read_node_info(FTNODE node, struct rbuf *rb, int version);
-void allocate_and_read_partition_offsets(FTNODE node, struct rbuf *rb, FTNODE_DISK_DATA *ndd);
-int check_node_info_checksum(struct rbuf *rb);
-void read_legacy_node_info(FTNODE node, struct rbuf *rb, int version);
-int check_legacy_end_checksum(struct rbuf *rb);
+    DB_ENV *env = nullptr;
+    r = db_env_create(&env, 0);
+    CKERR(r);
+    r = env->set_cachesize(env, 8, 0, 1);
+    CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME,
+                  DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE,
+                  S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
 
-// exported so the loader can dump bad blocks
-void dump_bad_block(unsigned char *vp, uint64_t size);
+    DB *db = nullptr;
+    r = db_create(&db, env, 0);
+    CKERR(r);
+    r = db->open(db, nullptr, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
+
+    do_inserts(env, db, 1000000, 1024);
+
+    // kick the checkpoint thread
+    if (verbose)
+        fprintf(stderr, "env->checkpointing_set_period\n");
+    r = env->checkpointing_set_period(env, 2);
+    CKERR(r);
+    sleep(3);
+
+    if (verbose)
+        fprintf(stderr, "db->close\n");
+    r = db->close(db, 0);
+    CKERR(r);
+
+    // measure the shutdown time
+    uint64_t tstart = toku_current_time_microsec();
+    if (verbose)
+        fprintf(stderr, "env->close\n");
+    r = env->close(env, 0);
+    CKERR(r);
+    uint64_t tend = toku_current_time_microsec();
+    if (verbose)
+        fprintf(stderr, "env->close complete %" PRIu64 " sec\n", (tend - tstart)/1000000);
+}
+
+int test_main (int argc, char *const argv[]) {
+    default_parse_args(argc, argv);
+
+    // init the env directory
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    int r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
+
+    // run the test
+    big_shutdown();
+
+    return 0;
+}
