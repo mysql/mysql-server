@@ -59,8 +59,8 @@
   common to the library and the MySQL server code, so that if they are
   updated in the server code, it is reflected in the libbinlogevent also.
 
-  TODO: Collect all the variables here and create a common header file,
-  placing it in libbinlogevent/include.
+  TODO(WL#7984): Moving the binlog constant in library libbinlogevents into a
+                 separate file and make them const variables
 */
 #ifndef SYSTEM_CHARSET_MBMAXLEN
 #define SYSTEM_CHARSET_MBMAXLEN 3
@@ -383,9 +383,10 @@ enum enum_binlog_checksum_alg
 
   @return checksum for a memory block
 */
-inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos, size_t length)
+inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos,
+                               size_t length)
 {
-  return (uint32_t)crc32(crc, pos, length);
+  return static_cast<uint32_t>(crc32(crc, pos, length));
 }
 
 
@@ -407,10 +408,8 @@ inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos, size_t le
   @retval 1 error
   @retval 0 success
 */
-inline int read_str_at_most_255_bytes(const char **buf,
-                                             const char *buf_end,
-                                             const char **str,
-                                             uint8_t *len)
+inline int read_str_at_most_255_bytes(const char **buf, const char *buf_end,
+                                      const char **str, uint8_t *len)
 {
   if (*buf +  *buf[0] >= buf_end)
     return 1;
@@ -472,14 +471,12 @@ public:
 
   /* Constructors */
   Log_event_footer()
-  : checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
-  {
-  }
+    : checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  {}
 
   explicit Log_event_footer(enum_binlog_checksum_alg checksum_alg_arg)
-  : checksum_alg(checksum_alg_arg)
-  {
-  }
+    : checksum_alg(checksum_alg_arg)
+  {}
 
   /**
      @verbatim
@@ -491,7 +488,7 @@ public:
      On the slave side the value is assigned from post_header_len[last]
      of the last seen FD event.
      @endverbatim
-     TODO: Revisit this comment when encoder is moved in libbinlogevent
+     TODO(WL#7546): Revisit this comment when encoder is moved in libbinlogevent
   */
   enum_binlog_checksum_alg checksum_alg;
 };
@@ -618,7 +615,9 @@ public:
   typedef unsigned char Byte;
 
   explicit Log_event_header(Log_event_type type_code_arg= ENUM_END_EVENT)
-  : type_code(type_code_arg), log_pos(0), flags(0)
+    : type_code(type_code_arg),
+      log_pos(0),
+      flags(0)
   {
     when.tv_sec= 0;
     when.tv_usec= 0;
@@ -640,7 +639,7 @@ public:
 /**
     This is the abstract base class for binary log events.
 
-  @section Bianry_log_event_binary_format Binary Format
+  @section Binary_log_event_binary_format Binary Format
 
   @anchor Binary_log_event_format
   Any @c Binary_log_event saved on disk consists of the following four
@@ -755,16 +754,13 @@ public:
 protected:
   /**
     This constructor is used to initialize the type_code of header object
-    m_header
+    m_header.
+    We set the type code to ENUM_END_EVENT so that the decoder
+    asserts if event type has not been modified by the sub classes
   */
   explicit Binary_log_event(Log_event_type type_code= ENUM_END_EVENT)
-  : m_header(type_code)
-  {
-    /*
-      We set the type code to ENUM_END_EVENT so that the decoder
-      asserts if event type has not been modified by the sub classes.
-    */
-  }
+    : m_header(type_code)
+  {}
 
   /**
     This ctor will create a new object of Log_event_header, and initialize
@@ -837,11 +833,6 @@ public:
     return &m_footer;
   }
 
-
-/**
-  Convenience function to get the human readable name of the given event type.
-*/
-virtual std::string get_event_name()= 0;
 private:
   Log_event_header m_header;
   Log_event_footer m_footer;
@@ -865,13 +856,9 @@ public:
    UNKNOWN_EVENT in the header object in Binary_log_event
   */
   Unknown_event()
-  : Binary_log_event(UNKNOWN_EVENT)
-  {
-  }
-  std::string get_event_name()
-  {
-    return "Unknown";
-  }
+    : Binary_log_event(UNKNOWN_EVENT)
+  {}
+
   Unknown_event(const char* buf,
                 const Format_description_event *description_event);
 #ifndef HAVE_MYSYS

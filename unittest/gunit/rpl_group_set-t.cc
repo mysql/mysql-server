@@ -48,7 +48,7 @@ public:
     printf("# seed = %u\n", seed);
     srand(seed);
     for (int i= 0; i < 16; i++)
-      map_macro_enum(sids[i].parse(uuids[i]));
+      sids[i].parse(uuids[i]);
 
     verbose= false;
     errtext_stack_pos= 0;
@@ -317,18 +317,18 @@ TEST_F(GroupTest, Uuid)
   // check that we get back the same UUID after parse + print
   for (int i= 0; i < N_SIDS; i++)
   {
-    EXPECT_OK(map_macro_enum(u.parse(uuids[i]))) << "i=" << i;
+    EXPECT_OK(u.parse(uuids[i])) << "i=" << i;
     u.to_string(buf);
     EXPECT_STRCASEEQ(uuids[i], buf) << "i=" << i;
   }
   // check error cases
-  EXPECT_OK(map_macro_enum(u.parse("ffffFFFF-ffff-FFFF-ffff-ffffffffFFFFf")));
-  EXPECT_NOK(map_macro_enum(u.parse("ffffFFFF-ffff-FFFF-ffff-ffffffffFFFg")));
-  EXPECT_NOK(map_macro_enum(u.parse("ffffFFFF-ffff-FFFF-ffff-ffffffffFFF")));
-  EXPECT_NOK(map_macro_enum(u.parse("ffffFFFF-ffff-FFFF-fff-fffffffffFFFF")));
-  EXPECT_NOK(map_macro_enum(u.parse("ffffFFFF-ffff-FFFF-ffff-ffffffffFFF-")));
-  EXPECT_NOK(map_macro_enum(u.parse(" ffffFFFF-ffff-FFFF-ffff-ffffffffFFFF")));
-  EXPECT_NOK(map_macro_enum(u.parse("ffffFFFFfffff-FFFF-ffff-ffffffffFFFF")));
+  EXPECT_OK(u.parse("ffffFFFF-ffff-FFFF-ffff-ffffffffFFFFf"));
+  EXPECT_NOK(u.parse("ffffFFFF-ffff-FFFF-ffff-ffffffffFFFg"));
+  EXPECT_NOK(u.parse("ffffFFFF-ffff-FFFF-ffff-ffffffffFFF"));
+  EXPECT_NOK(u.parse("ffffFFFF-ffff-FFFF-fff-fffffffffFFFF"));
+  EXPECT_NOK(u.parse("ffffFFFF-ffff-FFFF-ffff-ffffffffFFF-"));
+  EXPECT_NOK(u.parse(" ffffFFFF-ffff-FFFF-ffff-ffffffffFFFF"));
+  EXPECT_NOK(u.parse("ffffFFFFfffff-FFFF-ffff-ffffffffFFFF"));
 }
 
 

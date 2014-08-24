@@ -87,10 +87,9 @@ class THD;
 
 
 /// Type of SIDNO (source ID number, first component of GTID)
-typedef int32 rpl_sidno;
+typedef int rpl_sidno;
 /// Type for GNO (group number, second component of GTID)
-typedef int64 rpl_gno;
-/// Type of binlog_pos (positions in binary log)
+typedef long long int rpl_gno;
 typedef int64 rpl_binlog_pos;
 
 

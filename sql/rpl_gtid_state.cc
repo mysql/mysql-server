@@ -481,7 +481,7 @@ int Gtid_state::init()
   global_sid_lock->assert_some_lock();
 
   rpl_sid server_sid;
-  if (map_macro_enum(server_sid.parse(server_uuid)) != RETURN_STATUS_OK)
+  if (server_sid.parse(server_uuid) != RETURN_STATUS_OK)
     DBUG_RETURN(1);
   rpl_sidno sidno= sid_map->add_sid(server_sid);
   if (sidno <= 0)

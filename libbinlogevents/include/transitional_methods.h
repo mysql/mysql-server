@@ -24,6 +24,14 @@
 #define TRANSITIONAL_METHODS_INCLUDED
 #include <stdlib.h>
 #include <string.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+unsigned int my_time_binary_length(unsigned int dec);
+unsigned int my_datetime_binary_length(unsigned int dec);
+unsigned int my_timestamp_binary_length(unsigned int dec);
+#ifdef __cplusplus
+}
 /**
   In case the variable is updated,
   make sure to update it in $MYSQL_SOURCE_DIR/my_global.h.
@@ -130,4 +138,5 @@ inline char *bapi_strmake(char *dest, const char* src, size_t length)
 */
 extern const unsigned char checksum_version_split[3];
 extern const unsigned long checksum_version_product;
+#endif
 #endif

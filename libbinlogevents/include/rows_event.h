@@ -376,11 +376,6 @@ public:
 
   typedef uint16_t flag_set;
 
-  std::string get_event_name()
-  {
-    return "Table_map";
-  }
-
   /**
   <pre>
   The buffer layout for fixed data part is as follows:
@@ -410,11 +405,17 @@ public:
   */
   Table_map_event(const char *buf, unsigned int event_len,
                   const Format_description_event *description_event);
+
   Table_map_event(const Table_id& tid, unsigned long colcnt, const char *dbnam, size_t dblen,
                   const char *tblnam, size_t tbllen)
-  : m_table_id(tid), m_data_size(0), m_dblen(dblen), m_tbllen(tbllen),
-    m_colcnt(colcnt), m_field_metadata_size(0),
-    m_field_metadata(0), m_null_bits(0)
+    : m_table_id(tid),
+      m_data_size(0),
+      m_dblen(dblen),
+      m_tbllen(tbllen),
+      m_colcnt(colcnt),
+      m_field_metadata_size(0),
+      m_field_metadata(0),
+      m_null_bits(0)
   {
     if (dbnam)
       m_dbnam= std::string(dbnam, m_dblen);
@@ -447,10 +448,12 @@ public:
   unsigned char* m_null_bits;
 
   Table_map_event()
-  : Binary_log_event(TABLE_MAP_EVENT), m_coltype(0),
-    m_field_metadata_size(0),m_field_metadata(0), m_null_bits(0)
-  {
-  }
+    : Binary_log_event(TABLE_MAP_EVENT),
+      m_coltype(0),
+      m_field_metadata_size(0),
+      m_field_metadata(0),
+      m_null_bits(0)
+  {}
 
   unsigned long long get_table_id()
   {
@@ -623,11 +626,6 @@ public:
     COMPLETE_ROWS_F = (1U << 3)
   };
 
-  std::string get_event_name()
-  {
-    return "Rows_event";
-  }
-
   /**
     Constructs an event directly. The members are assigned default values.
 
@@ -640,11 +638,14 @@ public:
                                PRE_GA_DELETE_ROWS_EVENT
   */
   explicit Rows_event(Log_event_type type_arg)
-  : Binary_log_event(type_arg),
-    m_table_id(0), m_width(0), m_extra_row_data(0),
-    columns_before_image(0), columns_after_image(0), row(0)
-  {
-  }
+    : Binary_log_event(type_arg),
+      m_table_id(0),
+      m_width(0),
+      m_extra_row_data(0),
+      columns_before_image(0),
+      columns_after_image(0),
+      row(0)
+  {}
 
  /**
    The constructor is responsible for decoding the event contained in
@@ -755,25 +756,16 @@ class Write_rows_event : public virtual Rows_event
 {
 public:
 
-  std::string get_event_name()
-  {
-    if (header()->type_code == WRITE_ROWS_EVENT_V1)
-      return "Write_rows_v1";
-    else
-      return "Write_rows";
-  }
-
   Write_rows_event(const char *buf, unsigned int event_len,
                    const Format_description_event *description_event)
-  : Rows_event(buf, event_len, description_event)
+    : Rows_event(buf, event_len, description_event)
   {
     this->header()->type_code= m_type;
   };
 
-  Write_rows_event(Log_event_type type= WRITE_ROWS_EVENT)
-  : Rows_event(type)
-  {
-  }
+  Write_rows_event()
+    : Rows_event(WRITE_ROWS_EVENT)
+  {}
 };
 
 /**
@@ -791,25 +783,17 @@ public:
 class Update_rows_event : public virtual Rows_event
 {
 public:
-  std::string get_event_name()
-  {
-    if (header()->type_code == UPDATE_ROWS_EVENT_V1)
-    return "Update_rows_v1";
-    else
-      return "Update_rows";
-  }
 
   Update_rows_event(const char *buf, unsigned int event_len,
                     const Format_description_event *description_event)
-  : Rows_event(buf, event_len, description_event)
+    : Rows_event(buf, event_len, description_event)
   {
     this->header()->type_code= m_type;
-  };
-
-  Update_rows_event(Log_event_type type= UPDATE_ROWS_EVENT)
-  : Rows_event(type)
-  {
   }
+
+  Update_rows_event()
+    : Rows_event(UPDATE_ROWS_EVENT)
+  {}
 };
 
 /**
@@ -828,25 +812,16 @@ public:
 class Delete_rows_event : public virtual Rows_event
 {
 public:
-  std::string get_event_name()
-  {
-    if (header()->type_code == DELETE_ROWS_EVENT_V1)
-    return "Delete_rows_v1";
-    else
-      return "Delete_rows";
-  }
-
   Delete_rows_event(const char *buf, unsigned int event_len,
                     const Format_description_event *description_event)
-  : Rows_event(buf, event_len, description_event)
+    : Rows_event(buf, event_len, description_event)
   {
     this->header()->type_code= m_type;
-  };
-
-  Delete_rows_event(Log_event_type type= DELETE_ROWS_EVENT)
-  : Rows_event(type)
-  {
   }
+
+  Delete_rows_event()
+    : Rows_event(DELETE_ROWS_EVENT)
+  {}
 };
 
 /**
@@ -882,10 +857,6 @@ public:
 class Rows_query_event: public virtual Ignorable_event
 {
 public:
-  std::string get_event_name()
-  {
-    return "Rows_query";
-  }
 
   /**
     It is used to write the original query in the binlog file in case of RBR
@@ -915,9 +886,9 @@ public:
     ROWS_QUERY_LOG_EVENT in the header object in Binary_log_event.
   */
   Rows_query_event()
-  : Ignorable_event(ROWS_QUERY_LOG_EVENT), m_rows_query(0)
-  {
-  }
+    : Ignorable_event(ROWS_QUERY_LOG_EVENT), m_rows_query(0)
+  {}
+
   virtual ~Rows_query_event();
 protected:
   char *m_rows_query;

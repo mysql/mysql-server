@@ -131,8 +131,8 @@ float inline float4store(float  *A)
    return *A;
   #else
     float ret_val= 0;
-    char *in_float= (char *) A;
-    char *return_float= (char*) &ret_val;
+    char *in_float= reinterpret_cast<char *> (A);
+    char *return_float= reinterpret_cast<char *> (&ret_val);
     *(return_float)= in_float[3];
     *((return_float)+1)= in_float[2];
     *((return_float)+2)= in_float[1];
@@ -149,8 +149,8 @@ inline double doublestore(double *V)
    return *V;
   #else
    double ret_val;
-   char * in_double= (char *) V;
-   char * return_double= (char *) &ret_val;
+   char * in_double= reinterpret_cast<char *> (V);
+   char * return_double= reinterpret_cast<char *> (&ret_val);
     *((return_double)+0)= in_double[4];
     *((return_double)+1)= in_double[5];
     *((return_double)+2)= in_double[6];

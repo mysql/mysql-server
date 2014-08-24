@@ -22,6 +22,7 @@
 #include <iostream>
 #include <cassert>
 #include <cstring>
+#include "transitional_methods.h"
 #ifndef DATETIME_MAX_DECIMALS
 #define DATETIME_MAX_DECIMALS 6
 #endif

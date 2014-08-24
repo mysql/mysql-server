@@ -60,8 +60,43 @@ extern I_List<i_string_pair> binlog_rewrite_db;
 #endif
 
 #include "binary_log.h"
-using namespace binary_log;
 /* Forward declarations */
+using binary_log::enum_binlog_checksum_alg;
+using binary_log::checksum_crc32;
+using binary_log::Log_event_header;
+using binary_log::Log_event_footer;
+using binary_log::Binary_log_event;
+using binary_log::Log_event_type;
+using binary_log::Query_event;
+using binary_log::Unknown_event;
+using binary_log::Start_event_v3;
+using binary_log::Stop_event;
+using binary_log::Rotate_event;
+using binary_log::Intvar_event;
+using binary_log::Load_event;
+using binary_log::Create_file_event;
+using binary_log::Append_block_event;
+using binary_log::Execute_load_event;
+using binary_log::Delete_file_event;
+using binary_log::Rand_event;
+using binary_log::User_var_event;
+using binary_log::Format_description_event;
+using binary_log::Xid_event;
+using binary_log::Begin_load_query_event;
+using binary_log::Execute_load_query_event;
+using binary_log::Table_map_event;
+using binary_log::Rows_event;
+using binary_log::Write_rows_event;
+using binary_log::Update_rows_event;
+using binary_log::Delete_rows_event;
+using binary_log::Incident_event;
+using binary_log::Heartbeat_event;
+using binary_log::Ignorable_event;
+using binary_log::Rows_query_event;
+using binary_log::Gtid_event;
+using binary_log::Previous_gtids_event;
+
+
 class String;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
@@ -224,7 +259,7 @@ struct sql_ex_info
    a backward-compatible behaviour.
 */
 
-#define LOG_EVENT_BINLOG_IN_USE_F       0x1
+//#define LOG_EVENT_BINLOG_IN_USE_F       0x1
 
 /**
   @def LOG_EVENT_THREAD_SPECIFIC_F
@@ -483,15 +518,6 @@ typedef struct st_mts_db_names
 } Mts_db_names;
 
 /**
-  To provide a mapping from type_code to event string
-  It returns the human readable name of this event's type.
-
-  @param  type_code   The event_type for the event
-
-  @return             The event name for the event
-*/
-std::string type_code_to_str(Log_event_type type_code);
-/**
   @class Log_event
 
   This is the abstract base class for binary log events.
@@ -582,6 +608,7 @@ protected:
     EVENT_CACHE_LOGGING_COUNT
   };
 
+  bool is_valid_param;
 public:
   /*
      A temp buffer for read_log_event; it is later analysed according to the
@@ -658,8 +685,8 @@ public:
   db_worker_hash_entry *mts_assigned_partitions[MAX_DBS_IN_EVENT_MTS];
 
   Log_event(Log_event_header *header, Log_event_footer *footer,
-            enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
-            enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING);
+            enum_event_cache_type cache_type_arg,
+            enum_event_logging_type logging_type_arg);
   Log_event(THD* thd_arg, uint16 flags_arg,
             enum_event_cache_type cache_type_arg,
             enum_event_logging_type logging_type_arg,
@@ -749,7 +776,7 @@ public:
    */
   static int read_log_event(IO_CACHE* file, String* packet,
                             mysql_mutex_t* log_lock,
-                            enum_binlog_checksum_alg checksum_alg_arg,
+                            binary_log::enum_binlog_checksum_alg checksum_alg_arg,
                             const char *log_file_name_arg= NULL,
                             bool* is_binlog_active= NULL);
   /*
@@ -776,16 +803,15 @@ public:
     return thd ? thd->db : 0;
   }
 #else // ifdef MYSQL_SERVER
-  Log_event(Log_event_header *header, Log_event_footer *footer,
+ /* Log_event(Log_event_header *header, Log_event_footer *footer,
             enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING)
   : temp_buf(0),  event_cache_type(cache_type_arg),
-    event_logging_type(logging_type_arg), common_header(0), common_footer(0),
-    is_valid(false)
+    event_logging_type(logging_type_arg), is_valid(false)
   {
     common_header= header;
     common_footer= footer;
-  }
+  }*/
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
@@ -845,20 +871,39 @@ public:
     return (time_t) common_header->when.tv_sec;
   }
 #endif
+  Log_event_type get_type_code()
+  {
+    return common_header->type_code;
+  }
   /*
    is_valid is event specific sanity checks to determine that the
-    object is correctly initialized. This is redundant here, because
-    no new allocation is done in the constructor of the event.
-    Else, they contain the value indicating whether the event was
-    correctly initialized.
+    object is correctly initialized.
   */
-  bool is_valid;
-  void set_artificial_event() { common_header->flags |= LOG_EVENT_ARTIFICIAL_F; }
-  void set_relay_log_event() { common_header->flags |= LOG_EVENT_RELAY_LOG_F; }
-  bool is_artificial_event() const { return common_header->flags & LOG_EVENT_ARTIFICIAL_F; }
-  bool is_relay_log_event() const { return common_header->flags & LOG_EVENT_RELAY_LOG_F; }
-  bool is_ignorable_event() const { return common_header->flags & LOG_EVENT_IGNORABLE_F; }
-  bool is_no_filter_event() const { return common_header->flags & LOG_EVENT_NO_FILTER_F; }
+  bool is_valid() { return is_valid_param; }
+  void set_artificial_event()
+  {
+    common_header->flags |= LOG_EVENT_ARTIFICIAL_F;
+  }
+  void set_relay_log_event()
+  {
+    common_header->flags |= LOG_EVENT_RELAY_LOG_F;
+  }
+  bool is_artificial_event() const
+  {
+    return common_header->flags & LOG_EVENT_ARTIFICIAL_F;
+  }
+  bool is_relay_log_event() const
+  {
+    return common_header->flags & LOG_EVENT_RELAY_LOG_F;
+  }
+  bool is_ignorable_event() const
+  {
+    return common_header->flags & LOG_EVENT_IGNORABLE_F;
+  }
+  bool is_no_filter_event() const
+  {
+    return common_header->flags & LOG_EVENT_NO_FILTER_F;
+  }
   inline bool is_using_trans_cache() const
   {
     return (event_cache_type == EVENT_TRANSACTIONAL_CACHE);
@@ -880,12 +925,8 @@ public:
      Once all the events are moved, this parameter would be removed.
   */
   Log_event(Log_event_header *header,
-            Log_event_footer *footer, bool flag_moved);
-  /*
-     This ctor is added in the process of fixing valgrind faliure it will be
-     removed after all the events are moved to libbinlogevent
-  Log_event(const char *buf, const Format_description_log_event *description_event);
-  */
+            Log_event_footer *footer);
+
   virtual ~Log_event()
   {
     free_temp_buf();
@@ -914,7 +955,11 @@ public:
   /**
     Returns the human readable name of this event's type.
   */
-
+  static const char* get_type_str(Log_event_type type);
+  /**
+    Returns the human readable name of this event's type.
+  */
+  const char* get_type_str();
   /* Return start of query time or current time */
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -963,18 +1008,18 @@ private:
   bool is_mts_sequential_exec()
   {
     return
-      common_header->type_code == START_EVENT_V3          ||
-      common_header->type_code == STOP_EVENT              ||
-      common_header->type_code == ROTATE_EVENT            ||
-      common_header->type_code == LOAD_EVENT              ||
-      common_header->type_code == SLAVE_EVENT             ||
-      common_header->type_code == CREATE_FILE_EVENT       ||
-      common_header->type_code == DELETE_FILE_EVENT       ||
-      common_header->type_code == NEW_LOAD_EVENT          ||
-      common_header->type_code == EXEC_LOAD_EVENT         ||
-      common_header->type_code == FORMAT_DESCRIPTION_EVENT||
+      get_type_code() == binary_log::START_EVENT_V3          ||
+      get_type_code() == binary_log::STOP_EVENT              ||
+      get_type_code() == binary_log::ROTATE_EVENT            ||
+      get_type_code() == binary_log::LOAD_EVENT              ||
+      get_type_code() == binary_log::SLAVE_EVENT             ||
+      get_type_code() == binary_log::CREATE_FILE_EVENT       ||
+      get_type_code() == binary_log::DELETE_FILE_EVENT       ||
+      get_type_code() == binary_log::NEW_LOAD_EVENT          ||
+      get_type_code() == binary_log::EXEC_LOAD_EVENT         ||
+      get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT||
 
-      common_header->type_code == INCIDENT_EVENT;
+      get_type_code() == binary_log::INCIDENT_EVENT;
   }
 
   /**
@@ -992,9 +1037,9 @@ private:
   enum enum_mts_event_exec_mode get_mts_execution_mode(ulong slave_server_id,
                                                    bool mts_in_group)
   {
-    if ((common_header->type_code == FORMAT_DESCRIPTION_EVENT &&
+    if ((get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT &&
          ((server_id == (uint32) ::server_id) || (common_header->log_pos == 0))) ||
-        (common_header->type_code == ROTATE_EVENT &&
+        (get_type_code() == binary_log::ROTATE_EVENT &&
          ((server_id == (uint32) ::server_id) ||
           (common_header->log_pos == 0    /* very first fake Rotate (R_f) */
            && mts_in_group /* ignored event turned into R_f at slave stop */))))
@@ -1042,9 +1087,9 @@ private:
   virtual void set_mts_isolate_group()
   {
     DBUG_ASSERT(ends_group() ||
-                common_header->type_code == QUERY_EVENT ||
-                common_header->type_code == EXEC_LOAD_EVENT ||
-                common_header->type_code == EXECUTE_LOAD_QUERY_EVENT);
+                get_type_code() == binary_log::QUERY_EVENT ||
+                get_type_code() == binary_log::EXEC_LOAD_EVENT ||
+                get_type_code() == binary_log::EXECUTE_LOAD_QUERY_EVENT);
     common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
   }
 
@@ -1259,6 +1304,10 @@ protected:
   Query_log_event is created for logging, and is called after an update to the
   database is done. It is used when the server acts as the master.
 
+  Virtual inheritance is required here to handle the diamond problem in
+  the class Execute_load_query_log_event.
+  The diamond structure is explained in @Excecute_load_query_log_event
+
   @internal
   The inheritance structure is as follows:
 
@@ -1352,9 +1401,10 @@ public:
   to the log.
 */
   Query_log_event()
-  : binary_log::Query_event(), Log_event(header(), footer(), true), data_buf(NULL)
-  {
-  }
+    : binary_log::Query_event(),
+      Log_event(header(), footer()),
+      data_buf(NULL)
+  {}
 
   Query_log_event(const char* buf, uint event_len,
                   const Format_description_event *description_event,
@@ -1434,6 +1484,9 @@ public:        /* !!! Public in this patch to allow old usage */
   This event type is understood by current versions, but only
   generated by MySQL 3.23 and earlier.
 
+  Virtual inheritance is required here to handle the diamond problem in
+  the class Create_file_log_event.
+  The diamond structure is explained in @Create_file_log_event
   @internal
   The inheritance structure in the current design for the classes is
   as follows:
@@ -1457,10 +1510,6 @@ protected:
                      int body_offset,
                      const Format_description_event* description_event);
 public:
-  Load_log_event()
-  : Load_event(), Log_event(header(), footer(), true)
-  {
-  }
   uint get_query_buffer_length();
   void print_query(bool need_db, const char *cs, char *buf, char **end,
                    char **fn_start, char **fn_end);
@@ -1513,7 +1562,7 @@ public:
   {}
   Log_event_type get_type_code()
   {
-    return sql_ex.data_info.new_format() ? NEW_LOAD_EVENT: LOAD_EVENT;
+    return sql_ex.data_info.new_format() ? binary_log::NEW_LOAD_EVENT: binary_log::LOAD_EVENT;
   }
 #ifdef MYSQL_SERVER
   bool write_data_header(IO_CACHE* file);
@@ -1569,7 +1618,7 @@ public:
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3()
-  : Log_event(header(), footer(), true)
+  : Log_event(header(), footer())
   {
   }
 
@@ -1644,10 +1693,6 @@ class Format_description_log_event: public Format_description_event,
                                     public Start_log_event_v3
 {
 public:
-
-  Format_description_log_event()
-  : Start_event_v3(), Format_description_event()
-  {}
   Format_description_log_event(uint8_t binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_event
@@ -1716,10 +1761,7 @@ protected:
 class Intvar_log_event: public Intvar_event, public Log_event
 {
 public:
-  Intvar_log_event()
-  : Intvar_event(), Log_event(header(), footer(), true)
-  {
-  }
+
 #ifdef MYSQL_SERVER
   Intvar_log_event(THD* thd_arg, uchar type_arg, ulonglong val_arg,
                    enum_event_cache_type cache_type_arg,
@@ -1728,7 +1770,7 @@ public:
     Log_event(thd_arg, 0, cache_type_arg,
               logging_type_arg, header(), footer())
   {
-    is_valid= true;
+    is_valid_param= true;
   }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
@@ -1783,10 +1825,6 @@ class Rand_log_event: public Rand_event, public Log_event
 {
  public:
 
-  Rand_log_event()
-  : Rand_event(), Log_event(header(), footer(), true)
-  {}
-
 #ifdef MYSQL_SERVER
   Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg,
                  enum_event_cache_type cache_type_arg,
@@ -1795,7 +1833,7 @@ class Rand_log_event: public Rand_event, public Log_event
       Log_event(thd_arg, 0, cache_type_arg,
                 logging_type_arg, header(), footer())
       {
-        is_valid= true;
+        is_valid_param= true;
       }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
@@ -1853,9 +1891,6 @@ class Xid_log_event: public Xid_event, public Log_event
 {
  public:
 
-  Xid_log_event()
-  : Xid_event(), Log_event(header(), footer(), true)
-  {}
 #ifdef MYSQL_SERVER
   Xid_log_event(THD* thd_arg, my_xid x)
   : Xid_event(x),
@@ -1863,7 +1898,7 @@ class Xid_log_event: public Xid_event, public Log_event
               Log_event::EVENT_TRANSACTIONAL_CACHE,
               Log_event::EVENT_NORMAL_LOGGING, header(), footer())
   {
-    is_valid= true;
+    is_valid_param= true;
   }
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
@@ -1912,10 +1947,6 @@ private:
 class User_var_log_event: public User_var_event, public Log_event
 {
 public:
-  User_var_log_event()
-  : User_var_event(), Log_event(header(), footer(), true)
-  {}
-
 #ifdef MYSQL_SERVER
   bool deferred;
   query_id_t query_id;
@@ -1931,7 +1962,7 @@ public:
      deferred(false)
     {
       if (name != 0)
-        is_valid= true;
+        is_valid_param= true;
     }
   int pack_info(Protocol* protocol);
 #else
@@ -1972,27 +2003,28 @@ private:
 class Stop_log_event: public Stop_event, public Log_event
 {
 public:
-
+#ifdef MYSQL_SERVER
   Stop_log_event()
-  : Log_event(header(), footer(), true)
+  : Log_event(header(), footer(), Log_event::EVENT_INVALID_CACHE,
+              Log_event::EVENT_INVALID_LOGGING)
   {
-    is_valid= true;
+    is_valid_param= true;
   }
 
-#ifndef MYSQL_SERVER
+#else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
   Stop_log_event(const char* buf,
                  const Format_description_event *description_event):
   Stop_event(buf, description_event),
-  Log_event(header(), footer(), true)
+  Log_event(header(), footer())
   {
-    is_valid= true;
+    is_valid_param= true;
   }
 
   ~Stop_log_event() {}
-  Log_event_type get_type_code() { return STOP_EVENT;}
+  Log_event_type get_type_code() { return binary_log::STOP_EVENT;}
 
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -2038,10 +2070,6 @@ private:
 class Rotate_log_event: public Rotate_event, public Log_event
 {
 public:
-  Rotate_log_event()
-  : Rotate_event(), Log_event(header(), footer(), true)
-  {
-  }
 #ifdef MYSQL_SERVER
   Rotate_log_event(const char* new_log_ident_arg,
 		   uint ident_len_arg,
@@ -2114,10 +2142,6 @@ private:
 class Create_file_log_event: public Load_log_event, public Create_file_event
 {
 public:
-  Create_file_log_event()
-  : Create_file_event()
-  {
-  }
 
 #ifdef MYSQL_SERVER
 #ifdef HAVE_REPLICATION
@@ -2187,10 +2211,6 @@ class Append_block_log_event: public virtual Append_block_event,
                               public Log_event
 {
 public:
-  Append_block_log_event()
-  : Log_event(header(), footer(), true)
-  {
-  }
 
 #ifdef MYSQL_SERVER
   Append_block_log_event(THD* thd, const char* db_arg, uchar* block_arg,
@@ -2253,10 +2273,6 @@ class Delete_file_log_event: public Delete_file_event, public Log_event
 {
 public:
 
-  Delete_file_log_event()
-  : Delete_file_event(), Log_event(header(), footer(), true)
-  {
-  }
 #ifdef MYSQL_SERVER
   Delete_file_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
@@ -2316,10 +2332,6 @@ private:
 class Execute_load_log_event: public Execute_load_event, public Log_event
 {
 public:
-
-  Execute_load_log_event()
-  : Execute_load_event(), Log_event(header(), footer(), true)
-  {}
 #ifdef MYSQL_SERVER
   Execute_load_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
@@ -2401,8 +2413,6 @@ class Begin_load_query_log_event: public Append_block_log_event,
                                   public Begin_load_query_event
 {
 public:
-  Begin_load_query_log_event()
-  {}
 #ifdef MYSQL_SERVER
   Begin_load_query_log_event(THD* thd_arg, const char *db_arg,
                              uchar* block_arg, uint block_len_arg,
@@ -2463,13 +2473,11 @@ class Execute_load_query_log_event: public Query_log_event,
                                     public Execute_load_query_event
 {
 public:
-  Execute_load_query_log_event()
-  {}
 #ifdef MYSQL_SERVER
   Execute_load_query_log_event(THD* thd, const char* query_arg,
                                ulong query_length, uint fn_pos_start_arg,
                                uint fn_pos_end_arg,
-                               enum_load_dup_handling dup_handling_arg,
+                               binary_log::enum_load_dup_handling dup_handling_arg,
                                bool using_trans, bool immediate,
                                bool suppress_use, int errcode);
 #ifdef HAVE_REPLICATION
@@ -2515,14 +2523,14 @@ public:
   Unknown_log_event(const char* buf,
                     const Format_description_event *description_event)
   : Unknown_event(buf, description_event),
-    Log_event(header(), footer(), true)
+    Log_event(header(), footer())
   {
-    is_valid= true;
+    is_valid_param= true;
   }
 
   ~Unknown_log_event() {}
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
-  Log_event_type get_type_code() { return UNKNOWN_EVENT;}
+  Log_event_type get_type_code() { return binary_log::UNKNOWN_EVENT;}
 };
 #endif
 char *str_to_hex(char *to, const char *from, size_t len);
@@ -2553,7 +2561,7 @@ public:
   /** Constants */
   enum
   {
-    TYPE_CODE = TABLE_MAP_EVENT
+    TYPE_CODE = binary_log::TABLE_MAP_EVENT
   };
 
   /**
@@ -2591,13 +2599,6 @@ public:
 
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
-  Table_map_log_event()
-  : Table_map_event(), Log_event(header(), footer(), true)
-  {
-    m_null_bits= 0;
-    m_field_metadata= 0;
-    m_coltype= 0;
-  }
 #ifdef MYSQL_SERVER
   Table_map_log_event(THD *thd_arg, TABLE *tbl, const Table_id& tid,
                       bool is_transactional);
@@ -2692,6 +2693,13 @@ private:
    Encode the common parts of all events containing rows, which are:
    - Write data header and data body to an IO_CACHE.
 
+  Virtual inheritance is required here to handle the diamond problem in
+  the class Write_rows_log_event, Update_rows_log_event and
+  Delete_rows_log_event.
+  The diamond structure is explained in @Write_rows_log_event,
+                                        @Update_rows_log_event,
+                                        @Delete_rows_log_event
+
   @internal
   The inheritance structure in the current design for the classes is
   as follows:
@@ -2741,9 +2749,6 @@ public:
       RLE_NO_FLAGS = 0U
   };
 
-  Rows_log_event(Log_event_type type)
-  : Rows_event(type), Log_event(header(), footer(), true)
-  { m_cols.bitmap =0; }
   virtual ~Rows_log_event();
 
   void set_flags(flag_set flags_arg) { m_flags |= flags_arg; }
@@ -2809,14 +2814,14 @@ public:
 
     switch (get_general_type_code())
     {
-      case DELETE_ROWS_EVENT:
+      case binary_log::DELETE_ROWS_EVENT:
         res= bitmap_cmp(get_cols(), table->read_set);
         break;
-      case UPDATE_ROWS_EVENT:
+      case binary_log::UPDATE_ROWS_EVENT:
         res= (bitmap_cmp(get_cols(), table->read_set) &&
               bitmap_cmp(get_cols_ai(), table->write_set));
         break;
-      case WRITE_ROWS_EVENT:
+      case binary_log::WRITE_ROWS_EVENT:
         res= bitmap_cmp(get_cols(), table->write_set);
         break;
       default:
@@ -3200,13 +3205,10 @@ private:
 class Write_rows_log_event : public Rows_log_event, public Write_rows_event
 {
 public:
-  Write_rows_log_event(Log_event_type type)
-  : Rows_event(type), Rows_log_event(type)
-  {}
   enum
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
-    TYPE_CODE = WRITE_ROWS_EVENT
+    TYPE_CODE = binary_log::WRITE_ROWS_EVENT
   };
 
 #if defined(MYSQL_SERVER)
@@ -3294,16 +3296,10 @@ private:
 class Update_rows_log_event : public Rows_log_event, public Update_rows_event
 {
 public:
-
-  Update_rows_log_event(Log_event_type type)
-  : Rows_event(type), Rows_log_event(type)
-  {
-    m_cols_ai.bitmap= 0;
-  }
   enum
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
-    TYPE_CODE = UPDATE_ROWS_EVENT
+    TYPE_CODE = binary_log::UPDATE_ROWS_EVENT
   };
 
 #ifdef MYSQL_SERVER
@@ -3405,14 +3401,10 @@ protected:
 class Delete_rows_log_event : public Rows_log_event, public Delete_rows_event
 {
 public:
-
-  Delete_rows_log_event(Log_event_type type)
-  :  Rows_event(type), Rows_log_event(type)
-  {}
   enum
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
-    TYPE_CODE = DELETE_ROWS_EVENT
+    TYPE_CODE = binary_log::DELETE_ROWS_EVENT
   };
 
 #ifdef MYSQL_SERVER
@@ -3487,9 +3479,6 @@ protected:
 class Incident_log_event : public Incident_event , public Log_event
 {
 public:
-  Incident_log_event()
-  : Log_event(header(), footer(), true)
-  { }
 #ifdef MYSQL_SERVER
   Incident_log_event(THD *thd_arg, enum_incident incident)
     : Incident_event(incident),
@@ -3501,7 +3490,7 @@ public:
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("incident: %d", incident));
     if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
-      is_valid= true;
+      is_valid_param= true;
     DBUG_ASSERT(message == NULL && message_length == 0);
     DBUG_VOID_RETURN;
   }
@@ -3516,7 +3505,7 @@ public:
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("incident: %d", incident));
     if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
-      is_valid= true;
+      is_valid_param= true;
     DBUG_ASSERT(message == NULL && message_length == 0);
     if (!(message= (char*) my_malloc(key_memory_Incident_log_event_message,
                                            msg.length+1, MYF(MY_WME))))
@@ -3593,9 +3582,6 @@ private:
 class Ignorable_log_event : public virtual Ignorable_event, public Log_event 
 {
 public:
-  Ignorable_log_event()
-  : Log_event(header(), footer(), true)
-  {}
 #ifndef MYSQL_CLIENT
   Ignorable_log_event(THD *thd_arg)
       : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F,
@@ -3603,7 +3589,7 @@ public:
                   Log_event::EVENT_NORMAL_LOGGING, header(), footer())
   {
     DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
-    is_valid= true;
+    is_valid_param= true;
     DBUG_VOID_RETURN;
   }
 #endif
@@ -3658,14 +3644,12 @@ public:
 */
 class Rows_query_log_event : public Ignorable_log_event, public Rows_query_event{
 public:
-  Rows_query_log_event()
-  {}
 #ifndef MYSQL_CLIENT
   Rows_query_log_event(THD *thd_arg, const char * query, size_t query_len)
     : Ignorable_log_event(thd_arg)
   {
     DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
-    common_header->type_code= ROWS_QUERY_LOG_EVENT;
+    common_header->type_code= binary_log::ROWS_QUERY_LOG_EVENT;
     if (!(m_rows_query= (char*) my_malloc(key_memory_Rows_query_log_event_rows_query,
                                           query_len + 1, MYF(MY_WME))))
       return;
@@ -3728,10 +3712,6 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
 class Heartbeat_log_event: public Heartbeat_event, public Log_event
 {
 public:
-  Heartbeat_log_event()
-  : Heartbeat_event(), Log_event(header(), footer(), true)
-  {}
-
   Heartbeat_log_event(const char* buf, uint event_len,
                       const Format_description_event* description_event);
 };
@@ -3780,9 +3760,6 @@ extern TYPELIB binlog_checksum_typelib;
 class Gtid_log_event : public Gtid_event, public Log_event
 {
 public:
-  Gtid_log_event()
-  : Gtid_event(), Log_event(header(), footer(), true)
-  { }
 #ifndef MYSQL_CLIENT
   /**
     Create a new event using the GTID from the given Gtid_specification,
@@ -3924,10 +3901,6 @@ B_l:Previous_gtids_event   Log_event
 class Previous_gtids_log_event : public Previous_gtids_event, public Log_event
 {
 public:
-
-  Previous_gtids_log_event()
-  : Previous_gtids_event(), Log_event(header(), footer(), true)
-  { }
 #ifndef MYSQL_CLIENT
   Previous_gtids_log_event(const Gtid_set *set);
 #endif
@@ -3992,8 +3965,8 @@ public:
 
 inline bool is_gtid_event(Log_event* evt)
 {
-  return (evt->common_header->type_code == GTID_LOG_EVENT ||
-          evt->common_header->type_code == ANONYMOUS_GTID_LOG_EVENT);
+  return (evt->get_type_code() == binary_log::GTID_LOG_EVENT ||
+          evt->get_type_code() == binary_log::ANONYMOUS_GTID_LOG_EVENT);
 }
 
 #ifdef MYSQL_SERVER

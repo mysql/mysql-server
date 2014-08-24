@@ -339,7 +339,6 @@ Format_description_event(const char* buf, unsigned int event_len,
     id numbers than in the present version. When replicating from such
     a version, we therefore set up an array that maps those id numbers
     to the id numbers of the present server.
-    //TODO: Modify the comment
     If post_header_len is null, it means malloc failed, and in the mysql-server
     code the variable *is_valid* will be set to false, so there is no need to do
     anything.
@@ -590,8 +589,8 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
   ptr_buffer+= ENCODED_GNO_LENGTH;
     /* fetch the commit timestamp */
   /*Old masters will not have this part, so we should prevent segfaulting */
-  if (static_cast<unsigned int>(ptr_buffer - (buffer - common_header_len)) < event_len &&
-      *ptr_buffer == G_COMMIT_TS)
+  if (static_cast<unsigned int>(ptr_buffer - (buffer - common_header_len)) <
+      event_len && *ptr_buffer == G_COMMIT_TS)
   {
     ptr_buffer++;
     memcpy(&commit_seq_no, ptr_buffer, sizeof(commit_seq_no));

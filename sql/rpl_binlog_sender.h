@@ -378,8 +378,8 @@ private:
 
   bool event_checksum_on()
   {
-    return m_event_checksum_alg > BINLOG_CHECKSUM_ALG_OFF &&
-      m_event_checksum_alg < BINLOG_CHECKSUM_ALG_ENUM_END;
+    return m_event_checksum_alg > binary_log::BINLOG_CHECKSUM_ALG_OFF &&
+      m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END;
   }
 
   void set_last_pos(my_off_t log_pos)

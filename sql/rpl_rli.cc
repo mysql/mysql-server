@@ -555,7 +555,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
         }
         break;
       }
-      else if (ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT)
+      else if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
       {
         DBUG_PRINT("info",("found Format_description_log_event"));
         set_rli_description_event((Format_description_log_event *)ev);
@@ -583,8 +583,8 @@ int Relay_log_info::init_relay_log_pos(const char* log,
       else
       {
         DBUG_PRINT("info",("found event of another type=%d",
-                           ev->common_header->type_code));
-        look_for_description_event= (ev->common_header->type_code == ROTATE_EVENT);
+                           ev->get_type_code()));
+        look_for_description_event= (ev->get_type_code() == binary_log::ROTATE_EVENT);
         delete ev;
       }
     }
@@ -615,7 +615,7 @@ err:
 
   if (need_data_lock)
     mysql_mutex_unlock(&data_lock);
-  if (!rli_description_event->is_valid && !*errmsg)
+  if (!rli_description_event->is_valid() && !*errmsg)
     *errmsg= "Invalid Format_description log event; could be out of memory";
 
   DBUG_RETURN ((*errmsg) ? 1 : 0);
@@ -1256,9 +1256,10 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
         DBUG_RETURN(false);
       log_name= group_master_log_name;
-      log_pos= ((!ev) || is_in_group() || !ev->common_header->log_pos) ?
-         group_master_log_pos : (ev->common_header->log_pos -
-         ev->common_header->data_written);
+      if (!ev || is_in_group() || !ev->common_header->log_pos)
+        log_pos= group_master_log_pos;
+      else
+        log_pos= ev->common_header->log_pos - ev->common_header->data_written;
     }
     else
     { /* until_condition == UNTIL_RELAY_POS */
@@ -1355,7 +1356,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       }
       global_sid_lock->unlock();
     }
-    if (ev != NULL && ev->common_header->type_code == GTID_LOG_EVENT)
+    if (ev != NULL && ev->get_type_code() == binary_log::GTID_LOG_EVENT)
     {
       Gtid_log_event *gev= (Gtid_log_event *)ev;
       global_sid_lock->rdlock();
