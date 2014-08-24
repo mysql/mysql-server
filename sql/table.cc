@@ -4806,15 +4806,9 @@ Item *Field_iterator_table::create_item(THD *thd)
     code in Item_field::fix_fields().
     */
   if (item && !thd->lex->in_sum_func &&
-      select->cur_pos_in_all_fields != SELECT_LEX::ALL_FIELDS_UNDEF_POS)
+      select->resolve_place == st_select_lex::RESOLVE_SELECT_LIST)
   {
-    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-    {
-      item->push_to_non_agg_fields(select);
-      select->set_non_agg_field_used(true);
-    }
-    if (thd->lex->current_select()->with_sum_func &&
-        !thd->lex->current_select()->group_list.elements)
+    if (select->with_sum_func && !select->group_list.elements)
       item->maybe_null= true;
   }
   return item;

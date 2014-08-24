@@ -99,9 +99,11 @@ EXPLAIN FORMAT=JSON (SELECT * FROM t1) UNION (SELECT * FROM t2) ORDER BY (SELECT
 
 --echo # subquery in the GROUP BY clause
 
+--source include/turn_off_only_full_group_by.inc
 --let $query=SELECT * FROM t1 GROUP BY i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);
 --eval EXPLAIN $query
 --eval EXPLAIN FORMAT=JSON $query
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 --echo # subquery in the SELECT list
 
@@ -248,6 +250,7 @@ DROP TABLE t1, t2, t3;
 
 --echo # Various queries
 
+--source include/turn_off_only_full_group_by.inc
 let $query=
   SELECT a, b FROM 
     (SELECT 1 AS a, 2 AS b
@@ -257,6 +260,7 @@ let $query=
   ORDER BY b DESC;
 --eval EXPLAIN $query
 --eval EXPLAIN FORMAT=JSON $query
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 --echo #
 
@@ -285,9 +289,11 @@ INSERT INTO t2 SELECT i, i * 10 FROM t1;
 let $query=SELECT * FROM t1 ORDER BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
 --eval EXPLAIN $query
 --eval EXPLAIN FORMAT=JSON $query
+--source include/turn_off_only_full_group_by.inc
 let $query=SELECT * FROM t1 GROUP BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
 --eval EXPLAIN $query
 --eval EXPLAIN FORMAT=JSON $query
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1, t2;
 
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k1 (a, b));
@@ -344,7 +350,9 @@ CREATE TABLE t1 (a INT NOT NULL);
 CREATE TABLE t2 (a INT NOT NULL, PRIMARY KEY (a));
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1),(2);
+--source include/turn_off_only_full_group_by.inc
 EXPLAIN FORMAT=JSON SELECT SQL_BIG_RESULT DISTINCT t1.a FROM t1,t2 ORDER BY t2.a;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1, t2;
 
 --echo #

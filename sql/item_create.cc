@@ -346,6 +346,20 @@ protected:
 };
 
 
+class Create_func_any_value : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1)
+  { return new (thd->mem_root) Item_func_any_value(POS(), arg1); }
+
+  static Create_func_any_value s_singleton;
+
+protected:
+  Create_func_any_value() {}
+  virtual ~Create_func_any_value() {}
+};
+
+
 class Create_func_area : public Create_func_arg1
 {
 public:
@@ -2938,6 +2952,8 @@ Create_func_aes_decrypt Create_func_aes_decrypt::s_singleton;
 Create_func_random_bytes Create_func_random_bytes::s_singleton;
 
 
+Create_func_any_value Create_func_any_value::s_singleton;
+
 Create_func_area Create_func_area::s_singleton;
 
 Item*
@@ -5304,6 +5320,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ADDTIME") }, BUILDER(Create_func_addtime)},
   { { C_STRING_WITH_LEN("AES_DECRYPT") }, BUILDER(Create_func_aes_decrypt)},
   { { C_STRING_WITH_LEN("AES_ENCRYPT") }, BUILDER(Create_func_aes_encrypt)},
+  { { C_STRING_WITH_LEN("ANY_VALUE") }, BUILDER(Create_func_any_value)},
   { { C_STRING_WITH_LEN("AREA") }, GEOM_BUILDER(Create_func_area)},
   { { C_STRING_WITH_LEN("ASBINARY") }, GEOM_BUILDER(Create_func_as_wkb)},
   { { C_STRING_WITH_LEN("ASIN") }, BUILDER(Create_func_asin)},

@@ -1106,7 +1106,8 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
     become 0, meaning that the cost of adding one more table would also
     become 0, regardless of access method).
   */
-  if (rows_fetched == 0.0 && (join->outer_join & tab->table_ref->map()))
+  if (rows_fetched == 0.0 &&
+      (join->select_lex->outer_join & tab->table_ref->map()))
     rows_fetched= 1.0;
 
   /*
