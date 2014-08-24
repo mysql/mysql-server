@@ -1136,6 +1136,7 @@ env_close(DB_ENV * env, uint32_t flags) {
     }
     env_fsync_log_cron_destroy(env);
     if (env->i->cachetable) {
+        toku_cachetable_prepare_close(env->i->cachetable);
         toku_cachetable_minicron_shutdown(env->i->cachetable);
         if (env->i->logger) {
             CHECKPOINTER cp = nullptr;

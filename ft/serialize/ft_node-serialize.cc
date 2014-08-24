@@ -134,6 +134,7 @@ toku_ft_upgrade_get_status(FT_UPGRADE_STATUS s) {
 
 static int num_cores = 0; // cache the number of cores for the parallelization
 static struct toku_thread_pool *ft_pool = NULL;
+bool toku_serialize_in_parallel;
 
 int get_num_cores(void) {
     return num_cores;
@@ -143,11 +144,16 @@ struct toku_thread_pool *get_ft_pool(void) {
     return ft_pool;
 }
 
+void toku_serialize_set_parallel(bool in_parallel) {
+    toku_serialize_in_parallel = in_parallel;
+}
+
 void toku_ft_serialize_layer_init(void) {
     num_cores = toku_os_get_number_active_processors();
     int r = toku_thread_pool_create(&ft_pool, num_cores);
     lazy_assert_zero(r);
     block_allocator::maybe_initialize_trace();
+    toku_serialize_in_parallel = false;
 }
 
 void toku_ft_serialize_layer_destroy(void) {
@@ -846,7 +852,7 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
         ft->h->basementnodesize,
         ft->h->compression_method,
         do_rebalancing,
-        false, // in_parallel
+        toku_serialize_in_parallel, // in_parallel
         &n_to_write,
         &n_uncompressed_bytes,
         &compressed_buf
