@@ -217,7 +217,7 @@ void do_test_d2b2d(const char *str, int p, int s, const char *orig, int ex)
   char s2[100];
   uchar buf[100];
   char *end;
-  int res, i, size= decimal_bin_size(p, s);
+  int res, i, size=decimal_bin_size(p, s);
 
   sprintf(s1, "'%s'", str);
   end= strend(str);

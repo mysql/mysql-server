@@ -33,7 +33,7 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
   SKIP_WHITESPACE();
 
   // parse sid
-  if (map_macro_enum(sid.parse(s)) == RETURN_STATUS_OK)
+  if (sid.parse(s) == RETURN_STATUS_OK)
   {
     rpl_sidno sidno_var= sid_map->add_sid(sid);
     if (sidno_var <= 0)

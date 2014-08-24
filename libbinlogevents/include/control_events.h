@@ -20,9 +20,10 @@
   @file control_events.h
 
   @brief Contains the classes representing events operating in the replication
-  stream properties. Each event is represented as a byte sequence with logical divisions
-  as event header, event specific data and event footer. The header and footer
-  are common to all the events and are represented as two different subclasses.
+  stream properties. Each event is represented as a byte sequence with logical
+  divisions as event header, event specific data and event footer. The header
+  and footer are common to all the events and are represented as two different
+  subclasses.
 */
 
 #ifndef CONTROL_EVENT_INCLUDED
@@ -107,17 +108,11 @@ public:
     R_IDENT_OFFSET= 8
   };
 
-  std::string get_event_name()
-  {
-    return "Rotate";
-  }
   /**
     This is the minimal constructor, it will set the type code as ROTATE_EVENT.
   */
-  Rotate_event()
-  : Binary_log_event(ROTATE_EVENT)
-  {
-  }
+  Rotate_event() : Binary_log_event(ROTATE_EVENT)
+  {}
 
   /**
     <pre>
@@ -205,8 +200,8 @@ public:
 */
 
 class Start_event_v3: public Binary_log_event
- {
- public:
+{
+public:
 /*
     If this event is at the start of the first binary log since server
     startup 'created' should be the timestamp when the event (and the
@@ -238,23 +233,19 @@ class Start_event_v3: public Binary_log_event
   */
   bool dont_set_created;
 
-  std::string get_event_name()
-  {
-    return "Start_v3";
-  }
-  protected:
+protected:
   /**
     Empty ctor of Start_event_v3 called when we call the
     ctor of FDE which takes binlog_version and server_version as the parameter
   */
   explicit Start_event_v3(Log_event_type type_code= START_EVENT_V3);
-  public:
+public:
   /**
     This event occurs at the beginning of v1 or v3 binary log files.
-    In MySQL 4.0 and 4.1, such events are written only to the first binary log file
-    that mysqld creates after startup. Log files created subsequently (when someone
-    issues a FLUSH LOGS statement or the current binary log file becomes too large)
-    do not contain this event.
+    In MySQL 4.0 and 4.1, such events are written only to the first binary log
+    file that mysqld creates after startup. Log files created subsequently
+    (when someone issues a FLUSH LOGS statement or the current binary log file
+    becomes too large) do not contain this event.
 
     <pre>
     The buffer layout for fixed part is as follows:
@@ -276,7 +267,8 @@ class Start_event_v3: public Binary_log_event
   Start_event_v3(const char* buf,
                  const Format_description_event* description_event);
 #ifndef HAVE_MYSYS
-  //TODO: Add definition for them
+  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
+  //            all the events supported  in  MySQL Binlog
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
 #endif
@@ -357,13 +349,6 @@ public:
   */
   const uint8_t *event_type_permutation;
 
-  std::string get_event_name()
-  {
-    return "Format_desc";
-  }
-  Format_description_event()
-  : Start_event_v3(FORMAT_DESCRIPTION_EVENT), post_header_len(NULL)
-  {}
   /**
     Format_description_log_event 1st constructor.
 
@@ -394,9 +379,9 @@ public:
           |        +----------------------------+
           |        | header_length    75 : 1    |
           |        +----------------------------+
-          |        | post-header      76 : n    | = array of n bytes, one byte per
-          |        | lengths for all            |   event type that the server knows
-          |        | event types                |   about
+          |        | post-header      76 : n    | = array of n bytes, one byte
+          |        | lengths for all            |   per event type that the
+          |        | event types                |   server knows about
           +=====================================+
     </pre>
     @param buf                Contains the serialized event.
@@ -425,7 +410,6 @@ public:
   ~Format_description_event();
 };
 
-
 /**
   @class Stop_event
 
@@ -448,14 +432,10 @@ public:
     STOP_EVENT in the header object in Binary_log_event.
   */
   Stop_event() : Binary_log_event(STOP_EVENT)
-  {
-  }
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  {}
+  //buf is advanced in Binary_log_event constructor to point to beginning of
+  //post-header
 
-  std::string get_event_name()
-  {
-    return "Stop";
-  }
   /**
     A Stop_event is occurs under these circumstances:
     -  A master writes the event to the binary log when it shuts down
@@ -472,10 +452,9 @@ public:
   */
   Stop_event(const char* buf,
              const Format_description_event *description_event)
-  : Binary_log_event(&buf, description_event->binlog_version,
-                     description_event->server_version)
-  {
-  }
+    :Binary_log_event(&buf, description_event->binlog_version,
+                      description_event->server_version)
+  {}
 
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info) {};
@@ -545,22 +524,17 @@ public:
     return message;
   }
 
-  Incident_event()
-  : Binary_log_event(INCIDENT_EVENT)
-  {}
-  std::string get_event_name()
-  {
-    return "Incident";
-  }
+
   /**
     This will create an Incident_event with an empty message and set the
     type_code as INCIDENT_EVENT in the header object in Binary_log_event.
   */
   explicit Incident_event(enum_incident incident_arg)
-  : Binary_log_event(INCIDENT_EVENT), incident(incident_arg), message(NULL),
-    message_length(0)
-  {
-  }
+    : Binary_log_event(INCIDENT_EVENT),
+      incident(incident_arg),
+      message(NULL),
+      message_length(0)
+  {}
 
   /**
     Constructor of Incident_event
@@ -635,18 +609,11 @@ public:
    and set the type_code as XID_EVENT in the header object in Binary_log_event
   */
   explicit Xid_event(uint64_t xid_arg)
-  : Binary_log_event(XID_EVENT),
-    xid(xid_arg)
+    : Binary_log_event(XID_EVENT),
+      xid(xid_arg)
   {
   }
 
-  Xid_event()
-  : Binary_log_event(XID_EVENT)
-  {}
-  std::string get_event_name()
-  {
-    return "Xid";
-  }
   /**
     An XID event is generated for a commit of a transaction that modifies one or
     more tables of an XA-capable storage engine
@@ -708,7 +675,7 @@ public:
 */
 class Rand_event: public Binary_log_event
 {
-  public:
+public:
   unsigned long long seed1;
   unsigned long long seed2;
   enum Rand_event_data
@@ -717,19 +684,12 @@ class Rand_event: public Binary_log_event
     RAND_SEED2_OFFSET= 8
   };
 
-  std::string get_event_name()
-  {
-    return "RAND";
-  }
-  Rand_event()
-  : Binary_log_event(RAND_EVENT)
-  {}
   /**
     This will initialize the instance variables seed1 & seed2, and set the
     type_code as RAND_EVENT in the header object in Binary_log_event
   */
   Rand_event(unsigned long long seed1_arg, unsigned long long seed2_arg)
-  : Binary_log_event(RAND_EVENT)
+    : Binary_log_event(RAND_EVENT)
   {
     seed1= seed1_arg;
     seed2= seed2_arg;
@@ -790,20 +750,16 @@ class Rand_event: public Binary_log_event
 class Ignorable_event: public Binary_log_event
 {
 public:
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to beginning of
+  //post-header
 
-  std::string get_event_name()
-  {
-    return "Ignorable";
-  }
   /**
     The minimal constructor and all it will do is set the type_code as
     IGNORABLE_LOG_EVENT in the header object in Binary_log_event.
   */
   explicit Ignorable_event(Log_event_type type_arg= IGNORABLE_LOG_EVENT)
-  : Binary_log_event(type_arg)
-  {
-  }
+    : Binary_log_event(type_arg)
+  {}
   /*
    @param buf                Contains the serialized event.
    @param description_event  An FDE event, used to get the following information
@@ -824,12 +780,12 @@ public:
 
 /**
   @struct  gtid_info
-  Structure to hold the members declared in the class Gtid_log_event
-  those member are objects of classes defined in server(rpl_gtid.h).
-  As we can not move all the classes defined there(in rpl_gtid.h) in libbinlogevent
-  so this structure was created, to provide a way to map the decoded
-  value in Gtid_event ctor and the class members defined in rpl_gtid.h,
-  these classes are also the members of Gtid_log_event(subclass of this in server code)
+  Structure to hold the members declared in the class Gtid_log_event those
+  member are objects of classes defined in server(rpl_gtid.h). As we can not
+  move all the classes defined there(in rpl_gtid.h) in libbinlogevents so this
+  structure was created, to provide a way to map the decoded value in Gtid_event
+  ctor and the class members defined in rpl_gtid.h, these classes are also the
+  members of Gtid_log_event(subclass of this in server code)
 
   The structure contains the following components.
   <table>
@@ -997,13 +953,6 @@ class Gtid_event: public Binary_log_event
 public:
   int64_t commit_seq_no;
 
-  Gtid_event()
-  : Binary_log_event(GTID_LOG_EVENT)
-  {}
-  std::string get_event_name()
-  {
-    return "Gtid";
-  }
   /**
     Ctor of Gtid_event
 
@@ -1029,11 +978,11 @@ public:
     It is the minimal constructor which sets the commit_flag.
   */
   explicit Gtid_event(bool commit_flag_arg)
-  : commit_flag(commit_flag_arg)
-  {
-  }
+    : commit_flag(commit_flag_arg)
+  {}
 #ifndef HAVE_MYSYS
-  //TODO: Add definitions for these methods
+  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
+  //            all the events supported  in  MySQL Binlog
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
 #endif
@@ -1092,10 +1041,6 @@ class Previous_gtids_event : public Binary_log_event
 {
 public:
 
-  std::string get_event_name()
-  {
-    return "Previous_gtids";
-  }
   /**
     Decodes the gtid_executed in the last binlog file
 
@@ -1119,14 +1064,15 @@ public:
                        const Format_description_event *descr_event);
   /**
     This is the minimal constructor, and set the
-    type_code as PREVIOUS_GTIDS_LOG_EVENT in the header object in Binary_log_event
+    type_code as PREVIOUS_GTIDS_LOG_EVENT in the header object in
+    Binary_log_event
   */
   Previous_gtids_event()
-  : Binary_log_event(PREVIOUS_GTIDS_LOG_EVENT)
-  {
-  }
+    : Binary_log_event(PREVIOUS_GTIDS_LOG_EVENT)
+  {}
 #ifndef HAVE_MYSYS
-  //TODO: Add definitions
+  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
+  //            all the events supported  in  MySQL Binlog
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
 #endif
@@ -1174,13 +1120,6 @@ class Heartbeat_event: public Binary_log_event
 {
 public:
 
-  std::string get_event_name()
-  {
-    return "Heartbeat";
-  }
-  Heartbeat_event()
-  : Binary_log_event(HEARTBEAT_LOG_EVENT)
-  {}
   /**
     Sent by a master to a slave to let the slave know that the master is
     still alive. Events of this type do not appear in the binary or relay logs.

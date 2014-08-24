@@ -23,6 +23,53 @@
 #include <sstream>
 #include <string.h>
 
+
+/**
+  Calculate binary size of packed numeric time representation.
+
+  @param   dec   Precision.
+  The same formula is used to find the binary size of the packed numeric time
+  in libbinlogevents/src/value.cpp calc_field_size().
+  If any modification is done here the same needs to be done in the
+  aforementioned method in libbinlogevents also.
+*/
+unsigned int my_time_binary_length(unsigned int dec)
+{
+  assert(dec <= DATETIME_MAX_DECIMALS);
+  return 3 + (dec + 1) / 2;
+}
+
+/**
+  Calculate binary size of packed datetime representation.
+  @param dec  Precision.
+
+  The same formula is used to find the binary size of the packed numeric time
+  in libbinlogevents/src/value.cpp calc_field_size().
+  If any modification is done here the same needs to be done in the
+  aforementioned method in libbinlogevents also.
+*/
+unsigned int my_datetime_binary_length(unsigned int dec)
+{
+  assert(dec <= DATETIME_MAX_DECIMALS);
+  return 5 + (dec + 1) / 2;
+}
+
+/**
+  Calculate on-disk size of a timestamp value.
+
+  @param  dec  Precision.
+
+  The same formula is used to find the binary size of the packed numeric time
+  in libbinlogevents/src/value.cpp calc_field_size().
+  If any modification is done here the same needs to be done in the
+  aforementioned method in libbinlogevents also.
+*/
+unsigned int my_timestamp_binary_length(unsigned int dec)
+{
+  assert(dec <= DATETIME_MAX_DECIMALS);
+  return 4 + (dec + 1) / 2;
+}
+
 namespace binary_log {
 
 /**
@@ -251,8 +298,7 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
       The length below needs to be updated if the above method is updated in
       the server
     */
-    assert(metadata <= DATETIME_MAX_DECIMALS);
-    length= 3 + (metadata + 1) / 2;
+    length= my_time_binary_length(metadata);
     break;
   case MYSQL_TYPE_TIMESTAMP:
     length= 4;
@@ -266,8 +312,7 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
       The length below needs to be updated if the above method is updated in
       the server
     */
-    assert(metadata <= DATETIME_MAX_DECIMALS);
-    length= 4 + (metadata + 1) / 2;
+    length= my_timestamp_binary_length(metadata);
     break;
   case MYSQL_TYPE_DATETIME:
     length= 8;
@@ -280,11 +325,8 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
 
       The length below needs to be updated if the above method is updated in
       the server
-      //TODO: Check with Mats if this is OK, and add a comment regarding the
-      same in time.c
     */
-    assert(metadata <= DATETIME_MAX_DECIMALS);
-      length= 5 + (metadata + 1) / 2;
+    length= my_datetime_binary_length(metadata);
     break;
   case MYSQL_TYPE_BIT:
   {

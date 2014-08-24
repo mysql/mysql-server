@@ -521,7 +521,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
     else
     {
       rpl_sid sid;
-      if (map_macro_enum(sid.parse(s)) != 0)
+      if (sid.parse(s) != 0)
       {
         DBUG_PRINT("info", ("expected UUID; found garbage '%.80s' at char %d in '%s'", s, (int)(s - text), text));
         goto parse_error;

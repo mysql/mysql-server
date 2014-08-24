@@ -1886,9 +1886,9 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     mi->rli->relay_log.relay_log_checksum_alg;
 
   DBUG_ASSERT(mi->get_mi_description_event()->common_footer->checksum_alg !=
-              BINLOG_CHECKSUM_ALG_UNDEF);
+              binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   DBUG_ASSERT(mi->rli->relay_log.relay_log_checksum_alg !=
-              BINLOG_CHECKSUM_ALG_UNDEF);
+              binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
 
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -2190,7 +2190,8 @@ when it try to get the value of TIME_ZONE global variable from master.";
     int rc;
     const char query[]= "SET @master_binlog_checksum= @@global.binlog_checksum";
     master_res= NULL;
-    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF; //initially undefined
+    //initially undefined
+    mi->checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
     /*
       @c checksum_alg_before_fd is queried from master in this block.
       If master is old checksum-unaware the value stays undefined.
@@ -2200,7 +2201,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
     rc= mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)));
     if (rc != 0)
     {
-      mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
+      mi->checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_OFF;
       if (check_io_slave_killed(mi->info_thd, mi, NULL))
         goto slave_killed_err;
 
@@ -2245,8 +2246,8 @@ when it try to get the value of TIME_ZONE global variable from master.";
           (find_type(master_row[0], &binlog_checksum_typelib, 1) - 1);
 
        DBUG_EXECUTE_IF("undefined_algorithm_on_slave",
-        mi->checksum_alg_before_fd = BINLOG_CHECKSUM_ALG_UNDEF;);
-       if(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_UNDEF)
+        mi->checksum_alg_before_fd = binary_log::BINLOG_CHECKSUM_ALG_UNDEF;);
+       if(mi->checksum_alg_before_fd == binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
        {
          errmsg= "The slave I/O thread was stopped because a fatal error is encountered "
                  "The checksum algorithm used by master is unknown to slave.";
@@ -2257,8 +2258,10 @@ when it try to get the value of TIME_ZONE global variable from master.";
        }
 
         // valid outcome is either of
-        DBUG_ASSERT(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_OFF ||
-                    mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_CRC32);
+        DBUG_ASSERT(mi->checksum_alg_before_fd ==
+                    binary_log::BINLOG_CHECKSUM_ALG_OFF ||
+                    mi->checksum_alg_before_fd ==
+                    binary_log::BINLOG_CHECKSUM_ALG_CRC32);
       }
       else if (check_io_slave_killed(mi->info_thd, mi, NULL))
         goto slave_killed_err;
@@ -2285,7 +2288,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
     }
   }
   else
-    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
+    mi->checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_OFF;
 
   if (DBUG_EVALUATE_IF("simulate_slave_unaware_gtid", 0, 1))
   {
@@ -3383,9 +3386,10 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   mysql_mutex_assert_owner(&rli->data_lock);
   DBUG_ASSERT(!rli->belongs_to_client());
 
-  int type= ev->common_header->type_code;
-  if (sql_delay && type != ROTATE_EVENT &&
-      type != FORMAT_DESCRIPTION_EVENT && type != START_EVENT_V3)
+  int type= ev->get_type_code();
+  if (sql_delay && type != binary_log::ROTATE_EVENT &&
+      type != binary_log::FORMAT_DESCRIPTION_EVENT &&
+      type != binary_log::START_EVENT_V3)
   {
     // The time when we should execute the event.
     time_t sql_delay_end=
@@ -3488,8 +3492,8 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
   DBUG_ENTER("apply_event_and_update_pos");
 
   DBUG_PRINT("exec_event",("%s(type_code: %d; server_id: %d)",
-                           (type_code_to_str(ev->common_header->type_code)).c_str(),
-                           ev->common_header->type_code, ev->server_id));
+                           ev->get_type_str(), ev->get_type_code(),
+                           ev->server_id));
   DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                       FLAGSTR(thd->variables.option_bits, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->variables.option_bits, OPTION_BEGIN),
@@ -3694,7 +3698,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     */
     int error= 0;
     if (*ptr_ev &&
-        (ev->common_header->type_code != XID_EVENT ||
+        (ev->get_type_code() != binary_log::XID_EVENT ||
          skip_event || (rli->is_mts_recovery() && !is_gtid_event(ev) &&
          (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
           bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index))))
@@ -3717,8 +3721,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                           MY_TEST(thd->variables.option_bits & OPTION_BEGIN),
                           rli->get_flag(Relay_log_info::IN_STMT)));
       DBUG_PRINT("skip_event", ("%s event was %s",
-                                (type_code_to_str(ev->common_header->type_code)).c_str(),
-                                explain[reason]));
+                                ev->get_type_str(), explain[reason]));
 #endif
 
       error= ev->update_pos(rli);
@@ -3741,17 +3744,17 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     {
       DBUG_ASSERT(*ptr_ev == ev || rli->is_parallel_exec() ||
 		  (!ev->worker &&
-		   (ev->common_header->type_code == INTVAR_EVENT ||
-		    ev->common_header->type_code == RAND_EVENT ||
-		    ev->common_header->type_code == USER_VAR_EVENT)));
+		   (ev->get_type_code() == binary_log::INTVAR_EVENT ||
+		    ev->get_type_code() == binary_log::RAND_EVENT ||
+		    ev->get_type_code() == binary_log::USER_VAR_EVENT)));
 
       rli->inc_event_relay_log_pos();
     }
 
     if (!error && rli->is_mts_recovery() &&
-        ev->common_header->type_code != ROTATE_EVENT &&
-        ev->common_header->type_code != FORMAT_DESCRIPTION_EVENT &&
-        ev->common_header->type_code != PREVIOUS_GTIDS_LOG_EVENT)
+        ev->get_type_code() != binary_log::ROTATE_EVENT &&
+        ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT &&
+        ev->get_type_code() != binary_log::PREVIOUS_GTIDS_LOG_EVENT)
     {
       if (ev->starts_group())
       {
@@ -3912,7 +3915,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (!(rli->is_parallel_exec() ||
           ev->is_artificial_event() || ev->is_relay_log_event() ||
           (ev->common_header->when.tv_sec == 0) ||
-           ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT))
+           ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT))
     {
       rli->last_master_timestamp= ev->common_header->when.tv_sec +
                                   (time_t) ev->exec_time;
@@ -3948,8 +3951,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
          read hanging if the realy log does not have any more events.
       */
       DBUG_EXECUTE_IF("incomplete_group_in_relay_log",
-                      if ((ev->common_header->type_code == XID_EVENT) ||
-                          ((ev->common_header->type_code == QUERY_EVENT) &&
+                      if ((ev->get_type_code() == binary_log::XID_EVENT) ||
+                          ((ev->get_type_code() == binary_log::QUERY_EVENT) &&
                            strcmp("COMMIT", ((Query_log_event *) ev)->query) == 0))
                       {
                         DBUG_ASSERT(thd->get_transaction()->cannot_safely_rollback(
@@ -3985,8 +3988,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
         ROWS_QUERY_LOG_EVENT is destroyed at the end of the current statement
         clean-up routine.
       */
-      if (ev->common_header->type_code != FORMAT_DESCRIPTION_EVENT &&
-          ev->common_header->type_code != ROWS_QUERY_LOG_EVENT)
+      if (ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT &&
+          ev->get_type_code() != binary_log::ROWS_QUERY_LOG_EVENT)
       {
         DBUG_PRINT("info", ("Deleting the event after it has been executed"));
         delete ev;
@@ -4457,7 +4460,8 @@ Stopping slave I/O thread due to out-of-memory error from master");
       THD_STAGE_INFO(thd, stage_queueing_master_event_to_the_relay_log);
       event_buf= (const char*)mysql->net.read_pos + 1;
       DBUG_PRINT("info", ("IO thread received event of type %s",
-                 type_code_to_str((Log_event_type)event_buf[EVENT_TYPE_OFFSET]).c_str()));
+                 Log_event::get_type_str(
+                            (Log_event_type)event_buf[EVENT_TYPE_OFFSET])));
       if (RUN_HOOK(binlog_relay_io, after_read_event,
                    (thd, mi,(const char*)mysql->net.read_pos + 1,
                     event_len, &event_buf, &event_len)))
@@ -4531,23 +4535,23 @@ log space");
           goto err;
         }
       DBUG_EXECUTE_IF("stop_io_after_reading_gtid_log_event",
-        if (event_buf[EVENT_TYPE_OFFSET] == GTID_LOG_EVENT)
+        if (event_buf[EVENT_TYPE_OFFSET] == binary_log::GTID_LOG_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_query_log_event",
-        if (event_buf[EVENT_TYPE_OFFSET] == QUERY_EVENT)
+        if (event_buf[EVENT_TYPE_OFFSET] == binary_log::QUERY_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_user_var_log_event",
-        if (event_buf[EVENT_TYPE_OFFSET] == USER_VAR_EVENT)
+        if (event_buf[EVENT_TYPE_OFFSET] == binary_log::USER_VAR_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_xid_log_event",
-        if (event_buf[EVENT_TYPE_OFFSET] == XID_EVENT)
+        if (event_buf[EVENT_TYPE_OFFSET] == binary_log::XID_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_write_rows_log_event",
-        if (event_buf[EVENT_TYPE_OFFSET] == WRITE_ROWS_EVENT)
+        if (event_buf[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
     }
@@ -4884,7 +4888,7 @@ int mts_recovery_groups(Relay_log_info *rli)
 
   Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
 
-  if (!p_fdle->is_valid)
+  if (!p_fdle->is_valid())
     DBUG_RETURN(TRUE);
 
   /*
@@ -5002,7 +5006,7 @@ int mts_recovery_groups(Relay_log_info *rli)
         while (i < 4 && (ev= Log_event::read_log_event(&log,
                (mysql_mutex_t*) 0, p_fdle, 0)))
         {
-          if (ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT)
+          if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
           {
             p_fdle->common_footer->checksum_alg=
                                    ev->common_footer->checksum_alg;
@@ -5026,14 +5030,14 @@ int mts_recovery_groups(Relay_log_info *rli)
              (ev= Log_event::read_log_event(&log, 0, p_fdle,
                                             opt_slave_sql_verify_checksum)))
       {
-        DBUG_ASSERT(ev->is_valid);
+        DBUG_ASSERT(ev->is_valid());
 
-        if (ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT)
+        if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
           p_fdle->common_footer->checksum_alg= ev->common_footer->checksum_alg;
 
-        if (ev->common_header->type_code == ROTATE_EVENT ||
-            ev->common_header->type_code == FORMAT_DESCRIPTION_EVENT ||
-            ev->common_header->type_code == PREVIOUS_GTIDS_LOG_EVENT)
+        if (ev->get_type_code() == binary_log::ROTATE_EVENT ||
+            ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
+            ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT)
         {
           delete ev;
           ev= NULL;
@@ -5043,7 +5047,7 @@ int mts_recovery_groups(Relay_log_info *rli)
         DBUG_PRINT("mts", ("Event Recoverying relay log info "
                    "group_mster_log_name %s, event_master_log_pos %llu type code %u.",
                    linfo.log_file_name, ev->common_header->log_pos,
-                   ev->common_header->type_code));
+                   ev->get_type_code()));
 
         if (ev->starts_group())
         {
@@ -6095,7 +6099,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
 
   mysql_mutex_assert_owner(&mi->data_lock);
 
-  if (unlikely(!cev->is_valid))
+  if (unlikely(!cev->is_valid()))
     DBUG_RETURN(1);
 
   if (!rpl_filter->db_ok(cev->db))
@@ -6212,7 +6216,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
   DBUG_ENTER("process_io_rotate");
   mysql_mutex_assert_owner(&mi->data_lock);
 
-  if (unlikely(!rev->is_valid))
+  if (unlikely(!rev->is_valid()))
     DBUG_RETURN(1);
 
   /* Safe copy as 'rev' has been "sanitized" in Rotate_log_event's ctor */
@@ -6278,7 +6282,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     If we get Load event, we need to pass a non-reusable buffer
     to read_log_event, so we do a trick
   */
-  if (buf[EVENT_TYPE_OFFSET] == LOAD_EVENT)
+  if (buf[EVENT_TYPE_OFFSET] == binary_log::LOAD_EVENT)
   {
     if (unlikely(!(tmp_buf=(char*)my_malloc(key_memory_binlog_ver_1_event,
                                             event_len+1,MYF(MY_WME)))))
@@ -6318,12 +6322,12 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
   }
   /* 3.23 events don't contain log_pos */
   mi->set_master_log_pos(ev->common_header->log_pos);
-  switch (ev->common_header->type_code) {
-  case STOP_EVENT:
+  switch (ev->get_type_code()) {
+  case binary_log::STOP_EVENT:
     ignore_event= 1;
     inc_pos= event_len;
     break;
-  case ROTATE_EVENT:
+  case binary_log::ROTATE_EVENT:
     if (unlikely(process_io_rotate(mi,(Rotate_log_event*)ev)))
     {
       delete ev;
@@ -6331,7 +6335,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     }
     inc_pos= 0;
     break;
-  case CREATE_FILE_EVENT:
+  case binary_log::CREATE_FILE_EVENT:
     /*
       Yes it's possible to have CREATE_FILE_EVENT here, even if we're in
       queue_old_event() which is for 3.23 events which don't comprise
@@ -6405,10 +6409,10 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     my_free((char*) tmp_buf);
     DBUG_RETURN(1);
   }
-  switch (ev->common_header->type_code) {
-  case STOP_EVENT:
+  switch (ev->get_type_code()) {
+  case binary_log::STOP_EVENT:
     goto err;
-  case ROTATE_EVENT:
+  case binary_log::ROTATE_EVENT:
     if (unlikely(process_io_rotate(mi,(Rotate_log_event*)ev)))
     {
       delete ev;
@@ -6491,7 +6495,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     Show-up of FD:s affects checksum_alg at once because
     that changes FD_queue.
   */
-  enum_binlog_checksum_alg checksum_alg= mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_UNDEF ? 
+  enum_binlog_checksum_alg checksum_alg= mi->checksum_alg_before_fd !=
+                                         binary_log::BINLOG_CHECKSUM_ALG_UNDEF ?
     mi->checksum_alg_before_fd :
     mi->rli->relay_log.relay_log_checksum_alg;
 
@@ -6500,27 +6505,27 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   Gtid gtid= { 0, 0 };
   Log_event_type event_type= (Log_event_type)buf[EVENT_TYPE_OFFSET];
 
-  DBUG_ASSERT(checksum_alg == BINLOG_CHECKSUM_ALG_OFF || 
-              checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF || 
-              checksum_alg == BINLOG_CHECKSUM_ALG_CRC32); 
+  DBUG_ASSERT(checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF || 
+              checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF || 
+              checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_CRC32); 
 
   DBUG_ENTER("queue_event");
   /*
     FD_queue checksum alg description does not apply in a case of
     FD itself. The one carries both parts of the checksum data.
   */
-  if (event_type == FORMAT_DESCRIPTION_EVENT)
+  if (event_type == binary_log::FORMAT_DESCRIPTION_EVENT)
   {
     checksum_alg= Log_event_footer::get_checksum_alg(buf, event_len);
   }
-  else if (event_type == START_EVENT_V3)
+  else if (event_type == binary_log::START_EVENT_V3)
   {
     // checksum behaviour is similar to the pre-checksum FD handling
-    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF;
+    mi->checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
     mysql_mutex_lock(&mi->data_lock);
     mi->get_mi_description_event()->common_footer->checksum_alg=
       mi->rli->relay_log.relay_log_checksum_alg= checksum_alg=
-      BINLOG_CHECKSUM_ALG_OFF;
+      binary_log::BINLOG_CHECKSUM_ALG_OFF;
     mysql_mutex_unlock(&mi->data_lock);
   }
 
@@ -6530,11 +6535,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   // should hold unless manipulations with RL. Tests that do that
   // will have to refine the clause.
   DBUG_ASSERT(mi->rli->relay_log.relay_log_checksum_alg !=
-              BINLOG_CHECKSUM_ALG_UNDEF);
+              binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
               
   // Emulate the network corruption
   DBUG_EXECUTE_IF("corrupt_queue_event",
-    if (event_type != FORMAT_DESCRIPTION_EVENT)
+    if (event_type != binary_log::FORMAT_DESCRIPTION_EVENT)
     {
       char *debug_event_buf_c = (char*) buf;
       int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
@@ -6555,14 +6560,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   mysql_mutex_lock(&mi->data_lock);
   if (mi->get_mi_description_event()->binlog_version < 4 &&
-      event_type != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
+      event_type != binary_log::FORMAT_DESCRIPTION_EVENT /* a way to escape */)
   {
     int ret= queue_old_event(mi,buf,event_len);
     mysql_mutex_unlock(&mi->data_lock);
     DBUG_RETURN(ret);
   }
   switch (event_type) {
-  case STOP_EVENT:
+  case binary_log::STOP_EVENT:
     /*
       We needn't write this event to the relay log. Indeed, it just indicates a
       master server shutdown. The only thing this does is cleaning. But
@@ -6576,9 +6581,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       without --log-bin).
     */
     goto err;
-  case ROTATE_EVENT:
+  case binary_log::ROTATE_EVENT:
   {
-    Rotate_log_event rev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
+    Rotate_log_event rev(buf, checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
                          event_len - BINLOG_CHECKSUM_LEN : event_len,
                          mi->get_mi_description_event());
 
@@ -6600,14 +6605,17 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
               to compute checksum for its first FD event for RL
               the fake Rotate gets checksummed here.
     */
-    if (uint4korr(&buf[0]) == 0 && checksum_alg == BINLOG_CHECKSUM_ALG_OFF &&
-        mi->rli->relay_log.relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_OFF)
+    if (uint4korr(&buf[0]) == 0 && checksum_alg ==
+                  binary_log::BINLOG_CHECKSUM_ALG_OFF &&
+                  mi->rli->relay_log.relay_log_checksum_alg !=
+                  binary_log::BINLOG_CHECKSUM_ALG_OFF)
     {
       ha_checksum rot_crc= checksum_crc32(0L, NULL, 0);
       event_len += BINLOG_CHECKSUM_LEN;
       memcpy(rot_buf, buf, event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[EVENT_LEN_OFFSET],
-                uint4korr(rot_buf + EVENT_LEN_OFFSET) + BINLOG_CHECKSUM_LEN);
+                uint4korr(rot_buf + EVENT_LEN_OFFSET) +
+                BINLOG_CHECKSUM_LEN);
       rot_crc= checksum_crc32(rot_crc, (const uchar *) rot_buf,
                            event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[event_len - BINLOG_CHECKSUM_LEN], rot_crc);
@@ -6615,7 +6623,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       DBUG_ASSERT(mi->get_mi_description_event()->common_footer->checksum_alg ==
                   mi->rli->relay_log.relay_log_checksum_alg);
       /* the first one */
-      DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_UNDEF);
+      DBUG_ASSERT(mi->checksum_alg_before_fd !=
+                  binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
       save_buf= (char *) buf;
       buf= rot_buf;
     }
@@ -6624,18 +6633,22 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         RSC_2: If NM \and fake Rotate \and slave does not compute checksum
         the fake Rotate's checksum is stripped off before relay-logging.
       */
-      if (uint4korr(&buf[0]) == 0 && checksum_alg != BINLOG_CHECKSUM_ALG_OFF &&
-          mi->rli->relay_log.relay_log_checksum_alg == BINLOG_CHECKSUM_ALG_OFF)
+      if (uint4korr(&buf[0]) == 0 && checksum_alg !=
+                    binary_log::BINLOG_CHECKSUM_ALG_OFF &&
+                    mi->rli->relay_log.relay_log_checksum_alg ==
+                    binary_log::BINLOG_CHECKSUM_ALG_OFF)
       {
         event_len -= BINLOG_CHECKSUM_LEN;
         memcpy(rot_buf, buf, event_len);
         int4store(&rot_buf[EVENT_LEN_OFFSET],
-                  uint4korr(rot_buf + EVENT_LEN_OFFSET) - BINLOG_CHECKSUM_LEN);
+                  uint4korr(rot_buf + EVENT_LEN_OFFSET) -
+                  BINLOG_CHECKSUM_LEN);
         DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
         DBUG_ASSERT(mi->get_mi_description_event()->common_footer->checksum_alg ==
                     mi->rli->relay_log.relay_log_checksum_alg);
         /* the first one */
-        DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_UNDEF);
+        DBUG_ASSERT(mi->checksum_alg_before_fd !=
+                    binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
         save_buf= (char *) buf;
         buf= rot_buf;
       }
@@ -6646,7 +6659,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     inc_pos= 0;
     break;
   }
-  case FORMAT_DESCRIPTION_EVENT:
+  case binary_log::FORMAT_DESCRIPTION_EVENT:
   {
     /*
       Create an event, and save it (when we rotate the relay log, we will have
@@ -6659,7 +6672,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     */
     const char* errmsg;
     // mark it as undefined that is irrelevant anymore
-    mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF;
+    mi->checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
     Format_description_log_event *new_fdle=
       (Format_description_log_event*)
       Log_event::read_log_event(buf, event_len, &errmsg,
@@ -6669,8 +6682,10 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
       goto err;
     }
-    if (new_fdle->common_footer->checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF)
-      new_fdle->common_footer->checksum_alg= BINLOG_CHECKSUM_ALG_OFF;
+    if (new_fdle->common_footer->checksum_alg ==
+                                 binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
+      new_fdle->common_footer->checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_OFF;
+
     mi->set_mi_description_event(new_fdle);
 
     /* installing new value of checksum Alg for relay log */
@@ -6691,7 +6706,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   break;
 
-  case HEARTBEAT_LOG_EVENT:
+  case binary_log::HEARTBEAT_LOG_EVENT:
   {
     /*
       HB (heartbeat) cannot come before RL (Relay)
@@ -6699,10 +6714,10 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     char  llbuf[22];
     Heartbeat_log_event hb(buf,
                            mi->rli->relay_log.relay_log_checksum_alg
-                           != BINLOG_CHECKSUM_ALG_OFF ?
+                           != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->get_mi_description_event());
-    if (!hb.is_valid)
+    if (!hb.is_valid())
     {
       error= ER_SLAVE_HEARTBEAT_FAILURE;
       error_msg.append(STRING_WITH_LEN("inconsistent heartbeat event content;"));
@@ -6790,7 +6805,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   break;
 
-  case PREVIOUS_GTIDS_LOG_EVENT:
+  case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
   {
     if (gtid_mode == 0)
     {
@@ -6817,7 +6832,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   break;
 
-  case GTID_LOG_EVENT:
+  case binary_log::GTID_LOG_EVENT:
   {
     if (gtid_mode == 0)
     {
@@ -6825,7 +6840,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       goto err;
     }
     global_sid_lock->rdlock();
-    Gtid_log_event gtid_ev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
+    Gtid_log_event gtid_ev(buf, checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->get_mi_description_event());
     gtid.sidno= gtid_ev.get_sidno(false);
@@ -6837,7 +6852,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   break;
 
-  case ANONYMOUS_GTID_LOG_EVENT:
+  case binary_log::ANONYMOUS_GTID_LOG_EVENT:
 
   default:
     inc_pos= event_len;
@@ -6878,8 +6893,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
        /* everything is filtered out from non-master */
        (s_id != mi->master_id ||
         /* for the master meta information is necessary */
-        (event_type != FORMAT_DESCRIPTION_EVENT &&
-         event_type != ROTATE_EVENT))))
+        (event_type != binary_log::FORMAT_DESCRIPTION_EVENT &&
+         event_type != binary_log::ROTATE_EVENT))))
   {
     /*
       Do not write it to the relay log.
@@ -6899,9 +6914,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       as well as rli->group_relay_log_pos.
     */
     if (!(s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
-        (event_type != FORMAT_DESCRIPTION_EVENT &&
-         event_type != ROTATE_EVENT &&
-         event_type != STOP_EVENT))
+        (event_type != binary_log::FORMAT_DESCRIPTION_EVENT &&
+         event_type != binary_log::ROTATE_EVENT &&
+         event_type != binary_log::STOP_EVENT))
     {
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(), FN_REFLEN);
@@ -6921,7 +6936,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 
-      if (event_type == GTID_LOG_EVENT)
+      if (event_type == binary_log::GTID_LOG_EVENT)
       {
         global_sid_lock->rdlock();
         rli->add_logged_gtid(gtid.sidno, gtid.gno);

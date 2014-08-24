@@ -252,7 +252,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       default:
   rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->mysql_errno(),
                     "Error in %s event: row application failed. %s",
-                    (type_code_to_str(ev->common_header->type_code)).c_str(),
+                    ev->get_type_str(),
                     (ev_thd->is_error() ?
                      ev_thd->get_stmt_da()->message_text() :
                      ""));
@@ -272,8 +272,8 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->mysql_errno(),
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
-                (type_code_to_str(ev->common_header->type_code)).c_str(),
-                table->s->db.str, table->s->table_name.str,
+                ev->get_type_str(), table->s->db.str,
+                table->s->table_name.str,
                 ev_thd->is_error() ? ev_thd->get_stmt_da()->message_text() : "");
 
     /*
@@ -989,7 +989,7 @@ Write_rows_log_event_old::do_prepare_row(THD *thd_arg,
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
-                        table->write_set, PRE_GA_WRITE_ROWS_EVENT);
+                        table->write_set, binary_log::PRE_GA_WRITE_ROWS_EVENT);
   bitmap_copy(table->read_set, table->write_set);
   return error;
 }
@@ -1078,7 +1078,7 @@ Delete_rows_log_event_old::do_prepare_row(THD *thd_arg,
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
-                        table->read_set, PRE_GA_DELETE_ROWS_EVENT);
+                        table->read_set, binary_log::PRE_GA_DELETE_ROWS_EVENT);
   /*
     If we will access rows using the random access method, m_key will
     be set to NULL, so we do not need to make a key copy in that case.
@@ -1177,13 +1177,13 @@ int Update_rows_log_event_old::do_prepare_row(THD *thd_arg,
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
                         row_start, &m_cols, row_end, &m_master_reclength,
-                        table->read_set, PRE_GA_UPDATE_ROWS_EVENT);
+                        table->read_set, binary_log::PRE_GA_UPDATE_ROWS_EVENT);
   row_start = *row_end;
   /* m_after_image is the after image for the update */
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, m_after_image,
                         row_start, &m_cols, row_end, &m_master_reclength,
-                        table->write_set, PRE_GA_UPDATE_ROWS_EVENT);
+                        table->write_set, binary_log::PRE_GA_UPDATE_ROWS_EVENT);
 
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
   DBUG_DUMP("m_after_image", m_after_image, table->s->reclength);
@@ -1318,7 +1318,7 @@ Old_rows_log_event(const char *buf, uint event_len, Log_event_type event_type,
                    const Format_description_event *description_event)
  : Binary_log_event(&buf, description_event->binlog_version,
                      description_event->server_version),
-   Log_event(header(), footer(), true),
+   Log_event(header(), footer()),
     m_row_count(0),
 #ifndef MYSQL_CLIENT
     m_table(NULL),
@@ -1547,14 +1547,14 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
                     "Error '%s' in %s event: when locking tables",
                     (actual_error ? thd->net.last_error :
                      "unexpected success or fatal error"),
-                    (type_code_to_str(common_header->type_code)).c_str());
+                    get_type_str());
         thd->is_fatal_error= 1;
       }
       else
       {
         rli->report(ERROR_LEVEL, error,
                     "Error in %s event: when locking tables",
-                    (type_code_to_str(common_header->type_code)).c_str());
+                    get_type_str());
       }
       const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
       DBUG_RETURN(error);
@@ -1710,7 +1710,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       default:
 	rli->report(ERROR_LEVEL, thd->net.last_errno,
                     "Error in %s event: row application failed. %s",
-                    (type_code_to_str(common_header->type_code)).c_str(),
+                    get_type_str(),
                     thd->net.last_error ? thd->net.last_error : "");
        thd->is_slave_error= 1;
 	break;
@@ -1749,7 +1749,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     rli->report(ERROR_LEVEL, thd->net.last_errno,
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
-                (type_code_to_str(common_header->type_code)).c_str(), table->s->db.str,
+                get_type_str(), table->s->db.str,
                 table->s->table_name.str,
                 thd->net.last_error ? thd->net.last_error : "");
 
@@ -1832,7 +1832,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",
-                  (type_code_to_str(common_header->type_code)).c_str(), m_table->s->db.str,
+                  get_type_str(), m_table->s->db.str,
                   m_table->s->table_name.str);
     error|= binlog_error;
 
@@ -2556,7 +2556,8 @@ Write_rows_log_event_old::Write_rows_log_event_old(THD *thd_arg,
 Write_rows_log_event_old::
 Write_rows_log_event_old(const char *buf, uint event_len,
                          const Format_description_event *description_event)
- :Old_rows_log_event(buf, event_len, PRE_GA_WRITE_ROWS_EVENT, description_event)
+ : Old_rows_log_event(buf, event_len, binary_log::PRE_GA_WRITE_ROWS_EVENT,
+   description_event)
 {
 }
 #endif
@@ -2687,7 +2688,7 @@ Delete_rows_log_event_old::Delete_rows_log_event_old(THD *thd_arg,
 Delete_rows_log_event_old::
 Delete_rows_log_event_old(const char *buf, uint event_len,
                           const Format_description_event *description_event)
-   :Old_rows_log_event(buf, event_len, PRE_GA_DELETE_ROWS_EVENT,
+  : Old_rows_log_event(buf, event_len, binary_log::PRE_GA_DELETE_ROWS_EVENT,
                        description_event),
     m_after_image(NULL), m_memory(NULL)
 {
@@ -2792,7 +2793,7 @@ Update_rows_log_event_old::
 Update_rows_log_event_old(const char *buf, uint event_len,
                           const Format_description_event
                           *description_event)
-  : Old_rows_log_event(buf, event_len, PRE_GA_UPDATE_ROWS_EVENT,
+  : Old_rows_log_event(buf, event_len, binary_log::PRE_GA_UPDATE_ROWS_EVENT,
                        description_event),
     m_after_image(NULL), m_memory(NULL)
 {

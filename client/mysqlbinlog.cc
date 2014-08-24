@@ -739,10 +739,10 @@ static bool shall_skip_gtids(Log_event* ev)
 {
   bool filtered= false;
 
-  switch (ev->common_header->type_code)
+  switch (ev->get_type_code())
   {
-    case GTID_LOG_EVENT:
-    case ANONYMOUS_GTID_LOG_EVENT:
+    case binary_log::GTID_LOG_EVENT:
+    case binary_log::ANONYMOUS_GTID_LOG_EVENT:
     {
        Gtid_log_event *gtid= (Gtid_log_event *) ev;
        if (opt_include_gtids_str != NULL)
@@ -763,7 +763,7 @@ static bool shall_skip_gtids(Log_event* ev)
     }
     break;
     /* Skip previous gtids if --skip-gtids is set. */
-    case PREVIOUS_GTIDS_LOG_EVENT:
+    case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
       filtered= opt_skip_gtids;
     break;
 
@@ -781,11 +781,11 @@ static bool shall_skip_gtids(Log_event* ev)
       Events on the second file would not be outputted, even
       though they should.
     */
-    case XID_EVENT:
+    case binary_log::XID_EVENT:
       filtered= filter_based_on_gtids;
       filter_based_on_gtids= false;
     break;
-    case QUERY_EVENT:
+    case binary_log::QUERY_EVENT:
       filtered= filter_based_on_gtids;
       if (((Query_log_event *)ev)->ends_group())
         filter_based_on_gtids= false;
@@ -807,13 +807,13 @@ static bool shall_skip_gtids(Log_event* ev)
       In this case, ROTATE and FD events should be processed and
       outputted.
     */
-    case START_EVENT_V3: /* for completion */
-    case SLAVE_EVENT: /* for completion */
-    case STOP_EVENT:
-    case FORMAT_DESCRIPTION_EVENT:
-    case ROTATE_EVENT:
-    case IGNORABLE_LOG_EVENT:
-    case INCIDENT_EVENT:
+    case binary_log::START_EVENT_V3: /* for completion */
+    case binary_log::SLAVE_EVENT: /* for completion */
+    case binary_log::STOP_EVENT:
+    case binary_log::FORMAT_DESCRIPTION_EVENT:
+    case binary_log::ROTATE_EVENT:
+    case binary_log::IGNORABLE_LOG_EVENT:
+    case binary_log::INCIDENT_EVENT:
       filtered= false;
     break;
     default:
@@ -848,7 +848,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
                           my_off_t pos, const char *logname)
 {
   char ll_buff[21];
-  Log_event_type ev_type= ev->common_header->type_code;
+  Log_event_type ev_type= ev->get_type_code();
   my_bool destroy_evt= TRUE;
   DBUG_ENTER("process_event");
   Exit_status retval= OK_CONTINUE;
@@ -860,9 +860,9 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
   */
   if (((rec_count >= offset) &&
        ((my_time_t) (ev->common_header->when.tv_sec) >= start_datetime)) ||
-      (ev_type == FORMAT_DESCRIPTION_EVENT))
+      (ev_type == binary_log::FORMAT_DESCRIPTION_EVENT))
   {
-    if (ev_type != FORMAT_DESCRIPTION_EVENT)
+    if (ev_type != binary_log::FORMAT_DESCRIPTION_EVENT)
     {
       /*
         We have found an event after start_datetime, from now on print
@@ -879,7 +879,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         the format_description event so that we can parse subsequent
         events.
       */
-      if (ev_type != ROTATE_EVENT &&
+      if (ev_type != binary_log::ROTATE_EVENT &&
           filter_server_id && (filter_server_id != ev->server_id))
         goto end;
     }
@@ -899,14 +899,13 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     else
       print_event_info->hexdump_from= pos;
 
-    DBUG_PRINT("debug", ("event_type: %s",
-                    (type_code_to_str(ev->common_header->type_code)).c_str()));
+    DBUG_PRINT("debug", ("event_type: %s", ev->get_type_str()));
 
     if (shall_skip_gtids(ev))
       goto end;
 
     switch (ev_type) {
-    case QUERY_EVENT:
+    case binary_log::QUERY_EVENT:
     {
       bool parent_query_skips=
           !((Query_log_event*) ev)->is_trans_keyword() &&
@@ -978,7 +977,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       destroy_evt= TRUE;
     }
           
-    case INTVAR_EVENT:
+    case binary_log::INTVAR_EVENT:
     {
       destroy_evt= FALSE;
       buff_event.event= ev;
@@ -987,7 +986,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       break;
     }
     	
-    case RAND_EVENT:
+    case binary_log::RAND_EVENT:
     {
       destroy_evt= FALSE;
       buff_event.event= ev;
@@ -996,7 +995,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       break;
     }
     
-    case USER_VAR_EVENT:
+    case binary_log::USER_VAR_EVENT:
     {
       destroy_evt= FALSE;
       buff_event.event= ev;
@@ -1006,7 +1005,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     }
 
 
-    case CREATE_FILE_EVENT:
+    case binary_log::CREATE_FILE_EVENT:
     {
       Create_file_log_event* ce= (Create_file_log_event*)ev;
       /*
@@ -1046,7 +1045,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       break;
     }
 
-    case APPEND_BLOCK_EVENT:
+    case binary_log::APPEND_BLOCK_EVENT:
       /*
         Append_block_log_events can safely print themselves even if
         the subsequent call load_processor.process fails, because the
@@ -1060,7 +1059,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto end;
       break;
 
-    case EXEC_LOAD_EVENT:
+    case binary_log::EXEC_LOAD_EVENT:
     {
       ev->print(result_file, print_event_info);
       if (head->error == -1)
@@ -1090,7 +1089,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
                 "Create_file event for file_id: %u", exv->file_id);
       break;
     }
-    case FORMAT_DESCRIPTION_EVENT:
+    case binary_log::FORMAT_DESCRIPTION_EVENT:
       delete glob_description_event;
       glob_description_event= (Format_description_log_event*) ev;
       print_event_info->common_header_len=
@@ -1117,7 +1116,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       */
       ev= 0;
       if (!force_if_open_opt &&
-          (glob_description_event->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F))
+          (glob_description_event->common_header->flags &
+           LOG_EVENT_BINLOG_IN_USE_F))
       {
         error("Attempting to dump binlog '%s', which was not closed properly. "
               "Most probably, mysqld is still writing it, or it crashed. "
@@ -1125,7 +1125,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         DBUG_RETURN(ERROR_STOP);
       }
       break;
-    case BEGIN_LOAD_QUERY_EVENT:
+    case binary_log::BEGIN_LOAD_QUERY_EVENT:
       ev->print(result_file, print_event_info);
       if (head->error == -1)
         goto err;
@@ -1133,7 +1133,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           OK_CONTINUE)
         goto end;
       break;
-    case EXECUTE_LOAD_QUERY_EVENT:
+    case binary_log::EXECUTE_LOAD_QUERY_EVENT:
     {
       Execute_load_query_log_event *exlq= (Execute_load_query_log_event*)ev;
       char *fname= load_processor.grab_fname(exlq->file_id);
@@ -1162,7 +1162,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	my_free(fname);
       break;
     }
-    case TABLE_MAP_EVENT:
+    case binary_log::TABLE_MAP_EVENT:
     {
       Table_map_log_event *map= ((Table_map_log_event *)ev);
       if (shall_skip_database(map->get_db_name()))
@@ -1173,34 +1173,34 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto end;
       }
     }
-    case ROWS_QUERY_LOG_EVENT:
-    case WRITE_ROWS_EVENT:
-    case DELETE_ROWS_EVENT:
-    case UPDATE_ROWS_EVENT:
-    case WRITE_ROWS_EVENT_V1:
-    case UPDATE_ROWS_EVENT_V1:
-    case DELETE_ROWS_EVENT_V1:
-    case PRE_GA_WRITE_ROWS_EVENT:
-    case PRE_GA_DELETE_ROWS_EVENT:
-    case PRE_GA_UPDATE_ROWS_EVENT:
+    case binary_log::ROWS_QUERY_LOG_EVENT:
+    case binary_log::WRITE_ROWS_EVENT:
+    case binary_log::DELETE_ROWS_EVENT:
+    case binary_log::UPDATE_ROWS_EVENT:
+    case binary_log::WRITE_ROWS_EVENT_V1:
+    case binary_log::UPDATE_ROWS_EVENT_V1:
+    case binary_log::DELETE_ROWS_EVENT_V1:
+    case binary_log::PRE_GA_WRITE_ROWS_EVENT:
+    case binary_log::PRE_GA_DELETE_ROWS_EVENT:
+    case binary_log::PRE_GA_UPDATE_ROWS_EVENT:
     {
       bool stmt_end= FALSE;
       Table_map_log_event *ignored_map= NULL;
-      if (ev_type == WRITE_ROWS_EVENT ||
-          ev_type == DELETE_ROWS_EVENT ||
-          ev_type == UPDATE_ROWS_EVENT ||
-          ev_type == WRITE_ROWS_EVENT_V1 ||
-          ev_type == DELETE_ROWS_EVENT_V1 ||
-          ev_type == UPDATE_ROWS_EVENT_V1)
+      if (ev_type == binary_log::WRITE_ROWS_EVENT ||
+          ev_type == binary_log::DELETE_ROWS_EVENT ||
+          ev_type == binary_log::UPDATE_ROWS_EVENT ||
+          ev_type == binary_log::WRITE_ROWS_EVENT_V1 ||
+          ev_type == binary_log::DELETE_ROWS_EVENT_V1 ||
+          ev_type == binary_log::UPDATE_ROWS_EVENT_V1)
       {
         Rows_log_event *new_ev= (Rows_log_event*) ev;
         if (new_ev->get_flags(Rows_log_event::STMT_END_F))
           stmt_end= TRUE;
         ignored_map= print_event_info->m_table_map_ignored.get_table(new_ev->get_table_id());
       }
-      else if (ev_type == PRE_GA_WRITE_ROWS_EVENT ||
-               ev_type == PRE_GA_DELETE_ROWS_EVENT ||
-               ev_type == PRE_GA_UPDATE_ROWS_EVENT)
+      else if (ev_type == binary_log::PRE_GA_WRITE_ROWS_EVENT ||
+               ev_type == binary_log::PRE_GA_DELETE_ROWS_EVENT ||
+               ev_type == binary_log::PRE_GA_UPDATE_ROWS_EVENT)
       {
         Old_rows_log_event *old_ev= (Old_rows_log_event*) ev;
         if (old_ev->get_flags(Rows_log_event::STMT_END_F))
@@ -1271,10 +1271,11 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         row events.
       */
       if (!print_event_info->printed_fd_event && !short_form &&
-          ev_type != TABLE_MAP_EVENT && ev_type != ROWS_QUERY_LOG_EVENT &&
+          ev_type != binary_log::TABLE_MAP_EVENT &&
+          ev_type != binary_log::ROWS_QUERY_LOG_EVENT &&
           opt_base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
       {
-        const char* type_str= (type_code_to_str(ev->common_header->type_code)).c_str();
+        const char* type_str= ev->get_type_str();
         if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
           error("--base64-output=never specified, but binlog contains a "
                 "%s event which must be printed in base64.",
@@ -1305,8 +1306,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       }
       break;
     }
-    case ANONYMOUS_GTID_LOG_EVENT:
-    case GTID_LOG_EVENT:
+    case binary_log::ANONYMOUS_GTID_LOG_EVENT:
+    case binary_log::GTID_LOG_EVENT:
     {
       seen_gtids= true;
       print_event_info->is_gtid_next_set= true;
@@ -1320,7 +1321,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto err;
       break;
     }
-    case XID_EVENT:
+    case binary_log::XID_EVENT:
     {
       in_transaction= false;
       print_event_info->skipped_event_in_transaction= false;
@@ -1331,7 +1332,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto err;
       break;
     }
-    case ROTATE_EVENT:
+    case binary_log::ROTATE_EVENT:
     {
       Rotate_log_event *rev= (Rotate_log_event *) ev;
       /* no transaction context, gtids seen and not a fake rotate */
@@ -1360,7 +1361,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto err;
       break;
     }
-    case PREVIOUS_GTIDS_LOG_EVENT:
+    case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
       if (one_database && !opt_skip_gtids)
         warning("The option --database has been used. It may filter "
                 "parts of transactions, but will include the GTIDs in "
@@ -2134,7 +2135,7 @@ static Exit_status check_master_version()
           "Master reported unrecognized MySQL version '%s'.", version);
     goto err;
   }
-  if (!glob_description_event || !glob_description_event->is_valid)
+  if (!glob_description_event || !glob_description_event->is_valid())
   {
     error("Failed creating Format_description_log_event; out of memory?");
     goto err;
@@ -2309,7 +2310,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   {
     const char *error_msg= NULL;
     Log_event *ev= NULL;
-    Log_event_type type= UNKNOWN_EVENT;
+    Log_event_type type= binary_log::UNKNOWN_EVENT;
 
     len= cli_safe_read(mysql);
     if (len == packet_error)
@@ -2339,10 +2340,11 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
       i.e., acting as a fake slave.
     */
-    if (type == HEARTBEAT_LOG_EVENT)
+    if (type == binary_log::HEARTBEAT_LOG_EVENT)
       continue;
 
-    if (!raw_mode || (type == ROTATE_EVENT) || (type == FORMAT_DESCRIPTION_EVENT))
+    if (!raw_mode || (type == binary_log::ROTATE_EVENT) ||
+        (type == binary_log::FORMAT_DESCRIPTION_EVENT))
     {
       if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
                                           len - 1, &error_msg,
@@ -2358,7 +2360,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       */
       ev->register_temp_buf((char *) net->read_pos + 1);
     }
-    if (raw_mode || (type != LOAD_EVENT))
+    if (raw_mode || (type != binary_log::LOAD_EVENT))
     {
       /*
         If this is a Rotate event, maybe it's the end of the requested binlog;
@@ -2369,7 +2371,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         detection below: relay logs contain Rotate events which are about the
         binlogs, so which would trigger the end-detection below.
       */
-      if (type == ROTATE_EVENT)
+      if (type == binary_log::ROTATE_EVENT)
       {
         Rotate_log_event *rev= (Rotate_log_event *)ev;
         /*
@@ -2417,7 +2419,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           len= 1; // fake Rotate, so don't increment old_off
         }
       }
-      else if (type == FORMAT_DESCRIPTION_EVENT)
+      else if (type == binary_log::FORMAT_DESCRIPTION_EVENT)
       {
         /*
           This could be an fake Format_description_log_event that server
@@ -2459,7 +2461,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         }
       }
       
-      if (type == LOAD_EVENT)
+      if (type == binary_log::LOAD_EVENT)
       {
         DBUG_ASSERT(raw_mode);
         warning("Attempting to load a remote pre-4.0 binary log that contains "
@@ -2632,7 +2634,7 @@ static Exit_status check_header(IO_CACHE* file,
       DBUG_PRINT("info",("buf[EVENT_TYPE_OFFSET=%d]=%d",
                          EVENT_TYPE_OFFSET, buf[EVENT_TYPE_OFFSET]));
       /* always test for a Start_v3, even if no --start-position */
-      if (buf[EVENT_TYPE_OFFSET] == START_EVENT_V3)
+      if (buf[EVENT_TYPE_OFFSET] == binary_log::START_EVENT_V3)
       {
         /* This is 3.23 or 4.x */
         if (uint4korr(buf + EVENT_LEN_OFFSET) < 
@@ -2651,7 +2653,7 @@ static Exit_status check_header(IO_CACHE* file,
       }
       else if (tmp_pos >= start_position)
         break;
-      else if (buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
+      else if (buf[EVENT_TYPE_OFFSET] == binary_log::FORMAT_DESCRIPTION_EVENT)
       {
         /* This is 5.0 */
         Format_description_log_event *new_description_event;
@@ -2686,7 +2688,7 @@ static Exit_status check_header(IO_CACHE* file,
         }
         DBUG_PRINT("info",("Setting description_event"));
       }
-      else if (buf[EVENT_TYPE_OFFSET] == ROTATE_EVENT)
+      else if (buf[EVENT_TYPE_OFFSET] == binary_log::ROTATE_EVENT)
       {
         Log_event *ev;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
@@ -2788,7 +2790,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     }
   }
 
-  if (!glob_description_event || !glob_description_event->is_valid)
+  if (!glob_description_event || !glob_description_event->is_valid())
   {
     error("Invalid Format_description log event; could be out of memory.");
     goto err;
@@ -2812,7 +2814,8 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
         if binlog wasn't closed properly ("in use" flag is set) don't complain
         about a corruption, but treat it as EOF and move to the next binlog.
       */
-      if (glob_description_event->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F)
+      if (glob_description_event->common_header->flags &
+          LOG_EVENT_BINLOG_IN_USE_F)
         file->error= 0;
       else if (file->error)
       {

@@ -324,18 +324,18 @@ Mts_submode_logical_clock::assign_group(Relay_log_info* rli,
       - A query log event ("BEGIN" ) or a GTID EVENT
       - A DDL or an implicit DML commit.
    */
-  switch (ev->common_header->type_code)
+  switch (ev->get_type_code())
   {
-  case QUERY_EVENT:
+  case binary_log::QUERY_EVENT:
     commit_seq_no= static_cast<Query_log_event*>(ev)->commit_seq_no;
     break;
 
-  case GTID_LOG_EVENT:
+  case binary_log::GTID_LOG_EVENT:
     commit_seq_no= static_cast<Gtid_log_event*>(ev)->commit_seq_no;
     break;
-  case USER_VAR_EVENT:
-  case INTVAR_EVENT:
-  case RAND_EVENT:
+  case binary_log::USER_VAR_EVENT:
+  case binary_log::INTVAR_EVENT:
+  case binary_log::RAND_EVENT:
     var_events= true;
     force_new_group= true;
     break;
@@ -374,10 +374,10 @@ Mts_submode_logical_clock::assign_group(Relay_log_info* rli,
                         commit_seq_no));
     mts_last_known_commit_parent= commit_seq_no;
     worker_seq= 0;
-    if (ev->common_header->type_code == GTID_LOG_EVENT ||
-        ev->common_header->type_code == USER_VAR_EVENT ||
-        ev->common_header->type_code == INTVAR_EVENT   ||
-        ev->common_header->type_code == RAND_EVENT )
+    if (ev->get_type_code() == binary_log::GTID_LOG_EVENT ||
+        ev->get_type_code() == binary_log::USER_VAR_EVENT ||
+        ev->get_type_code() == binary_log::INTVAR_EVENT   ||
+        ev->get_type_code() == binary_log::RAND_EVENT )
       defer_new_group= true;
     else
       is_new_group= true;
@@ -626,7 +626,7 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
   // stopped.
   DBUG_ASSERT(worker != NULL || thd->killed);
   /* The master my have send  db partition info. make sure we never use them*/
-  if (ev->common_header->type_code == QUERY_EVENT)
+  if (ev->get_type_code() == binary_log::QUERY_EVENT)
     static_cast<Query_log_event*>(ev)->mts_accessed_dbs= 0;
   DBUG_RETURN(worker);
 }

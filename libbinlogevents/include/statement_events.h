@@ -42,7 +42,6 @@ namespace binary_log
 
   @section Query_event_binary_format Binary format
 
-  //TODO: Add Documentation Binary format for the events
   See @ref Binary_log_event_binary_format "Binary format for log events" for
   a general discussion and introduction to the binary format of binlog
   events.
@@ -522,7 +521,7 @@ public:
     new way of logging LOAD DATA INFILE would use a derived class of
     Query_event, so automatically benefit from the work already done for
     status variables in Query_event.
- */
+  */
   uint16_t status_vars_len;
   /*
     If we already know the length of the query string
@@ -588,10 +587,6 @@ public:
   */
   int64_t commit_seq_no;
 
-  std::string get_event_name()
-  {
-    return "Query";
-  }
   /**
     The constructor will be used while creating a Query_event, to be
     written to the binary log.
@@ -745,14 +740,6 @@ public:
     UV_CHARSET_NUMBER_SIZE= 4
   };
 
-  std::string get_event_name()
-  {
-    return "User var";
-  }
-
-  User_var_event()
-  : Binary_log_event(USER_VAR_EVENT)
-  {}
   /**
     This constructor will initialize the instance variablesi and the type_code,
     it will be used only by the server code.
@@ -760,10 +747,15 @@ public:
   User_var_event(const char *name_arg, unsigned int name_len_arg, char *val_arg,
                  unsigned long val_len_arg, Value_type type_arg,
                  unsigned int charset_number_arg, unsigned char flags_arg)
-  : Binary_log_event(USER_VAR_EVENT),
-    name(name_arg), name_len(name_len_arg), val(val_arg), val_len(val_len_arg),
-    type((Value_type) type_arg), charset_number(charset_number_arg),
-    is_null(!val), flags(flags_arg)
+    : Binary_log_event(USER_VAR_EVENT),
+      name(name_arg),
+      name_len(name_len_arg),
+      val(val_arg),
+      val_len(val_len_arg),
+      type((Value_type) type_arg),
+      charset_number(charset_number_arg),
+      is_null(!val),
+      flags(flags_arg)
   {
   }
 
@@ -909,10 +901,6 @@ public:
     }
   }
 
-  std::string get_event_name()
-  {
-    return "Intvar";
-  }
   /**
     Constructor receives a packet from the MySQL master or the binary
     log and decodes it to create an Intvar_event.
@@ -942,13 +930,11 @@ public:
    Binary_log_event
   */
   Intvar_event(uint8_t type_arg, uint64_t val_arg)
-  : Binary_log_event(INTVAR_EVENT), type(type_arg), val(val_arg)
-  {
-  }
-  Intvar_event()
-  : Binary_log_event(INTVAR_EVENT)
-  {
-  }
+    : Binary_log_event(INTVAR_EVENT),
+      type(type_arg),
+      val(val_arg)
+  {}
+
   ~Intvar_event() {}
 
   /*

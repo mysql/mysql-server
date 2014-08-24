@@ -276,14 +276,6 @@ public:
   */
   enum_load_dup_handling dup_handling;
 
-  std::string get_event_name()
-  {
-    return "Execute_load_query";
-  }
-
-  Execute_load_query_event()
-  : Query_event(EXECUTE_LOAD_QUERY_EVENT)
-  {}
   Execute_load_query_event(uint32_t file_id_arg, uint32_t fn_pos_start,
                            uint32_t fn_pos_end, enum_load_dup_handling dup);
 
@@ -322,6 +314,7 @@ public:
   */
   Execute_load_query_event(const char* buf, unsigned int event_len,
                            const Format_description_event *description_event);
+
   ~Execute_load_query_event() {}
 
 };
@@ -529,15 +522,17 @@ public:
 class Load_event: public Binary_log_event
 {
 protected:
- int copy_load_event(const char *buf, unsigned long event_len,
-                     int body_offset,
-                     const Format_description_event* description_event);
- // Required by Load_event(THD* ...) in the server
- explicit Load_event(Log_event_type type_code_arg= NEW_LOAD_EVENT)
- : Binary_log_event(type_code_arg),
-   num_fields(0), fields(0), field_lens(0), field_block_len(0)
- {
- }
+  int copy_load_event(const char *buf, unsigned long event_len,
+                      int body_offset,
+                      const Format_description_event* description_event);
+  // Required by Load_event(THD* ...) in the server
+  explicit Load_event(Log_event_type type_code_arg= NEW_LOAD_EVENT)
+    : Binary_log_event(type_code_arg),
+      num_fields(0),
+      fields(0),
+      field_lens(0),
+      field_block_len(0)
+  {}
 public:
   enum Load_event_offset {
     L_THREAD_ID_OFFSET= 0,
@@ -589,10 +584,6 @@ public:
   */
   bool is_concurrent;
 
-  std::string get_event_name()
-  {
-    return "Load";
-  }
   /**
     Note that for all the events related to LOAD DATA (Load_event,
     Create_file/Append/Exec/Delete, we pass description_event; however as
@@ -639,7 +630,8 @@ public:
             + sql_ex_data.data_size() + field_block_len + num_fields);
   }
 #ifndef HAVE_MYSYS
-  //TODO: Define the methods when required
+  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
+  //            all the events supported  in  MySQL Binlog
   void print_event_info(std::ostream& info) {};
   void print_long_info(std::ostream& info) {};
 #endif
@@ -699,10 +691,6 @@ public:
   unsigned int file_id;
   bool inited_from_old;
 
-  std::string get_event_name()
-  {
-    return "Create_file";
-  }
   /**
     The buffer layout for variable data part is as follows:
     <pre>
@@ -724,9 +712,7 @@ public:
   Create_file_event(const char* buf, unsigned int event_len,
                     const Format_description_event* description_event);
 
-  Create_file_event()
-  : Load_event(CREATE_FILE_EVENT), event_buf(NULL)
-  {}
+
   ~Create_file_event()
   {
      if (event_buf)
@@ -774,9 +760,10 @@ class Delete_file_event: public Binary_log_event
 protected:
   // Required by Delete_file_log_event(THD* ..)
   Delete_file_event(uint32_t file_id_arg, const char* db_arg)
-  : Binary_log_event(DELETE_FILE_EVENT), file_id(file_id_arg), db(db_arg)
-  {
-  }
+    : Binary_log_event(DELETE_FILE_EVENT),
+      file_id(file_id_arg),
+      db(db_arg)
+  {}
 public:
   enum Delete_file_offset {
     /** DF = "Delete File" */
@@ -786,14 +773,6 @@ public:
   uint32_t file_id;
   const char* db; /** see comment in Append_block_event */
 
-  std::string get_event_name()
-  {
-    return "Delete_file";
-  }
-
-  Delete_file_event()
-  : Binary_log_event(DELETE_FILE_EVENT)
-  {}
    /**
     The buffer layout for fixed data part is as follows:
     <pre>
@@ -814,10 +793,12 @@ public:
   */
   Delete_file_event(const char* buf, unsigned int event_len,
                     const Format_description_event* description_event);
+
   ~Delete_file_event() {}
 
 #ifndef HAVE_MYSYS
-  //TODO: Define the methods when required
+  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
+  //            all the events supported  in  MySQL Binlog
   void print_event_info(std::ostream& info) {};
   void print_long_info(std::ostream& info) {};
 #endif
@@ -867,13 +848,6 @@ public:
   uint32_t file_id;
   const char* db; /** see comment in Append_block_event */
 
-  std::string get_event_name()
-  {
-    return "Exec_load";
-  }
-  Execute_load_event()
-  : Binary_log_event(EXEC_LOAD_EVENT)
-  {}
   /**
     The buffer layout for fixed data part is as follows:
     <pre>
@@ -898,7 +872,8 @@ public:
   ~Execute_load_event() {}
 
 #ifndef HAVE_MYSYS
-  //TODO: Define the methods when required
+  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
+  //            all the events supported  in  MySQL Binlog
   void print_event_info(std::ostream& info) {};
   void print_long_info(std::ostream& info) {};
 #endif
@@ -947,15 +922,14 @@ protected:
                      unsigned char* block_arg,
                      unsigned int block_len_arg,
                      uint32_t file_id_arg)
- : Binary_log_event(APPEND_BLOCK_EVENT),
-   block(block_arg), block_len(block_len_arg),
-   file_id(file_id_arg), db(db_arg)
- {
- }
- Append_block_event(Log_event_type type_arg= APPEND_BLOCK_EVENT)
- : Binary_log_event(type_arg)
- {
- }
+  : Binary_log_event(APPEND_BLOCK_EVENT),
+    block(block_arg), block_len(block_len_arg),
+    file_id(file_id_arg), db(db_arg)
+  {}
+
+  Append_block_event(Log_event_type type_arg= APPEND_BLOCK_EVENT)
+    : Binary_log_event(type_arg)
+  {}
 
 public:
   enum Append_block_offset
@@ -981,10 +955,6 @@ public:
   */
   const char* db;
 
-  std::string get_event_name()
-  {
-    return "Append_block";
-  }
 
   /**
     The buffer layout for fixed data part is as follows:
@@ -1016,7 +986,8 @@ public:
   ~Append_block_event() {}
 
 #ifndef HAVE_MYSYS
-  //TODO: Define the methods when required
+  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
+  //            all the events supported  in  MySQL Binlog
   void print_event_info(std::ostream& info) {};
   void print_long_info(std::ostream& info) {};
 #endif
@@ -1037,19 +1008,11 @@ public:
 class Begin_load_query_event: public virtual Append_block_event
 {
 protected:
-  //TODO: Remove. Right now required by Begin_load_query_log_event(THD*...)
   Begin_load_query_event()
-  : Append_block_event(BEGIN_LOAD_QUERY_EVENT)
-  {
-  }
+    : Append_block_event(BEGIN_LOAD_QUERY_EVENT)
+  {}
 
 public:
-
-  std::string get_event_name()
-  {
-    return "Begin_load_query";
-  }
-
 
   /**
     The buffer layout for fixed data part is as follows:
@@ -1078,10 +1041,12 @@ public:
   */
   Begin_load_query_event(const char* buf, unsigned int event_len,
                          const Format_description_event *description_event);
+
   ~Begin_load_query_event() {}
 
 #ifndef HAVE_MYSYS
-  //TODO: Define the methods when required
+  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
+  //            all the events supported  in  MySQL Binlog
   void print_event_info(std::ostream& info) {};
   void print_long_info(std::ostream& info) {};
 #endif

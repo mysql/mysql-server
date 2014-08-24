@@ -58,7 +58,7 @@ int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
 {
   DBUG_ENTER("compare_lengths");
   size_t const source_length=
-    max_display_length_for_field(source_type, metadata);
+    binary_log::max_display_length_for_field(source_type, metadata);
   size_t const target_length= field->max_display_length();
   DBUG_PRINT("debug", ("source_length: %lu, source_type: %u,"
                        " target_length: %lu, target_type: %u",
