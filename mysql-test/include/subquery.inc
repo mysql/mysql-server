@@ -226,7 +226,11 @@ CREATE TABLE `t2` (
     ) ENGINE=MyISAM ROW_FORMAT=DYNAMIC;
 
 INSERT INTO t2 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce'), ('joce','43506','2002-10-22','joce');
+
+--source include/turn_off_only_full_group_by.inc
 select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
 SELECT numeropost,maxnumrep FROM t1 WHERE exists (SELECT 1 FROM t2 WHERE (mot='joce') AND date >= '2002-10-21' AND t1.numeropost = t2.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
 -- error ER_BAD_FIELD_ERROR
 SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1 HAVING a=1) b;
@@ -259,8 +263,12 @@ CREATE TABLE `t1` (
 ) ENGINE=MyISAM ROW_FORMAT=FIXED;
 
 INSERT INTO t1 (numeropost,maxnumrep) VALUES (1,0),(2,1);
+
+--source include/turn_off_only_full_group_by.inc
 -- error ER_SUBQUERY_NO_1_ROW
 select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
 -- error ER_SUBQUERY_NO_1_ROW
 select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
 drop table t1;
@@ -780,7 +788,9 @@ CREATE TABLE `t1` (
   UNIQUE KEY `pseudo` (`pseudo`)
 ) ENGINE=MyISAM CHARSET=latin1 PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 (id,pseudo,email) VALUES (1,'test','test'),(2,'test1','test1');
+--source include/turn_off_only_full_group_by.inc
 SELECT pseudo as a, pseudo as b FROM t1 GROUP BY (SELECT a) ORDER BY (SELECT id*1);
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table if exists t1;
 
 (SELECT 1 as a) UNION (SELECT 1) ORDER BY (SELECT a+0);
@@ -804,7 +814,9 @@ create table t1 (s1 int);
 create table t2 (s1 int);
 insert into t1 values (1);
 insert into t2 values (1);
+--source include/turn_off_only_full_group_by.inc
 select * from t1 where exists (select s1 from t2 having max(t2.s1)=t1.s1);
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1,t2;
 
 #
@@ -1402,7 +1414,9 @@ SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.how
 CREATE INDEX t1_howmanyvalues_idx ON t1 (howmanyvalues);
 SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues+1 = a.howmanyvalues+1) as mycount from t1 a group by a.howmanyvalues;
 SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.howmanyvalues) as mycount from t1 a group by a.howmanyvalues;
+--source include/turn_off_only_full_group_by.inc
 SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.avalue) as mycount from t1 a group by a.howmanyvalues;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1;
 
 create table t1 (x int);
@@ -1637,6 +1651,7 @@ CREATE TABLE t5 (
   modifyDate timestamp NOT NULL
 );
 INSERT INTO t5 VALUES (5141,12,'2004-08-06','2004-08-06');
+--source include/turn_off_only_full_group_by.inc
 
 select
   count(distinct t2.userid) pass,
@@ -1670,6 +1685,7 @@ join
 group by
   groupstuff.groupname, colhead , t2.courseid;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1, t2, t3, t4, t5;
 
 
@@ -2836,7 +2852,7 @@ DROP TABLE t1;
 # Bug#28377 grouping query with a correlated subquery in WHERE condition
 #
 
-CREATE TABLE t1 (id int NOT NULL, st CHAR(2), INDEX idx(id));
+CREATE TABLE t1 (id int NOT NULL, st CHAR(2), UNIQUE INDEX idx(id));
 INSERT INTO t1 VALUES
   (3,'FL'), (2,'GA'), (4,'FL'), (1,'GA'), (5,'NY'), (7,'FL'), (6,'NY');
 CREATE TABLE t2 (id int NOT NULL, INDEX idx(id));
@@ -3111,6 +3127,7 @@ CREATE TABLE t3 (
   PRIMARY KEY (f6)
 );
 INSERT INTO t3 VALUES (1,null), (2,null);
+--source include/turn_off_only_full_group_by.inc
 
 SELECT
   IF(t1.f1 = 'R', a1.f2, t2.f2) AS a4,
@@ -3130,6 +3147,7 @@ FROM
   t2, t3, t1 JOIN t2 a1 ON t1.f9 = a1.f4
 GROUP BY a4;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1, t2, t3, t4;
 
 
@@ -3185,6 +3203,7 @@ INSERT INTO st1 VALUES (1,1), (2,1);
 
 CREATE TABLE st2 like t1;
 INSERT INTO st2 VALUES (1,1), (2,1);
+--source include/turn_off_only_full_group_by.inc
 
 # should have "impossible where"
 EXPLAIN
@@ -3197,6 +3216,7 @@ SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
 FROM t1 
 WHERE a = 230;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1, st1, st2;
 
 --echo #
@@ -3731,9 +3751,11 @@ INSERT INTO t2 SELECT * FROM t1;
 # given match possible
 SELECT a, MAX(b), (SELECT t.c FROM t1 AS t WHERE t1.a=t.a AND t.b=MAX(t1.b))
   as test FROM t1 GROUP BY a;
+--source include/turn_off_only_full_group_by.inc
 SELECT * FROM t1 GROUP by t1.a
   HAVING (MAX(t1.b) > (SELECT MAX(t2.b) FROM t2 WHERE t2.c < t1.c
                                                 HAVING MAX(t2.b+t1.a) < 10));
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 SELECT a,b,c FROM t1 WHERE b in (9,3,4) ORDER BY b,c;
 
@@ -3915,7 +3937,10 @@ SELECT ROW(1,2) = (SELECT    1,    2), ROW(1,2) IN (SELECT    1,    2);
 CREATE TABLE t1 (a INT, b INT, c INT);
 INSERT INTO t1 VALUES (1,1,1), (1,1,1);
 
---error 1054
+# In the scalar subquery "SELECT COUNT(a)", "a" and "c" are outer
+# references whose qualifying query is the one which has "GROUP BY b",
+# so "c" is not dependent on the group column:
+--error ER_WRONG_FIELD_WITH_GROUP
 EXPLAIN EXTENDED 
   SELECT c FROM 
     ( SELECT 

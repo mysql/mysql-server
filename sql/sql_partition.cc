@@ -1032,7 +1032,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     of interesting side effects, both desirable and undesirable.
   */
   {
-    const bool save_agg_field= thd->lex->current_select()->non_agg_field_used();
     const bool save_agg_func=  thd->lex->current_select()->agg_func_used();
     const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
     thd->lex->allow_sum_func= 0;
@@ -1040,10 +1039,9 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
     /*
-      Restore agg_field/agg_func  and allow_sum_func,
+      Restore agg_func and allow_sum_func,
       fix_fields should not affect mysql_select later, see Bug#46923.
     */
-    thd->lex->current_select()->set_non_agg_field_used(save_agg_field);
     thd->lex->current_select()->set_agg_func_used(save_agg_func);
     thd->lex->allow_sum_func= saved_allow_sum_func;
   }

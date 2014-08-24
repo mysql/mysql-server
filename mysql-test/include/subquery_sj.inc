@@ -5434,9 +5434,12 @@ HAVING (1, 2) IN (
     ON t2.col_varchar_key = t1_inner.col_varchar_key
 );
 
+--source include/turn_off_only_full_group_by.inc
 
 --eval explain $query
 --eval $query
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE t1,t2;
 

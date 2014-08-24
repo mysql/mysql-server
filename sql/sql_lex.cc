@@ -2164,12 +2164,10 @@ st_select_lex::st_select_lex
   sj_pullout_done(false),
   no_wrap_view_item(false),
   exclude_from_table_unique_test(false),
-  non_agg_fields(),
-  cur_pos_in_all_fields(ALL_FIELDS_UNDEF_POS),
   prev_join_using(NULL),
   select_list_tables(0),
+  outer_join(0),
   removed_select(NULL),
-  m_non_agg_field_used(false),
   m_agg_func_used(false),
   sj_candidates(NULL)
 {
