@@ -53,9 +53,6 @@
 #include "datadict.h"   // dd_frm_type()
 #include "sql_hset.h"   // Hash_set
 #include "sql_tmp_table.h" // free_tmp_table
-#ifdef  _WIN32
-#include <io.h>
-#endif
 #include "table_cache.h" // Table_cache_manager, Table_cache
 
 
@@ -1057,8 +1054,8 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
       continue;
 
     /* Check if user has SELECT privilege for any column in the table */
-    table_list.db=         share->db.str;
-    table_list.table_name= share->table_name.str;
+    table_list.db=         const_cast<char*>(share->db.str);
+    table_list.table_name= const_cast<char*>(share->table_name.str);
     table_list.grant.privilege=0;
 
     if (check_table_access(thd,SELECT_ACL,&table_list, TRUE, 1, TRUE))
@@ -1201,7 +1198,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
   if (!wait_for_refresh)
     DBUG_RETURN(result);
 
-  set_timespec(abstime, timeout);
+  set_timespec(&abstime, timeout);
 
   if (thd->locked_tables_mode)
   {
@@ -2849,7 +2846,7 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
       share->has_old_version())
   {
     struct timespec abstime;
-    set_timespec(abstime, wait_timeout);
+    set_timespec(&abstime, wait_timeout);
     res= share->wait_for_old_version(thd, &abstime, deadlock_weight);
   }
   mysql_mutex_unlock(&LOCK_open);
@@ -2895,7 +2892,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   TABLE *table;
   const char *key;
   size_t key_length;
-  char	*alias= table_list->alias;
+  const char *alias= table_list->alias;
   uint flags= ot_ctx->get_flags();
   MDL_ticket *mdl_ticket;
   int error;
@@ -7866,6 +7863,7 @@ set_new_item_local_context(THD *thd, Item_ident *item, TABLE_LIST *table_ref)
   context->init();
   context->first_name_resolution_table=
     context->last_name_resolution_table= table_ref;
+  context->select_lex= table_ref->select_lex;
   item->context= context;
   return FALSE;
 }
@@ -8488,11 +8486,6 @@ int setup_wild(THD *thd, List<Item> &fields, List<Item> *sum_func_list,
   */
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  // When we enter, we're "nowhere":
-  DBUG_ASSERT(thd->lex->current_select()->cur_pos_in_all_fields ==
-              SELECT_LEX::ALL_FIELDS_UNDEF_POS);
-  // Now we're in the SELECT list:
-  thd->lex->current_select()->cur_pos_in_all_fields= 0;
   while (wild_num && (item= it++))
   {
     if (item->type() == Item::FIELD_ITEM &&
@@ -8532,12 +8525,7 @@ int setup_wild(THD *thd, List<Item> &fields, List<Item> *sum_func_list,
       }
       wild_num--;
     }
-    else
-      thd->lex->current_select()->cur_pos_in_all_fields++;
   }
-  // We're nowhere again:
-  thd->lex->current_select()->cur_pos_in_all_fields=
-    SELECT_LEX::ALL_FIELDS_UNDEF_POS;
 
   if (ps_arena_holder.is_activated())
   {
@@ -8613,9 +8601,6 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     var->set_entry(thd, FALSE);
 
   Ref_ptr_array ref= ref_pointer_array;
-  DBUG_ASSERT(thd->lex->current_select()->cur_pos_in_all_fields ==
-              SELECT_LEX::ALL_FIELDS_UNDEF_POS);
-  thd->lex->current_select()->cur_pos_in_all_fields= 0;
   while ((item= it++))
   {
     if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
@@ -8637,12 +8622,8 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
     thd->lex->current_select()->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
-    thd->lex->current_select()->cur_pos_in_all_fields++;
   }
   thd->lex->current_select()->is_item_list_lookup= save_is_item_list_lookup;
-  thd->lex->current_select()->cur_pos_in_all_fields=
-    SELECT_LEX::ALL_FIELDS_UNDEF_POS;
-
   thd->lex->allow_sum_func= save_allow_sum_func;
   thd->mark_used_columns= save_mark_used_columns;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
@@ -9045,7 +9026,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         thd->lex->current_select()->select_list_tables|=
           item->used_tables();
       }
-      thd->lex->current_select()->cur_pos_in_all_fields++;
     }
   }
   if (found)

@@ -1024,9 +1024,9 @@ innobase_get_foreign_key_info(
 		add_fk[num_fk] = dict_mem_foreign_create();
 
 #ifndef _WIN32
-		tbl_namep = fk_key->ref_table.str;
+		tbl_namep = const_cast<char*>(fk_key->ref_table.str);
 		tbl_name_len = fk_key->ref_table.length;
-		db_namep = fk_key->ref_db.str;
+		db_namep = const_cast<char*>(fk_key->ref_db.str);
 		db_name_len = fk_key->ref_db.length;
 #else
 		ut_ad(fk_key->ref_table.str);

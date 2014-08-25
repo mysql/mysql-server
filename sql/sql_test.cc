@@ -28,22 +28,19 @@
 #include "sql_optimizer.h"  // JOIN
 #include "opt_explain.h"    // join_type_str
 #include <hash.h>
-#if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
-#include <malloc.h>
-#elif defined(HAVE_MALLOC_INFO) && defined(HAVE_SYS_MALLOC_H)
-#include <sys/malloc.h>
-#endif
-
 #ifndef EMBEDDED_LIBRARY
 #include "events.h"
 #endif
-
 #include "table_cache.h" // table_cache_manager
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "prealloced_array.h"
 
 #include <algorithm>
 #include <functional>
+
+#if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
+#include <malloc.h>
+#endif
 
 const char *lock_descriptions[TL_WRITE_ONLY + 1] =
 {

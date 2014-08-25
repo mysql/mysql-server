@@ -3029,12 +3029,9 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
       Note that we dont set
       MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS | MODE_NO_FIELD_OPTIONS
       to allow one to get full use of MySQL in this mode.
-
-      MODE_ONLY_FULL_GROUP_BY was removed from ANSI mode because it is
-      currently overly restrictive (see BUG#8510).
     */
     sql_mode|= (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE);
+                MODE_IGNORE_SPACE | MODE_ONLY_FULL_GROUP_BY);
   }
   if (sql_mode & MODE_ORACLE)
     sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
@@ -3124,8 +3121,11 @@ static Sys_var_set Sys_sql_mode(
        "Syntax: sql-mode=mode[,mode[,mode...]]. See the manual for the "
        "complete list of valid sql modes",
        SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
-       sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
-                               MODE_STRICT_TRANS_TABLES), NO_MUTEX_GUARD,
+       sql_mode_names,
+       DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
+               MODE_ONLY_FULL_GROUP_BY |
+               MODE_STRICT_TRANS_TABLES),
+       NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
 static Sys_var_ulong Sys_max_statement_time(

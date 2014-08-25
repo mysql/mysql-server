@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -239,7 +239,7 @@ exit:
     {
       derived->derived_result= derived_result;
       derived->table= table;
-      derived->table_name=        table->s->table_name.str;
+      derived->table_name= const_cast<char*>(table->s->table_name.str);
       derived->table_name_length= table->s->table_name.length;
       table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

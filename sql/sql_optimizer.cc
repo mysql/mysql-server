@@ -367,7 +367,7 @@ JOIN::optimize()
       ct[i]= best_ref[i]->table();
     mysql_unlock_some_tables(thd, ct, const_tables);
   }
-  if (!where_cond && outer_join)
+  if (!where_cond && select_lex->outer_join)
   {
     /* Handle the case where we have an OUTER JOIN without a WHERE */
     where_cond=new Item_int((longlong) 1,1);	// Always true
@@ -960,25 +960,10 @@ bool JOIN::optimize_distinct_group_order()
       select_distinct= 0;
     }
   }
-  if (group_list || tmp_table_param.sum_func_count)
-  {
-    if (hidden_group_field_count == 0 && rollup.state == ROLLUP::STATE_NONE)
-    {
-      /*
-        All GROUP expressions are in SELECT list, so resulting rows are
-        distinct. ROLLUP is not specified, so adds no row. So all rows in the
-        result set are distinct, DISTINCT is useless.
-        @todo could remove DISTINCT if ROLLUP were specified and all GROUP
-        expressions were non-nullable, because ROLLUP adds only NULL
-        values. Currently, ROLLUP+DISTINCT is rejected because executor
-        cannot handle it in all cases.
-      */
-      select_distinct= false;
-    }
-  }
-  else if (select_distinct &&
-           plan_is_single_table() &&
-           rollup.state == ROLLUP::STATE_NONE)
+  if (!(group_list || tmp_table_param.sum_func_count) &&
+      select_distinct &&
+      plan_is_single_table() &&
+      rollup.state == ROLLUP::STATE_NONE)
   {
     /*
       We are only using one table. In this case we change DISTINCT to a
@@ -2638,7 +2623,7 @@ bool JOIN::get_best_combination()
     adjust_access_methods();
   }
   // Calculate outer join info
-  if (outer_join)
+  if (select_lex->outer_join)
     make_outerjoin_info();
 
   // sjm is no longer needed, trash it. To reuse it, reset its members!
@@ -4621,23 +4606,23 @@ bool JOIN::make_join_plan()
   const_table_map= 0;                  // No const tables found yet
   found_const_table_map= 0;            // Map of const tables with a single row
   all_table_map= 0;                    // Map of all tables involved in the join
-  outer_join= 0;                       // Tables on inner side of an outer join
 
   if (init_planner_arrays())           // Create and initialize the arrays
     DBUG_RETURN(true);
 
   // Outer join dependencies were initialized above, now complete the analysis.
-  if (outer_join)
+  if (select_lex->outer_join)
     propagate_dependencies();
 
   if (unlikely(trace->is_started()))
     trace_table_dependencies(trace, join_tab, primary_tables);
 
   // Build the key access information, which is the basis for ref access.
-  if (where_cond || outer_join)
+  if (where_cond || select_lex->outer_join)
   {
     if (update_ref_and_keys(thd, &keyuse_array, join_tab, tables, where_cond,
-                            cond_equal, ~outer_join, select_lex, &sargables))
+                            cond_equal, ~select_lex->outer_join, select_lex,
+                            &sargables))
       DBUG_RETURN(true);
   }
 
@@ -4843,14 +4828,11 @@ bool JOIN::init_planner_arrays()
         NESTED_JOIN *const nested_join= embedding->nested_join;
         tab->embedding_map|= nested_join->nj_map;
         tab->dependent|= embedding->dep_tables;
-        if (embedding->join_cond_optim())
-          outer_join|= nested_join->used_tables;
       }
     }
     else if (tab->join_cond())
     {
       // tab is the only inner table of an outer join
-      outer_join|= tl->map();
       tab->embedding_map= 0;
       for (TABLE_LIST *embedding= tl->embedding;
            embedding;
@@ -4931,7 +4913,7 @@ bool JOIN::propagate_dependencies()
       return true;
     }
 
-    if (outer_join & tab->table_ref->map())
+    if (select_lex->outer_join & tab->table_ref->map())
     {
       /*
         Semijoin inner tables in ON condition of outer join have been moved
@@ -7950,7 +7932,7 @@ void JOIN::make_outerjoin_info()
 {
   DBUG_ENTER("JOIN::make_outerjoin_info");
 
-  DBUG_ASSERT(outer_join);
+  DBUG_ASSERT(select_lex->outer_join);
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
   select_lex->reset_nj_counters();
@@ -9425,7 +9407,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
          */
         (primary_tables > 1 &&
          rollup.state == ROLLUP::STATE_INITED &&
-         outer_join))
+         select_lex->outer_join))
       *simple_order= 0;                // Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {

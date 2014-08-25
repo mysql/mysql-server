@@ -514,7 +514,7 @@ void Item_func::print_op(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-
+/// @note Please keep in sync with Item_sum::eq().
 bool Item_func::eq(const Item *item, bool binary_cmp) const
 {
   /* Assume we don't have rtti */
@@ -4716,7 +4716,7 @@ class Interruptible_wait
         the absolute time passes, the timed wait call will fail
         automatically with a timeout error.
       */
-      set_timespec_nsec(m_abs_timeout, timeout);
+      set_timespec_nsec(&m_abs_timeout, timeout);
     }
 
     /** The timed wait. */
@@ -4747,17 +4747,17 @@ int Interruptible_wait::wait(mysql_cond_t *cond, mysql_mutex_t *mutex)
   while (1)
   {
     /* Wait for a fixed interval. */
-    set_timespec_nsec(timeout, m_interrupt_interval);
+    set_timespec_nsec(&timeout, m_interrupt_interval);
 
     /* But only if not past the absolute timeout. */
-    if (cmp_timespec(timeout, m_abs_timeout) > 0)
+    if (cmp_timespec(&timeout, &m_abs_timeout) > 0)
       timeout= m_abs_timeout;
 
     error= mysql_cond_timedwait(cond, mutex, &timeout);
     if (error == ETIMEDOUT || error == ETIME)
     {
       /* Return error if timed out or connection is broken. */
-      if (!cmp_timespec(timeout, m_abs_timeout) || !m_thd->is_connected())
+      if (!cmp_timespec(&timeout, &m_abs_timeout) || !m_thd->is_connected())
         break;
     }
     /* Otherwise, propagate status to the caller. */
@@ -7790,7 +7790,8 @@ Item_func_sp::Item_func_sp(const POS &pos,
   maybe_null= 1;
   with_stored_program= true;
   THD *thd= current_thd;
-  m_name= new (thd->mem_root) sp_name(db_name, fn_name, use_explicit_name);
+  m_name= new (thd->mem_root) sp_name(to_lex_cstring(db_name), fn_name,
+                                      use_explicit_name);
 }
 
 
@@ -7812,13 +7813,12 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res)
   if (m_name->m_db.str == NULL) // use the default database name
   {
     /* Cannot match the function since no database is selected */
-    if (thd->db == NULL)
+    if (thd->db().str == NULL)
     {
       my_error(ER_NO_DB_ERROR, MYF(0));
       return true;
     }
-    m_name->m_db.str= thd->db;
-    m_name->m_db.length= thd->db_length;
+    m_name->m_db= thd->db();
   }
 
   m_name->init_qname(thd);

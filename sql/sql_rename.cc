@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -120,7 +120,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
           else
           {
             /* save the name of the log table to report an error */
-            rename_log_table[log_table_rename]= ren_table->table_name;
+            rename_log_table[log_table_rename]=
+              const_cast<char*>(ren_table->table_name);
           }
         }
       }
@@ -233,8 +234,9 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
 */
 
 bool
-do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
-          char *new_table_alias, bool skip_error)
+do_rename(THD *thd, TABLE_LIST *ren_table,
+          const char *new_db, const char *new_table_name,
+          const char *new_table_alias, bool skip_error)
 {
   int rc= 1;
   char name[FN_REFLEN + 1];

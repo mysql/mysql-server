@@ -250,62 +250,63 @@ char *fn_rext(char *name)
   return name + strlen(name);
 }
 
-TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
+TABLE_CATEGORY get_table_category(const LEX_STRING &db,
+                                  const LEX_STRING &name)
 {
-  DBUG_ASSERT(db != NULL);
-  DBUG_ASSERT(name != NULL);
+  DBUG_ASSERT(db.str != NULL);
+  DBUG_ASSERT(name.str != NULL);
 
-  if (is_infoschema_db(db->str, db->length))
+  if (is_infoschema_db(db.str, db.length))
     return TABLE_CATEGORY_INFORMATION;
 
-  if ((db->length == PERFORMANCE_SCHEMA_DB_NAME.length) &&
+  if ((db.length == PERFORMANCE_SCHEMA_DB_NAME.length) &&
       (my_strcasecmp(system_charset_info,
                      PERFORMANCE_SCHEMA_DB_NAME.str,
-                     db->str) == 0))
+                     db.str) == 0))
     return TABLE_CATEGORY_PERFORMANCE;
 
-  if ((db->length == MYSQL_SCHEMA_NAME.length) &&
+  if ((db.length == MYSQL_SCHEMA_NAME.length) &&
       (my_strcasecmp(system_charset_info,
                      MYSQL_SCHEMA_NAME.str,
-                     db->str) == 0))
+                     db.str) == 0))
   {
-    if (is_system_table_name(name->str, name->length))
+    if (is_system_table_name(name.str, name.length))
       return TABLE_CATEGORY_SYSTEM;
 
-    if ((name->length == GENERAL_LOG_NAME.length) &&
+    if ((name.length == GENERAL_LOG_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                        GENERAL_LOG_NAME.str,
-                       name->str) == 0))
+                       name.str) == 0))
       return TABLE_CATEGORY_LOG;
 
-    if ((name->length == SLOW_LOG_NAME.length) &&
+    if ((name.length == SLOW_LOG_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                        SLOW_LOG_NAME.str,
-                       name->str) == 0))
+                       name.str) == 0))
       return TABLE_CATEGORY_LOG;
 
-    if ((name->length == RLI_INFO_NAME.length) &&
+    if ((name.length == RLI_INFO_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                       RLI_INFO_NAME.str,
-                      name->str) == 0))
+                      name.str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
 
-    if ((name->length == MI_INFO_NAME.length) &&
+    if ((name.length == MI_INFO_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                       MI_INFO_NAME.str,
-                      name->str) == 0))
+                      name.str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
 
-    if ((name->length == WORKER_INFO_NAME.length) &&
+    if ((name.length == WORKER_INFO_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                       WORKER_INFO_NAME.str,
-                      name->str) == 0))
+                      name.str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
 
-    if ((name->length == GTID_EXECUTED_NAME.length) &&
+    if ((name.length == GTID_EXECUTED_NAME.length) &&
         (my_strcasecmp(system_charset_info,
                        GTID_EXECUTED_NAME.str,
-                       name->str) == 0))
+                       name.str) == 0))
       return TABLE_CATEGORY_GTID;
 
   }
@@ -800,7 +801,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
       error= 0;
   }
 
-  share->table_category= get_table_category(& share->db, & share->table_name);
+  share->table_category= get_table_category(share->db, share->table_name);
 
   if (!error)
     thd->status_var.opened_shares++;
@@ -4552,7 +4553,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
                     const_cast<char*>(definer.user.str),
                     const_cast<char*>(definer.host.str),
                     const_cast<char*>(definer.host.str),
-                    thd->db))
+                    thd->db().str))
     {
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS))
@@ -4657,7 +4658,7 @@ bool TABLE_LIST::prepare_security(THD *thd)
   while ((tbl= tb++))
   {
     DBUG_ASSERT(tbl->referencing_view);
-    char *local_db, *local_table_name;
+    const char *local_db, *local_table_name;
     if (tbl->view)
     {
       local_db= tbl->view_db.str;
@@ -4805,15 +4806,9 @@ Item *Field_iterator_table::create_item(THD *thd)
     code in Item_field::fix_fields().
     */
   if (item && !thd->lex->in_sum_func &&
-      select->cur_pos_in_all_fields != SELECT_LEX::ALL_FIELDS_UNDEF_POS)
+      select->resolve_place == st_select_lex::RESOLVE_SELECT_LIST)
   {
-    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-    {
-      item->push_to_non_agg_fields(select);
-      select->set_non_agg_field_used(true);
-    }
-    if (thd->lex->current_select()->with_sum_func &&
-        !thd->lex->current_select()->group_list.elements)
+    if (select->with_sum_func && !select->group_list.elements)
       item->maybe_null= true;
   }
   return item;

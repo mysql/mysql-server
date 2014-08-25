@@ -43,10 +43,9 @@
 #include <violite.h>
 #include "prealloced_array.h"
 
-#include <algorithm>
-
-using std::min;
-using std::max;
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
 
 #if defined(USE_LIBEDIT_INTERFACE)
 #include <locale.h>
@@ -55,6 +54,24 @@ using std::max;
 #ifdef   HAVE_PWD_H
 #include <pwd.h>
 #endif
+
+#if defined(HAVE_TERM_H)
+#include <curses.h>
+#include <term.h>
+#endif
+
+#if defined(_WIN32)
+#include <conio.h>
+#else
+#include <readline.h>
+#define HAVE_READLINE
+#define USE_POPEN
+#endif
+
+#include <algorithm>
+
+using std::min;
+using std::max;
 
 const char *VER= "14.14";
 
@@ -71,40 +88,6 @@ static char *server_version= NULL;
 #define MAX_ALLOCA_SIZE              512
 
 #include "sql_string.h"
-
-extern "C" {
-#if defined(HAVE_CURSES_H) && defined(HAVE_TERM_H)
-#include <curses.h>
-#include <term.h>
-#else
-#if defined(HAVE_TERMIOS_H)
-#include <termios.h>
-#include <unistd.h>
-#elif defined(HAVE_ASM_TERMBITS_H) && (!defined __GLIBC__ || !(__GLIBC__ > 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ > 0))
-#include <asm/termbits.h>		// Standard linux
-#endif
-#undef VOID
-#if defined(HAVE_TERMCAP_H)
-#include <termcap.h>
-#else
-#ifdef HAVE_CURSES_H
-#include <curses.h>
-#endif
-#undef SYSV				// hack to avoid syntax error
-#ifdef HAVE_TERM_H
-#include <term.h>
-#endif
-#endif
-#endif
-
-#if defined(_WIN32)
-#include <conio.h>
-#else
-#include <readline.h>
-#define HAVE_READLINE
-#define USE_POPEN
-#endif
-}
 
 #ifdef FN_NO_CASE_SENSE
 #define cmp_database(cs,A,B) my_strcasecmp((cs), (A), (B))
