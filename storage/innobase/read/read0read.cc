@@ -665,11 +665,8 @@ ReadView::copy_complete()
 	}
 
 	if (!m_ids.empty()) {
-
-		using std::min;
-
 		/* The last active transaction has the smallest id. */
-		m_up_limit_id = min(m_ids.front(), m_up_limit_id);
+		m_up_limit_id = std::min(m_ids.front(), m_up_limit_id);
 	}
 
 	ut_ad(m_up_limit_id <= m_low_limit_id);
