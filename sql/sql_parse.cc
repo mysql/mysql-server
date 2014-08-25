@@ -405,7 +405,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_MASTER_STAT]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
@@ -2643,22 +2642,6 @@ case SQLCOM_PREPARE:
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
     res= show_slave_status_cmd(thd);
-    break;
-  }
-  case SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING:
-  {
-    /* WL1697 TODO: remove this nonblocking command */
-    Master_info* mi= 0;
-    LEX *lex= thd->lex;
-    /* Accept one of two privileges */
-    if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
-      goto error;
-    DBUG_EXECUTE_IF("simulate_hold_show_slave_status_nonblocking",
-                    my_sleep(10000000););
-
-    mi= msr_map.get_mi(lex->mi.channel);
-
-    res= show_slave_status(thd, mi);
     break;
   }
   case SQLCOM_SHOW_MASTER_STAT:
