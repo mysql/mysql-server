@@ -171,6 +171,7 @@ ut_new_boot()
 	for (size_t i = 0; i < n_auto; i++) {
 
 		const std::pair<mem_keys_auto_t::iterator, bool>	ret
+			__attribute__((unused))
 			= mem_keys_auto.insert(
 			mem_keys_auto_t::value_type(auto_event_names[i],
 						    &auto_event_keys[i]));
