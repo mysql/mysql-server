@@ -2969,7 +2969,7 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
 
 Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 {
-  Slave_job_group group, *ptr_group= NULL;
+  Slave_job_group group= Slave_job_group(), *ptr_group= NULL;
   bool is_s_event;
   Slave_worker *ret_worker= NULL;
   char llbuff[22];
