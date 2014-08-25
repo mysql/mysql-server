@@ -45,6 +45,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "trx0trx.h"
 #include "srv0mon.h"
 #include "gis0geo.h"
+#include "ut0new.h"
 
 /**************************************************************//**
 Checks if the page in the cursor can be merged with given page.
@@ -2388,21 +2389,6 @@ btr_insert_into_right_sibling(
 		return(NULL);
 	}
 
-	if (is_leaf
-	    && !dict_index_is_clust(cursor->index)
-	    && !dict_table_is_temporary(cursor->index->table)) {
-		/* Update the free bits of the B-tree page in the
-		insert buffer bitmap. */
-
-		if (next_block->page.size.is_compressed()) {
-			ibuf_update_free_bits_zip(next_block, mtr);
-		} else {
-			ibuf_update_free_bits_if_full(
-				next_block, max_size,
-				rec_offs_size(*offsets) + PAGE_DIR_SLOT_SIZE);
-		}
-	}
-
 	ibool	compressed;
 	dberr_t	err;
 	ulint	level = btr_page_get_level(next_page, mtr);
@@ -2433,6 +2419,21 @@ btr_insert_into_right_sibling(
 		flags, cursor->index, level + 1, node_ptr, mtr);
 
 	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
+
+	if (is_leaf
+	    && !dict_index_is_clust(cursor->index)
+	    && !dict_table_is_temporary(cursor->index->table)) {
+		/* Update the free bits of the B-tree page in the
+		insert buffer bitmap. */
+
+		if (next_block->page.size.is_compressed()) {
+			ibuf_update_free_bits_zip(next_block, mtr);
+		} else {
+			ibuf_update_free_bits_if_full(
+				next_block, max_size,
+				rec_offs_size(*offsets) + PAGE_DIR_SLOT_SIZE);
+		}
+	}
 
 	return(rec);
 }
@@ -2608,8 +2609,9 @@ func_start:
 insert_empty:
 		ut_ad(!split_rec);
 		ut_ad(!insert_left);
-		buf = (byte*) ut_malloc(rec_get_converted_size(cursor->index,
-							       tuple, n_ext));
+		buf = UT_NEW_ARRAY_NOKEY(
+			byte,
+			rec_get_converted_size(cursor->index, tuple, n_ext));
 
 		first_rec = rec_convert_dtuple_to_rec(buf, cursor->index,
 						      tuple, n_ext);
@@ -2632,7 +2634,7 @@ insert_empty:
 						offsets, tuple, n_ext, heap);
 	} else {
 		if (!insert_left) {
-			ut_free(buf);
+			UT_DELETE_ARRAY(buf);
 			buf = NULL;
 		}
 
@@ -2642,6 +2644,7 @@ insert_empty:
 	}
 
 	if (!srv_read_only_mode
+	    && !dict_table_is_intrinsic(cursor->index->table)
 	    && insert_will_fit
 	    && page_is_leaf(page)
 	    && !dict_index_is_online_ddl(cursor->index)) {
@@ -4206,24 +4209,44 @@ btr_index_rec_validate(
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	for (i = 0; i < n; i++) {
-		ulint	fixed_size = dict_col_get_fixed_size(
-			dict_index_get_nth_col(index, i), page_is_comp(page));
+		dict_field_t*	field = dict_index_get_nth_field(index, i);
+		ulint		fixed_size = dict_col_get_fixed_size(
+						dict_field_get_col(field),
+						page_is_comp(page));
 
 		rec_get_nth_field_offs(offsets, i, &len);
 
 		/* Note that if fixed_size != 0, it equals the
-		length of a fixed-size column in the clustered index.
+		length of a fixed-size column in the clustered index,
+		except the DATA_POINT, whose length would be MBR_LEN
+		when it's indexed in a R-TREE. We should adjust it here.
 		A prefix index of the column is of fixed, but different
 		length.  When fixed_size == 0, prefix_len is the maximum
 		length of the prefix index column. */
 
-		if ((dict_index_get_nth_field(index, i)->prefix_len == 0
+		if (dict_field_get_col(field)->mtype == DATA_POINT) {
+			ut_ad(fixed_size == DATA_POINT_LEN);
+			if (dict_index_is_spatial(index)) {
+				/* For DATA_POINT data, when it has R-tree
+				index, the fixed_len is the MBR of the point.
+				But if it's a primary key and on R-TREE
+				as the PK pointer, the length shall be
+				DATA_POINT_LEN as well. */
+				ut_ad((field->fixed_len == DATA_MBR_LEN
+				       && i == 0)
+				      || (field->fixed_len == DATA_POINT_LEN
+					  && i != 0));
+				fixed_size = field->fixed_len;
+			}
+		}
+
+		if ((field->prefix_len == 0
 		     && len != UNIV_SQL_NULL && fixed_size
 		     && len != fixed_size)
-		    || (dict_index_get_nth_field(index, i)->prefix_len > 0
+		    || (field->prefix_len > 0
 			&& len != UNIV_SQL_NULL
 			&& len
-			> dict_index_get_nth_field(index, i)->prefix_len)) {
+			> field->prefix_len)) {
 
 			btr_index_rec_validate_report(page, rec, index);
 			ib_logf(IB_LOG_LEVEL_ERROR,

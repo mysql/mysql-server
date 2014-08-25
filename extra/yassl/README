@@ -12,15 +12,31 @@ before calling SSL_new();
 
 *** end Note ***
 
-yaSSL Release notes, version 2.3.0 (12/5/2013)
+yaSSL Release notes, version 2.3.4 (8/15/2014)
 
-  This release of yaSSL updates asm for newer GCC versions.
+    This release of yaSSL adds checking to the input_buffer class itself.
 
 See normal  build instructions below under 1.0.6.
 See libcurl build instructions below under 1.3.0 and note in 1.5.8.
 
 
-*****************yaSSL Release notes, version 2.2.3b (4/23/2013)
+yaSSL Release notes, version 2.3.2 (7/25/2014)
+
+    This release of yaSSL updates test certs.
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 2.3.0 (12/5/2013)
+
+    This release of yaSSL updates asm for newer GCC versions.
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 2.2.3 (4/23/2013)
 
     This release of yaSSL updates the test certificates as they were expired
 

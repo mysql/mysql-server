@@ -350,7 +350,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
 
   if (from->prepare_info_for_read() || 
-      from->get_info(master_log_name, (size_t) sizeof(master_log_name),
+      from->get_info(master_log_name, sizeof(master_log_name),
                      (char *) ""))
     DBUG_RETURN(true);
 
@@ -360,7 +360,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
       *first_non_digit=='\0' && lines >= LINES_IN_MASTER_INFO_WITH_SSL)
   {
     /* Seems to be new format => read master log name */
-    if (from->get_info(master_log_name, (size_t) sizeof(master_log_name),
+    if (from->get_info(master_log_name, sizeof(master_log_name),
                        (char *) ""))
       DBUG_RETURN(true);
   }
@@ -369,9 +369,9 @@ bool Master_info::read_info(Rpl_info_handler *from)
 
   if (from->get_info(&temp_master_log_pos,
                      (ulong) BIN_LOG_HEADER_SIZE) ||
-      from->get_info(host, (size_t) sizeof(host), (char *) 0) ||
-      from->get_info(user, (size_t) sizeof(user), (char *) "test") ||
-      from->get_info(password, (size_t) sizeof(password), (char *) 0) ||
+      from->get_info(host, sizeof(host), (char *) 0) ||
+      from->get_info(user, sizeof(user), (char *) "test") ||
+      from->get_info(password, sizeof(password), (char *) 0) ||
       from->get_info((int *) &port, (int) MYSQL_PORT) ||
       from->get_info((int *) &connect_retry,
                         (int) DEFAULT_CONNECT_RETRY))
@@ -386,11 +386,11 @@ bool Master_info::read_info(Rpl_info_handler *from)
   if (lines >= LINES_IN_MASTER_INFO_WITH_SSL)
   {
     if (from->get_info(&temp_ssl, 0) ||
-        from->get_info(ssl_ca, (size_t) sizeof(ssl_ca), (char *) 0) ||
-        from->get_info(ssl_capath, (size_t) sizeof(ssl_capath), (char *) 0) ||
-        from->get_info(ssl_cert, (size_t) sizeof(ssl_cert), (char *) 0) ||
-        from->get_info(ssl_cipher, (size_t) sizeof(ssl_cipher), (char *) 0) ||
-        from->get_info(ssl_key, (size_t) sizeof(ssl_key), (char *) 0))
+        from->get_info(ssl_ca, sizeof(ssl_ca), (char *) 0) ||
+        from->get_info(ssl_capath, sizeof(ssl_capath), (char *) 0) ||
+        from->get_info(ssl_cert, sizeof(ssl_cert), (char *) 0) ||
+        from->get_info(ssl_cipher, sizeof(ssl_cipher), (char *) 0) ||
+        from->get_info(ssl_key, sizeof(ssl_key), (char *) 0))
       DBUG_RETURN(true);
   }
 
@@ -419,7 +419,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
   if (lines >= LINE_FOR_MASTER_BIND)
   {
-    if (from->get_info(bind_addr, (size_t) sizeof(bind_addr), (char *) ""))
+    if (from->get_info(bind_addr, sizeof(bind_addr), (char *) ""))
       DBUG_RETURN(true);
   }
 
@@ -436,7 +436,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   /* Starting from 5.5 the master_uuid may be in the repository. */
   if (lines >= LINE_FOR_MASTER_UUID)
   {
-    if (from->get_info(master_uuid, (size_t) sizeof(master_uuid),
+    if (from->get_info(master_uuid, sizeof(master_uuid),
                        (char *) 0))
       DBUG_RETURN(true);
   }

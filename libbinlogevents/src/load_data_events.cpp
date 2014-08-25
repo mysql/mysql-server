@@ -271,7 +271,7 @@ int Load_event::copy_load_event(const char *buf, unsigned long event_len,
   fname = db + db_len + 1;
   if ((db_len > data_len) || (fname > buf_end))
     goto err;
-  fname_len = (unsigned int) strlen(fname);
+  fname_len = strlen(fname);
   if ((fname_len > data_len) || (fname + fname_len > buf_end))
     goto err;
   // null termination is accomplished by the caller doing buf[event_len]=0

@@ -91,7 +91,7 @@ dict_mem_table_create(
 
 	table->flags = (unsigned int) flags;
 	table->flags2 = (unsigned int) flags2;
-	table->name = static_cast<char*>(ut_malloc(strlen(name) + 1));
+	table->name = static_cast<char*>(ut_malloc_nokey(strlen(name) + 1));
 	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;
 	table->n_cols = (unsigned int) (n_cols +
@@ -494,7 +494,7 @@ dict_mem_index_create(
 						sizeof(*index->rtr_track)));
 		mutex_create("rtr_active_mutex",
 			     &index->rtr_track->rtr_active_mutex);
-		index->rtr_track->rtr_active = new(std::nothrow) rtr_info_active();
+		index->rtr_track->rtr_active = UT_NEW_NOKEY(rtr_info_active());
 	}
 
 	return(index);
@@ -641,7 +641,7 @@ dict_mem_index_free(
 
 		mutex_destroy(&index->rtr_ssn.mutex);
 		mutex_destroy(&index->rtr_track->rtr_active_mutex);
-		delete index->rtr_track->rtr_active;
+		UT_DELETE(index->rtr_track->rtr_active);
 	}
 
 	mem_heap_free(index->heap);

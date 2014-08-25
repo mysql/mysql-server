@@ -29,6 +29,10 @@
 #include "unireg.h"                             // SPECIAL_SAME_DB_NAME
 #include <m_ctype.h>
 
+#ifdef _WIN32
+#include <process.h> // getpid
+#endif
+
 void unireg_init(ulong options)
 {
   DBUG_ENTER("unireg_init");

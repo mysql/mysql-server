@@ -312,13 +312,12 @@ extern HASH table_def_cache;
 
   @param table        TABLE structure pointer (which should be setup)
   @param table_list   TABLE_LIST structure pointer (owner of TABLE)
-  @param tablenr     table number
+  @param tableno      table number
 */
 
 
-inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
+inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tableno)
 {
-  table->used_fields= 0;
   table->const_table= 0;
   table->null_row= 0;
   table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
@@ -329,8 +328,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
     table->maybe_null= embedding->outer_join;
     embedding= embedding->embedding;
   }
-  table->tablenr= tablenr;
-  table->map= (table_map) 1 << tablenr;
+  table_list->set_tableno(tableno);
   table->force_index= table_list->force_index;
   table->force_index_order= table->force_index_group= 0;
   table->covering_keys= table->s->keys_for_keyread;

@@ -41,6 +41,7 @@ Completed by Sunny Bains and Marko Makela
 #include "handler0alter.h"
 #include "btr0bulk.h"
 #include "fsp0sysspace.h"
+#include "ut0new.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -63,13 +64,13 @@ public:
 	{
 		m_heap = heap;
 		m_index = index;
-		m_dtuple_vec = new(std::nothrow)idx_tuple_vec();
+		m_dtuple_vec = UT_NEW_NOKEY(idx_tuple_vec());
 	}
 
 	/** destructor */
 	~index_tuple_info_t()
 	{
-		delete m_dtuple_vec;
+		UT_DELETE(m_dtuple_vec);
 	}
 
 	/** Get the index object
@@ -239,7 +240,8 @@ public:
 private:
 	/** Cache index rows made from a cluster index scan. Usually
 	for rows on single cluster index page */
-	typedef std::vector<dtuple_t*>	idx_tuple_vec;
+	typedef std::vector<dtuple_t*, ut_allocator<dtuple_t*> >
+		idx_tuple_vec;
 
 	/** vector used to cache index rows made from cluster index scan */
 	idx_tuple_vec*		m_dtuple_vec;
@@ -336,7 +338,7 @@ row_merge_buf_create_low(
 	buf->index = index;
 	buf->max_tuples = max_tuples;
 	buf->tuples = static_cast<mtuple_t*>(
-		ut_malloc(2 * max_tuples * sizeof *buf->tuples));
+		ut_malloc_nokey(2 * max_tuples * sizeof *buf->tuples));
 	buf->tmp_tuples = buf->tuples + max_tuples;
 
 	return(buf);
@@ -535,8 +537,8 @@ row_merge_buf_add(
 					continue;
 				}
 
-				ptr = ut_malloc(sizeof(*doc_item)
-						+ field->len);
+				ptr = ut_malloc_nokey(sizeof(*doc_item)
+						      + field->len);
 
 				doc_item = static_cast<fts_doc_item_t*>(ptr);
 				value = static_cast<byte*>(ptr)
@@ -616,7 +618,10 @@ row_merge_buf_add(
 			dfield_set_len(field, len);
 		}
 
-		ut_ad(len <= col->len || DATA_LARGE_MTYPE(col->mtype));
+		ut_ad(len <= col->len
+		      || DATA_LARGE_MTYPE(col->mtype)
+		      || (col->mtype == DATA_POINT
+			  && len == DATA_MBR_LEN));
 
 		fixed_len = ifield->fixed_len;
 		if (fixed_len && !dict_table_is_comp(index->table)
@@ -1431,7 +1436,7 @@ row_merge_read_clustered_index(
 	/* Create and initialize memory for record buffers */
 
 	merge_buf = static_cast<row_merge_buf_t**>(
-		ut_malloc(n_index * sizeof *merge_buf));
+		ut_malloc_nokey(n_index * sizeof *merge_buf));
 
 	for (ulint i = 0; i < n_index; i++) {
 		if (index[i]->type & DICT_FTS) {
@@ -1474,13 +1479,16 @@ row_merge_read_clustered_index(
 		spatial_heap = mem_heap_create(100);
 
 		spatial_dtuple_info = static_cast<index_tuple_info_t**>(
-			ut_malloc(num_spatial * sizeof(*spatial_dtuple_info)));
+			ut_malloc_nokey(num_spatial
+					* sizeof(*spatial_dtuple_info)));
 
 		for (ulint i = 0; i < n_index; i++) {
 			if (dict_index_is_spatial(index[i])) {
 				spatial_dtuple_info[count]
-					= new(std::nothrow)index_tuple_info_t(
-						spatial_heap, index[i]);
+					= UT_NEW_NOKEY(
+						index_tuple_info_t(
+							spatial_heap,
+							index[i]));
 				count++;
 			}
 		}
@@ -1505,7 +1513,7 @@ row_merge_read_clustered_index(
 		do not violate the added NOT NULL constraints. */
 
 		nonnull = static_cast<ulint*>(
-			ut_malloc(dict_table_get_n_cols(new_table)
+			ut_malloc_nokey(dict_table_get_n_cols(new_table)
 				  * sizeof *nonnull));
 
 		for (ulint i = 0; i < dict_table_get_n_cols(old_table); i++) {
@@ -1569,7 +1577,7 @@ row_merge_read_clustered_index(
 				"ib_purge_on_create_index_page_switch",
 				dbug_run_purge = true;);
 
-			if (spatial_dtuple_info) {
+			if (spatial_dtuple_info != NULL) {
 				bool	mtr_committed = false;
 
 				for (ulint j = 0; j < num_spatial; j++) {
@@ -1946,8 +1954,9 @@ write_buffers:
 					}
 
 					if (clust_btr_bulk == NULL) {
-						clust_btr_bulk = new BtrBulk(
-							index[i], trx->id);
+						clust_btr_bulk = UT_NEW_NOKEY(
+							BtrBulk(index[i],
+								trx->id));
 						clust_btr_bulk->init();
 					} else {
 						clust_btr_bulk->latch();
@@ -1960,7 +1969,7 @@ write_buffers:
 					if (row == NULL) {
 						err = clust_btr_bulk->finish(
 							err);
-						delete clust_btr_bulk;
+						UT_DELETE(clust_btr_bulk);
 					} else {
 						/* Release latches for possible
 						log_free_chck in spatial index
@@ -2206,9 +2215,9 @@ wait_again:
 
 	btr_pcur_close(&pcur);
 
-	if (spatial_dtuple_info) {
+	if (spatial_dtuple_info != NULL) {
 		for (ulint i = 0; i < num_spatial; i++) {
-			delete spatial_dtuple_info[i];
+			UT_DELETE(spatial_dtuple_info[i]);
 		}
 		ut_free(spatial_dtuple_info);
 
@@ -2591,7 +2600,7 @@ row_merge_sort(
 	}
 
 	/* "run_offset" records each run's first offset number */
-	run_offset = (ulint*) ut_malloc(file->offset * sizeof(ulint));
+	run_offset = (ulint*) ut_malloc_nokey(file->offset * sizeof(ulint));
 
 	/* This tells row_merge() where to start for the first round
 	of merge. */
@@ -3845,7 +3854,7 @@ row_merge_build_indexes(
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
-	ulint			block_size;
+	ut_new_pfx_t		block_pfx;
 	ulint			i;
 	ulint			j;
 	dberr_t			error;
@@ -3865,9 +3874,11 @@ row_merge_build_indexes(
 	/* Allocate memory for merge file data structure and initialize
 	fields */
 
-	block_size = 3 * srv_sort_buf_size;
-	block = static_cast<row_merge_block_t*>(
-		os_mem_alloc_large(&block_size));
+	ut_allocator<row_merge_block_t>	alloc(mem_key_row_merge_sort);
+
+	/* This will allocate "3 * srv_sort_buf_size" elements of type
+	row_merge_block_t. The latter is defined as byte. */
+	block = alloc.allocate_large(3 * srv_sort_buf_size, &block_pfx);
 
 	if (block == NULL) {
 		DBUG_RETURN(DB_OUT_OF_MEMORY);
@@ -3876,7 +3887,7 @@ row_merge_build_indexes(
 	trx_start_if_not_started_xa(trx, true);
 
 	merge_files = static_cast<merge_file_t*>(
-		ut_malloc(n_indexes * sizeof *merge_files));
+		ut_malloc_nokey(n_indexes * sizeof *merge_files));
 
 	/* Initialize all the merge file descriptors, so that we
 	don't call row_merge_file_destroy() on uninitialized
@@ -3908,8 +3919,9 @@ row_merge_build_indexes(
 			fts_sort_idx = row_merge_create_fts_sort_index(
 				indexes[i], old_table, &opt_doc_id_size);
 
-			row_merge_dup_t* dup = static_cast<row_merge_dup_t*>(
-				ut_malloc(sizeof *dup));
+			row_merge_dup_t*	dup
+				= static_cast<row_merge_dup_t*>(
+					ut_malloc_nokey(sizeof *dup));
 			dup->index = fts_sort_idx;
 			dup->table = table;
 			dup->col_map = col_map;
@@ -4099,7 +4111,8 @@ func_exit:
 	}
 
 	ut_free(merge_files);
-	os_mem_free_large(block, block_size);
+
+	alloc.deallocate_large(block, &block_pfx);
 
 	DICT_TF2_FLAG_UNSET(new_table, DICT_TF2_FTS_ADD_DOC_ID);
 

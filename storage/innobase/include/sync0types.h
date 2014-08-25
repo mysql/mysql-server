@@ -28,6 +28,8 @@ Created 9/5/1995 Heikki Tuuri
 
 #include <vector>
 
+#include "ut0new.h"
+
 #ifdef HAVE_WINDOWS_ATOMICS
 typedef LONG	lock_word_t;	/*!< On Windows, InterlockedExchange operates
 				on LONG variable */
@@ -432,9 +434,11 @@ struct sync_allowed_latches : public sync_check_functor_t {
 	then it is a violation. */
 	virtual bool operator()(const latch_t& latch)
 	{
-		std::vector<latch_level_t>::iterator i = m_latches.begin();
-		for (; i != m_latches.end(); ++i) {
-			if (latch.m_level == *i) {
+		for (latches_t::const_iterator it = m_latches.begin();
+		     it != m_latches.end();
+		     ++it) {
+
+			if (latch.m_level == *it) {
 				m_result = false;
 				return(false); // no violation
 			}
@@ -445,9 +449,13 @@ struct sync_allowed_latches : public sync_check_functor_t {
 	virtual bool result() const { return(m_result); }
 private:
 	/** Save the result of validation check here */
-	bool				m_result;
+	bool		m_result;
+
+	typedef std::vector<latch_level_t, ut_allocator<latch_level_t> >
+		latches_t;
+
 	/** List of latch levels that are allowed to be held */
-	std::vector<latch_level_t>	m_latches;
+	latches_t	m_latches;
 };
 
 #ifdef UNIV_SYNC_DEBUG

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -235,8 +235,8 @@ buf_dump(
 			}
 		}
 
-		dump = static_cast<buf_dump_t*>(
-			ut_malloc(n_pages * sizeof(*dump))) ;
+		dump = static_cast<buf_dump_t*>(ut_malloc_nokey(
+				n_pages * sizeof(*dump)));
 
 		if (dump == NULL) {
 			buf_pool_mutex_exit(buf_pool);
@@ -469,7 +469,8 @@ buf_load()
 		dump_n = total_buffer_pools_pages;
 	}
 
-	dump = static_cast<buf_dump_t*>(ut_malloc(dump_n * sizeof(*dump)));
+	dump = static_cast<buf_dump_t*>(ut_malloc_nokey(dump_n
+							* sizeof(*dump)));
 
 	if (dump == NULL) {
 		fclose(f);
@@ -629,6 +630,10 @@ DECLARE_THREAD(buf_dump_thread)(
 						required by os_thread_create */
 {
 	ut_ad(!srv_read_only_mode);
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(buf_dump_thread_key);
+#endif /* UNIV_PFS_THREAD */
 
 	srv_buf_dump_thread_active = TRUE;
 

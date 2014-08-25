@@ -604,7 +604,7 @@ deny:
 
 
 bool
-check_routine_access(THD *thd, ulong want_access,char *db, char *name,
+check_routine_access(THD *thd, ulong want_access, const char *db, char *name,
 		     bool is_proc, bool no_errors)
 {
   TABLE_LIST tables[1];
@@ -767,7 +767,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   }
 
   THD_STAGE_INFO(thd, stage_checking_permissions);
-  if ((!db || !db[0]) && !thd->db && !dont_check_global_grants)
+  if ((!db || !db[0]) && !thd->db().str && !dont_check_global_grants)
   {
     DBUG_PRINT("error",("No database"));
     if (!no_errors)
@@ -818,7 +818,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     */
     if (!(sctx->master_access & SELECT_ACL))
     {
-      if (db && (!thd->db || db_is_pattern || strcmp(db, thd->db)))
+      if (db && (!thd->db().str || db_is_pattern ||
+                 strcmp(db, thd->db().str)))
         db_access= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
                            sctx->priv_user, db, db_is_pattern);
       else
@@ -867,7 +868,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     DBUG_RETURN(FALSE);
   }
 
-  if (db && (!thd->db || db_is_pattern || strcmp(db,thd->db)))
+  if (db && (!thd->db().str || db_is_pattern || strcmp(db,thd->db().str)))
     db_access= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
                        sctx->priv_user, db, db_is_pattern);
   else
@@ -914,8 +915,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   if (!no_errors)
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user, sctx->priv_host,
-             (db ? db : (thd->db ?
-                         thd->db :
+             (db ? db : (thd->db().str ?
+                         thd->db().str :
                          "unknown")));
   DBUG_RETURN(TRUE);
 
@@ -1088,7 +1089,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   LEX_USER *Str, *tmp_Str;
   TABLE_LIST tables[3];
   bool create_new_users=0;
-  char *db_name, *table_name;
+  const char *db_name, *table_name;
   bool save_binlog_row_based;
   bool transactional_tables;
   DBUG_ENTER("mysql_table_grant");
@@ -1439,7 +1440,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   LEX_USER *Str, *tmp_Str;
   TABLE_LIST tables[2];
   bool create_new_users=0, result=0;
-  char *db_name, *table_name;
+  const char *db_name, *table_name;
   bool save_binlog_row_based;
   bool transactional_tables;
   DBUG_ENTER("mysql_routine_grant");
@@ -2268,9 +2269,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
 
     if (want_access)
     {
-      GRANT_COLUMN *grant_column= 
-        column_hash_search(grant_table, field_name,
-                           (uint) strlen(field_name));
+      GRANT_COLUMN *grant_column=
+        column_hash_search(grant_table, field_name, strlen(field_name));
       if (grant_column)
         using_column_privileges= TRUE;
       if (!grant_column || (~grant_column->rights & want_access))
@@ -2485,7 +2485,7 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
 {
   ulong privilege;
   Security_context *sctx= thd->security_ctx;
-  const char *db = table->db ? table->db : thd->db;
+  const char *db = table->db ? table->db : thd->db().str;
   GRANT_TABLE *grant_table;
 
   mysql_rwlock_rdlock(&LOCK_grant);
@@ -2549,7 +2549,7 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
   else
   {
     grant_column= column_hash_search(grant_table, field_name,
-                                     (uint) strlen(field_name));
+                                     strlen(field_name));
     if (!grant_column)
       priv= (grant->privilege | grant_table->privs);
     else

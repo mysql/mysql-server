@@ -56,7 +56,9 @@ drop table t1;
 #
 create table t1 (a int);
 insert t1 values (1),(2);
+--source include/turn_off_only_full_group_by.inc
 select if(1>2,a,avg(a)) from t1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1;
 
 #
@@ -97,7 +99,9 @@ DROP TABLE t1;
 #
 create table t1 (f1 int, f2 int);
 insert into t1 values(1,1),(0,0);
+--source include/turn_off_only_full_group_by.inc
 select f1, f2, if(f1, 40.0, 5.00) from t1 group by f1 order by f2;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1;
 
 #

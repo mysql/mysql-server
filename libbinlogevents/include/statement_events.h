@@ -500,7 +500,7 @@ public:
   /* data members defined in order they are packed and written into the log */
   uint32_t thread_id;
   uint32_t query_exec_time;
-  uint32_t db_len;
+  size_t db_len;
   uint16_t error_code;
   /*
     We want to be able to store a variable number of N-bit status vars:
@@ -572,7 +572,7 @@ public:
     it reads this augmented event. SQL thread does not write
     Q_MASTER_DATA_WRITTEN_CODE to the slave's server binlog.
   */
-  uint32_t master_data_written;
+  size_t master_data_written;
 
   /*
     number of updated databases by the query and their names. This info

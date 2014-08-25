@@ -381,9 +381,10 @@ public:
 
       DBUG_EXECUTE_IF("show_io_cache_size",
                       {
-                        ulong file_size= my_seek(cache_log.file,
-                                               0L,MY_SEEK_END,MYF(MY_WME+MY_FAE));
-                        sql_print_error("New size:%ld", file_size);
+                        my_off_t file_size= my_seek(cache_log.file,
+                                                    0L,MY_SEEK_END,MYF(MY_WME+MY_FAE));
+                        sql_print_error("New size:%llu",
+                                        static_cast<ulonglong>(file_size));
                       });
     }
 
@@ -2333,7 +2334,7 @@ int log_loaded_block(IO_CACHE* file)
     lf_info->last_pos_in_file= my_b_get_pos_in_file(file);
     if (lf_info->wrote_create_file)
     {
-      Append_block_log_event a(lf_info->thd, lf_info->thd->db, buffer,
+      Append_block_log_event a(lf_info->thd, lf_info->thd->db().str, buffer,
                                min(block_len, max_event_size),
                                lf_info->log_delayed);
       if (mysql_bin_log.write_event(&a))
@@ -2341,7 +2342,7 @@ int log_loaded_block(IO_CACHE* file)
     }
     else
     {
-      Begin_load_query_log_event b(lf_info->thd, lf_info->thd->db,
+      Begin_load_query_log_event b(lf_info->thd, lf_info->thd->db().str,
                                    buffer,
                                    min(block_len, max_event_size),
                                    lf_info->log_delayed);
@@ -4087,7 +4088,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   int error= 0;
   char *full_fname= linfo->log_file_name;
   char full_log_name[FN_REFLEN], fname[FN_REFLEN];
-  uint log_name_len= 0, fname_len= 0;
+  size_t log_name_len= 0, fname_len= 0;
   DBUG_ENTER("find_log_pos");
   full_log_name[0]= full_fname[0]= 0;
 
@@ -4110,7 +4111,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
     }
   }
 
-  log_name_len= log_name ? (uint) strlen(full_log_name) : 0;
+  log_name_len= log_name ? strlen(full_log_name) : 0;
   DBUG_PRINT("enter", ("log_name: %s, full_log_name: %s", 
                        log_name ? log_name : "NULL", full_log_name));
 
@@ -4138,7 +4139,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
       error= LOG_INFO_EOF;
       break;
     }
-    fname_len= (uint) strlen(full_fname);
+    fname_len= strlen(full_fname);
 
     // if the log entry matches, null string matching anything
     if (!log_name ||
@@ -4219,6 +4220,37 @@ err:
   return error;
 }
 
+/**
+  Find the relay log name following the given name from relay log index file.
+
+  @param[in|out] log_name  The name is full path name.
+
+  @return return 0 if it finds next relay log. Otherwise return the error code.
+*/
+int MYSQL_BIN_LOG::find_next_relay_log(char log_name[FN_REFLEN+1])
+{
+  LOG_INFO info;
+  int error;
+  char relative_path_name[FN_REFLEN+1];
+
+  if (fn_format(relative_path_name, log_name+dirname_length(log_name),
+                mysql_data_home, "", 0)
+      == NullS)
+    return 1;
+
+  mysql_mutex_lock(&LOCK_index);
+
+  error= find_log_pos(&info, relative_path_name, false);
+  if (error == 0)
+  {
+    error= find_next_log(&info, false);
+    if (error == 0)
+      strcpy(log_name, info.log_file_name);
+  }
+
+  mysql_mutex_unlock(&LOCK_index);
+  return error;
+}
 
 /**
   Removes files, as part of a RESET MASTER or RESET SLAVE statement,
@@ -6009,8 +6041,8 @@ uint MYSQL_BIN_LOG::next_file_id()
   @return 0 or number of unprocessed yet bytes of the event excluding 
             the checksum part.
 */
-  static ulong fix_log_event_crc(uchar *buf, uint off, uint event_len,
-                                 uint length, ha_checksum *crc)
+  static ulong fix_log_event_crc(uchar *buf, uint off, size_t event_len,
+                                 size_t length, ha_checksum *crc)
 {
   ulong ret;
   uchar *event_begin= buf + off;
@@ -8415,7 +8447,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
   */
   if (mysql_bin_log.is_open() && (variables.option_bits & OPTION_BIN_LOG) &&
       !(variables.binlog_format == BINLOG_FORMAT_STMT &&
-        !binlog_filter->db_ok(db)))
+        !binlog_filter->db_ok(m_db.str)))
   {
     /*
       Compute one bit field with the union of all the engine
@@ -8868,7 +8900,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
                         mysql_bin_log.is_open(),
                         (variables.option_bits & OPTION_BIN_LOG),
                         variables.binlog_format,
-                        binlog_filter->db_ok(db)));
+                        binlog_filter->db_ok(m_db.str)));
 #endif
 
   DBUG_RETURN(0);

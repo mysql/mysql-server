@@ -22,9 +22,20 @@
 #include <set>
 #include <string>
 
+#include <fenv.h>
+#include <signal.h>
+#ifdef HAVE_PWD_H
+#include <pwd.h>
+#endif
+#ifdef HAVE_GRP_H
+#include <grp.h>
+#endif
+#ifdef _WIN32
+#include <crtdbg.h>
+#endif
+
 #include "sql_priv.h"
 #include "unireg.h"
-#include <signal.h>
 #include "sql_parse.h"    // test_if_data_home_dir
 #include "sql_cache.h"    // query_cache, query_cache_*
 #include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
@@ -90,82 +101,26 @@
 #include <mysql/psi/mysql_statement.h>
 
 #include "mysql_com_server.h"
-
 #include "keycaches.h"
 #include "../storage/myisam/ha_myisam.h"
 #include "set_var.h"
-
 #include "sys_vars_shared.h"
-
 #include "rpl_injector.h"
-
 #include "rpl_handler.h"
-
-#ifdef HAVE_SYS_PRCTL_H
-#include <sys/prctl.h>
-#endif
-
 #include <ft_global.h>
 #include <errmsg.h>
 #include "sp_rcontext.h"
 #include "sql_reload.h"  // reload_acl_and_cache
 #include "sp_head.h"  // init_sp_psi_keys
 #include "event_data_objects.h" //init_scheduler_psi_keys
-
 #include "my_timer.h"    // my_timer_init, my_timer_deinit
-
-#ifdef HAVE_POLL_H
-#include <poll.h>
-#endif
-
-#include <fenv.h>
 #include "table_cache.h"                // table_cache_manager
 #include "connection_acceptor.h"        // Connection_acceptor
 #include "connection_handler_impl.h"    // *_connection_handler
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "socket_connection.h"          // Mysqld_socket_listener
 #include "mysqld_thd_manager.h"         // Global_THD_manager
-
-using std::min;
-using std::max;
-using std::vector;
-
-#define mysqld_charset &my_charset_latin1
-
-#include <errno.h>
-#include <sys/stat.h>
-#ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__       // Skip warnings in getopt.h
-#endif
-#include <my_getopt.h>
-#ifdef HAVE_PWD_H
-#include <pwd.h>        // For getpwent
-#endif
-#ifdef HAVE_GRP_H
-#include <grp.h>
-#endif
-#include <my_net.h>
-
-#if !defined(_WIN32)
-#ifdef HAVE_SYS_RESOURCE_H
-#include <sys/resource.h>
-#endif
-#ifdef HAVE_SYS_UN_H
-#include <sys/un.h>
-#endif
-#ifdef HAVE_SYS_SELECT_H
-#include <sys/select.h>
-#endif
-#include <sys/utsname.h>
-#endif /* _WIN32 */
-
-#ifdef HAVE_SYS_MMAN_H
-#include <sys/mman.h>
-#endif
-
-#ifdef _WIN32
-#include <crtdbg.h>
-#endif
+#include "my_getopt.h"
 
 #ifdef _WIN32
 #include "named_pipe.h"
@@ -173,30 +128,24 @@ using std::vector;
 #include "shared_memory_connection.h"
 #endif
 
-#ifdef HAVE_SOLARIS_LARGE_PAGES
-#include <sys/mman.h>
-#if defined(__sun__) && defined(__GNUC__) && defined(__cplusplus) \
-    && defined(_XOPEN_SOURCE)
-extern "C" int getpagesizes(size_t *, int);
-extern "C" int getpagesizes2(size_t *, int);
-extern "C" int memcntl(caddr_t, size_t, int, caddr_t, int, int);
-#endif /* __sun__ ... */
-#endif /* HAVE_SOLARIS_LARGE_PAGES */
+using std::min;
+using std::max;
+using std::vector;
 
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
-#include <ieeefp.h>
-#ifdef HAVE_FP_EXCEPT       // Fix type conflict
-typedef fp_except fp_except_t;
+#define mysqld_charset &my_charset_latin1
+
+#if defined(HAVE_SOLARIS_LARGE_PAGES) && defined(__GNUC__)
+extern "C" int getpagesizes(size_t *, int);
+extern "C" int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 #endif
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
+
 #ifdef HAVE_FPU_CONTROL_H
-#include <fpu_control.h>
-#endif
-#if defined(__i386__) && !defined(HAVE_FPU_CONTROL_H)
+# include <fpu_control.h>
+#elif defined(__i386__)
 # define fpu_control_t unsigned int
 # define _FPU_EXTENDED 0x300
 # define _FPU_DOUBLE 0x200
-# if defined(__GNUC__) || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
+# if defined(__GNUC__) || defined(__SUNPRO_CC)
 #  define _FPU_GETCW(cw) asm volatile ("fnstcw %0" : "=m" (*&cw))
 #  define _FPU_SETCW(cw) asm volatile ("fldcw %0" : : "m" (*&cw))
 # else
@@ -207,26 +156,11 @@ typedef fp_except fp_except_t;
 
 inline void setup_fpu()
 {
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
-  /* We can't handle floating point exceptions with threads, so disable
-     this on freebsd
-     Don't fall for overflow, underflow,divide-by-zero or loss of precision.
-     fpsetmask() is deprecated in favor of fedisableexcept() in C99.
-  */
-#if defined(FP_X_DNML)
-  fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL | FP_X_DZ |
-        FP_X_IMP));
-#else
-  fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
-              FP_X_IMP));
-#endif /* FP_X_DNML */
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
-
 #ifdef HAVE_FEDISABLEEXCEPT
   fedisableexcept(FE_ALL_EXCEPT);
 #endif
 
-    /* Set FPU rounding mode to "round-to-nearest" */
+  /* Set FPU rounding mode to "round-to-nearest" */
   fesetround(FE_TONEAREST);
 
   /*
@@ -249,10 +183,6 @@ inline void setup_fpu()
 #endif /* __i386__ */
 
 }
-
-#ifdef SOLARIS
-extern "C" int gethostname(char *name, int namelen);
-#endif
 
 #ifndef EMBEDDED_LIBRARY
 extern "C" void handle_fatal_signal(int sig);
@@ -1014,7 +944,7 @@ static const char* default_dbug_option;
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
 
-my_bool opt_use_ssl  = 0;
+my_bool opt_use_ssl= 1;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_cipher= NULL, *opt_ssl_key= NULL, *opt_ssl_crl= NULL,
      *opt_ssl_crlpath= NULL;
@@ -3391,6 +3321,8 @@ static int init_ssl()
 #ifdef HAVE_OPENSSL
 #ifndef HAVE_YASSL
   CRYPTO_malloc_init();
+  if (do_auto_cert_generation() == false)
+    return 1;
 #endif
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
@@ -5600,7 +5532,7 @@ struct my_option my_long_options[]=
 #ifdef HAVE_OPENSSL
   {"ssl", 0,
    "Enable SSL for connection (automatically enabled with other flags).",
-   &opt_use_ssl, &opt_use_ssl, 0, GET_BOOL, OPT_ARG, 0, 0, 0,
+   &opt_use_ssl, &opt_use_ssl, 0, GET_BOOL, OPT_ARG, 1, 0, 0,
    0, 0, 0},
 #endif
 #ifdef _WIN32
@@ -7480,7 +7412,7 @@ static char *get_relative_path(const char *path)
       is_prefix(path,DEFAULT_MYSQL_HOME) &&
       strcmp(DEFAULT_MYSQL_HOME,FN_ROOTDIR))
   {
-    path+=(uint) strlen(DEFAULT_MYSQL_HOME);
+    path+= strlen(DEFAULT_MYSQL_HOME);
     while (*path == FN_LIBCHAR || *path == FN_LIBCHAR2)
       path++;
   }

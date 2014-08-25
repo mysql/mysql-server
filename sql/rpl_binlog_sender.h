@@ -408,7 +408,7 @@ private:
    * @param extra_size  The size in bytes that the caller wants to add to the buffer.
    * @return true if an error occurred, false otherwise.
    */
-  inline bool grow_packet(uint32 extra_size);
+  inline bool grow_packet(size_t extra_size);
 
   /**
    * This function SHALL shrink the size of the buffer used.

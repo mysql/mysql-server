@@ -870,8 +870,8 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
   memcpy(s, sf->end, sf->end_length);
   s += sf->end_length;
   *s= '\0';
-  DBUG_PRINT("info", ("ret='%s' strlen(s)=%lu s-buf=%lu get_string_length=%d", buf,
-             (ulong) strlen(buf), (ulong) (s - buf), get_string_length(sf)));
+  DBUG_PRINT("info", ("ret='%s' strlen(s)=%zu s-buf=%lu get_string_length=%d", buf,
+             strlen(buf), (ulong) (s - buf), get_string_length(sf)));
   DBUG_ASSERT(s - buf == get_string_length(sf));
   DBUG_RETURN((int)(s - buf));
 }

@@ -4564,5 +4564,90 @@ DROP TABLES tm, t2, t3, t1;
 --disable_connect_log
 
 
+--echo #
+--echo # Test for bug #11764618 "DEADLOCK WHEN DDL UNDER LOCK TABLES
+--echo #                         WRITE, READ + PREPARE".
+--echo #
+--enable_connect_log
+connect (con1,localhost,root,,test,,);
+connect (con2,localhost,root,,test,,);
+connect (con3,localhost,root,,test,,);
+connection default;
+
+create table t1(i int);
+create table t2(i int);
+create table t3(i int);
+create table t4(i int);
+
+lock tables t1 write, t3 read;
+
+connection con1;
+begin;
+select count(*) from t4;
+--echo # Sending:
+--send insert into t3 values (1);
+
+connection con2;
+--echo # Wait until 'con1' acquires SR metadata lock on 't4'
+--echo # and blocks on 't3'. Before WL#6671 waiting has happened
+--echo # on THR_LOCK lock which led to deadlock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "insert into t3 values (1)";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send rename table t2 to t0, t4 to t2, t0 to t4;
+
+connection con3;
+--echo # Wait until RENAME acquires X metadata lock on 't2'
+--echo # and blocks on 't4'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t2 to t0, t4 to t2, t0 to t4";
+--source include/wait_condition.inc
+
+--echo # Sending:
+--send prepare stmt1 from 'select * from t1, t2';
+
+connection default;
+--echo # Wait until PREPARE acquires S metadata lock on 't1'
+--echo # and blocks on 't2'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "select * from t1, t2";
+--source include/wait_condition.inc
+
+--echo # This ALTER TABLE upgrades SNRW lock on t1 to X lock.
+--echo # In the past this caused deadlock.
+alter table t1 add column j int;
+
+unlock tables;
+
+connection con1;
+--echo # Reap INSERT
+--reap
+commit;
+
+connection con2;
+--echo # Reap RENAME
+--reap
+
+connection con3;
+--echo # Reap PREPARE
+--reap
+
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+drop tables t1, t2, t3, t4;
+
+--disable_connect_log
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

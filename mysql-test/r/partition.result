@@ -2561,9 +2561,7 @@ FROM t1
 WHERE c > geomfromtext('point(1 1)')
 GROUP BY b
 );
-1
-1
-1
+ERROR HY000: Incorrect arguments to >
 DROP TABLE t1;
 #
 # WL#5855 (EXPLAIN FORMAT=JSON) partition test

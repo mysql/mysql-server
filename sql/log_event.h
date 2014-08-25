@@ -800,7 +800,7 @@ public:
 #endif /* HAVE_REPLICATION */
   virtual const char* get_db()
   {
-    return thd ? thd->db : 0;
+    return thd ? thd->db().str : NULL;
   }
 #else // ifdef MYSQL_SERVER
  /* Log_event(Log_event_header *header, Log_event_footer *footer,
@@ -963,35 +963,6 @@ public:
   /* Return start of query time or current time */
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-
-private:
-
-  /*
-    possible decisions by get_mts_execution_mode().
-    The execution mode can be PARALLEL or not (thereby sequential
-    unless impossible at all). When it's sequential it further  breaks into
-    ASYNChronous and SYNChronous.
-  */
-  enum enum_mts_event_exec_mode
-  {
-    /*
-      Event is run by a Worker.
-    */
-    EVENT_EXEC_PARALLEL,
-    /*
-      Event is run by Coordinator.
-    */
-    EVENT_EXEC_ASYNC,
-    /*
-      Event is run by Coordinator and requires synchronization with Workers.
-    */
-    EVENT_EXEC_SYNC,
-    /*
-      Event can't be executed neither by Workers nor Coordinator.
-    */
-    EVENT_EXEC_CAN_NOT
-  };
-
   /**
      Is called from get_mts_execution_mode() to
 
@@ -1021,6 +992,34 @@ private:
 
       get_type_code() == binary_log::INCIDENT_EVENT;
   }
+
+private:
+
+  /*
+    possible decisions by get_mts_execution_mode().
+    The execution mode can be PARALLEL or not (thereby sequential
+    unless impossible at all). When it's sequential it further  breaks into
+    ASYNChronous and SYNChronous.
+  */
+  enum enum_mts_event_exec_mode
+  {
+    /*
+      Event is run by a Worker.
+    */
+    EVENT_EXEC_PARALLEL,
+    /*
+      Event is run by Coordinator.
+    */
+    EVENT_EXEC_ASYNC,
+    /*
+      Event is run by Coordinator and requires synchronization with Workers.
+    */
+    EVENT_EXEC_SYNC,
+    /*
+      Event can't be executed neither by Workers nor Coordinator.
+    */
+    EVENT_EXEC_CAN_NOT
+  };
 
   /**
      MTS Coordinator finds out a way how to execute the current event.
@@ -1057,25 +1056,6 @@ private:
   */
   Slave_worker *get_slave_worker(Relay_log_info *rli);
 
-  /**
-     The method fills in pointers to event's database name c-strings
-     to a supplied array.
-     In other than Query-log-event case the returned array contains
-     just one item.
-     @param[out] arg pointer to a struct containing char* array
-                     pointers to be filled in and the number
-                     of filled instances.
-
-     @return     number of the filled intances indicating how many
-                 databases the event accesses.
-  */
-  virtual uint8 get_mts_dbs(Mts_db_names *arg)
-  {
-    arg->name[0]= get_db();
-
-    return arg->num= mts_number_dbs();
-  }
-
   /*
     Group of events can be marked to force its execution
     in isolation from any other Workers.
@@ -1095,6 +1075,25 @@ private:
 
 
 public:
+  /**
+     The method fills in pointers to event's database name c-strings
+     to a supplied array.
+     In other than Query-log-event case the returned array contains
+     just one item.
+     @param[out] arg pointer to a struct containing char* array
+                     pointers to be filled in and the number
+                     of filled instances.
+
+     @return     number of the filled intances indicating how many
+                 databases the event accesses.
+  */
+  virtual uint8 get_mts_dbs(Mts_db_names *arg)
+  {
+    arg->name[0]= get_db();
+
+    return arg->num= mts_number_dbs();
+  }
+
 
   /**
      @return TRUE  if events carries partitioning data (database names).
@@ -1335,7 +1334,6 @@ public:
     thread id (fix for BUG#1686).
   */
   my_thread_id slave_proxy_id;
-
 
 #ifdef MYSQL_SERVER
 
