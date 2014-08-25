@@ -58,7 +58,7 @@ int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,
   {
     fprintf(stderr,
 	    "safe_mutex:  Count was %d in thread 0x%x when locking mutex at %s, line %d\n",
-	    mp->count-1, my_thread_dbug_id(), file, line);
+	    mp->count-1, mysys_thread_var()->id, file, line);
     fflush(stderr);
     abort();
   }
@@ -96,7 +96,7 @@ int safe_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,
   {
     fprintf(stderr,
 	    "safe_mutex:  Count was %d in thread 0x%x when locking mutex at %s, line %d (error: %d (%d))\n",
-	    mp->count-1, my_thread_dbug_id(), file, line, error, error);
+	    mp->count-1, mysys_thread_var()->id, file, line, error, error);
     fflush(stderr);
     abort();
   }
