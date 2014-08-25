@@ -397,7 +397,6 @@ static SYMBOL symbols[] = {
   { "NO",                       SYM(NO_SYM)},
   { "NO_WAIT",                  SYM(NO_WAIT_SYM)},
   { "NODEGROUP",                SYM(NODEGROUP_SYM)},
-  { "NONBLOCKING",              SYM(NONBLOCKING_SYM)},
   { "NONE",                     SYM(NONE_SYM)},
   { "NOT",                      SYM(NOT_SYM)},
   { "NO_WRITE_TO_BINLOG",       SYM(NO_WRITE_TO_BINLOG)},
