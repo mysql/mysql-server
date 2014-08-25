@@ -52,6 +52,7 @@ insert into t2 values (107),(75),(1000);
 
 select t1.id, t2.id from t1, t2 where t2.id = t1.id;
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t1.id;
+# We see the functional dependency implied by WHERE!
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t2.id;
 
 #
@@ -1006,8 +1007,10 @@ WHERE v1.i2 = 211
 GROUP BY t1.pk
 ORDER BY v1.i2;
 
+--source include/turn_off_only_full_group_by.inc
 eval EXPLAIN $query;
 eval $query;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 let query=
 SELECT t1.pk

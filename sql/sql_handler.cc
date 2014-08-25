@@ -88,8 +88,9 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *table);
     Pointer to the TABLE_LIST struct.
 */
 
-static char *mysql_ha_hash_get_key(TABLE_LIST *tables, size_t *key_len_p,
-                                   my_bool first __attribute__((unused)))
+static const char *mysql_ha_hash_get_key(TABLE_LIST *tables,
+                                         size_t *key_len_p,
+                                         my_bool first __attribute__((unused)))
 {
   *key_len_p= strlen(tables->alias) + 1 ; /* include '\0' in comparisons */
   return tables->alias;
@@ -239,9 +240,11 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   hash_tables->db= db;
   hash_tables->table_name= name;
   hash_tables->alias= alias;
-  memcpy(hash_tables->db, tables->db, dblen);
-  memcpy(hash_tables->table_name, tables->table_name, namelen);
-  memcpy(hash_tables->alias, tables->alias, aliaslen);
+  hash_tables->set_tableno(0);
+  memcpy(const_cast<char*>(hash_tables->db), tables->db, dblen);
+  memcpy(const_cast<char*>(hash_tables->table_name),
+         tables->table_name, namelen);
+  memcpy(const_cast<char*>(hash_tables->alias), tables->alias, aliaslen);
   /*
     We can't request lock with explicit duration for this table
     right from the start as open_tables() can't handle properly
@@ -252,7 +255,6 @@ bool Sql_cmd_handler_open::execute(THD *thd)
                    MDL_TRANSACTION);
   /* for now HANDLER can be used only for real TABLES */
   hash_tables->required_type= FRMTYPE_TABLE;
-
   /* add to hash */
   if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
   {
@@ -477,11 +479,8 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   }
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  if (tables &&
-      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
-  {
+  if (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
     DBUG_RETURN(true);
-  }
 
   /*
     There is no need to check for table permissions here, because
@@ -576,13 +575,6 @@ retry:
     if (error)
       goto err0;
   }
-
-  /*
-     Table->map should be set before we call fix_fields.
-     And we consider that handle statement operate on table number 0.
-  */
-  table->tablenr= 0;
-  table->map= (table_map)1 << table->tablenr;
 
   /* save open_tables state */
   backup_open_tables= thd->open_tables;

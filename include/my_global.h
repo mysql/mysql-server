@@ -21,23 +21,14 @@
 
 #include "my_config.h"
 
+#define __STDC_LIMIT_MACROS	/* Enable C99 limit macros */
+#define __STDC_FORMAT_MACROS	/* Enable C99 printf format macros */
+
 #ifdef _WIN32
 /* Include common headers.*/
 # include <winsock2.h>
 # include <ws2tcpip.h> /* SOCKET */
 # include <io.h>       /* access(), chmod() */
-# include <process.h>  /* getpid() */
-#endif
-
-/*
-  Temporary solution to solve bug#7156. Include "sys/types.h" before
-  the thread headers, else the function madvise() will not be defined
-*/
-#include <sys/types.h>
-
-#if !defined(_WIN32)
-# include <pthread.h>
-# include <dlfcn.h>
 #endif
 
 #include <stdio.h>
@@ -47,26 +38,16 @@
 #include <math.h>
 #include <limits.h>
 #include <float.h>
-#include <fenv.h> /* For fesetround() */
 #include <fcntl.h>
 #include <time.h>
 #include <errno.h>				/* Recommended by debian */
+#include <sys/types.h>
 
-#if TIME_WITH_SYS_TIME
-# include <sys/time.h>
-#endif
-#ifdef HAVE_UNISTD_H
-# include <unistd.h>
-#endif
-#ifdef HAVE_ALLOCA_H
-# include <alloca.h>
-#endif
-/* We need the following to go around a problem with openssl on solaris */
-#if defined(HAVE_CRYPT_H)
-# include <crypt.h>
-#endif
 #ifdef HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
+#include <sys/socket.h>
+#endif
+#if !defined(_WIN32)
+#include <netdb.h>
 #endif
 
 /*
@@ -136,6 +117,15 @@
 #define F_WRLCK 2
 #define F_UNLCK 3
 #define F_TO_EOF 0x3FFFFFFF
+
+#define O_NONBLOCK 1    /* For emulation of fcntl() */
+
+/*
+  SHUT_RDWR is called SD_BOTH in windows and
+  is defined to 2 in winsock2.h
+  #define SD_BOTH 0x02
+*/
+#define SHUT_RDWR 0x02
 
 /* Shared memory and named pipe connections are supported. */
 #define shared_memory_buffer_length 16000
@@ -642,14 +632,6 @@ typedef char		my_bool; /* Small bool */
 #define MY_MAX(a, b)	((a) > (b) ? (a) : (b))
 #define MY_MIN(a, b)	((a) < (b) ? (a) : (b))
 
-/*
-  Only Linux is known to need an explicit sync of the directory to make sure a
-  file creation/deletion/renaming in(from,to) this directory durable.
-*/
-#ifdef __linux__
-#define NEED_EXPLICIT_SYNC_DIR 1
-#endif
-
 #if !defined(__cplusplus) && !defined(bool)
 #define bool In_C_you_should_use_my_bool_instead()
 #endif
@@ -686,7 +668,7 @@ enum loglevel {
 ** Replacements for localtime_r and gmtime_r
 ****************************************************************************/
 
-static inline struct tm *localtime_r(const time_t *timep,struct tm *tmp)
+static inline struct tm *localtime_r(const time_t *timep, struct tm *tmp)
 {
   localtime_s(tmp, timep);
   return tmp;
@@ -700,85 +682,80 @@ static inline struct tm *gmtime_r(const time_t *clock, struct tm *res)
 
 
 /*
-   Declare a union to make sure FILETIME is properly aligned
-   so it can be used directly as a 64 bit value. The value
-   stored is in 100ns units.
- */
- union ft64 {
+  Declare a union to make sure FILETIME is properly aligned
+  so it can be used directly as a 64 bit value. The value
+  stored is in 100ns units.
+*/
+union ft64 {
   FILETIME ft;
   __int64 i64;
  };
+
 struct timespec {
   union ft64 tv;
   /* The max timeout value in millisecond for native_cond_timedwait */
   long max_timeout_msec;
 };
-#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {          \
-  (ABSTIME).tv.i64= (TIME)+(__int64)(NSEC)/100;                 \
-  (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000);           \
-} while(0)
-
-#define set_timespec_nsec(ABSTIME,NSEC) do {                    \
-  union ft64 tv;                                                \
-  GetSystemTimeAsFileTime(&tv.ft);                              \
-  set_timespec_time_nsec((ABSTIME), tv.i64, (NSEC));            \
-} while(0)
-
-/**
-   Compare two timespec structs.
-
-   @retval  1 If TS1 ends after TS2.
-
-   @retval  0 If TS1 is equal to TS2.
-
-   @retval -1 If TS1 ends before TS2.
-*/
-#define cmp_timespec(TS1, TS2) \
-  ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
-   ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
-
-#define diff_timespec(TS1, TS2) \
-  ((TS1.tv.i64 - TS2.tv.i64) * 100)
-
-#else /* _WIN32 */
-
-#define set_timespec_nsec(ABSTIME,NSEC)                                 \
-  set_timespec_time_nsec((ABSTIME),my_getsystime(),(NSEC))
-
-#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {                  \
-  ulonglong nsec= (NSEC);                                               \
-  ulonglong now= (TIME) + (nsec/100);                                   \
-  (ABSTIME).tv_sec=  (now / 10000000ULL);                          \
-  (ABSTIME).tv_nsec= (now % 10000000ULL * 100 + (nsec % 100));     \
-} while(0)
-
-/**
-   Compare two timespec structs.
-
-   @retval  1 If TS1 ends after TS2.
-
-   @retval  0 If TS1 is equal to TS2.
-
-   @retval -1 If TS1 ends before TS2.
-*/
-#define cmp_timespec(TS1, TS2) \
-  ((TS1.tv_sec > TS2.tv_sec || \
-    (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec > TS2.tv_nsec)) ? 1 : \
-   ((TS1.tv_sec < TS2.tv_sec || \
-     (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec < TS2.tv_nsec)) ? -1 : 0))
-
-#define diff_timespec(TS1, TS2) \
-  ((TS1.tv_sec - TS2.tv_sec) * 1000000000ULL + TS1.tv_nsec - TS2.tv_nsec)
 
 #endif /* _WIN32 */
 
-/*
-  The defines set_timespec and set_timespec_nsec should be used
-  for calculating an absolute time at which
-  pthread_cond_timedwait should timeout
+C_MODE_START
+extern ulonglong my_getsystime(void);
+C_MODE_END
+
+static inline void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
+{
+#ifndef _WIN32
+  ulonglong now= my_getsystime() + (nsec / 100);
+  abstime->tv_sec=   now / 10000000ULL;
+  abstime->tv_nsec= (now % 10000000ULL) * 100 + (nsec % 100);
+#else
+  union ft64 tv;
+  GetSystemTimeAsFileTime(&tv.ft);
+  abstime->tv.i64= tv.i64 + (__int64)(nsec / 100);
+  abstime->max_timeout_msec= (long)(nsec / 1000000);
+#endif
+}
+
+static inline void set_timespec(struct timespec *abstime, ulonglong sec)
+{
+  set_timespec_nsec(abstime, sec * 1000000000ULL);
+}
+
+/**
+   Compare two timespec structs.
+
+   @retval  1 If ts1 ends after ts2.
+   @retval -1 If ts1 ends before ts2.
+   @retval  0 If ts1 is equal to ts2.
 */
-#define set_timespec(ABSTIME,SEC) \
-  set_timespec_nsec((ABSTIME),(SEC)*1000000000ULL)
+static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2)
+{
+#ifndef _WIN32
+  if (ts1->tv_sec > ts2->tv_sec ||
+      (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec > ts2->tv_nsec))
+    return 1;
+  if (ts1->tv_sec < ts2->tv_sec ||
+      (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec < ts2->tv_nsec))
+    return -1;
+#else
+  if (ts1->tv.i64 > ts2->tv.i64)
+    return 1;
+  if (ts1->tv.i64 < ts2->tv.i64)
+    return -1;
+#endif
+  return 0;
+}
+
+static inline ulonglong diff_timespec(struct timespec *ts1, struct timespec *ts2)
+{
+#ifndef _WIN32
+  return (ts1->tv_sec - ts2->tv_sec) * 1000000000ULL +
+    ts1->tv_nsec - ts2->tv_nsec;
+#else
+  return (ts1->tv.i64 - ts2->tv.i64) * 100;
+#endif
+}
 
 /* File permissions */
 #define USER_READ       (1L << 0)

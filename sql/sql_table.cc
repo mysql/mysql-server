@@ -57,10 +57,6 @@
 #include "sql_trigger.h"               // change_trigger_table_name
 #include <mysql/psi/mysql_table.h>
 
-#ifdef _WIN32
-#include <io.h>
-#endif
-
 #include <algorithm>
 using std::max;
 using std::min;
@@ -2214,7 +2210,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                             bool dont_log_query)
 {
   TABLE_LIST *table;
-  char path[FN_REFLEN + 1], *alias= NULL;
+  char path[FN_REFLEN + 1];
+  const char *alias= NULL;
   size_t path_length= 0;
   String wrong_tables;
   int error= 0;
@@ -2296,7 +2293,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table= tables; table; table= table->next_local)
   {
     bool is_trans;
-    char *db=table->db;
+    const char *db= table->db;
     size_t db_len= table->db_length;
     handlerton *table_type;
     enum legacy_db_type frm_db_type= DB_TYPE_UNKNOWN;
@@ -2364,7 +2361,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           thd->db is NULL or 'IF EXISTS' clause is present in 'DROP TEMPORARY'
           query.
         */
-        if (thd->db == NULL || strcmp(db,thd->db) != 0
+        if (thd->db().str == NULL || strcmp(db, thd->db().str) != 0
             || is_drop_tmp_if_exists_added )
         {
           append_identifier(thd, built_ptr_query, db, db_len,
@@ -2433,7 +2430,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           Don't write the database name if it is the current one (or if
           thd->db is NULL).
         */
-        if (thd->db == NULL || strcmp(db,thd->db) != 0)
+        if (thd->db().str == NULL || strcmp(db, thd->db().str) != 0)
         {
           append_identifier(thd, &built_query, db, db_len,
                             system_charset_info, thd->charset());
@@ -8022,7 +8019,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   based on information about the table changes from fill_alter_inplace_info().
 */
 
-bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
+bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info)
@@ -8277,7 +8274,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     DBUG_RETURN(true);
   }
 
-  set_table_default_charset(thd, create_info, alter_ctx.db);
+  set_table_default_charset(thd, create_info, const_cast<char*>(alter_ctx.db));
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (fast_alter_partition)
@@ -8318,11 +8315,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       DBUG_RETURN(true);
     }
 
+    char* table_name= const_cast<char*>(alter_ctx.table_name);
     // In-place execution of ALTER TABLE for partitioning.
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
-                                           alter_ctx.db,
-                                           alter_ctx.table_name));
+                                           const_cast<char*>(alter_ctx.db),
+                                           table_name));
   }
 #endif
 

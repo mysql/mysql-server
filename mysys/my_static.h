@@ -21,9 +21,9 @@
   a shared library
 */
 
-C_MODE_START
-#include <signal.h>
+#include "my_global.h"
 
+C_MODE_START
 extern char curr_dir[FN_REFLEN], home_dir_buff[FN_REFLEN];
 
 extern const char *soundex_map;
