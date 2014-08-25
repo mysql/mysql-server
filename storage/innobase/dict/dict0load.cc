@@ -2537,6 +2537,8 @@ func_exit:
 		}
 	}
 
+	ut_ad(err != DB_SUCCESS || dict_foreign_set_validate(*table));
+
 	return(table);
 }
 
