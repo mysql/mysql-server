@@ -1031,13 +1031,10 @@ retry:
 	);
 
 	/* Too many files are open, try to close some */
-close_more:
-	success = fil_try_to_close_file_in_LRU(print_info);
+	do {
+		success = fil_try_to_close_file_in_LRU(print_info);
 
-	if (success && fil_system->n_open >= fil_system->max_n_open) {
-
-		goto close_more;
-	}
+	} while (success && fil_system->n_open >= fil_system->max_n_open);
 
 	if (fil_system->n_open < fil_system->max_n_open) {
 		/* Ok */
