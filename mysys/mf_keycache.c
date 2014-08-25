@@ -288,7 +288,7 @@ static long keycache_thread_id;
              KEYCACHE_DBUG_PRINT(l,("|thread %ld",keycache_thread_id))
 
 #define KEYCACHE_THREAD_TRACE_BEGIN(l)                                        \
-            { struct st_my_thread_var *thread_var= my_thread_var;             \
+            { struct st_my_thread_var *thread_var= mysys_thread_var();        \
               keycache_thread_id= thread_var->id;                             \
               KEYCACHE_DBUG_PRINT(l,("[thread %ld",keycache_thread_id)) }
 
@@ -875,7 +875,7 @@ static void wait_on_queue(KEYCACHE_WQUEUE *wqueue,
                           mysql_mutex_t *mutex)
 {
   struct st_my_thread_var *last;
-  struct st_my_thread_var *thread= my_thread_var;
+  struct st_my_thread_var *thread= mysys_thread_var();
 
   /* Add to queue. */
   DBUG_ASSERT(!thread->next);
@@ -1413,7 +1413,7 @@ static void remove_reader(BLOCK_LINK *block)
 static void wait_for_readers(KEY_CACHE *keycache,
                              BLOCK_LINK *block)
 {
-  struct st_my_thread_var *thread= my_thread_var;
+  struct st_my_thread_var *thread= mysys_thread_var();
   DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
   DBUG_ASSERT(!(block->status & (BLOCK_IN_FLUSH | BLOCK_CHANGED)));
   DBUG_ASSERT(block->hash_link);
@@ -1564,7 +1564,7 @@ restart:
     else
     {
       /* Wait for a free hash link */
-      struct st_my_thread_var *thread= my_thread_var;
+      struct st_my_thread_var *thread= mysys_thread_var();
       KEYCACHE_PAGE page;
       KEYCACHE_DBUG_PRINT("get_hash_link", ("waiting"));
       page.file= file;
@@ -1732,7 +1732,7 @@ restart:
         Refresh the request on the hash-link so that it cannot be reused
         for another file/pos.
       */
-      thread= my_thread_var;
+      thread= mysys_thread_var();
       thread->opt_info= (void *) hash_link;
       link_into_queue(&keycache->waiting_for_block, thread);
       do
@@ -2079,7 +2079,7 @@ restart:
             it is marked BLOCK_IN_EVICTION.
           */
 
-          struct st_my_thread_var *thread= my_thread_var;
+          struct st_my_thread_var *thread= mysys_thread_var();
           thread->opt_info= (void *) hash_link;
           link_into_queue(&keycache->waiting_for_block, thread);
           do

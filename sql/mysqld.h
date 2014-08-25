@@ -312,23 +312,40 @@ extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
-  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
+  using my_set_thread_local()/my_get_thread_local().
 */
-extern pthread_key(MEM_ROOT**,THR_MALLOC);
+extern thread_local_key_t THR_MALLOC;
 extern bool THR_MALLOC_initialized;
 
-static inline MEM_ROOT **
-my_pthread_get_THR_MALLOC()
+static inline MEM_ROOT ** my_pthread_get_THR_MALLOC()
 {
   DBUG_ASSERT(THR_MALLOC_initialized);
-  return my_pthread_getspecific(MEM_ROOT **, THR_MALLOC);
+  return (MEM_ROOT**) my_get_thread_local(THR_MALLOC);
 }
 
-static inline int
-my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
+static inline int my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
 {
   DBUG_ASSERT(THR_MALLOC_initialized);
-  return my_pthread_setspecific_ptr(THR_MALLOC, hdl);
+  return my_set_thread_local(THR_MALLOC, hdl);
+}
+
+/*
+  THR_THD is a key which will be used to set/get THD* for a thread,
+  using my_set_thread_local()/my_get_thread_local().
+*/
+extern MYSQL_PLUGIN_IMPORT thread_local_key_t THR_THD;
+extern bool THR_THD_initialized;
+
+static inline THD * my_pthread_get_THR_THD()
+{
+  DBUG_ASSERT(THR_THD_initialized);
+  return (THD*)my_get_thread_local(THR_THD);
+}
+
+static inline int my_pthread_set_THR_THD(THD *thd)
+{
+  DBUG_ASSERT(THR_THD_initialized);
+  return my_set_thread_local(THR_THD, thd);
 }
 
 extern bool load_perfschema_engine;
@@ -780,23 +797,6 @@ extern int32 thread_running;
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
 
-extern MYSQL_PLUGIN_IMPORT pthread_key(THD*, THR_THD);
-extern bool THR_THD_initialized;
-
-static inline THD *
-my_pthread_get_THR_THD()
-{
-  DBUG_ASSERT(THR_THD_initialized);
-  return my_pthread_getspecific(THD *, THR_THD);
-}
-
-static inline int
-my_pthread_set_THR_THD(THD *thd)
-{
-  DBUG_ASSERT(THR_THD_initialized);
-  return my_pthread_setspecific_ptr(THR_THD, thd);
-}
-
 /**
   only options that need special treatment in get_one_option() deserve
   to be listed below
@@ -913,13 +913,7 @@ extern "C" void unireg_clear(int exit_code);
 extern "C" THD *_current_thd_noinline();
 #define _current_thd() _current_thd_noinline()
 #else
-/*
-  THR_THD is a key which will be used to set/get THD* for a thread,
-  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
-*/
-extern pthread_key(THD*, THR_THD);
-extern bool THR_THD_initialized;
-inline THD *_current_thd(void)
+static inline THD *_current_thd(void)
 {
   return my_pthread_get_THR_THD();
 }
