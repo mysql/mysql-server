@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -477,7 +477,7 @@ protected:
 		  my_bool using_transactions);
 
   /* Remove all queries that uses any of the tables in following database */
-  void invalidate(char *db);
+  void invalidate(const char *db);
 
   /* Remove all queries that uses any of the listed following table */
   void invalidate_by_MyISAM_filename(const char *filename);

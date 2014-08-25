@@ -650,9 +650,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     preserved for stored routines. However, at SAP/Walldorf meeting it was
     decided that current database should be preserved.
   */
-
   if (m_db.length &&
-      (err_status= mysql_opt_change_db(thd, &m_db, &saved_cur_db_name, FALSE,
+      (err_status= mysql_opt_change_db(thd, to_lex_cstring(m_db),
+                                       &saved_cur_db_name, false,
                                        &cur_db_changed)))
   {
     goto done;
@@ -791,10 +791,11 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     PSI_statement_locker_state psi_state;
     PSI_statement_info *psi_info = i->get_psi_info();
     PSI_statement_locker *parent_locker;
- 
+
     parent_locker= thd->m_statement_psi;
     thd->m_statement_psi= MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
-                                                thd->db, thd->db_length,
+                                                thd->db().str,
+                                                thd->db().length,
                                                 thd->charset(),
                                                 this->m_sp_share);
 #endif
@@ -962,7 +963,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       NULL. In this case, mysql_change_db() would generate an error.
     */
 
-    err_status|= mysql_change_db(thd, &saved_cur_db_name, TRUE);
+    err_status|= mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true);
   }
   m_flags&= ~IS_INVOKED;
   DBUG_PRINT("info",
@@ -995,8 +996,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
 
 bool sp_head::execute_trigger(THD *thd,
-                              const LEX_STRING *db_name,
-                              const LEX_STRING *table_name,
+                              const LEX_CSTRING &db_name,
+                              const LEX_CSTRING &table_name,
                               GRANT_INFO *grant_info)
 {
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
@@ -1033,8 +1034,8 @@ bool sp_head::execute_trigger(THD *thd,
 
   fill_effective_table_privileges(thd,
                                   grant_info,
-                                  db_name->str,
-                                  table_name->str);
+                                  db_name.str,
+                                  table_name.str);
 
   /* Check that the definer has TRIGGER privilege on the subject table. */
 
@@ -1045,7 +1046,7 @@ bool sp_head::execute_trigger(THD *thd,
 
     my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), priv_desc,
              thd->security_ctx->priv_user, thd->security_ctx->host_or_ip,
-             table_name->str);
+             table_name.str);
 
     m_security_ctx.restore_security_context(thd, save_ctx);
     DBUG_RETURN(true);

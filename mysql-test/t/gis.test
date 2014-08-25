@@ -8,7 +8,7 @@
 
 -- source include/have_geometry.inc
 
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 
 #
 # Spatial objects

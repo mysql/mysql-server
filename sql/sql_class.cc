@@ -46,9 +46,6 @@
 #include "sql_audit.h"
 #include <m_ctype.h>
 #include <sys/stat.h>
-#ifdef	_WIN32
-#include <io.h>
-#endif
 #include <mysys_err.h>
 #include <limits.h>
 
@@ -919,8 +916,7 @@ THD::THD(bool enable_plugins)
    mark_used_columns(MARK_COLUMNS_READ),
    lex(&main_lex),
    m_query_string(NULL_CSTR),
-   db(NULL),
-   db_length(0),
+   m_db(NULL_CSTR),
    rli_fake(0), rli_slave(NULL),
 #ifdef EMBEDDED_LIBRARY
    mysql(NULL),
@@ -975,7 +971,8 @@ THD::THD(bool enable_plugins)
                  global_system_variables.query_prealloc_size);
   stmt_arena= this;
   thread_stack= 0;
-  catalog= (char*)"std"; // the only catalog we have for now
+  m_catalog.str= "std";
+  m_catalog.length= 3;
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
   no_errors= 0;
@@ -1685,8 +1682,8 @@ THD::~THD()
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
-  my_free(db);
-  db= NULL;
+  my_free(const_cast<char*>(m_db.str));
+  m_db= NULL_CSTR;
   get_transaction()->free_memory(MYF(0));
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
@@ -2660,7 +2657,8 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 
   if (!dirname_length(exchange->file_name))
   {
-    strxnmov(path, FN_REFLEN-1, mysql_real_data_home, thd->db ? thd->db : "",
+    strxnmov(path, FN_REFLEN-1, mysql_real_data_home,
+             thd->db().str ? thd->db().str : "",
              NullS);
     (void) fn_format(path, exchange->file_name, path, "", option);
   }
@@ -3503,8 +3501,8 @@ static void delete_statement_as_hash_key(void *key)
 static uchar *get_stmt_name_hash_key(Prepared_statement *entry, size_t *length,
                                      my_bool not_used __attribute__((unused)))
 {
-  *length= entry->name.length;
-  return (uchar*) entry->name.str;
+  *length= entry->name().length;
+  return reinterpret_cast<uchar *>(const_cast<char *>(entry->name().str));
 }
 
 C_MODE_END
@@ -3538,7 +3536,7 @@ int Prepared_statement_map::insert(THD *thd, Prepared_statement *statement)
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     goto err_st_hash;
   }
-  if (statement->name.str && my_hash_insert(&names_hash, (uchar*) statement))
+  if (statement->name().str && my_hash_insert(&names_hash, (uchar*) statement))
   {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     goto err_names_hash;
@@ -3565,7 +3563,7 @@ int Prepared_statement_map::insert(THD *thd, Prepared_statement *statement)
   return 0;
 
 err_max:
-  if (statement->name.str)
+  if (statement->name().str)
     my_hash_delete(&names_hash, (uchar*) statement);
 err_names_hash:
   my_hash_delete(&st_hash, (uchar*) statement);
@@ -3574,10 +3572,11 @@ err_st_hash:
 }
 
 
-Prepared_statement *Prepared_statement_map::find_by_name(LEX_STRING *name)
+Prepared_statement
+*Prepared_statement_map::find_by_name(const LEX_CSTRING &name)
 {
   return reinterpret_cast<Prepared_statement*>
-    (my_hash_search(&names_hash, (uchar*)name->str, name->length));
+    (my_hash_search(&names_hash, (uchar*)name.str, name.length));
 }
 
 
@@ -3588,7 +3587,7 @@ Prepared_statement *Prepared_statement_map::find(ulong id)
     Prepared_statement *stmt=
       reinterpret_cast<Prepared_statement*>
       (my_hash_search(&st_hash, (uchar *) &id, sizeof(id)));
-    if (stmt && stmt->name.str)
+    if (stmt && stmt->name().str)
       return NULL;
     m_last_found_statement= stmt;
   }
@@ -3600,7 +3599,7 @@ void Prepared_statement_map::erase(Prepared_statement *statement)
 {
   if (statement == m_last_found_statement)
     m_last_found_statement= NULL;
-  if (statement->name.str)
+  if (statement->name().str)
     my_hash_delete(&names_hash, (uchar *) statement);
 
   my_hash_delete(&st_hash, (uchar *) statement);
@@ -4111,7 +4110,7 @@ extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 
 extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
 {
-  return binlog_filter->db_ok(thd->db);
+  return binlog_filter->db_ok(thd->db().str);
 }
 
 extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)

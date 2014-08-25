@@ -171,15 +171,15 @@ private:
   friend class PROFILING;
 
   QUERY_PROFILE *profile;
-  char *status;
+  const char *status;
 #ifdef HAVE_GETRUSAGE
   struct rusage rusage;
 #elif defined(_WIN32)
   FILETIME ftKernel, ftUser;
 #endif
 
-  char *function;
-  char *file;
+  const char *function;
+  const char *file;
   unsigned int line;
 
   ulong m_seq;
@@ -212,7 +212,7 @@ private:
   PROFILING *profiling;
 
   my_thread_id profiling_query_id;        /* Session-specific id. */
-  char *query_source;
+  LEX_STRING m_query_source;
 
   double m_start_time_usecs;
   double m_end_time_usecs;

@@ -127,8 +127,8 @@ Slave_worker::~Slave_worker()
   end_info();
   if (jobs.inited_queue)
   {
-    DBUG_ASSERT(jobs.Q.elements == jobs.size);
-    delete_dynamic(&jobs.Q);
+    DBUG_ASSERT(jobs.m_Q.size() == jobs.size);
+    jobs.m_Q.clear();
   }
   delete_dynamic(&curr_group_exec_parts);
   mysql_mutex_destroy(&jobs_lock);
@@ -153,8 +153,8 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
 {
   DBUG_ENTER("Slave_worker::init_worker");
   DBUG_ASSERT(!rli->info_thd->is_error());
-  uint k;
-  Slave_job_item empty= {NULL, 0, 0};
+
+  Slave_job_item empty= Slave_job_item();
 
   c_rli= rli;
   set_commit_order_manager(c_rli->get_commit_order_manager());
@@ -184,11 +184,8 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   jobs.inited_queue= true;
   curr_group_seen_begin= curr_group_seen_gtid= false;
 
-  my_init_dynamic_array(&jobs.Q, sizeof(Slave_job_item), jobs.size, 0);
-  for (k= 0; k < jobs.size; k++)
-    insert_dynamic(&jobs.Q, (uchar*) &empty);
-
-  DBUG_ASSERT(jobs.Q.elements == jobs.size);
+  jobs.m_Q.resize(jobs.size, empty);
+  DBUG_ASSERT(jobs.m_Q.size() == jobs.size);
 
   wq_overrun_cnt= excess_cnt= 0;
   underrun_level= (ulong) ((rli->mts_worker_underrun_level * jobs.size) / 100.0);
@@ -1198,7 +1195,8 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
            [0, size) (value `size' is excluded) range.
 */
 
-ulong circular_buffer_queue::de_queue(uchar *val)
+template <typename Element_type>
+ulong circular_buffer_queue<Element_type>::de_queue(Element_type *val)
 {
   ulong ret;
   if (entry == size)
@@ -1208,7 +1206,7 @@ ulong circular_buffer_queue::de_queue(uchar *val)
   }
 
   ret= entry;
-  get_dynamic(&Q, val, entry);
+  *val= m_Q[entry];
   len--;
 
   // pre boundary cond
@@ -1234,7 +1232,8 @@ ulong circular_buffer_queue::de_queue(uchar *val)
    return  the queue's array index that the de-queued item
            located at, or an error.
 */
-ulong circular_buffer_queue::de_tail(uchar *val)
+template <typename Element_type>
+ulong circular_buffer_queue<Element_type>::de_tail(Element_type *val)
 {
   if (entry == size)
   {
@@ -1243,7 +1242,7 @@ ulong circular_buffer_queue::de_tail(uchar *val)
   }
 
   avail= (entry + len - 1) % size;
-  get_dynamic(&Q, val, avail);
+  *val= m_Q[avail];
   len--;
 
   // post boundary cond
@@ -1258,57 +1257,6 @@ ulong circular_buffer_queue::de_tail(uchar *val)
   return avail;
 }
 
-/**
-    @return  the index where the arg item has been located
-             or an error.
-*/
-ulong circular_buffer_queue::en_queue(void *item)
-{
-  ulong ret;
-  if (avail == size)
-  {
-    DBUG_ASSERT(avail == Q.elements);
-    return (ulong) -1;
-  }
-
-  // store
-
-  ret= avail;
-  set_dynamic(&Q, (uchar*) item, avail);
-
-
-  // pre-boundary cond
-  if (entry == size)
-    entry= avail;
-
-  avail= (avail + 1) % size;
-  len++;
-
-  // post-boundary cond
-  if (avail == entry)
-    avail= size;
-
-  DBUG_ASSERT(avail == entry ||
-              len == (avail >= entry) ?
-              (avail - entry) : (size + avail - entry));
-  DBUG_ASSERT(avail != entry);
-
-  return ret;
-}
-
-void* circular_buffer_queue::head_queue()
-{
-  uchar *ret= NULL;
-  if (entry == size)
-  {
-    DBUG_ASSERT(len == 0);
-  }
-  else
-  {
-    get_dynamic(&Q, (uchar*) ret, entry);
-  }
-  return (void*) ret;
-}
 
 /**
    two index comparision to determine which of the two
@@ -1321,7 +1269,8 @@ void* circular_buffer_queue::head_queue()
                  after one defined by the 2nd arg,
            FALSE otherwise.
 */
-bool circular_buffer_queue::gt(ulong i, ulong k)
+template <typename Element_type>
+bool circular_buffer_queue<Element_type>::gt(ulong i, ulong k)
 {
   DBUG_ASSERT(i < size && k < size);
   DBUG_ASSERT(avail != entry);
@@ -1347,7 +1296,7 @@ bool Slave_committed_queue::count_done(Relay_log_info* rli)
   {
     Slave_job_group *ptr_g;
 
-    ptr_g= (Slave_job_group *) dynamic_array_ptr(&Q, i);
+    ptr_g= &m_Q[i];
 
     if (ptr_g->worker_id != (ulong) -1 && ptr_g->done)
       cnt++;
@@ -1403,7 +1352,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
 #endif
 
     grl_name[0]= 0;
-    ptr_g= (Slave_job_group *) dynamic_array_ptr(&Q, i);
+    ptr_g= &m_Q[i];
 
     /*
       The current job has not been processed or it was not
@@ -1436,7 +1385,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
 #ifndef DBUG_OFF
     ulong ind=
 #endif
-      de_queue((uchar*) &g);
+      de_queue(&g);
 
     /*
       Stores the memorized name into the result struct. Note that we
@@ -1486,7 +1435,7 @@ void Slave_committed_queue::free_dynamic_items()
   ulong i, k;
   for (i= entry, k= 0; k < len; i= (i + 1) % size, k++)
   {
-    Slave_job_group *ptr_g= (Slave_job_group *) dynamic_array_ptr(&Q, i);
+    Slave_job_group *ptr_g= &m_Q[i];
     if (ptr_g->group_relay_log_name)
     {
       my_free(ptr_g->group_relay_log_name);
@@ -1653,7 +1602,7 @@ bool Slave_worker::worker_sleep(ulong seconds)
   mysql_cond_t *cond= &jobs_cond;
 
   /* Absolute system time at which the sleep time expires. */
-  set_timespec(abstime, seconds);
+  set_timespec(&abstime, seconds);
 
   mysql_mutex_lock(lock);
   info_thd->ENTER_COND(cond, lock, NULL, NULL);
@@ -1903,13 +1852,13 @@ static int en_queue(Slave_jobs_queue *jobs, Slave_job_item *item)
 {
   if (jobs->avail == jobs->size)
   {
-    DBUG_ASSERT(jobs->avail == jobs->Q.elements);
+    DBUG_ASSERT(jobs->avail == jobs->m_Q.size());
     return -1;
   }
 
   // store
 
-  set_dynamic(&jobs->Q, (uchar*) item, jobs->avail);
+  jobs->m_Q[jobs->avail]= *item;
 
   // pre-boundary cond
   if (jobs->entry == jobs->size)
@@ -1938,7 +1887,7 @@ static void * head_queue(Slave_jobs_queue *jobs, Slave_job_item *ret)
     ret->data= NULL;               // todo: move to caller
     return NULL;
   }
-  get_dynamic(&jobs->Q, (uchar*) ret, jobs->entry);
+  *ret= jobs->m_Q[jobs->entry];
 
   DBUG_ASSERT(ret->data);         // todo: move to caller
 
@@ -1956,7 +1905,7 @@ Slave_job_item * de_queue(Slave_jobs_queue *jobs, Slave_job_item *ret)
     DBUG_ASSERT(jobs->len == 0);
     return NULL;
   }
-  get_dynamic(&jobs->Q, (uchar*) ret, jobs->entry);
+  *ret= jobs->m_Q[jobs->entry];
   jobs->len--;
 
   // pre boundary cond

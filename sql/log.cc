@@ -539,11 +539,11 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
                   (ulong) thd->get_sent_row_count(),
                   (ulong) thd->get_examined_row_count()) == (uint) -1)
     goto err;
-  if (thd->db && strcmp(thd->db, db))
+  if (thd->db().str && strcmp(thd->db().str, db))
   {						// Database changed
-    if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
+    if (my_b_printf(&log_file,"use %s;\n",thd->db().str) == (uint) -1)
       goto err;
-    my_stpcpy(db,thd->db);
+    my_stpcpy(db,thd->db().str);
   }
   if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
   {
@@ -841,9 +841,10 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
     table->field[SQLT_FIELD_ROWS_EXAMINED]->set_null();
   }
   /* fill database field */
-  if (thd->db)
+  if (thd->db().str)
   {
-    if (table->field[SQLT_FIELD_DATABASE]->store(thd->db, thd->db_length,
+    if (table->field[SQLT_FIELD_DATABASE]->store(thd->db().str,
+                                                 thd->db().length,
                                                  client_cs))
       goto err;
     table->field[SQLT_FIELD_DATABASE]->set_notnull();

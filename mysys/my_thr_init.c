@@ -180,7 +180,7 @@ void my_thread_global_end(void)
   struct timespec abstime;
   my_bool all_threads_killed= 1;
 
-  set_timespec(abstime, my_thread_end_wait_time);
+  set_timespec(&abstime, my_thread_end_wait_time);
   mysql_mutex_lock(&THR_LOCK_threads);
   while (THR_thread_count > 0)
   {

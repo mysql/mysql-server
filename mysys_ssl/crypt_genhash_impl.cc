@@ -35,7 +35,9 @@
 #include <time.h>
 #include <string.h>
 
-
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
 
 #ifndef HAVE_YASSL
 #define	DIGEST_CTX	SHA256_CTX
