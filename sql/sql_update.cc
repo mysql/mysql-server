@@ -571,7 +571,8 @@ bool mysql_update(THD *thd,
       rows= limit;
     else
     {
-      table->pos_in_table_list->fetch_number_of_rows();
+      DBUG_ASSERT(table->pos_in_table_list == update_table_ref);
+      update_table_ref->fetch_number_of_rows();
       rows= table->file->stats.records;
     }
     qep_tab.set_quick_optim();
@@ -1197,7 +1198,7 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
 
   for (tl= leaves; tl ; tl= tl->next_leaf)
   {
-    if (tl->table->map & tables_for_update)
+    if (tl->map() & tables_for_update)
     {
       TABLE *table1= tl->table;
       bool primkey_clustered= (table1->file->primary_key_is_clustered() &&
@@ -1218,7 +1219,7 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
           already been checked
         */
         TABLE *table2= tl2->table;
-        if (table2->map & tables_for_update && table1->s == table2->s)
+        if (tl2->map() & tables_for_update && table1->s == table2->s)
         {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
           // A table is updated through two aliases
@@ -1310,7 +1311,7 @@ static bool multi_update_check_table_access(THD *thd, TABLE_LIST *table,
     */
     DBUG_ASSERT(table->merge_underlying_list ||
                 (!table->updatable &&
-                 !(table->table->map & tables_for_update)));
+                 !(table->map() & tables_for_update)));
 
     for (TABLE_LIST *tbl= table->merge_underlying_list; tbl;
          tbl= tbl->next_local)
@@ -1328,7 +1329,7 @@ static bool multi_update_check_table_access(THD *thd, TABLE_LIST *table,
   else
   {
     /* Must be a base or derived table. */
-    const bool updated= table->table->map & tables_for_update;
+    const bool updated= table->map() & tables_for_update;
     if (check_table_access(thd, updated ? UPDATE_ACL : SELECT_ACL, table,
                            FALSE, 1, FALSE))
       return true;
@@ -1431,10 +1432,8 @@ int mysql_multi_update_prepare(THD *thd)
   */
   for (tl= leaves; tl; tl= tl->next_leaf)
   {
-    TABLE *table= tl->table;
-
     /* if table will be updated then check that it is unique */
-    if (table->map & tables_for_update)
+    if (tl->map() & tables_for_update)
     {
       if (!tl->updatable || check_key_in_view(thd, tl, tl))
       {
@@ -1645,9 +1644,9 @@ int multi_update::prepare(List<Item> &not_used_values,
   */
   for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
-    TABLE *table= table_ref->table;
-    if (tables_to_update & table->map)
+    if (tables_to_update & table_ref->map())
     {
+      TABLE *const table= table_ref->table;
       DBUG_ASSERT(table->read_set == &table->def_read_set);
       table->read_set= &table->tmp_set;
       bitmap_clear_all(table->read_set);
@@ -1664,9 +1663,9 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
-    TABLE *table= table_ref->table;
-    if (tables_to_update & table->map)
+    if (tables_to_update & table_ref->map())
     {
+      TABLE *const table= table_ref->table;
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
       bitmap_clear_all(&table->tmp_set);
@@ -1686,16 +1685,18 @@ int multi_update::prepare(List<Item> &not_used_values,
   for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
     /* TODO: add support of view of join support */
-    TABLE *table=table_ref->table;
     leaf_table_count++;
-    if (tables_to_update & table->map)
+    if (tables_to_update & table_ref->map())
     {
       TABLE_LIST *tl= (TABLE_LIST*) thd->memdup(table_ref,
 						sizeof(*tl));
       if (!tl)
 	DBUG_RETURN(1);
+
+      TABLE *const table= table_ref->table;
+
       update.link_in_list(tl, &tl->next_local);
-      tl->shared= table_count++;
+      table_ref->shared= tl->shared= table_count++;
       table->no_keyread=1;
       table->covering_keys.clear_all();
       table->pos_in_table_list= tl;
@@ -1743,7 +1744,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   while ((item= (Item_field *) field_it++))
   {
     Item *value= value_it++;
-    uint offset= item->field->table->pos_in_table_list->shared;
+    uint offset= item->table_ref->shared;
     fields_for_table[offset]->push_back(item);
     values_for_table[offset]->push_back(value);
   }
@@ -1759,12 +1760,13 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   for (TABLE_LIST *ref= leaves; ref != NULL; ref= ref->next_leaf)
   {
-    TABLE *table= ref->table;
-    if (tables_to_update & table->map)
+    if (tables_to_update & ref->map())
     {
-      const uint position= table->pos_in_table_list->shared;
+      const uint position= ref->shared;
       List<Item> *cols= fields_for_table[position];
       List<Item> *vals= values_for_table[position];
+      TABLE *const table= ref->table;
+
       COPY_INFO *update=
         new (thd->mem_root) COPY_INFO(COPY_INFO::UPDATE_OPERATION, cols, vals);
       if (update == NULL ||
@@ -1894,7 +1896,7 @@ multi_update::initialize_tables(JOIN *join)
    table.
    For a regular multi-update it refers to some updated table.
   */ 
-  TABLE *first_table_for_update= ((Item_field *) fields->head())->field->table;
+  TABLE_LIST *first_table_for_update= ((Item_field *)fields->head())->table_ref;
 
   /* Create a temporary table for keys to all tables, except main table */
   for (table_ref= update_tables; table_ref; table_ref= table_ref->next_local)
@@ -1963,16 +1965,17 @@ multi_update::initialize_tables(JOIN *join)
     }
 loop_end:
 
-    if (table == first_table_for_update && table_ref->check_option)
+    if (table_ref->table == first_table_for_update->table &&
+        table_ref->check_option)
     {
       table_map unupdated_tables= table_ref->check_option->used_tables() &
-                                  ~first_table_for_update->map;
+                                  ~first_table_for_update->map();
       for (TABLE_LIST *tbl_ref =leaves;
            unupdated_tables && tbl_ref;
            tbl_ref= tbl_ref->next_leaf)
       {
-        if (unupdated_tables & tbl_ref->table->map)
-          unupdated_tables&= ~tbl_ref->table->map;
+        if (unupdated_tables & tbl_ref->map())
+          unupdated_tables&= ~tbl_ref->map();
         else
           continue;
         if (unupdated_check_opt_tables.push_back(tbl_ref->table))

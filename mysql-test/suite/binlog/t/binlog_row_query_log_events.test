@@ -18,7 +18,7 @@ CREATE TABLE t1 (a VARCHAR(256));
 --eval $query
 
 --let $row_number= 2
-if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+if (!`SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE = 'ON'`) 
 {
     # if GTID_MODE=ON, there is the extra event entry the binary log: Gtid_log_event
     --let $row_number=`SELECT $row_number + 1`

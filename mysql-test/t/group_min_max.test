@@ -271,6 +271,7 @@ select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
 
 # B) Equalities only over the non-group 'B' attributes
 # plans
+
 explain select a1,a2,b,max(c),min(c) from t1 where (a2 = 'a') and (b = 'b') group by a1;
 explain select a1,max(c),min(c)      from t1 where (a2 = 'a') and (b = 'b') group by a1;
 explain select a1,a2,b,       max(c) from t1 where (b = 'b') group by a1,a2;
@@ -307,6 +308,13 @@ select a1,max(c),min(c)      from t3 where (a2 = 'a') and (b = 'b') group by a1;
 
 # IS NULL (makes sense for t2 only)
 # plans
+
+# SQL standard does not impose recognition of 'b IS NULL' as
+# a functional dependency of {b} on {}.
+# These queries are home-grown.
+
+--source include/turn_off_only_full_group_by.inc
+
 explain select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
 explain select a1,a2,b,max(c) from t2 where (a2 = 'a') and b is NULL group by a1;
 explain select a1,a2,b,min(c) from t2 where b is NULL group by a1,a2;
@@ -320,6 +328,8 @@ select a1,a2,b,min(c) from t2 where b is NULL group by a1,a2;
 select a1,a2,b,max(c) from t2 where b is NULL group by a1,a2;
 select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 # C) Range predicates for the MIN/MAX attribute
 # plans
@@ -464,6 +474,7 @@ select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') grou
 # plans
 explain select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 explain select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+
 explain select a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
 explain select a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 
@@ -536,6 +547,9 @@ select distinct t1.a1,t2.a1 from t1,t2;
 #
 
 # plans
+
+#--source include/turn_off_only_full_group_by.inc
+
 explain select distinct a1,a2,b from t1;
 explain select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 explain select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
@@ -566,6 +580,7 @@ select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121
 select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
 select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 
+#--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 #
 # COUNT (DISTINCT cols) queries
@@ -606,6 +621,9 @@ select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
 #
 
 # select a non-indexed attribute
+
+--source include/turn_off_only_full_group_by.inc
+
 explain select a1,a2,b,d,min(c),max(c) from t1 group by a1,a2,b;
 
 explain select a1,a2,b,d from t1 group by a1,a2,b;
@@ -633,6 +651,8 @@ select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 
 # disjunction for a non-group select attribute
 explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b = 'a') group by a1;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 # non-range predicate for the MIN/MAX attribute
 explain select a1,a2,b,min(c),max(c) from t2

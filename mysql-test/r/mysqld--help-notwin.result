@@ -1370,7 +1370,7 @@ slow-launch-time 2
 slow-query-log FALSE
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
-sql-mode STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
 symbolic-links FALSE
 sync-binlog 0

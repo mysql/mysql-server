@@ -17,15 +17,11 @@
 #include <my_dir.h>
 #include <m_string.h>
 #include "mysys_err.h"
-#if defined(HAVE_UTIME_H)
+
+#ifndef _WIN32
 #include <utime.h>
-#elif defined(HAVE_SYS_UTIME_H)
-#include <sys/utime.h>
 #else
-struct utimbuf {
-  time_t actime;
-  time_t modtime;
-};
+#include <sys/utime.h>
 #endif
 
 	/*

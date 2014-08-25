@@ -21,7 +21,6 @@
 #ifndef vio_violite_h_
 #define	vio_violite_h_
 
-#include "my_net.h"   /* needed because of struct in_addr */
 #include <my_pthread.h> /* For pthread_t */
 #include <mysql/psi/psi.h>
 #include <pfs_socket_provider.h>

@@ -145,6 +145,7 @@ drop table t1Aa;
 # Bug #31562: HAVING and lower case
 #
 
+--source include/turn_off_only_full_group_by.inc
 CREATE TABLE  t1 (a int, b int);
 
 select X.a from t1 AS X group by X.b having (X.a = 1);
@@ -158,6 +159,7 @@ SHOW CREATE VIEW v1;
 
 SELECT * FROM v1;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP VIEW v1;
 DROP TABLE t1;
 

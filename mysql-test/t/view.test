@@ -2077,7 +2077,9 @@ drop table t1;
 create table t1 (f1 int, f2 int,f3 int);
 insert into t1 values (1,10,20),(2,0,0);
 create view v1 as select * from t1;
+--source include/turn_off_only_full_group_by.inc
 select if(sum(f1)>1,f2,f3) from v1 group by f1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop view v1;
 drop table t1;
 

@@ -2180,7 +2180,7 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
 
   stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
                                          thd->m_statement_psi,
-                                         stmt->name.str, stmt->name.length,
+                                         stmt->name().str, stmt->name().length,
                                          packet, packet_length);
 
   if (stmt->prepare(packet, packet_length))
@@ -2320,7 +2320,7 @@ end:
 void mysql_sql_stmt_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
-  LEX_STRING *name= &lex->prepared_stmt_name;
+  const LEX_CSTRING &name= lex->prepared_stmt_name;
   Prepared_statement *stmt;
   const char *query;
   size_t query_len= 0;
@@ -2365,7 +2365,7 @@ void mysql_sql_stmt_prepare(THD *thd)
 
   stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
                                          thd->m_statement_psi,
-                                         stmt->name.str, stmt->name.length,
+                                         stmt->name().str, stmt->name().length,
                                          query, query_len);
 
   if (stmt->prepare(query, query_len))
@@ -2632,16 +2632,16 @@ void mysql_sql_stmt_execute(THD *thd)
 {
   LEX *lex= thd->lex;
   Prepared_statement *stmt;
-  LEX_STRING *name= &lex->prepared_stmt_name;
+  const LEX_CSTRING &name= lex->prepared_stmt_name;
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
   DBUG_ENTER("mysql_sql_stmt_execute");
-  DBUG_PRINT("info", ("EXECUTE: %.*s\n", (int) name->length, name->str));
+  DBUG_PRINT("info", ("EXECUTE: %.*s\n", (int) name.length, name.str));
 
   if (!(stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
-             static_cast<int>(name->length), name->str, "EXECUTE");
+             static_cast<int>(name.length), name.str, "EXECUTE");
     DBUG_VOID_RETURN;
   }
 
@@ -2839,13 +2839,13 @@ void mysqld_stmt_close(THD *thd, char *packet, size_t packet_length)
 void mysql_sql_stmt_close(THD *thd)
 {
   Prepared_statement* stmt;
-  LEX_STRING *name= &thd->lex->prepared_stmt_name;
-  DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", (int) name->length,
-                      name->str));
+  const LEX_CSTRING &name= thd->lex->prepared_stmt_name;
+  DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", (int) name.length,
+                      name.str));
 
   if (! (stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
-             static_cast<int>(name->length), name->str, "DEALLOCATE PREPARE");
+             static_cast<int>(name.length), name.str, "DEALLOCATE PREPARE");
   else if (stmt->is_in_use())
     my_error(ER_PS_NO_RECURSION, MYF(0));
   else
@@ -3112,13 +3112,12 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   result(thd_arg),
   flags((uint) IS_IN_USE),
   with_log(false),
-  db(NULL),
-  db_length(0)
+  m_name(NULL_CSTR),
+  m_db(NULL_CSTR)
 {
   init_sql_alloc(key_memory_prepared_statement_main_mem_root,
                  &main_mem_root, thd_arg->variables.query_alloc_block_size,
                  thd_arg->variables.query_prealloc_size);
-  name.str= NULL;
   *last_error= '\0';
 }
 
@@ -3201,11 +3200,12 @@ void Prepared_statement::cleanup_stmt()
 }
 
 
-bool Prepared_statement::set_name(LEX_STRING *name_arg)
+bool Prepared_statement::set_name(const LEX_CSTRING &name_arg)
 {
-  name.length= name_arg->length;
-  name.str= (char*) memdup_root(mem_root, name_arg->str, name_arg->length);
-  return name.str == 0;
+  m_name.length= name_arg.length;
+  m_name.str= static_cast<char*>(memdup_root(mem_root, name_arg.str,
+                                 name_arg.length));
+  return m_name.str == NULL;
 }
 
 
@@ -3220,20 +3220,19 @@ bool Prepared_statement::set_name(LEX_STRING *name_arg)
 */
 
 bool
-Prepared_statement::set_db(const char *db_arg, size_t db_length_arg)
+Prepared_statement::set_db(const LEX_CSTRING &db_arg)
 {
   /* Remember the current database. */
-  if (db_arg && db_length_arg)
+  if (db_arg.str && db_arg.length)
   {
-    db= this->strmake(db_arg, db_length_arg);
-    db_length= db_length_arg;
+    m_db.str= this->strmake(db_arg.str, db_arg.length);
+    m_db.length= db_arg.length;
   }
   else
   {
-    db= NULL;
-    db_length= 0;
+    m_db= NULL_CSTR;
   }
-  return db_arg != NULL && db == NULL;
+  return db_arg.str != NULL && m_db.str == NULL;
 }
 
 /**************************************************************************
@@ -3282,7 +3281,7 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   if (! (lex= new (mem_root) st_lex_local))
     DBUG_RETURN(TRUE);
 
-  if (set_db(thd->db, thd->db_length))
+  if (set_db(thd->db()))
     DBUG_RETURN(TRUE);
 
   /*
@@ -3666,7 +3665,6 @@ Prepared_statement::reprepare()
   char saved_cur_db_name_buf[NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
-  LEX_STRING stmt_db_name= { db, db_length };
   bool cur_db_changed;
   bool error;
 
@@ -3676,16 +3674,16 @@ Prepared_statement::reprepare()
 
   thd->status_var.com_stmt_reprepare++;
 
-  if (mysql_opt_change_db(thd, &stmt_db_name, &saved_cur_db_name, TRUE,
+  if (mysql_opt_change_db(thd, m_db, &saved_cur_db_name, TRUE,
                           &cur_db_changed))
     return TRUE;
 
-  error= ((name.str && copy.set_name(&name)) ||
+  error= ((m_name.str && copy.set_name(m_name)) ||
           copy.prepare(m_query_string.str, m_query_string.length) ||
           validate_metadata(&copy));
 
   if (cur_db_changed)
-    mysql_change_db(thd, &saved_cur_db_name, TRUE);
+    mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), TRUE);
 
   if (! error)
   {
@@ -3784,11 +3782,11 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
   /* Don't swap flags: the copy has IS_SQL_PREPARE always set. */
   /* swap_variables(uint, flags, copy->flags); */
   /* Swap names, the old name is allocated in the wrong memory root */
-  swap_variables(LEX_STRING, name, copy->name);
+  swap_variables(LEX_CSTRING, m_name, copy->m_name);
   /* Ditto */
-  swap_variables(char *, db, copy->db);
+  swap_variables(LEX_CSTRING, m_db, copy->m_db);
 
-  DBUG_ASSERT(db_length == copy->db_length);
+  DBUG_ASSERT(m_db.length == copy->m_db.length);
   DBUG_ASSERT(param_count == copy->param_count);
   DBUG_ASSERT(thd == copy->thd);
   last_error[0]= '\0';
@@ -3827,8 +3825,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;
-
-  LEX_STRING stmt_db_name= { db, db_length };
 
   thd->status_var.com_stmt_execute++;
 
@@ -3897,8 +3893,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     NULL (prepared statements can be created while no current database
     selected).
   */
-
-  if (mysql_opt_change_db(thd, &stmt_db_name, &saved_cur_db_name, TRUE,
+  if (mysql_opt_change_db(thd, m_db, &saved_cur_db_name, TRUE,
                           &cur_db_changed))
   {
     flags&= ~ (uint) IS_IN_USE;
@@ -3956,7 +3951,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       PSI_statement_locker *parent_locker;
       MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                              thd->thread_id(),
-                             (char *) (thd->db ? thd->db : ""),
+                             (char *) (thd->db().str != NULL ?
+                                       thd->db().str : ""),
                              &thd->security_ctx->priv_user[0],
                              (char *) thd->security_ctx->host_or_ip,
                              1);
@@ -4000,7 +3996,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   */
 
   if (cur_db_changed)
-    mysql_change_db(thd, &saved_cur_db_name, TRUE);
+    mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true);
 
   /* Assert that if an error, no cursor is open */
   DBUG_ASSERT(! (error && cursor));

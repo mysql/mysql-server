@@ -1075,7 +1075,7 @@ terminate_slave_thread(THD *thd,
       alarm. To protect againts it, resend the signal until it reacts
     */
     struct timespec abstime;
-    set_timespec(abstime,2);
+    set_timespec(&abstime,2);
 #ifndef DBUG_OFF
     int error=
 #endif
@@ -3104,7 +3104,7 @@ static inline bool slave_sleep(THD *thd, time_t seconds,
   mysql_cond_t *cond= &info->sleep_cond;
 
   /* Absolute system time at which the sleep time expires. */
-  set_timespec(abstime, seconds);
+  set_timespec(&abstime, seconds);
 
   mysql_mutex_lock(lock);
   thd->ENTER_COND(cond, lock, NULL, NULL);
@@ -4652,7 +4652,7 @@ err:
                   mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
   (void) RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
   thd->reset_query();
-  thd->reset_db(NULL, 0);
+  thd->reset_db(NULL_CSTR);
   if (mysql)
   {
     /*
@@ -5265,8 +5265,8 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     in the SQL Thread's execution path and the elapsed time is calculated
     here to check if it is time to execute it.
   */
-  set_timespec_nsec(curr_clock, 0);
-  ulonglong diff= diff_timespec(curr_clock, rli->last_clock);
+  set_timespec_nsec(&curr_clock, 0);
+  ulonglong diff= diff_timespec(&curr_clock, &rli->last_clock);
   if (!force && diff < period)
   {
     /*
@@ -5373,7 +5373,7 @@ end:
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
     DBUG_SUICIDE();
 #endif
-  set_timespec_nsec(rli->last_clock, 0);
+  set_timespec_nsec(&rli->last_clock, 0);
 
   DBUG_RETURN(error);
 }
@@ -5494,7 +5494,6 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   */
 
   rli->gaq= new Slave_committed_queue(rli->get_group_master_log_name(),
-                                      sizeof(Slave_job_group),
                                       rli->checkpoint_group, n);
   if (!rli->gaq->inited)
     return 1;
@@ -6089,9 +6088,9 @@ llstr(rli->get_group_master_log_pos(), llbuff));
     should already have done these assignments (each event which sets these
     variables is supposed to set them to 0 before terminating)).
   */
-  thd->catalog= 0;
+  thd->set_catalog(NULL_CSTR);
   thd->reset_query();
-  thd->reset_db(NULL, 0);
+  thd->reset_db(NULL_CSTR);
 
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&rli->run_lock);
@@ -7621,7 +7620,7 @@ static Log_event* next_event(Relay_log_info* rli)
             if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
               period= 10000000ULL;
 
-            set_timespec_nsec(waittime, period);
+            set_timespec_nsec(&waittime, period);
             ret= rli->relay_log.wait_for_update_relay_log(thd, &waittime);
           } while ((ret == ETIMEDOUT || ret == ETIME) /* todo:remove */ &&
                    signal_cnt == rli->relay_log.signal_cnt && !thd->killed);

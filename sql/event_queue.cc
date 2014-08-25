@@ -612,7 +612,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
         time or until signaled. Release LOCK_queue while waiting.
       */
       struct timespec top_time;
-      set_timespec(top_time, next_activation_at - thd->query_start());
+      set_timespec(&top_time, next_activation_at - thd->query_start());
 
       /* Release any held audit resources before waiting */
       mysql_audit_release(thd);

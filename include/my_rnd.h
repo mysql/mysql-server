@@ -23,7 +23,6 @@
 
 #include <my_global.h>
 #include <mysql_com.h>
-#include <limits.h>
 
 #ifdef __cplusplus
 extern "C" {
