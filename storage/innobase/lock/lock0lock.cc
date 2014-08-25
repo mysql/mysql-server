@@ -1764,6 +1764,8 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx)
 		trx_t*		trx = next->trx;
 
 		if (!is_on_row(next)
+		    || (trx->lock.que_state == TRX_QUE_LOCK_WAIT
+			&& trx->lock.wait_lock == next)
 		    || trx->read_only
 		    || trx == lock->trx
 		    || trx == wait_for->trx) {
@@ -1891,29 +1893,19 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 			     & TRX_FORCE_ROLLBACK_DISABLE);
 	}
 
-	bool	add_to_hash;
-
 	/* Move the lock being requested to the head of
 	the wait queue so that if the transaction that
 	we are waiting for is rolled back we get dibs
 	on the row. */
 
-	if (!read_only) {
+	jump_queue(lock, wait_for, kill_trx);
 
-		jump_queue(lock, wait_for, kill_trx);
-
-		add_to_hash = false;
-	} else {
-		add_to_hash = true;
-	}
 
 	/* Only if the blocking transaction is itself waiting, but
 	waiting on a different lock we do the rollback here. For active
 	transactions we do the rollback before we enter lock wait. */
 
 	if (waiting && kill_trx) {
-
-		ut_ad(!add_to_hash);
 
 		UT_LIST_ADD_LAST(m_trx->lock.trx_locks, lock);
 
@@ -1952,7 +1944,7 @@ RecLock::enqueue_priority(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 		trx_mutex_exit(wait_for->trx);
 
-		lock_add(lock, add_to_hash);
+		lock_add(lock, false);
 	}
 
 	/* This state should not change even if we release the
