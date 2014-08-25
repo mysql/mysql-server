@@ -21,8 +21,8 @@
 #include "sql_class.h"
 #include "set_var.h"
 
-extern pthread_key(MEM_ROOT**,THR_MALLOC);
-extern pthread_key(THD*, THR_THD);
+extern thread_local_key_t THR_MALLOC;
+extern thread_local_key_t THR_THD;
 extern bool THR_THD_initialized;
 extern bool THR_MALLOC_initialized;
 extern mysql_mutex_t LOCK_open;

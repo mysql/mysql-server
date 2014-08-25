@@ -589,9 +589,9 @@ SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
 /* Thread specific variables */
 
-pthread_key(MEM_ROOT**,THR_MALLOC);
+thread_local_key_t THR_MALLOC;
 bool THR_MALLOC_initialized= false;
-pthread_key(THD*, THR_THD);
+thread_local_key_t THR_THD;
 bool THR_THD_initialized= false;
 mysql_mutex_t
   LOCK_status, LOCK_error_log, LOCK_uuid_generator,
@@ -1432,13 +1432,13 @@ void clean_up(bool print_message)
   if (THR_THD_initialized)
   {
     THR_THD_initialized= false;
-    (void) pthread_key_delete(THR_THD);
+    (void) my_delete_thread_local_key(THR_THD);
   }
 
   if (THR_MALLOC_initialized)
   {
     THR_MALLOC_initialized= false;
-    (void) pthread_key_delete(THR_MALLOC);
+    (void) my_delete_thread_local_key(THR_MALLOC);
   }
 
 #ifdef HAVE_MY_TIMER
@@ -3235,8 +3235,8 @@ static int init_thread_environment()
 
   DBUG_ASSERT(! THR_THD_initialized);
   DBUG_ASSERT(! THR_MALLOC_initialized);
-  if (pthread_key_create(&THR_THD,NULL) ||
-      pthread_key_create(&THR_MALLOC,NULL))
+  if (my_create_thread_local_key(&THR_THD,NULL) ||
+      my_create_thread_local_key(&THR_MALLOC,NULL))
   {
     sql_print_error("Can't create thread-keys");
     return 1;
