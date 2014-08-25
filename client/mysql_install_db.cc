@@ -22,6 +22,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <pwd.h>
+#include <signal.h>
 
 // MySQL headers
 #include "my_global.h"
