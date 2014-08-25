@@ -285,3 +285,16 @@ DELIMITER ;$$
 CALL test_5531(1);
 DROP PROCEDURE test_5531;
 DROP TABLE t1;
+
+#
+# MDEV-6601 Assertion `!thd->in_active_multi_stmt_transa ction() || thd->in_multi_stmt_transaction_mode()' failed on executing a stored procedure with commit
+#
+delimiter |;
+create procedure sp() begin
+  commit;
+end|
+delimiter ;|
+start transaction;
+call sp();
+drop procedure sp;
+

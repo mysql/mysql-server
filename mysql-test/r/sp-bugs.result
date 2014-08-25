@@ -268,3 +268,9 @@ END $$
 CALL test_5531(1);
 DROP PROCEDURE test_5531;
 DROP TABLE t1;
+create procedure sp() begin
+commit;
+end|
+start transaction;
+call sp();
+drop procedure sp;

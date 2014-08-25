@@ -1224,6 +1224,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   Item_change_list old_change_list;
   String old_packet;
   uint old_server_status;
+  const uint status_backup_mask= SERVER_STATUS_CURSOR_EXISTS |
+                                 SERVER_STATUS_LAST_ROW_SENT;
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
   Warning_info *saved_warning_info;
@@ -1358,7 +1360,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     It is probably safe to use same thd->convert_buff everywhere.
   */
   old_packet.swap(thd->packet);
-  old_server_status= thd->server_status;
+  old_server_status= thd->server_status & status_backup_mask;
 
   /*
     Switch to per-instruction arena here. We can do it since we cleanup
@@ -1488,7 +1490,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->spcont->pop_all_cursors(); // To avoid memory leaks after an error
 
   /* Restore all saved */
-  thd->server_status= old_server_status;
+  thd->server_status= (thd->server_status & ~status_backup_mask) | old_server_status;
   old_packet.swap(thd->packet);
   DBUG_ASSERT(thd->change_list.is_empty());
   old_change_list.move_elements_to(&thd->change_list);
