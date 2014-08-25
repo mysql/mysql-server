@@ -456,15 +456,15 @@ static char *make_cache_key(THD *thd,
                             Query_cache_query_flags *flags,
                             size_t *tot_length)
 {
-  *tot_length= query.length + 1 + thd->db_length + QUERY_CACHE_FLAGS_SIZE;
+  *tot_length= query.length + 1 + thd->db().length + QUERY_CACHE_FLAGS_SIZE;
   char *cache_key= static_cast<char*>(thd->alloc(*tot_length));
   if (cache_key == NULL)
     return NULL;
 
   memcpy(cache_key, query.str, query.length);
   cache_key[query.length]= '\0';
-  if (thd->db_length)
-    memcpy(cache_key + query.length + 1, thd->db, thd->db_length);
+  if (thd->db().length)
+    memcpy(cache_key + query.length + 1, thd->db().str, thd->db().length);
 
   /*
     We should only copy structure (don't use it location directly)
@@ -532,7 +532,7 @@ bool Query_cache::try_lock(bool use_timeout)
       if (use_timeout)
       {
         struct timespec waittime;
-        set_timespec_nsec(waittime,(ulong)(50000000L));  /* Wait for 50 msec */
+        set_timespec_nsec(&waittime, 50000000UL);  /* Wait for 50 msec */
         int res= mysql_cond_timedwait(&COND_cache_status_changed,
                                       &structure_guard_mutex, &waittime);
         if (res == ETIMEDOUT)
@@ -2054,7 +2054,7 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
    Remove all cached queries that uses the given database.
 */
 
-void Query_cache::invalidate(char *db)
+void Query_cache::invalidate(const char *db)
 {
   
   DBUG_ENTER("Query_cache::invalidate (db)");

@@ -39,12 +39,6 @@
 #include "set_var.h"
 #include <m_ctype.h>
 #include "parse_tree_helpers.h"
-
-
-Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
-  :Item_str_func(pos, list)
-{}
-
 #include "spatial.h"
 #include "gis_bg_traits.h"
 #include <boost/geometry/geometry.hpp>
@@ -82,8 +76,16 @@ public:
   typedef CoordinateSystemType Coordsys;
 };
 
+namespace bgm= boost::geometry::model;
 namespace bgcs= boost::geometry::cs;
 
+template <typename Point_range>
+static bool is_colinear(const Point_range &ls);
+
+
+Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
+  :Item_str_func(pos, list)
+{}
 
 
 Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
@@ -177,20 +179,19 @@ bool Item_func_geometry_from_wkb::itemize(Parse_context *pc, Item **res)
 String *Item_func_geometry_from_wkb::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *wkb;
-  Geometry_buffer buffer;
+  String *wkb= NULL;
   uint32 srid= 0;
 
   if (arg_count == 2)
   {
     srid= static_cast<uint32>(args[1]->val_int());
     if ((null_value= args[1]->null_value))
-      return 0;
+      return NULL;
   }
 
   wkb= args[0]->val_str(&tmp_value);
   if ((null_value= (!wkb || args[0]->null_value)))
-    return 0;
+    return NULL;
 
   /*
     GeometryFromWKB(wkb [,srid]) understands both WKB (without SRID) and
@@ -224,7 +225,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
       e.g. to a SP variable value. So we need to copy to "str".
     */
     if ((null_value= str->copy(*wkb)))
-      return 0;
+      return NULL;
     str->write_at_position(0, srid);
     return str;
   }
@@ -233,10 +234,11 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   if (str->reserve(GEOM_HEADER_SIZE, 512))
   {
     null_value= true;                           /* purecov: inspected */
-    return 0;                                   /* purecov: inspected */
+    return NULL;                                   /* purecov: inspected */
   }
   str->length(0);
   str->q_append(srid);
+  Geometry_buffer buffer;
   if (!Geometry::create_from_wkb(&buffer, wkb->ptr(), wkb->length(), str,
                                  false/* Don't init stream. */))
   {
@@ -349,6 +351,13 @@ String *Item_func_envelope::val_str(String *str)
     return error_str();
   }
 
+  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
+      geom->normalize_ring_order() == NULL)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
   srid= uint4korr(swkb->ptr());
   str->set_charset(&my_charset_bin);
   str->length(0);
@@ -372,7 +381,6 @@ String *Item_func_centroid::val_str(String *str)
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
   Geometry *geom= NULL;
-  uint32 srid;
 
   if ((null_value= (!swkb || args[0]->null_value)))
     return NULL;
@@ -383,13 +391,18 @@ String *Item_func_centroid::val_str(String *str)
   }
 
   str->set_charset(&my_charset_bin);
-  if (str->reserve(SRID_SIZE, 512))
-    return 0;
-  str->length(0);
-  srid= uint4korr(swkb->ptr());
-  str->q_append(srid);
 
-  return (null_value= MY_TEST(geom->centroid(str))) ? 0 : str;
+  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
+      geom->normalize_ring_order() == NULL)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  null_value= bg_centroid<bgcs::cartesian>(geom, str);
+  if (null_value)
+    return error_str();
+  return str;
 }
 
 
@@ -486,6 +499,485 @@ String *Item_func_centroid::val_str(String *str)
     expr;\
     my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
   }
+
+
+/**
+   Accumulate a geometry's all vertex points into a multipoint.
+   It implements the WKB_scanner_event_handler interface so as to be registered
+   into wkb_scanner and be notified of WKB data events.
+ */
+class Point_accumulator : public WKB_scanner_event_handler
+{
+  Gis_multi_point *m_mpts;
+  const void *pt_start;
+public:
+  explicit Point_accumulator(Gis_multi_point *mpts)
+    :m_mpts(mpts), pt_start(NULL)
+  {
+  }
+
+  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+                            Geometry::wkbType geotype,
+                            const void *wkb, uint32 len, bool has_hdr)
+  {
+    if (geotype == Geometry::wkb_point)
+    {
+      Gis_point pt(wkb, POINT_DATA_SIZE,
+                   Geometry::Flags_t(Geometry::wkb_point, len),
+                   m_mpts->get_srid());
+      m_mpts->push_back(pt);
+      pt_start= wkb;
+    }
+  }
+
+
+  virtual void on_wkb_end(const void *wkb)
+  {
+    if (pt_start)
+      DBUG_ASSERT(static_cast<const char *>(pt_start) + POINT_DATA_SIZE == wkb);
+
+    pt_start= NULL;
+  }
+};
+
+
+/**
+  Retrieve from a geometry collection geometries of the same base type into
+  a multi-xxx geometry object. For example, group all points and multipoints
+  into a single multipoint object, where the base type is point.
+
+  @tparam Base_type the base type to group.
+*/
+template <typename Base_type>
+class Geometry_grouper : public WKB_scanner_event_handler
+{
+  std::vector<Geometry::wkbType> m_types;
+  std::vector<const void *> m_ptrs;
+
+  typedef Gis_wkb_vector<Base_type> Group_type;
+  Group_type *m_group;
+  Gis_geometry_collection *m_collection;
+  String *m_gcbuf;
+  Geometry::wkbType m_target_type;
+
+public:
+  explicit Geometry_grouper(Group_type *out)
+    :m_group(out), m_collection(NULL), m_gcbuf(NULL)
+  {
+    switch (out->get_type())
+    {
+    case Geometry::wkb_multipoint:
+      m_target_type= Geometry::wkb_point;
+      break;
+    case Geometry::wkb_multilinestring:
+      m_target_type= Geometry::wkb_linestring;
+      break;
+    case Geometry::wkb_multipolygon:
+      m_target_type= Geometry::wkb_polygon;
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+  }
+
+  /*
+    Group polygons and multipolygons into a geometry collection. 
+  */ 
+  Geometry_grouper(Gis_geometry_collection *out, String *gcbuf)
+    :m_group(NULL), m_collection(out), m_gcbuf(gcbuf)
+  {
+    m_target_type= Geometry::wkb_polygon;
+    DBUG_ASSERT(out != NULL && gcbuf != NULL);
+  }
+
+
+  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+                            Geometry::wkbType geotype,
+                            const void *wkb, uint32 len, bool has_hdr)
+  {
+    m_types.push_back(geotype);
+    m_ptrs.push_back(wkb);
+
+    if (m_types.size() == 1)
+      DBUG_ASSERT(geotype == Geometry::wkb_geometrycollection);
+  }
+
+
+  virtual void on_wkb_end(const void *wkb_end)
+  {
+    Geometry::wkbType geotype= m_types.back();
+    m_types.pop_back();
+
+    const void *wkb_start= m_ptrs.back();
+    m_ptrs.pop_back();
+
+    if (geotype != m_target_type || m_types.size() == 0)
+      return;
+
+    Geometry::wkbType ptype= m_types.back();
+    size_t len= static_cast<const char *>(wkb_end) -
+      static_cast<const char *>(wkb_start);
+
+    /*
+      We only group independent geometries, points in linestrings or polygons
+      are not independent, nor are linestrings in polygons.
+     */
+    if (m_target_type == geotype && m_group != NULL &&
+        ((m_target_type == Geometry::wkb_point &&
+          (ptype == Geometry::wkb_geometrycollection ||
+           ptype == Geometry::wkb_multipoint)) ||
+         (m_target_type == Geometry::wkb_linestring &&
+          (ptype == Geometry::wkb_geometrycollection ||
+           ptype == Geometry::wkb_multilinestring)) ||
+         (m_target_type == Geometry::wkb_polygon &&
+          (ptype == Geometry::wkb_geometrycollection ||
+           ptype == Geometry::wkb_multipolygon))))
+    {
+      Base_type g(wkb_start, len, Geometry::Flags_t(m_target_type, 0), 0);
+      m_group->push_back(g);
+      DBUG_ASSERT(m_collection == NULL && m_gcbuf == NULL);
+    }
+
+    if (m_collection != NULL && (geotype == Geometry::wkb_polygon ||
+                                 geotype == Geometry::wkb_multipolygon))
+    {
+      DBUG_ASSERT(m_group == NULL && m_gcbuf != NULL);
+      String str(static_cast<const char *>(wkb_start), len, &my_charset_bin);
+      m_collection->append_geometry(m_collection->get_srid(), geotype,
+                                    &str, m_gcbuf);
+    }
+  }
+};
+
+
+/*
+  Compute a geometry collection's centroid in demension decreasing order:
+  If it has polygons, make them a multipolygon and compute its centroid as the
+  result; otherwise compose a multilinestring and compute its centroid as the
+  result; otherwise compose a multipoint and compute its centroid as the result.
+  @param geom the geometry collection.
+  @param[out] respt takes out the centroid point result.
+  @param[out] null_value returns whether the result is NULL.
+  @return whether got error, true if got error and false if successful.
+*/
+template <typename Coordsys>
+bool geometry_collection_centroid(const Geometry *geom,
+                                  typename BG_models<double, Coordsys>::
+                                  Point *respt, my_bool *null_value)
+{
+  typename BG_models<double, Coordsys>::Multipolygon mplgn;
+  Geometry_grouper<typename BG_models<double, Coordsys>::Polygon>
+    plgn_grouper(&mplgn);
+
+  const char *wkb_start= geom->get_cptr();
+  uint32 wkb_len0, wkb_len= geom->get_data_size();
+  *null_value= false;
+
+  /*
+    The geometries with largest dimension determine the centroid, because
+    components of lower dimensions weighs nothing in comparison.
+   */
+  wkb_len0= wkb_len;
+  wkb_scanner(wkb_start, &wkb_len,
+              Geometry::wkb_geometrycollection, false, &plgn_grouper);
+  if (mplgn.size() > 0)
+  {
+    if (mplgn.normalize_ring_order() == NULL)
+      return true;
+
+    boost::geometry::centroid(mplgn, *respt);
+  }
+  else
+  {
+    typename BG_models<double, Coordsys>::Multilinestring mls;
+    wkb_len= wkb_len0;
+    Geometry_grouper<typename BG_models<double, Coordsys>::Linestring>
+      ls_grouper(&mls);
+    wkb_scanner(wkb_start, &wkb_len,
+                Geometry::wkb_geometrycollection, false, &ls_grouper);
+    if (mls.size() > 0)
+      boost::geometry::centroid(mls, *respt);
+    else
+    {
+      typename BG_models<double, Coordsys>::Multipoint mpts;
+      wkb_len= wkb_len0;
+      Geometry_grouper<typename BG_models<double, Coordsys>::Point>
+        pt_grouper(&mpts);
+      wkb_scanner(wkb_start, &wkb_len,
+                  Geometry::wkb_geometrycollection, false, &pt_grouper);
+      if (mpts.size() > 0)
+        boost::geometry::centroid(mpts, *respt);
+      else
+        *null_value= true;
+    }
+  }
+
+  return false;
+}
+
+
+template <typename Coordsys>
+bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
+{
+  typename BG_models<double, Coordsys>::Point respt;
+
+  // Release last call's result buffer.
+  bg_resbuf_mgr.free_result_buffer();
+
+  try
+  {
+    switch (geom->get_type())
+    {
+    case Geometry::wkb_point:
+      {
+        typename BG_models<double, Coordsys>::Point
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_multipoint:
+      {
+        typename BG_models<double, Coordsys>::Multipoint
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_linestring:
+      {
+        typename BG_models<double, Coordsys>::Linestring
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_multilinestring:
+      {
+        typename BG_models<double, Coordsys>::Multilinestring
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_polygon:
+      {
+        typename BG_models<double, Coordsys>::Polygon
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_multipolygon:
+      {
+        typename BG_models<double, Coordsys>::Multipolygon
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_geometrycollection:
+      if (geometry_collection_centroid<Coordsys>(geom, &respt, &null_value))
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+        null_value= true;
+      }
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+
+    respt.set_srid(geom->get_srid());
+    if (!null_value)
+      null_value= post_fix_result(&bg_resbuf_mgr, respt, ptwkb);
+
+    bg_resbuf_mgr.set_result_buffer(const_cast<char *>(ptwkb->ptr()));
+  }
+  CATCH_ALL("st_centroid", null_value= true)
+
+  return null_value;
+}
+
+Field::geometry_type Item_func_convex_hull::get_geometry_type() const
+{
+  return Field::GEOM_POLYGON;
+}
+
+String *Item_func_convex_hull::val_str(String *str)
+{
+  String arg_val;
+  String *swkb= args[0]->val_str(&arg_val);
+  Geometry_buffer buffer;
+  Geometry *geom= NULL;
+
+  if ((null_value= (!swkb || args[0]->null_value)))
+    return NULL;
+
+  if (!(geom= Geometry::construct(&buffer, swkb)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  DBUG_ASSERT(geom->get_coordsys() == Geometry::cartesian);
+  str->set_charset(&my_charset_bin);
+  str->length(0);
+
+  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
+      geom->normalize_ring_order() == NULL)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  null_value= bg_convex_hull<bgcs::cartesian>(geom, str);
+  if (null_value)
+    return error_str();
+  if (geom->get_type() == Geometry::wkb_point)
+    str->takeover(*swkb);
+
+  return str;
+}
+
+
+template <typename Coordsys>
+bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
+                                           String *res_hull)
+{
+  typename BG_models<double, Coordsys>::Polygon hull;
+  typename BG_models<double, Coordsys>::Linestring line_hull;
+  Geometry::wkbType geotype= geom->get_type();
+
+  // Release last call's result buffer.
+  bg_resbuf_mgr.free_result_buffer();
+
+  try
+  {
+    if (geotype == Geometry::wkb_multipoint ||
+        geotype == Geometry::wkb_linestring ||
+        geotype == Geometry::wkb_multilinestring ||
+        geotype == Geometry::wkb_geometrycollection)
+    {
+      /*
+        It's likely that the multilinestring, linestring, geometry collection
+        and multipoint have all colinear points so the final hull is a
+        linear hull. If so we must get the linear hull otherwise we will get
+        an invalid polygon hull.
+       */
+      typename BG_models<double, Coordsys>::Multipoint mpts;
+      Point_accumulator pt_acc(&mpts);
+      const char *wkb_start= geom->get_cptr();
+      uint32 wkb_len= geom->get_data_size();
+      wkb_scanner(wkb_start, &wkb_len, geotype, false, &pt_acc);
+      bool isdone= true;
+      if (mpts.size() == 0)
+        return (null_value= true);
+
+      if (is_colinear(mpts))
+      {
+        boost::geometry::convex_hull(mpts, line_hull);
+        line_hull.set_srid(geom->get_srid());
+        null_value= post_fix_result(&bg_resbuf_mgr, line_hull, res_hull);
+      }
+      else if (geotype == Geometry::wkb_geometrycollection)
+      {
+        boost::geometry::convex_hull(mpts, hull);
+        hull.set_srid(geom->get_srid());
+        null_value= post_fix_result(&bg_resbuf_mgr, hull, res_hull);
+      }
+      else
+        isdone= false;
+
+      if (isdone)
+      {
+        bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
+        return false;
+      }
+    }
+
+    /*
+      From here on we don't have to consider linear hulls, it's impossible.
+
+      In theory we can use above multipoint to get convex hull for all 7 types
+      of geometries, however we'd better use BG standard logic for each type,
+      a tricky example would be: imagine an invalid polygon whose inner ring is
+      completely contains its outer ring inside, BG might return the outer ring
+      but if using the multipoint to get convexhull, we would get the
+      inner ring as result instead.
+    */
+    switch (geotype)
+    {
+    case Geometry::wkb_point:
+      {
+        /*
+          A point's convex hull is the point itself, directly use the point's
+          WKB buffer, set its header info correctly. 
+        */
+        DBUG_ASSERT(geom->get_ownmem() == false &&
+                    geom->has_geom_header_space());
+        char *p= geom->get_cptr() - GEOM_HEADER_SIZE;
+        write_geometry_header(p, geom->get_srid(), geom->get_geotype());
+        return false;
+      }
+      break;
+    case Geometry::wkb_multipoint:
+      {
+        typename BG_models<double, Coordsys>::Multipoint
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::convex_hull(geo, hull);
+      }
+      break;
+    case Geometry::wkb_linestring:
+      {
+        typename BG_models<double, Coordsys>::Linestring
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::convex_hull(geo, hull);
+      }
+      break;
+    case Geometry::wkb_multilinestring:
+      {
+        typename BG_models<double, Coordsys>::Multilinestring
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::convex_hull(geo, hull);
+      }
+      break;
+    case Geometry::wkb_polygon:
+      {
+        typename BG_models<double, Coordsys>::Polygon
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::convex_hull(geo, hull);
+      }
+      break;
+    case Geometry::wkb_multipolygon:
+      {
+        typename BG_models<double, Coordsys>::Multipolygon
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::convex_hull(geo, hull);
+      }
+      break;
+    case Geometry::wkb_geometrycollection:
+      // Handled above.
+      DBUG_ASSERT(false);
+      break;
+    default:
+      break;
+    }
+
+    hull.set_srid(geom->get_srid());
+    null_value= post_fix_result(&bg_resbuf_mgr, hull, res_hull);
+    bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
+  }
+  CATCH_ALL("st_convexhull", null_value= true)
+
+  return null_value;
+}
 
 
 /*
@@ -1366,15 +1858,9 @@ BG_geometry_collection::as_geometry_collection(String *geodata) const
        i != m_geos.end(); ++i)
   {
     if (gc == NULL)
-    {
       gc= new Gis_geometry_collection(*i, geodata);
-      if (gc == NULL)
-        return NULL;
-    }
     else
-    {
       gc->append_geometry(*i, geodata);
-    }
   }
 
   return gc;
@@ -1406,7 +1892,7 @@ bool BG_geometry_collection::store_geometry(const Geometry *geo)
     for (uint32 i= 1; i <= ngeom; i++)
     {
       String *pres= m_geosdata.append_object();
-      if (pres->reserve(GEOM_HEADER_SIZE, 512))
+      if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE, 512))
         return true;
 
       pres->q_append(geo->get_srid());
@@ -1414,6 +1900,8 @@ bool BG_geometry_collection::store_geometry(const Geometry *geo)
         return true;
 
       Geometry_buffer *pgeobuf= m_geobufs.append_object();
+      if (pgeobuf == NULL)
+        return true;
       Geometry *geo2= Geometry::construct(pgeobuf, pres->ptr(),
                                           pres->length());
       if (geo2 == NULL)
@@ -1453,42 +1941,22 @@ Geometry *BG_geometry_collection::store(const Geometry *geo)
 
   DBUG_ASSERT(geo->get_type() != Geometry::wkb_geometrycollection);
   pres= m_geosdata.append_object();
-  pres->reserve(GEOM_HEADER_SIZE + geosize);
+  if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE + geosize))
+    return NULL;
   write_geometry_header(pres, geo->get_srid(), geo->get_type());
   pres->q_append(geo->get_cptr(), geosize);
 
   pgeobuf= m_geobufs.append_object();
+  if (pgeobuf == NULL)
+    return NULL;
   geo2= Geometry::construct(pgeobuf, pres->ptr(), pres->length());
   // The geometry data already pass such checks, it's always valid here.
   DBUG_ASSERT(geo2 != NULL);
 
   if (geo2 != NULL && geo2->get_type() != Geometry::wkb_geometrycollection)
     m_geos.push_back(geo2);
+
   return geo2;
-}
-
-/**
-  Append a range of elements into a specified container.
-
-  @tparam Container container type
-  @tparam Iterator iterator type
-  @param cont the container to append elements into.
-  @param begin the starting position of the range to append into the container.
-  @param end the end (not inclusive) of the range to append into the container.
- */
-template <typename Container, typename Iterator>
-size_t append_range(Container *cont,
-                    const Iterator &begin, const Iterator &end)
-{
-  size_t n= 0;
-
-  for (Iterator i= begin; i != end; ++i)
-  {
-    cont->push_back(*i);
-    n++;
-  }
-
-  return n;
 }
 
 
@@ -3618,11 +4086,62 @@ int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
 
 Item_func_spatial_operation::~Item_func_spatial_operation()
 {
-  if (bg_result_buf)
-    gis_wkb_raw_free(bg_result_buf);
 }
 
 using std::auto_ptr;
+
+inline static void reassemble_geometry(Geometry *g)
+{
+  Geometry::wkbType gtype= g->get_geotype();
+  if (gtype == Geometry::wkb_polygon)
+    down_cast<Gis_polygon *>(g)->to_wkb_unparsed();
+  else if (gtype == Geometry::wkb_multilinestring)
+    down_cast<Gis_multi_line_string *>(g)->reassemble();
+  else if (gtype == Geometry::wkb_multipolygon)
+    down_cast<Gis_multi_polygon *>(g)->reassemble();
+}
+
+/**
+  For every Geometry object write-accessed by a boost geometry function, i.e.
+  those passed as out parameter into set operation functions, call this
+  function before using the result object's data.
+
+  @param resbuf_mgr tracks the result buffer
+  @return true if got error; false if no error occured.
+*/
+template <typename BG_geotype>
+bool post_fix_result(BG_result_buf_mgr *resbuf_mgr,
+                     BG_geotype &geout, String *res)
+{
+  DBUG_ASSERT(geout.has_geom_header_space());
+  reassemble_geometry(&geout);
+  if (geout.get_ptr() == NULL)
+    return true;
+  if (res)
+  {
+    char *resptr= geout.get_cptr() - GEOM_HEADER_SIZE;
+    uint32 len= static_cast<uint32>(geout.get_nbytes());
+
+    /*
+      The resptr buffer is now owned by resbuf_mgr and used by res, resptr
+      will be released properly by resbuf_mgr.
+     */
+    resbuf_mgr->add_buffer(resptr);
+    res->set(resptr, len + GEOM_HEADER_SIZE, &my_charset_bin);
+
+    // Prefix the GEOMETRY header.
+    write_geometry_header(resptr, geout.get_srid(), geout.get_geotype());
+
+    /*
+      Give up ownership because the buffer may have to live longer than
+      the object.
+    */
+    geout.set_ownmem(false);
+  }
+
+  return false;
+}
+
 
 #define BGOPCALL(GeoOutType, geom_out, bgop,                            \
                  GeoType1, g1, GeoType2, g2, wkbres, nullval)           \
@@ -3642,7 +4161,8 @@ do                                                                      \
     boost::geometry::bgop(geo1, geo2, *geout);                          \
     (nullval)= false;                                                   \
     if (geout->size() == 0 ||                                           \
-        (nullval= post_fix_result(*geout, wkbres)))                     \
+        (nullval= post_fix_result(&(m_ifso->bg_resbuf_mgr),             \
+                                  *geout, wkbres)))                     \
     {                                                                   \
       if (nullval)                                                      \
         return NULL;                                                    \
@@ -3699,33 +4219,6 @@ class BG_setop_wrapper
   void copy_ifso_state()
   {
     null_value= m_ifso->null_value;
-  }
-
-  /*
-    For every Geometry object write-accessed by a boost geometry function, i.e.
-    those passed as out parameter into set operation functions, call this
-    function before using the result object's data.
-
-    @return true if got error; false if no error occured.
-  */
-  template <typename BG_geotype>
-  bool post_fix_result(BG_geotype &geout, String *res)
-  {
-    DBUG_ASSERT(geout.has_geom_header_space());
-    geout.reassemble();
-    if (geout.get_ptr() == NULL)
-      return true;
-    if (res)
-    {
-      char *resptr= geout.get_cptr() - GEOM_HEADER_SIZE;
-      uint32 len= static_cast<uint32>(geout.get_nbytes());
-      m_ifso->bg_results.insert(resptr);
-      res->set(resptr, len + GEOM_HEADER_SIZE, &my_charset_bin);
-      write_geometry_header(resptr, geout.get_srid(), geout.get_geotype());
-      geout.set_ownmem(false);
-    }
-
-    return false;
   }
 
 public:
@@ -3894,8 +4387,7 @@ public:
     endpos= std::set_intersection(ptset1.begin(), ptset1.end(),
                                   ptset2.begin(), ptset2.end(),
                                   respts.begin(), bgpt_lt());
-    append_range(mpts, respts.begin(), endpos);
-
+    std::copy(respts.begin(), endpos, std::back_inserter(*mpts));
     if (mpts->size() > 0)
     {
       null_value= m_ifso->assign_result(mpts, result);
@@ -4048,7 +4540,7 @@ public:
       tmp2= new Multipoint;
       tmp2->set_srid(g1->get_srid());
       guard2.reset(tmp2);
-      append_range(tmp2, ptset.begin(), ptset.end());
+      std::copy(ptset.begin(), ptset.end(), std::back_inserter(*tmp2));
     }
 
     retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
@@ -4141,7 +4633,7 @@ public:
       tmp2= new Multipoint;
       tmp2->set_srid(g1->get_srid());
       guard2.reset(tmp2);
-      append_range(tmp2, ptset.begin(), ptset.end());
+      std::copy(ptset.begin(), ptset.end(), std::back_inserter(*tmp2));
     }
 
     retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
@@ -4204,7 +4696,7 @@ public:
       ptset.insert(mpts2.begin(), mpts2.end());
     }
 
-    append_range(mpts, ptset.begin(), ptset.end());
+    std::copy(ptset.begin(), ptset.end(), std::back_inserter(*mpts));
     if (mpts->size() > 0)
     {
       retgeo= mpts;
@@ -4281,7 +4773,7 @@ public:
 
     ptset.insert(mpts1.begin(), mpts1.end());
     ptset.insert(mpts2.begin(), mpts2.end());
-    append_range(mpts, ptset.begin(), ptset.end());
+    std::copy(ptset.begin(), ptset.end(), std::back_inserter(*mpts));
 
     if (mpts->size() > 0)
     {
@@ -4465,7 +4957,7 @@ public:
 
     if (ptset.empty() == false)
     {
-      append_range(mpts, ptset.begin(), ptset.end());
+      std::copy(ptset.begin(), ptset.end(), std::back_inserter(*mpts));
       null_value= m_ifso->assign_result(mpts, result);
       retgeo= mpts;
       guard.release();
@@ -5544,11 +6036,7 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
   bool had_except1= false, had_except2= false;
 
   // Release last call's result buffer.
-  if (bg_result_buf)
-  {
-    gis_wkb_raw_free(bg_result_buf);
-    bg_result_buf= NULL;
-  }
+  bg_resbuf_mgr.free_result_buffer();
 
   // Clean up the result first, since caller may give us one with non-NULL
   // buffer, we don't need it here.
@@ -5605,17 +6093,9 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
       Release intermediate geometry data buffers accumulated during execution
       of this set operation.
     */
-    if (!str_value_arg->is_alloced() && str_value_arg->ptr() != NULL &&
-        gres != g1 && gres != g2)
-    {
-      bg_result_buf= const_cast<char *>(str_value_arg->ptr());
-      bg_results.erase(bg_result_buf);
-    }
-
-    for (std::set<void *>::iterator itr= bg_results.begin();
-         itr != bg_results.end(); ++itr)
-      gis_wkb_raw_free(*itr);
-    bg_results.clear();
+    if (!str_value_arg->is_alloced() && gres != g1 && gres != g2)
+      bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str_value_arg->ptr()));
+    bg_resbuf_mgr.free_intermediate_result_buffers();
   }
   CATCH_ALL(func_name(), had_except2= true)
 
@@ -5742,6 +6222,7 @@ private:
   // Forbid use, to eliminate a warning: oldval may be used uninitialized.
   Var_resetter();
   Var_resetter(const Var_resetter &o);
+  Var_resetter &operator=(const Var_resetter&);
 public:
   Var_resetter(Valtype *v, Valtype oldval) : valref(v)
   {
@@ -6113,7 +6594,8 @@ geocol_difference(Geometry *g1, Geometry *g2, String *result, bool *pdone)
          j != bggc2.get_geometries().end(); ++j)
     {
       wkbres= wkbstrs.append_object();
-
+      if (wkbres == NULL)
+        return NULL;
       opdone= false;
       Geometry *g0= bg_geo_set_op<Coord_type, Coordsys>(g11, *j, wkbres,
                                                         &opdone);
@@ -6125,7 +6607,7 @@ geocol_difference(Geometry *g1, Geometry *g2, String *result, bool *pdone)
           guard0.release();
         if (!(g11 != NULL && g11 != g0 && g11 != *i && g11 != *j))
           guard11.release();
-        return 0;
+        return NULL;
       }
 
       if (g0 != NULL && !is_empty_geocollection(*wkbres))
@@ -6244,7 +6726,7 @@ bool Item_func_spatial_operation::assign_result(Geometry *geo, String *result)
   char *p= geo->get_cptr() - GEOM_HEADER_SIZE;
   write_geometry_header(p, geo->get_srid(), geo->get_geotype());
   result->set(p, GEOM_HEADER_SIZE + geo->get_nbytes(), &my_charset_bin);
-  bg_results.insert(p);
+  bg_resbuf_mgr.add_buffer(p);
   geo->set_ownmem(false);
 
   return false;
@@ -6664,7 +7146,7 @@ int Item_func_buffer::Transporter::collection_add_item(Gcalc_shape_status
   return 0;
 }
 
-// boost geometry doesn't support buffer for any type of geometry
+// Boost.Geometry doesn't support buffer for any type of geometry
 // defined by OGC for now.
 String *Item_func_buffer::val_str(String *str_value_arg)
 {
@@ -6971,6 +7453,91 @@ double Item_func_y::val_real()
 }
 
 
+template <typename Coordsys>
+double Item_func_area::bg_area(const Geometry *geom, bool *isdone)
+{
+  double res= 0;
+
+  *isdone= false;
+  try
+  {
+    switch (geom->get_type())
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_multilinestring:
+      *isdone= true;
+      res= 0;
+      break;
+    case Geometry::wkb_polygon:
+      {
+        typename BG_models<double, Coordsys>::Polygon
+          plgn(geom->get_data_ptr(), geom->get_data_size(),
+               geom->get_flags(), geom->get_srid());
+
+        res= boost::geometry::area(plgn);
+        *isdone= true;
+      }
+      break;
+    case Geometry::wkb_multipolygon:
+      {
+        typename BG_models<double, Coordsys>::Multipolygon
+          mplgn(geom->get_data_ptr(), geom->get_data_size(),
+                geom->get_flags(), geom->get_srid());
+
+        res= boost::geometry::area(mplgn);
+        *isdone= true;
+      }
+      break;
+    case Geometry::wkb_geometrycollection:
+      {
+        BG_geometry_collection bggc;
+        bool isdone2= false;
+
+        bggc.fill(geom);
+
+        for (BG_geometry_collection::Geometry_list::iterator
+             i= bggc.get_geometries().begin();
+             i != bggc.get_geometries().end(); ++i)
+        {
+          isdone2= false;
+          if ((*i)->get_geotype() != Geometry::wkb_geometrycollection &&
+              (*i)->normalize_ring_order() == NULL)
+          {
+            my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+            null_value= true;
+            return 0;
+          }
+
+          res+= bg_area<Coordsys>(*i, &isdone2);
+          if (!isdone2 || null_value)
+            return res;
+        }
+
+        *isdone= true;
+      }
+      break;
+    default:
+      break;
+    }
+  }
+  CATCH_ALL("st_area", null_value= true)
+
+  /*
+    Given a polygon whose rings' points are in counter-clockwise order,
+    boost geometry computes an area of negative value. Also, the inner ring
+    has to be clockwise.
+
+    We now always make polygon rings CCW --- outer ring CCW and inner rings CW,
+    thus if we get a negative value, it's because the inner ring is larger than
+    the outer ring, and we should keep it negative.
+   */
+
+  return res;
+}
+
+
 double Item_func_area::val_real()
 {
   DBUG_ASSERT(fixed == 1);
@@ -6978,6 +7545,7 @@ double Item_func_area::val_real()
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
   Geometry *geom;
+  bool isdone= false;
 
   if ((null_value= (!swkb || args[0]->null_value)))
     return res;
@@ -6986,8 +7554,24 @@ double Item_func_area::val_real()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_real();
   }
-  if ((null_value= geom->area(&res)))
-    return res;
+  DBUG_ASSERT(geom->get_coordsys() == Geometry::cartesian);
+
+  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
+      geom->normalize_ring_order() == NULL)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+  }
+
+  res= bg_area<bgcs::cartesian>(geom, &isdone);
+
+  // Had error in bg_area.
+  if (null_value)
+    return error_real();
+
+  if (!isdone)
+    null_value= geom->area(&res);
+
   if (!my_isfinite(res))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -7040,13 +7624,59 @@ longlong Item_func_srid::val_int()
 }
 
 
+/**
+  Compact a geometry collection, making all its points/multipoints into a
+  single multipoint object, and all its linestrings/multilinestrings into a
+  single multilinestring object; leave polygons and multipolygons as they were.
+
+  @param g the input geometry collection.
+  @param gbuf the place to create the new result geometry collection.
+  @param str the String buffer to hold data of the result geometry collection.
+ */
+static const Geometry *
+compact_collection(const Geometry *g, Geometry_buffer *gbuf, String *str)
+{
+  if (g->get_geotype() != Geometry::wkb_geometrycollection)
+    return g;
+
+  uint32 wkb_len, wkb_len0;
+  char *wkb_start= g->get_cptr();
+
+  wkb_len= wkb_len0= g->get_data_size();
+  BG_models<double, bgcs::cartesian>::Multilinestring mls;
+  Geometry_grouper<BG_models<double, bgcs::cartesian>::Linestring>
+    ls_grouper(&mls);
+  wkb_scanner(wkb_start, &wkb_len,
+              Geometry::wkb_geometrycollection, false, &ls_grouper);
+
+  BG_models<double, bgcs::cartesian>::Multipoint mpts;
+  wkb_len= wkb_len0;
+  Geometry_grouper<BG_models<double, bgcs::cartesian>::Point>
+    pt_grouper(&mpts);
+  wkb_scanner(wkb_start, &wkb_len,
+              Geometry::wkb_geometrycollection, false, &pt_grouper);
+
+  Gis_geometry_collection *ret= new (gbuf) Gis_geometry_collection();
+  wkb_len= wkb_len0;
+  Geometry_grouper<BG_models<double, bgcs::cartesian>::Polygon>
+    mplgn_grouper(ret, str);
+  wkb_scanner(wkb_start, &wkb_len,
+              Geometry::wkb_geometrycollection, false, &mplgn_grouper);
+
+  ret->append_geometry(&mls, str);
+  ret->append_geometry(&mpts, str);
+
+  return ret;
+}
+
+
 double Item_func_distance::val_real()
 {
-  bool cur_point_edge;
+  bool cur_point_edge, isdone= false;
   const Gcalc_scan_iterator::point *evpos;
   const Gcalc_heap::Info *cur_point, *dist_point;
   Gcalc_scan_events ev;
-  double t, distance, cur_distance;
+  double t, distance= 0, cur_distance= 0;
   double ex, ey, vx, vy, e_sqrlen;
   uint obj2_si;
   Gcalc_operation_transporter trn(&func, &collector);
@@ -7069,6 +7699,120 @@ double Item_func_distance::val_real()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_real());
   }
+
+  // The two geometry operand must be in the same coordinate system.
+  if (g1->get_srid() != g2->get_srid())
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
+             g1->get_srid(), g2->get_srid());
+    DBUG_RETURN(error_real());
+  }
+
+  if ((g1->get_geotype() != Geometry::wkb_geometrycollection &&
+       g1->normalize_ring_order() == NULL) ||
+      (g2->get_geotype() != Geometry::wkb_geometrycollection &&
+       g2->normalize_ring_order() == NULL))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  if (g1->get_type() != Geometry::wkb_geometrycollection &&
+      g2->get_type() != Geometry::wkb_geometrycollection)
+    distance= bg_distance<bgcs::cartesian>(g1, g2, &isdone);
+  else
+  {
+    /*
+      Calculate the distance of two geometry collections. BG has optimized
+      algorithm to calculate distance among multipoints, multilinestrings
+      and polygons, so we compact the collection to make a single multipoint,
+      a single multilinestring, and the rest are all polygons and multipolygons,
+      and do a nested loop to calculate the minimum distances among such
+      compacted components as the final result.
+     */
+    BG_geometry_collection bggc1, bggc2;
+    bool initialized= false, isdone2= false, all_normalized= false;
+    double min_distance= DBL_MAX, dist;
+    String gcstr1, gcstr2;
+    Geometry_buffer buf1, buf2;
+    const Geometry *g11, *g22;
+
+    g11= compact_collection(g1, &buf1, &gcstr1);
+    g22= compact_collection(g2, &buf2, &gcstr2);
+
+    bggc1.fill(g11);
+    bggc2.fill(g22);
+    for (BG_geometry_collection::Geometry_list::iterator
+         i= bggc1.get_geometries().begin();
+         i != bggc1.get_geometries().end(); ++i)
+    {
+      /* Normalize polygon rings, do only once for each component. */
+      if ((*i)->get_geotype() != Geometry::wkb_geometrycollection &&
+          (*i)->normalize_ring_order() == NULL)
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+        DBUG_RETURN(error_real());
+      }
+
+      for (BG_geometry_collection::Geometry_list::iterator
+           j= bggc2.get_geometries().begin();
+           j != bggc2.get_geometries().end(); ++j)
+      {
+        /* Normalize polygon rings, do only once for each component. */
+        if (!all_normalized &&
+            (*j)->get_geotype() != Geometry::wkb_geometrycollection &&
+            (*j)->normalize_ring_order() == NULL)
+        {
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          DBUG_RETURN(error_real());
+        }
+
+        dist= bg_distance<bgcs::cartesian>(*i, *j, &isdone2);
+        if (!isdone2 && !null_value)
+          goto old_algo;
+        if (null_value)
+          goto error;
+        if (!initialized)
+        {
+          DBUG_ASSERT(dist <= DBL_MAX);
+          min_distance= dist;
+          initialized= true;
+        }
+        else if (min_distance > dist)
+          min_distance= dist;
+
+        isdone= true;
+      }
+
+      all_normalized= true;
+      if (!initialized)
+        break;                                  // bggc2 is empty.
+    }
+
+    /*
+      If at least one of the collections is empty, we have NULL result. 
+    */
+    if (!initialized)
+    {
+      null_value= true;
+      isdone= true;
+    }
+    else
+    {
+      if (min_distance >= DBL_MAX)
+        min_distance= 0;
+      distance= min_distance;
+    }
+  }
+
+error:
+  if (null_value)
+    DBUG_RETURN(error_real());
+
+  if (isdone && !null_value)
+    goto exit;
+
+old_algo:
 
   if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
       (g2->get_class_info()->m_type_id == Geometry::wkb_point))
@@ -7210,6 +7954,336 @@ mem_error:
 }
 
 
+template <typename Coordsys>
+double Item_func_distance::
+distance_point_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  typename BG_models<double, Coordsys>::Point
+    bg1(g1->get_data_ptr(), g1->get_data_size(),
+        g1->get_flags(), g1->get_srid());
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+    {
+      typename BG_models<double, Coordsys>::Point
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      typename BG_models<double, Coordsys>::Multipoint
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_linestring:
+    {
+      typename BG_models<double, Coordsys>::Linestring
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_multilinestring:
+    {
+      typename BG_models<double, Coordsys>::Multilinestring
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_polygon:
+    {
+      typename BG_models<double, Coordsys>::Polygon
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_multipolygon:
+    {
+      typename BG_models<double, Coordsys>::Multipolygon
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  *isdone= true;
+  return res;
+}
+
+
+template <typename Coordsys>
+double Item_func_distance::
+distance_multipoint_geometry(const Geometry *g1, const Geometry *g2,
+                             bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  typename BG_models<double, Coordsys>::Multipoint
+    bg1(g1->get_data_ptr(), g1->get_data_size(),
+        g1->get_flags(), g1->get_srid());
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+    res= bg_distance<Coordsys>(g2, g1, isdone);
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      typename BG_models<double, Coordsys>::Multipoint
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_linestring:
+    {
+      typename BG_models<double, Coordsys>::Linestring
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_multilinestring:
+    {
+      typename BG_models<double, Coordsys>::Multilinestring
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_polygon:
+    {
+      typename BG_models<double, Coordsys>::Polygon
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_multipolygon:
+    {
+      typename BG_models<double, Coordsys>::Multipolygon
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  *isdone= true;
+
+  return res;
+}
+
+
+template <typename Coordsys>
+double Item_func_distance::
+distance_linestring_geometry(const Geometry *g1, const Geometry *g2,
+                             bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+  case Geometry::wkb_multipoint:
+    res= bg_distance<Coordsys>(g2, g1, isdone);
+    break;
+  case Geometry::wkb_linestring:
+  case Geometry::wkb_multilinestring:
+  case Geometry::wkb_polygon:
+  case Geometry::wkb_multipolygon:
+    // Not supported yet by BG, call BG function when supported.
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return res;
+}
+
+
+template <typename Coordsys>
+double Item_func_distance::
+distance_multilinestring_geometry(const Geometry *g1, const Geometry *g2,
+                                  bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+  case Geometry::wkb_multipoint:
+  case Geometry::wkb_linestring:
+    res= bg_distance<Coordsys>(g2, g1, isdone);
+    break;
+  case Geometry::wkb_multilinestring:
+  case Geometry::wkb_polygon:
+  case Geometry::wkb_multipolygon:
+    // Not supported yet by BG, call BG function when supported.
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return res;
+}
+
+
+template <typename Coordsys>
+double Item_func_distance::
+distance_polygon_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+  case Geometry::wkb_multipoint:
+  case Geometry::wkb_linestring:
+  case Geometry::wkb_multilinestring:
+    res= bg_distance<Coordsys>(g2, g1, isdone);
+    break;
+  case Geometry::wkb_polygon:
+  case Geometry::wkb_multipolygon:
+    // Not supported yet by BG, call BG function when supported.
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return res;
+}
+
+
+template <typename Coordsys>
+double Item_func_distance::
+distance_multipolygon_geometry(const Geometry *g1, const Geometry *g2,
+                               bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+  case Geometry::wkb_multipoint:
+  case Geometry::wkb_linestring:
+  case Geometry::wkb_multilinestring:
+  case Geometry::wkb_polygon:
+    res= bg_distance<Coordsys>(g2, g1, isdone);
+    break;
+  case Geometry::wkb_multipolygon:
+    // Not supported yet by BG, call BG function when supported.
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return res;
+}
+
+
+/*
+  Calculate distance of g1 and g2 using Boost.Geometry. We split the
+  implementation into 6 smaller functions according to the type of g1, to
+  make all functions smaller in size. Because distance is symmetric, we swap
+  parameters if the swapped type combination is already implemented.
+ */
+template <typename Coordsys>
+double Item_func_distance::bg_distance(const Geometry *g1,
+                                       const Geometry *g2, bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  try
+  {
+
+    switch (g1->get_type())
+    {
+    case Geometry::wkb_point:
+      res= distance_point_geometry<Coordsys>(g1, g2, isdone);
+      break;
+    case Geometry::wkb_multipoint:
+      res= distance_multipoint_geometry<Coordsys>(g1, g2, isdone);
+      break;
+    case Geometry::wkb_linestring:
+      res= distance_linestring_geometry<Coordsys>(g1, g2, isdone);
+      break;
+    case Geometry::wkb_multilinestring:
+      res= distance_multilinestring_geometry<Coordsys>(g1, g2, isdone);
+      break;
+    case Geometry::wkb_polygon:
+      res= distance_polygon_geometry<Coordsys>(g1, g2, isdone);
+      break;
+    case Geometry::wkb_multipolygon:
+      res= distance_polygon_geometry<Coordsys>(g1, g2, isdone);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+  }
+  CATCH_ALL("st_distance", null_value= true)
+
+  return res;
+}
+
+
+// check whether all segments of a linestring are colinear.
+template <typename Point_range>
+static bool is_colinear(const Point_range &ls)
+{
+  if (ls.size() < 3)
+    return true;
+
+  double x1, x2, x3, y1, y2, y3, X1, X2, Y1, Y2;
+
+  for (size_t i= 0; i < ls.size() - 2; i++)
+  {
+    x1= ls[i].template get<0>();
+    x2= ls[i + 1].template get<0>();
+    x3= ls[i + 2].template get<0>();
+
+    y1= ls[i].template get<1>();
+    y2= ls[i + 1].template get<1>();
+    y3= ls[i + 2].template get<1>();
+
+    X1= x2 - x1;
+    X2= x3 - x2;
+    Y1= y2 - y1;
+    Y2= y3 - y2;
+
+    if (X1 * Y2 - X2 * Y1 != 0)
+      return false;
+  }
+
+  return true;
+}
+
 #ifndef DBUG_OFF
 longlong Item_func_gis_debug::val_int()
 {
@@ -7219,3 +8293,4 @@ longlong Item_func_gis_debug::val_int()
   return current_thd->get_gis_debug();
 }
 #endif
+

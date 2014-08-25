@@ -34,6 +34,7 @@
 #include <algorithm>
 using std::min;
 using std::max;
+#include "aggregate_check.h"
 
 static bool convert_constant_item(THD *, Item_field *, Item **);
 static longlong
@@ -5558,6 +5559,8 @@ Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
     if (new_item != item)
       current_thd->change_item_tree(li.ref(), new_item);
   }
+  // strange to call transform(): each argument will thus have the transformer
+  // called twice on it (in compile() above and Item_func::transform below)??
   return Item_func::transform(transformer, arg_t);
 }
 
@@ -7436,4 +7439,24 @@ float Item_func_eq::get_filtering_effect(table_map filter_for_table,
 
   return fld->get_cond_filter_default_probability(rows_in_table,
                                                   COND_FILTER_EQUALITY);
+}
+
+
+bool Item_func_any_value::aggregate_check_group(uchar *arg)
+{
+  Group_check *gc= reinterpret_cast<Group_check *>(arg);
+  if (gc->is_stopped(this))
+    return false;
+  gc->stop_at(this);
+  return false;
+}
+
+
+bool Item_func_any_value::aggregate_check_distinct(uchar *arg)
+{
+  Distinct_check *dc= reinterpret_cast<Distinct_check *>(arg);
+  if (dc->is_stopped(this))
+    return false;
+  dc->stop_at(this);
+  return false;
 }

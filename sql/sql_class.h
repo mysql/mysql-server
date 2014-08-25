@@ -296,12 +296,12 @@ public:
   enum fk_option { FK_OPTION_UNDEF, FK_OPTION_RESTRICT, FK_OPTION_CASCADE,
 		   FK_OPTION_SET_NULL, FK_OPTION_NO_ACTION, FK_OPTION_DEFAULT};
 
-  LEX_STRING ref_db;
-  LEX_STRING ref_table;
+  LEX_CSTRING ref_db;
+  LEX_CSTRING ref_table;
   List<Key_part_spec> ref_columns;
   uint delete_opt, update_opt, match_opt;
   Foreign_key(const LEX_STRING &name_arg, List<Key_part_spec> &cols,
-	      const LEX_STRING &ref_db_arg, const LEX_STRING &ref_table_arg,
+	      const LEX_CSTRING &ref_db_arg, const LEX_CSTRING &ref_table_arg,
               List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
     :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
@@ -811,7 +811,7 @@ public:
   int insert(THD *thd, Prepared_statement *statement);
 
   /** Find prepared statement by name. */
-  Prepared_statement *find_by_name(LEX_STRING *name);
+  Prepared_statement *find_by_name(const LEX_CSTRING &name);
 
   /** Find prepared statement by ID. */
   Prepared_statement *find(ulong id);
@@ -1489,7 +1489,11 @@ private:
   */
   LEX_CSTRING m_query_string;
 
-public:
+  /**
+    Currently selected catalog.
+  */
+
+  LEX_CSTRING m_catalog;
   /**
     Name of the current (default) database.
 
@@ -1502,8 +1506,9 @@ public:
     the THD of that thread); that thread is (and must remain, for now) the
     only responsible for freeing this member.
   */
-  char *db;
-  size_t db_length;
+  LEX_CSTRING m_db;
+
+public:
 
   /**
     In some cases, we may want to modify the query (i.e. replace
@@ -1622,11 +1627,6 @@ public:
   char	  *thread_stack;
 
   /**
-    Currently selected catalog.
-  */
-  char *catalog;
-
-  /**
     @note
     Some members of THD (currently 'Statement::db',
     'catalog' and 'query')  are set and alloced by the slave SQL thread
@@ -1725,6 +1725,12 @@ public:
       modification_plan= plan_arg;
     }
   } query_plan;
+
+  const LEX_CSTRING &catalog() const
+  { return m_catalog; }
+
+  void set_catalog(const LEX_CSTRING &catalog)
+  { m_catalog= catalog; }
 
 private:
   unsigned int m_current_stage_key;
@@ -3358,6 +3364,9 @@ public:
   */
   bool skip_gtid_rollback;
 
+  const LEX_CSTRING &db() const
+  { return m_db; }
+
   /**
     Set the current database; use deep copy of C-string.
 
@@ -3376,10 +3385,10 @@ public:
     will be made private and more convenient interface will be provided.
 
     @return Operation status
-      @retval FALSE Success
-      @retval TRUE  Out-of-memory error
+      @retval false Success
+      @retval true  Out-of-memory error
   */
-  bool set_db(const char *new_db, size_t new_db_len)
+  bool set_db(const LEX_CSTRING &new_db)
   {
     bool result;
     /*
@@ -3389,23 +3398,24 @@ public:
     */
     mysql_mutex_lock(&LOCK_thd_data);
     /* Do not reallocate memory if current chunk is big enough. */
-    if (db && new_db && db_length >= new_db_len)
-      memcpy(db, new_db, new_db_len+1);
+    if (m_db.str && new_db.str && m_db.length >= new_db.length)
+      memcpy(const_cast<char*>(m_db.str), new_db.str, new_db.length+1);
     else
     {
-      my_free(db);
-      if (new_db)
-        db= my_strndup(key_memory_THD_db,
-                       new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
-      else
-        db= NULL;
+      my_free(const_cast<char*>(m_db.str));
+      m_db= NULL_CSTR;
+      if (new_db.str)
+        m_db.str= my_strndup(key_memory_THD_db,
+                             new_db.str, new_db.length,
+                             MYF(MY_WME | ME_FATALERROR));
     }
-    db_length= db ? new_db_len : 0;
+    m_db.length= m_db.str ? new_db.length : 0;
     mysql_mutex_unlock(&LOCK_thd_data);
-    result= new_db && !db;
+    result= new_db.str && !m_db.str;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)
-      PSI_THREAD_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
+      PSI_THREAD_CALL(set_thread_db)(new_db.str,
+                                     static_cast<int>(new_db.length));
 #endif
     return result;
   }
@@ -3421,12 +3431,13 @@ public:
     attributes including security context. In the future, this operation
     will be made private and more convenient interface will be provided.
   */
-  void reset_db(char *new_db, size_t new_db_len)
+  void reset_db(const LEX_CSTRING &new_db)
   {
-    db= new_db;
-    db_length= new_db_len;
+    m_db.str= new_db.str;
+    m_db.length= new_db.length;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
+    PSI_THREAD_CALL(set_thread_db)(new_db.str,
+                                   static_cast<int>(new_db.length));
 #endif
   }
   /*
@@ -3436,14 +3447,14 @@ public:
   */
   bool copy_db_to(char **p_db, size_t *p_db_length)
   {
-    if (db == NULL)
+    if (m_db.str == NULL)
     {
       my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
       return TRUE;
     }
-    *p_db= strmake(db, db_length);
-    *p_db_length= db_length;
-    return FALSE;
+    *p_db= strmake(m_db.str, m_db.length);
+    *p_db_length= m_db.length;
+    return false;
   }
   thd_scheduler scheduler;
 
@@ -4571,25 +4582,26 @@ typedef struct st_sort_buffer {
 class Table_ident :public Sql_alloc
 {
 public:
-  LEX_STRING db;
-  LEX_STRING table;
+  LEX_CSTRING db;
+  LEX_CSTRING table;
   SELECT_LEX_UNIT *sel;
-  inline Table_ident(THD *thd, LEX_STRING db_arg, LEX_STRING table_arg,
+  inline Table_ident(THD *thd, const LEX_CSTRING &db_arg,
+                     const LEX_CSTRING &table_arg,
 		     bool force)
     :table(table_arg), sel(NULL)
   {
     if (!force && (thd->client_capabilities & CLIENT_NO_SCHEMA))
-      db.str=0;
+      db= NULL_CSTR;
     else
       db= db_arg;
   }
-  inline Table_ident(LEX_STRING db_arg, LEX_STRING table_arg)
+  inline Table_ident(const LEX_CSTRING &db_arg, const LEX_CSTRING &table_arg)
     :db(db_arg), table(table_arg), sel(NULL)
   {}
-  inline Table_ident(LEX_STRING table_arg) 
+  inline Table_ident(const LEX_CSTRING &table_arg)
     :table(table_arg), sel(NULL)
   {
-    db.str=0;
+    db= NULL_CSTR;
   }
   /*
     This constructor is used only for the case when we create a derived
@@ -4600,13 +4612,12 @@ public:
   inline Table_ident(SELECT_LEX_UNIT *s) : sel(s)
   {
     /* We must have a table name here as this is used with add_table_to_list */
-    db.str= empty_c_string;                    /* a subject to casedn_str */
-    db.length= 0;
+    db= EMPTY_CSTR;                    /* a subject to casedn_str */
     table.str= internal_table_name;
     table.length=1;
   }
   bool is_derived_table() const { return MY_TEST(sel); }
-  inline void change_db(char *db_name)
+  inline void change_db(const char *db_name)
   {
     db.str= db_name;
     db.length= strlen(db_name);
@@ -4732,6 +4743,11 @@ class user_var_entry
     mysql_mutex_assert_owner(&m_owner->LOCK_thd_data);
   }
 
+
+  /**
+    Currently selected catalog.
+  */
+  LEX_CSTRING m_catalog;
 public:
   user_var_entry() {}                         /* Remove gcc warning */
 

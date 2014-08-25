@@ -17,7 +17,6 @@
 
 #include "socket_connection.h"
 
-#include "my_net.h"                     // addrinfo
 #include "violite.h"                    // Vio
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
@@ -26,6 +25,7 @@
 #include "sql_class.h"                  // THD
 
 #include <algorithm>
+#include <signal.h>
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
@@ -90,7 +90,8 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
       DBUG_ASSERT(thd->m_statement_psi == NULL);
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   stmt_info_new_packet.m_key,
-                                                  thd->db, thd->db_length,
+                                                  thd->db().str,
+                                                  thd->db().length,
                                                   thd->charset(), NULL);
 
       THD_STAGE_INFO(thd, stage_starting);

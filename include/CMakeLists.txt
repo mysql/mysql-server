@@ -44,7 +44,6 @@ SET(HEADERS
   decimal.h
   errmsg.h
   my_global.h
-  my_net.h 
   my_getopt.h
   sslopt-longopts.h
   my_dir.h 

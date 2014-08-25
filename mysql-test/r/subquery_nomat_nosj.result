@@ -3900,7 +3900,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select count(0) from `test`.`t1` group by `test`.`t1`.`b`))
 DROP TABLE t1;
-CREATE TABLE t1 (id int NOT NULL, st CHAR(2), INDEX idx(id));
+CREATE TABLE t1 (id int NOT NULL, st CHAR(2), UNIQUE INDEX idx(id));
 INSERT INTO t1 VALUES
 (3,'FL'), (2,'GA'), (4,'FL'), (1,'GA'), (5,'NY'), (7,'FL'), (6,'NY');
 CREATE TABLE t2 (id int NOT NULL, INDEX idx(id));
@@ -5173,13 +5173,13 @@ SELECT c FROM
 (SELECT COUNT(b) FROM t1) AS x GROUP BY c
 ) FROM t1 GROUP BY b
 ) AS y;
-ERROR 42S22: Unknown column 'c' in 'field list'
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.t1.c' of SELECT #3 was resolved in SELECT #2
-Error	1054	Unknown column 'c' in 'field list'
+Error	1055	Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1;
 #
 # Bug #46791: Assertion failed:(table->key_read==0),function unknown
@@ -5236,7 +5236,7 @@ SELECT
 FROM t3 WHERE 1 = 0 GROUP BY 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	DEPENDENT SUBQUERY	t2	NULL	index	b	b	5	NULL	2	50.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	b	NULL	NULL	NULL	2	50.00	Range checked for each record (index map: 0x2)
 2	DEPENDENT SUBQUERY	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1276	Field or reference 'test.t3.b' of SELECT #2 was resolved in SELECT #1

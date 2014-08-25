@@ -7300,7 +7300,7 @@ int handler::ha_write_row(uchar *buf)
   if (unlikely(error))
     DBUG_RETURN(error);
 
-  if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
+  if (unlikely((error= binlog_log_row(table, 0, buf, log_func))))
     DBUG_RETURN(error); /* purecov: inspected */
 
   DEBUG_SYNC_C("ha_write_row_end");
@@ -7331,7 +7331,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
-  if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
+  if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))))
     return error;
   return 0;
 }
@@ -7359,7 +7359,7 @@ int handler::ha_delete_row(const uchar *buf)
   MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;
-  if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
+  if (unlikely((error= binlog_log_row(table, buf, 0, log_func))))
     return error;
   return 0;
 }
