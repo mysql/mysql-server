@@ -33,7 +33,7 @@ select COUNT_STAR from performance_schema.table_io_waits_summary_by_table
 select COUNT_STAR from performance_schema.table_io_waits_summary_by_index_usage
        where INDEX_NAME!='NULL';
 
-drop table db1.t1;
+truncate table db1.t1;
 # Expect INDEX_STAT lost
 select variable_value > 0 from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
