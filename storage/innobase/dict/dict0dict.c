@@ -1123,6 +1123,11 @@ dict_table_rename_in_cache(
 		/* The id will be changed.  So remove old one */
 		rbt_delete(foreign->foreign_table->foreign_rbt, foreign->id);
 
+		if (foreign->referenced_table) {
+			rbt_delete(foreign->referenced_table->referenced_rbt,
+				   foreign->id);
+		}
+
 		if (ut_strlen(foreign->foreign_table_name)
 		    < ut_strlen(table->name)) {
 			/* Allocate a longer name buffer;
@@ -1272,6 +1277,11 @@ dict_table_rename_in_cache(
 
 		rbt_insert(foreign->foreign_table->foreign_rbt,
 			   foreign->id, &foreign);
+
+		if (foreign->referenced_table) {
+			rbt_insert(foreign->referenced_table->referenced_rbt,
+				   foreign->id, &foreign);
+		}
 
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
