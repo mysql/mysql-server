@@ -8262,7 +8262,7 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                              binary_log::enum_load_dup_handling dup_handling_arg,
                              bool using_trans, bool immediate, bool suppress_use,
                              int errcode)
-: binary_log::Query_event(query_arg, thd_arg->catalog, thd_arg->db, query_length_arg,
+: Query_event(query_arg, thd_arg->catalog().str, thd_arg->db().str, query_length_arg,
               thd_arg->thread_id(), thd_arg->variables.sql_mode,
               thd_arg->variables.auto_increment_increment,
               thd_arg->variables.auto_increment_offset,
