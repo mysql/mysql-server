@@ -40,6 +40,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "fsp0sysspace.h"
+#include "row0mysql.h"
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -3206,6 +3207,29 @@ trx_kill_blocking(trx_t* trx)
 		return;
 	}
 
+	ulint	had_dict_lock = trx->dict_operation_lock_mode;
+
+	switch (had_dict_lock) {
+	case 0:
+		break;
+
+	case RW_S_LATCH:
+		/* Release foreign key check latch */
+		row_mysql_unfreeze_data_dictionary(trx);
+		break;
+
+	default:
+		/* There should never be a lock wait when the
+		dictionary latch is reserved in X mode.  Dictionary
+		transactions should only acquire locks on dictionary
+		tables, not other tables. All access to dictionary
+		tables should be covered by dictionary
+		transactions. */
+		ut_error;
+	}
+
+	ut_a(trx->dict_operation_lock_mode == 0);
+
 	/** Kill the transactions in the lock acquisition order old -> new. */
 	hit_list_t::reverse_iterator	end = trx->hit_list.rend();
 
@@ -3289,4 +3313,10 @@ trx_kill_blocking(trx_t* trx)
 	}
 
 	trx->hit_list.clear();
+
+	if (had_dict_lock) {
+
+		row_mysql_freeze_data_dictionary(trx);
+	}
+
 }
