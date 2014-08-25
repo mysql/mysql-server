@@ -902,8 +902,7 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
 
     TODO: why do we force switch here?
   */
-
-  if (mysql_opt_change_db(thd, &name->m_db, &saved_cur_db_name, TRUE,
+  if (mysql_opt_change_db(thd, name->m_db, &saved_cur_db_name, TRUE,
                           &cur_db_changed))
   {
     ret= SP_INTERNAL_ERROR;
@@ -927,7 +926,8 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
       generate an error.
     */
 
-    if (cur_db_changed && mysql_change_db(thd, &saved_cur_db_name, TRUE))
+    if (cur_db_changed &&
+        mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true))
     {
       ret= SP_INTERNAL_ERROR;
       goto end;
@@ -1514,7 +1514,7 @@ public:
          cases.
  */
 
-bool lock_db_routines(THD *thd, char *db)
+bool lock_db_routines(THD *thd, const char *db)
 {
   TABLE *table;
   uint key_len;
@@ -1600,7 +1600,7 @@ bool lock_db_routines(THD *thd, char *db)
 */
 
 int
-sp_drop_db_routines(THD *thd, char *db)
+sp_drop_db_routines(THD *thd, const char *db)
 {
   TABLE *table;
   int ret;
@@ -1862,7 +1862,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
   for (routine= routines; routine; routine= routine->next_global)
   {
     sp_name *name;
-    LEX_STRING lex_db;
+    LEX_CSTRING lex_db;
     LEX_STRING lex_name;
     lex_db.length= strlen(routine->db);
     lex_name.length= strlen(routine->table_name);
@@ -2293,7 +2293,7 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
   struct st_sp_chistics sp_chistics;
   const LEX_CSTRING definer_user= EMPTY_CSTR;
   const LEX_CSTRING definer_host= EMPTY_CSTR;
-  LEX_STRING sp_db_str;
+  LEX_CSTRING sp_db_str;
   LEX_STRING sp_name_str;
   sp_head *sp;
   sp_cache **spc= (type == SP_TYPE_FUNCTION) ?

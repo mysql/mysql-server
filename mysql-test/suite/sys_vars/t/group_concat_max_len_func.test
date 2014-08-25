@@ -79,6 +79,8 @@ connect (test_con2,localhost,root,,);
 --echo ## Connecting with test_con1 ##
 connection test_con1;
 
+--source include/turn_off_only_full_group_by.inc
+
 --echo ## Accessing data and using group_concat on column whose value is greater than 4 ##
 SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
 
@@ -88,7 +90,6 @@ SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
 SET @@session.group_concat_max_len = 10;
 SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
 
-
 --echo '#--------------------FN_DYNVARS_034_03-------------------------#'
 ##############################################################################
 #    Verifying behavior of variable by increasing session value of variable  #
@@ -96,6 +97,8 @@ SELECT id, rollno, GROUP_CONCAT(name) FROM t1 GROUP BY rollno;
 
 --echo ## Connecting with new connection test_con2 ##
 connection test_con2;
+
+--source include/turn_off_only_full_group_by.inc
 
 --echo ## Verifying initial value of variable. It should be 4 ##
 SELECT @@session.group_concat_max_len = 4;

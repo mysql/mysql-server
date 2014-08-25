@@ -632,4 +632,36 @@ typedef int8 plan_idx;
 #define NO_PLAN_IDX (-2)          ///< undefined index
 #define PRE_FIRST_PLAN_IDX (-1) ///< right before the first (first's index is 0)
 
+
+/**
+   A type for SQL-like 3-valued Booleans: true/false/unknown.
+*/
+class Bool3
+{
+public:
+  /// @returns an instance set to "FALSE"
+  static const Bool3 false3() { return Bool3(v_FALSE); }
+  /// @returns an instance set to "UNKNOWN"
+  static const Bool3 unknown3() { return Bool3(v_UNKNOWN); }
+  /// @returns an instance set to "TRUE"
+  static const Bool3 true3() { return Bool3(v_TRUE); }
+
+  bool is_true() const { return m_val == v_TRUE; }
+  bool is_unknown() const { return m_val == v_UNKNOWN; }
+  bool is_false() const { return m_val == v_FALSE; }
+
+private:
+  enum value { v_FALSE, v_UNKNOWN, v_TRUE };
+  /// This is private; instead, use false3()/etc.
+  Bool3(value v) : m_val(v) {}
+
+  value m_val;
+  /*
+    No operator to convert Bool3 to bool (or int) - intentionally: how
+    would you map UNKNOWN3 to true/false?
+    It is because we want to block such conversions that Bool3 is a class
+    instead of a plain enum.
+  */
+};
+
 #endif /* STRUCTS_INCLUDED */

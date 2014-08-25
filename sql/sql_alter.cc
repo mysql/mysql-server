@@ -99,7 +99,8 @@ Alter_table_ctx::Alter_table_ctx()
 
 Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
                                  uint tables_opened_arg,
-                                 char *new_db_arg, char *new_name_arg)
+                                 const char *new_db_arg,
+                                 const char *new_name_arg)
   : datetime_field(NULL), error_if_not_empty(false),
     tables_opened(tables_opened_arg),
     new_db(new_db_arg), new_name(new_name_arg)
@@ -125,13 +126,14 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
 
     if (lower_case_table_names == 1) // Convert new_name/new_alias to lower case
     {
-      my_casedn_str(files_charset_info, new_name);
+      my_casedn_str(files_charset_info, const_cast<char*>(new_name));
       new_alias= new_name;
     }
     else if (lower_case_table_names == 2) // Convert new_name to lower case
     {
-      my_stpcpy(new_alias= new_alias_buff, new_name);
-      my_casedn_str(files_charset_info, new_name);
+      my_stpcpy(new_alias_buff, new_name);
+      new_alias= (const char*)new_alias_buff;
+      my_casedn_str(files_charset_info, const_cast<char*>(new_name));
     }
     else
       new_alias= new_name; // LCTN=0 => case sensitive + case preserving

@@ -111,13 +111,7 @@ support cross-platform development and expose comonly used SQL names. */
 # endif /* UNIV_HOTBACKUP */
 #endif
 
-/* We only try to do explicit inlining of functions with gcc and
-Sun Studio */
-
-#define __STDC_LIMIT_MACROS	/* Enable C99 limit macros */
 #include <stdint.h>
-
-#define __STDC_FORMAT_MACROS	/* Enable C99 printf format macros */
 #include <inttypes.h>
 
 /* Following defines are to enable performance schema

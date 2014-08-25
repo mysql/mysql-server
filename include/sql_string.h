@@ -620,4 +620,23 @@ static inline bool check_if_only_end_space(const CHARSET_INFO *cs, char *str,
   return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }
 
+
+inline LEX_CSTRING to_lex_cstring(const LEX_STRING &s)
+{
+  LEX_CSTRING cstr= { s.str, s.length };
+  return cstr;
+}
+
+
+inline LEX_STRING to_lex_string(const LEX_CSTRING &s)
+{
+  LEX_STRING str= { const_cast<char *>(s.str),  s.length };
+  return str;
+}
+
+inline LEX_CSTRING to_lex_cstring(const char *s)
+{
+  LEX_CSTRING cstr= { s, s != NULL ? strlen(s) : 0 };
+  return cstr;
+}
 #endif /* SQL_STRING_INCLUDED */

@@ -89,16 +89,16 @@ count(distinct(g))
 24
 select count(distinct(astext(g))) from gis_geometrycollection;
 count(distinct(astext(g)))
-24
+23
 #Displaying the inserted spatial Data
 Select fid, AsText(g) from gis_geometrycollection;
 fid	AsText(g)
 101	POINT(10 10)
 102	POINT(7895647.2837465275 -0.112323454345)
 103	POINT(0 0)
-104	POINT(-0 -0)
+104	POINT(0 0)
 105	POINT(5.49 -6.49)
-106	POINT(-1 -0)
+106	POINT(-1 0)
 107	POINT(1e308 1e308)
 201	LINESTRING(0 0,0 10,10 0)
 202	LINESTRING(0 0,0 0,0 0)
@@ -524,34 +524,9 @@ Select Dimension(0x0000000007000000030000000001402400000000000040240000000000000
 ERROR HY000: Geometry byte string must be little endian.
 #Checking the Envelope for the geometrycollection class 
 select fid,AsText(Envelope(g)) from gis_geometrycollection where g is not NULL;
-fid	AsText(Envelope(g))
-101	POLYGON((10 10,10 10,10 10,10 10,10 10))
-102	POLYGON((7895647.2837465275 -0.112323454345,7895647.2837465275 -0.112323454345,7895647.2837465275 -0.112323454345,7895647.2837465275 -0.112323454345,7895647.2837465275 -0.112323454345))
-103	POLYGON((0 0,0 0,0 0,0 0,0 0))
-104	POLYGON((-0 -0,-0 -0,-0 -0,-0 -0,-0 -0))
-105	POLYGON((5.49 -6.49,5.49 -6.49,5.49 -6.49,5.49 -6.49,5.49 -6.49))
-106	POLYGON((-1 -0,-1 -0,-1 -0,-1 -0,-1 -0))
-107	POLYGON((1e308 1e308,1e308 1e308,1e308 1e308,1e308 1e308,1e308 1e308))
-201	POLYGON((0 0,10 0,10 10,0 10,0 0))
-202	POLYGON((0 0,0 0,0 0,0 0,0 0))
-203	POLYGON((0 0,1 0,1 1,0 1,0 0))
-204	POLYGON((1 0,10 0,10 1,1 1,1 0))
-301	POLYGON((0 -3,100 -3,100 0,0 0,0 -3))
-302	POLYGON((1 0,100 0,100 100,1 100,1 0))
-303	POLYGON((8 8,8 8,8 8,8 8,8 8))
-304	POLYGON((10 10,20 10,20 20,10 20,10 10))
-305	POLYGON((10 10,20 10,20 20,10 20,10 10))
-306	POLYGON((1 0,100 0,100 100,1 100,1 0))
-307	POLYGON((20 20,80 20,80 80,20 80,20 20))
-308	POLYGON((0 0,5 0,5 0,0 0,0 0))
-309	POLYGON((0 0,5 0,5 0,0 0,0 0))
-701	POLYGON((0 0,10 0,10 10,0 10,0 0))
-702	POLYGON((10 10,20 10,20 20,10 20,10 10))
-703	POLYGON((99.99 -0.1111,200.99 -0.1111,200.99 11111,99.99 11111,99.99 -0.1111))
-704	POLYGON((0 0,84 0,84 50,0 50,0 0))
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 select count(AsText(Envelope(g))) FROM gis_geometrycollection;
-count(AsText(Envelope(g)))
-24
+ERROR 22023: Invalid GIS data provided to function st_envelope.
 #Checking the geometry types of some random Geometry Collections.
 Select AsText(Envelope(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))')));
 AsText(Envelope(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))')))
@@ -631,7 +606,7 @@ AsText(Envelope(GeometryFromWKB(AsWKB(GeometryCollection(Point(5, 5), Point(0.00
 POLYGON((0.0009 0,9.99999 0,9.99999 9.99999,0.0009 9.99999,0.0009 0))
 Select AsText(Envelope(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0),(4 4, 6 4, 6 8, 4 8, 4 4)),((4 4, 6 4, 6 8, 4 8, 4 4))), MULTILINESTRING((0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999),(0 10, 5 5, 10 10)), MULTIPOINT(0 10, 5 5, 10 10))')));
 AsText(Envelope(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0),(4 4, 6 4, 6 8, 4 8, 4 4)),((4 4, 6 4, 6 8, 4 8, 4 4))), MULTILINESTRING((0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999),(0 
-POLYGON((-0 -0,10.00001 -0,10.00001 10.00001,-0 10.00001,-0 -0))
+POLYGON((0 0,10.00001 0,10.00001 10.00001,0 10.00001,0 0))
 Select AsText(Envelope(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))')));
 AsText(Envelope(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))')))
 POLYGON((0 0,10 0,10 10,0 10,0 0))
@@ -893,34 +868,9 @@ Select IsEmpty(0x000000000700000003000000000140240000000000004024000000000000000
 ERROR HY000: Geometry byte string must be little endian.
 #Checking the Area for the geometrycollection class 
 select fid,Area(g) from gis_geometrycollection where g is not NULL;
-fid	Area(g)
-101	0
-102	0
-103	0
-104	0
-105	0
-106	0
-107	0
-201	0
-202	0
-203	0
-204	0
-301	149.5
-302	6300
-303	0
-304	50
-305	0
-306	6300
-307	3600
-308	0
-309	0
-701	0
-702	96
-703	0
-704	4084.5
+ERROR 22023: Invalid GIS data provided to function st_area.
 select count(Area(g)) FROM gis_geometrycollection;
-count(Area(g))
-24
+ERROR 22023: Invalid GIS data provided to function st_area.
 #Checking the geometry types of some random Geometry Collections.
 Select Area(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'));
 Area(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'))
@@ -932,8 +882,7 @@ Select Area(GeometryFromWKB(AsWKB(GeometryCollection(Point(99.99, -0.1111), Poin
 Area(GeometryFromWKB(AsWKB(GeometryCollection(Point(99.99, -0.1111), Point(200.99, 11111),LineString(Point(99.99, -0.1111), Point(200.99, 11111))))))
 0
 Select Area(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'));
-Area(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'))
-20000
+ERROR 22023: Invalid GIS data provided to function st_area.
 Select Area(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'));
 Area(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'))
 100
@@ -987,8 +936,7 @@ ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 Select Area(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(@ $), LINESTRING(ëô ôÑ, ëô ôÑ, ëô ôÑ), POLYGON((ëô ôÑ, ëô ôÑ, ëô ôÑ)))'));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 Select Area(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))));
-Area(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINES
-0
+ERROR 22023: Invalid GIS data provided to function st_area.
 Select Area(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'));
 Area(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'))
 172.0001

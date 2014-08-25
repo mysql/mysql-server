@@ -2082,7 +2082,7 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     connection is closed. We don't want to accidentally free a wrong
     pointer if connect failed.
   */
-  thd->reset_db(NULL, 0);
+  thd->reset_db(NULL_CSTR);
 
   if (command == COM_CHANGE_USER)
   {
@@ -2385,7 +2385,7 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
   /* Change a database if necessary */
   if (mpvio.db.length)
   {
-    if (mysql_change_db(thd, &mpvio.db, FALSE))
+    if (mysql_change_db(thd, to_lex_cstring(mpvio.db), false))
     {
       /* mysql_change_db() has pushed the error message. */
       release_user_connection(thd);
