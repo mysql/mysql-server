@@ -113,6 +113,9 @@ support cross-platform development and expose comonly used SQL names. */
 
 #include <stdint.h>
 #include <inttypes.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 /* Following defines are to enable performance schema
 instrumentation in each of five InnoDB modules if
