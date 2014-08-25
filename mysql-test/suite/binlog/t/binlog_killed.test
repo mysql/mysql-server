@@ -59,7 +59,7 @@ reap;
 let $rows= `select count(*) from t2  /* must be 1 or 0 */`;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --let $row_number=4
-if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+if (!`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE = 'ON'`)
 {
   # if GTID_MODE=ON, there are two more events in the binary log:
   # 1. Previous_Gtids_Log_Event
@@ -287,7 +287,7 @@ select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 --echo must have the update query event on the 4th line
 source include/show_binlog_events.inc;
 --let $row_number= 4
-if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+if (!`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE = 'ON'`)
 {
   # if GTID_MODE=ON, there are two more events in the binary log:
   # 1. Previous_Gtids_Log_Event
@@ -345,7 +345,7 @@ select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 source include/show_binlog_events.inc;
 
 --let $row_number= 4
-if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+if (!`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE = 'ON'`)
 {
   # if GTID_MODE=ON, there are two more events in the binary log:
   # 1. Previous_Gtids_Log_Event

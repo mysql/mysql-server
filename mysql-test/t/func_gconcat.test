@@ -120,9 +120,14 @@ create table t1 (bar varchar(32));
 insert into t1 values('test1'),('test2');
 select group_concat(bar order by concat(bar,bar)) from t1;
 select group_concat(bar order by concat(bar,bar) desc) from t1;
+
+--source include/turn_off_only_full_group_by.inc
+
 select bar from t1 having group_concat(bar)='';
 select bar from t1 having instr(group_concat(bar), "test") > 0;
 select bar from t1 having instr(group_concat(bar order by concat(bar,bar) desc), "test2,test1") > 0;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1;
 
 # ORDER BY fix_fields()
@@ -160,7 +165,11 @@ drop table t1,t2;
 
 create table t1 (s1 char(10), s2 int not null);
 insert into t1 values ('a',2),('b',2),('c',1),('a',3),('b',4),('c',4);
+
+--source include/turn_off_only_full_group_by.inc
 select distinct s1 from t1 order by s2,s1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+
 select group_concat(distinct s1) from t1;
 select group_concat(distinct s1 order by s2) from t1 where s2 < 4;
 # The following is wrong and needs to be fixed ASAP

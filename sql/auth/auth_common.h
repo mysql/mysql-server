@@ -126,7 +126,7 @@ public:
 class ACL_internal_schema_registry
 {
 public:
-  static void register_schema(const LEX_STRING *name,
+  static void register_schema(const LEX_STRING &name,
                               const ACL_internal_schema_access *access);
   static const ACL_internal_schema_access *lookup(const char *name);
 };
@@ -411,7 +411,7 @@ ulong acl_get(const char *host, const char *ip,
               const char *user, const char *db, my_bool db_is_pattern);
 bool is_acl_user(const char *host, const char *user);
 bool acl_getroot(Security_context *sctx, char *user,
-                 char *host, char *ip, char *db);
+                 char *host, char *ip, const char *db);
 
 /* sql_authorization */
 bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
@@ -476,8 +476,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
 bool check_single_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables, bool no_errors);
-bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
-			  bool is_proc, bool no_errors);
+bool check_routine_access(THD *thd, ulong want_access, const char *db,
+                          char *name, bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
 bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
 bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
@@ -493,7 +493,7 @@ inline bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables
 inline bool check_single_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables, bool no_errors)
 { return false; }
-inline bool check_routine_access(THD *thd,ulong want_access,char *db,
+inline bool check_routine_access(THD *thd,ulong want_access,const char *db,
                                  char *name, bool is_proc, bool no_errors)
 { return false; }
 inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)

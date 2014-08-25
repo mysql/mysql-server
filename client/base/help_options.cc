@@ -16,6 +16,7 @@
 */
 
 #include "client_priv.h"
+#include "my_default.h"
 #include <sstream>
 #include "help_options.h"
 #include "abstract_program.h"
@@ -24,6 +25,8 @@
 
 using namespace Mysql::Tools::Base::Options;
 using Mysql::Tools::Base::Abstract_program;
+
+extern const char *load_default_groups[];
 
 Help_options::Help_options(Abstract_program *program)
   : m_program(program)
@@ -72,4 +75,6 @@ void Mysql::Tools::Base::Options::Help_options::print_usage()
     copyright.c_str(),
     this->m_program->get_description().c_str());
   my_print_help(this->m_program->get_options_array());
+  print_defaults("my", load_default_groups);
+  my_print_variables(this->m_program->get_options_array());
 }

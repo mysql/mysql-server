@@ -58,27 +58,6 @@ struct file_format_t {
 
 /** The transaction system */
 trx_sys_t*		trx_sys		= NULL;
-
-/** In a MySQL replication slave, in crash recovery we store the master log
-file name and position here. */
-/* @{ */
-/** Master binlog file name */
-char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
-/** Master binlog file position.  We have successfully got the updates
-up to this position.  -1 means that no crash recovery was needed, or
-there was no master log position info inside InnoDB.*/
-int64_t	trx_sys_mysql_master_log_pos = -1;
-/* @} */
-
-/** If this MySQL server uses binary logging, after InnoDB has been inited
-and if it has done a crash recovery, we store the binlog file name and position
-here. */
-/* @{ */
-/** Binlog file name */
-char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
-/** Binlog file position, or -1 if unknown */
-int64_t	trx_sys_mysql_bin_log_pos = -1;
-/* @} */
 #endif /* !UNIV_HOTBACKUP */
 
 /** List of animal names representing file format. */
@@ -277,19 +256,11 @@ trx_sys_print_mysql_binlog_offset(void)
 		sys_header + TRX_SYS_MYSQL_LOG_INFO
 		+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
-	trx_sys_mysql_bin_log_pos
-		= (((int64_t) trx_sys_mysql_bin_log_pos_high) << 32)
-		+ (int64_t) trx_sys_mysql_bin_log_pos_low;
-
-	ut_memcpy(trx_sys_mysql_bin_log_name,
-		  sys_header + TRX_SYS_MYSQL_LOG_INFO
-		  + TRX_SYS_MYSQL_LOG_NAME, TRX_SYS_MYSQL_LOG_NAME_LEN);
-
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Last MySQL binlog file position %lu %lu,"
 		" file name %s",
 		trx_sys_mysql_bin_log_pos_high, trx_sys_mysql_bin_log_pos_low,
-		trx_sys_mysql_bin_log_name);
+		sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME);
 
 	mtr_commit(&mtr);
 }

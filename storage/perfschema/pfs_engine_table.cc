@@ -704,7 +704,7 @@ void initialize_performance_schema_acl(bool bootstrap)
   */
   if (! bootstrap)
   {
-    ACL_internal_schema_registry::register_schema(&PERFORMANCE_SCHEMA_str,
+    ACL_internal_schema_registry::register_schema(PERFORMANCE_SCHEMA_str,
                                                   &pfs_internal_access);
   }
 }

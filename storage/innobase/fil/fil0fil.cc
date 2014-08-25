@@ -954,125 +954,123 @@ fil_mutex_enter_and_prepare_for_io(
 	ulint		count		= 0;
 	ulint		count2		= 0;
 
-retry:
-	mutex_enter(&fil_system->mutex);
+	for (;;) {
+		mutex_enter(&fil_system->mutex);
 
-	if (space_id == 0 || space_id >= SRV_LOG_SPACE_FIRST_ID) {
-		/* We keep log files and system tablespace files always open;
-		this is important in preventing deadlocks in this module, as
-		a page read completion often performs another read from the
-		insert buffer. The insert buffer is in tablespace 0, and we
-		cannot end up waiting in this function. */
+		if (space_id == 0 || space_id >= SRV_LOG_SPACE_FIRST_ID) {
+			/* We keep log files and system tablespace files always
+			open; this is important in preventing deadlocks in this
+			module, as a page read completion often performs
+			another read from the insert buffer. The insert buffer
+			is in tablespace 0, and we cannot end up waiting in
+			this function. */
+			return;
+		}
 
-		return;
-	}
+		space = fil_space_get_by_id(space_id);
 
-	space = fil_space_get_by_id(space_id);
+		if (space != NULL && space->stop_ios) {
+			/* We are going to do a rename file and want to stop
+			new i/o's for a while. */
 
-	if (space != NULL && space->stop_ios) {
-		/* We are going to do a rename file and want to stop new i/o's
-		for a while */
+			if (count2 > 20000) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Tablespace %s has i/o ops stopped"
+					" for a long time %lu", space->name,
+					(ulong) count2);
+			}
 
-		if (count2 > 20000) {
+			mutex_exit(&fil_system->mutex);
+
+#ifndef UNIV_HOTBACKUP
+
+			/* Wake the i/o-handler threads to make sure pending
+			i/o's are performed */
+			os_aio_simulated_wake_handler_threads();
+
+			/* The sleep here is just to give IO helper threads a
+			bit of time to do some work. It is not required that
+			all IO related to the tablespace being renamed must
+			be flushed here as we do fil_flush() in
+			fil_rename_tablespace() as well. */
+			os_thread_sleep(20000);
+
+#endif /* UNIV_HOTBACKUP */
+
+			/* Flush tablespaces so that we can close modified
+			files in the LRU list */
+			fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+
+			os_thread_sleep(20000);
+
+			count2++;
+
+			continue;
+		}
+
+		if (fil_system->n_open < fil_system->max_n_open) {
+
+			return;
+		}
+
+		/* If the file is already open, no need to do anything; if the
+		space does not exist, we handle the situation in the function
+		which called this function. */
+
+		if (space == NULL || UT_LIST_GET_FIRST(space->chain)->is_open) {
+
+			return;
+		}
+
+		if (count > 1) {
+			print_info = true;
+		}
+
+		DBUG_EXECUTE_IF(
+			"ib_import_flush_temp",
+			print_info = true;
+		);
+
+		/* Too many files are open, try to close some */
+		do {
+			success = fil_try_to_close_file_in_LRU(print_info);
+
+		} while (success
+			 && fil_system->n_open >= fil_system->max_n_open);
+
+		if (fil_system->n_open < fil_system->max_n_open) {
+			/* Ok */
+			return;
+		}
+
+		if (count >= 2) {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Tablespace %s has i/o ops stopped for a long"
-				" time %lu", space->name, (ulong) count2);
+				"Too many (%lu) files stay open while the"
+				" maximum allowed value would be %lu. You"
+				" may need to raise the value of"
+				" innodb_open_files in my.cnf.",
+				(ulong) fil_system->n_open,
+				(ulong) fil_system->max_n_open);
+
+			return;
 		}
 
 		mutex_exit(&fil_system->mutex);
 
 #ifndef UNIV_HOTBACKUP
-
-		/* Wake the i/o-handler threads to make sure pending
-		i/o's are performed */
+		/* Wake the i/o-handler threads to make sure pending i/o's are
+		performed */
 		os_aio_simulated_wake_handler_threads();
 
-		/* The sleep here is just to give IO helper threads a
-		bit of time to do some work. It is not required that
-		all IO related to the tablespace being renamed must
-		be flushed here as we do fil_flush() in
-		fil_rename_tablespace() as well. */
 		os_thread_sleep(20000);
+#endif
+		/* Flush tablespaces so that we can close modified files in
+		the LRU list. */
 
-#endif /* UNIV_HOTBACKUP */
-
-		/* Flush tablespaces so that we can close modified
-		files in the LRU list */
 		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
-		os_thread_sleep(20000);
-
-		count2++;
-
-		goto retry;
+		count++;
 	}
-
-	if (fil_system->n_open < fil_system->max_n_open) {
-
-		return;
-	}
-
-	/* If the file is already open, no need to do anything; if the space
-	does not exist, we handle the situation in the function which called
-	this function */
-
-	if (space == NULL || UT_LIST_GET_FIRST(space->chain)->is_open) {
-
-		return;
-	}
-
-	if (count > 1) {
-		print_info = true;
-	}
-
-	DBUG_EXECUTE_IF(
-		"ib_import_flush_temp",
-		print_info = true;
-	);
-
-	/* Too many files are open, try to close some */
-close_more:
-	success = fil_try_to_close_file_in_LRU(print_info);
-
-	if (success && fil_system->n_open >= fil_system->max_n_open) {
-
-		goto close_more;
-	}
-
-	if (fil_system->n_open < fil_system->max_n_open) {
-		/* Ok */
-
-		return;
-	}
-
-	if (count >= 2) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Too many (%lu) files stay open while the maximum"
-			" allowed value would be %lu. You may need to raise"
-			" the value of innodb_open_files in my.cnf.",
-			(ulong) fil_system->n_open,
-			(ulong) fil_system->max_n_open);
-
-		return;
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-#ifndef UNIV_HOTBACKUP
-	/* Wake the i/o-handler threads to make sure pending i/o's are
-	performed */
-	os_aio_simulated_wake_handler_threads();
-
-	os_thread_sleep(20000);
-#endif
-	/* Flush tablespaces so that we can close modified files in the LRU
-	list */
-
-	fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
-
-	count++;
-
-	goto retry;
 }
 
 /*******************************************************************//**
@@ -2761,6 +2759,59 @@ fil_delete_tablespace(
 	return(err);
 }
 
+/** Truncate the tablespace to needed size.
+@param[in]	space_id	id of tablespace to truncate
+@param[in]	size_in_pages	truncate size.
+@return true if truncate was successful. */
+
+bool
+fil_truncate_tablespace(
+	ulint		space_id,
+	ulint		size_in_pages)
+{
+	/* Step-1: Prepare tablespace for truncate. This involves
+	stopping all the new operations + IO on that tablespace
+	and ensuring that related pages are flushed to disk. */
+	if (fil_prepare_for_truncate(space_id) != DB_SUCCESS) {
+		return(false);
+	}
+
+	/* Step-2: Invalidate buffer pool pages belonging to the tablespace
+	to re-create. Remove all insert buffer entries for the tablespace */
+	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
+
+	/* Step-3: Truncate the tablespace and accordingly update
+	the fil_space_t handler that is used to access this tablespace. */
+	mutex_enter(&fil_system->mutex);
+	fil_space_t*	space = fil_space_get_by_id(space_id);
+
+	/* The following code must change when InnoDB supports
+	multiple datafiles per tablespace. */
+	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
+
+	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
+
+	ut_ad(node->is_open);
+
+	space->size = node->size = size_in_pages;
+
+	bool success = os_file_truncate(node->name, node->handle, 0);
+	if (success) {
+		success = os_file_set_size(
+			node->name, node->handle,
+			size_in_pages * UNIV_PAGE_SIZE,
+			srv_read_only_mode);
+		if (success) {
+			space->stop_new_ops = false;
+			space->is_being_truncated = false;
+		}
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(success);
+}
+
 /** Check if an index tree is freed by checking a descriptor bit of
 index root page.
 @param[in]	space_id	space id
@@ -3445,10 +3496,12 @@ fil_create_new_single_table_tablespace(
 		}
 	} else {
 
-		success = os_file_set_size(path, file, size * UNIV_PAGE_SIZE);
+		success = os_file_set_size(
+			path, file, size * UNIV_PAGE_SIZE, srv_read_only_mode);
 	}
 #else
-	success = os_file_set_size(path, file, size * UNIV_PAGE_SIZE);
+	success = os_file_set_size(
+		path, file, size * UNIV_PAGE_SIZE, srv_read_only_mode);
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 	if (!success) {

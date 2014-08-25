@@ -1335,7 +1335,7 @@ public:
 #endif /* HAVE_REPLICATION */
   virtual const char* get_db()
   {
-    return thd ? thd->db : 0;
+    return thd ? thd->db().str : NULL;
   }
 #else // ifdef MYSQL_SERVER
   Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,

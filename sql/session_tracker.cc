@@ -652,7 +652,7 @@ bool Current_schema_tracker::store(THD *thd, String &buf)
 {
   ulonglong db_length, length;
 
-  length= db_length= thd->db_length;
+  length= db_length= thd->db().length;
   length += net_length_size(length);
 
   uchar *to= (uchar *) buf.prep_append(net_length_size(length) + 1,
@@ -668,7 +668,7 @@ bool Current_schema_tracker::store(THD *thd, String &buf)
   net_store_length(to, db_length);
 
   /* Current schema name (length-encoded string). */
-  store_lenenc_string(buf, thd->db, thd->db_length);
+  store_lenenc_string(buf, thd->db().str, thd->db().length);
 
   reset();
 
