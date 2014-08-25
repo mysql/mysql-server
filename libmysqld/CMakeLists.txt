@@ -34,14 +34,21 @@ INCLUDE_DIRECTORIES(
   ${BOOST_INCLUDE_DIR}
 )
 
+# We should generate these separately for libmysqld to avoid
+# compiling them for libmysqld while they are generated for sql.
+SET(GEN_YACC_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+)
+
 SET(GEN_SOURCES
-  ${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
-  ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
   ${CMAKE_BINARY_DIR}/sql/lex_hash.h 
 )
 
-SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED TRUE)
+SET_SOURCE_FILES_PROPERTIES(${GEN_YACC_SOURCES}
+                            ${GEN_SOURCES}
+                            PROPERTIES GENERATED TRUE)
 
 FOREACH(file ${SQL_EXPORTED_SOURCES})
   LIST(APPEND IMPORTED_SOURCES "../sql/${file}")
@@ -52,6 +59,7 @@ SET(SQL_EMBEDDED_SOURCES
   lib_sql.cc 
   libmysqld.c
   ${GEN_SOURCES}
+  ${GEN_YACC_SOURCES}
   ../client/get_password.c
   ../libmysql/errmsg.c
   ../libmysql/libmysql.c
@@ -97,9 +105,29 @@ IF(HAVE_MY_TIMER)
   SET(SQL_EMBEDDED_SOURCES ${SQL_EMBEDDED_SOURCES} ../sql/sql_timer.cc)
 ENDIF()
 
+
+# Handle out-of-source build from source package with possibly broken 
+# bison. Copy bison output to from source to build directory, if not already 
+# there
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
+COPY_BISON_OUTPUT(
+  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+)
+
+RUN_BISON(
+  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+)
+
+ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})
+
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
 DTRACE_INSTRUMENT(sql_embedded)
-ADD_DEPENDENCIES(sql_embedded GenError GenServerSource)
+ADD_DEPENDENCIES(sql_embedded GenError GenServerSource GenYaccEmbeddedSource)
 TARGET_LINK_LIBRARIES(sql_embedded binlogevents_static)
 
 # On Windows, static embedded server library is called mysqlserver.lib

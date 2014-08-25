@@ -220,16 +220,26 @@ void DH_Server::build(SSL& ssl)
 // read PreMaster secret and decrypt, server side
 void EncryptedPreMasterSecret::read(SSL& ssl, input_buffer& input)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
+
     const CertManager& cert = ssl.getCrypto().get_certManager();
     RSA rsa(cert.get_privateKey(), cert.get_privateKeyLength(), false);
     uint16 cipherLen = rsa.get_cipherLength();
     if (ssl.isTLS()) {
         byte len[2];
-        input.read(len, sizeof(len));
+        len[0] = input[AUTO];
+        len[1] = input[AUTO];
         ato16(len, cipherLen);
     }
     alloc(cipherLen);
     input.read(secret_, length_);
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
 
     opaque preMasterSecret[SECRET_LEN];
     rsa.decrypt(preMasterSecret, secret_, length_, 
@@ -277,6 +287,11 @@ void EncryptedPreMasterSecret::alloc(int sz)
 // read client's public key, server side
 void ClientDiffieHellmanPublic::read(SSL& ssl, input_buffer& input)
 {
+    if (input.get_error() || input.get_remaining() < (uint)LENGTH_SZ) {
+        ssl.SetError(bad_input);
+        return;
+    }
+
     DiffieHellman& dh = ssl.useCrypto().use_dh();
 
     uint16 keyLength;
@@ -287,6 +302,10 @@ void ClientDiffieHellmanPublic::read(SSL& ssl, input_buffer& input)
 
     alloc(keyLength);
     input.read(Yc_, keyLength);
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
     dh.makeAgreement(Yc_, keyLength); 
 
     // because of encoding, first byte might be 0, don't use for preMaster 
@@ -331,6 +350,10 @@ void ClientDiffieHellmanPublic::alloc(int sz, bool offset)
 // read server's p, g, public key and sig, client side
 void DH_Server::read(SSL& ssl, input_buffer& input)
 {
+    if (input.get_error() || input.get_remaining() < (uint)LENGTH_SZ) {
+        ssl.SetError(bad_input);
+        return;
+    }
     uint16 length, messageTotal = 6; // pSz + gSz + pubSz
     byte tmp[2];
 
@@ -341,6 +364,10 @@ void DH_Server::read(SSL& ssl, input_buffer& input)
     messageTotal += length;
 
     input.read(parms_.alloc_p(length), length);
+    if (input.get_error() || input.get_remaining() < (uint)LENGTH_SZ) {
+        ssl.SetError(bad_input);
+        return;
+    }
 
     // g
     tmp[0] = input[AUTO];
@@ -349,6 +376,10 @@ void DH_Server::read(SSL& ssl, input_buffer& input)
     messageTotal += length;
 
     input.read(parms_.alloc_g(length), length);
+    if (input.get_error() || input.get_remaining() < (uint)LENGTH_SZ) {
+        ssl.SetError(bad_input);
+        return;
+    }
 
     // pub
     tmp[0] = input[AUTO];
@@ -357,12 +388,20 @@ void DH_Server::read(SSL& ssl, input_buffer& input)
     messageTotal += length;
 
     input.read(parms_.alloc_pub(length), length);
+    if (input.get_error() || input.get_remaining() < (uint)LENGTH_SZ) {
+        ssl.SetError(bad_input);
+        return;
+    }
 
     // save message for hash verify
     input_buffer message(messageTotal);
     input.set_current(input.get_current() - messageTotal);
     input.read(message.get_buffer(), messageTotal);
     message.add_size(messageTotal);
+    if (input.get_error() || input.get_remaining() < (uint)LENGTH_SZ) {
+        ssl.SetError(bad_input);
+        return;
+    }
 
     // signature
     tmp[0] = input[AUTO];
@@ -371,6 +410,10 @@ void DH_Server::read(SSL& ssl, input_buffer& input)
 
     signature_ = NEW_YS byte[length];
     input.read(signature_, length);
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
 
     // verify signature
     byte hash[FINISHED_SZ];
@@ -645,6 +688,10 @@ void HandShakeHeader::Process(input_buffer& input, SSL& ssl)
 {
     ssl.verifyState(*this);
     if (ssl.GetError()) return;
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
     const HandShakeFactory& hsf = ssl.getFactory().getHandShake();
     mySTL::auto_ptr<HandShakeBase> hs(hsf.CreateObject(type_));
     if (!hs.get()) {
@@ -810,8 +857,13 @@ uint16 ChangeCipherSpec::get_length() const
 
 
 // CipherSpec processing handler
-void ChangeCipherSpec::Process(input_buffer&, SSL& ssl)
+void ChangeCipherSpec::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
+
     ssl.useSecurity().use_parms().pending_ = false;
     if (ssl.getSecurity().get_resuming()) {
         if (ssl.getSecurity().get_parms().entity_ == client_end)
@@ -873,6 +925,11 @@ output_buffer& operator<<(output_buffer& output, const Alert& a)
 // Alert processing handler
 void Alert::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
+
     if (ssl.getSecurity().get_parms().pending_ == false)  { // encrypted alert
         int            aSz = get_length();  // alert size already read on input
         opaque         verify[SHA_LEN];
@@ -890,12 +947,19 @@ void Alert::Process(input_buffer& input, SSL& ssl)
 
         if (ssl.getSecurity().get_parms().cipher_type_ == block) {
             int    ivExtra = 0;
+            opaque fill;
 
             if (ssl.isTLSv1_1())
                 ivExtra = ssl.getCrypto().get_cipher().get_blockSize();
             int padSz = ssl.getSecurity().get_parms().encrypt_size_ - ivExtra -
                         aSz - digestSz;
-            input.set_current(input.get_current() + padSz);
+            for (int i = 0; i < padSz; i++) 
+                fill = input[AUTO];
+        }
+
+        if (input.get_error()) {
+            ssl.SetError(bad_input);
+            return;
         }
 
         // verify
@@ -1112,6 +1176,11 @@ static int timing_verify(SSL& ssl, const byte* input, int padLen, int t,
 // Process handler for Data
 void Data::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
+
     int msgSz = ssl.getSecurity().get_parms().encrypt_size_;
     int pad   = 0, padSz = 0;
     int ivExtra = 0;
@@ -1154,7 +1223,7 @@ void Data::Process(input_buffer& input, SSL& ssl)
 
     int dataSz = msgSz - ivExtra - digestSz - pad - padSz;
 
-    if (dataSz < 0) {
+    if (dataSz < 0 || dataSz > (MAX_RECORD_SIZE + COMPRESS_EXTRA)) {
         ssl.SetError(bad_input);
         return;
     }
@@ -1180,6 +1249,10 @@ void Data::Process(input_buffer& input, SSL& ssl)
 
     // advance past mac and fill
     input.set_current(input.get_current() + digestSz + pad + padSz);
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
 }
 
 
@@ -1244,6 +1317,11 @@ output_buffer& operator<<(output_buffer& output, const Certificate& cert)
 // certificate processing handler
 void Certificate::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
+
     CertManager& cm = ssl.useCrypto().use_certManager();
   
     uint32 list_sz;
@@ -1412,6 +1490,10 @@ input_buffer& operator>>(input_buffer& input, ServerHello& hello)
     
     // Session
     hello.id_len_ = input[AUTO];
+    if (hello.id_len_ > ID_LEN) {
+        input.set_error(); 
+        return input;
+    }
     if (hello.id_len_)
         input.read(hello.session_id_, hello.id_len_);
  
@@ -1452,8 +1534,13 @@ output_buffer& operator<<(output_buffer& output, const ServerHello& hello)
 
 
 // Server Hello processing handler
-void ServerHello::Process(input_buffer&, SSL& ssl)
+void ServerHello::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
+
     if (ssl.GetMultiProtocol()) {   // SSLv23 support
         if (ssl.isTLS() && server_version_.minor_ < 1)
             // downgrade to SSLv3
@@ -1547,8 +1634,12 @@ const opaque* ServerHello::get_random() const
 
 
 // Server Hello Done processing handler
-void ServerHelloDone::Process(input_buffer&, SSL& ssl)
+void ServerHelloDone::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
     ssl.useStates().useClient() = serverHelloDoneComplete;
 }
 
@@ -1667,8 +1758,13 @@ output_buffer& operator<<(output_buffer& output, const ClientHello& hello)
 
 
 // Client Hello processing handler
-void ClientHello::Process(input_buffer&, SSL& ssl)
+void ClientHello::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
+
     // store version for pre master secret
     ssl.useSecurity().use_connection().chVersion_ = client_version_;
 
@@ -1800,9 +1896,17 @@ output_buffer& operator<<(output_buffer& output, const ServerKeyExchange& sk)
 // Server Key Exchange processing handler
 void ServerKeyExchange::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
     createKey(ssl);
     if (ssl.GetError()) return;
     server_key_->read(ssl, input);
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
 
     ssl.useStates().useClient() = serverKeyExchangeComplete;
 }
@@ -1924,18 +2028,24 @@ input_buffer& operator>>(input_buffer& input, CertificateRequest& request)
 {
     // types
     request.typeTotal_ = input[AUTO];
+    if (request.typeTotal_ > CERT_TYPES) {
+        input.set_error();
+        return input;
+    }
     for (int i = 0; i < request.typeTotal_; i++)
         request.certificate_types_[i] = ClientCertificateType(input[AUTO]);
 
-    byte tmp[REQUEST_HEADER];
-    input.read(tmp, sizeof(tmp));
+    byte tmp[2];
+    tmp[0] = input[AUTO];
+    tmp[1] = input[AUTO];
     uint16 sz;
     ato16(tmp, sz);
 
     // authorities
     while (sz) {
         uint16 dnSz;
-        input.read(tmp, sizeof(tmp));
+        tmp[0] = input[AUTO];
+        tmp[1] = input[AUTO];
         ato16(tmp, dnSz);
         
         DistinguishedName dn;
@@ -1945,6 +2055,9 @@ input_buffer& operator>>(input_buffer& input, CertificateRequest& request)
         input.read(&dn[REQUEST_HEADER], dnSz);
 
         sz -= dnSz + REQUEST_HEADER;
+
+        if (input.get_error())
+            break;
     }
 
     return input;
@@ -1983,8 +2096,12 @@ output_buffer& operator<<(output_buffer& output,
 
 
 // CertificateRequest processing handler
-void CertificateRequest::Process(input_buffer&, SSL& ssl)
+void CertificateRequest::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
     CertManager& cm = ssl.useCrypto().use_certManager();
 
     cm.setSendVerify();
@@ -2067,7 +2184,8 @@ output_buffer& CertificateVerify::get(output_buffer& out) const
 input_buffer& operator>>(input_buffer& input, CertificateVerify& request)
 {
     byte tmp[VERIFY_HEADER];
-    input.read(tmp, sizeof(tmp));
+    tmp[0] = input[AUTO];
+    tmp[1] = input[AUTO];
 
     uint16 sz = 0;
     ato16(tmp, sz);
@@ -2091,8 +2209,13 @@ output_buffer& operator<<(output_buffer& output,
 
 
 // CertificateVerify processing handler
-void CertificateVerify::Process(input_buffer&, SSL& ssl)
+void CertificateVerify::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
+
     const Hashes&      hashVerify = ssl.getHashes().get_certVerify();
     const CertManager& cert       = ssl.getCrypto().get_certManager();
 
@@ -2131,9 +2254,17 @@ output_buffer& operator<<(output_buffer& output, const ClientKeyExchange& ck)
 // Client Key Exchange processing handler
 void ClientKeyExchange::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
     createKey(ssl);
     if (ssl.GetError()) return;
     client_key_->read(ssl, input);
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
 
     if (ssl.getCrypto().get_certManager().verifyPeer())
         build_certHashes(ssl, ssl.useHashes().use_certVerify());
@@ -2220,11 +2351,19 @@ output_buffer& operator<<(output_buffer& output, const Finished& fin)
 // Finished processing handler
 void Finished::Process(input_buffer& input, SSL& ssl)
 {
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
     // verify hashes
     const  Finished& verify = ssl.getHashes().get_verify();
     uint finishedSz = ssl.isTLS() ? TLS_FINISHED_SZ : FINISHED_SZ;
     
     input.read(hashes_.md5_, finishedSz);
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
 
     if (memcmp(&hashes_, &verify.hashes_, finishedSz)) {
         ssl.SetError(verify_error);
@@ -2246,15 +2385,25 @@ void Finished::Process(input_buffer& input, SSL& ssl)
     opaque mac[SHA_LEN];   // max size
     int    digestSz = ssl.getCrypto().get_digest().get_digestSize();
     input.read(mac, digestSz);
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
 
     uint ivExtra = 0;
     if (ssl.getSecurity().get_parms().cipher_type_ == block)
         if (ssl.isTLSv1_1())
             ivExtra = ssl.getCrypto().get_cipher().get_blockSize();
 
+    opaque fill;
     int    padSz = ssl.getSecurity().get_parms().encrypt_size_ - ivExtra -
                      HANDSHAKE_HEADER - finishedSz - digestSz;
-    input.set_current(input.get_current() + padSz);
+    for (int i = 0; i < padSz; i++) 
+        fill = input[AUTO];
+    if (input.get_error()) {
+        ssl.SetError(bad_input);
+        return;
+    }
 
     // verify mac
     if (memcmp(mac, verifyMAC, digestSz)) {

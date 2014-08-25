@@ -58,27 +58,6 @@ struct file_format_t {
 
 /** The transaction system */
 trx_sys_t*		trx_sys		= NULL;
-
-/** In a MySQL replication slave, in crash recovery we store the master log
-file name and position here. */
-/* @{ */
-/** Master binlog file name */
-char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
-/** Master binlog file position.  We have successfully got the updates
-up to this position.  -1 means that no crash recovery was needed, or
-there was no master log position info inside InnoDB.*/
-int64_t	trx_sys_mysql_master_log_pos = -1;
-/* @} */
-
-/** If this MySQL server uses binary logging, after InnoDB has been inited
-and if it has done a crash recovery, we store the binlog file name and position
-here. */
-/* @{ */
-/** Binlog file name */
-char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
-/** Binlog file position, or -1 if unknown */
-int64_t	trx_sys_mysql_bin_log_pos = -1;
-/* @} */
 #endif /* !UNIV_HOTBACKUP */
 
 /** List of animal names representing file format. */
@@ -277,19 +256,11 @@ trx_sys_print_mysql_binlog_offset(void)
 		sys_header + TRX_SYS_MYSQL_LOG_INFO
 		+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
-	trx_sys_mysql_bin_log_pos
-		= (((int64_t) trx_sys_mysql_bin_log_pos_high) << 32)
-		+ (int64_t) trx_sys_mysql_bin_log_pos_low;
-
-	ut_memcpy(trx_sys_mysql_bin_log_name,
-		  sys_header + TRX_SYS_MYSQL_LOG_INFO
-		  + TRX_SYS_MYSQL_LOG_NAME, TRX_SYS_MYSQL_LOG_NAME_LEN);
-
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Last MySQL binlog file position %lu %lu,"
 		" file name %s",
 		trx_sys_mysql_bin_log_pos_high, trx_sys_mysql_bin_log_pos_low,
-		trx_sys_mysql_bin_log_name);
+		sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME);
 
 	mtr_commit(&mtr);
 }
@@ -459,7 +430,7 @@ trx_sys_init_at_db_start(void)
 	/* We create the min binary heap here and pass ownership to
 	purge when we init the purge sub-system. Purge is responsible
 	for freeing the binary heap. */
-	purge_queue = new(std::nothrow) purge_pq_t();
+	purge_queue = UT_NEW_NOKEY(purge_pq_t());
 	ut_a(purge_queue != NULL);
 
 	mtr_start(&mtr);
@@ -540,7 +511,7 @@ trx_sys_create(void)
 {
 	ut_ad(trx_sys == NULL);
 
-	trx_sys = static_cast<trx_sys_t*>(ut_zalloc(sizeof(*trx_sys)));
+	trx_sys = static_cast<trx_sys_t*>(ut_zalloc_nokey(sizeof(*trx_sys)));
 
 	mutex_create("trx_sys", &trx_sys->mutex);
 
@@ -548,9 +519,10 @@ trx_sys_create(void)
 	UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);
 	UT_LIST_INIT(trx_sys->mysql_trx_list, &trx_t::mysql_trx_list);
 
-	trx_sys->mvcc = new(std::nothrow) MVCC(1024);
+	trx_sys->mvcc = UT_NEW_NOKEY(MVCC(1024));
 
-	new(&trx_sys->rw_trx_ids) trx_ids_t();
+	new(&trx_sys->rw_trx_ids) trx_ids_t(ut_allocator<trx_id_t>(
+			mem_key_trx_sys_t_rw_trx_ids));
 
 	new(&trx_sys->rw_trx_set) TrxIdSet();
 }
@@ -1211,7 +1183,7 @@ trx_sys_close(void)
 		}
 	}
 
-	delete trx_sys->mvcc;
+	UT_DELETE(trx_sys->mvcc);
 
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);

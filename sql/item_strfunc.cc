@@ -231,19 +231,22 @@ void Item_func_sha::fix_length_and_dec()
   fix_length_and_charset(SHA1_HASH_SIZE * 2, default_charset());
 }
 
+/*
+  SHA2(str, hash_length)
+  The second argument indicates the desired bit length of the
+  result, which must have a value of 224, 256, 384, 512, or 0 
+  (which is equivalent to 256).
+*/
 String *Item_func_sha2::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
-  String *input_string;
-  unsigned char *input_ptr;
-  size_t input_len;
   uint digest_length= 0;
 
   str->set_charset(&my_charset_bin);
 
-  input_string= args[0]->val_str(str);
+  String *input_string= args[0]->val_str(str);
   if (input_string == NULL)
   {
     null_value= TRUE;
@@ -252,12 +255,19 @@ String *Item_func_sha2::val_str_ascii(String *str)
 
   null_value= args[0]->null_value;
   if (null_value)
-    return (String *) NULL;
+    return NULL;
 
-  input_ptr= (unsigned char *) input_string->ptr();
-  input_len= input_string->length();
+  const unsigned char *input_ptr=
+    pointer_cast<const unsigned char*>(input_string->ptr());
+  size_t input_len= input_string->length();
 
-  switch ((uint) args[1]->val_int()) {
+  longlong hash_length= args[1]->val_int();
+  null_value= args[1]->null_value;
+  // Give error message in switch below.
+  if (null_value)
+    hash_length= -1;
+
+  switch (hash_length) {
 #ifndef OPENSSL_NO_SHA512
   case 512:
     digest_length= SHA512_DIGEST_LENGTH;
@@ -280,6 +290,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
     break;
 #endif
   default:
+    // For const values we have already warned in fix_length_and_dec.
     if (!args[1]->const_item())
       push_warning_printf(current_thd,
         Sql_condition::SL_WARNING,
@@ -322,7 +333,18 @@ void Item_func_sha2::fix_length_and_dec()
   max_length = 0;
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  int sha_variant= args[1]->const_item() ? args[1]->val_int() : 512;
+  longlong sha_variant;
+  if (args[1]->const_item())
+  {
+    sha_variant= args[1]->val_int();
+    // Give error message in switch below.
+    if (args[1]->null_value)
+      sha_variant= -1;
+  }
+  else
+  {
+    sha_variant= 512;
+  }
 
   switch (sha_variant) {
 #ifndef OPENSSL_NO_SHA512
@@ -2032,24 +2054,24 @@ void Item_func_trim::print(String *str, enum_query_type query_type)
   @return Size of the password.
 */
 
-static int calculate_password(String *str, char *buffer)
+static size_t calculate_password(String *str, char *buffer)
 {
   DBUG_ASSERT(str);
   if (str->length() == 0) // PASSWORD('') returns ''
     return 0;
-  
-  int buffer_len= 0;
+
+  size_t buffer_len= 0;
   THD *thd= current_thd;
   int old_passwords= 0;
   if (thd)
     old_passwords= thd->variables.old_passwords;
-  
+
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
     my_make_scrambled_password(buffer, str->ptr(),
                                str->length());
-    buffer_len= (int) strlen(buffer) + 1;
+    buffer_len= strlen(buffer) + 1;
   }
   else
 #endif
@@ -2187,7 +2209,7 @@ String *Item_func_encrypt::val_str(String *str)
     null_value= 1;
     return 0;
   }
-  str->set(tmp, (uint) strlen(tmp), &my_charset_bin);
+  str->set(tmp, strlen(tmp), &my_charset_bin);
   str->copy();
   mysql_mutex_unlock(&LOCK_crypt);
   return str;
@@ -2303,13 +2325,13 @@ String *Item_func_database::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   THD *thd= current_thd;
-  if (thd->db == NULL)
+  if (thd->db().str == NULL)
   {
     null_value= 1;
     return 0;
   }
   else
-    str->copy(thd->db, thd->db_length, system_charset_info);
+    str->copy(thd->db().str, thd->db().length, system_charset_info);
   return str;
 }
 
@@ -2903,7 +2925,7 @@ void Item_func_geohash::encode_bit(double *upper_value, double *lower_value,
 */
 char Item_func_geohash::char_to_base32(char char_input)
 {
-  DBUG_ASSERT(char_input >= 0 && char_input <= 31);
+  DBUG_ASSERT(char_input <= 31);
 
   if (char_input < 10)
     return char_input + '0';
@@ -2954,6 +2976,7 @@ void Item_func_format::fix_length_and_dec()
     locale= args[2]->basic_const_item() ? get_locale(args[2]) : NULL;
   else
     locale= &my_locale_en_US; /* Two arguments */
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -3723,6 +3746,15 @@ err:
 }
 
 
+void Item_func_conv::fix_length_and_dec()
+{
+  collation.set(default_charset());
+  max_length=64;
+  maybe_null= 1;
+  reject_geometry_args(arg_count, args, this);
+}
+
+
 String *Item_func_conv::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -3897,7 +3929,7 @@ String *Item_func_charset::val_str(String *str)
 
   const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
   null_value= 0;
-  str->copy(cs->csname, (uint) strlen(cs->csname),
+  str->copy(cs->csname, strlen(cs->csname),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
@@ -3909,7 +3941,7 @@ String *Item_func_collation::val_str(String *str)
   const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
 
   null_value= 0;
-  str->copy(cs->name, (uint) strlen(cs->name),
+  str->copy(cs->name, strlen(cs->name),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
@@ -4650,9 +4682,8 @@ longlong Item_func_uncompressed_length::val_int()
   */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_ZLIB_Z_DATA_ERROR,
-                        ER(ER_ZLIB_Z_DATA_ERROR));
+    push_warning(current_thd, Sql_condition::SL_WARNING,
+                 ER_ZLIB_Z_DATA_ERROR, ER(ER_ZLIB_Z_DATA_ERROR));
     return 0;
   }
 
@@ -4763,9 +4794,8 @@ String *Item_func_uncompress::val_str(String *str)
   /* If length is less than 4 bytes, data is corrupt */
   if (res->length() <= 4)
   {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			ER_ZLIB_Z_DATA_ERROR,
-			ER(ER_ZLIB_Z_DATA_ERROR));
+    push_warning(current_thd, Sql_condition::SL_WARNING,
+                 ER_ZLIB_Z_DATA_ERROR, ER(ER_ZLIB_Z_DATA_ERROR));
     goto err;
   }
 

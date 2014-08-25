@@ -52,9 +52,13 @@ c1	c2
 check the update_time After Commit, whether it is not NULL
 SELECT table_name,COUNT(update_time)
 FROM information_schema.tables 
-WHERE table_name IN ('tab1','tab3','tab4','tab5');
+WHERE table_name IN ('tab1','tab3','tab4','tab5')
+GROUP BY table_name;
 table_name	COUNT(update_time)
-tab1	4
+tab1	1
+tab3	1
+tab4	1
+tab5	1
 #restart the server
 Testcase with UPDATE stmt and transaction
 #check the record is existing

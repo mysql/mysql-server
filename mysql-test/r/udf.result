@@ -229,6 +229,11 @@ ERROR HY000: Function 'metaphon' already exists
 CREATE FUNCTION test.metaphon(a int) RETURNS int
 return 0;
 ERROR HY000: Function 'metaphon' already exists
+create table t1(sum int, price float(24));
+select distinct avgcost(sum,price) from t1 order by avgcost(sum,price);
+avgcost(sum,price)
+NULL
+drop table t1;
 DROP FUNCTION metaphon;
 DROP FUNCTION myfunc_double;
 DROP FUNCTION myfunc_nonexist;

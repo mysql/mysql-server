@@ -825,8 +825,10 @@ big_rec_t::alloc(
 	mem_heap_t*	heap,
 	ulint		n_fld)
 {
-	void *mem = mem_heap_alloc(heap, sizeof(big_rec_t));
-	big_rec_t* rec = new (mem) big_rec_t(n_fld);
+	big_rec_t*	rec = static_cast<big_rec_t*>(
+		mem_heap_alloc(heap, sizeof(big_rec_t)));
+
+	new(rec) big_rec_t(n_fld);
 
 	rec->heap = heap;
 	rec->fields = static_cast<big_rec_field_t*>(

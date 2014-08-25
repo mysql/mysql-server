@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1763,7 +1763,7 @@ TEST_F(OptRangeTest, RowConstructorIn2)
   SEL_TREE *sel_tree= get_mm_tree(m_opt_param, cond);
 
   EXPECT_FALSE(sel_tree == NULL);
-  EXPECT_EQ(Bitmap<64>(1), sel_tree->keys_map);
+  EXPECT_EQ(key_map(1), sel_tree->keys_map);
 
   const char *expected=
     "result keys[0]: "
@@ -1796,7 +1796,7 @@ TEST_F(OptRangeTest, RowConstructorIn3)
   SEL_TREE *sel_tree= get_mm_tree(m_opt_param, cond);
 
   EXPECT_FALSE(sel_tree == NULL);
-  EXPECT_EQ(Bitmap<64>(1), sel_tree->keys_map);
+  EXPECT_EQ(key_map(1), sel_tree->keys_map);
 
   const char *expected=
     "result keys[0]: "

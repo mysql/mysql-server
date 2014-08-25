@@ -1357,7 +1357,7 @@ public:
     return field_length / charset()->mbmaxlen;
   }
 
-  virtual geometry_type get_geometry_type()
+  virtual geometry_type get_geometry_type() const
   {
     /* shouldn't get here. */
     DBUG_ASSERT(0);
@@ -3721,12 +3721,12 @@ public:
     return maybe_null() ? TYPE_OK : TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
 
-  geometry_type get_geometry_type() { return geom_type; };
+  geometry_type get_geometry_type() const { return geom_type; };
   Field_geom *clone(MEM_ROOT *mem_root) const {
     DBUG_ASSERT(type() == MYSQL_TYPE_GEOMETRY);
     return new (mem_root) Field_geom(*this);
   }
-  Field_geom *clone() const { 
+  Field_geom *clone() const {
     DBUG_ASSERT(type() == MYSQL_TYPE_GEOMETRY);
     return new Field_geom(*this);
   }
@@ -4010,7 +4010,7 @@ public:
     At various stages in execution this can be length of field in bytes or
     max number of characters. 
   */
-  ulong length;
+  size_t length;
   /*
     The value of `length' as set by parser: is the number of characters
     for most of the types, or of bytes for BLOBs or numeric types.
@@ -4162,7 +4162,7 @@ public:
 };
 
 
-Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
+Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag, enum_field_types field_type,
 		  const CHARSET_INFO *cs,
@@ -4172,7 +4172,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 		  MEM_ROOT *mem_root= NULL);
 uint pack_length_to_packflag(uint type);
 enum_field_types get_blob_type_from_length(ulong length);
-uint32 calc_pack_length(enum_field_types type,uint32 length);
+size_t calc_pack_length(enum_field_types type, size_t length);
 type_conversion_status set_field_to_null(Field *field);
 type_conversion_status set_field_to_null_with_conversions(Field *field,
                                                           bool no_conversions);

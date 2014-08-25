@@ -1499,7 +1499,7 @@ trx_undo_mem_create(
 
 	ut_a(id < TRX_RSEG_N_SLOTS);
 
-	undo = static_cast<trx_undo_t*>(ut_malloc(sizeof(*undo)));
+	undo = static_cast<trx_undo_t*>(ut_malloc_nokey(sizeof(*undo)));
 
 	if (undo == NULL) {
 
@@ -2089,4 +2089,107 @@ trx_undo_free_prepared(
 		trx->rsegs.m_noredo.insert_undo = NULL;
 	}
 }
+
+/** Truncate UNDO tablespace, reinitialize header and rseg.
+@param[in]	undo_trunc	UNDO tablespace handler
+@return true if success else false. */
+
+bool
+trx_undo_truncate_tablespace(
+	undo::Truncate*	undo_trunc)
+
+{
+	bool	success = true;
+	ulint	space_id = undo_trunc->get_marked_space_id();
+
+	/* Step-1: Truncate tablespace. */
+	success = fil_truncate_tablespace(
+		space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
+
+	if (!success) {
+		return(success);
+	}
+
+	/* Step-2: Re-initialize tablespace header.
+	Avoid REDO logging as we don't want to apply the action if server
+	crashes. For fix-up we have UNDO-truncate-ddl-log. */
+	mtr_t		mtr;
+	mtr_start(&mtr);
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	fsp_header_init(space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+	mtr_commit(&mtr);
+
+	/* Step-3: Re-initialize rollback segment header that resides
+	in truncated tablespaced. */
+	mtr_start(&mtr);
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	mtr_x_lock(fil_space_get_latch(space_id, NULL), &mtr);
+
+	for (ulint i = 0; i < undo_trunc->rsegs_size(); ++i) {
+		trx_rsegf_t*	rseg_header;
+
+		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
+
+		rseg->page_no = trx_rseg_header_create(
+			space_id, univ_page_size, ULINT_MAX, rseg->id, &mtr);
+
+		rseg_header = trx_rsegf_get_new(
+			space_id, rseg->page_no, rseg->page_size, &mtr);
+
+		/* Before re-initialization ensure that we free the existing
+		structure. There can't be any active transactions. */
+		ut_a(UT_LIST_GET_LEN(rseg->update_undo_list) == 0);
+		ut_a(UT_LIST_GET_LEN(rseg->insert_undo_list) == 0);
+
+		trx_undo_t*	next_undo;
+
+		for (trx_undo_t* undo =
+			UT_LIST_GET_FIRST(rseg->update_undo_cached);
+		     undo != NULL;
+		     undo = next_undo) {
+
+			next_undo = UT_LIST_GET_NEXT(undo_list, undo);
+			UT_LIST_REMOVE(rseg->update_undo_cached, undo);
+			MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
+			trx_undo_mem_free(undo);
+		}
+
+		for (trx_undo_t* undo =
+			UT_LIST_GET_FIRST(rseg->insert_undo_cached);
+		     undo != NULL;
+		     undo = next_undo) {
+
+			next_undo = UT_LIST_GET_NEXT(undo_list, undo);
+			UT_LIST_REMOVE(rseg->insert_undo_cached, undo);
+			MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
+			trx_undo_mem_free(undo);
+		}
+
+		UT_LIST_INIT(rseg->update_undo_list, &trx_undo_t::undo_list);
+		UT_LIST_INIT(rseg->update_undo_cached, &trx_undo_t::undo_list);
+		UT_LIST_INIT(rseg->insert_undo_list, &trx_undo_t::undo_list);
+		UT_LIST_INIT(rseg->insert_undo_cached, &trx_undo_t::undo_list);
+
+		rseg->max_size = mtr_read_ulint(
+			rseg_header + TRX_RSEG_MAX_SIZE, MLOG_4BYTES, &mtr);
+
+		/* Initialize the undo log lists according to the rseg header */
+		rseg->curr_size = mtr_read_ulint(
+			rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, &mtr)
+			+ 1;
+
+		ut_ad(rseg->curr_size == 1);
+
+		rseg->trx_ref_count = 0;
+		rseg->skip_allocation = false;
+		rseg->last_page_no = FIL_NULL;
+		rseg->last_offset = 0;
+		rseg->last_trx_no = 0;
+		rseg->last_del_marks = FALSE;
+	}
+	mtr_commit(&mtr);
+
+	return(success);
+}
+
 #endif /* !UNIV_HOTBACKUP */

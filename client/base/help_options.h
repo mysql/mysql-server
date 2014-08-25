@@ -45,6 +45,10 @@ public:
     Implementation of Abstract_options_provider virtual method.
    */
   virtual void create_options();
+  /**
+    Prints program usage message.
+  */
+  virtual void print_usage();
 
 private:
   void help_callback(char* argument __attribute__((unused)));

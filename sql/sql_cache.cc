@@ -456,15 +456,15 @@ static char *make_cache_key(THD *thd,
                             Query_cache_query_flags *flags,
                             size_t *tot_length)
 {
-  *tot_length= query.length + 1 + thd->db_length + QUERY_CACHE_FLAGS_SIZE;
+  *tot_length= query.length + 1 + thd->db().length + QUERY_CACHE_FLAGS_SIZE;
   char *cache_key= static_cast<char*>(thd->alloc(*tot_length));
   if (cache_key == NULL)
     return NULL;
 
   memcpy(cache_key, query.str, query.length);
   cache_key[query.length]= '\0';
-  if (thd->db_length)
-    memcpy(cache_key + query.length + 1, thd->db, thd->db_length);
+  if (thd->db().length)
+    memcpy(cache_key + query.length + 1, thd->db().str, thd->db().length);
 
   /*
     We should only copy structure (don't use it location directly)
@@ -532,7 +532,7 @@ bool Query_cache::try_lock(bool use_timeout)
       if (use_timeout)
       {
         struct timespec waittime;
-        set_timespec_nsec(waittime,(ulong)(50000000L));  /* Wait for 50 msec */
+        set_timespec_nsec(&waittime, 50000000UL);  /* Wait for 50 msec */
         int res= mysql_cond_timedwait(&COND_cache_status_changed,
                                       &structure_guard_mutex, &waittime);
         if (res == ETIMEDOUT)
@@ -1804,7 +1804,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                                               "", 0);
    
       if (!(*table->callback())(thd, qcache_se_key_name,
-                                qcache_se_key_len, &engine_data))
+                                static_cast<uint>(qcache_se_key_len),
+                                &engine_data))
       {
         DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
                                table_list.db, table_list.alias));
@@ -2053,7 +2054,7 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
    Remove all cached queries that uses the given database.
 */
 
-void Query_cache::invalidate(char *db)
+void Query_cache::invalidate(const char *db)
 {
   
   DBUG_ENTER("Query_cache::invalidate (db)");
@@ -2133,8 +2134,8 @@ void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
 
   /* Calculate the key outside the lock to make the lock shorter */
   char key[MAX_DBKEY_LENGTH];
-  uint32 db_length;
-  uint key_length= filename_2_table_key(key, filename, &db_length);
+  size_t db_length;
+  size_t key_length= filename_2_table_key(key, filename, &db_length);
   THD *thd= current_thd;
   invalidate_table(thd,(uchar *)key, key_length);
   DBUG_EXECUTE("check_querycache", check_integrity(LOCK_WHILE_CHECKING););
@@ -2650,26 +2651,26 @@ void Query_cache::free_query(Query_cache_block *query_block)
 *****************************************************************************/
 
 Query_cache_block *
-Query_cache::write_block_data(ulong data_len, uchar* data,
-			      ulong header_len,
-			      Query_cache_block::block_type type,
-			      TABLE_COUNTER_TYPE ntab)
+Query_cache::write_block_data(size_t data_len, uchar* data,
+                              size_t header_len,
+                              Query_cache_block::block_type type,
+                              TABLE_COUNTER_TYPE ntab)
 {
-  ulong all_headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
-			   ALIGN_SIZE(ntab*sizeof(Query_cache_block_table)) +
-			   header_len);
-  ulong len = data_len + all_headers_len;
-  ulong align_len= ALIGN_SIZE(len);
+  size_t all_headers_len= (ALIGN_SIZE(sizeof(Query_cache_block)) +
+                          ALIGN_SIZE(ntab*sizeof(Query_cache_block_table)) +
+                          header_len);
+  size_t len = data_len + all_headers_len;
+  size_t align_len= ALIGN_SIZE(len);
   DBUG_ENTER("Query_cache::write_block_data");
-  DBUG_PRINT("qcache", ("data: %ld, header: %ld, all header: %ld",
-		      data_len, header_len, all_headers_len));
-  Query_cache_block *block= allocate_block(max(align_len,
+  DBUG_PRINT("qcache", ("data: %zu, header: %zu, all header: %zu",
+		                   data_len, header_len, all_headers_len));
+  Query_cache_block *block= allocate_block(max<size_t>(align_len,
                                            min_allocation_unit),1, 0);
   if (block != 0)
   {
     block->type = type;
     block->n_tables = ntab;
-    block->used = len;
+    block->used = static_cast<ulong>(len);
 
     memcpy((uchar *) block+ all_headers_len, data, data_len);
   }
@@ -2932,7 +2933,7 @@ void Query_cache::invalidate_table(THD *thd, TABLE *table)
                    table->s->table_cache_key.length);
 }
 
-void Query_cache::invalidate_table(THD *thd, uchar * key, uint32  key_length)
+void Query_cache::invalidate_table(THD *thd, uchar * key, size_t key_length)
 {
   DEBUG_SYNC(thd, "wait_in_query_cache_invalidate1");
 
@@ -2960,7 +2961,7 @@ void Query_cache::invalidate_table(THD *thd, uchar * key, uint32  key_length)
 */
 
 void
-Query_cache::invalidate_table_internal(THD *thd, uchar *key, uint32 key_length)
+Query_cache::invalidate_table_internal(THD *thd, uchar *key, size_t key_length)
 {
   Query_cache_block *table_block=
     (Query_cache_block*)my_hash_search(&tables, key, key_length);
@@ -3081,9 +3082,9 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
              table++)
         {
           char key[MAX_DBKEY_LENGTH];
-          uint32 db_length;
-          uint key_length= filename_2_table_key(key, table->table->filename,
-                                                &db_length);
+          size_t db_length;
+          size_t key_length= filename_2_table_key(key, table->table->filename,
+                                                  &db_length);
           (++block_table)->n= ++n;
           /*
             There are not callback function for for MyISAM, and engine data
@@ -3144,15 +3145,15 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 */
 
 my_bool
-Query_cache::insert_table(uint key_len, const char *key,
-			  Query_cache_block_table *node,
-			  uint32 db_length, uint8 cache_type,
+Query_cache::insert_table(size_t key_len, const char *key,
+                          Query_cache_block_table *node,
+                          size_t db_length, uint8 cache_type,
                           qc_engine_callback callback,
                           ulonglong engine_data)
 {
   DBUG_ENTER("Query_cache::insert_table");
-  DBUG_PRINT("qcache", ("insert table node 0x%lx, len %d",
-		      (ulong)node, key_len));
+  DBUG_PRINT("qcache", ("insert table node 0x%lx, len %zu",
+                        (ulong)node, key_len));
 
   THD *thd= current_thd;
 
@@ -3284,10 +3285,10 @@ void Query_cache::unlink_table(Query_cache_block_table *node)
 *****************************************************************************/
 
 Query_cache_block *
-Query_cache::allocate_block(ulong len, my_bool not_less, ulong minimum)
+Query_cache::allocate_block(size_t len, my_bool not_less, size_t minimum)
 {
   DBUG_ENTER("Query_cache::allocate_block");
-  DBUG_PRINT("qcache", ("len %lu, not less %d, min %lu",
+  DBUG_PRINT("qcache", ("len %zu, not less %d, min %zu",
              len, not_less, minimum));
 
   if (len >= min(query_cache_size, query_cache_limit))
@@ -3316,11 +3317,11 @@ Query_cache::allocate_block(ulong len, my_bool not_less, ulong minimum)
 
 
 Query_cache_block *
-Query_cache::get_free_block(ulong len, my_bool not_less, ulong min)
+Query_cache::get_free_block(size_t len, my_bool not_less, size_t min)
 {
   Query_cache_block *block = 0, *first = 0;
   DBUG_ENTER("Query_cache::get_free_block");
-  DBUG_PRINT("qcache",("length %lu, not_less %d, min %lu", len,
+  DBUG_PRINT("qcache",("length %zu, not_less %d, min %zu", len,
 		     (int)not_less, min));
 
   /* Find block with minimal size > len  */
@@ -3524,7 +3525,7 @@ void Query_cache::insert_into_free_memory_list(Query_cache_block *free_block)
   DBUG_VOID_RETURN;
 }
 
-uint Query_cache::find_bin(ulong size)
+uint Query_cache::find_bin(size_t size)
 {
   DBUG_ENTER("Query_cache::find_bin");
   // Binary search
@@ -3540,13 +3541,13 @@ uint Query_cache::find_bin(ulong size)
   if (left == 0)
   {
     // first bin not subordinate of common rules
-    DBUG_PRINT("qcache", ("first bin (# 0), size %lu",size));
+    DBUG_PRINT("qcache", ("first bin (# 0), size %zu",size));
     DBUG_RETURN(0);
   }
   uint bin =  steps[left].idx - 
     (uint)((size - steps[left].size)/steps[left].increment);
 
-  DBUG_PRINT("qcache", ("bin %u step %u, size %lu step size %lu",
+  DBUG_PRINT("qcache", ("bin %u step %u, size %zu step size %lu",
 			bin, left, size, steps[left].size));
   DBUG_RETURN(bin);
 }
@@ -3806,7 +3807,7 @@ Query_cache::is_cacheable(THD *thd, LEX *lex,
       DBUG_PRINT("qcache", ("not in autocommin mode"));
       DBUG_RETURN(0);
     }
-    DBUG_PRINT("qcache", ("select is using %d tables", table_count));
+    DBUG_PRINT("qcache", ("select is using %zu tables", table_count));
     DBUG_RETURN(table_count);
   }
 
@@ -3980,7 +3981,7 @@ my_bool Query_cache::move_by_type(uchar **border,
 		      *pprev = block->pprev,
 		      *pnext = block->pnext,
 		      *new_block =(Query_cache_block *) *border;
-    uint tablename_offset = block->table()->table() - block->table()->db();
+    size_t tablename_offset = block->table()->table() - block->table()->db();
     char *data = (char*) block->data();
     uchar *key;
     size_t key_length;
@@ -4275,8 +4276,8 @@ my_bool Query_cache::join_results(ulong join_limit)
 }
 
 
-uint Query_cache::filename_2_table_key (char *key, const char *path,
-					uint32 *db_length)
+size_t Query_cache::filename_2_table_key (char *key, const char *path,
+                                          size_t *db_length)
 {
   char tablename[FN_REFLEN+2], *filename, *dbname;
   DBUG_ENTER("Query_cache::filename_2_table_key");
@@ -4290,12 +4291,12 @@ uint Query_cache::filename_2_table_key (char *key, const char *path,
   /* Find start of databasename */
   for (dbname= filename - 2 ; dbname[-1] != FN_LIBCHAR ; dbname--) ;
   *db_length= (filename - dbname) - 1;
-  DBUG_PRINT("qcache", ("table '%-.*s.%s'", *db_length, dbname, filename));
+  DBUG_PRINT("qcache", ("table '%-.*s.%s'", static_cast<int>(*db_length), dbname, filename));
 
-  DBUG_RETURN(static_cast<uint>(strmake(strmake(key, dbname,
-                                                min<uint32>(*db_length,
-                                                            NAME_LEN)) + 1,
-                                filename, NAME_LEN) - key) + 1);
+  DBUG_RETURN(static_cast<size_t>(strmake(strmake(key, dbname,
+                                                  min<size_t>(*db_length,
+                                                              NAME_LEN)) + 1,
+                                  filename, NAME_LEN) - key) + 1);
 }
 
 /****************************************************************************

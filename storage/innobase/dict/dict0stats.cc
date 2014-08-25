@@ -35,6 +35,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "pars0pars.h"
 #include "dict0stats.h"
 #include "ha_prototypes.h"
+#include "ut0new.h"
 #include <mysql_com.h>
 
 #include <algorithm>
@@ -135,18 +136,15 @@ of keys. For example if a btree level is:
 index: 0,1,2,3,4,5,6,7,8,9,10,11,12
 data:  b,b,b,b,b,b,g,g,j,j,j, x, y
 then we would store 5,7,10,11,12 in the array. */
-typedef std::vector<ib_uint64_t>	boundaries_t;
+typedef std::vector<ib_uint64_t, ut_allocator<ib_uint64_t> >	boundaries_t;
 
-/* This is used to arrange the index based on the index name.
-@return true if index_name1 is smaller than index_name2. */
-struct index_cmp
-{
-	bool operator()(const char* index_name1, const char* index_name2) const {
-		return(strcmp(index_name1, index_name2) < 0);
-	}
-};
+/** Allocator type used for index_map_t. */
+typedef ut_allocator<std::pair<const char*, dict_index_t*> >
+	index_map_t_allocator;
 
-typedef std::map<const char*, dict_index_t*, index_cmp>	index_map_t;
+/** Auxiliary map used for sorting indexes by name in dict_stats_save(). */
+typedef std::map<const char*, dict_index_t*, ut_strcmp_functor,
+		index_map_t_allocator>	index_map_t;
 
 /*********************************************************************//**
 Checks whether an index should be ignored in stats manipulations:
@@ -1975,16 +1973,18 @@ dict_stats_analyze_index(
 
 	/* For each level that is being scanned in the btree, this contains the
 	number of different key values for all possible n-column prefixes. */
-	ib_uint64_t*		n_diff_on_level = new ib_uint64_t[n_uniq];
+	ib_uint64_t*	n_diff_on_level = UT_NEW_ARRAY(
+		ib_uint64_t, n_uniq, mem_key_dict_stats_n_diff_on_level);
 
 	/* For each level that is being scanned in the btree, this contains the
 	index of the last record from each group of equal records (when
 	comparing only the first n columns, n=1..n_uniq). */
-	boundaries_t*		n_diff_boundaries = new boundaries_t[n_uniq];
+	boundaries_t*	n_diff_boundaries = UT_NEW_ARRAY_NOKEY(boundaries_t,
+							       n_uniq);
 
 	/* For each n-column prefix this array contains the input data that is
 	used to calculate dict_index_t::stat_n_diff_key_vals[]. */
-	n_diff_data_t*		n_diff_data = new n_diff_data_t[n_uniq];
+	n_diff_data_t*	n_diff_data = UT_NEW_ARRAY_NOKEY(n_diff_data_t, n_uniq);
 
 	/* total_recs is also used to estimate the number of pages on one
 	level below, so at the start we have 1 page (the root) */
@@ -2152,9 +2152,9 @@ found_level:
 
 	mtr_commit(&mtr);
 
-	delete[] n_diff_boundaries;
+	UT_DELETE_ARRAY(n_diff_boundaries);
 
-	delete[] n_diff_on_level;
+	UT_DELETE_ARRAY(n_diff_on_level);
 
 	/* n_prefix == 0 means that the above loop did not end up prematurely
 	due to tree being changed and so n_diff_data[] is set up. */
@@ -2162,7 +2162,7 @@ found_level:
 		dict_stats_index_set_n_diff(n_diff_data, index);
 	}
 
-	delete[] n_diff_data;
+	UT_DELETE_ARRAY(n_diff_data);
 
 	dict_stats_assert_initialized_index(index);
 	DBUG_VOID_RETURN;
@@ -2441,7 +2441,9 @@ dict_stats_save(
 	}
 
 	dict_index_t*	index;
-	index_map_t	indexes;
+	index_map_t	indexes(
+		(ut_strcmp_functor()),
+		index_map_t_allocator(mem_key_dict_stats_index_map_t));
 
 	/* Below we do all the modifications in innodb_index_stats in a single
 	transaction for performance reasons. Modifying more than one row in a

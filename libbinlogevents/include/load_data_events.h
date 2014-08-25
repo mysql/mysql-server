@@ -552,12 +552,12 @@ public:
   uint32_t load_exec_time;
 
   uint32_t slave_proxy_id;
-  uint32_t table_name_len;
+  size_t table_name_len;
 
   /**
     No need to have a catalog, as these events can only come from 4.x.
   */
-  uint32_t db_len;
+  size_t db_len;
   size_t fname_len;
   uint32_t num_fields;
 

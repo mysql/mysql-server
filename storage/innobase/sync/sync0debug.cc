@@ -36,24 +36,28 @@ Created 2012-08-21 Sunny Bains
 #include "sync0sync.h"
 
 #include "srv0start.h"
+#include "ut0new.h"
 
 #include "ha_prototypes.h"
 
 #include <map>
 #include <vector>
 #include <string>
+#include <algorithm>
 
-extern	ulint	srv_max_n_threads;
+extern ulint	srv_max_n_threads;
 
 /** For checking whether this module has been initialised or not. */
-static bool sync_check_initialised = false;
+static bool	sync_check_initialised = false;
 
 /** Debug mutex for control structures, should not be tracked
 by this module. */
-typedef OSTrackMutex<TrackPolicy> SyncMutex;
+typedef OSTrackMutex<TrackPolicy>
+	SyncMutex;
 
 /** Thread specific latches. This is ordered on level in descending order. */
-typedef std::vector<const latch_t*> Latches;
+typedef std::vector<const latch_t*, ut_allocator<const latch_t*> >
+	Latches;
 
 /** Latch meta-data */
 struct latch_meta_t {
@@ -121,7 +125,12 @@ struct latch_meta_t {
 
 
 /** Map from latch name to latch meta-data */
-typedef std::map<std::string, latch_meta_t> LatchMap;
+typedef std::map<
+	std::string,
+	latch_meta_t,
+	std::less<std::string>,
+	ut_allocator<std::pair<const std::string, latch_meta_t> > >
+	LatchMap;
 
 /** Mapping from latch name to latch meta data. This map is created and
 populated at startup and deleted on shutdown. It is read-only at all
@@ -196,7 +205,12 @@ struct SyncDebug {
 	};
 
 	/** For tracking a thread's latches. */
-	typedef std::map<os_thread_id_t, Latches*, os_thread_id_less> ThreadMap;
+	typedef std::map<
+		os_thread_id_t,
+		Latches*,
+		os_thread_id_less,
+		ut_allocator<std::pair<const os_thread_id_t, Latches*> > >
+		ThreadMap;
 
 	/**
 	Construct */
@@ -301,15 +315,22 @@ struct SyncDebug {
 		    && latch->m_level != SYNC_LEVEL_VARYING) {
 
 			Latches*	latches = thread_latches(true);
+			Latches::iterator	it = std::find(
+				latches->begin(), latches->end(), latch);
 
 			ut_a(latches->empty()
 			     || latch->m_level == SYNC_LEVEL_VARYING
 			     || latch->m_level == SYNC_NO_ORDER_CHECK
 			     || latches->back()->m_level == SYNC_LEVEL_VARYING
 			     || latches->back()->m_level == SYNC_NO_ORDER_CHECK
-			     || latches->back()->m_level >= latch->m_level);
+			     || latches->back()->m_level >= latch->m_level
+			     || it != latches->end());
 
-			latches->push_back(latch);
+			if (it == latches->end()) {
+				latches->push_back(latch);
+			} else {
+				latches->insert(it, latch);
+			}
 		}
 	}
 
@@ -443,9 +464,10 @@ SyncDebug::thread_latches(bool add) UNIV_NOTHROW
 	} else {
 		typedef ThreadMap::value_type value_type;
 
-		Latches*	latches = new(std::nothrow) Latches();
+		Latches*	latches = UT_NEW(Latches(),
+						 mem_key_sync_debug_latches);
 
-		ut_a(latches != 0);
+		ut_a(latches != NULL);
 
 		latches->reserve(32);
 
@@ -831,7 +853,7 @@ SyncDebug::unlock(const latch_t* latch)
 
 				mutex_exit(&m_mutex);
 
-				delete latches;
+				UT_DELETE(latches);
 			}
 
 			return;
@@ -1232,8 +1254,8 @@ sync_check_init()
 
 	sync_check_initialised = true;
 
-	ut_a(SrvLatches == 0);
-	SrvLatches = new(std::nothrow) LatchMap();
+	ut_a(SrvLatches == NULL);
+	SrvLatches = UT_NEW_NOKEY(LatchMap());
 	ut_ad(SrvLatches != NULL);
 
 	sync_latch_meta_init();
@@ -1265,8 +1287,9 @@ sync_check_close()
 
 	sync_check_initialised = false;
 
-	delete SrvLatches;
-	SrvLatches = 0;
+	UT_DELETE(SrvLatches);
+
+	SrvLatches = NULL;
 
 #ifdef UNIV_SYNC_DEBUG
 	mutex_free(&rw_lock_debug_mutex);

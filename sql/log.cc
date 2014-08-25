@@ -539,11 +539,11 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
                   (ulong) thd->get_sent_row_count(),
                   (ulong) thd->get_examined_row_count()) == (uint) -1)
     goto err;
-  if (thd->db && strcmp(thd->db, db))
+  if (thd->db().str && strcmp(thd->db().str, db))
   {						// Database changed
-    if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
+    if (my_b_printf(&log_file,"use %s;\n",thd->db().str) == (uint) -1)
       goto err;
-    my_stpcpy(db,thd->db);
+    my_stpcpy(db,thd->db().str);
   }
   if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
   {
@@ -841,9 +841,10 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
     table->field[SQLT_FIELD_ROWS_EXAMINED]->set_null();
   }
   /* fill database field */
-  if (thd->db)
+  if (thd->db().str)
   {
-    if (table->field[SQLT_FIELD_DATABASE]->store(thd->db, thd->db_length,
+    if (table->field[SQLT_FIELD_DATABASE]->store(thd->db().str,
+                                                 thd->db().length,
                                                  client_cs))
       goto err;
     table->field[SQLT_FIELD_DATABASE]->set_notnull();
@@ -1083,6 +1084,10 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
 */
 static bool log_command(THD *thd, enum_server_command command)
 {
+  /* Audit notification when no general log handler present */
+  mysql_audit_general_log(thd, command_name[(uint) command].str,
+                          command_name[(uint) command].length);
+
   if (what_to_log & (1L << (uint) command))
   {
     if ((thd->variables.option_bits & OPTION_LOG_OFF)
@@ -1116,12 +1121,6 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   size_t user_host_len= make_user_name(thd, user_host_buff);
   ulonglong current_utime= thd->current_utime();
-
-  mysql_audit_general_log(thd, current_utime / 1000000,
-                          user_host_buff, user_host_len,
-                          command_name[(uint) command].str,
-                          command_name[(uint) command].length,
-                          query, query_length);
 
   bool error= false;
   for (Log_event_handler **current_handler= general_log_handler_list;

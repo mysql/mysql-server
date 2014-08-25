@@ -569,7 +569,7 @@ static Sys_var_ulong Sys_pfs_max_memory_classes(
        "performance_schema_max_memory_classes",
        "Maximum number of memory pool instruments.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_memory_class_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
        DEFAULT(PFS_MAX_MEMORY_CLASS),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
@@ -3030,12 +3030,9 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
       Note that we dont set
       MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS | MODE_NO_FIELD_OPTIONS
       to allow one to get full use of MySQL in this mode.
-
-      MODE_ONLY_FULL_GROUP_BY was removed from ANSI mode because it is
-      currently overly restrictive (see BUG#8510).
     */
     sql_mode|= (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE);
+                MODE_IGNORE_SPACE | MODE_ONLY_FULL_GROUP_BY);
   }
   if (sql_mode & MODE_ORACLE)
     sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
@@ -3125,8 +3122,11 @@ static Sys_var_set Sys_sql_mode(
        "Syntax: sql-mode=mode[,mode[,mode...]]. See the manual for the "
        "complete list of valid sql modes",
        SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
-       sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
-                               MODE_STRICT_TRANS_TABLES), NO_MUTEX_GUARD,
+       sql_mode_names,
+       DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
+               MODE_ONLY_FULL_GROUP_BY |
+               MODE_STRICT_TRANS_TABLES),
+       NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
 static Sys_var_ulong Sys_max_statement_time(
@@ -3140,6 +3140,12 @@ static Sys_var_ulong Sys_max_statement_time(
 #else
 #define SSL_OPT(X) NO_CMD_LINE
 #endif
+
+/*
+  If you are adding new system variable for SSL communication, please take a
+  look at do_auto_cert_generation() function in sql_authentication.cc and
+  add new system variable in checks if required.
+*/
 
 static Sys_var_charptr Sys_ssl_ca(
        "ssl_ca",
@@ -3180,6 +3186,21 @@ static Sys_var_charptr Sys_ssl_crlpath(
        READ_ONLY GLOBAL_VAR(opt_ssl_crlpath), SSL_OPT(OPT_SSL_CRLPATH),
        IN_FS_CHARSET, DEFAULT(0));
 
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+static Sys_var_mybool Sys_auto_generate_certs(
+       "auto_generate_certs",
+       "Auto generate SSL certificates at server startup if none of the SSL "
+       "system variables are specified and certificate files are not present "
+       "in data directory.",
+       READ_ONLY GLOBAL_VAR(opt_auto_generate_certs),
+       CMD_LINE(OPT_ARG),
+       DEFAULT(TRUE),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(NULL),
+       ON_UPDATE(NULL),
+       NULL);
+#endif /* HAVE_OPENSSL && !HAVE_YASSL */
 
 // why ENUM and not BOOL ?
 static const char *updatable_views_with_limit_names[]= {"NO", "YES", 0};
@@ -4252,9 +4273,9 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                      slave_net_timeout,
                      (active_mi ? active_mi->heartbeat_period : 0.0)));
   if (active_mi != NULL && slave_net_timeout < active_mi->heartbeat_period)
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                        ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                 ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
   mysql_mutex_lock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_slave_net_timeout);

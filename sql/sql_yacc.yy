@@ -1138,6 +1138,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         NCHAR_STRING opt_component key_cache_name
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
         opt_constraint constraint opt_ident TEXT_STRING_sys_nonewline
+        filter_wild_db_table_string
 
 %type <lex_str_ptr>
         opt_table_alias
@@ -1643,7 +1644,7 @@ deallocate:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
-            lex->prepared_stmt_name= $3;
+            lex->prepared_stmt_name= to_lex_cstring($3);
           }
         ;
 
@@ -1658,7 +1659,7 @@ prepare:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_PREPARE;
-            lex->prepared_stmt_name= $2;
+            lex->prepared_stmt_name= to_lex_cstring($2);
             /*
               We don't know know at this time whether there's a password
               in prepare_src, so we err on the side of caution.  Setting
@@ -1695,7 +1696,7 @@ execute:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_EXECUTE;
-            lex->prepared_stmt_name= $2;
+            lex->prepared_stmt_name= to_lex_cstring($2);
           }
           execute_using
           {}
@@ -1962,7 +1963,7 @@ filter_string_list:
         ;
 
 filter_string:
-          TEXT_STRING_sys_nonewline
+          filter_wild_db_table_string
           {
             THD *thd= YYTHD;
             Item *string_item= new (thd->mem_root) Item_string($1.str,
@@ -2079,17 +2080,17 @@ master_def:
             }
             if (Lex->mi.heartbeat_period > slave_net_timeout)
             {
-              push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                                  ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                                  ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+              push_warning(YYTHD, Sql_condition::SL_WARNING,
+                           ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                           ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
             }
             if (Lex->mi.heartbeat_period < 0.001)
             {
               if (Lex->mi.heartbeat_period != 0.0)
               {
-                push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
-                                    ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
+                push_warning(YYTHD, Sql_condition::SL_WARNING,
+                             ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
+                             ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
                 Lex->mi.heartbeat_period= 0.0;
               }
               Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_DISABLE;
@@ -2545,7 +2546,7 @@ sp_name:
             {
               MYSQL_YYABORT;
             }
-            $$= new sp_name($1, $3, true);
+            $$= new sp_name(to_lex_cstring($1), $3, true);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->init_qname(YYTHD);
@@ -2561,7 +2562,7 @@ sp_name:
             }
             if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
-            $$= new sp_name(db, $1, false);
+            $$= new sp_name(to_lex_cstring(db), $1, false);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->init_qname(thd);
@@ -3732,7 +3733,7 @@ sp_proc_stmt_leave:
             */
             bool exclusive= (lab->type == sp_label::BEGIN);
 
-            uint n= pctx->diff_handlers(lab->ctx, exclusive);
+            size_t n= pctx->diff_handlers(lab->ctx, exclusive);
 
             if (n)
             {
@@ -5066,7 +5067,7 @@ have_partitioning:
           /* empty */
           {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-            const LEX_CSTRING partition_name={C_STRING_WITH_LEN("partition")};
+            LEX_CSTRING partition_name= { STRING_WITH_LEN("partition") };
             if (!plugin_is_ready(partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
             {
               my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
@@ -7255,7 +7256,8 @@ alter:
               MYSQL_YYABORT;
             lex->col_list.empty();
             lex->select_lex->init_order();
-            lex->select_lex->db= (lex->select_lex->table_list.first)->db;
+            lex->select_lex->db=
+                    const_cast<char*>((lex->select_lex->table_list.first)->db);
             memset(&lex->create_info, 0, sizeof(lex->create_info));
             lex->create_info.db_type= 0;
             lex->create_info.default_table_charset= NULL;
@@ -7640,13 +7642,14 @@ alter_commands:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             size_t dummy;
-            lex->select_lex->db=$6->db.str;
+            lex->select_lex->db= const_cast<char*>($6->db.str);
             if (lex->select_lex->db == NULL &&
                 lex->copy_db_to(&lex->select_lex->db, &dummy))
             {
               MYSQL_YYABORT;
             }
-            lex->name= $6->table;
+            lex->name.str= const_cast<char*>($6->table.str);
+            lex->name.length= $6->table.length;
             lex->alter_info.flags|= Alter_info::ALTER_EXCHANGE_PARTITION;
             if (!lex->select_lex->add_table_to_list(thd, $6, NULL,
                                                     TL_OPTION_UPDATING,
@@ -7923,7 +7926,7 @@ alter_list_item:
           {
             LEX *lex=Lex;
             size_t dummy;
-            lex->select_lex->db= $3->db.str;
+            lex->select_lex->db= const_cast<char*>($3->db.str);
             if (lex->select_lex->db == NULL &&
                 lex->copy_db_to(&lex->select_lex->db, &dummy))
             {
@@ -7941,10 +7944,12 @@ alter_list_item:
               my_error(ER_TOO_LONG_IDENT, MYF(0), $3->table.str);
               MYSQL_YYABORT;
             }
-            if ($3->db.str &&
-                (check_and_convert_db_name(&$3->db, FALSE) != IDENT_NAME_OK))
+            LEX_STRING db_str= to_lex_string($3->db);
+            if (db_str.str &&
+                (check_and_convert_db_name(&db_str, FALSE) != IDENT_NAME_OK))
               MYSQL_YYABORT;
-            lex->name= $3->table;
+            lex->name.str= const_cast<char*>($3->table.str);
+            lex->name.length= $3->table.length;
             lex->alter_info.flags|= Alter_info::ALTER_RENAME;
           }
         | RENAME key_or_index field_ident TO_SYM field_ident
@@ -10776,7 +10781,7 @@ drop:
             }
             lex->sql_command = SQLCOM_DROP_FUNCTION;
             lex->drop_if_exists= $3;
-            spname= new sp_name($4, $6, true);
+            spname= new sp_name(to_lex_cstring($4), $6, true);
             if (spname == NULL)
               MYSQL_YYABORT;
             spname->init_qname(thd);
@@ -10795,20 +10800,20 @@ drop:
             */
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            LEX_STRING db= {0, 0};
+            LEX_STRING db= NULL_STR;
             sp_name *spname;
             if (lex->sphead)
             {
               my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
               MYSQL_YYABORT;
             }
-            if (thd->db && lex->copy_db_to(&db.str, &db.length))
+            if (thd->db().str && lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
             if (sp_check_name(&$4))
                MYSQL_YYABORT;
             lex->sql_command = SQLCOM_DROP_FUNCTION;
             lex->drop_if_exists= $3;
-            spname= new sp_name(db, $4, false);
+            spname= new sp_name(to_lex_cstring(db), $4, false);
             if (spname == NULL)
               MYSQL_YYABORT;
             spname->init_qname(thd);
@@ -11335,7 +11340,7 @@ table_wild_list:
 table_wild_one:
           ident opt_wild
           {
-            Table_ident *ti= new Table_ident($1);
+            Table_ident *ti= new Table_ident(to_lex_cstring($1));
             if (ti == NULL)
               MYSQL_YYABORT;
             if (!Select->add_table_to_list(YYTHD,
@@ -11348,7 +11353,8 @@ table_wild_one:
           }
         | ident '.' ident opt_wild
           {
-            Table_ident *ti= new Table_ident(YYTHD, $1, $3, 0);
+            Table_ident *ti= new Table_ident(YYTHD, to_lex_cstring($1),
+                                             to_lex_cstring($3), 0);
             if (ti == NULL)
               MYSQL_YYABORT;
             if (!Select->add_table_to_list(YYTHD,
@@ -12592,23 +12598,24 @@ field_ident:
 table_ident:
           ident
           {
-            $$= NEW_PTN Table_ident($1);
+            $$= NEW_PTN Table_ident(to_lex_cstring($1));
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | ident '.' ident
           {
             if (YYTHD->client_capabilities & CLIENT_NO_SCHEMA)
-              $$= NEW_PTN Table_ident($3);
-            else
-              $$= NEW_PTN Table_ident($1, $3);
+              $$= NEW_PTN Table_ident(to_lex_cstring($3));
+            else {
+              $$= NEW_PTN Table_ident(to_lex_cstring($1), to_lex_cstring($3));
+            }
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | '.' ident
           {
             /* For Delphi */
-            $$= NEW_PTN Table_ident($2);
+            $$= NEW_PTN Table_ident(to_lex_cstring($2));
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -12617,13 +12624,14 @@ table_ident:
 table_ident_opt_wild:
           ident opt_wild
           {
-            $$= new Table_ident($1);
+            $$= new Table_ident(to_lex_cstring($1));
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | ident '.' ident opt_wild
           {
-            $$= new Table_ident(YYTHD, $1,$3,0);
+            $$= new Table_ident(YYTHD, to_lex_cstring($1),
+                                to_lex_cstring($3), 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -12632,8 +12640,8 @@ table_ident_opt_wild:
 table_ident_nodb:
           ident
           {
-            LEX_STRING db={(char*) any_db,3};
-            $$= new Table_ident(YYTHD, db,$1,0);
+            LEX_CSTRING db= { any_db, strlen(any_db) };
+            $$= new Table_ident(YYTHD, db, to_lex_cstring($1), 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -12678,6 +12686,19 @@ TEXT_STRING_sys_nonewline:
             else
             {
               my_error(ER_WRONG_VALUE, MYF(0), "argument contains not-allowed LF", $1.str);
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+filter_wild_db_table_string:
+          TEXT_STRING_sys_nonewline
+          {
+            if (strcont($1.str, "."))
+              $$= $1;
+            else
+            {
+              my_error(ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN, MYF(0));
               MYSQL_YYABORT;
             }
           }

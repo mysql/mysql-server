@@ -918,23 +918,24 @@ dict_insert_tablespace_and_filepath(
 	return(err);
 }
 
-/********************************************************************//**
-This function looks at each table defined in SYS_TABLES.  It checks the
-tablespace for any table with a space_id > 0.  It looks up the tablespace
-in SYS_DATAFILES to ensure the correct path.
+/** Look at each table defined in SYS_TABLES. Check the tablespace for
+any table with a space_id > 0. Look up the tablespace in SYS_DATAFILES
+to ensure the correct path.
 
-In a crash recovery we already have all the tablespace objects created.
+In a crash recovery we already have some tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
 to what we already read with fil_load_single_table_tablespace().
 
 In a normal startup, we create the tablespace objects for every table in
 InnoDB's data dictionary, if the corresponding .ibd file exists.
-We also scan the biggest space id, and store it to fil_system. */
+We also scan the biggest space id, and store it to fil_system.
+@param[in]	validate	whether the previous shutdown was not clean
+@param[in]	dict_check	how to check */
 
 void
 dict_check_tablespaces_and_store_max_id(
-/*====================================*/
-	dict_check_t	dict_check)	/*!< in: how to check */
+	bool		validate,
+	dict_check_t	dict_check)
 {
 	dict_table_t*	sys_tables;
 	dict_index_t*	sys_index;
@@ -1103,8 +1104,8 @@ loop:
 			If the filepath is not known, it will need to
 			be discovered. */
 			dberr_t	err = fil_open_single_table_tablespace(
-				false, !srv_read_only_mode,
-				FIL_TYPE_TABLESPACE,
+				validate && srv_force_recovery == 0,
+				!srv_read_only_mode, FIL_TYPE_TABLESPACE,
 				space_id, dict_tf_to_fsp_flags(flags),
 				name, filepath);
 
@@ -2417,7 +2418,7 @@ err_exit:
 			}
 
 			if (filepath != NULL) {
-				::ut_free(filepath);
+				ut_free(filepath);
 			}
 		}
 	}

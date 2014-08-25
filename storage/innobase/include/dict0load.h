@@ -33,10 +33,12 @@ Created 4/24/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "btr0types.h"
+#include "ut0new.h"
+
 #include <deque>
 
 /** A stack of table names related through foreign key constraints */
-typedef std::deque<const char*> dict_names_t;
+typedef std::deque<const char*, ut_allocator<const char*> >	dict_names_t;
 
 /** enum that defines all system table IDs. @see SYSTEM_TABLE_NAME[] */
 enum dict_system_id_t {
@@ -72,19 +74,24 @@ enum dict_check_t {
 	DICT_CHECK_SOME_LOADED
 };
 
-/********************************************************************//**
-In a crash recovery we already have all the tablespace objects created.
+/** Look at each table defined in SYS_TABLES. Check the tablespace for
+any table with a space_id > 0. Look up the tablespace in SYS_DATAFILES
+to ensure the correct path.
+
+In a crash recovery we already have some tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
 to what we already read with fil_load_single_table_tablespace().
 
 In a normal startup, we create the tablespace objects for every table in
 InnoDB's data dictionary, if the corresponding .ibd file exists.
-We also scan the biggest space id, and store it to fil_system. */
+We also scan the biggest space id, and store it to fil_system.
+@param[in]	validate	whether the previous shutdown was not clean
+@param[in]	dict_check	how to check */
 
 void
 dict_check_tablespaces_and_store_max_id(
-/*====================================*/
-	dict_check_t	dict_check);	/*!< in: how to check */
+	bool		validate,
+	dict_check_t	dict_check);
 /********************************************************************//**
 Finds the first table name in the given database.
 @return own: table name, NULL if does not exist; the caller must free

@@ -18,6 +18,31 @@ INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCSourceCompiles) 
 INCLUDE(CheckCXXSourceCompiles)
 
+# We require at least GCC 4.4 or SunStudio 12u2 (CC 5.11)
+IF(NOT FORCE_UNSUPPORTED_COMPILER)
+  IF(CMAKE_COMPILER_IS_GNUCC)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
+                    OUTPUT_VARIABLE GCC_VERSION)
+    IF(GCC_VERSION VERSION_LESS 4.4)
+      MESSAGE(FATAL_ERROR "GCC 4.4 or newer is required!")
+    ENDIF()
+  ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_CXX_COMPILER} "-V"
+      OUTPUT_VARIABLE stdout
+      ERROR_VARIABLE  stderr
+      RESULT_VARIABLE result
+    )
+    STRING(REGEX MATCH "CC: Sun C\\+\\+ 5\\.([0-9]+)" VERSION_STRING ${stderr})
+    SET(CC_MINOR_VERSION ${CMAKE_MATCH_1})
+    IF(${CC_MINOR_VERSION} LESS 11)
+      MESSAGE(FATAL_ERROR "SunStudio 12u2 or newer is required!")
+    ENDIF()
+  ELSE()
+    MESSAGE(FATAL_ERROR "Unsupported compiler!")
+  ENDIF()
+ENDIF()
+
 # Enable 64 bit file offsets
 ADD_DEFINITIONS(-D_FILE_OFFSET_BITS=64)
 

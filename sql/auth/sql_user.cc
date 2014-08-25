@@ -188,7 +188,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   char buff[512];
   ulong query_length= 0;
   bool save_binlog_row_based;
-  uint new_password_len= (uint) strlen(new_password);
+  size_t new_password_len= strlen(new_password);
   bool result= 1;
   enum mysql_user_table_field password_field= MYSQL_USER_FIELD_PASSWORD;
   DBUG_ENTER("change_password");

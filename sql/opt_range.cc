@@ -1121,7 +1121,7 @@ int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree)
   if (trees_next == trees_end)
   {
     const int realloc_ratio= 2;		/* Double size for next round */
-    uint old_elements= (trees_end - trees);
+    uint old_elements= static_cast<uint>(trees_end - trees);
     uint old_size= sizeof(SEL_TREE**) * old_elements;
     uint new_size= old_size * realloc_ratio;
     SEL_TREE **new_trees;
@@ -1257,7 +1257,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param):
 
 SEL_IMERGE::SEL_IMERGE (SEL_IMERGE *arg, RANGE_OPT_PARAM *param) : Sql_alloc()
 {
-  uint elements= (arg->trees_end - arg->trees);
+  uint elements= static_cast<uint>(arg->trees_end - arg->trees);
   if (elements > PREALLOCED_TREES)
   {
     uint size= elements * sizeof (SEL_TREE **);
@@ -2774,7 +2774,7 @@ int test_quick_select(THD *thd, key_map keys_to_use,
     param.baseflag= head->file->ha_table_flags();
     param.prev_tables=prev_tables | const_tables;
     param.read_tables=read_tables;
-    param.current_table= head->map;
+    param.current_table= head->pos_in_table_list->map();
     param.table=head;
     param.keys=0;
     param.mem_root= &alloc;
@@ -3322,7 +3322,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   range_par->table= table;
   /* range_par->cond doesn't need initialization */
   range_par->prev_tables= range_par->read_tables= 0;
-  range_par->current_table= table->map;
+  range_par->current_table= table->pos_in_table_list->map();
 
   range_par->keys= 1; // one index
   range_par->using_real_indexes= FALSE;
@@ -6410,7 +6410,7 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
     Field *field= item_field->field;
     Item_result cmp_type= field->cmp_type();
 
-    if (!((ref_tables | field->table->map) & param_comp))
+    if (!((ref_tables | item_field->table_ref->map()) & param_comp))
       ftree= get_func_mm_tree(param, predicand, op, value, cmp_type, inv);
     Item_equal *item_equal= item_field->item_equal;
     if (item_equal != NULL)
@@ -6420,7 +6420,8 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
       while ((item= it++))
       {
         Field *f= item->field;
-        if (!field->eq(f) && !((ref_tables | f->table->map) & param_comp))
+        if (!field->eq(f) &&
+            !((ref_tables | item->table_ref->map()) & param_comp))
         {
           tree= get_func_mm_tree(param, item, op, value, cmp_type, inv);
           ftree= !ftree ? tree : tree_and(param, ftree, tree);
@@ -6636,7 +6637,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     {
       Field *field= field_item->field;
       Item_result cmp_type= field->cmp_type();
-      if (!((ref_tables | field->table->map) & param_comp))
+      if (!((ref_tables | field_item->table_ref->map()) & param_comp))
       {
         tree= get_mm_parts(param, item_equal, field, Item_func::EQ_FUNC,
 		           value,cmp_type);
@@ -9483,8 +9484,8 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     {
       DBUG_PRINT("info", ("while(): key_tree->part %d",key_tree->part));
       RANGE_SEQ_ENTRY *cur= seq->stack_top();
-      const uint min_key_total_length= cur->min_key - seq->param->min_key;
-      const uint max_key_total_length= cur->max_key - seq->param->max_key;
+      const size_t min_key_total_length= cur->min_key - seq->param->min_key;
+      const size_t max_key_total_length= cur->max_key - seq->param->max_key;
 
       /*
         Check if more ranges can be added. This is the case if all
@@ -9502,7 +9503,7 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 
       uchar* min_key_start;
       uchar* max_key_start;
-      uint cur_key_length;
+      size_t cur_key_length;
 
       if (seq->stack_size() == 1)
       {
@@ -9584,7 +9585,7 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
   // We now have a full range predicate in seq->stack_top()
   RANGE_SEQ_ENTRY *cur= seq->stack_top();
   PARAM *param= seq->param;
-  uint min_key_length= cur->min_key - param->min_key;
+  size_t min_key_length= cur->min_key - param->min_key;
 
   if (cur->min_key_flag & GEOM_FLAG)
   {
@@ -11052,9 +11053,9 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
 bool QUICK_RANGE_SELECT::row_in_ranges()
 {
   QUICK_RANGE *res;
-  uint min= 0;
-  uint max= ranges.size() - 1;
-  uint mid= (max + min)/2;
+  size_t min= 0;
+  size_t max= ranges.size() - 1;
+  size_t mid= (max + min)/2;
 
   while (min != max)
   {

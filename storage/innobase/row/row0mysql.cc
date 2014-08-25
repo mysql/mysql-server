@@ -64,10 +64,12 @@ Created 9/17/2000 Heikki Tuuri
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0undo.h"
-#include <deque>
 #include "row0ext.h"
-#include <vector>
+#include "ut0new.h"
+
 #include <algorithm>
+#include <deque>
+#include <vector>
 
 const char* MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION =
 	"A new raw disk partition was initialized. We do not allow database"
@@ -600,8 +602,9 @@ row_mysql_store_col_in_innobase_format(
 	} else if (type == DATA_BLOB) {
 
 		ptr = row_mysql_read_blob_ref(&col_len, mysql_data, col_len);
-	} else if (type == DATA_GEOMETRY) {
-		/* We still use blob to store geometry data */
+	} else if (DATA_GEOMETRY_MTYPE(type)) {
+		/* We use blob to store geometry data except DATA_POINT
+		internally, but in MySQL Layer the datatype is always blob. */
 		ptr = row_mysql_read_geometry(&col_len, mysql_data, col_len);
 	}
 
@@ -1914,7 +1917,7 @@ private:
 };
 
 
-typedef	std::vector<btr_pcur_t>	cursors_t;
+typedef	std::vector<btr_pcur_t, ut_allocator<btr_pcur_t> >	cursors_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
 Function will maintain cursor to the entries to invoke explicity rollback
@@ -3425,7 +3428,7 @@ row_add_table_to_background_drop_list(
 	}
 
 	drop = static_cast<row_mysql_drop_t*>(
-		ut_malloc(sizeof(row_mysql_drop_t)));
+		ut_malloc_nokey(sizeof(row_mysql_drop_t)));
 
 	drop->table_name = mem_strdup(name);
 
@@ -5410,7 +5413,7 @@ row_scan_index_for_mysql(
 	}
 
 	ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
-	buf = static_cast<byte*>(ut_malloc(bufsize));
+	buf = static_cast<byte*>(ut_malloc_nokey(bufsize));
 	heap = mem_heap_create(100);
 
 	cnt = 1000;

@@ -111,7 +111,12 @@ public:
   /**
     This is the minimal constructor, it will set the type code as ROTATE_EVENT.
   */
-  Rotate_event() : Binary_log_event(ROTATE_EVENT)
+  Rotate_event(const char* new_log_ident_arg, unsigned int ident_len_arg,
+               unsigned int flags_arg, uint64_t pos_arg)
+    : Binary_log_event(ROTATE_EVENT),
+      new_log_ident(new_log_ident_arg),
+      ident_len(ident_len_arg ? ident_len_arg : strlen(new_log_ident_arg)),
+      flags(flags_arg), pos(pos_arg)
   {}
 
   /**
@@ -1077,7 +1082,7 @@ public:
   void print_long_info(std::ostream& info) { }
 #endif
 protected:
-  int buf_size;
+  size_t buf_size;
   const unsigned char *buf;
 };
 

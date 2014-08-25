@@ -177,7 +177,7 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
   /* Check if this table is functionally dependent on the tables that
      are within the same outer join nest
   */
-  TABLE_LIST *embedding= join_tab->table()->pos_in_table_list->embedding;
+  TABLE_LIST *embedding= join_tab->table_ref->embedding;
   if (join_tab->type() == JT_EQ_REF)
   {
     table_map depends_on= 0;
@@ -190,7 +190,7 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
     while ((idx= it.next_bit())!=Table_map_iterator::BITMAP_END)
     {
       JOIN_TAB *ref_tab= join->map2table[idx];
-      if (embedding != ref_tab->table()->pos_in_table_list->embedding)
+      if (embedding != ref_tab->table_ref->embedding)
         return TRUE;
     }
     /* Ok, functionally dependent */
@@ -1211,8 +1211,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
   DBUG_ASSERT(!dep_map || maybe_null);
   uint keyparts= 0, length= 0;
   uint found_part_ref_or_null= 0;
-  TABLE *table= tab->table();
-  KEY *const keyinfo= table->key_info + key;
+  KEY *const keyinfo= tab->table()->key_info + key;
 
   do
   {
@@ -1243,7 +1242,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
       }
     }
     keyuse++;
-  } while (keyuse->table == table && keyuse->key == key);
+  } while (keyuse->table_ref == tab->table_ref && keyuse->key == key);
   DBUG_ASSERT(length > 0 && keyparts != 0);
   *length_out= length;
   *keyparts_out= keyparts;
@@ -1807,7 +1806,7 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
         evaluated.
       */
       idx_cond->update_used_tables();
-      if ((idx_cond->used_tables() & tbl->map) == 0)
+      if ((idx_cond->used_tables() & table_ref->map()) == 0)
       {
         /*
           The following assert is to check that we only skip pushing the
@@ -1841,7 +1840,7 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
           */
           other_tbls_ok &&
           (idx_cond->used_tables() &
-           ~(tbl->map | join_->const_table_map)))
+           ~(table_ref->map() | join_->const_table_map)))
       {
         cache_idx_cond= idx_cond;
         trace_obj->add("pushed_to_BKA", true);
@@ -1946,13 +1945,23 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
                                 name)))
     DBUG_RETURN(true); /* purecov: inspected */
   sjm_exec->table= table;
-  table->tablenr= tableno;
   map2table[tableno]= tab;
-  table->map= (table_map)1 << tableno;
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   sj_tmp_tables.push_back(table);
   sjm_exec_list.push_back(sjm_exec);
+
+  TABLE_LIST *tl;
+  if (!(tl= (TABLE_LIST *) alloc_root(thd->mem_root, sizeof(TABLE_LIST))))
+    DBUG_RETURN(true);            /* purecov: inspected */
+  // TODO: May have to setup outer-join info for this TABLE_LIST !!!
+
+  tl->init_one_table("", 0, name, strlen(name), name, TL_IGNORE);
+
+  tl->table= table;
+  tl->set_tableno(tableno);
+
+  table->pos_in_table_list= tl;
 
   if (!(sjm_opt->mat_fields=
     (Item_field **) alloc_root(thd->mem_root,
@@ -1965,15 +1974,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
       DBUG_RETURN(true);
   }
 
-  TABLE_LIST *tl;
-  if (!(tl= (TABLE_LIST *) alloc_root(thd->mem_root, sizeof(TABLE_LIST))))
-    DBUG_RETURN(true);
-  // TODO: May have to setup outer-join info for this TABLE_LIST !!!
-
-  tl->init_one_table("", 0, name, strlen(name), name, TL_IGNORE);
-
-  tl->table= table;
-
+  tab->table_ref= tl;
   tab->set_table(table);
   tab->set_position(sjm_pos);
 
@@ -1985,7 +1986,6 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
 
   tab->init_join_cond_ref(tl);
 
-  table->pos_in_table_list= tl;
   table->keys_in_use_for_query.set_all();
   sjm_pos->table= tab;
   sjm_pos->sj_strategy= SJ_OPT_NONE;
@@ -2259,7 +2259,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     qep_tab->pick_table_access_method(tab);
 
     // Materialize derived tables prior to accessing them.
-    if (table->pos_in_table_list->uses_materialization())
+    if (tab->table_ref->uses_materialization())
       qep_tab->materialize_table= join_materialize_derived;
 
     if (qep_tab->sj_mat_exec())
@@ -2368,10 +2368,11 @@ void QEP_shared_owner::qs_cleanup()
     table()->file->ha_index_or_rnd_end();
     free_io_cache(table());
     filesort_free_buffers(table(), true);
-    if (table()->pos_in_table_list)
+    TABLE_LIST *const table_ref= table()->pos_in_table_list;
+    if (table_ref)
     {
-      table()->pos_in_table_list->derived_keys_ready= false;
-      table()->pos_in_table_list->derived_key_list.empty();
+      table_ref->derived_keys_ready= false;
+      table_ref->derived_key_list.empty();
     }
   }
   delete quick();
@@ -3377,6 +3378,9 @@ bool JOIN::make_tmp_tables_info()
   having_for_explain= having_cond;
 
   const bool has_group_by= this->group;
+
+  Opt_trace_context *const trace= &thd->opt_trace;
+
   /*
     Setup last table to provide fields and all_fields lists to the next
     node in the plan.
@@ -3684,10 +3688,19 @@ bool JOIN::make_tmp_tables_info()
     /* If we have already done the group, add HAVING to sorted table */
     if (having_cond && !group_list && !sort_and_group)
     {
-      // Some tables may have become constant
+      /*
+        Fields in HAVING condition may have been replaced with fields in an
+        internal temporary table. This table has map=1, hence we check that
+        we have no fields from other tables (outer references are fine).
+      */
       having_cond->update_used_tables();
       QEP_TAB *const curr_table= &qep_tab[curr_tmp_table];
-      table_map used_tables= (const_table_map | curr_table->table()->map);
+      DBUG_ASSERT(curr_table->table_ref ||
+                  !(having_cond->used_tables() &
+                    ~(1 | PSEUDO_TABLE_BITS)));
+      table_map used_tables= curr_table->table_ref ?
+                               curr_table->table_ref->map() :
+                               1; // Internal temporary table
 
       Item* sort_table_cond= make_cond_for_table(having_cond, used_tables,
                                                  (table_map) 0, false);
@@ -3711,6 +3724,11 @@ bool JOIN::make_tmp_tables_info()
         DBUG_EXECUTE("where",
                      print_where(having_cond, "having after sort",
                      QT_ORDINARY););
+
+        Opt_trace_object trace_wrapper(trace);
+        Opt_trace_object(trace, "sort_using_internal_table")
+                    .add("condition_for_sort", sort_table_cond)
+                    .add("having_after_sort", having_cond);
       }
     }
 
