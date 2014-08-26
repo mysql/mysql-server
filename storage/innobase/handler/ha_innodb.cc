@@ -16578,7 +16578,8 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, innodb_buffer_pool_size_update,
-  128*1024*1024L, srv_buf_pool_min_size, LONGLONG_MAX, 1024*1024L);
+  128*1024*1024L, static_cast<longlong>(srv_buf_pool_min_size),
+  LONGLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
