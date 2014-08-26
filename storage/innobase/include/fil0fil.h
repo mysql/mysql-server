@@ -431,16 +431,17 @@ fil_space_free(
 	ulint		id,
 	bool		x_latched);
 
-/*******************************************************************//**
-Returns the path from the first fil_node_t found for the space ID sent.
+/** Returns the path from the first fil_node_t found with this space ID.
 The caller is responsible for freeing the memory allocated here for the
 value returned.
-@return a copy of fil_node_t::path, NULL if space is zero or not found. */
+@param[in]	id	Tablespace ID
+@return own: A copy of fil_node_t::path, NULL if space ID is zero
+or not found. */
 
 char*
 fil_space_get_first_path(
-/*=====================*/
-	ulint	id);	/*!< in: space id */
+	ulint		id);
+
 /*******************************************************************//**
 Returns the size of the space in pages. The tablespace must be cached in the
 memory cache.

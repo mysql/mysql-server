@@ -589,34 +589,43 @@ innobase_index_name_is_reserved(
 						be created. */
 	__attribute__((warn_unused_result));
 
-/**
-Determines InnoDB table flags.
+/** Determines InnoDB table flags.
+If strict_mode=OFF, this will adjust the flags to what should be assumed.
+@param[in]	form		Table information from MySQL
+@param[in]	create_info	Create information from MySQL describing
+				columns and indexes.
+@param[in]	thd		Connection information from MySQL
+@param[in]	file_per_table	Whether to create a single-table tablespace.
+@param[out]	flags		DICT_TF flags
+@param[out]	flags2		DICT_TF2 flags
 @retval true if successful, false if error */
 
 bool
 innobase_table_flags(
-	const TABLE*		form,		/*!< in: table */
-	const HA_CREATE_INFO*	create_info,	/*!< in: information
-						on table columns and indexes */
-	THD*			thd,		/*!< in: connection */
-	bool			use_file_per_table,/*!< in: whether to create
-						outside system tablespace */
-	ulint*			flags,		/*!< out: DICT_TF flags */
-	ulint*			flags2)		/*!< out: DICT_TF2 flags */
+	const TABLE*		form,
+	const HA_CREATE_INFO*	create_info,
+	THD*			thd,
+	bool			file_per_table,
+	ulint*			flags,
+	ulint*			flags2)
 	__attribute__((warn_unused_result));
 
-/**
-Validates the create options. We may build on this function
-in future. For now, it checks two specifiers:
-KEY_BLOCK_SIZE and ROW_FORMAT
-If innodb_strict_mode is not set then this function is a no-op
-@return NULL if valid, string if not. */
+/** Validates the create options. Checks that the options KEY_BLOCK_SIZE,
+ROW_FORMAT, DATA DIRECTORY, TEMPORARY & TABLESPACE are compatible with
+each other and other settings.  These CREATE OPTIONS are not validated
+here unless innodb_strict_mode is on. With strict mode, this function
+will report each problem it finds using a custom message with error
+code ER_ILLEGAL_HA_CREATE_OPTION, not its built-in message.
+@param[in]	thd		Connection thread
+@param[in]	create_info	Information for the create operation
+@param[in]	file_per_table	Whether to create a single-table tablespace.
+@return NULL if valid, string name of bad option if not. */
 
 const char*
 create_options_are_invalid(
-	THD*		thd,		/*!< in: connection thread. */
-	HA_CREATE_INFO*	create_info,	/*!< in: create info. */
-	bool		use_file_per_table)/*!< in: srv_file_per_table */
+	THD*		thd,
+	HA_CREATE_INFO*	create_info,
+	bool		file_per_table)
 	__attribute__((warn_unused_result));
 
 /**

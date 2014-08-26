@@ -747,7 +747,6 @@ handle_new_error:
 		*new_err = err;
 
 		return(true);
-	}
 
 	case DB_DEADLOCK:
 	case DB_LOCK_TABLE_FULL:
@@ -2774,7 +2773,7 @@ row_mysql_lock_data_dictionary_func(
 	rw_lock_x_lock_inline(&dict_operation_lock, 0, file, line);
 	trx->dict_operation_lock_mode = RW_X_LATCH;
 
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 }
 
 /*********************************************************************//**
@@ -2792,7 +2791,7 @@ row_mysql_unlock_data_dictionary(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
-	mutex_exit(&(dict_sys->mutex));
+	mutex_exit(&dict_sys->mutex);
 	rw_lock_x_unlock(&dict_operation_lock);
 
 	trx->dict_operation_lock_mode = 0;
@@ -2820,7 +2819,7 @@ row_create_table_for_mysql(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	DBUG_EXECUTE_IF(
@@ -3012,7 +3011,7 @@ row_create_index_for_mysql(
 #ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-		ut_ad(mutex_own(&(dict_sys->mutex)));
+		ut_ad(mutex_own(&dict_sys->mutex));
 
 		table = dict_table_open_on_name(table_name, TRUE, TRUE,
 						DICT_ERR_IGNORE_NONE);
@@ -3192,7 +3191,7 @@ row_table_add_foreign_constraints(
 
 	DBUG_ENTER("row_table_add_foreign_constraints");
 
-	ut_ad(mutex_own(&(dict_sys->mutex)) || handler);
+	ut_ad(mutex_own(&dict_sys->mutex) || handler);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X) || handler);
 #endif /* UNIV_SYNC_DEBUG */
@@ -3948,7 +3947,7 @@ row_drop_table_for_mysql(
 			nonatomic = true;
 		}
 
-		ut_ad(mutex_own(&(dict_sys->mutex)));
+		ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
@@ -4356,7 +4355,7 @@ row_drop_table_for_mysql(
 		/* We do not allow temporary tables with a remote path. */
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
 
-		/* Make sure the data_dir_path is set. */
+		/* Make sure the data_dir_path is set if needed. */
 		dict_get_and_save_data_dir_path(table, true);
 
 		if (space_id && DICT_TF_HAS_DATA_DIR(table->flags)) {
@@ -4514,7 +4513,7 @@ row_drop_table_for_mysql(
 
 	default:
 		/* This is some error we do not expect. Print
-		the error number and rollback transaction */
+		the error number and rollback the transaction */
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unknown error code %lu while dropping table: %s.",
 			(ulong) err, ut_get_name(trx, TRUE, tablename).c_str());
@@ -5056,8 +5055,8 @@ row_rename_table_for_mysql(
 			   "END;\n"
 			   , FALSE, trx);
 
-	/* SYS_TABLESPACES and SYS_DATAFILES track non-system tablespaces
-	which have space IDs > 0. */
+	/* SYS_TABLESPACES and SYS_DATAFILES need to be updated if
+	the table is in a single-table tablespace. */
 	if (err == DB_SUCCESS
 	    && !is_system_tablespace(table->space)
 	    && !table->ibd_file_missing) {
