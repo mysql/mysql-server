@@ -1366,6 +1366,8 @@ public:
 		:
 		m_trx(trx)
 	{
+		trx_search_latch_release_if_reserved(m_trx);
+
 		trx_mutex_enter(m_trx);
 
 		wait();
