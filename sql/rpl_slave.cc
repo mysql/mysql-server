@@ -137,7 +137,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
 
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
 
-static pthread_key(Master_info*, RPL_MASTER_INFO);
+static thread_local_key_t RPL_MASTER_INFO;
 
 enum enum_slave_reconnect_actions
 {
@@ -376,7 +376,7 @@ int init_slave()
   */
   mysql_mutex_lock(&LOCK_msr_map);
 
-  if (pthread_key_create(&RPL_MASTER_INFO, NULL))
+  if (my_create_thread_local_key(&RPL_MASTER_INFO, NULL))
     DBUG_RETURN(1);
 
   /*
@@ -4875,7 +4875,7 @@ pthread_handler_t handle_slave_io(void *arg)
                             llstr(mi->get_master_log_pos(), llbuff)));
 
   /* This must be called before run any binlog_relay_io hooks */
-  my_pthread_setspecific_ptr(RPL_MASTER_INFO, mi);
+  my_set_thread_local(RPL_MASTER_INFO, mi);
 
   if (RUN_HOOK(binlog_relay_io, thread_start, (thd, mi)))
   {

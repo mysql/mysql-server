@@ -1291,9 +1291,7 @@ select Astext(Envelope(MPointFromWKB(AsWKB(MultiPointFromText('multipoint(a -0)'
 
 --enable_warnings
 
-##The below section is hased till the Bug #17371854 is fixed
-#select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('a', '-0'))))));
-#
+select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('a', '-0'))))));
 
 --error ER_GIS_INVALID_DATA
 select Astext(Envelope(PointFromText('point(a d)')));
