@@ -2347,6 +2347,7 @@ ha_innobase::ha_innobase(
 			  | HA_CAN_RTREEKEYS
 			  | HA_HAS_RECORDS
 			  | HA_NO_READ_LOCAL_LOCK
+			  | HA_ATTACHABLE_TRX_COMPATIBLE
 		  ),
 	m_start_of_scan(),
 	m_num_write_row()

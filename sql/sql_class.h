@@ -1351,6 +1351,7 @@ struct Ha_data
     Lifetime: one user connection.
   */
   void *ha_ptr;
+
   /**
     0: Life time: one statement within a transaction. If @@autocommit is
     on, also represents the entire transaction.
@@ -1362,12 +1363,17 @@ struct Ha_data
     @sa trans_register_ha()
   */
   Ha_trx_info ha_info[2];
+
   /**
     NULL: engine is not bound to this thread
     non-NULL: engine is bound to this thread, engine shutdown forbidden
   */
   plugin_ref lock;
-  Ha_data() :ha_ptr(NULL) {}
+
+  Ha_data()
+   :ha_ptr(NULL),
+    lock(NULL)
+  { }
 };
 
 /**
@@ -2021,12 +2027,27 @@ public:
 private:
   std::auto_ptr<Transaction_ctx> m_transaction;
 
+  class Attachable_trx;
+
+  Attachable_trx *m_attachable_trx;
+
 public:
   Transaction_ctx *get_transaction()
   { return m_transaction.get(); }
 
   const Transaction_ctx *get_transaction() const
   { return m_transaction.get(); }
+
+  /**
+    Changes the Transaction_ctx instance within THD-object. The previous
+    Transaction_ctx instance is destroyed.
+
+    @note this is a THD-internal operation which MUST NOT be used outside.
+
+    @param transaction_ctx new Transaction_ctx instance to be associated with
+    the THD-object.
+  */
+  void set_transaction(Transaction_ctx *transaction_ctx);
 
   Global_read_lock global_read_lock;
   Field      *dup_field;
@@ -3199,6 +3220,29 @@ public:
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
 
+public:
+  /**
+    Start an InnoDB attachable transaction.
+
+    There must be no active attachable transactions (in other words, there can
+    be only one active attachable transaction at a time).
+  */
+  void begin_attachable_transaction();
+
+  /**
+    End an active attachable transaction.
+
+    There must be active attachable transaction.
+  */
+  void end_attachable_transaction();
+
+  /**
+    @return true if there is an active attachable transaction.
+  */
+  bool is_attachable_transaction_active() const
+  { return m_attachable_trx != NULL; }
+
+public:
   /*
     @todo Make these methods private or remove them completely.  Only
     decide_logging_format should call them. /Sven
