@@ -194,7 +194,7 @@ with mutex_enter(), which will wait until it gets the mutex. */
 /** Requested size in bytes */
 ulint	srv_buf_pool_size	= ULINT_MAX;
 /** Minimum pool size in bytes */
-const ulint	srv_buf_pool_min_size	= 5 * 1024 * 1024;
+const ulong	srv_buf_pool_min_size	= 5 * 1024 * 1024;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
 ulong	srv_buf_pool_chunk_unit;
