@@ -86,7 +86,6 @@ extern void thd_increment_bytes_received(size_t length);
 #endif
 
 #define VIO_SOCKET_ERROR  ((size_t) -1)
-#define MAX_PACKET_LENGTH (256L*256L*256L-1)
 
 static my_bool net_write_buff(NET *, const uchar *, size_t);
 
