@@ -25,7 +25,6 @@ SET DEBUG_SYNC='now SIGNAL waiting1';
 [connection sigcon]
 ERROR HY000: Got error 149 during COMMIT
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
 include/sync_slave_sql_with_master.inc
 include/assert.inc ['There is a 1 in t1']
 include/assert.inc ['There is no 0 in t1']

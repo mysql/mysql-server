@@ -3586,7 +3586,7 @@ innobase_start_trx_and_assign_read_view(
 /*****************************************************************//**
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended.
-@return or deadlock error if the transaction was aborted by another
+@return 0 or deadlock error if the transaction was aborted by another
 	higher priority transaction. */
 static
 int
@@ -3807,8 +3807,6 @@ innobase_rollback(
 				thd_security_context(
 					thd, buffer, sizeof(buffer), 512));
 
-			trx->state = TRX_STATE_NOT_STARTED;
-
 			error = DB_FORCED_ABORT;
 		}
 
@@ -3818,16 +3816,9 @@ innobase_rollback(
 
 		error = DB_FORCED_ABORT;
 
-		trx->state = TRX_STATE_NOT_STARTED;
-
 	} else {
 
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
-
-		if (error == DB_FORCED_ABORT) {
-
-			trx->state = TRX_STATE_NOT_STARTED;
-		}
 	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, trx->mysql_thd));
@@ -7149,7 +7140,7 @@ if its index columns are updated!
 @return error number or 0 */
 
 int
-ha_innobase::update_row(
+ha_innobase::update_row_low(
 	const uchar*	old_row,
 	uchar*		new_row)
 {
@@ -7289,6 +7280,30 @@ func_exit:
 	innobase_active_small();
 
 	DBUG_RETURN(err);
+}
+
+/**
+Updates a row given as a parameter to a new value. Note that we are given
+whole rows, not just the fields which are updated: this incurs some
+overhead for CPU when we check which fields are actually updated.
+TODO: currently InnoDB does not prevent the 'Halloween problem':
+in a searched update a single row can get updated several times
+if its index columns are updated!
+@param[in] old_row	Old row contents in MySQL format
+@param[out] new_row	Updated row contents in MySQL format
+@return error number or 0 */
+
+int
+ha_innobase::update_row(
+	const uchar*	old_row,
+	uchar*		new_row)
+{
+	int	err = update_row_low(old_row, new_row);
+
+	DEBUG_SYNC_C("ha_innobase_update_row_done");
+
+	return(err);
+
 }
 
 /**********************************************************************//**
@@ -14216,7 +14231,13 @@ innobase_xa_prepare(
 
 		ut_ad(trx_is_registered_for_2pc(trx));
 
-		trx_prepare_for_mysql(trx);
+		dberr_t	err = trx_prepare_for_mysql(trx);
+
+		ut_ad(err == DB_SUCCESS || err == DB_FORCED_ABORT);
+
+		if (err == DB_FORCED_ABORT) {
+			return(innobase_rollback(hton, thd, prepare_trx));
+		}
 
 	} else {
 		/* We just mark the SQL statement ended and do not do a
