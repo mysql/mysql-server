@@ -1387,7 +1387,7 @@ buf_pool_size_align(
 	ulint	size)
 {
 	const ulint	m = srv_buf_pool_instances * srv_buf_pool_chunk_unit;
-	size = ut_max(size, srv_buf_pool_min_size);
+	size = ut_max(size, static_cast<ulint>(srv_buf_pool_min_size));
 
 	if (size % m == 0) {
 		return(size);

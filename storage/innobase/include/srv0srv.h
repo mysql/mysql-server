@@ -275,7 +275,7 @@ extern my_bool	srv_load_corrupted;
 /** Requested size in bytes */
 extern ulint		srv_buf_pool_size;
 /** Minimum pool size in bytes */
-extern const ulint	srv_buf_pool_min_size;
+extern const ulong	srv_buf_pool_min_size;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
 extern ulong		srv_buf_pool_chunk_unit;
