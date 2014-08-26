@@ -2019,18 +2019,14 @@ public:
 #endif /* MYSQL_CLIENT */
 
 private:
-  Transaction_ctx m_transaction;
+  std::auto_ptr<Transaction_ctx> m_transaction;
 
 public:
   Transaction_ctx *get_transaction()
-  {
-    return &m_transaction;
-  }
+  { return m_transaction.get(); }
 
   const Transaction_ctx *get_transaction() const
-  {
-    return &m_transaction;
-  }
+  { return m_transaction.get(); }
 
   Global_read_lock global_read_lock;
   Field      *dup_field;
