@@ -1,4 +1,4 @@
-# Scenario: High prip setup with replication.
+# Scenario: High prio setup with replication.
 # T1 and T2 run on master.
 #  T1= ({R(B), W(B)}, )
 #  T2= ({R(B), W(B), C}, HIGH PRIORITY)

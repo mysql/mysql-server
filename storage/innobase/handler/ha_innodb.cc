@@ -3808,6 +3808,8 @@ innobase_rollback(
 					thd, buffer, sizeof(buffer), 512));
 
 			error = DB_FORCED_ABORT;
+
+			trx->state = TRX_STATE_NOT_STARTED;
 		}
 
 		trx_deregister_from_2pc(trx);
