@@ -916,6 +916,12 @@ int thd_tx_is_read_only(const THD *thd)
 }
 
 extern "C"
+int thd_tx_is_dd_trx(const THD *thd)
+{
+  return (int) thd->is_attachable_transaction_active();
+}
+
+extern "C"
 void thd_inc_row_count(THD *thd)
 {
   thd->get_stmt_da()->inc_current_row_for_condition();

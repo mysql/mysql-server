@@ -1133,6 +1133,20 @@ thd_trx_is_read_only(
 	return(thd != 0 && thd_tx_is_read_only(thd));
 }
 
+#ifdef UNIV_DEBUG
+/******************************************************************//**
+Returns true if transaction should be flagged as DD attachable transaction
+@return true if the thd is marked as read-only */
+
+bool
+thd_trx_is_dd_trx(
+/*=================*/
+	THD*	thd)	/*!< in: thread handle */
+{
+	return(thd != NULL && thd_tx_is_dd_trx(thd));
+}
+#endif /* UNIV_DEBUG */
+
 /******************************************************************//**
 Check if the transaction is an auto-commit transaction. TRUE also
 implies that it is a SELECT (read-only) transaction.
@@ -2184,6 +2198,12 @@ innobase_trx_allocate(
 	trx->mysql_thd = thd;
 
 	innobase_trx_init(thd, trx);
+
+#ifdef UNIV_DEBUG
+	if (thd_trx_is_dd_trx(thd)) {
+		trx->is_dd_trx = true;
+	}
+#endif /* UNIV_DEBUG */
 
 	DBUG_RETURN(trx);
 }
@@ -13642,6 +13662,14 @@ ha_innobase::store_lock(
 
 		++trx->will_lock;
 	}
+
+	
+#ifdef UNIV_DEBUG
+	if(trx->is_dd_trx) {
+		ut_ad(trx->will_lock == 0
+		      && m_prebuilt->select_lock_type == LOCK_NONE);
+	}
+#endif /* UNIV_DEBUG */
 
 	return(to);
 }
