@@ -138,7 +138,7 @@ dict_get_first_table_name_in_db(
 	ulint		len;
 	mtr_t		mtr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	heap = mem_heap_create(1000);
 
@@ -743,8 +743,7 @@ dict_sys_tables_get_flags(
 	return(dict_sys_tables_type_to_tf(type, n_cols));
 }
 
-/********************************************************************//**
-Gets the filepath for a spaceid from SYS_DATAFILES and checks it against
+/** Get the filepath for a spaceid from SYS_DATAFILES and checks it against
 the contents of a link file. This function is called when there is no
 fil_node_t entry for this space ID so both durable locations on  disk
 must be checked and compared.
@@ -752,14 +751,15 @@ We use a temporary heap here for the table lookup, but not for the path
 returned which the caller must free.
 This function can return NULL if the space ID is not found in SYS_DATAFILES,
 then the caller will assume that the ibd file is in the normal datadir.
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace Name
 @return own: A copy of the first datafile found in SYS_DATAFILES.PATH for
 the given space ID. NULL if space ID is zero or not found. */
 
 char*
 dict_get_first_path(
-/*================*/
-	ulint		space,	/*!< in: space id */
-	const char*	name)	/*!< in: tablespace name */
+	ulint		space_id,
+	const char*	name)
 {
 	mtr_t		mtr;
 	dict_table_t*	sys_datafiles;
@@ -774,7 +774,7 @@ dict_get_first_path(
 	char*		dict_filepath = NULL;
 	mem_heap_t*	heap = mem_heap_create(1024);
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -790,7 +790,7 @@ dict_get_first_path(
 	dfield = dtuple_get_nth_field(tuple, DICT_FLD__SYS_DATAFILES__SPACE);
 
 	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
-	mach_write_to_4(buf, space);
+	mach_write_to_4(buf, space_id);
 
 	dfield_set_data(dfield, buf, 4);
 	dict_index_copy_types(tuple, sys_index, 1);
@@ -821,15 +821,15 @@ dict_get_first_path(
 	return(dict_filepath);
 }
 
-/********************************************************************//**
-Update the record for space_id in SYS_TABLESPACES to this filepath.
+/** Update the record for space_id in SYS_TABLESPACES to this filepath.
+@param[in]	space_id	Tablespace ID
+@param[in]	filepath	Tablespace filepath
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 
 dberr_t
 dict_update_filepath(
-/*=================*/
-	ulint		space_id,	/*!< in: space id */
-	const char*	filepath)	/*!< in: filepath */
+	ulint		space_id,
+	const char*	filepath)
 {
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
@@ -837,7 +837,7 @@ dict_update_filepath(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	trx = trx_allocate_for_background();
 	trx->op_info = "update filepath";
@@ -877,18 +877,20 @@ dict_update_filepath(
 	return(err);
 }
 
-/********************************************************************//**
-Insert records into SYS_TABLESPACES and SYS_DATAFILES using an
-independent transaction.
+/** Insert records into SYS_TABLESPACES and SYS_DATAFILES associated with
+the given space_id using an independent transaction.
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace name
+@param[in]	filepath,	First filepath
+@param[in]	fsp_flags	Tablespace flags
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 
 dberr_t
 dict_insert_tablespace_and_filepath(
-/*================================*/
-	ulint		space,		/*!< in: space id */
-	const char*	name,		/*!< in: talespace name */
-	const char*	filepath,	/*!< in: filepath */
-	ulint		fsp_flags)	/*!< in: tablespace flags */
+	ulint		space_id,
+	const char*	name,
+	const char*	filepath,
+	ulint		fsp_flags)
 {
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
@@ -896,7 +898,7 @@ dict_insert_tablespace_and_filepath(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(filepath);
 
 	trx = trx_allocate_for_background();
@@ -908,7 +910,7 @@ dict_insert_tablespace_and_filepath(
 	SYS_DATAFILES. Assume the record is also missing in
 	SYS_TABLESPACES.  Insert records into them both. */
 	err = dict_create_add_tablespace_to_dictionary(
-		space, name, fsp_flags, filepath, trx, false);
+		space_id, name, fsp_flags, filepath, trx, false);
 
 	trx_commit_for_mysql(trx);
 	trx->dict_operation_lock_mode = 0;
@@ -945,7 +947,7 @@ dict_check_tablespaces_and_store_max_id(
 	DBUG_ENTER("dict_check_tablespaces_and_store_max_id");
 
 	rw_lock_x_lock(&dict_operation_lock);
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 
 	mtr_start(&mtr);
 
@@ -978,7 +980,7 @@ loop:
 		max_space_id); */
 		fil_set_max_space_id_if_bigger(max_space_id);
 
-		mutex_exit(&(dict_sys->mutex));
+		mutex_exit(&dict_sys->mutex);
 		rw_lock_x_unlock(&dict_operation_lock);
 
 		DBUG_VOID_RETURN;
@@ -1295,7 +1297,7 @@ dict_load_columns(
 	ulint		i;
 	mtr_t		mtr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -1522,7 +1524,7 @@ dict_load_fields(
 	mtr_t		mtr;
 	dberr_t		error;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -1740,7 +1742,7 @@ dict_load_indexes(
 	mtr_t		mtr;
 	dberr_t		error = DB_SUCCESS;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -2137,7 +2139,7 @@ dict_save_data_dir_path(
 	dict_table_t*	table,		/*!< in/out: table */
 	char*		filepath)	/*!< in: filepath of tablespace */
 {
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_a(DICT_TF_HAS_DATA_DIR(table->flags));
 
 	ut_a(!table->data_dir_path);
@@ -2161,16 +2163,15 @@ dict_save_data_dir_path(
 	}
 }
 
-/*****************************************************************//**
-Make sure the data_file_name is saved in dict_table_t if needed. Try to
-read it from the file dictionary first, then from SYS_DATAFILES. */
+/** Make sure the data_file_name is saved in dict_table_t if needed.
+Try to read it from the fil_system first, then from SYS_DATAFILES.
+@param[in]	table		Table object
+@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 
 void
 dict_get_and_save_data_dir_path(
-/*============================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	bool		dict_mutex_own)	/*!< in: true if dict_sys->mutex
-					is owned already */
+	dict_table_t*	table,
+	bool		dict_mutex_own)
 {
 	if (DICT_TF_HAS_DATA_DIR(table->flags)
 	    && (!table->data_dir_path)) {
@@ -2297,7 +2298,7 @@ dict_load_table_one(
 	DBUG_ENTER("dict_load_table_one");
 	DBUG_PRINT("dict_load_table_one", ("table: %s", name));
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	heap = mem_heap_create(32000);
 
@@ -2568,7 +2569,7 @@ dict_load_table_on_id(
 	dict_table_t*	table;
 	mtr_t		mtr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	table = NULL;
 
@@ -2654,7 +2655,7 @@ dict_load_sys_table(
 {
 	mem_heap_t*	heap;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	heap = mem_heap_create(1000);
 
@@ -2691,7 +2692,7 @@ dict_load_foreign_cols(
 	mtr_t		mtr;
 	size_t		id_len;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	id_len = strlen(foreign->id);
 
@@ -2838,7 +2839,7 @@ dict_load_foreign(
 	DBUG_PRINT("dict_load_foreign",
 		   ("id: '%s', check_recursive: %d", id, check_recursive));
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	id_len = strlen(id);
 
@@ -3002,7 +3003,7 @@ dict_load_foreigns(
 
 	DBUG_ENTER("dict_load_foreigns");
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	sys_foreign = dict_table_get_low("SYS_FOREIGN");
 

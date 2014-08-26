@@ -59,6 +59,21 @@ extern uint	page_zip_level;
 
 /* Default compression level. */
 #define DEFAULT_COMPRESSION_LEVEL	6
+/** Start offset of the area that will be compressed */
+#define PAGE_ZIP_START			PAGE_NEW_SUPREMUM_END
+/** Size of an compressed page directory entry */
+#define PAGE_ZIP_DIR_SLOT_SIZE		2
+/** Predefine the sum of DIR_SLOT, TRX_ID & ROLL_PTR */
+#define PAGE_ZIP_CLUST_LEAF_SLOT_SIZE		\
+		(PAGE_ZIP_DIR_SLOT_SIZE		\
+		+ DATA_TRX_ID_LEN		\
+		+ DATA_ROLL_PTR_LEN)
+/** Mask of record offsets */
+#define PAGE_ZIP_DIR_SLOT_MASK		0x3fff
+/** 'owned' flag */
+#define PAGE_ZIP_DIR_SLOT_OWNED		0x4000
+/** 'deleted' flag */
+#define PAGE_ZIP_DIR_SLOT_DEL		0x8000
 
 /* Whether or not to log compressed page images to avoid possible
 compression algorithm changes in zlib. */
