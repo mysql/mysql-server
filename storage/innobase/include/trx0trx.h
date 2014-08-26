@@ -276,13 +276,14 @@ dberr_t
 trx_commit_for_mysql(
 /*=================*/
 	trx_t*	trx);	/*!< in/out: transaction */
-/**********************************************************************//**
-Does the transaction prepare for MySQL. */
 
-void
-trx_prepare_for_mysql(
-/*==================*/
-	trx_t*	trx);		/*!< in/out: trx handle */
+/**
+Does the transaction prepare for MySQL.
+@param[in, out] trx		Transaction instance to prepare */
+
+dberr_t
+trx_prepare_for_mysql(trx_t* trx);
+
 /**********************************************************************//**
 This function is used to find number of prepared transactions and
 their transaction objects for a recovery.

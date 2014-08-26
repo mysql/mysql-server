@@ -388,6 +388,7 @@ private:
 
 	int info_low(uint, bool);
 
+	int update_row_low(const uchar * old_data, uchar * new_data);
 public:
 	/** @name Multi Range Read interface @{ */
 
