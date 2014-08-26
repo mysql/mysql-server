@@ -2768,6 +2768,10 @@ trx_prepare(
 /*========*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	/* This transaction has crossed the point of no return and cannot
+	be rolled back asynchronously now. It must commit or rollback
+	synhronously. */
+
 	lsn_t	lsn = 0;
 
 	/* Only fresh user transactions can be prepared.
@@ -2783,6 +2787,7 @@ trx_prepare(
 
 	if (trx->rsegs.m_noredo.rseg != NULL
 	    && trx_is_noredo_rseg_updated(trx)) {
+
 		trx_prepare_low(trx, &trx->rsegs.m_noredo, true);
 	}
 
@@ -2816,21 +2821,30 @@ trx_prepare(
 	}
 }
 
-/**********************************************************************//**
-Does the transaction prepare for MySQL. */
+/**
+Does the transaction prepare for MySQL.
+@param[in, out] trx		Transaction instance to prepare */
 
-void
-trx_prepare_for_mysql(
-/*==================*/
-	trx_t*	trx)		/*!< in/out: trx handle */
+dberr_t
+trx_prepare_for_mysql(trx_t* trx)
 {
 	trx_start_if_not_started_xa(trx, false);
+
+	TrxInInnoDB	trx_in_innodb(trx, true);
+
+	if (trx_in_innodb.is_aborted()
+	    && trx->killed_by != os_thread_get_curr_id()) {
+
+		return(DB_FORCED_ABORT);
+	}
 
 	trx->op_info = "preparing";
 
 	trx_prepare(trx);
 
 	trx->op_info = "";
+
+	return(DB_SUCCESS);
 }
 
 /**********************************************************************//**
