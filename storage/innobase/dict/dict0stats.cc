@@ -261,7 +261,7 @@ dict_stats_persistent_storage_check(
 	}
 
 	if (ret != DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "%s", errstr);
+		ib::error() << errstr;
 		return(false);
 	}
 	/* else */
@@ -891,10 +891,10 @@ dict_stats_update_transient(
 		/* Table definition is corrupt */
 
 		char	buf[MAX_FULL_NAME_LEN];
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Table %s has no indexes."
-			" Cannot calculate statistics.",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
+
+		ib::warn() << "Table "
+			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
+			<< " has no indexes. Cannot calculate statistics.";
 		dict_stats_empty_table(table);
 		return;
 	}
@@ -2339,14 +2339,15 @@ dict_stats_save_index_stat(
 	if (ret != DB_SUCCESS) {
 		char	buf_table[MAX_FULL_NAME_LEN];
 		char	buf_index[MAX_FULL_NAME_LEN];
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot save index statistics for table"
-			" %s, index %s, stat name \"%s\": %s",
-			ut_format_name(index->table->name, TRUE,
-				       buf_table, sizeof(buf_table)),
-			ut_format_name(index->name, FALSE,
-				       buf_index, sizeof(buf_index)),
-			stat_name, ut_strerr(ret));
+
+		ib::error() << "Cannot save index statistics for table "
+			<< ut_format_name(index->table->name, TRUE,
+					  buf_table, sizeof(buf_table))
+			<< ", index "
+			<< ut_format_name(index->name, FALSE,
+					  buf_index, sizeof(buf_index))
+			<< ", stat name \"" << stat_name << "\": "
+			<< ut_strerr(ret);
 	}
 
 	return(ret);
@@ -2419,10 +2420,9 @@ dict_stats_save(
 
 	if (ret != DB_SUCCESS) {
 		char	buf[MAX_FULL_NAME_LEN];
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot save table statistics for table %s: %s",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)),
-			ut_strerr(ret));
+		ib::error() << "Cannot save table statistics for table "
+			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
+			<< ": " << ut_strerr(ret);
 
 		mutex_exit(&dict_sys->mutex);
 		rw_lock_x_unlock(&dict_operation_lock);
@@ -2817,17 +2817,15 @@ dict_stats_fetch_index_stats_step(
 			dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
 				     table_utf8, sizeof(table_utf8));
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Ignoring strange row from %s WHERE"
-				" database_name = '%s' AND table_name = '%s'"
-				" AND index_name = '%s' AND stat_name = '%.*s';"
-				" because stat_name is malformed",
-				INDEX_STATS_NAME_PRINT,
-				db_utf8,
-				table_utf8,
-				index->name,
-				(int) stat_name_len,
-				stat_name);
+			ib::info	out;
+			out << "Ignoring strange row from "
+				<< INDEX_STATS_NAME_PRINT << " WHERE"
+				" database_name = '" << db_utf8
+				<< "' AND table_name = '" << table_utf8
+				<< "' AND index_name = '" << index->name
+				<< "' AND stat_name = '";
+			out.write(stat_name, stat_name_len);
+			out << "'; because stat_name is malformed";
 			return(TRUE);
 		}
 		/* else */
@@ -2846,19 +2844,17 @@ dict_stats_fetch_index_stats_step(
 			dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
 				     table_utf8, sizeof(table_utf8));
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Ignoring strange row from %s WHERE"
-				" database_name = '%s' AND table_name = '%s'"
-				" AND index_name = '%s' AND stat_name = '%.*s';"
-				" because stat_name is out of range, the index"
-				" has %lu unique columns",
-				INDEX_STATS_NAME_PRINT,
-				db_utf8,
-				table_utf8,
-				index->name,
-				(int) stat_name_len,
-				stat_name,
-				n_uniq);
+			ib::info	out;
+			out << "Ignoring strange row from "
+				<< INDEX_STATS_NAME_PRINT << " WHERE"
+				" database_name = '" << db_utf8
+				<< "' AND table_name = '" << table_utf8
+				<< "' AND index_name = '" << index->name
+				<< "' AND stat_name = '";
+			out.write(stat_name, stat_name_len);
+			out << "'; because stat_name is out of range, the index"
+				" has " << n_uniq << " unique columns";
+
 			return(TRUE);
 		}
 		/* else */
@@ -3040,15 +3036,16 @@ dict_stats_update_for_index(
 		char	buf_table[MAX_FULL_NAME_LEN];
 		char	buf_index[MAX_FULL_NAME_LEN];
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Recalculation of persistent statistics"
-			" requested for table %s index %s but the required"
+		ib::info() << "Recalculation of persistent statistics"
+			" requested for table "
+			<< ut_format_name(index->table->name, TRUE,
+					  buf_table, sizeof(buf_table))
+			<< " index "
+			<< ut_format_name(index->name, FALSE,
+					  buf_index, sizeof(buf_index))
+			<< " but the required"
 			" persistent statistics storage is not present or is"
-			" corrupted. Using transient stats instead.",
-			ut_format_name(index->table->name, TRUE,
-				       buf_table, sizeof(buf_table)),
-			ut_format_name(index->name, FALSE,
-				       buf_index, sizeof(buf_index)));
+			" corrupted. Using transient stats instead.";
 	}
 
 	dict_table_stats_lock(index->table, RW_X_LATCH);
@@ -3078,11 +3075,12 @@ dict_stats_update(
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	if (table->ibd_file_missing) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot calculate statistics for table %s"
-			" because the .ibd file is missing. %s",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)),
-			TROUBLESHOOTING_MSG);
+
+		ib::warn() << "Cannot calculate statistics for table "
+			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
+			<< " because the .ibd file is missing. "
+			<< TROUBLESHOOTING_MSG;
+
 		dict_stats_empty_table(table);
 		return(DB_TABLESPACE_DELETED);
 	} else if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -3132,12 +3130,12 @@ dict_stats_update(
 		/* Fall back to transient stats since the persistent
 		storage is not present or is corrupted */
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Recalculation of persistent statistics"
-			" requested for table %s but the required persistent"
+		ib::warn() << "Recalculation of persistent statistics"
+			" requested for table "
+			<< ut_format_name(table->name, TRUE, buf, sizeof(buf))
+			<< " but the required persistent"
 			" statistics storage is not present or is corrupted."
-			" Using transient stats instead.",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
+			" Using transient stats instead.";
 
 		goto transient;
 
@@ -3181,15 +3179,15 @@ dict_stats_update(
 			/* persistent statistics storage does not exist
 			or is corrupted, calculate the transient stats */
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Fetch of persistent statistics requested for"
-				" table %s but the required system tables %s"
-				" and %s are not present or have unexpected"
-				" structure. Using transient stats instead.",
-				ut_format_name(table->name, TRUE,
-					       buf, sizeof(buf)),
-				TABLE_STATS_NAME_PRINT,
-				INDEX_STATS_NAME_PRINT);
+			ib::error() << "Fetch of persistent statistics"
+				" requested for table "
+				<< ut_format_name(table->name, TRUE,
+						  buf, sizeof(buf))
+				<< " but the required system tables "
+				<< TABLE_STATS_NAME_PRINT
+				<< " and " << INDEX_STATS_NAME_PRINT
+				<< " are not present or have unexpected"
+				" structure. Using transient stats instead.";
 
 			goto transient;
 		}
@@ -3240,32 +3238,31 @@ dict_stats_update(
 			}
 
 			ut_format_name(table->name, TRUE, buf, sizeof(buf));
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Trying to use table %s which has persistent"
-				" statistics enabled, but auto recalculation"
-				" turned off and the statistics do not exist in"
-				" %s and %s. Please either run"
-				" \"ANALYZE TABLE %s;\" manually or enable the"
-				" auto recalculation with"
-				" \"ALTER TABLE %s STATS_AUTO_RECALC=1;\"."
+
+			ib::info() << "Trying to use table " << buf
+				<< " which has persistent statistics enabled,"
+				" but auto recalculation turned off and the"
+				" statistics do not exist in " TABLE_STATS_NAME
+				" and " INDEX_STATS_NAME ". Please either run"
+				" \"ANALYZE TABLE "
+				<< buf << ";\" manually or enable the"
+				" auto recalculation with \"ALTER TABLE "
+				<< buf << " STATS_AUTO_RECALC=1;\"."
 				" InnoDB will now use transient statistics for"
-				" %s.",
-				buf, TABLE_STATS_NAME, INDEX_STATS_NAME, buf,
-				buf, buf);
+				" %s." << buf << ".";
 
 			goto transient;
 		default:
 
 			dict_stats_table_clone_free(t);
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Error fetching persistent statistics"
-				" for table %s from %s and %s: %s."
-				" Using transient stats method instead.",
-				ut_format_name(table->name, TRUE, buf,
-					       sizeof(buf)),
-				TABLE_STATS_NAME,
-				INDEX_STATS_NAME,
-				ut_strerr(err));
+
+			ib::error() << "Error fetching persistent statistics"
+				" for table "
+				<< ut_format_name(table->name, TRUE, buf,
+						  sizeof(buf))
+				<< " from " TABLE_STATS_NAME " and "
+				INDEX_STATS_NAME ": " << ut_strerr(err)
+				<< ". Using transient stats method instead.";
 
 			goto transient;
 		}
