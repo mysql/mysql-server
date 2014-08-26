@@ -1986,7 +1986,7 @@ RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 	const trx_t*	victim_trx;
 
 	/* We don't rollback internal (basically background statistics
-       	gathering) transactions. The problem is that we don't currently
+	gathering) transactions. The problem is that we don't currently
 	block them using the TrxInInnoDB() mechanism. */
 
 	if (wait_for->trx->mysql_thd == NULL) {
