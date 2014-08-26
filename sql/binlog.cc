@@ -256,7 +256,7 @@ private:
       goto exit0;
     if ((error= my_pthread_set_THR_MALLOC(&thd->mem_root)))
       goto exit1;
-    if ((error= set_mysys_var(thd->mysys_var)))
+    if ((error= set_mysys_thread_var(thd->mysys_var)))
       goto exit2;
     goto exit0;
 exit2:

@@ -24,7 +24,7 @@
 #endif
 
 #undef GETPID					/* For HPUX */
-#define GETPID() (log_type == 1 ? (long) myisam_pid : (long) my_thread_dbug_id())
+#define GETPID() (log_type == 1 ? (long) myisam_pid : (long) mysys_thread_var()->id)
 
 	/* Activate logging if flag is 1 and reset logging if flag is 0 */
 

@@ -8414,14 +8414,12 @@ type_conversion_status
 Field_geom::store_internal(const char *from, size_t length,
                            const CHARSET_INFO *cs)
 {
-  uint32 wkb_type;
-
   DBUG_ASSERT(length > 0);
 
   // Check given WKB
   if (from == Geometry::bad_geometry_data.ptr() ||
       length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE * 2 ||
-      !Geometry::is_valid_geotype(wkb_type= uint4korr(from + SRID_SIZE + 1)))
+      !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)))
   {
     memset(ptr, 0, Field_blob::pack_length());  
     my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,

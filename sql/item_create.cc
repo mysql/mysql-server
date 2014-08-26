@@ -582,6 +582,19 @@ protected:
 };
 
 
+class Create_func_convex_hull : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_convex_hull s_singleton;
+
+protected:
+  Create_func_convex_hull() {}
+  virtual ~Create_func_convex_hull() {}
+};
+
+
 class Create_func_mbr_contains : public Create_func_arg2
 {
 public:
@@ -3084,6 +3097,14 @@ Create_func_centroid::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_convex_hull Create_func_convex_hull::s_singleton;
+
+Item*
+Create_func_convex_hull::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_convex_hull(POS(), arg1);
+}
+
 Create_func_char_length Create_func_char_length::s_singleton;
 
 Item*
@@ -5365,6 +5386,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("CONNECTION_ID") }, BUILDER(Create_func_connection_id)},
   { { C_STRING_WITH_LEN("CONV") }, BUILDER(Create_func_conv)},
   { { C_STRING_WITH_LEN("CONVERT_TZ") }, BUILDER(Create_func_convert_tz)},
+  { { C_STRING_WITH_LEN("CONVEXHULL") }, GEOM_BUILDER(Create_func_convex_hull)},
   { { C_STRING_WITH_LEN("COS") }, BUILDER(Create_func_cos)},
   { { C_STRING_WITH_LEN("COT") }, BUILDER(Create_func_cot)},
   { { C_STRING_WITH_LEN("CRC32") }, BUILDER(Create_func_crc32)},
@@ -5381,6 +5403,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("DES_ENCRYPT") }, BUILDER(Create_func_des_encrypt)},
   { { C_STRING_WITH_LEN("DIMENSION") }, GEOM_BUILDER(Create_func_dimension)},
   { { C_STRING_WITH_LEN("DISJOINT") }, GEOM_BUILDER(Create_func_mbr_disjoint)},
+  { { C_STRING_WITH_LEN("DISTANCE") }, GEOM_BUILDER(Create_func_distance)},
   { { C_STRING_WITH_LEN("ELT") }, BUILDER(Create_func_elt)},
   { { C_STRING_WITH_LEN("ENCODE") }, BUILDER(Create_func_encode)},
   { { C_STRING_WITH_LEN("ENCRYPT") }, BUILDER(Create_func_encrypt)},
@@ -5534,6 +5557,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_BUFFER") }, GEOM_BUILDER(Create_func_buffer)},
   { { C_STRING_WITH_LEN("ST_CENTROID") }, GEOM_BUILDER(Create_func_centroid)},
   { { C_STRING_WITH_LEN("ST_CONTAINS") }, GEOM_BUILDER(Create_func_contains)},
+  { { C_STRING_WITH_LEN("ST_CONVEXHULL") }, GEOM_BUILDER(Create_func_convex_hull)},
   { { C_STRING_WITH_LEN("ST_CROSSES") }, GEOM_BUILDER(Create_func_crosses)},
   { { C_STRING_WITH_LEN("ST_DIFFERENCE") }, GEOM_BUILDER(Create_func_difference)},
   { { C_STRING_WITH_LEN("ST_DIMENSION") }, GEOM_BUILDER(Create_func_dimension)},

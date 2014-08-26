@@ -1348,7 +1348,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
   for (i= entry; i != avail && !empty(); cnt++, i= (i + 1) % size)
   {
     Slave_worker *w_i;
-    Slave_job_group *ptr_g, g;
+    Slave_job_group *ptr_g;
     char grl_name[FN_REFLEN];
 
 #ifndef DBUG_OFF
@@ -1388,6 +1388,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
     /*
       Removes the job from the (G)lobal (A)ssigned (Q)ueue.
     */
+    Slave_job_group g= Slave_job_group();
 #ifndef DBUG_OFF
     ulong ind=
 #endif
