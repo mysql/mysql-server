@@ -115,14 +115,17 @@ the Compact page format is used, i.e ROW_FORMAT != REDUNDANT */
 
 /** Width of the COMPACT flag */
 #define DICT_TF_WIDTH_COMPACT		1
+
 /** Width of the ZIP_SSIZE flag */
 #define DICT_TF_WIDTH_ZIP_SSIZE		4
+
 /** Width of the ATOMIC_BLOBS flag.  The Antelope file formats broke up
 BLOB and TEXT fields, storing the first 768 bytes in the clustered index.
 Barracuda row formats store the whole blob or text field off-page atomically.
 Secondary indexes are created from this external data using row_ext_t
 to cache the BLOB prefixes. */
 #define DICT_TF_WIDTH_ATOMIC_BLOBS	1
+
 /** If a table is created with the MYSQL option DATA DIRECTORY and
 innodb-file-per-table, an older engine will not be able to find that table.
 This flag prevents older engines from attempting to open the table and
@@ -182,7 +185,7 @@ allows InnoDB to update_create_info() accordingly. */
 #define DICT_TF_HAS_ATOMIC_BLOBS(flags)			\
 		((flags & DICT_TF_MASK_ATOMIC_BLOBS)	\
 		>> DICT_TF_POS_ATOMIC_BLOBS)
-/** Return the value of the ATOMIC_BLOBS field */
+/** Return the value of the DATA_DIR field */
 #define DICT_TF_HAS_DATA_DIR(flags)			\
 		((flags & DICT_TF_MASK_DATA_DIR)	\
 		>> DICT_TF_POS_DATA_DIR)
