@@ -21,7 +21,7 @@ INSERT INTO t1 VALUES (0);
 --echo
 --echo # On connection master
 --connection master
-START TRANSACTION; 
+START TRANSACTION;
 UPDATE t1 SET c1=1 WHERE c1=0;
 
 --echo
