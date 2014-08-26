@@ -632,7 +632,7 @@ struct FetchIndexRootPages : public AbstractCallback {
 
 			ib_errf(m_trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				ER_TABLE_SCHEMA_MISMATCH,
-				".ibd file has invlad table flags: %lx",
+				".ibd file has invalid table flags: %lx",
 				ibd_table_flags);
 
 			return(DB_CORRUPTION);
@@ -3524,7 +3524,7 @@ row_import_for_mysql(
 
 	if (err == DB_SUCCESS) {
 
-		/* We have a schema file, try and match it with the our
+		/* We have a schema file, try and match it with our
 		data dictionary. */
 
 		err = cfg.match_schema(trx->mysql_thd);
