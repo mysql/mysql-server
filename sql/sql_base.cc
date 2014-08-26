@@ -9787,38 +9787,35 @@ has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
 
 
 
-/*
-  Open and lock system tables for read.
+/**
+  Open and lock non-transactional system tables for read.
 
-  SYNOPSIS
-    open_system_tables_for_read()
-      thd         Thread context.
-      table_list  List of tables to open.
-      backup      Pointer to Open_tables_state instance where
-                  information about currently open tables will be
-                  saved, and from which will be restored when we will
-                  end work with system tables.
+  @param thd        Thread context.
+  @param table_list List of tables to open.
+  @param backup     Pointer to Open_tables_backup instance where information
+                    about currently open tables will be saved, and from
+                    which will be restored when we will end work with
+                    non-transactional system tables.
 
-  NOTES
-    Thanks to restrictions which we put on opening and locking of
-    system tables for writing, we can open and lock them for reading
-    even when we already have some other tables open and locked.  One
-    must call close_system_tables() to close systems tables opened
-    with this call.
+  @note Thanks to restrictions which we put on opening and locking of
+  system tables for writing, we can open and lock them for reading even
+  when we already have some other tables open and locked. One must call
+  close_nontrans_system_tables_for_read() to close systems tables opened with this call.
 
-  RETURN
-    FALSE   Success
-    TRUE    Error
+  @note This call will eventually be removed as an InnoDB attachable transaction
+  will be used to access all system tables.
+
+  @return Error status.
 */
 
 bool
-open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
-                            Open_tables_backup *backup)
+open_nontrans_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
+                                     Open_tables_backup *backup)
 {
   Query_tables_list query_tables_list_backup;
   LEX *lex= thd->lex;
 
-  DBUG_ENTER("open_system_tables_for_read");
+  DBUG_ENTER("open_nontrans_system_tables_for_read");
 
   /*
     Besides using new Open_tables_state for opening system tables,
@@ -9849,19 +9846,18 @@ open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
 }
 
 
-/*
-  Close system tables, opened with open_system_tables_for_read().
+/**
+  Close non-transactional system tables, opened with
+  open_nontrans_system_tables_for_read().
 
-  SYNOPSIS
-    close_system_tables()
-      thd     Thread context
-      backup  Pointer to Open_tables_backup instance which holds
-              information about tables which were open before we
-              decided to access system tables.
+  @param thd        Thread context.
+  @param backup     Pointer to Open_tables_backup instance  which holds
+                    information about tables which were open before we decided
+                    to access non-transactional system tables.
 */
 
 void
-close_system_tables(THD *thd, Open_tables_backup *backup)
+close_nontrans_system_tables(THD *thd, Open_tables_backup *backup)
 {
   Query_tables_list query_tables_list_backup;
 
@@ -9990,7 +9986,7 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
 */
 void close_log_table(THD *thd, Open_tables_backup *backup)
 {
-  close_system_tables(thd, backup);
+  close_nontrans_system_tables(thd, backup);
 }
 
 /**

@@ -694,7 +694,8 @@ bool mysqld_help(THD *thd, const char *mask)
     make it possible.
   */
   Open_tables_backup open_tables_state_backup;
-  if (open_system_tables_for_read(thd, tables, &open_tables_state_backup))
+  if (open_nontrans_system_tables_for_read(thd, tables,
+                                           &open_tables_state_backup))
     goto error2;
 
   /*
@@ -841,11 +842,11 @@ bool mysqld_help(THD *thd, const char *mask)
 
   my_eof(thd);
 
-  close_system_tables(thd, &open_tables_state_backup);
+  close_nontrans_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(FALSE);
 
 error:
-  close_system_tables(thd, &open_tables_state_backup);
+  close_nontrans_system_tables(thd, &open_tables_state_backup);
 
 error2:
   DBUG_RETURN(TRUE);
