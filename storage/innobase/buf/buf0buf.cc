@@ -266,8 +266,13 @@ the read requests for the whole area.
 /** Value in microseconds */
 static const int WAIT_FOR_READ	= 100;
 static const int WAIT_FOR_WRITE = 100;
-/** Number of attemtps made to read in a page in the buffer pool */
-static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
+/** Number of attempts made to read in a page in the buffer pool */
+static const ulint	BUF_PAGE_READ_MAX_RETRIES = 100;
+/** Number of pages to read ahead */
+static const ulint	BUF_READ_AHEAD_PAGES = 64;
+/** The maximum portion of the buffer pool that can be used for the
+read-ahead buffer.  (Divide buf_pool size by this amount) */
+static const ulint	BUF_READ_AHEAD_PORTION = 32;
 
 /** The buffer pools of the database */
 buf_pool_t*	buf_pool_ptr;
@@ -1524,8 +1529,10 @@ buf_pool_init_instance(
 		} while (++chunk < buf_pool->chunks + buf_pool->n_chunks);
 
 		buf_pool->instance_no = instance_no;
-		buf_pool->read_ahead_area
-			= ut_min(64, ut_2_power_up(buf_pool->curr_size / 32));
+		buf_pool->read_ahead_area =
+			ut_min(BUF_READ_AHEAD_PAGES,
+			       ut_2_power_up(buf_pool->curr_size /
+					     BUF_READ_AHEAD_PORTION));
 		buf_pool->curr_pool_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
 
 		buf_pool->old_size = buf_pool->curr_size;
@@ -2018,9 +2025,8 @@ buf_pool_withdraw_blocks(
 
 			scan_depth = ut_min(
 				ut_max(buf_pool->withdraw_target
-					- UT_LIST_GET_LEN(
-						buf_pool->withdraw),
-					srv_LRU_scan_depth),
+				       - UT_LIST_GET_LEN(buf_pool->withdraw),
+				       static_cast<ulint>(srv_LRU_scan_depth)),
 				scan_depth);
 
 			buf_flush_do_batch(buf_pool, BUF_FLUSH_LRU,
@@ -2584,9 +2590,10 @@ withdraw_retry:
 
 			ut_ad(UT_LIST_GET_LEN(buf_pool->withdraw) == 0);
 
-			buf_pool->read_ahead_area
-				= ut_min(64UL, ut_2_power_up(
-					buf_pool->curr_size / 32));
+			buf_pool->read_ahead_area =
+				ut_min(BUF_READ_AHEAD_PAGES,
+				       ut_2_power_up(buf_pool->curr_size /
+						      BUF_READ_AHEAD_PORTION));
 			buf_pool->curr_pool_size
 				= buf_pool->curr_size * UNIV_PAGE_SIZE;
 			curr_size += buf_pool->curr_pool_size;

@@ -2121,7 +2121,8 @@ buf_flush_LRU_list(
 	if (withdraw_depth > srv_LRU_scan_depth) {
 		scan_depth = ut_min(withdraw_depth, scan_depth);
 	} else {
-		scan_depth = ut_min(srv_LRU_scan_depth, scan_depth);
+		scan_depth = ut_min(static_cast<ulint>(srv_LRU_scan_depth),
+				    scan_depth);
 	}
 
 	/* Currently one of page_cleaners is the only thread
@@ -2388,7 +2389,8 @@ pc_sleep_if_needed(
 		ut_min() to avoid long sleep in case of wrap around. */
 		ulint	sleep_us;
 
-		sleep_us = ut_min(1000000, (next_loop_time - cur_time) * 1000);
+		sleep_us = ut_min(static_cast<ulint>(1000000),
+				  (next_loop_time - cur_time) * 1000);
 
 		return(os_event_wait_time_low(buf_flush_event,
 					      sleep_us, sig_count));
