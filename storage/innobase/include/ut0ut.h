@@ -571,6 +571,31 @@ public:
 		m_oss << rhs;
 		return(*this);
 	}
+
+	/** Write the given buffer to the internal string stream object.
+	@param[in]	buf	the buffer whose contents will be logged.
+	@param[in]	count	the length of the buffer buf.
+	@return the output stream into which buffer was written. */
+	std::ostream&
+	write(
+		const char*		buf,
+		std::streamsize		count)
+	{
+		return(m_oss.write(buf, count));
+	}
+
+	/** Write the given buffer to the internal string stream object.
+	@param[in]	buf	the buffer whose contents will be logged.
+	@param[in]	count	the length of the buffer buf.
+	@return the output stream into which buffer was written. */
+	std::ostream&
+	write(
+		const byte*		buf,
+		std::streamsize		count)
+	{
+		return(m_oss.write(reinterpret_cast<const char*>(buf), count));
+	}
+
 	std::ostringstream	m_oss;
 protected:
 	/* This class must not be used directly, hence making the default

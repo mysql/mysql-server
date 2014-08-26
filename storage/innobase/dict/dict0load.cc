@@ -864,15 +864,14 @@ dict_update_filepath(
 	if (err == DB_SUCCESS) {
 		/* We just updated SYS_DATAFILES due to the contents in
 		a link file.  Make a note that we did this. */
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"The InnoDB data dictionary table SYS_DATAFILES"
-			" for tablespace ID %lu was updated to use file %s.",
-			(ulong) space_id, filepath);
+		ib::info() << "The InnoDB data dictionary table SYS_DATAFILES"
+			" for tablespace ID " << space_id
+			<< " was updated to use file " << filepath << ".";
 	} else {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Problem updating InnoDB data dictionary table"
-			" SYS_DATAFILES for tablespace ID %lu to file %s.",
-			(ulong) space_id, filepath);
+		ib::warn() << "Error occurred while updating InnoDB data"
+			" dictionary table SYS_DATAFILES for tablespace ID "
+			<< space_id << " to file " << filepath << ": "
+			<< ut_strerr(err) << ".";
 	}
 
 	return(err);
@@ -1015,9 +1014,9 @@ loop:
 			ut_ad(len == 4); /* this was checked earlier */
 			flags = mach_read_from_4(field);
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Table '%s' in InnoDB data dictionary"
-				" has unknown type %lx", table_name, flags);
+			ib::error() << "Table '" << table_name
+				<< "' in InnoDB data dictionary"
+				" has unknown type " << flags;
 
 			ut_free(name);
 			goto loop;
@@ -1078,10 +1077,8 @@ loop:
 			/* fall through */
 		case DICT_CHECK_NONE_LOADED:
 			if (discarded) {
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"DISCARD flag set for table '%s',"
-					" ignored.",
-					table_name);
+				ib::info() << "DISCARD flag set for table '"
+					<< table_name << "', ignored.";
 				break;
 			}
 
@@ -1110,9 +1107,8 @@ loop:
 				name, filepath);
 
 			if (err != DB_SUCCESS) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace open failed for %s,"
-					" ignored.", table_name);
+				ib::error() << "Tablespace open failed for "
+					<< table_name << ", ignored.";
 			}
 
 			ut_free(filepath);
@@ -1335,7 +1331,7 @@ dict_load_columns(
 					       &name, rec);
 
 		if (err_msg) {
-			ib_logf(IB_LOG_LEVEL_FATAL, "%s", err_msg);
+			ib::fatal() << err_msg;
 		}
 
 		/* Note: Currently we have one DOC_ID column that is
@@ -1564,7 +1560,7 @@ dict_load_fields(
 
 			goto next_rec;
 		} else if (err_msg) {
-			ib_logf(IB_LOG_LEVEL_ERROR, "%s", err_msg);
+			ib::error() << err_msg;
 			error = DB_CORRUPTION;
 			goto func_exit;
 		}
@@ -1779,11 +1775,10 @@ dict_load_indexes(
 			for drop table */
 			if (dict_table_get_first_index(table) == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Cannot load table %s"
-					" because it has no indexes in"
-					" InnoDB internal data dictionary.",
-					table->name);
+				ib::warn() << "Cannot load table "
+					<< ut_get_name(NULL, TRUE, table->name)
+					<< " because it has no indexes in"
+					" InnoDB internal data dictionary.";
 				error = DB_CORRUPTION;
 				goto func_exit;
 			}
@@ -1821,13 +1816,15 @@ dict_load_indexes(
 
 			if (dict_table_get_first_index(table) == NULL
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Failed to load the"
-					" clustered index for table %s"
-					" because of the following error: %s."
+
+				ib::warn() << "Failed to load the"
+					" clustered index for table "
+					<< ut_get_name(NULL, TRUE, table->name)
+					<< " because of the following error: "
+					<< err_msg << "."
 					" Refusing to load the rest of the"
 					" indexes (if any) and the whole table"
-					" altogether.", table->name, err_msg);
+					" altogether.";
 				error = DB_CORRUPTION;
 				goto func_exit;
 			}
@@ -1837,7 +1834,7 @@ dict_load_indexes(
 			/* Skip delete-marked records. */
 			goto next_rec;
 		} else if (err_msg) {
-			ib_logf(IB_LOG_LEVEL_ERROR, "%s", err_msg);
+			ib::error() << err_msg;
 			if (ignore_err & DICT_ERR_IGNORE_CORRUPT) {
 				goto next_rec;
 			}
@@ -1849,10 +1846,12 @@ dict_load_indexes(
 
 		/* Check whether the index is corrupted */
 		if (dict_index_is_corrupted(index)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-			"Index %s of table %s is corrupted",
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			ut_get_name(NULL, TRUE, index->table_name).c_str());
+
+			ib::error() << "Index "
+				<< ut_get_name(NULL, FALSE, index->name)
+				<< " of table "
+				<< ut_get_name(NULL, TRUE, index->table_name)
+				<< " is corrupted";
 
 			if (!srv_load_corrupted
 			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)
@@ -1868,12 +1867,12 @@ dict_load_indexes(
 				DICT_ERR_IGNORE_CORRUPT
 				3) if the index corrupted is a secondary
 				index */
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Load corrupted index %s of table %s",
-					ut_get_name(NULL, FALSE,
-						    index->name).c_str(),
-					ut_get_name(NULL, FALSE,
-						    index->table_name).c_str());
+				ib::info() << "Load corrupted index "
+					<< ut_get_name(NULL, FALSE,
+						       index->name)
+					<< " of table "
+					<< ut_get_name(NULL, FALSE,
+						       index->table_name);
 			}
 		}
 
@@ -1889,9 +1888,12 @@ dict_load_indexes(
 		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE
 				    | DICT_CORRUPT | DICT_FTS
 				    | DICT_SPATIAL)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unknown type %lu of index %s of table %s",
-				(ulong) index->type, index->name, table->name);
+
+			ib::error() << "Unknown type " << index->type
+				<< " of index "
+				<< ut_get_name(NULL, FALSE, index->name)
+				<< " of table "
+				<< ut_get_name(NULL, TRUE, table->name);
 
 			error = DB_UNSUPPORTED;
 			dict_mem_index_free(index);
@@ -1900,10 +1902,11 @@ dict_load_indexes(
 			   && !table->ibd_file_missing
 			   && (!(index->type & DICT_FTS))) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Trying to load index %s for table %s,"
-				" but the index tree has been freed!",
-				index->name, table->name);
+			ib::error() << "Trying to load index "
+				<< ut_get_name(NULL, FALSE, index->name)
+				<< " for table "
+				<< ut_get_name(NULL, TRUE, table->name)
+				<< ", but the index tree has been freed!";
 
 			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
 				/* If caller can tolerate this error,
@@ -1917,9 +1920,8 @@ dict_load_indexes(
 				dict_set_corrupted_index_cache_only(
 					index, table);
 
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Index is corrupt but forcing"
-					" load into data dictionary");
+				ib::info() << "Index is corrupt but forcing"
+					" load into data dictionary";
 			} else {
 corrupted:
 				dict_mem_index_free(index);
@@ -1929,12 +1931,11 @@ corrupted:
 		} else if (!dict_index_is_clust(index)
 			   && NULL == dict_table_get_first_index(table)) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Trying to load index %s for table %s,"
-				" but the first index is not clustered!",
-				ut_get_name(NULL, FALSE, index->name).c_str(),
-				ut_get_name(NULL, TRUE, table->name).c_str());
-
+			ib::error() << "Trying to load index "
+				<< ut_get_name(NULL, FALSE, index->name)
+				<< " for table "
+				<< ut_get_name(NULL, TRUE, table->name)
+				<< ", but the first index is not clustered!";
 
 			goto corrupted;
 		} else if (dict_is_sys_table(table->id)
@@ -2082,10 +2083,9 @@ err_len:
 		ut_ad(len == 4); /* this was checked earlier */
 		flags = mach_read_from_4(field);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Table %s in InnoDB data dictionary"
-			" has unknown type %lx.",
-			name, (ulong) flags);
+		ib::error() << "Table " << name << " in InnoDB data dictionary"
+			" has unknown type " << ib::hex(flags) << ".";
+
 		return("incorrect flags in SYS_TABLES");
 	}
 
@@ -2095,10 +2095,11 @@ err_len:
 		ut_ad(flags & DICT_TF_COMPACT);
 
 		if (flags2 & ~DICT_TF2_BIT_MASK) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Table %s in InnoDB data dictionary"
-				" has unknown flags %lx.",
-				name, (ulong) flags2);
+
+			ib::warn() << "Table " << name
+				<< " in InnoDB data dictionary"
+				" has unknown flags "
+				<< ib::hex(flags2) << ".";
 
 			/* Clean it up and keep going */
 			flags2 &= DICT_TF2_BIT_MASK;
@@ -2350,7 +2351,7 @@ err_exit:
 
 	if (err_msg) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,"%s", err_msg);
+		ib::error() << err_msg;
 		goto err_exit;
 	}
 
@@ -2365,9 +2366,8 @@ err_exit:
 		/* The system tablespace is always available. */
 	} else if (table->flags2 & DICT_TF2_DISCARDED) {
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Table %s tablespace is set as discarded.",
-			table_name);
+		ib::warn() << "Table " << table_name
+			<< " tablespace is set as discarded.";
 
 		table->ibd_file_missing = TRUE;
 
@@ -2380,12 +2380,12 @@ err_exit:
 
 		} else {
 			if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Failed to find tablespace for"
-					" table %s in the cache."
+
+				ib::error() << "Failed to find tablespace for"
+					" table " << table_name << " in the cache."
 					" Attempting to load the tablespace"
-					" with space id %lu.",
-					table_name, (ulong) table->space);
+					" with space id " << table->space
+					<< ".";
 			}
 
 			/* Use the remote filepath if needed. */
@@ -2449,12 +2449,12 @@ err_exit:
 		/* Refuse to load the table if the table has a corrupted
 		cluster index */
 		if (!srv_load_corrupted) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Load table %s failed, the table has"
-				" corrupted clustered indexes. Turn on"
-				" 'innodb_force_load_corrupted' to drop it",
-				ut_get_name(NULL, TRUE, table->name).c_str());
 
+			ib::error() << "Load table "
+				<< ut_get_name(NULL, TRUE, table->name)
+				<< " failed, the table has"
+				" corrupted clustered indexes. Turn on"
+				" 'innodb_force_load_corrupted' to drop it";
 			dict_table_remove_from_cache(table);
 			table = NULL;
 			goto func_exit;
@@ -2484,11 +2484,10 @@ err_exit:
 					 ignore_err, fk_tables);
 
 		if (err != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Load table '%s' failed, the table has missing"
+			ib::warn() << "Load table '" << table->name
+				<< "' failed, the table has missing"
 				" foreign key indexes. Turn off"
-				" 'foreign_key_checks' and try again.",
-				table->name);
+				" 'foreign_key_checks' and try again.";
 
 			dict_table_remove_from_cache(table);
 			table = NULL;
@@ -2749,18 +2748,21 @@ dict_load_foreign_cols(
 				rec, DICT_FLD__SYS_FOREIGN_COLS__REF_COL_NAME,
 				&ref_col_name_len);
 
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Unable to load column names for foreign"
-				" key '%s' because it was not found in"
+			ib::fatal	sout;
+
+			sout << "Unable to load column names for foreign"
+				" key '" << foreign->id
+				<< "' because it was not found in"
 				" InnoDB internal table SYS_FOREIGN_COLS. The"
 				" closest entry we found is:"
-				" (ID='%.*s', POS=%lu, FOR_COL_NAME='%.*s',"
-				" REF_COL_NAME='%.*s')",
-				foreign->id,
-				(int) len, field,
-				mach_read_from_4(pos),
-				(int) for_col_name_len, for_col_name,
-				(int) ref_col_name_len, ref_col_name);
+				" (ID='";
+			sout.write(field, len);
+			sout << "', POS=" << mach_read_from_4(pos)
+				<< ", FOR_COL_NAME='";
+			sout.write(for_col_name, for_col_name_len);
+			sout << "', REF_COL_NAME='";
+			sout.write(ref_col_name, ref_col_name_len);
+			sout << "')";
 		}
 
 		field = rec_get_nth_field_old(
@@ -2863,9 +2865,9 @@ dict_load_foreign(
 	    || rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot load foreign constraint %s: could not find the"
-			" relevant record in SYS_FOREIGN", id);
+		ib::error() << "Cannot load foreign constraint " << id
+			<< ": could not find the relevant record in "
+			<< "SYS_FOREIGN";
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -2879,10 +2881,13 @@ dict_load_foreign(
 	/* Check if the id in record is the searched one */
 	if (len != id_len || ut_memcmp(id, field, len) != 0) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot load foreign constraint"
-			" %s: found %.*s instead in SYS_FOREIGN",
-			id, (int) len, field);
+		{
+			ib::error	err;
+			err << "Cannot load foreign constraint " << id
+				<< ": found ";
+			err.write(field, len);
+			err << " instead in SYS_FOREIGN";
+		}
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -3004,9 +3009,7 @@ dict_load_foreigns(
 	if (sys_foreign == NULL) {
 		/* No foreign keys defined yet in this database */
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"No foreign key system tables in the database");
-
+		ib::info() << "No foreign key system tables in the database";
 		DBUG_RETURN(DB_ERROR);
 	}
 

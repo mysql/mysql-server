@@ -188,9 +188,8 @@ btr_search_sys_resize(
 
 	if (btr_search_enabled) {
 		rw_lock_x_unlock(&btr_search_latch);
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"btr_search_sys_resize is failed because"
-			" hash index hash table is not empty.");
+		ib::error() << "btr_search_sys_resize failed because"
+			" hash index hash table is not empty.";
 		ut_ad(0);
 		return;
 	}
@@ -1236,11 +1235,11 @@ cleanup:
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
 		/* Corruption */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Corruption of adaptive hash index."
-			" After dropping, the hash index to a page of %s,"
-			" still %lu hash nodes remain.",
-			index->name, (ulong) block->n_pointers);
+		ib::error() << "Corruption of adaptive hash index."
+			<< " After dropping, the hash index to a page of "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< ", still " << block->n_pointers
+			<< " hash nodes remain.";
 		rw_lock_x_unlock(&btr_search_latch);
 
 		ut_ad(btr_search_validate());
@@ -1974,16 +1973,16 @@ btr_search_validate(void)
 
 				ok = FALSE;
 
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Error in an adaptive hash"
-					" index pointer to page %lu,"
-					" ptr mem address %p, index id"
-					" " IB_ID_FMT ", node fold "
-					ULINTPF "," " rec fold " ULINTPF,
-					(ulong) page_get_page_no(page),
-					node->data,
-					page_index_id,
-					node->fold, fold);
+				ib::error() << "Error in an adaptive hash"
+					<< " index pointer to page "
+					<< page_id_t(page_get_space_id(page),
+						     page_get_page_no(page))
+					<< ", ptr mem address "
+					<< reinterpret_cast<const void*>(
+						node->data)
+					<< ", index id " << page_index_id
+					<< ", node fold " << node->fold
+					<< ", rec fold " << fold;
 
 				fputs("InnoDB: Record ", stderr);
 				rec_print_new(stderr, node->data, offsets);
