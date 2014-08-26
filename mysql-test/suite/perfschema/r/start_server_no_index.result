@@ -157,7 +157,7 @@ select COUNT_STAR from performance_schema.table_io_waits_summary_by_index_usage
 where INDEX_NAME!='NULL';
 COUNT_STAR
 1
-drop table db1.t1;
+truncate table db1.t1;
 select variable_value > 0 from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_INDEX_STAT_LOST';
 variable_value > 0
