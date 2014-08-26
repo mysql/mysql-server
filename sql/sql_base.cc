@@ -5983,8 +5983,11 @@ end:
                               should work for this statement.
 
   @note
-    The thr_lock locks will automatically be freed by
-    close_thread_tables().
+    The thr_lock locks will automatically be freed by close_thread_tables().
+
+  @note
+    open_and_lock_tables() is not intended to open-and-lock system tables. Use
+    open_nontrans_system_tables_for_read() instead.
 
   @retval FALSE  OK.
   @retval TRUE   Error
@@ -5998,6 +6001,12 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_and_lock_tables");
   DBUG_PRINT("enter", ("derived handling: %d", derived));
+
+  /*
+    open_and_lock_tables() must not be used to open system tables. There must
+    be no active attachable transaction when open_and_lock_tables() is called.
+  */
+  DBUG_ASSERT(!thd->is_attachable_transaction_active());
 
   if (open_tables(thd, &tables, &counter, flags, prelocking_strategy))
     goto err;
@@ -9800,7 +9809,8 @@ has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
   @note Thanks to restrictions which we put on opening and locking of
   system tables for writing, we can open and lock them for reading even
   when we already have some other tables open and locked. One must call
-  close_nontrans_system_tables_for_read() to close systems tables opened with this call.
+  close_nontrans_system_tables_for_read() to close systems tables opened with
+  this call.
 
   @note This call will eventually be removed as an InnoDB attachable transaction
   will be used to access all system tables.
@@ -9812,6 +9822,8 @@ bool
 open_nontrans_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
                                      Open_tables_backup *backup)
 {
+  uint counter;
+  uint flags= MYSQL_OPEN_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT;
   Query_tables_list query_tables_list_backup;
   LEX *lex= thd->lex;
 
@@ -9826,13 +9838,19 @@ open_nontrans_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   thd->reset_n_backup_open_tables_state(backup);
 
-  if (open_and_lock_tables(thd, table_list, FALSE,
-                           MYSQL_OPEN_IGNORE_FLUSH |
-                           MYSQL_LOCK_IGNORE_TIMEOUT))
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
+
+  if (open_tables(thd, &table_list, &counter, flags) ||
+      lock_tables(thd, table_list, counter, flags))
   {
+    close_thread_tables(thd);
+
+    /* Don't keep locks for a failed statement. */
+    thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+
     lex->restore_backup_query_tables_list(&query_tables_list_backup);
     thd->restore_backup_open_tables_state(backup);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
@@ -9840,9 +9858,10 @@ open_nontrans_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
     DBUG_ASSERT(tables->table->s->table_category == TABLE_CATEGORY_SYSTEM);
     tables->table->use_all_columns();
   }
+
   lex->restore_backup_query_tables_list(&query_tables_list_backup);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
