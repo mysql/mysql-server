@@ -32,8 +32,8 @@
 #include "unireg.h"
 #include "tztime.h"
 #include "sql_time.h"                           // localtime_to_TIME
-#include "sql_base.h"                           // open_system_tables_for_read,
-                                                // close_system_tables
+#include "sql_base.h"                           // open_nontrans_system_tables_for_read,
+                                                // close_nontrans_system_tables
 #include "log.h"
 #else
 #include <my_time.h>
@@ -2323,11 +2323,11 @@ my_tz_find(THD *thd, const String *name)
       tz_init_table_list(tz_tables);
       init_mdl_requests(tz_tables);
       DEBUG_SYNC(thd, "my_tz_find");
-      if (!open_system_tables_for_read(thd, tz_tables,
-                                       &open_tables_state_backup))
+      if (!open_nontrans_system_tables_for_read(thd, tz_tables,
+                                                &open_tables_state_backup))
       {
         result_tz= tz_load_from_open_tables(name, tz_tables);
-        close_system_tables(thd, &open_tables_state_backup);
+        close_nontrans_system_tables(thd, &open_tables_state_backup);
       }
     }
   }
