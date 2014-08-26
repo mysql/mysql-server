@@ -911,6 +911,7 @@ THD::THD(bool enable_plugins)
    m_trans_log_file(NULL),
    m_trans_fixed_log_file(NULL),
    m_trans_end_pos(0),
+   m_transaction(new Transaction_ctx()),
    table_map_for_update(0),
    m_examined_row_count(0),
    m_stage_progress_psi(NULL),
