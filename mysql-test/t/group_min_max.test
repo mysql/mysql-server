@@ -1357,3 +1357,24 @@ SET end_markers_in_json=DEFAULT;
 
 DROP TABLE t;
 
+--echo #
+--echo # Bug #18066518: THE COST VALUE IS A NEGATIVE NUMBER FOR MERGE ENGINE
+--echo #                TABLE
+--echo #
+CREATE TABLE t(a INT PRIMARY KEY)
+  ENGINE = MERGE;
+EXPLAIN SELECT DISTINCT(a) FROM t;
+SELECT DISTINCT(a) FROM t;
+DROP TABLE t;
+--echo # End of test#18066518.
+
+--echo #
+--echo # Bug #18486293: ASSERTION FAILED: KEYS >= 0.0 IN
+--echo #                COST_MODEL_TABLE::KEY_COMPARE_COST
+--echo #
+CREATE TABLE t (b INT, KEY b_key (b)) ENGINE=INNODB
+  PARTITION BY RANGE COLUMNS(b) (PARTITION p_part VALUES LESS THAN (0));
+SELECT 1 FROM t WHERE b IN ('') GROUP BY  b ;
+DROP TABLE t;
+--echo # End of test#18486293.
+

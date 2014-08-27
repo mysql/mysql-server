@@ -3737,3 +3737,28 @@ SET optimizer_trace_max_mem_size=DEFAULT;
 SET optimizer_trace=DEFAULT;
 SET end_markers_in_json=DEFAULT;
 DROP TABLE t;
+#
+# Bug #18066518: THE COST VALUE IS A NEGATIVE NUMBER FOR MERGE ENGINE
+#                TABLE
+#
+CREATE TABLE t(a INT PRIMARY KEY)
+ENGINE = MERGE;
+EXPLAIN SELECT DISTINCT(a) FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	PRIMARY	PRIMARY	4	NULL	0	0.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`a` AS `a` from `test`.`t`
+SELECT DISTINCT(a) FROM t;
+a
+DROP TABLE t;
+# End of test#18066518.
+#
+# Bug #18486293: ASSERTION FAILED: KEYS >= 0.0 IN
+#                COST_MODEL_TABLE::KEY_COMPARE_COST
+#
+CREATE TABLE t (b INT, KEY b_key (b)) ENGINE=INNODB
+PARTITION BY RANGE COLUMNS(b) (PARTITION p_part VALUES LESS THAN (0));
+SELECT 1 FROM t WHERE b IN ('') GROUP BY  b ;
+1
+DROP TABLE t;
+# End of test#18486293.
