@@ -104,11 +104,20 @@ FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
 mysql/gtid_executed	Antelope	Compact or Redundant
+mysql/help_category	Antelope	Compact or Redundant
+mysql/help_keyword	Antelope	Compact or Redundant
+mysql/help_relation	Antelope	Compact or Redundant
+mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
+mysql/time_zone	Antelope	Compact or Redundant
+mysql/time_zone_leap_second	Antelope	Compact or Redundant
+mysql/time_zone_name	Antelope	Compact or Redundant
+mysql/time_zone_transition	Antelope	Compact or Redundant
+mysql/time_zone_transition_type	Antelope	Compact or Redundant
 test/t1	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
@@ -127,11 +136,20 @@ FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
 mysql/gtid_executed	Antelope	Compact or Redundant
+mysql/help_category	Antelope	Compact or Redundant
+mysql/help_keyword	Antelope	Compact or Redundant
+mysql/help_relation	Antelope	Compact or Redundant
+mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
+mysql/time_zone	Antelope	Compact or Redundant
+mysql/time_zone_leap_second	Antelope	Compact or Redundant
+mysql/time_zone_name	Antelope	Compact or Redundant
+mysql/time_zone_transition	Antelope	Compact or Redundant
+mysql/time_zone_transition_type	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
@@ -160,11 +178,20 @@ FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
 mysql/gtid_executed	Antelope	Compact or Redundant
+mysql/help_category	Antelope	Compact or Redundant
+mysql/help_keyword	Antelope	Compact or Redundant
+mysql/help_relation	Antelope	Compact or Redundant
+mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
+mysql/time_zone	Antelope	Compact or Redundant
+mysql/time_zone_leap_second	Antelope	Compact or Redundant
+mysql/time_zone_name	Antelope	Compact or Redundant
+mysql/time_zone_transition	Antelope	Compact or Redundant
+mysql/time_zone_transition_type	Antelope	Compact or Redundant
 test/t1	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
@@ -193,11 +220,20 @@ FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
 mysql/gtid_executed	Antelope	Compact or Redundant
+mysql/help_category	Antelope	Compact or Redundant
+mysql/help_keyword	Antelope	Compact or Redundant
+mysql/help_relation	Antelope	Compact or Redundant
+mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
+mysql/time_zone	Antelope	Compact or Redundant
+mysql/time_zone_leap_second	Antelope	Compact or Redundant
+mysql/time_zone_name	Antelope	Compact or Redundant
+mysql/time_zone_transition	Antelope	Compact or Redundant
+mysql/time_zone_transition_type	Antelope	Compact or Redundant
 test/t1	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
@@ -227,11 +263,20 @@ FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
 mysql/gtid_executed	Antelope	Compact or Redundant
+mysql/help_category	Antelope	Compact or Redundant
+mysql/help_keyword	Antelope	Compact or Redundant
+mysql/help_relation	Antelope	Compact or Redundant
+mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
+mysql/time_zone	Antelope	Compact or Redundant
+mysql/time_zone_leap_second	Antelope	Compact or Redundant
+mysql/time_zone_name	Antelope	Compact or Redundant
+mysql/time_zone_transition	Antelope	Compact or Redundant
+mysql/time_zone_transition_type	Antelope	Compact or Redundant
 test/t2	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
@@ -261,11 +306,20 @@ FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
 mysql/gtid_executed	Antelope	Compact or Redundant
+mysql/help_category	Antelope	Compact or Redundant
+mysql/help_keyword	Antelope	Compact or Redundant
+mysql/help_relation	Antelope	Compact or Redundant
+mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
+mysql/time_zone	Antelope	Compact or Redundant
+mysql/time_zone_leap_second	Antelope	Compact or Redundant
+mysql/time_zone_name	Antelope	Compact or Redundant
+mysql/time_zone_transition	Antelope	Compact or Redundant
+mysql/time_zone_transition_type	Antelope	Compact or Redundant
 test/t2	Antelope	Compact or Redundant
 test/t3	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -291,11 +345,20 @@ FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
 mysql/gtid_executed	Antelope	Compact or Redundant
+mysql/help_category	Antelope	Compact or Redundant
+mysql/help_keyword	Antelope	Compact or Redundant
+mysql/help_relation	Antelope	Compact or Redundant
+mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
+mysql/time_zone	Antelope	Compact or Redundant
+mysql/time_zone_leap_second	Antelope	Compact or Redundant
+mysql/time_zone_name	Antelope	Compact or Redundant
+mysql/time_zone_transition	Antelope	Compact or Redundant
+mysql/time_zone_transition_type	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
@@ -454,11 +517,20 @@ FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
 mysql/gtid_executed	Antelope	Compact or Redundant
+mysql/help_category	Antelope	Compact or Redundant
+mysql/help_keyword	Antelope	Compact or Redundant
+mysql/help_relation	Antelope	Compact or Redundant
+mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
+mysql/time_zone	Antelope	Compact or Redundant
+mysql/time_zone_leap_second	Antelope	Compact or Redundant
+mysql/time_zone_name	Antelope	Compact or Redundant
+mysql/time_zone_transition	Antelope	Compact or Redundant
+mysql/time_zone_transition_type	Antelope	Compact or Redundant
 test/emp#p#east	Antelope	Compact or Redundant
 test/emp#p#north	Antelope	Compact or Redundant
 test/emp#p#west	Antelope	Compact or Redundant
@@ -512,11 +584,20 @@ FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
 mysql/gtid_executed	Antelope	Compact or Redundant
+mysql/help_category	Antelope	Compact or Redundant
+mysql/help_keyword	Antelope	Compact or Redundant
+mysql/help_relation	Antelope	Compact or Redundant
+mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
+mysql/time_zone	Antelope	Compact or Redundant
+mysql/time_zone_leap_second	Antelope	Compact or Redundant
+mysql/time_zone_name	Antelope	Compact or Redundant
+mysql/time_zone_transition	Antelope	Compact or Redundant
+mysql/time_zone_transition_type	Antelope	Compact or Redundant
 test/emp#p#east	Antelope	Compact or Redundant
 test/emp#p#north	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -569,11 +650,20 @@ FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
 mysql/gtid_executed	Antelope	Compact or Redundant
+mysql/help_category	Antelope	Compact or Redundant
+mysql/help_keyword	Antelope	Compact or Redundant
+mysql/help_relation	Antelope	Compact or Redundant
+mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
+mysql/time_zone	Antelope	Compact or Redundant
+mysql/time_zone_leap_second	Antelope	Compact or Redundant
+mysql/time_zone_name	Antelope	Compact or Redundant
+mysql/time_zone_transition	Antelope	Compact or Redundant
+mysql/time_zone_transition_type	Antelope	Compact or Redundant
 test/emp#p#east	Antelope	Compact or Redundant
 test/emp#p#north	Antelope	Compact or Redundant
 test/emp#p#west	Antelope	Compact or Redundant
@@ -630,11 +720,20 @@ FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
 mysql/gtid_executed	Antelope	Compact or Redundant
+mysql/help_category	Antelope	Compact or Redundant
+mysql/help_keyword	Antelope	Compact or Redundant
+mysql/help_relation	Antelope	Compact or Redundant
+mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
+mysql/time_zone	Antelope	Compact or Redundant
+mysql/time_zone_leap_second	Antelope	Compact or Redundant
+mysql/time_zone_name	Antelope	Compact or Redundant
+mysql/time_zone_transition	Antelope	Compact or Redundant
+mysql/time_zone_transition_type	Antelope	Compact or Redundant
 test/emp#p#east	Antelope	Compact or Redundant
 test/emp#p#north	Antelope	Compact or Redundant
 test/emp#p#west	Antelope	Compact or Redundant
