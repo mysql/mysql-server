@@ -408,8 +408,12 @@ TEST_F(GeometryManipulationTest, ResizeAssignmentTest)
             ls4.get_nbytes() == ls6.get_nbytes() &&
             memcmp(ls4.get_ptr(), ls6.get_ptr(), ls6.get_nbytes()) == 0, true);
 
-  void *buf= gis_wkb_alloc(ls8.get_nbytes());
+  void *buf= gis_wkb_alloc(ls8.get_nbytes() + 32);
   memcpy(buf, ls8.get_ptr(), ls8.get_nbytes());
+  char *cbuf= static_cast<char *>(buf);
+  memset(cbuf + ls8.get_nbytes(), 0xff, 32);
+  cbuf[ls8.get_nbytes() + 31] = '\0';
+
   ls4.set_ptr(buf, ls8.get_nbytes());
   EXPECT_EQ(ls4.get_ptr() != ls8.get_ptr() &&
             ls4.get_nbytes() == ls8.get_nbytes() &&
