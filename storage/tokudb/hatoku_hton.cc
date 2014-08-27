@@ -321,6 +321,9 @@ static void handle_ydb_error(int error) {
         sql_print_error("                                                            ");
         sql_print_error("************************************************************");
         break;
+    case TOKUDB_UPGRADE_FAILURE:
+        sql_print_error("%s upgrade failed. A clean shutdown of the previous version is required.", tokudb_hton_name);
+        break;
     default:
         sql_print_error("%s unknown error %d", tokudb_hton_name, error);
         break;
