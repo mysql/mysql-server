@@ -4249,7 +4249,7 @@ int MYSQL_BIN_LOG::find_next_relay_log(char log_name[FN_REFLEN+1])
   @retval
     1   error
 */
-bool MYSQL_BIN_LOG::reset_logs(THD* thd)
+bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
 {
   LOG_INFO linfo;
   bool error=0;
@@ -4376,13 +4376,16 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
 #endif
 
-  if (!open_index_file(index_file_name, 0, false/*need_lock_index=false*/))
+  if (!delete_only)
+  {
+    if (!open_index_file(index_file_name, 0, false/*need_lock_index=false*/))
     if ((error= open_binlog(save_name, 0,
                             max_size, false,
                             false/*need_lock_index=false*/,
                             false/*need_sid_lock=false*/,
                             NULL)))
       goto err;
+  }
   my_free((void *) save_name);
 
 err:
