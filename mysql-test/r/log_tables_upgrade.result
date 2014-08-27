@@ -13,6 +13,7 @@ RENAME TABLE general_log TO renamed_general_log;
 RENAME TABLE test.bug49823 TO general_log;
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -29,6 +30,7 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.renamed_general_log                          OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK

@@ -5,6 +5,7 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log
@@ -21,6 +22,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -38,6 +40,9 @@ mtr.global_suppressions                            Table is already up to date
 mtr.test_suppressions                              Table is already up to date
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log
@@ -68,6 +73,9 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.servers                                      OK
 mysql.slave_master_info
 note     : Table does not support optimize, doing recreate + analyze instead
@@ -99,6 +107,7 @@ status   : OK
 mysql.user                                         OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log
@@ -115,6 +124,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -130,6 +140,9 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mysql.columns_priv                                 Table is already up to date
 mysql.db                                           Table is already up to date
+mysql.engine_cost
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.event                                        Table is already up to date
 mysql.func                                         Table is already up to date
 mysql.general_log
@@ -160,6 +173,9 @@ mysql.plugin                                       Table is already up to date
 mysql.proc                                         Table is already up to date
 mysql.procs_priv                                   Table is already up to date
 mysql.proxies_priv                                 Table is already up to date
+mysql.server_cost
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.servers                                      Table is already up to date
 mysql.slave_master_info
 note     : Table does not support optimize, doing recreate + analyze instead

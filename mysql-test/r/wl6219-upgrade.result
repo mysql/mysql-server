@@ -166,6 +166,7 @@ DROP TABLE t1;
 #
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -181,6 +182,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK

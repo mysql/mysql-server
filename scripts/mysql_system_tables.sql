@@ -209,6 +209,53 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- Optimizer Cost Model configuration
+--
+
+-- Server cost constants
+
+CREATE TABLE IF NOT EXISTS server_cost (
+  cost_name   VARCHAR(64) NOT NULL,
+  cost_value  FLOAT DEFAULT NULL,
+  last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  comment     VARCHAR(1024) DEFAULT NULL,
+  PRIMARY KEY (cost_name)
+) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci STATS_PERSISTENT=0;
+
+INSERT IGNORE INTO server_cost VALUES
+  ("row_evaluate_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+
+INSERT IGNORE INTO server_cost VALUES
+  ("key_compare_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+
+INSERT IGNORE INTO server_cost VALUES
+  ("memory_temptable_create_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+
+INSERT IGNORE INTO server_cost VALUES
+  ("memory_temptable_row_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+
+INSERT IGNORE INTO server_cost VALUES
+  ("disk_temptable_create_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+
+INSERT IGNORE INTO server_cost VALUES
+  ("disk_temptable_row_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+
+-- Engine cost constants
+
+CREATE TABLE IF NOT EXISTS engine_cost (
+  engine_name VARCHAR(64) NOT NULL,
+  device_type INTEGER NOT NULL,
+  cost_name   VARCHAR(64) NOT NULL,
+  cost_value  FLOAT DEFAULT NULL,
+  last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  comment     VARCHAR(1024) DEFAULT NULL,
+  PRIMARY KEY (cost_name, engine_name, device_type)
+) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci STATS_PERSISTENT=0;
+
+INSERT IGNORE INTO engine_cost VALUES
+  ("default", 0, "io_block_read_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+
+--
 -- PERFORMANCE SCHEMA INSTALLATION
 -- Note that this script is also reused by mysql_upgrade,
 -- so we have to be very careful here to not destroy any
