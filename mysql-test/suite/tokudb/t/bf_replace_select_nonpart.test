@@ -1,7 +1,9 @@
 # Verify that index and range scans are not slow
 # on tables during replace select and insert ignore statements
 # due to tokudb bulk fetch not being used
+
 source include/have_tokudb.inc;
+source include/big_test.inc;
 set default_storage_engine='tokudb';
 disable_warnings;
 drop table if exists t,t1,t2;

@@ -2,8 +2,10 @@
 # on tables during create select statements
 # against hash and range partitioned tables
 # due to tokudb bulk fetch not being used
+
 source include/have_tokudb.inc;
 source include/have_partition.inc;
+source include/big_test.inc;
 set default_storage_engine='tokudb';
 disable_warnings;
 drop table if exists t,t1,t2,t3;
