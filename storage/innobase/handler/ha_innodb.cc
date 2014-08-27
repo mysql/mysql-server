@@ -2939,6 +2939,48 @@ innobase_init_abort()
 	DBUG_RETURN(1);
 }
 
+
+/*****************************************************************//**
+This function checks if the given db.tablename is a system table
+supported by Innodb and is used as an initializer for the data member
+is_supported_system_table of InnoDB storage engine handlerton.
+Currently we support only help and time_zone system tables in InnoDB.
+Please don't add any SE-specific system tables here.
+
+@param db				database name to check.
+@param table_name			table name to check.
+@param is_sql_layer_system_table	if the supplied db.table_name is a SQL
+					layer system table.
+*/
+
+static bool innobase_is_supported_system_table(const char *db,
+						const char *table_name,
+						bool is_sql_layer_system_table)
+{
+	static const char* supported_system_tables[]= { "help_topic",
+							"help_category",
+							"help_relation",
+							"help_keyword",
+							"time_zone",
+							"time_zone_leap_second",
+							"time_zone_name",
+							"time_zone_transition",
+							"time_zone_transition_type",
+							(const char *)NULL };
+
+	if (!is_sql_layer_system_table)
+		return false;
+
+	for (unsigned i= 0; supported_system_tables[i] != NULL; ++i)
+	{
+		if (!strcmp(table_name, supported_system_tables[i]))
+			return true;
+	}
+
+	return false;
+}
+
+
 /*********************************************************************//**
 Opens an InnoDB database.
 @return 0 on success, 1 on failure */
@@ -2991,6 +3033,9 @@ innobase_init(
 		innobase_release_temporary_latches;
 
 	innobase_hton->data = &innodb_api_cb;
+
+	innobase_hton->is_supported_system_table=
+		innobase_is_supported_system_table;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
