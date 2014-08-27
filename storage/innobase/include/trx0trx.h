@@ -774,6 +774,7 @@ struct trx_lock_t {
 					mutex to prevent recursive deadlocks.
 					Protected by both the lock sys mutex
 					and the trx_t::mutex. */
+	ulint		n_rec_locks;	/*!< number of rec locks in this trx */
 };
 
 #define TRX_MAGIC_N	91118598
