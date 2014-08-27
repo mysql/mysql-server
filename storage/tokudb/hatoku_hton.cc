@@ -1436,6 +1436,25 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     NULL
 };
 
+// Split ./database/table-dictionary into database, table and dictionary strings
+static void tokudb_split_dname(const char *dname, String &database_name, String &table_name, String &dictionary_name) {
+    const char *splitter = strchr(dname, '/');
+    if (splitter) {
+        const char *database_ptr = splitter+1;
+        const char *table_ptr = strchr(database_ptr, '/');
+        if (table_ptr) {
+            database_name.append(database_ptr, table_ptr - database_ptr);
+            table_ptr += 1;
+            const char *dictionary_ptr = strchr(table_ptr, '-');
+            if (dictionary_ptr) {
+                table_name.append(table_ptr, dictionary_ptr - table_ptr);
+                dictionary_ptr += 1;
+                dictionary_name.append(dictionary_ptr);
+            }
+        }
+    }
+}
+
 struct st_mysql_storage_engine tokudb_storage_engine = { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 static struct st_mysql_information_schema tokudb_file_map_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
@@ -1481,31 +1500,12 @@ static int tokudb_file_map(TABLE *table, THD *thd) {
             assert(iname_len == curr_val.size - 1);
             table->field[1]->store(iname, iname_len, system_charset_info);
 
-            // denormalize the dname
-            const char *database_name = NULL;
-            size_t database_len = 0;
-            const char *table_name = NULL;
-            size_t table_len = 0;
-            const char *dictionary_name = NULL;
-            size_t dictionary_len = 0;
-            database_name = strchr(dname, '/');
-            if (database_name) {
-                database_name += 1;
-                table_name = strchr(database_name, '/');
-                if (table_name) {
-                    database_len = table_name - database_name;
-                    table_name += 1;
-                    dictionary_name = strchr(table_name, '-');
-                    if (dictionary_name) {
-                        table_len = dictionary_name - table_name;
-                        dictionary_name += 1;
-                        dictionary_len = strlen(dictionary_name);
-                    }
-                }
-            }
-            table->field[2]->store(database_name, database_len, system_charset_info);
-            table->field[3]->store(table_name, table_len, system_charset_info);
-            table->field[4]->store(dictionary_name, dictionary_len, system_charset_info);
+            // split the dname
+            String database_name, table_name, dictionary_name;
+            tokudb_split_dname(dname, database_name, table_name, dictionary_name);
+            table->field[2]->store(database_name.c_ptr(), database_name.length(), system_charset_info);
+            table->field[3]->store(table_name.c_ptr(), table_name.length(), system_charset_info);
+            table->field[4]->store(dictionary_name.c_ptr(), dictionary_name.length(), system_charset_info);
 
             error = schema_table_store_record(thd, table);
         }
@@ -1566,6 +1566,9 @@ static ST_FIELD_INFO tokudb_fractal_tree_info_field_info[] = {
     {"bt_num_blocks_in_use", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"bt_size_allocated", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"bt_size_in_use", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -1603,25 +1606,25 @@ static int tokudb_report_fractal_tree_info_for_db(const DBT *dname, const DBT *i
     // Recalculate and check just to be safe.
     {
         size_t dname_len = strlen((const char *)dname->data);
-        size_t iname_len = strlen((const char *)iname->data);
         assert(dname_len == dname->size - 1);
+        table->field[0]->store((char *)dname->data, dname_len, system_charset_info);
+        size_t iname_len = strlen((const char *)iname->data);
         assert(iname_len == iname->size - 1);
-        table->field[0]->store(
-            (char *)dname->data,
-            dname_len,
-            system_charset_info
-            );
-        table->field[1]->store(
-            (char *)iname->data,
-            iname_len,
-            system_charset_info
-            );
+        table->field[1]->store((char *)iname->data, iname_len, system_charset_info);
     }
     table->field[2]->store(bt_num_blocks_allocated, false);
     table->field[3]->store(bt_num_blocks_in_use, false);
     table->field[4]->store(bt_size_allocated, false);
     table->field[5]->store(bt_size_in_use, false);
 
+    // split the dname
+    {
+        String database_name, table_name, dictionary_name;
+        tokudb_split_dname((const char *)dname->data, database_name, table_name, dictionary_name);
+        table->field[6]->store(database_name.c_ptr(), database_name.length(), system_charset_info);
+        table->field[7]->store(table_name.c_ptr(), table_name.length(), system_charset_info);
+        table->field[8]->store(dictionary_name.c_ptr(), dictionary_name.length(), system_charset_info);
+    }
     error = schema_table_store_record(thd, table);
 
 exit:
@@ -1645,12 +1648,7 @@ static int tokudb_fractal_tree_info(TABLE *table, THD *thd) {
         goto cleanup;
     }
     while (error == 0) {
-        error = tmp_cursor->c_get(
-            tmp_cursor,
-            &curr_key,
-            &curr_val,
-            DB_NEXT
-            );
+        error = tmp_cursor->c_get(tmp_cursor, &curr_key, &curr_val, DB_NEXT);
         if (!error) {
             error = tokudb_report_fractal_tree_info_for_db(&curr_key, &curr_val, table, thd);
         }
@@ -1714,6 +1712,9 @@ static ST_FIELD_INFO tokudb_fractal_tree_block_map_field_info[] = {
     {"blocknum", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"offset", 0, MYSQL_TYPE_LONGLONG, 0, MY_I_S_MAYBE_NULL, NULL, SKIP_OPEN_TABLE },
     {"size", 0, MYSQL_TYPE_LONGLONG, 0, MY_I_S_MAYBE_NULL, NULL, SKIP_OPEN_TABLE },
+    {"table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -1786,19 +1787,13 @@ static int tokudb_report_fractal_tree_block_map_for_db(const DBT *dname, const D
         // See #5789
         // Recalculate and check just to be safe.
         size_t dname_len = strlen((const char *)dname->data);
-        size_t iname_len = strlen((const char *)iname->data);
         assert(dname_len == dname->size - 1);
+        table->field[0]->store((char *)dname->data, dname_len, system_charset_info);
+
+        size_t iname_len = strlen((const char *)iname->data);
         assert(iname_len == iname->size - 1);
-        table->field[0]->store(
-            (char *)dname->data,
-            dname_len,
-            system_charset_info
-            );
-        table->field[1]->store(
-            (char *)iname->data,
-            iname_len,
-            system_charset_info
-            );
+        table->field[1]->store((char *)iname->data, iname_len, system_charset_info);
+
         table->field[2]->store(e.checkpoint_counts[i], false);
         table->field[3]->store(e.blocknums[i], false);
         static const int64_t freelist_null = -1;
@@ -1816,6 +1811,13 @@ static int tokudb_report_fractal_tree_block_map_for_db(const DBT *dname, const D
             table->field[5]->set_notnull();
             table->field[5]->store(e.sizes[i], false);
         }
+
+        // split the dname
+        String database_name, table_name, dictionary_name;
+        tokudb_split_dname((const char *)dname->data, database_name, table_name,dictionary_name);
+        table->field[6]->store(database_name.c_ptr(), database_name.length(), system_charset_info);
+        table->field[7]->store(table_name.c_ptr(), table_name.length(), system_charset_info);
+        table->field[8]->store(dictionary_name.c_ptr(), dictionary_name.length(), system_charset_info);
 
         error = schema_table_store_record(thd, table);
     }
@@ -1857,12 +1859,7 @@ static int tokudb_fractal_tree_block_map(TABLE *table, THD *thd) {
         goto cleanup;
     }
     while (error == 0) {
-        error = tmp_cursor->c_get(
-            tmp_cursor,
-            &curr_key,
-            &curr_val,
-            DB_NEXT
-            );
+        error = tmp_cursor->c_get(tmp_cursor, &curr_key, &curr_val, DB_NEXT);
         if (!error) {
             error = tokudb_report_fractal_tree_block_map_for_db(&curr_key, &curr_val, table, thd);
         }
