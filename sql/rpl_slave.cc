@@ -8991,6 +8991,15 @@ bool delete_slave_info_object(Master_info *mi)
   return false;
 }
 
+/**
+  Execute a RESET SLAVE (for all channels), used in Multisource replication.
+  If resetting of a particular channel fails, it exits out.
+
+  @param[in]  THD  THD object of the client.
+
+  @retval     0    success
+  @retval     1    error
+ */
 
 int reset_slave(THD *thd)
 {
@@ -8998,14 +9007,38 @@ int reset_slave(THD *thd)
 
   Master_info *mi= 0;
   int result= 0;
-  for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
+  mi_map::iterator it= msr_map.begin();
+  if (thd->lex->reset_slave_info.all)
   {
-    mi= it->second;
-
-    if (mi && (result = reset_slave(thd, mi)))
-      break;
+    /* First do reset_slave for default channel */
+    if (reset_slave(thd, msr_map.get_mi(msr_map.get_default_channel())))
+      DBUG_RETURN(1);
+    /* Do while iteration for rest of the channels */
+    while (it!= msr_map.end())
+    {
+      if (!it->first.compare(msr_map.get_default_channel()))
+      {
+        it++;
+        continue;
+      }
+      mi= it->second;
+      DBUG_ASSERT(mi);
+      if ((result= reset_slave(thd, mi)))
+        break;
+      it= msr_map.begin();
+    }
   }
-
+  else
+  {
+    while (it!= msr_map.end())
+    {
+      mi= it->second;
+      DBUG_ASSERT(mi);
+      if ((result= reset_slave(thd, mi)))
+        break;
+      it++;
+    }
+  }
   DBUG_RETURN(result);
 
 }

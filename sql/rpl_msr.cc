@@ -64,7 +64,7 @@ Master_info*  Multisource_info::get_mi(const char* channel_name)
 
 bool Multisource_info::delete_mi(const char* channel_name)
 {
-  DBUG_ENTER("Multisource_info::remove_mi");
+  DBUG_ENTER("Multisource_info::delete_mi");
 
   Master_info *mi= 0;
   int index= -1;
@@ -90,6 +90,7 @@ bool Multisource_info::delete_mi(const char* channel_name)
   current_mi_count--;
 
   mi= it->second;
+  it->second= 0;
   /* erase from the map */
   channel_to_mi.erase(it);
 
@@ -101,7 +102,6 @@ bool Multisource_info::delete_mi(const char* channel_name)
       delete mi->rli;
     }
     delete mi;
-    it->second= 0;
   }
 
   DBUG_RETURN(false);
