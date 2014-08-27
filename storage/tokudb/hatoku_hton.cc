@@ -2074,6 +2074,9 @@ static ST_FIELD_INFO tokudb_lock_waits_field_info[] = {
     {"lock_waits_key_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"lock_waits_key_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"lock_waits_start_time", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"lock_waits_table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -2099,6 +2102,13 @@ static int tokudb_lock_waits_callback(DB *db, uint64_t requesting_txnid, const D
     tokudb_pretty_right_key(db, right_key, &right_str);
     table->field[4]->store(right_str.ptr(), right_str.length(), system_charset_info);
     table->field[5]->store(start_time, false);
+
+    String database_name, table_name, dictionary_name;
+    tokudb_split_dname(dname, database_name, table_name, dictionary_name);
+    table->field[6]->store(database_name.c_ptr(), database_name.length(), system_charset_info);
+    table->field[7]->store(table_name.c_ptr(), table_name.length(), system_charset_info);
+    table->field[8]->store(dictionary_name.c_ptr(), dictionary_name.length(), system_charset_info);
+
     int error = schema_table_store_record(thd, table);
     return error;
 }
@@ -2144,6 +2154,9 @@ static ST_FIELD_INFO tokudb_locks_field_info[] = {
     {"locks_dname", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"locks_key_left", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"locks_key_right", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_table_schema", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"locks_table_dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -2174,6 +2187,12 @@ static int tokudb_locks_callback(uint64_t txn_id, uint64_t client_id, iterate_ro
         String right_str;
         tokudb_pretty_right_key(db, &right_key, &right_str);
         table->field[4]->store(right_str.ptr(), right_str.length(), system_charset_info);
+
+        String database_name, table_name, dictionary_name;
+        tokudb_split_dname(dname, database_name, table_name, dictionary_name);
+        table->field[5]->store(database_name.c_ptr(), database_name.length(), system_charset_info);
+        table->field[6]->store(table_name.c_ptr(), table_name.length(), system_charset_info);
+        table->field[7]->store(dictionary_name.c_ptr(), dictionary_name.length(), system_charset_info);
 
         error = schema_table_store_record(thd, table);
     }
