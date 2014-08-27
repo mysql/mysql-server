@@ -186,27 +186,32 @@ Trpman::execCLOSE_COMREQ(Signal* signal)
   const BlockReference userRef = closeCom->xxxBlockRef;
   Uint32 requestType = closeCom->requestType;
   Uint32 failNo = closeCom->failNo;
-//  Uint32 noOfNodes = closeCom->noOfNodes;
+  Uint32 noOfNodes = closeCom->noOfNodes;
+  Uint32 found_nodes = 0;
 
   jamEntry();
   for (unsigned i = 1; i < MAX_NODES; i++)
   {
-    if (NodeBitmask::get(closeCom->theNodes, i) &&
-        handles_this_node(i))
+    if (NodeBitmask::get(closeCom->theNodes, i))
     {
-      jam();
+      found_nodes++;
+      if (handles_this_node(i))
+      {
+        jam();
 
-      //-----------------------------------------------------
-      // Report that the connection to the node is closed
-      //-----------------------------------------------------
-      signal->theData[0] = NDB_LE_CommunicationClosed;
-      signal->theData[1] = i;
-      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+        //-----------------------------------------------------
+        // Report that the connection to the node is closed
+        //-----------------------------------------------------
+        signal->theData[0] = NDB_LE_CommunicationClosed;
+        signal->theData[1] = i;
+        sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
-      globalTransporterRegistry.setIOState(i, HaltIO);
-      globalTransporterRegistry.do_disconnect(i);
+        globalTransporterRegistry.setIOState(i, HaltIO);
+        globalTransporterRegistry.do_disconnect(i);
+      }
     }
   }
+  ndbrequire(noOfNodes == found_nodes);
 
   if (requestType != CloseComReqConf::RT_NO_REPLY)
   {
