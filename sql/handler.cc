@@ -5669,9 +5669,13 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     else if ((range.range_flag & EQ_RANGE) &&                       // 2a)
              (range.range_flag & USE_INDEX_STATISTICS) &&           // 2b)
              (keyparts_used= my_count_bits(range.start_key.keypart_map)) &&
-             table->key_info[keyno].rec_per_key[keyparts_used-1] && // 2c)
+             table->
+               key_info[keyno].has_records_per_key(keyparts_used-1) && // 2c)
              !(range.range_flag & NULL_RANGE))
-      rows= table->key_info[keyno].rec_per_key[keyparts_used-1];
+    {
+      rows= static_cast<ha_rows>(
+        table->key_info[keyno].records_per_key(keyparts_used - 1));
+    }
     else
     {
       DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););

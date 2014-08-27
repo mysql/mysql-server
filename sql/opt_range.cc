@@ -5171,14 +5171,21 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
       */
       if (!info->param->use_index_statistics ||        // (1)
           is_null_range ||                             // (2)
-          !(records= table->key_info[scan->keynr].
-                     rec_per_key[tuple_arg->part]))    // (3)
+          !table->key_info[scan->keynr].
+           has_records_per_key(tuple_arg->part))       // (3)
       {
         DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
         DBUG_ASSERT(min_range.length > 0);
-        records= (table->file->
-                  records_in_range(scan->keynr, &min_range, &max_range));
+        records=
+          table->file->records_in_range(scan->keynr, &min_range, &max_range);
       }
+      else
+      {
+        // Use index statistics
+        records= static_cast<ha_rows>(
+          table->key_info[scan->keynr].records_per_key(tuple_arg->part));
+      }
+
       if (cur_covered)
       {
         /* uncovered -> covered */
@@ -12743,7 +12750,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   uint num_groups;
   uint num_blocks;
   uint keys_per_block;
-  uint keys_per_group;
+  rec_per_key_t keys_per_group;
   double p_overlap; /* Probability that a sub-group overlaps two blocks. */
   double quick_prefix_selectivity;
   double io_blocks;       // Number of blocks to read from table
@@ -12757,13 +12764,13 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   num_blocks= (uint)(table_records / keys_per_block) + 1;
 
   /* Compute the number of keys in a group. */
-  keys_per_group= index_info->rec_per_key[group_key_parts - 1];
-  if (keys_per_group == 0)
-  {
+  if (index_info->has_records_per_key(group_key_parts - 1))
+    // Use index statistics
+    keys_per_group= index_info->records_per_key(group_key_parts - 1);
+  else
     /* If there is no statistics try to guess */
-    keys_per_group=
-      static_cast<uint>(guess_rec_per_key(table, index_info, group_key_parts));
-  }
+    keys_per_group= guess_rec_per_key(table, index_info, group_key_parts);
+
   num_groups= (uint)(table_records / keys_per_group) + 1;
 
   /* Apply the selectivity of the quick select for group prefixes. */
@@ -12778,12 +12785,14 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   if (used_key_parts > group_key_parts)
   {
     // Average number of keys in sub-groups formed by a key infix
-    uint keys_per_subgroup= index_info->rec_per_key[used_key_parts - 1];
-    if (keys_per_subgroup == 0)
+    rec_per_key_t keys_per_subgroup;
+    if (index_info->has_records_per_key(used_key_parts - 1))
+      // Use index statistics
+      keys_per_subgroup= index_info->records_per_key(used_key_parts - 1);
+    else
     {
       // If no index statistics then we use a guessed records per key value.
-      keys_per_subgroup=
-        static_cast<uint>(guess_rec_per_key(table, index_info, used_key_parts));
+      keys_per_subgroup= guess_rec_per_key(table, index_info, used_key_parts);
       set_if_smaller(keys_per_subgroup, keys_per_group);
     }
 
@@ -12838,7 +12847,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   *records= num_groups;
 
   DBUG_PRINT("info",
-             ("table rows: %lu  keys/block: %u  keys/group: %u  result rows: %lu  blocks: %u",
+             ("table rows: %lu  keys/block: %u  keys/group: %.1f  result rows: %lu  blocks: %u",
               (ulong)table_records, keys_per_block, keys_per_group, 
               (ulong) *records, num_blocks));
   DBUG_VOID_RETURN;
