@@ -9063,6 +9063,8 @@ int reset_slave(THD *thd, Master_info* mi)
   const char* errmsg= "Unknown error occured while reseting slave";
   DBUG_ENTER("reset_slave");
 
+  bool no_init_after_delete= false;
+
   lock_slave_threads(mi);
   init_thread_mask(&thread_mask,mi,0 /* not inverse */);
   if (thread_mask) // We refuse if any slave thread is running
@@ -9076,10 +9078,21 @@ int reset_slave(THD *thd, Master_info* mi)
 
   ha_reset_slave(thd);
 
+
   // delete relay logs, clear relay log coordinates
+
+  /*
+     For named channels, we have to delete the index and log files
+     and not init them
+  */
+  if (thd->lex->reset_slave_info.all && strcmp(mi->get_channel(),
+                                               msr_map.get_default_channel()))
+    no_init_after_delete= true;
+
   if ((error= mi->rli->purge_relay_logs(thd,
                                         1 /* just reset */,
-                                        &errmsg)))
+                                        &errmsg,
+                                        no_init_after_delete)))
   {
     my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
     unlock_slave_threads(mi);

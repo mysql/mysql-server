@@ -1125,7 +1125,7 @@ void Relay_log_info::close_temporary_tables()
 */
 
 int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
-                                     const char** errmsg)
+                                     const char** errmsg, bool delete_only)
 {
   int error=0;
   DBUG_ENTER("Relay_log_info::purge_relay_logs");
@@ -1181,7 +1181,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     cur_log_fd= -1;
   }
 
-  if (relay_log.reset_logs(thd))
+  if (relay_log.reset_logs(thd, delete_only))
   {
     *errmsg = "Failed during log reset";
     error=1;
@@ -1201,7 +1201,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   set_group_relay_log_name(relay_log.get_log_fname());
   set_event_relay_log_name(relay_log.get_log_fname());
   group_relay_log_pos= event_relay_log_pos= BIN_LOG_HEADER_SIZE;
-  if (count_relay_log_space())
+  if (!delete_only && count_relay_log_space())
   {
     *errmsg= "Error counting relay log space";
     error= 1;

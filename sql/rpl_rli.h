@@ -494,7 +494,8 @@ public:
   void cleanup_context(THD *, bool);
   void slave_close_thread_tables(THD *);
   void clear_tables_to_lock();
-  int purge_relay_logs(THD *thd, bool just_reset, const char** errmsg);
+  int purge_relay_logs(THD *thd, bool just_reset, const char** errmsg,
+                       bool delete_only= false);
 
   /*
     Used to defer stopping the SQL thread to give it a chance
