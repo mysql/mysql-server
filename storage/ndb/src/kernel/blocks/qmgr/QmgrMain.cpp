@@ -4889,6 +4889,12 @@ void Qmgr::sendCloseComReq(Signal* signal, BlockReference TBRef, Uint16 aFailNo)
   closeCom->requestType = CloseComReqConf::RT_NODE_FAILURE;
   closeCom->failNo      = aFailNo;
   closeCom->noOfNodes   = cprepFailedNodes.count();
+  /**
+   * We are sending a signal where bitmap is of size NodeBitmask::size and we only
+   * have a bitmask of NdbNodeBitmask::size, we clear all bits using NodeBitmask
+   * before assigning the smaller bitmask to ensure we don't send any garbage.
+   */
+  NodeBitmask::clear(closeCom->theNodes);
   cprepFailedNodes.copyto(NdbNodeBitmask::Size, closeCom->theNodes);
 
   sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
