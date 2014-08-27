@@ -264,8 +264,10 @@ NdbBackup::execRestore(bool _restore_data,
                ndb_mgm_get_connected_port(handle),
                _node_id, 
                _backup_id);
+#ifndef DBUG_OFF
     if(_error_insert > 0)
       tmp.appfmt(" --error-insert=%u", _error_insert);
+#endif
 
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
@@ -285,8 +287,10 @@ NdbBackup::execRestore(bool _restore_data,
                ndb_mgm_get_connected_port(handle),
                _node_id, 
                _backup_id);
+#ifndef DBUG_OFF
     if(_error_insert > 0)
       tmp.appfmt(" --error-insert=%u", _error_insert);
+#endif
     
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
@@ -305,8 +309,10 @@ NdbBackup::execRestore(bool _restore_data,
                ndb_mgm_get_connected_port(handle),
                _node_id, 
                _backup_id);
+#ifndef DBUG_OFF
     if(_error_insert > 0)
       tmp.appfmt(" --error-insert=%u", _error_insert);
+#endif
     
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
