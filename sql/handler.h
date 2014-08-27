@@ -255,6 +255,19 @@ enum enum_alter_inplace_result {
 */
 #define HA_NO_READ_LOCAL_LOCK         (LL(1) << 44)
 
+/**
+  A storage engine is compatible with the attachable transaction requirements
+  means that
+
+    - either SE detects the fact that THD::ha_data was reset and starts a new
+      attachable transaction, closes attachable transaction on close_connection
+      and resumes regular (outer) transaction when THD::ha_data is restored;
+
+    - or SE completely ignores THD::ha_data and close_connection like MyISAM
+      does.
+*/
+#define HA_ATTACHABLE_TRX_COMPATIBLE  (LL(1) << 45)
+
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
