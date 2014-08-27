@@ -1056,17 +1056,6 @@ public:
   Geometry::wkbType get_geotype() const
   {
     char gt= static_cast<char>(m_flags.geotype);
-    /*
-      This function may be called on an object that was created with the
-      default constructor Geometry(), so we have to allow wkb_invalid_type.
-      The 'wkb_invalid_type' can be seen as a general geometry type
-      corresponding to class Geometry, when the object is created in-memory
-      not from wkb data, this value is allowed. Other types correspond to
-      concrete children class of Geometry, and it's checked that a geometry
-      object created from WKB/GEOMETRY byte string must have one of these
-      values.
-     */
-    DBUG_ASSERT(gt >= Geometry::wkb_invalid_type && gt <= Geometry::wkb_last);
     return static_cast<Geometry::wkbType>(gt);
   }
 
