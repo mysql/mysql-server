@@ -1402,6 +1402,8 @@ public:
 	Destructor */
 	~TrxInInnoDB()
 	{
+		trx_search_latch_release_if_reserved(m_trx);
+
 		trx_mutex_enter(m_trx);
 
 		ut_ad((m_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0);
