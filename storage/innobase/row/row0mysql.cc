@@ -732,7 +732,7 @@ handle_new_error:
 		}
 		/* MySQL will roll back the latest SQL statement */
 		break;
-	case DB_LOCK_WAIT: {
+	case DB_LOCK_WAIT:
 
 		trx_kill_blocking(trx);
 
