@@ -1517,9 +1517,9 @@ innobase_start_or_create_for_mysql(void)
 			Windows 32-bit systems, which can have trouble
 			allocating larger single contiguous memory blocks. */
 			srv_buf_pool_instances = ut_min(
-				MAX_BUFFER_POOLS,
-				(long) (srv_buf_pool_size
-					/ (128 * 1024 * 1024)));
+				static_cast<ulong>(MAX_BUFFER_POOLS),
+				statit_cast<ulong>(srv_buf_pool_size
+						   / (128 * 1024 * 1024)));
 #else /* defined(_WIN32) && !defined(_WIN64) */
 			/* Default to 8 instances when size > 1GB. */
 			srv_buf_pool_instances = 8;
