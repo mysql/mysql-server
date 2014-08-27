@@ -3943,7 +3943,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   double fanout= 1;
   ha_rows table_records= table->file->stats.records;
   bool group= join && join->group && order == join->group_list;
-  ha_rows refkey_rows_estimate= table->quick_condition_rows;
+  double refkey_rows_estimate= table->quick_condition_rows;
   const bool has_limit= (select_limit != HA_POS_ERROR);
 
   /*
@@ -3992,9 +3992,13 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
     else
     {
       const KEY *ref_keyinfo= table->key_info + ref_key;
-      refkey_rows_estimate= ref_keyinfo->rec_per_key[tab->ref().key_parts - 1];
+      if (ref_keyinfo->has_records_per_key(tab->ref().key_parts - 1))
+        refkey_rows_estimate=
+          ref_keyinfo->records_per_key(tab->ref().key_parts - 1);
+      else
+        refkey_rows_estimate= 1.0;              // No index statistics
     }
-    set_if_bigger(refkey_rows_estimate, 1);
+    DBUG_ASSERT(refkey_rows_estimate >= 1.0);    
   }
 
   for (nr=0; nr < table->s->keys ; nr++)
@@ -4029,8 +4033,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           select_limit != HA_POS_ERROR || 
           (ref_key < 0 && (group || table->force_index)))
       { 
-        double rec_per_key;
-        double index_scan_time;
+        rec_per_key_t rec_per_key;
         KEY *keyinfo= table->key_info+nr;
         if (select_limit == HA_POS_ERROR)
           select_limit= table_records;
@@ -4044,8 +4047,8 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           */  
           rec_per_key= used_key_parts &&
                        used_key_parts <= actual_key_parts(keyinfo) ?
-                       keyinfo->rec_per_key[used_key_parts-1] : 1;
-          set_if_bigger(rec_per_key, 1);
+                       keyinfo->records_per_key(used_key_parts - 1) : 1.0f;
+          set_if_bigger(rec_per_key, 1.0f);
           /*
             With a grouping query each group containing on average
             rec_per_key records produces only one row that will
@@ -4084,8 +4087,9 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           select_limit= (ha_rows) (select_limit *
                                    (double) table_records /
                                     refkey_rows_estimate);
-        rec_per_key= keyinfo->rec_per_key[keyinfo->user_defined_key_parts - 1];
-        set_if_bigger(rec_per_key, 1);
+        rec_per_key=
+          keyinfo->records_per_key(keyinfo->user_defined_key_parts - 1);
+        set_if_bigger(rec_per_key, 1.0f);
         /*
           Here we take into account the fact that rows are
           accessed in sequences rec_per_key records in each.
@@ -4098,17 +4102,18 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           index entry.
         */
         const Cost_estimate table_scan_time= table->file->table_scan_cost();
-        index_scan_time= select_limit/rec_per_key *
-                         min(rec_per_key, table_scan_time.total_cost());
+        const double index_scan_time= select_limit / rec_per_key *
+          min<double>(rec_per_key, table_scan_time.total_cost());
         if ((ref_key < 0 && is_covering) || 
             (ref_key < 0 && (group || table->force_index)) ||
             index_scan_time < read_time)
         {
           ha_rows quick_records= table_records;
-          ha_rows refkey_select_limit= (ref_key >= 0 &&
-                                        table->covering_keys.is_set(ref_key)) ?
-                                        refkey_rows_estimate :
-                                        HA_POS_ERROR;
+          const ha_rows refkey_select_limit=
+            (ref_key >= 0 && table->covering_keys.is_set(ref_key)) ?
+            static_cast<ha_rows>(refkey_rows_estimate) :
+            HA_POS_ERROR;
+
           if ((is_best_covering && !is_covering) ||
               (is_covering && refkey_select_limit < select_limit))
             continue;

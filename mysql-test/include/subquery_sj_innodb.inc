@@ -9,7 +9,8 @@ SET GLOBAL innodb_stats_persistent=0;
 -- enable_query_log
 
 create table t0 (a int);
-insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),
+                      (10),(12),(14),(16),(18);
 
 # First test simple cases: I20 order, no join buffering.
 
@@ -26,10 +27,20 @@ create table t2 (
 ) engine=innodb;
 insert into t2 select a, a/2 from t0;
 
+# Run analyze to ensure more correct index statistics
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1,t2;
+-- enable_result_log
+-- enable_query_log
+
 select * from t1;
 select * from t2;
 explain select * from t2 where b in (select a from t1);
 select * from t2 where b in (select a from t1);
+
+truncate table t0;
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
 # Try an InnoDB table with very long rowid
 create table t3 (
