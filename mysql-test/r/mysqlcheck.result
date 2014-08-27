@@ -45,10 +45,18 @@ note     : The storage engine for the table doesn't support optimize
 mysql.gtid_executed
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
+mysql.help_category
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_keyword
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_relation
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_topic
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.innodb_index_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -73,11 +81,21 @@ status   : OK
 mysql.slow_log
 note     : The storage engine for the table doesn't support optimize
 mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
+mysql.time_zone
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_leap_second
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_name
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_transition
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_transition_type
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.user                                         OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
@@ -119,10 +137,18 @@ note     : The storage engine for the table doesn't support optimize
 mysql.gtid_executed
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
-mysql.help_category                                Table is already up to date
-mysql.help_keyword                                 Table is already up to date
-mysql.help_relation                                Table is already up to date
-mysql.help_topic                                   Table is already up to date
+mysql.help_category
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_keyword
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_relation
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.help_topic
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.innodb_index_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -147,11 +173,21 @@ status   : OK
 mysql.slow_log
 note     : The storage engine for the table doesn't support optimize
 mysql.tables_priv                                  Table is already up to date
-mysql.time_zone                                    Table is already up to date
-mysql.time_zone_leap_second                        Table is already up to date
-mysql.time_zone_name                               Table is already up to date
-mysql.time_zone_transition                         Table is already up to date
-mysql.time_zone_transition_type                    Table is already up to date
+mysql.time_zone
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_leap_second
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_name
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_transition
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.time_zone_transition_type
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.user                                         Table is already up to date
 create table t1 (a int) engine=myisam;
 create view v1 as select * from t1;

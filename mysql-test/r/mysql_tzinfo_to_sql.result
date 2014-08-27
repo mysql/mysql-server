@@ -7,6 +7,7 @@ CREATE TABLE time_zone_name as SELECT * FROM mysql.time_zone_name WHERE 1 = 0;
 CREATE TABLE time_zone_transition as SELECT * FROM mysql.time_zone_transition WHERE 1 = 0;
 CREATE TABLE time_zone_transition_type as SELECT * FROM mysql.time_zone_transition_type WHERE 1 = 0;
 # Load zone table for Japanese zones. Pass file as argument.
+START TRANSACTION;
 INSERT INTO time_zone (Use_leap_seconds) VALUES ('N');
 SET @time_zone_id= LAST_INSERT_ID();
 INSERT INTO time_zone_name (Name, Time_zone_id) VALUES ('test_japan', @time_zone_id);
@@ -26,6 +27,7 @@ INSERT INTO time_zone_transition_type (Time_zone_id, Transition_type_id, Offset,
 ,(@time_zone_id, 1, 36000, 1, 'JDT')
 ,(@time_zone_id, 2, 32400, 0, 'JST')
 ;
+COMMIT;
 SELECT * FROM time_zone;
 Time_zone_id	Use_leap_seconds
 0	N
@@ -52,7 +54,8 @@ Time_zone_id	Transition_type_id	Offset	Is_DST	Abbreviation
 0	2	32400	0	JST
 # Load zone table with --leap option((mysql_tzinfo_to_sql --leap <zonepath>/UTC))
 TRUNCATE TABLE time_zone_leap_second;
-ALTER TABLE time_zone_leap_second ORDER BY Transition_time;
+START TRANSACTION;
+COMMIT;
 SELECT * FROM time_zone;
 Time_zone_id	Use_leap_seconds
 0	N
