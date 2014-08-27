@@ -37,6 +37,7 @@ let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
 WHERE id = @con2_id AND INFO = 'update t1 set c1=2 where c1=0 and c2=0';
 --source include/wait_condition.inc
 let $con3_id=`SELECT CONNECTION_ID()`;
+SET DEBUG_SYNC='rec_lock_add_to_waitq WAIT_FOR waiting1';
 --send UPDATE t1 SET c1=3 WHERE c1=0;
 
 --echo
@@ -45,9 +46,9 @@ let $con3_id=`SELECT CONNECTION_ID()`;
 --replace_result $con3_id <con3_id>
 eval SET @con3_id = $con3_id;
 let $wait_timeout = 10;
-let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
-WHERE id = @con3_id AND INFO = 'update t1 set c1=3 where c1=0';
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: rec_lock_add_to_waitq'
 --source include/wait_condition.inc
+SET DEBUG_SYNC='now SIGNAL waiting1';
 COMMIT;
 
 --echo

@@ -1976,6 +1976,8 @@ RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 	ut_ad(m_trx == thr_get_trx(m_thr));
 	ut_ad(trx_mutex_own(m_trx));
 
+	DEBUG_SYNC_C("rec_lock_add_to_waitq");
+
 	m_mode |= LOCK_WAIT;
 
 	/* Do the preliminary checks, and set query thread state */
