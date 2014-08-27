@@ -94,6 +94,9 @@ def	mysql	db	mysql	PRIMARY
 def	mysql	db	mysql	PRIMARY
 def	mysql	db	mysql	PRIMARY
 def	mysql	db	mysql	User
+def	mysql	engine_cost	mysql	PRIMARY
+def	mysql	engine_cost	mysql	PRIMARY
+def	mysql	engine_cost	mysql	PRIMARY
 def	mysql	event	mysql	PRIMARY
 def	mysql	event	mysql	PRIMARY
 def	mysql	func	mysql	PRIMARY
@@ -131,6 +134,7 @@ def	mysql	proxies_priv	mysql	PRIMARY
 def	mysql	proxies_priv	mysql	PRIMARY
 def	mysql	proxies_priv	mysql	PRIMARY
 def	mysql	proxies_priv	mysql	Grantor
+def	mysql	server_cost	mysql	PRIMARY
 def	mysql	servers	mysql	PRIMARY
 def	mysql	slave_master_info	mysql	PRIMARY
 def	mysql	slave_master_info	mysql	PRIMARY

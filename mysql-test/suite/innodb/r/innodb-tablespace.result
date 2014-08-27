@@ -103,6 +103,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
 mysql/help_keyword	Antelope	Compact or Redundant
@@ -110,6 +111,7 @@ mysql/help_relation	Antelope	Compact or Redundant
 mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/server_cost	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
@@ -135,6 +137,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
 mysql/help_keyword	Antelope	Compact or Redundant
@@ -142,6 +145,7 @@ mysql/help_relation	Antelope	Compact or Redundant
 mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/server_cost	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
@@ -177,6 +181,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
 mysql/help_keyword	Antelope	Compact or Redundant
@@ -184,6 +189,7 @@ mysql/help_relation	Antelope	Compact or Redundant
 mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/server_cost	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
@@ -219,6 +225,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
 mysql/help_keyword	Antelope	Compact or Redundant
@@ -226,6 +233,7 @@ mysql/help_relation	Antelope	Compact or Redundant
 mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/server_cost	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
@@ -262,6 +270,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
 mysql/help_keyword	Antelope	Compact or Redundant
@@ -269,6 +278,7 @@ mysql/help_relation	Antelope	Compact or Redundant
 mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/server_cost	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
@@ -305,6 +315,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
 mysql/help_keyword	Antelope	Compact or Redundant
@@ -312,6 +323,7 @@ mysql/help_relation	Antelope	Compact or Redundant
 mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/server_cost	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
@@ -344,6 +356,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
 mysql/help_keyword	Antelope	Compact or Redundant
@@ -351,6 +364,7 @@ mysql/help_relation	Antelope	Compact or Redundant
 mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/server_cost	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
@@ -516,6 +530,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
 mysql/help_keyword	Antelope	Compact or Redundant
@@ -523,6 +538,7 @@ mysql/help_relation	Antelope	Compact or Redundant
 mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/server_cost	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
@@ -583,6 +599,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
 mysql/help_keyword	Antelope	Compact or Redundant
@@ -590,6 +607,7 @@ mysql/help_relation	Antelope	Compact or Redundant
 mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/server_cost	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
@@ -649,6 +667,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
 mysql/help_keyword	Antelope	Compact or Redundant
@@ -656,6 +675,7 @@ mysql/help_relation	Antelope	Compact or Redundant
 mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/server_cost	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
@@ -719,6 +739,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
 mysql/help_keyword	Antelope	Compact or Redundant
@@ -726,6 +747,7 @@ mysql/help_relation	Antelope	Compact or Redundant
 mysql/help_topic	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/server_cost	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
