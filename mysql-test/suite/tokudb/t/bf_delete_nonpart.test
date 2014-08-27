@@ -2,6 +2,7 @@
 # at least twice as fast
 
 source include/have_tokudb.inc;
+source include/big_test.inc;
 set default_storage_engine='tokudb';
 disable_warnings;
 drop table if exists t;
