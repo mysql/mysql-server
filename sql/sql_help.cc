@@ -690,12 +690,8 @@ bool mysqld_help(THD *thd, const char *mask)
 
   /*
     HELP must be available under LOCK TABLES. 
-    Reset and backup the current open tables state to
-    make it possible.
   */
-  Open_tables_backup open_tables_state_backup;
-  if (open_nontrans_system_tables_for_read(thd, tables,
-                                           &open_tables_state_backup))
+  if (open_trans_system_tables_for_read(thd, tables))
     goto error2;
 
   /*
@@ -842,11 +838,11 @@ bool mysqld_help(THD *thd, const char *mask)
 
   my_eof(thd);
 
-  close_nontrans_system_tables(thd, &open_tables_state_backup);
+  close_trans_system_tables(thd);
   DBUG_RETURN(FALSE);
 
 error:
-  close_nontrans_system_tables(thd, &open_tables_state_backup);
+  close_trans_system_tables(thd);
 
 error2:
   DBUG_RETURN(TRUE);
