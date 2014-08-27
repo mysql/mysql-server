@@ -1518,7 +1518,7 @@ innobase_start_or_create_for_mysql(void)
 			allocating larger single contiguous memory blocks. */
 			srv_buf_pool_instances = ut_min(
 				static_cast<ulong>(MAX_BUFFER_POOLS),
-				statit_cast<ulong>(srv_buf_pool_size
+				static_cast<ulong>(srv_buf_pool_size
 						   / (128 * 1024 * 1024)));
 #else /* defined(_WIN32) && !defined(_WIN64) */
 			/* Default to 8 instances when size > 1GB. */
