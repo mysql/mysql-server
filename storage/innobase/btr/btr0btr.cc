@@ -1205,6 +1205,7 @@ btr_page_reorganize_low(
 	bool		success		= false;
 	ulint		pos;
 	bool		log_compressed;
+	bool		is_spatial;
 
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 	btr_assert_not_corrupted(block, index);
@@ -1227,6 +1228,11 @@ btr_page_reorganize_low(
 
 	MONITOR_INC(MONITOR_INDEX_REORG_ATTEMPTS);
 
+	/* This function can be called by log redo with a "dummy" index.
+	So we would trust more on the original page's type */
+	is_spatial = (fil_page_get_type(page) == FIL_PAGE_RTREE
+		      || dict_index_is_spatial(index));
+
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
 
@@ -1244,8 +1250,7 @@ btr_page_reorganize_low(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(block, mtr, dict_table_is_comp(index->table),
-		    dict_index_is_spatial(index));
+	page_create(block, mtr, dict_table_is_comp(index->table), is_spatial);
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
