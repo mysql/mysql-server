@@ -631,7 +631,11 @@ private:
 
 		// Finish parsing, call event according to the type of number.
 		if (useDouble) {
-			d *= internal::Pow10(exp + expFrac);
+			int expSum = exp + expFrac;
+			if (expSum > 0)
+				d *= internal::Pow10(expSum);
+			else if (expSum < 0)
+				d /= internal::Pow10(-expSum);
 			handler.Double(minus ? -d : d);
 		}
 		else {
