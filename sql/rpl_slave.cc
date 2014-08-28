@@ -494,8 +494,8 @@ int start_slave(THD *thd)
   DBUG_ENTER("start_slave(THD)");
   Master_info *mi;
   int error= 0;
-  bool channel_exists;
-  bool channel_running;
+  bool channel_not_running;
+  bool channel_configured;
 
   if (msr_map.get_num_instances() == 1)
   {
@@ -513,13 +513,15 @@ int start_slave(THD *thd)
     {
       mi= it->second;
 
-      channel_running= mi && (mi->slave_running || mi->rli->slave_running);
+      channel_configured= mi && mi->host[0];   // channel properly configured.
 
-      if (!channel_running)
+      if (channel_configured)
       {
-        channel_exists= mi && mi->host[0];   // channel properly configured.
+        /* check if both IO and SQL are not running */
+        channel_not_running= mi &&
+          (!mi->slave_running || !mi->rli->slave_running);
 
-        if (channel_exists)
+        if (channel_not_running)
         {
           if ((error=start_slave(thd, mi, 1, false)))
           {
@@ -529,11 +531,9 @@ int start_slave(THD *thd)
           }
         }
         else
-        {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_SLAVE_CHANNEL_RUNNING,
                             ER(ER_SLAVE_CHANNEL_RUNNING), mi->get_channel());
-        }
       }
     }
   }
@@ -565,6 +565,7 @@ int stop_slave(THD *thd)
    Master_info *mi=0;
    int error= 0;
    bool channel_running;
+   bool channel_configured;
 
    if (msr_map.get_num_instances() == 1)
    {
@@ -582,21 +583,27 @@ int stop_slave(THD *thd)
      {
        mi= it->second;
 
-       channel_running= mi && (mi->slave_running || mi->rli->slave_running);
+       channel_configured= mi && mi->host[0];
 
-       if(channel_running)
+       if(channel_configured)
        {
-         if ((error= stop_slave(thd, mi, 1, false )))
+         /* check if both IO and SQL are running */
+         channel_running= mi && (mi->slave_running || mi->rli->slave_running);
+
+         if (channel_running)
          {
-           sql_print_error("Slave: Could not stop slave for"
-                         " channel '%s'", mi->get_channel());
+           if ((error= stop_slave(thd, mi, 1, false )))
+           {
+             sql_print_error("Slave: Could not stop slave for  channel '%s'"
+                             " operation discontinued", mi->get_channel());
            goto err;
+           }
          }
+         else
+           push_warning_printf(thd, Sql_condition::SL_WARNING,
+                               ER_SLAVE_CHANNEL_STOPPED,
+                               ER(ER_SLAVE_CHANNEL_STOPPED), mi->get_channel());
        }
-       else
-         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                           ER_SLAVE_CHANNEL_STOPPED,
-                           ER(ER_SLAVE_CHANNEL_STOPPED), mi->get_channel());
      }
    }
    /* no error */
