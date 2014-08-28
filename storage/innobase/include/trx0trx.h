@@ -1029,6 +1029,9 @@ struct trx_t {
 					when a high priority transaction
 					is blocked on a lock wait. */
 
+	os_thread_id_t	owner_id;	/*!< Thread id of the thread that
+					started this transaction. */
+
 	os_thread_id_t	killed_by;	/*!< The thread ID that wants to
 					kill this transaction asynchronously.
 					This is required because we recursively
@@ -1387,9 +1390,7 @@ public:
 	{
 		/* Only the owning thread should release the latch. */
 
-		if (!is_async_rollback()) {
-			trx_search_latch_release_if_reserved(m_trx);
-		}
+		trx_search_latch_release_if_reserved(m_trx);
 
 		trx_mutex_enter(m_trx);
 
@@ -1427,9 +1428,7 @@ public:
 	{
 		/* Only the owning thread should release the latch. */
 
-		if (!is_async_rollback()) {
-			trx_search_latch_release_if_reserved(m_trx);
-		}
+		trx_search_latch_release_if_reserved(m_trx);
 
 		trx_mutex_enter(m_trx);
 

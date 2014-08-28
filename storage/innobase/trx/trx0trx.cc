@@ -1293,6 +1293,8 @@ trx_start_low(
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
 	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
 
+	trx->owner_id = os_thread_get_curr_id();
+
 	++trx->version;
 
 	/* Check whether it is an AUTOCOMMIT SELECT */
