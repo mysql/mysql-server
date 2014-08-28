@@ -330,7 +330,7 @@ bool log_syslog_update_settings()
     log_syslog_facility= rsf.id;
 
     // If NaN, set to the canonical form (cut "log_", fix case)
-    if (rsf.name != NULL)
+    if ((rsf.name != NULL) && (strcmp(opt_log_syslog_facility, rsf.name) != 0))
       strcpy(opt_log_syslog_facility, rsf.name);
   }
 
