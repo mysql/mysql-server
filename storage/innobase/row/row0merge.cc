@@ -1466,7 +1466,7 @@ row_merge_read_clustered_index(
 	ulint			num_spatial = 0;
 	BtrBulk*		clust_btr_bulk = NULL;
 	bool			clust_temp_file = false;
-	mem_heap_t*		mtuple_heap;
+	mem_heap_t*		mtuple_heap = NULL;
 	mtuple_t		prev_mtuple;
 	DBUG_ENTER("row_merge_read_clustered_index");
 
@@ -1932,7 +1932,6 @@ write_buffers:
 				/* If we are creating FTS index,
 				a single row can generate more
 				records for tokenized word */
-				ut_ad(buf->n_tuples > 0);
 				file->n_rec += rows_added;
 				if (doc_id > max_doc_id) {
 					max_doc_id = doc_id;
@@ -1956,6 +1955,7 @@ write_buffers:
 				}
 
 				if (skip_sort) {
+					ut_ad(buf->n_tuples > 0);
 					const mtuple_t*	curr =
 						&buf->tuples[buf->n_tuples - 1];
 
