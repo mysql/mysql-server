@@ -34,6 +34,7 @@ SHOW TABLES;
 Tables_in_test
 t1
 DROP TABLE t1;
+# restart
 Test case6
 SET SESSION debug="+d,fault_injection_updating_index";
 flush logs;
@@ -44,11 +45,13 @@ Tables_in_test
 t2
 DROP TABLE t2;
 SET SESSION debug="-d,fault_injection_updating_index";
+# restart
 Test case7
 SET SESSION debug="+d,simulate_disk_full_on_open_binlog";
 flush logs;
 ERROR HY000: Error writing file 'master-bin.index_crash_safe' (Errcode: 28 - No space left on device)
 SET SESSION debug="-d,simulate_disk_full_on_open_binlog";
+# restart
 Test case8
 SET SESSION debug="+d,fault_injection_init_name";
 flush logs;
@@ -59,4 +62,5 @@ Tables_in_test
 t2
 DROP TABLE t2;
 SET SESSION debug="-d,fault_injection_init_name";
+# restart
 SET SESSION debug="";

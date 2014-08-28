@@ -9,6 +9,7 @@ SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 create_options	
 ALTER TABLE test_ps_sample_pages STATS_SAMPLE_PAGES=12345;
+# restart
 SHOW CREATE TABLE test_ps_sample_pages;
 Table	test_ps_sample_pages
 Create Table	CREATE TABLE `test_ps_sample_pages` (
@@ -57,6 +58,7 @@ Create Table	CREATE TABLE `test_ps_sample_pages` (
 DROP TABLE test_ps_sample_pages;
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=1;
+# restart
 SHOW CREATE TABLE test_ps_sample_pages;
 Table	test_ps_sample_pages
 Create Table	CREATE TABLE `test_ps_sample_pages` (
@@ -69,6 +71,7 @@ create_options	stats_sample_pages=1
 DROP TABLE test_ps_sample_pages;
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=5678;
+# restart
 SHOW CREATE TABLE test_ps_sample_pages;
 Table	test_ps_sample_pages
 Create Table	CREATE TABLE `test_ps_sample_pages` (
@@ -79,6 +82,7 @@ SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 create_options	stats_sample_pages=5678
 ALTER TABLE test_ps_sample_pages STATS_SAMPLE_PAGES=default;
+# restart
 SHOW CREATE TABLE test_ps_sample_pages;
 Table	test_ps_sample_pages
 Create Table	CREATE TABLE `test_ps_sample_pages` (

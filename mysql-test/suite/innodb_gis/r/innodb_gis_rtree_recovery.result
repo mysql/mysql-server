@@ -15,26 +15,20 @@ update t1 set c2 = Point(i + 10000, i + 10000) where c2 = Point(i, i);
 set i = i + 1;
 end while;
 end|
-call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds.*");
 CALL insert_t1(367);
-SET DEBUG='+d,crash_commit_after';
 COMMIT;
-ERROR HY000: Lost connection to MySQL server during query
-
+# Kill and restart
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 create table t1 (c1 int, c2 point not null, spatial index (c2))engine=innodb;
-call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds.*");
 CALL insert_t1(367);
 CALL update_t1(367);
 SET @poly1 = GeomFromText('POLYGON((10000 10000, 10000 10350, 10350 10350, 10350 10000, 10000 10000))');
 delete from t1 where ST_Contains(@poly1, c2);
-SET DEBUG='+d,crash_commit_after';
 COMMIT;
-ERROR HY000: Lost connection to MySQL server during query
-
+# Kill and restart
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
