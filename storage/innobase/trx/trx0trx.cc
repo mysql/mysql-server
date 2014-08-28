@@ -178,7 +178,9 @@ trx_init(
 
 	trx->lock.table_cached = 0;
 
-	trx->killed_by = 0;
+	os_thread_id_t	thread_id = trx->killed_by;
+
+	os_compare_and_swap_thread_id(&trx->killed_by, thread_id, 0);
 
 	/* Note: Do not set to 0, the ref count is decremented inside
 	the TrxInInnoDB() destructor. We only need to clear the flags. */
@@ -3309,7 +3311,8 @@ trx_kill_blocking(trx_t* trx)
 
 		bool	rollback = victim_trx->version == it->m_version;
 
-		ut_ad((victim_trx->in_innodb & TRX_FORCE_ROLLBACK)
+		ut_ad(((victim_trx->in_innodb & TRX_FORCE_ROLLBACK)
+		       && victim_trx->killed_by == os_thread_get_curr_id())
 		      || !rollback);
 
 		trx_mutex_exit(victim_trx);
