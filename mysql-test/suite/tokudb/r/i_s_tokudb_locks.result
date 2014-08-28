@@ -4,7 +4,7 @@ drop table if exists t;
 create table t (id int primary key);
 set autocommit=0;
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
 insert into t values (1);
 insert into t values (3);
 insert into t values (5);
@@ -13,16 +13,16 @@ insert into t values (2);
 insert into t values (4);
 insert into t values (6);
 select * from information_schema.tokudb_locks order by locks_trx_id,locks_key_left;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
-TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000
-TRX_ID	MYSQL_ID	./test/t-main	0003000000	0003000000
-TRX_ID	MYSQL_ID	./test/t-main	0005000000	0005000000
-TRX_ID	MYSQL_ID	./test/t-main	0002000000	0002000000
-TRX_ID	MYSQL_ID	./test/t-main	0004000000	0004000000
-TRX_ID	MYSQL_ID	./test/t-main	0006000000	0006000000
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
+TRX_ID	MYSQL_ID	./test/t-main	0001000000	0001000000	test	t	main
+TRX_ID	MYSQL_ID	./test/t-main	0003000000	0003000000	test	t	main
+TRX_ID	MYSQL_ID	./test/t-main	0005000000	0005000000	test	t	main
+TRX_ID	MYSQL_ID	./test/t-main	0002000000	0002000000	test	t	main
+TRX_ID	MYSQL_ID	./test/t-main	0004000000	0004000000	test	t	main
+TRX_ID	MYSQL_ID	./test/t-main	0006000000	0006000000	test	t	main
 commit;
 commit;
 select * from information_schema.tokudb_locks;
-locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
+locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right	locks_table_schema	locks_table_name	locks_table_dictionary_name
 commit;
 drop table t;
