@@ -33,28 +33,14 @@ CONNECTION con3;
 # The server would issue this warning on restart.
 call mtr.add_suppression("Found 3 prepared XA transactions");
 
-# Kill the server without sending a shutdown command
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 0
--- source include/wait_until_disconnected.inc
+--source include/kill_and_restart_mysqld.inc
 
-# Restart the server.
--- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT * FROM t;
 COMMIT;
 
 # Shut down the server. This would hang because of the bug.
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server
--- source include/wait_until_disconnected.inc
-
-# Restart the server.
--- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
+--source include/restart_mysqld.inc
 
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT * FROM t;

@@ -4345,7 +4345,10 @@ row_search_mvcc(
 	adaptive hash index latch if there is someone waiting behind */
 
 	if (trx->has_search_latch
-	    && rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED) {
+#ifndef INNODB_RW_LOCKS_USE_ATOMICS
+	    && rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED
+#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
+	    ) {
 
 		/* There is an x-latch request on the adaptive hash index:
 		release the s-latch to reduce starvation and wait for
@@ -4576,6 +4579,7 @@ row_search_mvcc(
 
 				/* NOTE that we do NOT store the cursor
 				position */
+
 				goto func_exit;
 
 			case SEL_RETRY:

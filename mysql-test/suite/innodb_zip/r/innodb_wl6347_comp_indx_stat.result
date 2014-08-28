@@ -322,6 +322,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 5242880
 # Restarting server
+# restart
 # set the flag on (default off)
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
@@ -678,6 +679,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 2097152
 # Restarting server
+# restart
 # set the flag on (default off)
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
@@ -2006,6 +2008,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # Restarting server
+# restart
 # set the flag on (default off)
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
@@ -2364,6 +2367,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # Restarting server
+# restart
 # set the flag on (default off)
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
@@ -4925,6 +4929,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # Restarting server
+# restart
 # set the flag on (default off)
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags
@@ -6586,6 +6591,7 @@ AND index_name like 'idx%' ;
 compress_stat	1
 The size of the tab5.ibd file: 65536
 # Restarting server
+# restart
 # set the flag on (default off)
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags

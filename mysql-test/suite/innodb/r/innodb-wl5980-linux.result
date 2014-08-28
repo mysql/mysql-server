@@ -114,7 +114,7 @@ MYSQL_TMP_DIR/mysqld.5980/part2/test/purchase#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/mysqld.5980/part3/test/purchase#p#p1#sp#s3.ibd
 MYSQL_TMP_DIR/mysqld.5980/tab4/test/emp4#p#p1.ibd
 MYSQL_TMP_DIR/mysqld.5980/tab5/test/emp4#p#p2.ibd
-SELECT name,file_format,row_format 
+SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
@@ -128,8 +128,8 @@ test/purchase#p#p0#sp#s0	Antelope	Compact or Redundant
 test/purchase#p#p0#sp#s1	Antelope	Compact or Redundant
 test/purchase#p#p1#sp#s2	Antelope	Compact or Redundant
 test/purchase#p#p1#sp#s3	Antelope	Compact or Redundant
-SELECT name,n_cols,file_format,row_format 
-FROM information_schema.innodb_sys_tables 
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables
 WHERE name LIKE '%emp%' ORDER BY name;
 name	n_cols	file_format	row_format
 test/emp1	6	Antelope	Compact
@@ -138,8 +138,8 @@ test/emp2#p#p2	6	Antelope	Compact
 test/emp3	6	Antelope	Compact
 test/emp4#p#p1	6	Barracuda	Dynamic
 test/emp4#p#p2	6	Barracuda	Dynamic
-SELECT name,n_cols,file_format,row_format 
-FROM information_schema.innodb_sys_tables 
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables
 WHERE name LIKE '%purchase%' ORDER BY name;
 name	n_cols	file_format	row_format
 test/purchase#p#p0#sp#s0	5	Antelope	Compact

@@ -96,13 +96,14 @@
             break;                                            \
           }                                                   \
           case PSI_BATCH_MODE_STARTED:                        \
+          default:                                            \
           {                                                   \
+            DBUG_ASSERT(m_psi_batch_mode                      \
+                        == PSI_BATCH_MODE_STARTED);           \
             PAYLOAD                                           \
             m_psi_numrows++;                                  \
             break;                                            \
           }                                                   \
-          default:                                            \
-            DBUG_ASSERT(false);                               \
         }                                                     \
       }                                                       \
       else                                                    \
