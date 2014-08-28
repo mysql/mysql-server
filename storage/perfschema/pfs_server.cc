@@ -62,7 +62,7 @@ void pre_initialize_performance_schema()
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
 
-  if (pthread_key_create(&THR_PFS, destroy_pfs_thread))
+  if (my_create_thread_local_key(&THR_PFS, destroy_pfs_thread))
     return;
 
   THR_PFS_initialized= true;
@@ -273,8 +273,8 @@ void shutdown_performance_schema(void)
   */
   if (THR_PFS_initialized)
   {
-    my_pthread_setspecific_ptr(THR_PFS, NULL);
-    pthread_key_delete(THR_PFS);
+    my_set_thread_local(THR_PFS, NULL);
+    my_delete_thread_local_key(THR_PFS);
     THR_PFS_initialized= false;
   }
 }

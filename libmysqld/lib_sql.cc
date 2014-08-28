@@ -2,6 +2,9 @@
  * Copyright (c)  2000, 2014
  * SWsoft  company
  *
+ * Modifications copyright (c) 2001, 2014. Oracle and/or its affiliates.
+ * All rights reserved.
+ *
  * This material is provided "as is", with absolutely no warranty expressed
  * or implied. Any use is at your own risk.
  *
@@ -1198,7 +1201,8 @@ bool Protocol_binary::write()
 bool
 net_send_ok(THD *thd,
             uint server_status, uint statement_warn_count,
-            ulonglong affected_rows, ulonglong id, const char *message)
+            ulonglong affected_rows, ulonglong id, const char *message,
+            bool eof_identifier __attribute__((unused)))
 {
   DBUG_ENTER("emb_net_send_ok");
   MYSQL_DATA *data;

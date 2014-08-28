@@ -314,7 +314,10 @@ Format_description_event(const char* buf, unsigned int event_len,
   unsigned long ver_calc;
   buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
   if ((common_header_len= buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
+  {
+    post_header_len.clear();
     return; /* sanity check */
+  }
   number_of_event_types=
    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
 
@@ -410,6 +413,7 @@ Format_description_event(const char* buf, unsigned int event_len,
   {
     if (number_of_event_types != 22)
     {
+      post_header_len.clear();
       return;
     }
     static const uint8_t perm[23]=
@@ -446,6 +450,7 @@ Format_description_event(const char* buf, unsigned int event_len,
 
 Format_description_event::~Format_description_event()
 {
+  post_header_len.clear();
 }
 
 /**

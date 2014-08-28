@@ -100,7 +100,13 @@ enum PSI_rwlock_operation
   PSI_RWLOCK_READLOCK= 0,
   PSI_RWLOCK_WRITELOCK= 1,
   PSI_RWLOCK_TRYREADLOCK= 2,
-  PSI_RWLOCK_TRYWRITELOCK= 3
+  PSI_RWLOCK_TRYWRITELOCK= 3,
+  PSI_RWLOCK_SHAREDLOCK= 4,
+  PSI_RWLOCK_SHAREDEXCLUSIVELOCK= 5,
+  PSI_RWLOCK_EXCLUSIVELOCK= 6,
+  PSI_RWLOCK_TRYSHAREDLOCK= 7,
+  PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK= 8,
+  PSI_RWLOCK_TRYEXCLUSIVELOCK= 9
 };
 typedef enum PSI_rwlock_operation PSI_rwlock_operation;
 enum PSI_cond_operation
@@ -508,7 +514,9 @@ typedef struct PSI_table_locker* (*start_table_io_wait_v1_t)
    enum PSI_table_io_operation op,
    uint index,
    const char *src_file, uint src_line);
-typedef void (*end_table_io_wait_v1_t)(struct PSI_table_locker *locker);
+typedef void (*end_table_io_wait_v1_t)
+  (struct PSI_table_locker *locker,
+   ulonglong numrows);
 typedef struct PSI_table_locker* (*start_table_lock_wait_v1_t)
   (struct PSI_table_locker_state_v1 *state,
    struct PSI_table *table,

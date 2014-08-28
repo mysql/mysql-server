@@ -2108,7 +2108,8 @@ os_file_set_size(
 	current_size = 0;
 
 	/* Write up to 1 megabyte at a time. */
-	buf_size = ut_min(64, (ulint) (size / UNIV_PAGE_SIZE))
+	buf_size = ut_min(static_cast<ulint>(64),
+			  static_cast<ulint>(size / UNIV_PAGE_SIZE))
 		* UNIV_PAGE_SIZE;
 	buf2 = static_cast<byte*>(ut_malloc_nokey(buf_size + UNIV_PAGE_SIZE));
 
@@ -5847,8 +5848,7 @@ os_aio_print_pending_io(
 #endif /* UNIV_DEBUG */
 
 #ifdef _WIN32
-/*********************************************************************//**
-Normalizes a directory path for Windows: converts slashes to backslashes.
+/** Normalizes a directory path for Windows: converts '/' to '\'.
 @param[in,out] str A null-terminated Windows directory and file path */
 
 void

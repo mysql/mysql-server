@@ -1,0 +1,148 @@
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
+
+UPDATE performance_schema.setup_instruments SET enabled = 'YES'
+WHERE name in ('wait/io/table/sql/handler',
+               'wait/lock/table/sql/handler');
+
+--disable_warnings
+drop procedure if exists before_payload;
+drop procedure if exists after_payload;
+--enable_warnings
+
+delimiter $$;
+
+create procedure before_payload()
+begin
+  TRUNCATE TABLE performance_schema.table_io_waits_summary_by_index_usage;
+  TRUNCATE TABLE performance_schema.table_io_waits_summary_by_table;
+  TRUNCATE TABLE performance_schema.events_waits_history_long;
+  TRUNCATE TABLE performance_schema.events_waits_history;
+  TRUNCATE TABLE performance_schema.events_waits_current;
+end
+$$
+
+create procedure after_payload()
+begin
+  select count(1) as number_seen,
+    OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME,
+    OPERATION, NUMBER_OF_BYTES
+    from performance_schema.events_waits_history_long
+    where OBJECT_SCHEMA = "test"
+    group by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME, OPERATION, NUMBER_OF_BYTES;
+
+  select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME,
+    COUNT_STAR, COUNT_READ, COUNT_WRITE
+    from performance_schema.table_io_waits_summary_by_index_usage
+    where OBJECT_SCHEMA = "test"
+    order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
+
+  select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+    COUNT_STAR, COUNT_READ, COUNT_WRITE
+    from performance_schema.table_io_waits_summary_by_table
+    where OBJECT_SCHEMA = "test"
+    order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+end
+$$
+
+delimiter ;$$
+
+
+--disable_warnings
+drop table if exists t1;
+drop table if exists t2;
+drop table if exists t3;
+--enable_warnings
+
+create table t0(v int);
+create table t1(id1 int, a int);
+create table t2(id1 int, id2 int, b int);
+create table t3(id2 int, id3 int, c int);
+
+insert into t0 values
+  (0), (1), (2), (3), (4),
+  (5), (6), (7), (8), (9);
+
+insert into t1(id1, a)
+  select v, 100*v from t0;
+
+insert into t2(id1, id2, b)
+  select X.v, 10*X.v + Y.v, 100*X.v + 10*Y.v
+  from t0 X, t0 Y;
+
+insert into t3(id2, id3, c)
+  select 10*X.v + Y.v, 100*X.v + 10*Y.v + Z.v, 100*X.v + 10*Y.v + Z.v
+  from t0 X, t0 Y, t0 Z;
+
+analyze table t1;
+analyze table t2;
+analyze table t3;
+
+select * from t1 order by a;
+
+# Only dump a small part
+select * from t2
+  where (b >= 180) and (b <= 220)
+  order by b;
+
+# Only dump a small part
+select * from t3
+  where (c >= 587) and (c <= 612)
+  order by c;
+
+#
+# TEST 1 (join, no index)
+#
+
+explain select t1.*, t2.*, t3.*
+  from t1 join t2 using (id1) join t3 using (id2);
+
+call before_payload();
+
+# Payload query to analyse: should do batch io on t3
+
+--disable_result_log
+select t1.*, t2.*, t3.*
+  from t1 join t2 using (id1) join t3 using (id2);
+--enable_result_log
+
+call after_payload();
+
+#
+# TEST 2 (join, with index)
+#
+
+alter table t1 add unique index(id1);
+alter table t2 add unique index(id2);
+alter table t2 add index(id1);
+alter table t3 add unique index(id3);
+alter table t3 add index(id2);
+
+explain select t1.*, t2.*, t3.*
+  from t1 join t2 using (id1) join t3 using (id2);
+
+call before_payload();
+
+# Payload query to analyse: should do batch io on t3
+
+--disable_result_log
+select t1.*, t2.*, t3.*
+  from t1 join t2 using (id1) join t3 using (id2);
+--enable_result_log
+
+call after_payload();
+
+# Cleanup
+
+drop table t0;
+drop table t1;
+drop table t2;
+drop table t3;
+
+drop procedure before_payload;
+drop procedure after_payload;
+
+UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+

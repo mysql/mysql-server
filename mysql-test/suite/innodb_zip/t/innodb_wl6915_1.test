@@ -1,10 +1,7 @@
 --source include/have_innodb.inc
---source include/have_debug.inc
 --source include/big_test.inc
 
-# Valgrind would complain about memory leaks when we crash on purpose.
---source include/not_valgrind.inc
-# Embedded server does not support crashing
+# Embedded server does not support restarting
 --source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
@@ -524,14 +521,8 @@ connection default;
 #
 ## trying with VALUES innodb_undo_tablespaces, innodb_undo_logs ,innodb_log_files_in_group
 ##
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=20 --innodb_undo_logs=20 --innodb_log_files_in_group=4 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+let $restart_parameters = restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=20 --innodb_undo_logs=20 --innodb_log_files_in_group=4;
+--source include/restart_mysqld.inc
 
 # Create two client for concurrent execution
 connect (con1,localhost,root,,);
@@ -587,14 +578,8 @@ disconnect con2;
 
 connection default;
 # innodb_undo_logs > non redo rsegment
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=30 --innodb_undo_logs=20 --innodb_log_files_in_group=4 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+let $restart_parameters = restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=30 --innodb_undo_logs=20 --innodb_log_files_in_group=4;
+--source include/restart_mysqld.inc
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);

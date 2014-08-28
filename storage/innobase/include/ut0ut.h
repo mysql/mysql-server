@@ -83,6 +83,14 @@ typedef time_t	ib_time_t;
 #  define UT_RELAX_CPU() ((void)0) /* avoid warning for an empty statement */
 # endif
 
+# if defined(HAVE_HMT_PRIORITY_INSTRUCTION)
+#  define UT_LOW_PRIORITY_CPU() __asm__ __volatile__ ("or 1,1,1")
+#  define UT_RESUME_PRIORITY_CPU() __asm__ __volatile__ ("or 2,2,2")
+# else
+#  define UT_LOW_PRIORITY_CPU() ((void)0)
+#  define UT_RESUME_PRIORITY_CPU() ((void)0)
+# endif
+
 /*********************************************************************//**
 Delays execution for at most max_wait_us microseconds or returns earlier
 if cond becomes true.
@@ -100,27 +108,9 @@ do {								\
 } while (0)
 #endif /* !UNIV_HOTBACKUP */
 
-template <class T> T ut_min(T a, T b) { return(a < b ? a : b); }
-template <class T> T ut_max(T a, T b) { return(a > b ? a : b); }
+#define ut_max	std::max
+#define ut_min	std::min
 
-/******************************************************//**
-Calculates the minimum of two ulints.
-@return minimum */
-UNIV_INLINE
-ulint
-ut_min(
-/*===*/
-	ulint	 n1,	/*!< in: first number */
-	ulint	 n2);	/*!< in: second number */
-/******************************************************//**
-Calculates the maximum of two ulints.
-@return maximum */
-UNIV_INLINE
-ulint
-ut_max(
-/*===*/
-	ulint	 n1,	/*!< in: first number */
-	ulint	 n2);	/*!< in: second number */
 /******************************************************//**
 Compares two ulints.
 @return 1 if a > b, 0 if a == b, -1 if a < b */
@@ -571,6 +561,31 @@ public:
 		m_oss << rhs;
 		return(*this);
 	}
+
+	/** Write the given buffer to the internal string stream object.
+	@param[in]	buf	the buffer whose contents will be logged.
+	@param[in]	count	the length of the buffer buf.
+	@return the output stream into which buffer was written. */
+	std::ostream&
+	write(
+		const char*		buf,
+		std::streamsize		count)
+	{
+		return(m_oss.write(buf, count));
+	}
+
+	/** Write the given buffer to the internal string stream object.
+	@param[in]	buf	the buffer whose contents will be logged.
+	@param[in]	count	the length of the buffer buf.
+	@return the output stream into which buffer was written. */
+	std::ostream&
+	write(
+		const byte*		buf,
+		std::streamsize		count)
+	{
+		return(m_oss.write(reinterpret_cast<const char*>(buf), count));
+	}
+
 	std::ostringstream	m_oss;
 protected:
 	/* This class must not be used directly, hence making the default

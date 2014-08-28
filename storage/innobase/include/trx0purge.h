@@ -204,7 +204,8 @@ namespace undo {
 				m_rseg_for_trunc(),
 				m_scan_start(1),
 				m_purge_rseg_truncate_frequency(
-					srv_purge_rseg_truncate_frequency)
+					static_cast<ulint>(
+					srv_purge_rseg_truncate_frequency))
 			{
 			/* Do Nothing. */
 			}
@@ -274,8 +275,8 @@ namespace undo {
 
 			/* Sync with global value as we are done with
 			truncate now. */
-			m_purge_rseg_truncate_frequency =
-				srv_purge_rseg_truncate_frequency;
+			m_purge_rseg_truncate_frequency = static_cast<ulint>(
+				srv_purge_rseg_truncate_frequency);
 		}
 
 		/** Get the tablespace id to start scanning from.
@@ -344,25 +345,25 @@ namespace undo {
 
 	private:
 		/** UNDO tablespace is mark for truncate. */
-		ulint				m_undo_for_trunc;
+		ulint			m_undo_for_trunc;
 
 		/** rseg that resides in UNDO tablespace is marked for
 		truncate. */
-		rseg_for_trunc_t		m_rseg_for_trunc;
+		rseg_for_trunc_t	m_rseg_for_trunc;
 
 		/** Start scanning for UNDO tablespace from this space_id.
 		This is to avoid bias selection of one tablespace always. */
-		ulint				m_scan_start;
+		ulint			m_scan_start;
 
 		/** Rollback segment(s) purge frequency. This is local
 		value maintained along with global value. It is set to global
-		value on start but when tablespace is marked for truncate it is
-		updated to 1 and then minimum value among 2 is used by
+		value on start but when tablespace is marked for truncate it
+		is updated to 1 and then minimum value among 2 is used by
 		purge action. */
-		ulint				m_purge_rseg_truncate_frequency;
+		ulint			m_purge_rseg_truncate_frequency;
 
 		/** List of UNDO tablespace(s) to truncate. */
-		static undo_spaces_t		s_spaces_to_truncate;
+		static undo_spaces_t	s_spaces_to_truncate;
 	};	/* class Truncate */
 };	/* namespace undo */
 
