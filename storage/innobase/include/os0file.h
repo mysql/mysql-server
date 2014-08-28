@@ -900,7 +900,10 @@ os_file_set_size(
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
-	os_offset_t	size)	/*!< in: file size */
+	os_offset_t	size,	/*!< in: file size */
+	bool		read_only_mode)
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	__attribute__((nonnull, warn_unused_result));
 /***********************************************************************//**
 Truncates a file at its current position.
@@ -1249,7 +1252,6 @@ void
 os_aio_refresh_stats(void);
 /*======================*/
 
-#ifdef UNIV_DEBUG
 /**********************************************************************//**
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations. */
@@ -1258,6 +1260,7 @@ bool
 os_aio_all_slots_free(void);
 /*=======================*/
 
+#ifdef UNIV_DEBUG
 /** Prints all pending IO
 @param[in]	file	file where to print */
 
@@ -1321,8 +1324,7 @@ os_aio_linux_handle(
 	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
 #endif /* LINUX_NATIVE_AIO */
 
-/*********************************************************************//**
-Normalizes a directory path for Windows: converts slashes to backslashes.
+/** Normalizes a directory path for Windows: converts '/' to '\'.
 @param[in,out] str A null-terminated Windows directory and file path */
 #ifdef _WIN32
 void os_normalize_path_for_win(char*	str);

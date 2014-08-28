@@ -1683,13 +1683,12 @@ retry_page_get:
 				from level==leftmost_from_level. */
 				retrying_for_search_prev = true;
 
-				prev_tree_blocks
-					= static_cast<buf_block_t**>(
-						ut_malloc(sizeof(buf_block_t*)
+				prev_tree_blocks = static_cast<buf_block_t**>(
+					ut_malloc_nokey(sizeof(buf_block_t*)
 							* leftmost_from_level));
-				prev_tree_savepoints
-					= static_cast<ulint*>(
-						ut_malloc(sizeof(ulint)
+
+				prev_tree_savepoints = static_cast<ulint*>(
+					ut_malloc_nokey(sizeof(ulint)
 							* leftmost_from_level));
 
 				/* back to the level (leftmost_from_level+1) */
@@ -3208,12 +3207,12 @@ fail_err:
 					     offsets, heap, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
-			ib_logf(IB_LOG_LEVEL_ERROR, "Cannot insert tuple");
+
+			ib::error() <<  "Cannot insert tuple";
 			dtuple_print(stderr, entry);
 			fputs(" into ", stderr);
 			dict_index_name_print(stderr, thr_get_trx(thr), index);
-			ib_logf(IB_LOG_LEVEL_ERROR, "Max insert size %lu",
-				(ulong) max_size);
+			ib::error() << "Max insert size " << max_size;
 			ut_error;
 		}
 	}
@@ -4479,7 +4478,7 @@ btr_cur_pessimistic_update(
 		}
 	}
 
-	if (big_rec_vec) {
+	if (big_rec_vec != NULL && !dict_table_is_intrinsic(index->table)) {
 		ut_ad(page_is_leaf(page));
 		ut_ad(dict_index_is_clust(index));
 		ut_ad(flags & BTR_KEEP_POS_FLAG);
@@ -4490,6 +4489,11 @@ btr_cur_pessimistic_update(
 		We must keep the index->lock when we created a
 		big_rec, so that row_upd_clust_rec() can store the
 		big_rec in the same mini-transaction. */
+
+		ut_ad(mtr_memo_contains_flagged(mtr,
+						dict_index_get_lock(index),
+						MTR_MEMO_X_LOCK |
+						MTR_MEMO_SX_LOCK));
 
 		mtr_sx_lock(dict_index_get_lock(index), mtr);
 	}
@@ -6936,11 +6940,10 @@ btr_check_blob_fil_page_type(
 		}
 #endif /* !UNIV_DEBUG */
 
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"FIL_PAGE_TYPE=%lu on BLOB %s space %lu"
-			" page %lu flags %lx",
-			(ulong) type, read ? "read" : "purge",
-			(ulong) space_id, (ulong) page_no, (ulong) flags);
+		ib::fatal() << "FIL_PAGE_TYPE=" << type
+			<< " on BLOB " << (read ? "read" : "purge")
+			<< " space " << space_id << " page " << page_no
+			<< " flags " << flags;
 	}
 }
 
@@ -7327,20 +7330,19 @@ btr_copy_zblob_prefix(
 					 page_size);
 
 		if (UNIV_UNLIKELY(!bpage)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot load compressed BLOB"
-				" page %lu space %lu",
-				(ulong) page_no, (ulong) space_id);
+			ib::error() << "Cannot load compressed BLOB "
+				<< page_id_t(space_id, page_no);
 			goto func_exit;
 		}
 
 		if (UNIV_UNLIKELY
 		    (fil_page_get_type(bpage->zip.data) != page_type)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unexpected type %lu of compressed BLOB"
-				" page %lu space %lu",
-				(ulong) fil_page_get_type(bpage->zip.data),
-				(ulong) page_no, (ulong) space_id);
+
+			ib::error() << "Unexpected type "
+				<< fil_page_get_type(bpage->zip.data)
+				<< " of compressed BLOB page "
+				<< page_id_t(space_id, page_no);
+
 			ut_ad(0);
 			goto end_of_blob;
 		}
@@ -7374,22 +7376,21 @@ btr_copy_zblob_prefix(
 			/* fall through */
 		default:
 inflate_error:
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"inflate() of compressed BLOB"
-				" page %lu space %lu returned %d (%s)",
-				(ulong) page_no, (ulong) space_id,
-				err, d_stream.msg);
+			ib::error() << "inflate() of compressed BLOB page "
+				<< page_id_t(space_id, page_no)
+				<< " returned " << err
+				<< " (" << d_stream.msg << ")";
+
 		case Z_BUF_ERROR:
 			goto end_of_blob;
 		}
 
 		if (next_page_no == FIL_NULL) {
 			if (!d_stream.avail_in) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Unexpected end of compressed BLOB"
-					" page %lu space %lu",
-					(ulong) page_no,
-					(ulong) space_id);
+				ib::error()
+					<< "Unexpected end of compressed "
+					<< "BLOB page "
+					<< page_id_t(space_id, page_no);
 			} else {
 				err = inflate(&d_stream, Z_FINISH);
 				switch (err) {

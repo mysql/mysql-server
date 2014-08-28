@@ -1,0 +1,322 @@
+#********************************************************
+# wl6942: Store certain GIS data type in the row rather
+# than as BLOB.
+#
+#********************************************************
+
+--source include/have_geometry.inc
+--source include/have_innodb.inc
+
+--source include/not_embedded.inc
+--source include/big_test.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # Test when the POINT is on B-TREE
+--echo #
+CREATE TABLE t1(fid INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, p POINT, KEY(p)) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+(101, PointFromText('POINT(10 10)')),
+(102, PointFromText('POINT(20 10)')),
+(103, PointFromText('POINT(20 20)')),
+(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))));
+
+SELECT AsText(p) FROM t1;
+SELECT AsText(p) FROM t1 WHERE p = PointFromText('POINT(20 20)');
+
+INSERT INTO t1 VALUES
+(201, PointFromText('POINT(100.32374832 101.23741821)')),
+(202, PointFromText('POINT(102.43287328 100.23489233)')),
+(203, PointFromText('POINT(101.43284962 100.45892392)')),
+(204, PointFromWKB(AsWKB(PointFromText('POINT(103.43718640 105.248206478)')))),
+(205, PointFromText('POINT(101.43284962 100.45892392)')),
+(206, PointFromWKB(AsWKB(PointFromText('POINT(103.43718640 105.248206478)'))));
+
+SELECT AsText(p), COUNT(*) FROM t1 GROUP BY p;
+
+TRUNCATE t1;
+
+SELECT * FROM t1;
+
+INSERT INTO t1(p) VALUES(PointFromText('POINT(10 10)')),
+(PointFromText('POINT(10 20)')),
+(PointFromText('POINT(10 40)')),
+(PointFromText('POINT(10 60)')),
+(PointFromText('POINT(20 15)')),
+(PointFromText('POINT(30 10)')),
+(PointFromText('POINT(40 10)')),
+(PointFromText('POINT(50 10)')),
+(PointFromText('POINT(60 5)')),
+(PointFromText('POINT(60 10)')),
+(PointFromText('POINT(60 20)')),
+(PointFromText('POINT(60 100)')),
+(PointFromText('POINT(100 100)')),
+(PointFromText('POINT(80 60)')),
+(PointFromText('POINT(81 50)')),
+(PointFromText('POINT(82 70)')),
+(PointFromText('POINT(83 30)')),
+(PointFromText('POINT(20 100)')),
+(PointFromText('POINT(150 2000)')),
+(PointFromText('POINT(109 230)')),
+(PointFromText('POINT(280 250)')),
+(PointFromText('POINT(176 175)')),
+(PointFromText('POINT(200 10)')),
+(NULL),
+(NULL);
+
+SELECT AsText(p) FROM t1;
+SELECT COUNT(*) FROM t1;
+
+SELECT AsText(p) FROM t1;
+SELECT COUNT(*) FROM t1;
+
+INSERT INTO t1(p) SELECT p FROM t1;
+INSERT INTO t1(p) SELECT p FROM t1;
+INSERT INTO t1(p) SELECT p FROM t1;
+INSERT INTO t1(p) SELECT p FROM t1;
+INSERT INTO t1(p) SELECT p FROM t1;
+INSERT INTO t1(p) SELECT p FROM t1;
+INSERT INTO t1(p) SELECT p FROM t1;
+INSERT INTO t1(p) SELECT p FROM t1;
+INSERT INTO t1(p) SELECT p FROM t1;
+INSERT INTO t1(p) SELECT p FROM t1;
+INSERT INTO t1(p) SELECT p FROM t1;
+INSERT INTO t1(p) SELECT p FROM t1;
+
+CHECK TABLE t1;
+
+SELECT COUNT(*) FROM t1;
+SELECT AsText(p), COUNT(*) FROM t1 GROUP BY p;
+SELECT COUNT(*) FROM t1 WHERE p = PointFromText('POINT(280 250)');
+DELETE FROM t1 WHERE p = PointFromText('POINT(280 250)');
+SELECT COUNT(*) FROM t1 WHERE p = PointFromText('POINT(280 250)');
+SELECT COUNT(*) FROM t1 WHERE p = PointFromText('POINT(60 5)');
+DELETE FROM t1 WHERE P = PointFromText('POINT(60 5)');
+SELECT COUNT(*) FROM t1 WHERE p = PointFromText('POINT(60 5)');
+
+SELECT AsText(p), COUNT(*) FROM t1 WHERE p = PointFromText('POINT(60 10)') OR p = PointFromText('POINT(60 20)') OR p = PointFromText('POINT(60 30)') GROUP BY p;
+UPDATE t1 SET p = PointFromText('POINT(101 102)') WHERE p = PointFromText('POINT(60 10)') OR p = PointFromText('POINT(60 20)') OR p = PointFromText('POINT(60 30)');
+SELECT AsText(p), COUNT(*) FROM t1 WHERE p = PointFromText('POINT(60 10)') OR p = PointFromText('POINT(60 20)') OR p = PointFromText('POINT(60 30)') GROUP BY p;
+SELECT COUNT(*) FROM t1 WHERE p = PointFromText('POINT(101 102)');
+
+SELECT COUNT(*) FROM t1 WHERE p IS NULL;
+UPDATE t1 SET p = PointFromText('POINT(160 160)') WHERE p IS NULL;
+SELECT COUNT(*) FROM t1 WHERE p IS NULL;
+SELECT COUNT(*) FROM t1 WHERE p = PointFromText('POINT(160 160)');
+
+SELECT AsText(p), COUNT(*) FROM t1 GROUP BY p;
+SELECT COUNT(*) FROM t1;
+
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Test when POINT is used in spatial index
+--echo #
+SET @ls1 = GeomFromText('LINESTRING(0 20, 10 0)');
+SET @ls2 = GeomFromText('LINESTRING(0 0, 10 20)');
+SET @ls3 = GeomFromText('LINESTRING(20 -40, 21 -42)');
+SET @ls4 = GeomFromText('LINESTRING(20 -42, 21 -40)');
+SET @poly1 = GeomFromText('POLYGON((2 2, 2 10, 10 10, 10 2, 2 2))');
+SET @poly2 = GeomFromText('POLYGON((0 0, -5 0, -4 -1, -6 -15, -3 -15, 0 0))');
+SET @poly3 = GeomFromText('POLYGON((10.0 10.0, 20.5 20, 20.5 50, 32.0 64.0, 32.3 64.6, 5 60, 10 10))');
+SET @poly4 = GeomFromText('POLYGON((0 10, -10 10, -10 -10, 0 -10, 0 10))');
+SET @p1 = PointFromText('POINT(0 0)');
+SET @mpoly = GeomFromText('MULTIPOLYGON(((3 3, 3 16, 16 16, 16 3, 3 3)), ((10 10, 10 50, 50 50, 50 10, 10 10)))');
+
+CREATE TABLE gis_point (p1 POINT NOT NULL, p2 POINT NOT NULL, SPATIAL KEY k1 (p1), SPATIAL KEY k2 (p2)) ENGINE=InnoDB;
+
+INSERT INTO gis_point VALUES
+(PointFromText('POINT(1 2)'), PointFromText('POINT(-1 -3)')),
+(PointFromText('POINT(2 4)'), PointFromText('POINT(-2 -6)')),
+(PointFromText('POINT(3 6)'), PointFromText('POINT(-3 -9)')),
+(PointFromText('POINT(4 8)'), PointFromText('POINT(-4 -12)')),
+(PointFromText('POINT(5 10)'), PointFromText('POINT(-5 -15)')),
+(PointFromText('POINT(6 12)'), PointFromText('POINT(-6 -18)')),
+(PointFromText('POINT(7 14)'), PointFromText('POINT(-7 -21)')),
+(PointFromText('POINT(8 16)'), PointFromText('POINT(0 0)')),
+(PointFromText('POINT(9 18)'), PointFromText('POINT(-4 2)')),
+(PointFromText('POINT(10 21)'), PointFromText('POINT(-6 3)')),
+(PointFromText('POINT(20.5 41)'), PointFromText('POINT(-8 4)')),
+(PointFromText('POINT(26.25 57)'), PointFromText('POINT(1 2)')),
+(PointFromText('POINT(32.1234 64.2468)'), PointFromText('POINT(-1 -1)'));
+
+-- echo 'The ORDER BY for spatial index will use filesort'
+--replace_column 10 #
+EXPLAIN SELECT AsText(p1), AsText(p2) FROM gis_point ORDER BY p1, p2;
+SELECT AsText(p1), AsText(p2) FROM gis_point ORDER BY p1, p2;
+
+-- echo 'Try to do IDU on the table and verify the result'
+DELETE FROM gis_point WHERE ST_Equals(p2, PointFromText('POINT(-8 4)'));
+
+INSERT INTO gis_point VALUES(PointFromText('POINT(20.5 -41)'), PointFromText('POINT(8 -4)'));
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+
+UPDATE gis_point SET p1 = PointFromText('POINT(20.5 41)'), p2 = PointFromText('POINT(-8 4)') WHERE ST_Intersection(@ls3, @ls4) = p1;
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468) AND (20.5 41)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+
+CHECK TABLE gis_point;
+
+-- echo ============================================================
+-- echo Use a trx to test the IDU on the table and verify the result
+-- echo ============================================================
+
+START TRANSACTION;
+
+DELETE FROM gis_point WHERE ST_Equals(p2, PointFromText('POINT(-8 4)'));
+
+INSERT INTO gis_point VALUES(PointFromText('POINT(20.5 -41)'), PointFromText('POINT(8 -4)'));
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+
+UPDATE gis_point SET p1 = PointFromText('POINT(20.5 49)'), p2 = PointFromText('POINT(-8 4)') WHERE ST_Intersection(@ls3, @ls4) = p1;
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468) AND (20.5 49)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+
+ROLLBACK;
+
+SELECT AsText(p1) AS 'Expect (32.1234 64.2468) AND (20.5 41)' FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4);
+
+CHECK TABLE gis_point;
+
+-- echo =======================================================
+-- echo Enlarge the table by inserting the same data and verify
+-- echo =======================================================
+
+INSERT INTO gis_point SELECT * FROM gis_point;
+INSERT INTO gis_point SELECT * FROM gis_point;
+INSERT INTO gis_point SELECT * FROM gis_point;
+INSERT INTO gis_point SELECT * FROM gis_point;
+INSERT INTO gis_point SELECT * FROM gis_point;
+INSERT INTO gis_point SELECT * FROM gis_point;
+INSERT INTO gis_point SELECT * FROM gis_point;
+INSERT INTO gis_point SELECT * FROM gis_point;
+INSERT INTO gis_point SELECT * FROM gis_point;
+INSERT INTO gis_point SELECT * FROM gis_point;
+
+CHECK TABLE gis_point;
+
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
+
+SELECT COUNT(*), AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
+SELECT COUNT(*), AsText(p1) FROM gis_point WHERE Within(p1, @poly1) GROUP BY p1;
+SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
+SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
+SELECT COUNT(*), AsText(p1) FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4) GROUP BY p1;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1, p2;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT Within(p1, @mpoly) GROUP BY p1, p2;
+
+-- echo ======================================================================
+-- echo Build another new table with the same schema, will insert data from this table to the orignal one
+-- echo ======================================================================
+
+CREATE TABLE p(p1 POINT NOT NULL, p2 POINT NOT NULL, SPATIAL INDEX k1(p2)) ENGINE=InnoDB;
+
+INSERT INTO p VALUES(PointFromText('POINT(1000 -1000)'), PointFromText('POINT(-201 203.56)'));
+INSERT INTO p VALUES(PointFromText('POINT(20.5 43.9832)'), PointFromText('POINT(-0 0)'));
+INSERT INTO p VALUES(PointFromText('POINT(-4.2 -6.98)'), PointFromText('POINT(-120.5 343.9832)'));
+
+INSERT INTO p SELECT * FROM p WHERE Within(p1, GeomFromText('POLYGON((0 0, 0 2000, 2000 2000, 2000 -2000, 0 -2000, 0 0))'));
+INSERT INTO p SELECT * FROM p WHERE Within(p1, GeomFromText('POLYGON((0 0, -10 0, -100 -100, 0 -50, 0 0))'));
+
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM p GROUP BY p1, p2;
+
+INSERT INTO gis_point SELECT * FROM p;
+INSERT INTO gis_point SELECT * FROM p;
+INSERT INTO gis_point SELECT * FROM p;
+INSERT INTO gis_point SELECT * FROM p;
+INSERT INTO gis_point SELECT * FROM p;
+INSERT INTO gis_point SELECT * FROM p;
+INSERT INTO gis_point SELECT * FROM p;
+
+CHECK TABLE gis_point;
+
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
+
+SELECT COUNT(*), AsText(p1) FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4) GROUP BY p1;
+
+SELECT COUNT(*), AsText(p2) FROM gis_point WHERE Within(p2, @poly2) GROUP BY p2;
+
+DROP TABLE p;
+
+-- echo ================================
+-- echo Use a trx to test IUD and verify
+-- echo ================================
+
+# Temporarily disabled the following test case, since the ROLLBACK and
+# some other DML would cost too much of time. We could test them until
+# we have optimized the UNDO, etc.
+
+#START TRANSACTION;
+
+#-- echo 'To remove (-2 -6), (-1 -3)'
+#DELETE FROM gis_point WHERE ST_Contains(GeomFromText('POLYGON((-8 -8, 4 -7, 1 1, 0 -1, -2 -2, -8 -8))') , p2);
+
+#SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
+
+#-- echo 'To set (-1 -1) to (-5.12 -10.84)'
+#UPDATE gis_point SET p2 = PointFromText('POINT(-5.12 -10.84)') WHERE ST_Intersection(GeomFromText('LINESTRING(-3 4, -2 0, 0.5 -2.5, 5 0)'), GeomFromText('LINESTRING(0.6 0.6, -10 -10)')) = p2;
+
+#SELECT COUNT(*), AsText(p2) FROM gis_point WHERE Within(p2, @poly2) GROUP BY p2;
+
+#-- echo 'To insert several (-3.6 -4.05) (-1 -1)
+#INSERT INTO gis_point VALUES
+#(PointFromText('POINT(10.1 2.6)'), PointFromText('POINT(-1 -1)')),
+#(PointFromText('POINT(100.99 -2.53)'), PointFromText('POINT(-3.6 -4.05)')),
+#(PointFromText('POINT(13.62 3.87)'), PointFromText('POINT(-1 -1)')),
+#(PointFromText('POINT(-36.3 0.34)'), PointFromText('POINT(-1 -1)')),
+#(PointFromText('POINT(1.04 25.6)'), PointFromText('POINT(-3.6 -4.05)'));
+
+#SELECT COUNT(*), AsText(p2) FROM gis_point WHERE Within(p2, @poly2) GROUP BY p2;
+
+#SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Contains(GeomFromText('POLYGON((-0.999 -0.999, -6 -1, -6 -7, -0.99999 -0.99999, -0.999 -0.999))'), p2) GROUP BY p2;
+
+#ROLLBACK;
+
+#CHECK TABLE gis_point;
+
+-- echo =============================================
+-- echo Delete those rows selected from another table
+-- echo =============================================
+
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
+
+UPDATE gis_point SET p2 = PointFromText('POINT(2000 2000)') WHERE ST_Contains(GeomFromText('POLYGON((-100 100, -400 100, -400 400, -100 400, -100 100))'), p2) OR ST_Contains(GeomFromText('POLYGON((-0.0001 -0.0002, -0.0001 0.00002, 0.00000005 0.000001, 0.0000025 -0.001, -0.0001 -0.0002))'), p2);
+
+CHECK TABLE gis_point;
+
+-- echo 'To remove all the just updated rows'
+DELETE FROM gis_point WHERE ST_Intersection(GeomFromText('LINESTRING(1800 1900, 2200 2100)'), GeomFromText('LINESTRING(0 0, 2001 2001)')) = p2;
+
+INSERT INTO gis_point VALUES
+(PointFromText('POINT(8 16)'), PointFromText('POINT(0 0)')),
+(PointFromText('POINT(8 16)'), PointFromText('POINT(0 0)'));
+
+-- echo ======================================================================
+-- echo Following results should be almost the same with those at the beginning
+-- echo ======================================================================
+
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
+SELECT COUNT(*), AsText(p1), AsText(p2)
+FROM gis_point
+WHERE ST_Contains(GeomFromText('POLYGON((-1000 -1000, -1000 1000, 1000 1000, 1001 -1001, -1000 -1000))'), p1)
+GROUP BY p1, p2;
+
+SELECT AsText(p1), AsText(p2) FROM gis_point GROUP BY p1, p2;
+SELECT COUNT(*), AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
+SELECT COUNT(*), AsText(p1) FROM gis_point WHERE Within(p1, @poly1) GROUP BY p1;
+SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
+SELECT COUNT(*), AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
+SELECT COUNT(*), AsText(p1) FROM gis_point WHERE TOUCHES(@poly3, p1) AND Within(p2, @poly4) GROUP BY p1;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1, p2;
+SELECT COUNT(*), AsText(p1), AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT Within(p1, @mpoly) GROUP BY p1, p2;
+
+CHECK TABLE gis_point;
+
+DROP TABLE gis_point;
+

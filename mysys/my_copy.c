@@ -17,18 +17,12 @@
 #include <my_dir.h> /* for stat */
 #include <m_string.h>
 #include "mysys_err.h"
-#if defined(HAVE_UTIME_H)
-#include <utime.h>
-#elif defined(HAVE_SYS_UTIME_H)
-#include <sys/utime.h>
-#else
-#include <time.h>
-struct utimbuf {
-  time_t actime;
-  time_t modtime;
-};
-#endif
 
+#ifndef _WIN32
+#include <utime.h>
+#else
+#include <sys/utime.h>
+#endif
 
 /*
   int my_copy(const char *from, const char *to, myf MyFlags)

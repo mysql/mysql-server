@@ -28,6 +28,15 @@
 #ifdef FIONREAD_IN_SYS_FILIO
 # include <sys/filio.h>
 #endif
+#ifndef _WIN32
+# include <netinet/tcp.h>
+#endif
+#ifdef HAVE_POLL_H
+# include <poll.h>
+#endif
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
 
 int vio_errno(Vio *vio __attribute__((unused)))
 {

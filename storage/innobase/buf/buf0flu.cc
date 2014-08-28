@@ -539,9 +539,8 @@ buf_flush_ready_for_replace(
 		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	}
 
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Buffer block %p state %u in the LRU list!",
-		reinterpret_cast<const void*>(bpage), bpage->state);
+	ib::fatal() << "Buffer block " << bpage << " state " <<  bpage->state
+		<< " in the LRU list!";
 
 	return(FALSE);
 }
@@ -824,8 +823,8 @@ buf_flush_init_for_writing(
 			return;
 		}
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The compressed page to be written seems corrupt:");
+		ib::error() << "The compressed page to be written"
+			" seems corrupt:";
 		ut_print_buf(stderr, page, size);
 		fputs("\nInnoDB: Possibly older version of the page:", stderr);
 		ut_print_buf(stderr, page_zip->data, size);
@@ -2122,7 +2121,8 @@ buf_flush_LRU_list(
 	if (withdraw_depth > srv_LRU_scan_depth) {
 		scan_depth = ut_min(withdraw_depth, scan_depth);
 	} else {
-		scan_depth = ut_min(srv_LRU_scan_depth, scan_depth);
+		scan_depth = ut_min(static_cast<ulint>(srv_LRU_scan_depth),
+				    scan_depth);
 	}
 
 	/* Currently one of page_cleaners is the only thread
@@ -2389,7 +2389,8 @@ pc_sleep_if_needed(
 		ut_min() to avoid long sleep in case of wrap around. */
 		ulint	sleep_us;
 
-		sleep_us = ut_min(1000000, (next_loop_time - cur_time) * 1000);
+		sleep_us = ut_min(static_cast<ulint>(1000000),
+				  (next_loop_time - cur_time) * 1000);
 
 		return(os_event_wait_time_low(buf_flush_event,
 					      sleep_us, sig_count));
@@ -2408,7 +2409,7 @@ buf_flush_page_cleaner_init(void)
 	ut_ad(page_cleaner == NULL);
 
 	page_cleaner = static_cast<page_cleaner_t*>(
-		ut_zalloc(sizeof(*page_cleaner)));
+		ut_zalloc_nokey(sizeof(*page_cleaner)));
 
 	mutex_create("page_cleaner", &page_cleaner->mutex);
 
@@ -2418,8 +2419,8 @@ buf_flush_page_cleaner_init(void)
 	page_cleaner->n_slots = static_cast<ulint>(srv_buf_pool_instances);
 
 	page_cleaner->slots = static_cast<page_cleaner_slot_t*>(
-		ut_zalloc(page_cleaner->n_slots
-			  * sizeof(*page_cleaner->slots)));
+		ut_zalloc_nokey(page_cleaner->n_slots
+				* sizeof(*page_cleaner->slots)));
 
 	page_cleaner->is_running = true;
 }
@@ -2646,9 +2647,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"page_cleaner thread running, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "page_cleaner thread running, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	buf_page_cleaner_is_active = TRUE;

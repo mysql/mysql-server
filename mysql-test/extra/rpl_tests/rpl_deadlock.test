@@ -61,6 +61,15 @@ let $status_var_comparsion= >;
 --source include/wait_for_status_var.inc
 SELECT COUNT(*) FROM t2;
 COMMIT;
+
+--echo
+--echo # Test that the performance schema coulumn shows > 0 values.
+--echo
+
+--let $assert_text= current number of retries should be more than the value saved before deadlock.
+--let $assert_cond= [SELECT COUNT_TRANSACTIONS_RETRIES FROM performance_schema.replication_execute_status, COUNT_TRANSACTIONS_RETRIES, 1] > "$slave_retried_transactions"
+--source include/assert.inc
+
 source include/check_slave_is_running.inc;
 sync_with_master;
 
@@ -193,6 +202,7 @@ connection master;
 DROP TABLE t1,t2,t3;
 sync_slave_with_master;
 SET global max_relay_log_size= @my_max_relay_log_size;
-
+CALL mtr.add_suppression(".*worker thread retried transaction.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 --echo End of 5.1 tests
 --source include/rpl_end.inc

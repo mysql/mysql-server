@@ -32,8 +32,8 @@
 #include "unireg.h"
 #include "tztime.h"
 #include "sql_time.h"                           // localtime_to_TIME
-#include "sql_base.h"                           // open_system_tables_for_read,
-                                                // close_system_tables
+#include "sql_base.h"                           // open_trans_system_tables_for_read,
+                                                // close_trans_system_tables
 #include "log.h"
 #else
 #include <my_time.h>
@@ -1603,7 +1603,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   TABLE *table;
   Tz_names_entry *tmp_tzname;
   my_bool return_val= 1;
-  char db[]= "mysql";
+  LEX_CSTRING db= { C_STRING_WITH_LEN("mysql") };
   int res;
   DBUG_ENTER("my_tz_init");
 
@@ -1663,13 +1663,12 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     without time zone description tables. Now try to load information about
     leap seconds shared by all time zones.
   */
-
-  thd->set_db(db, sizeof(db)-1);
+  thd->set_db(db);
   memset(&tz_tables[0], 0, sizeof(TABLE_LIST));
   tz_tables[0].alias= tz_tables[0].table_name=
     (char*)"time_zone_leap_second";
   tz_tables[0].table_name_length= 21;
-  tz_tables[0].db= db;
+  tz_tables[0].db= db.str;
   tz_tables[0].db_length= sizeof(db)-1;
   tz_tables[0].lock_type= TL_READ;
 
@@ -1678,12 +1677,12 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   tz_tables[1].prev_global= &tz_tables[0].next_global;
   init_mdl_requests(tz_tables);
 
+
   /*
     We need to open only mysql.time_zone_leap_second, but we try to
     open all time zone tables to see if they exist.
   */
-  if (open_and_lock_tables(thd, tz_tables, FALSE,
-                           MYSQL_OPEN_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_trans_system_tables_for_read(thd, tz_tables))
   {
     sql_print_warning("Can't open and lock time zone table: %s "
                       "trying to live without them",
@@ -1695,7 +1694,6 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 
   for (TABLE_LIST *tl= tz_tables; tl; tl= tl->next_global)
   {
-    tl->table->use_all_columns();
     /* Force close at the end of the function to free memory. */
     tl->table->m_needs_reopen= TRUE;
   }
@@ -1762,10 +1760,12 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 
   return_val= 0;
 
+end_with_close:
+  close_trans_system_tables(thd);
 
 end_with_setting_default_tz:
   /* If we have default time zone try to load it */
-  if (default_tzname)
+  if (!return_val && default_tzname)
   {
     String tmp_tzname2(default_tzname, &my_charset_latin1);
     /*
@@ -1781,15 +1781,11 @@ end_with_setting_default_tz:
     }
   }
 
-end_with_close:
-  if (time_zone_tables_exist)
-    close_mysql_tables(thd);
-
 end_with_cleanup:
-
   /* if there were error free time zone describing structs */
   if (return_val)
     my_tz_free();
+
 end:
   delete thd;
   if (org_thd)
@@ -1888,9 +1884,18 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   if (table->file->ha_index_init(0, 1))
     goto end;
 
-  if (table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
-                                     HA_WHOLE_KEY, HA_READ_KEY_EXACT))
+  res= table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+                                      HA_WHOLE_KEY, HA_READ_KEY_EXACT);
+  if (res)
   {
+    /*
+      Time_zone-related tables are used in autocommit/read-committed/
+      non-locking mode, therefore we don't expect the error codes
+      HA_ERR_LOCK_WAIT_TIMEOUT/HA_ERR_LOCK_DEADLOCK on return from read
+      from storage engine.
+    */
+    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
+                res != HA_ERR_LOCK_DEADLOCK);
 #ifdef EXTRA_DEBUG
     /*
       Most probably user has mistyped time zone name, so no need to bark here
@@ -1917,9 +1922,13 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   if (table->file->ha_index_init(0, 1))
     goto end;
 
-  if (table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
-                                     HA_WHOLE_KEY, HA_READ_KEY_EXACT))
+  res= table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+                                      HA_WHOLE_KEY, HA_READ_KEY_EXACT);
+  if (res)
   {
+    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
+                res != HA_ERR_LOCK_DEADLOCK);
+
     sql_print_error("Can't find description of time zone '%u'", tzid);
     goto end;
   }
@@ -1999,6 +2008,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 
   if (res != HA_ERR_END_OF_FILE)
   {
+    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
+                res != HA_ERR_LOCK_DEADLOCK);
     sql_print_error("Error while loading time zone description from "
                     "mysql.time_zone_transition_type table");
     goto end;
@@ -2057,6 +2068,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   if (res != HA_ERR_END_OF_FILE && res != HA_ERR_KEY_NOT_FOUND)
   {
+    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
+                res != HA_ERR_LOCK_DEADLOCK);
     sql_print_error("Error while loading time zone description from "
                     "mysql.time_zone_transition table");
     goto end;
@@ -2319,16 +2332,15 @@ my_tz_find(THD *thd, const String *name)
     else if (time_zone_tables_exist)
     {
       TABLE_LIST tz_tables[MY_TZ_TABLES_COUNT];
-      Open_tables_backup open_tables_state_backup;
 
       tz_init_table_list(tz_tables);
       init_mdl_requests(tz_tables);
       DEBUG_SYNC(thd, "my_tz_find");
-      if (!open_system_tables_for_read(thd, tz_tables,
-                                       &open_tables_state_backup))
+
+      if (!open_trans_system_tables_for_read(thd, tz_tables))
       {
         result_tz= tz_load_from_open_tables(name, tz_tables);
-        close_system_tables(thd, &open_tables_state_backup);
+        close_trans_system_tables(thd);
       }
     }
   }
@@ -2428,7 +2440,7 @@ print_tz_leaps_as_sql(const TIME_ZONE_INFO *sp)
     For all timezones.
   */
   printf("TRUNCATE TABLE time_zone_leap_second;\n");
-
+  printf("START TRANSACTION;\n");
   if (sp->leapcnt)
   {
     printf("INSERT INTO time_zone_leap_second \
@@ -2438,8 +2450,7 @@ print_tz_leaps_as_sql(const TIME_ZONE_INFO *sp)
              sp->lsis[i].ls_trans, sp->lsis[i].ls_corr);
     printf(";\n");
   }
-
-  printf("ALTER TABLE time_zone_leap_second ORDER BY Transition_time;\n");
+  printf("COMMIT;\n");
 }
 
 
@@ -2547,17 +2558,14 @@ main(int argc, char **argv)
     printf("TRUNCATE TABLE time_zone_transition;\n");
     printf("TRUNCATE TABLE time_zone_transition_type;\n");
 
+    printf("START TRANSACTION;\n");
     if (scan_tz_dir(root_name_end))
     {
       fprintf(stderr, "There were fatal errors during processing "
                       "of zoneinfo directory\n");
       return 1;
     }
-
-    printf("ALTER TABLE time_zone_transition "
-           "ORDER BY Time_zone_id, Transition_time;\n");
-    printf("ALTER TABLE time_zone_transition_type "
-           "ORDER BY Time_zone_id, Transition_type_id;\n");
+    printf("COMMIT;\n");
   }
   else
   {
@@ -2574,12 +2582,14 @@ main(int argc, char **argv)
     }
     else
     {
+      printf("START TRANSACTION;\n");
       if (tz_load(argv[1], &tz_info, &tz_storage))
       {
         fprintf(stderr, "Problems with zoneinfo file '%s'\n", argv[2]);
         return 1;
       }
       print_tz_as_sql(argv[2], &tz_info);
+      printf("COMMIT;\n");
     }
 
     free_root(&tz_storage, MYF(0));

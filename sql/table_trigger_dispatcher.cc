@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,8 +53,6 @@ Table_trigger_dispatcher *Table_trigger_dispatcher::create(TABLE *subject_table)
 */
 Table_trigger_dispatcher::Table_trigger_dispatcher(TABLE *subject_table)
  :m_subject_table(subject_table),
-  m_db_name(subject_table->s->db),
-  m_subject_table_name(subject_table->s->table_name),
   m_unparseable_triggers(NULL),
   m_record1_field(NULL),
   m_new_field(NULL),
@@ -63,6 +61,11 @@ Table_trigger_dispatcher::Table_trigger_dispatcher(TABLE *subject_table)
 {
   memset(m_trigger_map, 0, sizeof(m_trigger_map));
   m_parse_error_message[0]= 0;
+  m_db_name.str= const_cast<char*>(subject_table->s->db.str);
+  m_db_name.length= subject_table->s->db.length;
+  m_subject_table_name.str=
+                       const_cast<char*>(subject_table->s->table_name.str);
+  m_subject_table_name.length= subject_table->s->table_name.length;
 }
 
 

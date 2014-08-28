@@ -1821,3 +1821,9 @@ VARIABLE_NAME	VARIABLE_VALUE
 LOG_SLOW_SLAVE_STATEMENTS	ON
 set global log_slow_admin_statements = default;
 set global log_slow_slave_statements = default;
+#
+# WL#7764 - Make STRICT mode for transactional SEs default in 5.7
+#
+SHOW VARIABLES LIKE 'sql_mode';
+Variable_name	Value
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION

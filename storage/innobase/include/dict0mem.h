@@ -48,8 +48,11 @@ Created 1/8/1996 Heikki Tuuri
 #include "buf0buf.h"
 #include "gis0type.h"
 #include "os0once.h"
+#include "ut0new.h"
+
 #include <set>
 #include <algorithm>
+#include <iterator>
 
 /* Forward declaration. */
 struct ib_rbt_t;
@@ -112,14 +115,17 @@ the Compact page format is used, i.e ROW_FORMAT != REDUNDANT */
 
 /** Width of the COMPACT flag */
 #define DICT_TF_WIDTH_COMPACT		1
+
 /** Width of the ZIP_SSIZE flag */
 #define DICT_TF_WIDTH_ZIP_SSIZE		4
+
 /** Width of the ATOMIC_BLOBS flag.  The Antelope file formats broke up
 BLOB and TEXT fields, storing the first 768 bytes in the clustered index.
 Barracuda row formats store the whole blob or text field off-page atomically.
 Secondary indexes are created from this external data using row_ext_t
 to cache the BLOB prefixes. */
 #define DICT_TF_WIDTH_ATOMIC_BLOBS	1
+
 /** If a table is created with the MYSQL option DATA DIRECTORY and
 innodb-file-per-table, an older engine will not be able to find that table.
 This flag prevents older engines from attempting to open the table and
@@ -179,7 +185,7 @@ allows InnoDB to update_create_info() accordingly. */
 #define DICT_TF_HAS_ATOMIC_BLOBS(flags)			\
 		((flags & DICT_TF_MASK_ATOMIC_BLOBS)	\
 		>> DICT_TF_POS_ATOMIC_BLOBS)
-/** Return the value of the ATOMIC_BLOBS field */
+/** Return the value of the DATA_DIR field */
 #define DICT_TF_HAS_DATA_DIR(flags)			\
 		((flags & DICT_TF_MASK_DATA_DIR)	\
 		>> DICT_TF_POS_DATA_DIR)
@@ -859,6 +865,22 @@ struct dict_foreign_t{
 	dict_index_t*	referenced_index;/*!< referenced index */
 };
 
+std::ostream&
+operator<< (std::ostream& out, const dict_foreign_t& foreign);
+
+struct dict_foreign_print {
+
+	dict_foreign_print(std::ostream& out)
+		: m_out(out)
+	{}
+
+	void operator()(const dict_foreign_t* foreign) {
+		m_out << *foreign;
+	}
+private:
+	std::ostream&	m_out;
+};
+
 /** Compare two dict_foreign_t objects using their ids. Used in the ordering
 of dict_table_t::foreign_set and dict_table_t::referenced_set.  It returns
 true if the first argument is considered to go before the second in the
@@ -926,7 +948,44 @@ struct dict_foreign_matches_id {
 	const char*	m_id;
 };
 
-typedef std::set<dict_foreign_t*, dict_foreign_compare> dict_foreign_set;
+typedef std::set<
+	dict_foreign_t*,
+	dict_foreign_compare,
+	ut_allocator<dict_foreign_t*> >	dict_foreign_set;
+
+std::ostream&
+operator<< (std::ostream& out, const dict_foreign_set& fk_set);
+
+/** Function object to check if a foreign key object is there
+in the given foreign key set or not.  It returns true if the
+foreign key is not found, false otherwise */
+struct dict_foreign_not_exists {
+	dict_foreign_not_exists(const dict_foreign_set& obj_)
+		: m_foreigns(obj_)
+	{}
+
+	/* Return true if the given foreign key is not found */
+	bool operator()(dict_foreign_t* const & foreign) const {
+		return(m_foreigns.find(foreign) == m_foreigns.end());
+	}
+private:
+	const dict_foreign_set&	m_foreigns;
+};
+
+/** Validate the search order in the foreign key set.
+@param[in]	fk_set	the foreign key set to be validated
+@return true if search order is fine in the set, false otherwise. */
+bool
+dict_foreign_set_validate(
+	const dict_foreign_set&	fk_set);
+
+/** Validate the search order in the foreign key sets of the table
+(foreign_set and referenced_set).
+@param[in]	table	table whose foreign key sets are to be validated
+@return true if foreign key sets are fine, false otherwise. */
+bool
+dict_foreign_set_validate(
+	const dict_table_t&	table);
 
 /*********************************************************************//**
 Frees a foreign key struct. */

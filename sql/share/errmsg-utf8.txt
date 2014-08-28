@@ -1272,29 +1272,7 @@ ER_BAD_FIELD_ERROR 42S22 S0022
         swe "Okänd kolumn '%-.192s' i %-.192s"
         ukr "Невідомий стовбець '%-.192s' у '%-.192s'"
 ER_WRONG_FIELD_WITH_GROUP 42000 S1009
-        cze "Použité '%-.192s' nebylo v group by"
-        dan "Brugte '%-.192s' som ikke var i group by"
-        nla "Opdracht gebruikt '%-.192s' dat niet in de GROUP BY voorkomt"
-        eng "'%-.192s' isn't in GROUP BY"
-        est "'%-.192s' puudub GROUP BY klauslis"
-        fre "'%-.192s' n'est pas dans 'group by'"
-        ger "'%-.192s' ist nicht in GROUP BY vorhanden"
-        greek "Χρησιμοποιήθηκε '%-.192s' που δεν υπήρχε στο group by"
-        hun "Used '%-.192s' with wasn't in group by"
-        ita "Usato '%-.192s' che non e` nel GROUP BY"
-        jpn "'%-.192s' はGROUP BY句で指定されていません。"
-        kor "'%-.192s'은 GROUP BY속에 없음"
-        nor "Brukte '%-.192s' som ikke var i group by"
-        norwegian-ny "Brukte '%-.192s' som ikkje var i group by"
-        pol "Użyto '%-.192s' bez umieszczenia w group by"
-        por "'%-.192s' não está em 'GROUP BY'"
-        rum "'%-.192s' nu exista in clauza GROUP BY"
-        rus "'%-.192s' не присутствует в GROUP BY"
-        serbian "Entitet '%-.192s' nije naveden u komandi 'GROUP BY'"
-        slo "Použité '%-.192s' nebolo v 'group by'"
-        spa "Usado '%-.192s' el cual no esta group by"
-        swe "'%-.192s' finns inte i GROUP BY"
-        ukr "'%-.192s' не є у GROUP BY"
+        eng "Expression #%d of %s is not in GROUP BY clause and contains nonaggregated column '%-.192s' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by"
 ER_WRONG_GROUP_FIELD 42000 S1009
         cze "Nemohu použít group na '%-.192s'"
         dan "Kan ikke gruppere på '%-.192s'"
@@ -3182,24 +3160,7 @@ ER_REGEXP_ERROR 42000
         swe "Fick fel '%-.64s' från REGEXP"
         ukr "Отримано помилку '%-.64s' від регулярного виразу"
 ER_MIX_OF_GROUP_FUNC_AND_FIELDS 42000 
-        cze "Pokud není žádná GROUP BY klauzule, není dovoleno současné použití GROUP položek (MIN(),MAX(),COUNT()...) s ne GROUP položkami"
-        dan "Sammenblanding af GROUP kolonner (MIN(),MAX(),COUNT()...) uden GROUP kolonner er ikke tilladt, hvis der ikke er noget GROUP BY prædikat"
-        nla "Het mixen van GROUP kolommen (MIN(),MAX(),COUNT()...) met no-GROUP kolommen is foutief indien er geen GROUP BY clausule is"
-        eng "Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause"
-        est "GROUP tulpade (MIN(),MAX(),COUNT()...) kooskasutamine tavaliste tulpadega ilma GROUP BY klauslita ei ole lubatud"
-        fre "Mélanger les colonnes GROUP (MIN(),MAX(),COUNT()...) avec des colonnes normales est interdit s'il n'y a pas de clause GROUP BY"
-        ger "Das Vermischen von GROUP-Feldern (MIN(),MAX(),COUNT()...) mit Nicht-GROUP-Feldern ist nicht zulässig, wenn keine GROUP-BY-Klausel vorhanden ist"
-        hun "A GROUP mezok (MIN(),MAX(),COUNT()...) kevert hasznalata nem lehetseges GROUP BY hivatkozas nelkul"
-        ita "Il mescolare funzioni di aggregazione (MIN(),MAX(),COUNT()...) e non e` illegale se non c'e` una clausula GROUP BY"
-        jpn "GROUP BY句が無い場合、集計関数(MIN(),MAX(),COUNT(),...)と通常の列を同時に使用できません。"
-        kor "Mixing of GROUP 칼럼s (MIN(),MAX(),COUNT(),...) with no GROUP 칼럼s is illegal if there is no GROUP BY clause"
-        por "Mistura de colunas agrupadas (com MIN(), MAX(), COUNT(), ...) com colunas não agrupadas é ilegal, se não existir uma cláusula de agrupamento (cláusula GROUP BY)"
-        rum "Amestecarea de coloane GROUP (MIN(),MAX(),COUNT()...) fara coloane GROUP este ilegala daca nu exista o clauza GROUP BY"
-        rus "Одновременное использование сгруппированных (GROUP) столбцов (MIN(),MAX(),COUNT(),...) с несгруппированными столбцами является некорректным, если в выражении есть GROUP BY"
-        serbian "Upotreba agregatnih funkcija (MIN(),MAX(),COUNT()...) bez 'GROUP' kolona je pogrešna ako ne postoji 'GROUP BY' iskaz"
-        spa "Mezcla de columnas GROUP (MIN(),MAX(),COUNT()...) con no GROUP columnas es ilegal si no hat la clausula GROUP BY"
-        swe "Man får ha både GROUP-kolumner (MIN(),MAX(),COUNT()...) och fält i en fråga om man inte har en GROUP BY-del"
-        ukr "Змішування GROUP стовбців (MIN(),MAX(),COUNT()...) з не GROUP стовбцями є забороненим, якщо не має GROUP BY"
+        eng "In aggregated query without GROUP BY, expression #%u of %s contains nonaggregated column '%-.192s'; this is incompatible with sql_mode=only_full_group_by"
 ER_NONEXISTING_GRANT 42000 
         cze "Neexistuje odpovídající grant pro uživatele '%-.48s' na stroji '%-.64s'"
         dan "Denne tilladelse findes ikke for brugeren '%-.48s' på vært '%-.64s'"
@@ -5633,6 +5594,7 @@ ER_MAX_PREPARED_STMT_COUNT_REACHED 42000
 ER_VIEW_RECURSIVE
         eng "`%-.192s`.`%-.192s` contains view recursion"
         ger "`%-.192s`.`%-.192s` enthält View-Rekursion"
+# the one below is not used anymore:
 ER_NON_GROUPING_FIELD_USED 42000
         eng "Non-grouping field '%-.192s' is used in %-.64s clause"
         ger "In der %-.192s-Klausel wird das die Nicht-Gruppierungsspalte '%-.64s' verwendet"
@@ -7253,6 +7215,19 @@ ER_UNSUPPORTED_BY_REPLICATION_THREAD
 
 ER_INCORRECT_TYPE
   eng "Incorrect type for argument %s in function %s."
+
+ER_FIELD_IN_ORDER_NOT_SELECT
+  eng "Expression #%u of ORDER BY clause is not in SELECT list, references column '%-.192s' which is not in SELECT list; this is incompatible with %s"
+
+ER_AGGREGATE_IN_ORDER_NOT_SELECT
+  eng "Expression #%u of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with %s"
+
+ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
+  eng "Supplied filter list contains a value which is not in the required format 'db_pattern.table_pattern'"
+
+ER_NET_OK_PACKET_TOO_LARGE 08S01
+  eng "OK packet too large"
+
 #
 #  End of 5.7 error messages.
 #

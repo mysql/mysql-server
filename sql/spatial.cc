@@ -131,7 +131,7 @@ geometrycollection_class("GEOMETRYCOLLECTION",Geometry::wkb_geometrycollection,
 
 /***************************** Geometry *******************************/
 
-Geometry::Class_info *Geometry::find_class(const char *name, uint32 len)
+Geometry::Class_info *Geometry::find_class(const char *name, size_t len)
 {
   for (Class_info **cur_rt= ci_collection;
        cur_rt < ci_collection_end; cur_rt++)
@@ -438,6 +438,116 @@ uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo)
   }
 }
 
+
+/**
+  Scan WKB byte string and notify WKB events by calling registered callbacks.
+  @param wkb a little endian WKB byte string of 'len' bytes, with or
+             without WKB header.
+  @param len[in/out] remaining number of bytes of the wkb string.
+  @param geotype the type of the geometry to be scanned.
+  @param hashdr whether the 'wkb' point to a WKB header or right after
+                the header. If it is true, the
+                'geotype' should be the same as the type in the header;
+                otherwise, and we will use the type specified in WKB header.
+  @param handler the registered WKB_scanner_event_handler object to be notified.
+  @return the next byte after last valid geometry just scanned.
+ */
+const char*
+wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
+            WKB_scanner_event_handler *handler)
+{
+  Geometry::wkbType gt;
+  const char *q= NULL;
+  uint32 ngeos= 0, comp_type= 0, gtype= 0;
+  bool comp_hashdr= false, done= false;
+
+  if (has_hdr)
+  {
+    if (*len < WKB_HEADER_SIZE)
+      return NULL;                                 // Invalid WKB data.
+
+    gtype= uint4korr(wkb + 1);
+    // The geotype isn't used in this case.
+    DBUG_ASSERT(geotype == gtype || geotype == 0/* unknown */);
+
+    if ((*wkb != Geometry::wkb_ndr && *wkb != Geometry::wkb_xdr) ||
+        gtype < Geometry::wkb_first || gtype > Geometry::wkb_last)
+      return NULL;
+
+    gt= static_cast<Geometry::wkbType>(gtype);
+
+    q= wkb + WKB_HEADER_SIZE;
+    *len-= WKB_HEADER_SIZE;
+    handler->on_wkb_start(get_byte_order(wkb), gt, q, *len, true);
+  }
+  else
+  {
+    DBUG_ASSERT(geotype >= Geometry::wkb_first && geotype<= Geometry::wkb_last);
+    q= wkb;
+    gt= static_cast<Geometry::wkbType>(geotype);
+    handler->on_wkb_start(Geometry::wkb_ndr, gt, q, *len, false);
+  }
+
+  if (gt != Geometry::wkb_point)
+  {
+    if (*len < 4)
+      return NULL;
+    ngeos= uint4korr(q);
+    q+= sizeof(uint32);
+    *len-= 4;
+  }
+
+  switch (gt)
+  {
+  case Geometry::wkb_point:
+    if (*len < POINT_DATA_SIZE)
+      return NULL;
+    q+= POINT_DATA_SIZE;
+    *len-= POINT_DATA_SIZE;
+    done= true;
+    handler->on_wkb_end(q);
+    break;
+  case Geometry::wkb_linestring:
+    comp_type= Geometry::wkb_point;
+    break;
+  case Geometry::wkb_polygon:
+    comp_type= Geometry::wkb_linestring;
+    break;
+  case Geometry::wkb_multipoint:
+    comp_type= Geometry::wkb_point;
+    comp_hashdr= true;
+    break;
+  case Geometry::wkb_multilinestring:
+    comp_type= Geometry::wkb_linestring;
+    comp_hashdr= true;
+    break;
+  case Geometry::wkb_multipolygon:
+    comp_type= Geometry::wkb_polygon;
+    comp_hashdr= true;
+    break;
+  case Geometry::wkb_geometrycollection:
+    comp_hashdr= true;
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  if (!done && q != NULL)
+  {
+    for (uint32 i= 0; i < ngeos; i++)
+    {
+      q= wkb_scanner(q, len, comp_type, comp_hashdr, handler);
+      if (q == NULL)
+        return NULL;
+    }
+    handler->on_wkb_end(q);
+  }
+
+  return q;
+}
+
+
 /**
   Read from 'wkb' (which contains WKB encoded in either endianess) the
   geometry data, and write WKB of returned Geometry object in little endianess
@@ -582,12 +692,18 @@ bool Geometry::create_point(String *result, point_xy p) const
 
 void Geometry::append_points(String *txt, uint32 n_points,
                              wkb_parser *wkb, uint32 offset) const
-{			
+{
+  DBUG_ASSERT(0.0 == 0 && 0 == -0 && -0.0 == 0.0);
+
   while (n_points--)
   {
     point_xy p;
     wkb->skip_unsafe(offset);
     wkb->scan_xy_unsafe(&p);
+    if (p.x == -0)
+      p.x= 0.0;
+    if (p.y == -0)
+      p.y= 0.0;
     txt->qs_append(p.x);
     txt->qs_append(' ');
     txt->qs_append(p.y);
@@ -890,7 +1006,15 @@ Gis_point::Gis_point(const self &pt) :Geometry(pt)
     nbytes= SIZEOF_STORED_DOUBLE * GEOM_DIM;
     set_nbytes(nbytes);
   }
+
   m_ptr= gis_wkb_fixed_alloc(nbytes);
+  if (m_ptr == NULL)
+  {
+    set_nbytes(0);
+    set_ownmem(0);
+    return;
+  }
+
   if (pt.get_nbytes() > 0)
     memcpy(m_ptr, pt.get_ptr(), pt.get_nbytes());
   else
@@ -935,6 +1059,12 @@ Gis_point &Gis_point::operator=(const Gis_point &rhs)
     set_nbytes(SIZEOF_STORED_DOUBLE * GEOM_DIM);
     set_ownmem(true);
     m_ptr= gis_wkb_fixed_alloc(get_nbytes());
+    if (m_ptr == NULL)
+    {
+      set_nbytes(0);
+      set_ownmem(0);
+      return *this;
+    }
   }
 
   /*
@@ -1025,6 +1155,10 @@ bool Gis_point::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     return true;
   if (txt->reserve(MAX_DIGITS_IN_DOUBLE * 2 + 1))
     return true;
+  if (p.x == -0)
+    p.x= 0;
+  if (p.y == -0)
+    p.y= 0;
   txt->qs_append(p.x);
   txt->qs_append(' ');
   txt->qs_append(p.y);
@@ -1065,7 +1199,8 @@ uint32 Gis_line_string::get_data_size() const
   if (is_length_verified())
     return get_nbytes();
 
-  uint32 n_points, len;
+  uint32 n_points;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
   if (wkb.scan_n_points_and_check_data(&n_points))
     return GET_SIZE_ERROR;
@@ -1194,6 +1329,10 @@ bool Gis_line_string::get_data_as_wkt(String *txt, wkb_parser *wkb) const
   {
     point_xy p;
     wkb->scan_xy_unsafe(&p);
+    if (p.x == -0)
+      p.x= 0;
+    if (p.y == -0)
+      p.y= 0;
     txt->qs_append(p.x);
     txt->qs_append(' ');
     txt->qs_append(p.y);
@@ -1444,7 +1583,7 @@ Gis_polygon::~Gis_polygon()
   */
 Gis_polygon &Gis_polygon::operator=(const Gis_polygon &rhs)
 {
-  if (this == &rhs)
+  if (this == &rhs || !is_bg_adapter() || !rhs.is_bg_adapter())
     return *this;
   Geometry::operator=(rhs);
 
@@ -1737,7 +1876,8 @@ void Gis_polygon::make_rings()
 
 uint32 Gis_polygon::get_data_size() const
 {
-  uint32 n_linear_rings, len;
+  uint32 n_linear_rings;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -2143,11 +2283,18 @@ const Geometry::Class_info *Gis_polygon::get_class_info() const
   */
 void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes)
 {
-  DBUG_ASSERT(geo0->get_geotype() == Geometry::wkb_polygon);
+  DBUG_ASSERT(geo0->get_geotype() == Geometry::wkb_polygon && pnbytes != NULL);
   const Gis_polygon *geo= static_cast<const Gis_polygon *>(geo0);
   Gis_polygon::ring_type *out_ring= outer_ring(geo);
   Gis_polygon::inner_container_type *inn_rings= geo->inner_rings();
   size_t &nbytes= *pnbytes;
+
+  if (out_ring == NULL)
+  {
+    DBUG_ASSERT(inn_rings == NULL);
+    *pnbytes= 0;
+    return NULL;
+  }
 
   // Inner rings may have out of line rings.
   if (inn_rings)
@@ -2156,6 +2303,12 @@ void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes)
   size_t vallen= sizeof(uint32) + out_ring->get_nbytes() +
     (inn_rings ? inn_rings->get_nbytes() : 0);
   void *src_val= gis_wkb_alloc(vallen);
+  if (src_val == NULL)
+  {
+    nbytes= 0;
+    return NULL;
+  }
+
   memcpy(static_cast<char *>(src_val) + sizeof(uint32),
          out_ring->get_ptr(), out_ring->get_nbytes());
 
@@ -2243,7 +2396,8 @@ void own_rings(Geometry *geo0)
 /***************************** MultiPoint *******************************/
 uint32 Gis_multi_point::get_data_size() const
 {
-  uint32 n_points, len;
+  uint32 n_points;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -2404,7 +2558,8 @@ const Geometry::Class_info *Gis_multi_point::get_class_info() const
 /***************************** MultiLineString *******************************/
 uint32 Gis_multi_line_string::get_data_size() const
 {
-  uint32 n_line_strings, len;
+  uint32 n_line_strings;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -2656,7 +2811,8 @@ const Geometry::Class_info *Gis_multi_line_string::get_class_info() const
 /***************************** MultiPolygon *******************************/
 uint32 Gis_multi_polygon::get_data_size() const
 {
-  uint32 n_polygons, len;
+  uint32 n_polygons;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
   if (is_length_verified())
@@ -2936,8 +3092,8 @@ const Geometry::Class_info *Gis_multi_polygon::get_class_info() const
 
 
 /**
-  Append geometry into geometry collection.
-  @param geo geometry to be appended.
+  Append geometry into geometry collection which can be empty.
+  @param geo geometry to be appended, it can't be empty.
   @param gcbuf this geometry collection's data buffer, it's of GEOMETRY format
          and is a separate String buffer.
   @return false if no error, otherwise true.
@@ -2947,11 +3103,22 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
                                               String *gcbuf)
 {
   uint32 collection_len= gcbuf->length(), geo_len= geo->get_data_size();
-  DBUG_ASSERT(get_data_size() == collection_len - GEOM_HEADER_SIZE);
-  if (gcbuf->reserve(geo_len + WKB_HEADER_SIZE))
+  if (geo_len == GET_SIZE_ERROR)
+    return true;
+  DBUG_ASSERT(collection_len == 0 ||
+              get_data_size() == collection_len - GEOM_HEADER_SIZE);
+  if (gcbuf->reserve((collection_len == 0 ? GEOM_HEADER_SIZE + 4 : 0) +
+                     geo_len + WKB_HEADER_SIZE))
     return true;
 
   char *ptr= const_cast<char *>(gcbuf->ptr()), *start;
+  uint32 extra= 0;
+  if (collection_len == 0)
+  {
+    collection_len= GEOM_HEADER_SIZE + 4;
+    extra= GEOM_HEADER_SIZE;
+    write_geometry_header(ptr, geo->get_srid(), wkb_geometrycollection, 0);
+  }
 
   // Skip GEOMETRY header.
   ptr+= GEOM_HEADER_SIZE;
@@ -2962,23 +3129,124 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
   ptr= write_wkb_header(ptr, geo->get_type());
   memcpy(ptr, geo->get_data_ptr(), geo_len);
   gcbuf->length(collection_len + geo_len + WKB_HEADER_SIZE);
-  set_data_ptr(start, collection_len + geo_len - SRID_SIZE);
+  set_data_ptr(start, extra + collection_len + geo_len - SRID_SIZE);
   return false;
+}
+
+
+/**
+  Append geometry into geometry collection, which can be empty. This object
+  must be created from default constructor or below one:
+  Gis_geometry_collection(srid_t srid, wkbType gtype,
+                          const String *gbuf,
+                          String *gcbuf);
+
+  @param srid srid of geometry to be appended.
+  @param gtype type of geometry to be appended.
+  @param gbuf WKB data of geometry to be appended, gbuf->ptr isn't NULL and
+         points right after the WKB header, this buffer can't be empty.
+  @param gcbuf this geometry collection's data buffer, it's of GEOMETRY format
+         and is a separate String buffer.
+  @return false if no error, otherwise true.
+
+ */
+bool Gis_geometry_collection::append_geometry(srid_t srid, wkbType gtype,
+                                              const String *gbuf, String *gcbuf)
+{
+  DBUG_ASSERT(gbuf != NULL && gbuf->ptr() != NULL && gbuf->length() > 0);
+
+  uint32 collection_len= gcbuf->length(), geo_len= gbuf->length();
+  DBUG_ASSERT(collection_len == 0 ||
+              get_data_size() == collection_len - GEOM_HEADER_SIZE);
+  if (gcbuf->reserve((collection_len == 0 ? GEOM_HEADER_SIZE + 4 : 0) +
+                     geo_len + WKB_HEADER_SIZE))
+    return true;
+
+  char *ptr= const_cast<char *>(gcbuf->ptr()), *start;
+  uint32 extra= 0;
+  if (collection_len == 0)
+  {
+    collection_len= GEOM_HEADER_SIZE + 4;
+    extra= GEOM_HEADER_SIZE;
+    write_geometry_header(ptr, srid, wkb_geometrycollection, 0);
+  }
+  else if (srid != get_srid())
+    return true;
+
+  // Skip GEOMETRY header.
+  ptr+= GEOM_HEADER_SIZE;
+  start= ptr;
+
+  int4store(ptr, uint4korr(ptr) + 1);           // Increment object count.
+  ptr+= collection_len - GEOM_HEADER_SIZE;
+  ptr= write_wkb_header(ptr, gtype);
+  memcpy(ptr, gbuf->ptr(), geo_len);
+  gcbuf->length(collection_len + geo_len + WKB_HEADER_SIZE);
+  set_data_ptr(start, extra + collection_len + geo_len - SRID_SIZE);
+  return false;
+}
+
+
+/**
+  Create a geometry collection from a single geometry, and the created object
+  refers to position right after the WKB header inside the 'gcbuf' buffer.
+  @param srid the SRID of the first geometry to put into this
+              geometry collection. Its SRID is used as the SRID of this
+              geometry collection.
+  @param gtype the type of the first geometry to put into this object.
+  @param gbuf stores the WKB data of the first geometry to put into this object,
+              not including its WKB header. if gbuf is NULL or gbuf->ptr is
+              NULL, the created geometry collection is empty.
+  @param gcbuf this geometry collection's data buffer in GEOMETRY format.
+ */
+Gis_geometry_collection::Gis_geometry_collection(srid_t srid, wkbType gtype,
+                                                 const String *gbuf,
+                                                 String *gcbuf)
+  : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), srid)
+{
+  uint32 geo_len= gbuf ? gbuf->length() : 0, total_len= 0;
+  DBUG_ASSERT((gbuf == NULL || (gbuf->ptr() == NULL && gbuf->length() == 0)) ||
+              (gbuf->ptr() != NULL && gbuf->length() > 0));
+  total_len= geo_len + sizeof(uint32)/*NUM-objs*/ +
+    SRID_SIZE + WKB_HEADER_SIZE + (geo_len > 0 ? WKB_HEADER_SIZE : 0);
+
+  // Reserve 512 bytes extra space for geometries to be appended later,
+  // to avoid some reallocations.
+  if (gcbuf->reserve(total_len + 512))
+    my_error(ER_OUTOFMEMORY, total_len + 512);
+
+  char *ptr= gcbuf->c_ptr(), *start;
+  start= ptr + GEOM_HEADER_SIZE;
+
+  ptr= write_geometry_header(ptr, srid,
+                             Geometry::wkb_geometrycollection, geo_len ? 1 : 0);
+  if (geo_len > 0)
+  {
+    ptr= write_wkb_header(ptr, gtype);
+    memcpy(ptr, gbuf->ptr(), geo_len);
+  }
+
+  gcbuf->length(total_len);
+  set_data_ptr(start, total_len - GEOM_HEADER_SIZE);
+  set_srid(srid);
+  has_geom_header_space(true);
 }
 
 
 /**
   Create a geometry collection from a single geometry, and this object refer
   to position right after the WKB header inside the 'gcbuf' buffer.
-  @param geo the first geometry to put into this geometry collection. Its SRID
-         is used as the SRID of this geometry collection.
+  @param geo the first valid geometry to put into this geometry collection.
+         Its SRID is used as the SRID of this geometry collection. It must be
+         a valid geometry.
   @param gcbuf this geometry collection's data buffer in GEOMETRY format.
  */
 Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
   : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), geo->get_srid())
 {
+  DBUG_ASSERT(geo != NULL && geo->get_ptr() != NULL);
   uint32 geo_len= geo->get_data_size(), total_len= 0;
-
+  DBUG_ASSERT(geo_len != GET_SIZE_ERROR);
   total_len= geo_len + sizeof(uint32)/*NUM-objs*/ +
     SRID_SIZE + WKB_HEADER_SIZE * 2;
 
@@ -3004,7 +3272,8 @@ Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
 
 uint32 Gis_geometry_collection::get_data_size() const
 {
-  uint32 n_objects= 0, len;
+  uint32 n_objects= 0;
+  size_t len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
   Geometry_buffer buffer;
   Geometry *geom;
@@ -3164,12 +3433,28 @@ bool Gis_geometry_collection::get_mbr(MBR *mbr, wkb_parser *wkb) const
   if (wkb->scan_non_zero_uint4(&n_objects))
     return true;
 
+  bool found_one= false;
   while (n_objects--)
   {
     if (!(geom= scan_header_and_create(wkb, &buffer)) ||
         geom->get_mbr(mbr, wkb))
+    {
+      /*
+        An empty collection should be simply skipped, it may contain a tree
+        of empty collections which is still empty. 
+      */
+      if (geom != NULL && geom->get_type() == wkb_geometrycollection)
+        continue;
       return true;
+    }
+
+    // Now we've found a solid component and updated the mbr.
+    found_one= true;
   }
+
+  /* An collection containing only a few empty collections, the MBR is NULL. */
+  if (!found_one)
+    return true;
   return false;
 }
 
@@ -3854,9 +4139,13 @@ const void *Geometry::normalize_ring_order()
   {
     Gis_multi_polygon bgeo(geo->get_data_ptr(), geo->get_data_size(),
                            geo->get_flags(), geo->get_srid());
+
     for (size_t i= 0; i < bgeo.size(); i++)
       if (bgeo[i].set_polygon_ring_order())
+      {
         inval= true;
+        break;
+      }
   }
   else if (geo->get_type() == Geometry::wkb_geometrycollection)
   {

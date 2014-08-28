@@ -449,8 +449,8 @@ create trigger trg1_4 before UPDATE  on t1 for each row
 set new.f1 = 'trig 1_4-yes';
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1_3	INSERT	t1	set new.f1 = 'trig 1_3-yes'	BEFORE	#	NO_ENGINE_SUBSTITUTION	test_yesprivs@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-trg1_4	UPDATE	t1	set new.f1 = 'trig 1_4-yes'	BEFORE	#	NO_ENGINE_SUBSTITUTION	test_yesprivs@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1_3	INSERT	t1	set new.f1 = 'trig 1_3-yes'	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	test_yesprivs@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1_4	UPDATE	t1	set new.f1 = 'trig 1_4-yes'	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	test_yesprivs@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 select current_user;
 current_user
 test_noprivs@localhost

@@ -35,6 +35,13 @@ extern uint sql_slave_skip_counter;
 
 typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;
 
+typedef struct slave_job_item
+{
+  Log_event *data;
+  uint relay_number;
+  my_off_t relay_pos;
+} Slave_job_item;
+
 /*******************************************************************************
 Replication SQL Thread
 
@@ -222,9 +229,13 @@ protected:
   char group_relay_log_name[FN_REFLEN];
   ulonglong group_relay_log_pos;
   char event_relay_log_name[FN_REFLEN];
+  /* The suffix number of relay log name */
+  uint event_relay_log_number;
   ulonglong event_relay_log_pos;
   ulonglong future_event_relay_log_pos;
 
+  /* current event's start position in relay log */
+  my_off_t event_start_pos;
   /*
      Original log name and position of the group we're currently executing
      (whose coordinates are group_relay_log_name/pos in the relay log)
@@ -554,8 +565,11 @@ public:
   /*
     Container for references of involved partitions for the current event group
   */
-  DYNAMIC_ARRAY curr_group_assigned_parts;
-  DYNAMIC_ARRAY curr_group_da;  // deferred array to hold partition-info-free events
+  // CGAP dynarray holds id:s of partitions of the Current being executed Group
+  Prealloced_array<db_worker_hash_entry*, 4, true> curr_group_assigned_parts;
+  // deferred array to hold partition-info-free events
+  Prealloced_array<Slave_job_item, 8, true> curr_group_da;  
+
   bool curr_group_seen_gtid;   // current group started with Gtid-event or not
   bool curr_group_seen_begin;   // current group started with B-event or not
   bool curr_group_isolated;     // current group requires execution in isolation
@@ -859,12 +873,22 @@ public:
   inline ulonglong get_event_relay_log_pos() { return event_relay_log_pos; }
   inline void set_event_relay_log_name(const char *log_file_name)
   {
-     strmake(event_relay_log_name,log_file_name, sizeof(event_relay_log_name)-1);
+    strmake(event_relay_log_name,log_file_name, sizeof(event_relay_log_name)-1);
+    set_event_relay_log_number(relay_log_name_to_number(log_file_name));
   }
-  inline void set_event_relay_log_name(const char *log_file_name, size_t len)
+
+  uint get_event_relay_log_number() { return event_relay_log_number; }
+  void set_event_relay_log_number(uint number)
   {
-     strmake(event_relay_log_name,log_file_name, len);
+    event_relay_log_number= number;
   }
+
+  void relay_log_number_to_name(uint number, char name[FN_REFLEN+1]);
+  uint relay_log_name_to_number(const char *name);
+
+  void set_event_start_pos(my_off_t pos) { event_start_pos= pos; }
+  my_off_t get_event_start_pos() { return event_start_pos; }
+
   inline void set_event_relay_log_pos(ulonglong log_pos)
   {
     event_relay_log_pos= log_pos;

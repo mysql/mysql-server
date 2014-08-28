@@ -124,7 +124,6 @@ public:
      rest of execution (a NULL-complemented row will be used).
   */
   table_map found_const_table_map;
-  table_map outer_join;      ///< Bitmap of all inner tables from outer joins
   /* Number of records produced after join + group operation */
   ha_rows  send_records;
   ha_rows found_records,examined_rows,row_limit;
@@ -879,7 +878,7 @@ bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
                                        Item_field **fields,
                                        List<Item> outer_exprs);
-Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
+Item_equal *find_item_equal(COND_EQUAL *cond_equal, Item_field *item_field,
                             bool *inherited_fl);
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
 Item *

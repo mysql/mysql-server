@@ -14,6 +14,7 @@ INSERT INTO t1 (a, b) VALUES (4, '4');
 INSERT INTO t1 (a, b) VALUES (5, '5');
 begin;
 INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 4*1024*1024));
+# Kill and restart
 SELECT a, right(b, 50) FROM t1;
 a	right(b, 50)
 1	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -27,6 +28,7 @@ a	right(b, 50)
 #
 begin;
 UPDATE t1 set b = REPEAT('a', 4*1024*1024) where a = 5 ;
+# Kill and restart
 SELECT a, right(b, 50) FROM t1;
 a	right(b, 50)
 1	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -40,6 +42,7 @@ a	right(b, 50)
 #
 begin;
 UPDATE t1 set b = REPEAT('$', 50000) where a = 1 ;
+# Kill and restart
 SELECT a, right(b, 50) FROM t1;
 a	right(b, 50)
 1	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -88,8 +91,9 @@ f1	right(f2, 20)	right(f3, 20)
 10	....................	????????????????????
 20	$$$$$$$$$$$$$$$$$$$$	????????????????????
 SET GLOBAL innodb_log_checkpoint_now=ON;
+# Kill the server
 # Starting server with --innodb-force-recovery-crash=99
-# Restarting server in normal mode
+# restart
 select f1, right(f2, 20), right(f3, 20) from t2;
 f1	right(f2, 20)	right(f3, 20)
 10	....................	????????????????????
@@ -107,6 +111,7 @@ set global innodb_file_format = 'Barracuda';
 create table t3 (f1 bigint primary key, f2 longblob, f3 longblob,
 index(f2(10), f3(10))) engine=innodb row_format=compressed;
 set global innodb_file_format = Antelope;
+# Kill and restart
 select f1, length(f2), length(f3) from t3;
 f1	length(f2)	length(f3)
 select f1, right(f2, 30), right(f3, 20) from t3;
@@ -122,6 +127,7 @@ set global innodb_compression_level = 0;
 insert into t3 values (2, repeat('!', 30), repeat('+', 30));
 begin;
 UPDATE t3 set f2 = repeat('>', 40000) where f1 = 2;
+# Kill and restart
 select f1, length(f2), length(f3) from t3;
 f1	length(f2)	length(f3)
 2	30	30
@@ -139,6 +145,7 @@ set global innodb_compression_level = 0;
 insert into t3 values (3, repeat('%', 40000), repeat('~', 40000));
 begin;
 UPDATE t3 set f2 = concat(f2, repeat(',', 10)) where f1 = 3;
+# Kill and restart
 select f1, length(f2), length(f3) from t3;
 f1	length(f2)	length(f3)
 2	30	30

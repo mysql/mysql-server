@@ -293,31 +293,31 @@ static ib_mutex_t	ibuf_mutex;
 static ib_mutex_t	ibuf_bitmap_mutex;
 
 /** The area in pages from which contract looks for page numbers for merge */
-#define	IBUF_MERGE_AREA			8UL
+const ulint		IBUF_MERGE_AREA = 8;
 
 /** Inside the merge area, pages which have at most 1 per this number less
 buffered entries compared to maximum volume that can buffered for a single
 page are merged along with the page whose buffer became full */
-#define IBUF_MERGE_THRESHOLD		4
+const ulint		IBUF_MERGE_THRESHOLD = 4;
 
 /** In ibuf_contract at most this number of pages is read to memory in one
 batch, in order to merge the entries for them in the insert buffer */
-#define	IBUF_MAX_N_PAGES_MERGED		IBUF_MERGE_AREA
+const ulint		IBUF_MAX_N_PAGES_MERGED = IBUF_MERGE_AREA;
 
 /** If the combined size of the ibuf trees exceeds ibuf->max_size by this
 many pages, we start to contract it in connection to inserts there, using
 non-synchronous contract */
-#define IBUF_CONTRACT_ON_INSERT_NON_SYNC	0
+const ulint		IBUF_CONTRACT_ON_INSERT_NON_SYNC = 0;
 
 /** If the combined size of the ibuf trees exceeds ibuf->max_size by this
 many pages, we start to contract it in connection to inserts there, using
 synchronous contract */
-#define IBUF_CONTRACT_ON_INSERT_SYNC		5
+const ulint		IBUF_CONTRACT_ON_INSERT_SYNC = 5;
 
 /** If the combined size of the ibuf trees exceeds ibuf->max_size by
 this many pages, we start to contract it synchronous contract, but do
 not insert */
-#define IBUF_CONTRACT_DO_NOT_INSERT		10
+const ulint		IBUF_CONTRACT_DO_NOT_INSERT = 10;
 
 /* TODO: how to cope with drop table if there are records in the insert
 buffer for the indexes of the table? Is there actually any problem,
@@ -510,7 +510,7 @@ ibuf_init_at_db_start(void)
 	page_t*		header_page;
 	dberr_t		error;
 
-	ibuf = static_cast<ibuf_t*>(ut_zalloc(sizeof(ibuf_t)));
+	ibuf = static_cast<ibuf_t*>(ut_zalloc_nokey(sizeof(ibuf_t)));
 
 	/* At startup we intialize ibuf to have a maximum of
 	CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the
@@ -931,6 +931,7 @@ ibuf_set_free_bits_func(
 			break;
 		}
 		/* fall through */
+	case FIL_TYPE_TEMPORARY:
 	case FIL_TYPE_IMPORT:
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}
@@ -2323,7 +2324,8 @@ ibuf_get_merge_page_nos_func(
 
 	*n_stored = 0;
 
-	limit = ut_min(IBUF_MAX_N_PAGES_MERGED, buf_pool_get_curr_size() / 4);
+	limit = ut_min(IBUF_MAX_N_PAGES_MERGED,
+		       buf_pool_get_curr_size() / 4);
 
 	if (page_rec_is_supremum(rec)) {
 

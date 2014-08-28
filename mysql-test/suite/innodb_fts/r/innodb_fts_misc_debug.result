@@ -15,9 +15,7 @@ INSERT INTO articles (title,body) VALUES
 BEGIN;
 INSERT INTO articles (title,body) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...');
-SET SESSION debug="+d,crash_commit_before";
-COMMIT;
-ERROR HY000: Lost connection to MySQL server during query
+# Kill and restart
 INSERT INTO articles (title,body) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...');
 CREATE FULLTEXT INDEX idx ON articles (title,body);
@@ -38,9 +36,7 @@ INSERT INTO articles (title,body) VALUES
 BEGIN;
 INSERT INTO articles (title,body) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...');
-SET SESSION debug="+d,crash_commit_before";
-COMMIT;
-ERROR HY000: Lost connection to MySQL server during query
+# Kill and restart
 INSERT INTO articles (title,body) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...');
 SELECT * FROM articles
@@ -71,9 +67,7 @@ INSERT INTO articles VALUES
 BEGIN;
 INSERT INTO articles VALUES
 (100, 200, 'MySQL Tutorial','DBMS stands for DataBase ...');
-SET SESSION debug="+d,crash_commit_before";
-COMMIT;
-ERROR HY000: Lost connection to MySQL server during query
+# Kill and restart
 INSERT INTO articles VALUES         (8, 12, 'MySQL Tutorial','DBMS stands for DataBase ...');
 SELECT * FROM articles WHERE MATCH (title, body)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);

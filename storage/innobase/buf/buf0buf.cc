@@ -69,6 +69,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0checksum.h"
 #include "sync0sync.h"
 #include "buf0dump.h"
+#include "ut0new.h"
 
 #include <new>
 #include <map>
@@ -265,8 +266,13 @@ the read requests for the whole area.
 /** Value in microseconds */
 static const int WAIT_FOR_READ	= 100;
 static const int WAIT_FOR_WRITE = 100;
-/** Number of attemtps made to read in a page in the buffer pool */
-static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
+/** Number of attempts made to read in a page in the buffer pool */
+static const ulint	BUF_PAGE_READ_MAX_RETRIES = 100;
+/** Number of pages to read ahead */
+static const ulint	BUF_READ_AHEAD_PAGES = 64;
+/** The maximum portion of the buffer pool that can be used for the
+read-ahead buffer.  (Divide buf_pool size by this amount) */
+static const ulint	BUF_READ_AHEAD_PORTION = 32;
 
 /** The buffer pools of the database */
 buf_pool_t*	buf_pool_ptr;
@@ -285,8 +291,15 @@ volatile ulint	buf_withdraw_clock;
 /** Map of buffer pool chunks by its first frame address
 This is newly made by initialization of buffer pool and buf_resize_thread.
 Currently, no need mutex protection for update. */
-typedef std::map<const byte*, buf_chunk_t*> buf_pool_chunk_map_t;
-static buf_pool_chunk_map_t*	buf_chunk_map_reg;
+typedef std::map<
+	const byte*,
+	buf_chunk_t*,
+	std::less<const byte*>,
+	ut_allocator<std::pair<const byte*, buf_chunk_t*> > >
+	buf_pool_chunk_map_t;
+
+static buf_pool_chunk_map_t*			buf_chunk_map_reg;
+
 /** Chunk map to be used to lookup.
 The map pointed by this should not be updated */
 static buf_pool_chunk_map_t*	buf_chunk_map_ref = NULL;
@@ -573,23 +586,23 @@ buf_page_is_corrupted(
 		phase it makes no sense to spam the log with error messages. */
 
 		if (log_peek_lsn(&current_lsn) && current_lsn < page_lsn) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Page " ULINTPF ":" ULINTPF
-				" log sequence number " LSN_PF
-				" is in the future! Current system"
-				" log sequence number " LSN_PF ".",
-				mach_read_from_4(
-					read_buf + FIL_PAGE_SPACE_ID),
-				mach_read_from_4(
-					read_buf + FIL_PAGE_OFFSET),
-				page_lsn,
-				current_lsn);
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Your database may be corrupt or"
+
+			const ulint	space_id = mach_read_from_4(
+				read_buf + FIL_PAGE_SPACE_ID);
+			const ulint	page_no = mach_read_from_4(
+				read_buf + FIL_PAGE_OFFSET);
+
+			ib::error() << "Page " << page_id_t(space_id, page_no)
+				<< " log sequence number " << page_lsn
+				<< " is in the future! Current system"
+				<< " log sequence number "
+				<< current_lsn << ".";
+
+			ib::error() << "Your database may be corrupt or"
 				" you may have copied the InnoDB"
 				" tablespace but not the InnoDB"
-				" log files. %s",
-				FORCE_RECOVERY_MSG);
+				" log files. "
+				<< FORCE_RECOVERY_MSG;
 
 		}
 	}
@@ -917,76 +930,94 @@ buf_page_print(
 #endif /* !UNIV_HOTBACKUP */
 
 	if (!(flags & BUF_PAGE_PRINT_NO_FULL)) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Page dump in ascii and hex (" ULINTPF " bytes):",
-			page_size.physical());
+
+		ib::info() << "Page dump in ascii and hex ("
+			<< page_size.physical() << " bytes):";
+
 		ut_print_buf(stderr, read_buf, page_size.physical());
 		fputs("\nInnoDB: End of page dump\n", stderr);
 	}
 
 	if (page_size.is_compressed()) {
 		/* Print compressed page. */
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Compressed page type (" ULINTPF "); stored checksum in"
-			" field1 " ULINTPF "; calculated checksums for field1:"
-			" %s " UINT32PF ", %s " UINT32PF ", %s " UINT32PF ";"
-			" page LSN " LSN_PF "; page number (if stored to page"
-			" already) " ULINTPF "; space id (if stored to page"
-			" already) " ULINTPF "",
-			fil_page_get_type(read_buf),
-			mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
-			buf_checksum_algorithm_name(
-				SRV_CHECKSUM_ALGORITHM_CRC32),
-			page_zip_calc_checksum(read_buf, page_size.physical(),
-				SRV_CHECKSUM_ALGORITHM_CRC32),
-			buf_checksum_algorithm_name(
-				SRV_CHECKSUM_ALGORITHM_INNODB),
-			page_zip_calc_checksum(read_buf, page_size.physical(),
-				SRV_CHECKSUM_ALGORITHM_INNODB),
-			buf_checksum_algorithm_name(
-				SRV_CHECKSUM_ALGORITHM_NONE),
-			page_zip_calc_checksum(read_buf, page_size.physical(),
-				SRV_CHECKSUM_ALGORITHM_NONE),
-			mach_read_from_8(read_buf + FIL_PAGE_LSN),
-			mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
-			mach_read_from_4(read_buf
-					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
+		ib::info() << "Compressed page type ("
+			<< fil_page_get_type(read_buf)
+			<< "); stored checksum in field1 "
+			<< mach_read_from_4(
+				read_buf + FIL_PAGE_SPACE_OR_CHKSUM)
+			<< "; calculated checksums for field1: "
+			<< buf_checksum_algorithm_name(
+				SRV_CHECKSUM_ALGORITHM_CRC32)
+			<< " "
+			<< page_zip_calc_checksum(
+				read_buf, page_size.physical(),
+				SRV_CHECKSUM_ALGORITHM_CRC32)
+			<< ", "
+			<< buf_checksum_algorithm_name(
+				SRV_CHECKSUM_ALGORITHM_INNODB)
+			<< " "
+			<< page_zip_calc_checksum(
+				read_buf, page_size.physical(),
+				SRV_CHECKSUM_ALGORITHM_INNODB)
+			<< ", "
+			<< buf_checksum_algorithm_name(
+				SRV_CHECKSUM_ALGORITHM_NONE)
+			<< " "
+			<< page_zip_calc_checksum(
+				read_buf, page_size.physical(),
+				SRV_CHECKSUM_ALGORITHM_NONE)
+			<< "; page LSN "
+			<< mach_read_from_8(read_buf + FIL_PAGE_LSN)
+			<< "; page number (if stored to page"
+			<< " already) "
+			<< mach_read_from_4(read_buf + FIL_PAGE_OFFSET)
+			<< "; space id (if stored to page already) "
+			<< mach_read_from_4(
+				read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+
 	} else {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Uncompressed page, stored checksum in"
-			" field1 " ULINTPF ", calculated checksums for field1:"
-			" %s " UINT32PF ", %s " ULINTPF ", %s " ULINTPF ","
-			" stored checksum in field2 " ULINTPF ", calculated"
-			" checksums for field2: %s " UINT32PF ", %s " ULINTPF ""
-			" , %s " ULINTPF ",  page LSN " ULINTPF " " ULINTPF ","
-			" low 4 bytes of LSN at page end " ULINTPF ","
-			" page number (if stored to page already) " ULINTPF ","
-			" space id (if created with >= MySQL-4.1.1"
-			" and stored already) %lu",
-			mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
-			buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_CRC32),
-			buf_calc_page_crc32(read_buf),
-			buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_INNODB),
-			buf_calc_page_new_checksum(read_buf),
-			buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_NONE),
-			BUF_NO_CHECKSUM_MAGIC,
-
-			mach_read_from_4(read_buf + page_size.logical()
-					 - FIL_PAGE_END_LSN_OLD_CHKSUM),
-			buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_CRC32),
-			buf_calc_page_crc32(read_buf),
-			buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_INNODB),
-			buf_calc_page_old_checksum(read_buf),
-			buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_NONE),
-			BUF_NO_CHECKSUM_MAGIC,
-
-			mach_read_from_4(read_buf + FIL_PAGE_LSN),
-			mach_read_from_4(read_buf + FIL_PAGE_LSN + 4),
-			mach_read_from_4(read_buf + page_size.logical()
-					 - FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
-			mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
-			mach_read_from_4(read_buf
-					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
+		ib::info() << "Uncompressed page, stored checksum in field1 "
+			<< mach_read_from_4(
+				read_buf + FIL_PAGE_SPACE_OR_CHKSUM)
+			<< ", calculated checksums for field1: "
+			<< buf_checksum_algorithm_name(
+				SRV_CHECKSUM_ALGORITHM_CRC32) << " "
+			<< buf_calc_page_crc32(read_buf) << ", "
+			<< buf_checksum_algorithm_name(
+				SRV_CHECKSUM_ALGORITHM_INNODB) << " "
+			<< buf_calc_page_new_checksum(read_buf)
+			<< ", "
+			<< buf_checksum_algorithm_name(
+				SRV_CHECKSUM_ALGORITHM_NONE) << " "
+			<< BUF_NO_CHECKSUM_MAGIC
+			<< ", stored checksum in field2 "
+			<< mach_read_from_4(read_buf + page_size.logical()
+					    - FIL_PAGE_END_LSN_OLD_CHKSUM)
+			<< ", calculated checksums for field2: "
+			<< buf_checksum_algorithm_name(
+				SRV_CHECKSUM_ALGORITHM_CRC32) << " "
+			<< buf_calc_page_crc32(read_buf)
+			<< ", "
+			<< buf_checksum_algorithm_name(
+				SRV_CHECKSUM_ALGORITHM_INNODB) << " "
+			<< buf_calc_page_old_checksum(read_buf)
+			<< ", "
+			<< buf_checksum_algorithm_name(
+				SRV_CHECKSUM_ALGORITHM_NONE) << " "
+			<< BUF_NO_CHECKSUM_MAGIC
+			<< ",  page LSN "
+			<< mach_read_from_4(read_buf + FIL_PAGE_LSN)
+			<< " "
+			<< mach_read_from_4(read_buf + FIL_PAGE_LSN + 4)
+			<< ", low 4 bytes of LSN at page end "
+			<< mach_read_from_4(read_buf + page_size.logical()
+					    - FIL_PAGE_END_LSN_OLD_CHKSUM + 4)
+			<< ", page number (if stored to page already) "
+			<< mach_read_from_4(read_buf + FIL_PAGE_OFFSET)
+			<< ", space id (if created with >= MySQL-4.1.1"
+			   " and stored already) "
+			<< mach_read_from_4(
+				read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 	}
 
 #ifndef UNIV_HOTBACKUP
@@ -1222,8 +1253,8 @@ buf_chunk_init(
 
 	DBUG_EXECUTE_IF("ib_buf_chunk_init_fails", return(NULL););
 
-	chunk->mem_size = mem_size;
-	chunk->mem = os_mem_alloc_large(&chunk->mem_size);
+	chunk->mem = buf_pool->allocator.allocate_large(mem_size,
+							&chunk->mem_pfx);
 
 	if (UNIV_UNLIKELY(chunk->mem == NULL)) {
 
@@ -1240,7 +1271,7 @@ buf_chunk_init(
 	it is bigger, we may allocate more blocks than requested. */
 
 	frame = (byte*) ut_align(chunk->mem, UNIV_PAGE_SIZE);
-	chunk->size = chunk->mem_size / UNIV_PAGE_SIZE
+	chunk->size = chunk->mem_pfx.m_size / UNIV_PAGE_SIZE
 		- (frame != chunk->mem);
 
 	/* Subtract the space needed for block descriptors. */
@@ -1438,6 +1469,9 @@ buf_pool_init_instance(
 
 	mutex_create("buf_pool_zip", &buf_pool->zip_mutex);
 
+	new(&buf_pool->allocator)
+		ut_allocator<unsigned char>(mem_key_buf_buf_pool);
+
 	buf_pool_mutex_enter(buf_pool);
 
 	if (buf_pool_size > 0) {
@@ -1446,7 +1480,7 @@ buf_pool_init_instance(
 		chunk_size = srv_buf_pool_chunk_unit;
 
 		buf_pool->chunks =
-			reinterpret_cast<buf_chunk_t*>(ut_zalloc(
+			reinterpret_cast<buf_chunk_t*>(ut_zalloc_nokey(
 				buf_pool->n_chunks * sizeof(*chunk)));
 		buf_pool->chunks_old = NULL;
 
@@ -1482,7 +1516,8 @@ buf_pool_init_instance(
 #endif /* UNIV_SYNC_DEBUG */
 					}
 
-					os_mem_free_large(chunk->mem, chunk->mem_size);
+					buf_pool->allocator.deallocate_large(
+						chunk->mem, &chunk->mem_pfx);
 				}
 				ut_free(buf_pool->chunks);
 				buf_pool_mutex_exit(buf_pool);
@@ -1494,8 +1529,10 @@ buf_pool_init_instance(
 		} while (++chunk < buf_pool->chunks + buf_pool->n_chunks);
 
 		buf_pool->instance_no = instance_no;
-		buf_pool->read_ahead_area
-			= ut_min(64, ut_2_power_up(buf_pool->curr_size / 32));
+		buf_pool->read_ahead_area =
+			ut_min(BUF_READ_AHEAD_PAGES,
+			       ut_2_power_up(buf_pool->curr_size /
+					     BUF_READ_AHEAD_PORTION));
 		buf_pool->curr_pool_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
 
 		buf_pool->old_size = buf_pool->curr_size;
@@ -1527,13 +1564,13 @@ buf_pool_init_instance(
 		buf_pool->no_flush[i] = os_event_create(0);
 	}
 
-	buf_pool->watch = (buf_page_t*) ut_zalloc(
+	buf_pool->watch = (buf_page_t*) ut_zalloc_nokey(
 		sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
 	for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
 		buf_pool->watch[i].buf_pool_index = buf_pool->instance_no;
 	}
 
-	/* All fields are initialized by ut_zalloc(). */
+	/* All fields are initialized by ut_zalloc_nokey(). */
 
 	buf_pool->try_LRU_scan = TRUE;
 
@@ -1609,7 +1646,8 @@ buf_pool_free_instance(
 # endif /* UNIV_SYNC_DEBUG */
 		}
 
-		os_mem_free_large(chunk->mem, chunk->mem_size);
+		buf_pool->allocator.deallocate_large(
+			chunk->mem, &chunk->mem_pfx);
 	}
 
 	for (ulint i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; ++i) {
@@ -1620,6 +1658,8 @@ buf_pool_free_instance(
 	ha_clear(buf_pool->page_hash);
 	hash_table_free(buf_pool->page_hash);
 	hash_table_free(buf_pool->zip_hash);
+
+	buf_pool->allocator.~ut_allocator();
 }
 
 /********************************************************************//**
@@ -1643,10 +1683,10 @@ buf_pool_init(
 	buf_pool_withdrawing = false;
 	buf_withdraw_clock = 0;
 
-	buf_pool_ptr = (buf_pool_t*) ut_zalloc(
+	buf_pool_ptr = (buf_pool_t*) ut_zalloc_nokey(
 		n_instances * sizeof *buf_pool_ptr);
 
-	buf_chunk_map_reg = new buf_pool_chunk_map_t();
+	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
 
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_t*	ptr	= &buf_pool_ptr[i];
@@ -1683,7 +1723,7 @@ buf_pool_free(
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
 
-	delete buf_chunk_map_reg;
+	UT_DELETE(buf_chunk_map_reg);
 	buf_chunk_map_reg = buf_chunk_map_ref = NULL;
 
 	ut_free(buf_pool_ptr);
@@ -1925,10 +1965,9 @@ buf_pool_withdraw_blocks(
 	ulint		loop_count = 0;
 	ulint		i = buf_pool_index(buf_pool);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"buffer pool %lu : start to withdraw"
-		" the last %lu blocks.",
-		i, buf_pool->withdraw_target);
+	ib::info() << "buffer pool " << i
+		<< " : start to withdraw the last "
+		<< buf_pool->withdraw_target << " blocks.";
 
 	/* Minimize buf_pool->zip_free[i] lists */
 	buf_pool_mutex_enter(buf_pool);
@@ -1986,9 +2025,8 @@ buf_pool_withdraw_blocks(
 
 			scan_depth = ut_min(
 				ut_max(buf_pool->withdraw_target
-					- UT_LIST_GET_LEN(
-						buf_pool->withdraw),
-					srv_LRU_scan_depth),
+				       - UT_LIST_GET_LEN(buf_pool->withdraw),
+				       static_cast<ulint>(srv_LRU_scan_depth)),
 				scan_depth);
 
 			buf_flush_do_batch(buf_pool, BUF_FLUSH_LRU,
@@ -2083,21 +2121,18 @@ buf_pool_withdraw_blocks(
 			i, UT_LIST_GET_LEN(buf_pool->withdraw),
 			buf_pool->withdraw_target);
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"buffer pool %lu : withdrew %lu blocks"
-			" from free list. tried to relocate"
-			" %lu pages. (%lu/%lu)",
-			i, count1, count2,
-			UT_LIST_GET_LEN(buf_pool->withdraw),
-			buf_pool->withdraw_target);
+		ib::info() << "buffer pool " << i << " : withdrew "
+			<< count1 << " blocks from free list."
+			<< " Tried to relocate " << count2 << " pages ("
+			<< UT_LIST_GET_LEN(buf_pool->withdraw) << "/"
+			<< buf_pool->withdraw_target << ").";
 
 		if (++loop_count >= 10) {
 			/* give up for now.
 			retried after user threads paused. */
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"buffer pool %lu : will retry"
-				" to withdraw later.",
-				i);
+
+			ib::info() << "buffer pool " << i
+				<< " : will retry to withdraw later.";
 
 			/* need retry later */
 			return(true);
@@ -2123,9 +2158,8 @@ buf_pool_withdraw_blocks(
 		++chunk;
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"buffer pool %lu : withdrawn target %lu blocks.",
-		i, UT_LIST_GET_LEN(buf_pool->withdraw));
+	ib::info() << "buffer pool " << i << " : withdrawn target "
+		<< UT_LIST_GET_LEN(buf_pool->withdraw) << " blocks.";
 
 	/* retry is not needed */
 	++buf_withdraw_clock;
@@ -2230,15 +2264,13 @@ buf_pool_resize()
 	new_instance_size /= UNIV_PAGE_SIZE;
 
 	buf_resize_status("Resizing buffer pool from " ULINTPF " to "
-			  ULINTPF ". (unit=" ULINTPF ")",
+			  ULINTPF " (unit=" ULINTPF ").",
 			  srv_buf_pool_old_size, srv_buf_pool_size,
 			  srv_buf_pool_chunk_unit);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Resizing buffer pool from " ULINTPF " to "
-		ULINTPF ". (unit=" ULINTPF ")",
-		srv_buf_pool_old_size, srv_buf_pool_size,
-		srv_buf_pool_chunk_unit);
+	ib::info() << "Resizing buffer pool from " << srv_buf_pool_old_size
+		<< " to " << srv_buf_pool_size << ". (unit="
+		<< srv_buf_pool_chunk_unit << ")";
 
 	/* set new limit for all buffer pool for resizing */
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
@@ -2274,8 +2306,7 @@ buf_pool_resize()
 	btr_search_disable();
 
 	if (btr_search_disabled) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"disabled adaptive hash index.");
+		ib::info() << "disabled adaptive hash index.";
 	}
 
 	/* set withdraw target */
@@ -2348,15 +2379,13 @@ withdraw_retry:
 			    && ut_difftime(withdraw_started,
 					   trx->start_time) > 0) {
 				if (!found) {
-					ib_logf(IB_LOG_LEVEL_WARN,
+					ib::warn() <<
 						"The following trx might hold"
 						" the blocks in buffer pool to"
-					        " be withdrawn.");
-					ib_logf(IB_LOG_LEVEL_WARN,
-						"Buffer pool resizing can"
-						" complete only after all the"
-						" transactions below release"
-						" the blocks.");
+					        " be withdrawn. Buffer pool"
+						" resizing can complete only"
+						" after all the transactions"
+						" below release the blocks.";
 					found = true;
 				}
 
@@ -2371,9 +2400,8 @@ withdraw_retry:
 	}
 
 	if (should_retry_withdraw) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"retry to withdraw %lu seconds after.",
-			retry_interval);
+		ib::info() << "Will retry to withdraw " << retry_interval
+			<< " seconds later.";
 		os_thread_sleep(retry_interval * 1000000);
 
 		if (retry_interval > 5) {
@@ -2421,7 +2449,7 @@ withdraw_retry:
 		hash_lock_x_all(buf_pool->page_hash);
 	}
 
-	buf_chunk_map_reg = new buf_pool_chunk_map_t();
+	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
 
 	/* add/delete chunks */
 	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
@@ -2454,8 +2482,8 @@ withdraw_retry:
 #endif /* UNIV_SYNC_DEBUG */
 				}
 
-				os_mem_free_large(chunk->mem,
-						  chunk->mem_size);
+				buf_pool->allocator.deallocate_large(
+					chunk->mem, &chunk->mem_pfx);
 
 				sum_freed += chunk->size;
 
@@ -2467,12 +2495,10 @@ withdraw_retry:
 				     &buf_page_t::list);
 			buf_pool->withdraw_target = 0;
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"buffer pool %lu : %lu chunks"
-				" (%lu blocks) was freed.", i,
-				buf_pool->n_chunks
-					- buf_pool->n_chunks_new,
-				sum_freed);
+			ib::info() << "buffer pool " << i << " : "
+				<< buf_pool->n_chunks - buf_pool->n_chunks_new
+				<< " chunks (" << sum_freed
+				<< " blocks) were freed.";
 
 			buf_pool->n_chunks = buf_pool->n_chunks_new;
 		}
@@ -2482,7 +2508,7 @@ withdraw_retry:
 			buf_chunk_t*	new_chunks;
 			new_chunks =
 				reinterpret_cast<buf_chunk_t*>(
-					ut_zalloc(
+					ut_zalloc_nokey(
 						buf_pool->n_chunks_new
 						* sizeof(*chunk)));
 
@@ -2514,10 +2540,10 @@ withdraw_retry:
 
 				if (!buf_chunk_init(buf_pool, chunk, unit)) {
 
-					ib_logf(IB_LOG_LEVEL_ERROR,
-						"buffer pool %lu :"
-						" failed to allocate"
-						" new memory.", i);
+					ib::error() << "buffer pool " << i
+						<< " : failed to allocate"
+						" new memory.";
+
 					warning = true;
 
 					buf_pool->n_chunks_new
@@ -2532,12 +2558,10 @@ withdraw_retry:
 				++chunk;
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"buffer pool %lu : %lu chunks"
-				" (%lu blocks) was added.", i,
-				buf_pool->n_chunks_new
-					- buf_pool->n_chunks,
-				sum_added);
+			ib::info() << "buffer pool " << i << " : "
+				<< buf_pool->n_chunks_new - buf_pool->n_chunks
+				<< " chunks (" << sum_added
+				<< " blocks) were added.";
 
 			buf_pool->n_chunks = n_chunks;
 		}
@@ -2566,9 +2590,10 @@ withdraw_retry:
 
 			ut_ad(UT_LIST_GET_LEN(buf_pool->withdraw) == 0);
 
-			buf_pool->read_ahead_area
-				= ut_min(64UL, ut_2_power_up(
-					buf_pool->curr_size / 32));
+			buf_pool->read_ahead_area =
+				ut_min(BUF_READ_AHEAD_PAGES,
+				       ut_2_power_up(buf_pool->curr_size /
+						      BUF_READ_AHEAD_PORTION));
 			buf_pool->curr_pool_size
 				= buf_pool->curr_size * UNIV_PAGE_SIZE;
 			curr_size += buf_pool->curr_pool_size;
@@ -2589,9 +2614,8 @@ withdraw_retry:
 
 			buf_pool_resize_hash(buf_pool);
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"buffer pool %lu :"
-				" hash tables were resized.", i);
+			ib::info() << "buffer pool " << i
+				<< " : hash tables were resized.";
 		}
 	}
 
@@ -2611,7 +2635,7 @@ withdraw_retry:
 		}
 	}
 
-	delete chunk_map_old;
+	UT_DELETE(chunk_map_old);
 	buf_pool_resizing = false;
 
 	/* Normalize other components, if the new size is too different */
@@ -2632,27 +2656,25 @@ withdraw_retry:
 		/* normalize dict_sys */
 		dict_resize();
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Resized hash tables at lock_sys,"
-			" adaptive hash index, dictionary.");
+		ib::info() << "Resized hash tables at lock_sys,"
+			" adaptive hash index, dictionary.";
 	}
 
 	/* normalize ibuf->max_size */
 	ibuf_max_size_update(srv_change_buffer_max_size);
 
 	if (srv_buf_pool_old_size != srv_buf_pool_size) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"completed to resize buffer pool from " ULINTPF " to "
-			ULINTPF ".",
-			srv_buf_pool_old_size, srv_buf_pool_size);
+
+		ib::info() << "Completed to resize buffer pool from "
+			<< srv_buf_pool_old_size
+			<< " to " << srv_buf_pool_size << ".";
 		srv_buf_pool_old_size = srv_buf_pool_size;
 	}
 
 	/* enable AHI if needed */
 	if (btr_search_disabled) {
 		btr_search_enable();
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"re-enabled adaptive hash index.");
+		ib::info() << "Re-enabled adaptive hash index.";
 	}
 
 	char	now[32];
@@ -3471,18 +3493,19 @@ buf_zip_decompress(
 
 	if (UNIV_UNLIKELY(check && !page_zip_verify_checksum(frame, size))) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Compressed page checksum mismatch"
-			" (space %u page %u): stored: %lu, crc32:"
-			" " UINT32PF " innodb: " UINT32PF ", none: " UINT32PF,
-			block->page.id.space(), block->page.id.page_no(),
-			mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM),
-			page_zip_calc_checksum(frame, size,
-					       SRV_CHECKSUM_ALGORITHM_CRC32),
-			page_zip_calc_checksum(frame, size,
-					       SRV_CHECKSUM_ALGORITHM_INNODB),
-			page_zip_calc_checksum(frame, size,
-					       SRV_CHECKSUM_ALGORITHM_NONE));
+		ib::error() << "Compressed page checksum mismatch "
+			<< block->page.id << "): stored: "
+			<< mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM)
+			<< ", crc32: "
+			<< page_zip_calc_checksum(
+				frame, size, SRV_CHECKSUM_ALGORITHM_CRC32)
+			<< " innodb: "
+			<< page_zip_calc_checksum(
+				frame, size, SRV_CHECKSUM_ALGORITHM_INNODB)
+			<< ", none: "
+			<< page_zip_calc_checksum(
+				frame, size, SRV_CHECKSUM_ALGORITHM_NONE);
+
 		return(FALSE);
 	}
 
@@ -3494,11 +3517,10 @@ buf_zip_decompress(
 			return(TRUE);
 		}
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to decompress space " UINT32PF
-			" page " UINT32PF,
-			block->page.id.space(),
-			block->page.id.page_no());
+		ib::error() << "Unable to decompress space "
+			<< block->page.id.space()
+			<< " page " << block->page.id.page_no();
+
 		return(FALSE);
 
 	case FIL_PAGE_TYPE_ALLOCATED:
@@ -3513,9 +3535,9 @@ buf_zip_decompress(
 		return(TRUE);
 	}
 
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Unknown compressed page type %lu",
-		fil_page_get_type(frame));
+	ib::error() << "Unknown compressed page type "
+		<< fil_page_get_type(frame);
+
 	return(FALSE);
 }
 
@@ -3945,18 +3967,15 @@ loop:
 				retries = BUF_PAGE_READ_MAX_RETRIES;
 			);
 		} else {
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Unable to read tablespace " UINT32PF
-				" page no " UINT32PF
-				" into the buffer pool after %lu attempts."
+			ib::fatal() << "Unable to read page " << page_id
+				<< " into the buffer pool after "
+				<< BUF_PAGE_READ_MAX_RETRIES << " attempts."
 				" The most probable cause of this error may"
 				" be that the table has been corrupted."
 				" You can try to fix this problem by using"
 				" innodb_force_recovery."
 				" Please see " REFMAN " for more"
-				" details. Aborting...",
-				page_id.space(), page_id.page_no(),
-				BUF_PAGE_READ_MAX_RETRIES);
+				" details. Aborting...";
 		}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -4261,10 +4280,8 @@ got_block:
 				goto loop;
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"innodb_change_buffering_debug evict "
-				UINT32PF " " UINT32PF,
-				page_id.space(), page_id.page_no());
+			ib::info() << "innodb_change_buffering_debug evict "
+				<< page_id;
 
 			return(NULL);
 		}
@@ -4273,10 +4290,8 @@ got_block:
 
 		if (buf_flush_page_try(buf_pool, fix_block)) {
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"innodb_change_buffering_debug flush "
-				UINT32PF " " UINT32PF,
-				page_id.space(), page_id.page_no());
+			ib::info() << "innodb_change_buffering_debug flush "
+				<< page_id;
 
 			guess = fix_block;
 
@@ -4794,12 +4809,11 @@ buf_page_init(
 
 		buf_pool_watch_remove(buf_pool, hash_page);
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page " UINT32PF " " UINT32PF
-			" already found in the hash table: %p, %p\n",
-			page_id.space(),
-			page_id.page_no(),
-			(const void*) hash_page, (const void*) block);
+
+		ib::error() << "Page " << page_id
+			<< " already found in the hash table: "
+			<< hash_page << ", " << block;
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_page_mutex_exit(block);
 		buf_pool_mutex_exit(buf_pool);
@@ -5439,10 +5453,9 @@ buf_page_io_complete(
 		if (bpage->id.space() == TRX_SYS_SPACE
 		    && buf_dblwr_page_inside(bpage->id.page_no())) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Reading page " UINT32PF ", which is in the"
-				" doublewrite buffer!",
-				bpage->id.page_no());
+			ib::error() << "Reading page " << bpage->id
+				<< ", which is in the doublewrite buffer!";
+
 		} else if (!read_space_id && !read_page_no) {
 			/* This is likely an uninitialized page. */
 		} else if ((bpage->id.space() != 0
@@ -5453,18 +5466,11 @@ buf_page_io_complete(
 			page may contain garbage in MySQL < 4.1.1,
 			which only supported bpage->space == 0. */
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Space id and page no stored in the page,"
-				" read in are %lu:%lu, "
-				"should be " UINT32PF ":" UINT32PF,
-				(ulong) read_space_id, (ulong) read_page_no,
-				bpage->id.space(),
-				bpage->id.page_no());
+			ib::error() << "Space id and page no stored in "
+				"the page, read in are "
+				<< page_id_t(read_space_id, read_page_no)
+				<< ", should be " << bpage->id;
 		}
-
-		DBUG_EXECUTE_IF("set_dict_sys_to_null",
-				dict_sys = NULL;
-				goto corrupt;);
 
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
@@ -5480,35 +5486,33 @@ buf_page_io_complete(
 				    && !Tablespace::is_undo_tablespace(
 					    bpage->id.space())
 				    && buf_mark_space_corrupt(bpage)) {
-					ib_logf(IB_LOG_LEVEL_INFO,
-						"Simulated IMPORT corruption");
+					ib::info() << "Simulated IMPORT "
+						"corruption";
 					return(true);
 				}
 				goto page_not_corrupt;
 				;);
 corrupt:
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Database page corruption on disk"
-				" or a failed file read of page " UINT32PF "."
-				" You may have to recover from a backup.",
-				bpage->id.page_no());
+			ib::error() << "Database page corruption on disk"
+				" or a failed file read of page " << bpage->id
+				<< ". You may have to recover from a backup.";
+
 			buf_page_print(frame, bpage->size,
 				       BUF_PAGE_PRINT_NO_CRASH);
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Database page corruption on disk"
-				" or a failed file read of page " UINT32PF "."
-				" You may have to recover from a backup.",
-				bpage->id.page_no());
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"It is also possible that your operating"
+
+			ib::error() << "Database page corruption on disk"
+				" or a failed file read of page " << bpage->id
+				<< ". You may have to recover from a backup.";
+
+			ib::info() << "It is also possible that your operating"
 				" system has corrupted its own file cache and"
 				" rebooting your computer removes the error."
 				" If the corrupt page is an index page."
 				" You can also try to fix the corruption"
 				" by dumping, dropping, and reimporting"
 				" the corrupt table. You can use CHECK"
-				" TABLE to scan your table for corruption. %s",
-				FORCE_RECOVERY_MSG);
+				" TABLE to scan your table for corruption. "
+				<< FORCE_RECOVERY_MSG;
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
 				/* If page space id is larger than TRX_SYS_SPACE
@@ -5518,13 +5522,8 @@ corrupt:
 				    && buf_mark_space_corrupt(bpage)) {
 					return(false);
 				} else {
-					DBUG_EXECUTE_IF(
-						"set_dict_sys_to_null",
-						DBUG_SUICIDE(););
-
-					ib_logf(IB_LOG_LEVEL_FATAL,
-						"Aborting because of a"
-						" corrupt database page.");
+					ib::fatal() << "Aborting because of a"
+						" corrupt database page.";
 				}
 			}
 		}
@@ -5658,11 +5657,8 @@ buf_all_freed_instance(
 		const buf_block_t* block = buf_chunk_not_freed(chunk);
 
 		if (UNIV_LIKELY_NULL(block)) {
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Page " UINT32PF ":" UINT32PF
-				" still fixed or dirty",
-				block->page.id.space(),
-				block->page.id.page_no());
+			ib::fatal() << "Page " << block->page.id
+				<< " still fixed or dirty";
 		}
 	}
 
@@ -5949,20 +5945,19 @@ assert_s_latched:
 
 	if (buf_pool->curr_size == buf_pool->old_size
 	    && n_lru + n_free > buf_pool->curr_size + n_zip) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"n_LRU %lu, n_free %lu, pool %lu zip %lu"
-			" Aborting...",
-			(ulong) n_lru, (ulong) n_free,
-			(ulong) buf_pool->curr_size, (ulong) n_zip);
+
+		ib::fatal() << "n_LRU " << n_lru << ", n_free " << n_free
+			<< ", pool " << buf_pool->curr_size
+			<< " zip " << n_zip << ". Aborting...";
 	}
 
 	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
 	if (buf_pool->curr_size == buf_pool->old_size
 	    && UT_LIST_GET_LEN(buf_pool->free) != n_free) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Free list len %lu, free blocks %lu  Aborting...",
-			(ulong) UT_LIST_GET_LEN(buf_pool->free),
-			(ulong) n_free);
+
+		ib::fatal() << "Free list len "
+			<< UT_LIST_GET_LEN(buf_pool->free)
+			<< ", free blocks " << n_free << ". Aborting...";
 	}
 
 	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] == n_list_flush);
@@ -6023,34 +6018,14 @@ buf_print_instance(
 	size = buf_pool->curr_size;
 
 	index_ids = static_cast<index_id_t*>(
-		ut_malloc(size * sizeof *index_ids));
+		ut_malloc_nokey(size * sizeof *index_ids));
 
-	counts = static_cast<ulint*>(ut_malloc(sizeof(ulint) * size));
+	counts = static_cast<ulint*>(ut_malloc_nokey(sizeof(ulint) * size));
 
 	buf_pool_mutex_enter(buf_pool);
 	buf_flush_list_mutex_enter(buf_pool);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"buf_pool size %lu, database pages %lu,"
-		" free pages %lu, modified database pages %lu,"
-		" n pending decompressions %lu, n pending reads %lu,"
-		" n pending flush LRU %lu list %lu single page %lu,"
-		" pages made young %lu, not young %lu,"
-		" pages read %lu, created %lu, written %lu",
-		(ulong) size,
-		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
-		(ulong) UT_LIST_GET_LEN(buf_pool->free),
-		(ulong) UT_LIST_GET_LEN(buf_pool->flush_list),
-		(ulong) buf_pool->n_pend_unzip,
-		(ulong) buf_pool->n_pend_reads,
-		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU],
-		(ulong) buf_pool->n_flush[BUF_FLUSH_LIST],
-		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE],
-		(ulong) buf_pool->stat.n_pages_made_young,
-		(ulong) buf_pool->stat.n_pages_not_made_young,
-		(ulong) buf_pool->stat.n_pages_read,
-		(ulong) buf_pool->stat.n_pages_created,
-		(ulong) buf_pool->stat.n_pages_written);
+	ib::info() << *buf_pool;
 
 	buf_flush_list_mutex_exit(buf_pool);
 
@@ -6099,19 +6074,16 @@ buf_print_instance(
 		index = dict_index_get_if_in_cache(index_ids[i]);
 
 		if (!index) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Block count for index " IB_ID_FMT
-				" in buffer is about %lu",
-				index_ids[i],
-				(ulong) counts[i]);
+			ib::info() << "Block count for index "
+				<< index_ids[i] << " in buffer is about "
+				<< counts[i];
 		} else {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Block count for index " IB_ID_FMT
-				" in buffer is about %lu, index %s of table %s",
-				index_ids[i],
-				(ulong) counts[i],
-				ut_get_name(NULL, FALSE, index->name).c_str(),
-				ut_get_name(NULL, TRUE, index->table_name).c_str());
+			ib::info() << "Block count for index " << index_ids[i]
+				<< " in buffer is about " << counts[i]
+				<< ", index "
+				<< ut_get_name(NULL, FALSE, index->name)
+				<< " of table "
+				<< ut_get_name(NULL, TRUE, index->table_name);
 		}
 	}
 
@@ -6585,7 +6557,7 @@ buf_print_io(
 	one extra buf_pool_info_t, the last one stores
 	aggregated/total values from all pools */
 	if (srv_buf_pool_instances > 1) {
-		pool_info = (buf_pool_info_t*) ut_zalloc((
+		pool_info = (buf_pool_info_t*) ut_zalloc_nokey((
 			srv_buf_pool_instances + 1) * sizeof *pool_info);
 
 		pool_info_total = &pool_info[srv_buf_pool_instances];
@@ -6594,7 +6566,7 @@ buf_print_io(
 
 		pool_info_total = pool_info =
 			static_cast<buf_pool_info_t*>(
-				ut_zalloc(sizeof *pool_info));
+				ut_zalloc_nokey(sizeof *pool_info));
 	}
 
 	for (i = 0; i < srv_buf_pool_instances; i++) {
@@ -6762,5 +6734,48 @@ buf_page_init_for_backup_restore(
 		page_zip_set_size(&block->page.zip, 0);
 	}
 }
+
 #endif /* !UNIV_HOTBACKUP */
+
+/** Print the given page_id_t object.
+@param[in,out]	out	the output stream
+@param[in]	page_id	the page_id_t object to be printed
+@return the output stream */
+std::ostream&
+operator<<(
+	std::ostream&		out,
+	const page_id_t&	page_id)
+{
+	out << "[page id: space=" << page_id.m_space
+		<< ", page number=" << page_id.m_page_no << "]";
+	return(out);
+}
+
+/** Print the given buf_pool_t object.
+@param[in,out]	out		the output stream
+@param[in]	buf_pool	the buf_pool_t object to be printed
+@return the output stream */
+std::ostream&
+operator<<(
+        std::ostream&		out,
+        const buf_pool_t&	buf_pool)
+{
+	out << "[buffer pool instance: "
+		<< "buf_pool size=" << buf_pool.curr_size
+		<< ", database pages=" << UT_LIST_GET_LEN(buf_pool.LRU)
+		<< ", free pages=" << UT_LIST_GET_LEN(buf_pool.free)
+		<< ", modified database pages="
+		<< UT_LIST_GET_LEN(buf_pool.flush_list)
+		<< ", n pending decompressions=" << buf_pool.n_pend_unzip
+		<< ", n pending reads=" << buf_pool.n_pend_reads
+		<< ", n pending flush LRU=" << buf_pool.n_flush[BUF_FLUSH_LRU]
+		<< " list=" << buf_pool.n_flush[BUF_FLUSH_LIST]
+		<< " single page=" << buf_pool.n_flush[BUF_FLUSH_SINGLE_PAGE]
+		<< ", pages made young=" << buf_pool.stat.n_pages_made_young
+		<< ", not young=" << buf_pool.stat.n_pages_not_made_young
+		<< ", pages read=" << buf_pool.stat.n_pages_read
+		<< ", created=" << buf_pool.stat.n_pages_created
+		<< ", written=" << buf_pool.stat.n_pages_written << "]";
+	return(out);
+}
 #endif /* !UNIV_INNOCHECKSUM */

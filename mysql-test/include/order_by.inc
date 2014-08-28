@@ -5,7 +5,7 @@
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   id int(6) DEFAULT '0' NOT NULL,
   idservice int(5),
@@ -579,7 +579,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT); INSERT INTO t1 VALUES (1),(2);
 SELECT a + 1 AS num FROM t1 ORDER BY 30 - num;
 SELECT CONCAT('test', a) AS str FROM t1 ORDER BY UPPER(str);
+--source include/turn_off_only_full_group_by.inc
 SELECT a + 1 AS num FROM t1 GROUP BY 30 - num;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 SELECT a + 1 AS num FROM t1 HAVING 30 - num;
 --error 1054
 SELECT a + 1 AS num, num + 1 FROM t1;
@@ -1628,9 +1630,11 @@ EXPLAIN
 SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
 SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
 
+--source include/turn_off_only_full_group_by.inc
 EXPLAIN
 SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
 SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE t1;
 
@@ -1821,3 +1825,4 @@ let $query=SELECT DISTINCT a FROM t1 WHERE b=1 ORDER BY 1;
 eval EXPLAIN $query;
 eval $query;
 DROP TABLE t1;
+SET sql_mode = default;

@@ -25,7 +25,7 @@
 
 #include <map>
 #include <string>
-#ifdef HAVE_POLL
+#ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
 
@@ -77,7 +77,7 @@ class Mysqld_socket_listener
   uint m_backlog; // backlog specifying length of pending connection queue
   uint m_port_timeout; // port timeout value
   std::string m_unix_sockname; // unix socket pathname to bind to
-
+  bool m_unlink_sockname; // Unlink socket & lock file if true.
   /*
     Map indexed by MYSQL socket fds and correspoding bool to distinguish
     between unix and tcp socket.

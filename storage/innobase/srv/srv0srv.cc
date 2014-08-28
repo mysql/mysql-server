@@ -107,9 +107,26 @@ ulint	srv_undo_tablespaces_open = 8;
 /* The number of rollback segments to use */
 ulong	srv_undo_logs = 1;
 
+/** Rate at which UNDO records should be purged. */
+ulong	srv_purge_rseg_truncate_frequency = 128;
+
+/** Enable or Disable Truncate of UNDO tablespace.
+Note: If enabled then UNDO tablespace will be selected for truncate.
+While Server waits for undo-tablespace to truncate if user disables
+it, truncate action is completed but no new tablespace is marked
+for truncate (action is never aborted). */
+my_bool	srv_undo_log_truncate = FALSE;
+
+/** Maximum size of undo tablespace. */
+unsigned long long	srv_max_undo_log_size;
+
 /** UNDO logs that are not redo logged.
 These logs reside in the temp tablespace.*/
 const ulong		srv_tmp_undo_logs = 32;
+
+/** Default undo tablespace size in UNIV_PAGEs count (10MB). */
+const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
+	((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
@@ -174,28 +191,32 @@ srv_printf_innodb_monitor() will request mutex acquisition
 with mutex_enter(), which will wait until it gets the mutex. */
 #define MUTEX_NOWAIT(mutex_skipped)	((mutex_skipped) < MAX_MUTEX_NOWAIT)
 
-/* requested size in bytes */
+/** Requested size in bytes */
 ulint	srv_buf_pool_size	= ULINT_MAX;
+/** Minimum pool size in bytes */
+const ulint	srv_buf_pool_min_size	= 5 * 1024 * 1024;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
 ulong	srv_buf_pool_chunk_unit;
-/* requested number of buffer pool instances */
+/** Requested number of buffer pool instances */
 ulong	srv_buf_pool_instances;
-/* number of locks to protect buf_pool->page_hash */
+/** Default number of buffer pool instances */
+const ulong	srv_buf_pool_instances_default = 0;
+/** Number of locks to protect buf_pool->page_hash */
 ulong	srv_n_page_hash_locks = 16;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 ulong	srv_LRU_scan_depth	= 1024;
-/** whether or not to flush neighbors of a block */
+/** Whether or not to flush neighbors of a block */
 ulong	srv_flush_neighbors	= 1;
-/* previously requested size */
+/** Previously requested size */
 ulint	srv_buf_pool_old_size	= 0;
-/* current size as scaling factor for the other components */
+/** Current size as scaling factor for the other components */
 ulint	srv_buf_pool_base_size	= 0;
-/* current size in kilobytes */
+/** Current size in bytes */
 ulint	srv_buf_pool_curr_size	= 0;
-/* dump that may % of each buffer pool during BP dump */
+/** Dump this % of each buffer pool during BP dump */
 ulong	srv_buf_pool_dump_pct;
-/* size in bytes */
+/** Lock table size in bytes */
 ulint	srv_lock_table_size	= ULINT_MAX;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
@@ -862,7 +883,7 @@ srv_init(void)
 		srv_sys_sz += n_sys_threads * sizeof(*srv_sys->sys_threads);
 	}
 
-	srv_sys = static_cast<srv_sys_t*>(ut_zalloc(srv_sys_sz));
+	srv_sys = static_cast<srv_sys_t*>(ut_zalloc_nokey(srv_sys_sz));
 
 	srv_sys->n_sys_threads = n_sys_threads;
 
@@ -2451,7 +2472,14 @@ srv_do_purge(
 		n_pages_purged = trx_purge(
 			n_use_threads, srv_purge_batch_size, false);
 
-		if (!(count++ % TRX_SYS_N_RSEGS)) {
+		ulint	undo_trunc_freq =
+			purge_sys->undo_trunc.get_rseg_truncate_frequency();
+
+		ulint	rseg_truncate_frequency = ut_min(
+			static_cast<ulint>(srv_purge_rseg_truncate_frequency),
+			undo_trunc_freq);
+
+		if (!(count++ % rseg_truncate_frequency)) {
 			/* Force a truncate of the history list. */
 			n_pages_purged += trx_purge(
 				1, srv_purge_batch_size, true);
@@ -2580,6 +2608,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {
+	my_thread_init();
 	srv_slot_t*	slot;
 	ulint           n_total_purged = ULINT_UNDEFINED;
 
@@ -2674,6 +2703,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		srv_release_threads(SRV_WORKER, srv_n_purge_threads - 1);
 	}
 
+	my_thread_end();
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 	os_thread_exit(NULL);
@@ -2757,7 +2787,8 @@ srv_is_tablespace_truncated(ulint space_id)
 		return(false);
 	}
 
-	return(truncate_t::is_tablespace_truncated(space_id));
+	return(truncate_t::is_tablespace_truncated(space_id)
+	       || undo::Truncate::is_tablespace_truncated(space_id));
 
 }
 

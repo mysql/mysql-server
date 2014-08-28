@@ -157,7 +157,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
   ha_rows distinct_keys_est= tab->records()/MATCHING_ROWS_IN_OTHER_TABLE;
 
   // Test how we can use keys
-  for (Key_use *keyuse= tab->keyuse(); keyuse->table == table; )
+  for (Key_use *keyuse= tab->keyuse(); keyuse->table_ref == tab->table_ref; )
   {
     // keyparts that are usable for this index given the current partial plan
     key_part_map found_part= 0;
@@ -196,7 +196,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     start_key->bound_keyparts= 0;  // Initially, no ref access is possible
 
     // For each keypart
-    while (keyuse->table == table && keyuse->key == key)
+    while (keyuse->table_ref == tab->table_ref && keyuse->key == key)
     {
       const uint keypart= keyuse->keypart;
       // tables the current keypart depends on
@@ -210,8 +210,11 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         would have two keyuse objects for a keypart covering
         t1.col_x: "WHERE t1.col_x=4 AND t1.col_x=t2.col_y"
       */
-      for ( ; keyuse->table == table && keyuse->key == key &&
-              keyuse->keypart == keypart ; ++keyuse)
+      for ( ;
+           keyuse->table_ref == tab->table_ref &&
+           keyuse->key == key &&
+           keyuse->keypart == keypart;
+           ++keyuse)
       {
         /*
           This keyuse cannot be used if 
@@ -356,9 +359,12 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           }
           else
           {
-            // Use rec_per_key statistics if available
-            if (keyinfo->rec_per_key[actual_key_parts(keyinfo)-1])
-              cur_fanout= keyinfo->rec_per_key[actual_key_parts(keyinfo)-1];
+            // Use records per key statistics if available
+            if (keyinfo->has_records_per_key(actual_key_parts(keyinfo) - 1))
+            {
+              cur_fanout=
+                keyinfo->records_per_key(actual_key_parts(keyinfo) - 1);
+            }
             else
             {                              /* Prefer longer keys */
               cur_fanout=
@@ -418,7 +424,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
                 all_key_parts_covered))
       {
         /*
-          Use as many key-parts as possible and a uniqe key is better
+          Use as many key-parts as possible and a unique key is better
           than a not unique key.
           Set cur_fanout to (previous record count) * (records / combination)
         */
@@ -474,8 +480,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         else
         {
           // Check if we have statistic about the distribution
-          if ((cur_fanout= keyinfo->rec_per_key[cur_used_keyparts-1]))
+          if (keyinfo->has_records_per_key(cur_used_keyparts - 1))
           {
+            cur_fanout= keyinfo->records_per_key(cur_used_keyparts - 1);
+
             /*
               Fix for the case where the index statistics is too
               optimistic:
@@ -523,14 +531,18 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
               c = number of key parts in key
               x = used key parts (1 <= x <= c)
             */
-            double rec_per_key;
-            if (!(rec_per_key= (double)
-                  keyinfo->rec_per_key[keyinfo->user_defined_key_parts-1]))
-              rec_per_key= (double) tab->records()/distinct_keys_est+1;
+            rec_per_key_t rec_per_key;
+            if (keyinfo->has_records_per_key(
+                  keyinfo->user_defined_key_parts - 1))
+              rec_per_key=
+                keyinfo->records_per_key(keyinfo->user_defined_key_parts - 1);
+            else
+              rec_per_key=
+                rec_per_key_t(tab->records()) / distinct_keys_est + 1;
 
             if (tab->records() == 0)
-              tmp_fanout= 0;
-            else if (rec_per_key / (double) tab->records() >= 0.01)
+              tmp_fanout= 0.0;
+            else if (rec_per_key / tab->records() >= 0.01)
               tmp_fanout= rec_per_key;
             else
             {
@@ -788,7 +800,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
       account here for range/index_merge access. Find out why this is so.
     */
     scan_and_filter_cost= prefix_rowcount *
-      (tab->quick()->read_time +
+      (tab->quick()->cost_est.total_cost() +
        cost_model->row_evaluate_cost(tab->found_records -
                                      *rows_after_filtering));
   }
@@ -1008,7 +1020,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
       !table->covering_keys.is_clear_all() && best_ref &&                 //(3)
       (!tab->quick() ||                                                     //(3)
        (tab->quick()->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&//(3)
-        best_ref->read_cost < tab->quick()->read_time)))                    //(3)
+        best_ref->read_cost < tab->quick()->cost_est.total_cost())))        //(3)
   {
     if (tab->quick())
     {
@@ -1103,7 +1115,8 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
     become 0, meaning that the cost of adding one more table would also
     become 0, regardless of access method).
   */
-  if (rows_fetched == 0.0 && (join->outer_join & table->map))
+  if (rows_fetched == 0.0 &&
+      (join->select_lex->outer_join & tab->table_ref->map()))
     rows_fetched= 1.0;
 
   /*
@@ -1183,14 +1196,14 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
   const THD *thd= tab->join()->thd;
   TABLE *const table= tab->table();
   const table_map remaining_tables=
-    ~used_tables & ~table->map & tab->join()->all_table_map;
+    ~used_tables & ~tab->table_ref->map() & tab->join()->all_table_map;
   if (!(thd->optimizer_switch_flag(
              OPTIMIZER_SWITCH_COND_FANOUT_FILTER) &&                       // 1)
        (is_join_buffering ||                                               // 2a
-        remaining_tables != 0 ||                                           // 2b)
-        tab->join()->select_lex-> master_unit()->outer_select() != NULL || // 2c)
-        !tab->join()->select_lex->sj_nests.is_empty() ||                   // 2d)
-        thd->lex->describe)))                                              // 2e)
+        remaining_tables != 0 ||                                           // 2b
+        tab->join()->select_lex-> master_unit()->outer_select() != NULL || // 2c
+        !tab->join()->select_lex->sj_nests.is_empty() ||                   // 2d
+        thd->lex->describe)))                                              // 2e
     return COND_FILTER_ALLPASS;
 
   // No filtering is calculated if we expect less than one row to be fetched
@@ -1269,7 +1282,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
           "WHERE (t1.kp1=1 OR t1.kp1 IS NULL) AND t1.kp2=2"
              => t1.kp2 not used by ref since kp1 is ref_or_null
       */
-      while (curr_ku->table == table &&                  // 1)
+      while (curr_ku->table_ref == tab->table_ref &&          // 1)
              curr_ku->key == keyuse->key &&                   // 1)
              curr_ku->keypart_map & keyuse->bound_keyparts)   // 2)
       {
@@ -1360,7 +1373,8 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
       reflected in 'filter'. The below call gets this filtering effect
       based on index statistics and guesstimates.
     */
-    filter*= tab->join()->where_cond->get_filtering_effect(table->map,
+    filter*=
+           tab->join()->where_cond->get_filtering_effect(tab->table_ref->map(),
                                                          used_tables,
                                                          &table->tmp_set,
                                                          tab->records());
@@ -1450,8 +1464,7 @@ static ulonglong get_bound_sj_equalities(const JOIN_TAB *tab,
     Item_equal *item_equal= item_field->item_equal;
     if (!item_equal)
     {
-      TABLE_LIST *const nest=
-        item_field->field->table->pos_in_table_list->outer_join_nest();
+      TABLE_LIST *const nest= item_field->table_ref->outer_join_nest();
       item_equal= item_field->find_item_equal(nest ? nest->cond_equal :
                                               tab->join()->cond_equal);
     }
@@ -1507,7 +1520,7 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
   Opt_trace_object trace_ls(trace, "searching_loose_scan_index");
 
   TABLE *const table= tab->table();
-  DBUG_ASSERT(remaining_tables & table->map);
+  DBUG_ASSERT(remaining_tables & tab->table_ref->map());
 
   const ulonglong bound_sj_equalities=
     get_bound_sj_equalities(tab, excluded_tables | remaining_tables);
@@ -1525,7 +1538,7 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
     For each index, we calculate how many key segments of this index
     we can use.
   */
-  for (Key_use *keyuse= tab->keyuse(); keyuse->table == table; )
+  for (Key_use *keyuse= tab->keyuse(); keyuse->table_ref == tab->table_ref; )
   {
     const uint key= keyuse->key;
 
@@ -1546,12 +1559,15 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
     uint max_keypart= 0;
 
     // For each keypart
-    while (keyuse->table == table && keyuse->key == key)
+    while (keyuse->table_ref == tab->table_ref && keyuse->key == key)
     {
       const uint keypart= keyuse->keypart;
       // For each way to access the keypart
-      for ( ; keyuse->table == table && keyuse->key == key &&
-              keyuse->keypart == keypart ; ++keyuse)
+      for ( ;
+           keyuse->table_ref == tab->table_ref &&
+           keyuse->key == key &&
+           keyuse->keypart == keypart;
+           ++keyuse)
       {
         /*
           If this Key_use is not about a semi-join equality, or references an
@@ -1688,9 +1704,12 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
         some key components, that may make us think that loose
         scan will produce more distinct records than it actually will)
       */
-      const ulong rpc= tab->table()->key_info[key].rec_per_key[max_keypart];
-      if (rpc != 0)
+      if (tab->table()->key_info[key].has_records_per_key(max_keypart))
+      {
+        const rec_per_key_t rpc=
+          tab->table()->key_info[key].records_per_key(max_keypart);
         rowcount= rowcount / rpc;
+      }
 
       trace_cov_scan.add("cost", cost);
       // @TODO: previous version also did /2
@@ -1717,12 +1736,12 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
   if (quick_uses_applicable_index && idx == join->const_tables)
   {
     Opt_trace_object trace_range(trace, "range_scan");
-    trace_range.add("cost", tab->quick()->read_time);
+    trace_range.add("cost", tab->quick()->cost_est);
     // @TODO: this the right part restriction:
-    if (tab->quick()->read_time < pos->read_cost)
+    if (tab->quick()->cost_est.total_cost() < pos->read_cost)
     {
       pos->loosescan_key= tab->quick()->index;
-      pos->read_cost= tab->quick()->read_time;
+      pos->read_cost= tab->quick()->cost_est.total_cost();
       // this is ok because idx == join->const_tables
       pos->rows_fetched= rows2double(tab->quick()->records);
       pos->loosescan_parts= quick_max_keypart + 1;
@@ -1975,7 +1994,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     trace_table.add("condition_filtering_pct", position->filter_effect * 100).
       add("rows_for_plan", rowcount).
       add("cost_for_plan", cost);
-    join_tables&= ~(s->table()->map);
+    join_tables&= ~(s->table_ref->map());
   }
 
   if (join->sort_by_table &&
@@ -2029,7 +2048,7 @@ semijoin_order_allows_materialization(const JOIN *join,
                                       table_map remaining_tables,
                                       const JOIN_TAB *tab, uint idx)
 {
-  DBUG_ASSERT(!(remaining_tables & tab->table()->map));
+  DBUG_ASSERT(!(remaining_tables & tab->table_ref->map()));
   /*
    Check if 
     1. We're in a semi-join nest that can be run with SJ-materialization
@@ -2230,7 +2249,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
             sizeof(JOIN_TAB*) * (best_idx - idx));
     join->best_ref[idx]= best_table;
 
-    remaining_tables&= ~(best_table->table()->map);
+    remaining_tables&= ~(best_table->table_ref->map());
 
     DBUG_EXECUTE("opt", print_plan(join, idx,
                                    join->positions[idx].prefix_rowcount,
@@ -2509,7 +2528,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
   for (JOIN_TAB **pos= join->best_ref + idx; *pos; pos++)
   {
     JOIN_TAB *const s= *pos;
-    const table_map real_table_bit= s->table()->map;
+    const table_map real_table_bit= s->table_ref->map();
 
     /*
       Don't move swap inside conditional code: All items should
@@ -2692,6 +2711,27 @@ done:
   DBUG_RETURN(false);
 }
 
+/**
+  Helper function that compares two doubles and accept these as
+  "almost equal" if they are within 10 percent of each other.
+
+  Handling of exact 0.0 values: if one of the values are exactly 0.0, the
+  other value must also be exactly 0.0 to be considered to be equal.
+
+  @param left  First double number to compare
+  @param right Second double number to compare
+
+  @return true if the two numbers are almost equal, false otherwise.
+*/
+
+static inline bool almost_equal(double left, double right)
+{
+  const double boundary= 0.1;                   // 10 percent limit
+  if ((left >= right * (1.0 - boundary)) && (left <= right * (1.0 + boundary)))
+    return true;
+  else
+    return false;
+}
 
 /**
   Heuristic utility used by best_extension_by_limited_search().
@@ -2829,7 +2869,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
 
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
-    const table_map real_table_bit= s->table()->map;
+    const table_map real_table_bit= s->table_ref->map();
 
     /*
       Don't move swap inside conditional code: All items
@@ -2873,11 +2913,17 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
            of joins within this 'ref_extension'.
            Expand QEP with all 'identical' REFs in
           'join->positions' order.
+        Note that due to index statistics from the storage engines
+        is a floating point number and might not be exact, the
+        rows and cost estimates for eq_ref on two tables might not
+        be the exact same number.
+        @todo This test could likely be re-implemented to use
+        information about whether the index is unique or not.
       */
       const bool added_to_eq_ref_extension=
-        position->key  &&
-        position->read_cost    == (position-1)->read_cost &&
-        position->rows_fetched == (position-1)->rows_fetched;
+        position->key &&
+        almost_equal(position->read_cost, (position-1)->read_cost) &&
+        almost_equal(position->rows_fetched, (position-1)->rows_fetched);
       trace_one_table.add("added_to_eq_ref_extension",
                           added_to_eq_ref_extension);
       if (added_to_eq_ref_extension)
@@ -3030,7 +3076,7 @@ prev_record_reads(JOIN *join, uint idx, table_map found_ref)
   for (POSITION *pos= join->positions + idx - 1; pos != pos_end; pos--)
   {
     const double fanout= pos->rows_fetched * pos->filter_effect;
-    if (pos->table->table()->map & found_ref)
+    if (pos->table->table_ref->map() & found_ref)
     {
       found_ref|= pos->ref_depend_map;
       /* 
@@ -3127,10 +3173,10 @@ bool Optimize_table_order::fix_semijoin_strategies()
   {
     POSITION *const pos= join->best_positions + tableno;
 
-    if ((handled_tables & pos->table->table()->map) ||
+    if ((handled_tables & pos->table->table_ref->map()) ||
         pos->sj_strategy == SJ_OPT_NONE)
     {
-      remaining_tables|= pos->table->table()->map;
+      remaining_tables|= pos->table->table_ref->map();
       continue;
     }
 
@@ -3246,10 +3292,10 @@ bool Optimize_table_order::fix_semijoin_strategies()
       */
       if (i != first)
         join->best_positions[i].sj_strategy= SJ_OPT_NONE;
-      handled_tables|= join->best_positions[i].table->table()->map;
+      handled_tables|= join->best_positions[i].table->table_ref->map();
     }
 
-    remaining_tables |= pos->table->table()->map;
+    remaining_tables|= pos->table->table_ref->map();
   }
 
   DBUG_ASSERT(remaining_tables == (join->all_table_map&~join->const_table_map));
@@ -3359,7 +3405,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
     */
     return true;
   }
-  TABLE_LIST *next_emb= tab->table()->pos_in_table_list->embedding;
+  const TABLE_LIST *next_emb= tab->table_ref->embedding;
   /*
     Do update counters for "pairs of brackets" that we've left (marked as
     X,Y,Z in the above picture)
@@ -3462,7 +3508,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
   uint no_jbuf_before;
   for (uint i= first_tab; i <= last_tab; i++)
   {
-    remaining_tables|= positions[i].table->table()->map;
+    remaining_tables|= positions[i].table->table_ref->map();
     if (positions[i].table->emb_sj_nest)
       table_count++;
   }
@@ -3545,7 +3591,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
       DBUG_RETURN(false);
     }
 
-    remaining_tables&= ~tab->table()->map;
+    remaining_tables&= ~tab->table_ref->map();
 
     cost+= pos->read_cost + 
       cost_model->row_evaluate_cost(rowcount * inner_fanout *
@@ -3622,7 +3668,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
          rowcount * sjm_nest->nested_join->sjm.scan_cost.total_cost();
     
   for (uint i= last_inner_tab + 1; i <= last_outer_tab; i++)
-    remaining_tables|= positions[i].table->table()->map;
+    remaining_tables|= positions[i].table->table_ref->map();
   /*
     Materialization removes duplicates from the materialized table, so
     number of rows to scan is probably less than the number of rows
@@ -3641,7 +3687,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
     POSITION *const dst_pos= final ? positions + i : &regular_pos;
     best_access_path(tab, remaining_tables, i, false,
                      rowcount * inner_fanout * outer_fanout, dst_pos);
-    remaining_tables&= ~tab->table()->map;
+    remaining_tables&= ~tab->table_ref->map();
     outer_fanout*= dst_pos->rows_fetched;
     cost+= dst_pos->read_cost +
            cost_model->row_evaluate_cost(rowcount * inner_fanout *
@@ -3892,11 +3938,11 @@ void Optimize_table_order::advance_sj_state(
   DBUG_ASSERT(emb_sjm_nest == NULL);
 
   // remaining_tables include the current one:
-  DBUG_ASSERT(remaining_tables & new_join_tab->table()->map);
+  DBUG_ASSERT(remaining_tables & new_join_tab->table_ref->map());
   // Save it:
   const table_map remaining_tables_incl= remaining_tables;
   // And add the current table to the join prefix:
-  remaining_tables&= ~new_join_tab->table()->map;
+  remaining_tables&= ~new_join_tab->table_ref->map();
 
   DBUG_ENTER("Optimize_table_order::advance_sj_state");
 
@@ -4090,8 +4136,8 @@ void Optimize_table_order::advance_sj_state(
           emb_sj_nest->nested_join->sj_corr_tables) &&               // (5)
         (remaining_tables_incl &
          emb_sj_nest->nested_join->sj_depends_on) &&                 // (6)
-        new_join_tab->keyuse() != NULL &&                              // (7)
-        !new_join_tab->table()->pos_in_table_list->uses_materialization()) // (8)
+        new_join_tab->keyuse() != NULL &&                            // (7)
+        !new_join_tab->table_ref->uses_materialization())            // (8)
     {
       // start considering using LooseScan strategy
       pos->first_loosescan_table= idx;
@@ -4393,10 +4439,10 @@ void Optimize_table_order::advance_sj_state(
 void Optimize_table_order::backout_nj_state(const table_map remaining_tables,
                                             const JOIN_TAB *tab)
 {
-  DBUG_ASSERT(remaining_tables & tab->table()->map);
+  DBUG_ASSERT(remaining_tables & tab->table_ref->map());
 
   /* Restore the nested join state */
-  TABLE_LIST *last_emb= tab->table()->pos_in_table_list->embedding;
+  TABLE_LIST *last_emb= tab->table_ref->embedding;
 
   for (; last_emb != emb_sjm_nest; last_emb= last_emb->embedding)
   {
@@ -4431,19 +4477,15 @@ static void trace_plan_prefix(JOIN *join, uint idx,
   Opt_trace_array plan_prefix(&thd->opt_trace, "plan_prefix");
   for (uint i= 0; i < idx; i++)
   {
-    const TABLE * const table= join->positions[i].table->table();
-    if (!(table->map & excluded_tables))
+    TABLE_LIST *const tr= join->positions[i].table->table_ref;
+    if (!(tr->map() & excluded_tables))
     {
-      TABLE_LIST * const tl= table->pos_in_table_list;
-      if (tl != NULL)
-      {
-        StringBuffer<32> str;
-        tl->print(thd, &str, enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                             QT_SHOW_SELECT_NUMBER |
-                                             QT_NO_DEFAULT_DB |
-                                             QT_DERIVED_TABLE_ONLY_ALIAS));
-        plan_prefix.add_utf8(str.ptr(), str.length());
-      }
+      StringBuffer<32> str;
+      tr->print(thd, &str, enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                           QT_SHOW_SELECT_NUMBER |
+                                           QT_NO_DEFAULT_DB |
+                                           QT_DERIVED_TABLE_ONLY_ALIAS));
+      plan_prefix.add_utf8(str.ptr(), str.length());
     }
   }
 #endif

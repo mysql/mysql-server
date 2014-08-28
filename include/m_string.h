@@ -14,32 +14,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* There may be prolems include all of theese. Try to test in
-   configure with ones are needed? */
-
-/*  This is needed for the definitions of strchr... on solaris */
-
 #ifndef _m_string_h
 #define _m_string_h
 
 #include "my_global.h"                          /* HAVE_* */
 
-#ifndef __USE_GNU
-#define __USE_GNU				/* We want to use stpcpy */
-#endif
-#if defined(HAVE_STRINGS_H)
-#include <strings.h>
-#endif
 #include <string.h>
 
-/* need by my_vsnprintf */
-#include <stdarg.h> 
-
-#define bfill please_use_memset_rather_than_bfill()
-#define bzero please_use_memset_rather_than_bzero()
-#define bmove please_use_memmove_rather_than_bmove()
-#define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov()
-#define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov()
+#define bfill please_use_memset_rather_than_bfill
+#define bzero please_use_memset_rather_than_bzero
+#define bmove please_use_memmove_rather_than_bmove
+#define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
+#define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov
 
 #if defined(__cplusplus)
 extern "C" {

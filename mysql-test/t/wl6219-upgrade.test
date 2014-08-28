@@ -135,7 +135,8 @@ DROP TABLE t1;
 --chmod 0777 $MYSQLD_DATADIR/test/t1.MYI
 
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
---remove_file $MYSQLD_DATADIR/mysql_upgrade_info
+
+--source include/mysql_upgrade_cleanup.inc
 
 SHOW CREATE TABLE t1;
 

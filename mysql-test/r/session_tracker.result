@@ -173,7 +173,7 @@ SYSTEM
 # Testing sql_mode
 SELECT @@session.sql_mode;
 @@session.sql_mode
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 
 SET @@session.session_track_system_variables='sql_mode';
 SELECT @@session.session_track_system_variables;
@@ -205,7 +205,7 @@ SET @@session.session_track_system_variables='*';
 SET @@session.sql_mode= @sql_mode_saved;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
--- NO_ENGINE_SUBSTITUTION
+-- ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 
 # Expect change info.
 SET @@old_passwords=0;
@@ -217,7 +217,7 @@ SET @@old_passwords=0;
 SET @@session.sql_mode= @sql_mode_saved;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
--- NO_ENGINE_SUBSTITUTION
+-- ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 
 # Test the wildcard value for tracking.
 SET @@session.session_track_system_variables='*,old_passwords';
@@ -239,7 +239,7 @@ SET @@session.session_track_system_variables='';
 SET @@session.sql_mode= @sql_mode_saved;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 
 # Switch off the session system variables tracker (using empty NULL).
 SET @@session.session_track_system_variables=NULL;
@@ -247,7 +247,7 @@ SET @@session.session_track_system_variables=NULL;
 SET @@session.sql_mode= @sql_mode_saved;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 
 # Check to see that string NULL acts no different from other invalid strings.
 SET @@session.session_track_system_variables='var1,NULL';
@@ -258,7 +258,7 @@ Warning	1231	NULL is not a valid system variable and will be ignored.
 SET @@session.sql_mode= @sql_mode_saved;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 
 
 # Testing with stored procedure.
@@ -309,17 +309,17 @@ var1,sql_mode,var2
 SET @@session.sql_mode='ANSI';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
--- REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+-- REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 
 # Tracking by self-assigning the value of a system variable.
 
 SELECT @@session.sql_mode;
 @@session.sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 SET @@session.sql_mode=@@session.sql_mode;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
--- REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+-- REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 
 # Tracking @@session.session_track_system_variables itself.
 

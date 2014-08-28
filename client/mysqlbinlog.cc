@@ -2311,7 +2311,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     Log_event *ev= NULL;
     Log_event_type type= UNKNOWN_EVENT;
 
-    len= cli_safe_read(mysql);
+    len= cli_safe_read(mysql, NULL);
     if (len == packet_error)
     {
       error("Got error reading packet from server: %s", mysql_error(mysql));
@@ -2867,23 +2867,22 @@ static int args_post_process(void)
 
     if (opt_remote_proto == BINLOG_LOCAL)
     {
-      error("You need to set --read-from-remote-master={BINLOG_DUMP_NON_GTID, "
-            "BINLOG_DUMP_GTID} for --raw mode");
+      error("The --raw flag requires one of --read-from-remote-master or --read-from-remote-server");
+      DBUG_RETURN(ERROR_STOP);
+    }
+
+    if (opt_include_gtids_str != NULL)
+    {
+      error("You cannot use --include-gtids and --raw together.");
       DBUG_RETURN(ERROR_STOP);
     }
 
     if (opt_remote_proto == BINLOG_DUMP_NON_GTID &&
-        (opt_exclude_gtids_str != NULL || opt_include_gtids_str != NULL))
+        opt_exclude_gtids_str != NULL)
     {
-      error("You cannot set --exclude-gtids or --include-gtids for --raw-mode "
-            "when --read-from-remote-master=BINLOG_DUMP_NON_GTID");
-      DBUG_RETURN(ERROR_STOP);
-    }
-
-    if (opt_remote_proto == BINLOG_DUMP_GTID && opt_include_gtids_str != NULL)
-    {
-      error("You cannot set --include-gtids for --raw-mode "
-            "when --read-from-remote-master=BINLOG_DUMP_GTID for");
+      error("You cannot use both of --exclude-gtids and --raw together "
+            "with one of --read-from-remote-server or "
+            "--read-from-remote-master=BINLOG-DUMP-NON-GTID.");
       DBUG_RETURN(ERROR_STOP);
     }
 

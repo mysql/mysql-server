@@ -492,7 +492,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
 
   do
   {
-    set_timespec_nsec(ts, m_heartbeat_period);
+    set_timespec_nsec(&ts, m_heartbeat_period);
     ret= mysql_bin_log.wait_for_update_bin_log(m_thd, &ts);
     if (ret != ETIMEDOUT && ret != ETIME)
       break;
@@ -875,8 +875,8 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
   DBUG_ENTER("send_heartbeat_event");
   const char* filename= m_linfo.log_file_name;
   const char* p= filename + dirname_length(filename);
-  uint32 ident_len= (uint32) strlen(p);
-  uint32 event_len= ident_len + LOG_EVENT_HEADER_LEN +
+  size_t ident_len= strlen(p);
+  size_t event_len= ident_len + LOG_EVENT_HEADER_LEN +
     (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
   DBUG_PRINT("info", ("log_file_name %s, log_pos %llu", p, log_pos));
@@ -986,7 +986,7 @@ inline int Binlog_sender::check_event_count()
 #endif
 
 
-inline bool Binlog_sender::grow_packet(uint32 extra_size)
+inline bool Binlog_sender::grow_packet(size_t extra_size)
 {
   DBUG_ENTER("Binlog_sender::grow_packet");
   size_t cur_buffer_size= m_packet.alloced_length();

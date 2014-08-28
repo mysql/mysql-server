@@ -9,6 +9,7 @@
 #                    - Minor cleanup
 #
 --source include/have_partition.inc
+--source include/no_valgrind_without_big.inc
 
 # This test contains various subtests for MyISAM
 --source include/have_myisam.inc
@@ -2485,6 +2486,7 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (1,1,'a',1), (2,2,'a',1);
 
+--error ER_WRONG_ARGUMENTS
 SELECT 1 FROM t1 WHERE 1 IN
 (SELECT  group_concat(b)
  FROM t1

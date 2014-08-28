@@ -982,6 +982,12 @@ TRACE
                 "table": "`t2`"
               }
             ] /* refine_plan */
+          },
+          {
+            "sort_using_internal_table": {
+              "condition_for_sort": "(not(<in_optimizer>(<cache>(('v','i')),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))",
+              "having_after_sort": null
+            } /* sort_using_internal_table */
           }
         ] /* steps */
       } /* join_optimization */
@@ -3824,6 +3830,7 @@ PRIMARY KEY (seq_0_id,seq_1_id)
 INSERT INTO t2 VALUES (1,1);
 INSERT INTO t2 VALUES (2,1);
 INSERT INTO t2 VALUES (2,2);
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t3 (
 t3_id bigint(21) NOT NULL auto_increment,
 _field_131 varchar(128),
@@ -3845,6 +3852,7 @@ KEY _field_148 (_field_148)
 );
 INSERT INTO t3 VALUES (1,'test job 1',0,'0000-00-00 00:00:00',0,'1999-02-25 22:43:32','test\r\njob\r\n1',0,0,0);
 INSERT INTO t3 VALUES (2,'test job 2',0,'0000-00-00 00:00:00',0,'1999-02-26 21:08:04','',0,0,0);
+SET sql_mode = default;
 CREATE TABLE t4 (
 seq_0_id bigint(21) DEFAULT '0' NOT NULL,
 seq_1_id bigint(21) DEFAULT '0' NOT NULL,
@@ -3890,7 +3898,37 @@ KEY _field_166 (_field_166)
 INSERT INTO t7 VALUES (1,0,'High',1);
 INSERT INTO t7 VALUES (2,0,'Medium',2);
 INSERT INTO t7 VALUES (3,0,'Low',3);
-select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field_135), min(t3._field_139), min(t3._field_137), min(link_alias_142._field_165), min(link_alias_133._field_72), min(t3._field_145), min(link_alias_148._field_156), replace(min(t3._field_140), "\r","^M"),t3.t3_id from t3 left join t4 on t4.seq_0_id = t3.t3_id left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id left join t6 on t6.seq_0_id = t3.t3_id left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id left join t2 on t2.seq_0_id = t3.t3_id left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id where t3.t3_id in (1) group by t3.t3_id order by link_alias_142._field_166, _field_139, link_alias_133._field_72, _field_135, link_alias_148._field_156;
+select
+replace(t3._field_140, "\r","^M"),
+t3_id,
+min(t3._field_131),
+min(t3._field_135),
+min(t3._field_139),
+min(t3._field_137),
+min(link_alias_142._field_165),
+min(link_alias_133._field_72),
+min(t3._field_145),
+min(link_alias_148._field_156),
+replace(min(t3._field_140), "\r","^M"),
+t3.t3_id
+from
+t3 left join t4 on t4.seq_0_id = t3.t3_id
+left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id
+left join t6 on t6.seq_0_id = t3.t3_id
+left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id
+left join t2 on t2.seq_0_id = t3.t3_id
+left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id
+where
+t3.t3_id in (1)
+group by
+t3.t3_id
+order by
+link_alias_142._field_166,
+_field_139,
+link_alias_133._field_72,
+_field_135,
+link_alias_148._field_156
+;
 replace(t3._field_140, "\r","^M")	t3_id	min(t3._field_131)	min(t3._field_135)	min(t3._field_139)	min(t3._field_137)	min(link_alias_142._field_165)	min(link_alias_133._field_72)	min(t3._field_145)	min(link_alias_148._field_156)	replace(min(t3._field_140), "\r","^M")	t3_id
 test^M
 job^M
@@ -3899,7 +3937,36 @@ job^M
 1	1
 select * from information_schema.optimizer_trace;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field_135), min(t3._field_139), min(t3._field_137), min(link_alias_142._field_165), min(link_alias_133._field_72), min(t3._field_145), min(link_alias_148._field_156), replace(min(t3._field_140), "\r","^M"),t3.t3_id from t3 left join t4 on t4.seq_0_id = t3.t3_id left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id left join t6 on t6.seq_0_id = t3.t3_id left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id left join t2 on t2.seq_0_id = t3.t3_id left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id where t3.t3_id in (1) group by t3.t3_id order by link_alias_142._field_166, _field_139, link_alias_133._field_72, _field_135, link_alias_148._field_156	{
+select
+replace(t3._field_140, "\r","^M"),
+t3_id,
+min(t3._field_131),
+min(t3._field_135),
+min(t3._field_139),
+min(t3._field_137),
+min(link_alias_142._field_165),
+min(link_alias_133._field_72),
+min(t3._field_145),
+min(link_alias_148._field_156),
+replace(min(t3._field_140), "\r","^M"),
+t3.t3_id
+from
+t3 left join t4 on t4.seq_0_id = t3.t3_id
+left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id
+left join t6 on t6.seq_0_id = t3.t3_id
+left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id
+left join t2 on t2.seq_0_id = t3.t3_id
+left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id
+where
+t3.t3_id in (1)
+group by
+t3.t3_id
+order by
+link_alias_142._field_166,
+_field_139,
+link_alias_133._field_72,
+_field_135,
+link_alias_148._field_156	{
   "steps": [
     {
       "join_preparation": {
@@ -4688,6 +4755,17 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               ] /* transformations */,
               "expanded_query": "/* select#1 */ select sum(`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`alias2`.`pk` AS `field2` from `t1` `alias1` straight_join `t2` `alias2` where (`alias1`.`pk` and (`alias2`.`pk` = `alias1`.`col_int_key`)) group by `field2` order by `alias1`.`col_int_key`,`alias2`.`pk`"
             } /* transformations_to_nested_joins */
+          },
+          {
+            "functional_dependencies_of_GROUP_columns": {
+              "all_columns_of_table_map_bits": [
+                1
+              ] /* all_columns_of_table_map_bits */,
+              "columns": [
+                "test.alias2.pk",
+                "test.alias1.col_int_key"
+              ] /* columns */
+            } /* functional_dependencies_of_GROUP_columns */
           }
         ] /* steps */
       } /* join_preparation */
