@@ -7826,6 +7826,7 @@ PSI_mutex_key key_LOCK_offline_mode;
 
 #ifdef HAVE_REPLICATION
 PSI_mutex_key key_commit_order_manager_mutex;
+PSI_mutex_key key_mutex_slave_worker_hash;
 #endif
 
 static PSI_mutex_info all_server_mutexes[]=
@@ -7908,8 +7909,9 @@ static PSI_mutex_info all_server_mutexes[]=
 #endif
 #ifdef HAVE_REPLICATION
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0},
+  { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0},
 #endif
-  { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL}
+  { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL},
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -7965,6 +7967,7 @@ PSI_cond_key key_gtid_ensure_index_cond;
 PSI_cond_key key_COND_compress_gtid_table;
 #ifdef HAVE_REPLICATION
 PSI_cond_key key_commit_order_manager_cond;
+PSI_cond_key key_cond_slave_worker_hash;
 #endif
 
 static PSI_cond_info all_server_conds[]=
@@ -8006,7 +8009,8 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_GLOBAL}
 #ifdef HAVE_REPLICATION
   ,
-  { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0}
+  { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0},
+  { &key_cond_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0}
 #endif
 };
 

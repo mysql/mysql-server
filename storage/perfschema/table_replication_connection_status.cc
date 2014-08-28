@@ -120,26 +120,10 @@ table_replication_connection_status::table_replication_connection_status()
   : PFS_engine_table(&m_share, &m_pos),
     m_row_exists(false), m_pos(0), m_next_pos(0)
 {
-  /*
-    If we initialize m_row.received_transaction_set_length to zero, we can not
-    differentiate between the two cases:
-    1) get_row_count() returned zero and hence my_malloc() was never called by
-       Gtid_set::to_string() in make_row().
-    2) get_row_count() returned non-zero and Gtid_set::to_string() in
-       make_row() did a my_ malloc(1) but returned zero.
-    Hence, we may make an attempt to call my_free() even when there was no call
-    to my_malloc()
-  */
-  m_row.received_transaction_set_length= -1;
 }
 
 table_replication_connection_status::~table_replication_connection_status()
 {
-   if (m_row.received_transaction_set_length >= 0)
-   {
-     m_row.received_transaction_set_length= 0;
-     my_free(m_row.received_transaction_set);
-   }
 }
 
 void table_replication_connection_status::reset_position(void)
@@ -365,5 +349,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       }
     }
   }
+  m_row.cleanup();
+
   return 0;
 }

@@ -71,7 +71,19 @@ struct st_row_connect_status {
   char last_error_message[MAX_SLAVE_ERRMSG];
   uint last_error_message_length;
   ulonglong last_error_timestamp;
+
+  st_row_connect_status() : received_transaction_set(NULL) {}
+
+  void cleanup()
+  {
+    if (received_transaction_set != NULL)
+    {
+      my_free(received_transaction_set);
+      received_transaction_set= NULL;
+    }
+  }
 };
+
 
 /** Table PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_STATUS. */
 class table_replication_connection_status: public PFS_engine_table
