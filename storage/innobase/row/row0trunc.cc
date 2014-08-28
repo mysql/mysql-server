@@ -2569,9 +2569,21 @@ truncate_t::is_index_modified_since_logged(
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-	page_t* root = btr_page_get(
-		page_id_t(space_id, root_page_no), page_size,
-		RW_X_LATCH, NULL, &mtr);
+	/* Root page could be in free state if truncate crashed after drop_index
+	and page was not allocated for any other object. */
+	buf_block_t* block= buf_page_get_gen(
+		page_id_t(space_id, root_page_no), page_size, RW_X_LATCH, NULL,
+		BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+
+	page_t* root = buf_block_get_frame(block);
+
+#ifdef UNIV_DEBUG
+	/* If the root page has been freed as part of truncate drop_index action
+	and not yet allocated for any object still the pagelsn > snapshot lsn */
+	if (block->page.file_page_was_freed) {
+		ut_ad(mach_read_from_8(root + FIL_PAGE_LSN) > m_log_lsn);
+	}
+#endif /* UNIV_DEBUG */
 
 	lsn_t page_lsn = mach_read_from_8(root + FIL_PAGE_LSN);
 
