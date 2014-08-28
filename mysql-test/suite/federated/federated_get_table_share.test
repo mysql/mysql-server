@@ -95,6 +95,7 @@ SELECT * from federated.ta;
 
 --echo #
 --echo # Now, both ta and tb should be open:
+--sorted_result
 SHOW OPEN TABLES IN federated;
 
 --echo #

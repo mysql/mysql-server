@@ -5598,7 +5598,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
 err:
   if (proc_table->file->inited)
     (void) proc_table->file->ha_index_end();
-  close_system_tables(thd, &open_tables_state_backup);
+  close_nontrans_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(res);
 }
 
@@ -5663,10 +5663,10 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
             table->field[8]->set_notnull();
           }
           KEY *key=show_table->key_info+i;
-          if (key->rec_per_key[j])
+          if (key->has_records_per_key(j))
           {
-            ha_rows records=(show_table->file->stats.records /
-                             key->rec_per_key[j]);
+            double records= (show_table->file->stats.records /
+                             key->records_per_key(j));
             table->field[9]->store((longlong) records, TRUE);
             table->field[9]->set_notnull();
           }
