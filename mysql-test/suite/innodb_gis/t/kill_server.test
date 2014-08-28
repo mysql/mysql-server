@@ -6,7 +6,6 @@
 
 --source include/have_innodb.inc
 --source include/big_test.inc
---source include/not_valgrind.inc
 
 # Create table with R-tree index.
 create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
@@ -50,11 +49,7 @@ truncate table t1;
 # Test crash recovery.
 #
 #
-# Write file to make mysql-test-run.pl expect the "crash", but don't start
-# it until it's told to
 call mtr.add_suppression("InnoDB: page [0-9]+ in the doublewrite buffer is not within space bounds.*");
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # Test rtree enlarge recovery.
 START TRANSACTION;
@@ -62,20 +57,8 @@ CALL insert_t1(5000);
 
 COMMIT;
 
-# Write file to make mysql-test-run.pl restart the server
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
+--source include/kill_and_restart_mysqld.inc
 
-#
-# Turn on reconnect
---enable_reconnect
-#
-# Call script that will poll the server waiting for it to be back online again
---source include/wait_until_connected_again.inc
-#
-# Turn off reconnect again
---disable_reconnect
---echo
 # Clean up.
 drop procedure insert_t1;
 drop table t1;

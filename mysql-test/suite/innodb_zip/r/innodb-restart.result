@@ -282,6 +282,7 @@ t7#p#p1#sp#s3.ibd
 #
 # Start the server and show that tables are still visible and accessible.
 #
+# restart
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -555,6 +556,7 @@ t7#p#p1#sp#s3.ibd
 #
 # Start the server and show the tablespaces.
 #
+# restart
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -753,6 +755,7 @@ t77#p#p1#sp#s3.ibd
 #
 # Restart the server
 #
+# restart
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -888,6 +891,7 @@ t77#p#p1#sp#s3.ibd
 #
 # Start the server and check tablespaces.
 #
+# restart
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
@@ -1024,6 +1028,7 @@ t77.par
 #
 # Start the server and check tablespaces.
 #
+# restart
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
