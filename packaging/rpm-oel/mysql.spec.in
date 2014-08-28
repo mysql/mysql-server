@@ -104,8 +104,7 @@ Source7:        %{compatsrc}
 %endif
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-Patch0:         mysql-5.6.16-mysql-install.patch
-Patch1:         mysql-5.7-libmysqlclient-symbols.patch
+Patch0:         mysql-5.7-libmysqlclient-symbols.patch
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Time::HiRes)}
@@ -437,8 +436,7 @@ package has been split into several subpackages.
 %setup -q -T -a 0 -c -n %{src_dir}
 %endif # 0%{?compatlib}
 pushd %{src_dir}
-#patch0 -p1
-%{?el7:%patch1 -p1}
+%{?el7:%patch0 -p1}
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -595,6 +593,7 @@ rm -rf %{buildroot}%{_datadir}/mysql/solaris
 rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
+rm -rf %{buildroot}%{_bindir}/mysqlhotcopy
 %if 0%{?systemd}
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysqld
 %endif
