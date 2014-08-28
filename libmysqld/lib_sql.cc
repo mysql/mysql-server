@@ -2,6 +2,9 @@
  * Copyright (c)  2000
  * SWsoft  company
  *
+ * Modifications copyright (c) 2001, 2013. Oracle and/or its affiliates.
+ * All rights reserved.
+ *
  * This material is provided "as is", with absolutely no warranty expressed
  * or implied. Any use is at your own risk.
  *
