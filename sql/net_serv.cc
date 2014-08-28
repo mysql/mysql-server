@@ -39,7 +39,6 @@
 #include <mysqld_error.h>
 #include <my_sys.h>
 #include <m_string.h>
-#include <my_net.h>
 #include <violite.h>
 #include <signal.h>
 #include <errno.h>
@@ -87,7 +86,6 @@ extern void thd_increment_bytes_received(size_t length);
 #endif
 
 #define VIO_SOCKET_ERROR  ((size_t) -1)
-#define MAX_PACKET_LENGTH (256L*256L*256L-1)
 
 static my_bool net_write_buff(NET *, const uchar *, size_t);
 

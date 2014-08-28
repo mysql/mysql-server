@@ -469,12 +469,17 @@ KEY `time_key` (`time_key`),
 KEY `datetime_key` (`datetime_key`),
 KEY `varchar_key` (`varchar_key`)
 );
-INSERT INTO t1 VALUES 
+INSERT IGNORE INTO t1 VALUES 
 (1,5,5,'2009-10-16','2009-10-16','09:28:15','09:28:15','2007-09-14 05:34:08','2007-09-14 05:34:08','qk','qk'),
 (2,6,6,'0000-00-00','0000-00-00','23:06:39','23:06:39','0000-00-00 00:00:00','0000-00-00 00:00:00','j','j'),
 (3,10,10,'2000-12-18','2000-12-18','22:16:19','22:16:19','2006-11-04 15:42:50','2006-11-04 15:42:50','aew','aew'),
 (4,0,0,'2001-09-18','2001-09-18','00:00:00','00:00:00','2004-03-23 13:23:35','2004-03-23 13:23:35',NULL,NULL),
 (5,6,6,'2007-08-16','2007-08-16','22:13:38','22:13:38','2004-08-19 11:01:28','2004-08-19 11:01:28','qu','qu');
+Warnings:
+Warning	1264	Out of range value for column 'date_key' at row 2
+Warning	1264	Out of range value for column 'date_nokey' at row 2
+Warning	1264	Out of range value for column 'datetime_key' at row 2
+Warning	1264	Out of range value for column 'datetime_nokey' at row 2
 select pk from t1 WHERE `varchar_key` > 'kr' group by pk;
 pk
 1

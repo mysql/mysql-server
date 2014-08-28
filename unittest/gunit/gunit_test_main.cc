@@ -55,8 +55,8 @@ extern "C" my_bool get_one_option(int, const struct my_option *, char *)
 // Some globals needed for merge_small_tests.cc
 mysql_mutex_t LOCK_open;
 uint    opt_debug_sync_timeout= 0;
-pthread_key(MEM_ROOT**,THR_MALLOC);
-pthread_key(THD*, THR_THD);
+thread_local_key_t THR_MALLOC;
+thread_local_key_t THR_THD;
 bool THR_THD_initialized= false;
 bool THR_MALLOC_initialized= false;
 

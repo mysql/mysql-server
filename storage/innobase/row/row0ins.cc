@@ -2541,7 +2541,7 @@ last successful insert. To be used when data is sorted.
 @param[in]	thr	query thread
 
 @return error code */
-
+static
 dberr_t
 row_ins_sorted_clust_index_entry(
 	ulint		flags,
@@ -3383,6 +3383,19 @@ row_ins_index_entry_set_vals(
 					dfield_get_data(row_field)));
 
 			ut_ad(!dfield_is_ext(row_field));
+		}
+
+		/* Since DATA_POINT is of fixed length, and no other geometry
+		data would be of length less than POINT, if we get data
+		longer than DATA_POINT_LEN, there must be an error,
+		unless it's a field of length 0 resulting from ADD COLUMN.
+		Currently, server doesn't do geometry data type checking,
+		we should do this for POINT specially. */
+		if (DATA_POINT_MTYPE(row_field->type.mtype)
+		    && !(len == DATA_POINT_LEN
+			 || len == 0
+			 || len == UNIV_SQL_NULL)) {
+			return (DB_CANT_CREATE_GEOMETRY_OBJECT);
 		}
 
 		/* Handle spatial index. For the first field, replace

@@ -555,14 +555,13 @@ dict_table_has_fts_index(
 	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS));
 }
 
-/********************************************************************//**
-Validate the table flags.
+/** Validate the table flags.
+@param[in]	flags	Table flags
 @return true if valid. */
 UNIV_INLINE
 bool
 dict_tf_is_valid(
-/*=============*/
-	ulint	flags)		/*!< in: table flags */
+	ulint	flags)
 {
 	ulint	compact = DICT_TF_GET_COMPACT(flags);
 	ulint	zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
@@ -929,7 +928,7 @@ dict_table_x_lock_indexes(
 	dict_index_t*   index;
 
 	ut_a(table);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* Loop through each index of the table and lock them */
 	for (index = dict_table_get_first_index(table);
@@ -950,7 +949,7 @@ dict_table_x_unlock_indexes(
 	dict_index_t*   index;
 
 	ut_a(table);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
@@ -1570,4 +1569,3 @@ dict_table_get_curr_table_sess_trx_id(
 }
 
 #endif /* !UNIV_HOTBACKUP */
-

@@ -3570,6 +3570,9 @@ sub mysql_install_db {
   if ($^O eq "linux" && $opt_mem) {
     mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
   }
+  # Do not generate SSL/RSA certificates automatically.
+  mtr_add_arg($args, "--loose-auto_generate_certs=OFF");
+  mtr_add_arg($args, "--loose-sha256_password_auto_generate_rsa_keys=OFF");
 
   # InnoDB arguments that affect file location and sizes may
   # need to be given to the bootstrap process as well as the

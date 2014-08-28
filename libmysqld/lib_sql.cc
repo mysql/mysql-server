@@ -1,6 +1,9 @@
 /*
- * Copyright (c)  2000, 2013
+ * Copyright (c)  2000, 2014
  * SWsoft  company
+ *
+ * Modifications copyright (c) 2001, 2014. Oracle and/or its affiliates.
+ * All rights reserved.
  *
  * This material is provided "as is", with absolutely no warranty expressed
  * or implied. Any use is at your own risk.
@@ -723,8 +726,7 @@ void *create_embedded_thd(int client_flag)
   thd->client_capabilities= client_flag;
   thd->real_id= pthread_self();
 
-  thd->db= NULL;
-  thd->db_length= 0;
+  thd->reset_db(NULL_CSTR);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   thd->security_ctx->db_access= DB_ACLS;
   thd->security_ctx->master_access= ~NO_ACCESS;
@@ -768,7 +770,7 @@ emb_transfer_connect_attrs(MYSQL *mysql)
 int check_embedded_connection(MYSQL *mysql, const char *db)
 {
   int result;
-  LEX_STRING db_str = { (char*)db, db ? strlen(db) : 0 };
+  LEX_CSTRING db_lex_cstr= to_lex_cstring(db);
   THD *thd= (THD*)mysql->thd;
 
   /* the server does the same as the client */
@@ -787,7 +789,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   sctx->master_access= GLOBAL_ACLS;       // Full rights
   emb_transfer_connect_attrs(mysql);
   /* Change database if necessary */
-  if (!(result= (db && db[0] && mysql_change_db(thd, &db_str, FALSE))))
+  if (!(result= (db && db[0] && mysql_change_db(thd, db_lex_cstr, false))))
     my_ok(thd);
   thd->protocol->end_statement();
   emb_read_query_result(mysql);
@@ -1199,7 +1201,8 @@ bool Protocol_binary::write()
 bool
 net_send_ok(THD *thd,
             uint server_status, uint statement_warn_count,
-            ulonglong affected_rows, ulonglong id, const char *message)
+            ulonglong affected_rows, ulonglong id, const char *message,
+            bool eof_identifier __attribute__((unused)))
 {
   DBUG_ENTER("emb_net_send_ok");
   MYSQL_DATA *data;

@@ -238,7 +238,7 @@ public:
       if (item->field_name)
       {
         if (!(value= new Item_string(item->field_name,
-                                     (uint) strlen(item->field_name),
+                                     strlen(item->field_name),
                                      system_charset_info))) // names are utf8
 	  value= value_arg;			/* Give error message later */
       }

@@ -26,8 +26,9 @@ Created 2013-7-26 by Kevin Lewis
 #ifndef fsp0file_h
 #define fsp0file_h
 
-#include "univ.i"
+#include "ha_prototypes.h"
 #include "log0log.h"
+#include "mem0mem.h"
 #include "os0file.h"
 #include <vector>
 
@@ -70,7 +71,7 @@ public:
 
 	Datafile(const char* name, ulint size, ulint order)
 		:
-		m_name(::strdup(name)),
+		m_name(mem_strdup(name)),
 		m_filepath(),
 		m_filename(),
 		m_handle(OS_FILE_CLOSED),
@@ -106,12 +107,12 @@ public:
 		m_first_page(),
 		m_last_os_error()
 	{
-		m_name = ::strdup(file.m_name);
+		m_name = mem_strdup(file.m_name);
 		ut_ad(m_name != NULL);
 
 		if (file.m_filepath != NULL) {
-			m_filepath = ::strdup(file.m_filepath);
-			ut_a(m_filepath);
+			m_filepath = mem_strdup(file.m_filepath);
+			ut_a(m_filepath != NULL);
 			set_filename();
 		} else {
 			m_filepath = NULL;
@@ -129,7 +130,7 @@ public:
 		ut_a(this != &file);
 
 		ut_ad(m_name == NULL);
-		m_name = ::strdup(file.m_name);
+		m_name = mem_strdup(file.m_name);
 		ut_a(m_name != NULL);
 
 		m_size = file.m_size;
@@ -147,13 +148,13 @@ public:
 		m_last_os_error = 0;
 
 		if (m_filepath != NULL) {
-			::free(m_filepath);
+			ut_free(m_filepath);
 			m_filepath = NULL;
 			m_filename = NULL;
 		}
 
 		if (file.m_filepath != NULL) {
-			m_filepath = ::strdup(file.m_filepath);
+			m_filepath = mem_strdup(file.m_filepath);
 			ut_a(m_filepath != NULL);
 			set_filename();
 		}

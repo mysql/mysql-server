@@ -5,6 +5,7 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 # Initial Setup for Digest
 --source ../include/digest_setup.inc
 
@@ -21,3 +22,4 @@ SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_ROWS_AFFECTED, SUM_WARN
 
 # Cleanup for Digest
 --source ../include/digest_cleanup.inc
+SET sql_mode=default;

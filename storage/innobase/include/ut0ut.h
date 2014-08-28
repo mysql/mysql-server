@@ -28,6 +28,9 @@ Created 1/20/1994 Heikki Tuuri
 
 /* Do not include univ.i because univ.i includes this. */
 
+#include <ostream>
+#include <sstream>
+
 #ifndef UNIV_INNOCHECKSUM
 
 #include "db0err.h"
@@ -43,8 +46,6 @@ Created 1/20/1994 Heikki Tuuri
 #endif /* MYSQL_SERVER */
 
 #include <stdarg.h>
-#include <ostream>
-#include <sstream>
 
 /** Index name prefix in fast index creation */
 #define	TEMP_INDEX_PREFIX	'\377'
@@ -82,6 +83,14 @@ typedef time_t	ib_time_t;
 #  define UT_RELAX_CPU() ((void)0) /* avoid warning for an empty statement */
 # endif
 
+# if defined(HAVE_HMT_PRIORITY_INSTRUCTION)
+#  define UT_LOW_PRIORITY_CPU() __asm__ __volatile__ ("or 1,1,1")
+#  define UT_RESUME_PRIORITY_CPU() __asm__ __volatile__ ("or 2,2,2")
+# else
+#  define UT_LOW_PRIORITY_CPU() ((void)0)
+#  define UT_RESUME_PRIORITY_CPU() ((void)0)
+# endif
+
 /*********************************************************************//**
 Delays execution for at most max_wait_us microseconds or returns earlier
 if cond becomes true.
@@ -99,27 +108,9 @@ do {								\
 } while (0)
 #endif /* !UNIV_HOTBACKUP */
 
-template <class T> T ut_min(T a, T b) { return(a < b ? a : b); }
-template <class T> T ut_max(T a, T b) { return(a > b ? a : b); }
+#define ut_max	std::max
+#define ut_min	std::min
 
-/******************************************************//**
-Calculates the minimum of two ulints.
-@return minimum */
-UNIV_INLINE
-ulint
-ut_min(
-/*===*/
-	ulint	 n1,	/*!< in: first number */
-	ulint	 n2);	/*!< in: second number */
-/******************************************************//**
-Calculates the maximum of two ulints.
-@return maximum */
-UNIV_INLINE
-ulint
-ut_max(
-/*===*/
-	ulint	 n1,	/*!< in: first number */
-	ulint	 n2);	/*!< in: second number */
 /******************************************************//**
 Compares two ulints.
 @return 1 if a > b, 0 if a == b, -1 if a < b */
@@ -256,6 +247,18 @@ ut_difftime(
 @param[in]	n	number
 @return nonzero if n is zero or a power of two; zero otherwise */
 #define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n) - 1)))
+
+/** Functor that compares two C strings. Can be used as a comparator for
+e.g. std::map that uses char* as keys. */
+struct ut_strcmp_functor
+{
+	bool operator()(
+		const char*	a,
+		const char*	b) const
+	{
+		return(strcmp(a, b) < 0);
+	}
+};
 
 /**********************************************************//**
 Prints a timestamp to a file. */
@@ -496,6 +499,27 @@ ut_strerr(
 /*======*/
 	dberr_t	num);	/*!< in: error number */
 
+#endif /* !UNIV_INNOCHECKSUM */
+
+#ifdef UNIV_PFS_MEMORY
+
+/** Extract the basename of a file without its extension.
+For example, extract "foo0bar" out of "/path/to/foo0bar.cc".
+@param[in]	file		file path, e.g. "/path/to/foo0bar.cc"
+@param[out]	base		result, e.g. "foo0bar"
+@param[in]	base_size	size of the output buffer 'base', if there
+is not enough space, then the result will be truncated, but always
+'\0'-terminated
+@return number of characters that would have been printed if the size
+were unlimited (not including the final ‘\0’) */
+size_t
+ut_basename_noext(
+	const char*	file,
+	char*		base,
+	size_t		base_size);
+
+#endif /* UNIV_PFS_MEMORY */
+
 namespace ib {
 
 /** This is a wrapper class, used to print any unsigned integer type
@@ -537,6 +561,31 @@ public:
 		m_oss << rhs;
 		return(*this);
 	}
+
+	/** Write the given buffer to the internal string stream object.
+	@param[in]	buf	the buffer whose contents will be logged.
+	@param[in]	count	the length of the buffer buf.
+	@return the output stream into which buffer was written. */
+	std::ostream&
+	write(
+		const char*		buf,
+		std::streamsize		count)
+	{
+		return(m_oss.write(buf, count));
+	}
+
+	/** Write the given buffer to the internal string stream object.
+	@param[in]	buf	the buffer whose contents will be logged.
+	@param[in]	count	the length of the buffer buf.
+	@return the output stream into which buffer was written. */
+	std::ostream&
+	write(
+		const byte*		buf,
+		std::streamsize		count)
+	{
+		return(m_oss.write(reinterpret_cast<const char*>(buf), count));
+	}
+
 	std::ostringstream	m_oss;
 protected:
 	/* This class must not be used directly, hence making the default
@@ -587,8 +636,6 @@ public:
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"
 #endif
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 #endif
 

@@ -1,0 +1,18 @@
+#
+# Bug#13955083 ALLOW IN-PLACE DDL OPERATIONS ON MISSING
+# OR DISCARDED TABLESPACES
+#
+SET GLOBAL innodb_file_per_table=1;
+CREATE TABLE t(a INT)ENGINE=InnoDB;
+# restart
+SELECT * FROM t;
+ERROR 42S02: Table 'test.t' doesn't exist
+ALTER TABLE t ADD INDEX (a), ALGORITHM=INPLACE;
+ERROR 42S02: Table 'test.t' doesn't exist
+ALTER TABLE t1 ADD INDEX (a), ALGORITHM=COPY;
+ERROR 42S02: Table 'test.t1' doesn't exist
+ALTER TABLE t DISCARD TABLESPACE;
+Warnings:
+Warning	1812	InnoDB: Tablespace is missing for table 'test/t'
+Warning	1812	InnoDB: Tablespace is missing for table 't'
+DROP TABLE t;

@@ -193,13 +193,13 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_concurrent;
   bool transactional_table;
 #endif
-  char *db = table_list->db;			// This is never null
+  const char *db = table_list->db;			// This is never null
   /*
     If path for file is not defined, we will use the current database.
     If this is not set, we will use the directory where the table to be
     loaded is located
   */
-  char *tdb= thd->db ? thd->db : db;		// Result is never null
+  const char *tdb= thd->db().str ? thd->db().str : db; //Result is never null
   ulong skip_lines= ex->skip_lines;
   DBUG_ENTER("mysql_load");
 
@@ -699,9 +699,9 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   String               pfield, pfields;
   int                  n;
   const char          *tbl= table_name_arg;
-  const char          *tdb= (thd->db != NULL ? thd->db : db_arg);
+  const char          *tdb= (thd->db().str != NULL ? thd->db().str : db_arg);
   String              string_buf;
-  if (!thd->db || strcmp(db_arg, thd->db))
+  if (thd->db().str == NULL || strcmp(db_arg, thd->db().str))
   {
     /*
       If used database differs from table's database,

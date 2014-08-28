@@ -21,8 +21,8 @@
 
 Trigger_creation_ctx *
 Trigger_creation_ctx::create(THD *thd,
-                             const LEX_STRING &db_name,
-                             const LEX_STRING &table_name,
+                             const LEX_CSTRING &db_name,
+                             const LEX_CSTRING &table_name,
                              const LEX_STRING &client_cs_name,
                              const LEX_STRING &connection_cl_name,
                              const LEX_STRING &db_cl_name)

@@ -27,16 +27,8 @@
 ###############################################################################
 
 --source include/force_myisam_default.inc
-#SET default_storage_engine=MyISAM;
-#SET default_tmp_storage_engine=MyISAM;
-
---source include/have_debug.inc
 --source include/not_embedded.inc
 --source include/have_geometry.inc
-
-# Turn on the geometry data print.
---echo #Turn on the geometry data print.
-SET SESSION debug="+d,row_print_geometry_data";
 
 #Confirming the storage engine
 --echo #Confirming the storage engine
@@ -56,13 +48,13 @@ DROP TABLE IF EXISTS gis_geometrycollection, gis_geometry;
 DROP TABLE IF EXISTS tab, tab1, tab2, tab3, parent, child;
 --enable_warnings
 
-CREATE TABLE gis_point  (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
-CREATE TABLE gis_line  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
-CREATE TABLE gis_polygon   (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
+CREATE TABLE gis_point (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
+CREATE TABLE gis_line (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
+CREATE TABLE gis_polygon (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
 CREATE TABLE gis_multi_point (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOINT);
 CREATE TABLE gis_multi_line (fid INTEGER NOT NULL PRIMARY KEY, g MULTILINESTRING);
-CREATE TABLE gis_multi_polygon  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON);
-CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_multi_polygon (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
 CREATE TABLE gis_geometry (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 
 --echo #Displaying the created spatial columns
@@ -85,9 +77,9 @@ INSERT INTO gis_point VALUES
 (101, PointFromText('POINT(10 10)')),
 (102, PointFromText('POINT(20 10)')),
 (103, PointFromText('POINT(20 20)')),
-(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)')))),
+(104, PointFromText('POINT(0 0)')),
 (105, PointFromText('POINT(0 0)')),
-(106, PointFromText('POINT(0 0)')),
+(106, PointFromWKB(AsWKB(PointFromText('POINT(10 20)')))),
 (107, PointFromWKB(AsWKB(PointFromText('POINT(0 0)')))),
 (108, PointFromWKB(AsWKB(PointFromText('POINT(99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999)'))));
 
@@ -96,38 +88,34 @@ INSERT INTO gis_point VALUES
 INSERT INTO gis_point VALUES
 (109, PointFromText('POINT(ô ô)')),
 (110, PointFromText('POINT(ô ô)')),
-(111, PointFromWKB(AsWKB(PointFromText('POINT(ô ô)')))),
-(112, PointFromWKB(AsWKB(PointFromText('POINT(ß ô)')))),
-(113, PointFromWKB(AsWKB(PointFromText('POINT(ß ô)')))),
-(114, PointFromWKB(AsWKB(PointFromText('POINT( 0ë 0Ñ)')))),
-(115, PointFromText('POINT(ëô ôÑ)')),
-(116, PointFromText('POINT(20 ý)')),
-(117, PointFromText('POINT(-0 -0)')),
-(118, PointFromText('POINT(00000000000000000000000000000000000000000 000000000000000000000000000000000-000000000000000000000000000)')),
-(119, PointFromText('POINT(0-0)')),
-(120, PointFromText('POINT(0+0)')),
-(121, PointFromText('POINT(ô*0)')),
-(122, PointFromText('POINT(0)')),
-(123, PointFromText('POINT(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999)')),
-(124, PointFromText('POINT()')),
-(125, PointFromText('POINT(a b)')),
-(126, PointFromText('POINT(a)')),
-(127, PointFromText('POINT(1)')),
-(128, PointFromText('POINT(ë)')),
-(129, PointFromText('POINT(NULL NULL)')),
-(130, PointFromText('POINT(NULL)')),
-(131, PointFromText('POINT(1 .1)'));
+(111, PointFromText('POINT(ëô ôÑ)')),
+(112, PointFromText('POINT(20 ý)')),
+(113, PointFromText('POINT(-0 -0)')),
+(114, PointFromText('POINT(00000000000000000000000000000000000000000 000000000000000000000000000000000-000000000000000000000000000)')),
+(115, PointFromText('POINT(0-0)')),
+(116, PointFromText('POINT(0+0)')),
+(117, PointFromText('POINT(ô*0)')),
+(118, PointFromText('POINT(0)')),
+(119, PointFromText('POINT(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999)')),
+(120, PointFromText('POINT()')),
+(121, PointFromText('POINT(a b)')),
+(122, PointFromText('POINT(a)')),
+(123, PointFromText('POINT(1)')),
+(124, PointFromText('POINT(ë)')),
+(125, PointFromText('POINT(NULL NULL)')),
+(126, PointFromText('POINT(NULL)')),
+(127, PointFromText('POINT(1 .1)')),
+(128, PointFromWKB(AsWKB(PointFromText('POINT(ô ô)')))),
+(129, PointFromWKB(AsWKB(PointFromText('POINT(ß ô)')))),
+(130, PointFromWKB(AsWKB(PointFromText('POINT(ß ô)')))),
+(131, PointFromWKB(AsWKB(PointFromText('POINT(0ë 0Ñ)'))));
 --enable_warnings
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_point;
-
 select count(astext(g)) from gis_point;
-
 select count(distinct(g)) from gis_point;
-
 select count(distinct(astext(g))) from gis_point;
-
 
 --echo #INSERT valid entries to LineString class
 --disable_warnings
@@ -200,13 +188,9 @@ INSERT INTO gis_line VALUES
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_line;
-
 select count(astext(g)) from gis_line;
-
 select count(distinct(g)) from gis_line;
-
 select count(distinct(astext(g))) from gis_line;
-
 
 --echo #INSERT valid entries to Polygon class
 --disable_warnings
@@ -281,7 +265,7 @@ INSERT INTO gis_polygon VALUES
 INSERT INTO gis_polygon VALUES
 (338, PolyFromWKB(AsWKB(Polygon(LineString(Point(NULL), Point(NULL), Point(NULL), Point(NULL))))));
 
-INSERT INTO gis_polygon VALUES
+INSERT IGNORE INTO gis_polygon VALUES
 (339, PolyFromWKB(AsWKB(Polygon(LineString(Point('a', 'b'), Point(1, 1), Point(2, 2), Point(1, 1), Point(0, 0)))))),
 (340, PolyFromWKB(AsWKB(Polygon(LineString(Point(-0, 'b'), Point(1, 1), Point(2, 2), Point(1, 1), Point(0, 0)))))),
 (341, PolyFromWKB(AsWKB(Polygon(LineString(Point(-0, 'b'), Point(1, 1), Point(2, 2), Point(1, 1), Point('$', 0)))))),
@@ -290,13 +274,9 @@ INSERT INTO gis_polygon VALUES
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_polygon;
-
 select count(astext(g)) from gis_polygon;
-
 select count(distinct(g)) from gis_polygon;
-
 select count(distinct(astext(g))) from gis_polygon;
-
 
 --echo #INSERT valid entries to multi_point class
 --disable_warnings
@@ -362,7 +342,7 @@ INSERT INTO gis_multi_point VALUES
 INSERT INTO gis_multi_point VALUES
 (438, MPointFromWKB(AsWKB(MultiPoint(Point(-0), Point(0 0)))));
 
-INSERT INTO gis_multi_point VALUES
+INSERT IGNORE INTO gis_multi_point VALUES
 (439, MPointFromWKB(AsWKB(MultiPoint(Point('NULL', '/8*7-9%4'))))),
 (440, MPointFromWKB(AsWKB(MultiPoint(Point('NULL', '8*7-9%4ab*rt&gh#rtg'))))),
 (441, MPointFromWKB(AsWKB(MultiPoint(Point('NULL', '88.999999999999999'))))),
@@ -371,13 +351,9 @@ INSERT INTO gis_multi_point VALUES
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_multi_point;
-
 select count(astext(g)) from gis_multi_point;
-
 select count(distinct(g)) from gis_multi_point;
-
 select count(distinct(astext(g))) from gis_multi_point;
-
 
 --echo #INSERT valid entries to multi_line class
 --disable_warnings
@@ -446,7 +422,7 @@ INSERT INTO gis_multi_line VALUES
 INSERT INTO gis_multi_line VALUES
 (536, MLineFromWKB(AsWKB(MultiLineString(LineString(Point(NULL), Point(NULL)), LineString(Point(NULL), Point(NULL), Point(NULL))))));
 
-INSERT INTO gis_multi_line VALUES
+INSERT IGNORE INTO gis_multi_line VALUES
 (537, MLineFromWKB(AsWKB(MultiLineString(LineString(Point('NULL', '/8*7-9%4')))))),
 (538, MLineFromWKB(AsWKB(MultiLineString(LineString(Point('NULL', '8*7-9%4ab*rt&gh#rtg')))))),
 (539, MLineFromWKB(AsWKB(MultiLineString(LineString(Point('NULL', '88.999999999999999')))))),
@@ -454,13 +430,9 @@ INSERT INTO gis_multi_line VALUES
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_multi_line;
-
 select count(astext(g)) from gis_multi_line;
-
 select count(distinct(g)) from gis_multi_line;
-
 select count(distinct(astext(g))) from gis_multi_line;
-
 
 --echo #INSERT valid entries to multi_polygon class
 --disable_warnings
@@ -540,13 +512,9 @@ INSERT INTO gis_multi_polygon VALUES
 
 --echo #Checking the integrity of the above insert statements 
 select count(g) from gis_multi_polygon;
-
 select count(astext(g)) from gis_multi_polygon;
-
 select count(distinct(g)) from gis_multi_polygon;
-
 select count(distinct(astext(g))) from gis_multi_polygon;
-
 
 --echo #INSERT valid entries to geometry_collection class
 --disable_warnings
@@ -603,7 +571,7 @@ INSERT INTO gis_geometrycollection VALUES
 
 --error 1064
 INSERT INTO gis_geometrycollection VALUES
-(730, GeometryFromWKB(AsWKB(GeometryCollection(Point(44 98  6), LineString(Point(3 32 6), Point(7, 9))))));
+(730, GeometryFromWKB(AsWKB(GeometryCollection(Point(44 98 6), LineString(Point(3 32 6), Point(7, 9))))));
 
 --error ER_GIS_INVALID_DATA
 INSERT INTO gis_geometrycollection VALUES
@@ -623,13 +591,9 @@ INSERT INTO gis_geometrycollection VALUES
 
 --echo #Checking the integrity of the above insert statements 
 select count(g) from gis_geometrycollection;
-
 select count(astext(g)) from gis_geometrycollection;
-
 select count(distinct(g)) from gis_geometrycollection;
-
 select count(distinct(astext(g))) from gis_geometrycollection;
-
 
 ############################################################################################
 # Inserting the spatial values of all kinds to the parent class                            #
@@ -646,13 +610,9 @@ INSERT into gis_geometry SELECT * FROM gis_geometrycollection;
 
 --echo #Checking the integrity of the above insert statements
 select count(g) from gis_geometry;
-
 select count(astext(g)) from gis_geometry;
-
 select count(distinct(g)) from gis_geometry;
-
 select count(distinct(astext(g))) from gis_geometry;
-
 
 --echo #Displaying the created spatial columns
 SHOW FIELDS FROM gis_point;
@@ -921,7 +881,6 @@ Where c8=GeometryFromWKB(AsWKB(GeomCollFromText('GeometryCollection(Point(1 1),L
 --echo #check the data
 SELECT COUNT(*) FROM tab;
 
-
 --echo #check UPDATE stmt with Where clause and a constant predicate
 SET @c8=GeomCollFromText('GeometryCollection(Point(10 10),LineString(20 20, 30 30))');
 UPDATE tab2 SET c8=@c8
@@ -936,70 +895,38 @@ SELECT AsText(c8) From tab2;
 
 --echo #check GIS datatypes with aggregate functions
 SELECT COUNT(AsText(g)) FROM gis_point;
-
 SELECT COUNT(AsText(g)) FROM gis_line;
-
 SELECT COUNT(AsText(g)) FROM gis_polygon;
-
 SELECT COUNT(AsText(g)) FROM gis_multi_point;
-
 SELECT COUNT(AsText(g)) FROM gis_multi_line;
-
 SELECT COUNT(AsText(g)) FROM gis_multi_polygon;
-
 SELECT COUNT(AsText(g)) FROM gis_geometrycollection;
-
 SELECT COUNT(AsText(g)) FROM gis_geometry;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_point;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_line;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_polygon;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_multi_point;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_multi_line;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_multi_polygon;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_geometrycollection;
-
 SELECT COUNT(distinct(AsText(g))) FROM gis_geometry;
 
-
 SELECT SUM(AsText(g)) FROM gis_point;
-
 SELECT SUM(AsText(g)) FROM gis_line;
-
 SELECT SUM(AsText(g)) FROM gis_polygon;
-
 SELECT SUM(AsText(g)) FROM gis_multi_point;
-
 SELECT SUM(AsText(g)) FROM gis_multi_line;
-
 SELECT SUM(AsText(g)) FROM gis_multi_polygon;
-
 SELECT SUM(AsText(g)) FROM gis_geometrycollection;
-
 SELECT SUM(AsText(g)) FROM gis_geometry;
-
 SELECT AVG(AsText(g)) FROM gis_point;
-
 SELECT AVG(AsText(g)) FROM gis_line;
-
 SELECT AVG(AsText(g)) FROM gis_polygon;
-
 SELECT AVG(AsText(g)) FROM gis_multi_point;
-
 SELECT AVG(AsText(g)) FROM gis_multi_line;
-
 SELECT AVG(AsText(g)) FROM gis_multi_polygon;
-
 SELECT AVG(AsText(g)) FROM gis_geometrycollection;
-
 SELECT AVG(AsText(g)) FROM gis_geometry;
-
 
 --echo #here it show some string value no meaning
 SELECT MAX(AsText(g)) FROM gis_point;
@@ -1022,21 +949,13 @@ SELECT MIN(AsText(g)) FROM gis_geometrycollection;
 SELECT MIN(AsText(g)) FROM gis_geometry;
 
 SELECT STD(AsText(g)) FROM gis_point;
-
 SELECT STD(AsText(g)) FROM gis_line;
-
 SELECT STD(AsText(g)) FROM gis_polygon;
-
 SELECT STD(AsText(g)) FROM gis_multi_point;
-
 SELECT STD(AsText(g)) FROM gis_multi_line;
-
 SELECT STD(AsText(g)) FROM gis_multi_polygon;
-
 SELECT STD(AsText(g)) FROM gis_geometrycollection;
-
 SELECT STD(AsText(g)) FROM gis_geometry;
-
 
 ############################################################################################
 # Checking support of GIS types with partition table and foregin key                       #
@@ -1085,7 +1004,6 @@ SHOW CREATE TABLE tab3;
 
 SELECT COUNT(*) FROM tab3;
 
-
 --echo #check start transaction commit & Rollback
 START TRANSACTION;
 DELETE FROM tab3;
@@ -1093,13 +1011,11 @@ ROLLBACK;
 
 SELECT COUNT(*) FROM tab3;
 
-
 START TRANSACTION;
 DELETE FROM tab3;
 COMMIT;
 
 SELECT COUNT(*) FROM tab3;
-
 
 --echo #check information schema for all the columns
 SELECT sc.COLUMN_NAME, sc.ORDINAL_POSITION, sc.DATA_TYPE, sc.COLUMN_TYPE FROM information_schema.columns sc INNER JOIN information_schema.tables st ON sc.TABLE_NAME=st.TABLE_NAME WHERE st.TABLE_NAME='tab' ORDER BY sc.COLUMN_NAME;
@@ -1116,7 +1032,7 @@ DROP TABLE IF EXISTS gis_point, gis_line, gis_polygon, gis_multi_point;
 DROP TABLE IF EXISTS gis_multi_line, gis_multi_polygon;
 DROP TABLE IF EXISTS gis_geometrycollection, gis_geometry;
 DROP TABLE IF EXISTS tab, tab1, tab2, tab3, parent, child;
-DROP PROCEDURE IF EXISTS  geominout;
+DROP PROCEDURE IF EXISTS geominout;
 DROP PROCEDURE IF EXISTS geom_insert;
 DROP TRIGGER IF EXISTS geom_trigger;
 DROP PROCEDURE IF EXISTS geom_cursor;

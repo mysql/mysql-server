@@ -172,6 +172,7 @@ CREATE TABLE t2 (geom GEOMETRY NOT NULL, SPATIAL KEY gk(geom));
 INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
 drop table t1, t2;
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 INSERT INTO t1 (geometry) VALUES
@@ -271,6 +272,7 @@ INSERT INTO t1 (c1) VALUES (
 # This showed (and still shows) OK.
 CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
+SET sql_mode = default;
 
 #
 # Bug #21888: Query on GEOMETRY field using PointFromWKB() results in lost connection
@@ -833,7 +835,9 @@ INSERT INTO t1 (c2, c1, c3, spatial_point) VALUES
   ('i', 'b', 'a', GeomFromText('POINT(216 18)')),
   ('w', 'y', 'g', GeomFromText('POINT(119 236)')),
   ('h', 'y', 'p', GeomFromText('POINT(161 24)'));
+CHECK TABLE t1 EXTENDED;
 UPDATE t1 set spatial_point=GeomFromText('POINT(33 100)') where  c1 like 't%';
+CHECK TABLE t1 EXTENDED;
 UPDATE t1 set spatial_point=GeomFromText('POINT(41 46)') where  c1 like 'f%';
 CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
@@ -882,8 +886,10 @@ drop table t1;
 CREATE TABLE t1(foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
 --error 1048
 INSERT INTO t1(foo) VALUES (NULL);
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --error 1416
 INSERT INTO t1() VALUES ();
+SET sql_mode = default;
 --error 1416
 INSERT INTO t1(foo) VALUES ('');
 DROP TABLE t1;
@@ -932,13 +938,21 @@ INSERT INTO t1 VALUES
   (GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
 EXPLAIN SELECT 1 FROM t1 WHERE a = GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
 SELECT 1 FROM t1 WHERE a = GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
+--error ER_WRONG_ARGUMENTS
 EXPLAIN SELECT 1 FROM t1 WHERE a < GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
+--error ER_WRONG_ARGUMENTS
 SELECT 1 FROM t1 WHERE a < GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
+--error ER_WRONG_ARGUMENTS
 EXPLAIN SELECT 1 FROM t1 WHERE a <= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
+--error ER_WRONG_ARGUMENTS
 SELECT 1 FROM t1 WHERE a <= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
+--error ER_WRONG_ARGUMENTS
 EXPLAIN SELECT 1 FROM t1 WHERE a > GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
+--error ER_WRONG_ARGUMENTS
 SELECT 1 FROM t1 WHERE a > GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
+--error ER_WRONG_ARGUMENTS
 EXPLAIN SELECT 1 FROM t1 WHERE a >= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
+--error ER_WRONG_ARGUMENTS
 SELECT 1 FROM t1 WHERE a >= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
 DROP TABLE t1;
 

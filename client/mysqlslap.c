@@ -88,8 +88,11 @@ TODO:
 #include <stdarg.h>
 #include <sslopt-vars.h>
 #include <sys/types.h>
-#ifndef _WIN32
+#ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
 #endif
 #include <ctype.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -170,6 +173,7 @@ static ulonglong auto_generate_sql_unique_query_number;
 static unsigned int auto_generate_sql_secondary_indexes;
 static ulonglong num_of_query;
 static ulonglong auto_generate_sql_number;
+static const char *sql_mode= NULL;
 const char *concurrency_str= NULL;
 static char *create_string;
 uint *concurrency;
@@ -258,6 +262,7 @@ static int generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt);
 static int drop_primary_key_list(void);
 static int create_schema(MYSQL *mysql, const char *db, statement *stmt, 
               option_string *engine_stmt);
+static void set_sql_mode(MYSQL *mysql);
 static int run_scheduler(stats *sptr, statement *stmts, uint concur, 
                          ulonglong limit);
 pthread_handler_t run_task(void *p);
@@ -367,6 +372,7 @@ int main(int argc, char **argv)
       exit(1);
     }
   }
+  set_sql_mode(&mysql);
 
   native_mutex_init(&counter_mutex, NULL);
   native_cond_init(&count_threshold);
@@ -695,6 +701,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
     &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"sql_mode", 0, "Specify sql-mode to run mysqlslap tool.", &sql_mode,
+    &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"user", 'u', "User for login if not current user.", &user,
     &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1619,6 +1627,22 @@ drop_primary_key_list(void)
   return 0;
 }
 
+static void set_sql_mode(MYSQL *mysql)
+{
+  if (sql_mode != NULL)
+  {
+    char query[512];
+    size_t len;
+    len=  my_snprintf(query, HUGE_STRING_LENGTH, "SET sql_mode = `%s`", sql_mode);
+
+    if (run_query(mysql, query, len))
+    {
+      fprintf(stderr,"%s:%s\n", my_progname, mysql_error(mysql));
+      exit(1);
+    }
+  }
+}
+
 static int
 create_schema(MYSQL *mysql, const char *db, statement *stmt, 
               option_string *engine_stmt)
@@ -1812,7 +1836,7 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   {
     struct timespec abstime;
 
-    set_timespec(abstime, 3);
+    set_timespec(&abstime, 3);
     native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
   }
   native_mutex_unlock(&counter_mutex);

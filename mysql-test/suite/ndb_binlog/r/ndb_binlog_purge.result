@@ -43,6 +43,7 @@ call go_forth_and_make_binlog(40);
 Now restart, should re-pickup the expire-log-days
 debug setting from the config file, and perform
 expire-logs action at restart...
+# restart
 drop procedure go_forth_and_make_binlog;
 drop table tm;
 drop table tn;

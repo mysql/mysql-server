@@ -163,7 +163,7 @@ CREATE TABLE `goodплохо` (a int);
 set names latin1;
 create table t1 (a char(10) character set koi8r, b text character set koi8r);
 insert into t1 values ('test','test');
-insert into t1 values ('йцук','йцук');
+insert ignore into t1 values ('йцук','йцук');
 drop table t1;
 
 #

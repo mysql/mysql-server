@@ -40,10 +40,9 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "trx0types.h"
 #include "row0types.h"
-#include <deque>
+#include "ut0new.h"
 
-/** A stack of table names related through foreign key constraints */
-typedef std::deque<const char*> dict_names_t;
+#include <deque>
 
 #ifndef UNIV_HOTBACKUP
 # include "sync0mutex.h"
@@ -154,17 +153,7 @@ Inits the data dictionary module. */
 
 void
 dict_init(void);
-/*===========*/
-/********************************************************************//**
-Gets the space id of every table of the data dictionary and makes a linear
-list and a hash table of them to the data dictionary cache. This function
-can be called at database startup if we did not need to do a crash recovery.
-In crash recovery we must scan the space id's from the .ibd files in MySQL
-database directories. */
 
-void
-dict_load_space_id_list(void);
-/*=========================*/
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
 @return minimum multi-byte char size, in bytes */
@@ -609,6 +598,19 @@ dict_table_get_col_name(
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			col_nr)	/*!< in: column number */
 	__attribute__((nonnull, warn_unused_result));
+
+/** Check if the table has a given column.
+@param[in]	table		table object
+@param[in]	col_name	column name
+@param[in]	col_nr		column number guessed, 0 as default
+@return column number if the table has the specified column,
+otherwise table->n_def */
+ulint
+dict_table_has_column(
+	const dict_table_t*	table,
+	const char*		col_name,
+	ulint			col_nr = 0);
+
 /**********************************************************************//**
 Outputs info on foreign keys of a table. */
 
@@ -1784,15 +1786,13 @@ dict_set_corrupted_by_space(
 /*========================*/
 	ulint		space_id);	/*!< in: space ID */
 
-/********************************************************************//**
-Validate the table flags.
+/** Validate the table flags.
+@param[in]	flags	Table flags
 @return true if valid. */
 UNIV_INLINE
 bool
 dict_tf_is_valid(
-/*=============*/
-	ulint		flags)		/*!< in: table flags */
-	__attribute__((warn_unused_result));
+	ulint	flags);
 
 /********************************************************************//**
 Check if the tablespace for the table has been discarded.
