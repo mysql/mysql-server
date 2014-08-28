@@ -386,6 +386,8 @@ ut_delay(
 {
 	ulint	i, j;
 
+	UT_LOW_PRIORITY_CPU();
+
 	j = 0;
 
 	for (i = 0; i < delay * 50; i++) {
@@ -396,6 +398,8 @@ ut_delay(
 	if (ut_always_false) {
 		ut_always_false = (ibool) j;
 	}
+
+	UT_RESUME_PRIORITY_CPU();
 
 	return(j);
 }
