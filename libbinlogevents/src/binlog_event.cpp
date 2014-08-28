@@ -37,22 +37,6 @@ namespace binary_log_debug
   bool debug_pretend_version_50034_in_binlog= false;
 }
 
-/*
-  Explicit instantiation to unsigned int of template available_buffer
-  function.
-*/
-template unsigned int available_buffer<unsigned int>(const char*,
-                                                     const char*,
-                                                     unsigned int);
-
-/*
-  Explicit instantiation to unsigned int of template valid_buffer_range
-  function.
-*/
-template bool valid_buffer_range<unsigned int>(unsigned int,
-                                               const char*,
-                                               const char*,
-                                               unsigned int);
 namespace binary_log
 {
 /**
@@ -89,9 +73,11 @@ Log_event_footer::get_checksum_alg(const char* buf, unsigned long len)
     ret= static_cast<enum_binlog_checksum_alg>(*(buf + len -
                                                  BINLOG_CHECKSUM_LEN -
                                                  BINLOG_CHECKSUM_ALG_DESC_LEN));
+#ifndef DBUG_OFF
   assert(ret == BINLOG_CHECKSUM_ALG_OFF ||
          ret == BINLOG_CHECKSUM_ALG_UNDEF ||
          ret == BINLOG_CHECKSUM_ALG_CRC32);
+#endif
   return ret;
 }
 
@@ -113,8 +99,9 @@ Log_event_header(const char* buf, uint16_t binlog_version)
   when.tv_sec= le32toh(tmp_sec);
   when.tv_usec= 0;
   type_code= static_cast<Log_event_type>(buf[EVENT_TYPE_OFFSET]);
+#ifndef DBUG_OFF
   assert (type_code < ENUM_END_EVENT);
-
+#endif
   memcpy(&unmasked_server_id,
          buf + SERVER_ID_OFFSET, sizeof(unmasked_server_id));
 
@@ -248,7 +235,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
     {
     #ifndef DBUG_OFF
       unsigned char fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN -
-                             BINLOG_CHECKSUM_ALG_DESC_LEN];
+                                      BINLOG_CHECKSUM_ALG_DESC_LEN];
     #endif
       /*
         FD event is checksummed and therefore verified w/o
@@ -313,7 +300,8 @@ Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version,
 : m_header(*buf, binlog_version)
 {
   m_footer= Log_event_footer();
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to beginning of
+  //post-header
   (*buf)+= LOG_EVENT_HEADER_LEN;
 }
 

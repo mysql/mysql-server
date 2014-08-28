@@ -33,7 +33,9 @@ Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
                    description_event->server_version), new_log_ident(0),
   flags(DUP_NAME)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
+
   // This will ensure that the event_len is what we have at EVENT_LEN_OFFSET
   size_t header_size= description_event->common_header_len;
   size_t post_header_len= description_event->post_header_len[ROTATE_EVENT - 1];
@@ -91,8 +93,8 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
   case 4: /* MySQL 5.0 and above*/
   {
     /*
-     As we are copying from a char * it might be the case at times that some part
-     of the array server_version remains uninitialized so memset will help
+     As we are copying from a char * it might be the case at times that some
+     part of the array server_version remains uninitialized so memset will help
      in getting rid of the valgrind errors.
     */
     memset(server_version, 0, ST_SERVER_VER_LEN);
@@ -113,7 +115,10 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       ROTATE_HEADER_LEN,
       INTVAR_HEADER_LEN,
       LOAD_HEADER_LEN,
-      /* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
+      /*
+        Unused because the code for Slave log event was removed.
+        (15th Oct. 2010)
+      */
       0,
       CREATE_FILE_HEADER_LEN,
       APPEND_BLOCK_HEADER_LEN,
@@ -150,21 +155,21 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
        Gtid_event::POST_HEADER_LENGTH,         /*ANONYMOUS_GTID_EVENT*/
        IGNORABLE_HEADER_LEN
     };
-    post_header_len=  new uint8_t [number_of_event_types * sizeof(uint8_t) +
-                                   BINLOG_CHECKSUM_ALG_DESC_LEN];
-
-    if (post_header_len)
-    {
-      /**
-         Allows us to sanity-check that all events initialized their
-         events (see the end of this 'if' block).
-      */
-      memset(post_header_len, 255, number_of_event_types * sizeof(uint8_t));
-      memcpy(post_header_len, server_event_header_length, number_of_event_types);
-      // Sanity-check that all post header lengths are initialized.
-      for (int i= 0; i < number_of_event_types; i++)
-        assert(post_header_len[i] != 255);
-    }
+     post_header_len.resize(number_of_event_types * sizeof(uint8_t) +
+                                   BINLOG_CHECKSUM_ALG_DESC_LEN);
+    /**
+       Allows us to sanity-check that all events initialized their
+       events (see the end of this 'if' block).
+    */
+#ifndef DBUG_OFF
+    memset(post_header_len.data(), 255, number_of_event_types * sizeof(uint8_t));
+#endif
+    memcpy(post_header_len.data(), server_event_header_length, number_of_event_types);
+    // Sanity-check that all post header lengths are initialized.
+#ifndef DBUG_OFF
+    for (int i= 0; i < number_of_event_types; i++)
+      assert(post_header_len[i] != 255);
+#endif
     break;
   }
   case 1: /* 3.23 */
@@ -200,7 +205,11 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       uint8_t(binlog_ver == 1 ? 0 : ROTATE_HEADER_LEN),
       INTVAR_HEADER_LEN,
       LOAD_HEADER_LEN,
-      0,/* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
+      /*
+       Unused because the code for Slave log event was removed.
+       (15th Oct. 2010)
+      */
+      0,
       CREATE_FILE_HEADER_LEN,
       APPEND_BLOCK_HEADER_LEN,
       EXEC_LOAD_HEADER_LEN,
@@ -209,12 +218,11 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       RAND_HEADER_LEN,
       USER_VAR_HEADER_LEN
     };
-    post_header_len= new uint8_t [number_of_event_types * sizeof(uint8_t) +
-                                  BINLOG_CHECKSUM_ALG_DESC_LEN];
-    if (post_header_len)
-    {
-      memcpy(post_header_len, server_event_header_length_ver_1_3, number_of_event_types);
-    }
+    post_header_len.resize(number_of_event_types * sizeof(uint8_t) +
+                                BINLOG_CHECKSUM_ALG_DESC_LEN);
+    memcpy(post_header_len.data(), server_event_header_length_ver_1_3,
+           number_of_event_types);
+
     break;
   }
   default: /* Includes binlog version 2 i.e. 4.0.x x<=1 */
@@ -222,7 +230,6 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       Will make the mysql-server variable *is_valid* defined in class Log_event
       to be set to false.
     */
-    post_header_len= 0;
     break;
   }
   calc_server_version_split();
@@ -267,7 +274,8 @@ Start_event_v3::Start_event_v3(const char* buf,
   :Binary_log_event(&buf, description_event->binlog_version,
    description_event->server_version)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   memcpy(&binlog_version, buf + ST_BINLOG_VER_OFFSET, 2);
   binlog_version= le16toh(binlog_version);
   memcpy(server_version, buf + ST_SERVER_VER_OFFSET,
@@ -310,9 +318,9 @@ Format_description_event(const char* buf, unsigned int event_len,
   number_of_event_types=
    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
 
-  post_header_len=  new uint8_t [number_of_event_types * sizeof(*post_header_len)];
-  memcpy(post_header_len, buf + ST_COMMON_HEADER_LEN_OFFSET + 1,
-         number_of_event_types * sizeof(*post_header_len));
+  post_header_len.resize(number_of_event_types * sizeof(uint8_t));
+  memcpy(post_header_len.data(), buf + ST_COMMON_HEADER_LEN_OFFSET + 1,
+         number_of_event_types * sizeof(uint8_t));
 
   calc_server_version_split();
   if ((ver_calc= get_product_version()) >= checksum_version_product)
@@ -386,7 +394,7 @@ Format_description_event(const char* buf, unsigned int event_len,
 
     This is what we test for in the 'if' below.
   */
-  if (post_header_len &&
+  if (!post_header_len.empty() &&
       server_version[0] == '5' && server_version[1] == '.' &&
       server_version[3] == '.' &&
       strncmp(server_version + 5, "-a_drop", 7) == 0 &&
@@ -402,9 +410,6 @@ Format_description_event(const char* buf, unsigned int event_len,
   {
     if (number_of_event_types != 22)
     {
-      /* this makes is_valid in the server code to be set to false. */
-      delete[] post_header_len;
-      post_header_len= NULL;
       return;
     }
     static const uint8_t perm[23]=
@@ -441,8 +446,6 @@ Format_description_event(const char* buf, unsigned int event_len,
 
 Format_description_event::~Format_description_event()
 {
-  if(post_header_len)
-    delete[] post_header_len;
 }
 
 /**
@@ -453,7 +456,8 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
 : Binary_log_event(&buf, descr_event->binlog_version,
                    descr_event->server_version)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   uint8_t const common_header_len= descr_event->common_header_len;
   uint8_t const post_header_len= descr_event->post_header_len[INCIDENT_EVENT-1];
 
@@ -497,7 +501,8 @@ Xid_event(const char* buf,
   :Binary_log_event(&buf, description_event->binlog_version,
                     description_event->server_version)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   /*
    We step to the post-header despite it being empty because it could later be
    filled with something and we have to support that case.
@@ -507,32 +512,14 @@ Xid_event(const char* buf,
   memcpy((char*) &xid, buf, 8);
 }
 
-
-Rand_event::Rand_event(const char* buf,
-                       const Format_description_event* description_event)
-  :Binary_log_event(&buf, description_event->binlog_version,
-                    description_event->server_version)
-{
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
-  /*
-   We step to the post-header despite it being empty because it could later be
-   filled with something and we have to support that case.
-   The Variable Data part begins immediately.
-  */
-  buf+= description_event->post_header_len[RAND_EVENT - 1];
-  memcpy(&seed1, buf + RAND_SEED1_OFFSET, 8);
-  seed1= le64toh(seed1);
-  memcpy(&seed2, buf + RAND_SEED2_OFFSET, 8);
-  seed2= le64toh(seed2);
-}
-
 /**
     We create an object of Ignorable_log_event for unrecognized sub-class, while
     decoding. So that we just update the position and continue.
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -540,11 +527,11 @@ Rand_event::Rand_event(const char* buf,
                               The content of this object
                               depends on the binlog-version currently in use.
 */
-Ignorable_event::Ignorable_event(const char *buf, const Format_description_event *descr_event)
-:Binary_log_event(&buf, descr_event->binlog_version,
-                  descr_event->server_version)
-{
-}
+Ignorable_event::Ignorable_event(const char *buf,
+                                 const Format_description_event *descr_event)
+ : Binary_log_event(&buf, descr_event->binlog_version,
+                    descr_event->server_version)
+{}
 
 
 /**
@@ -568,7 +555,8 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
  : Binary_log_event(&buffer, description_event->binlog_version,
                     description_event->server_version)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   uint8_t const common_header_len= description_event->common_header_len;
 
   char const *ptr_buffer= buffer;
@@ -617,7 +605,8 @@ Previous_gtids_event(const char *buffer, unsigned int event_len,
 : Binary_log_event(&buffer, description_event->binlog_version,
                      description_event->server_version)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   uint8_t const common_header_len= description_event->common_header_len;
   uint8_t const post_header_len=
     description_event->post_header_len[PREVIOUS_GTIDS_LOG_EVENT - 1];
@@ -636,7 +625,8 @@ Heartbeat_event::Heartbeat_event(const char* buf, unsigned int event_len,
                    description_event->server_version),
   log_ident(buf)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   unsigned char header_size= description_event->common_header_len;
   ident_len= event_len - header_size;
   if (ident_len > FN_REFLEN - 1)
@@ -695,17 +685,6 @@ void Xid_event::print_long_info(std::ostream& info)
   this->print_event_info(info);
 }
 
-void Rand_event::print_event_info(std::ostream& info)
-{
-  info << " SEED1 is " << seed1;
-  info << " SEED2 is " << seed2;
-}
-void Rand_event::print_long_info(std::ostream& info)
-{
-  info << "Timestamp: " << header()->when.tv_sec;
-  info << "\t";
-  this->print_event_info(info);
-}
 #endif //end HAVE_MYSYS
 
 }// end namespace binary_log

@@ -75,7 +75,8 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
     m_dbnam(""), m_dblen(0), m_tblnam(""), m_tbllen(0),
     m_colcnt(0), m_field_metadata_size(0), m_field_metadata(0), m_null_bits(0)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   unsigned int bytes_read= 0;
   uint8_t common_header_len= description_event->common_header_len;
   uint8_t post_header_len=
@@ -178,7 +179,8 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
     m_table_id(0), m_width(0), m_extra_row_data(0),
     columns_before_image(0), columns_after_image(0), row(0)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   uint8_t const common_header_len= description_event->common_header_len;
   Log_event_type event_type= header()->type_code;
   m_type= event_type;
@@ -293,8 +295,7 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
                           (ptr_rows_data + common_header_len -
                           (const unsigned char *) buf);
 
-  // Allocate one extra byte, in case we have to do uint3korr!
-  row.reserve(data_size + 1);
+  row.reserve(data_size);
   for (unsigned long i= 0; i < data_size + 1; i++)
   {
     row.push_back(*ptr_rows_data);

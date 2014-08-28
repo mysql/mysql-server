@@ -3118,8 +3118,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
          (ev= Log_event::read_log_event(&log, 0, fd_ev_p, verify_checksum)) !=
          NULL)
   {
-    DBUG_PRINT("info", ("Read event of type %s",
-                        ev->get_type_str()));
+    DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
     switch (ev->get_type_code())
     {
     case binary_log::FORMAT_DESCRIPTION_EVENT:
@@ -5416,7 +5415,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     */
     Rotate_log_event r(new_name+dirname_length(new_name), 0, LOG_EVENT_OFFSET,
                        is_relay_log ? Rotate_log_event::RELAY_LOG : 0);
-    /*
+    /* 
       The current relay-log's closing Rotate event must have checksum
       value computed with an algorithm of the last relay-logged FD event.
     */
@@ -5805,7 +5804,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
     bool is_trans_cache= event_info->is_using_trans_cache();
     binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
     binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
-
+    
     DBUG_PRINT("info",("event type: %d",event_info->get_type_code()));
 
     /*
@@ -5822,7 +5821,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
       {
         if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
         {
-          Intvar_log_event e(thd,(uchar) Intvar_event::LAST_INSERT_ID_EVENT,
+          Intvar_log_event e(thd,(uchar) binary_log::Intvar_event::LAST_INSERT_ID_EVENT,
                              thd->first_successful_insert_id_in_prev_stmt_for_binlog,
                              event_info->event_cache_type, event_info->event_logging_type);
           if (cache_data->write_event(thd, &e))
@@ -5833,7 +5832,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
           DBUG_PRINT("info",("number of auto_inc intervals: %u",
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
                              nb_elements()));
-          Intvar_log_event e(thd, (uchar) Intvar_event::INSERT_ID_EVENT,
+          Intvar_log_event e(thd, (uchar) binary_log::Intvar_event::INSERT_ID_EVENT,
                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.
                              minimum(), event_info->event_cache_type,
                              event_info->event_logging_type);
@@ -6634,7 +6633,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
     if ((exiting & LOG_CLOSE_STOP_EVENT) != 0)
     {
       /**
-        TODO: Change the implementation to Stop_event after write() is
+        TODO(WL#7546): Change the implementation to Stop_event after write() is
         moved into libbinlogevents
       */
       Stop_log_event s;

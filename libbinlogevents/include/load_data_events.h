@@ -31,7 +31,6 @@
 #include "binlog_event.h"
 #include "statement_events.h"
 #include "table_id.h"
-#include "cassert"
 
 /*
   These are flags and structs to handle all the LOAD DATA INFILE options (LINES
@@ -302,7 +301,8 @@ public:
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -608,7 +608,8 @@ public:
     </pre>
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -701,7 +702,8 @@ public:
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -783,7 +785,8 @@ public:
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -858,7 +861,8 @@ public:
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -973,7 +977,8 @@ public:
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -1031,7 +1036,8 @@ public:
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len

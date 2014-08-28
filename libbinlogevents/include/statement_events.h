@@ -646,7 +646,42 @@ public:
 #endif
 };
 
+/**
+  Check if jump value is within buffer limits.
 
+  @param jump         Number of positions we want to advance.
+  @param buf_start    Pointer to buffer start.
+  @param buf_current  Pointer to the current position on buffer.
+  @param buf_len      Buffer length.
+
+  @return             Number of bytes available on event buffer.
+*/
+template <class T> T available_buffer(const char* buf_start,
+                                      const char* buf_current,
+                                      T buf_len)
+{
+  return buf_len - (buf_current - buf_start);
+}
+
+
+/**
+  Check if jump value is within buffer limits.
+
+  @param jump         Number of positions we want to advance.
+  @param buf_start    Pointer to buffer start
+  @param buf_current  Pointer to the current position on buffer.
+  @param buf_len      Buffer length.
+
+  @retval      True   If jump value is within buffer limits.
+  @retval      False  Otherwise.
+*/
+template <class T> bool valid_buffer_range(T jump,
+                                           const char* buf_start,
+                                           const char* buf_current,
+                                           T buf_len)
+{
+  return (jump <= available_buffer(buf_start, buf_current, buf_len));
+}
 
 /**
   @class User_var_event
@@ -760,8 +795,8 @@ public:
   }
 
   /**
-    The constructor receives a buffer and instantiates a User_var_event filled in
-    with the data from the buffer
+    The constructor receives a buffer and instantiates a User_var_event filled
+    in with the data from the buffer
     Written every time a statement uses a user variable, precedes other
     events for the statement. Indicates the value to use for the
     user variable in the next statement. This is written only before a
@@ -776,7 +811,8 @@ public:
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -906,7 +942,8 @@ public:
     log and decodes it to create an Intvar_event.
 
     @param buf                Contains the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -925,9 +962,9 @@ public:
   Intvar_event(const char* buf,
                const Format_description_event *description_event);
   /**
-   The minimal constructor for Intvar_event it initializes the instance variables
-   type & val and set the type_code as INTVAR_EVENT in the header object in
-   Binary_log_event
+   The minimal constructor for Intvar_event it initializes the instance
+   variables type & val and set the type_code as INTVAR_EVENT in the header
+   object in Binary_log_event
   */
   Intvar_event(uint8_t type_arg, uint64_t val_arg)
     : Binary_log_event(INTVAR_EVENT),
@@ -950,6 +987,95 @@ public:
 #endif
 };
 
+/**
+  @class Rand_event
+
+  Logs random seed used by the next RAND(), and by PASSWORD() in 4.1.0.
+  4.1.1 does not need it (it's repeatable again) so this event needn't be
+  written in 4.1.1 for PASSWORD() (but the fact that it is written is just a
+  waste, it does not cause bugs).
+
+  The state of the random number generation consists of 128 bits,
+  which are stored internally as two 64-bit numbers.
+
+  @section Rand_event_binary_format Binary Format
+
+  The Post-Header for this event type is empty.  The Body has two
+  components:
+
+  <table>
+  <caption>Body for Rand_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>seed1</td>
+    <td>8 byte unsigned integer</td>
+    <td>64 bit random seed1.</td>
+  </tr>
+
+  <tr>
+    <td>seed2</td>
+    <td>8 byte unsigned integer</td>
+    <td>64 bit random seed2.</td>
+  </tr>
+  </table>
+*/
+class Rand_event: public Binary_log_event
+{
+public:
+  unsigned long long seed1;
+  unsigned long long seed2;
+  enum Rand_event_data
+  {
+    RAND_SEED1_OFFSET= 0,
+    RAND_SEED2_OFFSET= 8
+  };
+
+  /**
+    This will initialize the instance variables seed1 & seed2, and set the
+type_code as RAND_EVENT in the header object in Binary_log_event
+  */
+  Rand_event(unsigned long long seed1_arg, unsigned long long seed2_arg)
+    : Binary_log_event(RAND_EVENT)
+  {
+    seed1= seed1_arg;
+    seed2= seed2_arg;
+  }
+
+  /**
+    Written every time a statement uses the RAND() function; precedes other
+    events for the statement. Indicates the seed values to use for generating a
+    random number with RAND() in the next statement. This is written only before
+    a QUERY_EVENT and is not used with row-based logging
+
+    <pre>
+    The buffer layout for variable part is as follows:
+    +----------------------------------------------+
+    | value for first seed | value for second seed |
+    +----------------------------------------------+
+    </pre>
+    @param buf                Contains the serialized event.
+    @param description_event  An FDE event, used to get the
+                              following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
+  Rand_event(const char* buf,
+             const Format_description_event *description_event);
+#ifndef HAVE_MYSYS
+  void print_event_info(std::ostream& info);
+  void print_long_info(std::ostream& info);
+#endif
+};
 } // end namespace binary_log
 /**
   @} (end of group Replication)
