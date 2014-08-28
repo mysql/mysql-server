@@ -4345,7 +4345,10 @@ row_search_mvcc(
 	adaptive hash index latch if there is someone waiting behind */
 
 	if (trx->has_search_latch
-	    && rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED) {
+#ifndef INNODB_RW_LOCKS_USE_ATOMICS
+	    && rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED
+#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
+	    ) {
 
 		/* There is an x-latch request on the adaptive hash index:
 		release the s-latch to reduce starvation and wait for
@@ -4579,7 +4582,9 @@ release_search_latch_if_needed:
 				if (trx->search_latch_timeout > 0
 				    && trx->has_search_latch) {
 
+#ifndef INNODB_RW_LOCKS_USE_ATOMICS
 					trx->search_latch_timeout--;
+#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 
 					rw_lock_s_unlock(&btr_search_latch);
 					trx->has_search_latch = false;
