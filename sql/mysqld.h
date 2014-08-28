@@ -305,6 +305,12 @@ extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
 #endif
 extern ulong log_warnings;
+extern bool  opt_log_syslog_enable;
+extern char *opt_log_syslog_tag;
+#ifndef _WIN32
+extern bool  opt_log_syslog_include_pid;
+extern char *opt_log_syslog_facility;
+#endif
 /** The size of the host_cache. */
 extern uint host_cache_size;
 extern ulong log_error_verbosity;

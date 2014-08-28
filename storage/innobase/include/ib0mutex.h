@@ -524,7 +524,7 @@ private:
 private:
 	MutexPolicy		m_policy;
 
-	volatile lock_word_t	m_lock_word;
+	volatile lock_word_t	m_lock_word MY_ALIGNED(MY_ALIGNOF(ulint));
 };
 
 #endif /* HAVE_IB_LINUX_FUTEX */
