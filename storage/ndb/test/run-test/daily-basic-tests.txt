@@ -2113,3 +2113,7 @@ max-time : 600
 cmd: testNodeRestart
 args: -n DeleteRestart T1
 
+max-time : 600
+cmd: testBasic
+args: -n AccCommitOrder T1
+

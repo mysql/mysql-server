@@ -3502,6 +3502,141 @@ runBug16834333(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+// bug#19031389
+
+#define CHK1(b) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__; \
+    result = NDBT_FAILED; \
+    break; \
+  }
+
+#define CHK2(b, e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    result = NDBT_FAILED; \
+    break; \
+  }
+
+int
+runAccCommitOrder(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  const int loops = ctx->getNumLoops();
+  const int records = ctx->getNumRecords();
+  require(records > 0);
+  const int opsteps = ctx->getProperty("OPSTEPS");
+  int result = NDBT_OK;
+
+  for (int loop = 0; loop < loops; loop++)
+  {
+    g_info << "loop " << loop << endl;
+
+    {
+      g_info << "load table" << endl;
+      HugoTransactions trans(*pTab);
+      CHK2(trans.loadTable(pNdb, records) == 0, trans.getNdbError());
+    }
+
+    g_info << "start op steps" << endl;
+    require(ctx->getProperty("RUNNING", (Uint32)opsteps) == 0);
+    ctx->setProperty("RUN", (Uint32)1);
+
+    if (ctx->getPropertyWait("RUNNING", (Uint32)opsteps))
+      break;
+    g_info << "all op steps running" << endl;
+
+    int mssleep = 10 + ndb_rand() % records;
+    if (mssleep > 1000)
+      mssleep = 1000;
+    NdbSleep_MilliSleep(mssleep);
+
+    g_info << "stop op steps" << endl;
+    require(ctx->getProperty("RUNNING", (Uint32)0) == (Uint32)opsteps);
+    ctx->setProperty("RUN", (Uint32)0);
+
+    if (ctx->getPropertyWait("RUNNING", (Uint32)0))
+      break;
+    g_info << "all op steps stopped" << endl;
+
+    {
+      g_info << "clear table" << endl;
+      UtilTransactions trans(*pTab);
+      CHK1(trans.clearTable(pNdb, records) == 0);
+    }
+  }
+
+  g_info << "stop test" << endl;
+  ctx->stopTest();
+  return result;
+}
+
+int
+runAccCommitOrderOps(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const int stepNo = step->getStepNo();
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  const int records = ctx->getNumRecords();
+  int result = NDBT_OK;
+
+  unsigned seed = (unsigned)(getpid() ^ stepNo);
+  ndb_srand(seed);
+
+  int loop = 0;
+  while (!ctx->isTestStopped())
+  {
+    if (ctx->getPropertyWait("RUN", (Uint32)1))
+      break;
+    g_info << "step " << stepNo << ": loop " << loop << endl;
+
+    ctx->incProperty("RUNNING");
+    g_info << "step " << stepNo << ": running" << endl;
+
+    int opscount = 0;
+    int n = 0; // steps should hit about same records
+    while (ctx->getProperty("RUN", (Uint32)0) == (Uint32)1)
+    {
+      HugoOperations ops(*pTab);
+      ops.setQuiet();
+      CHK2(ops.startTransaction(pNdb) == 0, ops.getNdbError());
+
+      const int numreads = 2 + ndb_rand_r(&seed) % 3;
+      for (int i = 0; i < numreads; i++)
+      {
+        NdbOperation::LockMode lm = NdbOperation::LM_Read;
+        CHK2(ops.pkReadRecord(pNdb, n, 1, lm) == 0, ops.getNdbError());
+        opscount++;
+      }
+      CHK1(result == NDBT_OK);
+
+      CHK2(ops.pkDeleteRecord(pNdb, n, 1) == 0, ops.getNdbError());
+
+      CHK2(ops.execute_Commit(pNdb) == 0 ||
+           ops.getNdbError().code == 626 ||
+           (
+             ops.getNdbError().status == NdbError::TemporaryError &&
+             ops.getNdbError().classification != NdbError::NodeRecoveryError
+           ),
+           ops.getNdbError());
+      ops.closeTransaction(pNdb);
+      n = (n + 1) % records;
+    }
+    CHK1(result == NDBT_OK);
+    g_info << "step " << stepNo << ": ops count " << opscount << endl;
+
+    ctx->decProperty("RUNNING");
+    g_info << "step " << stepNo << ": stopped" << endl;
+
+    loop++;
+  }
+
+  ctx->stopTest();
+  return result;
+}
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -3897,6 +4032,15 @@ TESTCASE("FillQueueREDOLog",
   INITIALIZER(insertError5083);
   STEP(runLoadTableFail);
   FINALIZER(clearError5083);
+}
+TESTCASE("AccCommitOrder",
+         "Bug19031389. MT kernel crash on deleted tuple in read*-delete.")
+{
+  TC_PROPERTY("OPSTEPS", (Uint32)2);
+  TC_PROPERTY("RUN", (Uint32)0);
+  TC_PROPERTY("RUNNING", (Uint32)0);
+  STEP(runAccCommitOrder);
+  STEPS(runAccCommitOrderOps, 2);
 }
 NDBT_TESTSUITE_END(testBasic);
 
