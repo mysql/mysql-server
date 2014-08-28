@@ -250,12 +250,14 @@ insert into t1 values (1, 'c', 'b');
 select * from t1;
 keyc	c1	c2
 1	c	b
+# restart
 # files in MYSQL_DATA_DIR
 ibtmp1
 use test;
 select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 "testing temp-table creation in --innodb_read_only mode"
+# restart: --innodb-read-only
 use test;
 show tables;
 Tables_in_test
@@ -263,13 +265,13 @@ create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb
 ERROR HY000: InnoDB is in read only mode.
 "testing system and temp tablespace name conflict"
 "restarting server in normal mode"
-use test;
+# restart
 show tables;
 Tables_in_test
 create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
 drop table t1;
-"test condition of full-temp-tablespace"
-use test;
+# test condition of full-temp-tablespace
+# restart: --innodb_temp_data_file_path=ibtmp1:12M
 create temporary table t1
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc)) engine = innodb;
@@ -398,10 +400,8 @@ Level	Code	Message
 #sql<temporary>.ibd
 drop table t;
 "testing temp tablespace non-support for raw device"
-"restarting server in normal mode"
 "testing temp tablespace non-support for raw device"
-"restarting server in normal mode"
-use test;
+# restart
 show tables;
 Tables_in_test
 create temporary table t1 (
@@ -409,10 +409,8 @@ keyc int, c1 char(100), c2 char(100)
 ) engine = innodb;
 drop table t1;
 "try starting server with temp-tablespace size < min. threshold"
-"restarting server in normal mode"
 "try starting server with sys-tablespace size < min. threshold"
-"restarting server in normal mode"
-use test;
+# restart
 show tables;
 Tables_in_test
 create temporary table t1 (
@@ -420,13 +418,10 @@ keyc int, c1 char(100), c2 char(100)
 ) engine = innodb;
 drop table t1;
 "try starting server with no file specified for temp-tablespace"
-"restarting server in normal mode"
-use test;
+# restart
 show tables;
 Tables_in_test
 create temporary table t1 (
 keyc int, c1 char(100), c2 char(100)
 ) engine = innodb;
 drop table t1;
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 1;

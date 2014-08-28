@@ -3321,14 +3321,17 @@ static int init_ssl()
 #ifdef HAVE_OPENSSL
 #ifndef HAVE_YASSL
   CRYPTO_malloc_init();
-  if (do_auto_cert_generation() == false)
-    return 1;
 #endif
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)
   {
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
+
+#ifndef HAVE_YASSL
+    if (do_auto_cert_generation() == false)
+      return 1;
+#endif
 
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,

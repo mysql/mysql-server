@@ -1507,7 +1507,41 @@ select count(*) from t1;
 count(*)
 2880
 drop table t1;
-drop table t480;
 SET GLOBAL innodb_monitor_reset = default;
 SET GLOBAL innodb_monitor_enable = default;
 SET GLOBAL innodb_monitor_disable = default;
+# Bug#19163915 INNODB: DUPLICATE RECORDS COULD EXIST
+# WHEN SKIPPING SORT FOR CLUSTER INDEX
+SELECT @@innodb_sort_buffer_size;
+@@innodb_sort_buffer_size
+65536
+create table t1(f1 int auto_increment not null,
+f2 char(200) not null, f3 char(200) not null,
+f4 char(200) not null,primary key(f1,f2,f3,f4));
+insert into t1 select NULL,'aaa','bbb','ccc' from t480;
+insert into t1 values(106, 'aaa','bbb','cccc');
+select count(*) from t1;
+count(*)
+481
+# Skip sort
+# Change PK from (f1,f2,f3,f4) to (f1,f2,f3)
+alter table t1 drop primary key, add primary key(f1,f2,f3);
+ERROR 23000: Duplicate entry '106-aaa-bbb' for key 'PRIMARY'
+select count(*) from t1;
+count(*)
+481
+drop table t1;
+create table t1(f1 int auto_increment not null,
+f2 char(200) not null, f3 char(200) not null,
+f4 char(200) not null,primary key(f1,f2,f3,f4));
+insert into t1 select NULL,'aaa','bbb','ccc' from t480;
+insert into t1 values(108,'aaa','bbb','cccc');
+select count(*) from t1;
+count(*)
+481
+alter table t1 drop primary key, add primary key(f1,f2,f3);
+ERROR 23000: Duplicate entry '108-aaa-bbb' for key 'PRIMARY'
+select count(*) from t1;
+count(*)
+481
+drop table t1, t480;

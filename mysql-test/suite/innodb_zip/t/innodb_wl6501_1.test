@@ -14,7 +14,7 @@
 --source include/big_test.inc
 --source include/have_innodb_16k.inc
 
-# Valgrind would complain about memory leaks when we crash on purpose.
+# Valgrind would result in a "long semaphore wait" inside InnoDB
 --source include/not_valgrind.inc
 # Embedded server does not support crashing
 --source include/not_embedded.inc

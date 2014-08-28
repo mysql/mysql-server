@@ -289,6 +289,7 @@ DROP DATABASE shared;
 CALL mtr.add_suppression("Missing system table mysql.proxies_priv.");
 DROP TABLE mysql.proxies_priv;
 # Must come back with mysql.proxies_priv absent.
+# restart
 SELECT * FROM mysql.proxies_priv;
 ERROR 42S02: Table 'mysql.proxies_priv' doesn't exist
 CREATE USER u1@localhost;
