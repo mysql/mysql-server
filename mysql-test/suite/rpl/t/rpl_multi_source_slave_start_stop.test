@@ -1,0 +1,60 @@
+#
+# WL#1697: Multisource replication
+#
+# The aim of this test :
+# 1. To check if io threads and sql threads of all channels
+#     are started with START SLAVE IO_THREAD and START SQL_THREAD
+#     respecively.
+# 2. To check that individually the start of io_thread and sql_thread
+#    are independent i.e if sql_threads of all channels are running
+#    and if a START SLAVE IO_THREAD is issued, io_threads of all
+#    channels must be running.
+
+--source include/have_binlog_format_mixed.inc
+
+--echo #
+--echo # Set up masters server_1 and server_3 with server_2 being a slave.
+--echo #.
+--let $rpl_topology= 1->2,3->2
+--let $rpl_multi_source= 1
+--let $rpl_skip_start_slave= 1
+--source include/rpl_init.inc
+
+--echo #
+--echo # Execute START SLAVE IO_THREAD; io_threads of all channels shall start
+--echo #
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+START SLAVE IO_THREAD;
+
+# check till IO_thread returned Yes
+--let $rpl_source_file= include/wait_for_slave_io_to_start.inc
+--source include/rpl_for_each_connection.inc
+
+--echo #
+--echo # Execute START SLAVE IO_THREAD; io_threads of all channels shall start
+--echo #
+START SLAVE SQL_THREAD;
+
+# check till SQL_thread returned Yes
+--let $rpl_source_file= include/wait_for_slave_sql_to_start.inc
+--source include/rpl_for_each_connection.inc
+
+--echo #
+--echo #  Do stop slave IO_thread.  SQL threads must still be running
+--echo #
+STOP SLAVE IO_THREAD;
+--let $rpl_source_file= include/wait_for_slave_io_to_stop.inc
+--source include/rpl_for_each_connection.inc
+
+--echo #
+--echo #  Do  start slave.  IO threads should be up.
+--echo #
+START SLAVE;
+
+--let $rpl_source_file= include/wait_for_slave_io_to_start.inc
+--source include/rpl_for_each_connection.inc
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc
