@@ -1864,8 +1864,8 @@ static Sys_var_charptr Sys_log_syslog_facility(
        "log_syslog_facility",
        "When logging issues using the host operating system's syslog, "
        "identify as a facility of the given type (to aid in log filtering).",
-       PREALLOCATED GLOBAL_VAR(opt_log_syslog_facility), CMD_LINE(REQUIRED_ARG),
-       IN_SYSTEM_CHARSET, DEFAULT(my_strdup(PSI_NOT_INSTRUMENTED, "daemon", MYF(0))), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       GLOBAL_VAR(opt_log_syslog_facility), CMD_LINE(REQUIRED_ARG),
+       IN_SYSTEM_CHARSET, DEFAULT("daemon"), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_syslog_facility), ON_UPDATE(fix_syslog_facility));
 
 static Sys_var_mybool Sys_log_syslog_log_pid(
