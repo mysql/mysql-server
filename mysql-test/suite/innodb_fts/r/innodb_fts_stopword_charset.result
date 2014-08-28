@@ -257,6 +257,7 @@ SELECT * FROM articles WHERE MATCH (title)
 AGAINST ('love' IN NATURAL LANGUAGE MODE);
 id	title
 # Shutdown and restart mysqld
+# restart
 SET NAMES utf8;
 INSERT IGNORE INTO articles (title) VALUES
 ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
@@ -298,6 +299,7 @@ AGAINST ('love' IN NATURAL LANGUAGE MODE);
 id	title
 DROP TABLE user_stopword;
 # Shutdown and restart mysqld
+# restart
 SET NAMES utf8;
 INSERT IGNORE INTO articles (title) VALUES
 ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),

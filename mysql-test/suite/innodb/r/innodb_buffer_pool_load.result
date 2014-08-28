@@ -10,6 +10,7 @@ WHERE table_name LIKE '%ib_bp_test%';
 COUNT(*)
 {checked_valid}
 SET GLOBAL innodb_buffer_pool_dump_now = ON;
+# restart
 select count(*) from ib_bp_test where a = 1;
 count(*)
 1

@@ -386,12 +386,7 @@ SELECT * FROM yn;
 SELECT * FROM yw;
 SELECT * FROM yy;
 
-# Request a crash.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
-# Notice the crash.
---error 2013,2006
-COMMIT;
+--source include/kill_mysqld.inc
 
 --echo #
 --echo # Now that the engine is not running, move files around to test various scenarios.
@@ -435,10 +430,7 @@ let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*alt_dir.test.yw\.i
 --move_file $MYSQLD_DATADIR/test/yn.ibd $MYSQL_TMP_DIR/alt_dir/test/yn.ibd
 --move_file $MYSQLD_DATADIR/test/yw.ibd $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 SELECT * FROM ny;
 SELECT * FROM wy;

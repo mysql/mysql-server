@@ -55,14 +55,7 @@ SELECT COUNT(*) FROM bug16720368;
 
 INSERT INTO bug16720368_1 VALUES(1);
 
--- echo # Kill the server to do an unclean shutdown.
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 0
--- source include/wait_until_disconnected.inc
-
--- echo # The corruption should not prevent startup after crash recovery,
--- echo # because there is no redo log for the corrupted tablespace.
--- source include/start_mysqld.inc
+-- source include/kill_and_restart_mysqld.inc
 
 -- echo # The table is unaccessible, because after a crash we will
 -- echo # validate the tablespace header.
@@ -71,15 +64,8 @@ SELECT COUNT(*) FROM bug16720368;
 --error ER_NO_SUCH_TABLE
 INSERT INTO bug16720368 VALUES(0,1);
 
--- echo # Kill the server to do an unclean shutdown.
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 0
--- source include/wait_until_disconnected.inc
-
--- exec echo "restart: --innodb-force-recovery=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
--- disable_reconnect
+let $restart_parameters = restart: --innodb-force-recovery=3;
+-- source include/kill_and_restart_mysqld.inc
 
 -- echo # The table is readable thanks to innodb-force-recovery.
 SELECT COUNT(*) FROM bug16720368;
@@ -87,6 +73,7 @@ SELECT COUNT(*) FROM bug16720368;
 INSERT INTO bug16720368 VALUES(0,1);
 
 -- echo # Shut down the server cleanly to hide the corruption.
+let $restart_parameters = restart;
 -- source include/restart_mysqld.inc
 
 -- echo # The table is accessible, because after a clean shutdown we will
@@ -137,15 +124,10 @@ INSERT INTO bug16735660 VALUES(1),(2),(3);
 XA END 'x';
 XA PREPARE 'x';
 
--- connect (con2,localhost,root)
-
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 0
--- source include/wait_until_disconnected.inc
--- disconnect con1
--- disconnect con2
-
 -- connection default
+
+-- source include/kill_mysqld.inc
+-- disconnect con1
 
 -- move_file $MYSQLD_DATADIR/test/bug16735660.ibd $MYSQLD_DATADIR/bug16735660.omg
 
@@ -159,10 +141,7 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Tablespace [0-9]+ was not found at \..test
 
 -- move_file $MYSQLD_DATADIR/bug16735660.omg $MYSQLD_DATADIR/test/bug16735660.ibd
 
--- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
--- disable_reconnect
+-- source include/start_mysqld.inc
 
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT * FROM bug16735660;

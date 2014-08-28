@@ -66,15 +66,7 @@ CONNECTION con1;
 
 call mtr.add_suppression("Found 1 prepared XA transactions");
 
--- echo # forcefully shutdown mysqld immediately (kill)
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 0
--- source include/wait_until_disconnected.inc
-
--- echo # restart mysqld
--- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
+--source include/kill_and_restart_mysqld.inc
 
 SELECT update_time FROM information_schema.tables WHERE table_name = 't';
 
