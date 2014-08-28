@@ -4087,7 +4087,11 @@ Format_description_log_event(const char* buf,
   DBUG_ENTER("Format_description_log_event::Format_description_log_event(char*,...)");
   buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
   if ((common_header_len=buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
+  {
+    /* this makes is_valid() return false. */
+    post_header_len= NULL;
     DBUG_VOID_RETURN; /* sanity check */
+  }
   number_of_event_types=
     event_len-(LOG_EVENT_MINIMAL_HEADER_LEN+ST_COMMON_HEADER_LEN_OFFSET+1);
   DBUG_PRINT("info", ("common_header_len=%d number_of_event_types=%d",
