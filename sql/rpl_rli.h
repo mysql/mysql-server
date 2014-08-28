@@ -531,10 +531,6 @@ public:
   HASH mapping_db_to_worker; // To map a database to a worker
   bool inited_hash_workers; //  flag to check if mapping_db_to_worker is inited
 
-#ifdef HAVE_PSI_INTERFACE
-  PSI_mutex_key key_mutex_slave_worker_hash;
-  PSI_cond_key  key_cond_slave_worker_hash;
-#endif
   mysql_mutex_t slave_worker_hash_lock; // for mapping_db_to_worker
   mysql_cond_t  slave_worker_hash_cond;// for mapping_db_to_worker
 

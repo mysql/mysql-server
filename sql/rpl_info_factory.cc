@@ -1175,7 +1175,7 @@ err:
   /* Free channel list */
   for (uint i= 0; i<channel_list.size(); i++)
   {
-    delete channel_list[i];
+    delete[] channel_list[i];
   }
   DBUG_RETURN(error);
 

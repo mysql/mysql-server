@@ -612,15 +612,9 @@ bool init_hash_workers(Relay_log_info *rli)
                  (my_hash_free_key) free_entry, 0) == 0);
   if (rli->inited_hash_workers)
   {
-#ifdef HAVE_PSI_INTERFACE
-    mysql_mutex_init(rli->key_mutex_slave_worker_hash, &rli->slave_worker_hash_lock,
+    mysql_mutex_init(key_mutex_slave_worker_hash, &rli->slave_worker_hash_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_cond_init(rli->key_cond_slave_worker_hash, &rli->slave_worker_hash_cond);
-#else
-    mysql_mutex_init(NULL, &rli->slave_worker_hash_lock,
-                     MY_MUTEX_INIT_FAST);
-    mysql_cond_init(NULL, &rli->slave_worker_hash_cond, NULL);
-#endif
+    mysql_cond_init(key_cond_slave_worker_hash, &rli->slave_worker_hash_cond);
   }
 
   DBUG_RETURN (!rli->inited_hash_workers);
