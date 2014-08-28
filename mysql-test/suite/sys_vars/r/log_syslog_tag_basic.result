@@ -1,0 +1,24 @@
+SET @start_value= @@global.log_syslog_tag;
+SET @@global.log_syslog_tag= DEFAULT;
+SELECT @@global.log_syslog_tag;
+@@global.log_syslog_tag
+
+SET @@global.log_syslog_tag="production";
+SELECT @@global.log_syslog_tag;
+@@global.log_syslog_tag
+production
+SET @@global.log_syslog_tag= "";
+SELECT @@global.log_syslog_tag;
+@@global.log_syslog_tag
+
+SET @@global.log_syslog_tag= 9;
+ERROR 42000: Incorrect argument type to variable 'log_syslog_tag'
+SET @@global.log_syslog_tag= "path/like";
+ERROR 42000: Variable 'log_syslog_tag' can't be set to the value of 'path/like'
+SET GLOBAL log_syslog_tag= 0.01;
+ERROR 42000: Incorrect argument type to variable 'log_syslog_tag'
+SET SESSION log_syslog_tag= "staging";
+ERROR HY000: Variable 'log_syslog_tag' is a GLOBAL variable and should be set with SET GLOBAL
+SET LOCAL log_syslog_tag= "staging";
+ERROR HY000: Variable 'log_syslog_tag' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.log_syslog_tag= @start_value;
