@@ -47,9 +47,9 @@ public:
 	Writer& AcceptAnyRoot(bool yesno = true) { acceptAnyRoot_ = yesno; return *this; }
 #endif
 
-	//! Set the number of significant digits for \c double values
+	//! Set the number of decimal digits for \c double values
 	/*! When writing a \c double value to the \c OutputStream, the number
-		of significant digits is limited to 6 by default.
+		of decimal digits is limited to 6 by default.
 		\param p maximum number of significant digits (default: 6)
 		\return The Writer itself for fluent API.
 	*/
@@ -220,11 +220,27 @@ protected:
 
 	//! \todo Optimization with custom double-to-string converter.
 	void WriteDouble(double d) {
-		char buffer[100];
-		int ret = RAPIDJSON_SNPRINTF(buffer, sizeof(buffer), "%.*g", doublePrecision_, d);
+    /*
+      The handling of writing double to ouput was change due to the fact that
+      the result could be different on LINUX and WINDOWS. It now uses the same
+      logic/method as String::set_real() in sql_string.cc to produce the same
+      output as the TRUNCATE() SQL function will.
+    */
+    size_t ret;
+    char buffer[FLOATING_POINT_BUFFER];
+    if (doublePrecision_ >= NOT_FIXED_DEC)
+    {
+      ret= my_gcvt(d, MY_GCVT_ARG_DOUBLE, static_cast<int>(sizeof(buffer)) - 1,
+                   buffer, NULL);
+    }
+    else
+    {
+      ret= my_fcvt(d, doublePrecision_, buffer, NULL);
+    }
+
 		RAPIDJSON_ASSERT(ret >= 1);
-		for (int i = 0; i < ret; i++)
-			os_.Put(buffer[i]);
+    for (size_t i = 0; i < ret; i++)
+      os_.Put(buffer[i]);
 	}
 #undef RAPIDJSON_SNPRINTF
 
