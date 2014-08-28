@@ -86,6 +86,7 @@ USER_PRIVILEGES
 VIEWS
 columns_priv
 db
+engine_cost
 event
 func
 general_log
@@ -98,6 +99,7 @@ plugin
 proc
 procs_priv
 proxies_priv
+server_cost
 servers
 slave_master_info
 slave_relay_log_info
@@ -903,7 +905,7 @@ AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	31
-mysql	26
+mysql	28
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin

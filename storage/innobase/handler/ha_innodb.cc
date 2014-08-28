@@ -256,6 +256,8 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 
 #ifdef HAVE_PSI_INTERFACE
 # define PSI_KEY(n) {&n##_key, #n, 0}
+/* All RWLOCK used in Innodb are SX-locks */
+# define PSI_RWLOCK_KEY(n) {&n##_key, #n, PSI_RWLOCK_FLAG_SX}
 
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
@@ -353,24 +355,24 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 performance schema instrumented if "UNIV_PFS_RWLOCK"
 is defined */
 static PSI_rwlock_info all_innodb_rwlocks[] = {
-	PSI_KEY(btr_search_latch),
+	PSI_RWLOCK_KEY(btr_search_latch),
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-	PSI_KEY(buf_block_lock),
+	PSI_RWLOCK_KEY(buf_block_lock),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 #  ifdef UNIV_SYNC_DEBUG
-	PSI_KEY(buf_block_debug_latch),
+	PSI_RWLOCK_KEY(buf_block_debug_latch),
 #  endif /* UNIV_SYNC_DEBUG */
-	PSI_KEY(dict_operation_lock),
-	PSI_KEY(fil_space_latch),
-	PSI_KEY(checkpoint_lock),
-	PSI_KEY(fts_cache_rw_lock),
-	PSI_KEY(fts_cache_init_rw_lock),
-	PSI_KEY(trx_i_s_cache_lock),
-	PSI_KEY(trx_purge_latch),
-	PSI_KEY(index_tree_rw_lock),
-	PSI_KEY(index_online_log),
-	PSI_KEY(dict_table_stats),
-	PSI_KEY(hash_table_locks)
+	PSI_RWLOCK_KEY(dict_operation_lock),
+	PSI_RWLOCK_KEY(fil_space_latch),
+	PSI_RWLOCK_KEY(checkpoint_lock),
+	PSI_RWLOCK_KEY(fts_cache_rw_lock),
+	PSI_RWLOCK_KEY(fts_cache_init_rw_lock),
+	PSI_RWLOCK_KEY(trx_i_s_cache_lock),
+	PSI_RWLOCK_KEY(trx_purge_latch),
+	PSI_RWLOCK_KEY(index_tree_rw_lock),
+	PSI_RWLOCK_KEY(index_online_log),
+	PSI_RWLOCK_KEY(dict_table_stats),
+	PSI_RWLOCK_KEY(hash_table_locks)
 };
 # endif /* UNIV_PFS_RWLOCK */
 
@@ -1165,6 +1167,19 @@ thd_trx_priority(THD* thd)
 {
 	return(thd == NULL ? 0 : thd_tx_priority(thd));
 }
+
+#ifdef UNIV_DEBUG
+/**
+Returns true if transaction should be flagged as DD attachable transaction
+@param[in] thd			Thread handle
+@return true if the thd is marked as read-only */
+
+bool
+thd_trx_is_dd_trx(THD* thd)
+{
+	return(thd != NULL && thd_tx_is_dd_trx(thd));
+}
+#endif /* UNIV_DEBUG */
 
 /******************************************************************//**
 Check if the transaction is an auto-commit transaction. TRUE also
@@ -2218,6 +2233,12 @@ innobase_trx_allocate(
 
 	innobase_trx_init(thd, trx);
 
+#ifdef UNIV_DEBUG
+	if (thd_trx_is_dd_trx(thd)) {
+		trx->is_dd_trx = true;
+	}
+#endif /* UNIV_DEBUG */
+
 	DBUG_RETURN(trx);
 }
 
@@ -2380,6 +2401,7 @@ ha_innobase::ha_innobase(
 			  | HA_CAN_RTREEKEYS
 			  | HA_HAS_RECORDS
 			  | HA_NO_READ_LOCAL_LOCK
+			  | HA_ATTACHABLE_TRX_COMPATIBLE
 		  ),
 	m_start_of_scan(),
 	m_num_write_row()
@@ -2951,6 +2973,48 @@ innobase_init_abort()
 	DBUG_RETURN(1);
 }
 
+
+/*****************************************************************//**
+This function checks if the given db.tablename is a system table
+supported by Innodb and is used as an initializer for the data member
+is_supported_system_table of InnoDB storage engine handlerton.
+Currently we support only help and time_zone system tables in InnoDB.
+Please don't add any SE-specific system tables here.
+
+@param db				database name to check.
+@param table_name			table name to check.
+@param is_sql_layer_system_table	if the supplied db.table_name is a SQL
+					layer system table.
+*/
+
+static bool innobase_is_supported_system_table(const char *db,
+						const char *table_name,
+						bool is_sql_layer_system_table)
+{
+	static const char* supported_system_tables[]= { "help_topic",
+							"help_category",
+							"help_relation",
+							"help_keyword",
+							"time_zone",
+							"time_zone_leap_second",
+							"time_zone_name",
+							"time_zone_transition",
+							"time_zone_transition_type",
+							(const char *)NULL };
+
+	if (!is_sql_layer_system_table)
+		return false;
+
+	for (unsigned i= 0; supported_system_tables[i] != NULL; ++i)
+	{
+		if (!strcmp(table_name, supported_system_tables[i]))
+			return true;
+	}
+
+	return false;
+}
+
+
 /*********************************************************************//**
 Opens an InnoDB database.
 @return 0 on success, 1 on failure */
@@ -3003,6 +3067,9 @@ innobase_init(
 		innobase_release_temporary_latches;
 
 	innobase_hton->data = &innodb_api_cb;
+
+	innobase_hton->is_supported_system_table=
+		innobase_is_supported_system_table;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -13637,6 +13704,14 @@ ha_innobase::store_lock(
 
 		++trx->will_lock;
 	}
+
+	
+#ifdef UNIV_DEBUG
+	if(trx->is_dd_trx) {
+		ut_ad(trx->will_lock == 0
+		      && m_prebuilt->select_lock_type == LOCK_NONE);
+	}
+#endif /* UNIV_DEBUG */
 
 	return(to);
 }

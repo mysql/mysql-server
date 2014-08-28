@@ -316,6 +316,7 @@ DROP USER u1@localhost,u2@localhost;
 FLUSH PRIVILEGES;
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -330,6 +331,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -449,6 +451,7 @@ ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 Run mysql_upgrade on a 5.5.10 external authentication column layout
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -464,6 +467,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK

@@ -215,6 +215,7 @@ int thd_tx_isolation(const void* thd);
 int thd_tx_is_read_only(const void* thd);
 void* thd_tx_arbitrate(void* requestor, void* holder);
 int thd_tx_priority(const void* thd);
+int thd_tx_is_dd_trx(const void* thd);
 char *thd_security_context(void* thd, char *buffer, size_t length,
                            size_t max_query_len);
 void thd_inc_row_count(void* thd);
