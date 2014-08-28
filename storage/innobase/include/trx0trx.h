@@ -54,13 +54,27 @@ class ReadView;
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
 
-/********************************************************************//**
-Releases the search latch if trx has reserved it. */
+/**
+Releases the search latch if trx has reserved it.
+@param[in,out] trx		Transaction that may own the AHI latch */
 UNIV_INLINE
 void
-trx_search_latch_release_if_reserved(
-/*=================================*/
-	trx_t*		trx); /*!< in: transaction */
+trx_search_latch_release_if_reserved(trx_t* trx);
+
+/**
+Reserve the AHI latch if not already reserved by this transaction.
+@param[in,out] trx		Transaction that may own the AHI latch */
+UNIV_INLINE
+void
+trx_reserve_search_latch_if_not_reserved(trx_t* trx);
+
+/**
+Releases the search latch if the transaction has been hogging it for too long.
+@param[in,out] trx		Transaction that may own the AHI latch */
+UNIV_INLINE
+void
+trx_search_latch_timeout(trx_t* trx);
+
 /******************************************************************//**
 Set detailed error message for the transaction. */
 
@@ -1366,7 +1380,11 @@ public:
 		:
 		m_trx(trx)
 	{
-		trx_search_latch_release_if_reserved(m_trx);
+		/* Only the owning thread should release the latch. */
+
+		if (is_async_rollback()) {
+			trx_search_latch_release_if_reserved(m_trx);
+		}
 
 		trx_mutex_enter(m_trx);
 
@@ -1402,7 +1420,11 @@ public:
 	Destructor */
 	~TrxInInnoDB()
 	{
-		trx_search_latch_release_if_reserved(m_trx);
+		/* Only the owning thread should release the latch. */
+
+		if (is_async_rollback()) {
+			trx_search_latch_release_if_reserved(m_trx);
+		}
 
 		trx_mutex_enter(m_trx);
 

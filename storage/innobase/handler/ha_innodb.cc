@@ -3544,12 +3544,7 @@ innobase_start_trx_and_assign_read_view(
 
 	trx_t*	trx = check_trx_exists(thd);
 
-	/* This is just to play safe: release a possible FIFO ticket and
-	search latch. Since we can potentially reserve the trx_sys->mutex,
-	we have to release the search system latch first to obey the latching
-	order. */
-
-	trx_search_latch_release_if_reserved(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
@@ -3615,13 +3610,6 @@ innobase_commit(
 
 	ut_ad(trx->dict_operation_lock_mode == 0);
 	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
-
-	/* Since we will reserve the trx_sys->mutex, we have to release
-	the search system latch first to obey the latching order. */
-
-	if (trx->has_search_latch) {
-		trx_search_latch_release_if_reserved(trx);
-	}
 
 	/* Transaction is deregistered only in a commit or a rollback. If
 	it is deregistered we know there cannot be resources to be freed
@@ -3769,12 +3757,6 @@ innobase_rollback(
 	      || (trx->dict_operation_lock_mode == 0
 		  && trx->dict_operation == TRX_DICT_OP_NONE));
 
-	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys->mutex, we have to release the search system
-	latch first to obey the latching order. */
-
-	trx_search_latch_release_if_reserved(trx);
-
 	innobase_srv_conc_force_exit_innodb(trx);
 
 	/* Reset the number AUTO-INC rows required */
@@ -3884,12 +3866,6 @@ innobase_rollback_to_savepoint(
 	trx_t*	trx = check_trx_exists(thd);
 
 	TrxInInnoDB	trx_in_innodb(trx);
-
-	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys->mutex, we have to release the search system
-	latch first to obey the latching order. */
-
-	trx_search_latch_release_if_reserved(trx);
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
@@ -4002,12 +3978,6 @@ innobase_savepoint(
 	trx_t*	trx = check_trx_exists(thd);
 
 	TrxInInnoDB	trx_in_innodb(trx);
-
-	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys->mutex, we have to release the search system
-	latch first to obey the latching order. */
-
-	trx_search_latch_release_if_reserved(trx);
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
@@ -10405,10 +10375,6 @@ ha_innobase::discard_or_import_tablespace(
 
 	trx_start_if_not_started(m_prebuilt->trx, true);
 
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads. */
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
-
 	/* Obtain an exclusive lock on the table. */
 	dberr_t	err = row_mysql_lock_table(
 		m_prebuilt->trx, dict_table, LOCK_X,
@@ -10603,11 +10569,6 @@ ha_innobase::delete_table(
 			break;
 		}
 	}
-
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(parent_trx);
 
 	trx_t*	trx = innobase_trx_allocate(thd);
 
@@ -10891,11 +10852,6 @@ ha_innobase::rename_table(
 
 	TrxInInnoDB	trx_in_innodb(parent_trx);
 
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(parent_trx);
-
 	trx_t*	trx = innobase_trx_allocate(thd);
 
 	/* We are doing a DDL operation. */
@@ -11087,10 +11043,7 @@ ha_innobase::records_in_range(
 
 	m_prebuilt->trx->op_info = "estimating records in index range";
 
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	active_index = keynr;
 
@@ -11217,11 +11170,6 @@ ha_innobase::estimate_rows_upper_bound()
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	m_prebuilt->trx->op_info = "calculating upper bound for table rows";
-
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
 	index = dict_table_get_first_index(m_prebuilt->table);
 
@@ -12500,8 +12448,6 @@ ha_innobase::get_foreign_key_list(
 
 	m_prebuilt->trx->op_info = "getting list of foreign keys";
 
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
-
 	mutex_enter(&dict_sys->mutex);
 
 	for (dict_foreign_set::iterator it
@@ -12541,8 +12487,6 @@ ha_innobase::get_parent_foreign_key_list(
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	m_prebuilt->trx->op_info = "getting list of referencing foreign keys";
-
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
 	mutex_enter(&dict_sys->mutex);
 
@@ -12752,15 +12696,6 @@ ha_innobase::start_stmt(
 	}
 
 	trx = m_prebuilt->trx;
-
-	/* Here we release the search latch and the InnoDB thread FIFO ticket
-	if they were reserved. They should have been released already at the
-	end of the previous statement, but because inside LOCK TABLES the
-	lock count method does not work to mark the end of a SELECT statement,
-	that may not be the case. We MUST release the search latch before an
-	INSERT, for example. */
-
-	trx_search_latch_release_if_reserved(trx);
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
@@ -13047,12 +12982,6 @@ ha_innobase::external_lock(
 
 	trx->n_mysql_tables_in_use--;
 	m_prebuilt->mysql_has_locked = FALSE;
-
-	/* Release a possible FIFO ticket and search latch. Since we
-	may reserve the trx_sys->mutex, we have to release the search
-	system latch first to obey the latching order. */
-
-	trx_search_latch_release_if_reserved(trx);
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
