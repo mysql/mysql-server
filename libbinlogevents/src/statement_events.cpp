@@ -155,7 +155,8 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   charset_database_number(0), table_map_for_update(0), master_data_written(0),
   mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS), commit_seq_no(SEQ_UNINIT)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   uint32_t tmp;
   uint8_t common_header_len, post_header_len;
   Log_event_header::Byte *start;
@@ -424,7 +425,8 @@ break;
   +--------+-----------+------+------+---------+----+-------+----+
   </pre>
 */
-int Query_event::fill_data_buf(Log_event_header::Byte* buf, unsigned long buf_len)
+int Query_event::fill_data_buf(Log_event_header::Byte* buf,
+                               unsigned long buf_len)
 {
   if (!buf)
     return 0;
@@ -461,6 +463,23 @@ int Query_event::fill_data_buf(Log_event_header::Byte* buf, unsigned long buf_le
   return 1;
 }
 
+/*
+  Explicit instantiation to unsigned int of template available_buffer
+  function.
+*/
+template unsigned int available_buffer<unsigned int>(const char*,
+                                                     const char*,
+                                                     unsigned int);
+
+/*
+  Explicit instantiation to unsigned int of template valid_buffer_range
+  function.
+*/
+template bool valid_buffer_range<unsigned int>(unsigned int,
+                                               const char*,
+                                               const char*,
+                                               unsigned int);
+
 /**
   The constructor for User_var_event.
 */
@@ -470,7 +489,8 @@ User_var_event(const char* buf, unsigned int event_len,
   :Binary_log_event(&buf, description_event->binlog_version,
                     description_event->server_version)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   bool error= false;
   const char* buf_start= buf - description_event->common_header_len;
   /* The Post-Header is empty. The Variable Data part begins immediately. */
@@ -592,12 +612,32 @@ Intvar_event::Intvar_event(const char* buf,
 : Binary_log_event(&buf, description_event->binlog_version,
                    description_event->server_version)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   /* The Post-Header is empty. The Varible Data part begins immediately. */
   buf+= description_event->post_header_len[INTVAR_EVENT - 1];
   type= buf[I_TYPE_OFFSET];
   memcpy(&val, buf + I_VAL_OFFSET, 8);
   val= le64toh(val);
+}
+
+Rand_event::Rand_event(const char* buf,
+                       const Format_description_event* description_event)
+  :Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version)
+{
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
+  /*
+   We step to the post-header despite it being empty because it could later be
+   filled with something and we have to support that case.
+   The Variable Data part begins immediately.
+  */
+  buf+= description_event->post_header_len[RAND_EVENT - 1];
+  memcpy(&seed1, buf + RAND_SEED1_OFFSET, 8);
+  seed1= le64toh(seed1);
+  memcpy(&seed2, buf + RAND_SEED2_OFFSET, 8);
+  seed2= le64toh(seed2);
 }
 
 #ifndef HAVE_MYSYS
@@ -647,6 +687,18 @@ void Intvar_event::print_event_info(std::ostream& info)
 }
 
 void Intvar_event::print_long_info(std::ostream& info)
+{
+  info << "Timestamp: " << header()->when.tv_sec;
+  info << "\t";
+  this->print_event_info(info);
+}
+
+void Rand_event::print_event_info(std::ostream& info)
+{
+  info << " SEED1 is " << seed1;
+  info << " SEED2 is " << seed2;
+}
+void Rand_event::print_long_info(std::ostream& info)
 {
   info << "Timestamp: " << header()->when.tv_sec;
   info << "\t";

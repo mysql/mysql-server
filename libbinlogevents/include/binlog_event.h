@@ -88,43 +88,6 @@
 */
 #define BINLOG_VERSION    4
 
-/**
-  Check if jump value is within buffer limits.
-
-  @param jump         Number of positions we want to advance.
-  @param buf_start    Pointer to buffer start.
-  @param buf_current  Pointer to the current position on buffer.
-  @param buf_len      Buffer length.
-
-  @return             Number of bytes available on event buffer.
-*/
-template <class T> T available_buffer(const char* buf_start,
-                                      const char* buf_current,
-                                      T buf_len)
-{
-  return buf_len - (buf_current - buf_start);
-}
-
-
-/**
-  Check if jump value is within buffer limits.
-
-  @param jump         Number of positions we want to advance.
-  @param buf_start    Pointer to buffer start
-  @param buf_current  Pointer to the current position on buffer.
-  @param buf_len      Buffer length.
-
-  @retval      True   If jump value is within buffer limits.
-  @retval      False  Otherwise.
-*/
-template <class T> bool valid_buffer_range(T jump,
-                                           const char* buf_start,
-                                           const char* buf_current,
-                                           T buf_len)
-{
-  return (jump <= available_buffer(buf_start, buf_current, buf_len));
-}
-
 
 /**
   G_COMMIT_TS status variable stores the logical timestamp when the transaction
@@ -191,7 +154,7 @@ template <class T> bool valid_buffer_range(T jump,
 */
 namespace binary_log
 {
-/**
+/*
    This flag only makes sense for Format_description_event. It is set
    when the event is written, and *reset* when a binlog file is
    closed (yes, it's the only case when MySQL modifies an already written
@@ -462,8 +425,8 @@ class Log_event_footer
 {
 public:
 
-  enum_binlog_checksum_alg
-  static get_checksum_alg(const char* buf, unsigned long len);
+  static enum_binlog_checksum_alg get_checksum_alg(const char* buf,
+                                                   unsigned long len);
 
   static bool event_checksum_test(unsigned char* buf,
                                   unsigned long event_len,
@@ -801,7 +764,7 @@ public:
    */
   enum Log_event_type get_event_type() const
   {
-    return (enum Log_event_type) m_header.type_code;
+    return  m_header.type_code;
   }
 
   /**

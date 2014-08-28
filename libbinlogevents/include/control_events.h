@@ -129,7 +129,8 @@ public:
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -260,7 +261,8 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -344,7 +346,7 @@ public:
    The list of post-headers' lengths followed
    by the checksum alg decription byte
   */
-  uint8_t *post_header_len;
+  std::vector<uint8_t> post_header_len;
   unsigned char server_version_split[ST_SERVER_VER_SPLIT_LEN];
   /**
    In some previous version > 5.1 GA event types are assigned
@@ -391,7 +393,8 @@ public:
     </pre>
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -447,7 +450,8 @@ public:
     -  A slave writes the event to the relay log when it shuts down or when a
        RESET SLAVE statement is executed
     @param buf                Contains the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -557,7 +561,8 @@ public:
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -610,8 +615,9 @@ class Xid_event: public Binary_log_event
 {
 public:
   /**
-   The minimal constructor of Xid_event, it initializes the instance variable xid
-   and set the type_code as XID_EVENT in the header object in Binary_log_event
+    The minimal constructor of Xid_event, it initializes the instance variable
+    xid and set the type_code as XID_EVENT in the header object in
+    Binary_log_event
   */
   explicit Xid_event(uint64_t xid_arg)
     : Binary_log_event(XID_EVENT),
@@ -623,7 +629,8 @@ public:
     An XID event is generated for a commit of a transaction that modifies one or
     more tables of an XA-capable storage engine
     @param buf                Contains the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -638,97 +645,6 @@ public:
   void print_long_info(std::ostream& info);
 #endif
 };
-
-
-/**
-  @class Rand_event
-
-  Logs random seed used by the next RAND(), and by PASSWORD() in 4.1.0.
-  4.1.1 does not need it (it's repeatable again) so this event needn't be
-  written in 4.1.1 for PASSWORD() (but the fact that it is written is just a
-  waste, it does not cause bugs).
-
-  The state of the random number generation consists of 128 bits,
-  which are stored internally as two 64-bit numbers.
-
-  @section Rand_event_binary_format Binary Format
-
-  The Post-Header for this event type is empty.  The Body has two
-  components:
-
-  <table>
-  <caption>Body for Rand_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
-    <td>seed1</td>
-    <td>8 byte unsigned integer</td>
-    <td>64 bit random seed1.</td>
-  </tr>
-
-  <tr>
-    <td>seed2</td>
-    <td>8 byte unsigned integer</td>
-    <td>64 bit random seed2.</td>
-  </tr>
-  </table>
-*/
-class Rand_event: public Binary_log_event
-{
-public:
-  unsigned long long seed1;
-  unsigned long long seed2;
-  enum Rand_event_data
-  {
-    RAND_SEED1_OFFSET= 0,
-    RAND_SEED2_OFFSET= 8
-  };
-
-  /**
-    This will initialize the instance variables seed1 & seed2, and set the
-    type_code as RAND_EVENT in the header object in Binary_log_event
-  */
-  Rand_event(unsigned long long seed1_arg, unsigned long long seed2_arg)
-    : Binary_log_event(RAND_EVENT)
-  {
-    seed1= seed1_arg;
-    seed2= seed2_arg;
-  }
-
-  /**
-    Written every time a statement uses the RAND() function; precedes other
-    events for the statement. Indicates the seed values to use for generating a
-    random number with RAND() in the next statement. This is written only before
-    a QUERY_EVENT and is not used with row-based logging
-
-    <pre>
-    The buffer layout for variable part is as follows:
-    +----------------------------------------------+
-    | value for first seed | value for second seed |
-    +----------------------------------------------+
-    </pre>
-    @param buf                Contains the serialized event.
-    @param description_event  An FDE event, used to get the following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
-  */
-  Rand_event(const char* buf,
-             const Format_description_event *description_event);
-#ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
-#endif
-};
-
 
 /**
   @class Ignorable_event
@@ -767,7 +683,8 @@ public:
   {}
   /*
    @param buf                Contains the serialized event.
-   @param description_event  An FDE event, used to get the following information
+   @param description_event  An FDE event, used to get the
+                             following information
                              -binlog_version
                              -server_version
                              -post_header_len
@@ -845,7 +762,10 @@ struct Uuid
    /// Set to all zeros.
   void clear() { memset(bytes, 0, BYTE_LENGTH); }
    /// Copies the given 16-byte data to this UUID.
-  void copy_from(const unsigned char *data) { memcpy(bytes, data, BYTE_LENGTH);}
+  void copy_from(const unsigned char *data)
+  {
+    memcpy(bytes, data, BYTE_LENGTH);
+  }
   /// Copies the given UUID object to this UUID.
   void copy_from(const Uuid &data) { copy_from((unsigned char *)data.bytes); }
   /// Copies the given UUID object to this UUID.
@@ -968,7 +888,8 @@ public:
 
     @param buffer             Contains the serialized event.
     @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -986,8 +907,8 @@ public:
     : commit_flag(commit_flag_arg)
   {}
 #ifndef HAVE_MYSYS
-  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
-  //            all the events supported  in  MySQL Binlog
+  //TODO(WL#7684): Implement the method print_event_info and print_long_info
+  //               for all the events supported  in  MySQL Binlog
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
 #endif
@@ -1057,7 +978,8 @@ public:
     </pre>
     @param buffer             Contains the serialized event.
     @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
@@ -1076,8 +998,8 @@ public:
     : Binary_log_event(PREVIOUS_GTIDS_LOG_EVENT)
   {}
 #ifndef HAVE_MYSYS
-  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
-  //            all the events supported  in  MySQL Binlog
+  //TODO(WL#7684): Implement the method print_event_info and print_long_info
+  //               for all the events supported  in  MySQL Binlog
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
 #endif
@@ -1133,7 +1055,8 @@ public:
 
     @param buf                Contains the serialized event.
     @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len

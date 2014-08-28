@@ -61,14 +61,14 @@ slave_ignored_err_throttle(window_size,
 /* This is necessary for the List manipuation */
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
-#include <map>
-
-using std::min;
-using std::max;
+//#include <map>
 
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
 PSI_memory_key key_memory_Rows_query_log_event_rows_query;
+
+using std::min;
+using std::max;
 
 #if defined(MYSQL_CLIENT)
 
@@ -758,6 +758,11 @@ static void print_set_option(IO_CACHE* file, uint32 bits_changed,
 	Log_event methods (= the parent class of all events)
 **************************************************************************/
 
+/**
+  @return
+  returns the human readable name of the event's type
+*/
+
 const char* Log_event::get_type_str(Log_event_type type)
 {
   switch(type) {
@@ -804,6 +809,7 @@ const char* Log_event::get_type_str()
   return get_type_str(get_type_code());
 }
 
+
 /*
   Log_event::Log_event()
 */
@@ -827,6 +833,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   init_sql_alloc(PSI_INSTRUMENT_ME, &m_event_mem_root, 4096, 0);
 #endif //HAVE_REPLICATION
 }
+
 /**
   This minimal constructor is for when you are not even sure that there
   is a valid THD. For example in the server when we are shutting down or
@@ -850,15 +857,16 @@ Log_event::Log_event(Log_event_header* header, Log_event_footer *footer,
 #endif /* !MYSQL_CLIENT */
 
 
-/**
- * This is the permamnent ctor
+/*
+  Log_event::Log_event()
 */
+
 Log_event::Log_event(Log_event_header *header,
                      Log_event_footer *footer)
   : is_valid_param(false), temp_buf(0), exec_time(0),
-   event_cache_type(EVENT_INVALID_CACHE),
-   event_logging_type(EVENT_INVALID_LOGGING),
-   crc(0), common_header(header), common_footer(footer)
+    event_cache_type(EVENT_INVALID_CACHE),
+    event_logging_type(EVENT_INVALID_LOGGING),
+    crc(0), common_header(header), common_footer(footer)
 {
 #ifndef MYSQL_CLIENT
   thd= 0;
@@ -1016,10 +1024,10 @@ my_bool Log_event::need_checksum()
 {
   DBUG_ENTER("Log_event::need_checksum");
   my_bool ret= FALSE;
-  /*
-     few callers of Log_event::write
+  /* 
+     few callers of Log_event::write 
      (incl FD::write, FD constructing code on the slave side, Rotate relay log
-     and Stop event)
+     and Stop event) 
      provides their checksum alg preference through Log_event::checksum_alg.
   */
   if (common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
@@ -1691,19 +1699,19 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Delete_rows_log_event_old(buf, event_len, description_event);
       break;
     case binary_log::WRITE_ROWS_EVENT_V1:
-      if (description_event->post_header_len)
+      if (!(description_event->post_header_len.empty()))
         ev = new Write_rows_log_event(buf, event_len, description_event);
       break;
     case binary_log::UPDATE_ROWS_EVENT_V1:
-      if (description_event->post_header_len)
+      if (!(description_event->post_header_len.empty()))
         ev = new Update_rows_log_event(buf, event_len, description_event);
       break;
     case binary_log::DELETE_ROWS_EVENT_V1:
-      if (description_event->post_header_len)
+      if (!(description_event->post_header_len.empty()))
         ev = new Delete_rows_log_event(buf, event_len, description_event);
       break;
     case binary_log::TABLE_MAP_EVENT:
-      if (description_event->post_header_len)
+      if (!(description_event->post_header_len.empty()))
         ev = new Table_map_log_event(buf, event_len, description_event);
       break;
 #endif
@@ -1766,7 +1774,8 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
   DBUG_PRINT("read_event", ("%s(type_code: %d; event_len: %d)",
                             ev ? ev->get_type_str() : "<unknown>",
-                            buf[EVENT_TYPE_OFFSET], event_len));
+                            buf[EVENT_TYPE_OFFSET],
+                            event_len));
   /*
     is_valid is used for small event-specific sanity tests which are
     important; for example there are some my_malloc() in constructors
@@ -1795,8 +1804,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     DBUG_RETURN(0);
 #endif
   }
-
-  DBUG_RETURN(ev);
+  DBUG_RETURN(ev);  
 }
 
 #ifdef MYSQL_CLIENT
@@ -2689,12 +2697,14 @@ void Log_event::print_base64(IO_CACHE* file,
     default:
       break;
     }
+    
     if (ev)
     {
       ev->print_verbose(&print_event_info->footer_cache, print_event_info);
       delete ev;
     }
   }
+    
   my_free(tmp_str);
   DBUG_VOID_RETURN;
 }
@@ -3756,8 +3766,7 @@ bool Query_log_event::write(IO_CACHE* file)
           write_post_header_for_derived(file) ||
           wrapper_my_b_safe_write(file, (uchar*) start_of_status,
                           (uint) (start-start_of_status)) ||
-          wrapper_my_b_safe_write(file,
-                                  db ? (uchar*) db : (uchar*)"", db_len + 1) ||
+          wrapper_my_b_safe_write(file, db ? (uchar*) db : (uchar*)"", db_len + 1) ||
           wrapper_my_b_safe_write(file, (uchar*) query, q_len) ||
 	  write_footer(file)) ? 1 : 0;
 }
@@ -3820,6 +3829,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   my_micro_time_to_timeval(micro_end_time, &end_time);
 
   exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
+
   /**
     @todo this means that if we have no catalog, then it is replicated
     as an existing catalog of length zero. is that safe? /sven
@@ -3829,7 +3839,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   db_len = (db) ? strlen(db) : 0;
   if (thd_arg->variables.collation_database != thd_arg->db_charset)
     charset_database_number= thd_arg->variables.collation_database->number;
-
+  
   /*
     We only replicate over the bits of flags2 that we need: the rest
     are masked out by "& OPTIONS_WRITTEN_TO_BINLOG".
@@ -3902,12 +3912,12 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 
     If the immediate flag is not set, the decision on the cache is based
     on the current statement and the flag is_trans, which indicates if
-    a transactional engine was updated.
+    a transactional engine was updated. 
 
     Statements are classifed as row producers (i.e. can_generate_row_events())
     or non-row producers. Non-row producers, DDL in general, are treated
     as the immediate flag was set and for convenience are written to the
-    stmt-cache and immediately flushed to disk.
+    stmt-cache and immediately flushed to disk. 
 
     Row producers are handled in general according to the is_trans flag.
     False means that the stmt-cache will be used and upon statement
@@ -4012,6 +4022,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     event_logging_type= Log_event::EVENT_IMMEDIATE_LOGGING;
     event_cache_type= Log_event::EVENT_STMT_CACHE;
   }
+
   DBUG_ASSERT(event_cache_type != Log_event::EVENT_INVALID_CACHE);
   DBUG_ASSERT(event_logging_type != Log_event::EVENT_INVALID_LOGGING);
   DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %llu",
@@ -4571,18 +4582,16 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 
       thd->table_map_for_update= (table_map)table_map_for_update;
 
-      LEX_STRING user_lex;
-      LEX_STRING host_lex;
-      memset(&user_lex, 0, sizeof(user_lex));
-      memset(&host_lex, 0, sizeof(host_lex));
+      LEX_STRING user_lex= LEX_STRING();
+      LEX_STRING host_lex= LEX_STRING();
       if (user)
       {
-        user_lex.str= (char*)user;
+        user_lex.str= const_cast<char*>(user);
         user_lex.length= strlen(user);
       }
       if (host)
       {
-        host_lex.str= (char*)host;
+        host_lex.str= const_cast<char*>(host);
         host_lex.length= strlen(host);
       }
       thd->set_invoker(&user_lex, &host_lex);
@@ -4728,15 +4737,13 @@ compare_errors:
                         "Could not execute %s event. Detailed error: %s;"
                         " Error log throttle is enabled. This error will not be"
                         " displayed for next %lu secs. It will be suppressed",
-                        get_type_str(),
-                        thd->get_stmt_da()->message_text(),
+                        get_type_str(), thd->get_stmt_da()->message_text(),
                         (window_size / 1000000));
         }
         else
           rli->report(INFORMATION_LEVEL, actual_error,
                       "Could not execute %s event. Detailed error: %s;",
-                      get_type_str(),
-                      thd->get_stmt_da()->message_text());
+                      get_type_str(), thd->get_stmt_da()->message_text());
       }
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
@@ -4902,7 +4909,7 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
 **************************************************************************/
 #ifndef MYSQL_CLIENT
 Start_log_event_v3::Start_log_event_v3()
-  : Start_event_v3(),
+  : binary_log::Start_event_v3(),
     Log_event(header(), footer(), Log_event::EVENT_INVALID_CACHE,
               Log_event::EVENT_INVALID_LOGGING)
 {
@@ -5017,7 +5024,7 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 Start_log_event_v3::Start_log_event_v3(const char* buf,
                                        const Format_description_event
                                        *description_event)
-: Start_event_v3(buf, description_event),
+: binary_log::Start_event_v3(buf, description_event),
   Log_event(header(), footer())
 {
   is_valid_param= true;
@@ -5147,7 +5154,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 
 Format_description_log_event::
 Format_description_log_event(uint8_t binlog_ver, const char* server_ver)
-: Start_event_v3(binary_log::FORMAT_DESCRIPTION_EVENT),
+: binary_log::Start_event_v3(binary_log::FORMAT_DESCRIPTION_EVENT),
   Format_description_event(binlog_ver,  (binlog_ver <= 3 || server_ver != 0) ?
                            server_ver : ::server_version)
 {
@@ -5193,7 +5200,7 @@ Format_description_log_event::
 Format_description_log_event(const char* buf, uint event_len,
                              const Format_description_event
                              *description_event)
-  :Start_event_v3(buf, description_event),
+  : binary_log::Start_event_v3(buf, description_event),
    Format_description_event(buf, event_len, description_event),
    Start_log_event_v3(buf, description_event)
 {
@@ -5230,7 +5237,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
     created= get_time();
   int4store(buff + ST_CREATED_OFFSET, static_cast<uint32>(created));
   buff[ST_COMMON_HEADER_LEN_OFFSET]= LOG_EVENT_HEADER_LEN;
-  memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET + 1, (uchar*) post_header_len,
+  memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET + 1,  post_header_len.data(),
          Binary_log_event::LOG_EVENT_TYPES);
   /*
     if checksum is requested
@@ -5583,7 +5590,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
                                bool is_concurrent_arg,
 			       enum enum_duplicates handle_dup,
 			       bool ignore, bool using_trans)
-  :Load_event(),
+  : binary_log::Load_event(),
    Log_event(thd_arg,
              thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0,
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
@@ -5691,7 +5698,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 */
 Load_log_event::Load_log_event(const char *buf, uint event_len,
                                const Format_description_event *description_event)
-: Load_event(buf, event_len, description_event),
+: binary_log::Load_event(buf, event_len, description_event),
   Log_event(header(), footer())
 {
   DBUG_ENTER("Load_log_event");
@@ -6224,11 +6231,13 @@ void Rotate_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
                                    uint ident_len_arg, ulonglong pos_arg,
                                    uint flags_arg)
-: Rotate_event(new_log_ident_arg, ident_len_arg, flags_arg, pos_arg),
+: binary_log::Rotate_event(new_log_ident_arg, ident_len_arg, flags_arg, pos_arg),
   Log_event(header(), footer(),
             Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING)
 {
+#ifndef DBUG_OFF
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(...,flags)");
+#endif
   new_log_ident= new_log_ident_arg;
   pos= pos_arg;
   ident_len= ident_len_arg ?
@@ -6254,7 +6263,7 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
 
 Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                                    const Format_description_event* description_event)
-: Rotate_event(buf, event_len, description_event),
+: binary_log::Rotate_event(buf, event_len, description_event),
   Log_event(header(), footer())
 {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
@@ -6344,8 +6353,8 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       !is_relay_log_event() &&
       !in_group)
   {
-    if (!is_mts_db_partitioned(rli) && server_id != ::server_id &&
-                                                    common_header->log_pos )
+    if (!is_mts_db_partitioned(rli) &&
+        server_id != ::server_id && common_header->log_pos )
     {
       // force the coordinator to start a new group.
       static_cast<Mts_submode_logical_clock*>
@@ -6457,7 +6466,7 @@ int Intvar_log_event::pack_info(Protocol *protocol)
 Intvar_log_event::Intvar_log_event(const char* buf,
                                    const Format_description_event*
                                    description_event)
-: Intvar_event(buf, description_event),
+: binary_log::Intvar_event(buf, description_event),
   Log_event(header(), footer())
 {
   is_valid_param= true;
@@ -6588,8 +6597,8 @@ int Rand_log_event::pack_info(Protocol *protocol)
 
 Rand_log_event::Rand_log_event(const char* buf,
                                const Format_description_event* description_event)
-  :Rand_event(buf, description_event),
-   Log_event(header(), footer())
+  : binary_log::Rand_event(buf, description_event),
+    Log_event(header(), footer())
 {
   is_valid_param= true;
 }
@@ -6709,8 +6718,8 @@ int Xid_log_event::pack_info(Protocol *protocol)
 Xid_log_event::
 Xid_log_event(const char* buf,
               const Format_description_event *description_event)
-  :Xid_event(buf, description_event),
-   Log_event(header(), footer())
+  : binary_log::Xid_event(buf, description_event),
+    Log_event(header(), footer())
 {
   is_valid_param= true;
 }
@@ -7062,7 +7071,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
 User_var_log_event::
 	User_var_log_event(const char* buf, uint event_len,
 			   const Format_description_event* description_event)
-  : User_var_event(buf, event_len, description_event),
+  : binary_log::User_var_event(buf, event_len, description_event),
     Log_event(header(), footer())
 #ifndef MYSQL_CLIENT
     ,deferred(false), query_id(0)
@@ -7342,7 +7351,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     a column value, it could always have IMPLICIT derivation.
    */
   e->update_hash(val, val_len, (Item_result)type, charset, DERIVATION_IMPLICIT,
-                 (flags & User_var_event::UNSIGNED_F));
+                 (flags & binary_log::User_var_event::UNSIGNED_F));
   if (!is_deferred())
     free_root(thd->mem_root, 0);
   else
@@ -7514,9 +7523,9 @@ bool Create_file_log_event::write_base(IO_CACHE* file)
 Create_file_log_event::
 Create_file_log_event(const char* buf, uint len,
                       const Format_description_event* description_event)
- :Load_event(buf, 0, description_event),
+ : binary_log::Load_event(buf, 0, description_event),
   Load_log_event(buf,0,description_event),
-  Create_file_event(buf, len, description_event)
+  binary_log::Create_file_event(buf, len, description_event)
 {
   DBUG_ENTER("Create_file_log_event::Create_file_log_event(char*,...)");
   /**
@@ -7732,12 +7741,12 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg,
 					       uchar *block_arg,
 					       uint block_len_arg,
 					       bool using_trans)
-  :Append_block_event(db_arg, block_arg, block_len_arg, thd_arg->file_id),
-   Log_event(thd_arg, 0,
-             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-                           Log_event::EVENT_STMT_CACHE,
-             Log_event::EVENT_NORMAL_LOGGING,
-             header(), footer())
+  : binary_log::Append_block_event(db_arg, block_arg, block_len_arg, thd_arg->file_id),
+    Log_event(thd_arg, 0,
+              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                            Log_event::EVENT_STMT_CACHE,
+              Log_event::EVENT_NORMAL_LOGGING,
+              header(), footer())
 {
   if (block != 0)
     is_valid_param= true;
@@ -7752,8 +7761,8 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg,
 Append_block_log_event::Append_block_log_event(const char* buf, uint len,
                                                const Format_description_event*
                                                description_event)
-  :Append_block_event(buf, len, description_event),
-   Log_event(header(), footer())
+  : binary_log::Append_block_event(buf, len, description_event),
+    Log_event(header(), footer())
 {
 
   DBUG_ENTER("Append_block_log_event::Append_block_log_event(char*,...)");
@@ -7859,8 +7868,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
     {
       rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                   "Error in %s event: could not create file '%s', '%s'",
-                  get_type_str(), fname,
-                  thd->get_stmt_da()->message_text());
+                  get_type_str(), fname, thd->get_stmt_da()->message_text());
       goto err;
     }
   }
@@ -7871,8 +7879,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
   {
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in %s event: could not open file '%s', '%s'",
-                get_type_str(),
-                fname, thd->get_stmt_da()->message_text());
+                get_type_str(), fname, thd->get_stmt_da()->message_text());
     goto err;
   }
   DBUG_EXECUTE_IF("remove_slave_load_file_before_write",
@@ -7888,8 +7895,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
   {
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in %s event: write to '%s' failed, '%s'",
-                get_type_str(),
-                fname, thd->get_stmt_da()->message_text());
+                get_type_str(), fname, thd->get_stmt_da()->message_text());
     goto err;
   }
   error=0;
@@ -7913,12 +7919,12 @@ err:
 #ifndef MYSQL_CLIENT
 Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char* db_arg,
 					     bool using_trans)
-  :Delete_file_event(thd_arg->file_id, db_arg),
-   Log_event(thd_arg, 0,
-             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-                           Log_event::EVENT_STMT_CACHE,
-             Log_event::EVENT_NORMAL_LOGGING,
-             header(), footer())
+  : binary_log::Delete_file_event(thd_arg->file_id, db_arg),
+    Log_event(thd_arg, 0,
+              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                            Log_event::EVENT_STMT_CACHE,
+              Log_event::EVENT_NORMAL_LOGGING,
+              header(), footer())
 {
   if (file_id != 0)
     is_valid_param= true;
@@ -7932,8 +7938,8 @@ Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char* db_arg,
 Delete_file_log_event::Delete_file_log_event(const char* buf, uint len,
                                              const Format_description_event*
                                              description_event)
-  :Delete_file_event(buf, len, description_event),
-   Log_event(header(), footer())
+  : binary_log::Delete_file_event(buf, len, description_event),
+    Log_event(header(), footer())
 {
   if (file_id != 0)
     is_valid_param= true;
@@ -7960,7 +7966,7 @@ bool Delete_file_log_event::write(IO_CACHE* file)
   Delete_file_log_event::print()
 */
 
-#ifdef MYSQL_CLIENT
+#ifdef MYSQL_CLIENT  
 void Delete_file_log_event::print(FILE* file,
 				  PRINT_EVENT_INFO* print_event_info)
 {
@@ -8014,11 +8020,11 @@ int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
   Execute_load_log_event ctor
 */
 
-#ifndef MYSQL_CLIENT
+#ifndef MYSQL_CLIENT  
 Execute_load_log_event::Execute_load_log_event(THD *thd_arg,
                                                const char* db_arg,
 					       bool using_trans)
-: Execute_load_event(thd_arg->file_id, db_arg),
+: binary_log::Execute_load_event(thd_arg->file_id, db_arg),
   Log_event(thd_arg, 0,
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                            Log_event::EVENT_STMT_CACHE,
@@ -8029,7 +8035,7 @@ Execute_load_log_event::Execute_load_log_event(THD *thd_arg,
     is_valid_param= true;
 }
 #endif
-
+  
 
 /*
   Execute_load_log_event ctor
@@ -8038,7 +8044,7 @@ Execute_load_log_event::Execute_load_log_event(THD *thd_arg,
 Execute_load_log_event::Execute_load_log_event(const char* buf, uint len,
                                                const Format_description_event*
                                                description_event)
-: Execute_load_event(buf, len, description_event),
+: binary_log::Execute_load_event(buf, len, description_event),
   Log_event(header(), footer())
 {
   if (file_id != 0)
@@ -8206,11 +8212,11 @@ err:
 Begin_load_query_log_event::
 Begin_load_query_log_event(THD* thd_arg, const char* db_arg, uchar* block_arg,
                            uint block_len_arg, bool using_trans)
- :Append_block_event(db_arg, block_arg, block_len_arg,
-                     thd_arg->file_id),
-  Append_block_log_event(thd_arg, db_arg, block_arg, block_len_arg,
+ : binary_log::Append_block_event(db_arg, block_arg, block_len_arg,
+                                  thd_arg->file_id),
+   Append_block_log_event(thd_arg, db_arg, block_arg, block_len_arg,
                           using_trans),
-  Begin_load_query_event()
+   binary_log::Begin_load_query_event()
 {
   common_header->type_code= binary_log::BEGIN_LOAD_QUERY_EVENT;
   file_id= thd_arg->file_id= mysql_bin_log.next_file_id();
@@ -8221,9 +8227,9 @@ Begin_load_query_log_event(THD* thd_arg, const char* db_arg, uchar* block_arg,
 Begin_load_query_log_event::
 Begin_load_query_log_event(const char* buf, uint len,
                            const Format_description_event* desc_event)
-  :Append_block_event(buf, len, desc_event),
-   Append_block_log_event(buf, len, desc_event),
-   Begin_load_query_event(buf, len, desc_event)
+  : binary_log::Append_block_event(buf, len, desc_event),
+    Append_block_log_event(buf, len, desc_event),
+    binary_log::Begin_load_query_event(buf, len, desc_event)
 {
 }
 
@@ -8262,17 +8268,19 @@ Execute_load_query_log_event(THD *thd_arg, const char* query_arg,
                              binary_log::enum_load_dup_handling dup_handling_arg,
                              bool using_trans, bool immediate, bool suppress_use,
                              int errcode)
-: Query_event(query_arg, thd_arg->catalog().str, thd_arg->db().str, query_length_arg,
-              thd_arg->thread_id(), thd_arg->variables.sql_mode,
-              thd_arg->variables.auto_increment_increment,
-              thd_arg->variables.auto_increment_offset,
-              thd_arg->variables.lc_time_names->number,
-              (ulonglong)thd_arg->table_map_for_update,
-              errcode, thd_arg->db().str ? strlen(thd_arg->db().str) : 0,
-              thd_arg->catalog().str ? strlen(thd_arg->catalog().str) : 0),
+: binary_log::Query_event(query_arg, thd_arg->catalog().str, thd_arg->db().str,
+                          query_length_arg,
+                          thd_arg->thread_id(), thd_arg->variables.sql_mode,
+                          thd_arg->variables.auto_increment_increment,
+                          thd_arg->variables.auto_increment_offset,
+                          thd_arg->variables.lc_time_names->number,
+                          (ulonglong)thd_arg->table_map_for_update,
+                          errcode,
+                          thd_arg->db().str ? strlen(thd_arg->db().str) : 0,
+                          thd_arg->catalog().str ? strlen(thd_arg->catalog().str) : 0),
   Query_log_event(thd_arg, query_arg, query_length_arg, using_trans, immediate,
                   suppress_use, errcode),
-  Execute_load_query_event(thd_arg->file_id, fn_pos_start_arg,
+  binary_log::Execute_load_query_event(thd_arg->file_id, fn_pos_start_arg,
                            fn_pos_end_arg, dup_handling_arg)
 {
   if (Query_log_event::is_valid() && file_id != 0)
@@ -8289,7 +8297,7 @@ Execute_load_query_log_event(const char* buf, uint event_len,
                             binary_log::EXECUTE_LOAD_QUERY_EVENT),
     Query_log_event(buf, event_len, desc_event,
                     binary_log::EXECUTE_LOAD_QUERY_EVENT),
-    Execute_load_query_event(buf, event_len, desc_event)
+    binary_log::Execute_load_query_event(buf, event_len, desc_event)
 {
   if (!Query_log_event::is_valid())
   {
@@ -8511,6 +8519,7 @@ bool sql_ex_info::write_data(IO_CACHE* file)
   }
 }
 
+
 /**
   sql_ex_info::init()
   This method initializes the members of strcuture variable sql_ex_info,
@@ -8586,7 +8595,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
                                MY_BITMAP const *cols, bool using_trans,
                                Log_event_type event_type,
                                const uchar* extra_row_info)
- : Rows_event(event_type),
+ : binary_log::Rows_event(event_type),
    Log_event(thd_arg, 0,
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                            Log_event::EVENT_STMT_CACHE,
@@ -8632,7 +8641,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
     }
   }
 
-  /* if bitmap_init fails, is_valid will be set to false */
+  /* if bitmap_init fails, caught in is_valid() */
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf)*8 ? m_bitbuf : NULL,
                           m_width,
@@ -8664,7 +8673,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
 Rows_log_event::Rows_log_event(const char *buf, uint event_len,
                                const Format_description_event
                                *description_event)
-: Rows_event(buf, event_len, description_event),
+: binary_log::Rows_event(buf, event_len, description_event),
   Log_event(header(), footer()),
   m_row_count(0),
 #ifndef MYSQL_CLIENT
@@ -8765,9 +8774,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
     m_curr_row= m_rows_buf;
 #endif
-    m_rows_end= m_rows_buf + row.size() - 1;   //since we allocate one extra byte
-                                               // to std::vector<uint8_t> row
-                                               //TODO: check with Mats if extra byte req
+    m_rows_end= m_rows_buf + row.size();
     m_rows_cur= m_rows_end;
   }
   /*
@@ -11053,9 +11060,10 @@ int Table_map_log_event::save_field_metadata()
 Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
                                          const Table_id& tid,
                                          bool using_trans)
-  : Table_map_event(tid, tbl->s->fields, (tbl->s->db.str),
-                    ((tbl->s->db.str) ? tbl->s->db.length : 0),
-                    (tbl->s->table_name.str), (tbl->s->table_name.length)),
+  : binary_log::Table_map_event(tid, tbl->s->fields, (tbl->s->db.str),
+                                ((tbl->s->db.str) ? tbl->s->db.length : 0),
+                                (tbl->s->table_name.str),
+                                (tbl->s->table_name.length)),
     Log_event(thd_arg, 0,
               using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                             Log_event::EVENT_STMT_CACHE,
@@ -11162,8 +11170,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
                                          const Format_description_event
                                          *description_event)
 
-   :Table_map_event(buf, event_len, description_event),
-    Log_event(header(), footer())
+   : binary_log::Table_map_event(buf, event_len, description_event),
+     Log_event(header(), footer())
 #ifndef MYSQL_CLIENT
     ,m_table(NULL)
 #endif
@@ -11534,7 +11542,7 @@ Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                            const Table_id& tid_arg,
                                            bool is_transactional,
                                            const uchar* extra_row_info)
-: Rows_event(m_type),
+: binary_log::Rows_event(m_type),
   Rows_log_event(thd_arg, tbl_arg, tid_arg, tbl_arg->write_set, is_transactional,
                    log_bin_use_v1_row_events?
                    binary_log::WRITE_ROWS_EVENT_V1:
@@ -11552,9 +11560,9 @@ Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
 Write_rows_log_event::Write_rows_log_event(const char *buf, uint event_len,
                                            const Format_description_event
                                            *description_event)
-: Rows_event(buf, event_len, description_event),
+: binary_log::Rows_event(buf, event_len, description_event),
   Rows_log_event(buf, event_len, description_event),
-  Write_rows_event(buf, event_len, description_event)
+  binary_log::Write_rows_event(buf, event_len, description_event)
 {
   DBUG_ASSERT(header()->type_code == m_type);
 }
@@ -12066,13 +12074,13 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                              const Table_id& tid,
                                              bool is_transactional,
                                              const uchar* extra_row_info)
-: Rows_event(m_type),
+: binary_log::Rows_event(m_type),
   Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional,
                  log_bin_use_v1_row_events?
                  binary_log::DELETE_ROWS_EVENT_V1:
                  binary_log::DELETE_ROWS_EVENT,
                  extra_row_info),
-    Delete_rows_event()
+    binary_log::Delete_rows_event()
 {
   common_header->type_code= m_type;
 }
@@ -12085,9 +12093,9 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
 Delete_rows_log_event::Delete_rows_log_event(const char *buf, uint event_len,
                                              const Format_description_event
                                              *description_event)
-: Rows_event(buf, event_len, description_event),
+: binary_log::Rows_event(buf, event_len, description_event),
   Rows_log_event(buf, event_len, description_event),
-  Delete_rows_event(buf, event_len, description_event)
+  binary_log::Delete_rows_event(buf, event_len, description_event)
 {
   DBUG_ASSERT(header()->type_code == m_type);
 }
@@ -12153,7 +12161,7 @@ Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                              const Table_id& tid,
                                              bool is_transactional,
                                              const uchar* extra_row_info)
-: Rows_event(m_type),
+: binary_log::Rows_event(m_type),
   Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional,
                  log_bin_use_v1_row_events?
                  binary_log::UPDATE_ROWS_EVENT_V1:
@@ -12202,9 +12210,9 @@ Update_rows_log_event::~Update_rows_log_event()
 Update_rows_log_event::Update_rows_log_event(const char *buf, uint event_len,
                                              const Format_description_event
                                              *description_event)
-: Rows_event(buf, event_len, description_event),
+: binary_log::Rows_event(buf, event_len, description_event),
   Rows_log_event(buf, event_len, description_event),
-  Update_rows_event(buf, event_len, description_event)
+  binary_log::Update_rows_event(buf, event_len, description_event)
 {
   if (Rows_log_event::is_valid() && m_cols_ai.bitmap)
     is_valid_param= true;
@@ -12297,8 +12305,8 @@ void Update_rows_log_event::print(FILE *file,
 Incident_log_event::
 Incident_log_event(const char *buf, uint event_len,
                    const Format_description_event *description_event)
-   :Incident_event(buf, event_len, description_event),
-    Log_event(header(), footer())
+   : binary_log::Incident_event(buf, event_len, description_event),
+     Log_event(header(), footer())
 {
   DBUG_ENTER("Incident_log_event::Incident_log_event");
   if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
@@ -12412,8 +12420,8 @@ Incident_log_event::write_data_body(IO_CACHE *file)
 
 Ignorable_log_event::Ignorable_log_event(const char *buf,
                                          const Format_description_event *descr_event)
-  :Ignorable_event(buf, descr_event),
-   Log_event(header(), footer())
+  : binary_log::Ignorable_event(buf, descr_event),
+    Log_event(header(), footer())
 {
   DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
 
@@ -12457,9 +12465,9 @@ Ignorable_log_event::print(FILE *file,
 Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
                                            const Format_description_event
                                            *descr_event)
-  :Ignorable_event(buf, descr_event),
-   Ignorable_log_event(buf, descr_event),
-   Rows_query_event(buf, event_len, descr_event)
+  : binary_log::Ignorable_event(buf, descr_event),
+    Ignorable_log_event(buf, descr_event),
+    binary_log::Rows_query_event(buf, event_len, descr_event)
 {
 }
 
@@ -12545,8 +12553,8 @@ const char *Gtid_log_event::SET_STRING_PREFIX= "SET @@SESSION.GTID_NEXT= '";
 
 Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
                                const Format_description_event *description_event)
-   :Gtid_event(buffer, event_len, description_event),
-    Log_event(header(), footer())
+   : binary_log::Gtid_event(buffer, event_len, description_event),
+     Log_event(header(), footer())
 {
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *,"
              " uint, const Format_description_log_event *");
@@ -12562,8 +12570,8 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 #ifndef MYSQL_CLIENT
 Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
                                const Gtid_specification *spec_arg)
- :Gtid_event(true),
-  Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
+ : binary_log::Gtid_event(true),
+   Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
             Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING,
@@ -12766,7 +12774,7 @@ int Gtid_log_event::do_update_pos(Relay_log_info *rli)
 Previous_gtids_log_event::
 Previous_gtids_log_event(const char *buf, uint event_len,
                          const Format_description_event *description_event)
-: Previous_gtids_event(buf, event_len, description_event),
+: binary_log::Previous_gtids_event(buf, event_len, description_event),
   Log_event(header(), footer())
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
@@ -12777,7 +12785,7 @@ Previous_gtids_log_event(const char *buf, uint event_len,
 
 #ifndef MYSQL_CLIENT
 Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
-: Previous_gtids_event(),
+: binary_log::Previous_gtids_event(),
   Log_event(header(), footer(),
             Log_event::EVENT_NO_CACHE,
             Log_event::EVENT_IMMEDIATE_LOGGING)
@@ -12931,8 +12939,8 @@ st_print_event_info::st_print_event_info()
 Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
                                          const Format_description_event*
                                          description_event)
-  :Heartbeat_event(buf, event_len, description_event),
-   Log_event(header(), footer())
+  : binary_log::Heartbeat_event(buf, event_len, description_event),
+    Log_event(header(), footer())
 {
   if ((log_ident != NULL && header()->log_pos >= BIN_LOG_HEADER_SIZE))
     is_valid_param= true;

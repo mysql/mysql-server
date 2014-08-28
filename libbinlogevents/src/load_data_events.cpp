@@ -168,7 +168,8 @@ Load_event::Load_event(const char *buf, unsigned int event_len,
    */
    is_concurrent(false)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   if (event_len)
     copy_load_event(buf, event_len,
                    ((header()->type_code == LOAD_EVENT) ?
@@ -367,7 +368,8 @@ Delete_file_event::Delete_file_event(const char* buf, unsigned int len,
 : Binary_log_event(&buf, description_event->binlog_version,
                     description_event->server_version), file_id(0)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   unsigned char common_header_len= description_event->common_header_len;
   unsigned char delete_file_header_len=
                      description_event->post_header_len[DELETE_FILE_EVENT - 1];
@@ -386,7 +388,8 @@ Execute_load_event::Execute_load_event(const char* buf, unsigned int len,
   :Binary_log_event(&buf, description_event->binlog_version,
                     description_event->server_version), file_id(0)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   unsigned char common_header_len= description_event->common_header_len;
   unsigned char exec_load_header_len= description_event->
                                       post_header_len[EXEC_LOAD_EVENT-1];
@@ -409,7 +412,8 @@ Append_block_event::Append_block_event(const char* buf, unsigned int len,
 : Binary_log_event(&buf, description_event->binlog_version,
                     description_event->server_version), block(0)
 {
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  //buf is advanced in Binary_log_event constructor to point to
+  //beginning of post-header
   unsigned char common_header_len= description_event->common_header_len;
   unsigned char append_block_header_len=
     description_event->post_header_len[APPEND_BLOCK_EVENT - 1];

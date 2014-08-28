@@ -2539,7 +2539,7 @@ Write_rows_log_event_old::Write_rows_log_event_old(THD *thd_arg,
                                                    ulong tid_arg,
                                                    MY_BITMAP const *cols,
                                                    bool is_transactional)
-  : Old_rows_log_event(thd_arg, tbl_arg, tid_arg, cols, is_transactional)
+  :  Old_rows_log_event(thd_arg, tbl_arg, tid_arg, cols, is_transactional)
 {
 
   // This constructor should not be reached.

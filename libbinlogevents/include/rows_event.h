@@ -406,8 +406,8 @@ public:
   Table_map_event(const char *buf, unsigned int event_len,
                   const Format_description_event *description_event);
 
-  Table_map_event(const Table_id& tid, unsigned long colcnt, const char *dbnam, size_t dblen,
-                  const char *tblnam, size_t tbllen)
+  Table_map_event(const Table_id& tid, unsigned long colcnt, const char *dbnam,
+                  size_t dblen, const char *tblnam, size_t tbllen)
     : m_table_id(tid),
       m_data_size(0),
       m_dblen(dblen),
@@ -870,7 +870,8 @@ public:
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the following information
+    @param description_event  An FDE event, used to get the
+                              following information
                               -binlog_version
                               -server_version
                               -post_header_len
