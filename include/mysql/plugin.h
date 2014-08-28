@@ -560,6 +560,7 @@ int thd_tx_isolation(const MYSQL_THD thd);
 int thd_tx_is_read_only(const MYSQL_THD thd);
 MYSQL_THD thd_tx_arbitrate(MYSQL_THD requestor, MYSQL_THD holder);
 int thd_tx_priority(const MYSQL_THD thd);
+int thd_tx_is_dd_trx(const MYSQL_THD thd);
 char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
                            size_t max_query_len);
 /* Increments the row counter, see THD::row_count */

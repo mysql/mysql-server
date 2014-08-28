@@ -3,7 +3,18 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE
 12	SYS_FOREIGN_COLS	0	7	0	Antelope	Redundant	0
 13	SYS_TABLESPACES	0	6	0	Antelope	Redundant	0
 14	SYS_DATAFILES	0	5	0	Antelope	Redundant	0
-20	mysql/gtid_executed	1	6	7	Antelope	Compact	0
+15	mysql/help_topic	1	9	2	Antelope	Compact	0
+16	mysql/help_category	1	7	3	Antelope	Compact	0
+17	mysql/help_relation	1	5	4	Antelope	Compact	0
+18	mysql/help_keyword	1	5	5	Antelope	Compact	0
+19	mysql/time_zone_name	1	5	6	Antelope	Compact	0
+20	mysql/time_zone	1	5	7	Antelope	Compact	0
+21	mysql/time_zone_transition	1	6	8	Antelope	Compact	0
+22	mysql/time_zone_transition_type	1	8	9	Antelope	Compact	0
+23	mysql/time_zone_leap_second	1	5	10	Antelope	Compact	0
+29	mysql/gtid_executed	1	6	16	Antelope	Compact	0
+30	mysql/server_cost	1	7	17	Antelope	Compact	0
+31	mysql/engine_cost	1	9	18	Antelope	Compact	0
 table_id	pos	mtype	prtype	len	name
 11	0	1	524292	0	ID
 11	1	1	524292	0	FOR_NAME
@@ -18,9 +29,47 @@ table_id	pos	mtype	prtype	len	name
 13	2	6	0	4	FLAGS
 14	0	6	0	4	SPACE
 14	1	1	524292	0	PATH
-20	0	2	524798	36	source_uuid
-20	1	6	1288	8	interval_start
-20	2	6	1288	8	interval_end
+15	0	6	1795	4	help_topic_id
+15	1	13	2163198	192	name
+15	2	6	1794	2	help_category_id
+15	3	5	2163196	10	description
+15	4	5	2163196	10	example
+15	5	5	2163196	10	url
+16	0	6	1794	2	help_category_id
+16	1	13	2163198	192	name
+16	2	6	1538	2	parent_category_id
+16	3	5	2163196	10	url
+17	0	6	1795	4	help_topic_id
+17	1	6	1795	4	help_keyword_id
+18	0	6	1795	4	help_keyword_id
+18	1	13	2163198	192	name
+19	0	13	2163198	192	Name
+19	1	6	1795	4	Time_zone_id
+20	0	6	1795	4	Time_zone_id
+20	1	6	1022	1	Use_leap_seconds
+21	0	6	1795	4	Time_zone_id
+21	1	6	1288	8	Transition_time
+21	2	6	1795	4	Transition_type_id
+22	0	6	1795	4	Time_zone_id
+22	1	6	1795	4	Transition_type_id
+22	2	6	1283	4	Offset
+22	3	6	1793	1	Is_DST
+22	4	13	2163198	24	Abbreviation
+23	0	6	1288	8	Transition_time
+23	1	6	1283	4	Correction
+29	0	2	524798	36	source_uuid
+29	1	6	1288	8	interval_start
+29	2	6	1288	8	interval_end
+30	0	12	2162959	192	cost_name
+30	1	9	1028	4	cost_value
+30	2	3	525575	4	last_update
+30	3	12	2166799	3072	comment
+31	0	12	2162959	192	engine_name
+31	1	6	1283	4	device_type
+31	2	12	2162959	192	cost_name
+31	3	9	1028	4	cost_value
+31	4	3	525575	4	last_update
+31	5	12	2166799	3072	comment
 index_id	table_id	type	n_fields	space	name
 11	11	3	1	0	ID_IND
 12	11	0	1	0	FOR_IND
@@ -28,7 +77,21 @@ index_id	table_id	type	n_fields	space	name
 14	12	3	2	0	ID_IND
 15	13	3	1	0	SYS_TABLESPACES_SPACE
 16	14	3	1	0	SYS_DATAFILES_SPACE
-22	20	3	2	7	PRIMARY
+17	15	3	1	2	PRIMARY
+18	15	2	1	2	name
+19	16	3	1	3	PRIMARY
+20	16	2	1	3	name
+21	17	3	2	4	PRIMARY
+22	18	3	1	5	PRIMARY
+23	18	2	1	5	name
+24	19	3	1	6	PRIMARY
+25	20	3	1	7	PRIMARY
+26	21	3	2	8	PRIMARY
+27	22	3	2	9	PRIMARY
+28	23	3	1	10	PRIMARY
+34	29	3	2	16	PRIMARY
+35	30	3	1	17	PRIMARY
+36	31	3	3	18	PRIMARY
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
 WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port')
 ORDER BY index_id, pos;
@@ -38,8 +101,27 @@ index_id	pos	name
 14	1	POS
 15	0	SPACE
 16	0	SPACE
-22	0	source_uuid
-22	1	interval_start
+17	0	help_topic_id
+18	0	name
+19	0	help_category_id
+20	0	name
+21	0	help_keyword_id
+21	1	help_topic_id
+22	0	help_keyword_id
+23	0	name
+24	0	Name
+25	0	Time_zone_id
+26	0	Time_zone_id
+26	1	Transition_time
+27	0	Time_zone_id
+27	1	Transition_type_id
+28	0	Transition_time
+34	0	source_uuid
+34	1	interval_start
+35	0	cost_name
+36	0	cost_name
+36	1	engine_name
+36	2	device_type
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
@@ -55,12 +137,23 @@ SELECT name, n_cols, file_format, row_format
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 WHERE space > 0;
 name	n_cols	file_format	row_format
+mysql/engine_cost	9	Antelope	Compact
 mysql/gtid_executed	6	Antelope	Compact
+mysql/help_category	7	Antelope	Compact
+mysql/help_keyword	5	Antelope	Compact
+mysql/help_relation	5	Antelope	Compact
+mysql/help_topic	9	Antelope	Compact
 mysql/innodb_index_stats	11	Antelope	Compact
 mysql/innodb_table_stats	9	Antelope	Compact
+mysql/server_cost	7	Antelope	Compact
 mysql/slave_master_info	26	Antelope	Compact
 mysql/slave_relay_log_info	11	Antelope	Compact
 mysql/slave_worker_info	15	Antelope	Compact
+mysql/time_zone	5	Antelope	Compact
+mysql/time_zone_leap_second	5	Antelope	Compact
+mysql/time_zone_name	5	Antelope	Compact
+mysql/time_zone_transition	6	Antelope	Compact
+mysql/time_zone_transition_type	8	Antelope	Compact
 test/t_compact	5	Antelope	Compact
 test/t_compressed	5	Barracuda	Compressed
 test/t_dynamic	5	Barracuda	Dynamic
@@ -83,7 +176,7 @@ MYSQLD_DATADIR/test/t_redundant.ibd
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
 count(*)
-10
+21
 CREATE TABLE parent (id INT NOT NULL,
 PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE child (id INT, parent_id INT,
@@ -109,12 +202,23 @@ SYS_DATAFILES	0	5
 SYS_FOREIGN	0	7
 SYS_FOREIGN_COLS	0	7
 SYS_TABLESPACES	0	6
+mysql/engine_cost	1	9
 mysql/gtid_executed	1	6
+mysql/help_category	1	7
+mysql/help_keyword	1	5
+mysql/help_relation	1	5
+mysql/help_topic	1	9
 mysql/innodb_index_stats	1	11
 mysql/innodb_table_stats	1	9
+mysql/server_cost	1	7
 mysql/slave_master_info	1	26
 mysql/slave_relay_log_info	1	11
 mysql/slave_worker_info	1	15
+mysql/time_zone	1	5
+mysql/time_zone_leap_second	1	5
+mysql/time_zone_name	1	5
+mysql/time_zone_transition	1	6
+mysql/time_zone_transition_type	1	8
 test/child	1	5
 test/parent	1	4
 SELECT name, n_fields

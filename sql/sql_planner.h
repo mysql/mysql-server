@@ -183,7 +183,7 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *cost_arg,
   access method. The source of information with highest accuracy is 
   always preferred and is as follows:
     1) Row estimates from the range optimizer
-    2) Row estimates from index statistics (rec_per_key)
+    2) Row estimates from index statistics (records per key)
     3) Guesstimates
 
   Thus, after identifying columns that are used by the access method,
