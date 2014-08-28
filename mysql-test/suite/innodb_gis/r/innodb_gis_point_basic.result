@@ -339,16 +339,16 @@ SELECT AsText(pp), AsText(p1) FROM t1 WHERE p1 = PointFromText('POINT(10 30)');
 AsText(pp)	AsText(p1)
 SELECT AsText(pp), AsText(p1) FROM t1 WHERE p1 = PointFromText('POINT(10 20)');
 AsText(pp)	AsText(p1)
-SELECT AsText(pp), AsText(p1) FROM t1 WHERE Within(p1, GeomFromText('POLYGON((5 5, 20 5, 20 21, 5 21, 5 5))'));
+SELECT AsText(pp), AsText(p1) FROM t1 WHERE Within(p1, GeomFromText('POLYGON((5 5, 20 5, 20 21, 5 21, 5 5))')) ORDER BY pp;
 AsText(pp)	AsText(p1)
 POINT(0 0)	POINT(5 5)
+POINT(0 1)	POINT(5 5)
 POINT(1 0)	POINT(5 5)
 POINT(1 1)	POINT(5 5)
-POINT(0 1)	POINT(5 5)
-SELECT AsText(pp), AsText(p1) FROM t1 WHERE Within(pp, GeomFromText('POLYGON((-1 0.5, -1 -0.5, 1 -0.5, 1 0.5, -1 0.5))'));
+SELECT AsText(pp), AsText(p1) FROM t1 WHERE Within(pp, GeomFromText('POLYGON((-1 0.5, -1 -0.5, 1 -0.5, 1 0.5, -1 0.5))')) ORDER BY pp;
 AsText(pp)	AsText(p1)
-POINT(1 0)	POINT(5 5)
 POINT(0 0)	POINT(5 5)
+POINT(1 0)	POINT(5 5)
 DROP TABLE t1;
 #
 # Test when the POINT is on B-TREE
