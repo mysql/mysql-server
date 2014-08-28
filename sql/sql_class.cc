@@ -933,6 +933,7 @@ THD* thd_tx_arbitrate(THD *requestor, THD* holder)
 	? requestor
 	: ((thd_tx_priority(requestor)
 	    > thd_tx_priority(holder)) ? holder : requestor));
+}
 
 int thd_tx_is_dd_trx(const THD *thd)
 {

@@ -1387,7 +1387,7 @@ public:
 	{
 		/* Only the owning thread should release the latch. */
 
-		if (is_async_rollback()) {
+		if (!is_async_rollback()) {
 			trx_search_latch_release_if_reserved(m_trx);
 		}
 
@@ -1427,7 +1427,7 @@ public:
 	{
 		/* Only the owning thread should release the latch. */
 
-		if (is_async_rollback()) {
+		if (!is_async_rollback()) {
 			trx_search_latch_release_if_reserved(m_trx);
 		}
 
@@ -1461,8 +1461,6 @@ public:
 		marked the transaction for asynchronous rollback */
 	bool is_async_rollback() const
 	{
-		ut_ad(trx_mutex_own(m_trx));
-
 		return(m_trx->killed_by == os_thread_get_curr_id());
 	}
 
