@@ -122,6 +122,7 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -129,6 +130,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/server_cost
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
@@ -325,6 +327,7 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -332,6 +335,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/server_cost
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
@@ -362,6 +366,7 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -369,6 +374,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/server_cost
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
@@ -410,6 +416,7 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -417,6 +424,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/server_cost
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
@@ -458,6 +466,7 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
 mysql/help_keyword
@@ -465,6 +474,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/server_cost
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info

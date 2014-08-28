@@ -13,6 +13,8 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE
 22	mysql/time_zone_transition_type	1	8	9	Antelope	Compact	0
 23	mysql/time_zone_leap_second	1	5	10	Antelope	Compact	0
 29	mysql/gtid_executed	1	6	16	Antelope	Compact	0
+30	mysql/server_cost	1	7	17	Antelope	Compact	0
+31	mysql/engine_cost	1	9	18	Antelope	Compact	0
 table_id	pos	mtype	prtype	len	name
 11	0	1	524292	0	ID
 11	1	1	524292	0	FOR_NAME
@@ -58,6 +60,16 @@ table_id	pos	mtype	prtype	len	name
 29	0	2	524798	36	source_uuid
 29	1	6	1288	8	interval_start
 29	2	6	1288	8	interval_end
+30	0	12	2162959	192	cost_name
+30	1	9	1028	4	cost_value
+30	2	3	525575	4	last_update
+30	3	12	2166799	3072	comment
+31	0	12	2162959	192	engine_name
+31	1	6	1283	4	device_type
+31	2	12	2162959	192	cost_name
+31	3	9	1028	4	cost_value
+31	4	3	525575	4	last_update
+31	5	12	2166799	3072	comment
 index_id	table_id	type	n_fields	space	name
 11	11	3	1	0	ID_IND
 12	11	0	1	0	FOR_IND
@@ -78,6 +90,8 @@ index_id	table_id	type	n_fields	space	name
 27	22	3	2	9	PRIMARY
 28	23	3	1	10	PRIMARY
 34	29	3	2	16	PRIMARY
+35	30	3	1	17	PRIMARY
+36	31	3	3	18	PRIMARY
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
 WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port')
 ORDER BY index_id, pos;
@@ -104,6 +118,10 @@ index_id	pos	name
 28	0	Transition_time
 34	0	source_uuid
 34	1	interval_start
+35	0	cost_name
+36	0	cost_name
+36	1	engine_name
+36	2	device_type
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
@@ -119,6 +137,7 @@ SELECT name, n_cols, file_format, row_format
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 WHERE space > 0;
 name	n_cols	file_format	row_format
+mysql/engine_cost	9	Antelope	Compact
 mysql/gtid_executed	6	Antelope	Compact
 mysql/help_category	7	Antelope	Compact
 mysql/help_keyword	5	Antelope	Compact
@@ -126,6 +145,7 @@ mysql/help_relation	5	Antelope	Compact
 mysql/help_topic	9	Antelope	Compact
 mysql/innodb_index_stats	11	Antelope	Compact
 mysql/innodb_table_stats	9	Antelope	Compact
+mysql/server_cost	7	Antelope	Compact
 mysql/slave_master_info	26	Antelope	Compact
 mysql/slave_relay_log_info	11	Antelope	Compact
 mysql/slave_worker_info	15	Antelope	Compact
@@ -156,7 +176,7 @@ MYSQLD_DATADIR/test/t_redundant.ibd
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
 count(*)
-19
+21
 CREATE TABLE parent (id INT NOT NULL,
 PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE child (id INT, parent_id INT,
@@ -182,6 +202,7 @@ SYS_DATAFILES	0	5
 SYS_FOREIGN	0	7
 SYS_FOREIGN_COLS	0	7
 SYS_TABLESPACES	0	6
+mysql/engine_cost	1	9
 mysql/gtid_executed	1	6
 mysql/help_category	1	7
 mysql/help_keyword	1	5
@@ -189,6 +210,7 @@ mysql/help_relation	1	5
 mysql/help_topic	1	9
 mysql/innodb_index_stats	1	11
 mysql/innodb_table_stats	1	9
+mysql/server_cost	1	7
 mysql/slave_master_info	1	26
 mysql/slave_relay_log_info	1	11
 mysql/slave_worker_info	1	15

@@ -83,6 +83,14 @@ typedef time_t	ib_time_t;
 #  define UT_RELAX_CPU() ((void)0) /* avoid warning for an empty statement */
 # endif
 
+# if defined(HAVE_HMT_PRIORITY_INSTRUCTION)
+#  define UT_LOW_PRIORITY_CPU() __asm__ __volatile__ ("or 1,1,1")
+#  define UT_RESUME_PRIORITY_CPU() __asm__ __volatile__ ("or 2,2,2")
+# else
+#  define UT_LOW_PRIORITY_CPU() ((void)0)
+#  define UT_RESUME_PRIORITY_CPU() ((void)0)
+# endif
+
 /*********************************************************************//**
 Delays execution for at most max_wait_us microseconds or returns earlier
 if cond becomes true.
