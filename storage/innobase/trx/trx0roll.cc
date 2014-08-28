@@ -221,6 +221,7 @@ trx_rollback_for_mysql(
 
 	case TRX_STATE_PREPARED:
 		ut_ad(!trx_is_autocommit_non_locking(trx));
+		ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:

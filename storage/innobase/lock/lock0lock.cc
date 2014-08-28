@@ -1685,9 +1685,12 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 
 	trx->in_innodb |= TRX_FORCE_ROLLBACK | TRX_FORCE_ROLLBACK_ASYNC;
 
-	ut_ad(trx->killed_by == 0);
+	bool		cas;
+	os_thread_id_t	thread_id = os_thread_get_curr_id();
 
-	trx->killed_by = os_thread_get_curr_id();
+	cas = os_compare_and_swap_thread_id(&trx->killed_by, 0, thread_id);
+
+	ut_ad(cas);
 
 	m_trx->hit_list.push_back(hit_list_t::value_type(trx));
 
