@@ -139,6 +139,8 @@ int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
 
 static thread_local_key_t RPL_MASTER_INFO;
 
+static bool inline is_slave_configured();
+
 enum enum_slave_reconnect_actions
 {
   SLAVE_RECON_ACT_REG= 0,
@@ -626,6 +628,12 @@ bool start_slave_cmd(THD *thd)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
+  if (!is_slave_configured())
+  {
+    my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION), MYF(0));
+    mysql_mutex_unlock(&LOCK_msr_map);
+    DBUG_RETURN(res= true);
+  }
 
   /*
    If slave_until options are provided when multiple channels exist
@@ -652,9 +660,6 @@ bool start_slave_cmd(THD *thd)
       res= start_slave(thd, mi, 1 /*net report */);
     else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
-    else
-      /* Even default channel does not exist. Report error as before.*/
-      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION), MYF(0));
   }
 err:
   mysql_mutex_unlock(&LOCK_msr_map);
@@ -683,6 +688,13 @@ bool stop_slave_cmd(THD *thd)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
+  if (!is_slave_configured())
+  {
+    my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION), MYF(0));
+    mysql_mutex_unlock(&LOCK_msr_map);
+    DBUG_RETURN(res= true);
+  }
+
   if (!lex->mi.for_channel)
     res= stop_slave(thd);
   else
@@ -693,8 +705,6 @@ bool stop_slave_cmd(THD *thd)
       res= stop_slave(thd, mi, 1 /*net report */);
     else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
-    else
-      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION), MYF(0));
   }
 
   mysql_mutex_unlock(&LOCK_msr_map);
@@ -9152,6 +9162,13 @@ bool reset_slave_cmd(THD *thd)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
+  if (!is_slave_configured())
+  {
+    my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION), MYF(0));
+    mysql_mutex_unlock(&LOCK_msr_map);
+    DBUG_RETURN(res= true);
+  }
+
   if (!lex->mi.for_channel)
     res= reset_slave(thd);
   else
@@ -9162,8 +9179,6 @@ bool reset_slave_cmd(THD *thd)
       res= reset_slave(thd, mi);
     else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
-    else
-      my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION), MYF(0));
   }
 
   mysql_mutex_unlock(&LOCK_msr_map);
@@ -10124,6 +10139,25 @@ static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
   }
   return 0;
 }
+
+
+bool inline is_slave_configured()
+{
+
+  /* If msr_map count is zero because of opt_slave_skip_start
+     OR
+     failure to load slave info repositories because of repository
+     mismatch i.e Assume slave had a multisource replication with several
+     channels setup  with TABLE repository. Then if the slave is restarted
+     with FILE repository, we fail to load any of the slave repositories.
+     Hence, msr_map.get_num_instances() will be 0
+  */
+
+  return (msr_map.get_num_instances() > 0);
+
+}
+
+
 
 /**
   @} (end of group Replication)
