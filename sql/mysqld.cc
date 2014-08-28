@@ -294,7 +294,13 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 ulong log_warnings;
-#if defined(_WIN32)
+bool  opt_log_syslog_enable;
+char *opt_log_syslog_tag= NULL;
+#ifndef _WIN32
+bool  opt_log_syslog_include_pid;
+char *opt_log_syslog_facility;
+
+#else
 /*
   Thread handle of shutdown event handler thread.
   It is used as argument during thread join.
@@ -1247,6 +1253,7 @@ extern "C" void unireg_abort(int exit_code)
 
 static void mysqld_exit(int exit_code)
 {
+  log_syslog_exit();
   mysql_audit_finalize();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
@@ -2819,6 +2826,9 @@ int init_common_variables()
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
 
+  if (log_syslog_init())
+    opt_log_syslog_enable= 0;
+
   if (set_default_auth_plugin(default_auth_plugin, strlen(default_auth_plugin)))
   {
     sql_print_error("Can't start server: "
@@ -4382,7 +4392,10 @@ int mysqld_main(int argc, char **argv)
     We have enough space for fiddling with the argv, continue
   */
   if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
+  {
+    sql_print_error("failed to set datadir to %s", mysql_real_data_home);
     unireg_abort(1);        /* purecov: inspected */
+  }
 
 #ifndef _WIN32
   if ((user_info= check_user(mysqld_user)))
