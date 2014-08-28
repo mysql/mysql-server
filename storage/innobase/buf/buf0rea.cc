@@ -136,9 +136,8 @@ buf_read_page_low(
 	if (page_id.space() == TRX_SYS_SPACE
 	    && buf_dblwr_page_inside(page_id.page_no())) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to read doublewrite buffer page %u",
-			(unsigned) page_id.page_no());
+		ib::error() << "Trying to read doublewrite buffer page "
+			<< page_id;
 		return(0);
 	}
 
@@ -367,12 +366,10 @@ read_ahead:
 				cur_page_id, page_size, FALSE,
 				tablespace_version);
 			if (err == DB_TABLESPACE_DELETED) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Random readahead trying to access"
-					" page %u:%u in nonexisting or"
-					" being-dropped tablespace",
-					(unsigned) cur_page_id.space(),
-					(unsigned) cur_page_id.page_no());
+				ib::warn() << "Random readahead trying to"
+					" access page " << cur_page_id
+					<< " in nonexisting or"
+					" being-dropped tablespace";
 				break;
 			}
 		}
@@ -424,10 +421,8 @@ buf_read_page(
 				  page_size, FALSE, tablespace_version);
 	srv_stats.buf_pool_reads.add(count);
 	if (err == DB_TABLESPACE_DELETED) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"trying to read page " UINT32PF ":" UINT32PF
-			" in nonexisting or being-dropped tablespace",
-			page_id.space(), page_id.page_no());
+		ib::error() << "trying to read page " << page_id
+			<< " in nonexisting or being-dropped tablespace";
 	}
 
 	/* Increment number of I/O operations used for LRU policy. */
@@ -588,7 +583,7 @@ buf_read_ahead_linear(
 
 	/* How many out of order accessed pages can we ignore
 	when working out the access pattern for linear readahead */
-	threshold = ut_min((64 - srv_read_ahead_threshold),
+	threshold = ut_min(static_cast<ulint>(64 - srv_read_ahead_threshold),
 			   BUF_READ_AHEAD_AREA(buf_pool));
 
 	fail_count = 0;
@@ -723,12 +718,11 @@ buf_read_ahead_linear(
 				&err, false, ibuf_mode, cur_page_id,
 				page_size, FALSE, tablespace_version);
 			if (err == DB_TABLESPACE_DELETED) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"linear readahead trying to access "
-					"page " UINT32PF ":%lu in "
-					"nonexisting or being-dropped "
-					"tablespace",
-					page_id.space(), i);
+				ib::warn() << "linear readahead trying to"
+					" access page "
+					<< page_id_t(page_id.space(), i)
+					<< " in nonexisting or being-dropped"
+					" tablespace";
 			}
 		}
 	}
@@ -880,12 +874,12 @@ buf_read_recv_pages(
 			count++;
 
 			if (!(count % 1000)) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Waited for %u seconds for %u pending"
-					" reads (%u pread calls) to finish",
-					unsigned(count / 100),
-					unsigned(buf_pool->n_pend_reads),
-					unsigned(os_file_n_pending_preads));
+				ib::error() << "Waited for " << count / 100
+					<< " seconds for "
+					<< buf_pool->n_pend_reads
+					<< " pending reads ("
+					<< os_file_n_pending_preads
+					<< " pread calls) to finish";
 			}
 		}
 

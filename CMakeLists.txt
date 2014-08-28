@@ -471,6 +471,7 @@ INCLUDE(configure.cmake)
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include
+                    ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
                     ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include)
 
 # Add bundled or system zlib.
@@ -487,7 +488,7 @@ MYSQL_CHECK_LIBEVENT()
 # not run with the warning options as to not perturb fragile checks
 # (i.e. do not make warnings into errors).
 #
-# Why doesn't these flags affect the entire build?
+# Why don't these flags affect the entire build?
 # Because things may already have been included with ADD_SUBDIRECTORY
 #
 OPTION(MYSQL_MAINTAINER_MODE
@@ -569,6 +570,7 @@ IF(NOT WITHOUT_SERVER)
   ENDIF()
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
+  ADD_SUBDIRECTORY(packaging/rpm-sles)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)

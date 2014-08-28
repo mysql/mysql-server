@@ -29,7 +29,6 @@
 #endif
 
 #define HASH_DYNAMIC_INIT 4
-#define HASH_DYNAMIC_INCR 1
 
 using std::min;
 
@@ -104,7 +103,10 @@ Slave_worker::Slave_worker(Relay_log_info *rli
                    param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
                    , param_id + 1, true
-                  ), c_rli(rli), id(param_id),
+                  ),
+    c_rli(rli),
+    curr_group_exec_parts(key_memory_db_worker_hash_entry),
+    id(param_id),
     checkpoint_relay_log_pos(0), checkpoint_master_log_pos(0),
     checkpoint_seqno(0), running_status(NOT_RUNNING)
 {
@@ -115,8 +117,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
   DBUG_ASSERT(internal_id == id + 1);
   checkpoint_relay_log_name[0]= 0;
   checkpoint_master_log_name[0]= 0;
-  my_init_dynamic_array(&curr_group_exec_parts, sizeof(db_worker_hash_entry*),
-                        SLAVE_INIT_DBS_IN_GROUP, 1);
+
   mysql_mutex_init(key_mutex_slave_parallel_worker, &jobs_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_cond_slave_parallel_worker, &jobs_cond);
@@ -130,7 +131,6 @@ Slave_worker::~Slave_worker()
     DBUG_ASSERT(jobs.m_Q.size() == jobs.size);
     jobs.m_Q.clear();
   }
-  delete_dynamic(&curr_group_exec_parts);
   mysql_mutex_destroy(&jobs_lock);
   mysql_cond_destroy(&jobs_cond);
   mysql_mutex_lock(&info_thd_lock);
@@ -164,7 +164,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
     DBUG_RETURN(1);
 
   id= i;
-  curr_group_exec_parts.elements= 0;
+  curr_group_exec_parts.clear();
   relay_log_change_notified= FALSE; // the 1st group to contain relaylog name
   checkpoint_notified= FALSE;       // the same as above
   master_log_change_notified= false;// W learns master log during 1st group exec
@@ -799,12 +799,6 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 {
   Slave_worker_array *workers= &rli->workers;
 
-  /*
-    A dynamic array to store the mapping_db_to_worker hash elements
-    that needs to be deleted, since deleting the hash entires while
-    iterating over it is wrong.
-  */
-  DYNAMIC_ARRAY hash_element;
   THD *thd= rli->info_thd;
 
   DBUG_ENTER("get_slave_worker");
@@ -891,12 +885,17 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     if (mapping_db_to_worker.records > mts_partition_hash_soft_max)
     {
       /*
+        A dynamic array to store the mapping_db_to_worker hash elements
+        that needs to be deleted, since deleting the hash entires while
+        iterating over it is wrong.
+      */
+      Prealloced_array<db_worker_hash_entry*, HASH_DYNAMIC_INIT>
+        hash_element(key_memory_db_worker_hash_entry);
+      /*
         remove zero-usage (todo: rare or long ago scheduled) records.
         Store the element of the hash in a dynamic array after checking whether
         the usage of the hash entry is 0 or not. We later free it from the HASH.
       */
-      my_init_dynamic_array(&hash_element, sizeof(db_worker_hash_entry *),
-                            HASH_DYNAMIC_INIT, HASH_DYNAMIC_INCR);
       for (uint i= 0; i < mapping_db_to_worker.records; i++)
       {
         DBUG_ASSERT(!entry->temporary_tables || !entry->temporary_tables->prev);
@@ -911,18 +910,16 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
           entry->temporary_tables= NULL;
 
           /* Push the element in the dynamic array*/
-          push_dynamic(&hash_element, (uchar*) &entry);
+          hash_element.push_back(entry);
         }
       }
 
       /* Delete the hash element based on the usage */
-      for (uint i=0; i < hash_element.elements; i++)
+      for (size_t i=0 ; i < hash_element.size(); i++)
       {
-        db_worker_hash_entry *temp_entry= *(db_worker_hash_entry **) dynamic_array_ptr(&hash_element, i);
+        db_worker_hash_entry *temp_entry= hash_element[i];
         my_hash_delete(&mapping_db_to_worker, (uchar*) temp_entry);
       }
-        /* Deleting the dynamic array */
-      delete_dynamic(&hash_element);
     }
 
     ret= my_hash_insert(&mapping_db_to_worker, (uchar*) entry);
@@ -1118,12 +1115,9 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
   /*
     Cleanup relating to the last executed group regardless of error.
   */
-  DYNAMIC_ARRAY *ep= &curr_group_exec_parts;
-
-  for (uint i= 0; i < ep->elements; i++)
+  for (size_t i= 0; i < curr_group_exec_parts.size(); i++)
   {
-    db_worker_hash_entry *entry=
-      *((db_worker_hash_entry **) dynamic_array_ptr(ep, i));
+    db_worker_hash_entry *entry= curr_group_exec_parts[i];
 
     mysql_mutex_lock(&slave_worker_hash_lock);
 
@@ -1163,14 +1157,8 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     mysql_mutex_unlock(&slave_worker_hash_lock);
   }
 
-  if (ep->elements > ep->max_element)
-  {
-    // reallocate to lessen mem
-    ep->elements= ep->max_element;
-    ep->max_element= 0;
-    freeze_size(ep); // restores max_element
-  }
-  ep->elements= 0;
+  curr_group_exec_parts.clear();
+  curr_group_exec_parts.shrink_to_fit();
 
   if (error)
   {
@@ -1342,7 +1330,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
   for (i= entry; i != avail && !empty(); cnt++, i= (i + 1) % size)
   {
     Slave_worker *w_i;
-    Slave_job_group *ptr_g, g;
+    Slave_job_group *ptr_g;
     char grl_name[FN_REFLEN];
 
 #ifndef DBUG_OFF
@@ -1382,6 +1370,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
     /*
       Removes the job from the (G)lobal (A)ssigned (Q)ueue.
     */
+    Slave_job_group g= Slave_job_group();
 #ifndef DBUG_OFF
     ulong ind=
 #endif
@@ -1404,8 +1393,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
     DBUG_ASSERT(ptr_g->total_seqno == lwm.total_seqno);
 #ifndef DBUG_OFF
     {
-      ulonglong l;
-      get_dynamic(&last_done, (uchar *) &l, w_i->id);
+      ulonglong l= last_done[w_i->id];
       /*
         There must be some progress otherwise we should have
         exit the loop earlier.
@@ -1417,7 +1405,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
       This is used to calculate the last time each worker has
       processed events.
     */
-    set_dynamic(&last_done, &ptr_g->total_seqno, w_i->id);
+    last_done[w_i->id]= ptr_g->total_seqno;
   }
 
   DBUG_ASSERT(cnt <= size);
@@ -1549,7 +1537,6 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
     if (ev->contains_partition_info(end_group_sets_max_dbs))
     {
       uint num_dbs= ev->mts_number_dbs();
-      DYNAMIC_ARRAY *ep= &curr_group_exec_parts;
 
       if (num_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
         num_dbs= 1;
@@ -1560,10 +1547,9 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
       {
         bool found= false;
 
-        for (uint i= 0; i < ep->elements && !found; i++)
+        for (size_t i= 0; i < curr_group_exec_parts.size() && !found; i++)
         {
-          found=
-            *((db_worker_hash_entry **) dynamic_array_ptr(ep, i)) ==
+          found= curr_group_exec_parts[i] ==
             ev->mts_assigned_partitions[k];
         }
         if (!found)
@@ -1573,7 +1559,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
             DBUG_ASSERT(ev->mts_assigned_partitions[k]->worker == worker);
             since entry could be marked as wanted by other worker.
           */
-          insert_dynamic(ep, (uchar*) &ev->mts_assigned_partitions[k]);
+          curr_group_exec_parts.push_back(ev->mts_assigned_partitions[k]);
         }
       }
       end_group_sets_max_dbs= false;

@@ -1,16 +1,16 @@
-#Bug#13955083 ALLOW IN-PLACE DDL OPERATIONS ON MISSING OR DISCARDED TABLESPACES
-
 --source include/not_embedded.inc
 --source include/have_innodb.inc
+
+--echo #
+--echo # Bug#13955083 ALLOW IN-PLACE DDL OPERATIONS ON MISSING
+--echo # OR DISCARDED TABLESPACES
+--echo #
 
 let $MYSQLD_DATADIR=`select @@datadir`;
 SET GLOBAL innodb_file_per_table=1;
 CREATE TABLE t(a INT)ENGINE=InnoDB;
 
-# Shut down the server
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server
--- source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 # Remove the tablespace file.
 let IBD=$MYSQLD_DATADIR/test/t.ibd;
@@ -18,10 +18,7 @@ perl;
 unlink "$ENV{IBD}" || die "Unable to unlink $ENV{IBD}\n";
 EOF
 
-# Restart the server.
--- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] InnoDB: cannot calculate statistics for table \"test\"\.\"t\" because the \.ibd file is missing");

@@ -1,3 +1,4 @@
+# restart: --innodb-fast-shutdown=2 --innodb-log-file-size=1M
 call mtr.add_suppression("InnoDB: Resizing redo log");
 call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
 call mtr.add_suppression("InnoDB: New log files created");
@@ -82,6 +83,7 @@ id	LEFT(bfield,20)
 23	cccccccccccccccccccc
 DROP TABLE t1;
 DROP DATABASE db_wl6494;
+# restart: --innodb-fast-shutdown=2 --innodb-log-file-size=3M --innodb_log_files_in_group=3
 SELECT @@innodb_log_file_size;
 @@innodb_log_file_size
 3145728
@@ -158,6 +160,7 @@ id	LEFT(bfield,20)
 "test misc 4"
 "test misc 5"
 "test misc 6"
+# restart
 USE db_wl6494;
 SELECT id,LEFT(bfield,20) FROM t1;
 id	LEFT(bfield,20)

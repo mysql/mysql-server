@@ -24,8 +24,6 @@ INCLUDE_DIRECTORIES(
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
-  ${BOOST_PATCHES_DIR}
-  ${BOOST_INCLUDE_DIR}
 )
 
 SET(CONF_SOURCES
@@ -254,28 +252,34 @@ IF(WIN32)
       )
 ENDIF()
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+ADD_COMPILE_FLAGS(
+  item_geofunc.cc
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+)
+
 # Boost Geometry source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
-  SET_SOURCE_FILES_PROPERTIES(
+  ADD_COMPILE_FLAGS(
     item_geofunc.cc
-    PROPERTIES COMPILE_FLAGS "-Wno-unused-local-typedefs"
+    COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
 IF(HAVE_NO_BUILTIN_MEMCMP)
-  SET_SOURCE_FILES_PROPERTIES(
+  ADD_COMPILE_FLAGS(
     filesort_utils.cc
-    PROPERTIES COMPILE_FLAGS "-fno-builtin-memcmp"
+    COMPILE_FLAGS "-fno-builtin-memcmp"
   )
 ENDIF()
 
 IF (WIN32 AND OPENSSL_APPLINK_C)
-  SET_SOURCE_FILES_PROPERTIES(
+  ADD_COMPILE_FLAGS(
     ../sql-common/client_authentication.cc
-    PROPERTIES COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
+    COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
   )
 ENDIF()
 

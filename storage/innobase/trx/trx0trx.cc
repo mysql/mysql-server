@@ -118,6 +118,8 @@ trx_init(
 
 	trx->support_xa = true;
 
+	trx->lock.n_rec_locks = 0;
+
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
@@ -143,6 +145,10 @@ trx_init(
 	trx->ddl = false;
 
 	trx->internal = false;
+
+#ifdef UNIV_DEBUG
+	trx->is_dd_trx  = false;
+#endif /* UNIV_DEBUG */
 
 	ut_d(trx->start_file = 0);
 
@@ -1255,6 +1261,15 @@ trx_start_low(
 	} else if (trx->will_lock == 0) {
 		trx->read_only = true;
 	}
+
+#ifdef UNIV_DEBUG
+	/* If the transaction is DD attachable trx, it should be AC-NL-RO-RC
+	(AutoCommit-NonLocking-ReadOnly-ReadCommited) trx */
+	if (trx->is_dd_trx) {
+		ut_ad(trx->read_only && trx->auto_commit
+		      && trx->isolation_level == TRX_ISO_READ_COMMITTED);
+	}
+#endif /* UNIV_DEBUG */
 
 	/* The initial value for trx->no: TRX_ID_MAX is used in
 	read_view_open_now: */

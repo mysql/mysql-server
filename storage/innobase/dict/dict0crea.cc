@@ -287,7 +287,7 @@ dict_build_tablespace(
 	const char*	path;
 	mtr_t		mtr;
 	ulint		space = 0;
-	bool		use_file_per_table;
+	bool		file_per_table;
 
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 
@@ -302,7 +302,7 @@ dict_build_tablespace(
 
 	trx->table_id = table->id;
 
-	use_file_per_table = dict_table_use_file_per_table(table);
+	file_per_table = dict_table_use_file_per_table(table);
 
 	/* Always set this bit for all new created tables */
 	DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_AUX_HEX_NAME);
@@ -310,7 +310,7 @@ dict_build_tablespace(
 			DICT_TF2_FLAG_UNSET(table,
 					    DICT_TF2_FTS_AUX_HEX_NAME););
 
-	if (use_file_per_table) {
+	if (file_per_table) {
 		/* This table will not use the system tablespace.
 		Get a new space id. */
 		dict_hdr_get_new_id(NULL, NULL, &space, table, false);
@@ -420,7 +420,7 @@ dict_create_sys_indexes_tuple(
 	dfield_t*	dfield;
 	byte*		ptr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(index);
 	ut_ad(heap);
 
@@ -634,7 +634,7 @@ dict_build_index_def_step(
 	dtuple_t*	row;
 	trx_t*		trx;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	trx = thr_get_trx(thr);
 
@@ -752,7 +752,7 @@ dict_create_index_tree_step(
 	dict_table_t*	sys_indexes;
 	dtuple_t*	search_tuple;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	index = node->index;
 
@@ -887,7 +887,7 @@ dict_drop_index_tree(
 	ulint		space;
 	ulint		root_page_no;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
 
 	ptr = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__PAGE_NO, &len);
@@ -1041,9 +1041,9 @@ dict_recreate_index_tree(
 		/* It is a single table tablespae and the .ibd file is
 		missing: do nothing. */
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Trying to TRUNCATE a missing .ibd file of table"
-			" %s!", table->name);
+		ib::warn()
+			<< "Trying to TRUNCATE a missing .ibd file of table "
+			<< ut_get_name(NULL, TRUE, table->name) << "!";
 
 		return(FIL_NULL);
 	}
@@ -1083,9 +1083,8 @@ dict_recreate_index_tree(
 		}
 	}
 
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Failed to create index with index id " IB_ID_FMT
-		" of table '%s'", index_id, table->name);
+	ib::error() << "Failed to create index with index id " << index_id
+		<< " of table " << ut_get_name(NULL, TRUE, table->name);
 
 	return(FIL_NULL);
 }
@@ -1116,9 +1115,8 @@ dict_truncate_index_tree_in_mem(
 	if (root_page_no == FIL_NULL) {
 
 		/* The tree has been freed. */
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Trying to TRUNCATE a missing index of table %s!",
-			index->table->name);
+		ib::warn() << "Trying to TRUNCATE a missing index of table "
+			<< ut_get_name(NULL, TRUE, index->table->name) << "!";
 
 		truncate = false;
 	} else {
@@ -1134,9 +1132,9 @@ dict_truncate_index_tree_in_mem(
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Trying to TRUNCATE a missing .ibd file of table %s!",
-			index->table->name);
+		ib::warn()
+			<< "Trying to TRUNCATE a missing .ibd file of table "
+			<< ut_get_name(NULL, TRUE, index->table->name) << "!";
 	}
 
 	/* If table to truncate resides in its on own tablespace that will
@@ -1281,7 +1279,7 @@ dict_create_table_step(
 	trx_t*		trx;
 
 	ut_ad(thr);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	trx = thr_get_trx(thr);
 
@@ -1384,7 +1382,7 @@ dict_create_index_step(
 	trx_t*		trx;
 
 	ut_ad(thr);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	trx = thr_get_trx(thr);
 
@@ -1619,22 +1617,19 @@ dict_create_or_check_foreign_constraint_tables(void)
 	/* Check which incomplete table definition to drop. */
 
 	if (sys_foreign_err == DB_CORRUPTION) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Dropping incompletely created"
-			" SYS_FOREIGN table.");
+		ib::warn() << "Dropping incompletely created"
+			" SYS_FOREIGN table.";
 		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
 	}
 
 	if (sys_foreign_cols_err == DB_CORRUPTION) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Dropping incompletely created"
-			" SYS_FOREIGN_COLS table.");
+		ib::warn() << "Dropping incompletely created"
+			" SYS_FOREIGN_COLS table.";
 
 		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
 	}
 
-	ib_logf(IB_LOG_LEVEL_WARN,
-		"Creating foreign key constraint system tables.");
+	ib::warn() << "Creating foreign key constraint system tables.";
 
 	/* NOTE: in dict_load_foreigns we use the fact that
 	there are 2 secondary indexes on SYS_FOREIGN, and they
@@ -1675,11 +1670,10 @@ dict_create_or_check_foreign_constraint_tables(void)
 		FALSE, trx);
 
 	if (err != DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Creation of SYS_FOREIGN and SYS_FOREIGN_COLS"
-			" has failed with error %lu. Tablespace is full."
-			" Dropping incompletely created tables.",
-			(ulong) err);
+
+		ib::error() << "Creation of SYS_FOREIGN and SYS_FOREIGN_COLS"
+			" failed: " << ut_strerr(err) << ". Tablespace is"
+			" full. Dropping incompletely created tables.";
 
 		ut_ad(err == DB_OUT_OF_FILE_SPACE
 		      || err == DB_TOO_MANY_CONCURRENT_TRXS);
@@ -1701,8 +1695,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	srv_file_per_table = srv_file_per_table_backup;
 
 	if (err == DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Foreign key constraint system tables created");
+		ib::info() << "Foreign key constraint system tables created";
 	}
 
 	/* Note: The master thread has not been started at this point. */
@@ -1763,9 +1756,8 @@ dict_foreign_eval_sql(
 	}
 
 	if (error != DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Foreign key constraint creation failed:"
-			" internal error number %lu", (ulong) error);
+		ib::error() << "Foreign key constraint creation failed: "
+			<< ut_strerr(error);
 
 		mutex_enter(&dict_foreign_err_mutex);
 		ut_print_timestamp(ef);
@@ -1898,7 +1890,7 @@ dict_create_add_foreigns_to_dictionary(
 	dict_foreign_t*	foreign;
 	dberr_t		error;
 
-	ut_ad(mutex_own(&(dict_sys->mutex))
+	ut_ad(mutex_own(&dict_sys->mutex)
 	      || dict_table_is_intrinsic(table));
 
 	if (dict_table_is_intrinsic(table)) {
@@ -1906,9 +1898,9 @@ dict_create_add_foreigns_to_dictionary(
 	}
 
 	if (NULL == dict_table_get_low("SYS_FOREIGN")) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Table SYS_FOREIGN not found"
-			" in internal data dictionary");
+
+		ib::error() << "Table SYS_FOREIGN not found"
+			" in internal data dictionary";
 
 		return(DB_ERROR);
 	}
@@ -1983,22 +1975,19 @@ dict_create_or_check_sys_tablespace(void)
 	/* Check which incomplete table definition to drop. */
 
 	if (sys_tablespaces_err == DB_CORRUPTION) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Dropping incompletely created"
-			" SYS_TABLESPACES table.");
+		ib::warn() << "Dropping incompletely created"
+			" SYS_TABLESPACES table.";
 		row_drop_table_for_mysql("SYS_TABLESPACES", trx, TRUE);
 	}
 
 	if (sys_datafiles_err == DB_CORRUPTION) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Dropping incompletely created"
-			" SYS_DATAFILES table.");
+		ib::warn() << "Dropping incompletely created"
+			" SYS_DATAFILES table.";
 
 		row_drop_table_for_mysql("SYS_DATAFILES", trx, TRUE);
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Creating tablespace and datafile system tables.");
+	ib::info() << "Creating tablespace and datafile system tables.";
 
 	/* We always want SYSTEM tables to be created inside the system
 	tablespace. */
@@ -2021,11 +2010,11 @@ dict_create_or_check_sys_tablespace(void)
 		FALSE, trx);
 
 	if (err != DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Creation of SYS_TABLESPACES and SYS_DATAFILES"
-			" has failed with error %lu. Tablespace is full."
-			" Dropping incompletely created tables.",
-			(ulong) err);
+
+		ib::error() << "Creation of SYS_TABLESPACES and SYS_DATAFILES"
+			" has failed with error " << ut_strerr(err)
+			<< ". Tablespace is full. Dropping incompletely"
+			" created tables.";
 
 		ut_a(err == DB_OUT_OF_FILE_SPACE
 		     || err == DB_TOO_MANY_CONCURRENT_TRXS);
@@ -2047,8 +2036,7 @@ dict_create_or_check_sys_tablespace(void)
 	srv_file_per_table = srv_file_per_table_backup;
 
 	if (err == DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Tablespace and datafile system tables created.");
+		ib::info() << "Tablespace and datafile system tables created.";
 	}
 
 	/* Note: The master thread has not been started at this point. */

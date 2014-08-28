@@ -1,3 +1,4 @@
+--source include/no_valgrind_without_big.inc
 --source include/not_embedded.inc
 --source include/have_sha256_rsa_auth.inc
 
@@ -246,7 +247,7 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
---exec $MYSQL -uwl7699_sha256 -pabcd -e "show status like 'Ssl_cipher'"
+--exec $MYSQL -uwl7699_sha256 -pabcd -e "select current_user()"
 
 drop user wl7699_sha256;
 connection default;
@@ -292,7 +293,7 @@ let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
 --echo # Search completed.
 
 --echo # 6.2 : System variables
-connect (test_root_5,localhost,root,,,,,);
+connect (test_root_6,localhost,root,,,,,);
 --echo # auto_generate_certs, ssl_ca, ssl_cert and ssl_key should be set.
 show variables like 'ssl%';
 --echo # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
@@ -305,7 +306,7 @@ show variables like 'sha256%';
 
 
 --echo # 6.4 : SHA256_password user
-connection test_root_5;
+connection test_root_6;
 create user wl7699_sha256 identified with 'sha256_password';
 grant usage on *.* to wl7699_sha256 identified by 'abcd';
 
@@ -314,11 +315,93 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
---exec $MYSQL -uwl7699_sha256 -pabcd -e "show status like 'Ssl_cipher'"
+--exec $MYSQL -uwl7699_sha256 -pabcd -e "select current_user()"
 
 drop user wl7699_sha256;
 connection default;
-disconnect test_root_5;
+disconnect test_root_6;
+
+
+#-----------------------------------------------------------------------------
+
+
+--echo # Test 7 : SSL Certificates/Key File Generation and tests
+
+
+--echo # 7.1 : Restarting mysqld with :
+--echo #       --skip-ssl
+--echo #       --auto_generate_certs=ON
+--echo #       --sha256_password_auto_generate_rsa_keys=ON
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--send_shutdown
+--source include/wait_until_disconnected.inc
+--remove_file $server_log
+
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
+
+--exec echo "restart: --skip-ssl --auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+--echo # Restart completed.
+
+--echo # Search for : Auto generated RSA key files are placed in data directory.
+let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
+--source include/search_pattern_in_file.inc
+--echo # Search completed.
+
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
+
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
+
+--echo # 7.2 : System variables
+connect (test_root_7,localhost,root,,,,,);
+--echo # No ssl variables should be set
+show variables like 'ssl%';
+--echo # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
+--echo # and sha256_password_public_key_path should be set.
+show variables like 'sha256%';
+
+--echo # 7.3 : SSL connection
+--echo # Should not be able to connect to server using generated SSL certificates.
+--error 1
+--exec $MYSQL -uroot --ssl -e "show status like 'Ssl_cipher'"
+
+--echo # 7.4 : SHA256_password user
+connection test_root_7;
+create user wl7699_sha256 identified with 'sha256_password';
+grant usage on *.* to wl7699_sha256 identified by 'abcd';
+
+# Using SSL certificates
+--echo # Should not be able to connect to server using generated SSL certificates.
+--error 1
+--exec $MYSQL -uwl7699_sha256 -pabcd --ssl -e "show status like 'Ssl_cipher'"
+# Using RSA key pair
+--echo # Should be able to connect to server using RSA key pair.
+--exec $MYSQL -uwl7699_sha256 -pabcd -e "select current_user()"
+
+drop user wl7699_sha256;
+connection default;
+disconnect test_root_7;
 
 
 #-----------------------------------------------------------------------------
@@ -327,12 +410,6 @@ disconnect test_root_5;
 --echo # Clean-up
 
 connection default;
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
---remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 --disable_warnings

@@ -297,5 +297,4 @@ is_predefined_tablespace(
 	       || id <= srv_undo_tablespaces_open
 	       || id == srv_tmp_space.space_id());
 }
-
 #endif /* fsp0sysspace_h */

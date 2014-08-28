@@ -938,8 +938,13 @@ INSERT INTO t1 VALUES
   (4), (2), (1), (2), (2), (4), (1), (4),
   (4), (2), (1), (2), (2), (4), (1), (4);
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT DISTINCT(a) FROM t1;
 SELECT DISTINCT(a) FROM t1;
+
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 
@@ -961,10 +966,14 @@ SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 
 CREATE INDEX break_it ON t1 (a, b);
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
@@ -1009,6 +1018,8 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT a,b,c+1,d FROM t1;
 
 #Should be non-empty
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT DISTINCT c FROM t1 WHERE d=4;
 SELECT DISTINCT c FROM t1 WHERE d=4;
 
@@ -1027,6 +1038,8 @@ INSERT INTO t SELECT * FROM t;
 
 --echo # test MIN
 --echo #should use range with index for group by
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN
 SELECT a, MIN(b) FROM t WHERE b <> 0 GROUP BY a;
 --echo #should return 1 row
@@ -1034,6 +1047,8 @@ SELECT a, MIN(b) FROM t WHERE b <> 0 GROUP BY a;
 
 --echo # test MAX
 --echo #should use range with index for group by
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN
 SELECT a, MAX(b) FROM t WHERE b <> 1 GROUP BY a;
 --echo #should return 1 row
@@ -1043,6 +1058,8 @@ SELECT a, MAX(b) FROM t WHERE b <> 1 GROUP BY a;
 INSERT INTO t SELECT a, 2 FROM t;
 
 --echo #should use range with index for group by
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN
 SELECT a, MAX(b) FROM t WHERE b > 0 AND b < 2 GROUP BY a;
 --echo #should return 1 row
@@ -1154,21 +1171,31 @@ INSERT INTO t2 SELECT a, b + 4, c,d,e,f FROM t2;
 INSERT INTO t2 SELECT a + 1, b, c,d,e,f FROM t2;
 INSERT INTO t2 SELECT a + 2, b + 8, c,d,e,f FROM t2;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1;
 SELECT COUNT(DISTINCT a) FROM t1;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT COUNT(DISTINCT a,b) FROM t1;
 SELECT COUNT(DISTINCT a,b) FROM t1;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT COUNT(DISTINCT b,a) FROM t1;
 SELECT COUNT(DISTINCT b,a) FROM t1;
 
 EXPLAIN SELECT COUNT(DISTINCT b) FROM t1;
 SELECT COUNT(DISTINCT b) FROM t1;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 
@@ -1187,27 +1214,39 @@ SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 20;
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 
 EXPLAIN SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT COUNT(DISTINCT a), 12 FROM t1;
 SELECT COUNT(DISTINCT a), 12 FROM t1;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT COUNT(DISTINCT a, b, c) FROM t2;
 SELECT COUNT(DISTINCT a, b, c) FROM t2;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 
 EXPLAIN SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 
@@ -1217,6 +1256,8 @@ SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 EXPLAIN SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 
@@ -1230,15 +1271,21 @@ EXPLAIN SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
   GROUP BY b;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 
 EXPLAIN SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
 SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
   WHERE b = 13 AND c = 42 GROUP BY a;
 SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
@@ -1252,6 +1299,8 @@ SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 EXPLAIN SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 
+# On 32 bit platform the rows estimate is 10 vs 11 on 64 bit platforms.
+--replace_result 11 10
 EXPLAIN SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 
@@ -1356,4 +1405,25 @@ SET optimizer_trace=DEFAULT;
 SET end_markers_in_json=DEFAULT;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug #18066518: THE COST VALUE IS A NEGATIVE NUMBER FOR MERGE ENGINE
+--echo #                TABLE
+--echo #
+CREATE TABLE t(a INT PRIMARY KEY)
+  ENGINE = MERGE;
+EXPLAIN SELECT DISTINCT(a) FROM t;
+SELECT DISTINCT(a) FROM t;
+DROP TABLE t;
+--echo # End of test#18066518.
+
+--echo #
+--echo # Bug #18486293: ASSERTION FAILED: KEYS >= 0.0 IN
+--echo #                COST_MODEL_TABLE::KEY_COMPARE_COST
+--echo #
+CREATE TABLE t (b INT, KEY b_key (b)) ENGINE=INNODB
+  PARTITION BY RANGE COLUMNS(b) (PARTITION p_part VALUES LESS THAN (0));
+SELECT 1 FROM t WHERE b IN ('') GROUP BY  b ;
+DROP TABLE t;
+--echo # End of test#18486293.
 

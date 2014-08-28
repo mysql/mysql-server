@@ -7030,14 +7030,11 @@ float Item_equal::get_filtering_effect(table_map filter_for_table,
 
           for (uint j= 0; j < tab->s->keys; j++)
           {
-            if (cur_field->field->key_start.is_set(j))
+            if (cur_field->field->key_start.is_set(j) &&
+                tab->key_info[j].has_records_per_key(0))
             {
-              const uint rec_estimate= tab->key_info[j].rec_per_key[0];
-              if (rec_estimate)
-              {
-                cur_filter= rec_estimate / rows_in_table;
-                break;
-              }
+              cur_filter= tab->key_info[j].records_per_key(0) / rows_in_table;
+              break;
             }
           }
           /*

@@ -25,6 +25,7 @@
 #include <set>
 #include "inplace_vector.h"
 #include "prealloced_array.h"
+#include <rapidjson/document.h>
 
 /**
    We have to hold result buffers in functions that return a GEOMETRY string,
@@ -163,6 +164,9 @@ public:
   Item_geometry_func(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
 
   Item_geometry_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
+  Item_geometry_func(const POS &pos, Item *a, Item *b, Item *c)
+    :Item_str_func(pos, a, b, c)
+  {}
   Item_geometry_func(const POS &pos, PT_item_list *list);
 
   void fix_length_and_dec();
@@ -236,6 +240,110 @@ public:
     maybe_null= 1;
   };
 };
+
+
+/**
+  This handles one function:
+
+    <geometry> = ST_GEOMFROMGEOJSON(<string>[, <options>[, <srid>]])
+
+  Options is an integer argument which determines how positions with higher
+  coordinate dimension than MySQL support should be handled. The function will
+  accept both single objects, geometry collections and feature objects and
+  collections. All "properties" members of GeoJSON feature objects is ignored.
+
+  The implementation conforms with GeoJSON revision 1.0 described at
+  http://geojson.org/geojson-spec.html.
+*/
+class Item_func_geomfromgeojson : public Item_geometry_func
+{
+public:
+  /**
+    Describing how coordinate dimensions higher than supported in MySQL
+    should be handled.
+  */
+  enum enum_handle_coordinate_dimension
+  {
+    reject_document, strip_now_accept_future, strip_now_reject_future,
+    strip_now_strip_future
+  };
+  Item_func_geomfromgeojson(const POS &pos, Item *json_string)
+    :Item_geometry_func(pos, json_string),
+    m_handle_coordinate_dimension(reject_document), m_user_provided_srid(false),
+    m_srid_found_in_document(-1)
+  {}
+  Item_func_geomfromgeojson(const POS &pos, Item *json_string, Item *options)
+    :Item_geometry_func(pos, json_string, options), m_user_provided_srid(false),
+    m_srid_found_in_document(-1)
+  {}
+  Item_func_geomfromgeojson(const POS &pos, Item *json_string, Item *options,
+                            Item *srid)
+    :Item_geometry_func(pos, json_string, options, srid),
+    m_srid_found_in_document(-1)
+  {}
+  String *val_str(String *);
+  void fix_length_and_dec();
+  bool fix_fields(THD *, Item **ref);
+  const char *func_name() const { return "st_geomfromgeojson"; }
+  Geometry::wkbType get_wkbtype(const char *typestring);
+  bool get_positions(const rapidjson::Value *coordinates, Gis_point *point);
+  bool get_linestring(const rapidjson::Value *data_array,
+                      Gis_line_string *linestring);
+  bool get_polygon(const rapidjson::Value *data_array, Gis_polygon *polygon);
+  bool parse_object(const rapidjson::Value *object, bool *rollback,
+                    String *buffer, bool is_parent_featurecollection,
+                    Geometry **geometry);
+  bool parse_object_array(const rapidjson::Value *points,
+                          Geometry::wkbType type, bool *rollback,
+                          String *buffer, bool is_parent_featurecollection,
+                          Geometry **geometry);
+  bool check_argument_valid_integer(Item *argument);
+  bool parse_crs_object(const rapidjson::Value *crs_object);
+  bool is_member_valid(const rapidjson::Value::Member *member,
+                       const char *member_name, rapidjson::Type expected_type,
+                       bool allow_null, bool *was_null);
+  rapidjson::Value::ConstMemberIterator
+  my_find_member_ncase(const rapidjson::Value *v, const char *member_name);
+
+  static const char *TYPE_MEMBER;
+  static const char *CRS_MEMBER;
+  static const char *GEOMETRY_MEMBER;
+  static const char *PROPERTIES_MEMBER;
+  static const char *FEATURES_MEMBER;
+  static const char *GEOMETRIES_MEMBER;
+  static const char *COORDINATES_MEMBER;
+  static const char *CRS_NAME_MEMBER;
+  static const char *NAMED_CRS;
+  static const char *SHORT_EPSG_PREFIX;
+  static const char *LONG_EPSG_PREFIX;
+  static const char *CRS84_URN;
+  static const char *POINT_TYPE;
+  static const char *MULTIPOINT_TYPE;
+  static const char *LINESTRING_TYPE;
+  static const char *MULTILINESTRING_TYPE;
+  static const char *POLYGON_TYPE;
+  static const char *MULTIPOLYGON_TYPE;
+  static const char *GEOMETRYCOLLECTION_TYPE;
+  static const char *FEATURE_TYPE;
+  static const char *FEATURECOLLECTION_TYPE;
+private:
+  /**
+    How higher coordinate dimensions than currently supported should be handled.
+  */
+  enum_handle_coordinate_dimension m_handle_coordinate_dimension;
+  /// Is set to true if user provided a SRID as an argument.
+  bool m_user_provided_srid;
+  /// The SRID user provided as an argument.
+  Geometry::srid_t m_user_srid;
+  /**
+    The SRID value of the document CRS, if one is found. Otherwise, this value
+    defaults to -1.
+  */
+  longlong m_srid_found_in_document;
+  /// rapidjson document to hold the parsed GeoJSON.
+  rapidjson::Document m_document;
+};
+
 
 class Item_func_centroid: public Item_geometry_func
 {

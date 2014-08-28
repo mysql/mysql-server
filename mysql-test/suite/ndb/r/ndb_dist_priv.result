@@ -144,6 +144,7 @@ DROP USER 'user2'@'localhost';
 DROP USER 'user3'@'localhost';
 DROP TABLE t1;
 === test restart of mysqld ===
+# restart
 flush privileges;
 === test truncate ===
 truncate mysql.proxies_priv;
