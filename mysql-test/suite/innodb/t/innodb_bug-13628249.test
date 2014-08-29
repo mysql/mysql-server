@@ -23,25 +23,14 @@ call mtr.add_suppression('InnoDB: Failed to find tablespace for table "test"."t1
 call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [0-9]+');
 --enable_query_log
 
---echo # Prepare to restart the server in force recovery mode (2)
---exec echo "restart:--innodb-force-recovery=2" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # Request shutdown
---shutdown_server
-
---echo # Waiting for the server to restart
-# Turn on reconnect
---enable_reconnect
-
-# Call script that will poll the server waiting for it to be back online again
---source include/wait_until_connected_again.inc
-
-# Turn off reconnect again
---disable_reconnect
+--echo # Restart the server in force recovery mode (2)
+let $restart_parameters = restart: --innodb-force-recovery=2;
+--source include/restart_mysqld.inc
 
 SELECT @@innodb_force_recovery;
 
 --echo # Restart server in normal mode
+let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 
 SELECT @@innodb_force_recovery;
@@ -53,27 +42,17 @@ CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=InnoDB STATS_PERSISTENT=0;
 BEGIN;
 INSERT INTO t1 VALUES(1), (2), (3), (4);
 
---echo # Prepare to restart the server in force recovery mode (3)
---exec echo "restart:--innodb-force-recovery=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # Kill the server (without shutdown!)
---shutdown_server 0
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--echo # Restart the server in force recovery mode (3)
+let $restart_parameters = restart: --innodb-force-recovery=3;
+--source include/kill_and_restart_mysqld.inc
 
 SELECT @@innodb_force_recovery;
 
 SELECT COUNT(*) IN (0,4) yes FROM t1;
 
---echo # Prepare to restart the server in force recovery mode (5)
---exec echo "restart:--innodb-force-recovery=5" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--echo # Restart the server in force recovery mode (5)
+let $restart_parameters = restart: --innodb-force-recovery=5;
+--source include/restart_mysqld.inc
 
 SELECT @@innodb_force_recovery;
 
@@ -84,6 +63,7 @@ SELECT COUNT(*) IN (0,4) yes FROM t1;
 # mode. For -innodb-force-recovery >= 3 a transaction is not assigned a
 # rollback segment.
 --echo # Restart server in normal mode
+let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 
 SELECT @@innodb_force_recovery;

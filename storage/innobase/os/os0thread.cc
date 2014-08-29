@@ -145,8 +145,6 @@ os_thread_create_func(
 		/* If we cannot start a new thread, life has no meaning. */
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"CreateThread returned %d", GetLastError());
-		ut_ad(0);
-		exit(1);
 	}
 
 	mutex_enter(&thread_mutex);

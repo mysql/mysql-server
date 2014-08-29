@@ -269,6 +269,7 @@ t5980.ibd.bak2
 # This test makes sure that you can still execute the FLUSH TABLES command
 # after restarting the server and the tablespace can still be found.
 #
+# restart
 SET GLOBAL innodb_file_per_table=ON;
 ### files in MYSQL_DATA_DIR/test
 t5980.frm
@@ -291,6 +292,7 @@ UNLOCK TABLES;
 # Restart the server again.  This test makes sure that you can
 # still DISCARD a remote table after restarting the server.
 #
+# restart
 SET GLOBAL innodb_file_per_table=ON;
 SELECT * FROM t5980;
 a	b
@@ -366,6 +368,7 @@ t5980.ibd.bak2
 #
 # Restart the engine while the tablespace is in the discarded state
 #
+# restart
 SET GLOBAL innodb_file_per_table=ON;
 SELECT * FROM t5980;
 ERROR HY000: Tablespace has been discarded for table 't5980'
@@ -391,6 +394,7 @@ t5980.cfg.bak2
 t5980.ibd.bak
 t5980.ibd.bak2
 # Restarting ...
+# restart
 SET GLOBAL innodb_file_per_table=ON;
 SELECT * FROM t5980;
 ERROR HY000: Tablespace has been discarded for table 't5980'
@@ -546,6 +550,7 @@ t5980d.ibd
 #
 # Shutdown the server, remove two tablespaces, restart server.
 #
+# restart
 FLUSH TABLES t5980a, t5980b FOR EXPORT;
 UNLOCK TABLES;
 ALTER TABLE t5980a DISCARD TABLESPACE;
@@ -759,6 +764,7 @@ t5980d.frm
 #
 # Restart the server to check if the discarded flag is persistent
 #
+# restart
 #
 # Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
 #

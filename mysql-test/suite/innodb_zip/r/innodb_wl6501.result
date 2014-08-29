@@ -1086,6 +1086,7 @@ i	j
 2	2
 3	3
 # Restart the MySQL server
+# restart
 select * from t;
 i	j
 1	1

@@ -63,6 +63,11 @@ Created 10/21/1995 Heikki Tuuri
 #include <libaio.h>
 #endif
 
+#ifdef UNIV_DEBUG
+/** Set when InnoDB has invoked exit(). */
+bool	innodb_calling_exit;
+#endif /* UNIV_DEBUG */
+
 /** Insert buffer segment id */
 static const ulint IO_IBUF_SEGMENT = 0;
 
@@ -637,6 +642,7 @@ os_file_handle_error_cond_exit(
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Cannot continue operation.");
 			fflush(stderr);
+			ut_d(innodb_calling_exit = true);
 			exit(3);
 		}
 	}

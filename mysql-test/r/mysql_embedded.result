@@ -7,3 +7,4 @@
 # Bug#11764633 : 57491: THD->MAIN_DA.IS_OK() ASSERT IN EMBEDDED
 #
 Error logging to file 'foo/bar'
+# restart
