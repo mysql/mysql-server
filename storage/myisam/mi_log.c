@@ -21,6 +21,7 @@
 #include "myisamdef.h"
 #ifdef _WIN32
 #include <fcntl.h>
+#include <process.h>
 #endif
 
 #undef GETPID					/* For HPUX */
