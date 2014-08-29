@@ -86,10 +86,9 @@ Tablespace::get_sum_of_sizes() const
 		if (sizeof(off_t) < 5
 		    && it->m_size >= (1UL << (32UL - UNIV_PAGE_SIZE_SHIFT))) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"File size must be < 4 GB with this MySQL"
-				" binary-operating system combination."
-				" In some OS's < 2 GB");
+			ib::error() << "File size must be < 4 GB with this"
+				" MySQL binary-operating system combination."
+				" In some OS's < 2 GB";
 
 			return(ULINT_UNDEFINED);
 		}
@@ -230,9 +229,8 @@ Tablespace::delete_files()
 			innodb_data_file_key, it->m_filepath, &file_pre_exists);
 
 		if (success && file_pre_exists) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Removed temporary tablespace data file: "
-				"\"%s\"", it->m_name);
+			ib::info() << "Removed temporary tablespace data"
+				" file: \"" << it->m_name << "\"";
 		}
 	}
 }
