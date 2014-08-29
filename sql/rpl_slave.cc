@@ -8460,6 +8460,7 @@ end:
 */
 bool flush_relay_logs(Master_info *mi)
 {
+  DBUG_ENTER("flush_relay_logs");
   bool error= false;
 
   if (mi)
@@ -8469,7 +8470,7 @@ bool flush_relay_logs(Master_info *mi)
       error= true;
     mysql_mutex_unlock(&mi->data_lock);
   }
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -8489,6 +8490,7 @@ bool flush_relay_logs(Master_info *mi)
 */
 bool flush_relay_logs_cmd(THD *thd)
 {
+  DBUG_ENTER("flush_relay_logs_cmd");
   Master_info *mi= 0;
   LEX *lex= thd->lex;
   bool error =false;
@@ -8519,14 +8521,29 @@ bool flush_relay_logs_cmd(THD *thd)
       error= flush_relay_logs(mi);
     else
     {
-      error= true;
-      my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
+      if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+          thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
+      {
+        /*
+          Log warning on SQL or worker threads.
+        */
+        sql_print_warning(ER(ER_SLAVE_CHANNEL_DOES_NOT_EXIST),
+                          lex->mi.channel);
+      }
+      else
+      {
+        /*
+          Return error on client sessions.
+        */
+        error= true;
+        my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
+      }
     }
   }
 
   mysql_mutex_unlock(&LOCK_msr_map);
 
-  return error;
+  DBUG_RETURN(error);
 }
 
 

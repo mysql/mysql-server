@@ -3,8 +3,8 @@
 --echo # - deletes all relay log files of named channels.
 --echo # - For default channel, it restart the relay log from .000001
 --echo #########################################################################
-# The test doesn't relate to binlog format, so it is just tested on row mode.
---source include/have_binlog_format_row.inc
+# The test doesn't relate to binlog format, so it is just tested on mixed mode.
+--source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc

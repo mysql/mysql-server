@@ -1,0 +1,58 @@
+#
+# Set up replication chain S1->S2->S3.
+#
+include/rpl_init.inc [topology=1->2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+#
+# Assert that server 2 does have channel_1 and doesn't have channel_2.
+#
+include/assert.inc [Server 2 does have a channel named "channel_1".]
+include/assert.inc [Server 2 doesn't have a channel named "channel_2".]
+#
+# Flush relay logs for a nonexistent channel.
+# A error will be returned.
+#
+FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
+ERROR HY000: Slave channel 'channel_2' does not exist.
+#
+# Assert that server 3 doesn't have channel_1 and does have channel_2.
+#
+include/assert.inc [Server 3 doesn't have a channel named "channel_1".]
+include/assert.inc [Server 3 does have a channel named "channel_2".]
+#
+# Flush all logs from server 2 and verify that we don't have
+# errors on server 3.
+#
+FLUSH LOGS;
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Server 2 has one row on table t1.]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Server 3 has one row on table t1.]
+#
+# Flush channel_1 relay logs from server 2 and verify that we
+# don't have errors on server 3 (where channel_2 does not exist),
+# despite a warning being logged and replication is working.
+#
+call mtr.add_suppression("Slave channel 'channel_1' does not exist.");
+FLUSH RELAY LOGS FOR CHANNEL 'channel_1';
+INSERT INTO t1 VALUES (2);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Server 2 has two rows on table t1.]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Server 3 has two rows on table t1.]
+#
+# Clean up.
+#
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL  'channel_1';
+RESET SLAVE ALL FOR CHANNEL  'channel_2';
