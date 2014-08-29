@@ -1641,7 +1641,10 @@ end:
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (is_real_trans)
+  {
     trn_ctx->cleanup();
+    thd->tx_priority= 0;
+  }
 
   if (need_clear_owned_gtid)
   {
@@ -1833,7 +1836,11 @@ int ha_rollback_trans(THD *thd, bool all)
 
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
+  {
     trn_ctx->cleanup();
+    thd->tx_priority= 0;
+  }
+
   if (all)
     thd->transaction_rollback_request= FALSE;
 
@@ -1858,6 +1865,7 @@ int ha_rollback_trans(THD *thd, bool all)
         Transaction_ctx::SESSION) &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     trn_ctx->push_unsafe_rollback_warnings(thd);
+
   DBUG_RETURN(error);
 }
 
