@@ -109,10 +109,7 @@ mutex_reset_lock_word(
 	mutex_t*	mutex)	/*!< in: mutex */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)
-	/* In theory __sync_lock_release should be used to release the lock.
-	Unfortunately, it does not work properly alone. The workaround is
-	that more conservative __sync_lock_test_and_set is used instead. */
-	os_atomic_test_and_set_byte(&mutex->lock_word, 0);
+	os_atomic_lock_release_byte(&mutex->lock_word);
 #else
 	mutex->lock_word = 0;
 

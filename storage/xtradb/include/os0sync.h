@@ -317,6 +317,9 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 # define os_atomic_test_and_set_byte(ptr, new_val) \
 	__sync_lock_test_and_set(ptr, (byte) new_val)
 
+# define os_atomic_lock_release_byte(ptr) \
+	__sync_lock_release(ptr)
+
 #elif defined(HAVE_IB_SOLARIS_ATOMICS)
 
 # define HAVE_ATOMIC_BUILTINS
@@ -373,6 +376,9 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 
 # define os_atomic_test_and_set_byte(ptr, new_val) \
 	atomic_swap_uchar(ptr, new_val)
+
+# define os_atomic_lock_release_byte(ptr) \
+	(void) atomic_swap_uchar(ptr, 0)
 
 #elif defined(HAVE_WINDOWS_ATOMICS)
 
@@ -475,6 +481,9 @@ clobbered */
 # define os_isync os_rmb; os_wmb
 # define IB_MEMORY_BARRIER_STARTUP_MSG \
 	"_mm_lfence() and _mm_sfence() are used for memory barrier"
+
+# define os_atomic_lock_release_byte(ptr) \
+	(void) InterlockedExchange(ptr, 0)
 
 #else
 # define os_rmb do { } while(0)
