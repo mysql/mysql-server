@@ -845,6 +845,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ONLY_SYM                      /* SQL-2003-R */
 %token  OPEN_SYM                      /* SQL-2003-R */
 %token  OPTIMIZE
+%token  OPTIMIZER_COSTS_SYM
 %token  OPTIONS_SYM
 %token  OPTION                        /* SQL-2003-N */
 %token  OPTIONALLY
@@ -12048,6 +12049,8 @@ flush_option:
           { Lex->type|= REFRESH_DES_KEY_FILE; }
         | RESOURCES
           { Lex->type|= REFRESH_USER_RESOURCES; }
+        | OPTIMIZER_COSTS_SYM
+          { Lex->type|= REFRESH_OPTIMIZER_COSTS; }
         ;
 
 opt_table_list:
