@@ -4355,8 +4355,7 @@ row_search_mvcc(
 		BTR_SEA_TIMEOUT rounds before trying to keep it again over
 		calls from MySQL */
 
-		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = false;
+		trx_search_latch_release_if_reserved(trx);
 
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 	}
@@ -4515,10 +4514,7 @@ row_search_mvcc(
 			and if we try that, we can deadlock on the adaptive
 			hash index semaphore! */
 
-			if (!trx->has_search_latch) {
-				rw_lock_s_lock(&btr_search_latch);
-				trx->has_search_latch = true;
-			}
+			trx_reserve_search_latch_if_not_reserved(trx);
 
 			switch (row_sel_try_search_shortcut_for_mysql(
 					&rec, prebuilt, &offsets, &heap,
@@ -4564,34 +4560,26 @@ row_search_mvcc(
 			shortcut_match:
 				mtr_commit(&mtr);
 
-				/* ut_print_name(stderr, index->name);
-				fputs(" shortcut\n", stderr); */
+				/* NOTE that we do NOT store the cursor
+				position */
 
 				err = DB_SUCCESS;
-				goto release_search_latch_if_needed;
+
+				trx_search_latch_timeout(trx);
+
+				goto func_exit;
 
 			case SEL_EXHAUSTED:
 			shortcut_mismatch:
 				mtr_commit(&mtr);
 
-				/* ut_print_name(stderr, index->name);
-				fputs(" record not found 2\n", stderr); */
-
 				err = DB_RECORD_NOT_FOUND;
-release_search_latch_if_needed:
-				if (trx->search_latch_timeout > 0
-				    && trx->has_search_latch) {
 
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-					trx->search_latch_timeout--;
-#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
-
-					rw_lock_s_unlock(&btr_search_latch);
-					trx->has_search_latch = false;
-				}
+				trx_search_latch_timeout(trx);
 
 				/* NOTE that we do NOT store the cursor
 				position */
+
 				goto func_exit;
 
 			case SEL_RETRY:
@@ -4609,10 +4597,7 @@ release_search_latch_if_needed:
 	/*-------------------------------------------------------------*/
 	/* PHASE 3: Open or restore index cursor position */
 
-	if (trx->has_search_latch) {
-		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = false;
-	}
+	trx_search_latch_release_if_reserved(trx);
 
 	spatial_search = dict_index_is_spatial(index)
 			 && mode >= PAGE_CUR_CONTAIN;
@@ -4646,12 +4631,17 @@ release_search_latch_if_needed:
 	naturally moves upward (in fetch next) in alphabetical order,
 	otherwise downward */
 
-	if (UNIV_UNLIKELY(direction == 0)) {
-		if (mode == PAGE_CUR_GE || mode == PAGE_CUR_G
+	if (direction == 0) {
+
+		if (mode == PAGE_CUR_GE
+		    || mode == PAGE_CUR_G
 		    || mode >= PAGE_CUR_CONTAIN) {
+
 			moves_up = TRUE;
 		}
+
 	} else if (direction == ROW_SEL_NEXT) {
+
 		moves_up = TRUE;
 	}
 
