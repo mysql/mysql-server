@@ -16,7 +16,7 @@
 --source include/have_log_bin.inc
 --source include/have_gtid.inc
 
-connection slave;
+--connection slave
 --let $master_uuid= query_get_value(select SOURCE_UUID from performance_schema.replication_connection_status, SOURCE_UUID, 1)
 --connection master
 
@@ -77,30 +77,7 @@ INSERT INTO t1 values(2);
 --replace_result $master_uuid MASTER_UUID
 --eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:1-2', 9999)
 
-# Test to check for the condition that the given UUID is not already on the
-# global_sid_map.
-
---send
---replace_result $uuid UNKNOWN_UUID
---eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$uuid:42', 9999)
-
---connection default
-# Checking the waiting thread condition.
---echo The connection master1 should be waiting for the WAIT_FOR_EXECUTED_GTID_SET here
---let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE Id='$connection_id' AND Info Like 'SELECT WAIT_FOR_EXECUTED_GTID_SET%'
---source include/wait_condition.inc
-
---replace_result $uuid UNKNOWN_UUID
---eval SET GTID_NEXT = '$uuid:42'
-INSERT INTO t1 VALUES (7);
-COMMIT;
-
---connection master1
---replace_result $uuid UNKNOWN_UUID
---reap
-
 --let $wait_for_executed_gtid_set=1
---source include/sync_slave_sql_with_master.inc
 
 # CLEANUP
 --connection master

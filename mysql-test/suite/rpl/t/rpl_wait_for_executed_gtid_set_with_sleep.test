@@ -9,7 +9,11 @@
 --source include/master-slave.inc
 --source include/have_log_bin.inc
 --source include/have_gtid.inc
---let $master_uuid= `SELECT @@SERVER_UUID`
+
+--connection slave
+--let $master_uuid= query_get_value(select SOURCE_UUID from performance_schema.replication_connection_status, SOURCE_UUID, 1)
+
+--connection master
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
