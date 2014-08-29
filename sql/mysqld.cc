@@ -1096,6 +1096,7 @@ public:
 static void close_connections(void)
 {
   DBUG_ENTER("close_connections");
+  (void) RUN_HOOK(server_state, before_server_shutdown, (NULL));
 
   Per_thread_connection_handler::kill_blocked_pthreads();
 
@@ -1179,6 +1180,9 @@ static void close_connections(void)
 
   close_active_mi();
   DBUG_PRINT("quit",("close_connections thread"));
+
+  (void) RUN_HOOK(server_state, after_server_shutdown, (NULL));
+
   DBUG_VOID_RETURN;
 }
 
@@ -1186,7 +1190,6 @@ static void close_connections(void)
 void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
-  (void) RUN_HOOK(server_state, before_server_shutdown, (current_thd));
 
 #if defined(_WIN32)
   {
@@ -1208,7 +1211,6 @@ void kill_mysql(void)
   }
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
-  (void) RUN_HOOK(server_state, after_server_shutdown, (current_thd));
 
   DBUG_VOID_RETURN;
 }
@@ -4010,7 +4012,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     sql_print_error("Can't init tc log");
     unireg_abort(1);
   }
-  (void)RUN_HOOK(server_state, before_recovery, (current_thd));
+  (void)RUN_HOOK(server_state, before_recovery, (NULL));
 
   if (ha_recover(0))
   {
@@ -4564,7 +4566,7 @@ int mysqld_main(int argc, char **argv)
         else
           global_sid_lock->unlock();
       }
-      (void) RUN_HOOK(server_state, after_engine_recovery, (current_thd));
+      (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
     }
     else if (gtid_mode > GTID_MODE_OFF)
     {
@@ -4680,7 +4682,7 @@ int mysqld_main(int argc, char **argv)
   initialize_information_schema_acl();
 
   execute_ddl_log_recovery();
-  (void) RUN_HOOK(server_state, after_recovery, (current_thd));
+  (void) RUN_HOOK(server_state, after_recovery, (NULL));
 
   if (Events::init(opt_noacl || opt_bootstrap))
     unireg_abort(1);
@@ -4740,7 +4742,7 @@ int mysqld_main(int argc, char **argv)
                       opt_ndb_wait_setup);
   }
 #endif
-  (void) RUN_HOOK(server_state, before_handle_connection, (current_thd));
+  (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
 
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
 
