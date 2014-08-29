@@ -19,6 +19,9 @@
 
 #include "my_dbug.h"                            // DBUG_ASSERT
 #include "sql_const.h"                          // defines for cost constants
+#include "opt_costconstants.h"
+
+struct TABLE;
 
 
 /**
@@ -34,12 +37,14 @@ public:
   */
   enum enum_tmptable_type { MEMORY_TMPTABLE, DISK_TMPTABLE };
 
-  Cost_model_server()
+  Cost_model_server() : m_cost_constants(NULL), m_server_cost_constants(NULL)
   {
 #if !defined(DBUG_OFF)
     m_initialized= false;
 #endif
   }
+
+  ~Cost_model_server();
 
   /**
     Initialize the cost model object for a query.
@@ -65,7 +70,8 @@ public:
   {
     DBUG_ASSERT(m_initialized);
     DBUG_ASSERT(rows >= 0.0);
-    return rows * ROW_EVALUATE_COST;
+
+    return rows * m_server_cost_constants->row_evaluate_cost();
   }
 
   /**
@@ -80,7 +86,8 @@ public:
   {
     DBUG_ASSERT(m_initialized);
     DBUG_ASSERT(keys >= 0.0);
-    return keys * ROWID_COMPARE_COST;
+
+    return keys * m_server_cost_constants->key_compare_cost();
   }
 
 private:
@@ -90,14 +97,17 @@ private:
 
   double memory_tmptable_create_cost() const
   {
-    return HEAP_TEMPTABLE_CREATE_COST;
+    return m_server_cost_constants->memory_temptable_create_cost();
   }
 
   /**
     Cost of storing or retrieving a row using the memory storage engine.
   */
 
-  double memory_tmptable_row_cost() const { return HEAP_TEMPTABLE_ROW_COST; }
+  double memory_tmptable_row_cost() const
+  {
+    return m_server_cost_constants->memory_temptable_row_cost();
+  }
 
   /**
     Cost of creating a temporary table using a disk based storage engine.
@@ -105,14 +115,17 @@ private:
 
   double disk_tmptable_create_cost() const
   {
-    return DISK_TEMPTABLE_CREATE_COST;
+    return m_server_cost_constants->disk_temptable_create_cost();
   }
 
   /**
     Cost of storing or retriving a row using a disk based storage engine.
   */
 
-  double disk_tmptable_row_cost() const { return DISK_TEMPTABLE_ROW_COST; }
+  double disk_tmptable_row_cost() const
+  {
+    return m_server_cost_constants->disk_temptable_row_cost();
+  }
 
   /**
     Cost estimate for a row operation (insert, read) on a temporary table.
@@ -168,7 +181,33 @@ public:
     return (write_rows + read_rows) * tmptable_row_cost(tmptable_type);
   }
 
+protected:
+  friend class Cost_model_table;
+  /**
+    Return a pointer to the object containing the current cost constants.
+
+    @return Cost constants
+  */
+
+  const Cost_model_constants *get_cost_constants() const
+  {
+    DBUG_ASSERT(m_initialized);
+
+    return m_cost_constants;
+  }
+
 private:
+  /// Cost constants to use in cost calculations
+  const Cost_model_constants *m_cost_constants;
+
+protected: // To be able make a gunit fake sub class
+  /*
+    Cost constants for the server operations. The purpose for this is
+    to have direct access to these instead of having to go through the
+    cost constant set each time these are needed.
+  */
+  const Server_cost_constants *m_server_cost_constants;
+
 #if !defined(DBUG_OFF)
   /**
     Used for detecting if this object is used without having been initialized.
@@ -188,7 +227,7 @@ private:
 class Cost_model_table
 {
 public:
-  Cost_model_table() : m_cost_model_server(NULL)
+  Cost_model_table() : m_cost_model_server(NULL), m_se_cost_constants(NULL)
   {
 #if !defined(DBUG_OFF)
     m_initialized= false;
@@ -202,11 +241,12 @@ public:
     functions for a query. It should also be called when starting
     optimization of a new query in case any cost estimate constants
     have changed.
- 
+
     @param cost_model_server the main cost model object for this query
+    @param table the table the cost model should be used for
   */
 
-  void init(const Cost_model_server *cost_model_server);
+  void init(const Cost_model_server *cost_model_server, const TABLE *table);
 
   /**
     Cost of processing a number of records and evaluating the query condition
@@ -249,7 +289,7 @@ public:
   {
     DBUG_ASSERT(m_initialized);
 
-    return 1.0;
+    return m_se_cost_constants->io_block_read_cost();
   }
 
   /**
@@ -320,12 +360,17 @@ public:
     return cost;
   }
 
-private:
+protected: // To be able make a gunit fake sub class
   /**
     Pointer to the cost model for the query. This is used for getting
     cost estimates for server operations.
   */
   const Cost_model_server *m_cost_model_server;
+
+  /**
+    Cost constants for the storage engine that stores the table.
+  */
+  const SE_cost_constants *m_se_cost_constants;
 
 #if !defined(DBUG_OFF)
   /**

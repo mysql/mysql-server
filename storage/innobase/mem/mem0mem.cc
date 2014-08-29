@@ -329,8 +329,8 @@ mem_heap_create_block_func(
 	}
 
 	if (block == NULL) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Unable to allocate memory of size %lu.", len);
+		ib::fatal() << "Unable to allocate memory of size "
+			<< len << ".";
 	}
 
 	block->buf_block = buf_block;

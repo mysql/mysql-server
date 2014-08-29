@@ -395,6 +395,9 @@ test.bug47205
 error    : Table rebuild required. Please do "ALTER TABLE `bug47205` FORCE" or dump/reload to fix it!
 
 Repairing tables
+bug47205
+Running  : ALTER TABLE `bug47205` FORCE
+status   : OK
 # Table should now be ok
 CHECK TABLE bug47205 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
