@@ -19,7 +19,7 @@
 #include <stddef.h>
 
 #include "test_utils.h"
-#include "opt_costmodel.h"
+#include "fake_costmodel.h"
 #include "sql_class.h"
 #include "uniques.h"
 
@@ -45,8 +45,7 @@ TEST_F(UniqueCostTest, GetUseCost)
   const ulong key_size= 96;
 
   // Set up the optimizer cost model
-  Cost_model_table cost_model_table;
-  cost_model_table.init(thd()->cost_model());
+  Fake_Cost_model_table cost_model_table;
 
   size_t unique_calc_buff_size=
     Unique::get_cost_calc_buff_size(num_keys, key_size, MIN_SORT_MEMORY);
