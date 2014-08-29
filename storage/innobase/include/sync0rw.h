@@ -70,14 +70,8 @@ extern mutex_t		rw_lock_list_mutex;
 #ifdef UNIV_SYNC_DEBUG
 /* The global mutex which protects debug info lists of all rw-locks.
 To modify the debug info list of an rw-lock, this mutex has to be
-
 acquired in addition to the mutex protecting the lock. */
-extern mutex_t		rw_lock_debug_mutex;
-extern os_event_t	rw_lock_debug_event;	/*!< If deadlock detection does
-					not get immediately the mutex it
-					may wait for this event */
-extern ibool		rw_lock_debug_waiters;	/*!< This is set to TRUE, if
-					there may be waiters for the event */
+extern os_fast_mutex_t		rw_lock_debug_mutex;
 #endif /* UNIV_SYNC_DEBUG */
 
 /** number of spin waits on rw-latches,

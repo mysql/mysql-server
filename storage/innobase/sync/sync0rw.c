@@ -180,17 +180,11 @@ UNIV_INTERN mysql_pfs_key_t	rw_lock_mutex_key;
 To modify the debug info list of an rw-lock, this mutex has to be
 acquired in addition to the mutex protecting the lock. */
 
-UNIV_INTERN mutex_t		rw_lock_debug_mutex;
+UNIV_INTERN os_fast_mutex_t	rw_lock_debug_mutex;
 
 # ifdef UNIV_PFS_MUTEX
 UNIV_INTERN mysql_pfs_key_t	rw_lock_debug_mutex_key;
 # endif
-
-/* If deadlock detection does not get immediately the mutex,
-it may wait for this event */
-UNIV_INTERN os_event_t		rw_lock_debug_event;
-/* This is set to TRUE, if there may be waiters for the event */
-UNIV_INTERN ibool		rw_lock_debug_waiters;
 
 /******************************************************************//**
 Creates a debug info struct. */
@@ -736,22 +730,7 @@ void
 rw_lock_debug_mutex_enter(void)
 /*===========================*/
 {
-loop:
-	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
-		return;
-	}
-
-	os_event_reset(rw_lock_debug_event);
-
-	rw_lock_debug_waiters = TRUE;
-
-	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
-		return;
-	}
-
-	os_event_wait(rw_lock_debug_event);
-
-	goto loop;
+	os_fast_mutex_lock(&rw_lock_debug_mutex);
 }
 
 /******************************************************************//**
@@ -761,12 +740,7 @@ void
 rw_lock_debug_mutex_exit(void)
 /*==========================*/
 {
-	mutex_exit(&rw_lock_debug_mutex);
-
-	if (rw_lock_debug_waiters) {
-		rw_lock_debug_waiters = FALSE;
-		os_event_set(rw_lock_debug_event);
-	}
+	os_fast_mutex_unlock(&rw_lock_debug_mutex);
 }
 
 /******************************************************************//**

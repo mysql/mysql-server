@@ -1535,11 +1535,7 @@ sync_init(void)
 		     SYNC_NO_ORDER_CHECK);
 
 #ifdef UNIV_SYNC_DEBUG
-	mutex_create(rw_lock_debug_mutex_key, &rw_lock_debug_mutex,
-		     SYNC_NO_ORDER_CHECK);
-
-	rw_lock_debug_event = os_event_create(NULL);
-	rw_lock_debug_waiters = FALSE;
+	os_fast_mutex_init(rw_lock_debug_mutex_key, &rw_lock_debug_mutex);
 #endif /* UNIV_SYNC_DEBUG */
 }
 
@@ -1607,6 +1603,7 @@ sync_close(void)
 	sync_order_checks_on = FALSE;
 
 	sync_thread_level_arrays_free();
+	os_fast_mutex_free(&rw_lock_debug_mutex);
 #endif /* UNIV_SYNC_DEBUG */
 
 	sync_initialized = FALSE;	
