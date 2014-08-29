@@ -1255,7 +1255,8 @@ fts_tokenizer_word_get(
 #endif
 
 	/* If it is a stopword, do not index it */
-	if (rbt_search(cache->stopword_info.cached_stopword,
+	if (cache->stopword_info.cached_stopword != NULL
+	    && rbt_search(cache->stopword_info.cached_stopword,
 		       &parent, text) == 0) {
 
 		return(NULL);
@@ -3556,6 +3557,12 @@ fts_add_doc_by_id(
 				mtr_commit(&mtr);
 
 				rw_lock_x_lock(&table->fts->cache->lock);
+
+				if (table->fts->cache->stopword_info.status
+				    & STOPWORD_NOT_INIT) {
+					fts_load_stopword(table, NULL, NULL,
+							  NULL, TRUE, TRUE);
+				}
 
 				fts_cache_add_doc(
 					table->fts->cache,
