@@ -6344,14 +6344,11 @@ type:
             {
               errno= 0;
               ulong length= strtoul(Lex->length, NULL, 10);
-              if (errno == 0 && length <= MAX_FIELD_BLOBLENGTH && length != 4)
+              if (errno != 0 || length != 4)
               {
-                /* Reset unsupported positive column width to default value */
-                Lex->length= NULL;
-                push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                                    ER_INVALID_YEAR_COLUMN_LENGTH,
-                                    ER(ER_INVALID_YEAR_COLUMN_LENGTH),
-                                    length);
+                /* Only support length is 4 */
+                my_error(ER_INVALID_YEAR_COLUMN_LENGTH, MYF(0), "YEAR");
+                MYSQL_YYABORT;
               }
             }
             $$=MYSQL_TYPE_YEAR;
