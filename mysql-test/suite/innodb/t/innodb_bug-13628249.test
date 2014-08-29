@@ -14,6 +14,8 @@
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."slave_master_info" in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."slave_relay_log_info" in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."slave_worker_info" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."server_cost" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."engine_cost" in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."time_zone" in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."time_zone_leap_second" in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."time_zone_name" in the cache');
