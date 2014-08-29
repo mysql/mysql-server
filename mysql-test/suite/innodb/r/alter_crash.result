@@ -10,6 +10,7 @@ SET DEBUG='d,innodb_alter_commit_crash_after_commit';
 ALTER TABLE t1 ADD PRIMARY KEY (f2, f1);
 ERROR HY000: Lost connection to MySQL server during query
 # Restart mysqld after the crash and reconnect.
+# restart
 # Manual *.frm recovery begin.
 # Manual recovery end
 # Drop the orphaned original table.
@@ -49,6 +50,7 @@ SET DEBUG='d,innodb_alter_commit_crash_before_commit';
 ALTER TABLE t2 ADD PRIMARY KEY (f2, f1);
 ERROR HY000: Lost connection to MySQL server during query
 # Startup the server after the crash
+# restart
 # Read and remember the temporary table name
 # Manual *.frm recovery begin. The dictionary was not updated
 # and the files were not renamed. The rebuilt table
@@ -88,6 +90,7 @@ SET DEBUG='d,innodb_alter_commit_crash_after_commit';
 ALTER TABLE t1 ADD INDEX (b), CHANGE c d int;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart mysqld after the crash and reconnect.
+# restart
 # Manual *.frm recovery begin.
 # Manual recovery end
 # Drop the orphaned original table.

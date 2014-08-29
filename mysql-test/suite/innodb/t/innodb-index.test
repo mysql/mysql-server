@@ -802,9 +802,39 @@ SET GLOBAL innodb_monitor_reset = module_ddl;
 SET GLOBAL innodb_monitor_disable = module_ddl;
 select count(*) from t1;
 drop table t1;
-drop table t480;
 --disable_warnings
 SET GLOBAL innodb_monitor_reset = default;
 SET GLOBAL innodb_monitor_enable = default;
 SET GLOBAL innodb_monitor_disable = default;
 --enable_warnings
+
+--echo # Bug#19163915 INNODB: DUPLICATE RECORDS COULD EXIST
+--echo # WHEN SKIPPING SORT FOR CLUSTER INDEX
+
+# last mtuple in previous buffer and first mtuple in next buffer
+#	are equal.
+SELECT @@innodb_sort_buffer_size;
+create table t1(f1 int auto_increment not null,
+		f2 char(200) not null, f3 char(200) not null,
+		f4 char(200) not null,primary key(f1,f2,f3,f4));
+insert into t1 select NULL,'aaa','bbb','ccc' from t480;
+insert into t1 values(106, 'aaa','bbb','cccc');
+select count(*) from t1;
+--echo # Skip sort
+--echo # Change PK from (f1,f2,f3,f4) to (f1,f2,f3)
+--error ER_DUP_ENTRY
+alter table t1 drop primary key, add primary key(f1,f2,f3);
+select count(*) from t1;
+drop table t1;
+
+# Duplicates exist with in the buffer
+create table t1(f1 int auto_increment not null,
+		f2 char(200) not null, f3 char(200) not null,
+		f4 char(200) not null,primary key(f1,f2,f3,f4));
+insert into t1 select NULL,'aaa','bbb','ccc' from t480;
+insert into t1 values(108,'aaa','bbb','cccc');
+select count(*) from t1;
+--error ER_DUP_ENTRY
+alter table t1 drop primary key, add primary key(f1,f2,f3);
+select count(*) from t1;
+drop table t1, t480;

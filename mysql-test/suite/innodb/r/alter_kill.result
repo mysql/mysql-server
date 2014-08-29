@@ -9,22 +9,21 @@ INSERT INTO bug16720368 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8);
 # Corrupt FIL_PAGE_OFFSET in bug16720368.ibd,
 # and update the checksum to the "don't care" value.
 # Restart mysqld
+# restart
 # This will succeed after a clean shutdown, due to
 # fil_open_single_table_tablespace(check_space_id=FALSE).
 SELECT COUNT(*) FROM bug16720368;
 COUNT(*)
 8
 INSERT INTO bug16720368_1 VALUES(1);
-# Kill the server to do an unclean shutdown.
-# The corruption should not prevent startup after crash recovery,
-# because there is no redo log for the corrupted tablespace.
+# Kill and restart
 # The table is unaccessible, because after a crash we will
 # validate the tablespace header.
 SELECT COUNT(*) FROM bug16720368;
 ERROR 42S02: Table 'test.bug16720368' doesn't exist
 INSERT INTO bug16720368 VALUES(0,1);
 ERROR 42S02: Table 'test.bug16720368' doesn't exist
-# Kill the server to do an unclean shutdown.
+# Kill and restart: --innodb-force-recovery=3
 # The table is readable thanks to innodb-force-recovery.
 SELECT COUNT(*) FROM bug16720368;
 COUNT(*)
@@ -32,6 +31,7 @@ COUNT(*)
 INSERT INTO bug16720368 VALUES(0,1);
 ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 # Shut down the server cleanly to hide the corruption.
+# restart
 # The table is accessible, because after a clean shutdown we will
 # NOT validate the tablespace header.
 # We can modify the existing pages, but we cannot allocate or free
@@ -42,6 +42,7 @@ COUNT(*)
 INSERT INTO bug16720368 VALUES(0,1);
 # Shut down the server to uncorrupt the data.
 # Restart the server after uncorrupting the file.
+# restart
 INSERT INTO bug16720368 VALUES(9,1);
 SELECT COUNT(*) FROM bug16720368;
 COUNT(*)
@@ -60,7 +61,9 @@ XA START 'x';
 INSERT INTO bug16735660 VALUES(1),(2),(3);
 XA END 'x';
 XA PREPARE 'x';
+# Kill the server
 # Attempt to start without an *.ibd file.
+# restart
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT * FROM bug16735660;
 a

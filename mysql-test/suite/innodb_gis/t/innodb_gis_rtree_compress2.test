@@ -1,13 +1,11 @@
 # WL#6745 InnoDB R-tree support
 # This test case will test R-tree multi level split.
 
-# Not supported in embedded
+# Restarting is not supported in embedded
 --source include/not_embedded.inc
 
 --source include/have_innodb.inc
---source include/have_debug.inc
 --source include/big_test.inc
---source include/not_valgrind.inc
 
 SET GLOBAL innodb_file_per_table=1;
 SET GLOBAL innodb_file_format=Barracuda;
@@ -39,11 +37,7 @@ truncate table t1;
 # Test crash recovery.
 #
 #
-# Write file to make mysql-test-run.pl expect the "crash", but don't start
-# it until it's told to
 call mtr.add_suppression("InnoDB: page [0-9]+ in the doublewrite buffer is not within space bounds.*");
-
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # Test rtree enlarge recovery.
 START TRANSACTION;
@@ -53,24 +47,10 @@ CALL insert_t1(5000);
 # Check table.
 #check table t1;
 
-# Request a crash, and restart the server.
-SET DEBUG='+d,crash_commit_after';
-# Write file to make mysql-test-run.pl restart the server
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
 COMMIT;
 
-#
-# Turn on reconnect
---enable_reconnect
-#
-# Call script that will poll the server waiting for it to be back online again
---source include/wait_until_connected_again.inc
-#
-# Turn off reconnect again
---disable_reconnect
---echo
+--source include/kill_and_restart_mysqld.inc
+
 # Clean up.
 drop procedure insert_t1;
-SET GLOBAL innodb_file_format=Antelope;
 drop table t1;

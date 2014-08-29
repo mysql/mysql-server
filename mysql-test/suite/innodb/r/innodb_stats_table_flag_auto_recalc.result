@@ -9,6 +9,7 @@ SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 create_options	
 ALTER TABLE test_ps_auto_recalc STATS_AUTO_RECALC=1;
+# restart
 SHOW CREATE TABLE test_ps_auto_recalc;
 Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (
@@ -33,6 +34,7 @@ create_options
 DROP TABLE test_ps_auto_recalc;
 CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_AUTO_RECALC=0;
+# restart
 SHOW CREATE TABLE test_ps_auto_recalc;
 Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (
@@ -43,6 +45,7 @@ SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 create_options	stats_auto_recalc=0
 ALTER TABLE test_ps_auto_recalc STATS_AUTO_RECALC=1;
+# restart
 SHOW CREATE TABLE test_ps_auto_recalc;
 Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (
@@ -55,6 +58,7 @@ create_options	stats_auto_recalc=1
 DROP TABLE test_ps_auto_recalc;
 CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_AUTO_RECALC=1;
+# restart
 SHOW CREATE TABLE test_ps_auto_recalc;
 Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (
@@ -65,6 +69,7 @@ SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 create_options	stats_auto_recalc=1
 ALTER TABLE test_ps_auto_recalc STATS_AUTO_RECALC=0;
+# restart
 SHOW CREATE TABLE test_ps_auto_recalc;
 Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (

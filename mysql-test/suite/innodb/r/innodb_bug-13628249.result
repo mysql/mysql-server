@@ -1,25 +1,26 @@
-# Prepare to restart the server in force recovery mode (2)
-# Request shutdown
-# Waiting for the server to restart
+# Restart the server in force recovery mode (2)
+# restart: --innodb-force-recovery=2
 SELECT @@innodb_force_recovery;
 @@innodb_force_recovery
 2
 # Restart server in normal mode
+# restart
 SELECT @@innodb_force_recovery;
 @@innodb_force_recovery
 0
 CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=InnoDB STATS_PERSISTENT=0;
 BEGIN;
 INSERT INTO t1 VALUES(1), (2), (3), (4);
-# Prepare to restart the server in force recovery mode (3)
-# Kill the server (without shutdown!)
+# Restart the server in force recovery mode (3)
+# Kill and restart: --innodb-force-recovery=3
 SELECT @@innodb_force_recovery;
 @@innodb_force_recovery
 3
 SELECT COUNT(*) IN (0,4) yes FROM t1;
 yes
 1
-# Prepare to restart the server in force recovery mode (5)
+# Restart the server in force recovery mode (5)
+# restart: --innodb-force-recovery=5
 SELECT @@innodb_force_recovery;
 @@innodb_force_recovery
 5
@@ -27,6 +28,7 @@ SELECT COUNT(*) IN (0,4) yes FROM t1;
 yes
 1
 # Restart server in normal mode
+# restart
 SELECT @@innodb_force_recovery;
 @@innodb_force_recovery
 0
