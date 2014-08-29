@@ -227,6 +227,12 @@ public:
     return lex_string;
   }
 
+  LEX_CSTRING lex_cstring() const
+  {
+    LEX_CSTRING lex_cstring = { ptr(), length() };
+    return lex_cstring;
+  }
+
   void set(String &str,size_t offset, size_t arg_length)
   {
     DBUG_ASSERT(&str != this);

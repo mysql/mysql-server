@@ -38,6 +38,8 @@
 class Alter_info;
 typedef struct xid_t XID;
 
+class SE_cost_constants;                        // see opt_costconstants.h
+
 // the following is for checking tables
 
 #define HA_ADMIN_ALREADY_DONE	  1
@@ -895,6 +897,33 @@ struct handlerton
   bool (*is_supported_system_table)(const char *db,
                                     const char *table_name,
                                     bool is_sql_layer_system_table);
+
+  /**
+    Retrieve cost constants to be used for this storage engine.
+
+    A storage engine that wants to provide its own cost constants to
+    be used in the optimizer cost model, should implement this function.
+    The server will call this function to get a cost constant object
+    that will be used for tables stored in this storage engine instead
+    of using the default cost constants.
+
+    Life cycle for the cost constant object: The storage engine must
+    allocate the cost constant object on the heap. After the function
+    returns, the server takes over the ownership of this object.
+    The server will eventually delete the object by calling delete.
+
+    @note In the initial version the storage_category parameter will
+    not be used. The only valid value this will have is DEFAULT_STORAGE_CLASS
+    (see declartion in opt_costconstants.h).
+
+    @param storage_category the storage type that the cost constants will
+                            be used for
+
+    @return a pointer to the cost constant object, if NULL is returned
+            the default cost constants will be used
+  */
+
+  SE_cost_constants *(*get_cost_constants)(uint storage_category);
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
