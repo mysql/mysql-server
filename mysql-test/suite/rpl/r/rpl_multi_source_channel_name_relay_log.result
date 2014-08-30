@@ -3,8 +3,10 @@
 #  Relay log file names are properly set for multisource replication
 #  In this tests we test if relay log files per channel based
 #  on --relay-log-index and --relay-log is properly set.
-# 1. The slave is started with --relay-bin=msr-relay
-# 2. the slave is restarted with --relay-bin-index=idx-msr-relay
+# 1. The slave is started with --relay-log=msr-relay
+# 2. the slave is restarted with --relay-log-index=idx-msr-relay
+# 3. the slave is restarted with --relay-log-index=idx-msr-relay.idx
+#     and --relay-log=msr-relay.log
 #########################################################################
 include/master-slave.inc
 Warnings:
@@ -26,11 +28,30 @@ Warnings:
 Warning	1961	Slave for channel 'channel1' is already stopped.
 RESET SLAVE ALL;
 #
-# Shutdown server. Remove relay log files. Start server with
-# --relay-log-index
+# 2. Shutdown server. Remove relay log files. Start server with
+#     --relay-log-index
 #
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --relay-log-index=idx-msr-relay]
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+#
+# Check that the names of relay log files per channel are properly set
+#
+FLUSH RELAY LOGS;
+FLUSH RELAY LOGS FOR CHANNEL "channel1";
+#
+# RESET SLAVE ALL cleaningup.
+#
+include/rpl_stop_slaves.inc
+Warnings:
+Warning	1961	Slave for channel 'channel1' is already stopped.
+RESET SLAVE ALL;
+#
+# 3. Shutdown server. Remove relay log files. Start server with
+#    --relay-log-index and --relay-log with extensions.
+#    These extensions shall be stripped off
+include/rpl_stop_server.inc [server_number=2]
+include/rpl_start_server.inc [server_number=2 parameters: --relay-log-index=idx-msr-relay.index1 --relay-log=msr-relay.log1]
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
 #
 # Check that the names of relay log files per channel are properly set
