@@ -1926,7 +1926,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     char relay_bin_index_channel[FN_REFLEN];
 
     /* name of the index file if opt_relaylog_index_name is set*/
-    const char* ln_index_name;
+    const char* log_index_name;
 
 
     ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
@@ -1958,18 +1958,25 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 
     /*
        If relay log index option is set, convert into channel specific
-       index file.
+       index file. If the opt_relaylog_index has an extension, we strip
+       it too. This is inconsistent to relay log names.
     */
     if (opt_relaylog_index_name)
-      ln_index_name= add_channel_to_relay_log_name(relay_bin_index_channel,
+    {
+      char index_file_withoutext[FN_REFLEN];
+      relay_log.generate_name(opt_relaylog_index_name,"",
+                              index_file_withoutext);
+
+      log_index_name= add_channel_to_relay_log_name(relay_bin_index_channel,
                                                    FN_REFLEN,
-                                                   opt_relaylog_index_name);
+                                                   index_file_withoutext);
+    }
     else
-      ln_index_name= 0;
+      log_index_name= 0;
 
 
 
-    if (relay_log.open_index_file(ln_index_name, ln, TRUE))
+    if (relay_log.open_index_file(log_index_name, ln, TRUE))
     {
       sql_print_error("Failed in open_index_file() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
