@@ -94,12 +94,7 @@ PATENT RIGHTS GRANT:
 // function.
 
 #include "test.h"
-#include <endian.h>
 #include <toku_time.h>
-
-#ifndef htobe64
-#define htobe64(x) __bswap_64(x)
-#endif
 
 // Insert max_rows key/val pairs into the db
 static void do_inserts(DB_ENV *env, DB *db, uint64_t max_rows, size_t val_size) {
@@ -112,7 +107,7 @@ static void do_inserts(DB_ENV *env, DB *db, uint64_t max_rows, size_t val_size) 
     for (uint64_t i = 1; i <= max_rows; i++) {
         // pick a sequential key but it does not matter for this test.
         uint64_t k[2] = {
-            htobe64(i), random64(),
+            htonl(i), random64(),
         };
         DBT key = { .data = k, .size = sizeof k };
         DBT val = { .data = val_data, .size = (uint32_t) val_size };
