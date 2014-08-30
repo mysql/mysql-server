@@ -1,5 +1,5 @@
 --echo #########################################################################
---echo # Verify RESET SLAVE ALL and RESET SLAVE ALL FOR CHANNEL
+--echo # Verify RESET SLAVE and RESET SLAVE FOR CHANNEL
 --echo # - deletes all relay log files of named channels.
 --echo # - For default channel, it restart the relay log from .000001
 --echo #########################################################################
@@ -19,27 +19,54 @@ FLUSH RELAY LOGS FOR CHANNEL "ch1";
 FLUSH RELAY LOGS FOR CHANNEL "ch2";
 
 --echo #
---echo # RESET SLAVE ALL FOR CHANNEL "ch1" deletes all relay log files of ch1.
+--echo # RESET SLAVE FOR CHANNEL "ch1" deletes all relay log files of ch1.
 --echo #
-eval RESET SLAVE ALL FOR CHANNEL "ch1";
+eval RESET SLAVE FOR CHANNEL "ch1";
 
 # all files of "ch1" are removed
 --list_files $datadir *ch1*
 
 --echo #
---echo # RESET SLAVE ALL deletes all relay log files of ch2
+--echo # RESET SLAVE deletes all relay log files of ch2
 --echo #
 --disable_warnings
 --source include/stop_slave.inc
 --enable_warnings
-RESET SLAVE ALL;
+RESET SLAVE;
 
 # all files of "ch2" are removed
 --list_files $datadir *ch2*
 
 --echo #
---echo # RESET SLAVE ALL resets relay log of default channel from .000001
+--echo # RESET SLAVE resets relay log of default channel from .000001
 --echo #
+# relay log files of default channel is still there
+--let $relay_log_index= `SELECT @@GLOBAL.relay_log_index`
+--file_exists $relay_log_index
+
+--let $relay_log_basename= `SELECT @@GLOBAL.relay_log_basename`
+--file_exists $relay_log_basename.000001
+
+--echo #
+--echo # Recreate channels "ch1" and "ch2" files again.
+--echo #
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "ch1";
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch2";
+
+# Check that files exist.
+--let $relay_log_base_name= `SELECT @@GLOBAL.relay_log_basename`
+--file_exists $relay_log_base_name-ch1.000001
+--file_exists $relay_log_base_name-ch2.000001
+
+--echo #
+--echo # RESET SLAVE ALL deletes all channels info and files.
+--echo #
+RESET SLAVE ALL;
+
+# all files of "ch1" and "ch2" are removed
+--list_files $datadir *ch1*
+--list_files $datadir *ch2*
+
 # relay log files of default channel is still there
 --let $relay_log_index= `SELECT @@GLOBAL.relay_log_index`
 --file_exists $relay_log_index
