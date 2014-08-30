@@ -9119,8 +9119,7 @@ int reset_slave(THD *thd, Master_info* mi)
      For named channels, we have to delete the index and log files
      and not init them
   */
-  if (thd->lex->reset_slave_info.all && strcmp(mi->get_channel(),
-                                               msr_map.get_default_channel()))
+  if (strcmp(mi->get_channel(), msr_map.get_default_channel()))
     no_init_after_delete= true;
 
   if ((error= mi->rli->purge_relay_logs(thd,
