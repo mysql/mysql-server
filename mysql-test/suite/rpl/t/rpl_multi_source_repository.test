@@ -20,6 +20,10 @@
 #   - subsequent commands shall fail unless the slave is properly restarted.
 # 8. Restart the slave server with type=TABLE
 #   - success
+# 9. Set repositories to FILE
+#   - failure with an error message.
+# 10. Set repositories to TABLE // doing it again
+#    - nothing to do.
 #
 #
 --source include/have_slave_repository_type_file.inc
@@ -98,6 +102,24 @@ call mtr.add_suppression("Failed to create or recover replication info repositor
 --let $assert_text= there shall be only 2 rows as slave is restarted properly
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_execute_configuration] = 2;
 --source include/assert.inc
+
+--echo #
+--echo #   Set slave repostiories to FILE. An error is generated.
+--echo #
+
+--error ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE
+SET @@GLOBAL.master_info_repository = "FILE";
+
+--error ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE
+SET @@GLOBAL.relay_log_info_repository = "FILE";
+
+--echo #
+--echo #  Currently slave repositores are of type TABLE. Try again
+--echo #  again setting to TABLE. Returns success doing nothing.
+--echo #
+
+SET @@GLOBAL.master_info_repository = "TABLE";
+SET @@GLOBAL.relay_log_info_repository = "TABLE";
 
 # Clean up.
 # Delete channel_3 and restart server with FILE

@@ -134,11 +134,7 @@ bool Rpl_info_factory::change_mi_repository(Master_info *mi,
   uint instances= 1;
   DBUG_ENTER("Rpl_info_factory::change_mi_repository");
 
-  /* @todo:should not allow TABLE to FILE conversion in multisource case */
-
   DBUG_ASSERT(handler_src);
-  if (handler_src->get_rpl_info_type() == mi_option)
-    DBUG_RETURN(false);
 
   if (init_repositories(mi_table_data, mi_file_data, mi_option, instances,
                         NULL, &handler_dest, msg))
@@ -308,9 +304,6 @@ bool Rpl_info_factory::change_rli_repository(Relay_log_info *rli,
   DBUG_ENTER("Rpl_info_factory::change_rli_repository");
 
   DBUG_ASSERT(handler_src != NULL);
-  
-  if (handler_src->get_rpl_info_type() == rli_option)
-    DBUG_RETURN(false);
 
   if (init_repositories(rli_table_data, rli_file_data, rli_option,
                         instances, NULL, &handler_dest, msg))
