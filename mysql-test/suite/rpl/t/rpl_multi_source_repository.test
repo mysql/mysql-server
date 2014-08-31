@@ -113,6 +113,8 @@ SET @@GLOBAL.master_info_repository = "FILE";
 --error ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE
 SET @@GLOBAL.relay_log_info_repository = "FILE";
 
+SHOW VARIABLES LIKE '%info_repository%';
+
 --echo #
 --echo #  Currently slave repositores are of type TABLE. Try again
 --echo #  again setting to TABLE. Returns success doing nothing.

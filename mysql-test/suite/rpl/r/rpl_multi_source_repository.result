@@ -50,6 +50,10 @@ SET @@GLOBAL.master_info_repository = "FILE";
 ERROR HY000: Failure while changing the type of replication repository: Repository conversion is possible when only default channel exists.
 SET @@GLOBAL.relay_log_info_repository = "FILE";
 ERROR HY000: Failure while changing the type of replication repository: Repository conversion is possible when only default channel exists.
+SHOW VARIABLES LIKE '%info_repository%';
+Variable_name	Value
+master_info_repository	TABLE
+relay_log_info_repository	TABLE
 #
 #  Currently slave repositores are of type TABLE. Try again
 #  again setting to TABLE. Returns success doing nothing.
