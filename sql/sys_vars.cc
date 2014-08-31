@@ -988,8 +988,8 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   const char *msg= NULL;
   bool rpl_info_option= static_cast<uint>(var->save_result.ulonglong_value);
 
-  /* don't covert if the repositories are same */
-  if (rpl_info_option == (SLAVE_THD_IO ?
+  /* don't convert if the repositories are same */
+  if (rpl_info_option == (thread_mask== SLAVE_THD_IO ?
                           opt_mi_repository_id: opt_rli_repository_id))
       return FALSE;
 
