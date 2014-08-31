@@ -1915,7 +1915,8 @@ row_ins_scan_sec_index_for_duplicate(
 
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(s_latch == rw_lock_own(&index->lock, RW_LOCK_S));
+	ut_ad(s_latch == rw_lock_own_flagged(
+			&index->lock, RW_LOCK_FLAG_S | RW_LOCK_FLAG_SX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	n_unique = dict_index_get_n_unique(index);
@@ -2541,7 +2542,7 @@ last successful insert. To be used when data is sorted.
 @param[in]	thr	query thread
 
 @return error code */
-
+static
 dberr_t
 row_ins_sorted_clust_index_entry(
 	ulint		flags,

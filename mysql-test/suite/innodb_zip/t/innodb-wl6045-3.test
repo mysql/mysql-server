@@ -77,6 +77,8 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/slave_master_info.ibd
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/slave_worker_info.ibd
+--exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/server_cost.ibd
+--exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/engine_cost.ibd
 
 --echo : start the server with innodb_checksum_algorithm=strict_innodb
 --let restart_options= : --innodb_checksum_algorithm=strict_innodb --default_storage_engine=InnoDB
@@ -117,6 +119,8 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/slave_master_info.ibd
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/slave_worker_info.ibd
+--exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/server_cost.ibd
+--exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/engine_cost.ibd
 
 --echo # start the server with innodb_checksum_algorithm=strict_crc32
 --let restart_options= : --innodb_checksum_algorithm=strict_crc32 --default_storage_engine=InnoDB
@@ -160,12 +164,17 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/slave_master_info.ibd
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/slave_worker_info.ibd
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/server_cost.ibd
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/engine_cost.ibd
 
---echo # start the server with innodb_checksum_algorithm=strict_crc32
---exec echo "restart: --innodb_checksum_algorithm=strict_none --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone.ibd
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone_leap_second.ibd
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone_name.ibd
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone_transition.ibd
+--exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/time_zone_transition_type.ibd
+
+let $restart_parameters = restart: --innodb_checksum_algorithm=strict_none --default_storage_engine=InnoDB;
+--source include/start_mysqld.inc
 
 # check the table status is GOOD with DML
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
@@ -194,9 +203,7 @@ SELECT * FROM tab2 ORDER BY col_7;
 --enable_result_log
 
 --echo # stop the server
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --echo [2]: Check the page type summary with shortform for tab1.ibd
 --replace_regex /File.*.ibd/File::tab1.ibd/ /[0-9]+/#/

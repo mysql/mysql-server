@@ -207,6 +207,9 @@ public:
   /**
     Set the records per key estimate for a key part.
 
+    The records per key estimate must be in [1.0,..> or take the value
+    REC_PER_KEY_UNKNOWN.
+
     @param key_part_no     the number of key parts that the estimate includes,
                            must be in [0, KEY::actual_key_parts)
     @param rec_per_key_est new records per key estimate
@@ -216,7 +219,7 @@ public:
   {
     DBUG_ASSERT(key_part_no < actual_key_parts);
     DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN ||
-                rec_per_key_est >= 0.0);
+                rec_per_key_est >= 1.0);
     DBUG_ASSERT(rec_per_key_float != NULL);
 
     rec_per_key_float[key_part_no]= rec_per_key_est;

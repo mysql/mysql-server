@@ -71,12 +71,11 @@ btr_corruption_report(
 	const buf_block_t*	block,	/*!< in: corrupted block */
 	const dict_index_t*	index)	/*!< in: index tree */
 {
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Flag mismatch in space " UINT32PF " page " UINT32PF
-		" index %s of table %s",
-		block->page.id.space(),
-		block->page.id.page_no(),
-		index->name, index->table_name);
+	ib::error()
+		<< "Flag mismatch in page " << block->page.id
+		<< " index " << ut_get_name(NULL, FALSE, index->name)
+		<< " of table " << ut_get_name(NULL, TRUE, index->table_name);
+
 	if (block->page.size.is_compressed()) {
 		ut_ad(block->page.zip.data != NULL);
 		buf_page_print(block->page.zip.data,
@@ -817,14 +816,14 @@ btr_page_get_father_node_ptr_func(
 		buf_page_print(page_align(node_ptr), univ_page_size,
 			       BUF_PAGE_PRINT_NO_CRASH);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Corruption of an index tree: table %s index %s,"
-			" father ptr page no %lu, child page no %lu",
-			ut_get_name(NULL, TRUE, index->table_name).c_str(),
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			(ulong)
-			btr_node_ptr_get_child_page_no(node_ptr, offsets),
-			(ulong) page_no);
+		ib::error()
+			<< "Corruption of an index tree: table "
+			<< ut_get_name(NULL, TRUE, index->table_name)
+			<< " index "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< ", father ptr page no "
+			<< btr_node_ptr_get_child_page_no(node_ptr, offsets)
+			<< ", child page no " << page_no;
 
 		print_rec = page_rec_get_next(
 			page_get_infimum_rec(page_align(user_rec)));
@@ -835,11 +834,11 @@ btr_page_get_father_node_ptr_func(
 					  ULINT_UNDEFINED, &heap);
 		page_rec_print(node_ptr, offsets);
 
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"You should dump + drop + reimport the table to"
-			" fix the corruption. If the crash happens at"
-			" database startup. %s Then dump + drop + reimport.",
-			FORCE_RECOVERY_MSG);
+		ib::fatal()
+			<< "You should dump + drop + reimport the table to"
+			<< " fix the corruption. If the crash happens at"
+			<< " database startup. " << FORCE_RECOVERY_MSG
+			<< " Then dump + drop + reimport.";
 	}
 
 	return(offsets);
@@ -1206,6 +1205,7 @@ btr_page_reorganize_low(
 	bool		success		= false;
 	ulint		pos;
 	bool		log_compressed;
+	bool		is_spatial;
 
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 	btr_assert_not_corrupted(block, index);
@@ -1228,6 +1228,11 @@ btr_page_reorganize_low(
 
 	MONITOR_INC(MONITOR_INDEX_REORG_ATTEMPTS);
 
+	/* This function can be called by log redo with a "dummy" index.
+	So we would trust more on the original page's type */
+	is_spatial = (fil_page_get_type(page) == FIL_PAGE_RTREE
+		      || dict_index_is_spatial(index));
+
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
 
@@ -1245,8 +1250,7 @@ btr_page_reorganize_low(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(block, mtr, dict_table_is_comp(index->table),
-		    dict_index_is_spatial(index));
+	page_create(block, mtr, dict_table_is_comp(index->table), is_spatial);
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
@@ -1323,13 +1327,13 @@ btr_page_reorganize_low(
 		buf_page_print(temp_page, univ_page_size,
 			       BUF_PAGE_PRINT_NO_CRASH);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page old data size %lu new data size %lu,"
-			" page old max ins size %lu new max ins size %lu",
-			(unsigned long) data_size1, (unsigned long) data_size2,
-			(unsigned long) max_ins_size1,
-			(unsigned long) max_ins_size2);
-		ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
+		ib::error()
+			<< "Page old data size " << data_size1
+			<< " new data size " << data_size2
+			<< ", page old max ins size " << max_ins_size1
+			<< " new max ins size " << max_ins_size2;
+
+		ib::error() << BUG_REPORT_MSG;
 		ut_ad(0);
 	} else {
 		success = true;
@@ -3300,10 +3304,9 @@ btr_compress(
 		ulint page_no = btr_node_ptr_get_child_page_no(my_rec, offsets);
 
 		if (page_no != block->page.id.page_no()) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"father positioned on page %lu" 
-				"instead of " UINT32PF, page_no,
-				block->page.id.page_no());
+			ib::info() << "father positioned on page "
+				<< page_no << "instead of "
+				<< block->page.id.page_no();
 			offsets = btr_page_get_father_block(
 				NULL, heap, index, block, mtr, &father_cursor);
 		}
@@ -3435,10 +3438,11 @@ retry:
 						my_rec, offsets);
 
 			if (page_no != block->page.id.page_no()) {
-				ib_logf(IB_LOG_LEVEL_FATAL,
-					"father positioned on %ld instead of %ld",
-					(long)page_no,
-					(long)block->page.id.page_no());
+
+				ib::fatal() << "father positioned on "
+					<< page_no << " instead of "
+					<< block->page.id.page_no();
+
 				ut_ad(0);
 			}
 
@@ -3996,10 +4000,8 @@ btr_print_recursive(
 
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_SX_FIX, index->table));
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"NODE ON LEVEL %lu page number " UINT32PF,
-		(ulong) btr_page_get_level(page, mtr),
-		block->page.id.page_no());
+	ib::info() << "NODE ON LEVEL " << btr_page_get_level(page, mtr)
+		<< " page " << block->page.id;
 
 	page_print(block, index, width, width);
 
@@ -4138,11 +4140,13 @@ btr_index_rec_validate_report(
 	const rec_t*		rec,	/*!< in: index record */
 	const dict_index_t*	index)	/*!< in: index */
 {
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Record in index %s of table %s, page %lu, at offset %lu",
-		ut_get_name(NULL, FALSE, index->name).c_str(),
-		ut_get_name(NULL, TRUE, index->table_name).c_str(),
-		page_get_page_no(page), (ulint) page_offset(rec));
+	ib::info() << "Record in index "
+		<< ut_get_name(NULL, FALSE, index->name)
+		<< " of table "
+		<< ut_get_name(NULL, TRUE, index->table_name)
+		<< ", page " << page_id_t(page_get_space_id(page),
+					  page_get_page_no(page))
+		<< ", at offset " << page_offset(rec);
 }
 
 /************************************************************//**
@@ -4180,9 +4184,9 @@ btr_index_rec_validate(
 
 	if ((ibool)!!page_is_comp(page) != dict_table_is_comp(index->table)) {
 		btr_index_rec_validate_report(page, rec, index);
-		ib_logf(IB_LOG_LEVEL_ERROR, "Compact flag=%lu, should be %lu",
-			(ulong) !!page_is_comp(page),
-			(ulong) dict_table_is_comp(index->table));
+
+		ib::error() << "Compact flag=" << !!page_is_comp(page)
+			<< ", should be " << dict_table_is_comp(index->table);
 
 		return(FALSE);
 	}
@@ -4191,9 +4195,9 @@ btr_index_rec_validate(
 
 	if (!page_is_comp(page) && rec_get_n_fields_old(rec) != n) {
 		btr_index_rec_validate_report(page, rec, index);
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Has %lu fields, should have %lu",
-			(ulong) rec_get_n_fields_old(rec), (ulong) n);
+
+		ib::error() << "Has " << rec_get_n_fields_old(rec)
+			<< " fields, should have " << n;
 
 		if (dump_on_error) {
 			buf_page_print(page, univ_page_size,
@@ -4249,9 +4253,9 @@ btr_index_rec_validate(
 			> field->prefix_len)) {
 
 			btr_index_rec_validate_report(page, rec, index);
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Field %lu len is %lu, should be %lu",
-				(ulong) i, (ulong) len, (ulong) fixed_size);
+
+			ib::error() << "Field " << i << " len is " << len
+				<< ", should be " << fixed_size;
 
 			if (dump_on_error) {
 				buf_page_print(page, univ_page_size,
@@ -4343,20 +4347,21 @@ btr_validate_report1(
 	const buf_block_t*	block)	/*!< in: index page */
 {
 	if (!level) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"In page " UINT32PF " of index %s of table %s",
-			block->page.id.page_no(),
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			ut_get_name(NULL, TRUE, index->table_name).c_str());
+
+		ib::error() << "In page " << block->page.id.page_no()
+			<< " of index "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< " of table "
+			<< ut_get_name(NULL, TRUE, index->table_name);
+
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"In page " UINT32PF " of index %s of table %s,"
-			" index tree level %lu",
-			block->page.id.page_no(),
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			ut_get_name(NULL, TRUE,
-			index->table_name).c_str(),
-			level);
+
+		ib::error() << "In page " << block->page.id.page_no()
+			<< " of index "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< " of table "
+			<< ut_get_name(NULL, TRUE, index->table_name)
+			<< ", index tree level " << level;
 	}
 }
 
@@ -4372,22 +4377,20 @@ btr_validate_report2(
 	const buf_block_t*	block2)	/*!< in: second index page */
 {
 	if (!level) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"In pages " UINT32PF " and " UINT32PF
-			" of index %s of table %s",
-			block1->page.id.page_no(),
-			block2->page.id.page_no(),
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			ut_get_name(NULL, TRUE, index->table_name).c_str());
+
+		ib::error() << "In pages " << block1->page.id
+			<< " and " << block2->page.id << " of index "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< " of table "
+			<< ut_get_name(NULL, TRUE, index->table_name);
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"In pages " UINT32PF " and " UINT32PF
-			" of index %s of table %s, index tree level %lu",
-			block1->page.id.page_no(),
-			block2->page.id.page_no(),
-			ut_get_name(NULL, FALSE, index->name).c_str(),
-			ut_get_name(NULL, TRUE, index->table_name).c_str(),
-			level);
+
+		ib::error() << "In pages " << block1->page.id
+			<< " and " << block2->page.id << " of index "
+			<< ut_get_name(NULL, FALSE, index->name)
+			<< " of table "
+			<< ut_get_name(NULL, TRUE, index->table_name)
+			<< ", index tree level " << level;
 	}
 }
 
@@ -4463,9 +4466,8 @@ btr_validate_level(
 
 	if (!table_page_size.equals_to(space_page_size)) {
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Flags mismatch: table=%lu, tablespace=%lu",
-			(ulint) index->table->flags, (ulint) space_flags);
+		ib::warn() << "Flags mismatch: table=" << index->table->flags
+			<< ", tablespace=" << space_flags;
 
 		mtr_commit(&mtr);
 
@@ -4481,7 +4483,7 @@ btr_validate_level(
 
 			btr_validate_report1(index, level, block);
 
-			ib_logf(IB_LOG_LEVEL_WARN, "Page is free");
+			ib::warn() << "Page is free";
 
 			ret = false;
 		}
@@ -4565,15 +4567,13 @@ loop:
 
 		btr_validate_report1(index, level, block);
 
-		ib_logf(IB_LOG_LEVEL_WARN, "Page is marked as free");
+		ib::warn() << "Page is marked as free";
 		ret = false;
 
 	} else if (btr_page_get_index_id(page) != index->id) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page index id " IB_ID_FMT " != data dictionary"
-			" index id " IB_ID_FMT,
-			btr_page_get_index_id(page), index->id);
+		ib::error() << "Page index id " << btr_page_get_index_id(page)
+			<< " != data dictionary index id " << index->id;
 
 		ret = false;
 
@@ -4766,8 +4766,8 @@ loop:
 					page, univ_page_size,
 					BUF_PAGE_PRINT_NO_CRASH);
 
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Node ptrs differ on levels > 0");
+				ib::error() << "Node ptrs differ on levels > 0";
+
 				fputs("InnoDB: node ptr ",stderr);
 				rec_print_new(stderr, node_ptr, offsets);
 				fputs("InnoDB: first rec ", stderr);

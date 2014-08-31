@@ -227,26 +227,25 @@ public:
   Slave_job_group lwm;
   
   /* last time processed indexes for each worker */
-  DYNAMIC_ARRAY last_done;
+  Prealloced_array<ulonglong, 1> last_done;
 
   /* the being assigned group index in GAQ */
   ulong assigned_group_index;
 
   Slave_committed_queue (const char *log, ulong max, uint n)
-    : circular_buffer_queue<Slave_job_group>(max), inited(false)
+    : circular_buffer_queue<Slave_job_group>(max), inited(false),
+      last_done(key_memory_Slave_job_group_group_relay_log_name)
   {
-    uint k;
-    ulonglong l= 0;
-    
     if (max >= (ulong) -1 || !inited_queue)
       return;
     else
       inited= TRUE;
-    my_init_dynamic_array(&last_done, sizeof(lwm.total_seqno), n, 0);
-    for (k= 0; k < n; k++)
-      insert_dynamic(&last_done, (uchar*) &l);  // empty for each Worker
-    lwm.group_relay_log_name= (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
-                                                 FN_REFLEN + 1, MYF(0));
+
+    last_done.resize(n);
+
+    lwm.group_relay_log_name=
+      (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
+                         FN_REFLEN + 1, MYF(0));
     lwm.group_relay_log_name[0]= 0;
   }
 
@@ -254,7 +253,6 @@ public:
   { 
     if (inited)
     {
-      delete_dynamic(&last_done);
       my_free(lwm.group_relay_log_name);
       free_dynamic_items();  // free possibly left allocated strings in GAQ list
     }
@@ -365,7 +363,10 @@ public:
   mysql_mutex_t jobs_lock; // mutex for the jobs queue
   mysql_cond_t  jobs_cond; // condition variable for the jobs queue
   Relay_log_info *c_rli;   // pointer to Coordinator's rli
-  DYNAMIC_ARRAY curr_group_exec_parts; // Current Group Executed Partitions
+
+  Prealloced_array<db_worker_hash_entry*, SLAVE_INIT_DBS_IN_GROUP>
+  curr_group_exec_parts; // Current Group Executed Partitions
+
   bool curr_group_seen_begin; // is set to TRUE with explicit B-event
   ulong id;                 // numberic identifier of the Worker
 

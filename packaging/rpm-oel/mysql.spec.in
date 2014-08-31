@@ -104,8 +104,7 @@ Source7:        %{compatsrc}
 %endif
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-Patch0:         mysql-5.6.16-mysql-install.patch
-Patch1:         mysql-5.7-libmysqlclient-symbols.patch
+Patch0:         mysql-5.7-libmysqlclient-symbols.patch
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Time::HiRes)}
@@ -160,8 +159,8 @@ Requires:       net-tools
 Provides:       MySQL-server-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
-Requires:       mysql-enterprise-client%{?_isa} = %{version}-%{release}
-Requires:       mysql-enterprise-common%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-client%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 %else
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
@@ -213,7 +212,7 @@ Group:          Applications/Databases
 Provides:       MySQL-client-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
-Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
 %else
 Provides:       MySQL-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
@@ -252,7 +251,7 @@ Group:          Applications/Databases
 Provides:       MySQL-test-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-test < %{version}-%{release}
-Requires:       mysql-enterprise-server%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-server%{?_isa} = %{version}-%{release}
 %else
 Provides:       MySQL-test%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-server%{?_isa} = %{version}-%{release}
@@ -274,7 +273,7 @@ Summary:        MySQL benchmark suite
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-bench < %{version}-%{release}
-Requires:       mysql-enterprise-server%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-server%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-server%{?_isa} = %{version}-%{release}
 %endif
@@ -295,7 +294,7 @@ Group:          Applications/Databases
 Provides:       MySQL-devel-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
-Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
 %else
 Provides:       MySQL-devel%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
@@ -317,7 +316,7 @@ Group:          Applications/Databases
 Provides:       MySQL-shared-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-libs < %{version}-%{release}
-Requires:       mysql-enterprise-common%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 %else
 Provides:       MySQL-shared%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
@@ -343,7 +342,7 @@ Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}
 Provides:       MySQL-shared-compat-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-shared-compat-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-libs-compat < %{version}-%{release}
-Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
 %else
 Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
@@ -365,7 +364,7 @@ Group:          Applications/Databases
 Provides:       MySQL-embedded-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
-Requires:       mysql-enterprise-common%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 %else
 Provides:       MySQL-embedded%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
@@ -393,8 +392,8 @@ Summary:        Development header files and libraries for MySQL as an embeddabl
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded-devel < %{version}-%{release}
-Requires:       mysql-enterprise-devel%{?_isa} = %{version}-%{release}
-Requires:       mysql-enterprise-embedded%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-devel%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-embedded%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-devel%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-embedded%{?_isa} = %{version}-%{release}
@@ -413,9 +412,9 @@ the embedded version of the MySQL server.
 Summary:        Convenience package for easy upgrades of MySQL package set
 Group:          Applications/Databases
 %if 0%{?commercial}
-Requires:       mysql-enterprise-client%{?_isa} = %{version}-%{release}
-Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
-Requires:       mysql-enterprise-libs-compat%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-client%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-commercial-libs-compat%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
@@ -437,8 +436,7 @@ package has been split into several subpackages.
 %setup -q -T -a 0 -c -n %{src_dir}
 %endif # 0%{?compatlib}
 pushd %{src_dir}
-#patch0 -p1
-%{?el7:%patch1 -p1}
+%{?el7:%patch0 -p1}
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -595,6 +593,7 @@ rm -rf %{buildroot}%{_datadir}/mysql/solaris
 rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
+rm -rf %{buildroot}%{_bindir}/mysqlhotcopy
 %if 0%{?systemd}
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysqld
 %endif

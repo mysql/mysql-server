@@ -33,7 +33,7 @@ dict_sys_get_new_row_id(void)
 {
 	row_id_t	id;
 
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 
 	id = dict_sys->row_id;
 
@@ -44,7 +44,7 @@ dict_sys_get_new_row_id(void)
 
 	dict_sys->row_id++;
 
-	mutex_exit(&(dict_sys->mutex));
+	mutex_exit(&dict_sys->mutex);
 
 	return(id);
 }

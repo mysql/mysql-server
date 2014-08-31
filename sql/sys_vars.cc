@@ -1804,6 +1804,104 @@ static Sys_var_enum Sys_log_timestamps(
        timestamp_type_names, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
+/* logging to host OS's syslog */
+
+static bool fix_syslog(sys_var *self, THD *thd, enum_var_type type)
+{
+  return log_syslog_update_settings();
+}
+
+static bool check_syslog_tag(sys_var *self, THD *THD, set_var *var)
+{
+  bool ret;
+  char *old= opt_log_syslog_tag;
+  opt_log_syslog_tag= (var->value) ? var->save_result.string_value.str : NULL;
+  ret= log_syslog_update_settings();
+  opt_log_syslog_tag= old;
+  return ret;
+}
+
+static bool check_syslog_enable(sys_var *self, THD *THD, set_var *var)
+{
+  my_bool save= opt_log_syslog_enable;
+  opt_log_syslog_enable= var->save_result.ulonglong_value;
+  if (log_syslog_update_settings())
+  {
+    opt_log_syslog_enable= save;
+    return true;
+  }
+  return false;
+}
+
+static Sys_var_mybool Sys_log_syslog_enable(
+       "log_syslog",
+       "Errors, warnings, and similar issues eligible for MySQL's error log "
+       "file may additionally be sent to the host operating system's system "
+       "log (\"syslog\").",
+       GLOBAL_VAR(opt_log_syslog_enable),
+       CMD_LINE(OPT_ARG),
+       // preserve current defaults for both platforms:
+#ifndef _WIN32
+       DEFAULT(FALSE),
+#else
+       DEFAULT(TRUE),
+#endif
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_syslog_enable), ON_UPDATE(0));
+
+
+static Sys_var_charptr Sys_log_syslog_tag(
+       "log_syslog_tag",
+       "When logging issues using the host operating system's syslog, "
+       "tag the entries from this particular MySQL server with this ident. "
+       "This will help distinguish entries from MySQL servers co-existing "
+       "on the same host machine. A non-empty tag will be appended to the "
+       "default ident of 'mysqld', connected by a hyphen.",
+       GLOBAL_VAR(opt_log_syslog_tag), CMD_LINE(REQUIRED_ARG),
+       IN_SYSTEM_CHARSET, DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_syslog_tag), ON_UPDATE(fix_syslog));
+
+
+#ifndef _WIN32
+
+static bool check_syslog_facility(sys_var *self, THD *THD, set_var *var)
+{
+  SYSLOG_FACILITY rsf;
+
+  if (var->value &&
+      log_syslog_find_facility(var->save_result.string_value.str, &rsf))
+    return true;
+  return false;
+}
+
+static bool fix_syslog_facility(sys_var *self, THD *thd, enum_var_type type)
+{
+  if (opt_log_syslog_facility == NULL)
+    return true;
+
+  return log_syslog_update_settings();
+}
+
+static Sys_var_charptr Sys_log_syslog_facility(
+       "log_syslog_facility",
+       "When logging issues using the host operating system's syslog, "
+       "identify as a facility of the given type (to aid in log filtering).",
+       GLOBAL_VAR(opt_log_syslog_facility), CMD_LINE(REQUIRED_ARG),
+       IN_SYSTEM_CHARSET, DEFAULT("daemon"), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_syslog_facility), ON_UPDATE(fix_syslog_facility));
+
+static Sys_var_mybool Sys_log_syslog_log_pid(
+       "log_syslog_include_pid",
+       "When logging issues using the host operating system's syslog, "
+       "include this MySQL server's process ID (PID). This setting does "
+       "not affect MySQL's own error log file.",
+       GLOBAL_VAR(opt_log_syslog_include_pid),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0), ON_UPDATE(fix_syslog));
+
+#endif
+
 static bool update_cached_long_query_time(sys_var *self, THD *thd,
                                           enum_var_type type)
 {

@@ -35,7 +35,8 @@
                              CLIENT_PLUGIN_AUTH | \
                              CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | \
                              CLIENT_CONNECT_ATTRS | \
-                             CLIENT_SESSION_TRACK)
+                             CLIENT_SESSION_TRACK | \
+                             CLIENT_DEPRECATE_EOF)
 
 #define read_user_name(A) {}
 

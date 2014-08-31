@@ -1019,6 +1019,7 @@ static void test_wl4435_2()
   rc= mysql_stmt_execute(ps); \
   check_execute(ps, rc); \
   \
+  if (!(mysql->server_capabilities & CLIENT_DEPRECATE_EOF)) \
   DIE_UNLESS(mysql->server_status & SERVER_PS_OUT_PARAMS); \
   DIE_UNLESS(mysql_stmt_field_count(ps) == 1); \
   \
@@ -19466,10 +19467,13 @@ static void test_wl5928()
   stmt= mysql_simple_prepare(mysql, "GET DIAGNOSTICS");
   DIE_UNLESS(stmt == NULL);
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
+  myquery(rc);
+
   /* PREPARE */
 
-  stmt= mysql_simple_prepare(mysql, "CREATE TABLE t1 (f1 YEAR(1))");
-  DIE_UNLESS(mysql_warning_count(mysql) == 1);
+  stmt= mysql_simple_prepare(mysql, "CREATE TABLE t1 (f1 INT) ENGINE=UNKNOWN");
+  DIE_UNLESS(mysql_warning_count(mysql) == 2);
   check_stmt(stmt);
 
   /* SHOW WARNINGS.  (Will keep diagnostics) */
@@ -19478,7 +19482,7 @@ static void test_wl5928()
   result= mysql_store_result(mysql);
   mytest(result);
   rc= my_process_result_set(result);
-  DIE_UNLESS(rc == 1);
+  DIE_UNLESS(rc == 2);
   mysql_free_result(result);
 
   /* EXEC */
@@ -19498,17 +19502,13 @@ static void test_wl5928()
   /* clean up */
   mysql_stmt_close(stmt);
 
-  stmt= mysql_simple_prepare(mysql, "DROP TABLE t1");
-  check_stmt(stmt);
-  rc= mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-  mysql_stmt_close(stmt);
-
   stmt= mysql_simple_prepare(mysql, "SELECT 1");
   check_stmt(stmt);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
   mysql_stmt_close(stmt);
+
+  myquery(rc);
 }
 
 static void test_wl6797()

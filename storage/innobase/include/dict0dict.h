@@ -153,17 +153,7 @@ Inits the data dictionary module. */
 
 void
 dict_init(void);
-/*===========*/
-/********************************************************************//**
-Gets the space id of every table of the data dictionary and makes a linear
-list and a hash table of them to the data dictionary cache. This function
-can be called at database startup if we did not need to do a crash recovery.
-In crash recovery we must scan the space id's from the .ibd files in MySQL
-database directories. */
 
-void
-dict_load_space_id_list(void);
-/*=========================*/
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
 @return minimum multi-byte char size, in bytes */
@@ -1796,15 +1786,13 @@ dict_set_corrupted_by_space(
 /*========================*/
 	ulint		space_id);	/*!< in: space ID */
 
-/********************************************************************//**
-Validate the table flags.
+/** Validate the table flags.
+@param[in]	flags	Table flags
 @return true if valid. */
 UNIV_INLINE
 bool
 dict_tf_is_valid(
-/*=============*/
-	ulint		flags)		/*!< in: table flags */
-	__attribute__((warn_unused_result));
+	ulint	flags);
 
 /********************************************************************//**
 Check if the tablespace for the table has been discarded.

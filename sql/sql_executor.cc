@@ -1237,6 +1237,9 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool in_first_read= true;
+  const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
+  if (pfs_batch_update)
+    qep_tab->table()->file->start_psi_batch_mode();
   while (rc == NESTED_LOOP_OK && join->return_tab >= qep_tab_idx)
   {
     int error;
@@ -1271,6 +1274,9 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
       qep_tab->last_inner() != NO_PLAN_IDX &&
       !qep_tab->found)
     rc= evaluate_null_complemented_join_record(join, qep_tab);
+
+  if (pfs_batch_update)
+    qep_tab->table()->file->end_psi_batch_mode();
 
   DBUG_RETURN(rc);
 }
@@ -4579,6 +4585,27 @@ QEP_tmp_table::end_send()
   return rc;
 }
 
+
+/******************************************************************************
+  Code for pfs_batch_update
+******************************************************************************/
+
+
+bool QEP_TAB::pfs_batch_update(JOIN *join)
+{
+  /*
+    Use PFS batch mode unless
+     1. tab is not an inner-most table, or
+     2. a table has eq_ref or const access type, or
+     3. this tab contains a subquery that accesses one or more tables
+  */
+
+  return !((join->qep_tab + join->primary_tables - 1) != this || // 1
+           this->type() == JT_EQ_REF ||                          // 2
+           this->type() == JT_CONST  ||
+           this->type() == JT_SYSTEM ||
+           (condition() && condition()->has_subquery()));        // 3
+}
 
 /**
   @} (end of group Query_Executor)

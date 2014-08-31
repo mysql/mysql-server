@@ -38,6 +38,8 @@
 class Alter_info;
 typedef struct xid_t XID;
 
+class SE_cost_constants;                        // see opt_costconstants.h
+
 // the following is for checking tables
 
 #define HA_ADMIN_ALREADY_DONE	  1
@@ -255,6 +257,19 @@ enum enum_alter_inplace_result {
 */
 #define HA_NO_READ_LOCAL_LOCK         (LL(1) << 44)
 
+/**
+  A storage engine is compatible with the attachable transaction requirements
+  means that
+
+    - either SE detects the fact that THD::ha_data was reset and starts a new
+      attachable transaction, closes attachable transaction on close_connection
+      and resumes regular (outer) transaction when THD::ha_data is restored;
+
+    - or SE completely ignores THD::ha_data and close_connection like MyISAM
+      does.
+*/
+#define HA_ATTACHABLE_TRX_COMPATIBLE  (LL(1) << 45)
+
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -378,6 +393,8 @@ static const uint MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT = 1;
 static const uint MYSQL_START_TRANS_OPT_READ_ONLY          = 2;
 // READ WRITE option
 static const uint MYSQL_START_TRANS_OPT_READ_WRITE         = 4;
+// HIGH PRIORITY option
+static const uint MYSQL_START_TRANS_OPT_HIGH_PRIORITY      = 8;
 
 enum legacy_db_type
 {
@@ -880,6 +897,33 @@ struct handlerton
   bool (*is_supported_system_table)(const char *db,
                                     const char *table_name,
                                     bool is_sql_layer_system_table);
+
+  /**
+    Retrieve cost constants to be used for this storage engine.
+
+    A storage engine that wants to provide its own cost constants to
+    be used in the optimizer cost model, should implement this function.
+    The server will call this function to get a cost constant object
+    that will be used for tables stored in this storage engine instead
+    of using the default cost constants.
+
+    Life cycle for the cost constant object: The storage engine must
+    allocate the cost constant object on the heap. After the function
+    returns, the server takes over the ownership of this object.
+    The server will eventually delete the object by calling delete.
+
+    @note In the initial version the storage_category parameter will
+    not be used. The only valid value this will have is DEFAULT_STORAGE_CLASS
+    (see declartion in opt_costconstants.h).
+
+    @param storage_category the storage type that the cost constants will
+                            be used for
+
+    @return a pointer to the cost constant object, if NULL is returned
+            the default cost constants will be used
+  */
+
+  SE_cost_constants *(*get_cost_constants)(uint storage_category);
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
@@ -2059,20 +2103,66 @@ public:
 
   /**
     Instrumented table associated with this handler.
-    This member should be set to NULL when no instrumentation is in place,
-    so that linking an instrumented/non instrumented server/plugin works.
-    For example:
-    - the server is compiled with the instrumentation.
-    The server expects either NULL or valid pointers in m_psi.
-    - an engine plugin is compiled without instrumentation.
-    The plugin can not leave this pointer uninitialized,
-    or can not leave a trash value on purpose in this pointer,
-    as this would crash the server.
   */
   PSI_table *m_psi;
 
+private:
+#ifdef HAVE_PSI_TABLE_INTERFACE
+
+  /** Internal state of the batch instrumentation. */
+  enum batch_mode_t
+  {
+    /** Batch mode not used. */
+    PSI_BATCH_MODE_NONE,
+    /** Batch mode used, before first table io. */
+    PSI_BATCH_MODE_STARTING,
+    /** Batch mode used, after first table io. */
+    PSI_BATCH_MODE_STARTED
+  };
+
+  /**
+    Batch mode state.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  batch_mode_t m_psi_batch_mode;
+  /**
+    The number of rows in the batch.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  ulonglong m_psi_numrows;
+  /**
+    The current event in a batch.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  PSI_table_locker *m_psi_locker;
+  /**
+    Storage for the event in a batch.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  PSI_table_locker_state m_psi_locker_state;
+#endif
+
+public:
   virtual void unbind_psi();
   virtual void rebind_psi();
+  /**
+    Put the handler in 'batch' mode when collecting
+    table io instrumented events.
+    When operating in batch mode:
+    - a single start event is generated in the performance schema.
+    - all table io performed between @c start_psi_batch_mode
+      and @c end_psi_batch_mode is not instrumented:
+      the number of rows affected is counted instead in @c m_psi_numrows.
+    - a single end event is generated in the performance schema
+      when the batch mode ends with @c end_psi_batch_mode.
+  */
+  void start_psi_batch_mode();
+  /** End a batch started with @c start_psi_batch_mode. */
+  void end_psi_batch_mode();
 
 private:
   friend class DsMrr_impl;
@@ -2102,7 +2192,13 @@ public:
     pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    m_psi(NULL), m_lock_type(F_UNLCK), ha_share(NULL)
+    m_psi(NULL),
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    m_psi_batch_mode(PSI_BATCH_MODE_NONE),
+    m_psi_numrows(0),
+    m_psi_locker(NULL),
+#endif
+    m_lock_type(F_UNLCK), ha_share(NULL)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
@@ -2110,6 +2206,11 @@ public:
     }
   virtual ~handler(void)
   {
+    DBUG_ASSERT(m_psi == NULL);
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
+    DBUG_ASSERT(m_psi_locker == NULL);
+#endif
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }

@@ -3532,6 +3532,16 @@ void set_slave_thread_options(THD* thd)
     thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
   }
 
+  /*
+    Set thread InnoDB high priority.
+  */
+  DBUG_EXECUTE_IF("dbug_set_high_prio_sql_thread",
+    {
+      if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+          thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
+        thd->thd_tx_priority= 1;
+    });
+
   DBUG_VOID_RETURN;
 }
 
@@ -3849,7 +3859,7 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
     DBUG_RETURN(packet_error);
 #endif
 
-  len = cli_safe_read(mysql);
+  len= cli_safe_read(mysql, NULL);
   if (len == packet_error || (long) len < 1)
   {
     if (mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
