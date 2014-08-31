@@ -26,7 +26,7 @@ Created 2013-7-26 by Kevin Lewis
 #ifndef fsp0file_h
 #define fsp0file_h
 
-#include "univ.i"
+#include "ha_prototypes.h"
 #include "log0log.h"
 #include "mem0mem.h"
 #include "os0file.h"

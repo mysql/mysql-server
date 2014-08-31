@@ -3428,6 +3428,19 @@ share_found:
                                             table_list);
     goto err_lock;
   }
+  else if (share->crashed)
+  {
+    switch (thd->lex->sql_command) {
+    case SQLCOM_ALTER_TABLE:
+    case SQLCOM_REPAIR:
+    case SQLCOM_CHECK:
+    case SQLCOM_SHOW_CREATE:
+      break;
+    default:
+      my_error(ER_CRASHED_ON_USAGE, MYF(0), share->table_name.str);
+      goto err_lock;
+    }
+  }
   if (open_table_entry_fini(thd, share, table))
   {
     closefrm(table, 0);
@@ -5983,8 +5996,13 @@ end:
                               should work for this statement.
 
   @note
-    The thr_lock locks will automatically be freed by
-    close_thread_tables().
+    The thr_lock locks will automatically be freed by close_thread_tables().
+
+  @note
+    open_and_lock_tables() is not intended for open-and-locking system tables
+    in those cases when execution of statement has started already and other
+    tables have been opened. Use open_nontrans_system_tables_for_read() or
+    open_trans_system_tables_for_read() instead.
 
   @retval FALSE  OK.
   @retval TRUE   Error
@@ -5998,6 +6016,12 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_and_lock_tables");
   DBUG_PRINT("enter", ("derived handling: %d", derived));
+
+  /*
+    open_and_lock_tables() must not be used to open system tables. There must
+    be no active attachable transaction when open_and_lock_tables() is called.
+  */
+  DBUG_ASSERT(!thd->is_attachable_transaction_active());
 
   if (open_tables(thd, &tables, &counter, flags, prelocking_strategy))
     goto err;
@@ -9787,38 +9811,40 @@ has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
 
 
 
-/*
-  Open and lock system tables for read.
+/**
+  Open and lock non-transactional system tables for read.
 
-  SYNOPSIS
-    open_system_tables_for_read()
-      thd         Thread context.
-      table_list  List of tables to open.
-      backup      Pointer to Open_tables_state instance where
-                  information about currently open tables will be
-                  saved, and from which will be restored when we will
-                  end work with system tables.
+  @param thd        Thread context.
+  @param table_list List of tables to open.
+  @param backup     Pointer to Open_tables_backup instance where information
+                    about currently open tables will be saved, and from
+                    which will be restored when we will end work with
+                    non-transactional system tables.
 
-  NOTES
-    Thanks to restrictions which we put on opening and locking of
-    system tables for writing, we can open and lock them for reading
-    even when we already have some other tables open and locked.  One
-    must call close_system_tables() to close systems tables opened
-    with this call.
+  @note THR_LOCK deadlocks are not possible here because of the
+  restrictions we put on opening and locking of system tables for writing.
+  Thus, the system tables can be opened and locked for reading even if some
+  other tables have already been opened and locked.
 
-  RETURN
-    FALSE   Success
-    TRUE    Error
+  @note MDL-deadlocks are possible, but they are properly detected and
+  reported.
+
+  @note This call will eventually be removed as an InnoDB attachable transaction
+  will be used to access all system tables.
+
+  @return Error status.
 */
 
 bool
-open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
-                            Open_tables_backup *backup)
+open_nontrans_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
+                                     Open_tables_backup *backup)
 {
+  uint counter;
+  uint flags= MYSQL_OPEN_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT;
   Query_tables_list query_tables_list_backup;
   LEX *lex= thd->lex;
 
-  DBUG_ENTER("open_system_tables_for_read");
+  DBUG_ENTER("open_nontrans_system_tables_for_read");
 
   /*
     Besides using new Open_tables_state for opening system tables,
@@ -9829,39 +9855,167 @@ open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   thd->reset_n_backup_open_tables_state(backup);
 
-  if (open_and_lock_tables(thd, table_list, FALSE,
-                           MYSQL_OPEN_IGNORE_FLUSH |
-                           MYSQL_LOCK_IGNORE_TIMEOUT))
+  if (open_tables(thd, &table_list, &counter, flags) ||
+      lock_tables(thd, table_list, counter, flags))
   {
+    close_thread_tables(thd);
+
     lex->restore_backup_query_tables_list(&query_tables_list_backup);
     thd->restore_backup_open_tables_state(backup);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
   {
     DBUG_ASSERT(tables->table->s->table_category == TABLE_CATEGORY_SYSTEM);
+
+    /*
+      This function must be used to open non-transactional tables only. That's
+      because on the one hand we don't revert changes to transaction state
+      before closing tables opened by this function, but other hand do release
+      metadata locks on those tables.
+    */
+    if (tables->table->file->has_transactions())
+    {
+      // Crash in the debug build ...
+      DBUG_ASSERT(!"Transactional table");
+
+      // ... or report an error in the release build.
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      close_thread_tables(thd);
+      lex->restore_backup_query_tables_list(&query_tables_list_backup);
+      thd->restore_backup_open_tables_state(backup);
+      DBUG_RETURN(true);
+    }
+
     tables->table->use_all_columns();
   }
+
   lex->restore_backup_query_tables_list(&query_tables_list_backup);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
-/*
-  Close system tables, opened with open_system_tables_for_read().
+/**
+  Open and lock transactional system tables for read.
 
-  SYNOPSIS
-    close_system_tables()
-      thd     Thread context
-      backup  Pointer to Open_tables_backup instance which holds
-              information about tables which were open before we
-              decided to access system tables.
+  One must call close_trans_system_tables() to close systems tables opened
+  with this call.
+
+  @param thd        Thread context.
+  @param table_list List of tables to open.
+
+  @note THR_LOCK deadlocks are not possible here because of the
+  restrictions we put on opening and locking of system tables for writing.
+  Thus, the system tables can be opened and locked for reading even if some
+  other tables have already been opened and locked.
+
+  @note MDL-deadlocks are possible, but they are properly detected and
+  reported.
+
+  @note Row-level deadlocks should be either avoided altogether using
+  non-locking reads (as it is done now for InnoDB), or should be correctly
+  detected and reported (in case of other transactional SE).
+
+  @note It is now technically possible to open non-transactional tables
+  (MyISAM system tables) using this function. That situation might still happen
+  if the user run the server on the elder data-directory or manually alters the
+  system tables to reside in MyISAM instead of InnoDB. It will be forbidden in
+  the future.
+
+  @return Error status.
+*/
+
+bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list)
+{
+  uint counter;
+  uint flags= MYSQL_OPEN_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT;
+
+  DBUG_ENTER("open_trans_system_tables_for_read");
+
+  DBUG_ASSERT(!thd->is_attachable_transaction_active());
+
+  // Begin attachable transaction.
+
+  thd->begin_attachable_transaction();
+
+  // Open tables.
+
+  if (open_tables(thd, &table_list, &counter, flags))
+  {
+    thd->end_attachable_transaction();
+    DBUG_RETURN(true);
+  }
+
+  // Check the tables.
+
+  for (TABLE_LIST *t= table_list; t; t= t->next_global)
+  {
+    // Ensure the t are in storage engines, which are compatible with the
+    // attachable transaction requirements.
+
+    if ((t->table->file->ha_table_flags() & HA_ATTACHABLE_TRX_COMPATIBLE) == 0)
+    {
+      // Crash in the debug build ...
+      DBUG_ASSERT(!"HA_ATTACHABLE_TRX_COMPATIBLE is not set");
+
+      // ... or report an error in the release build.
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      thd->end_attachable_transaction();
+      DBUG_RETURN(true);
+    }
+
+    // Ensure the t are of the system category (TABLE_CATEGORY_SYSTEM).
+
+    if (t->table->s->table_category != TABLE_CATEGORY_SYSTEM)
+    {
+      // Crash in the debug build ...
+      DBUG_ASSERT(!"Table category is not system");
+
+      // ... or report an error in the release build.
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      thd->end_attachable_transaction();
+      DBUG_RETURN(true);
+    }
+
+    // The table should be in a transaction SE. This is not strict requirement
+    // however. It will be make more strict in the future.
+
+    if (!t->table->file->has_transactions())
+      sql_print_warning("System table '%.*s' is expected to be transactional.",
+                        static_cast<int>(t->table_name_length), t->table_name);
+  }
+
+  // Lock the tables.
+
+  if (lock_tables(thd, table_list, counter, flags))
+  {
+    thd->end_attachable_transaction();
+    DBUG_RETURN(true);
+  }
+
+  // Mark the table columns for use.
+
+  for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
+    tables->table->use_all_columns();
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Close non-transactional system tables, opened with
+  open_nontrans_system_tables_for_read().
+
+  @param thd        Thread context.
+  @param backup     Pointer to Open_tables_backup instance  which holds
+                    information about tables which were open before we decided
+                    to access non-transactional system tables.
 */
 
 void
-close_system_tables(THD *thd, Open_tables_backup *backup)
+close_nontrans_system_tables(THD *thd, Open_tables_backup *backup)
 {
   Query_tables_list query_tables_list_backup;
 
@@ -9874,6 +10028,19 @@ close_system_tables(THD *thd, Open_tables_backup *backup)
   close_thread_tables(thd);
   thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
   thd->restore_backup_open_tables_state(backup);
+}
+
+
+/**
+  Close transactional system tables, opened with
+  open_trans_system_tables_for_read().
+
+  @param thd        Thread context.
+*/
+
+void close_trans_system_tables(THD *thd)
+{
+  thd->end_attachable_transaction();
 }
 
 
@@ -9990,7 +10157,7 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
 */
 void close_log_table(THD *thd, Open_tables_backup *backup)
 {
-  close_system_tables(thd, backup);
+  close_nontrans_system_tables(thd, backup);
 }
 
 /**

@@ -1255,7 +1255,8 @@ fts_tokenizer_word_get(
 #endif
 
 	/* If it is a stopword, do not index it */
-	if (rbt_search(cache->stopword_info.cached_stopword,
+	if (cache->stopword_info.cached_stopword != NULL
+	    && rbt_search(cache->stopword_info.cached_stopword,
 		       &parent, text) == 0) {
 
 		return(NULL);
@@ -3553,6 +3554,12 @@ fts_add_doc_by_id(
 				mtr_commit(&mtr);
 
 				rw_lock_x_lock(&table->fts->cache->lock);
+
+				if (table->fts->cache->stopword_info.status
+				    & STOPWORD_NOT_INIT) {
+					fts_load_stopword(table, NULL, NULL,
+							  NULL, TRUE, TRUE);
+				}
 
 				fts_cache_add_doc(
 					table->fts->cache,
@@ -5998,16 +6005,17 @@ fts_savepoint_rollback(
 	}
 }
 
-/**********************************************************************//**
-Check if a table is an FTS auxiliary table name.
-@return TRUE if the name matches an auxiliary table name pattern */
+/** Check if a table is an FTS auxiliary table name.
+@param[out]	table	FTS table info
+@param[in]	name	Table name
+@param[in]	len	Length of table name
+@return true if the name matches an auxiliary table name pattern */
 static
-ibool
+bool
 fts_is_aux_table_name(
-/*==================*/
-	fts_aux_table_t*table,		/*!< out: table info */
-	const char*	name,		/*!< in: table name */
-	ulint		len)		/*!< in: length of table name */
+	fts_aux_table_t*	table,
+	const char*		name,
+	ulint			len)
 {
 	const char*	ptr;
 	char*		end;
@@ -6037,14 +6045,14 @@ fts_is_aux_table_name(
 
 		/* Try and read the table id. */
 		if (!fts_read_object_id(&table->parent_id, ptr)) {
-			return(FALSE);
+			return(false);
 		}
 
 		/* Skip the table id. */
 		ptr = static_cast<const char*>(memchr(ptr, '_', len));
 
 		if (ptr == NULL) {
-			return(FALSE);
+			return(false);
 		}
 
 		/* Skip the underscore. */
@@ -6056,7 +6064,7 @@ fts_is_aux_table_name(
 		for (i = 0; fts_common_tables[i] != NULL; ++i) {
 
 			if (strncmp(ptr, fts_common_tables[i], len) == 0) {
-				return(TRUE);
+				return(true);
 			}
 		}
 
@@ -6068,14 +6076,14 @@ fts_is_aux_table_name(
 
 		/* Try and read the index id. */
 		if (!fts_read_object_id(&table->index_id, ptr)) {
-			return(FALSE);
+			return(false);
 		}
 
 		/* Skip the table id. */
 		ptr = static_cast<const char*>(memchr(ptr, '_', len));
 
 		if (ptr == NULL) {
-			return(FALSE);
+			return(false);
 		}
 
 		/* Skip the underscore. */
@@ -6087,17 +6095,17 @@ fts_is_aux_table_name(
 		for (i = 0; fts_index_selector[i].value; ++i) {
 
 			if (strncmp(ptr, fts_get_suffix(i), len) == 0) {
-				return(TRUE);
+				return(true);
 			}
 		}
 
 		/* Other FT index specific table(s). */
 		if (strncmp(ptr, "DOC_ID", len) == 0) {
-			return(TRUE);
+			return(true);
 		}
 	}
 
-	return(FALSE);
+	return(false);
 }
 
 /**********************************************************************//**

@@ -470,7 +470,10 @@ INCLUDE(configure.cmake)
 
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_BINARY_DIR}/include
+  ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
+)
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
@@ -566,6 +569,7 @@ IF(NOT WITHOUT_SERVER)
   ENDIF()
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
+  ADD_SUBDIRECTORY(packaging/rpm-sles)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)

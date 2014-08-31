@@ -30,6 +30,7 @@
 #include "rpl_msr.h"     /* multisource replication */
 #include "debug_sync.h"
 #include "connection_handler_impl.h"
+#include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
 
 
 /**
@@ -329,6 +330,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
      }
    }
 #endif
+  if (options & REFRESH_OPTIMIZER_COSTS)
+    reload_optimizer_cost_constants();
 #ifdef HAVE_REPLICATION
  if (options & REFRESH_SLAVE)
  {

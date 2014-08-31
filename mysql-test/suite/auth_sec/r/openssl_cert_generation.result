@@ -83,8 +83,8 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
 # Should be able to connect to server using RSA key pair.
-Variable_name	Value
-Ssl_cipher	
+current_user()
+wl7699_sha256@%
 drop user wl7699_sha256;
 # Test 6 : SSL Certificates/Key File Generation and tests
 # 6.1 : Restarting mysqld with :
@@ -124,7 +124,43 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
 # Should be able to connect to server using RSA key pair.
+current_user()
+wl7699_sha256@%
+drop user wl7699_sha256;
+# Test 7 : SSL Certificates/Key File Generation and tests
+# 7.1 : Restarting mysqld with :
+#       --skip-ssl
+#       --auto_generate_certs=ON
+#       --sha256_password_auto_generate_rsa_keys=ON
+# Restart completed.
+# Search for : Auto generated RSA key files are placed in data directory.
+# Search completed.
+# 7.2 : System variables
+# No ssl variables should be set
+show variables like 'ssl%';
 Variable_name	Value
-Ssl_cipher	
+ssl_ca	
+ssl_capath	
+ssl_cert	
+ssl_cipher	
+ssl_crl	
+ssl_crlpath	
+ssl_key	
+# sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
+# and sha256_password_public_key_path should be set.
+show variables like 'sha256%';
+Variable_name	Value
+sha256_password_auto_generate_rsa_keys	ON
+sha256_password_private_key_path	private_key.pem
+sha256_password_public_key_path	public_key.pem
+# 7.3 : SSL connection
+# Should not be able to connect to server using generated SSL certificates.
+# 7.4 : SHA256_password user
+create user wl7699_sha256 identified with 'sha256_password';
+grant usage on *.* to wl7699_sha256 identified by 'abcd';
+# Should not be able to connect to server using generated SSL certificates.
+# Should be able to connect to server using RSA key pair.
+current_user()
+wl7699_sha256@%
 drop user wl7699_sha256;
 # Clean-up

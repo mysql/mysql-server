@@ -395,6 +395,381 @@ enum lock_rec_req_status {
         LOCK_REC_SUCCESS_CREATED
 };
 
+/**
+Record lock ID */
+struct RecID {
+
+	RecID(ib_uint32_t space_id, ib_uint32_t page_no, ib_uint32_t heap_no)
+		:
+		m_space_id(space_id),
+		m_page_no(page_no),
+		m_heap_no(heap_no),
+		m_fold(lock_rec_fold(m_space_id, m_page_no))
+	{
+		/* No op */
+	}
+
+	RecID(const buf_block_t* block, ib_uint32_t heap_no)
+		:
+		m_space_id(block->page.id.space()),
+		m_page_no(block->page.id.page_no()),
+		m_heap_no(heap_no),
+		m_fold(lock_rec_fold(m_space_id, m_page_no))
+	{
+		/* No op */
+	}
+
+	/**
+	@return the "folded" value of {space, page_no} */
+	ulint fold() const
+	{
+		return(m_fold);
+	}
+
+	/**
+	Tablespace ID */
+	ib_uint32_t		m_space_id;
+
+	/**
+	Page number within the space ID */
+	ib_uint32_t		m_page_no;
+
+	/**
+	Heap number within the page */
+	ib_uint32_t		m_heap_no;
+
+	/**
+	Hashed key value */
+	ulint			m_fold;
+};
+
+/**
+Create record locks */
+class RecLock {
+public:
+
+	/**
+	@param[in,out] thr	Transaction query thread requesting the record
+				lock
+	@param[in] index	Index on which record lock requested
+	@param[in] rec_id	Record lock tuple {space, page_no, heap_no}
+	@param[in] mode		The lock mode */
+	RecLock(que_thr_t*	thr,
+		dict_index_t*	index,
+		const RecID&	rec_id,
+		ulint		mode)
+		:
+		m_thr(thr),
+		m_trx(thr_get_trx(thr)),
+		m_mode(mode),
+		m_index(index),
+		m_rec_id(rec_id)
+	{
+		ut_ad(is_predicate_lock(m_mode));
+
+		init(NULL);
+	}
+
+	/**
+	@param[in,out] thr	Transaction query thread requesting the record
+				lock
+	@param[in] index	Index on which record lock requested
+	@param[in] block	Buffer page containing record
+	@param[in] heap_no	Heap number within the block
+	@param[in] mode		The lock mode
+	@param[in] prdt		The predicate for the rtree lock */
+	RecLock(que_thr_t*	thr,
+		dict_index_t*	index,
+		const buf_block_t*
+				block,
+		ulint		heap_no,
+		ulint		mode,
+		lock_prdt_t*	prdt = NULL)
+		:
+		m_thr(thr),
+		m_trx(thr_get_trx(thr)),
+		m_mode(mode),
+		m_index(index),
+		m_rec_id(block, heap_no)
+	{
+		btr_assert_not_corrupted(block, index);
+
+		init(block->frame);
+	}
+
+	/**
+	@param[in] index	Index on which record lock requested
+	@param[in] rec_id	Record lock tuple {space, page_no, heap_no}
+	@param[in] mode		The lock mode */
+	RecLock(dict_index_t*	index,
+		const RecID&	rec_id,
+		ulint		mode)
+		:
+		m_thr(),
+		m_trx(),
+		m_mode(mode),
+		m_index(index),
+		m_rec_id(rec_id)
+	{
+		ut_ad(is_predicate_lock(m_mode));
+
+		init(NULL);
+	}
+
+	/**
+	@param[in] index	Index on which record lock requested
+	@param[in] block	Buffer page containing record
+	@param[in] heap_no	Heap number withing block
+	@param[in] mode		The lock mode */
+	RecLock(dict_index_t*	index,
+		const buf_block_t*
+				block,
+		ulint		heap_no,
+		ulint		mode)
+		:
+		m_thr(),
+		m_trx(),
+		m_mode(mode),
+		m_index(index),
+		m_rec_id(block, heap_no)
+	{
+		btr_assert_not_corrupted(block, index);
+
+		init(block->frame);
+	}
+
+	/**
+	Enqueue a lock wait for a transaction. If it is a high priority
+	transaction (cannot rollback) then jump ahead in the record lock wait
+	queue and if the transaction at the head of the queue is itself waiting
+	roll it back.
+	@param[in, out] wait_for	The lock that the the joining
+					transaction is waiting for
+	@param[in] prdt			Predicate [optional]
+	@return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
+		DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
+		there was a deadlock, but another transaction was chosen
+		as a victim, and we got the lock immediately: no need to
+		wait then */
+	dberr_t add_to_waitq(
+		const lock_t*	wait_for,
+		const lock_prdt_t*
+				prdt = NULL);
+
+	/**
+	Create a lock for a transaction and initialise it.
+	@param[in, out] trx		Transaction requesting the new lock
+	@param[in] owns_trx_mutex	true if caller owns the trx_t::mutex
+	@param[in] prdt			Predicate lock (optional)
+	@return new lock instance */
+	lock_t* create(
+		trx_t*		trx,
+		bool		owns_trx_mutex,
+		const lock_prdt_t*
+				prdt = NULL);
+
+	/**
+	Check of the lock is on m_rec_id.
+	@param[in] lock			Lock to compare with
+	@return true if the record lock is on m_rec_id*/
+	bool is_on_row(const lock_t* lock) const;
+
+	/**
+	Create the lock instance
+	@param[in, out] trx	The transaction requesting the lock
+	@param[in, out] index	Index on which record lock is required
+	@param[in] mode		The lock mode desired
+	@param[in] rec_id	The record id
+	@param[in] size		Size of the lock + bitmap requested
+	@return a record lock instance */
+	static lock_t* lock_alloc(
+		trx_t*		trx,
+		dict_index_t*	index,
+		ulint		mode,
+		const RecID&	rec_id,
+		ulint		size);
+
+private:
+	/**
+	Enqueue a lock wait for a high priority transaction, jump the record
+	lock wait queue and if the transaction at the head of the queue is
+	itself waiting roll it back.
+	@param[in, out] wait_for	The lock that the joining
+					transaction is waiting for
+	@param[in] prdt			Predicate for the predicate lock
+	@return NULL if the lock was granted */
+	lock_t* enqueue_priority(
+		const lock_t*	wait_for,
+		const lock_prdt_t*
+				prdt);
+
+	/*
+	@return the record lock size in bytes */
+	size_t lock_size() const
+	{
+		return(m_size);
+	}
+
+	/**
+	Do some checks and prepare for creating a new record lock */
+	void prepare() const;
+
+	/**
+	Collect the transactions that will need to be rolled back asynchronously
+	@param[in, out] trx	Transaction to be rolled back */
+	void mark_trx_for_rollback(trx_t* trx);
+
+	/**
+	Add the lock to the head of the record lock {space, page_no} wait
+	queue and the transaction's lock list. If the transactions holding
+	blocking locks are already marked for termination then they are not
+	added to the hit list.
+	@param[in, out] lock		Lock being requested
+	@param[in] wait_for		The blocking lock
+	@param[in] kill_trx		true if the transaction that m_trx
+					is waiting for should be killed */
+	void jump_queue(lock_t* lock, const lock_t* wait_for, bool kill_trx);
+
+	/**
+	Setup the requesting transaction state for lock grant
+	@param[in,out] lock	Lock for which to change state */
+	void set_wait_state(lock_t* lock);
+
+	/**
+	Rollback the transaction that is blocking the requesting transaction
+	@param[in, out] lock	The blocking lock */
+	void rollback_blocking_trx(lock_t* lock) const;
+
+	/**
+	Add the lock to the record lock hash and the transaction's lock list
+	@param[in,out] lock	Newly created record lock to add to the
+				rec hash and the transaction lock list
+	@param[in] add_to_hash	If the lock should be added to the hash table */
+	void lock_add(lock_t* lock, bool add_to_hash);
+
+	/**
+	Check and resolve any deadlocks
+	@param[in, out] lock		The lock being acquired
+	@return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
+		DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
+		there was a deadlock, but another transaction was chosen
+		as a victim, and we got the lock immediately: no need to
+		wait then */
+	dberr_t deadlock_check(lock_t* lock);
+
+	/**
+	Check the outcome of the deadlock check
+	@param[in,out] victim_trx	Transaction selected for rollback
+	@param[in,out] lock		Lock being requested
+	@return DB_LOCK_WAIT, DB_DEADLOCK or DB_SUCCESS_LOCKED_REC */
+	dberr_t check_deadlock_result(const trx_t* victim_trx, lock_t* lock);
+
+	/**
+	Setup the context from the requirements */
+	void init(const page_t* page)
+	{
+		ut_ad(lock_mutex_own());
+		ut_ad(!srv_read_only_mode);
+		ut_ad(dict_index_is_clust(m_index)
+		      || !dict_index_is_online_ddl(m_index));
+		ut_ad(m_thr == NULL || m_trx == thr_get_trx(m_thr));
+
+		m_size = is_predicate_lock(m_mode)
+			  ? lock_size(m_mode) : lock_size(page);
+
+		/** If rec is the supremum record, then we reset the
+		gap and LOCK_REC_NOT_GAP bits, as all locks on the
+		supremum are automatically of the gap type */
+
+		if (m_rec_id.m_heap_no == PAGE_HEAP_NO_SUPREMUM) {
+			ut_ad(!(m_mode & LOCK_REC_NOT_GAP));
+
+			m_mode &= ~(LOCK_GAP | LOCK_REC_NOT_GAP);
+		}
+	}
+
+	/**
+	Calculate the record lock physical size required for a predicate lock.
+	@param[in] mode For predicate locks the lock mode
+	@return the size of the lock data structure required in bytes */
+	static size_t lock_size(ulint mode)
+	{
+		ut_ad(is_predicate_lock(mode));
+
+		/* The lock is always on PAGE_HEAP_NO_INFIMUM(0),
+		so we only need 1 bit (which is rounded up to 1
+		byte) for lock bit setting */
+
+		size_t	n_bytes;
+
+		if (mode & LOCK_PREDICATE) {
+			const ulint	align = UNIV_WORD_SIZE - 1;
+
+			/* We will attach the predicate structure
+			after lock. Make sure the memory is
+			aligned on 8 bytes, the mem_heap_alloc
+			will align it with MEM_SPACE_NEEDED
+			anyway. */
+
+			n_bytes = (1 + sizeof(lock_prdt_t) + align) & ~align;
+
+			/* This should hold now */
+
+			ut_ad(n_bytes == sizeof(lock_prdt_t) + UNIV_WORD_SIZE);
+
+		} else {
+			n_bytes = 1;
+		}
+
+		return(n_bytes);
+	}
+
+	/**
+	Calculate the record lock physical size required, non-predicate lock.
+	@param[in] page		For non-predicate locks the buffer page
+	@return the size of the lock data structure required in bytes */
+	static size_t lock_size(const page_t* page)
+	{
+		ulint	n_recs = page_dir_get_n_heap(page);
+
+		/* Make lock bitmap bigger by a safety margin */
+
+		return(1 + ((n_recs + LOCK_PAGE_BITMAP_MARGIN) / 8));
+	}
+
+	/**
+	@return true if the requested lock mode is for a predicate
+		or page lock */
+	static bool is_predicate_lock(ulint mode)
+	{
+		return(mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
+	}
+
+private:
+	/** The query thread of the transaction */
+	que_thr_t*		m_thr;
+
+	/**
+	Transaction requesting the record lock */
+	trx_t*			m_trx;
+
+	/**
+	Lock mode requested */
+	ulint			m_mode;
+
+	/**
+	Size of the record lock in bytes */
+	size_t			m_size;
+
+	/**
+	Index on which the record lock is required */
+	dict_index_t*		m_index;
+
+	/**
+	The record lock tuple {space, page_no, heap_no} */
+	RecID			m_rec_id;
+};
+
 #ifdef UNIV_DEBUG
 /** The count of the types of locks. */
 static const ulint      lock_types = UT_ARR_SIZE(lock_compatibility_matrix);

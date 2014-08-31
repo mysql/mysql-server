@@ -2476,13 +2476,20 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_PROFILE:
   case SQLCOM_SELECT:
   {
+    DBUG_EXECUTE_IF("use_attachable_trx",
+                    thd->begin_attachable_transaction(););
+
     thd->status_var.last_query_cost= 0.0;
     thd->status_var.last_query_partial_plans= 0;
 
-    if ((res= select_precheck(thd, lex, all_tables, first_table)))
-      break;
+    res= select_precheck(thd, lex, all_tables, first_table);
 
-    res= execute_sqlcom_select(thd, all_tables);
+    if (!res)
+      res= execute_sqlcom_select(thd, all_tables);
+
+    DBUG_EXECUTE_IF("use_attachable_trx",
+                    thd->end_attachable_transaction(););
+
     break;
   }
 case SQLCOM_PREPARE:
