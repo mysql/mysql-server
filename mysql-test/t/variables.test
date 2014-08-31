@@ -1553,4 +1553,12 @@ set session rand_seed1=DEFAULT;
 --error ER_BAD_FIELD_ERROR
 set autocommit = values(v);
 
+#
+# MDEV-6673 I_S.SESSION_VARIABLES shows global values
+#
+set session sql_mode=ansi_quotes;
+select * from information_schema.session_variables where variable_name='sql_mode';
+show global status like 'foobar';
+select * from information_schema.session_variables where variable_name='sql_mode';
+
 --echo End of 5.5 tests

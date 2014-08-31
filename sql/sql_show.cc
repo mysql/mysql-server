@@ -6934,7 +6934,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
   bool upper_case_names= (schema_table_idx != SCH_VARIABLES);
   bool sorted_vars= (schema_table_idx == SCH_VARIABLES);
 
-  if (lex->option_type == OPT_GLOBAL ||
+  if ((sorted_vars && lex->option_type == OPT_GLOBAL) ||
       schema_table_idx == SCH_GLOBAL_VARIABLES)
     option_type= OPT_GLOBAL;
 

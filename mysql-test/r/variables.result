@@ -1804,4 +1804,13 @@ set session rand_seed1=DEFAULT;
 ERROR 42000: Variable 'rand_seed1' doesn't have a default value
 set autocommit = values(v);
 ERROR 42S22: Unknown column 'v' in 'field list'
+set session sql_mode=ansi_quotes;
+select * from information_schema.session_variables where variable_name='sql_mode';
+VARIABLE_NAME	VARIABLE_VALUE
+SQL_MODE	ANSI_QUOTES
+show global status like 'foobar';
+Variable_name	Value
+select * from information_schema.session_variables where variable_name='sql_mode';
+VARIABLE_NAME	VARIABLE_VALUE
+SQL_MODE	ANSI_QUOTES
 End of 5.5 tests
