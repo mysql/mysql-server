@@ -986,16 +986,22 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   Master_info *mi;
   int running= 0;
   const char *msg= NULL;
+  bool rpl_info_option= static_cast<uint>(var->save_result.ulonglong_value);
+
+  /* don't covert if the repositories are same */
+  if (rpl_info_option == (SLAVE_THD_IO ?
+                          opt_mi_repository_id: opt_rli_repository_id))
+      return FALSE;
+
   mysql_mutex_lock(&LOCK_msr_map);
 
   /* Repository conversion not possible, when multiple channels exist */
-
   if (msr_map.get_num_instances() > 1)
   {
-    msg= "Repository conversion is possible only when default channel exists.";
-    my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
-    mysql_mutex_unlock(&LOCK_msr_map);
-    return TRUE;
+      msg= "Repository conversion is possible when only default channel exists";
+      my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+      mysql_mutex_unlock(&LOCK_msr_map);
+      return TRUE;
   }
 
   mi= msr_map.get_mi(msr_map.get_default_channel());
