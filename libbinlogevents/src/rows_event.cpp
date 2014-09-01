@@ -296,12 +296,12 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
                           (const unsigned char *) buf);
 
   row.reserve(data_size);
-  for (unsigned long i= 0; i < data_size + 1; i++)
+  for (unsigned long i= 0; i < data_size; i++)
   {
     row.push_back(*ptr_rows_data);
     ptr_rows_data++;
   }
-  assert( row.size() == data_size + 1);
+  assert( row.size() == data_size);
   return;
 }
 
