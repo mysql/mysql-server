@@ -897,6 +897,19 @@ protected:
 };
 
 
+class Create_func_distance_sphere : public Create_func_arg2
+{
+public:
+  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_distance_sphere s_singleton;
+
+protected:
+  Create_func_distance_sphere() {}
+  virtual ~Create_func_distance_sphere() {}
+};
+
+
 class Create_func_elt : public Create_native_func
 {
 public:
@@ -1611,6 +1624,32 @@ protected:
 };
 
 
+class Create_func_isvalid : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_isvalid s_singleton;
+
+protected:
+  Create_func_isvalid() {}
+  virtual ~Create_func_isvalid() {}
+};
+
+
+class Create_func_validate : public Create_func_arg1
+{
+public:
+  virtual Item* create(THD *thd, Item *arg1);
+
+  static Create_func_validate s_singleton;
+
+protected:
+  Create_func_validate() {}
+  virtual ~Create_func_validate() {}
+};
+
+
 class Create_func_latfromgeohash : public Create_func_arg1
 {
 public:
@@ -1848,6 +1887,19 @@ public:
 protected:
   Create_func_makedate() {}
   virtual ~Create_func_makedate() {}
+};
+
+
+class Create_func_make_envelope : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_make_envelope s_singleton;
+
+protected:
+  Create_func_make_envelope() {}
+  virtual ~Create_func_make_envelope() {}
 };
 
 
@@ -3519,7 +3571,16 @@ Create_func_distance Create_func_distance::s_singleton;
 Item*
 Create_func_distance::create(THD *thd, Item *arg1, Item *arg2)
 {
-  return new (thd->mem_root) Item_func_distance(POS(), arg1, arg2);
+  return new (thd->mem_root) Item_func_distance(POS(), arg1, arg2, false);
+}
+
+
+Create_func_distance_sphere Create_func_distance_sphere::s_singleton;
+
+Item*
+Create_func_distance_sphere::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_distance(POS(), arg1, arg2, true);
 }
 
 
@@ -4293,6 +4354,24 @@ Create_func_issimple::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_isvalid Create_func_isvalid::s_singleton;
+
+Item*
+Create_func_isvalid::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_isvalid(POS(), arg1);
+}
+
+
+Create_func_validate Create_func_validate::s_singleton;
+
+Item*
+Create_func_validate::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_validate(POS(), arg1);
+}
+
+
 Create_func_last_day Create_func_last_day::s_singleton;
 
 Item*
@@ -4555,6 +4634,15 @@ Item*
 Create_func_makedate::create(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_makedate(POS(), arg1, arg2);
+}
+
+
+Create_func_make_envelope Create_func_make_envelope::s_singleton;
+
+Item*
+Create_func_make_envelope::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_make_envelope(POS(), arg1, arg2);
 }
 
 
@@ -5670,6 +5758,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_DIMENSION") }, GEOM_BUILDER(Create_func_dimension)},
   { { C_STRING_WITH_LEN("ST_DISJOINT") }, GEOM_BUILDER(Create_func_disjoint)},
   { { C_STRING_WITH_LEN("ST_DISTANCE") }, GEOM_BUILDER(Create_func_distance)},
+  { { C_STRING_WITH_LEN("ST_DISTANCE_SPHERE") }, GEOM_BUILDER(Create_func_distance_sphere)},
   { { C_STRING_WITH_LEN("ST_ENDPOINT") }, GEOM_BUILDER(Create_func_endpoint)},
   { { C_STRING_WITH_LEN("ST_ENVELOPE") }, GEOM_BUILDER(Create_func_envelope)},
   { { C_STRING_WITH_LEN("ST_EQUALS") }, GEOM_BUILDER(Create_func_mbr_equals)},
@@ -5696,6 +5785,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_ISCLOSED") }, GEOM_BUILDER(Create_func_isclosed)},
   { { C_STRING_WITH_LEN("ST_ISEMPTY") }, GEOM_BUILDER(Create_func_isempty)},
   { { C_STRING_WITH_LEN("ST_ISSIMPLE") }, GEOM_BUILDER(Create_func_issimple)},
+  { { C_STRING_WITH_LEN("ST_ISVALID") }, GEOM_BUILDER(Create_func_isvalid)},
   { { C_STRING_WITH_LEN("ST_LATFROMGEOHASH") }, GEOM_BUILDER(Create_func_latfromgeohash)},
   { { C_STRING_WITH_LEN("ST_LENGTH") }, GEOM_BUILDER(Create_func_glength)},
   { { C_STRING_WITH_LEN("ST_LINEFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
@@ -5703,6 +5793,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_LINESTRINGFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_LINESTRINGFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("ST_LONGFROMGEOHASH") }, GEOM_BUILDER(Create_func_longfromgeohash)},
+  { { C_STRING_WITH_LEN("ST_MAKEENVELOPE") }, GEOM_BUILDER(Create_func_make_envelope)},
   { { C_STRING_WITH_LEN("ST_NUMGEOMETRIES") }, GEOM_BUILDER(Create_func_numgeometries)},
   { { C_STRING_WITH_LEN("ST_NUMINTERIORRINGS") }, GEOM_BUILDER(Create_func_numinteriorring)},
   { { C_STRING_WITH_LEN("ST_NUMPOINTS") }, GEOM_BUILDER(Create_func_numpoints)},
@@ -5720,6 +5811,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_SYMDIFFERENCE") }, GEOM_BUILDER(Create_func_symdifference)},
   { { C_STRING_WITH_LEN("ST_TOUCHES") }, GEOM_BUILDER(Create_func_touches)},
   { { C_STRING_WITH_LEN("ST_UNION") }, GEOM_BUILDER(Create_func_union)},
+  { { C_STRING_WITH_LEN("ST_VALIDATE") }, GEOM_BUILDER(Create_func_validate)},
   { { C_STRING_WITH_LEN("ST_WITHIN") }, GEOM_BUILDER(Create_func_within)},
   { { C_STRING_WITH_LEN("ST_X") }, GEOM_BUILDER(Create_func_x)},
   { { C_STRING_WITH_LEN("ST_Y") }, GEOM_BUILDER(Create_func_y)},

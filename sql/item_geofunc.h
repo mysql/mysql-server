@@ -27,6 +27,9 @@
 #include "prealloced_array.h"
 #include <rapidjson/document.h>
 
+extern const long EARTH_SPHERICAL_RADIUS;
+
+
 /**
    We have to hold result buffers in functions that return a GEOMETRY string,
    because such a function's result geometry's buffer is directly used and
@@ -378,6 +381,24 @@ public:
   const char *func_name() const { return "st_envelope"; }
   String *val_str(String *);
   Field::geometry_type get_geometry_type() const;
+};
+
+class Item_func_make_envelope: public Item_geometry_func
+{
+public:
+  Item_func_make_envelope(const POS &pos, Item *a, Item *b)
+    : Item_geometry_func(pos, a, b) {}
+  const char *func_name() const { return "st_makeenvelope"; }
+  String *val_str(String *);
+  Field::geometry_type get_geometry_type() const;
+};
+
+class Item_func_validate: public Item_geometry_func
+{
+public:
+  Item_func_validate(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
+  const char *func_name() const { return "st_validate"; }
+  String *val_str(String *);
 };
 
 class Item_func_point: public Item_geometry_func
@@ -820,6 +841,16 @@ public:
   void fix_length_and_dec() { maybe_null= 1; }
 };
 
+class Item_func_isvalid: public Item_bool_func
+{
+public:
+  Item_func_isvalid(const POS &pos, Item *a): Item_bool_func(pos, a) {}
+  longlong val_int();
+  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
+  const char *func_name() const { return "st_isvalid"; }
+  void fix_length_and_dec() { maybe_null= 0; }
+};
+
 class Item_func_dimension: public Item_int_func
 {
   String value;
@@ -939,6 +970,7 @@ public:
 
 class Item_func_distance: public Item_real_func
 {
+  bool is_spherical;
   String tmp_value1;
   String tmp_value2;
   Gcalc_heap collector;
@@ -968,8 +1000,8 @@ class Item_func_distance: public Item_real_func
                                         bool *isdone);
 
 public:
-  Item_func_distance(const POS &pos, Item *a, Item *b)
-    : Item_real_func(pos, a, b)
+  Item_func_distance(const POS &pos, Item *a, Item *b, bool isspherical)
+    : Item_real_func(pos, a, b), is_spherical(isspherical)
   {
     /*
       Either operand can be an empty geometry collection, and it's meaningless

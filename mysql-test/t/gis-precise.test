@@ -616,4 +616,9 @@ SELECT AsText(ConvexHull(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
 SELECT AsText(Centroid(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
 --error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(GeomFromText('POLYGON((0 0, 1 1))'), GeomFromText('POLYGON((1 0, 0 1))'));
+
+select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), 2));
+--error ER_WRONG_ARGUMENTS
+select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), -22));
+select st_distance_sphere(geomfromtext('point(-120 45)'), geomfromtext('point(30.24 68.37)'));
 --source include/gis_debug.inc

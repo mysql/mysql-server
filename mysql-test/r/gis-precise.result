@@ -969,6 +969,14 @@ SELECT AsText(Centroid(GeomFromText('GeometryCollection(POLYGON((0 0)))')));
 ERROR 22023: Invalid GIS data provided to function st_centroid.
 SELECT ST_DISTANCE(GeomFromText('POLYGON((0 0, 1 1))'), GeomFromText('POLYGON((1 0, 0 1))'));
 ERROR 22023: Invalid GIS data provided to function st_distance.
+select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), 2));
+st_astext(st_makeenvelope(geomfromtext('point(0 0)'), 2))
+POLYGON((-2 -2,2 -2,2 2,-2 2,-2 -2))
+select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), -22));
+ERROR HY000: Incorrect arguments to st_makeenvelope
+select st_distance_sphere(geomfromtext('point(-120 45)'), geomfromtext('point(30.24 68.37)'));
+st_distance_sphere(geomfromtext('point(-120 45)'), geomfromtext('point(30.24 68.37)'))
+11610918.37609345
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN
