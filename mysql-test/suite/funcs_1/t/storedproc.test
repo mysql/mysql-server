@@ -32,7 +32,7 @@ if(`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64")`)
 let $engine_type= InnoDB;
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 # ==============================================================================
 echo;
@@ -2103,10 +2103,6 @@ CREATE FUNCTION year(f1 year) returns year
 DROP FUNCTION year;
 
 --error ER_PARSE_ERROR
-CREATE FUNCTION year(3)(f1 year(3)) returns year(3)
-    return f1;
-
---error ER_PARSE_ERROR
 CREATE FUNCTION year(4)(f1 year(4)) returns year(4)
     return f1;
 
@@ -2410,11 +2406,6 @@ CREATE FUNCTION fn1(f1 timestamp ) returns timestamp
 
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 year ) returns year
-    return f1;
-
-DROP FUNCTION IF EXISTS fn1;
---error ER_PARSE_ERROR
-CREATE FUNCTION fn1(f1 year(f1 3) ) returns year(3)
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
@@ -7127,18 +7118,6 @@ delimiter //;
 --error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
-    declare year(3) not null  x;
-    SELECT f106 into x from tb2 limit 9998, 1;
-END//
-delimiter ;//
-
---disable_warnings ONCE
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error ER_PARSE_ERROR
-CREATE PROCEDURE sp1( )
-BEGIN
     declare year(4) not null  x;
     SELECT f107 into x from tb2 limit 9998, 1;
 END//
@@ -7969,19 +7948,6 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x, y, z year default 2005;
-    SELECT x, y, z;
-END//
-delimiter ;//
-
-CALL sp1();
-
---disable_warnings ONCE
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
-CREATE PROCEDURE sp1( )
-BEGIN
-    declare x, y, z year(3) default 2005;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -16451,18 +16417,6 @@ delimiter //;
 CREATE PROCEDURE sp1()
 BEGIN
     declare x year;
-    SELECT f1 into x from t2 limit 1;
-END//
-delimiter ;//
-
-CALL sp1();
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
-CREATE PROCEDURE sp1()
-BEGIN
-    declare x year(3);
     SELECT f1 into x from t2 limit 1;
 END//
 delimiter ;//
@@ -28632,7 +28586,7 @@ SELECT @done, @x;
 DROP PROCEDURE IF EXISTS h1;
 DROP TABLE IF EXISTS res_t1;
 --enable_warnings
-
+SET sql_mode = default;
 
 # ==============================================================================
 # USE the same .inc to cleanup before and after the test

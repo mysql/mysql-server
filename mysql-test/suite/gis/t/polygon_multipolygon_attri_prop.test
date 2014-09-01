@@ -17,16 +17,8 @@
 
 
 --source include/force_myisam_default.inc
-#SET default_storage_engine=MyISAM;
-#SET default_tmp_storage_engine=MyISAM;
-
---source include/have_debug.inc
 --source include/not_embedded.inc
 --source include/have_geometry.inc
-
-# Turn on the geometry data print.
---echo #Turn on the geometry data print.
-SET SESSION debug="+d,row_print_geometry_data";
 
 #Confirming the storage engine
 --echo #Confirming the storage engine
@@ -696,11 +688,15 @@ Select Dimension(0x0103000000020000000103000000020000000500000000000000000000000
 ############################################################################################
 
 --echo #Checking the Envelope for the Polygon and the MulytiPolygon class 
+--error ER_GIS_INVALID_DATA
 select fid,AsText(Envelope(g)) from gis_polygon where g is not NULL;
+--error ER_GIS_INVALID_DATA
 select count(AsText(Envelope(g))) FROM gis_polygon;
 
 
+--error ER_GIS_INVALID_DATA
 select fid,AsText(Envelope(g)) from gis_multi_polygon where g is not NULL;
+--error ER_GIS_INVALID_DATA
 select count(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 
@@ -758,6 +754,7 @@ Select AsText(Envelope(PolygonFromText('POLYGON((0.1 b, a -0, -0 ë,0.1 b ))')))
 Select AsText(Envelope(PolyFromText('POLYGON((0.1 b, a -0, -0 ë,0.1 b), (0.1 b, a -0, -0 ë,0.1 b))')));
 
 --disable_warnings
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b')))))));
 
 --enable_warnings
@@ -768,6 +765,7 @@ Select AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.1 b, a -0, -0 ë,0
 Select AsText(Envelope(MPolyFromText('MULTIPOLYGON(((0.1 b, a -0, -0 ë,0.1 b),(0.1 b, a -0, -0 ë,0.1 b)),((0.1 b, a -0, -0 ë,0.1 b)))')));
 
 --disable_warnings
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b'))))))));
 
 --enable_warnings
@@ -832,14 +830,19 @@ Select AsText(Envelope(PolygonFromText('POLYGON((. ., 1 ~, ^ -000011111,. .))'))
 
 Select AsText(Envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point('-0000', '-.999999999'),Point(0, 0))))))) = AsText(Envelope(PolygonFromText('POLYGON((0.1 0, 1 1, 2 2,0.1 0))')));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0)))))))) = AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë'))))))));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0)))))))) = AsText(Envelope(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))')));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))'))) = AsText(Envelope(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë'))))))));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Envelope(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))')));
 
 --enable_warnings
@@ -1193,28 +1196,32 @@ Select IsEmpty(0x010300000002000000010300000002000000050000000000000000000000000
 ############################################################################################
 
 --echo #Checking the Area for the Polygon and the MulytiPolygon class 
+--error ER_GIS_INVALID_DATA
 select fid,Area(g) from gis_polygon where g is not NULL;
+--error ER_GIS_INVALID_DATA
 select count(Area(g)) FROM gis_polygon;
 
 
+--error ER_GIS_INVALID_DATA
 select fid,Area(g) from gis_multi_polygon where g is not NULL;
+--error ER_GIS_INVALID_DATA
 select count(Area(g)) FROM gis_multi_polygon;
 
 
 --echo #Checking the Area of some random Polygon and MultiPolygon.
-### The below section is commented till the BUG#17541849 is fixed
-#Select Area(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))'));
-#
-#Select Area(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))'));
-#
-#Select Area(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))));
-#
+Select Area(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))'));
+
+Select Area(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))'));
+
+Select Area(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))));
+
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
 
 Select Area(MPolyFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
 
 #Select Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1)))))));
 #
+--error ER_GIS_INVALID_DATA
 select Area(PolygonFromText('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
 
 Select Area(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 1))'));
@@ -1335,14 +1342,16 @@ Select Area(PolygonFromText('POLYGON((. ., 1 ~, ^ -000011111,. .))')) = Area(MPo
 
 Select Area(PolyFromWKB(AsWKB(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point('-0000', '-.999999999'),Point(0, 0)))))) = Area(PolygonFromText('POLYGON((0.1 0, 1 1, 2 2,0.1 0))'));
 
+--error ER_GIS_INVALID_DATA
 Select Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0))))))) = Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë')))))));
-
+--error ER_GIS_INVALID_DATA
 Select Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0))))))) = Area(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))'));
 
+--error ER_GIS_INVALID_DATA
 Select Area(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))')) = Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë')))))));
-
+--error ER_GIS_INVALID_DATA
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')) = Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'));
-
+--error ER_GIS_INVALID_DATA
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')) = Area(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))'));
 
 --enable_warnings
@@ -1756,11 +1765,15 @@ Select NumInteriorRings(0x010500000001000000050000000000000000000000000000000000
 ############################################################################################
 
 --echo #Checking the Centroid for the Polygon and the MulytiPolygon class 
+--error ER_GIS_INVALID_DATA
 select fid,AsText(Centroid(g)) from gis_polygon where g is not NULL;
+--error ER_GIS_INVALID_DATA
 select count(AsText(Centroid(g))) FROM gis_polygon;
 
 
+--error ER_GIS_INVALID_DATA
 select fid,AsText(Centroid(g)) from gis_multi_polygon where g is not NULL;
+--error ER_GIS_INVALID_DATA
 select count(AsText(Centroid(g))) FROM gis_multi_polygon;
 
 
@@ -1818,6 +1831,7 @@ Select AsText(Centroid(PolygonFromText('POLYGON((0.1 b, a -0, -0 ë,0.1 b ))')))
 Select AsText(Centroid(PolyFromText('POLYGON((0.1 b, a -0, -0 ë,0.1 b), (0.1 b, a -0, -0 ë,0.1 b))')));
 
 --disable_warnings
+--error ER_GIS_INVALID_DATA
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b')))))));
 
 --enable_warnings
@@ -1828,6 +1842,7 @@ Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.1 b, a -0, -0 ë,0
 Select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((0.1 b, a -0, -0 ë,0.1 b),(0.1 b, a -0, -0 ë,0.1 b)),((0.1 b, a -0, -0 ë,0.1 b)))')));
 
 --disable_warnings
+--error ER_GIS_INVALID_DATA
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b'))))))));
 
 --enable_warnings
@@ -1840,9 +1855,8 @@ Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('0.9999', '765
 
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))')));
 
-### The below section is commented till the BUG@17611279 is fixed
-#Select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))')));
-#
+Select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))')));
+
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251'))))))));
 
 
@@ -1887,15 +1901,16 @@ Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(
 --error 1582
 Select AsText(Centroid());
 
-### The below section is commented till the BUG@17606622 is fixed
-#Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20,1 1), (-1 -1, -10 -1, -10 -15, -1 -15, -1 -1))')));
-#
-#Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1,10 20, 1 20, 1 1),(-1 -1, -10 -1, -10 -15, -1 -15, -1 -1)))')));
-#
-#Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20,1 1), (5 5))')));
-#
-#Select AsText(Centroid(PolyFromText('POLYGON((1 0, 2 0, 3 0, 4 0, 5 0,1 0), (2 0, 3 0, 2 0))')));
-#
+Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20,1 1), (-1 -1, -10 -1, -10 -15, -1 -15, -1 -1))')));
+
+Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1,10 20, 1 20, 1 1),(-1 -1, -10 -1, -10 -15, -1 -15, -1 -1)))')));
+
+--error ER_GIS_INVALID_DATA
+Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20,1 1), (5 5))')));
+
+--error ER_GIS_INVALID_DATA
+Select AsText(Centroid(PolyFromText('POLYGON((1 0, 2 0, 3 0, 4 0, 5 0,1 0), (2 0, 3 0, 2 0))')));
+
 Select AsText(Centroid(PolygonFromText('POLYGON((1234.7777665 -35242.89876, -0276354.77777 -1111.0000, 22222.989898 0000000.2322322 ,1234.7777665 -35242.89876))')));
 
 
@@ -1905,14 +1920,16 @@ Select AsText(Centroid(PolygonFromText('POLYGON((. ., 1 ~, ^ -000011111,. .))'))
 
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point('-0000', '-.999999999'),Point(0, 0))))))) = AsText(Centroid(PolygonFromText('POLYGON((0.1 0, 1 1, 2 2,0.1 0))')));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0)))))))) = AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë'))))))));
-
+--error ER_GIS_INVALID_DATA
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0)))))))) = AsText(Centroid(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))')));
 
+--error ER_GIS_INVALID_DATA
 Select AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))'))) = AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë'))))))));
-
+--error ER_GIS_INVALID_DATA
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')));
-
+--error ER_GIS_INVALID_DATA
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Centroid(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))')));
 
 --enable_warnings
@@ -1932,6 +1949,7 @@ Select AsText(Centroid(0x0103000000020000000103000000020000000500000000000000000
 ############################################################################################
 
 --echo #Checking the procedure with the Attribute of Polygon and MultPolygon class
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 delimiter |;
 --echo #create procedure to check Attributes
@@ -1981,7 +1999,7 @@ CALL poly_attri;
 
 
 --enable_warnings
-
+SET sql_mode = default;
 --echo #Dropping the created procedures.
 drop procedure poly_attri;
 
@@ -2028,6 +2046,7 @@ drop table gis_polygon_cursor;
 
 --echo #Checking the Self join with the Polygon and MultiPolygon Attributes 
 --echo check self join
+--error ER_GIS_INVALID_DATA
 SELECT GeometryType(a.g), SRID(a.g), Dimension(a.g), IsSimple(a.g), IsClosed(a.g),
 AsText(Envelope(a.g)), IsSimple(a.g), IsEmpty(a.g), Area(a.g), AsText(ExteriorRing(a.g)),
 AsText(InteriorRingN(a.g, 1)), NumInteriorRings(a.g), AsText(Centroid(a.g)) 
@@ -2055,8 +2074,10 @@ select SUM(Dimension(g)) FROM gis_polygon;
 
 select SUM(Dimension(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select SUM(AsText(Envelope(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select SUM(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 select SUM(IsSimple(g)) FROM gis_polygon;
@@ -2067,8 +2088,10 @@ select SUM(IsEmpty(g)) FROM gis_polygon;
 
 select SUM(IsEmpty(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select SUM(Area(g)) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select SUM(Area(g)) FROM gis_multi_polygon;
 
 select SUM(AsText(ExteriorRing(g))) FROM gis_polygon;
@@ -2077,7 +2100,9 @@ select SUM(AsText(InteriorRingN(g, 1))) FROM gis_polygon;
 
 select SUM(NumInteriorRings(g)) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select SUM(AsText(Centroid(g))) FROM gis_polygon;
+--error ER_GIS_INVALID_DATA
 
 select SUM(AsText(Centroid(g))) FROM gis_multi_polygon;
 
@@ -2095,8 +2120,10 @@ select MIN(Dimension(g)) FROM gis_polygon;
 
 select MIN(Dimension(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MIN(AsText(Envelope(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MIN(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 select MIN(IsSimple(g)) FROM gis_polygon;
@@ -2107,8 +2134,10 @@ select MIN(IsEmpty(g)) FROM gis_polygon;
 
 select MIN(IsEmpty(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MIN(Area(g)) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MIN(Area(g)) FROM gis_multi_polygon;
 
 select MIN(AsText(ExteriorRing(g))) FROM gis_polygon;
@@ -2117,8 +2146,10 @@ select MIN(AsText(InteriorRingN(g, 1))) FROM gis_polygon;
 
 select MIN(NumInteriorRings(g)) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MIN(AsText(Centroid(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MIN(AsText(Centroid(g))) FROM gis_multi_polygon;
 
 
@@ -2135,8 +2166,10 @@ select MAX(Dimension(g)) FROM gis_polygon;
 
 select MAX(Dimension(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MAX(AsText(Envelope(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MAX(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 select MAX(IsSimple(g)) FROM gis_polygon;
@@ -2147,8 +2180,10 @@ select MAX(IsEmpty(g)) FROM gis_polygon;
 
 select MAX(IsEmpty(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MAX(Area(g)) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MAX(Area(g)) FROM gis_multi_polygon;
 
 select MAX(AsText(ExteriorRing(g))) FROM gis_polygon;
@@ -2157,8 +2192,10 @@ select MAX(AsText(InteriorRingN(g, 1))) FROM gis_polygon;
 
 select MAX(NuminteriorRings(g)) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MAX(AsText(Centroid(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select MAX(AsText(Centroid(g))) FROM gis_multi_polygon;
 
 
@@ -2175,8 +2212,10 @@ select STD(Dimension(g)) FROM gis_polygon;
 
 select STD(Dimension(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select STD(AsText(Envelope(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select STD(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 select STD(IsSimple(g)) FROM gis_polygon;
@@ -2187,8 +2226,10 @@ select STD(IsEmpty(g)) FROM gis_polygon;
 
 select STD(IsEmpty(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select STD(Area(g)) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select STD(Area(g)) FROM gis_multi_polygon;
 
 select STD(AsText(ExteriorRing(g))) FROM gis_polygon;
@@ -2197,8 +2238,10 @@ select STD(AsText(InteriorRingN(g, 1))) FROM gis_polygon;
 
 select STD(NumInteriorRings(g)) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select STD(AsText(Centroid(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select STD(AsText(Centroid(g))) FROM gis_multi_polygon;
 
 
@@ -2215,8 +2258,10 @@ select AVG(Dimension(g)) FROM gis_polygon;
 
 select AVG(Dimension(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select AVG(AsText(Envelope(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select AVG(AsText(Envelope(g))) FROM gis_multi_polygon;
 
 select AVG(IsSimple(g)) FROM gis_polygon;
@@ -2227,8 +2272,10 @@ select AVG(IsEmpty(g)) FROM gis_polygon;
 
 select AVG(IsEmpty(g)) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select AVG(Area(g)) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select AVG(Area(g)) FROM gis_multi_polygon;
 
 select AVG(AsText(ExteriorRing(g))) FROM gis_polygon;
@@ -2237,8 +2284,10 @@ select AVG(AsText(InteriorRingN(g, 1))) FROM gis_polygon;
 
 select AVG(NumInteriorRings(g)) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select AVG(AsText(Centroid(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select AVG(AsText(Centroid(g))) FROM gis_multi_polygon;
 
 
@@ -2255,8 +2304,10 @@ select COUNT(DISTINCT(Dimension(g))) FROM gis_polygon;
 
 select COUNT(DISTINCT(Dimension(g))) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select COUNT(DISTINCT(AsText(Envelope(g)))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select COUNT(DISTINCT(AsText(Envelope(g)))) FROM gis_multi_polygon;
 
 select COUNT(DISTINCT(IsSimple(g))) FROM gis_polygon;
@@ -2267,8 +2318,10 @@ select COUNT(DISTINCT(IsEmpty(g))) FROM gis_polygon;
 
 select COUNT(DISTINCT(IsEmpty(g))) FROM gis_multi_polygon;
 
+--error ER_GIS_INVALID_DATA
 select COUNT(DISTINCT(Area(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select COUNT(DISTINCT(Area(g))) FROM gis_multi_polygon;
 
 select COUNT(DISTINCT(AsText(ExteriorRing(g)))) FROM gis_polygon;
@@ -2277,8 +2330,10 @@ select COUNT(DISTINCT(AsText(InteriorRingN(g, 1)))) FROM gis_polygon;
 
 select COUNT(DISTINCT(NumInteriorRings(g))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select COUNT(DISTINCT(AsText(Centroid(g)))) FROM gis_polygon;
 
+--error ER_GIS_INVALID_DATA
 select COUNT(DISTINCT(AsText(Centroid(g)))) FROM gis_multi_polygon;
 
 

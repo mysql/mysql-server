@@ -86,7 +86,7 @@ pthread_handler_t handle_manager(void *arg __attribute__((unused)))
     {
       if (reset_flush_time)
       {
-	set_timespec(abstime, flush_time);
+	set_timespec(&abstime, flush_time);
         reset_flush_time = FALSE;
       }
       while ((!error || error == EINTR) && !abort_manager)

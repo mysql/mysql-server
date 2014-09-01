@@ -5314,6 +5314,7 @@ test.t1	check	status	OK
 select * from t1;
 a
 drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(a datetime not null) engine=csv;
 insert into t1 values();
 Warnings:
@@ -5372,6 +5373,7 @@ select * from t1;
 a
 foo
 drop table t1;
+SET sql_mode = default;
 CREATE TABLE t1(a INT) ENGINE=CSV;
 ERROR 42000: The storage engine for the table doesn't support nullable columns
 SHOW WARNINGS;
@@ -5396,13 +5398,13 @@ drop table t1;
 CREATE TABLE t1 (e enum('foo','bar') NOT NULL) ENGINE = CSV;
 INSERT INTO t1 VALUES();
 INSERT INTO t1 VALUES(default);
-INSERT INTO t1 VALUES(0);
+INSERT IGNORE INTO t1 VALUES(0);
 Warnings:
 Warning	1265	Data truncated for column 'e' at row 1
-INSERT INTO t1 VALUES(3);
+INSERT IGNORE INTO t1 VALUES(3);
 Warnings:
 Warning	1265	Data truncated for column 'e' at row 1
-INSERT INTO t1 VALUES(-1);
+INSERT IGNORE INTO t1 VALUES(-1);
 Warnings:
 Warning	1265	Data truncated for column 'e' at row 1
 SELECT * FROM t1;

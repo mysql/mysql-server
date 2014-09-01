@@ -14,6 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/client
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/mysys_ssl
   ${ZLIB_INCLUDE_DIR}
@@ -26,6 +27,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+## Subdirectory with common client code.
+ADD_SUBDIRECTORY(base)
 
 ## We will need libeay32.dll and ssleay32.dll when running client executables.
 COPY_OPENSSL_DLLS(copy_openssl_client)
@@ -37,23 +40,30 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql ${EDITLINE_LIBRARY})
 ENDIF(UNIX)
 
+MYSQL_ADD_EXECUTABLE(mysql_upgrade
+  upgrade/program.cc
+  upgrade/mysql_query_runner.cc
+  upgrade/show_variable_query_extractor.cc
+  ../sql-common/sql_string.cc
+  )
+TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
+ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
+
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
 
+ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
+TARGET_LINK_LIBRARIES(mysqlcheck_core mysqlclient)
 
-MYSQL_ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
-TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient)
+MYSQL_ADD_EXECUTABLE(mysqlcheck check/mysqlcheck.cc)
+TARGET_LINK_LIBRARIES(mysqlcheck mysqlcheck_core)
 
 MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c)
 TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.c)
 TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
-
-MYSQL_ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c)
-TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient)
-ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
 
 MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.c)
 TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
@@ -78,13 +88,19 @@ TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 
+IF(UNIX)
+MYSQL_ADD_EXECUTABLE(mysql_install_db mysql_install_db.cc auth_utils.cc path.cc)
+TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
+ADD_DEPENDENCIES(mysql_install_db GenBootstrapPriv)
+ENDIF(UNIX)
+
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)
   MYSQL_ADD_EXECUTABLE(echo echo.c)
 ENDIF(WIN32)
 
 SET_TARGET_PROPERTIES (
-  mysql_plugin 
+  mysql_plugin
   mysql_upgrade
   mysqlcheck
   mysqldump

@@ -286,12 +286,14 @@ where t1.col2 in
 having col_t1 <= 20;
 
 # both having columns are resolved in the GROUP clause of the outer query
+--source include/turn_off_only_full_group_by.inc
 select t1.col1 from t1
 where t1.col2 in 
       (select t2.col2 from t2 
        group by t2.col1, t2.col2 having col_t1 <= 10)
 group by col_t1
 having col_t1 <= 20;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 #
 # nested HAVING clauses
@@ -370,12 +372,14 @@ select * from t1 a, t1 b group by a.s1 having s1 is null;
 drop table t1;
 
 create table t1 (s1 char character set latin1 collate latin1_german1_ci);
-insert into t1 values ('ü'),('y');
+insert ignore into t1 values ('ü'),('y');
 
+--source include/turn_off_only_full_group_by.inc
 select s1,count(s1) from t1
 group by s1 collate latin1_swedish_ci having s1 = 'y';
 # ANSI requires: 1 row, with count(s1) = 2
 # MySQL returns: 1 row, with count(s1) = 1
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 drop table t1;
 
@@ -429,10 +433,13 @@ USE test;
 # Bug#18739: non-standard HAVING extension was allowed in strict ANSI sql mode.
 #
 create table t1(f1 int);
+
+--source include/turn_off_only_full_group_by.inc
 select f1 from t1 having max(f1)=f1;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 select f1 from t1 group by f1 having max(f1)=f1;
 set session sql_mode='ONLY_FULL_GROUP_BY';
---error ER_NON_GROUPING_FIELD_USED
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
 select f1 from t1 having max(f1)=f1;
 select f1 from t1 group by f1 having max(f1)=f1;
 set session sql_mode='';
@@ -694,3 +701,34 @@ HAVING min_pk <= 10;
 DROP TABLE t1;
 
 --echo End of 5.6 tests
+
+--echo
+--echo ONLY_FULL_GROUP_BY now allows using an alias in HAVING
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+CREATE TABLE t1 (a INT, b INT);
+insert into t1 values(1,10),(2,20),(3,30);
+select a from t1 having a=3;
+select a as x from t1 having x=3;
+select avg(a) as x from t1 having x=2;
+select a as foo, sum(b) as bar from t1 group by a having foo<10;
+select a as foo, sum(b) as bar from t1
+ group by a
+ having bar>10
+ order by foo+10;
+select a as foo,
+  (select t1_inner.b from t1 as t1_inner where
+   t1_inner.a=t1_outer.a+1)
+ as bar from t1 as t1_outer
+ group by a
+ having bar<30
+ order by bar+5;
+select a as foo,
+  (select t1_inner.b from t1 as t1_inner where
+   t1_inner.a=t1_outer.a+1)
+ as bar from t1 as t1_outer
+ group by foo
+ having bar<30
+ order by bar+5;
+DROP TABLE t1;
+SET @@sql_mode = @old_sql_mode;

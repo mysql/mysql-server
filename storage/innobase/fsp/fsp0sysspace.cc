@@ -27,8 +27,10 @@ Refactored 2013-7-26 by Kevin Lewis
 #include "ha_prototypes.h"
 
 #include "fsp0sysspace.h"
+#include "mem0mem.h"
 #include "os0file.h"
 #include "srv0start.h"
+#include "ut0new.h"
 
 /** The control info of the system tablespace. */
 SysTablespace srv_sys_space;
@@ -94,7 +96,7 @@ SysTablespace::parse(
 	ut_ad(m_last_file_size_max == 0);
 	ut_ad(!m_auto_extend_last_file);
 
-	char*	new_str = strdup(filepath_spec);
+	char*	new_str = mem_strdup(filepath_spec);
 	char*	str = new_str;
 
 	input_str = str;
@@ -114,11 +116,9 @@ SysTablespace::parse(
 		}
 
 		if (*str == '\0') {
-			::free(new_str);
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"syntax error in file path or size specified"
-				" is less than 1 megabyte");
-
+			ut_free(new_str);
+			ib::error() << "syntax error in file path or size"
+				" specified is less than 1 megabyte";
 			return(false);
 		}
 
@@ -140,10 +140,9 @@ SysTablespace::parse(
 			}
 
 			if (*str != '\0') {
-				::free(new_str);
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"syntax error in file path or size specified"
-					" is less than 1 megabyte");
+				ut_free(new_str);
+				ib::error() << "syntax error in file path or"
+					" size specified is less than 1 megabyte";
 				return(false);
 			}
 		}
@@ -154,12 +153,9 @@ SysTablespace::parse(
 		    && *(str + 2) == 'w') {
 
 			if (!supports_raw) {
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace doesn't support raw"
-					" devices");
-
-				::free(new_str);
+				ib::error() << "Tablespace doesn't support raw"
+					" devices";
+				ut_free(new_str);
 				return(false);
 			}
 
@@ -170,21 +166,17 @@ SysTablespace::parse(
 			str += 3;
 
 			if (!supports_raw) {
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Tablespace doesn't support raw"
-					" devices");
-
-				::free(new_str);
+				ib::error() << "Tablespace doesn't support raw"
+					" devices";
+				ut_free(new_str);
 				return(false);
 			}
 		}
 
 		if (size == 0) {
-			::free(new_str);
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"syntax error in file path or size specified"
-				" is less than 1 megabyte");
+			ut_free(new_str);
+			ib::error() << "syntax error in file path or size"
+				" specified is less than 1 megabyte";
 			return(false);
 		}
 
@@ -193,17 +185,16 @@ SysTablespace::parse(
 		if (*str == ';') {
 			str++;
 		} else if (*str != '\0') {
-			::free(new_str);
+			ut_free(new_str);
 			return(false);
 		}
 	}
 
 	if (n_files == 0) {
 		/* filepath_spec must contain at least one data file definition */
-		::free(new_str);
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"syntax error in file path or size specified"
-			" is less than 1 megabyte");
+		ut_free(new_str);
+		ib::error() << "syntax error in file path or size specified"
+			" is less than 1 megabyte";
 		return(false);
 	}
 
@@ -251,10 +242,10 @@ SysTablespace::parse(
 			}
 
 			if (*str != '\0') {
-				::free(new_str);
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"syntax error in file path or size"
-					" specified is less than 1 megabyte");
+				ut_free(new_str);
+				ib::error() << "syntax error in file path or"
+					" size specified is less than 1"
+					" megabyte";
 				return(false);
 			}
 		}
@@ -294,7 +285,7 @@ SysTablespace::parse(
 
 	ut_ad(n_files == ulint(m_files.size()));
 
-	::free(new_str);
+	ut_free(new_str);
 
 	return(true);
 }
@@ -333,19 +324,13 @@ SysTablespace::check_size(
 		if (file.m_size > rounded_size_pages
 		    || (m_last_file_size_max > 0
 			&& m_last_file_size_max < rounded_size_pages)) {
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The Auto-extending %s data file '%s' is of"
-				" a different size %lu pages (rounded down"
-				" to MB) than specified in the .cnf file:"
-				" initial %lu pages, max %lu (relevant if"
-				" non-zero) pages!",
-				name(),
-				file.filepath(),
-				rounded_size_pages,
-				file.m_size,
-				m_last_file_size_max);
-
+			ib::error() << "The Auto-extending " << name()
+				<< " data file '" << file.filepath() << "' is"
+				" of a different size " << rounded_size_pages
+				<< " pages (rounded down to MB) than specified"
+				" in the .cnf file: initial " << file.m_size
+				<< " pages, max " << m_last_file_size_max
+				<< " (relevant if non-zero) pages!";
 			return(DB_ERROR);
 		}
 
@@ -353,13 +338,11 @@ SysTablespace::check_size(
 	}
 
 	if (rounded_size_pages != file.m_size) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The %s data file '%s' is of a different size %lu"
-			" pages (rounded down to MB) than the %lu pages"
-			" specified in the .cnf file!", name(),
-			file.filepath(), rounded_size_pages, file.m_size);
-
+		ib::error() << "The " << name() << " data file '"
+			<< file.filepath() << "' is of a different size "
+			<< rounded_size_pages << " pages (rounded down to MB)"
+			" than the " << file.m_size << " pages specified in"
+			" the .cnf file!";
 		return(DB_ERROR);
 	}
 
@@ -377,24 +360,22 @@ SysTablespace::set_size(
 	ut_a(!srv_read_only_mode || m_ignore_read_only);
 
 	/* We created the data file and now write it full of zeros */
-
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Setting file '%s' size to %lu MB."
-		" Physically writing the file full; Please wait ...",
-		file.filepath(), (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT)));
+	ib::info() << "Setting file '" << file.filepath() << "' size to "
+		<< (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT)) << " MB."
+		" Physically writing the file full; Please wait ...";
 
 	bool	success = os_file_set_size(
 		file.m_filepath, file.m_handle,
-		(os_offset_t) file.m_size << UNIV_PAGE_SIZE_SHIFT);
+		(os_offset_t) file.m_size << UNIV_PAGE_SIZE_SHIFT,
+		m_ignore_read_only ? false : srv_read_only_mode);
 
 	if (success) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"File '%s' size is now %lu MB.",
-		file.filepath(), (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT)));
+		ib::info() << "File '" << file.filepath() << "' size is now "
+			<< (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
+			<< " MB.";
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Could not set the file size of '%s'."
-			" Probably out of disk space", file.filepath());
+		ib::error() << "Could not set the file size of '%s'."
+			" Probably out of disk space", file.filepath();
 
 		return(DB_ERROR);
 	}
@@ -466,10 +447,9 @@ SysTablespace::open_file(
 		srv_start_raw_disk_in_use = TRUE;
 
 		if (srv_read_only_mode && !m_ignore_read_only) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Can't open a raw device '%s' when"
-				" --innodb-read-only is set",
-				file.m_filepath);
+			ib::error() << "Can't open a raw device '"
+				<< file.m_filepath << "' when"
+				" --innodb-read-only is set";
 
 			return(DB_ERROR);
 		}
@@ -551,12 +531,10 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 	/* Make sure the tablespace space ID matches the
 	space ID on the first page of the first datafile. */
 	if (space_id() != it->m_space_id) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The %s data file '%s' has the wrong"
-			" space ID. It should be %lu,"
-			" but %lu was found",
-			name(), it->name(),
-			space_id(), it->m_space_id);
+		ib::error() << "The " << name() << " data file '" << it->name()
+			<< "' has the wrong space ID. It should be "
+			<< space_id() << ", but " << it->m_space_id
+			<< " was found";
 		it->close();
 		return(err);
 	}
@@ -587,11 +565,9 @@ SysTablespace::check_file_status(
 	/* File exists but we can't read the rw-permission settings. */
 	switch (err) {
 	case DB_FAIL:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"os_file_get_status() failed on '%s'."
-			" Can't determine file permissions",
-			file.filepath());
-
+		ib::error() << "os_file_get_status() failed on '"
+			<< file.filepath()
+			<< "'. Can't determine file permissions";
 		err = DB_ERROR;
 		reason = FILE_STATUS_RW_PERMISSION_ERROR;
 		break;
@@ -603,13 +579,14 @@ SysTablespace::check_file_status(
 		if (stat.type == OS_FILE_TYPE_FILE) {
 
 			if (!stat.rw_perm) {
+				const char	*p = (!srv_read_only_mode
+						      || m_ignore_read_only)
+						     ? "writable"
+						     : "readable";
 
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"The %s data file '%s' must be %s",
-					name(), file.name(),
-					(!srv_read_only_mode
-					 || m_ignore_read_only)
-					? "writable" : "readable");
+				ib::error() << "The " << name() << " data file"
+					<< " '" << file.name() << "' must be "
+					<< p;
 
 				err = DB_ERROR;
 				reason = FILE_STATUS_READ_WRITE_ERROR;
@@ -617,11 +594,9 @@ SysTablespace::check_file_status(
 
 		} else {
 			/* Not a regular file, bail out. */
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The %s data file '%s' is not a regular"
-				" InnoDB data file.",
-				name(), file.name());
+			ib::error() << "The " << name() << " data file '"
+				<< file.name() << "' is not a regular"
+				" InnoDB data file.";
 
 			err = DB_ERROR;
 			reason = FILE_STATUS_NOT_REGULAR_FILE_ERROR;
@@ -651,11 +626,8 @@ SysTablespace::file_not_found(
 	file.m_exists = false;
 
 	if (srv_read_only_mode && !m_ignore_read_only) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Can't create file '%s' when"
-			" --innodb-read-only is set",
-			file.filepath());
+		ib::error() << "Can't create file '" << file.filepath()
+			<< "' when --innodb-read-only is set";
 
 		return(DB_ERROR);
 
@@ -666,16 +638,14 @@ SysTablespace::file_not_found(
 		*create_new_db = TRUE;
 
 		if (space_id() == TRX_SYS_SPACE) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"The first %s data file '%s' did not exist."
-				" A new tablespace will be created!",
-				name(), file.name());
+			ib::info() << "The first " << name() << " data file '"
+				<< file.name() << "' did not exist."
+				" A new tablespace will be created!";
 		}
 
 	} else {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Need to create a new %s data file '%s'.",
-			name(), file.name());
+		ib::info() << "Need to create a new " << name()
+			<< " data file '" << file.name() << "'.";
 	}
 
 	/* Set the file create mode. */
@@ -732,11 +702,9 @@ SysTablespace::check_file_spec(
 	*create_new_db = FALSE;
 
 	if (m_files.size() >= 1000) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"There must be < 1000 data files in %s"
-			" but %lu have been defined.",
-			name(), ulong(m_files.size()));
+		ib::error() << "There must be < 1000 data files in "
+			<< name() << " but " << m_files.size() << " have been"
+			" defined.";
 
 		return(DB_ERROR);
 	}
@@ -747,9 +715,8 @@ SysTablespace::check_file_spec(
 	} else if (tablespace_size
 		   < min_expected_size / UNIV_PAGE_SIZE) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Tablespace size must be at least %ld MB",
-			min_expected_size / (1024 * 1024));
+		ib::error() << "Tablespace size must be at least "
+			<< min_expected_size / (1024 * 1024) << " MB";
 
 		return(DB_ERROR);
 	}
@@ -779,22 +746,22 @@ SysTablespace::check_file_spec(
 
 		} else if (err != DB_SUCCESS) {
 			if (reason_if_failed == FILE_STATUS_READ_WRITE_ERROR) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"The %s data file '%s' must be %s",
-					name(), it->name(),
-					(!srv_read_only_mode
-					 || m_ignore_read_only)
-					? "writable" : "readable");
+				const char*	p = (!srv_read_only_mode
+						     || m_ignore_read_only)
+						    ? "writable" : "readable";
+				ib::error() << "The " << name() << " data file"
+					<< " '" << it->name() << "' must be "
+					<< p;
 			}
 
 			ut_a(err != DB_FAIL);
 			break;
 
 		} else if (*create_new_db) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The %s data file '%s' was not found but"
-				" one of the other data files '%s' exists.",
-				name(), begin->m_name, it->m_name);
+			ib::error() << "The " << name() << " data file '"
+				<< begin->m_name << "' was not found but"
+				" one of the other data files '" << it->m_name
+				<< "' exists.";
 
 			err = DB_ERROR;
 			break;
@@ -865,9 +832,8 @@ SysTablespace::open_or_create(
 		if (fil_fusionio_enable_atomic_write(it->m_handle)) {
 
 			if (srv_use_doublewrite_buf) {
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"FusionIO atomic IO enabled, disabling"
-					" the double write buffer");
+				ib::info() << "FusionIO atomic IO enabled,"
+					" disabling the double write buffer";
 
 				srv_use_doublewrite_buf = false;
 			}
@@ -947,12 +913,10 @@ SysTablespace::get_increment() const
 	} else {
 
 		if (!is_valid_size()) {
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The last data file in %s has a size of"
-				" %lu but the max size allowed is %lu",
-				name(), last_file_size(),
-				m_last_file_size_max);
+			ib::error() << "The last data file in " << name()
+				<< " has a size of " << last_file_size()
+				<< " but the max size allowed is "
+				<< m_last_file_size_max;
 		}
 
 		increment = m_last_file_size_max - last_file_size();

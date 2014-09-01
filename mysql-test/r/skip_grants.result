@@ -39,11 +39,11 @@ View	Create View	character_set_client	collation_connection
 v3	CREATE ALGORITHM=UNDEFINED DEFINER=`a`@`` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`c` AS `c` from `t1`	latin1	latin1_swedish_ci
 SHOW CREATE PROCEDURE p3;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p3	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a`@`` PROCEDURE `p3`()
+p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a`@`` PROCEDURE `p3`()
 SELECT 3	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION f3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f3	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a`@`` FUNCTION `f3`() RETURNS int(11)
+f3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a`@`` FUNCTION `f3`() RETURNS int(11)
 RETURN 3	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP TRIGGER t1_bi;
 DROP TRIGGER ti_ai;

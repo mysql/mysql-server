@@ -1,3 +1,4 @@
+SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point  (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
 CREATE TABLE gis_line  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
@@ -322,8 +323,8 @@ fid	IsClosed(g)
 116	0
 SELECT fid, AsText(Centroid(g)) FROM gis_multi_polygon;
 fid	AsText(Centroid(g))
-117	POINT(55.58852775304245 17.426536064113982)
-118	POINT(55.58852775304245 17.426536064113982)
+117	POINT(57.98031067576927 17.854754130800437)
+118	POINT(57.98031067576927 17.854754130800437)
 119	POINT(2 2)
 SELECT fid, Area(g) FROM gis_multi_polygon;
 fid	Area(g)
@@ -662,11 +663,11 @@ insert into t1 values ('85984',GeomFromText('MULTIPOLYGON(((-115.006363
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85998;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85998	MULTIPOLYGON	1	POINT(115.31877315203187 -36.23747282102153)
+85998	MULTIPOLYGON	1	POINT(-115.29706046728724 36.23335610879761)
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85984;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85984	MULTIPOLYGON	1	POINT(-114.87787186923313 36.33101763469059)
+85984	MULTIPOLYGON	1	POINT(-114.86854472052883 36.347252182538156)
 drop table t1;
 create table t1 (fl geometry not null);
 insert into t1 values (1);
@@ -785,7 +786,7 @@ drop procedure if exists fn3;
 create function fn3 () returns point deterministic return GeomFromText("point(1 1)");
 show create function fn3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-fn3	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
+fn3	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
     DETERMINISTIC
 return GeomFromText("point(1 1)")	latin1	latin1_swedish_ci	latin1_swedish_ci
 select astext(fn3());
@@ -990,8 +991,7 @@ drop table t1;
 create table `t1` (`col002` point)engine=myisam;
 insert into t1 values (),(),();
 select min(`col002`) from t1 union select `col002` from t1;
-min(`col002`)
-NULL
+ERROR HY000: Incorrect arguments to min(
 drop table t1;
 #
 # Bug #47780: crash when comparing GIS items from subquery
@@ -1543,3 +1543,4 @@ Handler activated
 Handler activated
 DROP PROCEDURE p1;
 DROP TABLE t1;
+SET sql_mode = default;

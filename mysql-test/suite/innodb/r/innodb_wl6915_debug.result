@@ -58,6 +58,7 @@ count(*)
 50
 drop table t2;
 drop procedure populate_t1_t2;
+# restart: --innodb_undo_logs=1
 create table t (i int) engine=innodb;
 insert into t values (1);
 insert into t values (2);
@@ -94,6 +95,7 @@ count(*)
 drop table t1;
 drop table t2;
 drop procedure populate_t1_t2;
+# restart: --innodb_undo_logs=10
 create table t (i int) engine=innodb;
 insert into t values (1);
 insert into t values (2);
@@ -102,6 +104,7 @@ insert into t values (1);
 insert into t values (2);
 drop table t;
 drop table t2;
+# restart: --innodb_undo_logs=40
 create table t (i int) engine=innodb;
 insert into t values (1);
 insert into t values (2);
@@ -117,5 +120,3 @@ insert into t values (2);
 insert into t values (2);
 drop table t;
 drop table t2;
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 1;

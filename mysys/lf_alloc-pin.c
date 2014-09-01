@@ -323,7 +323,7 @@ static void lf_pinbox_real_free(LF_PINS *pins)
   void **addr= NULL;
   void *first= NULL, *last= NULL;
   LF_PINBOX *pinbox= pins->pinbox;
-  struct st_my_thread_var *var= my_thread_var;
+  struct st_my_thread_var *var= mysys_thread_var();
 
   npins= pinbox->pins_in_array+1;
 

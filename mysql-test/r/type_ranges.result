@@ -1,5 +1,6 @@
 drop table if exists t1,t2,t3;
 SET SQL_WARNINGS=1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 auto int(5) unsigned NOT NULL auto_increment,
 string char(10) default "hello",
@@ -347,3 +348,4 @@ id_A	id_B
 1	1
 2	NULL
 drop table t1,t2,t3;
+SET sql_mode = default;

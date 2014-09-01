@@ -15,4 +15,5 @@ Check that GTID_EXECUTED is equal on all servers.
 Check that database state is equal on all servers.
 include/diff_servers.inc [servers=1 2 3 4 5 ]
 ==== Clean up ====
+include/rpl_sync.inc
 include/rpl_end.inc

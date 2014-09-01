@@ -778,7 +778,7 @@ MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
     return NULL;
 
   mysql->field_count= (uint) query->rows;
-  return unpack_fields(mysql, query,&mysql->field_alloc,
+  return unpack_fields(mysql, query->data,&mysql->field_alloc,
 		       mysql->field_count, 1, mysql->server_capabilities);
 }
 
@@ -825,7 +825,6 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
 MYSQL_RES * STDCALL
 mysql_list_processes(MYSQL *mysql)
 {
-  MYSQL_DATA *fields= NULL;
   uint field_count;
   uchar *pos;
   DBUG_ENTER("mysql_list_processes");
@@ -835,12 +834,8 @@ mysql_list_processes(MYSQL *mysql)
   free_old_query(mysql);
   pos=(uchar*) mysql->net.read_pos;
   field_count=(uint) net_field_length(&pos);
-  if (!(fields = (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*) 0,
-					      protocol_41(mysql) ? 7 : 5)))
+  if (!(mysql->fields=cli_read_metadata(mysql, field_count, protocol_41(mysql) ? 7:5)))
     DBUG_RETURN(NULL);
-  if (!(mysql->fields=unpack_fields(mysql, fields,&mysql->field_alloc,field_count,0,
-				    mysql->server_capabilities)))
-    DBUG_RETURN(0);
   mysql->status=MYSQL_STATUS_GET_RESULT;
   mysql->field_count=field_count;
   DBUG_RETURN(mysql_store_result(mysql));
@@ -1387,10 +1382,12 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   uchar *pos;
   uint field_count, param_count;
   ulong packet_length;
-  MYSQL_DATA *fields_data;
   DBUG_ENTER("cli_read_prepare_result");
 
-  if ((packet_length= cli_safe_read(mysql)) == packet_error)
+  /* free old result and initialize mysql->field_alloc */
+  free_old_query(mysql);
+
+  if ((packet_length= cli_safe_read(mysql, NULL)) == packet_error)
     DBUG_RETURN(1);
   mysql->warning_count= 0;
 
@@ -1405,14 +1402,10 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 
   if (param_count != 0)
   {
-    MYSQL_DATA *param_data;
-
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_PARAM_DEF);
-    
     /* skip parameters data: we don't support it yet */
-    if (!(param_data= (*mysql->methods->read_rows)(mysql, (MYSQL_FIELD*)0, 7)))
+    if (!(cli_read_metadata(mysql, param_count, 7)))
       DBUG_RETURN(1);
-    free_rows(param_data);
   }
 
   if (field_count != 0)
@@ -1421,12 +1414,7 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
-
-    if (!(fields_data= (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,7)))
-      DBUG_RETURN(1);
-    if (!(stmt->fields= unpack_fields(mysql, fields_data,&stmt->mem_root,
-				      field_count,0,
-				      mysql->server_capabilities)))
+    if (!(stmt->fields= cli_read_metadata(mysql, field_count, 7)))
       DBUG_RETURN(1);
   }
 
@@ -2058,6 +2046,21 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   res= MY_TEST(cli_advanced_command(mysql, COM_STMT_EXECUTE, buff, sizeof(buff),
                                     (uchar*) packet, length, 1, stmt) ||
                (*mysql->methods->read_query_result)(mysql));
+
+  if (mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)
+     mysql->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
+
+  if (!res && (stmt->flags & CURSOR_TYPE_READ_ONLY) &&
+      (mysql->server_capabilities & CLIENT_DEPRECATE_EOF))
+  {
+    /*
+      if server responds with a cursor then COM_STMT_EXECUTE response format
+      will be <Metadata><OK>. Hence read the OK packet to get the server status
+    */
+    if (packet_error == cli_safe_read_with_ok(mysql, 1, NULL))
+      DBUG_RETURN(1);
+  }
+
   stmt->affected_rows= mysql->affected_rows;
   stmt->server_status= mysql->server_status;
   stmt->insert_id= mysql->insert_id;
@@ -4170,14 +4173,19 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
 
 int cli_unbuffered_fetch(MYSQL *mysql, char **row)
 {
-  if (packet_error == cli_safe_read(mysql))
+  ulong len= 0;
+  my_bool is_data_packet;
+  if (packet_error == cli_safe_read(mysql, &is_data_packet))
   {
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
     return 1;
   }
 
-  if (mysql->net.read_pos[0] == 254)
+  if (mysql->net.read_pos[0] != 0 && !is_data_packet)
   {
+    /* in case of new client read the OK packet */
+    if (mysql->server_capabilities & CLIENT_DEPRECATE_EOF)
+      read_ok_ex(mysql, len);
     *row= NULL;
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
   }
@@ -4286,6 +4294,7 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
   MYSQL_DATA *result= &stmt->result;
   MYSQL_ROWS *cur, **prev_ptr= &result->data;
   NET        *net;
+  my_bool    is_data_packet;
 
   DBUG_ENTER("cli_read_binary_rows");
 
@@ -4297,10 +4306,10 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
 
   net = &mysql->net;
 
-  while ((pkt_len= cli_safe_read(mysql)) != packet_error)
+  while ((pkt_len= cli_safe_read(mysql, &is_data_packet)) != packet_error)
   {
     cp= net->read_pos;
-    if (cp[0] != 254 || pkt_len >= 8)
+    if (*cp == 0 || is_data_packet)
     {
       if (!(cur= (MYSQL_ROWS*) alloc_root(&result->alloc,
                                           sizeof(MYSQL_ROWS) + pkt_len - 1)))
@@ -4319,7 +4328,12 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
     {
       /* end of data */
       *prev_ptr= 0;
-      mysql->warning_count= uint2korr(cp+1);
+      /* read warning count from OK packet or EOF packet if it is old client */
+      if (mysql->server_capabilities & CLIENT_DEPRECATE_EOF &&
+          !is_data_packet)
+        read_ok_ex(mysql, pkt_len);
+      else
+        mysql->warning_count= uint2korr(cp + 1);
       /*
         OUT parameters result sets has SERVER_PS_OUT_PARAMS and
         SERVER_MORE_RESULTS_EXISTS flags in first EOF_Packet only.

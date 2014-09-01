@@ -260,11 +260,17 @@ prepare stmt1 from ' select a FROM t1 where a ? 1 ' ;
 
 ##### parameter used in group by clause
 set @arg00=1 ;
+
+--source include/turn_off_only_full_group_by.inc
+
 select a,b FROM t1 where a is not NULL
 AND b is not NULL group by a - @arg00 ;
+
 prepare stmt1 from ' select a,b FROM t1 where a is not NULL
 AND b is not NULL group by a - ? ' ;
 execute stmt1 using @arg00 ;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 ##### parameter used in having clause
 set @arg00='two' ;

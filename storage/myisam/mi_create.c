@@ -22,6 +22,7 @@
 
 #ifdef _WIN32
 #include <fcntl.h>
+#include <process.h>
 #endif
 #include <m_ctype.h>
 

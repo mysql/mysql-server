@@ -27,6 +27,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 /*
   Visual Studio 2003 does not know vsnprintf but knows _vsnprintf.

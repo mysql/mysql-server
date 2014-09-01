@@ -217,7 +217,7 @@ log_buffer_extend(
 	srv_log_buffer_size = len / UNIV_PAGE_SIZE + 1;
 	ut_free(log_sys->buf_ptr);
 	log_sys->buf_ptr = static_cast<byte*>(
-		ut_zalloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+		ut_zalloc_nokey(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
 	log_sys->buf = static_cast<byte*>(
 		ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 	log_sys->buf_size = LOG_BUFFER_SIZE;
@@ -685,7 +685,7 @@ void
 log_init(void)
 /*==========*/
 {
-	log_sys = static_cast<log_t*>(ut_zalloc(sizeof(log_t)));
+	log_sys = static_cast<log_t*>(ut_zalloc_nokey(sizeof(log_t)));
 
 	mutex_create("log_sys", &log_sys->mutex);
 
@@ -700,7 +700,7 @@ log_init(void)
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
 	log_sys->buf_ptr = static_cast<byte*>(
-		ut_zalloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+		ut_zalloc_nokey(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
 
 	log_sys->buf = static_cast<byte*>(
 		ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
@@ -731,7 +731,7 @@ log_init(void)
 		SYNC_NO_ORDER_CHECK);
 
 	log_sys->checkpoint_buf_ptr = static_cast<byte*>(
-		ut_zalloc(2 * OS_FILE_LOG_BLOCK_SIZE));
+		ut_zalloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
 
 	log_sys->checkpoint_buf = static_cast<byte*>(
 		ut_align(log_sys->checkpoint_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
@@ -771,7 +771,7 @@ log_group_init(
 	ulint	i;
 	log_group_t*	group;
 
-	group = static_cast<log_group_t*>(ut_malloc(sizeof(log_group_t)));
+	group = static_cast<log_group_t*>(ut_malloc_nokey(sizeof(log_group_t)));
 
 	group->id = id;
 	group->n_files = n_files;
@@ -782,14 +782,15 @@ log_group_init(
 	group->lsn_offset = LOG_FILE_HDR_SIZE;
 
 	group->file_header_bufs_ptr = static_cast<byte**>(
-		ut_zalloc(sizeof(byte*) * n_files));
+		ut_zalloc_nokey(sizeof(byte*) * n_files));
 
 	group->file_header_bufs = static_cast<byte**>(
-		ut_zalloc(sizeof(byte**) * n_files));
+		ut_zalloc_nokey(sizeof(byte**) * n_files));
 
 	for (i = 0; i < n_files; i++) {
 		group->file_header_bufs_ptr[i] = static_cast<byte*>(
-			ut_zalloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+			ut_zalloc_nokey(LOG_FILE_HDR_SIZE
+					+ OS_FILE_LOG_BLOCK_SIZE));
 
 		group->file_header_bufs[i] = static_cast<byte*>(
 			ut_align(group->file_header_bufs_ptr[i],
@@ -797,7 +798,7 @@ log_group_init(
 	}
 
 	group->checkpoint_buf_ptr = static_cast<byte*>(
-		ut_zalloc(2 * OS_FILE_LOG_BLOCK_SIZE));
+		ut_zalloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
 
 	group->checkpoint_buf = static_cast<byte*>(
 		ut_align(group->checkpoint_buf_ptr,OS_FILE_LOG_BLOCK_SIZE));
@@ -1674,6 +1675,21 @@ log_write_checkpoint_info(
 	}
 }
 
+/** Set extra data to be written to the redo log during checkpoint.
+@param[in]	buf	data to be appended on checkpoint, or NULL
+@return pointer to previous data to be appended on checkpoint */
+
+mtr_buf_t*
+log_append_on_checkpoint(
+	mtr_buf_t*	buf)
+{
+	log_mutex_enter();
+	mtr_buf_t*	old = log_sys->append_on_checkpoint;
+	log_sys->append_on_checkpoint = buf;
+	log_mutex_exit();
+	return(old);
+}
+
 /** Make a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest
 modification in the pool, and writes information about the lsn in
@@ -1733,29 +1749,23 @@ log_checkpoint(
 
 	/* Repeat the MLOG_FILE_NAME records after the checkpoint, in
 	case some log records between the checkpoint and log_sys->lsn
-	need them. Finally, write a MLOG_CHECKPOINT marker. If redo
-	log apply fails to see the MLOG_CHECKPOINT marker, the log
-	will be discarded. That is, the system would be recovered as
-	it was at the checkpoint.
+	need them. Finally, write a MLOG_CHECKPOINT marker. Redo log
+	apply expects to see a MLOG_CHECKPOINT after the checkpoint,
+	except on clean shutdown, where the log will be empty after
+	the checkpoint.
 
 	It is important that we write out the redo log before any
 	further dirty pages are flushed to the tablespace files.  At
 	this point, because log_mutex_own(), mtr_commit() in other
 	threads will be blocked, and no pages can be added to the
-	flush lists.
-
-	If we had written out some data pages before flushing the
-	MLOG_CHECKPOINT marker, recovery would be unable to discard
-	the redo log (some pages would contain changes that are newer
-	than the checkpoint). */
+	flush lists. */
 	lsn_t		flush_lsn	= oldest_lsn;
 	const bool	do_write
-		= (srv_shutdown_state == SRV_SHUTDOWN_NONE
-		   || flush_lsn != log_sys->lsn)
-		&& flush_lsn
-		> log_sys->last_checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT;
+		= srv_shutdown_state == SRV_SHUTDOWN_NONE
+		|| flush_lsn != log_sys->lsn;
 
 	if (fil_names_clear(flush_lsn, do_write)) {
+		ut_ad(log_sys->lsn >= flush_lsn + SIZE_OF_MLOG_CHECKPOINT);
 		flush_lsn = log_sys->lsn;
 	}
 

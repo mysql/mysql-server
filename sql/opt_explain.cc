@@ -1375,7 +1375,7 @@ bool Explain_join::explain_qep_tab(size_t tabnum)
       fmt->end_context(CTX_DUPLICATES_WEEDOUT))
     return true;
 
-  used_tables|= table->map;
+  used_tables|= tab->table_ref->map();
 
   return false;
 }
@@ -1490,7 +1490,7 @@ static void human_readable_size(char *buf, int buf_len, double data_size)
 
 bool Explain_join::explain_rows_and_filtered()
 {
-  if (!tab || table->pos_in_table_list->schema_table)
+  if (!tab || tab->table_ref->schema_table)
     return false;
 
   POSITION *const pos= tab->position();

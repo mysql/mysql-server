@@ -467,11 +467,11 @@ create table t4 (
 b int  primary key,
 bch char(1)
 ) engine = innodb|
-insert into t3 values (1 , 'aCh1' ) , ('2' , 'aCh2')|
+insert ignore into t3 values (1 , 'aCh1' ) , ('2' , 'aCh2')|
 Warnings:
 Warning	1265	Data truncated for column 'ach' at row 1
 Warning	1265	Data truncated for column 'ach' at row 2
-insert into t4 values (1 , 'bCh1' )|
+insert ignore into t4 values (1 , 'bCh1' )|
 Warnings:
 Warning	1265	Data truncated for column 'bch' at row 1
 drop procedure if exists bug3448|

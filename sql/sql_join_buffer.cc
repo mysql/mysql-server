@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -601,7 +601,7 @@ int JOIN_CACHE_BKA::init()
       for (uint i= 0; i < ref->key_parts; i++)
       {
         Item *ref_item= ref->items[i]; 
-        if (!(tab->table()->map & ref_item->used_tables()))
+        if (!(tab->table_ref->map() & ref_item->used_tables()))
 	  continue;
 	 ref_item->walk(&Item::add_field_to_set_processor,
                       Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
@@ -850,19 +850,14 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
 }    
 
 
-/* 
+/**
   Calculate the increment of the MRR buffer for a record write       
 
-  SYNOPSIS
-    aux_buffer_incr()
+  This implementation of the virtual function aux_buffer_incr
+  determines for how much the size of the MRR buffer should be
+  increased when another record is added to the cache.
 
-  DESCRIPTION
-    This implementation of the virtual function aux_buffer_incr determines
-    for how much the size of the MRR buffer should be increased when another
-    record is added to the cache.   
-
-  RETURN
-    the increment of the size of the MRR buffer for the next record
+  @return the increment of the size of the MRR buffer for the next record
 */
 
 uint JOIN_CACHE_BKA::aux_buffer_incr()
@@ -870,17 +865,19 @@ uint JOIN_CACHE_BKA::aux_buffer_incr()
   uint incr= 0;
   TABLE_REF *ref= &qep_tab->ref();
   TABLE *tab= qep_tab->table();
-  uint rec_per_key= tab->key_info[ref->key].rec_per_key[ref->key_parts-1];
-  set_if_bigger(rec_per_key, 1);
+
   if (records == 1)
     incr=  ref->key_length + tab->file->ref_length;
   /*
     When adding a new record to the join buffer this can match
-    multiple keys in this table. We use rec_per_key as estimate for
+    multiple keys in this table. We use "records per key" as estimate for
     the number of records that will match and reserve space in the
     DS-MRR sort buffer for this many record references.
   */
-  incr+= tab->file->stats.mrr_length_per_rec * rec_per_key;
+  rec_per_key_t rec_per_key=
+    tab->key_info[ref->key].records_per_key(ref->key_parts - 1);
+  set_if_bigger(rec_per_key, 1.0f);
+  incr+= static_cast<uint>(tab->file->stats.mrr_length_per_rec * rec_per_key);
   return incr; 
 }
 
@@ -1706,9 +1703,9 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       STATUS_UPDATED cannot be on as multi-table DELETE/UPDATE never use join
       buffering. So we only have three bits to save.
     */
-    TABLE * const table= qep_tab[- cnt].table();
-    const uint8 status= table->status;
-    const table_map map= table->map;
+    TABLE_LIST * const tr= qep_tab[- cnt].table_ref;
+    const uint8 status= tr->table->status;
+    const table_map map= tr->map();
     DBUG_ASSERT((status & (STATUS_DELETED | STATUS_UPDATED)) == 0);
     if (status & STATUS_GARBAGE)
       saved_status_bits[0]|= map;
@@ -1716,7 +1713,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       saved_status_bits[1]|= map;
     if (status & STATUS_NULL_ROW)
       saved_status_bits[2]|= map;
-    table->status= 0;                           // Record exists.
+    tr->table->status= 0;                           // Record exists.
   }
 
   const bool outer_join_first_inner= qep_tab->is_first_inner_for_outer_join();
@@ -1725,8 +1722,14 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
 
   if (qep_tab->first_unmatched == NO_PLAN_IDX)
   {
+    const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
+    if (pfs_batch_update)
+      qep_tab->table()->file->start_psi_batch_mode();
     /* Find all records from join_tab that match records from join buffer */
-    rc= join_matching_records(skip_last);   
+    rc= join_matching_records(skip_last);
+    if (pfs_batch_update)
+      qep_tab->table()->file->end_psi_batch_mode();
+
     if (rc != NESTED_LOOP_OK)
       goto finish;
     if (outer_join_first_inner)
@@ -1804,8 +1807,8 @@ finish:
       We must restore the status of outer tables as it was before entering
       this function.
     */
-    TABLE * const table= qep_tab[- cnt].table();
-    const table_map map= table->map;
+    TABLE_LIST *const tr= qep_tab[- cnt].table_ref;
+    const table_map map= tr->map();
     uint8 status= 0;
     if (saved_status_bits[0] & map)
       status|= STATUS_GARBAGE;
@@ -1813,7 +1816,7 @@ finish:
       status|= STATUS_NOT_FOUND;
     if (saved_status_bits[2] & map)
       status|= STATUS_NULL_ROW;
-    table->status= status;
+    tr->table->status= status;
   }
   restore_last_record();
   reset_cache(true);

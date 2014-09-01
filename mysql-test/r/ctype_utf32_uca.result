@@ -2697,7 +2697,7 @@ want1result
 location
 DROP TABLE t1;
 create table t1 (a set('a') not null);
-insert into t1 values (),();
+insert ignore into t1 values (),();
 Warnings:
 Warning	1364	Field 'a' doesn't have a default value
 select cast(a as char(1)) from t1;
@@ -3350,7 +3350,7 @@ CREATE TABLE t1 AS SELECT repeat('a', 10) as c LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` varchar(10) CHARACTER SET utf32 COLLATE utf32_unicode_520_ci NOT NULL DEFAULT ''
+  `c` varchar(10) CHARACTER SET utf32 COLLATE utf32_unicode_520_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (_utf32 0x0180),(_utf32 0x023A);
 INSERT INTO t1 VALUES (_utf32 0x023B),(_utf32 0x023C);
@@ -3623,7 +3623,7 @@ hex(c)	hex(weight_string(c))	c
 ALTER TABLE t1 ADD KEY(c);
 EXPLAIN SELECT hex(c) FROM t1 WHERE c LIKE 'a%' ORDER BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	c	c	42	NULL	4	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	c	c	43	NULL	4	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select hex(`test`.`t1`.`c`) AS `hex(c)` from `test`.`t1` where (`test`.`t1`.`c` like 'a%') order by `test`.`t1`.`c`
 SELECT hex(c), hex(weight_string(c)) FROM t1 WHERE c LIKE 'a%' ORDER BY c;

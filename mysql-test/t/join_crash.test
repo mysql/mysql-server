@@ -83,6 +83,8 @@ CREATE TABLE t4 (
 
 INSERT INTO t4 VALUES (1,0,'CPS',NULL,NULL);
 
+--source include/turn_off_only_full_group_by.inc
+
 #
 #	The query that fails...
 #
@@ -117,6 +119,8 @@ from
     order by
         client_name asc,
         project_name asc;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1,t2,t3,t4;
 
 # End of 4.1 tests

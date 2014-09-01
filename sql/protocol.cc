@@ -34,7 +34,7 @@ bool net_send_error_packet(THD *, uint, const char *, const char *);
 bool net_send_error_packet(NET *, uint, const char *, const char *, bool,
                            ulong, const CHARSET_INFO*);
 /* Declared non-static only because of the embedded library. */
-bool net_send_ok(THD *, uint, uint, ulonglong, ulonglong, const char *);
+bool net_send_ok(THD *, uint, uint, ulonglong, ulonglong, const char *, bool);
 /* Declared non-static only because of the embedded library. */
 bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count);
 #ifndef EMBEDDED_LIBRARY
@@ -213,7 +213,8 @@ bool net_send_error(NET *net, uint sql_errno, const char *err)
 
   Bytes                Name
   -----                ----
-  1                    [00] the OK header
+  1                    [00] or [FE] the OK header
+                       [FE] is used as header for result set rows
   1-9 (lenenc-int)     affected rows
   1-9 (lenenc-int)     last-insert-id
 
@@ -246,6 +247,8 @@ bool net_send_error(NET *net, uint sql_errno, const char *err)
   @param id                      Auto_increment id for first row (if used)
   @param message                 Message to send to the client
                                  (Used by mysql_status)
+  @param eof_indentifier         when true [FE] will be set in OK header
+                                 else [00] will be used
 
   @return
     @retval FALSE The message was successfully sent
@@ -255,7 +258,8 @@ bool net_send_error(NET *net, uint sql_errno, const char *err)
 bool
 net_send_ok(THD *thd,
             uint server_status, uint statement_warn_count,
-            ulonglong affected_rows, ulonglong id, const char *message)
+            ulonglong affected_rows, ulonglong id, const char *message,
+            bool eof_identifier)
 {
   NET *net= &thd->net;
   uchar buff[MYSQL_ERRMSG_SIZE + 10];
@@ -280,8 +284,14 @@ net_send_ok(THD *thd,
 
   start= buff;
 
-  /* the Ok header, no fields */
-  buff[0]= 0;
+  /*
+    Use 0xFE packet header if eof_identifier is true
+    unless we are talking to old client
+  */
+  if (eof_identifier && (thd->client_capabilities & CLIENT_DEPRECATE_EOF))
+    buff[0]= 254;
+  else
+    buff[0]= 0;
 
   /* affected rows */
   pos= net_store_length(buff + 1, affected_rows);
@@ -353,6 +363,15 @@ net_send_ok(THD *thd,
   else
     pos= net_store_data(pos, (uchar*) message, msg_length);
 
+  /* OK packet length will be restricted to 16777215 bytes */
+  if (((size_t) (pos - start)) > MAX_PACKET_LENGTH)
+  {
+    net->error= 1;
+    net->last_errno= ER_NET_OK_PACKET_TOO_LARGE;
+    my_error(ER_NET_OK_PACKET_TOO_LARGE, MYF(0));
+    DBUG_PRINT("info", ("OK packet too large"));
+    DBUG_RETURN(1);
+  }
   error= my_net_write(net, start, (size_t) (pos - start));
   if (!error)
     error= net_flush(net);
@@ -672,7 +691,7 @@ bool Protocol::send_ok(uint server_status, uint statement_warn_count,
   DBUG_ENTER("Protocol::send_ok");
   const bool retval= 
     net_send_ok(thd, server_status, statement_warn_count,
-                affected_rows, last_insert_id, message);
+                affected_rows, last_insert_id, message, false);
   DBUG_RETURN(retval);
 }
 
@@ -686,7 +705,20 @@ bool Protocol::send_ok(uint server_status, uint statement_warn_count,
 bool Protocol::send_eof(uint server_status, uint statement_warn_count)
 {
   DBUG_ENTER("Protocol::send_eof");
-  const bool retval= net_send_eof(thd, server_status, statement_warn_count);
+  bool retval;
+  /*
+    Normally end of statement reply is signaled by OK packet, but in case
+    of binlog dump request an EOF packet is sent instead. Also, old clients
+    expect EOF packet instead of OK
+  */
+#ifndef EMBEDDED_LIBRARY
+  if (thd->client_capabilities & CLIENT_DEPRECATE_EOF &&
+      (thd->get_command() != COM_BINLOG_DUMP &&
+      thd->get_command() != COM_BINLOG_DUMP_GTID))
+    retval= net_send_ok(thd, server_status, statement_warn_count, 0, 0, NULL, true);
+  else
+#endif
+    retval= net_send_eof(thd, server_status, statement_warn_count);
   DBUG_RETURN(retval);
 }
 
@@ -838,15 +870,15 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
       if (prot.store(STRING_WITH_LEN("def"), cs, thd_charset) ||
-	  prot.store(field.db_name, (uint) strlen(field.db_name),
+	  prot.store(field.db_name, strlen(field.db_name),
 		     cs, thd_charset) ||
-	  prot.store(field.table_name, (uint) strlen(field.table_name),
+	  prot.store(field.table_name, strlen(field.table_name),
 		     cs, thd_charset) ||
-	  prot.store(field.org_table_name, (uint) strlen(field.org_table_name),
+	  prot.store(field.org_table_name, strlen(field.org_table_name),
 		     cs, thd_charset) ||
-	  prot.store(field.col_name, (uint) strlen(field.col_name),
+	  prot.store(field.col_name, strlen(field.col_name),
 		     cs, thd_charset) ||
-	  prot.store(field.org_col_name, (uint) strlen(field.org_col_name),
+	  prot.store(field.org_col_name, strlen(field.org_col_name),
 		     cs, thd_charset) ||
 	  local_packet->realloc(local_packet->length()+12))
 	goto err;
@@ -900,9 +932,9 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
     }
     else
     {
-      if (prot.store(field.table_name, (uint) strlen(field.table_name),
+      if (prot.store(field.table_name, strlen(field.table_name),
 		     cs, thd_charset) ||
-	  prot.store(field.col_name, (uint) strlen(field.col_name),
+	  prot.store(field.col_name, strlen(field.col_name),
 		     cs, thd_charset) ||
 	  local_packet->realloc(local_packet->length()+10))
 	goto err;
@@ -928,14 +960,18 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 
   if (flags & SEND_EOF)
   {
-    /*
-      Mark the end of meta-data result set, and store thd->server_status,
-      to show that there is no cursor.
-      Send no warning information, as it will be sent at statement end.
-    */
-    if (write_eof_packet(thd, &thd->net, thd->server_status,
-                         thd->get_stmt_da()->current_statement_cond_count()))
-      DBUG_RETURN(1);
+    /* if it is new client do not send EOF packet */
+    if (!(thd->client_capabilities & CLIENT_DEPRECATE_EOF))
+    {
+      /*
+        Mark the end of meta-data result set, and store thd->server_status,
+        to show that there is no cursor.
+        Send no warning information, as it will be sent at statement end.
+      */
+      if (write_eof_packet(thd, &thd->net, thd->server_status,
+                           thd->get_stmt_da()->current_statement_cond_count()))
+        DBUG_RETURN(1);
+    }
   }
   DBUG_RETURN(prepare_for_send(list->elements));
 
@@ -1573,6 +1609,7 @@ bool Protocol_binary::store_time(MYSQL_TIME *tm, uint precision)
 
 bool Protocol_binary::send_out_parameters(List<Item_param> *sp_params)
 {
+  bool ret;
   if (!(thd->client_capabilities & CLIENT_PS_MULTI_RESULTS))
   {
     /* The client does not support OUT-parameters. */
@@ -1627,13 +1664,21 @@ bool Protocol_binary::send_out_parameters(List<Item_param> *sp_params)
   thd->server_status&= ~SERVER_PS_OUT_PARAMS;
 
   /*
-    Reset SERVER_MORE_RESULTS_EXISTS bit, because this is the last packet
-    for sure.
+    Reset SERVER_MORE_RESULTS_EXISTS bit, because for sure this is the last
+    result set we are sending.
   */
+
   thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
 
-  /* Send EOF-packet. */
-  net_send_eof(thd, thd->server_status, 0);
-
-  return FALSE;
+  if (thd->client_capabilities & CLIENT_DEPRECATE_EOF)
+    ret= net_send_ok(thd,
+                     (thd->server_status
+                     | SERVER_PS_OUT_PARAMS
+                     | SERVER_MORE_RESULTS_EXISTS),
+                    thd->get_stmt_da()->current_statement_cond_count(),
+                    0, 0, NULL, true);
+  else
+    /* In case of old clients send EOF packet. */
+    ret= net_send_eof(thd, thd->server_status, 0);
+  return ret ? FALSE : TRUE;
 }

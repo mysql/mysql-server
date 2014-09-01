@@ -101,8 +101,9 @@ static const byte supremum_extra_data[] = {
 Compare at most sizeof(field_ref_zero) bytes.
 @param b in: memory block
 @param s in: size of the memory block, in bytes */
-#define ASSERT_ZERO(b, s) \
-	ut_ad(!memcmp(b, field_ref_zero, ut_min(s, sizeof field_ref_zero)))
+#define ASSERT_ZERO(b, s)			\
+	ut_ad(!memcmp(b, field_ref_zero,	\
+		      ut_min(static_cast<size_t>(s), sizeof field_ref_zero)));
 /** Assert that a BLOB pointer is filled with zero bytes.
 @param b in: BLOB pointer */
 #define ASSERT_ZERO_BLOB(b) \
@@ -158,8 +159,7 @@ page_zip_empty_size(
 		/* subtract the page header and the longest
 		uncompressed data needed for one record */
 		- (PAGE_DATA
-		   + PAGE_ZIP_DIR_SLOT_SIZE
-		   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN
+		   + PAGE_ZIP_CLUST_LEAF_SLOT_SIZE
 		   + 1/* encoded heap_no==2 in page_zip_write_rec() */
 		   + 1/* end of modification log */
 		   - REC_N_NEW_EXTRA_BYTES/* omitted bytes */)
@@ -2689,9 +2689,7 @@ page_zip_decompress_clust(
 
 	/* Subtract the space reserved for uncompressed data. */
 	d_stream->avail_in -= static_cast<uInt>(n_dense)
-			    * (PAGE_ZIP_DIR_SLOT_SIZE
-			      + DATA_TRX_ID_LEN
-			      + DATA_ROLL_PTR_LEN);
+			    * (PAGE_ZIP_CLUST_LEAF_SLOT_SIZE);
 
 	/* Decompress the records in heap_no order. */
 	for (slot = 0; slot < n_dense; slot++) {
@@ -3296,7 +3294,7 @@ page_zip_validate_low(
 
 	/* page_zip_decompress() expects the uncompressed page to be
 	UNIV_PAGE_SIZE aligned. */
-	temp_page_buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+	temp_page_buf = static_cast<byte*>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
 	temp_page = static_cast<byte*>(ut_align(temp_page_buf, UNIV_PAGE_SIZE));
 
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
@@ -3910,8 +3908,7 @@ page_zip_write_blob_ptr(
 
 	externs = page_zip->data + page_zip_get_size(page_zip)
 		- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
-		* (PAGE_ZIP_DIR_SLOT_SIZE
-		   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+		* PAGE_ZIP_CLUST_LEAF_SLOT_SIZE;
 
 	field = rec_get_nth_field(rec, offsets, n, &len);
 
@@ -4443,8 +4440,7 @@ page_zip_dir_delete(
 
 		externs = page_zip->data + page_zip_get_size(page_zip)
 			- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
-			* (PAGE_ZIP_DIR_SLOT_SIZE
-			   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+			* PAGE_ZIP_CLUST_LEAF_SLOT_SIZE;
 
 		ext_end = externs - page_zip->n_blobs
 			* BTR_EXTERN_FIELD_REF_SIZE;
@@ -4502,19 +4498,15 @@ page_zip_dir_add_slot(
 			* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 		externs = stored
 			- page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
-		ASSERT_ZERO(externs
-			    - (PAGE_ZIP_DIR_SLOT_SIZE
-			       + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
-			    PAGE_ZIP_DIR_SLOT_SIZE
-			    + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-		memmove(externs - (PAGE_ZIP_DIR_SLOT_SIZE
-				   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
+		ASSERT_ZERO(externs - PAGE_ZIP_CLUST_LEAF_SLOT_SIZE,
+			               PAGE_ZIP_CLUST_LEAF_SLOT_SIZE);
+		memmove(externs - PAGE_ZIP_CLUST_LEAF_SLOT_SIZE,
 			externs, stored - externs);
 	} else {
 		stored = dir
 			- page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
 		ASSERT_ZERO(stored - PAGE_ZIP_DIR_SLOT_SIZE,
-			    PAGE_ZIP_DIR_SLOT_SIZE);
+			    static_cast<size_t>(PAGE_ZIP_DIR_SLOT_SIZE));
 	}
 
 	/* Move the uncompressed area backwards to make space

@@ -6,11 +6,11 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (y year,y2 year(2));
+create table t1 (y year,y4 year(4));
 insert into t1 values (0,0),(1999,1999),(2000,2000),(2001,2001),(70,70),(69,69);
 select * from t1;
 select * from t1 order by y;
-select * from t1 order by y2;
+select * from t1 order by y4;
 drop table t1;
 
 #
@@ -26,7 +26,7 @@ drop table t1;
 # Bug #27176: Assigning a string to an year column has unexpected results
 #
 create table t1(a year);
-insert into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');
+insert ignore into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');
 select * from t1;
 drop table t1;
 
@@ -36,7 +36,7 @@ drop table t1;
 --echo # Bug #49480: WHERE using YEAR columns returns unexpected results
 --echo #
 
-CREATE TABLE t2(yy YEAR(2), c2 CHAR(4));
+CREATE TABLE t2(yy YEAR(4), c2 CHAR(4));
 CREATE TABLE t4(yyyy YEAR(4), c4 CHAR(4));
 
 INSERT INTO t2 (c2) VALUES (NULL),(1970),(1999),(2000),(2001),(2069);
@@ -47,18 +47,6 @@ UPDATE t4 SET yyyy = c4;
 SELECT * FROM t2;
 SELECT * FROM t4;
 
---echo # Comparison of YEAR(2) with YEAR(4)
-
-SELECT * FROM t2, t4 WHERE yy = yyyy;
-SELECT * FROM t2, t4 WHERE yy <=> yyyy;
-SELECT * FROM t2, t4 WHERE yy < yyyy ORDER BY yy,yyyy;
-SELECT * FROM t2, t4 WHERE yy > yyyy ORDER BY yy,yyyy;
-
---echo # Comparison of YEAR(2) with YEAR(2)
-
-SELECT * FROM t2 a, t2 b WHERE a.yy = b.yy;
-SELECT * FROM t2 a, t2 b WHERE a.yy <=> b.yy;
-SELECT * FROM t2 a, t2 b WHERE a.yy < b.yy;
 
 --echo # Comparison of YEAR(4) with YEAR(4)
 
@@ -139,7 +127,7 @@ DROP TABLE t2, t4;
 --echo #
 
 CREATE TABLE t1 (y YEAR NOT NULL, s VARCHAR(4));
-INSERT INTO t1 (s) VALUES ('bad');
+INSERT IGNORE INTO t1 (s) VALUES ('bad');
 INSERT INTO t1 (y, s) VALUES (0, 0), (2000, 2000), (2001, 2001);
 
 SELECT * FROM t1 ta, t1 tb WHERE ta.y = tb.y;
@@ -164,8 +152,34 @@ DROP TABLE t1;
 --echo # WL#6219: Deprecate and remove YEAR(2) type
 --echo #
 
-CREATE TABLE t1 (c1 YEAR(2), c2 YEAR(4));
-ALTER TABLE t1 MODIFY COLUMN c2 YEAR(2);
+CREATE TABLE t1 (c1 YEAR(4), c2 YEAR(4));
+ALTER TABLE t1 MODIFY COLUMN c2 YEAR(4);
+DROP TABLE t1;
+
+--echo #
+
+--echo #
+--echo # WL#6263: Remove YEAR(2) type
+--echo #
+
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+CREATE TABLE t1 (c1 YEAR(2));
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+CREATE TABLE t1 (c1 YEAR(0));
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+CREATE TABLE t1 (c1 YEAR(4294967295));
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+CREATE TABLE t1 (c1 YEAR(4294967296));
+
+CREATE TABLE t1 (c1 YEAR(4));
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (55);
+UPDATE t1 SET c1=2016;
+CHECK TABLE t1 FOR UPGRADE; 
+REPAIR TABLE t1;
+DELETE FROM t1;
+--error ER_INVALID_YEAR_COLUMN_LENGTH
+ALTER TABLE t1 MODIFY COLUMN c1 YEAR(2);
 DROP TABLE t1;
 
 --echo #
