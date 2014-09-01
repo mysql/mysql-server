@@ -93,7 +93,7 @@ static bool ga_skip_table_check = false;
 static bool ga_exclude_missing_columns = false;
 static bool ga_exclude_missing_tables = false;
 static bool opt_exclude_intermediate_sql_tables = true;
-#ifndef DBUG_OFF
+#ifdef ERROR_INSERT 
 static unsigned int _error_insert = 0;
 #endif
 static int _print = 0;
@@ -305,7 +305,7 @@ static struct my_option my_long_options[] =
   { "skip-broken-objects", 256, "Skip broken object when parsing backup",
     (uchar**) &ga_skip_broken_objects, (uchar**) &ga_skip_broken_objects, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-#ifndef DBUG_OFF
+#ifdef ERROR_INSERT
   { "error-insert", NDB_OPT_NOSHORT,
     "Insert errors (testing option)",
     (uchar **)&_error_insert, (uchar **)&_error_insert, 0,
@@ -1255,7 +1255,7 @@ main(int argc, char** argv)
    */
   debug << "Start restoring meta data" << endl;
   RestoreMetaData metaData(ga_backupPath, ga_nodeId, ga_backupId);
-#ifndef DBUG_OFF
+#ifdef ERROR_INSERTED 
   if(_error_insert > 0)
   {
     metaData.error_insert(_error_insert);
