@@ -648,7 +648,8 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
                   HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                   HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT | HA_CAN_REPAIR |
-                  HA_VIRTUAL_COLUMNS),
+                  HA_VIRTUAL_COLUMNS | 
+                  HA_ATTACHABLE_TRX_COMPATIBLE),
    can_enable_indexes(1)
 {}
 
@@ -2306,7 +2307,7 @@ mysql_declare_plugin_end;
 */
 
 my_bool ha_myisam::register_query_cache_table(THD *thd, char *table_name,
-                                              uint table_name_len,
+                                              size_t table_name_len,
                                               qc_engine_callback
                                               *engine_callback,
                                               ulonglong *engine_data)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -171,18 +171,6 @@
 #define MIN_ROWS_TO_USE_TABLE_CACHE	 100
 #define MIN_ROWS_TO_USE_BULK_INSERT	 100
 
-/**
-  The following is used to decide if MySQL should use table scanning
-  instead of reading with keys.  The number says how costly evaluation of the
-  filter condition for a row is compared to reading one extra row from a table.
-*/
-#define ROW_EVALUATE_COST  0.20
-
-/**
-  Cost of comparing a rowid compared to reading one row from a table.
-*/
-#define ROWID_COMPARE_COST 0.10  // Half the cost of a general row comparison
-
 /*
   For sequential disk seeks the cost formula is:
     DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST * #blocks_to_skip  
@@ -203,33 +191,6 @@
   distribution.
 */
 #define MATCHING_ROWS_IN_OTHER_TABLE 10
-
-/*
-  Constants related to the use of temporary tables in query execution.
-  Lookup and write operations are currently assumed to be equally costly
-  (concerns HEAP_TEMPTABLE_ROW_COST and DISK_TEMPTABLE_ROW_COST).
-*/
-/*
-  Creating a Heap temporary table is by benchmark found to be as costly as
-  writing 10 rows into the table.
-*/
-#define HEAP_TEMPTABLE_CREATE_COST    2.0
-/*
-  Writing a row to or reading a row from a Heap temporary table is equivalent
-  to evaluating a row in the join engine.
-*/
-#define HEAP_TEMPTABLE_ROW_COST       0.2
-/*
-  Creating a MyISAM table is 20 times slower than creating a Heap table.
-*/
-#define DISK_TEMPTABLE_CREATE_COST   40.0
-/*
-  Generating MyIsam rows sequentially is 2 times slower than generating
-  Heap rows, when number of rows is greater than 1000. However, we do not have
-  benchmarks for very large tables, so setting this factor conservatively to
-  be 5 times slower (ie the cost is 1.0).
-*/
-#define DISK_TEMPTABLE_ROW_COST       1.0
 
 #define MY_CHARSET_BIN_MB_MAXLEN 1
 

@@ -2273,7 +2273,7 @@ CREATE TABLE t3(a int) ENGINE = MERGE UNION(t1, t2);
 CREATE TRIGGER tr1 AFTER INSERT ON t3 FOR EACH ROW CALL foo();
 SHOW CREATE TRIGGER tr1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-tr1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER tr1 AFTER INSERT ON t3 FOR EACH ROW CALL foo()	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+tr1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER tr1 AFTER INSERT ON t3 FOR EACH ROW CALL foo()	latin1	latin1_swedish_ci	latin1_swedish_ci	#
 DROP TRIGGER tr1;
 DROP TABLE t1, t2, t3;
 #

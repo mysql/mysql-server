@@ -660,7 +660,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                         sizeof(*key_part_info)*(param->group_parts+1),
                         &param->start_recinfo,
                         sizeof(*param->recinfo)*(field_count*2+4),
-                        &tmpname, (uint) strlen(path)+1,
+                        &tmpname, strlen(path)+1,
                         &group_buff, (group && !using_unique_constraint ?
                                       param->group_length : 0),
                         &bitmaps, bitmap_buffer_size(field_count + 1) * 3,
@@ -697,7 +697,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   table->alias= table_alias;
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
-  table->map=1;
   table->temp_pool_slot = temp_pool_slot;
   table->copy_blobs= 1;
   table->in_use= thd;
@@ -1498,7 +1497,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
                         &key_part_info, sizeof(*key_part_info) * 2,
                         &start_recinfo,
                         sizeof(*recinfo)*(1*2+2),
-                        &tmpname, (uint) strlen(path)+1,
+                        &tmpname, strlen(path)+1,
                         &group_buff, (!using_unique_constraint ?
                                       uniq_tuple_length_arg : 0),
                         &bitmaps, bitmap_buffer_size(1) * 3,
@@ -1522,7 +1521,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   table->alias= "weedout-tmp";
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
-  table->map=1;
   table->temp_pool_slot = temp_pool_slot;
   table->copy_blobs= 1;
   table->in_use= thd;
@@ -2446,8 +2444,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
         This could happen only with result of derived table/view
         materialization.
       */
-      DBUG_ASSERT(table->pos_in_table_list &&
-                  table->pos_in_table_list->uses_materialization());
+      DBUG_ASSERT(tab->table_ref && tab->table_ref->uses_materialization());
       tab->quick()->set_handler(table->file);
     }
   }

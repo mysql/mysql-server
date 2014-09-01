@@ -6,7 +6,7 @@
 # Force the feature, to test it as much as possible:
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='subquery_materialization_cost_based=off';
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --disable_warnings
 drop table if exists t1, t2, t3, t1i, t2i, t3i;
 drop view if exists v1, v2, v1m, v2m;
@@ -120,10 +120,12 @@ explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
 select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
 
-/******************************************************************************
-* Views, UNIONs, several levels of nesting.
-******************************************************************************/
-# materialize the result of subquery over temp-table view
+--echo /******************************************************************************
+--echo * Views, UNIONs, several levels of nesting.
+--echo ******************************************************************************/
+--echo # materialize the result of subquery over temp-table view
+
+--source include/turn_off_only_full_group_by.inc
 
 create algorithm=merge view v1 as
 select b1, c2 from t2, t3 where b2 > c2;
@@ -143,6 +145,7 @@ select * from v1 where (c2, b1) in (select distinct c2, b1 from v2 where b1 is n
 select * from v1m where (c2, b1) in (select c2, b1 from v2m where b1 is not null);
 select * from v1m where (c2, b1) in (select distinct c2, b1 from v2m where b1 is not null);
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop view v1, v2, v1m, v2m;
 
 # nested subqueries, views
@@ -287,6 +290,7 @@ select ((a1,a2) IN (select * from t2 where b2 > '0')) IS NULL from t1;
 /* GROUP BY clause */
 create table columns (col int key);
 insert into columns values (1), (2);
+--source include/turn_off_only_full_group_by.inc
 
 explain extended
 select * from t1 group by (select col from columns limit 1);
@@ -295,6 +299,8 @@ select * from t1 group by (select col from columns limit 1);
 explain extended
 select * from t1 group by (a1 in (select col from columns));
 select * from t1 group by (a1 in (select col from columns));
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 /* ORDER BY clause */
 explain extended
@@ -790,12 +796,14 @@ CREATE TABLE t3 (c char(1));
 INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES ('a'), ('b');
 INSERT INTO t3 VALUES ('x'), ('y');
+--source include/turn_off_only_full_group_by.inc
 
 SELECT COUNT( i ),i
 FROM t1
 HAVING ('c')  
   IN (SELECT t2.c FROM (t2 JOIN t3));
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1,t2,t3;
 
 --echo # End BUG#54511
@@ -1507,3 +1515,4 @@ DROP TABLE t1,t2,t3;
 }
 
 set @@optimizer_switch=@old_opt_switch;
+SET sql_mode = default;

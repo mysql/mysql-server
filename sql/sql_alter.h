@@ -340,7 +340,7 @@ public:
   Alter_table_ctx();
 
   Alter_table_ctx(THD *thd, TABLE_LIST *table_list, uint tables_opened_arg,
-                  char *new_db_arg, char *new_name_arg);
+                  const char *new_db_arg, const char *new_name_arg);
 
   /**
      @return true if the table is moved to another database, false otherwise.
@@ -391,12 +391,12 @@ public:
   Create_field *datetime_field;
   bool         error_if_not_empty;
   uint         tables_opened;
-  char         *db;
-  char         *table_name;
-  char         *alias;
-  char         *new_db;
-  char         *new_name;
-  char         *new_alias;
+  const char   *db;
+  const char   *table_name;
+  const char   *alias;
+  const char   *new_db;
+  const char   *new_name;
+  const char   *new_alias;
   char         tmp_name[80];
 
 private:

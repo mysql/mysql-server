@@ -3,6 +3,8 @@
 --echo #
 # In order to make the output of explain json-format stable
 --source include/have_innodb_16k.inc
+# Contains several strange queries with GROUP BY, so:
+--source include/turn_off_only_full_group_by.inc
 # =======================initialization====================
 drop table if exists t1, t2;
 create table t1(a int, b varchar(20));
@@ -268,6 +270,7 @@ drop table t2;
 --echo #
 SET @old_big_tables=@@big_tables;
 SET big_tables=on;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE N (
 col_int_key int(11) DEFAULT NULL,
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -307,7 +310,7 @@ ORDER BY 1,2,3;
 
 DROP TABLE N,P;
 SET big_tables=@old_big_tables;
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --echo #
 --echo # BUG#18542045: WL6737/WL6711:SELECT DISTINCT @VARIABLE
 --echo #               WITH ORDER BY GIVING INCORRECT RESULTS          
@@ -373,6 +376,7 @@ SELECT found_rows();
 
 DROP TABLE t1;
 DROP TABLE t2;
+SET sql_mode = default;
 
 --echo #
 --echo # BUG#18540717: WL6737/WL6711:DISTINCT AND 
@@ -490,7 +494,7 @@ INSERT INTO t1 VALUES ('v','o',-46530560,'zvghxenmiqnldebgypjleqqrhvnzkertpohjvh
 INSERT INTO t1 VALUES ('d','mean',NULL,'one',98);
 INSERT INTO t1 VALUES ('VYJFE','LQAHF',NULL,'with',99);
 INSERT INTO t1 VALUES ('h','CSIEW',4,'z',100);
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE E (
 col_datetime datetime,
 col_varchar_1024_utf8 varchar(1024)  CHARACTER SET utf8,
@@ -546,7 +550,7 @@ key (col_varchar_1024_utf8_key ),
 key (col_int_key ),
 key (col_varchar_10_latin1_key ),
 primary key (pk)) ENGINE=innodb;
-
+SET sql_mode = default;
 CREATE OR REPLACE VIEW view_h AS SELECT * FROM H;
 
 INSERT /*! IGNORE */ INTO H VALUES  ('PWKPA', '2003', -2071461888, 'ZMAPA', NULL, '2007-06-01', 'j', 'qauhibniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsf', '2003', 'v', 'can\'t', 'auhibniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqv', 9, 'for', NULL) ,  ('IYAMG', '2002-06-24', 3, 'HVCLY', '20051101101903.027848', '2007-11-13', 'i', 'uhibniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseabbrrfgjltjkhakdezpelkaqycfznlnhkddyuxbdybmbilkqrpmamnnhugtiirhldcncsuh', '2006', 'JNNLF', 'hibniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseab', 'ibniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjun', NULL, 'right', NULL) ,  ('PIKTS', '20040703134305.015635', -1793392640, 'o', '10:13:42.038677', '08:06:05.040877', 'IVHVM', 'bniamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunp', '20050426124618.033428', 'BQLRU', 'niamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqr', 'mean', 488243200, 'I\'m', NULL) ,  ('iamhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhay', NULL, NULL, 'u', '10:38:19.045782', '2002', 'j', 'WCTUZ', '20080912005520.009494', 'amhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmn', 'all', 'mhtmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroy', -695730176, 'that', NULL) ,  ('htmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfw', '15:58:38.020659', 5, 'just', NULL, NULL, 'got', 'tmnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcip', '11:09:00.032967', 'mnfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiez', 'n', 'UIEZD', -793837568, 'JQCCK', NULL) ,  ('c', NULL, 2, 'OOCDS', '2004-10-14 09:59:29.025521', NULL, 'nfxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfk', 'this', '2000-04-01', 'it', 'this', 'or', 1732050944, 'ZBICQ', NULL) ,  ('know', '04:37:06.005578', 8, 'b', '2005-07-06 04:13:32.018141', '00:54:10.040062', 'i', 'fxfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavo', NULL, 'r', 'KARHF', 'p', 319291392, 'xfmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfz', NULL) ,  ('IVUJL', '2000-11-25 23:28:42.038112', 898301952, 'fmxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkml', NULL, '2002', 'NJUNY', 'VJCPX', '2008', 'o', 'PCIRX', 'w', -1041825792, 'v', NULL) ,  ('are', '2003-12-09 01:30:03.025234', -1310785536, 'b', '2005-04-05 07:49:11.008399', '20090315000439.040497', 'UKBQS', 'z', '2002-03-22 12:26:57.006275', 'look', 'come', 'for', 2490368, 'ULYXS', NULL) ,  ('i', NULL, -730923008, 'ZFKUP', '20040807230832.006451', '20051210104822.018844', 'mxslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxe', 'f', '2000-12-19', 'xslmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacg', 'y', 'EUETM', 3, 'HNFFZ', NULL) ,  ('ESQVC', '2005-08-10 20:19:43.000027', 5, 'NGYTB', NULL, NULL, 'd', 'd', '13:27:32.062794', 'slmxvfonsluayrofwafllupikoapp', 't', 'lmxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhl', 795148288, 'XMOZQ', NULL) ,  ('really', '2001-05-22', 8, 'mxvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvq', '20080504174501.046646', '2003-07-26 16:59:01.062296', 'n', 'how', '20070508055627.026593', 'RRFNA', 'in', 'xvfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjp', 132251648, 'get', NULL) ,  ('v', '19:53:48.009433', NULL, 'vfonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsus', '2008-08-08', '2001', 'JQUQZ', 'fonsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpg', '2006-05-05', 'x', 'for', 'WJXOZ', 131596288, 'want', NULL) ,  ('mean', NULL, 564068352, 'onsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzb', '2007-09-04 06:46:51.041078', '11:50:05.047592', 'LITLN', 'd', '01:29:28.040385', 'UMOLK', 'l', 'they', 1351614464, 'TJEWO', NULL) ,  ('nsluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseabbrrfgjltjkhakdezpe', NULL, 3, 'did', '01:26:29.025020', '09:49:47.038765', 'VNUAV', 'sluayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobds', '2001-04-14', 'CIOAI', 'him', 'luayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxb', 7, 'get', NULL) ,  ('him', '20051204062403.046858', 7, 'his', '2003-10-28', '20030112051727.032070', 'MNJBY', 'uayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdq', NULL, 'o', 'WUELI', 'ayrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuy', 3, 'yrofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlis', NULL) ,  ('MNAVL', '2008-03-06 19:35:21.003444', 6, 'rofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtr', '20000826213619.059974', '2008-01-09', 'ofwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgp', 'they', '2001-01-13 13:17:36.051819', 'j', 'fwafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroax', 't', -1574109184, 'MYHDH', NULL) ,  ('NLQQN', '2007', 1663107072, 'RLVYW', '20060608121825.039733', '2009-12-14', 'have', 'wafllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxb', '2006-11-01', 'afllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthz', 'IZLCS', 'fllupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuh', NULL, 'llupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgp', NULL) ,  ('all', '2004-10-20 06:15:14.000148', 1531052032, 'lupikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojx', '2008-07-04', '20051221140927.040451', 'HQHLZ', 'upikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseabbrrfgjltjkhakdezpelkaqycfznlnhkddyuxbdybmbilkqrpmamnnhugtiirhldcncsuhynrejvficieitkbhfotgbxgnuyypbbpmclmxmnujdecohzvghxenmiq', '23:21:16.032958', 'x', 'who', 'DUCAC', -1769340928, 'RCCAO', NULL) ,  ('LLRCI', '2001', 1, 'JAFVM', '20081001131456.014526', '2005-08-01 02:35:59.003461', 'XDKFW', 'pikoappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseabbrrfgjltjkhakdezpelkaqycfznlnh', '20000112134749.024329', 'ikoappgllpkbyrdtndwiuyqhqwojelnqhxb', 'JWYNU', 'koappgllpkbyrdtndwiuyqhqwojelnqhxbjofuiriycjpvagsuslqucvesvyryyjweexpijmgvjtgoezsrmunpdoqtzxndnpykhcpjcdwggiezgodearmshmwmkkrfjzusjavotnutitpavotqbpzwwjvxeortxgyqkcgmdtlmnbfcheiknzwgpepqxrzxljangusrqbmtlgtaluztuozrnvqqjeqqrblaolnyqgeovcddebcxpdmfddubuyyfjxbxdgrqejaewcldqyxhwkyragqvpahruvgmjupbfzyhfqzdoyoqjsfaucwloqdfwcjrimtetszkzwjcfuhgwctcrhucgtzdnzgpuqriybmwzfkhmedgfnomhbvpfodqdjdxqzsjkzrlraecuxepzamhxwnbczfxwjqdvacgoobmscvejweiytakwruoodqedvzipbhxncdqhayqmlisykbwqdezkrmggxhdilrmxnghjuxecpgroesfpetnuyxqumqhxhwdwfxsclqithgcojxmunpdyvdlvygsaetufkcexebfwmhsobdsjhdymqwmjsznpygumzsalkmlojinuxoakfrkmsctseenuwdtroyrqoocpmpgsouthzzugewroaxcipvpdxmdpgpjdcpypqcdeawvhyzrahmbdjungbhpvtozzstmbweqmzshvpcbyawbtyiwfamoecfbfkfzuhuvrdxxewbmmwvpxrhtnigmoxbabdhfpkdifnjmfshrssbwxsdrtmugchxgaehhsfrhfjfqkmsvgowahrffhlsfqrskwmxgptnmvqpufippfjswvzbtnvzocndndyymyjuhfntqersfsyqfdqdlnnaytyyybseabbrrfgjltjkhakdezpelkaqycfznlnhkddyux', -337510400, 'will', NULL);
@@ -575,11 +579,13 @@ DROP TABLE t1,E,H;
 --echo # BUG#18542045: WL6737/WL6711:SELECT DISTINCT @VARIABLE
 --echo #               WITH ORDER BY GIVING INCORRECT RESULTS 
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t(a BLOB, b INT);
 INSERT INTO t VALUES('1',3);
 INSERT INTO t VALUES('1',2);
 SELECT DISTINCT t.a FROM t t, t t1 ORDER BY SQRT(t.b);
 DROP TABLE t;
+SET sql_mode = default;
 
 --echo #
 --echo # BUG#18921514: WL6711: CRASH IN THD_TO_INNODB_SESSION
@@ -796,7 +802,7 @@ CREATE TABLE B (
                 KEY col_varchar_key (col_varchar_key,col_int_key)
                );
 
-INSERT INTO B VALUES
+INSERT IGNORE INTO B VALUES
 (1,4,0,'0000-00-00','0000-00-00','21:22:34','21:22:34','2002-02-13
  17:30:06','2002-02-13 17:30:06','j','j'),
  (2,6,8,'2004-09-18','2004-09-18','10:50:38','10:50:38','200
@@ -916,7 +922,7 @@ CREATE TABLE C (
                 KEY col_datetime_key (col_datetime_key),
                 KEY col_varchar_key (col_varchar_key,col_int_key)
                ) ;
-INSERT INTO C VALUES (3,3,9,'2000-03-14','2000-03-14','16:25:11','16:25:11','2002-01-16 00:00:00','2002-01-16 00:00:00','d','d'),(4,246,24,'2000-10-08','2000-10-08','10:14:58','10:14:58','2006-10-12 04:32:53','2006-10-12 04:32:53','d','d'),(5,2,6,'2006-05-25','2006-05-25','19:47:59','19:47:59','2001-02-15 03:08:38','2001-02-15 03:08:38','y','y'),(7,3,6,'2007-06-18','2007-06-18','00:00:00','00:00:00','2002-08-20 22:48:00','2002-08-20 22:48:00','d','d'),(9,1,4,'1900-01-01','1900-01-01','15:57:25','15:57:25','2005-08-15 00:00:00','2005-08-15 00:00:00','r','r'),(10,8,8,'0000-00-00','0000-00-00','07:05:51','07:05:51','1900-01-01 00:00:00','1900-01-01 00:00:00','m','m');
+INSERT IGNORE INTO C VALUES (3,3,9,'2000-03-14','2000-03-14','16:25:11','16:25:11','2002-01-16 00:00:00','2002-01-16 00:00:00','d','d'),(4,246,24,'2000-10-08','2000-10-08','10:14:58','10:14:58','2006-10-12 04:32:53','2006-10-12 04:32:53','d','d'),(5,2,6,'2006-05-25','2006-05-25','19:47:59','19:47:59','2001-02-15 03:08:38','2001-02-15 03:08:38','y','y'),(7,3,6,'2007-06-18','2007-06-18','00:00:00','00:00:00','2002-08-20 22:48:00','2002-08-20 22:48:00','d','d'),(9,1,4,'1900-01-01','1900-01-01','15:57:25','15:57:25','2005-08-15 00:00:00','2005-08-15 00:00:00','r','r'),(10,8,8,'0000-00-00','0000-00-00','07:05:51','07:05:51','1900-01-01 00:00:00','1900-01-01 00:00:00','m','m');
 
 CREATE TABLE CC (
                  pk int(11) NOT NULL AUTO_INCREMENT,
@@ -1043,6 +1049,7 @@ INSERT /*! IGNORE */ INTO CC (
 (1, 2, NULL, NULL, '16:34:52.001480',
  '16:34:52.001480', '2004-11-23 02:21:32.018522', '2004-11-23
  02:21:32.018522', 'd', 'd');
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE transforms
 SELECT
 alias1 . `col_time_key` AS field1 ,
@@ -1067,7 +1074,7 @@ WHERE alias1 . `col_int_key` NOT IN (237)
 ORDER BY field1, field2, field3, field4, field5, field6, field7, field8,
 field9, field10, field11, field12, field13, field14, field15, field16,
 field17, alias1 . `col_date_key` , alias2 .`pk` ASC;
-
+SET sql_mode = default;
 SELECT * FROM transforms
 WHERE (`field1`, `field2`, `field3`, `field4`, `field5`, `field6`, `field7`,
 `field8`, `field9`, `field10`, `field11`, `field12`, `field13`, `field14`,
@@ -1099,8 +1106,95 @@ field17, alias1 . `col_date_key` , alias2 .`pk` ASC  );
 
 DROP TABLE C,CC,transforms;
 --enable_warnings
+
+--echo #
+--echo # BUG#19274972: RESULT DIFF SEEN FOR QUERIES WITH
+--echo #               DISTINCT AND ORDER BY
+--echo #
+CREATE TABLE t1 (
+  col_varchar_10_latin1_key varchar(10),
+  pk int(11) NOT NULL,
+  col_varchar_10_latin1 varchar(10),
+  col_int_key int(11),
+  PRIMARY KEY (pk),
+  KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES
+('OAYEP',1,'yeah',183566336),
+('u',2,'vvgnejnnoj',-638058496),
+('h',3,'LJKVO',2),
+('x',4,'l',-1954938880),
+('JVYHY',5,'at',9),
+('b',6,'ojcnhnzfih',1995505664),
+('she',7,'jcnhnzfihl',6),
+('BTXLX',8,'GONBZ',162267136),
+('d',9,'nhnzfihlaj',8),
+('VSOED',10,'q',2),
+('nzfihlajoz',11,'o',8),
+('WCJYY',12,'FQNYF',-1901068288),
+('r' ,13,'f',-220659712),
+('u',14,'f',6),
+('DFKKY',15,'ozgqcypkrh',1),
+('if',16,'it',8),
+('from',17,'KKFED',-1065615360),
+('IBMRH',18,'back',5),
+('pkrhtylkoy',19,'WELBV',2),
+('b',20,'d',2131558400);
+
+CREATE TABLE t2 (
+  col_varchar_1024_utf8_key varchar(1024),
+  pk int(11) NOT NULL,
+  col_varchar_1024_latin1_key varchar(1024),
+  col_int_key int(11),
+  PRIMARY KEY (pk),
+  KEY col_varchar_1024_utf8_key (col_varchar_1024_utf8_key(333)),
+  KEY col_varchar_1024_latin1_key (col_varchar_1024_latin1_key(1000)),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES
+('MFDLE',1,'no',1358168064),
+('v',2,'really',154664960),
+(repeat('mcrxjxxfpo',100),3,repeat('mcrxjxxfpo',100),1),
+('o',4,'CEJHM',3),
+('j',5,'CRDLM',174915584),
+('m',6,'that\'s',7),
+('YVMBM',7,'is',4),
+('h',8,'as',8),
+('y',9,'not',686096384),
+('m',10,repeat('mcrxjxxfpo',100),8),
+(repeat('mcrxjxxfpo',100),11,'v',2),
+('and', 12,'b',6),
+('from',13,'OJSUT',9),
+('you',14,repeat('mcrxjxxfpo',100),1),
+('mr',15,'ZMJFI',9),
+('TYZOE',16,'I\'ll',-363069440),
+('HLKEJ',17,'v',-767492096),
+('OINER',18,repeat('mcrxjxxfpo',100),-102170624),
+(repeat('mcrxjxxfpo',100),19,'i',7),
+('one',20,'CPIUQ',469303296),
+(repeat('mcrxjxxfpo',100),21,'IGLXO',1140391936),
+('ERRUY',22,'WKQHJ',1),
+('q',23,repeat('mcrxjxxfpo',100),1694564352),
+('CYGKG',24,'o',7),
+('BIWWF',25,'good',-1532035072);
+
+SELECT DISTINCT
+  table1.col_varchar_1024_latin1_key AS field1,
+  table1.col_varchar_1024_latin1_key AS field2
+FROM
+  t2 AS table1 RIGHT JOIN t1 AS table2 ON table1.pk = table2.col_int_key
+WHERE
+  table1.col_int_key NOT BETWEEN 7 AND ( 7 + 1000 ) OR table1.pk >= 7
+  AND  table1.col_varchar_1024_utf8_key < table2.col_varchar_10_latin1_key
+ORDER BY field1,field2 DESC;
+
+DROP TABLE t1,t2;
 #============================end && cleanup======================= 
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 --echo #
 

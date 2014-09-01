@@ -602,11 +602,12 @@ public:
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
     to be taken already.
+    @param is_server_starting True if the server is starting.
     @return false on success, true on error.
   */
   bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
                       Gtid *last_gtid, bool verify_checksum,
-                      bool need_lock);
+                      bool need_lock, bool is_server_starting= false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
   {
@@ -807,6 +808,7 @@ public:
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
                    bool need_lock_index);
   int find_next_log(LOG_INFO* linfo, bool need_lock_index);
+  int find_next_relay_log(char log_name[FN_REFLEN+1]);
   int get_current_log(LOG_INFO* linfo);
   int raw_get_current_log(LOG_INFO* linfo);
   uint next_file_id();

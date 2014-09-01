@@ -17,7 +17,7 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 10000
 CREATE INDEX idx_title ON t1(title);
-# Shutdown and restart mysqld
+# restart
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -50,7 +50,7 @@ CHAR_LENGTH(b)
 40000
 60000
 ALTER TABLE t1 DROP COLUMN c;
-# Shutdown and restart mysqld
+# restart
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -141,7 +141,7 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 10000
 CREATE INDEX idx_title ON t1(title);
-# Shutdown and restart mysqld
+# restart
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -174,7 +174,7 @@ CHAR_LENGTH(b)
 40000
 60000
 ALTER TABLE t1 DROP COLUMN c;
-# Shutdown and restart mysqld
+# restart
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -266,7 +266,7 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 10000
 CREATE INDEX idx_title ON t1(title);
-# Shutdown and restart mysqld
+# restart
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -300,7 +300,7 @@ CHAR_LENGTH(b)
 40000
 60000
 ALTER TABLE t1 DROP COLUMN c;
-# Shutdown and restart mysqld
+# restart
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -396,7 +396,7 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 10000
 CREATE INDEX idx_title ON t1(title);
-# Shutdown and restart mysqld
+# restart
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -431,7 +431,7 @@ CHAR_LENGTH(b)
 40000
 60000
 ALTER TABLE t1 DROP COLUMN c;
-# Shutdown and restart mysqld
+# restart
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK

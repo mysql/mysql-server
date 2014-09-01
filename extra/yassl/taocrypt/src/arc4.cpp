@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -121,12 +121,11 @@ void ARC4::AsmProcess(byte* out, const byte* in, word32 length)
         "push ebx;" \
         "push ebp;" \
         "mov ebp, eax;"
-
     #define EPILOG()  \
         "pop ebp;" \
         "pop ebx;" \
-               "emms;" \
-               ".att_syntax;" \
+       	"emms;" \
+       	".att_syntax;" \
             : \
             : "c" (this), "D" (out), "S" (in), "a" (length) \
             : "%edx", "memory", "cc" \
@@ -180,7 +179,7 @@ void ARC4::AsmProcess(byte* out, const byte* in, word32 length)
 #ifdef _MSC_VER
     AS1( loopStart: )  // loopStart
 #else
-    AS1( 0: )          // loopStart for some gas (need numeric for jump back
+    AS1( 0: )          // loopStart for some gas (need numeric for jump back 
 #endif
 
     // y = (y+a) & 0xff;
@@ -232,7 +231,7 @@ void ARC4::AsmProcess(byte* out, const byte* in, word32 length)
 
 AS1( nothing:                           )
 
-    // inline adjust
+    // inline adjust 
     AS2(    add   esp, 4               )   // fix room on stack
 
     EPILOG()

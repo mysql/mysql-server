@@ -317,7 +317,7 @@ static bool get_server_from_table_to_cache(TABLE *table)
   /* get each field into the server struct ptr */
   ptr= get_field(&mem, table->field[SERVERS_FIELD_NAME]);
   server->server_name= ptr ? ptr : blank;
-  server->server_name_length= (uint) strlen(server->server_name);
+  server->server_name_length= strlen(server->server_name);
   ptr= get_field(&mem, table->field[SERVERS_FIELD_HOST]);
   server->host= ptr ? ptr : blank;
   ptr= get_field(&mem, table->field[SERVERS_FIELD_DB]);
@@ -428,7 +428,7 @@ static bool close_cached_connection_tables(THD *thd,
     tmp.table_name= share->table_name.str;
     tmp.next_local= tables;
 
-    tables= (TABLE_LIST *) memdup_root(thd->mem_root, (char*)&tmp, 
+    tables= (TABLE_LIST *) memdup_root(thd->mem_root, (char*)&tmp,
                                        sizeof(TABLE_LIST));
   }
   mysql_mutex_unlock(&LOCK_open);

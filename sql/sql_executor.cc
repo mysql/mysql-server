@@ -402,7 +402,7 @@ JOIN::optimize_distinct()
   for (int i= primary_tables - 1; i >= 0; --i)
   {
     QEP_TAB *last_tab= qep_tab + i;
-    if (select_lex->select_list_tables & last_tab->table()->map)
+    if (select_lex->select_list_tables & last_tab->table_ref->map())
       break;
     last_tab->not_used_in_distinct= true;
   }
@@ -640,7 +640,7 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 
 static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
 {
-  if (!(cond->used_tables() & tab->table()->map))
+  if (!(cond->used_tables() & tab->table_ref->map()))
     return;
 
   if (cond->type() == Item::COND_ITEM)
@@ -678,13 +678,15 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
         */  
         if (!possible_keys.is_clear_all())
         {
-          TABLE *tab= field->table;
-          Key_use *use;
-          for (use= stat->keyuse(); use && use->table == tab; use++)
+          TABLE *const table= field->table;
+          for (Key_use *use= stat->keyuse();
+               use && use->table_ref == item_field->table_ref;
+               use++)
+          {
             if (possible_keys.is_set(use->key) && 
-                tab->key_info[use->key].key_part[use->keypart].field ==
-                field)
-              tab->const_key_parts[use->key]|= use->keypart_map;
+                table->key_info[use->key].key_part[use->keypart].field == field)
+              table->const_key_parts[use->key]|= use->keypart_map;
+          }
         }
       }
     }
@@ -1235,6 +1237,9 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool in_first_read= true;
+  const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
+  if (pfs_batch_update)
+    qep_tab->table()->file->start_psi_batch_mode();
   while (rc == NESTED_LOOP_OK && join->return_tab >= qep_tab_idx)
   {
     int error;
@@ -1269,6 +1274,9 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
       qep_tab->last_inner() != NO_PLAN_IDX &&
       !qep_tab->found)
     rc= evaluate_null_complemented_join_record(join, qep_tab);
+
+  if (pfs_batch_update)
+    qep_tab->table()->file->end_psi_batch_mode();
 
   DBUG_RETURN(rc);
 }
@@ -1697,7 +1705,19 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
     }
     /* Check all attached conditions for inner table rows. */
     if (qep_tab->condition() && !qep_tab->condition()->val_int())
-      DBUG_RETURN(NESTED_LOOP_OK);
+    {
+      if (join->thd->killed)
+      {
+        join->thd->send_kill_message();
+        DBUG_RETURN(NESTED_LOOP_KILLED);
+      }
+
+      /* check for errors */
+      if (join->thd->is_error())
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+      else
+        DBUG_RETURN(NESTED_LOOP_OK);
+    }
   }
   qep_tab= last_inner_tab;
   /*
@@ -1836,7 +1856,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     pos->rows_fetched= 0.0;
     pos->prefix_rowcount= 0.0;
     pos->ref_depend_map= 0;
-    if (!table->pos_in_table_list->outer_join || error > 0)
+    if (!tab->table_ref->outer_join || error > 0)
       DBUG_RETURN(error);
   }
 
@@ -2412,8 +2432,9 @@ int join_init_read_record(QEP_TAB *tab)
 
 int join_materialize_derived(QEP_TAB *tab)
 {
-  THD *thd= tab->table()->in_use;
-  TABLE_LIST *derived= tab->table()->pos_in_table_list;
+  THD *const thd= tab->table()->in_use;
+  TABLE_LIST *const derived= tab->table_ref;
+
   DBUG_ASSERT(derived->uses_materialization() && !tab->materialized);
 
   if (derived->materializable_is_const()) // Has been materialized by optimizer
@@ -3027,16 +3048,18 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
     */
   if (field->is_real_null() != field->is_real_null(diff))   // 1
     return true;
+
+  const size_t src_len= field->data_length();
+  const size_t dst_len= field->data_length(diff);
   // Trailing space can't be skipped and length is different
-  if (!field->is_text_key_type() &&
-      field->data_length() != field->data_length(diff))     // 2
+  if (!field->is_text_key_type() && src_len != dst_len)     // 2
     return true;
 
-    if (field->cmp_max(field->ptr, field->ptr + diff,       // 3
-                       field->data_length()))
-      return true;
+  if (field->cmp_max(field->ptr, field->ptr + diff,       // 3
+                     std::max(src_len, dst_len)))
+    return true;
 
-    return false;
+  return false;
 }
 
 /**
@@ -4379,17 +4402,18 @@ static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
 
   for (uint tableno= 0; tableno < join->const_tables; tableno++)
   {
-    TABLE *tbl= join->qep_tab[tableno].table();
+    QEP_TAB *const tab= join->qep_tab + tableno;
+    TABLE *const table= tab->table();
     /*
-      tbl->status and tbl->null_row must be in sync: either both set
+      table->status and table->null_row must be in sync: either both set
       or none set. Otherwise, an additional table_map parameter is
       needed to save/restore_const_null_info() these separately
     */
-    DBUG_ASSERT(tbl->null_row ? (tbl->status & STATUS_NULL_ROW) :
-                               !(tbl->status & STATUS_NULL_ROW));
+    DBUG_ASSERT(table->null_row ? (table->status & STATUS_NULL_ROW) :
+                                 !(table->status & STATUS_NULL_ROW));
 
-    if (!tbl->null_row)
-      *save_nullinfo|= tbl->map;
+    if (!table->null_row)
+      *save_nullinfo|= tab->table_ref->map();
   }
 }
 
@@ -4415,15 +4439,15 @@ static void restore_const_null_info(JOIN *join, table_map save_nullinfo)
 
   for (uint tableno= 0; tableno < join->const_tables; tableno++)
   {
-    TABLE *tbl= join->qep_tab[tableno].table();
-    if ((save_nullinfo & tbl->map))
+    QEP_TAB *const tab= join->qep_tab + tableno;
+    if ((save_nullinfo & tab->table_ref->map()))
     {
       /*
         The table had null_row=false and STATUS_NULL_ROW set when
         save_const_null_info was called
       */
-      tbl->null_row= false;
-      tbl->status&= ~STATUS_NULL_ROW;
+      tab->table()->null_row= false;
+      tab->table()->status&= ~STATUS_NULL_ROW;
     }
   }
 }
@@ -4573,6 +4597,27 @@ QEP_tmp_table::end_send()
   return rc;
 }
 
+
+/******************************************************************************
+  Code for pfs_batch_update
+******************************************************************************/
+
+
+bool QEP_TAB::pfs_batch_update(JOIN *join)
+{
+  /*
+    Use PFS batch mode unless
+     1. tab is not an inner-most table, or
+     2. a table has eq_ref or const access type, or
+     3. this tab contains a subquery that accesses one or more tables
+  */
+
+  return !((join->qep_tab + join->primary_tables - 1) != this || // 1
+           this->type() == JT_EQ_REF ||                          // 2
+           this->type() == JT_CONST  ||
+           this->type() == JT_SYSTEM ||
+           (condition() && condition()->has_subquery()));        // 3
+}
 
 /**
   @} (end of group Query_Executor)

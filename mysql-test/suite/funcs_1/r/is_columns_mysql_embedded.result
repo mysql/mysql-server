@@ -1,3 +1,4 @@
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'mysql'
 ORDER BY table_schema, table_name, column_name;
@@ -31,6 +32,12 @@ def	mysql	db	Show_view_priv	17	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci
 def	mysql	db	Trigger_priv	22	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')				
 def	mysql	db	Update_priv	6	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')				
 def	mysql	db	User	3		NO	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)	PRI			
+def	mysql	engine_cost	comment	6	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)				
+def	mysql	engine_cost	cost_name	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI			
+def	mysql	engine_cost	cost_value	4	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float				
+def	mysql	engine_cost	device_type	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PRI			
+def	mysql	engine_cost	engine_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI			
+def	mysql	engine_cost	last_update	5	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP		
 def	mysql	event	body	3	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob				
 def	mysql	event	body_utf8	22	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob				
 def	mysql	event	character_set_client	19	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)				
@@ -152,6 +159,10 @@ def	mysql	servers	Server_name	1		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general
 def	mysql	servers	Socket	7		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)				
 def	mysql	servers	Username	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)				
 def	mysql	servers	Wrapper	8		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)				
+def	mysql	server_cost	comment	4	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)				
+def	mysql	server_cost	cost_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI			
+def	mysql	server_cost	cost_value	2	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NULL	float				
+def	mysql	server_cost	last_update	3	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP		
 def	mysql	slave_master_info	Bind	17	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text				Displays which interface is employed when connecting to the MySQL server
 def	mysql	slave_master_info	Connect_retry	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned				The period (in seconds) that the slave will wait before trying to reconnect to the master.
 def	mysql	slave_master_info	Enabled_auto_position	23	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)				Indicates whether GTIDs will be used to retrieve events from the master.
@@ -376,6 +387,12 @@ NULL	mysql	columns_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	db	Execute_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	db	Event_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	db	Trigger_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
+3.0000	mysql	engine_cost	engine_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	mysql	engine_cost	device_type	int	NULL	NULL	NULL	NULL	int(11)
+3.0000	mysql	engine_cost	cost_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	mysql	engine_cost	cost_value	float	NULL	NULL	NULL	NULL	float
+NULL	mysql	engine_cost	last_update	timestamp	NULL	NULL	NULL	NULL	timestamp
+3.0000	mysql	engine_cost	comment	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
 3.0000	mysql	event	db	char	64	192	utf8	utf8_bin	char(64)
 3.0000	mysql	event	name	char	64	192	utf8	utf8_general_ci	char(64)
 1.0000	mysql	event	body	longblob	4294967295	4294967295	NULL	NULL	longblob
@@ -497,6 +514,10 @@ NULL	mysql	servers	Port	int	NULL	NULL	NULL	NULL	int(4)
 3.0000	mysql	servers	Socket	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	servers	Wrapper	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	servers	Owner	char	64	192	utf8	utf8_general_ci	char(64)
+3.0000	mysql	server_cost	cost_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	mysql	server_cost	cost_value	float	NULL	NULL	NULL	NULL	float
+NULL	mysql	server_cost	last_update	timestamp	NULL	NULL	NULL	NULL	timestamp
+3.0000	mysql	server_cost	comment	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
 NULL	mysql	slave_master_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_master_info	Master_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Master_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
@@ -619,3 +640,4 @@ NULL	mysql	user	max_user_connections	int	NULL	NULL	NULL	NULL	int(11) unsigned
 3.0000	mysql	user	password_expired	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 NULL	mysql	user	password_last_changed	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	user	password_lifetime	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
+SET sql_mode = default;

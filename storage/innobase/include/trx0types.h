@@ -28,6 +28,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "ut0byte.h"
 #include "ut0mutex.h"
+#include "ut0new.h"
 
 #include <set>
 #include <queue>
@@ -40,12 +41,31 @@ Created 3/26/1996 Heikki Tuuri
 
 /** maximum length that a formatted trx_t::id could take, not including
 the terminating NUL character. */
-#define TRX_ID_MAX_LEN		17
+static const ulint TRX_ID_MAX_LEN = 17;
 
 /** Space id of the transaction system page (the system tablespace) */
-#define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
+static const ulint TRX_SYS_SPACE = 0;
+
 /** Page number of the transaction system page */
-#define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
+#define TRX_SYS_PAGE_NO		FSP_TRX_SYS_PAGE_NO
+
+/** Random value to check for corruption of trx_t */
+static const ulint TRX_MAGIC_N = 91118598;
+
+/** If this flag is set then the transaction cannot be rolled back
+asynchronously. */
+static const ib_uint32_t TRX_FORCE_ROLLBACK_DISABLE = 1 << 29;
+
+/** Was the transaction rolled back asynchronously or by the
+owning thread. This flag is relevant only if TRX_FORCE_ROLLBACK
+is set.  */
+static const ib_uint32_t TRX_FORCE_ROLLBACK_ASYNC = 1 << 30;
+
+/** Mark the transaction for forced rollback */
+static const ib_uint32_t TRX_FORCE_ROLLBACK = 1 << 31;
+
+/** For masking out the above four flags */
+static const ib_uint32_t TRX_FORCE_ROLLBACK_MASK = 0x1FFFFFFF;
 
 /** Transaction execution states when trx->state == TRX_STATE_ACTIVE */
 enum trx_que_t {
@@ -157,7 +177,8 @@ typedef ib_mutex_t TrxSysMutex;
 scheduled for purge. */
 class TrxUndoRsegs {
 private:
-	typedef std::vector<trx_rseg_t*> trx_rsegs_t;
+	typedef std::vector<trx_rseg_t*, ut_allocator<trx_rseg_t*> >
+		trx_rsegs_t;
 public:
 	typedef trx_rsegs_t::iterator iterator;
 
@@ -183,6 +204,20 @@ public:
 	void push_back(trx_rseg_t* rseg)
 	{
 		m_rsegs.push_back(rseg);
+	}
+
+	/** Erase the element pointed by given iterator.
+	@param[in]	iterator	iterator */
+	void erase(iterator& it)
+	{
+		m_rsegs.erase(it);
+	}
+
+	/** Number of registered rsegs.
+	@return size of rseg list. */
+	ulint size() const
+	{
+		return(m_rsegs.size());
 	}
 
 	/**
@@ -232,9 +267,11 @@ private:
 };
 
 typedef std::priority_queue<
-	TrxUndoRsegs, std::vector<TrxUndoRsegs>, TrxUndoRsegs> purge_pq_t;
+	TrxUndoRsegs,
+	std::vector<TrxUndoRsegs, ut_allocator<TrxUndoRsegs> >,
+	TrxUndoRsegs>	purge_pq_t;
 
-typedef std::vector<trx_id_t> trx_ids_t;
+typedef std::vector<trx_id_t, ut_allocator<trx_id_t> >	trx_ids_t;
 
 /** Mapping read-write transactions from id to transaction instance, for
 creating read views and during trx id lookup for MVCC and locking. */
@@ -279,6 +316,7 @@ struct TrxTrackCmp {
 };
 
 //typedef std::unordered_set<TrxTrack, TrxTrackHash, TrxTrackHashCmp> TrxIdSet;
-typedef std::set<TrxTrack, TrxTrackCmp> TrxIdSet;
+typedef std::set<TrxTrack, TrxTrackCmp, ut_allocator<TrxTrack> >
+	TrxIdSet;
 
 #endif /* trx0types_h */

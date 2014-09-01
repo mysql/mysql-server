@@ -132,6 +132,9 @@ trx_rollback_to_savepoint_low(
 
 	mem_heap_free(heap);
 
+	/* There might be work for utility threads.*/
+	srv_active_wake_master_thread();
+
 	MONITOR_DEC(MONITOR_TRX_ACTIVE);
 }
 
@@ -149,19 +152,9 @@ trx_rollback_to_savepoint(
 {
 	ut_ad(!trx_mutex_own(trx));
 
-	/* Tell Innobase server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
-
 	trx_start_if_not_started_xa(trx, true);
 
 	trx_rollback_to_savepoint_low(trx, savept);
-
-	/* Tell Innobase server that there might be work for
-	utility threads: */
-
-	srv_active_wake_master_thread();
 
 	return(trx->error_state);
 }
@@ -175,8 +168,6 @@ trx_rollback_for_mysql_low(
 /*=======================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	srv_active_wake_master_thread();
-
 	trx->op_info = "rollback";
 
 	/* If we are doing the XA recovery of prepared transactions,
@@ -190,8 +181,6 @@ trx_rollback_for_mysql_low(
 
 	ut_a(trx->error_state == DB_SUCCESS);
 
-	srv_active_wake_master_thread();
-
 	return(trx->error_state);
 }
 
@@ -204,17 +193,26 @@ trx_rollback_for_mysql(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	TrxInInnoDB	trx_in_innodb(trx, true);
+
+	if (trx_in_innodb.is_aborted()
+	    && trx->killed_by != os_thread_get_curr_id()) {
+
+		return(DB_FORCED_ABORT);
+	}
+
 	/* We are reading trx->state without holding trx_sys->mutex
 	here, because the rollback should be invoked for a running
 	active MySQL transaction (or recovered prepared transaction)
 	that is associated with the current thread. */
 
 	switch (trx->state) {
-	case TRX_STATE_NOT_STARTED:
 	case TRX_STATE_FORCED_ROLLBACK:
+	case TRX_STATE_NOT_STARTED:
 		trx->will_lock = 0;
 		ut_ad(trx->in_mysql_trx_list);
-		return(DB_SUCCESS);
+		return(trx->state == TRX_STATE_NOT_STARTED
+		       ? DB_SUCCESS : DB_FORCED_ABORT);
 
 	case TRX_STATE_ACTIVE:
 		ut_ad(trx->in_mysql_trx_list);
@@ -223,6 +221,7 @@ trx_rollback_for_mysql(
 
 	case TRX_STATE_PREPARED:
 		ut_ad(!trx_is_autocommit_non_locking(trx));
+		ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
@@ -252,8 +251,10 @@ trx_rollback_last_sql_stat_for_mysql(
 	ut_ad(trx->in_mysql_trx_list);
 
 	switch (trx->state) {
-	case TRX_STATE_NOT_STARTED:
 	case TRX_STATE_FORCED_ROLLBACK:
+		return(DB_FORCED_ABORT);
+
+	case TRX_STATE_NOT_STARTED:
 		return(DB_SUCCESS);
 
 	case TRX_STATE_ACTIVE:
@@ -494,7 +495,8 @@ trx_savepoint_for_mysql(
 
 	/* Create a new savepoint and add it as the last in the list */
 
-	savep = static_cast<trx_named_savept_t*>(ut_malloc(sizeof(*savep)));
+	savep = static_cast<trx_named_savept_t*>(
+		ut_malloc_nokey(sizeof(*savep)));
 
 	savep->name = mem_strdup(savepoint_name);
 

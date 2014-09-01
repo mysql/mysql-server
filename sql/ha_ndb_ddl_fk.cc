@@ -1666,7 +1666,7 @@ fk_split_name(char dst[], const char * src, bool index)
 
 struct Ndb_mem_root_guard {
   Ndb_mem_root_guard(MEM_ROOT *new_root) {
-    root_ptr= my_pthread_getspecific(MEM_ROOT**, THR_MALLOC);
+    root_ptr= my_pthread_get_THR_MALLOC();
     DBUG_ASSERT(root_ptr != 0);
     old_root= *root_ptr;
     *root_ptr= new_root;

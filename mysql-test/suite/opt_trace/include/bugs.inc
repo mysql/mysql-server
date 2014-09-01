@@ -213,9 +213,12 @@ let $query=
   order by alias1 . col_varchar_key  , field1
 ;
 
-eval CREATE TABLE where_updatedelete_20769 $query;
+--source include/turn_off_only_full_group_by.inc
 
+eval CREATE TABLE where_updatedelete_20769 $query;
 eval UPDATE where_updatedelete_20769 SET field1 = ( $query );
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE where_updatedelete_20769;
 DROP TABLE t1,t2,t3;
@@ -272,7 +275,7 @@ CREATE TABLE t1 (a INT, PRIMARY KEY (a))
 INSERT INTO t1 VALUES (1),(2);
 --ERROR ER_SUBQUERY_NO_1_ROW
 SELECT  1 FROM t1 ,t1 w
- WHERE t1.a <=> (SELECT a FROM t1 GROUP BY (SELECT 1 FROM t1));
+ WHERE t1.a <=> (SELECT 22 FROM t1 GROUP BY (SELECT 1 FROM t1));
 SELECT TRACE LIKE "%select had some error%" FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 DROP TABLE t1;
 
@@ -322,6 +325,8 @@ CREATE TABLE t4 (
   KEY col_varchar_key (col_varchar_key,col_int_key)
 );
 
+--source include/turn_off_only_full_group_by.inc
+
 SELECT alias1.col_int_nokey AS field1,
        alias2.col_varchar_key AS field2,
        alias1.col_time_key AS field3,
@@ -344,6 +349,8 @@ WHERE
          )
   AND alias1.col_int_key = alias2.pk
 HAVING  alias1.col_int_nokey  IN ( SELECT 2 FROM DUAL ) ;
+
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE t1,t2,t3,t4;
 

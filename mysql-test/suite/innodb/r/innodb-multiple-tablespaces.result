@@ -162,6 +162,7 @@ yyy.ibd
 #
 # Start the server and show the tablespaces.
 #
+# restart
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
@@ -331,6 +332,7 @@ yyy.ibd
 #
 # Restart the server and DROP the tablespaces.
 #
+# restart
 DROP TABLE yyy;
 DROP TABLE nyy;
 DROP TABLE yny;
@@ -441,8 +443,7 @@ SELECT * FROM yy;
 c1	c2
 1	yy
 2	yy
-COMMIT;
-Got one of the listed errors
+# Kill the server
 #
 # Now that the engine is not running, move files around to test various scenarios.
 #
@@ -474,6 +475,7 @@ wy.ibd
 yw.ibd
 yy.ibd
 # restoring yn.ibd, yw.ibd
+# restart
 SELECT * FROM ny;
 c1	c2
 1	ny

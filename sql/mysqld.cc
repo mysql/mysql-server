@@ -22,9 +22,20 @@
 #include <set>
 #include <string>
 
+#include <fenv.h>
+#include <signal.h>
+#ifdef HAVE_PWD_H
+#include <pwd.h>
+#endif
+#ifdef HAVE_GRP_H
+#include <grp.h>
+#endif
+#ifdef _WIN32
+#include <crtdbg.h>
+#endif
+
 #include "sql_priv.h"
 #include "unireg.h"
-#include <signal.h>
 #include "sql_parse.h"    // test_if_data_home_dir
 #include "sql_cache.h"    // query_cache, query_cache_*
 #include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
@@ -75,6 +86,7 @@
 #include "debug_sync.h"
 #include "sql_callback.h"
 #include "opt_trace_context.h"
+#include "opt_costconstantcache.h"
 
 #include "mysqld.h"
 #include "my_default.h"
@@ -90,82 +102,26 @@
 #include <mysql/psi/mysql_statement.h>
 
 #include "mysql_com_server.h"
-
 #include "keycaches.h"
 #include "../storage/myisam/ha_myisam.h"
 #include "set_var.h"
-
 #include "sys_vars_shared.h"
-
 #include "rpl_injector.h"
-
 #include "rpl_handler.h"
-
-#ifdef HAVE_SYS_PRCTL_H
-#include <sys/prctl.h>
-#endif
-
 #include <ft_global.h>
 #include <errmsg.h>
 #include "sp_rcontext.h"
 #include "sql_reload.h"  // reload_acl_and_cache
 #include "sp_head.h"  // init_sp_psi_keys
 #include "event_data_objects.h" //init_scheduler_psi_keys
-
 #include "my_timer.h"    // my_timer_init, my_timer_deinit
-
-#ifdef HAVE_POLL_H
-#include <poll.h>
-#endif
-
-#include <fenv.h>
 #include "table_cache.h"                // table_cache_manager
 #include "connection_acceptor.h"        // Connection_acceptor
 #include "connection_handler_impl.h"    // *_connection_handler
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "socket_connection.h"          // Mysqld_socket_listener
 #include "mysqld_thd_manager.h"         // Global_THD_manager
-
-using std::min;
-using std::max;
-using std::vector;
-
-#define mysqld_charset &my_charset_latin1
-
-#include <errno.h>
-#include <sys/stat.h>
-#ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__       // Skip warnings in getopt.h
-#endif
-#include <my_getopt.h>
-#ifdef HAVE_PWD_H
-#include <pwd.h>        // For getpwent
-#endif
-#ifdef HAVE_GRP_H
-#include <grp.h>
-#endif
-#include <my_net.h>
-
-#if !defined(_WIN32)
-#ifdef HAVE_SYS_RESOURCE_H
-#include <sys/resource.h>
-#endif
-#ifdef HAVE_SYS_UN_H
-#include <sys/un.h>
-#endif
-#ifdef HAVE_SYS_SELECT_H
-#include <sys/select.h>
-#endif
-#include <sys/utsname.h>
-#endif /* _WIN32 */
-
-#ifdef HAVE_SYS_MMAN_H
-#include <sys/mman.h>
-#endif
-
-#ifdef _WIN32
-#include <crtdbg.h>
-#endif
+#include "my_getopt.h"
 
 #ifdef _WIN32
 #include "named_pipe.h"
@@ -173,30 +129,24 @@ using std::vector;
 #include "shared_memory_connection.h"
 #endif
 
-#ifdef HAVE_SOLARIS_LARGE_PAGES
-#include <sys/mman.h>
-#if defined(__sun__) && defined(__GNUC__) && defined(__cplusplus) \
-    && defined(_XOPEN_SOURCE)
-extern "C" int getpagesizes(size_t *, int);
-extern "C" int getpagesizes2(size_t *, int);
-extern "C" int memcntl(caddr_t, size_t, int, caddr_t, int, int);
-#endif /* __sun__ ... */
-#endif /* HAVE_SOLARIS_LARGE_PAGES */
+using std::min;
+using std::max;
+using std::vector;
 
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
-#include <ieeefp.h>
-#ifdef HAVE_FP_EXCEPT       // Fix type conflict
-typedef fp_except fp_except_t;
+#define mysqld_charset &my_charset_latin1
+
+#if defined(HAVE_SOLARIS_LARGE_PAGES) && defined(__GNUC__)
+extern "C" int getpagesizes(size_t *, int);
+extern "C" int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 #endif
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
+
 #ifdef HAVE_FPU_CONTROL_H
-#include <fpu_control.h>
-#endif
-#if defined(__i386__) && !defined(HAVE_FPU_CONTROL_H)
+# include <fpu_control.h>
+#elif defined(__i386__)
 # define fpu_control_t unsigned int
 # define _FPU_EXTENDED 0x300
 # define _FPU_DOUBLE 0x200
-# if defined(__GNUC__) || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
+# if defined(__GNUC__) || defined(__SUNPRO_CC)
 #  define _FPU_GETCW(cw) asm volatile ("fnstcw %0" : "=m" (*&cw))
 #  define _FPU_SETCW(cw) asm volatile ("fldcw %0" : : "m" (*&cw))
 # else
@@ -207,26 +157,11 @@ typedef fp_except fp_except_t;
 
 inline void setup_fpu()
 {
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
-  /* We can't handle floating point exceptions with threads, so disable
-     this on freebsd
-     Don't fall for overflow, underflow,divide-by-zero or loss of precision.
-     fpsetmask() is deprecated in favor of fedisableexcept() in C99.
-  */
-#if defined(FP_X_DNML)
-  fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL | FP_X_DZ |
-        FP_X_IMP));
-#else
-  fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
-              FP_X_IMP));
-#endif /* FP_X_DNML */
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
-
 #ifdef HAVE_FEDISABLEEXCEPT
   fedisableexcept(FE_ALL_EXCEPT);
 #endif
 
-    /* Set FPU rounding mode to "round-to-nearest" */
+  /* Set FPU rounding mode to "round-to-nearest" */
   fesetround(FE_TONEAREST);
 
   /*
@@ -249,10 +184,6 @@ inline void setup_fpu()
 #endif /* __i386__ */
 
 }
-
-#ifdef SOLARIS
-extern "C" int gethostname(char *name, int namelen);
-#endif
 
 #ifndef EMBEDDED_LIBRARY
 extern "C" void handle_fatal_signal(int sig);
@@ -364,7 +295,13 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 ulong log_warnings;
-#if defined(_WIN32)
+bool  opt_log_syslog_enable;
+char *opt_log_syslog_tag= NULL;
+#ifndef _WIN32
+bool  opt_log_syslog_include_pid;
+char *opt_log_syslog_facility;
+
+#else
 /*
   Thread handle of shutdown event handler thread.
   It is used as argument during thread join.
@@ -449,6 +386,7 @@ my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
+my_bool simplified_binlog_gtid_recovery;
 ulong binlogging_impossible_mode;
 const char *binlogging_impossible_err[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
@@ -658,9 +596,9 @@ SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
 /* Thread specific variables */
 
-pthread_key(MEM_ROOT**,THR_MALLOC);
+thread_local_key_t THR_MALLOC;
 bool THR_MALLOC_initialized= false;
-pthread_key(THD*, THR_THD);
+thread_local_key_t THR_THD;
 bool THR_THD_initialized= false;
 mysql_mutex_t
   LOCK_status, LOCK_error_log, LOCK_uuid_generator,
@@ -1013,7 +951,7 @@ static const char* default_dbug_option;
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
 
-my_bool opt_use_ssl  = 0;
+my_bool opt_use_ssl= 1;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_cipher= NULL, *opt_ssl_key= NULL, *opt_ssl_crl= NULL,
      *opt_ssl_crlpath= NULL;
@@ -1316,7 +1254,9 @@ extern "C" void unireg_abort(int exit_code)
 
 static void mysqld_exit(int exit_code)
 {
+  log_syslog_exit();
   mysql_audit_finalize();
+  delete_optimizer_cost_module();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   local_message_hook= my_message_local_stderr;
@@ -1438,6 +1378,7 @@ void clean_up(bool print_message)
   }
   table_def_start_shutdown();
   plugin_shutdown();
+  delete_optimizer_cost_module();
   ha_end();
   if (tc_log)
     tc_log->close();
@@ -1501,13 +1442,13 @@ void clean_up(bool print_message)
   if (THR_THD_initialized)
   {
     THR_THD_initialized= false;
-    (void) pthread_key_delete(THR_THD);
+    (void) my_delete_thread_local_key(THR_THD);
   }
 
   if (THR_MALLOC_initialized)
   {
     THR_MALLOC_initialized= false;
-    (void) pthread_key_delete(THR_MALLOC);
+    (void) my_delete_thread_local_key(THR_MALLOC);
   }
 
 #ifdef HAVE_MY_TIMER
@@ -2715,11 +2656,18 @@ rpl_make_log_name(PSI_memory_key key,
   unsigned int options=
     MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH;
 
-  /* mysql_real_data_home_ptr  may be null if no value of datadir has been
+  /* mysql_real_data_home_ptr may be null if no value of datadir has been
      specified through command-line or througha cnf file. If that is the 
      case we make mysql_real_data_home_ptr point to mysql_real_data_home
      which, in that case holds the default path for data-dir.
-  */ 
+  */
+
+  DBUG_EXECUTE_IF("emulate_empty_datadir_param",
+                  {
+                    mysql_real_data_home_ptr= NULL;
+                  };
+                 );
+
   if(mysql_real_data_home_ptr == NULL)
     mysql_real_data_home_ptr= mysql_real_data_home;
 
@@ -2880,6 +2828,9 @@ int init_common_variables()
 
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
+
+  if (log_syslog_init())
+    opt_log_syslog_enable= 0;
 
   if (set_default_auth_plugin(default_auth_plugin, strlen(default_auth_plugin)))
   {
@@ -3297,8 +3248,8 @@ static int init_thread_environment()
 
   DBUG_ASSERT(! THR_THD_initialized);
   DBUG_ASSERT(! THR_MALLOC_initialized);
-  if (pthread_key_create(&THR_THD,NULL) ||
-      pthread_key_create(&THR_MALLOC,NULL))
+  if (my_create_thread_local_key(&THR_THD,NULL) ||
+      my_create_thread_local_key(&THR_MALLOC,NULL))
   {
     sql_print_error("Can't create thread-keys");
     return 1;
@@ -3389,6 +3340,11 @@ static int init_ssl()
   if (opt_use_ssl)
   {
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
+
+#ifndef HAVE_YASSL
+    if (do_auto_cert_generation() == false)
+      return 1;
+#endif
 
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
@@ -4148,6 +4104,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 #endif
     locked_in_memory=0;
 
+  /* Initialize the optimizer cost module */
+  init_optimizer_cost_module();
   ft_init_stopwords();
 
   init_max_user_conn();
@@ -4439,7 +4397,10 @@ int mysqld_main(int argc, char **argv)
     We have enough space for fiddling with the argv, continue
   */
   if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
+  {
+    sql_print_error("failed to set datadir to %s", mysql_real_data_home);
     unireg_abort(1);        /* purecov: inspected */
+  }
 
 #ifndef _WIN32
   if ((user_info= check_user(mysqld_user)))
@@ -4524,7 +4485,8 @@ int mysqld_main(int argc, char **argv)
                                        &purged_gtids_binlog,
                                        NULL,
                                        opt_master_verify_checksum,
-                                       true/*true=need lock*/) ||
+                                       true/*true=need lock*/,
+                                       true) ||
           gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
 
@@ -4665,6 +4627,10 @@ int mysqld_main(int argc, char **argv)
   /* Save pid of this process in a file */
   if (!opt_bootstrap)
     create_pid_file();
+
+  /* Read the optimizer cost model configuration tables */
+  if (!opt_bootstrap)
+    reload_optimizer_cost_constants();
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
@@ -5590,7 +5556,7 @@ struct my_option my_long_options[]=
 #ifdef HAVE_OPENSSL
   {"ssl", 0,
    "Enable SSL for connection (automatically enabled with other flags).",
-   &opt_use_ssl, &opt_use_ssl, 0, GET_BOOL, OPT_ARG, 0, 0, 0,
+   &opt_use_ssl, &opt_use_ssl, 0, GET_BOOL, OPT_ARG, 1, 0, 0,
    0, 0, 0},
 #endif
 #ifdef _WIN32
@@ -7470,7 +7436,7 @@ static char *get_relative_path(const char *path)
       is_prefix(path,DEFAULT_MYSQL_HOME) &&
       strcmp(DEFAULT_MYSQL_HOME,FN_ROOTDIR))
   {
-    path+=(uint) strlen(DEFAULT_MYSQL_HOME);
+    path+= strlen(DEFAULT_MYSQL_HOME);
     while (*path == FN_LIBCHAR || *path == FN_LIBCHAR2)
       path++;
   }
@@ -7813,7 +7779,8 @@ PSI_mutex_key
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
-  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query;
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
+  key_LOCK_cost_const;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_done;

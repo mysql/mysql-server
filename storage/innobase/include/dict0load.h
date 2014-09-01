@@ -33,10 +33,12 @@ Created 4/24/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "btr0types.h"
+#include "ut0new.h"
+
 #include <deque>
 
 /** A stack of table names related through foreign key constraints */
-typedef std::deque<const char*> dict_names_t;
+typedef std::deque<const char*, ut_allocator<const char*> >	dict_names_t;
 
 /** enum that defines all system table IDs. @see SYSTEM_TABLE_NAME[] */
 enum dict_system_id_t {
@@ -72,19 +74,24 @@ enum dict_check_t {
 	DICT_CHECK_SOME_LOADED
 };
 
-/********************************************************************//**
-In a crash recovery we already have all the tablespace objects created.
+/** Look at each table defined in SYS_TABLES. Check the tablespace for
+any table with a space_id > 0. Look up the tablespace in SYS_DATAFILES
+to ensure the correct path.
+
+In a crash recovery we already have some tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
 to what we already read with fil_load_single_table_tablespace().
 
 In a normal startup, we create the tablespace objects for every table in
 InnoDB's data dictionary, if the corresponding .ibd file exists.
-We also scan the biggest space id, and store it to fil_system. */
+We also scan the biggest space id, and store it to fil_system.
+@param[in]	validate	whether the previous shutdown was not clean
+@param[in]	dict_check	how to check */
 
 void
 dict_check_tablespaces_and_store_max_id(
-/*====================================*/
-	dict_check_t	dict_check);	/*!< in: how to check */
+	bool		validate,
+	dict_check_t	dict_check);
 /********************************************************************//**
 Finds the first table name in the given database.
 @return own: table name, NULL if does not exist; the caller must free
@@ -178,16 +185,17 @@ dict_save_data_dir_path(
 /*====================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	char*		filepath);	/*!< in: filepath of tablespace */
-/*****************************************************************//**
-Make sure the data_file_name is saved in dict_table_t if needed. Try to
-read it from the file dictionary first, then from SYS_DATAFILES. */
+
+/** Make sure the data_file_name is saved in dict_table_t if needed.
+Try to read it from the fil_system first, then from SYS_DATAFILES.
+@param[in]	table		Table object
+@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 
 void
 dict_get_and_save_data_dir_path(
-/*============================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	bool		dict_mutex_own);	/*!< in: true if dict_sys->mutex
-					is owned already */
+	dict_table_t*	table,
+	bool		dict_mutex_own);
+
 /********************************************************************//**
 Loads a table definition and also all its index definitions, and also
 the cluster definition if the table is a member in a cluster. Also loads
@@ -388,40 +396,49 @@ dict_process_sys_datafiles(
 	const rec_t*	rec,		/*!< in: current SYS_DATAFILES rec */
 	ulint*		space,		/*!< out: pace id */
 	const char**	path);		/*!< out: datafile path */
-/********************************************************************//**
-Get the filepath for a spaceid from SYS_DATAFILES. This function provides
-a temporary heap which is used for the table lookup, but not for the path.
-The caller must free the memory for the path returned. This function can
-return NULL if the space ID is not found in SYS_DATAFILES, then the caller
-will assume that the ibd file is in the normal datadir.
+
+/** Get the filepath for a spaceid from SYS_DATAFILES and checks it against
+the contents of a link file. This function is called when there is no
+fil_node_t entry for this space ID so both durable locations on  disk
+must be checked and compared.
+We use a temporary heap here for the table lookup, but not for the path
+returned which the caller must free.
+This function can return NULL if the space ID is not found in SYS_DATAFILES,
+then the caller will assume that the ibd file is in the normal datadir.
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace Name
 @return own: A copy of the first datafile found in SYS_DATAFILES.PATH for
 the given space ID. NULL if space ID is zero or not found. */
 
 char*
 dict_get_first_path(
-/*================*/
-	ulint		space,	/*!< in: space id */
-	const char*	name);	/*!< in: tablespace name */
-/********************************************************************//**
-Update the record for space_id in SYS_TABLESPACES to this filepath.
+	ulint		space,
+	const char*	name);
+
+/** Update the record for space_id in SYS_TABLESPACES to this filepath.
+@param[in]	space_id	Tablespace ID
+@param[in]	filepath	Tablespace filepath
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 
 dberr_t
 dict_update_filepath(
-/*=================*/
-	ulint		space_id,	/*!< in: space id */
-	const char*	filepath);	/*!< in: filepath */
-/********************************************************************//**
-Insert records into SYS_TABLESPACES and SYS_DATAFILES.
+	ulint		space_id,
+	const char*	filepath);
+
+/** Insert records into SYS_TABLESPACES and SYS_DATAFILES associated with
+the given space_id using an independent transaction.
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace name
+@param[in]	filepath,	First filepath
+@param[in]	fsp_flags	Tablespace flags
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 
 dberr_t
 dict_insert_tablespace_and_filepath(
-/*================================*/
-	ulint		space,		/*!< in: space id */
-	const char*	name,		/*!< in: talespace name */
-	const char*	filepath,	/*!< in: filepath */
-	ulint		fsp_flags);	/*!< in: tablespace flags */
+	ulint		space_id,
+	const char*	name,
+	const char*	filepath,
+	ulint		fsp_flags);
 
 #ifndef UNIV_NONINL
 #include "dict0load.ic"

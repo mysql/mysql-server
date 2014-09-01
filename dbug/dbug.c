@@ -85,6 +85,9 @@
 #include <errno.h>
 #include <ctype.h>
 
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 #ifdef HAVE_FNMATCH_H
 #include <fnmatch.h>
 #else
@@ -93,6 +96,8 @@
 
 #if defined(_WIN32)
 #include <process.h>
+#else
+#include <signal.h>
 #endif
 
 #ifndef DBUG_OFF
@@ -2009,7 +2014,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
   cs->lineno++;
   if (cs->stack->flags & PID_ON)
   {
-    (void) fprintf(cs->stack->out_file, "%-7s: ", my_thread_name());
+    (void) fprintf(cs->stack->out_file, "T@%u: ", mysys_thread_var()->id);
   }
   if (cs->stack->flags & NUMBER_ON)
     (void) fprintf(cs->stack->out_file, "%5d: ", cs->lineno);

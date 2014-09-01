@@ -188,6 +188,12 @@ CREATE TABLE t3 (a3 INT NOT NULL, b3 INT NOT NULL, PRIMARY KEY (a3,b3));
 INSERT INTO t1 VALUES (1,1), (2,1), (1,3);
 INSERT INTO t2 VALUES (1,1), (2,2), (3,3);
 INSERT INTO t3 VALUES (1,1), (2,1), (1,3);
+# Need to run ANALYZE to get correct index statistics
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t1, t2, t3;
+--enable_result_log
+--enable_query_log
 --let $query =  DELETE t1,t2,t3 FROM t1,t2,t3 WHERE a1=a2 AND b2=a3 AND b1=b3
 --let $select = SELECT *        FROM t1,t2,t3 WHERE a1=a2 AND b2=a3 AND b1=b3
 --source include/explain_utils.inc
@@ -591,6 +597,12 @@ CREATE TABLE t2(f3 INT, f4 INT);
 CREATE INDEX IDX ON t2(f3);
 INSERT INTO t1 VALUES(1,0),(2,0);
 INSERT INTO t2 VALUES(1,1),(2,2);
+# Need to run ANALYZE to get correct index statistics
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1,t2;
+-- enable_result_log
+-- enable_query_log
 --let $query =  UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1)
 --let $select = SELECT              (SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1) FROM t1
 --source include/explain_utils.inc

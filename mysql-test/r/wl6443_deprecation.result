@@ -108,10 +108,9 @@ count(*)
 0
 create table mysql.host(c1 int) engine MyISAM;
 insert into mysql.host values(1);
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -128,6 +127,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -140,10 +140,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql: [Warning] Using a password on the command line interface can be insecure.
-Warning	1642	Table mysql.host is not empty. It is deprecated and will be removed in a future release.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
+mysql_upgrade: [Warning] 1642: Table mysql.host is not empty. It is deprecated and will be removed in a future release.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 drop table mysql.host;
@@ -152,10 +149,9 @@ create user 'wl6443_u1'@'10.10.10.1' identified by 'sql';
 select count(*) from mysql.host;
 count(*)
 2
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -171,6 +167,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -183,17 +180,13 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 drop view mysql.host;
 drop user 'wl6443_u1'@'10.10.10.1';
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
+mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log                                  OK
@@ -209,6 +202,7 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
@@ -221,9 +215,6 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 # End of 5.6 tests

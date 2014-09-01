@@ -25,6 +25,10 @@ Created 5/11/1994 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
 #ifndef UNIV_INNOCHECKSUM
 
 #ifndef UNIV_HOTBACKUP
@@ -382,6 +386,8 @@ ut_delay(
 {
 	ulint	i, j;
 
+	UT_LOW_PRIORITY_CPU();
+
 	j = 0;
 
 	for (i = 0; i < delay * 50; i++) {
@@ -392,6 +398,8 @@ ut_delay(
 	if (ut_always_false) {
 		ut_always_false = (ibool) j;
 	}
+
+	UT_RESUME_PRIORITY_CPU();
 
 	return(j);
 }
@@ -898,6 +906,57 @@ ut_strerr(
 	/* NOT REACHED */
 	return("Unknown error");
 }
+
+#ifdef UNIV_PFS_MEMORY
+
+/** Extract the basename of a file without its extension.
+For example, extract "foo0bar" out of "/path/to/foo0bar.cc".
+@param[in]	file		file path, e.g. "/path/to/foo0bar.cc"
+@param[out]	base		result, e.g. "foo0bar"
+@param[in]	base_size	size of the output buffer 'base', if there
+is not enough space, then the result will be truncated, but always
+'\0'-terminated
+@return number of characters that would have been printed if the size
+were unlimited (not including the final ‘\0’) */
+size_t
+ut_basename_noext(
+	const char*	file,
+	char*		base,
+	size_t		base_size)
+{
+	/* Assuming 'file' contains something like the following,
+	extract the file name without the extenstion out of it by
+	setting 'beg' and 'len'.
+	...mysql-trunk/storage/innobase/dict/dict0dict.cc:302
+                                             ^-- beg, len=9
+	*/
+
+	const char*	beg = strrchr(file, OS_PATH_SEPARATOR);
+
+	if (beg == NULL) {
+		beg = file;
+	} else {
+		beg++;
+	}
+
+	size_t		len = strlen(beg);
+
+	const char*	end = strrchr(beg, '.');
+
+	if (end != NULL) {
+		len = end - beg;
+	}
+
+	const size_t	copy_len = std::min(len, base_size - 1);
+
+	memcpy(base, beg, copy_len);
+
+	base[copy_len] = '\0';
+
+	return(len);
+}
+
+#endif /* UNIV_PFS_MEMORY */
 
 namespace ib {
 

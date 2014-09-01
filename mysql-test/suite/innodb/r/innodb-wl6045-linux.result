@@ -87,6 +87,7 @@ page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 #Replace the t.ibd with the newly created a.ibd having crc32 checksum.
 # Start the server to validate the t1.ibd having crc32 checksum.
+# restart
 select * from t1;
 c1	c2
 1	Innochecksum InnoDB
@@ -180,6 +181,7 @@ Page::# is empty and uncorrupted
 page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 # Start the server to validate the t1.ibd having "none" checksum.
+# restart
 select * from t1;
 c1	c2
 1	Innochecksum InnoDB
@@ -238,6 +240,7 @@ page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 # Replace the t.ibd with the newly created a.ibd having "innodb" checksum.
 # Start the server to validate the t1.ibd having "innodb" checksum.
+# restart
 select * from t1;
 c1	c2
 1	Innochecksum InnoDB

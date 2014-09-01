@@ -110,6 +110,7 @@ int my_sync(File fd, myf my_flags)
   DBUG_RETURN(res);
 } /* my_sync */
 
+
 /*
   Force directory information to disk.
 
@@ -122,12 +123,18 @@ int my_sync(File fd, myf my_flags)
     0 if ok, !=0 if error
 */
 
-#ifdef NEED_EXPLICIT_SYNC_DIR
-
+#ifdef __linux
 static const char cur_dir_name[]= {FN_CURLIB, 0};
+#endif
 
-int my_sync_dir(const char *dir_name, myf my_flags)
+int my_sync_dir(const char *dir_name __attribute__((unused)),
+                myf my_flags __attribute__((unused)))
 {
+/*
+  Only Linux is known to need an explicit sync of the directory to make sure a
+  file creation/deletion/renaming in(from,to) this directory durable.
+*/
+#ifdef __linux__
   File dir_fd;
   int res= 0;
   const char *correct_dir_name;
@@ -149,17 +156,10 @@ int my_sync_dir(const char *dir_name, myf my_flags)
   else
     res= 1;
   DBUG_RETURN(res);
-}
-
-#else /* NEED_EXPLICIT_SYNC_DIR */
-
-int my_sync_dir(const char *dir_name __attribute__((unused)),
-                myf my_flags __attribute__((unused)))
-{
+#else
   return 0;
+#endif
 }
-
-#endif /* NEED_EXPLICIT_SYNC_DIR */
 
 
 /*
@@ -174,23 +174,15 @@ int my_sync_dir(const char *dir_name __attribute__((unused)),
     0 if ok, !=0 if error
 */
 
-#ifdef NEED_EXPLICIT_SYNC_DIR
-
-int my_sync_dir_by_file(const char *file_name, myf my_flags)
+int my_sync_dir_by_file(const char *file_name __attribute__((unused)),
+                        myf my_flags __attribute__((unused)))
 {
+#ifdef __linux__
   char dir_name[FN_REFLEN];
   size_t dir_name_length;
   dirname_part(dir_name, file_name, &dir_name_length);
   return my_sync_dir(dir_name, my_flags);
-}
-
-#else /* NEED_EXPLICIT_SYNC_DIR */
-
-int my_sync_dir_by_file(const char *file_name __attribute__((unused)),
-                        myf my_flags __attribute__((unused)))
-{
+#else
   return 0;
+#endif
 }
-
-#endif /* NEED_EXPLICIT_SYNC_DIR */
-

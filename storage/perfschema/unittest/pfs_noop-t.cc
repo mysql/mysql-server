@@ -130,7 +130,7 @@ void test_noop()
   PSI_server->end_cond_wait(NULL, 0);
   table_locker= PSI_server->start_table_io_wait(NULL, NULL, PSI_TABLE_FETCH_ROW, 0, NULL, 0);
   ok(table_locker == NULL, "no table_locker");
-  PSI_server->end_table_io_wait(NULL);
+  PSI_server->end_table_io_wait(NULL, 0);
   table_locker= PSI_server->start_table_lock_wait(NULL, NULL, PSI_TABLE_LOCK, 0, NULL, 0);
   ok(table_locker == NULL, "no table_locker");
   PSI_server->end_table_lock_wait(NULL);

@@ -332,9 +332,8 @@ void thr_lock_delete(THR_LOCK *lock)
 
 void thr_lock_info_init(THR_LOCK_INFO *info)
 {
-  struct st_my_thread_var *tmp= my_thread_var;
   info->thread=    pthread_self();
-  info->thread_id= tmp->id;
+  info->thread_id= mysys_thread_var()->id;
 }
 
 	/* Initialize a lock instance */
@@ -367,7 +366,7 @@ static enum enum_thr_lock_result
 wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
               my_bool in_wait_list, ulong lock_wait_timeout)
 {
-  struct st_my_thread_var *thread_var= my_thread_var;
+  struct st_my_thread_var *thread_var= mysys_thread_var();
   mysql_cond_t *cond= &thread_var->suspend;
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
@@ -427,7 +426,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   if ((!thread_var->abort || in_wait_list) && before_lock_wait)
     (*before_lock_wait)();
 
-  set_timespec(wait_timeout, lock_wait_timeout);
+  set_timespec(&wait_timeout, lock_wait_timeout);
   while (!thread_var->abort || in_wait_list)
   {
     int rc= mysql_cond_timedwait(cond, &data->lock->mutex, &wait_timeout);
@@ -1002,8 +1001,9 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_INFO *owner,
     }
     DEBUG_SYNC_C("thr_multi_lock_after_thr_lock");
 #ifdef MAIN
-    printf("Thread: %s  Got lock: 0x%lx  type: %d\n",my_thread_name(),
-	   (long) pos[0]->lock, pos[0]->type); fflush(stdout);
+    printf("Thread: T@%u  Got lock: 0x%lx  type: %d\n",
+           mysys_thread_var()->id, (long) pos[0]->lock, pos[0]->type);
+    fflush(stdout);
 #endif
   }
   thr_lock_merge_status(data, count);
@@ -1095,8 +1095,8 @@ void thr_multi_unlock(THR_LOCK_DATA **data,uint count)
   for (pos=data,end=data+count; pos < end ; pos++)
   {
 #ifdef MAIN
-    printf("Thread: %s  Rel lock: 0x%lx  type: %d\n",
-	   my_thread_name(), (long) pos[0]->lock, pos[0]->type);
+    printf("Thread: T@%u  Rel lock: 0x%lx  type: %d\n",
+	   mysys_thread_var()->id, (long) pos[0]->lock, pos[0]->type);
     fflush(stdout);
 #endif
     if ((*pos)->type != TL_UNLOCK)
@@ -1393,7 +1393,8 @@ static void *test_thread(void *arg)
   THR_LOCK_DATA *multi_locks[MAX_LOCK_COUNT];
   my_thread_init();
 
-  printf("Thread %s (%d) started\n",my_thread_name(),param); fflush(stdout);
+  printf("Thread T@%u (%d) started\n", mysys_thread_var()->id, param);
+  fflush(stdout);
 
 
   thr_lock_info_init(&lock_info);
@@ -1425,7 +1426,8 @@ static void *test_thread(void *arg)
     thr_multi_unlock(multi_locks,lock_counts[param]);
   }
 
-  printf("Thread %s (%d) ended\n",my_thread_name(),param); fflush(stdout);
+  printf("Thread T@%u (%d) ended\n", mysys_thread_var()->id, param);
+  fflush(stdout);
   thr_print_locks();
   mysql_mutex_lock(&LOCK_thread_count);
   thread_count--;
@@ -1445,7 +1447,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   if (argc > 1 && argv[1][0] == '-' && argv[1][1] == '#')
     DBUG_PUSH(argv[1]+2);
 
-  printf("Main thread: %s\n",my_thread_name());
+  printf("Main thread: T@%u\n", mysys_thread_var()->id);
 
   if ((error= mysql_cond_init(0, &COND_thread_count)))
   {
@@ -1477,14 +1479,12 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
                       "pthread_attr_setdetachstate", errno);
     exit(1);
   }
-#ifndef pthread_attr_setstacksize		/* void return value */
   if ((error=pthread_attr_setstacksize(&thr_attr,65536L)))
   {
     my_message_stderr(0, "Got error %d from "
                       "pthread_attr_setstacksize", error);
     exit(1);
   }
-#endif
   for (i=0 ; i < (int) array_elements(lock_counts) ; i++)
   {
     param=(int*) malloc(sizeof(int));

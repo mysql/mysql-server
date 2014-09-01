@@ -52,6 +52,7 @@ insert into t2 values (107),(75),(1000);
 
 select t1.id, t2.id from t1, t2 where t2.id = t1.id;
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t1.id;
+# We see the functional dependency implied by WHERE!
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t2.id;
 
 #
@@ -65,7 +66,7 @@ drop table t1,t2;
 #
 # problem with join
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   id int(11) NOT NULL auto_increment,
   token varchar(100) DEFAULT '' NOT NULL,
@@ -78,7 +79,7 @@ CREATE TABLE t1 (
   KEY timestamp (timestamp),
   UNIQUE token_2 (token(75),count,phone)
 );
-
+SET sql_mode = default;
 INSERT INTO t1 VALUES (21,'e45703b64de71482360de8fec94c3ade',3,7800,'n','1999-12-23 17:22:21');
 INSERT INTO t1 VALUES (22,'e45703b64de71482360de8fec94c3ade',4,5000,'y','1999-12-23 17:22:21');
 INSERT INTO t1 VALUES (18,'346d1cb63c89285b2351f0ca4de40eda',3,13200,'b','1999-12-23 11:58:04');
@@ -1006,8 +1007,10 @@ WHERE v1.i2 = 211
 GROUP BY t1.pk
 ORDER BY v1.i2;
 
+--source include/turn_off_only_full_group_by.inc
 eval EXPLAIN $query;
 eval $query;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 let query=
 SELECT t1.pk

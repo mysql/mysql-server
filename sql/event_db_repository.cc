@@ -545,12 +545,15 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *i_s_table,
 
   event_table.init_one_table("mysql", 5, "event", 5, "event", TL_READ);
 
-  if (open_system_tables_for_read(thd, &event_table, &open_tables_backup))
+  if (open_nontrans_system_tables_for_read(thd, &event_table,
+                                           &open_tables_backup))
+  {
     DBUG_RETURN(TRUE);
+  }
 
   if (!event_table.table->key_info)
   {
-    close_system_tables(thd, &open_tables_backup);
+    close_nontrans_system_tables(thd, &open_tables_backup);
     my_error(ER_TABLE_CORRUPT, MYF(0), event_table.table->s->db.str,
              event_table.table->s->table_name.str);
     DBUG_RETURN(TRUE);
@@ -558,7 +561,7 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *i_s_table,
  
   if (table_intact.check(event_table.table, &event_table_def))
   {
-    close_system_tables(thd, &open_tables_backup);
+    close_nontrans_system_tables(thd, &open_tables_backup);
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
     DBUG_RETURN(TRUE);
   }
@@ -577,7 +580,7 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *i_s_table,
   else
     ret= table_scan_all_for_i_s(thd, schema_table, event_table.table);
 
-  close_system_tables(thd, &open_tables_backup);
+  close_nontrans_system_tables(thd, &open_tables_backup);
 
   DBUG_PRINT("info", ("Return code=%d", ret));
   DBUG_RETURN(ret);
@@ -1079,11 +1082,12 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
     does not release transactional metadata locks when the
     event table is closed.
   */
-  if (!(ret= open_system_tables_for_read(thd, &event_table, &open_tables_backup)))
+  if (!(ret= open_nontrans_system_tables_for_read(thd, &event_table,
+                                                  &open_tables_backup)))
   {
     if (table_intact.check(event_table.table, &event_table_def))
     {
-      close_system_tables(thd, &open_tables_backup);
+      close_nontrans_system_tables(thd, &open_tables_backup);
       my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
       DBUG_RETURN(TRUE);
     }
@@ -1093,7 +1097,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
     else if ((ret= etn->load_from_row(thd, event_table.table)))
       my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "event");
 
-    close_system_tables(thd, &open_tables_backup);
+    close_nontrans_system_tables(thd, &open_tables_backup);
   }
 
   thd->variables.sql_mode= saved_mode;

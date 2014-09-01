@@ -1729,6 +1729,7 @@ DROP PROCEDURE IF EXISTS p3;
 DROP PROCEDURE IF EXISTS p4;
 DROP PROCEDURE IF EXISTS p5;
 DROP PROCEDURE IF EXISTS p6;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE PROCEDURE p1()
 BEGIN
 SELECT CAST('10 ' as unsigned integer);
@@ -1848,6 +1849,7 @@ DROP PROCEDURE p5;
 DROP PROCEDURE p6;
 DROP PROCEDURE p7;
 DROP TABLE t1;
+SET sql_mode = default;
 
 # - Case 3: check that "Exception trumps No Data".
 
@@ -1897,6 +1899,7 @@ DROP PROCEDURE p1;
 #
 # Bug#5889: Exit handler for a warning doesn't hide the warning in trigger
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1(a INT, b INT);
 INSERT INTO t1 VALUES (1, 2);
 CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
@@ -1913,6 +1916,7 @@ a	b
 10	20
 DROP TRIGGER t1_bu;
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Bug#9857: Stored procedures: handler for sqlwarning ignored
 #
@@ -1950,6 +1954,7 @@ SET sql_mode = @sql_mode_saved;
 #
 # Bug#55850: Trigger warnings not cleared.
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 DROP PROCEDURE IF EXISTS p1;
@@ -2008,6 +2013,7 @@ Error	1048	Column 'c' cannot be null
 DROP TABLE t1;
 DROP TABLE t2;
 DROP PROCEDURE p1;
+SET sql_mode = default;
 
 ###################################################################
 # Tests for the following bugs:
@@ -2568,6 +2574,7 @@ DROP PROCEDURE p13;
 
 # Bug#12731619: NESTED SP HANDLERS CAN TRIGGER ASSERTION
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DROP FUNCTION IF EXISTS f1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(msg VARCHAR(255));
@@ -2778,11 +2785,13 @@ DROP PROCEDURE p5;
 DROP PROCEDURE p6;
 DROP TABLE t1;
 DROP TABLE t2;
+SET sql_mode = default;
 
 # Bug#13059316: ASSERTION FAILURE IN SP_RCONTEXT.CC 
 # Check DECLARE statements that raise conditions before handlers
 # are declared.
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 CREATE PROCEDURE p1()
@@ -2807,6 +2816,7 @@ H2
 
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
+SET sql_mode = default;
 #
 # Bug#13113222 RQG_SIGNAL_RESIGNAL FAILED WITH ASSERTION.
 #

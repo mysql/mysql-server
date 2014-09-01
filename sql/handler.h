@@ -38,6 +38,8 @@
 class Alter_info;
 typedef struct xid_t XID;
 
+class SE_cost_constants;                        // see opt_costconstants.h
+
 // the following is for checking tables
 
 #define HA_ADMIN_ALREADY_DONE	  1
@@ -255,7 +257,20 @@ enum enum_alter_inplace_result {
 */
 #define HA_NO_READ_LOCAL_LOCK         (LL(1) << 44)
 
-/*
+/**
+  A storage engine is compatible with the attachable transaction requirements
+  means that
+
+    - either SE detects the fact that THD::ha_data was reset and starts a new
+      attachable transaction, closes attachable transaction on close_connection
+      and resumes regular (outer) transaction when THD::ha_data is restored;
+
+    - or SE completely ignores THD::ha_data and close_connection like MyISAM
+      does.
+*/
+#define HA_ATTACHABLE_TRX_COMPATIBLE  (LL(1) << 45)
+
+/**
   Handler supports Virtual Columns
 */
 #define HA_VIRTUAL_COLUMNS            (LL(1) << 45)
@@ -383,6 +398,8 @@ static const uint MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT = 1;
 static const uint MYSQL_START_TRANS_OPT_READ_ONLY          = 2;
 // READ WRITE option
 static const uint MYSQL_START_TRANS_OPT_READ_WRITE         = 4;
+// HIGH PRIORITY option
+static const uint MYSQL_START_TRANS_OPT_HIGH_PRIORITY      = 8;
 
 enum legacy_db_type
 {
@@ -885,6 +902,33 @@ struct handlerton
   bool (*is_supported_system_table)(const char *db,
                                     const char *table_name,
                                     bool is_sql_layer_system_table);
+
+  /**
+    Retrieve cost constants to be used for this storage engine.
+
+    A storage engine that wants to provide its own cost constants to
+    be used in the optimizer cost model, should implement this function.
+    The server will call this function to get a cost constant object
+    that will be used for tables stored in this storage engine instead
+    of using the default cost constants.
+
+    Life cycle for the cost constant object: The storage engine must
+    allocate the cost constant object on the heap. After the function
+    returns, the server takes over the ownership of this object.
+    The server will eventually delete the object by calling delete.
+
+    @note In the initial version the storage_category parameter will
+    not be used. The only valid value this will have is DEFAULT_STORAGE_CLASS
+    (see declartion in opt_costconstants.h).
+
+    @param storage_category the storage type that the cost constants will
+                            be used for
+
+    @return a pointer to the cost constant object, if NULL is returned
+            the default cost constants will be used
+  */
+
+  SE_cost_constants *(*get_cost_constants)(uint storage_category);
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
@@ -1569,7 +1613,7 @@ public:
   {}
 
   /// Returns sum of time-consuming costs, i.e., not counting memory cost
-  double total_cost()      const { return io_cost + cpu_cost + import_cost; }
+  double total_cost() const  { return io_cost + cpu_cost + import_cost; }
   double get_io_cost()     const { return io_cost; }
   double get_cpu_cost()    const { return cpu_cost; }
   double get_import_cost() const { return import_cost; }
@@ -1584,16 +1628,29 @@ public:
   { 
     return !(io_cost || cpu_cost || import_cost || mem_cost);
   }
-
+  /**
+    Whether or not the total cost is the maximal double
+    
+    @return true if total cost is the maximal double, false otherwise
+  */
+  bool is_max_cost()  const { return io_cost == DBL_MAX; }
   /// Reset all costs to zero
   void reset()
   {
     io_cost= cpu_cost= import_cost= mem_cost= 0;
   }
+  /// Set current cost to the maximal double
+  void set_max_cost()
+  {
+    reset();
+    io_cost= DBL_MAX;
+  }
 
   /// Multiply io, cpu and import costs by parameter
   void multiply(double m)
   {
+    DBUG_ASSERT(!is_max_cost());
+
     io_cost *= m;
     cpu_cost *= m;
     import_cost *= m;
@@ -1602,6 +1659,8 @@ public:
 
   Cost_estimate& operator+= (const Cost_estimate &other)
   {
+    DBUG_ASSERT(!is_max_cost() && !other.is_max_cost());
+
     io_cost+= other.io_cost;
     cpu_cost+= other.cpu_cost;
     import_cost+= other.import_cost;
@@ -1614,20 +1673,60 @@ public:
   {
     Cost_estimate result= *this;
     result+= other;
+
     return result;
   }
 
+  Cost_estimate operator- (const Cost_estimate &other)
+  {
+    Cost_estimate result;
+
+    DBUG_ASSERT(!other.is_max_cost());
+
+    result.io_cost= io_cost - other.io_cost;
+    result.cpu_cost= cpu_cost - other.cpu_cost;
+    result.import_cost= import_cost - other.import_cost;
+    result.mem_cost= mem_cost - other.mem_cost;
+    return result;
+  }
+
+  bool operator> (const Cost_estimate &other) const
+  {
+    return total_cost() > other.total_cost() ? true : false;
+  }
+
+  bool operator< (const Cost_estimate &other) const
+  {
+    return other > *this ? true : false;
+  }
+
   /// Add to IO cost
-  void add_io(double add_io_cost) { io_cost+= add_io_cost; }
+  void add_io(double add_io_cost)
+  {
+    DBUG_ASSERT(!is_max_cost());
+    io_cost+= add_io_cost;
+  }
 
   /// Add to CPU cost
-  void add_cpu(double add_cpu_cost) { cpu_cost+= add_cpu_cost; }
+  void add_cpu(double add_cpu_cost)
+  {
+    DBUG_ASSERT(!is_max_cost());
+    cpu_cost+= add_cpu_cost;
+  }
 
   /// Add to import cost
-  void add_import(double add_import_cost) { import_cost+= add_import_cost; }
+  void add_import(double add_import_cost)
+  {
+    DBUG_ASSERT(!is_max_cost());
+    import_cost+= add_import_cost;
+  }
 
   /// Add to memory cost
-  void add_mem(double add_mem_cost) { mem_cost+= add_mem_cost; }
+  void add_mem(double add_mem_cost)
+  {
+    DBUG_ASSERT(!is_max_cost());
+    mem_cost+= add_mem_cost;
+  }
 };
 
 void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted, 
@@ -2011,20 +2110,66 @@ public:
 
   /**
     Instrumented table associated with this handler.
-    This member should be set to NULL when no instrumentation is in place,
-    so that linking an instrumented/non instrumented server/plugin works.
-    For example:
-    - the server is compiled with the instrumentation.
-    The server expects either NULL or valid pointers in m_psi.
-    - an engine plugin is compiled without instrumentation.
-    The plugin can not leave this pointer uninitialized,
-    or can not leave a trash value on purpose in this pointer,
-    as this would crash the server.
   */
   PSI_table *m_psi;
 
+private:
+#ifdef HAVE_PSI_TABLE_INTERFACE
+
+  /** Internal state of the batch instrumentation. */
+  enum batch_mode_t
+  {
+    /** Batch mode not used. */
+    PSI_BATCH_MODE_NONE,
+    /** Batch mode used, before first table io. */
+    PSI_BATCH_MODE_STARTING,
+    /** Batch mode used, after first table io. */
+    PSI_BATCH_MODE_STARTED
+  };
+
+  /**
+    Batch mode state.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  batch_mode_t m_psi_batch_mode;
+  /**
+    The number of rows in the batch.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  ulonglong m_psi_numrows;
+  /**
+    The current event in a batch.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  PSI_table_locker *m_psi_locker;
+  /**
+    Storage for the event in a batch.
+    @sa start_psi_batch_mode.
+    @sa end_psi_batch_mode.
+  */
+  PSI_table_locker_state m_psi_locker_state;
+#endif
+
+public:
   virtual void unbind_psi();
   virtual void rebind_psi();
+  /**
+    Put the handler in 'batch' mode when collecting
+    table io instrumented events.
+    When operating in batch mode:
+    - a single start event is generated in the performance schema.
+    - all table io performed between @c start_psi_batch_mode
+      and @c end_psi_batch_mode is not instrumented:
+      the number of rows affected is counted instead in @c m_psi_numrows.
+    - a single end event is generated in the performance schema
+      when the batch mode ends with @c end_psi_batch_mode.
+  */
+  void start_psi_batch_mode();
+  /** End a batch started with @c start_psi_batch_mode. */
+  void end_psi_batch_mode();
 
 private:
   friend class DsMrr_impl;
@@ -2054,7 +2199,13 @@ public:
     pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    m_psi(NULL), m_lock_type(F_UNLCK), ha_share(NULL)
+    m_psi(NULL),
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    m_psi_batch_mode(PSI_BATCH_MODE_NONE),
+    m_psi_numrows(0),
+    m_psi_locker(NULL),
+#endif
+    m_lock_type(F_UNLCK), ha_share(NULL)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
@@ -2062,6 +2213,11 @@ public:
     }
   virtual ~handler(void)
   {
+    DBUG_ASSERT(m_psi == NULL);
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
+    DBUG_ASSERT(m_psi_locker == NULL);
+#endif
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
@@ -2841,7 +2997,7 @@ public:
   */
 
   virtual my_bool register_query_cache_table(THD *thd, char *table_key,
-                                             uint key_length,
+                                             size_t key_length,
                                              qc_engine_callback
                                              *engine_callback,
                                              ulonglong *engine_data)

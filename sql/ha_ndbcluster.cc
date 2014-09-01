@@ -12164,7 +12164,7 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
   native_mutex_lock(&ndbcluster_mutex);
 
   struct timespec abstime;
-  set_timespec(abstime, 1);
+  set_timespec(&abstime, 1);
 
   while (max_wait &&
          (!ndb_setup_complete || !ndb_index_stat_thread.is_setup_complete()))
@@ -12178,7 +12178,7 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
       {
         DBUG_PRINT("info", ("1s elapsed waiting"));
         max_wait--;
-        set_timespec(abstime, 1); /* 1 second from now*/
+        set_timespec(&abstime, 1); /* 1 second from now*/
       }
       else
       {
@@ -13504,8 +13504,7 @@ NDB_SHARE::create(const char* key, size_t key_length,
                                       MYF(MY_WME | MY_ZEROFILL))))
     return NULL;
 
-  MEM_ROOT **root_ptr=
-    my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+  MEM_ROOT **root_ptr= my_pthread_get_THR_MALLOC();
   MEM_ROOT *old_root= *root_ptr;
 
   init_sql_alloc(PSI_INSTRUMENT_ME, &share->mem_root, 1024, 0);
@@ -15504,7 +15503,7 @@ Ndb_util_thread::do_run()
   mysql_mutex_lock(&LOCK_server_started);
   while (!mysqld_server_started)
   {
-    set_timespec(abstime, 1);
+    set_timespec(&abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
                          &abstime);
     if (is_stop_requested())
@@ -15549,7 +15548,7 @@ Ndb_util_thread::do_run()
 
   log_info("Started");
 
-  set_timespec(abstime, 0);
+  set_timespec(&abstime, 0);
   for (;;)
   {
     native_mutex_lock(&LOCK);
@@ -15572,7 +15571,7 @@ Ndb_util_thread::do_run()
     */
     if (!check_ndb_in_thd(thd, false))
     {
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       continue;
     }
 
@@ -15586,14 +15585,14 @@ Ndb_util_thread::do_run()
     if (!ndb_binlog_setup(thd))
     {
       /* Failed to setup binlog, try again in 1 second */
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       continue;
     }
 
     if (opt_ndb_cache_check_time == 0)
     {
       /* Wake up in 1 second to check if value has changed */
-      set_timespec(abstime, 1);
+      set_timespec(&abstime, 1);
       continue;
     }
 
@@ -15703,7 +15702,7 @@ Ndb_util_thread::do_run()
     }
 next:
     /* Calculate new time to wake up */
-    set_timespec_nsec(abstime, opt_ndb_cache_check_time * 1000000ULL);
+    set_timespec_nsec(&abstime, opt_ndb_cache_check_time * 1000000ULL);
   }
 
   log_info("Stopping...");
@@ -15758,7 +15757,7 @@ ha_ndbcluster::cond_push(const Item *cond)
   DBUG_ENTER("ha_ndbcluster::cond_push");
 
 #if 1
-  if (cond->used_tables() & ~table->map)
+  if (cond->used_tables() & ~table->pos_in_table_list->map())
   {
     /**
      * 'cond' refers fields from other tables, or other instances 
@@ -15775,7 +15774,7 @@ ha_ndbcluster::cond_push(const Item *cond)
     or other instances of this table.
     (This was a legacy bug in optimizer)
   */
-  DBUG_ASSERT(!(cond->used_tables() & ~table->map));
+  DBUG_ASSERT(!(cond->used_tables() & ~table->pos_in_table_list->map()));
 #endif
   if (!m_cond) 
     m_cond= new ha_ndbcluster_cond;

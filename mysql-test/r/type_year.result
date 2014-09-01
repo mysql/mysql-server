@@ -1,10 +1,8 @@
 drop table if exists t1;
-create table t1 (y year,y2 year(2));
-Warnings:
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+create table t1 (y year,y4 year(4));
 insert into t1 values (0,0),(1999,1999),(2000,2000),(2001,2001),(70,70),(69,69);
 select * from t1;
-y	y2
+y	y4
 0000	0000
 1999	1999
 2000	2000
@@ -12,15 +10,15 @@ y	y2
 1970	1970
 2069	2069
 select * from t1 order by y;
-y	y2
+y	y4
 0000	0000
 1970	1970
 1999	1999
 2000	2000
 2001	2001
 2069	2069
-select * from t1 order by y2;
-y	y2
+select * from t1 order by y4;
+y	y4
 0000	0000
 1970	1970
 1999	1999
@@ -35,7 +33,7 @@ if(y = now(), 1, 0)
 1
 drop table t1;
 create table t1(a year);
-insert into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');
+insert ignore into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 3
 select * from t1;
@@ -49,9 +47,7 @@ End of 5.0 tests
 #
 # Bug #49480: WHERE using YEAR columns returns unexpected results
 #
-CREATE TABLE t2(yy YEAR(2), c2 CHAR(4));
-Warnings:
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+CREATE TABLE t2(yy YEAR(4), c2 CHAR(4));
 CREATE TABLE t4(yyyy YEAR(4), c4 CHAR(4));
 INSERT INTO t2 (c2) VALUES (NULL),(1970),(1999),(2000),(2001),(2069);
 INSERT INTO t4 (c4) SELECT c2 FROM t2;
@@ -73,74 +69,6 @@ NULL	NULL
 2000	2000
 2001	2001
 2069	2069
-# Comparison of YEAR(2) with YEAR(4)
-SELECT * FROM t2, t4 WHERE yy = yyyy;
-yy	c2	yyyy	c4
-1970	1970	1970	1970
-1999	1999	1999	1999
-2000	2000	2000	2000
-2001	2001	2001	2001
-2069	2069	2069	2069
-SELECT * FROM t2, t4 WHERE yy <=> yyyy;
-yy	c2	yyyy	c4
-NULL	NULL	NULL	NULL
-1970	1970	1970	1970
-1999	1999	1999	1999
-2000	2000	2000	2000
-2001	2001	2001	2001
-2069	2069	2069	2069
-SELECT * FROM t2, t4 WHERE yy < yyyy ORDER BY yy,yyyy;
-yy	c2	yyyy	c4
-1970	1970	1999	1999
-1970	1970	2000	2000
-1970	1970	2001	2001
-1970	1970	2069	2069
-1999	1999	2000	2000
-1999	1999	2001	2001
-1999	1999	2069	2069
-2000	2000	2001	2001
-2000	2000	2069	2069
-2001	2001	2069	2069
-SELECT * FROM t2, t4 WHERE yy > yyyy ORDER BY yy,yyyy;
-yy	c2	yyyy	c4
-1999	1999	1970	1970
-2000	2000	1970	1970
-2000	2000	1999	1999
-2001	2001	1970	1970
-2001	2001	1999	1999
-2001	2001	2000	2000
-2069	2069	1970	1970
-2069	2069	1999	1999
-2069	2069	2000	2000
-2069	2069	2001	2001
-# Comparison of YEAR(2) with YEAR(2)
-SELECT * FROM t2 a, t2 b WHERE a.yy = b.yy;
-yy	c2	yy	c2
-1970	1970	1970	1970
-1999	1999	1999	1999
-2000	2000	2000	2000
-2001	2001	2001	2001
-2069	2069	2069	2069
-SELECT * FROM t2 a, t2 b WHERE a.yy <=> b.yy;
-yy	c2	yy	c2
-NULL	NULL	NULL	NULL
-1970	1970	1970	1970
-1999	1999	1999	1999
-2000	2000	2000	2000
-2001	2001	2001	2001
-2069	2069	2069	2069
-SELECT * FROM t2 a, t2 b WHERE a.yy < b.yy;
-yy	c2	yy	c2
-1970	1970	1999	1999
-1970	1970	2000	2000
-1999	1999	2000	2000
-1970	1970	2001	2001
-1999	1999	2001	2001
-2000	2000	2001	2001
-1970	1970	2069	2069
-1999	1999	2069	2069
-2000	2000	2069	2069
-2001	2001	2069	2069
 # Comparison of YEAR(4) with YEAR(4)
 SELECT * FROM t4 a, t4 b WHERE a.yyyy = b.yyyy;
 yyyy	c4	yyyy	c4
@@ -311,7 +239,7 @@ DROP TABLE t2, t4;
 # Bug #49910: Behavioural change in SELECT/WHERE on YEAR(4) data type
 #
 CREATE TABLE t1 (y YEAR NOT NULL, s VARCHAR(4));
-INSERT INTO t1 (s) VALUES ('bad');
+INSERT IGNORE INTO t1 (s) VALUES ('bad');
 Warnings:
 Warning	1364	Field 'y' doesn't have a default value
 INSERT INTO t1 (y, s) VALUES (0, 0), (2000, 2000), (2001, 2001);
@@ -356,12 +284,38 @@ DROP TABLE t1;
 #
 # WL#6219: Deprecate and remove YEAR(2) type
 #
-CREATE TABLE t1 (c1 YEAR(2), c2 YEAR(4));
-Warnings:
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
-ALTER TABLE t1 MODIFY COLUMN c2 YEAR(2);
-Warnings:
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+CREATE TABLE t1 (c1 YEAR(4), c2 YEAR(4));
+ALTER TABLE t1 MODIFY COLUMN c2 YEAR(4);
+DROP TABLE t1;
+#
+#
+# WL#6263: Remove YEAR(2) type
+#
+CREATE TABLE t1 (c1 YEAR(2));
+ERROR HY000: Supports only YEAR or YEAR(4) column.
+CREATE TABLE t1 (c1 YEAR(0));
+ERROR HY000: Supports only YEAR or YEAR(4) column.
+CREATE TABLE t1 (c1 YEAR(4294967295));
+ERROR HY000: Supports only YEAR or YEAR(4) column.
+CREATE TABLE t1 (c1 YEAR(4294967296));
+ERROR HY000: Supports only YEAR or YEAR(4) column.
+CREATE TABLE t1 (c1 YEAR(4));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` year(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES (55);
+UPDATE t1 SET c1=2016;
+CHECK TABLE t1 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	note	The storage engine for the table doesn't support repair
+DELETE FROM t1;
+ALTER TABLE t1 MODIFY COLUMN c1 YEAR(2);
+ERROR HY000: Supports only YEAR or YEAR(4) column.
 DROP TABLE t1;
 #
 End of 5.1 tests

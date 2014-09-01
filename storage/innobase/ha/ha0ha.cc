@@ -64,7 +64,7 @@ ib_create(
 
 	if (n_sync_obj == 0) {
 		table->heap = mem_heap_create_typed(
-			ut_min(4096UL,
+			ut_min(static_cast<ulint>(4096),
 				MEM_MAX_ALLOC_IN_BUF / 2
 				- MEM_BLOCK_HEADER_SIZE - MEM_SPACE_NEEDED(0)),
 			type);
@@ -84,11 +84,11 @@ ib_create(
 	}
 
 	table->heaps = static_cast<mem_heap_t**>(
-		ut_malloc(n_sync_obj * sizeof(void*)));
+		ut_malloc_nokey(n_sync_obj * sizeof(void*)));
 
 	for (ulint i = 0; i < n_sync_obj; i++) {
 		table->heaps[i] = mem_heap_create_typed(
-			ut_min(4096UL,
+			ut_min(static_cast<ulint>(4096),
 				MEM_MAX_ALLOC_IN_BUF / 2
 				- MEM_BLOCK_HEADER_SIZE - MEM_SPACE_NEEDED(0)),
 			type);
@@ -127,11 +127,11 @@ ib_recreate(
 	ut_free(table->heaps);
 
 	new_table->heaps = static_cast<mem_heap_t**>(
-		ut_malloc(new_table->n_sync_obj * sizeof(void*)));
+		ut_malloc_nokey(new_table->n_sync_obj * sizeof(void*)));
 
 	for (ulint i = 0; i < new_table->n_sync_obj; i++) {
 		new_table->heaps[i] = mem_heap_create_typed(
-			ut_min(4096UL,
+			ut_min(static_cast<ulint>(4096),
 				MEM_MAX_ALLOC_IN_BUF / 2
 				- MEM_BLOCK_HEADER_SIZE - MEM_SPACE_NEEDED(0)),
 			MEM_HEAP_FOR_PAGE_HASH);

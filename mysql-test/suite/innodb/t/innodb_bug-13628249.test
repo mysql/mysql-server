@@ -1,86 +1,41 @@
+
 # This is the test case for bug#13628249. Make sure that InnoDB starts
 # up correctly and is able to shutdown with --innodb-force-recovery >= 3
 # after a crash with active user tranactions.
 
 #
-# Not supported in embedded
+# Restarting is not supported in embedded.
 --source include/not_embedded.inc
 
-#
-# This test case needs to crash the server. Needs a debug server.
---source include/have_debug.inc
-#
-# Don't test this under valgrind, memory leaks will occur.
---source include/not_valgrind.inc
-#
 # This test case needs InnoDB.
 -- source include/have_innodb.inc
-
-# Avoid CrashReporter popup on Mac
---source include/not_crashrep.inc
 
 --disable_query_log
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."slave_master_info" in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."slave_relay_log_info" in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."slave_worker_info" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."server_cost" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."engine_cost" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."time_zone" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."time_zone_leap_second" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."time_zone_name" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."time_zone_transition" in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table "mysql"."time_zone_transition_type" in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table "test"."t1" in the cache');
 call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [0-9]+');
 --enable_query_log
 
-##### Restart the server in force recovery mode
---echo # Stop server
+--echo # Restart the server in force recovery mode (2)
+let $restart_parameters = restart: --innodb-force-recovery=2;
+--source include/restart_mysqld.inc
 
-# Write file to make mysql-test-run.pl wait for the server to stop
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+SELECT @@innodb_force_recovery;
 
-# Request shutdown
---shutdown_server 60
+--echo # Restart server in normal mode
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
 
-# Call script that will poll the server waiting for it to disapear
--- source include/wait_until_disconnected.inc
-
---echo # Restart server.
-
-# Write file to make mysql-test-run.pl start up the server again, ensure
-# that no background threads are started, so that we can check that it
-# shuts down properly.
---exec echo "restart:--innodb-force-recovery=2" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
-# Turn on reconnect
---enable_reconnect
-
-# Call script that will poll the server waiting for it to be back online again
---source include/wait_until_connected_again.inc
-
-# Turn off reconnect again
---disable_reconnect
-
-##### Restart the server in normal mode
-# Write file to make mysql-test-run.pl wait for the server to stop
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
-# Send a shutdown request to the server
---shutdown_server 60
-
-# Call script that will poll the server waiting for it to disapear
--- source include/wait_until_disconnected.inc
-
---echo # Restart server.
-
-# Write file to make mysql-test-run.pl start up the server again, ensure
-# that no background threads are started, so that we can check that it
-# shuts down properly.
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
-# Turn on reconnect
---enable_reconnect
-
-# Call script that will poll the server waiting for it to be back online again
---source include/wait_until_connected_again.inc
-
-# Turn off reconnect again
---disable_reconnect
-
+SELECT @@innodb_force_recovery;
 
 #
 # Create test data.
@@ -89,30 +44,19 @@ CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=InnoDB STATS_PERSISTENT=0;
 BEGIN;
 INSERT INTO t1 VALUES(1), (2), (3), (4);
 
-# Request a crash on next execution of commit.
-SET SESSION debug="+d,crash_commit_before";
+--echo # Restart the server in force recovery mode (3)
+let $restart_parameters = restart: --innodb-force-recovery=3;
+--source include/kill_and_restart_mysqld.inc
 
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart:--innodb-force-recovery=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
-# Execute the statement that causes the crash.
---error 2013
-COMMIT;
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+SELECT @@innodb_force_recovery;
 
 SELECT COUNT(*) IN (0,4) yes FROM t1;
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
---source include/wait_until_disconnected.inc
+--echo # Restart the server in force recovery mode (5)
+let $restart_parameters = restart: --innodb-force-recovery=5;
+--source include/restart_mysqld.inc
 
---exec echo "restart:--innodb-force-recovery=5" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+SELECT @@innodb_force_recovery;
 
 SELECT COUNT(*) IN (0,4) yes FROM t1;
 
@@ -120,7 +64,11 @@ SELECT COUNT(*) IN (0,4) yes FROM t1;
 # will cause an assertion failure because essentially it is in read-only
 # mode. For -innodb-force-recovery >= 3 a transaction is not assigned a
 # rollback segment.
--- source include/restart_mysqld.inc
+--echo # Restart server in normal mode
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+SELECT @@innodb_force_recovery;
 
 SELECT COUNT(*) IN (0,4) yes FROM t1;
 

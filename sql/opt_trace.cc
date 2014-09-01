@@ -362,7 +362,7 @@ Opt_trace_struct& Opt_trace_struct::do_add_null(const char *key)
 Opt_trace_struct& Opt_trace_struct::do_add(const char *key, Item *item)
 {
   char buff[256];
-  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  String str(buff, sizeof(buff), system_charset_info);
   str.length(0);
   if (item != NULL)
   {
@@ -375,6 +375,16 @@ Opt_trace_struct& Opt_trace_struct::do_add(const char *key, Item *item)
   }
   else
     return do_add_null(key);
+}
+
+
+Opt_trace_struct& Opt_trace_struct::do_add(const char *key, const Cost_estimate &value)
+{
+  char buf[32];                         // 32 is enough for digits of a double
+  my_snprintf(buf, sizeof(buf), "%g", value.total_cost());
+  DBUG_PRINT("opt", ("%s: %s", key, buf));
+  stmt->add(key, buf, strlen(buf), false, false);
+  return *this;
 }
 
 

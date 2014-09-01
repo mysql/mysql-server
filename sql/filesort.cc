@@ -240,7 +240,8 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
      table->reginfo.qep_tab->join()) ?
     table->reginfo.qep_tab->join()->select_lex->master_unit()->item : NULL;
 
-  MYSQL_FILESORT_START(table->s->db.str, table->s->table_name.str);
+  MYSQL_FILESORT_START(const_cast<char*>(table->s->db.str),
+                       const_cast<char*>(table->s->table_name.str));
   DEBUG_SYNC(thd, "filesort_start");
 
   /*
@@ -1297,7 +1298,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
       else
       {
         uchar *ptr= field->pack(to, field->ptr);
-        int sz= ptr - to;
+        int sz= static_cast<int>(ptr - to);
         res_len += sz;
         if (packed_addon_fields)
           to+= sz;

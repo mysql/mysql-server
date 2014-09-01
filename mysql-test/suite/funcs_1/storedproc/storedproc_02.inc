@@ -196,7 +196,7 @@
 let $message= Section 3.1.2 - Syntax checks for the stored procedure-specific
 programming statements BEGIN/END, DECLARE, SET, SELECT/INTO, OPEN, FETCH, CLOSE:;
 --source include/show_msg80.inc
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 3.1.2.8:;
@@ -1647,7 +1647,7 @@ DROP PROCEDURE sp_outer;
 DROP PROCEDURE sp_inner;
 DROP TABLE temp1;
 DROP TABLE temp2;
-
+SET sql_mode = default;
 
 # ==============================================================================
 # USE the same .inc to cleanup before and after the test

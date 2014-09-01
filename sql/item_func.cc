@@ -514,7 +514,7 @@ void Item_func::print_op(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-
+/// @note Please keep in sync with Item_sum::eq().
 bool Item_func::eq(const Item *item, bool binary_cmp) const
 {
   /* Assume we don't have rtti */
@@ -1032,13 +1032,44 @@ void Item_func_num1::fix_num_length_and_dec()
   max_length= args[0]->max_length;
 }
 
+/*
+  Reject geometry arguments, should be called in fix_length_and_dec for
+  SQL functions/operators where geometries are not suitable as operands.
+ */
+void reject_geometry_args(uint arg_count, Item **args, Item_result_field *me)
+{
+  /*
+    We want to make sure the operands are not GEOMETRY strings because
+    it's meaningless for them to participate in arithmetic and/or numerical
+    calculations.
+
+    When a variable holds a MySQL Geometry byte string, it is regarded as a
+    string rather than a MYSQL_TYPE_GEOMETRY, so here we can't catch an illegal
+    variable argument which was assigned with a geometry.
+
+    Item::field_type() requires the item not be of ROW_RESULT, since a row
+    isn't a field.
+  */
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if (args[i]->result_type() != ROW_RESULT &&
+        args[i]->field_type() == MYSQL_TYPE_GEOMETRY)
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), me->func_name());
+      break;
+    }
+  }
+
+  return;
+}
+
 
 void Item_func_numhybrid::fix_length_and_dec()
 {
   fix_num_length_and_dec();
   find_num_type();
+  reject_geometry_args(arg_count, args, this);
 }
-
 
 String *Item_func_numhybrid::val_str(String *str)
 {
@@ -1272,6 +1303,14 @@ void Item_func_signed::print(String *str, enum_query_type query_type)
   args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as signed)"));
 
+}
+
+
+void Item_func_signed::fix_length_and_dec()
+{
+  fix_char_length(std::min<uint32>(args[0]->max_char_length(),
+                                   MY_INT64_NUM_DECIMAL_DIGITS));
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -1682,7 +1721,7 @@ err:
 my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
 {
   my_decimal value1, *val1;
-  my_decimal value2, *val2= 
+  my_decimal value2, *val2;
 
   val1= args[0]->val_decimal(&value1);
   if ((null_value= args[0]->null_value))
@@ -2002,6 +2041,7 @@ void Item_func_int_div::fix_length_and_dec()
                   MY_INT64_NUM_DECIMAL_DIGITS : char_length);
   maybe_null=1;
   unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -2474,6 +2514,15 @@ double Item_func_latlongfromgeohash::val_real()
 }
 
 
+void Item_dec_func::fix_length_and_dec()
+{
+  decimals= NOT_FIXED_DEC;
+  max_length= float_length(decimals);
+  maybe_null= 1;
+  reject_geometry_args(arg_count, args, this);
+}
+
+
 /** Gateway to natural LOG function. */
 double Item_func_ln::val_real()
 {
@@ -2709,6 +2758,7 @@ void Item_func_integer::fix_length_and_dec()
   uint tmp=float_length(decimals);
   set_if_smaller(max_length,tmp);
   decimals=0;
+  reject_geometry_args(arg_count, args, this);
 }
 
 void Item_func_int_val::fix_num_length_and_dec()
@@ -2865,6 +2915,8 @@ void Item_func_round::fix_length_and_dec()
   bool     val1_unsigned;
   
   unsigned_flag= args[0]->unsigned_flag;
+  reject_geometry_args(arg_count, args, this);
+
   if (!args[1]->const_item())
   {
     decimals= args[0]->decimals;
@@ -3076,6 +3128,13 @@ void Item_func_rand::seed_random(Item *arg)
 }
 
 
+void Item_func_rand::fix_length_and_dec()
+{
+  Item_real_func::fix_length_and_dec();
+  reject_geometry_args(arg_count, args, this);
+}
+
+
 bool Item_func_rand::fix_fields(THD *thd,Item **ref)
 {
   if (Item_real_func::fix_fields(thd, ref))
@@ -3135,12 +3194,28 @@ double Item_func_rand::val_real()
   return my_rnd(rand);
 }
 
+
+void Item_func_sign::fix_length_and_dec()
+{
+  Item_int_func::fix_length_and_dec();
+  reject_geometry_args(arg_count, args, this);
+}
+
+
 longlong Item_func_sign::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val_real();
   null_value=args[0]->null_value;
   return value < 0.0 ? -1 : (value > 0 ? 1 : 0);
+}
+
+
+void Item_func_units::fix_length_and_dec()
+{
+  decimals= NOT_FIXED_DEC;
+  max_length= float_length(decimals);
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -3213,6 +3288,7 @@ void Item_func_min_max::fix_length_and_dec()
   else if (cmp_type == REAL_RESULT)
     fix_char_length(float_length(decimals));
   cached_field_type= agg_field_type(args, arg_count);
+  reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -4640,7 +4716,7 @@ class Interruptible_wait
         the absolute time passes, the timed wait call will fail
         automatically with a timeout error.
       */
-      set_timespec_nsec(m_abs_timeout, timeout);
+      set_timespec_nsec(&m_abs_timeout, timeout);
     }
 
     /** The timed wait. */
@@ -4671,17 +4747,17 @@ int Interruptible_wait::wait(mysql_cond_t *cond, mysql_mutex_t *mutex)
   while (1)
   {
     /* Wait for a fixed interval. */
-    set_timespec_nsec(timeout, m_interrupt_interval);
+    set_timespec_nsec(&timeout, m_interrupt_interval);
 
     /* But only if not past the absolute timeout. */
-    if (cmp_timespec(timeout, m_abs_timeout) > 0)
+    if (cmp_timespec(&timeout, &m_abs_timeout) > 0)
       timeout= m_abs_timeout;
 
     error= mysql_cond_timedwait(cond, mutex, &timeout);
     if (error == ETIMEDOUT || error == ETIME)
     {
       /* Return error if timed out or connection is broken. */
-      if (!cmp_timespec(timeout, m_abs_timeout) || !m_thd->is_connected())
+      if (!cmp_timespec(&timeout, &m_abs_timeout) || !m_thd->is_connected())
         break;
     }
     /* Otherwise, propagate status to the caller. */
@@ -7209,6 +7285,7 @@ void Item_func_match::init_search()
   if (!fixed)
     DBUG_VOID_RETURN;
 
+  TABLE *const table= table_ref->table;
   /* Check if init_search() has been called before */
   if (ft_handler && !master)
   {
@@ -7308,10 +7385,7 @@ static void update_table_read_set(Field *field)
   TABLE *table= field->table;
 
   if (!bitmap_fast_test_and_set(table->read_set, field->field_index))
-  {
-    table->used_fields++;
     table->covering_keys.intersect(field->part_of_key);
-  }
 }
 
 
@@ -7358,7 +7432,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
       return TRUE;
     }
     allows_multi_table_search &= 
-      allows_search_on_non_indexed_columns(((Item_field *)item)->field->table);
+      allows_search_on_non_indexed_columns(((Item_field *)item)->table_ref);
   }
 
   /*
@@ -7374,8 +7448,8 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return TRUE;
   }
-  table=((Item_field *)item)->field->table;
-  if (!(table->file->ha_table_flags() & HA_CAN_FULLTEXT))
+  table_ref= ((Item_field *)item)->table_ref;
+  if (!(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT))
   {
     my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
     return 1;
@@ -7387,6 +7461,8 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     can have FTS_DOC_ID column. Atm this is the only way
     to distinguish MyISAM and InnoDB engines.
   */
+  TABLE *const table= table_ref->table;
+
   if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT))
   {
     Field *doc_id_field= table->fts_doc_id_field;
@@ -7433,6 +7509,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
 bool Item_func_match::fix_index()
 {
   Item_field *item;
+  TABLE *table;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, keynr;
   uint max_cnt=0, mkeys=0, i;
 
@@ -7446,9 +7523,10 @@ bool Item_func_match::fix_index()
   if (key == NO_SUCH_KEY)
     return 0;
   
-  if (!table) 
+  if (!table_ref) 
     goto err;
 
+  table= table_ref->table;
   for (keynr=0 ; keynr < table->s->keys ; keynr++)
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
@@ -7512,7 +7590,7 @@ bool Item_func_match::fix_index()
   }
 
 err:
-  if (allows_search_on_non_indexed_columns(table))
+  if (allows_search_on_non_indexed_columns(table_ref))
   {
     key=NO_SUCH_KEY;
     return 0;
@@ -7534,7 +7612,7 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 
   Item_func_match *ifm=(Item_func_match*) item;
 
-  if (key == ifm->key && table == ifm->table &&
+  if (key == ifm->key && table_ref == ifm->table_ref &&
       key_item()->eq(ifm->key_item(), binary_cmp))
     return 1;
 
@@ -7549,6 +7627,7 @@ double Item_func_match::val_real()
   if (ft_handler == NULL)
     DBUG_RETURN(-1.0);
 
+  TABLE *const table= table_ref->table;
   if (key != NO_SUCH_KEY && table->null_row) /* NULL row from an outer join */
     DBUG_RETURN(0.0);
 
@@ -7732,7 +7811,8 @@ Item_func_sp::Item_func_sp(const POS &pos,
   maybe_null= 1;
   with_stored_program= true;
   THD *thd= current_thd;
-  m_name= new (thd->mem_root) sp_name(db_name, fn_name, use_explicit_name);
+  m_name= new (thd->mem_root) sp_name(to_lex_cstring(db_name), fn_name,
+                                      use_explicit_name);
 }
 
 
@@ -7754,13 +7834,12 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res)
   if (m_name->m_db.str == NULL) // use the default database name
   {
     /* Cannot match the function since no database is selected */
-    if (thd->db == NULL)
+    if (thd->db().str == NULL)
     {
       my_error(ER_NO_DB_ERROR, MYF(0));
       return true;
     }
-    m_name->m_db.str= thd->db;
-    m_name->m_db.length= thd->db_length;
+    m_name->m_db= thd->db();
   }
 
   m_name->init_qname(thd);
