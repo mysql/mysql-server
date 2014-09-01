@@ -332,7 +332,7 @@ RestoreMetaData::readMetaTableList() {
     err << "readMetaTableList read tabCount error, expected count = " << tabCount << ", actual count =" << tabsRead << endl;
     return 0;
   }
-#ifndef DBUG_OFF
+#ifdef ERROR_INSERT
   if(m_error_insert == NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER)
   {
     // clear error insert
@@ -1342,7 +1342,7 @@ BackupFile::BackupFile(void (* _free_data_callback)())
   m_file_size = 0;
   m_file_pos = 0;
   m_is_undolog = false;
-#ifndef DBUG_OFF
+#ifdef ERROR_INSERT
   m_error_insert = 0;
 #endif
 }
@@ -1688,7 +1688,7 @@ BackupFile::validateFooter(){
   return true;
 }
 
-#ifndef DBUG_OFF
+#ifdef ERROR_INSERT
 void BackupFile::error_insert(unsigned int code)
 {
   if(code == NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER)
