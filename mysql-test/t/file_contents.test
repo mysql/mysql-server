@@ -24,6 +24,10 @@ if ($dir_bin =~ m|/usr/|) {
     if (! -d "$dir_docs") {
       # If not it might be ULN so try that
       $dir_docs = glob "$dir_bin/share/doc/mysql-community-server*";
+      if (! -f "$dir_docs/INFO_BIN") {
+        # Debian/ Ubuntu
+        $dir_docs = glob "$dir_bin/share/mysql/docs";
+      }
     }
   }
 } elsif ($dir_bin =~ m|/usr$|) {
@@ -38,6 +42,10 @@ if ($dir_bin =~ m|/usr/|) {
     if (! -d "$dir_docs") {
       # If not it might be ULN so try that
       $dir_docs = glob "$dir_bin/share/doc/mysql-community-server*";
+      if (! -f "$dir_docs/INFO_BIN") {
+        # Debian/ Ubuntu
+        $dir_docs = glob "$dir_bin/share/mysql/docs";
+      }
     }
   }
 } else {
