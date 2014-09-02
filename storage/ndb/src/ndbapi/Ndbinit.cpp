@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2006 MySQL AB
-
+/*
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -128,6 +128,14 @@ Ndb::~Ndb()
   DBUG_ENTER("Ndb::~Ndb()");
   DBUG_PRINT("enter",("this: 0x%lx", (long) this));
 
+  if (theImpl == NULL)
+  {
+    /* Help users find their bugs */
+    g_eventLogger->warning("Deleting Ndb-object @%p which is already deleted?",
+                           this);
+    DBUG_VOID_RETURN;
+  }
+
   if (m_sys_tab_0)
     getDictionary()->removeTableGlobal(*m_sys_tab_0, 0);
 
@@ -157,11 +165,14 @@ Ndb::~Ndb()
   theImpl->close();
 
   delete theEventBuffer;
+  theEventBuffer = NULL;
 
   releaseTransactionArrays();
 
   delete []theConnectionArray;
+  theConnectionArray = NULL;
   delete []theConnectionArrayLast;
+  theConnectionArrayLast = NULL;
   if(theCommitAckSignal != NULL){
     delete theCommitAckSignal; 
     theCommitAckSignal = NULL;
@@ -170,6 +181,7 @@ Ndb::~Ndb()
   theImpl->m_ndb_cluster_connection.unlink_ndb_object(this);
 
   delete theImpl;
+  theImpl = NULL;
 
 #ifdef POORMANSPURIFY
 #ifdef POORMANSGUI
