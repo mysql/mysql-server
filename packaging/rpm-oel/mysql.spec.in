@@ -20,7 +20,7 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-%global milestone       m15
+%global milestone       m16
 %global mysql_version   @VERSION@
 
 %global mysql_vendor Oracle and/or its affiliates
