@@ -92,6 +92,7 @@ PATENT RIGHTS GRANT:
 // Test that recovery works correctly on a recovery log in a log directory.
 
 #include "test.h"
+#include <libgen.h>
 
 static void run_recovery(const char *testdir) {
     int r;
@@ -175,7 +176,7 @@ int test_main(int argc, const char *argv[]) {
     }
     if (i < argc) {
         const char *full_test_dir = argv[i];
-        const char *test_dir = basename(full_test_dir);
+        const char *test_dir = basename((char *)full_test_dir);
         if (strcmp(full_test_dir, test_dir) != 0) {
             int r;
             char cmd[32 + strlen(full_test_dir) + strlen(test_dir)];
