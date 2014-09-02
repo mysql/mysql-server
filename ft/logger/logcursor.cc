@@ -277,11 +277,7 @@ int toku_logcursor_destroy(TOKULOGCURSOR *lc) {
             (*lc)->entry_valid = false;
         }
         r = lc_close_cur_logfile(*lc);
-        int lf;
-        for(lf=0;lf<(*lc)->n_logfiles;lf++) {
-            if ( (*lc)->logfiles[lf] ) toku_free((*lc)->logfiles[lf]);
-        }
-        if ( (*lc)->logfiles ) toku_free((*lc)->logfiles);
+        toku_logger_free_logfiles((*lc)->logfiles, (*lc)->n_logfiles);
         if ( (*lc)->logdir )   toku_free((*lc)->logdir);
         if ( (*lc)->buffer )   toku_free((*lc)->buffer);
         toku_free(*lc);

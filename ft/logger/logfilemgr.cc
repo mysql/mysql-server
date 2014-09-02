@@ -186,10 +186,7 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir, TXNID *last_xi
         toku_logfilemgr_add_logfile_info(lfm, lf_info);
         toku_logcursor_destroy(&cursor);
     }
-    for(int i=0;i<n_logfiles;i++) {
-        toku_free(logfiles[i]);
-    }
-    toku_free(logfiles);
+    toku_logger_free_logfiles(logfiles, n_logfiles);
     *last_xid_if_clean_shutdown = last_xid;
     return 0;
 }
