@@ -93,7 +93,6 @@ PATENT RIGHTS GRANT:
 // Recovery crashes 7.1.0, should succeed.
 
 #include "test.h"
-#include <endian.h>
 
 // Insert max_rows key/val pairs into the db
 
