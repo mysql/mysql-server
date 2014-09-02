@@ -273,13 +273,24 @@ inline
 void
 trp_client::PollQueue::assert_destroy() const
 {
-  assert(m_waiting == PQ_IDLE);
-  assert(m_locked == false);
-  assert(m_poll_owner == false);
-  assert(m_poll_queue == false);
-  assert(m_next == 0);
-  assert(m_prev == 0);
-  assert(m_locked_cnt == 0);
+  if (m_waiting != PQ_IDLE ||
+      m_locked == true ||
+      m_poll_owner == true ||
+      m_poll_queue == true ||
+      m_next != 0 ||
+      m_prev != 0 ||
+      m_locked_cnt != 0)
+  {
+    ndbout << "ERR: ~trp_client: Deleting trp_clnt in use: waiting"
+	   << m_waiting
+	   << " locked  " << m_locked
+	   << " poll_owner " << m_poll_owner
+	   << " poll_queue " << m_poll_queue
+	   << " next " << m_next
+	   << " prev " << m_prev
+	   << " condition " << m_condition << endl;
+    require(false);
+  }
 }
 
 #endif

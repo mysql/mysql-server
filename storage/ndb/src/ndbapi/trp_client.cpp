@@ -38,7 +38,9 @@ trp_client::~trp_client()
 
   close();
   NdbCondition_Destroy(m_poll.m_condition);
+  m_poll.m_condition = NULL;
   NdbMutex_Destroy(m_mutex);
+  m_mutex = NULL;
 
   assert(m_send_nodes_cnt == 0);
   delete [] m_send_buffers;
