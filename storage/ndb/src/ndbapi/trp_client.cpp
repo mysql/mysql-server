@@ -35,13 +35,23 @@ trp_client::~trp_client()
    * require that trp_client user
    *  doesnt destroy object when holding any locks
    */
-  assert(m_poll.m_locked == 0);
-  assert(m_poll.m_poll_owner == false);
-  assert(m_poll.m_next == 0);
-  assert(m_poll.m_prev == 0);
-
+  if (m_poll.m_locked != 0||
+      m_poll.m_poll_owner == true||
+      m_poll.m_next != 0 ||
+      m_poll.m_prev != 0 ||
+      m_poll.m_condition == NULL)
+  {
+    ndbout << "ERR: ~trp_client: Deleting trp_clnt in use: locked "
+	   << m_poll.m_locked
+	   << " poll_owner " << m_poll.m_poll_owner
+	   << " next " << m_poll.m_next
+	   << " prev " << m_poll.m_prev
+	   << " condition " << m_poll.m_condition << endl;
+    require(false);
+  }
   close();
   NdbCondition_Destroy(m_poll.m_condition);
+  m_poll.m_condition = NULL;
 }
 
 Uint32

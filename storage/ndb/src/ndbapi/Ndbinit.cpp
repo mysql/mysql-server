@@ -206,6 +206,7 @@ NdbWaiter::NdbWaiter(trp_client* clnt)
 
 NdbWaiter::~NdbWaiter()
 {
+  m_clnt = NULL;
 }
 
 NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
@@ -246,5 +247,10 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 
 NdbImpl::~NdbImpl()
 {
+  m_next_ndb_object = NULL;
+  m_prev_ndb_object = NULL;
+  theWaiter = NULL;
+  wakeHandler = NULL;
+  m_ev_op = NULL;
 }
 
