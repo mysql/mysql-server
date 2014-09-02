@@ -1,0 +1,29 @@
+CREATE LOGFILE GROUP lg_1
+ADD UNDOFILE 'undo_1.log'
+ENGINE NDBCLUSTER;
+CREATE TABLESPACE ts_1
+ADD DATAFILE 'data_1.dat'
+USE LOGFILE GROUP lg_1
+ENGINE NDBCLUSTER;
+CREATE DATABASE diskdb;
+USE diskdb;
+CREATE TABLE t1
+(id int unsigned NOT NULL auto_increment PRIMARY KEY,
+value varchar(10)) ENGINE NDBCLUSTER
+TABLESPACE ts_1 STORAGE DISK;
+INSERT INTO t1 (value) VALUES
+('abc'), ('def'), ('ghi'), ('jkl'),
+('mno'), ('pqr'), ('stu'), ('vwx'), ('yz');
+Filename not given
+Filename not given
+Filename not given
+Filename not given
+DROP TABLE t1;
+DROP DATABASE diskdb;
+ALTER TABLESPACE ts_1
+DROP DATAFILE 'data_1.dat'
+ENGINE NDBCLUSTER;
+DROP TABLESPACE ts_1
+ENGINE NDBCLUSTER;
+DROP LOGFILE GROUP lg_1
+ENGINE NDBCLUSTER;
