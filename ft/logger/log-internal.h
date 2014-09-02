@@ -188,6 +188,7 @@ struct tokulogger {
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
 int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_logfiles);
+void toku_logger_free_logfiles (char **logfiles, int n_logfiles);
 
 static inline int
 txn_has_current_rollback_log(TOKUTXN txn) {

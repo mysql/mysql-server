@@ -421,7 +421,7 @@ wait_till_output_available (TOKULOGGER logger)
 // Implementation hint: Use a pthread_cond_wait.
 // Entry: Holds the output_condition_lock (but not the inlock)
 // Exit: Holds the output_condition_lock and logger->output_is_available
-// 
+//
 {
     tokutime_t t0 = toku_time_now();
     while (!logger->output_is_available) {
@@ -490,7 +490,7 @@ release_output (TOKULOGGER logger, LSN fsynced_lsn)
     toku_cond_broadcast(&logger->output_condition);
     toku_mutex_unlock(&logger->output_condition_lock);
 }
-    
+
 static void
 swap_inbuf_outbuf (TOKULOGGER logger)
 // Effect: Swap the inbuf and outbuf
@@ -693,7 +693,7 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_lo
     while ((de=readdir(d))) {
         uint64_t thisl;
         uint32_t version_ignore;
-        if ( !(is_a_logfile_any_version(de->d_name, &thisl, &version_ignore)) ) continue; //#2424: Skip over files that don't match the exact logfile template 
+        if ( !(is_a_logfile_any_version(de->d_name, &thisl, &version_ignore)) ) continue; //#2424: Skip over files that don't match the exact logfile template
         if (n_results+1>=result_limit) {
             result_limit*=2;
             XREALLOC_N(result_limit, result);
@@ -707,12 +707,18 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_lo
     // which are one character longer than old log file names ("xxx.tokulog2").  The comparison function
     // won't look beyond the terminating NUL, so an extra character in the comparison string doesn't matter.
     // Allow room for terminating NUL after "xxx.tokulog13" even if result[0] is of form "xxx.tokulog2."
-    int width = sizeof(result[0]+2);  
+    int width = sizeof(result[0]+2);
     qsort(result, n_results, width, logfilenamecompare);
     *resultp    = result;
     *n_logfiles = n_results;
     result[n_results]=0; // make a trailing null
     return d ? closedir(d) : 0;
+}
+
+void toku_logger_free_logfiles(char **logfiles, int n_logfiles) {
+    for (int i = 0; i < n_logfiles; i++)
+        toku_free(logfiles[i]);
+    toku_free(logfiles);
 }
 
 static int open_logfile (TOKULOGGER logger)
@@ -723,7 +729,7 @@ static int open_logfile (TOKULOGGER logger)
     snprintf(fname, fnamelen, "%s/log%012lld.tokulog%d", logger->directory, logger->next_log_file_number, TOKU_LOG_VERSION);
     long long index = logger->next_log_file_number;
     if (logger->write_log_files) {
-        logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRUSR+S_IWUSR);     
+        logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRUSR+S_IWUSR);
         if (logger->fd==-1) {
             return get_error_errno();
         }
@@ -741,7 +747,7 @@ static int open_logfile (TOKULOGGER logger)
     if ( logger->write_log_files ) {
         TOKULOGFILEINFO XMALLOC(lf_info);
         lf_info->index = index;
-        lf_info->maxlsn = logger->written_lsn; 
+        lf_info->maxlsn = logger->written_lsn;
         lf_info->version = TOKU_LOG_VERSION;
         toku_logfilemgr_add_logfile_info(logger->logfilemgr, lf_info);
     }
@@ -770,7 +776,7 @@ void toku_logger_maybe_trim_log(TOKULOGGER logger, LSN trim_lsn)
     int n_logfiles = toku_logfilemgr_num_logfiles(lfm);
 
     TOKULOGFILEINFO lf_info = NULL;
-    
+
     if ( logger->write_log_files && logger->trim_log_files) {
         while ( n_logfiles > 1 ) { // don't delete current logfile
             uint32_t log_version;
@@ -850,7 +856,7 @@ void toku_logger_maybe_fsync(TOKULOGGER logger, LSN lsn, int do_fsync, bool hold
 }
 
 static void
-logger_write_buffer(TOKULOGGER logger, LSN *fsynced_lsn) 
+logger_write_buffer(TOKULOGGER logger, LSN *fsynced_lsn)
 // Entry:  Holds the input lock and permission to modify output.
 // Exit:   Holds only the permission to modify output.
 // Effect:  Write the buffers to the output.  If DO_FSYNC is true, then fsync.
@@ -878,7 +884,7 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn)
 
     // close the log file
     if ( logger->write_log_files) { // fsyncs don't work to /dev/null
-        toku_file_fsync_without_accounting(logger->fd); 
+        toku_file_fsync_without_accounting(logger->fd);
     }
     r = close(logger->fd);                              assert(r == 0);
     logger->fd = -1;
@@ -901,7 +907,7 @@ void toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u
     if (txn) {
         BYTESTRING bs_fname = { .len = (uint32_t) strlen(fname), .data = (char *) fname };
         // fsync log on fcreate
-        toku_log_fcreate (txn->logger, (LSN*)0, 1, txn, toku_txn_get_txnid(txn), filenum, 
+        toku_log_fcreate (txn->logger, (LSN*)0, 1, txn, toku_txn_get_txnid(txn), filenum,
                 bs_fname, mode, treeflags, nodesize, basementnodesize, compression_method);
     }
 }
@@ -1339,7 +1345,7 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
         for (i=all_n_logs-2; i>=0; i--) { // start at all_n_logs-2 because we never archive the most recent log
             r = peek_at_log(logger, all_logs[i], &earliest_lsn_in_logfile);
             if (r!=0) continue; // In case of error, just keep going
-        
+
             if (earliest_lsn_in_logfile.lsn <= save_lsn.lsn) {
                 break;
             }
@@ -1428,7 +1434,7 @@ toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS statp) {
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
-// Used for upgrade: 
+// Used for upgrade:
 // if any valid log files exist in log_dir, then
 //   set *found_any_logs to true and set *version_found to version number of latest log
 int

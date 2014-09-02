@@ -209,10 +209,7 @@ cleanup:
     r = toku_logcursor_destroy(&cursor);
     assert(r == 0);
 cleanup_no_logcursor:
-    for(int i=0;i<n_logfiles;i++) {
-        toku_free(logfiles[i]);
-    }
-    toku_free(logfiles);
+    toku_logger_free_logfiles(logfiles, n_logfiles);
     FOOTPRINTCAPTURE;
     return rval;
 }
@@ -227,10 +224,6 @@ verify_clean_shutdown_of_log_version(const char *log_dir, uint32_t version, LSN 
     if (version < TOKU_LOG_VERSION)  {
         FOOTPRINT(1);
         r = verify_clean_shutdown_of_log_version_old(log_dir, last_lsn, last_xid, version);
-	if (r != 0) {
-	    fprintf(stderr, "Cannot upgrade TokuFT version %d database.", version);
-	    fprintf(stderr, "  Previous improper shutdown detected.\n");
-	}
     }
     else {
         FOOTPRINT(2);
@@ -325,6 +318,13 @@ toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_cl
         TXNID last_xid = TXNID_NONE;
         r = verify_clean_shutdown_of_log_version(log_dir, version_of_logs_on_disk, &last_lsn, &last_xid);
         if (r != 0) {
+            if (TOKU_LOG_VERSION_25 <= version_of_logs_on_disk && version_of_logs_on_disk <= TOKU_LOG_VERSION_27
+                && TOKU_LOG_VERSION_27 == TOKU_LOG_VERSION) {
+                r = 0; // can do recovery on dirty shutdown
+            } else {
+                fprintf(stderr, "Cannot upgrade TokuFT version %d database.", version_of_logs_on_disk);
+                fprintf(stderr, "  Previous improper shutdown detected.\n");
+            }
             goto cleanup;
         }
         FOOTPRINT(5);

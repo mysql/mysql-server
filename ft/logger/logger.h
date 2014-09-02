@@ -103,6 +103,10 @@ enum {
     TOKU_LOG_VERSION_2 = 2,
     //After 2 we linked the log version to the FT_LAYOUT VERSION.
     //So it went from 2 to 13 (3-12 do not exist)
+    TOKU_LOG_VERSION_24 = 24,
+    TOKU_LOG_VERSION_25 = 25, // change rollinclude rollback log entry
+    TOKU_LOG_VERSION_26 = 26, // no change from 25
+    TOKU_LOG_VERSION_27 = 27, // no change from 26
     TOKU_LOG_VERSION   = FT_LAYOUT_VERSION, 
     TOKU_LOG_MIN_SUPPORTED_VERSION = FT_LAYOUT_MIN_SUPPORTED_VERSION,
 };
