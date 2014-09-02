@@ -733,9 +733,6 @@ handle_new_error:
 		/* MySQL will roll back the latest SQL statement */
 		break;
 	case DB_LOCK_WAIT:
-
-		trx_kill_blocking(trx);
-
 		lock_wait_suspend_thread(thr);
 
 		if (trx->error_state != DB_SUCCESS) {
