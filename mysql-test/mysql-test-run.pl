@@ -2376,8 +2376,8 @@ sub environment_setup {
 		  ["storage/ndb/tools", "bin"],
 		  "ndb_select_all");
 
-      $ENV{'NDB_PRINT_FILE'}=
-      native_path(my_find_bin($bindir,
+    $ENV{'NDB_PRINT_FILE'}=
+      my_find_bin($bindir,
 		  ["storage/ndb/src/kernel/blocks", "bin"],
 		  "ndb_print_file");
     
