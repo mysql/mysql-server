@@ -371,8 +371,7 @@ lock_wait_suspend_thread(
 	}
 
 	if (lock_wait_timeout < 100000000
-	    && wait_time > (double) lock_wait_timeout
-	    && !trx_is_high_priority(trx)) {
+	    && wait_time > (double) lock_wait_timeout) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 
@@ -456,7 +455,7 @@ lock_wait_check_and_cancel(
 
 		trx_mutex_enter(trx);
 
-		if (trx->lock.wait_lock != NULL && !trx_is_high_priority(trx)) {
+		if (trx->lock.wait_lock != NULL) {
 
 			ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
