@@ -905,6 +905,9 @@ fi
 %endif
 
 %changelog
+* Tue Sep 2 2014 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.6-0.1.m16
+- Updated for 5.7.6
+
 * Fri Aug 08 2014 Erlend Dahl <erlend.dahl@oracle.com> - 5.7.5-0.6.m15
 - Provide mysql_no_login.so plugin
 
