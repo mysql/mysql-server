@@ -419,6 +419,11 @@ int runClearTable2(NDBT_Context* ctx, NDBT_Step* step){
   result = NDBT_FAILED; \
   break; }
 
+#define CHECK2(b) if (!(b)) { \
+  ndbout << "ERR: "<< step->getName() \
+         << " failed on line " << __LINE__ << endl; \
+  result = NDBT_FAILED; }
+
 int runNoCommitSleep(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   HugoOperations hugoOps(*ctx->getTab());
@@ -3578,6 +3583,139 @@ runAccCommitOrderOps(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+/**
+ * TESTCASE DeleteNdbWhilePoll: Delete an Ndb object while it(trp_clnt)
+ * is in poll q.
+ * runInsertOneTuple : inserts one tuple in table.
+ * runLockTuple : A thread runs transaction 1 (Txn1) which locks the
+ * tuple with exclusive lock and signals another thread running
+ * transaction 2 (Txn2).
+ * runReadLockedTuple : Txn2 issues an exclusive read of the tuple
+ * locked by Txn1 (and waits for lock), and signals the delete thread.
+ * deleteNdbWhileWaiting : deletes the ndb object used by Txn2.
+ * Tx1 commits and Tx2 commits and provokes consequences from deleted Ndb.
+ *
+ * The most probable consequence, is :
+ * TransporterFacade.cpp:1674: require((clnt->m_poll.m_locked == true)) failed
+ */
+// Candidate for deleteNdbWhileWaiting().
+static Ndb* ndbToDelete = NULL;
+
+int
+runInsertOneTuple(NDBT_Context *ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  const NdbDictionary::Table *table= ctx->getTab();
+  HugoOperations hugoOp1(*table);
+  Ndb* pNdb = GETNDB(step);
+
+  CHECK2(hugoOp1.startTransaction(pNdb) == 0);
+  CHECK2(hugoOp1.pkInsertRecord(pNdb, 1, 1) == 0);
+  CHECK2(hugoOp1.execute_Commit(pNdb) == 0);
+  CHECK2(hugoOp1.closeTransaction(pNdb) == 0);
+
+  g_info << "Rec inserted, ndb " << pNdb <<endl <<endl;
+  return result;
+}
+
+int
+runLockTuple(NDBT_Context *ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  const NdbDictionary::Table *table= ctx->getTab();
+  HugoOperations hugoOp1(*table);
+  Ndb* pNdb = GETNDB(step);
+
+  CHECK2(hugoOp1.startTransaction(pNdb) == 0);
+  // read the inserted tuple (Txn1).
+  CHECK2(hugoOp1.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Exclusive) == 0);
+
+  CHECK2(hugoOp1.execute_NoCommit(pNdb) == 0);
+
+  g_info << "Txn1 readlocked tuple, ndb "<<pNdb << endl;
+
+  // Flag Txn2 to read (which will be blocked due to Txn1's read lock).
+  ctx->setProperty("Txn1-LockedTuple", 1);
+
+  // Wait until ndb of Txn2 is deleted by deleteNdbWhileWaiting().
+  while(ctx->getProperty("NdbDeleted", (Uint32)0) == 0 &&
+	!ctx->isTestStopped()){
+    NdbSleep_MilliSleep(20);
+  }
+
+  // Now commit Txn1.
+  /* Intention is when this commits, Txn1's trp_clnt will relinquish the
+   * poll rights it had to trp_clnt to Txn2, which is deleted.
+   * However this is not determisnistic. Sometimes, the poll right
+   * is owned by Txn2's trp_clnt, causing test to assert-fail in do_poll.
+   */
+  g_info << "Txn1 commits, ndb " << pNdb << endl;
+
+  if (!ctx->isTestStopped())
+    CHECK2(hugoOp1.execute_Commit(pNdb) == 0);
+  g_info << "Txn1 commited, ndb " << pNdb << endl;
+
+  if (!ctx->isTestStopped())
+    CHECK2(hugoOp1.closeTransaction(pNdb) == 0);
+  return result;
+}
+
+// Read the tuple locked by Txn1, see runLockTuple().
+int
+runReadLockedTuple(NDBT_Context *ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  const NdbDictionary::Table *table= ctx->getTab();
+  HugoOperations hugoOp2(*table);
+  Ndb* pNdb = GETNDB(step);
+
+  // Wait until the tuple is locked by Txn1
+  while(ctx->getProperty("Txn1-LockedTuple", (Uint32)0) == 0 &&
+	!ctx->isTestStopped()){
+    NdbSleep_MilliSleep(20);
+  }
+
+  CHECK2(hugoOp2.startTransaction(pNdb) == 0);
+  // Txn2 reads the locked tuple.
+  CHECK2(hugoOp2.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Exclusive) == 0);
+
+  // Flag deleteNdbWhileWaiting() to delete my ndb object
+  ndbToDelete = pNdb; // candidate for deleteNdbWhileWaiting()
+  ctx->setProperty("Txn2-SendCommit", 1);
+
+  // Now commit Txn2
+  g_info << "Txn2 commits, ndb " << pNdb
+	<< ", Ndb to delete " << ndbToDelete << endl << endl;
+
+  CHECK2(hugoOp2.execute_Commit(pNdb) == 0);
+
+  CHECK2(hugoOp2.closeTransaction(pNdb) == 0);
+
+  ctx->stopTest();
+  return result;
+}
+
+// Delete ndb of Txn2.
+int deleteNdbWhileWaiting(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Wait until Txn2 sends the read of the locked tuple.
+  while(ctx->getProperty("Txn2-SendCommit", (Uint32)0) == 0 &&
+    !ctx->isTestStopped()){
+    g_info << "|- Waiting for read" << endl;
+    NdbSleep_MilliSleep(20);
+  }
+
+  // Delete ndb of Txn2 while it is waiting in the poll queue.
+  g_info << "deleteNdbWhileWaiting deletes ndb " << ndbToDelete << endl << endl;
+  delete ndbToDelete;
+
+  // Signal Txn1 to commit
+  ctx->setProperty("NdbDeleted", 1);
+  return NDBT_OK;
+}
+/******* end TESTCASE DeleteNdbWhilePoll*******/
+
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -3977,6 +4115,14 @@ TESTCASE("AccCommitOrder",
   TC_PROPERTY("RUNNING", (Uint32)0);
   STEP(runAccCommitOrder);
   STEPS(runAccCommitOrderOps, 2);
+}
+TESTCASE("DeleteNdbWhilePoll",
+	 "Delete an Ndb while it(trp_clnt) is in poll queue. Will crash the test, and thus not to be run in a regular test" ){
+  INITIALIZER(runInsertOneTuple);
+  STEP(runLockTuple);
+  STEP(runReadLockedTuple);
+  STEP(deleteNdbWhileWaiting);
+  FINALIZER(runClearTable2);
 }
 NDBT_TESTSUITE_END(testBasic);
 

@@ -811,6 +811,21 @@ TransporterFacade::close_clnt(trp_client* clnt)
   if (clnt)
   {
     NdbMutex_Lock(theMutexPtr);
+    if (clnt->m_poll.m_locked != 0||
+	clnt->m_poll.m_poll_owner == true||
+	clnt->m_poll.m_next != 0 ||
+	clnt->m_poll.m_prev != 0 ||
+	clnt->m_poll.m_condition == NULL)
+    {
+      ndbout << "ERR: closing client in use: locked "
+	     << clnt->m_poll.m_locked
+	     << " poll_owner " << clnt->m_poll.m_poll_owner
+	     << " next " << clnt->m_poll.m_next
+	     << " prev " << clnt->m_poll.m_prev
+	     << " condition " << clnt->m_poll.m_condition << endl;
+      require(false);
+    }
+
     if (m_threads.get(clnt->m_blockNo) == clnt)
     {
       m_threads.close(clnt->m_blockNo);
@@ -1656,7 +1671,7 @@ void
 TransporterFacade::do_poll(trp_client* clnt, Uint32 wait_time)
 {
   clnt->m_poll.m_waiting = true;
-  assert(clnt->m_poll.m_locked == true);
+  require(clnt->m_poll.m_locked == true);
   trp_client* owner = m_poll_owner;
   if (owner != NULL && owner != clnt)
   {
