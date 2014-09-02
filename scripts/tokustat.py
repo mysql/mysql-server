@@ -9,7 +9,7 @@ def usage():
     print "diff the tokudb engine status"
     print "--host=HOSTNAME (default: localhost)"
     print "--port=PORT"
-    print "--interations=MAX_ITERATIONS (default: forever)"
+    print "--iterations=MAX_ITERATIONS (default: forever)"
     print "--interval=TIME_BETWEEN_SAMPLES (default: 10 seconds)"
     print "--q='show engine tokudb status'"
     print "--q='select * from information_schema.global_status'"
