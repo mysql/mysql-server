@@ -487,6 +487,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ALGORITHM_SYM
 %token  ALL                           /* SQL-2003-R */
 %token  ALTER                         /* SQL-2003-R */
+%token  ALWAYS_SYM
 %token  ANALYSE_SYM
 %token  ANALYZE_SYM
 %token  AND_AND_SYM                   /* OPERATOR */
@@ -670,6 +671,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  FUNCTION_SYM                  /* SQL-2003-R */
 %token  GE
 %token  GENERAL
+%token  GENERATED
 %token  GEOMETRYCOLLECTION
 %token  GEOMETRY_SYM
 %token  GET_FORMAT                    /* MYSQL-FUNC */
@@ -1339,7 +1341,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         server_options_list server_option
         definer_opt no_definer definer get_diagnostics
         parse_vcol_expr vcol_opt_attribute vcol_opt_attribute_list
-        vcol_attribute
+        vcol_attribute generated_always_opt stored_opt_attribute
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -6250,14 +6252,16 @@ field_spec:
 
 field_def:
           type opt_attribute {}
-        | VIRTUAL_SYM type AS '(' virtual_column_func ')' vcol_opt_attribute
+        | type generated_always_opt  AS '(' virtual_column_func ')' stored_opt_attribute vcol_opt_attribute
           {
-            $$= $2;
-            Lex->vcol_info->set_field_type((enum enum_field_types) $2);
+            $$= $1;
+            Lex->vcol_info->set_field_type((enum enum_field_types) $$);
             Lex->type|= VIRTUAL_FLAG;
           }
         ;
-
+generated_always_opt:
+          /* empty */ {}
+        | GENERATED ALWAYS_SYM {}
 vcol_opt_attribute:
           /* empty */ {}
         | vcol_opt_attribute_list {}
@@ -6289,6 +6293,11 @@ vcol_attribute:
             lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG;
             lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
           }
+        ;
+
+stored_opt_attribute:
+          /* empty */ {}
+        | VIRTUAL_SYM {}
         | STORED_SYM
           {
             Lex->vcol_info->set_field_stored(TRUE);

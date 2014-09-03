@@ -19,174 +19,174 @@
 
 --echo # RAND()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (b virtual double as (rand()));
+create table t1 (b double generated always as (rand()) virtual);
 
 --echo # LOAD_FILE()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(64), b virtual varchar(1024) as (load_file(a)));
+create table t1 (a varchar(64), b varchar(1024) generated always as (load_file(a)) virtual);
 
 --echo # CURDATE()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual datetime as (curdate()));
+create table t1 (a datetime generated always as (curdate()) virtual);
 
 --echo # CURRENT_DATE(), CURRENT_DATE
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual datetime as (current_date));
+create table t1 (a datetime generated always as (current_date) virtual);
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual datetime as (current_date()));
+create table t1 (a datetime generated always as (current_date()) virtual);
 
 --echo # CURRENT_TIME(), CURRENT_TIME
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual datetime as (current_time));
+create table t1 (a datetime generated always as (current_time) virtual);
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual datetime as (current_time()));
+create table t1 (a datetime generated always as (current_time()) virtual);
 
 --echo # CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual datetime as (current_timestamp()));
+create table t1 (a datetime generated always as (current_timestamp()) virtual);
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual datetime as (current_timestamp));
+create table t1 (a datetime generated always as (current_timestamp) virtual);
 
 --echo # CURTIME()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual datetime as (curtime()));
+create table t1 (a datetime generated always as (curtime()) virtual);
 
 --echo # LOCALTIME(), LOCALTIME
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a datetime, b virtual varchar(10) as (localtime())); 
+create table t1 (a datetime, b varchar(10) generated always as (localtime()) virtual);
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a datetime, b virtual varchar(10) as (localtime)); 
+create table t1 (a datetime, b varchar(10) generated always as (localtime) virtual);
 
 --echo # LOCALTIMESTAMP, LOCALTIMESTAMP()(v4.0.6)
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a datetime, b virtual varchar(10) as (localtimestamp()));
+create table t1 (a datetime, b varchar(10) generated always as (localtimestamp()) virtual);
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a datetime, b virtual varchar(10) as (localtimestamp));
+create table t1 (a datetime, b varchar(10) generated always as (localtimestamp) virtual);
 
 --echo # NOW()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a datetime, b virtual varchar(10) as (now()));
+create table t1 (a datetime, b varchar(10) generated always as (now()) virtual);
 
 --echo # SYSDATE()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a int, b virtual varchar(10) as (sysdate()));
+create table t1 (a int, b varchar(10) generated always as (sysdate()) virtual);
 
 --echo # UNIX_TIMESTAMP()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a datetime, b virtual datetime as (unix_timestamp()));
+create table t1 (a datetime, b datetime generated always as (unix_timestamp()) virtual);
 
 --echo # UTC_DATE()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a datetime, b virtual datetime as (utc_date()));
+create table t1 (a datetime, b datetime generated always as (utc_date()) virtual);
 
 --echo # UTC_TIME()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a datetime, b virtual datetime as (utc_time()));
+create table t1 (a datetime, b datetime generated always as (utc_time()) virtual);
 
 --echo # UTC_TIMESTAMP()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a datetime, b virtual datetime as (utc_timestamp()));
+create table t1 (a datetime, b datetime generated always as (utc_timestamp()) virtual);
 
 --echo # MATCH()
 if (!$skip_full_text_checks)
 {
   -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-  create table t1 (a varchar(32), b virtual bool as (match a against ('sample text')));
+  create table t1 (a varchar(32), b bool generated always as (match a against ('sample text')) virtual);
 }
 
 --echo # BENCHMARK()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (benchmark(a,3)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (benchmark(a,3)) virtual);
 
 --echo # CONNECTION_ID()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual int as (connection_id()));
+create table t1 (a int generated always as (connection_id()) virtual);
 
 --echo # CURRENT_USER(), CURRENT_USER
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual varchar(32) as (current_user()));
+create table t1 (a varchar(32) generated always as (current_user()) virtual);
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual varchar(32) as (current_user));
+create table t1 (a varchar(32) generated always as (current_user) virtual);
 
 --echo # DATABASE()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (database()));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (database()) virtual);
 
 --echo # FOUND_ROWS()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (found_rows()));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (found_rows()) virtual);
 
 --echo # GET_LOCK()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (get_lock(a,10)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (get_lock(a,10)) virtual);
 
 --echo # IS_FREE_LOCK()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (is_free_lock(a)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (is_free_lock(a)) virtual);
 
 --echo # IS_USED_LOCK()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (is_used_lock(a)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (is_used_lock(a)) virtual);
 
 --echo # LAST_INSERT_ID()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual int as (last_insert_id()));
+create table t1 (a int generated always as (last_insert_id()) virtual);
 
 --echo # MASTER_POS_WAIT()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(32), b virtual int as (master_pos_wait(a,0,2)));
+create table t1 (a varchar(32), b int generated always as (master_pos_wait(a,0,2)) virtual);
 
 --echo # NAME_CONST()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual varchar(32) as (name_const('test',1)));
+create table t1 (a varchar(32) generated always as (name_const('test',1)) virtual);
 
 --echo # RELEASE_LOCK()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(32), b virtual int as (release_lock(a)));
+create table t1 (a varchar(32), b int generated always as (release_lock(a)) virtual);
 
 --echo # ROW_COUNT()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual int as (row_count()));
+create table t1 (a int generated always as (row_count()) virtual);
 
 --echo # SCHEMA()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual varchar(32) as (schema()));
+create table t1 (a varchar(32) generated always as (schema()) virtual);
 
 --echo # SESSION_USER()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual varchar(32) as (session_user()));
+create table t1 (a varchar(32) generated always as (session_user()) virtual);
 
 --echo # SLEEP()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a int, b virtual int as (sleep(a)));
+create table t1 (a int, b int generated always as (sleep(a)) virtual);
 
 --echo # SYSTEM_USER()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual varchar(32) as (system_user()));
+create table t1 (a varchar(32) generated always as (system_user()) virtual);
 
 --echo # USER()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (user()));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (user()) virtual);
 
 --echo # UUID_SHORT()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual varchar(1024) as (uuid_short()));
+create table t1 (a varchar(1024) generated always as (uuid_short()) virtual);
 
 --echo # UUID()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual varchar(1024) as (uuid()));
+create table t1 (a varchar(1024) generated always as (uuid()) virtual);
 
 --echo # VALUES()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (values(a)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (values(a)) virtual);
 
 --echo # VERSION()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (version())); 
+create table t1 (a varchar(1024), b varchar(1024) generated always as (version()) virtual);
 
 --echo # ENCRYPT()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (encrypt(a)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (encrypt(a)) virtual);
 
 --echo # Stored procedures
 
@@ -205,16 +205,16 @@ end //
 delimiter ;//
 
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual int as (p1()));
+create table t1 (a int generated always as (p1()) virtual);
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual int as (f1()));
+create table t1 (a int generated always as (f1()) virtual);
 
 drop procedure p1;
 drop function f1;
 
 --echo # Unknown functions
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a virtual int as (f1()));
+create table t1 (a int generated always as (f1()) virtual);
 
 --echo #
 --echo # GROUP BY FUNCTIONS
@@ -222,71 +222,71 @@ create table t1 (a virtual int as (f1()));
 
 --echo # AVG()
 -- error 1111
-create table t1 (a int, b virtual int as (avg(a)));
+create table t1 (a int, b int generated always as (avg(a)) virtual);
 
 --echo # BIT_AND()
 -- error 1111
-create table t1 (a int, b virtual int as (bit_and(a)));
+create table t1 (a int, b int generated always as (bit_and(a)) virtual);
 
 --echo # BIT_OR()
 -- error 1111
-create table t1 (a int, b virtual int as (bit_or(a)));
+create table t1 (a int, b int generated always as (bit_or(a)) virtual);
 
 --echo # BIT_XOR()
 -- error 1111
-create table t1 (a int, b virtual int as (bit_xor(a)));
+create table t1 (a int, b int generated always as (bit_xor(a)) virtual);
 
 --echo # COUNT(DISTINCT)
 -- error 1111
-create table t1 (a int, b virtual int as (count(distinct a)));
+create table t1 (a int, b int generated always as (count(distinct a)) virtual);
 
 --echo # COUNT()
 -- error 1111
-create table t1 (a int, b virtual int as (count(a)));
+create table t1 (a int, b int generated always as (count(a)) virtual);
 
 --echo # GROUP_CONCAT()
 -- error 1111
-create table t1 (a varchar(32), b virtual int as (group_concat(a,'')));
+create table t1 (a varchar(32), b int generated always as (group_concat(a,'')) virtual);
 
 --echo # MAX()
 -- error 1111
-create table t1 (a int, b virtual int as (max(a)));
+create table t1 (a int, b int generated always as (max(a)) virtual);
 
 --echo # MIN()
 -- error 1111
-create table t1 (a int, b virtual int as (min(a)));
+create table t1 (a int, b int generated always as (min(a)) virtual);
 
 --echo # STD()
 -- error 1111
-create table t1 (a int, b virtual int as (std(a)));
+create table t1 (a int, b int generated always as (std(a)) virtual);
 
 --echo # STDDEV_POP()
 -- error 1111
-create table t1 (a int, b virtual int as (stddev_pop(a)));
+create table t1 (a int, b int generated always as (stddev_pop(a)) virtual);
 
 --echo # STDDEV_SAMP()
 -- error 1111
-create table t1 (a int, b virtual int as (stddev_samp(a)));
+create table t1 (a int, b int generated always as (stddev_samp(a)) virtual);
 
 --echo # STDDEV()
 -- error 1111
-create table t1 (a int, b virtual int as (stddev(a)));
+create table t1 (a int, b int generated always as (stddev(a)) virtual);
 
 --echo # SUM()
 -- error 1111
-create table t1 (a int, b virtual int as (sum(a)));
+create table t1 (a int, b int generated always as (sum(a)) virtual);
 
 --echo # VAR_POP()
 -- error 1111
-create table t1 (a int, b virtual int as (var_pop(a)));
+create table t1 (a int, b int generated always as (var_pop(a)) virtual);
 
 --echo # VAR_SAMP()
 -- error 1111
-create table t1 (a int, b virtual int as (var_samp(a)));
+create table t1 (a int, b int generated always as (var_samp(a)) virtual);
 
 --echo # VARIANCE()
 -- error 1111
-create table t1 (a int, b virtual int as (variance(a)));
+create table t1 (a int, b int generated always as (variance(a)) virtual);
 
 --echo #
 --echo # XML FUNCTIONS
@@ -294,11 +294,11 @@ create table t1 (a int, b virtual int as (variance(a)));
 
 --echo # ExtractValue()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (ExtractValue(a,'//b[$@j]')));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (ExtractValue(a,'//b[$@j]')) virtual);
 
 --echo # UpdateXML()
 -- error ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a varchar(1024), b virtual varchar(1024) as (UpdateXML(a,'/a','<e>fff</e>')));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (UpdateXML(a,'/a','<e>fff</e>')) virtual);
 
 --echo #
 --echo # Sub-selects
@@ -306,22 +306,21 @@ create table t1 (a varchar(1024), b virtual varchar(1024) as (UpdateXML(a,'/a','
 
 create table t1 (a int);
 -- error 1064
-create table t2 (a int, b virtual int as (select count(*) from t1));
+create table t2 (a int, b int generated always as (select count(*) virtual from t1));
 drop table t1;
 
 --echo #
 --echo # Long expression
 
 let $tmp_long_string = `SELECT repeat('a',240)`;
-eval create table t1 (a int, b virtual varchar(300) as (concat(a,'$tmp_long_string')));
+eval create table t1 (a int, b varchar(300) generated always as (concat(a,'$tmp_long_string')) virtual);
 drop table t1;
 let $tmp_long_string = `SELECT repeat('a',243)`;
 # Limit is lifted to 64K. TODO write a test for it.
 # --error 1470
-eval create table t1 (a int, b virtual varchar(300) as (concat(a,'$tmp_long_string')));
+eval create table t1 (a int, b varchar(300) generated always as (concat(a,'$tmp_long_string')) virtual);
 drop table t1;
 
 --echo #
 --echo # Constant expression
---error ER_CONST_EXPR_IN_VCOL
-create table t1 (a virtual int as (PI()));
+create table t1 (a int generated always as (PI()) virtual);

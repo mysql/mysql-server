@@ -3,7 +3,7 @@ drop table if exists t1;
 # Case 1. Partitioning by RANGE based on a non-stored virtual column.
 CREATE TABLE t1 (
 a DATE NOT NULL,
-b virtual int as (year(a))
+b int generated always as (year(a)) virtual
 )
 PARTITION BY RANGE( b ) (
 PARTITION p0 VALUES LESS THAN (2006),
@@ -18,7 +18,7 @@ a	b
 2006-01-01	2006
 2007-01-01	2007
 # Modify the expression of virtual column b
-ALTER TABLE t1 modify b virtual int as (year(a)-1);
+ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
 select * from t1;
 a	b
 2005-01-01	2004
@@ -26,7 +26,7 @@ a	b
 2007-01-01	2006
 drop table t1;
 # Case 2. Partitioning by LIST based on a stored virtual column.
-CREATE TABLE t1 (a int, b virtual int as (a % 3 ) stored)
+CREATE TABLE t1 (a int, b int generated always as (a % 3 ) stored)
 PARTITION BY LIST (a+1)
 (PARTITION p1 VALUES IN (1), PARTITION p2 VALUES IN (2));
 insert into t1 values (1,default);
@@ -40,7 +40,7 @@ drop table t1;
 # Case 3. Partitioning by HASH based on a non-stored virtual column.
 CREATE TABLE t1 (
 a DATE NOT NULL,
-b virtual int as (year(a))
+b int generated always as (year(a)) virtual
 )
 PARTITION BY HASH( b % 3 ) PARTITIONS 3;
 insert into t1 values ('2005-01-01',default);
@@ -50,7 +50,7 @@ a	b
 2005-01-01	2005
 2006-01-01	2006
 # Modify the expression of virtual column b
-ALTER TABLE t1 modify b virtual int as (year(a)-1);
+ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
 select * from t1;
 a	b
 2005-01-01	2004

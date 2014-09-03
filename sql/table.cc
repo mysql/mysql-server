@@ -2279,12 +2279,6 @@ bool fix_fields_vcol_func(THD *thd, Field *field)
     clear_field_flag(table);
     goto end;
   }
-  if (unlikely(func_expr->const_item()))
-  {
-    my_error(ER_CONST_EXPR_IN_VCOL, MYF(0));
-    clear_field_flag(table);
-    goto end;
-  }
   /*
     Cleanup the fields marked with flag GET_FIXED_FIELDS_FLAG
     when calling fix_fields.

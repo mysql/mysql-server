@@ -7,15 +7,15 @@ DROP TRIGGER IF EXISTS trg2;
 set sql_warnings = 0;
 SET @@session.default_storage_engine = 'MyISAM';
 create table t1 (a int,
-b virtual int as (-a),
-c virtual int as (-a) stored,
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored,
 index (c));
 insert into t1 (a) values (2), (1), (1), (3), (NULL);
 create table t2 like t1;
 insert into t2 (a) values (1);
 create table t3 (a int primary key, 
-b virtual int as (-a),
-c virtual int as (-a) stored unique);
+b int generated always as (-a) virtual,
+c int generated always as (-a) stored unique);
 insert into t3 (a) values (2),(1),(3);
 analyze table t1,t2,t3;
 Table	Op	Msg_type	Msg_text

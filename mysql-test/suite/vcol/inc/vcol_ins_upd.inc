@@ -15,17 +15,17 @@
 ################################################################################
 
 let $create1 = create table t1 (a int, 
-                                b virtual int as (-a),
-				c virtual int as (-a) stored);
+                                b int generated always as (-a) virtual,
+                                c int generated always as (-a) stored);
 let $create2 = create table t1 (a int unique, 
-                                b virtual int as (-a),
-				c virtual int as (-a) stored);
+                                b int generated always as (-a) virtual,
+                                c int generated always as (-a) stored);
 let $create3 = create table t1 (a int, 
-                                b virtual int as (-a),
-				c virtual int as (-a) stored unique);
+                                b int generated always as (-a) virtual,
+                                c int generated always as (-a) stored unique);
 let $create4 = create table t1 (a int, 
-                                b virtual int as (-a),
-				c virtual int as (-a) stored unique,
+                                b int generated always as (-a) virtual,
+                                c int generated always as (-a) stored unique,
 				d varchar(16));
 eval $create1;
 set sql_warnings = 1;
@@ -231,7 +231,7 @@ if ($innodb_engine)
   --echo #
   --echo # Verify ON UPDATE/DELETE actions of FOREIGN KEYs
   create table t2 (a int primary key, name varchar(10));
-  create table t1 (a int primary key, b virtual int as (a % 10) stored);
+  create table t1 (a int primary key, b int generated always as (a % 10) stored);
   insert into t2 values (1, 'value1'), (2,'value2'), (3,'value3');
   insert into t1 (a) values (1),(2),(3);
   select * from t1;

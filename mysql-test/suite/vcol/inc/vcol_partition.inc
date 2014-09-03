@@ -24,7 +24,7 @@ drop table if exists t1;
 
 CREATE TABLE t1 (
     a DATE NOT NULL,
-    b virtual int as (year(a))
+    b int generated always as (year(a)) virtual
 )
 PARTITION BY RANGE( b ) (
     PARTITION p0 VALUES LESS THAN (2006),
@@ -40,7 +40,7 @@ select * from t1;
 # $MYSQLTEST_VARDIR/master-data/test/t1*p?.MYD files
 
 --echo # Modify the expression of virtual column b
-ALTER TABLE t1 modify b virtual int as (year(a)-1);
+ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
 
 select * from t1;
 
@@ -48,7 +48,7 @@ drop table t1;
 
 --echo # Case 2. Partitioning by LIST based on a stored virtual column.
 
-CREATE TABLE t1 (a int, b virtual int as (a % 3 ) stored)
+CREATE TABLE t1 (a int, b int generated always as (a % 3 ) stored)
 PARTITION BY LIST (a+1)
 (PARTITION p1 VALUES IN (1), PARTITION p2 VALUES IN (2));
 
@@ -110,7 +110,7 @@ drop table t1;
 
 CREATE TABLE t1 (
     a DATE NOT NULL,
-    b virtual int as (year(a))
+    b int generated always as (year(a)) virtual
 )
 PARTITION BY HASH( b % 3 ) PARTITIONS 3;
 
@@ -119,7 +119,7 @@ insert into t1 values ('2006-01-01',default);
 select * from t1;
 
 --echo # Modify the expression of virtual column b
-ALTER TABLE t1 modify b virtual int as (year(a)-1);
+ALTER TABLE t1 modify b int generated always as (year(a)-1) virtual;
 
 select * from t1;
 

@@ -1,7 +1,7 @@
 SET @@session.default_storage_engine = 'MyISAM';
 create table t1 (a int, 
-b virtual int as (a/10),
-c virtual int as (a/10) stored);
+b int generated always as (a/10) virtual,
+c int generated always as (a/10) stored);
 create table t2 (a timestamp);
 create trigger trg1 before insert on t1 for each row
 begin

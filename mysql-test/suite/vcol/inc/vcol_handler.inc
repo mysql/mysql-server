@@ -15,8 +15,8 @@
 ################################################################################
 
 create table t1 (a int, 
-                 b virtual int as (-a),
-		 c virtual int as (-a) stored,
+                 b int generated always as (-a) virtual,
+                 c int generated always as (-a) stored,
 		 d char(1),
 		 index (a),
 		 index (c));
