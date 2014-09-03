@@ -5,4 +5,4 @@ CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255), KEY msg_i(m
 SET GLOBAL innodb_simulate_comp_failures = 25;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
-10000
+1000
