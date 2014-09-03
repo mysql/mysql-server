@@ -22,12 +22,6 @@
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 #include "opt_costconstantcache.h"              // optimizer cost constant cache
 
-/*
-  These are needed in order to call ha_resolve_by_name().
-*/
-extern mysql_mutex_t LOCK_plugin;
-static PSI_mutex_key key_LOCK_plugin;
-
 namespace my_testing {
 
 int chars_2_decimal(const char *chars, my_decimal *to)
@@ -64,7 +58,6 @@ void setup_server_for_unit_tests()
   // Initialize Query_logger last, to avoid spurious warnings to stderr.
   query_logger.init();
   init_optimizer_cost_module();
-  mysql_mutex_init(key_LOCK_plugin, &LOCK_plugin, MY_MUTEX_INIT_FAST);
 }
 
 void teardown_server_for_unit_tests()
@@ -76,7 +69,6 @@ void teardown_server_for_unit_tests()
   mysql_mutex_destroy(&LOCK_error_log);
   query_logger.cleanup();
   delete_optimizer_cost_module();
-  mysql_mutex_destroy(&LOCK_plugin);
 }
 
 void Server_initializer::set_expected_error(uint val)
