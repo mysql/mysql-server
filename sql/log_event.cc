@@ -8775,7 +8775,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
     m_curr_row= m_rows_buf;
 #endif
-    m_rows_end= m_rows_buf + row.size();
+    m_rows_end= m_rows_buf + row.size() - 1;
     m_rows_cur= m_rows_end;
   }
   /*
