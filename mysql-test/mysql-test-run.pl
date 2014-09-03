@@ -6020,6 +6020,24 @@ sub start_mysqltest ($) {
   return $proc;
 }
 
+sub create_debug_statement {
+  my $args= shift;
+  my $input= shift;
+
+  # Put $args into a single string
+  my $str= join(" ", @$$args);
+  my $runline= $input ? "run $str < $input" : "run $str";
+
+  # add quotes to escape ; in plugin_load option
+  my $pos1 = index($runline, "--plugin_load=");
+  if ( $pos1 != -1 ) {
+    my $pos2 = index($runline, " ",$pos1);
+    substr($runline,$pos1+14,0) = "\"";
+    substr($runline,$pos2+1,0) = "\"";
+  }
+
+  return $runline;
+}
 
 #
 # Modify the exe and args so that program is run in gdb in xterm
@@ -6035,9 +6053,7 @@ sub gdb_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  # Put $args into a single string
-  my $str= join(" ", @$$args);
-  my $runline= $input ? "run $str < $input" : "run $str";
+  my $runline=create_debug_statement($args,$input);
 
   # write init file for mysqld or client
   mtr_tofile($gdb_init_file,
@@ -6085,8 +6101,7 @@ sub lldb_arguments {
   my $lldb_init_file= "$opt_vardir/tmp/lldbinit.$type";
   unlink($lldb_init_file);
 
-  my $str= join(" ", @$$args);
-  my $runline= $input ? "r $str < $input" : "r $str";
+  my $runline=create_debug_statement($args,$input);
 
   # write init file for mysqld or client
   mtr_tofile($lldb_init_file,
@@ -6115,9 +6130,7 @@ sub ddd_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  # Put $args into a single string
-  my $str= join(" ", @$$args);
-  my $runline= $input ? "run $str < $input" : "run $str";
+  my $runline=create_debug_statement($args,$input);
 
   # write init file for mysqld or client
   mtr_tofile($gdb_init_file,
