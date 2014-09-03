@@ -729,11 +729,7 @@ toku_db_set_memcmp_magic(DB *db, uint8_t magic) {
     if (db_opened(db)) {
         return EINVAL;
     }
-    if (magic == 0) {
-        return EINVAL;
-    }
-    toku_ft_handle_set_memcmp_magic(db->i->ft_handle, magic);
-    return 0;
+    return toku_ft_handle_set_memcmp_magic(db->i->ft_handle, magic);
 }
 
 static int

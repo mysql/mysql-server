@@ -2858,20 +2858,27 @@ toku_ft_handle_get_fanout(FT_HANDLE ft_handle, unsigned int *fanout)
     }
 }
 
-void toku_ft_handle_set_memcmp_magic(FT_HANDLE ft_handle, uint8_t magic) {
-    invariant(magic != 0);
-    if (ft_handle->ft) {
-        // handle is already open, application bug if memcmp magic changes
-        invariant(ft_handle->ft->cmp.get_memcmp_magic() == magic);
-    } else {
-        ft_handle->options.memcmp_magic = magic;
+// The memcmp magic byte may be set on a per fractal tree basis to communicate
+// that if two keys begin with this byte, they may be compared with the builtin
+// key comparison function. This greatly optimizes certain in-memory workloads.
+int toku_ft_handle_set_memcmp_magic(FT_HANDLE ft_handle, uint8_t magic) {
+    if (magic == comparator::MEMCMP_MAGIC_NONE) {
+        return EINVAL;
     }
+    if (ft_handle->ft != nullptr) {
+        // if the handle is already open, then we cannot set the memcmp magic
+        // (because it may or may not have been set by someone else already)
+        return EINVAL;
+    }
+    ft_handle->options.memcmp_magic = magic;
+    return 0;
 }
 
 static int
 verify_builtin_comparisons_consistent(FT_HANDLE t, uint32_t flags) {
-    if ((flags & TOKU_DB_KEYCMP_BUILTIN) && (t->options.compare_fun != toku_builtin_compare_fun))
+    if ((flags & TOKU_DB_KEYCMP_BUILTIN) && (t->options.compare_fun != toku_builtin_compare_fun)) {
         return EINVAL;
+    }
     return 0;
 }
 
@@ -3014,6 +3021,13 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
         r = verify_builtin_comparisons_consistent(ft_h, ft_h->options.flags);
         if (r) { goto exit; }
     } else if (ft_h->options.flags != ft->h->flags) {                  /* if flags have been set then flags must match */
+        r = EINVAL;
+        goto exit;
+    }
+
+    // Ensure that the memcmp magic bits are consistent, if set.
+    if (ft->cmp.get_memcmp_magic() != toku::comparator::MEMCMP_MAGIC_NONE &&
+        ft_h->options.memcmp_magic != ft->cmp.get_memcmp_magic()) {
         r = EINVAL;
         goto exit;
     }
