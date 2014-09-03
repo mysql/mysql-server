@@ -117,7 +117,10 @@ namespace toku {
         }
 
     public:
-        void create(ft_compare_func cmp, DESCRIPTOR desc, uint8_t memcmp_magic = 0) {
+        // This magic value is reserved to mean that the magic has not been set.
+        static const uint8_t MEMCMP_MAGIC_NONE = 0;
+
+        void create(ft_compare_func cmp, DESCRIPTOR desc, uint8_t memcmp_magic = MEMCMP_MAGIC_NONE) {
             XCALLOC(_fake_db);
             init(cmp, desc, memcmp_magic);
         }
@@ -165,8 +168,10 @@ namespace toku {
         int operator()(const DBT *a, const DBT *b) const {
             if (__builtin_expect(toku_dbt_is_infinite(a) || toku_dbt_is_infinite(b), 0)) {
                 return toku_dbt_infinite_compare(a, b);
-            } else if (_memcmp_magic && dbt_has_memcmp_magic(a)
-                       // At this point we expect b to also have the memcmp magic
+            } else if (_memcmp_magic != MEMCMP_MAGIC_NONE
+                       // If `a' has the memcmp magic..
+                       && dbt_has_memcmp_magic(a)
+                       // ..then we expect `b' to also have the memcmp magic
                        && __builtin_expect(dbt_has_memcmp_magic(b), 1)) {
                 return toku_builtin_compare_fun(nullptr, a, b);
             } else {
