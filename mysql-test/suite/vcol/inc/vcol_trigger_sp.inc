@@ -16,8 +16,8 @@
 ################################################################################
 
 create table t1 (a int, 
-                 b virtual int as (a/10),
-		 c virtual int as (a/10) stored);
+                 b int generated always as (a/10) virtual,
+		 c int generated always as (a/10) stored);
 
 create table t2 (a timestamp);
 

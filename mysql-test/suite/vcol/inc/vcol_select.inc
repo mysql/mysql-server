@@ -19,8 +19,8 @@
 #  - Join type of Range
 #  - Join type of Ref_or_null
 create table t1 (a int,
-                 b virtual int as (-a),
-                 c virtual int as (-a) stored,
+                 b int generated always as (-a) virtual,
+                 c int generated always as (-a) stored,
                  index (c));
 insert into t1 (a) values (2), (1), (1), (3), (NULL);
 
@@ -33,8 +33,8 @@ insert into t2 (a) values (1);
 #  - Join type of Eq_ref with a unique virtual column
 #  - Join type of Const
 create table t3 (a int primary key, 
-                 b virtual int as (-a),
-		 c virtual int as (-a) stored unique);
+                 b int generated always as (-a) virtual,
+                 c int generated always as (-a) stored unique);
 insert into t3 (a) values (2),(1),(3);
 analyze table t1,t2,t3;
 

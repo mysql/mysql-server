@@ -14,8 +14,8 @@
 ################################################################################
 
 --error ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
-create table t1 (a int, b virtual int as (a+1));
+create table t1 (a int, b int generated always as (a+1) virtual);
 create table t1 (a int);
 --error ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
-alter table t1 add column b virtual int as (a+1);
+alter table t1 add column b int generated always as (a+1) virtual;
 drop table t1;

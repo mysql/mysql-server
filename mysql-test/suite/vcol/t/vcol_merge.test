@@ -40,12 +40,12 @@
 drop table if exists t1, t2, t3;
 --enable_warnings
 
-create table t1 (a int, b virtual int as (a % 10));
-create table t2 (a int, b virtual int as (a % 10));
+create table t1 (a int, b int generated always as (a % 10) virtual);
+create table t2 (a int, b int generated always as (a % 10) virtual);
 insert into t1 values (1,default);
 insert into t2 values (2,default);
 --error ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
-create table t3 (a int, b virtual int as (a % 10)) engine=MERGE UNION=(t1,t2);
+create table t3 (a int, b int generated always as (a % 10) virtual) engine=MERGE UNION=(t1,t2);
 drop table t1,t2;
 
 #------------------------------------------------------------------------------#

@@ -66,6 +66,7 @@ static SYMBOL symbols[] = {
   { "ALL",                      SYM(ALL)},
   { "ALGORITHM",                SYM(ALGORITHM_SYM)},
   { "ALTER",                    SYM(ALTER)},
+  { "ALWAYS",                   SYM(ALWAYS_SYM)},
   { "ANALYSE",                  SYM(ANALYSE_SYM)}, // this one is for PROCEDURE ANALYSE
   { "ANALYZE",                  SYM(ANALYZE_SYM)}, // this one is for ANALYZE TABLE etc
   { "AND",                      SYM(AND_SYM)},
@@ -245,6 +246,7 @@ static SYMBOL symbols[] = {
   { "GEOMETRYCOLLECTION",       SYM(GEOMETRYCOLLECTION)},
   { "GET_FORMAT",               SYM(GET_FORMAT)},
   { "GET",                      SYM(GET_SYM)},
+  { "GENERATED",                SYM(GENERATED)},
   { "GLOBAL",                   SYM(GLOBAL_SYM)},
   { "GRANT",                    SYM(GRANT)},
   { "GRANTS",                   SYM(GRANTS)},

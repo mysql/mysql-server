@@ -17,8 +17,8 @@
 
 
 create table t1 (a int not null,
-                 b virtual int as (-a), 
-		 c virtual int as (-a) stored);
+                 b int generated always as (-a) virtual,
+                 c int generated always as (-a) stored);
 insert into t1 (a) values (1), (1), (2), (2), (3);
 analyze table t1;
 
@@ -46,8 +46,8 @@ drop table t1;
 # DISTINCT option for VIEW
 #
 create table t1 (a int not null,
-                 b virtual int as (-a), 
-		 c virtual int as (-a) stored);
+                 b int generated always as (-a) virtual,
+                 c int generated always as (-a) stored);
 insert into t1 (a) values (1), (2), (3), (1), (2), (3);
 create view v1 as select distinct b from t1;
 select * from v1;
@@ -65,8 +65,8 @@ drop table t1;
 # LIMIT clause test
 #
 create table t1 (a int not null,
-                 b virtual int as (-a), 
-		 c virtual int as (-a) stored);
+                 b int generated always as (-a) virtual,
+                 c int generated always as (-a) stored);
 insert into t1 (a) values (1), (2), (3), (4);
 create view v1 as select b+1 from t1 order by 1 desc limit 2;
 select * from v1;
@@ -83,8 +83,8 @@ drop table t1;
 #
 create table t1 (a int,
                  b int,
-		 c virtual int as (-a),
-		 d virtual int as (-a) stored,
+                 c int generated always as (-a) virtual,
+                 d int generated always as (-a) stored,
                  primary key(a));
 insert into t1 (a,b) values (10,2), (20,3), (30,4), (40,5), (50,10);
 create view v1 (a,e,f,g) as select a, b+1,c+1,d+1 from t1;
@@ -104,8 +104,8 @@ drop view v1;
 # outer join based on VIEW with WHERE clause
 #
 create table t1 (a int, 
-		 b virtual int as (-a),
-		 c virtual int as (-a) stored,
+                 b int generated always as (-a) virtual,
+		 c int generated always as (-a) stored,
                  primary key(a));
 insert into t1 (a) values (1), (2), (3);
 create view v1 (x,y,z) as select a,b,c from t1 where b < -1;
@@ -120,11 +120,11 @@ drop table t1;
 # VIEW built over UNION
 #
 create table t1 (a1 int,
-                 b1 virtual int as (-a1),
-		 c1 virtual int as (-a1) stored);
+                 b1 int generated always as (-a1) virtual,
+		 c1 int generated always as (-a1) stored);
 create table t2 (a2 int,
-                 b2 virtual int as (-a2),
-		 c2 virtual int as (-a2) stored);
+                 b2 int generated always as (-a2) virtual,
+		 c2 int generated always as (-a2) stored);
 insert into t1 (a1) values (1), (2);
 insert into t2 (a2) values (2), (3);
 create view v1 as select * from t1,t2 union all select * from t1,t2;
@@ -136,8 +136,8 @@ drop table t1, t2;
 # Showing VIEW with VIEWs in subquery
 #
 create table t1 (a int,
-                 b virtual int as (-a),
-		 c virtual int as (-a) stored);
+                 b int generated always as (-a) virtual,
+		 c int generated always as (-a) stored);
 create table t2 like t1;
 create view v1 as select a,b,c from t1;
 create view v2 as select a,b,c from t2 where b in (select b from v1);
@@ -160,8 +160,8 @@ drop table t1, t2;
 # distinct in temporary table with a VIEW
 #
 create table t1 (a int,
-                 b virtual int as (-a),
-		 c virtual int as (-a) stored);
+                 b int generated always as (-a) virtual,
+		 c int generated always as (-a) stored);
 insert into t1 (a) values (1),(1),(2),(2),(3),(3);
 create view v1 as select b from t1;
 select distinct b from v1;
@@ -187,8 +187,8 @@ drop table t1;
 # WITH CHECK OPTION insert/update test
 #
 create table t1 (a int,
-                 b virtual int as (-a),
-		 c virtual int as (-a) stored);
+                 b int generated always as (-a) virtual,
+		 c int generated always as (-a) stored);
 create view v1 as select * from t1 where b > -2 && c >-2 with check option;
 # simple insert
 insert into v1 (a) values (1);

@@ -4,7 +4,7 @@ SET @@session.default_storage_engine = 'InnoDB';
 #
 # ABS()
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (abs(a)));
+create table t1 (a int, b int generated always as (abs(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -19,7 +19,7 @@ drop table t1;
 set sql_warnings = 0;
 # ACOS()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(acos(a),6)));
+create table t1 (a double, b double generated always as (format(acos(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -38,7 +38,7 @@ drop table t1;
 set sql_warnings = 0;
 # ASIN()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(asin(a),6)));
+create table t1 (a double, b double generated always as (format(asin(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -55,7 +55,7 @@ drop table t1;
 set sql_warnings = 0;
 #ATAN
 set sql_warnings = 1;
-create table t1 (a double, b double, c virtual double as (format(atan(a,b),6)));
+create table t1 (a double, b double, c double generated always as (format(atan(a,b),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -72,7 +72,7 @@ a	b	c
 drop table t1;
 set sql_warnings = 0;
 set sql_warnings = 1;
-create table t1 (a double, c virtual double as (format(atan(a),6)));
+create table t1 (a double, c double generated always as (format(atan(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -89,7 +89,7 @@ drop table t1;
 set sql_warnings = 0;
 # ATAN2
 set sql_warnings = 1;
-create table t1 (a double, b double, c virtual double as (format(atan2(a,b),6)));
+create table t1 (a double, b double, c double generated always as (format(atan2(a,b),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -107,7 +107,7 @@ drop table t1;
 set sql_warnings = 0;
 # CEIL()
 set sql_warnings = 1;
-create table t1 (a double, b virtual int as (ceil(a)));
+create table t1 (a double, b int generated always as (ceil(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -124,7 +124,7 @@ drop table t1;
 set sql_warnings = 0;
 # CONV()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b int, c int, d virtual varchar(10) as (conv(a,b,c)));
+create table t1 (a varchar(10), b int, c int, d varchar(10) generated always as (conv(a,b,c)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -147,7 +147,7 @@ drop table t1;
 set sql_warnings = 0;
 # COS()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(cos(a),6)));
+create table t1 (a double, b double generated always as (format(cos(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -162,7 +162,7 @@ drop table t1;
 set sql_warnings = 0;
 # COT()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(cot(a),6)));
+create table t1 (a double, b double generated always as (format(cot(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -178,7 +178,7 @@ drop table t1;
 set sql_warnings = 0;
 # CRC32()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual long as (crc32(a)));
+create table t1 (a varchar(10), b long generated always as (crc32(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -195,7 +195,7 @@ drop table t1;
 set sql_warnings = 0;
 # DEGREES()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(degrees(a),6)));
+create table t1 (a double, b double generated always as (format(degrees(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -212,7 +212,7 @@ drop table t1;
 set sql_warnings = 0;
 # /
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (a/2));
+create table t1 (a double, b double generated always as (a/2) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -227,7 +227,7 @@ drop table t1;
 set sql_warnings = 0;
 # EXP()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(exp(a),6)));
+create table t1 (a double, b double generated always as (format(exp(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -246,7 +246,7 @@ drop table t1;
 set sql_warnings = 0;
 # FLOOR()
 set sql_warnings = 1;
-create table t1 (a double, b virtual long as (floor(a)));
+create table t1 (a double, b long generated always as (floor(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -263,7 +263,7 @@ drop table t1;
 set sql_warnings = 0;
 # LN()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(ln(a),6)));
+create table t1 (a double, b double generated always as (format(ln(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -272,19 +272,14 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values (2,default);
 insert into t1 values (-2,default);
-Warnings:
-Warning	1905	Invalid argument for logarithm
 select * from t1;
 a	b
 2	0.693147
--2	NULL
-Warnings:
-Warning	1905	Invalid argument for logarithm
 drop table t1;
 set sql_warnings = 0;
 # LOG()
 set sql_warnings = 1;
-create table t1 (a double, b double, c virtual double as (format(log(a,b),6)));
+create table t1 (a double, b double, c double generated always as (format(log(a,b),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -295,19 +290,14 @@ t1	CREATE TABLE `t1` (
 insert into t1 values (2,65536,default);
 insert into t1 values (10,100,default);
 insert into t1 values (1,100,default);
-Warnings:
-Warning	1905	Invalid argument for logarithm
 select * from t1;
 a	b	c
 2	65536	16
 10	100	2
-1	100	NULL
-Warnings:
-Warning	1905	Invalid argument for logarithm
 drop table t1;
 set sql_warnings = 0;
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(log(a),6)));
+create table t1 (a double, b double generated always as (format(log(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -316,19 +306,14 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values (2,default);
 insert into t1 values (-2,default);
-Warnings:
-Warning	1905	Invalid argument for logarithm
 select * from t1;
 a	b
 2	0.693147
--2	NULL
-Warnings:
-Warning	1905	Invalid argument for logarithm
 drop table t1;
 set sql_warnings = 0;
 # LOG2()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(log2(a),6)));
+create table t1 (a double, b double generated always as (format(log2(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -337,19 +322,14 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values (65536,default);
 insert into t1 values (-100,default);
-Warnings:
-Warning	1905	Invalid argument for logarithm
 select * from t1;
 a	b
 65536	16
--100	NULL
-Warnings:
-Warning	1905	Invalid argument for logarithm
 drop table t1;
 set sql_warnings = 0;
 # LOG10()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(log10(a),6)));
+create table t1 (a double, b double generated always as (format(log10(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -359,20 +339,15 @@ t1	CREATE TABLE `t1` (
 insert into t1 values (2,default);
 insert into t1 values (100,default);
 insert into t1 values (-100,default);
-Warnings:
-Warning	1905	Invalid argument for logarithm
 select * from t1;
 a	b
 2	0.30103
 100	2
--100	NULL
-Warnings:
-Warning	1905	Invalid argument for logarithm
 drop table t1;
 set sql_warnings = 0;
 # -
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (a-1));
+create table t1 (a double, b double generated always as (a-1) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -387,7 +362,7 @@ drop table t1;
 set sql_warnings = 0;
 # MOD()
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (mod(a,10)));
+create table t1 (a int, b int generated always as (mod(a,10)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -404,7 +379,7 @@ drop table t1;
 set sql_warnings = 0;
 # %
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (a % 10));
+create table t1 (a int, b int generated always as (a % 10) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -421,7 +396,7 @@ drop table t1;
 set sql_warnings = 0;
 # OCT()
 set sql_warnings = 1;
-create table t1 (a double, b virtual varchar(10) as (oct(a)));
+create table t1 (a double, b varchar(10) generated always as (oct(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -436,7 +411,7 @@ drop table t1;
 set sql_warnings = 0;
 # PI()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(PI()*a*a,6)));
+create table t1 (a double, b double generated always as (format(PI()*a*a,6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -451,7 +426,7 @@ drop table t1;
 set sql_warnings = 0;
 # +
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (a+1));
+create table t1 (a int, b int generated always as (a+1) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -466,7 +441,7 @@ drop table t1;
 set sql_warnings = 0;
 # POW, POWER
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (pow(a,2)), c virtual int as (power(a,2)));
+create table t1 (a int, b int generated always as (pow(a,2)) virtual, c int generated always as (power(a,2)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -484,7 +459,7 @@ drop table t1;
 set sql_warnings = 0;
 # RADIANS()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(radians(a),6)));
+create table t1 (a double, b double generated always as (format(radians(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -499,7 +474,7 @@ drop table t1;
 set sql_warnings = 0;
 # ROUND()
 set sql_warnings = 1;
-create table t1 (a double, b virtual int as (round(a)));
+create table t1 (a double, b int generated always as (round(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -517,7 +492,7 @@ a	b
 drop table t1;
 set sql_warnings = 0;
 set sql_warnings = 1;
-create table t1 (a double, b double, c virtual int as (round(a,b)));
+create table t1 (a double, b double, c int generated always as (round(a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -537,7 +512,7 @@ drop table t1;
 set sql_warnings = 0;
 # SIGN()
 set sql_warnings = 1;
-create table t1 (a double, b virtual int as (sign(a)));
+create table t1 (a double, b int generated always as (sign(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -556,7 +531,7 @@ drop table t1;
 set sql_warnings = 0;
 # SIN()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(sin(a),6)));
+create table t1 (a double, b double generated always as (format(sin(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -571,7 +546,7 @@ drop table t1;
 set sql_warnings = 0;
 # SQRT()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(sqrt(a),6)));
+create table t1 (a double, b double generated always as (format(sqrt(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -590,7 +565,7 @@ drop table t1;
 set sql_warnings = 0;
 # TAN()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (format(tan(a),6)));
+create table t1 (a double, b double generated always as (format(tan(a),6)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -607,7 +582,7 @@ drop table t1;
 set sql_warnings = 0;
 # *
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (a*3));
+create table t1 (a double, b double generated always as (a*3) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -626,7 +601,7 @@ drop table t1;
 set sql_warnings = 0;
 # TRUNCATE()
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (truncate(a,4)));
+create table t1 (a double, b double generated always as (truncate(a,4)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -647,7 +622,7 @@ drop table t1;
 set sql_warnings = 0;
 # Unary -
 set sql_warnings = 1;
-create table t1 (a double, b virtual double as (-a));
+create table t1 (a double, b double generated always as (-a) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -667,7 +642,7 @@ set sql_warnings = 0;
 #
 # ASCII()
 set sql_warnings = 1;
-create table t1 (a char(2), b virtual int as (ascii(a)));
+create table t1 (a char(2), b int generated always as (ascii(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -686,7 +661,7 @@ drop table t1;
 set sql_warnings = 0;
 # BIN()
 set sql_warnings = 1;
-create table t1 (a int, b virtual varchar(10) as (bin(a)));
+create table t1 (a int, b varchar(10) generated always as (bin(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -701,7 +676,7 @@ drop table t1;
 set sql_warnings = 0;
 # BIT_LENGTH()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual long as (bit_length(a)));
+create table t1 (a varchar(10), b long generated always as (bit_length(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -716,7 +691,7 @@ drop table t1;
 set sql_warnings = 0;
 # CHAR_LENGTH()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual long as (char_length(a)));
+create table t1 (a varchar(10), b long generated always as (char_length(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -731,7 +706,7 @@ drop table t1;
 set sql_warnings = 0;
 # CHAR()
 set sql_warnings = 1;
-create table t1 (a int, b int, c virtual varbinary(10) as (char(a,b)));
+create table t1 (a int, b int, c varbinary(10) generated always as (char(a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -747,7 +722,7 @@ drop table t1;
 set sql_warnings = 0;
 # CHARACTER_LENGTH()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual long as (character_length(a)));
+create table t1 (a varchar(10), b long generated always as (character_length(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -762,7 +737,7 @@ drop table t1;
 set sql_warnings = 0;
 # CONCAT_WS()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual varchar(20) as (concat_ws(',',a,b)));
+create table t1 (a varchar(10), b varchar(10), c varchar(20) generated always as (concat_ws(',',a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -778,7 +753,7 @@ drop table t1;
 set sql_warnings = 0;
 # CONCAT()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual varchar(20) as (concat(a,',',b)));
+create table t1 (a varchar(10), b varchar(10), c varchar(20) generated always as (concat(a,',',b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -794,7 +769,7 @@ drop table t1;
 set sql_warnings = 0;
 # ELT()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c int, d virtual varchar(10) as (elt(c,a,b)));
+create table t1 (a varchar(10), b varchar(10), c int, d varchar(10) generated always as (elt(c,a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -813,7 +788,7 @@ drop table t1;
 set sql_warnings = 0;
 # EXPORT_SET()
 set sql_warnings = 1;
-create table t1 (a int, b virtual varchar(10) as (export_set(a,'1','0','',10)));
+create table t1 (a int, b varchar(10) generated always as (export_set(a,'1','0','',10)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -828,7 +803,7 @@ drop table t1;
 set sql_warnings = 0;
 # FIELD()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual int as (field('aa',a,b)));
+create table t1 (a varchar(10), b varchar(10), c int generated always as (field('aa',a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -846,7 +821,7 @@ drop table t1;
 set sql_warnings = 0;
 # FIND_IN_SET()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual int as (find_in_set(a,b)));
+create table t1 (a varchar(10), b varchar(10), c int generated always as (find_in_set(a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -864,7 +839,7 @@ drop table t1;
 set sql_warnings = 0;
 # FORMAT()
 set sql_warnings = 1;
-create table t1 (a double, b virtual varchar(20) as (format(a,2)));
+create table t1 (a double, b varchar(20) generated always as (format(a,2)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -879,7 +854,7 @@ drop table t1;
 set sql_warnings = 0;
 # HEX()
 set sql_warnings = 1;
-create table t1 (a int, b virtual varchar(10) as (hex(a)));
+create table t1 (a int, b varchar(10) generated always as (hex(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -893,7 +868,7 @@ a	b
 drop table t1;
 set sql_warnings = 0;
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (hex(a)));
+create table t1 (a varchar(10), b varchar(10) generated always as (hex(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -908,7 +883,7 @@ drop table t1;
 set sql_warnings = 0;
 # INSERT()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual varchar(20) as (insert(a,length(a),length(b),b)));
+create table t1 (a varchar(10), b varchar(10), c varchar(20) generated always as (insert(a,length(a),length(b),b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -924,7 +899,7 @@ drop table t1;
 set sql_warnings = 0;
 # INSTR()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual int as (instr(a,b)));
+create table t1 (a varchar(10), b varchar(10), c int generated always as (instr(a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -942,7 +917,7 @@ drop table t1;
 set sql_warnings = 0;
 # LCASE()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (lcase(a)));
+create table t1 (a varchar(10), b varchar(10) generated always as (lcase(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -957,7 +932,7 @@ drop table t1;
 set sql_warnings = 0;
 # LEFT()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(5) as (left(a,5)));
+create table t1 (a varchar(10), b varchar(5) generated always as (left(a,5)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -972,7 +947,7 @@ drop table t1;
 set sql_warnings = 0;
 # LENGTH()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual int as (length(a)));
+create table t1 (a varchar(10), b int generated always as (length(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -987,7 +962,7 @@ drop table t1;
 set sql_warnings = 0;
 # LIKE
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual bool as (a like 'H%o'));
+create table t1 (a varchar(10), b bool generated always as (a like 'H%o') virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1004,7 +979,7 @@ drop table t1;
 set sql_warnings = 0;
 # LOCATE()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (locate('bar',a)));
+create table t1 (a varchar(10), b varchar(10) generated always as (locate('bar',a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1019,7 +994,7 @@ drop table t1;
 set sql_warnings = 0;
 # LOWER()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (lower(a)));
+create table t1 (a varchar(10), b varchar(10) generated always as (lower(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1034,7 +1009,7 @@ drop table t1;
 set sql_warnings = 0;
 # LPAD()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (lpad(a,4,' ')));
+create table t1 (a varchar(10), b varchar(10) generated always as (lpad(a,4,' ')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1051,7 +1026,7 @@ drop table t1;
 set sql_warnings = 0;
 # LTRIM()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (ltrim(a)));
+create table t1 (a varchar(10), b varchar(10) generated always as (ltrim(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1068,7 +1043,7 @@ drop table t1;
 set sql_warnings = 0;
 # MAKE_SET()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c int, d virtual varchar(30) as (make_set(c,a,b)));
+create table t1 (a varchar(10), b varchar(10), c int, d varchar(30) generated always as (make_set(c,a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1087,7 +1062,7 @@ drop table t1;
 set sql_warnings = 0;
 # MID()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (mid(a,1,2)));
+create table t1 (a varchar(10), b varchar(10) generated always as (mid(a,1,2)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1102,7 +1077,7 @@ drop table t1;
 set sql_warnings = 0;
 # NOT LIKE
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual bool as (a not like 'H%o'));
+create table t1 (a varchar(10), b bool generated always as (a not like 'H%o') virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1119,7 +1094,7 @@ drop table t1;
 set sql_warnings = 0;
 # NOT REGEXP
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual bool as (a not regexp 'H.+o'));
+create table t1 (a varchar(10), b bool generated always as (a not regexp 'H.+o') virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1136,7 +1111,7 @@ drop table t1;
 set sql_warnings = 0;
 # OCTET_LENGTH()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual int as (octet_length(a)));
+create table t1 (a varchar(10), b int generated always as (octet_length(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1151,7 +1126,7 @@ drop table t1;
 set sql_warnings = 0;
 # ORD()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual long as (ord(a)));
+create table t1 (a varchar(10), b long generated always as (ord(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1166,7 +1141,7 @@ drop table t1;
 set sql_warnings = 0;
 # POSITION()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (position('bar' in a)));
+create table t1 (a varchar(10), b varchar(10) generated always as (position('bar' in a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1181,7 +1156,7 @@ drop table t1;
 set sql_warnings = 0;
 # QUOTE()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (quote(a)));
+create table t1 (a varchar(10), b varchar(10) generated always as (quote(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1196,7 +1171,7 @@ drop table t1;
 set sql_warnings = 0;
 # REGEXP()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual bool as (a regexp 'H.+o'));
+create table t1 (a varchar(10), b bool generated always as (a regexp 'H.+o') virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1213,7 +1188,7 @@ drop table t1;
 set sql_warnings = 0;
 # REPEAT()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(30) as (repeat(a,3)));
+create table t1 (a varchar(10), b varchar(30) generated always as (repeat(a,3)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1228,7 +1203,7 @@ drop table t1;
 set sql_warnings = 0;
 # REPLACE()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(30) as (replace(a,'aa','bb')));
+create table t1 (a varchar(10), b varchar(30) generated always as (replace(a,'aa','bb')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1243,7 +1218,7 @@ drop table t1;
 set sql_warnings = 0;
 # REVERSE()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(30) as (reverse(a)));
+create table t1 (a varchar(10), b varchar(30) generated always as (reverse(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1258,7 +1233,7 @@ drop table t1;
 set sql_warnings = 0;
 # RIGHT()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (right(a,4)));
+create table t1 (a varchar(10), b varchar(10) generated always as (right(a,4)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1273,7 +1248,7 @@ drop table t1;
 set sql_warnings = 0;
 # RLIKE()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual bool as (a rlike 'H.+o'));
+create table t1 (a varchar(10), b bool generated always as (a rlike 'H.+o') virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1290,7 +1265,7 @@ drop table t1;
 set sql_warnings = 0;
 # RPAD()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (rpad(a,4,'??')));
+create table t1 (a varchar(10), b varchar(10) generated always as (rpad(a,4,'??')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1305,7 +1280,7 @@ drop table t1;
 set sql_warnings = 0;
 # RTRIM();
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (rtrim(a)));
+create table t1 (a varchar(10), b varchar(10) generated always as (rtrim(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1320,7 +1295,7 @@ drop table t1;
 set sql_warnings = 0;
 # SOUNDEX()
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(20) as (soundex(a)));
+create table t1 (a varchar(10), b varchar(20) generated always as (soundex(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1335,7 +1310,7 @@ drop table t1;
 set sql_warnings = 0;
 # SOUNDS LIKE
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual bool as (a sounds like b));
+create table t1 (a varchar(10), b varchar(10), c bool generated always as (a sounds like b) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1355,7 +1330,7 @@ drop table t1;
 set sql_warnings = 0;
 # SPACE()
 set sql_warnings = 1;
-create table t1 (a varchar(5), b virtual varchar(10) as (concat(a,space(5))));
+create table t1 (a varchar(5), b varchar(10) generated always as (concat(a,space(5))) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1370,7 +1345,7 @@ drop table t1;
 set sql_warnings = 0;
 # STRCMP()
 set sql_warnings = 1;
-create table t1 (a varchar(9), b varchar(9), c virtual tinyint(1) as (strcmp(a,b)));
+create table t1 (a varchar(9), b varchar(9), c tinyint(1) generated always as (strcmp(a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1388,7 +1363,7 @@ drop table t1;
 set sql_warnings = 0;
 # SUBSTR()
 set sql_warnings = 1;
-create table t1 (a varchar(5), b virtual varchar(10) as (substr(a,2)));
+create table t1 (a varchar(5), b varchar(10) generated always as (substr(a,2)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1403,7 +1378,7 @@ drop table t1;
 set sql_warnings = 0;
 # SUBSTRING_INDEX()
 set sql_warnings = 1;
-create table t1 (a varchar(15), b virtual varchar(10) as (substring_index(a,'.',2)));
+create table t1 (a varchar(15), b varchar(10) generated always as (substring_index(a,'.',2)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1418,7 +1393,7 @@ drop table t1;
 set sql_warnings = 0;
 # SUBSTRING()
 set sql_warnings = 1;
-create table t1 (a varchar(5), b virtual varchar(10) as (substring(a from 2 for 2)));
+create table t1 (a varchar(5), b varchar(10) generated always as (substring(a from 2 for 2)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1433,7 +1408,7 @@ drop table t1;
 set sql_warnings = 0;
 # TRIM()
 set sql_warnings = 1;
-create table t1 (a varchar(15), b virtual varchar(10) as (trim(a)));
+create table t1 (a varchar(15), b varchar(10) generated always as (trim(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1448,7 +1423,7 @@ drop table t1;
 set sql_warnings = 0;
 # UCASE()
 set sql_warnings = 1;
-create table t1 (a varchar(5), b virtual varchar(10) as (ucase(a)));
+create table t1 (a varchar(5), b varchar(10) generated always as (ucase(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1463,7 +1438,7 @@ drop table t1;
 set sql_warnings = 0;
 # UNHEX()
 set sql_warnings = 1;
-create table t1 (a varchar(15), b virtual varchar(10) as (unhex(a)));
+create table t1 (a varchar(15), b varchar(10) generated always as (unhex(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1478,7 +1453,7 @@ drop table t1;
 set sql_warnings = 0;
 # UPPER()
 set sql_warnings = 1;
-create table t1 (a varchar(5), b virtual varchar(10) as (upper(a)));
+create table t1 (a varchar(5), b varchar(10) generated always as (upper(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1493,7 +1468,7 @@ drop table t1;
 set sql_warnings = 0;
 # WEIGHT_STRING()
 set sql_warnings = 1;
-create table t1 (a varchar(5), b virtual varchar(10) as (weight_string(a as char(4))));
+create table t1 (a varchar(5), b varchar(10) generated always as (weight_string(a as char(4))) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1511,7 +1486,7 @@ set sql_warnings = 0;
 #
 # CASE
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(16) as (case a when NULL then 'asd' when 'b' then 'B' else a end));
+create table t1 (a varchar(10), b varchar(16) generated always as (case a when NULL then 'asd' when 'b' then 'B' else a end) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1530,7 +1505,7 @@ drop table t1;
 set sql_warnings = 0;
 # IF
 set sql_warnings = 1;
-create table t1 (a int, b int, c virtual int as (if(a=1,a,b)));
+create table t1 (a int, b int, c int generated always as (if(a=1,a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1548,7 +1523,7 @@ drop table t1;
 set sql_warnings = 0;
 # IFNULL
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual varchar(10) as (ifnull(a,'DEFAULT')));
+create table t1 (a varchar(10), b varchar(10), c varchar(10) generated always as (ifnull(a,'DEFAULT')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1566,7 +1541,7 @@ drop table t1;
 set sql_warnings = 0;
 # NULLIF
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varchar(10) as (nullif(a,'DEFAULT')));
+create table t1 (a varchar(10), b varchar(10) generated always as (nullif(a,'DEFAULT')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1586,7 +1561,7 @@ set sql_warnings = 0;
 #
 # AND, && 
 set sql_warnings = 1;
-create table t1 (a int, b virtual bool as (a>0 && a<2));
+create table t1 (a int, b bool generated always as (a>0 && a<2) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1603,7 +1578,7 @@ drop table t1;
 set sql_warnings = 0;
 # BETWEEN ... AND ... 
 set sql_warnings = 1;
-create table t1 (a int, b virtual bool as (a between 0 and 2));
+create table t1 (a int, b bool generated always as (a between 0 and 2) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1620,7 +1595,7 @@ drop table t1;
 set sql_warnings = 0;
 # BINARY
 set sql_warnings = 1;
-create table t1 (a varchar(10), b virtual varbinary(10) as (binary a));
+create table t1 (a varchar(10), b varbinary(10) generated always as (binary a) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1637,7 +1612,7 @@ drop table t1;
 set sql_warnings = 0;
 # &
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (a & 5));
+create table t1 (a int, b int generated always as (a & 5) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1654,7 +1629,7 @@ drop table t1;
 set sql_warnings = 0;
 # ~
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (~a));
+create table t1 (a int, b int generated always as (~a) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1662,16 +1637,13 @@ t1	CREATE TABLE `t1` (
   `b` VIRTUAL int(11) AS (~a)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values (1,default);
-Warnings:
-Warning	1264	Out of range value for column 'b' at row 1
 select * from t1;
 a	b
-1	2147483647
 drop table t1;
 set sql_warnings = 0;
 # |
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (a | 5));
+create table t1 (a int, b int generated always as (a | 5) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1690,7 +1662,7 @@ drop table t1;
 set sql_warnings = 0;
 # ^
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (a ^ 5));
+create table t1 (a int, b int generated always as (a ^ 5) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1709,7 +1681,7 @@ drop table t1;
 set sql_warnings = 0;
 # DIV
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (a div 5));
+create table t1 (a int, b int generated always as (a div 5) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1726,7 +1698,7 @@ drop table t1;
 set sql_warnings = 0;
 # <=>
 set sql_warnings = 1;
-create table t1 (a int, b int, c virtual bool as (a <=> b));
+create table t1 (a int, b int, c bool generated always as (a <=> b) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1746,7 +1718,7 @@ drop table t1;
 set sql_warnings = 0;
 # =
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual bool as (a=b));
+create table t1 (a varchar(10), b varchar(10), c bool generated always as (a=b) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1764,7 +1736,7 @@ drop table t1;
 set sql_warnings = 0;
 # >=
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual bool as (a >= b));
+create table t1 (a varchar(10), b varchar(10), c bool generated always as (a >= b) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1782,7 +1754,7 @@ drop table t1;
 set sql_warnings = 0;
 # >
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual bool as (a > b));
+create table t1 (a varchar(10), b varchar(10), c bool generated always as (a > b) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1800,7 +1772,7 @@ drop table t1;
 set sql_warnings = 0;
 # IS NOT NULL
 set sql_warnings = 1;
-create table t1 (a int, b virtual bool as (a is not null));
+create table t1 (a int, b bool generated always as (a is not null) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1817,7 +1789,7 @@ drop table t1;
 set sql_warnings = 0;
 # IS NULL
 set sql_warnings = 1;
-create table t1 (a int, b virtual bool as (a is null));
+create table t1 (a int, b bool generated always as (a is null) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1834,7 +1806,7 @@ drop table t1;
 set sql_warnings = 0;
 # <<
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (a << 2));
+create table t1 (a int, b int generated always as (a << 2) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1851,7 +1823,7 @@ drop table t1;
 set sql_warnings = 0;
 # <=
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual bool as (a <= b));
+create table t1 (a varchar(10), b varchar(10), c bool generated always as (a <= b) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1871,7 +1843,7 @@ drop table t1;
 set sql_warnings = 0;
 # <
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual bool as (a < b));
+create table t1 (a varchar(10), b varchar(10), c bool generated always as (a < b) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1891,7 +1863,7 @@ drop table t1;
 set sql_warnings = 0;
 # NOT BETWEEN ... AND ...
 set sql_warnings = 1;
-create table t1 (a int, b virtual bool as (a not between 0 and 2));
+create table t1 (a int, b bool generated always as (a not between 0 and 2) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1908,7 +1880,7 @@ drop table t1;
 set sql_warnings = 0;
 # <>
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual bool as (a <> b));
+create table t1 (a varchar(10), b varchar(10), c bool generated always as (a <> b) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1928,7 +1900,7 @@ drop table t1;
 set sql_warnings = 0;
 # !=
 set sql_warnings = 1;
-create table t1 (a varchar(10), b varchar(10), c virtual bool as (a != b));
+create table t1 (a varchar(10), b varchar(10), c bool generated always as (a != b) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1948,7 +1920,7 @@ drop table t1;
 set sql_warnings = 0;
 # ||, OR
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (a>5 || a<3));
+create table t1 (a int, b int generated always as (a>5 || a<3) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1965,7 +1937,7 @@ drop table t1;
 set sql_warnings = 0;
 # >>
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (a >> 2));
+create table t1 (a int, b int generated always as (a >> 2) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1982,7 +1954,7 @@ drop table t1;
 set sql_warnings = 0;
 # XOR
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (a xor 5));
+create table t1 (a int, b int generated always as (a xor 5) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2004,7 +1976,7 @@ set sql_warnings = 0;
 #
 # ADDDATE()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual datetime as (adddate(a,interval 1 month)));
+create table t1 (a datetime, b datetime generated always as (adddate(a,interval 1 month)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2019,7 +1991,7 @@ drop table t1;
 set sql_warnings = 0;
 # ADDTIME()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual datetime as (addtime(a,'02:00:00')));
+create table t1 (a datetime, b datetime generated always as (addtime(a,'02:00:00')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2034,7 +2006,7 @@ drop table t1;
 set sql_warnings = 0;
 # CONVERT_TZ()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual datetime as (convert_tz(a,'MET','UTC')));
+create table t1 (a datetime, b datetime generated always as (convert_tz(a,'MET','UTC')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2049,7 +2021,7 @@ drop table t1;
 set sql_warnings = 0;
 # DATE_ADD()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual datetime as (date_add(a,interval 1 month)));
+create table t1 (a datetime, b datetime generated always as (date_add(a,interval 1 month)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2064,7 +2036,7 @@ drop table t1;
 set sql_warnings = 0;
 # DATE_FORMAT()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual varchar(64) as (date_format(a,'%W %M %D')));
+create table t1 (a datetime, b varchar(64) generated always as (date_format(a,'%W %M %D')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2079,7 +2051,7 @@ drop table t1;
 set sql_warnings = 0;
 # DATE_SUB()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual datetime as (date_sub(a,interval 1 month)));
+create table t1 (a datetime, b datetime generated always as (date_sub(a,interval 1 month)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2094,7 +2066,7 @@ drop table t1;
 set sql_warnings = 0;
 # DATE()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual datetime as (date(a)));
+create table t1 (a datetime, b datetime generated always as (date(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2109,7 +2081,7 @@ drop table t1;
 set sql_warnings = 0;
 # DATEDIFF()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual long as (datediff(a,'2000-01-01')));
+create table t1 (a datetime, b long generated always as (datediff(a,'2000-01-01')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2124,7 +2096,7 @@ drop table t1;
 set sql_warnings = 0;
 # DAY()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (day(a)));
+create table t1 (a datetime, b int generated always as (day(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2139,7 +2111,7 @@ drop table t1;
 set sql_warnings = 0;
 # DAYNAME()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual varchar(10) as (dayname(a)));
+create table t1 (a datetime, b varchar(10) generated always as (dayname(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2154,7 +2126,7 @@ drop table t1;
 set sql_warnings = 0;
 # DAYOFMONTH()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (dayofmonth(a)));
+create table t1 (a datetime, b int generated always as (dayofmonth(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2169,7 +2141,7 @@ drop table t1;
 set sql_warnings = 0;
 # DAYOFWEEK()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (dayofweek(a)));
+create table t1 (a datetime, b int generated always as (dayofweek(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2184,7 +2156,7 @@ drop table t1;
 set sql_warnings = 0;
 # DAYOFYEAR()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (dayofyear(a)));
+create table t1 (a datetime, b int generated always as (dayofyear(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2199,7 +2171,7 @@ drop table t1;
 set sql_warnings = 0;
 # EXTRACT
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (extract(year from a)));
+create table t1 (a datetime, b int generated always as (extract(year from a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2214,7 +2186,7 @@ drop table t1;
 set sql_warnings = 0;
 # FROM_DAYS()
 set sql_warnings = 1;
-create table t1 (a long, b virtual datetime as (from_days(a)));
+create table t1 (a long, b datetime generated always as (from_days(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2229,7 +2201,7 @@ drop table t1;
 set sql_warnings = 0;
 # FROM_UNIXTIME()
 set sql_warnings = 1;
-create table t1 (a long, b virtual datetime as (from_unixtime(a)));
+create table t1 (a long, b datetime generated always as (from_unixtime(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2244,7 +2216,7 @@ drop table t1;
 set sql_warnings = 0;
 # GET_FORMAT()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual varchar(32) as (date_format(a,get_format(DATE,'EUR'))));
+create table t1 (a datetime, b varchar(32) generated always as (date_format(a,get_format(DATE,'EUR'))) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2259,7 +2231,7 @@ drop table t1;
 set sql_warnings = 0;
 # HOUR()
 set sql_warnings = 1;
-create table t1 (a time, b virtual long as (hour(a)));
+create table t1 (a time, b long generated always as (hour(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2274,7 +2246,7 @@ drop table t1;
 set sql_warnings = 0;
 # LAST_DAY()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual datetime as (last_day(a)));
+create table t1 (a datetime, b datetime generated always as (last_day(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2283,20 +2255,14 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('2003-02-05',default);
 insert into t1 values ('2003-02-32',default);
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00'
 select * from t1;
 a	b
 2003-02-05 00:00:00	2003-02-28 00:00:00
-0000-00-00 00:00:00	NULL
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
 drop table t1;
 set sql_warnings = 0;
 # MAKEDATE()
 set sql_warnings = 1;
-create table t1 (a int, b virtual datetime as (makedate(a,1)));
+create table t1 (a int, b datetime generated always as (makedate(a,1)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2311,7 +2277,7 @@ drop table t1;
 set sql_warnings = 0;
 # MAKETIME()
 set sql_warnings = 1;
-create table t1 (a int, b virtual time as (maketime(a,1,3)));
+create table t1 (a int, b time generated always as (maketime(a,1,3)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2326,7 +2292,7 @@ drop table t1;
 set sql_warnings = 0;
 # MICROSECOND()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual long as (microsecond(a)));
+create table t1 (a datetime, b long generated always as (microsecond(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2343,7 +2309,7 @@ drop table t1;
 set sql_warnings = 0;
 # MINUTE()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (minute(a)));
+create table t1 (a datetime, b int generated always as (minute(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2358,7 +2324,7 @@ drop table t1;
 set sql_warnings = 0;
 # MONTH()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (month(a)));
+create table t1 (a datetime, b int generated always as (month(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2373,7 +2339,7 @@ drop table t1;
 set sql_warnings = 0;
 # MONTHNAME()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual varchar(16) as (monthname(a)));
+create table t1 (a datetime, b varchar(16) generated always as (monthname(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2388,7 +2354,7 @@ drop table t1;
 set sql_warnings = 0;
 # PERIOD_ADD()
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (period_add(a,2)));
+create table t1 (a int, b int generated always as (period_add(a,2)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2403,7 +2369,7 @@ drop table t1;
 set sql_warnings = 0;
 # PERIOD_DIFF()
 set sql_warnings = 1;
-create table t1 (a int, b int, c virtual int as (period_diff(a,b)));
+create table t1 (a int, b int, c int generated always as (period_diff(a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2419,7 +2385,7 @@ drop table t1;
 set sql_warnings = 0;
 # QUARTER()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (quarter(a)));
+create table t1 (a datetime, b int generated always as (quarter(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2434,7 +2400,7 @@ drop table t1;
 set sql_warnings = 0;
 # SEC_TO_TIME()
 set sql_warnings = 1;
-create table t1 (a long, b virtual time as (sec_to_time(a)));
+create table t1 (a long, b time generated always as (sec_to_time(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2449,7 +2415,7 @@ drop table t1;
 set sql_warnings = 0;
 # SECOND()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (second(a)));
+create table t1 (a datetime, b int generated always as (second(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2464,7 +2430,7 @@ drop table t1;
 set sql_warnings = 0;
 # STR_TO_DATE()
 set sql_warnings = 1;
-create table t1 (a varchar(64), b virtual datetime as (str_to_date(a,'%m/%d/%Y')));
+create table t1 (a varchar(64), b datetime generated always as (str_to_date(a,'%m/%d/%Y')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2479,7 +2445,7 @@ drop table t1;
 set sql_warnings = 0;
 # SUBDATE()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual datetime as (subdate(a,interval 1 month)));
+create table t1 (a datetime, b datetime generated always as (subdate(a,interval 1 month)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2494,7 +2460,7 @@ drop table t1;
 set sql_warnings = 0;
 # SUBTIME()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual datetime as (subtime(a,'02:00:00')));
+create table t1 (a datetime, b datetime generated always as (subtime(a,'02:00:00')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2509,7 +2475,7 @@ drop table t1;
 set sql_warnings = 0;
 # TIME_FORMAT()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual varchar(32) as (time_format(a,'%r')));
+create table t1 (a datetime, b varchar(32) generated always as (time_format(a,'%r')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2524,7 +2490,7 @@ drop table t1;
 set sql_warnings = 0;
 # TIME_TO_SEC()
 set sql_warnings = 1;
-create table t1 (a time, b virtual long as (time_to_sec(a)));
+create table t1 (a time, b long generated always as (time_to_sec(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2539,7 +2505,7 @@ drop table t1;
 set sql_warnings = 0;
 # TIME()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual time as (time(a)));
+create table t1 (a datetime, b time generated always as (time(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2554,7 +2520,7 @@ drop table t1;
 set sql_warnings = 0;
 # TIMEDIFF()
 set sql_warnings = 1;
-create table t1 (a datetime, b datetime, c virtual long as (timediff(a,b)));
+create table t1 (a datetime, b datetime, c long generated always as (timediff(a,b)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2570,7 +2536,7 @@ drop table t1;
 set sql_warnings = 0;
 # TIMESTAMP()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual timestamp as (timestamp(a)));
+create table t1 (a datetime, b timestamp generated always as (timestamp(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2585,7 +2551,7 @@ drop table t1;
 set sql_warnings = 0;
 # TIMESTAMPADD()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual timestamp as (timestampadd(minute,1,a)));
+create table t1 (a datetime, b timestamp generated always as (timestampadd(minute,1,a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2600,23 +2566,22 @@ drop table t1;
 set sql_warnings = 0;
 # TIMESTAMPDIFF()
 set sql_warnings = 1;
-create table t1 (a timestamp, b timestamp, c virtual long as (timestampdiff(MONTH, a,b)));
+create table t1 (a timestamp, c long generated always as (timestampdiff(MONTH, a, a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `b` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `c` VIRTUAL mediumtext AS (timestampdiff(MONTH, a,b))
+  `c` VIRTUAL mediumtext AS (timestampdiff(MONTH, a, a))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-insert into t1 values ('2003-02-01','2003-05-01',default);
+insert into t1 values ('2003-02-01',default);
 select * from t1;
-a	b	c
-2003-02-01 00:00:00	2003-05-01 00:00:00	3
+a	c
+2003-02-01 00:00:00	0
 drop table t1;
 set sql_warnings = 0;
 # TO_DAYS()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual long as (to_days(a)));
+create table t1 (a datetime, b long generated always as (to_days(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2631,7 +2596,7 @@ drop table t1;
 set sql_warnings = 0;
 # WEEK()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (week(a)));
+create table t1 (a datetime, b int generated always as (week(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2646,7 +2611,7 @@ drop table t1;
 set sql_warnings = 0;
 # WEEKDAY()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (weekday(a)));
+create table t1 (a datetime, b int generated always as (weekday(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2661,7 +2626,7 @@ drop table t1;
 set sql_warnings = 0;
 # WEEKOFYEAR()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (weekofyear(a)));
+create table t1 (a datetime, b int generated always as (weekofyear(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2676,7 +2641,7 @@ drop table t1;
 set sql_warnings = 0;
 # YEAR()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (year(a)));
+create table t1 (a datetime, b int generated always as (year(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2691,7 +2656,7 @@ drop table t1;
 set sql_warnings = 0;
 # YEARWEEK()
 set sql_warnings = 1;
-create table t1 (a datetime, b virtual int as (yearweek(a)));
+create table t1 (a datetime, b int generated always as (yearweek(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2713,7 +2678,7 @@ set sql_warnings = 0;
 #
 # CAST()
 set sql_warnings = 1;
-create table t1 (a int, b virtual long as (cast(a as unsigned)));
+create table t1 (a int, b long generated always as (cast(a as unsigned)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2730,7 +2695,7 @@ drop table t1;
 set sql_warnings = 0;
 # Convert()
 set sql_warnings = 1;
-create table t1 (a int, b virtual long as (convert(a,unsigned)));
+create table t1 (a int, b long generated always as (convert(a,unsigned)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2754,7 +2719,7 @@ set sql_warnings = 0;
 #
 # AES_DECRYPT(), AES_ENCRYPT()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varchar(1024) as (aes_encrypt(aes_decrypt(a,'adf'),'adf')));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (aes_encrypt(aes_decrypt(a,'adf'),'adf')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2769,7 +2734,7 @@ drop table t1;
 set sql_warnings = 0;
 # BIT_COUNT()
 set sql_warnings = 1;
-create table t1 (a int, b virtual int as (bit_count(a)));
+create table t1 (a int, b int generated always as (bit_count(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2784,7 +2749,7 @@ drop table t1;
 set sql_warnings = 0;
 # CHARSET()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varchar(1024) as (charset(a)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (charset(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2799,7 +2764,7 @@ drop table t1;
 set sql_warnings = 0;
 # COERCIBILITY()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual int as (coercibility(a)));
+create table t1 (a varchar(1024), b int generated always as (coercibility(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2814,7 +2779,7 @@ drop table t1;
 set sql_warnings = 0;
 # COLLATION()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varchar(1024) as (collation(a)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (collation(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2829,7 +2794,7 @@ drop table t1;
 set sql_warnings = 0;
 # COMPRESS(), UNCOMPRESS()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varchar(1024) as (uncompress(compress(a))));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (uncompress(compress(a))) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2844,7 +2809,7 @@ drop table t1;
 set sql_warnings = 0;
 # ENCODE(), DECODE()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varchar(1024) as (decode(encode(a,'abc'),'abc')));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (decode(encode(a,'abc'),'abc')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2865,7 +2830,7 @@ drop table t1;
 set sql_warnings = 0;
 # DEFAULT()
 set sql_warnings = 1;
-create table t1 (a varchar(1024) default 'aaa', b virtual varchar(1024) as (ifnull(a,default(a))));
+create table t1 (a varchar(1024) default 'aaa', b varchar(1024) generated always as (ifnull(a,default(a))) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2880,7 +2845,7 @@ drop table t1;
 set sql_warnings = 0;
 # DES_ENCRYPT(), DES_DECRYPT()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varchar(1024) as (des_encrypt(des_decrypt(a,'adf'),'adf')));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (des_encrypt(des_decrypt(a,'adf'),'adf')) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2896,7 +2861,7 @@ drop table t1;
 set sql_warnings = 0;
 # INET_ATON(), INET_NTOA()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varchar(1024) as (inet_ntoa(inet_aton(a))));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (inet_ntoa(inet_aton(a))) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2911,7 +2876,7 @@ drop table t1;
 set sql_warnings = 0;
 # MD5()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varbinary(32) as (md5(a)));
+create table t1 (a varchar(1024), b varbinary(32) generated always as (md5(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2926,7 +2891,7 @@ drop table t1;
 set sql_warnings = 0;
 # PASSWORD()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varchar(1024) as (password(a)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (password(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2941,7 +2906,7 @@ drop table t1;
 set sql_warnings = 0;
 # SHA1()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varchar(1024) as (sha1(a)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (sha1(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2956,7 +2921,7 @@ drop table t1;
 set sql_warnings = 0;
 # SHA()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varchar(1024) as (sha(a)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (sha(a)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2971,7 +2936,7 @@ drop table t1;
 set sql_warnings = 0;
 # SHA2()
 set sql_warnings = 1;
-create table t1 (a varchar(1024), b virtual varchar(1024) as (sha2(a,224)));
+create table t1 (a varchar(1024), b varchar(1024) generated always as (sha2(a,224)) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2986,7 +2951,7 @@ drop table t1;
 set sql_warnings = 0;
 # UNCOMPRESSED_LENGTH()
 set sql_warnings = 1;
-create table t1 (a char, b virtual varchar(1024) as (uncompressed_length(compress(repeat(a,30)))));
+create table t1 (a char, b varchar(1024) generated always as (uncompressed_length(compress(repeat(a,30)))) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
