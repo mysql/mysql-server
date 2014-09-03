@@ -4118,7 +4118,7 @@ public:
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
             const CHARSET_INFO *cs, uint uint_geom_type,
-            virtual_column_info *vcol_info);
+            virtual_column_info *vcol_info= NULL);
 
   ha_storage_media field_storage_type() const
   {
