@@ -295,13 +295,13 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
                           (ptr_rows_data + common_header_len -
                           (const unsigned char *) buf);
 
-  row.reserve(data_size);
-  for (unsigned long i= 0; i < data_size; i++)
+  row.reserve(data_size + 1);
+  for (unsigned long i= 0; i < data_size + 1; i++)
   {
     row.push_back(*ptr_rows_data);
     ptr_rows_data++;
   }
-  assert( row.size() == data_size);
+  assert( row.size() == data_size + 1);
   return;
 }
 
