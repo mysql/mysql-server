@@ -249,6 +249,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
                              ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
   
   if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
+                            NULL,               /* init_buffer */
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
     my_free(buffer);
