@@ -6914,7 +6914,7 @@ int update_virtual_fields_marked_for_write(TABLE *table,
     DBUG_ASSERT(vfield->vcol_info && vfield->vcol_info->expr_item);
     /* Only update those fields that are marked in the write_set bitmap */
     if (bitmap_is_set(table->write_set, vfield->field_index) &&
-            (not (ignore_stored && vfield->stored_in_db)))
+            (!(ignore_stored && vfield->stored_in_db)))
     {
       /* Generate the actual value of the virtual fields */
       error= vfield->vcol_info->expr_item->save_in_field(vfield, 0);
