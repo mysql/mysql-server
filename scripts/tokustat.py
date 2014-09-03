@@ -9,10 +9,10 @@ def usage():
     print "diff the tokudb engine status"
     print "--host=HOSTNAME (default: localhost)"
     print "--port=PORT"
-    print "--sleeptime=SLEEPTIME (default: 10 seconds)"
+    print "--iterations=MAX_ITERATIONS (default: forever)"
+    print "--interval=TIME_BETWEEN_SAMPLES (default: 10 seconds)"
     print "--q='show engine tokudb status'"
     print "--q='select * from information_schema.global_status'"
-
     return 1
 
 def convert(v):
@@ -23,14 +23,11 @@ def convert(v):
             v = float(v)
     return v
 
-def printit(stats, rs, sleeptime):
-    # print rs
+def printit(stats, rs, interval):
     for t in rs:
         l = len(t) # grab the last 2 fields in t
         k = t[l-2]
         v = t[l-1]
-        # print k, v # debug
-        # try to convert v
         try:
             v = convert(v)
         except:
@@ -41,11 +38,11 @@ def printit(stats, rs, sleeptime):
                 print k, "|", oldv, "|", v,
                 try:
                     d = v - oldv
-                    if sleeptime != 1:
-                        if d >= sleeptime:
-                            e = d / sleeptime
+                    if interval != 1:
+                        if d >= interval:
+                            e = d / interval
                         else:
-                            e = float(d) / sleeptime
+                            e = float(d) / interval
                         print "|", d, "|", e
                     else:
                         print "|", d
@@ -59,7 +56,9 @@ def main():
     port = None
     user = None
     passwd = None
-    sleeptime = 10
+    interval = 10
+    iterations = 0
+
     q = 'show engine tokudb status'
 
     for a in sys.argv[1:]:
@@ -70,6 +69,9 @@ def main():
             exec "%s='%s'" % (match.group(1),match.group(2))
             continue
         return usage()
+
+    iterations = int(iterations)
+    interval = int(interval)
 
     connect_parameters = {}
     if host is not None:
@@ -93,7 +95,9 @@ def main():
     print "connected"
 
     stats = {}
-    while 1:
+    i = 0
+    while iterations == 0 or i <= iterations:
+        i += 1
         try:
             c = db.cursor()
             n = c.execute(q)
@@ -105,8 +109,8 @@ def main():
             return 2
 
         try:
-            printit(stats, rs, int(sleeptime))
-            time.sleep(int(sleeptime))
+            printit(stats, rs, interval)
+            time.sleep(interval)
         except:
             print "printit", sys.exc_info()
             return 3
