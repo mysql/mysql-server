@@ -2860,7 +2860,8 @@ toku_ft_handle_get_fanout(FT_HANDLE ft_handle, unsigned int *fanout)
 
 // The memcmp magic byte may be set on a per fractal tree basis to communicate
 // that if two keys begin with this byte, they may be compared with the builtin
-// key comparison function. This greatly optimizes certain in-memory workloads.
+// key comparison function. This greatly optimizes certain in-memory workloads,
+// such as lookups by OID primary key in TokuMX.
 int toku_ft_handle_set_memcmp_magic(FT_HANDLE ft_handle, uint8_t magic) {
     if (magic == comparator::MEMCMP_MAGIC_NONE) {
         return EINVAL;
