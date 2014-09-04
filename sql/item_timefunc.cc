@@ -387,15 +387,15 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 
         /* Conversion specifiers that match classes of characters */
       case '.':
-	while (my_ispunct(cs, *val) && val != val_end)
+	while (val < val_end && my_ispunct(cs, *val))
 	  val++;
 	break;
       case '@':
-	while (my_isalpha(cs, *val) && val != val_end)
+	while (val < val_end && my_isalpha(cs, *val))
 	  val++;
 	break;
       case '#':
-	while (my_isdigit(cs, *val) && val != val_end)
+	while (val < val_end && my_isdigit(cs, *val))
 	  val++;
 	break;
       default:
@@ -2209,8 +2209,9 @@ String *Item_func_date_format::val_str(String *str)
   if (size < MAX_DATE_STRING_REP_LENGTH)
     size= MAX_DATE_STRING_REP_LENGTH;
 
-  if (format == str)
-    str= &value;				// Save result here
+  // If format uses the buffer provided by 'str' then store result locally.
+  if (format == str || format->uses_buffer_owned_by(str))
+    str= &value;
   if (str->alloc(size))
     goto null_date;
 
