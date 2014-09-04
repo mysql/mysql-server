@@ -6842,7 +6842,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
   stat_info->max_data_file_length= file->stats.max_data_file_length;
   stat_info->index_file_length=    file->stats.index_file_length;
   stat_info->delete_length=        file->stats.delete_length;
-  stat_info->create_time=          file->stats.create_time;
+  stat_info->create_time=          static_cast<ulong>(file->stats.create_time);
   stat_info->update_time=          file->stats.update_time;
   stat_info->check_time=           file->stats.check_time;
   stat_info->check_sum= 0;

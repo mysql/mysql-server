@@ -123,7 +123,7 @@ static bool sec_to_time(lldiv_t seconds, MYSQL_TIME *ltime)
   uint sec= (uint) (seconds.quot % 3600);
   ltime->minute= sec / 60;
   ltime->second= sec % 60;
-  time_add_nanoseconds_with_round(ltime, seconds.rem, &warning);
+  time_add_nanoseconds_with_round(ltime, static_cast<uint>(seconds.rem), &warning);
   
   adjust_time_range(ltime, &warning);
 
@@ -2269,7 +2269,7 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
 
   thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t) lld.quot);
   int warnings= 0;
-  ltime->second_part= decimals ? lld.rem / 1000 : 0;
+  ltime->second_part= decimals ? static_cast<ulong>(lld.rem / 1000) : 0;
   return datetime_add_nanoseconds_with_round(ltime, lld.rem % 1000, &warnings);
 }
 
@@ -2988,7 +2988,7 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
     ltime->minute= (uint) minute;
     ltime->second= (uint) second.quot;
     int warnings= 0;
-    ltime->second_part= second.rem / 1000;
+    ltime->second_part= static_cast<ulong>(second.rem / 1000);
     adjust_time_range_with_warn(ltime, decimals);
     time_add_nanoseconds_with_round(ltime, second.rem % 1000, &warnings);
     if (!warnings)
