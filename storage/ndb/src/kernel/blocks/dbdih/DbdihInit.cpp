@@ -251,6 +251,9 @@ Dbdih::Dbdih(Block_context& ctx):
 
   addRecSignal(GSN_CHECKNODEGROUPSREQ, &Dbdih::execCHECKNODEGROUPSREQ);
 
+  addRecSignal(GSN_CHECK_NODE_RESTARTREQ,
+               &Dbdih::execCHECK_NODE_RESTARTREQ);
+
   addRecSignal(GSN_BLOCK_COMMIT_ORD,
 	       &Dbdih::execBLOCK_COMMIT_ORD);
   addRecSignal(GSN_UNBLOCK_COMMIT_ORD,

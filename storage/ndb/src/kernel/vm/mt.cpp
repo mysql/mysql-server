@@ -5067,7 +5067,7 @@ Uint32
 mt_get_extra_send_buffer_pages(Uint32 curr_num_pages,
                                Uint32 extra_mem_pages)
 {
-  Uint32 num_threads = get_total_number_of_block_threads();
+  Uint32 loc_num_threads = get_total_number_of_block_threads();
   Uint32 num_nodes = get_num_nodes();
 
   Uint32 extra_pages = extra_mem_pages;
@@ -5082,7 +5082,7 @@ mt_get_extra_send_buffer_pages(Uint32 curr_num_pages,
    * expected to handle this and also since we could change this
    * behaviour at any time.
    */
-  extra_pages += num_threads * THR_SEND_BUFFER_MAX_FREE;
+  extra_pages += loc_num_threads * THR_SEND_BUFFER_MAX_FREE;
 
   if (extra_mem_pages == 0)
   {
@@ -5098,7 +5098,7 @@ mt_get_extra_send_buffer_pages(Uint32 curr_num_pages,
      */
     Uint32 min_pages = MIN_SEND_BUFFER_GENERAL +
       (MIN_SEND_BUFFER_PER_NODE * num_nodes) +
-      (MIN_SEND_BUFFER_PER_THREAD * num_threads);
+      (MIN_SEND_BUFFER_PER_THREAD * loc_num_threads);
 
     if ((curr_num_pages + extra_pages) < min_pages)
     {

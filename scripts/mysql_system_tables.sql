@@ -1793,6 +1793,16 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`disk_write_speed_base`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`disk_write_speed_aggregate`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`cluster_transactions`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -2002,6 +2012,28 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# ndbinfo.ndb$disk_write_speed_base
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$disk_write_speed_base`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$disk_write_speed_base` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "LDM thread instance",`millis_ago` BIGINT UNSIGNED COMMENT "Milliseconds ago since this period finished",`millis_passed` BIGINT UNSIGNED COMMENT "Milliseconds passed in the period reported", `backup_lcp_bytes_written` BIGINT UNSIGNED COMMENT "Bytes written by backup and LCP in the period",`redo_bytes_written` BIGINT UNSIGNED COMMENT "Bytes written to REDO log in the period",`target_disk_write_speed` BIGINT UNSIGNED COMMENT "Target disk write speed at the measurement point") COMMENT="Actual speed of disk writes per LDM thread, base data" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.ndb$disk_write_speed_aggregate
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$disk_write_speed_aggregate`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$disk_write_speed_aggregate` (`node_id` INT UNSIGNED COMMENT "node id",`thr_no` INT UNSIGNED COMMENT "LDM thread instance",`backup_lcp_speed_last_sec` BIGINT UNSIGNED COMMENT "Number of kBytes written by backup and LCP last second",`redo_speed_last_sec` BIGINT UNSIGNED COMMENT "Number of kBytes written to REDO log last second",`backup_lcp_speed_last_10sec` BIGINT UNSIGNED COMMENT "Number of kBytes written by backup and LCP per second last 10 seconds",`redo_speed_last_10sec` BIGINT UNSIGNED COMMENT "Number of kBytes written to REDO log per second last 10 seconds",`std_dev_backup_lcp_speed_last_10sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of kBytes written by backup and LCP per second last 10 seconds",`std_dev_redo_speed_last_10sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of kBytes written to REDO log per second last 10 seconds",`backup_lcp_speed_last_60sec` BIGINT UNSIGNED COMMENT "Number of kBytes written by backup and LCP per second last 60 seconds",`redo_speed_last_60sec` BIGINT UNSIGNED COMMENT "Number of kBytes written to REDO log per second last 60 seconds",`std_dev_backup_lcp_speed_last_60sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of kBytes written by backup and LCP per second last 60 seconds",`std_dev_redo_speed_last_60sec` BIGINT UNSIGNED COMMENT "Standard deviation of Number of kBytes written to REDO log per second last 60 seconds",`slowdowns_due_to_io_lag` BIGINT UNSIGNED COMMENT "Number of seconds that we slowed down disk writes due to REDO log IO lagging",`slowdowns_due_to_high_cpu` BIGINT UNSIGNED COMMENT "Number of seconds we slowed down disk writes due to high CPU usage of LDM thread",`disk_write_speed_set_to_min` BIGINT UNSIGNED COMMENT "Number of seconds we set disk write speed to a minimum",`current_target_disk_write_speed` BIGINT UNSIGNED COMMENT "Current target of disk write speed") COMMENT="Actual speed of disk writes per LDM thread, aggregate data" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # ndbinfo.ndb$transactions
 SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$transactions`','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -2174,6 +2206,24 @@ DROP PREPARE stmt;
 
 # ndbinfo.threadstat
 SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`threadstat` AS SELECT * from `ndbinfo`.`ndb$threadstat`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.disk_write_speed_base
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`disk_write_speed_base` AS SELECT * from `ndbinfo`.`ndb$disk_write_speed_base`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.disk_write_speed_aggregate
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`disk_write_speed_aggregate` AS SELECT * from `ndbinfo`.`ndb$disk_write_speed_aggregate`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.disk_write_speed_aggregate_node
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`disk_write_speed_aggregate_node` AS SELECT node_id,SUM(backup_lcp_speed_last_sec) AS backup_lcp_speed_last_sec,SUM(redo_speed_last_sec) AS redo_speed_last_sec,SUM(backup_lcp_speed_last_10sec) AS backup_lcp_speed_last_10sec,SUM(redo_speed_last_10sec) AS redo_speed_last_10sec,SUM(backup_lcp_speed_last_60sec) AS backup_lcp_speed_last_60sec,SUM(redo_speed_last_60sec) AS redo_speed_last_60sec from `ndbinfo`.`ndb$disk_write_speed_aggregate` GROUP by node_id','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;

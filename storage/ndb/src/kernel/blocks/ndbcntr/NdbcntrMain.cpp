@@ -105,6 +105,7 @@ static BlockInfo ALL_BLOCKS[] = {
   ,{ RESTORE_REF,1 ,     0,     0 }
   ,{ DBINFO_REF, 1 ,     0,     0 }
   ,{ DBSPJ_REF,  1 ,     0,     0 }
+  ,{ THRMAN_REF, 1 ,     0,     0 }
 };
 
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
@@ -130,7 +131,8 @@ static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   LGMAN_REF,
   PGMAN_REF,
   RESTORE_REF,
-  DBSPJ_REF
+  DBSPJ_REF,
+  THRMAN_REF
 };
 
 /*******************************/

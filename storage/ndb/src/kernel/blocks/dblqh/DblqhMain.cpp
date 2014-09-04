@@ -25745,6 +25745,8 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
   if ((t / SAMPLE_TIME) == (now / SAMPLE_TIME))
     return 0;
 
+  m_redo_written_bytes += m_sample_completed_bytes;
+
   m_current_time = now;
   if (m_sample_completed_bytes >= m_sample_sent_bytes)
   {
@@ -25771,11 +25773,13 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
     Uint32 lag = bps ? m_sum_outstanding_bytes / bps : 30;
     if (false && lag >= 30)
     {
-      g_eventLogger->info("part: %u tick(%u) m_sample_completed_bytes: %u "
-                          "m_sample_sent_bytes: %u elapsed: %u kbps: %u lag:"
+      g_eventLogger->info("part: %u tick(%u) m_sample_completed_bytes: %ukb "
+                          "m_sample_sent_bytes: %ukb elapsed: %u kbps: %u lag:"
                           " %u",
                           m_log_part_no,
-                          now, m_sample_completed_bytes, m_sample_sent_bytes,
+                          now,
+                          Uint32(m_sample_completed_bytes / 1024),
+                          Uint32(m_sample_sent_bytes/1024),
                           elapsed, bps/1000, lag);
     }
 
@@ -25791,6 +25795,8 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
       ((Uint64(m_sum_outstanding_bytes) / 1000) *
         Uint64(m_curr_elapsed_millis)) / m_curr_written_bytes :
       0;
+
+    m_lag_in_seconds = lag;
 
     if (lag > maxlag)
     {
@@ -25843,8 +25849,8 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
                           " %ukb avg_elapsed: %ums time to complete:"
                           " %u lag_cnt: %u => %u retVal: %d",
                           m_log_part_no,
-                          m_sum_outstanding_bytes / 1024,
-                          m_curr_written_bytes/1024,
+                          Uint32(m_sum_outstanding_bytes / 1024),
+                          Uint32(m_curr_written_bytes/1024),
                           m_curr_elapsed_millis,
                           lag,
                           save_lag_cnt,
@@ -25953,4 +25959,41 @@ Dblqh::log_fragment_copied(Signal* signal)
   c_fragCopyRowsIns = 0;
   c_fragCopyRowsDel = 0;
   c_fragBytesCopied = 0;
+}
+
+/**
+ * We assist the Backup block in reporting disk write speeds by sending the
+ * number of bytes written and completed since last time we were asked.
+ */
+Uint64
+Dblqh::report_redo_written_bytes()
+{
+  Uint64 redo_written_bytes = 0;
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+  {
+    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+    redo_written_bytes +=
+      logPartPtr.p->m_io_tracker.get_and_reset_redo_written_bytes();
+  }
+  return redo_written_bytes;
+}
+
+/**
+ * We define REDO log IO lagging as when at least 2 seconds of log data has been
+ * sent to the file system and not yet been completed.
+ */
+bool
+Dblqh::is_ldm_instance_io_lagging()
+{
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+  {
+    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+    if (logPartPtr.p->m_io_tracker.get_lag_in_seconds() >= 2)
+    {
+      jam();
+      return true;
+    }
+    jam();
+  }
+  return false;
 }

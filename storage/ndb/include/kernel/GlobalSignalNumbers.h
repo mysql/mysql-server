@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -841,9 +841,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_LCP_STATUS_CONF             616
 #define GSN_LCP_STATUS_REF              617
 
-#define GSN_618
-#define GSN_619
-#define GSN_620
+#define GSN_CHECK_NODE_RESTARTREQ       618
+#define GSN_CHECK_NODE_RESTARTCONF      619
+
+#define GSN_GET_CPU_USAGE_REQ           620
 #define GSN_621
 #define GSN_622
 #define GSN_623

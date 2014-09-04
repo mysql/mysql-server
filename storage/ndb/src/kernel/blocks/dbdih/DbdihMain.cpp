@@ -11074,6 +11074,35 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
   }
 }//Dbdih::execCOPY_GCICONF()
 
+void Dbdih::execCHECK_NODE_RESTARTREQ(Signal *signal)
+{
+  NodeRecordPtr nodePtr;
+  Uint32 ref = signal->theData[0];
+  Uint32 node_restart = 0; /* Default all nodes started */
+  /**
+   * No signal data sent, this signal is sent to
+   * check if we have any nodes that are currently
+   * part of a LCP which is not yet been started.
+   */
+  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+  {
+    jam();
+    ptrAss(nodePtr, nodeRecord);
+    if (NdbNodeBitmask::get(SYSFILE->lcpActive, nodePtr.i))
+    {
+      /* Node active in LCP */
+      if (nodePtr.p->activeStatus == Sysfile::NS_Active)
+      {
+        /* Node isn't started yet */
+        node_restart = 1;
+        break;
+      }
+    }
+  }
+  signal->theData[0] = node_restart;
+  sendSignal(ref, GSN_CHECK_NODE_RESTARTCONF, signal, 1, JBB);
+}
+
 void Dbdih::invalidateLcpInfoAfterSr(Signal* signal)
 {
   NodeRecordPtr nodePtr;

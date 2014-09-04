@@ -56,7 +56,9 @@ public:
     OPERATIONS_TABLEID =         14,
     MEMBERSHIP_TABLEID =         15,
     DICT_OBJ_INFO_TABLEID =      16,
-    FRAG_MEM_USE_TABLEID =       17
+    FRAG_MEM_USE_TABLEID =       17,
+    DISK_WRITE_SPEED_BASE_TABLEID = 18,
+    DISK_WRITE_SPEED_AGGREGATE_TABLEID = 19
   };
 
   struct Table {

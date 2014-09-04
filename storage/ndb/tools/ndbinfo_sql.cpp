@@ -205,6 +205,12 @@ struct view {
   { "threadstat",
     "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>threadstat`"
   },
+  { "disk_write_speed_base",
+    "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_base`"
+  },
+  { "disk_write_speed_aggregate",
+    "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_aggregate`"
+  },
   { "cluster_transactions",
     "SELECT"
     " t.node_id,"

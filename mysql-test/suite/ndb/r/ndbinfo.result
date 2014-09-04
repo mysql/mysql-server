@@ -62,9 +62,11 @@ table_id	table_name	comment
 15	membership	membership
 16	dict_obj_info	Dictionary object info
 17	frag_mem_use	Per fragment space information
+18	disk_write_speed_base	Actual speed of disk writes per LDM thread, base data
+19	disk_write_speed_aggregate	Actual speed of disk writes per LDM thread, aggregate data
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-18
+20
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -82,11 +84,13 @@ table_id	table_name	comment
 15	membership	membership
 16	dict_obj_info	Dictionary object info
 17	frag_mem_use	Per fragment space information
+18	disk_write_speed_base	Actual speed of disk writes per LDM thread, base data
+19	disk_write_speed_aggregate	Actual speed of disk writes per LDM thread, aggregate data
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
 COUNT(*)
-324
+400
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
@@ -103,6 +107,8 @@ table_id	table_name
 8	counters
 16	dict_obj_info
 10	diskpagebuffer
+19	disk_write_speed_aggregate
+18	disk_write_speed_base
 17	frag_mem_use
 6	logbuffers
 5	logspaces
@@ -170,6 +176,8 @@ table_id
 15
 16
 17
+18
+19
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -402,6 +410,52 @@ os_ru_nivcsw	bigint(20) unsigned	YES		NULL
 select count(*) > 0 block_name from threadstat;
 block_name
 1
+
+desc disk_write_speed_aggregate;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+backup_lcp_speed_last_sec	bigint(20) unsigned	YES		NULL	
+redo_speed_last_sec	bigint(20) unsigned	YES		NULL	
+backup_lcp_speed_last_10sec	bigint(20) unsigned	YES		NULL	
+redo_speed_last_10sec	bigint(20) unsigned	YES		NULL	
+std_dev_backup_lcp_speed_last_10sec	bigint(20) unsigned	YES		NULL	
+std_dev_redo_speed_last_10sec	bigint(20) unsigned	YES		NULL	
+backup_lcp_speed_last_60sec	bigint(20) unsigned	YES		NULL	
+redo_speed_last_60sec	bigint(20) unsigned	YES		NULL	
+std_dev_backup_lcp_speed_last_60sec	bigint(20) unsigned	YES		NULL	
+std_dev_redo_speed_last_60sec	bigint(20) unsigned	YES		NULL	
+slowdowns_due_to_io_lag	bigint(20) unsigned	YES		NULL	
+slowdowns_due_to_high_cpu	bigint(20) unsigned	YES		NULL	
+disk_write_speed_set_to_min	bigint(20) unsigned	YES		NULL	
+current_target_disk_write_speed	bigint(20) unsigned	YES		NULL	
+select count(*) from disk_write_speed_aggregate;
+count(*)
+8
+
+desc disk_write_speed_base;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+millis_ago	bigint(20) unsigned	YES		NULL	
+millis_passed	bigint(20) unsigned	YES		NULL	
+backup_lcp_bytes_written	bigint(20) unsigned	YES		NULL	
+redo_bytes_written	bigint(20) unsigned	YES		NULL	
+target_disk_write_speed	bigint(20) unsigned	YES		NULL	
+select node_id from disk_write_speed_base group by node_id, thr_no;
+node_id
+1
+1
+1
+1
+2
+2
+2
+2
+
+select count(*) from disk_write_speed_aggregate_node;
+count(*)
+2
 
 desc cluster_transactions;
 Field	Type	Null	Key	Default	Extra

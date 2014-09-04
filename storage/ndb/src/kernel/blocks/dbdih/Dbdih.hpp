@@ -762,6 +762,8 @@ private:
 
   void execDIH_GET_TABINFO_REQ(Signal*);
 
+  void execCHECK_NODE_RESTARTREQ(Signal*);
+
   int handle_invalid_lcp_no(const struct LcpFragRep*, ReplicaRecordPtr);
   void execLCP_FRAG_REP(Signal *);
   void execLCP_COMPLETE_REP(Signal *);
