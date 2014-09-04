@@ -1048,13 +1048,13 @@ public:
     /**
      * Current sum of sliding window
      */
-    Uint32 m_curr_written_bytes;
     Uint32 m_curr_elapsed_millis;
+    Uint64 m_curr_written_bytes;
 
     /**
      * Currently outstanding bytes
      */
-    Uint32 m_sum_outstanding_bytes;
+    Uint64 m_sum_outstanding_bytes;
 
     /**
      * How many times did we pass lag-threshold
@@ -1062,19 +1062,45 @@ public:
     Uint32 m_lag_cnt;
 
     /**
+     * How many seconds of writes are we lagging
+     */
+    Uint32 m_lag_in_seconds;
+
+    /**
      * bytes send during current sample
      */
-    Uint32 m_sample_sent_bytes;
+    Uint64 m_sample_sent_bytes;
 
     /**
      * bytes completed during current sample
      */
-    Uint32 m_sample_completed_bytes;
+    Uint64 m_sample_completed_bytes;
+
+    /**
+     * bytes completed since last report
+     */
+    Uint64 m_redo_written_bytes;
 
     int tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt);
     void send_io(Uint32 bytes);
     void complete_io(Uint32 bytes);
+    Uint32 get_lag_cnt()
+    {
+      return m_lag_cnt;
+    }
+    Uint32 get_lag_in_seconds()
+    {
+      return m_lag_in_seconds;
+    }
+    Uint64 get_and_reset_redo_written_bytes()
+    {
+      Uint64 redo_written_bytes = m_redo_written_bytes;
+      m_redo_written_bytes = 0;
+      return redo_written_bytes;
+    }
   };
+  bool is_ldm_instance_io_lagging();
+  Uint64 report_redo_written_bytes();
 
   /** 
    * RedoWorkStats

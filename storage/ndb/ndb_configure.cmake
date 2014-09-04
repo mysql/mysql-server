@@ -119,6 +119,29 @@ int main()
 }"
 HAVE__BITSCANREVERSE)
 
+#Mac OS X thread CPU usage
+CHECK_CXX_SOURCE_COMPILES("
+#include <mach/mach_init.h>
+#include <mach/thread_act.h>
+#include <mach/mach_port.h>
+int main()
+{
+mach_port_t thread_port;
+kern_return_t ret_code;
+mach_msg_type_number_t basic_info_count;
+thread_basic_info_data_t basic_info;
+mach_port_t current_task = mach_task_self();
+
+thread_port = mach_thread_self();
+ret_code = thread_info(thread_port,
+                       THREAD_BASIC_INFO,
+                       (thread_info_t) &basic_info,
+                       &basic_info_count);
+mach_port_deallocate(current_task, thread_port);
+return 0;
+}"
+HAVE_MAC_OS_X_THREAD_INFO)
+
 # Linux scheduling and locking support
 CHECK_C_SOURCE_COMPILES("
 #ifndef _GNU_SOURCE

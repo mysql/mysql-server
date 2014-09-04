@@ -1515,12 +1515,63 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "32k",
     STR_VALUE(MAX_INT_RNIL) },
   
+  {
+    CFG_DB_MIN_DISK_WRITE_SPEED,
+    "MinDiskWriteSpeed",
+    DB_TOKEN,
+    "Minimum bytes per second allowed to be written by LCP and backup",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "10M",
+    "1M",
+    "1024G" },
+  
+  {
+    CFG_DB_MAX_DISK_WRITE_SPEED,
+    "MaxDiskWriteSpeed",
+    DB_TOKEN,
+    "Maximum bytes per second allowed to be written by LCP and backup"
+    " when no restarts are ongoing",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "20M",
+    "1M",
+    "1024G" },
+
+  {
+    CFG_DB_MAX_DISK_WRITE_SPEED_OTHER_NODE_RESTART,
+    "MaxDiskWriteSpeedOtherNodeRestart",
+    DB_TOKEN,
+    "Maximum bytes per second allowed to be written by LCP and backup"
+    " when another node is restarting",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "50M",
+    "1M",
+    "1024G" },
+ 
+  {
+    CFG_DB_MAX_DISK_WRITE_SPEED_OWN_RESTART,
+    "MaxDiskWriteSpeedOwnRestart",
+    DB_TOKEN,
+    "Maximum bytes per second allowed to be written by LCP and backup"
+    " when our node is restarting",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "200M",
+    "1M",
+    "1024G" },
+  
   { 
     CFG_DB_CHECKPOINT_SPEED,
     "DiskCheckpointSpeed",
     DB_TOKEN,
-    "Bytes per second allowed to be written by checkpoint",
-    ConfigInfo::CI_USED,
+    "Minimum bytes per second allowed to be written by checkpoint",
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "10M",
@@ -1528,11 +1579,12 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
   
   { 
-    CFG_DB_CHECKPOINT_SPEED_SR,
+    CFG_DB_CHECKPOINT_SPEED_RESTART,
     "DiskCheckpointSpeedInRestart",
     DB_TOKEN,
-    "Bytes per second allowed to be written by checkpoint during restart",
-    ConfigInfo::CI_USED,
+    "Maximum bytes per second allowed to be written by checkpoints"
+    "during restarts",
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "100M",

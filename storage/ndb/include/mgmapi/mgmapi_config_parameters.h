@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,7 +117,7 @@
 
 #define CFG_DB_DISK_SYNCH_SIZE        163
 #define CFG_DB_CHECKPOINT_SPEED       164
-#define CFG_DB_CHECKPOINT_SPEED_SR    165
+#define CFG_DB_CHECKPOINT_SPEED_RESTART 165
 
 #define CFG_DB_MEMREPORT_FREQUENCY    166
 #define CFG_DB_BACKUP_REPORT_FREQUENCY    167
@@ -210,6 +210,11 @@
 #define CFG_DB_SERVER_PORT               635
 #define CFG_DB_TCPBIND_INADDR_ANY        636
 #define CFG_DB_AT_RESTART_SUBSCRIBER_CONNECT_TIMEOUT 637
+
+#define CFG_DB_MIN_DISK_WRITE_SPEED   638
+#define CFG_DB_MAX_DISK_WRITE_SPEED   639
+#define CFG_DB_MAX_DISK_WRITE_SPEED_OTHER_NODE_RESTART   640
+#define CFG_DB_MAX_DISK_WRITE_SPEED_OWN_RESTART   641
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

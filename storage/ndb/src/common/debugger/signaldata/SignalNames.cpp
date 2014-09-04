@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_DIHNDBTAMPER,           "DIHNDBTAMPER" }
   ,{ GSN_KEYINFO,                "KEYINFO" }
   ,{ GSN_KEYINFO20,              "KEYINFO20" }
-  ,{ GSN_KEYINFO20_R,              "KEYINFO20_R" }
+  ,{ GSN_KEYINFO20_R,            "KEYINFO20_R" }
   ,{ GSN_NODE_FAILREP,           "NODE_FAILREP" }
   ,{ GSN_READCONF,               "READCONF" }
   ,{ GSN_SCAN_NEXTREQ,           "SCAN_NEXTREQ" }
@@ -629,6 +629,11 @@ const GsnName SignalNames [] = {
   ,{ GSN_LCP_PREPARE_REQ,  "LCP_PREPARE_REQ" }
   ,{ GSN_LCP_PREPARE_REF,  "LCP_PREPARE_REF" }
   ,{ GSN_LCP_PREPARE_CONF, "LCP_PREPARE_CONF" }
+
+  ,{ GSN_CHECK_NODE_RESTARTREQ,  "CHECK_NODE_RESTARTREQ" }
+  ,{ GSN_CHECK_NODE_RESTARTCONF, "CHECK_NODE_RESTARTCONF" }
+
+  ,{ GSN_GET_CPU_USAGE_REQ, "GET_CPU_USAGE_REQ" }
 
   /* DICT LOCK */
   ,{ GSN_DICT_LOCK_REQ,          "DICT_LOCK_REQ" }

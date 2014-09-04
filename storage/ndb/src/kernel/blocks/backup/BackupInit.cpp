@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -133,6 +133,9 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_END_LCPREQ, &Backup::execEND_LCPREQ);
 
   addRecSignal(GSN_DBINFO_SCANREQ, &Backup::execDBINFO_SCANREQ);
+
+  addRecSignal(GSN_CHECK_NODE_RESTARTCONF,
+               &Backup::execCHECK_NODE_RESTARTCONF);
 }
   
 Backup::~Backup()
@@ -156,8 +159,10 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  c_defaults.m_disk_write_speed = 10 * (1024 * 1024);
-  c_defaults.m_disk_write_speed_sr = 100 * (1024 * 1024);
+  c_defaults.m_disk_write_speed_min = 10 * (1024 * 1024);
+  c_defaults.m_disk_write_speed_max = 20 * (1024 * 1024);
+  c_defaults.m_disk_write_speed_max_other_node_restart = 50 * (1024 * 1024);
+  c_defaults.m_disk_write_speed_max_own_restart = 100 * (1024 * 1024);
   c_defaults.m_disk_synch_size = 4 * (1024 * 1024);
   c_defaults.m_o_direct = true;
 
@@ -166,16 +171,60 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 					&c_defaults.m_diskless));
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT,
                             &c_defaults.m_o_direct);
-  ndb_mgm_get_int_parameter(p, CFG_DB_CHECKPOINT_SPEED_SR,
-			    &c_defaults.m_disk_write_speed_sr);
-  ndb_mgm_get_int_parameter(p, CFG_DB_CHECKPOINT_SPEED,
-			    &c_defaults.m_disk_write_speed);
+
+  ndb_mgm_get_int64_parameter(p, CFG_DB_MIN_DISK_WRITE_SPEED,
+			      &c_defaults.m_disk_write_speed_min);
+  ndb_mgm_get_int64_parameter(p, CFG_DB_MAX_DISK_WRITE_SPEED,
+			      &c_defaults.m_disk_write_speed_max);
+  ndb_mgm_get_int64_parameter(p,
+                CFG_DB_MAX_DISK_WRITE_SPEED_OTHER_NODE_RESTART,
+                &c_defaults.m_disk_write_speed_max_other_node_restart);
+  ndb_mgm_get_int64_parameter(p,
+                CFG_DB_MAX_DISK_WRITE_SPEED_OWN_RESTART,
+                &c_defaults.m_disk_write_speed_max_own_restart);
+
   ndb_mgm_get_int_parameter(p, CFG_DB_DISK_SYNCH_SIZE,
 			    &c_defaults.m_disk_synch_size);
   ndb_mgm_get_int_parameter(p, CFG_DB_COMPRESSED_BACKUP,
 			    &c_defaults.m_compressed_backup);
   ndb_mgm_get_int_parameter(p, CFG_DB_COMPRESSED_LCP,
 			    &c_defaults.m_compressed_lcp);
+
+  if (c_defaults.m_disk_write_speed_max < c_defaults.m_disk_write_speed_min)
+  {
+    /** 
+     * By setting max disk write speed equal or smaller than the minimum
+     * we will remove the adaptiveness of the LCP speed.
+     */
+    jam();
+    c_defaults.m_disk_write_speed_max = c_defaults.m_disk_write_speed_min;
+  }
+
+  if (c_defaults.m_disk_write_speed_max_other_node_restart <
+        c_defaults.m_disk_write_speed_max)
+  {
+    /** 
+     * By setting max disk write speed during restart equal or smaller than
+     * the maximum we will remove the extra adaptiveness of the LCP speed
+     * at other nodes restarts.
+     */
+    jam();
+    c_defaults.m_disk_write_speed_max_other_node_restart =
+      c_defaults.m_disk_write_speed_max;
+  }
+
+  if (c_defaults.m_disk_write_speed_max_own_restart <
+        c_defaults.m_disk_write_speed_max_other_node_restart)
+  {
+    /** 
+     * By setting restart disk write speed during our restart equal or
+     * smaller than the maximum we will remove the extra adaptiveness of the
+     * LCP speed at other nodes restarts.
+     */
+    jam();
+    c_defaults.m_disk_write_speed_max_own_restart =
+      c_defaults.m_disk_write_speed_max_other_node_restart;
+  }
 
   m_backup_report_frequency = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_REPORT_FREQUENCY, 
@@ -185,8 +234,10 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     words per 100 milliseconds. We convert disk synch size from bytes per
     second to words per second.
   */
-  c_defaults.m_disk_write_speed /= (4 * 10);
-  c_defaults.m_disk_write_speed_sr /= (4 * 10);
+  c_defaults.m_disk_write_speed_min /= (4 * 10);
+  c_defaults.m_disk_write_speed_max /= (4 * 10);
+  c_defaults.m_disk_write_speed_max_other_node_restart /= (4 * 10);
+  c_defaults.m_disk_write_speed_max_own_restart /= (4 * 10);
 
   /*
     Temporary fix, we divide the speed by number of ldm threads since we
@@ -205,15 +256,10 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     jam();
     num_ldm_threads = 1;
   }
-  c_defaults.m_disk_write_speed /= num_ldm_threads;
-  c_defaults.m_disk_write_speed_sr /= num_ldm_threads;
-
-  if (num_ldm_threads > 1)
-  {
-    jam();
-    c_defaults.m_disk_write_speed *= 2;
-    c_defaults.m_disk_write_speed_sr *= 2;
-  }
+  c_defaults.m_disk_write_speed_min /= num_ldm_threads;
+  c_defaults.m_disk_write_speed_max /= num_ldm_threads;
+  c_defaults.m_disk_write_speed_max_other_node_restart /= num_ldm_threads;
+  c_defaults.m_disk_write_speed_max_own_restart /= num_ldm_threads;
 
   ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
   //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));

@@ -224,6 +224,14 @@ select distinct block_name from threadblocks order by 1;
 desc threadstat;
 select count(*) > 0 block_name from threadstat;
 
+desc disk_write_speed_aggregate;
+select count(*) from disk_write_speed_aggregate;
+
+desc disk_write_speed_base;
+select node_id from disk_write_speed_base group by node_id, thr_no;
+
+select count(*) from disk_write_speed_aggregate_node;
+
 desc cluster_transactions;
 desc server_transactions;
 desc cluster_operations;
