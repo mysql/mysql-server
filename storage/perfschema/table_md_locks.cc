@@ -190,8 +190,8 @@ void table_metadata_locks::make_row(PFS_metadata_lock *pfs)
     m_row.m_source_length= 0;
   }
 
-  m_row.m_owner_thread_id= pfs->m_owner_thread_id;
-  m_row.m_owner_event_id= pfs->m_owner_event_id;
+  m_row.m_owner_thread_id= static_cast<ulong>(pfs->m_owner_thread_id);
+  m_row.m_owner_event_id= static_cast<ulong>(pfs->m_owner_event_id);
 
   if (m_row.m_object.make_row(& pfs->m_mdl_key))
     return;

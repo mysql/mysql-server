@@ -9418,7 +9418,7 @@ longlong Item_func_gis_debug::val_int()
 {
   longlong val= args[0]->val_int();
   if (!args[0]->null_value)
-    current_thd->set_gis_debug(val);
+    current_thd->set_gis_debug(static_cast<int>(val));
   return current_thd->get_gis_debug();
 }
 #endif

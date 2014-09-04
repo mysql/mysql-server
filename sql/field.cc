@@ -4943,7 +4943,8 @@ Field_temporal::store_lldiv_t(const lldiv_t *lld, int *warnings)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   type_conversion_status error;
   MYSQL_TIME ltime;
-  error= convert_number_to_TIME(lld->quot, 0, lld->rem, &ltime, warnings);
+  error= convert_number_to_TIME(lld->quot, 0, static_cast<int>(lld->rem),
+                                &ltime, warnings);
   if (error == TYPE_OK || error == TYPE_NOTE_TRUNCATED)
     error= store_internal_with_round(&ltime, warnings);
   else if (!*warnings)
