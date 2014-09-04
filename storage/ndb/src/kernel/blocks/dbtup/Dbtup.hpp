@@ -3463,7 +3463,7 @@ private:
   void check_page_map(Fragrecord*);
   bool find_page_id_in_list(Fragrecord*, Uint32 pid);
 #endif
-  void handle_lcp_keep(Signal*, Fragrecord*, ScanOp*);
+  void handle_lcp_keep(Signal*, FragrecordPtr, ScanOp*);
   void handle_lcp_keep_commit(const Local_key*,
                               KeyReqStruct *,
                               Operationrec*, Fragrecord*, Tablerec*);
