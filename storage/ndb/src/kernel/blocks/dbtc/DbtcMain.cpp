@@ -14274,81 +14274,111 @@ void Dbtc::unlinkGcp(Ptr<GcpRecord> tmpGcpPtr)
 void
 Dbtc::execDUMP_STATE_ORD(Signal* signal)
 {
+  const Uint32 MAX_RECORDS_AT_A_TIME = 16;
+
   jamEntry();
   DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
   Uint32 arg = signal->theData[0];
-  if (signal->theData[0] == DumpStateOrd::CommitAckMarkersSize)
-  {
-    infoEvent("TC: m_commitAckMarkerPool: %d free size: %d",
-              m_commitAckMarkerPool.getNoOfFree(),
-              m_commitAckMarkerPool.getSize());
-    return;
-  }
-  if (signal->theData[0] == DumpStateOrd::CommitAckMarkersDump)
-  {
-    infoEvent("TC: m_commitAckMarkerPool: %d free size: %d",
-              m_commitAckMarkerPool.getNoOfFree(),
-              m_commitAckMarkerPool.getSize());
-    CommitAckMarkerIterator iter;
-    for(m_commitAckMarkerHash.first(iter); iter.curr.i != RNIL;
-        m_commitAckMarkerHash.next(iter)){
-      Uint32 data[4];
-      data[0] = data[1] = data[2] = data[3] = 0;
-      CommitAckMarkerBuffer::DataBufferPool & pool =
-        c_theCommitAckMarkerBufferPool;
-      LocalDataBuffer<5> commitAckMarkers(pool, iter.curr.p->theDataBuffer);
-      CommitAckMarkerBuffer::DataBufferIterator data_buf_iter;
-      bool next_flag = commitAckMarkers.first(data_buf_iter);
-      for (Uint32 i = 0; i < 4; i++)
-      {
-        if (!next_flag)
-          break;
-        data[i] = *data_buf_iter.data;
-        next_flag = commitAckMarkers.next(data_buf_iter);
-      }
-      infoEvent("CommitAckMarker: i = %d (0x%x, 0x%x)"
-                " Api: %d %x %x %x %x bucket = %d",
-                iter.curr.i,
-                iter.curr.p->transid1,
-                iter.curr.p->transid2,
-                iter.curr.p->apiNodeId,
-                data[0], data[1], data[2], data[3],
-                iter.bucket);
-    }
-    return;
-  }
-  // Dump all ScanFragRecs
-  if (dumpState->args[0] == DumpStateOrd::TcDumpAllScanFragRec){
-    Uint32 recordNo = 0;
-    if (signal->getLength() == 1)
-      infoEvent("TC: Dump all ScanFragRec - size: %d",
-		cscanFragrecFileSize);
-    else if (signal->getLength() == 2)
-      recordNo = dumpState->args[1];
-    else
-      return;
-    
-    dumpState->args[0] = DumpStateOrd::TcDumpOneScanFragRec;
-    dumpState->args[1] = recordNo;
-    execDUMP_STATE_ORD(signal);
 
-    if (recordNo < cscanFragrecFileSize-1){
-      dumpState->args[0] = DumpStateOrd::TcDumpAllScanFragRec;
-      dumpState->args[1] = recordNo+1;
-      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 2, JBB);
+  // Dump set of ScanFragRecs
+  if (dumpState->args[0] == DumpStateOrd::TcDumpSetOfScanFragRec){
+    /**
+     * DUMP 2500 12 10 1 1
+     * Prints ScanFrag records 12 through 21 in instance 1.
+     * The last parameter indicates whether to only print active instances.
+     * If the parameter is missing it is set to 1 indicating printing only
+     * active instances.
+     *
+     * Output to cluster log.
+     */
+    jam();
+    Uint32 recordNo = 0;
+    Uint32 numRecords = 0;
+    Uint32 instanceId = 0;
+    Uint32 includeOnlyActive = 1;
+
+    if (signal->getLength() >= 4)
+    {
+      recordNo = dumpState->args[1];
+      numRecords = dumpState->args[2];
+      instanceId = dumpState->args[3];
+      if (signal->getLength() >= 5)
+      {
+        includeOnlyActive = dumpState->args[4];
+      }
     }
+    else
+    {
+      return;
+    }
+    if (instance() != instanceId)
+    {
+      return;
+    }
+    if (numRecords > MAX_RECORDS_AT_A_TIME)
+    {
+      numRecords = MAX_RECORDS_AT_A_TIME;
+    }
+    if (recordNo >= cscanFragrecFileSize)
+    {
+      return;
+    }
+    
+    ScanFragRecPtr sfp;
+    sfp.i = recordNo;
+    c_scan_frag_pool.getPtr(sfp);
+    if (sfp.p->scanFragState != ScanFragRec::COMPLETED ||
+        !includeOnlyActive)
+    {
+      dumpState->args[0] = DumpStateOrd::TcDumpOneScanFragRec;
+      dumpState->args[1] = recordNo;
+      dumpState->args[2] = instance();
+      signal->setLength(3);
+      execDUMP_STATE_ORD(signal);
+    }
+    numRecords--;
+    recordNo++;
+
+    if (recordNo < cscanFragrecFileSize && numRecords > 0)
+    {
+      dumpState->args[0] = DumpStateOrd::TcDumpSetOfScanFragRec;
+      dumpState->args[1] = recordNo;
+      dumpState->args[2] = numRecords;
+      dumpState->args[3] = instance();
+      dumpState->args[4] = includeOnlyActive;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
+    }
+    return;
   }
 
   // Dump one ScanFragRec
   if (dumpState->args[0] == DumpStateOrd::TcDumpOneScanFragRec){
+    /**
+     * DUMP 2501 12 1
+     * Print ScanFrag record 12 in instance 1
+     *
+     * Output to cluster log.
+     */
+    jam();
     Uint32 recordNo = RNIL;
-    if (signal->getLength() == 2)
+    Uint32 instanceId = RNIL;
+    if (signal->getLength() == 3)
+    {
       recordNo = dumpState->args[1];
+      instanceId = dumpState->args[2];
+    }
     else
+    {
       return;
-
+    }
+    if (instanceId != instance())
+    {
+      return;
+    }
     if (recordNo >= cscanFragrecFileSize)
+    {
       return;
+    }
 
     ScanFragRecPtr sfp;
     sfp.i = recordNo;
@@ -14360,79 +14390,122 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     infoEvent(" nodeid=%d, timer=%d",
 	      refToNode(sfp.p->lqhBlockref),
 	      sfp.p->scanFragTimer);
+    return;
   }
 
-  // Dump all ScanRecords
-  if (dumpState->args[0] == DumpStateOrd::TcDumpAllScanRec){
+  // Dump set of ScanRecords
+  if (dumpState->args[0] == DumpStateOrd::TcDumpSetOfScanRec){
+    /**
+     * DUMP 2502 12 10 1 1
+     * Print Scan records 12 through 21 in instance 1
+     * Last parameter == 0 indicates that we will print all
+     * records, otherwise we will only print active scan records.
+     * Last parameter is defaulting to 1 if not provided
+     *
+     * Output to the cluster log
+     */
+    jam();
     Uint32 recordNo = 0;
-    if (signal->getLength() == 1)
-      infoEvent("TC: Dump all ScanRecord - size: %d",
-		cscanrecFileSize);
-    else if (signal->getLength() == 2)
-      recordNo = dumpState->args[1];
-    else
-      return;  
+    Uint32 numRecords = 0;
+    Uint32 instanceId = 0;
+    Uint32 includeOnlyActive = 1;
 
-    dumpState->args[0] = DumpStateOrd::TcDumpOneScanRec;
-    dumpState->args[1] = recordNo;
-    execDUMP_STATE_ORD(signal);
-    
-    if (recordNo < cscanrecFileSize-1){
-      dumpState->args[0] = DumpStateOrd::TcDumpAllScanRec;
-      dumpState->args[1] = recordNo+1;
-      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 2, JBB);
+    if (signal->getLength() >= 4)
+    {
+      recordNo = dumpState->args[1];
+      numRecords = dumpState->args[2];
+      instanceId = dumpState->args[3];
+      if (signal->getLength() >= 5)
+      {
+        includeOnlyActive = dumpState->args[4];
+      }
     }
-  }
-
-  // Dump all active ScanRecords
-  if (dumpState->args[0] == DumpStateOrd::TcDumpAllActiveScanRec){
-    Uint32 recordNo = 0;     
-    if (signal->getLength() == 1)
-      infoEvent("TC: Dump active ScanRecord - size: %d",
-		cscanrecFileSize);
-    else if (signal->getLength() == 2)
-      recordNo = dumpState->args[1];
     else
+    {
       return;
+    }
+    if (instance() != instanceId)
+    {
+      return;
+    }
+    if (numRecords > MAX_RECORDS_AT_A_TIME)
+    {
+      numRecords = MAX_RECORDS_AT_A_TIME;
+    }
+    if (recordNo >= cscanrecFileSize)
+    {
+      return;
+    }
 
     ScanRecordPtr sp;
     sp.i = recordNo;
     ptrAss(sp, scanRecord);
-    if (sp.p->scanState != ScanRecord::IDLE){
+    if (sp.p->scanState != ScanRecord::IDLE ||
+        !includeOnlyActive)
+    {
       dumpState->args[0] = DumpStateOrd::TcDumpOneScanRec;
       dumpState->args[1] = recordNo;
+      dumpState->args[2] = instance();
+      signal->setLength(3);
       execDUMP_STATE_ORD(signal);
     }
-
-    if (recordNo < cscanrecFileSize-1){
-      dumpState->args[0] = DumpStateOrd::TcDumpAllActiveScanRec;
-      dumpState->args[1] = recordNo+1;
-      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 2, JBB);
+    
+    numRecords--;
+    recordNo++;
+    if (recordNo < cscanrecFileSize && numRecords > 0)
+    {
+      dumpState->args[0] = DumpStateOrd::TcDumpSetOfScanRec;
+      dumpState->args[1] = recordNo;
+      dumpState->args[2] = numRecords;
+      dumpState->args[3] = instance();
+      dumpState->args[4] = includeOnlyActive;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
     }
+    return;
   }
 
   // Dump one ScanRecord
   // and associated ScanFragRec and ApiConnectRecord
   if (dumpState->args[0] == DumpStateOrd::TcDumpOneScanRec){
+    /**
+     * DUMP 2504 12 1
+     * This will print ScanRecord 12 in instance 1 and all associated
+     * ScanFrag records and ApiConnect records.
+     *
+     * It is necessary to provide both record number and instance id
+     * to get anything printed using this dump command.
+     */
+    jam();
     Uint32 recordNo = RNIL;
-    if (signal->getLength() == 2)
+    Uint32 instanceId = 0;
+    if (signal->getLength() == 3)
+    {
       recordNo = dumpState->args[1];
+      instanceId = dumpState->args[2];
+    }
     else
+    {
       return;
-
+    }
+    if (instanceId != instance())
+    {
+      return;
+    }
     if (recordNo >= cscanrecFileSize)
+    {
       return;
+    }
 
     ScanRecordPtr sp;
     sp.i = recordNo;
     ptrAss(sp, scanRecord);
-    infoEvent("Dbtc::ScanRecord[%d]: state=%d"
+    infoEvent("Dbtc::ScanRecord[%d]: state=%d, "
 	      "nextfrag=%d, nofrag=%d",
 	      sp.i,
 	      sp.p->scanState,
 	      sp.p->scanNextFragId,
 	      sp.p->scanNoFrag);
-    infoEvent(" para=%d, receivedop=%d, noOprePperFrag=%d",
+    infoEvent(" para=%d, receivedop=%d, noOprecPerFrag=%d",
 	      sp.p->scanParallel,
 	      sp.p->scanReceivedOperations,
 	      sp.p->batch_size_rows);
@@ -14451,6 +14524,8 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       for(list.first(sfptr); !sfptr.isNull(); list.next(sfptr)){\
 	dumpState->args[0] = DumpStateOrd::TcDumpOneScanFragRec; \
 	dumpState->args[1] = sfptr.i;\
+        dumpState->args[2] = instance(); \
+        signal->setLength(3); \
 	execDUMP_STATE_ORD(signal);\
       }}
 
@@ -14461,43 +14536,264 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       // Request dump of ApiConnectRecord
       dumpState->args[0] = DumpStateOrd::TcDumpOneApiConnectRec;
       dumpState->args[1] = sp.p->scanApiRec;
+      dumpState->args[2] = instance();
+      signal->setLength(3);
       execDUMP_STATE_ORD(signal);      
     }
-
+    return;
   }
 
-  // Dump all ApiConnectRecord(s)
-  if (dumpState->args[0] == DumpStateOrd::TcDumpAllApiConnectRec){
-    Uint32 recordNo = 0;
-    if (signal->getLength() == 1)
-      infoEvent("TC: Dump all ApiConnectRecord - size: %d",
-		capiConnectFilesize);
-    else if (signal->getLength() == 2)
-      recordNo = dumpState->args[1];
-    else
-      return;
+  // Dump Set of TcConnectRecord(s)
+  if (dumpState->args[0] == DumpStateOrd::TcDumpSetOfTcConnectRec)
+  {
+    /**
+     * DUMP 2517 12 10 1 1
+     * This will print recordNo from 12 to 21 in instance 1 (first
+     * instance is number since instance 0 is the DBTC Proxy instance).
+     * We will not print records that doesn't exist. The last parameter
+     * indicates whether to include only active records or if we should
+     * include all records. This last parameter defaults to 1 which means
+     * we are only printing information about active records.
+     *
+     * It is necessary to specify record number, number of records
+     * and instance id to get anything printed.
+     *
+     * Use this DUMP command with care and avoid printing more than
+     * 10 records per dump command in production systems to avoid
+     * overloading any parts of the system. Also print from instance
+     * at a time since otherwise it will be almost impossible to know
+     * which instance have generated what printout.
+     * 
+     * The printouts will end up in the cluster log.
+     */
+    jam();
+    Uint32 recordNo = RNIL;
+    Uint32 instanceId = RNIL;
+    Uint32 numRecords = 1;
+    Uint32 includeOnlyActive = 1;
 
-    dumpState->args[0] = DumpStateOrd::TcDumpOneApiConnectRec;
-    dumpState->args[1] = recordNo;
-    execDUMP_STATE_ORD(signal);
-    
-    if (recordNo < capiConnectFilesize-1){
-      dumpState->args[0] = DumpStateOrd::TcDumpAllApiConnectRec;
-      dumpState->args[1] = recordNo+1;
-      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 2, JBB);
+    if (signal->getLength() >= 4)
+    {
+      recordNo = dumpState->args[1];
+      numRecords = dumpState->args[2];
+      instanceId = dumpState->args[3];
+      if (signal->getLength() >= 5)
+      {
+        includeOnlyActive = dumpState->args[4];
+      }
     }
+    else
+    {
+      return;
+    }
+    if (instanceId != instance())
+    {
+      return;
+    }
+    if (numRecords > MAX_RECORDS_AT_A_TIME)
+    {
+      numRecords = MAX_RECORDS_AT_A_TIME;
+    }
+    if (recordNo >= ctcConnectFilesize)
+    {
+      return;
+    }
+
+    TcConnectRecordPtr tc;
+    tc.i = recordNo;
+    ptrAss(tc, tcConnectRecord);
+    if (tc.p->tcConnectstate == OS_CONNECTED ||
+        !includeOnlyActive)
+    {
+      dumpState->args[0] = DumpStateOrd::TcDumpOneTcConnectRec;
+      dumpState->args[1] = recordNo;
+      dumpState->args[2] = instanceId;
+      signal->setLength(3);
+      execDUMP_STATE_ORD(signal);
+    }
+
+    numRecords--;
+    recordNo++;
+    if (recordNo < ctcConnectFilesize && numRecords > 0)
+    {
+      dumpState->args[0] = DumpStateOrd::TcDumpSetOfTcConnectRec;
+      dumpState->args[1] = recordNo;
+      dumpState->args[2] = numRecords;
+      dumpState->args[3] = instanceId;
+      dumpState->args[4] = includeOnlyActive;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
+    }
+    return;
+  }
+
+  // Dump one TcConnectRecord
+  if (dumpState->args[0] == DumpStateOrd::TcDumpOneTcConnectRec)
+  {
+    /**
+     * This part is mostly used as an assistant function to dump a range
+     * of TcConnect records. It can also be invoked directly in
+     * the following manner.
+     *
+     * DUMP 2516 12 1
+     * Record 12 will be printed in instance 1
+     */
+    jam();
+    Uint32 recordNo = RNIL;
+    Uint32 instanceId = RNIL;
+    if (signal->getLength() == 3)
+    {
+      recordNo = dumpState->args[1];
+      instanceId = dumpState->args[2];
+    }
+    else
+    {
+      return;
+    }
+    if (recordNo >= ctcConnectFilesize)
+    {
+      return;
+    }
+    if (instanceId != instance())
+    {
+      return;
+    }
+
+    TcConnectRecordPtr tc;
+    tc.i = recordNo;
+    ptrAss(tc, tcConnectRecord);
+    infoEvent("Dbtc::TcConnectRecord[%d]: state=%d, apiCon=%d, "
+	      "commitAckMarker=%d",
+	      tc.i,
+	      tc.p->tcConnectstate,
+	      tc.p->apiConnect,
+	      tc.p->commitAckMarker);
+    infoEvent(" special flags=%x, noOfNodes=%d, operation=%d",
+	      tc.p->m_special_op_flags,
+	      tc.p->noOfNodes,
+	      tc.p->operation);
+    infoEvent(" clientData=%d, savePointId=%d, nodes(%d,%d,%d,%d), ",
+	      tc.p->clientData,
+	      tc.p->savePointId,
+              tc.p->tcNodedata[0],
+              tc.p->tcNodedata[1],
+              tc.p->tcNodedata[2],
+              tc.p->tcNodedata[3]);
+    infoEvent(" next=%d, instance=%u ",
+	      tc.p->nextTcConnect,
+              instance());
+    return;
+  }
+
+  // Dump Set of ApiConnectRecord(s)
+  if (dumpState->args[0] == DumpStateOrd::TcDumpSetOfApiConnectRec)
+  {
+    /**
+     * Print a range of ApiConnect records
+     * This command is invoked by the following DUMP command:
+     * DUMP 2515 12 2 1
+     * Print ApiConnect record 12 through 13 in instance 1
+     *
+     * The output will end up in the cluster log.
+     * 
+     * WARNING: Don't print more than at most 10 records at a time
+     * in a production system.
+     * Use the full set of parameters such that we also specify the
+     * instance id. This is necessary to know what is actually printed
+     * since the printout from instance 1 and instance 2 doesn't
+     * differ.
+     */
+    jam();
+    Uint32 recordNo = RNIL;
+    Uint32 instanceId = RNIL;
+    Uint32 numRecords = 1;
+    Uint32 includeOnlyActive = 1;
+
+    if (signal->getLength() >= 4)
+    {
+      recordNo = dumpState->args[1];
+      numRecords = dumpState->args[2];
+      instanceId = dumpState->args[3];
+      if (signal->getLength() >= 5)
+      {
+        includeOnlyActive = dumpState->args[4];
+      }
+    }
+    else
+    {
+      return;
+    }
+    if (instanceId != instance())
+    {
+      return;
+    }
+    if (recordNo >= capiConnectFilesize)
+    {
+      return;
+    }
+
+    ApiConnectRecordPtr ap;
+    ap.i = recordNo;
+    ptrAss(ap, apiConnectRecord);
+
+    if (!includeOnlyActive ||
+        ((ap.p->apiConnectstate != CS_CONNECTED) &&
+           (ap.p->apiConnectstate != CS_ABORTING ||
+            ap.p->abortState != AS_IDLE)))
+    {
+      dumpState->args[0] = DumpStateOrd::TcDumpOneApiConnectRec;
+      dumpState->args[1] = recordNo;
+      dumpState->args[2] = instanceId;
+      signal->setLength(3);
+      execDUMP_STATE_ORD(signal);
+    }
+
+    numRecords--;
+    recordNo++;
+    if (recordNo < capiConnectFilesize && numRecords > 0)
+    {
+      dumpState->args[0] = DumpStateOrd::TcDumpSetOfApiConnectRec;
+      dumpState->args[1] = recordNo;
+      dumpState->args[2] = numRecords;
+      dumpState->args[3] = instanceId;
+      dumpState->args[4] = includeOnlyActive;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
+    }
+    return;
   }
 
   // Dump one ApiConnectRecord
   if (dumpState->args[0] == DumpStateOrd::TcDumpOneApiConnectRec){
+    /**
+     * Print one ApiConnect record.
+     * This is a support function to DUMP 2515. It can also
+     * be used directly using the following command.
+     *
+     * DUMP 2505 12 1
+     * Print ApiConnect record 12 in instance 1
+     *
+     * The output will be printed to the cluster log.
+     */
+    jam();
     Uint32 recordNo = RNIL;
-    if (signal->getLength() == 2)
+    Uint32 instanceId = RNIL;
+    if (signal->getLength() == 3)
+    {
       recordNo = dumpState->args[1];
+      instanceId = dumpState->args[2];
+    }
     else
+    {
       return;
+    }
 
     if (recordNo >= capiConnectFilesize)
+    {
       return;
+    }
+    if (instanceId != instance())
+    {
+      return;
+    }
 
     ApiConnectRecordPtr ap;
     ap.i = recordNo;
@@ -14524,12 +14820,25 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 	      ap.p->lqhkeyconfrec,
 	      ap.p->lqhkeyreqrec,
 	      ap.p->tckeyrec);
-    infoEvent(" next=%d ",
-	      ap.p->nextApiConnect);
+    infoEvent(" next=%d, instance=%u, firstTc=%d ",
+	      ap.p->nextApiConnect,
+              instance(),
+              ap.p->firstTcConnect);
+    return;
   }
 
   if (dumpState->args[0] == DumpStateOrd::TcDumpApiConnectRecSummary)
   {
+    /**
+     * This DUMP command is used to print a summary of ApiConnect record
+     * connected to API nodes.
+     * The following use of it is allowed:
+     * DUMP 2514 1
+     * This will print a summary of all ApiConnect records in instance 1
+     *
+     * Output is to the node log.
+     */
+    jam();
     Uint32 apiNode = 1;
     Uint32 pos = 0;
 
@@ -14539,8 +14848,12 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     Uint32 scan_count = 0;        /* Number used for scans */
     const Uint32 userVisibleConnectFilesize = capiConnectFilesize / 3;
     
-    if (signal->getLength() == 1)
+    if (signal->getLength() == 2)
     {
+      if (instance() != dumpState->args[1])
+      {
+        return;
+      }
       ndbout_c("Start of ApiConnectRec summary (%u total allocated)",
                userVisibleConnectFilesize);
       /*
@@ -14658,7 +14971,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 
     sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 7, JBB);
     return;
-  };
+  }
 
   if (dumpState->args[0] == DumpStateOrd::TcSetTransactionTimeout){
     jam();
@@ -14696,36 +15009,10 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
   
   if (dumpState->args[0] == DumpStateOrd::TcDumpIndexOpCount)
   {
-    infoEvent("IndexOpCount: pool: %d free: %d", 
+    infoEvent("instance: %u, IndexOpCount: pool: %d free: %d",
+              instance(),
 	      c_theIndexOperationPool.getSize(),
 	      c_theIndexOperationPool.getNoOfFree());
-  }
-
-  if (dumpState->args[0] == 2514)
-  {
-    if (signal->getLength() == 2)
-    {
-      dumpState->args[0] = DumpStateOrd::TcDumpOneApiConnectRec;
-      execDUMP_STATE_ORD(signal);
-    }
-
-    NodeReceiverGroup rg(CMVMI, c_alive_nodes);
-    dumpState->args[0] = 15;
-    sendSignal(rg, GSN_DUMP_STATE_ORD, signal, 1, JBB);
-
-    signal->theData[0] = 2515;
-    sendSignalWithDelay(cownref, GSN_DUMP_STATE_ORD, signal, 1000, 1);    
-    return;
-  }
-
-  if (dumpState->args[0] == 2515)
-  {
-    NdbNodeBitmask mask = c_alive_nodes;
-    mask.clear(getOwnNodeId());
-    NodeReceiverGroup rg(NDBCNTR, mask);
-    
-    sendSignal(rg, GSN_SYSTEM_ERROR, signal, 1, JBB);
-    sendSignalWithDelay(cownref, GSN_SYSTEM_ERROR, signal, 300, 1);    
     return;
   }
 
@@ -14852,17 +15139,31 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 
   if (arg == DumpStateOrd::TcDumpPoolLevels)
   {
-    if (signal->getLength() == 1)
+    /**
+     * DUMP 2555 1
+     * Prints pool levels for instance 1 to cluster log
+     */
+    if (signal->getLength() == 2)
     {
+      if (signal->theData[1] != instance())
+      {
+        return;
+      }
+      infoEvent("TC: instance: %u, Print pool levels", instance());
+      signal->theData[4] = signal->theData[1];
       signal->theData[1] = 1;
       signal->theData[2] = 0;
       signal->theData[3] = 0;
-      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 4, JBB);
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
       return;
     }
-    if (signal->getLength() != 4)
+    if (signal->getLength() != 5)
     {
       ndbout_c("DUMP TcDumpPoolLevels : Bad signal length : %u", signal->getLength());
+      return;
+    }
+    if (signal->theData[4] != instance())
+    {
       return;
     }
     
@@ -14909,7 +15210,8 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     signal->theData[1] = resource;
     signal->theData[2] = position;
     signal->theData[3] = sum;
-    sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 4, JBB);
+    signal->theData[4] = instance();
+    sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
     return;
   }
 }//Dbtc::execDUMP_STATE_ORD()
