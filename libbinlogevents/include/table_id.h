@@ -21,7 +21,7 @@
 #ifndef TABLE_ID_INCLUDED
 #define TABLE_ID_INCLUDED
 #include <stdint.h>
-
+#include <cassert>
 
 /**
   @class Table_id

@@ -35,17 +35,10 @@
 */
 #include "byteorder.h"
 #include "wrapper_functions.h"
-#include "cassert"
 #include <zlib.h> //for checksum calculations
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #include <iostream>
-#include <list>
-#include <map>
 #include <sstream>
-#include <vector>
 
 #if defined(_WIN32)
 #include <Winsock2.h>

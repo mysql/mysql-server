@@ -1344,7 +1344,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
         CRC verification of the Dump thread
       */
       binary_log_debug::debug_checksum_test=
-               DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
+        DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 
       if (opt_master_verify_checksum &&
         Log_event_footer::event_checksum_test((uchar*)packet->ptr() + ev_offset,
@@ -1576,7 +1576,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
 #ifndef DBUG_OFF
   binary_log_debug::debug_checksum_test=
-               DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
+    DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 #endif
   if (crc_check &&
       Log_event_footer::event_checksum_test((uchar *) buf, event_len, alg))
@@ -1635,7 +1635,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     case binary_log::QUERY_EVENT:
 #ifndef DBUG_OFF
       binary_log_debug::debug_query_mts_corrupt_db_names=
-         DBUG_EVALUATE_IF("query_log_event_mts_corrupt_db_names", true, false);
+        DBUG_EVALUATE_IF("query_log_event_mts_corrupt_db_names", true, false);
 #endif
       ev  = new Query_log_event(buf, event_len, description_event,
                                 binary_log::QUERY_EVENT);
@@ -1644,7 +1644,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     case binary_log::NEW_LOAD_EVENT:
 #ifndef DBUG_OFF
       binary_log_debug::debug_simulate_invalid_address=
-         DBUG_EVALUATE_IF("simulate_invalid_address", true, false);
+        DBUG_EVALUATE_IF("simulate_invalid_address", true, false);
 #endif
       ev = new Load_log_event(buf, event_len, description_event);
       break;
@@ -1654,7 +1654,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     case binary_log::CREATE_FILE_EVENT:
 #ifndef DBUG_OFF
       binary_log_debug::debug_simulate_invalid_address=
-         DBUG_EVALUATE_IF("simulate_invalid_address", true, false);
+        DBUG_EVALUATE_IF("simulate_invalid_address", true, false);
 #endif
       ev = new Create_file_log_event(buf, event_len, description_event);
       break;

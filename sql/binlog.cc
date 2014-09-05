@@ -3647,8 +3647,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
   /* This must be before goto err. */
 #ifndef DBUG_OFF
-      binary_log_debug::debug_pretend_version_50034_in_binlog=
-      DBUG_EVALUATE_IF("pretend_version_50034_in_binlog", true, false);
+  binary_log_debug::debug_pretend_version_50034_in_binlog=
+    DBUG_EVALUATE_IF("pretend_version_50034_in_binlog", true, false);
 #endif
   Format_description_log_event s(BINLOG_VERSION);
 
@@ -3673,7 +3673,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   */
   if (io_cache_type == WRITE_CACHE)
   {
-    (s.common_header)->flags|= LOG_EVENT_BINLOG_IN_USE_F;
+    s.common_header->flags|= LOG_EVENT_BINLOG_IN_USE_F;
   }
 
   if (is_relay_log)
@@ -3706,7 +3706,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     s.set_relay_log_event();
   if (s.write(&log_file))
     goto err;
-  bytes_written+= (s.common_header)->data_written;
+  bytes_written+= s.common_header->data_written;
   /*
     We need to revisit this code and improve it.
     See further comments in the mysqld.
@@ -6644,7 +6644,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
       DBUG_ASSERT(!is_relay_log ||
                   relay_log_checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
       s.write(&log_file);
-      bytes_written+= (s.common_header)->data_written;
+      bytes_written+= s.common_header->data_written;
       flush_io_cache(&log_file);
       update_binlog_end_pos();
     }

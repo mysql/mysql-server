@@ -31,6 +31,7 @@
 #include "binlog_event.h"
 #include "statement_events.h"
 #include "table_id.h"
+#include <cassert>
 
 /*
   These are flags and structs to handle all the LOAD DATA INFILE options (LINES

@@ -30,6 +30,7 @@
 #define CONTROL_EVENT_INCLUDED
 
 #include "binlog_event.h"
+#include <vector>
 
 namespace binary_log
 {
