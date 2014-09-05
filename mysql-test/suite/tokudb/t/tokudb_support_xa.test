@@ -115,6 +115,7 @@ xa recover;
 xa commit 'testb',0x2030405060,11;
 xa rollback 'testa','testb';
 
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_PARSE_ERROR
 xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
 
