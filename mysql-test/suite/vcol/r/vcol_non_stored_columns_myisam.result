@@ -1,7 +1,16 @@
 SET @@session.default_storage_engine = 'MyISAM';
 # Case 1. All non-stored columns.
-# This scenario is currently impossible due to the fact that virtual columns
-# with a constant expression are not allowed.
+create  table t1 (a int generated always as (2+3) virtual);
+insert into t1 values (default);
+select * from t1;
+a
+5
+insert into t1 values (default);
+select * from t1;
+a
+5
+5
+drop table t1;
 # Case 2. CREATE
 #  - Column1: "real"
 #  - Column 2: virtual non-stored
