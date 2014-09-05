@@ -1235,7 +1235,14 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
       if(apiConnectPtr.p->commitAckMarker == iter.curr.i){
 	jam();
         /**
-         * The record is still active
+         * The record is still active, this means that the transaction is
+         * currentlygoing through the abort or commit process as started
+         * in the API node failure handling, we have to wait until this
+         * phase is completed until we continue with our processing of this.
+         * If it goes through the aborting process the record will disappear
+         * while we're waiting for it. If it goes through the commit process
+         * it will eventually reach copyApi whereafter we can remove the
+         * marker from LQH.
          *
          * Don't remove it, but continueb retry with a short delay
          */
@@ -1245,7 +1252,17 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
         sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 1, 3);
         return;
       }
-      sendRemoveMarkers(signal, iter.curr.p);
+      /**
+       * This should only happen if we have done copyApi and the referred
+       * apiConnect record have already moved on to the free connections or
+       * to a new transaction. The commit ack marker is still around,
+       * normally the API would then send TC_COMMIT_ACK, but this hasn't
+       * happened here since the API have failed. So we need to remove the
+       * marker on behalf of the failed API, the failed API will not be able
+       * to communicate its hearing of the commit, so we can simply remove
+       * the commit ack marker in LQH.
+       */
+      sendRemoveMarkers(signal, iter.curr.p, 1);
       m_commitAckMarkerHash.release(iter.curr);
       
       break;
@@ -2480,11 +2497,19 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->tcindxrec = 0;
   tc_clearbit(regApiPtr->m_flags,
               ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED);
-  regApiPtr->no_commit_ack_markers = 0;
   regApiPtr->failureNr = TfailureNr;
   regApiPtr->transid[0] = Ttransid0;
   regApiPtr->transid[1] = Ttransid1;
-  regApiPtr->commitAckMarker = RNIL;
+  ndbrequire(regApiPtr->commitAckMarker == RNIL);
+  ndbrequire(regApiPtr->num_commit_ack_markers == 0);
+/**
+ * We wanted to verify those variables around commitAckMarkers,
+ * So we have an ndbrequire around them, this means we can
+ * remove the setting of them since we already verified that
+ * they already have the correct value.
+ * regApiPtr->num_commit_ack_markers = 0;
+ * regApiPtr->commitAckMarker = RNIL;
+ */
   regApiPtr->buddyPtr = RNIL;
   regApiPtr->currSavePointId = 0;
   regApiPtr->m_transaction_nodes.clear();
@@ -2548,8 +2573,8 @@ Dbtc::seizeTcRecord(Signal* signal)
 
   regTcPtr->prevTcConnect = TlastTcConnect;
   regTcPtr->nextTcConnect = RNIL;
-  regTcPtr->noFiredTriggers = 0;
-  regTcPtr->noReceivedTriggers = 0;
+  regTcPtr->numFiredTriggers = 0;
+  regTcPtr->numReceivedTriggers = 0;
   regTcPtr->triggerExecutionCount = 0;
   regTcPtr->triggeringOperation = RNIL;
   regTcPtr->m_special_op_flags = 0;
@@ -3252,7 +3277,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
           m_commitAckMarkerHash.add(tmp);
         }
       }
-      regApiPtr->no_commit_ack_markers++;
+      regApiPtr->num_commit_ack_markers++;
     }
     
     UintR Toperationsize = coperationsize;
@@ -3987,7 +4012,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   }//if
 
   // Reset trigger count
-  regTcPtr->noFiredTriggers = 0;
+  regTcPtr->numFiredTriggers = 0;
   regTcPtr->triggerExecutionCount = 0;
 
   if (regCachePtr->useLongLqhKeyReq)
@@ -4338,7 +4363,7 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
       lqhKeyConf->readLen = Tdata1;
       lqhKeyConf->transId1 = Tdata2;
       lqhKeyConf->transId2 = Tdata3;
-      lqhKeyConf->noFiredTriggers = Tdata4;
+      lqhKeyConf->numFiredTriggers = Tdata4;
       signal->header.theLength = LqhKeyConf::SignalLength;
       jamBuffer()->markEndOfSigExec();
       execLQHKEYCONF(signal);
@@ -4586,9 +4611,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   UintR TapiConnectFilesize = capiConnectFilesize;
   UintR Ttrans1 = lqhKeyConf->transId1;
   UintR Ttrans2 = lqhKeyConf->transId2;
-  Uint32 noFired = LqhKeyConf::getFiredCount(lqhKeyConf->noFiredTriggers);
-  Uint32 deferreduk = LqhKeyConf::getDeferredUKBit(lqhKeyConf->noFiredTriggers);
-  Uint32 deferredfk = LqhKeyConf::getDeferredFKBit(lqhKeyConf->noFiredTriggers);
+  Uint32 numFired = LqhKeyConf::getFiredCount(lqhKeyConf->numFiredTriggers);
+  Uint32 deferreduk = LqhKeyConf::getDeferredUKBit(lqhKeyConf->numFiredTriggers);
+  Uint32 deferredfk = LqhKeyConf::getDeferredFKBit(lqhKeyConf->numFiredTriggers);
 
   if (TapiConnectptrIndex >= TapiConnectFilesize) {
     TCKEY_abort(signal, 29);
@@ -4651,7 +4676,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   UintR TtcTimer = ctcTimer;
   regTcPtr->lastLqhCon = tlastLqhConnect;
   regTcPtr->lastLqhNodeId = refToNode(tlastLqhBlockref);
-  regTcPtr->noFiredTriggers = noFired;
+  regTcPtr->numFiredTriggers = numFired;
   regTcPtr->m_special_op_flags |=
     ((deferreduk) ? TcConnectRecord::SOF_DEFERRED_UK_TRIGGER : 0 ) |
     ((deferredfk) ? TcConnectRecord::SOF_DEFERRED_FK_TRIGGER : 0 );
@@ -4690,6 +4715,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
     jam();
     regApiPtr.p->m_flags |= ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED;
+    regApiPtr.p->num_commit_ack_markers--;
     /**
      * Populate LQH array
      */
@@ -4717,7 +4743,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     // will be returned unpacked
     regTcPtr->attrInfoLen = treadlenAi;
   } else {
-    if (noFired == 0 && regTcPtr->triggeringOperation == RNIL) {
+    if (numFired == 0 && regTcPtr->triggeringOperation == RNIL) {
       jam();
 
       if (Ttckeyrec > (ZTCOPCONF_SIZE - 2)) {
@@ -4764,7 +4790,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
      */
     Uint32 unlockOpI = tcConnectptr.i;
 
-    ndbrequire( noFired == 0 );
+    ndbrequire( numFired == 0 );
     ndbrequire( regTcPtr->triggeringOperation == RNIL );
 
     /* Switch to the original locking operation */
@@ -4826,7 +4852,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   else 
   {
     jam();
-    if (noFired == 0) {
+    if (numFired == 0) {
       jam();
       // No triggers to execute
       UintR Tlqhkeyconfrec = regApiPtr.p->lqhkeyconfrec;
@@ -4845,12 +4871,12 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
    * - trigger op, can cause new trigger ops (cascade)
    * - trigger op can be using uk
    */
-  if (noFired)
+  if (numFired)
   {
     // We have fired triggers
     jam();
     saveTriggeringOpState(signal, regTcPtr);
-    if (regTcPtr->noReceivedTriggers == noFired)
+    if (regTcPtr->numReceivedTriggers == numFired)
     {
       // We have received all data
       jam();
@@ -5309,7 +5335,9 @@ void Dbtc::diverify010Lab(Signal* signal)
     systemErrorLab(signal, __LINE__);
   }//if
 
-  if (tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_TRIGGERS))
+  if (tc_testbit(regApiPtr->m_flags,
+                 (ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS +
+                  ApiConnectRecord::TF_DEFERRED_FK_TRIGGERS)))
   {
     /**
      * If trans has deferred triggers, let them fire just before
@@ -5967,6 +5995,7 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   copyPtr.p->lqhkeyconfrec = Tlqhkeyconfrec;
   copyPtr.p->commitAckMarker = RNIL;
   copyPtr.p->m_transaction_nodes = Tnodes;
+  copyPtr.p->num_commit_ack_markers = 0;
   copyPtr.p->singleUserMode = 0;
 
   Ptr<GcpRecord> gcpPtr;
@@ -5981,6 +6010,7 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   regApiPtr.p->lastTcConnect = RNIL;
   regApiPtr.p->m_transaction_nodes.clear();
   regApiPtr.p->singleUserMode = 0;
+  regApiPtr.p->num_commit_ack_markers = 0;
   releaseAllSeizedIndexOperations(regApiPtr.p);
 }//Dbtc::copyApi()
 
@@ -6345,11 +6375,11 @@ Dbtc::execFIRE_TRIG_CONF(Signal* signal)
   regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec - 1;
   localTcConnectptr.p->tcConnectstate = OS_PREPARED;
 
-  Uint32 noFired  = FireTrigConf::getFiredCount(conf->noFiredTriggers);
-  Uint32 deferreduk = FireTrigConf::getDeferredUKBit(conf->noFiredTriggers);
-  Uint32 deferredfk = FireTrigConf::getDeferredFKBit(conf->noFiredTriggers);
+  Uint32 numFired  = FireTrigConf::getFiredCount(conf->numFiredTriggers);
+  Uint32 deferreduk = FireTrigConf::getDeferredUKBit(conf->numFiredTriggers);
+  Uint32 deferredfk = FireTrigConf::getDeferredFKBit(conf->numFiredTriggers);
 
-  regApiPtr.p->pendingTriggers += noFired;
+  regApiPtr.p->pendingTriggers += numFired;
   regApiPtr.p->m_flags |=
     ((deferreduk) ? ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS : 0) |
     ((deferredfk) ? ApiConnectRecord::TF_DEFERRED_FK_TRIGGERS : 0);
@@ -6410,6 +6440,11 @@ Dbtc::execFIRE_TRIG_REF(Signal* signal)
   abortErrorLab(signal);
 }
 
+/**
+ * The NDB API has now reported that it has heard about the commit of
+ * transaction, this means that we're ready to remove the commit ack
+ * markers, both here in DBTC and in all the participating DBLQH's.
+ */
 void
 Dbtc::execTC_COMMIT_ACK(Signal* signal){
   jamEntry();
@@ -6425,17 +6460,19 @@ Dbtc::execTC_COMMIT_ACK(Signal* signal){
     warningHandlerLab(signal, __LINE__);
     return;
   }//if
-  sendRemoveMarkers(signal, removedMarker.p);
+  sendRemoveMarkers(signal, removedMarker.p, 0);
   m_commitAckMarkerPool.release(removedMarker);
 }
 
 void
-Dbtc::sendRemoveMarkers(Signal* signal, CommitAckMarker * marker)
+Dbtc::sendRemoveMarkers(Signal* signal,
+                        CommitAckMarker * marker,
+                        Uint32 removed_by_fail_api)
 {
   jam();
   const Uint32 transId1 = marker->transid1;
   const Uint32 transId2 = marker->transid2;
- 
+
   CommitAckMarkerBuffer::DataBufferPool & pool =
     c_theCommitAckMarkerBufferPool;
   LocalDataBuffer<5> commitAckMarkers(pool, marker->theDataBuffer);
@@ -6447,7 +6484,12 @@ Dbtc::sendRemoveMarkers(Signal* signal, CommitAckMarker * marker)
     Uint32 dataWord = *iter.data;
     NodeId nodeId = dataWord >> 16;
     Uint32 instanceKey = dataWord & 0xFFFF;
-    sendRemoveMarker(signal, nodeId, instanceKey, transId1, transId2);
+    sendRemoveMarker(signal,
+                     nodeId,
+                     instanceKey,
+                     transId1,
+                     transId2,
+                     removed_by_fail_api);
     next_flag = commitAckMarkers.next(iter, 1);
   }
   commitAckMarkers.release();
@@ -6458,7 +6500,8 @@ Dbtc::sendRemoveMarker(Signal* signal,
                        NodeId nodeId,
                        Uint32 instanceKey,
                        Uint32 transid1, 
-                       Uint32 transid2){
+                       Uint32 transid2,
+                       Uint32 removed_by_fail_api){
   /**
    * Seize host ptr
    */
@@ -6468,7 +6511,7 @@ Dbtc::sendRemoveMarker(Signal* signal,
   ptrCheckGuard(hostPtr, ThostFilesize, hostRecord);
 
   Uint32 Tdata[3];
-  Tdata[0] = 0;
+  Tdata[0] = removed_by_fail_api;
   Tdata[1] = transid1;
   Tdata[2] = transid2;
   Uint32 len = 3;
@@ -6955,11 +6998,11 @@ void Dbtc::clearCommitAckMarker(ApiConnectRecord * const regApiPtr,
   if(commitAckMarker != RNIL)
   {
     jam();
-    ndbassert(regApiPtr->commitAckMarker == commitAckMarker);
-    ndbrequire(regApiPtr->no_commit_ack_markers > 0);
-    regApiPtr->no_commit_ack_markers--;
+    ndbrequire(regApiPtr->commitAckMarker == commitAckMarker);
+    ndbrequire(regApiPtr->num_commit_ack_markers > 0);
+    regApiPtr->num_commit_ack_markers--;
     regTcPtr->commitAckMarker = RNIL;
-    if (regApiPtr->no_commit_ack_markers == 0)
+    if (regApiPtr->num_commit_ack_markers == 0)
     {
       tc_clearbit(regApiPtr->m_flags,
                   ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED);
@@ -13644,6 +13687,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->nextApiConnect = apiConnectptr.i + 1;
     apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF; // Invalid ref
     apiConnectptr.p->commitAckMarker = RNIL;
+    apiConnectptr.p->num_commit_ack_markers = 0;
     apiConnectptr.p->firstTcConnect = RNIL;
     apiConnectptr.p->lastTcConnect = RNIL;
     apiConnectptr.p->m_flags = 0;
@@ -13674,6 +13718,7 @@ void Dbtc::initApiConnect(Signal* signal)
       apiConnectptr.p->nextApiConnect = apiConnectptr.i + 1;
       apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF; // Invalid ref
       apiConnectptr.p->commitAckMarker = RNIL;
+      apiConnectptr.p->num_commit_ack_markers = 0;
       apiConnectptr.p->firstTcConnect = RNIL;
       apiConnectptr.p->lastTcConnect = RNIL;
       apiConnectptr.p->m_flags = 0;
@@ -13704,6 +13749,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->nextApiConnect = apiConnectptr.i + 1;
     apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF; // Invalid ref
     apiConnectptr.p->commitAckMarker = RNIL;
+    apiConnectptr.p->num_commit_ack_markers = 0;
     apiConnectptr.p->firstTcConnect = RNIL;
     apiConnectptr.p->lastTcConnect = RNIL;
     apiConnectptr.p->m_flags = 0;
@@ -14012,6 +14058,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
     tcConnectptr.i = rarTcConnectptr.i;
   }//while
 
+  ndbrequire(apiConnectptr.p->num_commit_ack_markers == 0);
   releaseMarker(apiConnectptr.p);
 
   apiConnectptr.p->firstTcConnect = RNIL;
@@ -16266,7 +16313,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     {
       jam();
       setApiConTimer(transPtr.i, ctcTimer, __LINE__);
-      opPtr.p->noReceivedTriggers++;
+      opPtr.p->numReceivedTriggers++;
       opPtr.p->triggerExecutionCount++; // Default 1 LQHKEYREQ per trigger
 
       // Insert fired trigger in execution queue
@@ -16276,7 +16323,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
         list.addLast(trigPtr);
       }
 
-      if (opPtr.p->noReceivedTriggers == opPtr.p->noFiredTriggers ||
+      if (opPtr.p->numReceivedTriggers == opPtr.p->numFiredTriggers ||
           transPtr.p->isExecutingDeferredTriggers())
       {
         jam();
@@ -17779,8 +17826,8 @@ void Dbtc::continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp)
   ndbassert(trigOp->savedState[LqhKeyConf::SignalLength-1] != ~Uint32(0));
   trigOp->savedState[LqhKeyConf::SignalLength-1] = ~Uint32(0);
 
-  lqhKeyConf->noFiredTriggers = 0;
-  trigOp->noReceivedTriggers = 0;
+  lqhKeyConf->numFiredTriggers = 0;
+  trigOp->numReceivedTriggers = 0;
 
   // All triggers executed successfully, continue operation
   execLQHKEYCONF(signal);
@@ -17819,7 +17866,7 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
 	FiredTriggerPtr nextTrigPtr = trigPtr;
 	regApiPtr->theFiredTriggers.next(nextTrigPtr);
         ndbrequire(opPtr.p->apiConnect == transPtr->i);
-        if (opPtr.p->noReceivedTriggers == opPtr.p->noFiredTriggers ||
+        if (opPtr.p->numReceivedTriggers == opPtr.p->numFiredTriggers ||
             regApiPtr->isExecutingDeferredTriggers()) {
           jam();
           // Fireing operation is ready to have a trigger executing

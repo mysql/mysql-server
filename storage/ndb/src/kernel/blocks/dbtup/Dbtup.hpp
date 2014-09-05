@@ -1569,7 +1569,7 @@ struct KeyReqStruct {
   bool            m_disable_fk_checks;
 
   Signal*         signal;
-  Uint32 no_fired_triggers;
+  Uint32 num_fired_triggers;
   Uint32 frag_page_id;
   Uint32 hash_value;
   Uint32 gci_hi;

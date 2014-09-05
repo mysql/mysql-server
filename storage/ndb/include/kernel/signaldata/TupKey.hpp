@@ -211,7 +211,7 @@ private:
   Uint32 userPtr;
   Uint32 readLength;  // Length in Uint32 words
   Uint32 writeLength;
-  Uint32 noFiredTriggers;
+  Uint32 numFiredTriggers;
   Uint32 lastRow;
   Uint32 rowid;
 };

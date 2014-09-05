@@ -703,7 +703,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    Dbtup::TransState trans_state = get_trans_state(regOperPtr);
 
    req_struct.signal= signal;
-   req_struct.no_fired_triggers= 0;
+   req_struct.num_fired_triggers= 0;
    req_struct.read_length= 0;
    req_struct.last_row= false;
    req_struct.changeMask.clear();
@@ -1191,7 +1191,7 @@ Dbtup::setup_lcp_read_copy_tuple(KeyReqStruct* req_struct,
   
   Uint32 Rcreate_rowid = req_struct->m_use_rowid;
   Uint32 RuserPointer= regOperPtr->userpointer;
-  Uint32 RnoFiredTriggers= req_struct->no_fired_triggers;
+  Uint32 RnumFiredTriggers= req_struct->num_fired_triggers;
   Uint32 log_size= req_struct->log_size;
   Uint32 read_length= req_struct->read_length;
   Uint32 last_row= req_struct->last_row;
@@ -1199,7 +1199,7 @@ Dbtup::setup_lcp_read_copy_tuple(KeyReqStruct* req_struct,
   tupKeyConf->userPtr= RuserPointer;
   tupKeyConf->readLength= read_length;
   tupKeyConf->writeLength= log_size;
-  tupKeyConf->noFiredTriggers= RnoFiredTriggers;
+  tupKeyConf->numFiredTriggers= RnumFiredTriggers;
   tupKeyConf->lastRow= last_row;
   tupKeyConf->rowid = Rcreate_rowid;
   set_tuple_state(regOperPtr, TUPLE_PREPARED);

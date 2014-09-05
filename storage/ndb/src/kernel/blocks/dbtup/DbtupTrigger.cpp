@@ -658,7 +658,7 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
    *   still having a transaction context...
    *   i.e can abort transactions, modify transaction
    */
-  req_struct.no_fired_triggers = 0;
+  req_struct.num_fired_triggers = 0;
 
   /**
    * See DbtupCommit re "Setting the op-list has this effect"
@@ -673,7 +673,7 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
   lastOperPtr.p->prevActiveOp = save[1];
 
   signal->theData[0] = 0;
-  signal->theData[1] = req_struct.no_fired_triggers;
+  signal->theData[1] = req_struct.num_fired_triggers;
 }
 
 /* ---------------------------------------------------------------- */
@@ -805,16 +805,16 @@ Dbtup::checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
       jam();
       switch(trigPtr.p->triggerType){
       case TriggerType::SECONDARY_INDEX:
-        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->num_fired_triggers);
         break;
       case TriggerType::FK_PARENT:
       case TriggerType::FK_CHILD:
-        NoOfFiredTriggers::setDeferredFKBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredFKBit(req_struct->num_fired_triggers);
         break;
       default:
         ndbassert(false);
       }
-      if (NoOfFiredTriggers::getDeferredAllSet(req_struct->no_fired_triggers))
+      if (NoOfFiredTriggers::getDeferredAllSet(req_struct->num_fired_triggers))
         return;
     }
     triggerList.next(trigPtr);
@@ -1074,11 +1074,11 @@ Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
       {
         switch(trigPtr.p->triggerType){
         case TriggerType::SECONDARY_INDEX:
-          NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+          NoOfFiredTriggers::setDeferredUKBit(req_struct->num_fired_triggers);
           break;
         case TriggerType::FK_PARENT:
         case TriggerType::FK_CHILD:
-          NoOfFiredTriggers::setDeferredFKBit(req_struct->no_fired_triggers);
+          NoOfFiredTriggers::setDeferredFKBit(req_struct->num_fired_triggers);
           break;
         default:
           ndbassert(false);
@@ -1448,11 +1448,11 @@ out:
     {
       switch(regOperPtr->op_type){
       case ZINSERT:
-        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->num_fired_triggers);
         return;
         break;
       case ZUPDATE:
-        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->num_fired_triggers);
         noAfterWords = 0;
         break;
       case ZDELETE:
@@ -1492,7 +1492,7 @@ out:
     }
   }
 
-  req_struct->no_fired_triggers++;
+  req_struct->num_fired_triggers++;
 
   if (longsignal == false)
   {

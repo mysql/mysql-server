@@ -2176,7 +2176,7 @@ public:
     Uint32 commitAckMarker;
     union {
       Uint32 m_scan_curr_range_no;
-      UintR noFiredTriggers;
+      UintR numFiredTriggers;
     };
     Uint32 m_corrFactorLo; // For result correlation for linked operations.
     Uint32 m_corrFactorHi;
@@ -3330,6 +3330,7 @@ public:
     Uint32 prevHash;
     Uint32 reference_count;
     bool in_hash;
+    bool removed_by_fail_api;
 
     inline bool equal(const CommitAckMarker & p) const {
       return ((p.transid1 == transid1) && (p.transid2 == transid2));
