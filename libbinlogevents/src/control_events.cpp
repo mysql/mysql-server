@@ -98,9 +98,9 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
      in getting rid of the valgrind errors.
     */
     memset(server_version, 0, ST_SERVER_VER_LEN);
-    bapi_stpcpy(server_version, server_ver);
+    strcpy(server_version, server_ver);
     if (binary_log_debug::debug_pretend_version_50034_in_binlog)
-      bapi_stpcpy(server_version, "5.0.34");
+      strcpy(server_version, "5.0.34");
     common_header_len= LOG_EVENT_HEADER_LEN;
     number_of_event_types= LOG_EVENT_TYPES;
     /**
@@ -180,9 +180,9 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       describes what those old master versions send.
     */
     if (binlog_version == 1)
-      bapi_stpcpy(server_version, server_ver ? server_ver : "3.23");
+      strcpy(server_version, server_ver ? server_ver : "3.23");
     else
-      bapi_stpcpy(server_version, server_ver ? server_ver : "4.0");
+      strcpy(server_version, server_ver ? server_ver : "4.0");
     common_header_len= binlog_ver == 1 ? OLD_HEADER_LEN :
       LOG_EVENT_MINIMAL_HEADER_LEN;
     /*
@@ -488,14 +488,17 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
   uint8_t len= 0;                   // Assignment to keep compiler happy
   const char *str= NULL;          // Assignment to keep compiler happy
   read_str_at_most_255_bytes(&ptr, str_end, &str, &len);
-  if (!(message= (char*) bapi_malloc(len + 1, MEMORY_LOG_EVENT, 16)))
+  if (!(message= static_cast<char*>(bapi_malloc(len + 1, MEMORY_LOG_EVENT, 16))))
   {
     /* Mark this event invalid */
     incident= INCIDENT_NONE;
     return;
   }
 
-  bapi_strmake(message, str, len);
+  //bapi_strmake(message, str, len);
+  strncpy(message, str, len);
+  if(message[len]!= '\0')
+    message[len]= '\0';
   message_length= len;
   return;
 }

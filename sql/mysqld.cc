@@ -86,6 +86,7 @@
 #include "debug_sync.h"
 #include "sql_callback.h"
 #include "opt_trace_context.h"
+#include "opt_costconstantcache.h"
 
 #include "mysqld.h"
 #include "my_default.h"
@@ -294,7 +295,13 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 ulong log_warnings;
-#if defined(_WIN32)
+bool  opt_log_syslog_enable;
+char *opt_log_syslog_tag= NULL;
+#ifndef _WIN32
+bool  opt_log_syslog_include_pid;
+char *opt_log_syslog_facility;
+
+#else
 /*
   Thread handle of shutdown event handler thread.
   It is used as argument during thread join.
@@ -1247,7 +1254,9 @@ extern "C" void unireg_abort(int exit_code)
 
 static void mysqld_exit(int exit_code)
 {
+  log_syslog_exit();
   mysql_audit_finalize();
+  delete_optimizer_cost_module();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   local_message_hook= my_message_local_stderr;
@@ -1369,6 +1378,7 @@ void clean_up(bool print_message)
   }
   table_def_start_shutdown();
   plugin_shutdown();
+  delete_optimizer_cost_module();
   ha_end();
   if (tc_log)
     tc_log->close();
@@ -2819,6 +2829,9 @@ int init_common_variables()
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
 
+  if (log_syslog_init())
+    opt_log_syslog_enable= 0;
+
   if (set_default_auth_plugin(default_auth_plugin, strlen(default_auth_plugin)))
   {
     sql_print_error("Can't start server: "
@@ -4091,6 +4104,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 #endif
     locked_in_memory=0;
 
+  /* Initialize the optimizer cost module */
+  init_optimizer_cost_module();
   ft_init_stopwords();
 
   init_max_user_conn();
@@ -4382,7 +4397,10 @@ int mysqld_main(int argc, char **argv)
     We have enough space for fiddling with the argv, continue
   */
   if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
+  {
+    sql_print_error("failed to set datadir to %s", mysql_real_data_home);
     unireg_abort(1);        /* purecov: inspected */
+  }
 
 #ifndef _WIN32
   if ((user_info= check_user(mysqld_user)))
@@ -4610,6 +4628,10 @@ int mysqld_main(int argc, char **argv)
   /* Save pid of this process in a file */
   if (!opt_bootstrap)
     create_pid_file();
+
+  /* Read the optimizer cost model configuration tables */
+  if (!opt_bootstrap)
+    reload_optimizer_cost_constants();
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
@@ -7758,7 +7780,8 @@ PSI_mutex_key
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
-  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query;
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
+  key_LOCK_cost_const;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_done;

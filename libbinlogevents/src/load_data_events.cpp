@@ -244,10 +244,13 @@ int Load_event::copy_load_event(const char *buf, unsigned long event_len,
     Sql_ex_data.init() on success returns the pointer to the first byte after
     the sql_ex structure, which is the start of field lengths array.
   */
-  if (!(field_lens= (unsigned char*)sql_ex_data.init((char*)buf + body_offset -
-                                        description_event->common_header_len,
-                                        buf_end,
-                                        buf[EVENT_TYPE_OFFSET] != LOAD_EVENT)))
+  if (!(field_lens=
+          reinterpret_cast<unsigned char*>(const_cast<char*>(sql_ex_data.init(
+                                           const_cast<char*>(buf) +
+                                           body_offset -
+                                           description_event->common_header_len,
+                                           buf_end,
+                                           buf[EVENT_TYPE_OFFSET] != LOAD_EVENT)))))
     return 1;
 
   data_len = event_len - body_offset;
@@ -307,7 +310,7 @@ Create_file_event::Create_file_event(const char* buf, unsigned int len,
                 description_event->post_header_len[LOAD_EVENT - 1];
   unsigned char create_file_header_len=
                 description_event->post_header_len[CREATE_FILE_EVENT - 1];
-  if (!(event_buf= (char *)bapi_memdup(buf, len)) ||
+  if (!(event_buf= static_cast<char *>(bapi_memdup(buf, len))) ||
       copy_load_event(event_buf + header_len , len,
                      ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
                       load_header_len + header_len :
@@ -347,7 +350,7 @@ Create_file_event::Create_file_event(const char* buf, unsigned int len,
                    create_file_header_len + 1);
     if (len < block_offset)
       return;
-    block = (unsigned char*)buf + block_offset;
+    block = (unsigned char*)(buf) + block_offset;
     block_len = len - block_offset;
   }
   else
@@ -424,7 +427,7 @@ Append_block_event::Append_block_event(const char* buf, unsigned int len,
   memcpy(&file_id, buf + AB_FILE_ID_OFFSET, 4);
   file_id= le32toh(file_id);
 
-  block= (unsigned char*)buf + append_block_header_len;
+  block= (unsigned char*)(buf) + append_block_header_len;
   block_len= len - total_header_len;
 }
 

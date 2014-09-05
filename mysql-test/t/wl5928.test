@@ -419,7 +419,7 @@ DEALLOCATE PREPARE stmt1;
 DROP TABLE t1;
 
 --echo # show prepared statements still throw warnings OK
-PREPARE stmt1 FROM 'create table if not exists t1 (f1 year(1))';
+PREPARE stmt1 FROM 'create table if not exists t1 (f1 year(4))';
 EXECUTE stmt1;
 DEALLOCATE PREPARE stmt1;
 DROP TABLE t1;

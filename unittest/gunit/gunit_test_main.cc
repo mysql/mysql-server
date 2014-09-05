@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 #include "my_getopt.h"
 
 #include <stdlib.h>
+
+class Cost_constant_cache;
 
 namespace {
 
@@ -59,6 +61,8 @@ thread_local_key_t THR_MALLOC;
 thread_local_key_t THR_THD;
 bool THR_THD_initialized= false;
 bool THR_MALLOC_initialized= false;
+// Needed for linking with opt_costconstantcache.cc and Fake_Cost_model_server
+Cost_constant_cache *cost_constant_cache= NULL;
 
 extern "C" void sql_alloc_error_handler(void)
 {

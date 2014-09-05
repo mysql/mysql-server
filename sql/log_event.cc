@@ -3738,8 +3738,7 @@ bool Query_log_event::write(IO_CACHE* file)
   }
   /*
     NOTE: When adding new status vars, please don't forget to update
-    the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
-    code_name() in this file.
+    the MAX_SIZE_LOG_EVENT_STATUS in log_event.h
    
     Here there could be code like
     if (command-line-option-which-says-"log_this_variable" && inited)

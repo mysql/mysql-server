@@ -414,7 +414,7 @@ namespace binary_log
   * See Q_CHARSET_DATABASE_CODE in the table above.
 
   * When adding new status vars, please don't forget to update the
-  MAX_SIZE_LOG_EVENT_STATUS, and update function code_name
+  MAX_SIZE_LOG_EVENT_STATUS. 
 
 */
 
@@ -494,7 +494,6 @@ protected:
     +--------+-----------+------+------+---------+----+-------+----+
   */
   int fill_data_buf(unsigned char* dest, unsigned long len);
-  static char const *code_name(int code);
 
 public:
   /* data members defined in order they are packed and written into the log */
@@ -833,8 +832,7 @@ public:
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
-#endif
-  std::string static get_value_type_string(enum Value_type type)
+  const char* get_value_type_string(enum Value_type type)
   {
     switch(type)
     {
@@ -847,6 +845,7 @@ public:
       default:return "Unknown";
     }
   }
+#endif
 };
 
 /**

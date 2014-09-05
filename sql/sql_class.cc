@@ -261,7 +261,9 @@ THD::Attachable_trx::~Attachable_trx()
   // Remember the handlerton of an open table to call the handlerton after the
   // tables are closed.
 
-  handlerton *ht= m_thd->open_tables ? m_thd->open_tables->file->ht : NULL;
+  handlerton *ht= m_thd->open_tables ?
+                  m_thd->open_tables->file->ht :
+                  innodb_hton;
 
   // Close all the tables that are open till now.
 

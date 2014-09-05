@@ -13,14 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "binlog_event.h"
-#include "control_events.h"
 #include "statement_events.h"
+#include "control_events.h"
 #include "transitional_methods.h"
 #include <algorithm>
-#include <cstdio>
-
-
 
 namespace binary_log
 {
@@ -84,43 +80,12 @@ static void copy_str_and_move(Log_event_header::Byte **dst,
                               unsigned int len)
 {
   memcpy(*dst, *src, len);
-  *src= (const char*)*dst;
+  *src= reinterpret_cast<const char*>(*dst);
   (*dst)+= len;
   *(*dst)++= 0;
 }
 
 
-/**
-  utility function to return the string representation of the status variable
-  used in the Query_event.
-
-  @param Integer value representing the status variable code
-
-  @return String representation of the code
-*/
-char const *
-Query_event::code_name(int code)
-{
-  static char buf[255];
-  switch (code) {
-  case Q_FLAGS2_CODE: return "Q_FLAGS2_CODE";
-  case Q_SQL_MODE_CODE: return "Q_SQL_MODE_CODE";
-  case Q_CATALOG_CODE: return "Q_CATALOG_CODE";
-  case Q_AUTO_INCREMENT: return "Q_AUTO_INCREMENT";
-  case Q_CHARSET_CODE: return "Q_CHARSET_CODE";
-  case Q_TIME_ZONE_CODE: return "Q_TIME_ZONE_CODE";
-  case Q_CATALOG_NZ_CODE: return "Q_CATALOG_NZ_CODE";
-  case Q_LC_TIME_NAMES_CODE: return "Q_LC_TIME_NAMES_CODE";
-  case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
-  case Q_TABLE_MAP_FOR_UPDATE_CODE: return "Q_TABLE_MAP_FOR_UPDATE_CODE";
-  case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
-  case Q_UPDATED_DB_NAMES: return "Q_UPDATED_DB_NAMES";
-  case Q_MICROSECONDS: return "Q_MICROSECONDS";
-  case Q_COMMIT_TS: return "Q_COMMIT_TS";
-  }
-  sprintf(buf, "CODE#%d", code);
-  return buf;
-}
 /**
    Macro to check that there is enough space to read from memory.
 
@@ -567,19 +532,13 @@ User_var_event(const char* buf, unsigned int event_len,
     */
   unsigned int bytes_read= ((val + val_len) - start);
 #ifndef DBUG_OFF
-    bool old_pre_checksum_fd= description_event->is_version_before_checksum();
-    assert((bytes_read == header()->data_written -
-                 (old_pre_checksum_fd ||
-                  (description_event->footer()->checksum_alg ==
-                   BINLOG_CHECKSUM_ALG_OFF)) ?
+  bool old_pre_checksum_fd= description_event->is_version_before_checksum();
+  bool bytes_read_verify= bytes_read == header()->data_written;
+  bool checksum_verify= (old_pre_checksum_fd ||
+          (description_event->footer()->checksum_alg == BINLOG_CHECKSUM_ALG_OFF));
 
- 0 : BINLOG_CHECKSUM_LEN)
-                ||
-                (bytes_read == header()->data_written -1 -
-                 (old_pre_checksum_fd ||
-                  (description_event->footer()->checksum_alg ==
-                   BINLOG_CHECKSUM_ALG_OFF)) ?
-                 0 : BINLOG_CHECKSUM_LEN));
+  assert((bytes_read_verify - checksum_verify ? 0 : BINLOG_CHECKSUM_LEN) ||
+         ((bytes_read_verify - 1 - checksum_verify)? 0 : BINLOG_CHECKSUM_LEN));
 #endif
     if ((header()->data_written - bytes_read) > 0)
     {
