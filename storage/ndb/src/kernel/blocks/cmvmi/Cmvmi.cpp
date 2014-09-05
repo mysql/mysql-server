@@ -48,6 +48,7 @@
 #include <NdbSleep.h>
 #include <SafeCounter.hpp>
 #include <SectionReader.hpp>
+#include <vm/WatchDog.hpp>
 
 #define JAM_FILE_ID 380
 
@@ -1697,6 +1698,17 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
             signal->getDataPtrSend() + 1, 
             numArgs << 2);
     sendSignal(reference(), GSN_TESTSIG, signal, numArgs, JBB);
+  }
+
+  if (arg == DumpStateOrd::CmvmiSetKillerWatchdog)
+  {
+    bool val = true;
+    if (signal->length() >= 2)
+    {
+      val = (signal->theData[1] != 0);
+    }
+    globalEmulatorData.theWatchDog->setKillSwitch(val);
+    return;
   }
 
 #ifdef ERROR_INSERT
