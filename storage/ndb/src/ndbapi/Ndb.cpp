@@ -1250,51 +1250,76 @@ Ndb::getTupleIdFromNdb(const NdbTableImpl* table,
   5,15,25,35,...  
 */
   DBUG_ENTER("Ndb::getTupleIdFromNdb");
+  DBUG_PRINT("info", ("range.first_id=%llu, last_id=%llu, highest_seen=%llu "
+                      "tupleId = %llu, cacheSize=%u step=%llu start=%llu",
+                      range.m_first_tuple_id,
+                      range.m_last_tuple_id,
+                      range.m_highest_seen,
+                      tupleId,
+                      cacheSize,
+                      step,
+                      start));
+
   /*
-   Check if the next value can be taken from the pre-fetched
-   sequence.
+    If start value is greater than step it is ignored
   */
-  if (range.m_first_tuple_id != range.m_last_tuple_id &&
-      range.m_first_tuple_id + step <= range.m_last_tuple_id)
+  Uint64 offset = (start > step) ? 1 : start;
+
+  if (range.m_first_tuple_id != range.m_last_tuple_id)
   {
-    assert(range.m_first_tuple_id < range.m_last_tuple_id);
-    range.m_first_tuple_id += step; 
-    tupleId = range.m_first_tuple_id;
-    DBUG_PRINT("info", ("Next cached value %lu", (ulong) tupleId));
+    /**
+     * Range is valid and has span
+     * Determine next value *after* m_first_tuple_id
+     * meeting start and step constraints, then see
+     * if it is inside the cached range.
+     * m_first_tuple_id start may not meet the constraints 
+     * (if there was a manual insert)
+     * c.f. handler.cc compute_next_insert_id()
+     */
+    assert(step > 0);
+    assert(range.m_first_tuple_id >= offset);
+    Uint64 desiredNextVal = 0;
+    Uint64 numStepsTaken = ((range.m_first_tuple_id - offset) /
+                            step);
+    desiredNextVal = ((numStepsTaken + 1) * step) + offset;
+    DBUG_PRINT("info", ("desiredNextVal = %llu", desiredNextVal));
+
+    if (desiredNextVal <= range.m_last_tuple_id)
+    {
+      DBUG_PRINT("info", ("Next value from cache %lu", (ulong) tupleId));
+      assert(range.m_first_tuple_id < range.m_last_tuple_id);
+      range.m_first_tuple_id = tupleId = desiredNextVal; 
+      DBUG_RETURN(0);
+    }
   }
-  else
-  {
-    /*
-      If start value is greater than step it is ignored
-     */
-    Uint64 offset = (start > step) ? 1 : start;
+  
+  /*
+    Pre-fetch a number of values depending on cacheSize
+  */
+  if (cacheSize == 0)
+    cacheSize = 1;
+  
+  DBUG_PRINT("info", ("reading %u values from database", (uint)cacheSize));
+  /*
+   * reserve next cacheSize entries in db.  adds cacheSize to NEXTID
+   * and returns first tupleId in the new range. If tupleId's are
+   * incremented in steps then multiply the cacheSize with step size.
+   */
+  Uint64 opValue = cacheSize * step;
+  
+  if (opTupleIdOnNdb(table, range, opValue, 0) == -1)
+    DBUG_RETURN(-1);
+  DBUG_PRINT("info", ("Next value fetched from database %lu", (ulong) opValue));
+  DBUG_PRINT("info", ("Increasing %lu by offset %lu, increment  is %lu", 
+                      (ulong) (ulong) opValue, (ulong) offset, (ulong) step));
+  Uint64 current, next;
+  Uint64 div = ((Uint64) (opValue + step - offset)) / step;
+  next = div * step + offset;
+  current = (next < step) ? next : next - step;
+  tupleId = (opValue <= current) ? current : next;
+  DBUG_PRINT("info", ("Returning %lu", (ulong) tupleId));
+  range.m_first_tuple_id = tupleId;
 
-    /*
-      Pre-fetch a number of values depending on cacheSize
-     */
-    if (cacheSize == 0)
-      cacheSize = 1;
-
-    DBUG_PRINT("info", ("reading %u values from database", (uint)cacheSize));
-    /*
-     * reserve next cacheSize entries in db.  adds cacheSize to NEXTID
-     * and returns first tupleId in the new range. If tupleId's are
-     * incremented in steps then multiply the cacheSize with step size.
-     */
-    Uint64 opValue = cacheSize * step;
-
-    if (opTupleIdOnNdb(table, range, opValue, 0) == -1)
-      DBUG_RETURN(-1);
-    DBUG_PRINT("info", ("Next value fetched from database %lu", (ulong) opValue));
-    DBUG_PRINT("info", ("Increasing %lu by offset %lu, increment  is %lu", (ulong) (ulong) opValue, (ulong) offset, (ulong) step));
-    Uint64 current, next;
-    Uint64 div = ((Uint64) (opValue + step - offset)) / step;
-    next = div * step + offset;
-    current = (next < step) ? next : next - step;
-    tupleId = (opValue <= current) ? current : next;
-    DBUG_PRINT("info", ("Returning %lu", (ulong) tupleId));
-    range.m_first_tuple_id = tupleId;
-  }
   DBUG_RETURN(0);
 }
 
@@ -1463,6 +1488,12 @@ Ndb::setTupleIdInNdb(const NdbTableImpl* table,
                      TupleIdRange & range, Uint64 tupleId, bool modify)
 {
   DBUG_ENTER("Ndb::setTupleIdInNdb");
+  DBUG_PRINT("info", ("range first : %llu, last : %llu, tupleId : %llu "
+                      "modify %u",
+                      range.m_first_tuple_id,
+                      range.m_last_tuple_id,
+                      tupleId,
+                      modify));
   if (modify)
   {
     if (checkTupleIdInNdb(range, tupleId))
@@ -1478,6 +1509,11 @@ Ndb::setTupleIdInNdb(const NdbTableImpl* table,
           DBUG_PRINT("info", 
                      ("Setting next auto increment cached value to %lu",
                       (ulong)tupleId));  
+          DBUG_PRINT("info", 
+                     ("Range.m_first = %llu, m_last=%llu, m_highest_seen=%llu",
+                      range.m_first_tuple_id,
+                      range.m_last_tuple_id,
+                      range.m_highest_seen));
           DBUG_RETURN(0);
         }
       }
