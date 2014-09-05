@@ -830,6 +830,12 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_DBUG_ENTER("");
     int r = 0;
+
+    /* if support_xa is disable, just return */
+    if (!THDVAR(thd, support_xa)) {
+        TOKUDB_DBUG_RETURN(r);
+    }
+
     DBUG_PRINT("trans", ("preparing transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN* txn = all ? trx->all : trx->stmt;
@@ -1433,6 +1439,9 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(check_jemalloc),
 #endif
     MYSQL_SYSVAR(bulk_fetch),
+#if TOKU_INCLUDE_XA
+    MYSQL_SYSVAR(support_xa),
+#endif
     NULL
 };
 
