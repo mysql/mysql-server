@@ -139,6 +139,7 @@ public:
                                       in clusterlog */
     CmvmiTestLongSig = 2605,  /* Long signal testing trigger */
     DumpEventLog = 2606,
+    CmvmiSetKillerWatchdog = 2610,
     LCPContinue = 5900,
     // 7000 DIH
     // 7001 DIH
