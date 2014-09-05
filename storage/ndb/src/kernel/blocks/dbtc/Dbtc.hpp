@@ -795,7 +795,7 @@ public:
       UintR commitAckMarker;
     };
 
-    Uint32 no_commit_ack_markers;
+    Uint32 num_commit_ack_markers;
     Uint32 m_write_count;
     ReturnSignal returnsignal;
     AbortState abortState;
@@ -809,9 +809,6 @@ public:
       TF_DEFERRED_CONSTRAINTS = 16, // check constraints in deferred fashion
       TF_DEFERRED_UK_TRIGGERS = 32, // trans has deferred UK triggers
       TF_DEFERRED_FK_TRIGGERS = 64, // trans has deferred FK triggers
-
-      TF_DEFERRED_TRIGGERS    = (32 + 64),
-
       TF_DISABLE_FK_CONSTRAINTS = 128,
 
       TF_END = 0
@@ -980,8 +977,8 @@ public:
     Uint16 lqhInstanceKey;
     
     // Trigger data
-    UintR noFiredTriggers;      // As reported by lqhKeyConf
-    UintR noReceivedTriggers;   // FIRE_TRIG_ORD
+    UintR numFiredTriggers;      // As reported by lqhKeyConf
+    UintR numReceivedTriggers;   // FIRE_TRIG_ORD
     UintR triggerExecutionCount;// No of outstanding op due to triggers
     UintR savedState[LqhKeyConf::SignalLength];
     /**
@@ -2185,12 +2182,13 @@ private:
   RSS_AP_SNAPSHOT(m_commitAckMarkerPool);
   
   void execTC_COMMIT_ACK(Signal* signal);
-  void sendRemoveMarkers(Signal*, CommitAckMarker *);
+  void sendRemoveMarkers(Signal*, CommitAckMarker *, Uint32);
   void sendRemoveMarker(Signal* signal, 
 			NodeId nodeId,
                         Uint32 instanceKey,
 			Uint32 transid1, 
-			Uint32 transid2);
+			Uint32 transid2,
+                        Uint32 removed_by_fail_api);
   void removeMarkerForFailedAPI(Signal* signal, NodeId nodeId, Uint32 bucket);
 
   bool getAllowStartTransaction(NodeId nodeId, Uint32 table_single_user_mode) const {

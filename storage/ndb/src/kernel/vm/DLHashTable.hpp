@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2003-2006, 2008, 2013, Oracle and/or its affiliates. All 
-   rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,13 +122,19 @@ public:
 
   /**
    * Remove element and return to pool
+   * release releases object and places it first in free list
+   * releaseLast releases object and places it last in free list
    */
   void release(Uint32 i);
+  void releaseLast(Uint32 i);
 
   /**
    * Remove element and return to pool
+   * release releases object and places it first in free list
+   * releaseLast releases object and places it last in free list
    */
   void release(Ptr<T> &);
+  void releaseLast(Ptr<T> &);
 
   class Iterator {
   public:
@@ -365,6 +370,26 @@ DLMHashTable<P, T, M>::release(Uint32 i)
   tmp.i = i;
   tmp.p = thePool.getPtr(i);
   release(tmp);
+}
+
+template <typename P, typename T, typename M>
+inline
+void
+DLMHashTable<P, T, M>::releaseLast(Uint32 i)
+{
+  Ptr<T> tmp;
+  tmp.i = i;
+  tmp.p = thePool.getPtr(i);
+  releaseLast(tmp);
+}
+
+template <typename P, typename T, typename M>
+inline
+void
+DLMHashTable<P, T, M>::releaseLast(Ptr<T> & ptr)
+{
+  remove(ptr);
+  thePool.releaseLast(ptr);
 }
 
 template <typename P, typename T, typename M>

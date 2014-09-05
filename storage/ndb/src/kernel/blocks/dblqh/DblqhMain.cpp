@@ -3484,7 +3484,7 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       lqhKeyConf->readLen = sig3;
       lqhKeyConf->transId1 = sig4;
       lqhKeyConf->transId2 = sig5;
-      lqhKeyConf->noFiredTriggers = sig6;
+      lqhKeyConf->numFiredTriggers = sig6;
       jamBuffer()->markEndOfSigExec();
       execLQHKEYCONF(signal);
       Tstep += LqhKeyConf::SignalLength;
@@ -3496,7 +3496,30 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       sig1 = TpackedData[Tstep + 2];
       signal->theData[0] = sig0;
       signal->theData[1] = sig1;
-      signal->header.theLength = 2;
+      if ((TpackedData[Tstep] & 1) == 0)
+      {
+        /**
+         * This is the normal path where we remove a marker
+         * after commit.
+         */
+        signal->header.theLength = 2;
+      }
+      else
+      {
+        /**
+         * This is a new path that is used when removing a marker
+         * after an API node failure. We indicate this in packed
+         * signal by setting one of the 28 unused bits in the
+         * packed signal (the first word only uses the last 4 bits
+         * in the first 32-bit word.
+         *
+         * We indicate this to the execREMOVE_MARKER_ORD method
+         * by setting the Length of the signal to 3 (we cannot
+         * add an extra parameter since the signal can be sent
+         * directly and not through the packed signal interface.
+         */
+        signal->header.theLength = 3;
+      }
       jamBuffer()->markEndOfSigExec();
       execREMOVE_MARKER_ORD(signal);
       Tstep += 3;
@@ -3536,20 +3559,29 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   CommitAckMarker key;
   key.transid1 = signal->theData[0];
   key.transid2 = signal->theData[1];
+  bool removed_by_fail_api = (signal->header.theLength == 3);
   jamEntry();
   
   CommitAckMarkerPtr removedPtr;
   m_commitAckMarkerHash.remove(removedPtr, key);
 #if (defined VM_TRACE || defined ERROR_INSERT) && defined(wl4391_todo)
   ndbrequire(removedPtr.i != RNIL);
-  m_commitAckMarkerPool.release(removedPtr);
+  m_commitAckMarkerPool.releaseLast(removedPtr);
 #else
   if (removedPtr.i != RNIL)
   {
     jam();
     ndbrequire(removedPtr.p->in_hash);
     removedPtr.p->in_hash = false;
-    m_commitAckMarkerPool.release(removedPtr);
+    removedPtr.p->reference_count = 0;
+    removedPtr.p->removed_by_fail_api = removed_by_fail_api;
+    m_commitAckMarkerPool.releaseLast(removedPtr);
+  }
+  else
+  {
+    ndbout_c("%u Rem marker failed[%.8x %.8x] remove_by_fail_api = %u", instance(),
+             key.transid1, key.transid2, removed_by_fail_api);
+    ndbrequire(false);
   }
 #endif
 #ifdef MARKER_TRACE
@@ -3710,7 +3742,7 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
   case TcConnectionrec::WAIT_TUP:
     jam();
     if (regTcPtr.p->seqNoReplica == 0) // Primary replica
-      regTcPtr.p->noFiredTriggers = tupKeyConf->noFiredTriggers;
+      regTcPtr.p->numFiredTriggers = tupKeyConf->numFiredTriggers;
     tupkeyConfLab(signal, regTcPtr.p);
     break;
   case TcConnectionrec::COPY_TUPKEY:
@@ -4106,11 +4138,11 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
   Uint32 readlenAi = tcConnectptr.p->readlenAi;
   Uint32 transid1 = tcConnectptr.p->transid[0];
   Uint32 transid2 = tcConnectptr.p->transid[1];
-  Uint32 noFiredTriggers = tcConnectptr.p->noFiredTriggers;
+  Uint32 numFiredTriggers = tcConnectptr.p->numFiredTriggers;
   lqhKeyConf->readLen = readlenAi;
   lqhKeyConf->transId1 = transid1;
   lqhKeyConf->transId2 = transid2;
-  lqhKeyConf->noFiredTriggers = noFiredTriggers;
+  lqhKeyConf->numFiredTriggers = numFiredTriggers;
 
   if (!send_packed)
   {
@@ -4854,6 +4886,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
         We increase the reference count to ensure we don't remove the
         commit ack marker prematurely.
       */
+      ndbrequire(markerPtr.p->in_hash == true);
+      ndbrequire(markerPtr.p->reference_count > 0);
       markerPtr.p->reference_count++;
 #ifdef MARKER_TRACE
       ndbout_c("Inc marker[%.8x %.8x] op: %u ref: %u", 
@@ -4920,7 +4954,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
                           (regTcPtr->opSimple || regTcPtr->dirtyOp) &&
                           refToNode(signal->senderBlockRef()) != cownNodeid));
 
-  regTcPtr->noFiredTriggers = lqhKeyReq->noFiredTriggers;
+  regTcPtr->numFiredTriggers = lqhKeyReq->numFiredTriggers;
 
   UintR TapplAddressInd = LqhKeyReq::getApplicationAddressFlag(Treqinfo);
   UintR nextPos = (TapplAddressInd << 1);
@@ -6187,7 +6221,7 @@ void Dblqh::handleUserUnlockRequest(Signal* signal)
   regTcPtr->readlenAi = tcOpRecIndex;
 
   /* Clear number of fired triggers */
-  regTcPtr->noFiredTriggers = 0;
+  regTcPtr->numFiredTriggers = 0;
   
   /* Now send the LQHKEYCONF to TC */
   sendLqhkeyconfTc(signal, regTcPtr->tcBlockref);
@@ -7153,7 +7187,7 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   lqhKeyReq->fragmentData = sig1;
   lqhKeyReq->transId1 = sig2;
   lqhKeyReq->transId2 = sig3;
-  lqhKeyReq->noFiredTriggers = regTcPtr->noFiredTriggers;
+  lqhKeyReq->numFiredTriggers = regTcPtr->numFiredTriggers;
   lqhKeyReq->variableData[0] = sig4;
   lqhKeyReq->variableData[1] = sig5;
   lqhKeyReq->variableData[2] = sig6;
@@ -7885,7 +7919,7 @@ Dblqh::execFIRE_TRIG_REQ(Signal* signal)
       conf->tcOpRec = tcOprec;
       conf->transId[0] = transid1;
       conf->transId[1] = transid2;
-      conf->noFiredTriggers = cnt;
+      conf->numFiredTriggers = cnt;
       sendFireTrigConfTc(signal, regTcPtr->tcBlockref, Tdata);
       return;
     }
@@ -8873,8 +8907,45 @@ Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
            instance(), tmp.p->transid1, tmp.p->transid2,
            Uint32(regTcPtr - tcConnectionrec), tmp.p->reference_count);
 #endif
+  if (tmp.p->in_hash == false)
+  {
+    ndbout_c("%u remove_commit_marker failed[%.8x %.8x]"
+             " remove_by_fail_api = %u"
+             " ack marker transid[%.8x %.8x]"
+             " ack marker ref count = %d",
+             instance(),
+             regTcPtr->transid[0],
+             regTcPtr->transid[1],
+             tmp.p->removed_by_fail_api,
+             tmp.p->transid1,
+             tmp.p->transid2,
+             tmp.p->reference_count);
+    ndbrequire(tmp.p->reference_count == 0);
+    ndbrequire(false);
+    return;
+  }
   ndbrequire(tmp.p->reference_count > 0);
-  ndbrequire(tmp.p->in_hash);
+  if (regTcPtr->transid[0] != tmp.p->transid1 ||
+      regTcPtr->transid[1] != tmp.p->transid2)
+  {
+    /**
+     * We refer to a commit ack marker that have already been removed
+     * and even reused by another transaction.
+     */
+    ndbout_c("%u remove_commit_marker failed, moved[%.8x %.8x]"
+             " remove_by_fail_api = %u"
+             " ack marker transid[%.8x %.8x]"
+             " ack marker ref count = %d",
+             instance(),
+             regTcPtr->transid[0],
+             regTcPtr->transid[1],
+             tmp.p->removed_by_fail_api,
+             tmp.p->transid1,
+             tmp.p->transid2,
+             tmp.p->reference_count);
+    ndbrequire(false);
+    return;
+  }
   tmp.p->reference_count--;
   if (tmp.p->reference_count == 0)
   {
@@ -8887,7 +8958,7 @@ Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
     ndbrequire(removedPtr.i != RNIL);
     ndbrequire(removedPtr.i == tmp.i);
     removedPtr.p->in_hash = false;
-    m_commitAckMarkerPool.release(removedPtr);
+    m_commitAckMarkerPool.releaseLast(removedPtr);
   }
 }
 

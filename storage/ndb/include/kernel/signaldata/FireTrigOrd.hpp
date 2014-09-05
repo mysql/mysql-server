@@ -253,7 +253,7 @@ struct FireTrigConf
 
   Uint32 tcOpRec;
   Uint32 transId[2];
-  Uint32 noFiredTriggers; // bit 31 defered trigger
+  Uint32 numFiredTriggers; // bit 31 defered trigger
 
   static Uint32 getFiredCount(Uint32 v) {
     return NoOfFiredTriggers::getFiredCount(v);

@@ -148,13 +148,19 @@ public:
 
   /**
    * Return an object to pool
+   * release releases the object and places it first in free list
+   * releaseLast releases the object and places it last in free list
    */
   void release(Uint32 i);
+  void releaseLast(Uint32 i);
 
   /**
    * Return an object to pool
+   * release releases the object and places it first in free list
+   * releaseLast releases the object and places it last in free list
    */
   void release(Ptr<T> &);
+  void releaseLast(Ptr<T> &);
 
 #ifdef ARRAY_GUARD
   /**
@@ -178,7 +184,8 @@ public:
    */
   struct Cache
   {
-    Cache(Uint32 a0 = 512, Uint32 a1 = 256) { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
+    Cache(Uint32 a0 = 512, Uint32 a1 = 256)
+    { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
     void init_cache(Uint32 a0, Uint32 a1)
     {
       m_alloc_cnt = a0;
@@ -276,6 +283,7 @@ protected:
    */
   char protect_read_var[NDB_CL_PADSZ(sizeof(Uint32) + sizeof(void*))];
   Uint32 firstFree;
+  Uint32 lastFree;
   Uint32 noOfFree;
   Uint32 noOfFreeMin;
 #ifdef ARRAY_GUARD
@@ -294,6 +302,7 @@ ArrayPool<T>::ArrayPool(CallBack* seizeErrorHandler):
   seizeErrHand(seizeErrorHandler)
 {
   firstFree = RNIL;
+  lastFree = RNIL;
   size = 0;
   noOfFree = 0;
   noOfFreeMin = 0;
@@ -384,6 +393,7 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
     }
     theArray[size-1].nextPool = RNIL;
     firstFree = 0;
+    lastFree = size - 1;
 
 #ifdef ARRAY_GUARD
     if (guard)
@@ -766,6 +776,7 @@ ArrayPool<T>::getPtrIgnoreAlloc(Ptr<T> & ptr){
  *
  * Return i
  */
+
 template <class T>
 inline
 bool
@@ -780,6 +791,11 @@ ArrayPool<T>::seize(Ptr<T> & ptr){
     
     ptr.i = ff;
     ptr.p = &theArray[ff];
+    if (firstFree == RNIL)
+    {
+      assert(lastFree == ff);
+      lastFree = RNIL;
+    }
 #ifdef ARRAY_GUARD
     if (theAllocatedBitmask)
     {
@@ -828,6 +844,11 @@ ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
       firstFree = theArray[ff].nextPool;
     else
       theArray[prev].nextPool = theArray[ff].nextPool;
+    if (ff == lastFree)
+    {
+      assert(firstFree == RNIL);
+      lastFree = prev;
+    }
     
     ptr.i = ff;
     ptr.p = &theArray[ff];
@@ -1024,6 +1045,11 @@ ArrayPool<T>::release(Uint32 _i){
     Uint32 ff = firstFree;
     theArray[i].nextPool = ff;
     firstFree = i;
+    if (ff == RNIL)
+    {
+      assert(lastFree == RNIL);
+      lastFree = i;
+    }
 
 #ifdef ARRAY_GUARD
     if (theAllocatedBitmask)
@@ -1045,6 +1071,56 @@ ArrayPool<T>::release(Uint32 _i){
   ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
 }
 
+template <class T>
+inline
+void
+ArrayPool<T>::releaseLast(Uint32 _i){
+
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
+  const Uint32 i = _i;
+  if(likely(i < size))
+  {
+    Uint32 lf = lastFree;
+    lastFree = i;
+    theArray[i].nextPool = RNIL;
+    if (lf == RNIL)
+    {
+      assert(firstFree == RNIL);
+      firstFree = i;
+    }
+    else if (lf < size)
+    {
+      theArray[lf].nextPool = i;
+    }
+    else
+    {
+      goto error;
+    }
+
+#ifdef ARRAY_GUARD
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i)){
+	BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, i);
+	noOfFree++;
+	return;
+      }
+      /**
+       * Relesing a already released element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::releaseLast", __FILE__, __LINE__);
+    }
+#endif
+    noOfFree++;
+    return;
+  }
+error:
+  ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
+}
+
 /**
  * Return an object to pool
  */
@@ -1062,6 +1138,11 @@ ArrayPool<T>::release(Ptr<T> & ptr){
     Uint32 ff = firstFree;
     theArray[i].nextPool = ff;
     firstFree = i;
+    if (ff == RNIL)
+    {
+      assert(lastFree == RNIL);
+      lastFree = i;
+    }
 
 #ifdef ARRAY_GUARD
     if (theAllocatedBitmask)
@@ -1081,6 +1162,58 @@ ArrayPool<T>::release(Ptr<T> & ptr){
     noOfFree++;
     return;
   }
+  ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
+}
+
+template <class T>
+inline
+void
+ArrayPool<T>::releaseLast(Ptr<T> & ptr)
+{
+
+#ifdef ARRAY_GUARD
+  assert(chunk == false);
+#endif
+
+  Uint32 i = ptr.i;
+  Uint32 lf = lastFree;
+  if(likely(i < size))
+  {
+    lastFree = i;
+    theArray[i].nextPool = RNIL;
+    if (lf < size)
+    {
+      theArray[lf].nextPool = i;
+    }
+    else if (lf == RNIL)
+    {
+      assert(firstFree == RNIL);
+      firstFree = i;
+    }
+    else
+    {
+      goto error;
+    }
+
+#ifdef ARRAY_GUARD
+    if (theAllocatedBitmask)
+    {
+      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i)){
+	BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, i);
+	//assert(noOfFree() == noOfFree2());
+	noOfFree++;
+	return;
+      }
+      /**
+       * Relesing a already released element
+       */
+      ErrorReporter::handleAssert("ArrayPool<T>::releaseLast", __FILE__, __LINE__);
+    }
+#endif
+    noOfFree++;
+    return;
+  }
+error:
   ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
 }
 
