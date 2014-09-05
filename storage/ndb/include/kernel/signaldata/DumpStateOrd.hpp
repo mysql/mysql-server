@@ -145,6 +145,7 @@ public:
     CmvmiLongSignalMemorySnapshotStart = 2607,
     CmvmiLongSignalMemorySnapshot = 2608,
     CmvmiLongSignalMemorySnapshotCheck = 2609,
+    CmvmiSetKillerWatchdog = 2610,
 
     LCPContinue = 5900,
     // 7000 DIH
