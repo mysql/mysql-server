@@ -402,7 +402,7 @@ static bool str_to_ipv6(const char *str, int str_length, in6_addr *ipv6_address)
         continue;
       }
 
-      if (!*p || ((p - str) >= str_length))
+      if (((p - str) >= str_length) || !*p)
       {
         DBUG_PRINT("error", ("str_to_ipv6(%.*s): invalid IPv6 address: "
                              "ending at ':'.", str_length, str));
