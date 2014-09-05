@@ -1886,16 +1886,25 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
 
   if(theError.code)
   {
-    if (theError.code == Err_scanAlreadyComplete)
-    {
-      /**
-       * The scan is already complete. There must be a bug in the api 
-       * application such that is calls nextResult()/nextResultNdbRecord() 
-       * again after getting return value 1 (meaning end of scan).
-       */
-      return -1;
-    }
-    goto err4;
+    /**
+     * The scan is already complete (Err_scanAlreadyComplete)
+     * or is in some error.
+     *
+     * Either there is a bug in the api application such that
+     * it calls nextResult()/nextResultNdbRecord() again
+     * after getting return value 1 (meaning end of scan) or
+     * -1 (for error).
+     *
+     * Or there seems to be a bug in ndbapi that put operation
+     * in error between calls.
+     *
+     * Or an error have been received.
+     *
+     * In any case, keep and propagate error and fail.
+     */
+    if (theError.code != Err_scanAlreadyComplete)
+      setErrorCode(theError.code);
+    return -1;
   }
 
   if(seq == theImpl->getNodeSequence(nodeId) &&
@@ -1983,10 +1992,6 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
   case -3: // send_next_scan -> return fail (set error-code self)
     if(theError.code == 0)
       setErrorCode(4028); // seq changed = Node fail
-    break;
-  case -4:
-err4:
-    setErrorCode(theError.code);
     break;
   }
 
