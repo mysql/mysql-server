@@ -241,13 +241,12 @@ mlog_write_initial_log_record_fast(
 			anything for the doublewrite buffer pages. */
 			return(log_ptr);
 		} else {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Trying to redo log a record of type"
-				" %d on page %lu of space %lu in the"
+			ib::error() << "Trying to redo log a record of type "
+				<< type << "  on page "
+				<< page_id_t(space, offset) << "in the"
 				" doublewrite buffer, continuing anyway."
 				" Please post a bug report to"
-				" bugs.mysql.com.",
-				type, offset, space);
+				" bugs.mysql.com.";
 			ut_ad(0);
 		}
 	}

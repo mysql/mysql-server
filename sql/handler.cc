@@ -43,6 +43,7 @@
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "sql_trigger.h"        // TRG_EXT, TRN_EXT
 #include "opt_costmodel.h"
+#include "opt_costconstantcache.h"           // reload_optimizer_cost_constants
 #include <my_bit.h>
 #include <list>
 
@@ -866,6 +867,12 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   default:
     break;
   };
+
+  /*
+    Re-load the optimizer cost constants since this storage engine can
+    have non-default cost constants.
+  */
+  reload_optimizer_cost_constants();
 
   DBUG_RETURN(0);
 

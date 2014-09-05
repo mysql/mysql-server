@@ -1,0 +1,331 @@
+#
+# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+#
+
+#
+# Test of the FLUSH OPTIMIZER_COSTS command
+#
+
+# To get stable cost estimates, the test should only be run with 
+# 16K InnoDB page size.
+--source include/have_innodb_16k.inc
+
+CREATE TABLE t0 (
+  i1 INTEGER
+);
+
+INSERT INTO t0 VALUE (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+# Create a table with 100 records each having size approximately 1000 bytes
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY,
+  i1 INTEGER NOT NULL,
+  c1 CHAR(250),
+  c2 CHAR(250),
+  c3 CHAR(250),
+  c4 CHAR(250),
+  INDEX i1_key (i1)
+) ENGINE=InnoDB;
+
+INSERT INTO t1
+SELECT a0.i1 + 10 * a1.i1, a0.i1, 'abc', 'def', 'ghi', 'jkl'
+FROM t0 AS a0, t0 AS a1;
+
+ANALYZE TABLE t1;
+
+# Test query for table scan
+let query= SELECT * FROM t1;
+
+# Create a user connection
+connect (con1,localhost,root,,);
+connection con1;
+
+# Get cost estimates with default values
+eval EXPLAIN FORMAT=JSON $query;
+
+connection default;
+
+--echo #
+--echo # Test that updating the cost constants does not influence on an
+--echo # existing connection
+--echo #
+
+# Master connection: Update the value of the row_evaluate_cost
+UPDATE mysql.server_cost
+SET cost_value=0.4
+WHERE cost_name="row_evaluate_cost";
+
+FLUSH OPTIMIZER_COSTS;
+
+# Switch to existing user connection and verify that doing a change
+# to a cost constant does not influence on an existing connection,
+# ie the cost estimates in EXPLAIN should be the same
+connection con1;
+
+--echo #
+--echo # The cost estimates should not have changed
+--echo #
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+connection default;
+
+# Reset cost constants
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+
+--echo #
+--echo # Test effect of changing the row_evalute_cost
+--echo #
+
+# Master connection: Update the value of the row_evaluate_cost
+UPDATE mysql.server_cost
+SET cost_value=0.4
+WHERE cost_name="row_evaluate_cost";
+
+FLUSH OPTIMIZER_COSTS;
+
+# Create a NEW connection
+connect (con1,localhost,root,,);
+connection con1;
+
+--echo #
+--echo # Verify that the cost estimate for evalution cost has doubled
+--echo #
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+connection default;
+
+# Reset cost constants
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+
+--echo #
+--echo # Test effect of changing key_compare_cost
+--echo #
+--echo # Use a query that will use loose index scan since loose index scan
+--echo # is comparing keys in order to determine group boundaries.
+--echo # Result from running query with default cost constants:
+--echo #
+let query= SELECT DISTINCT(i1) FROM t1;
+eval EXPLAIN FORMAT=JSON $query;
+
+# Master connection: Update the value of the key_compare_cost
+UPDATE mysql.server_cost
+SET cost_value=0.2
+WHERE cost_name="key_compare_cost";
+
+FLUSH OPTIMIZER_COSTS;
+
+# Create NEW connection
+connect (con1,localhost,root,,);
+connection con1;
+
+--echo #
+--echo # Verify that the cost estimate for read cost is increased
+--echo #
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+connection default;
+
+# Reset cost constants
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+
+--echo #
+--echo # Test effect of changing memory_temptable_create_cost
+--echo #
+--echo # Use a query that creates a temporary table for a subquery.
+--echo # Run query with default cost constants.
+--echo #
+let query=
+SELECT * FROM t1
+WHERE i1 IN (SELECT i1 FROM t1);
+eval EXPLAIN FORMAT=JSON $query;
+
+# Master connection:
+# Update the value of the memory_temptable_create_cost from default (2.0)
+# to 10.0 (up by 8.0)
+UPDATE mysql.server_cost
+SET cost_value=10.0
+WHERE cost_name="memory_temptable_create_cost";
+
+FLUSH OPTIMIZER_COSTS;
+
+# Create NEW connection
+connect (con1,localhost,root,,);
+connection con1;
+
+--echo #
+--echo # Verify that the cost estimate for the query is incrased (by 8.0)
+--echo #
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+connection default;
+
+# Reset cost constants
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+
+--echo #
+--echo # Test effect of changing memory_temptable_row_cost
+--echo #
+--echo # Use a query that creates a temporary table for a subquery.
+--echo # Result from running query with default cost constants:
+--echo #
+let query=
+SELECT * FROM t1
+WHERE i1 IN (SELECT i1 FROM t1);
+eval EXPLAIN FORMAT=JSON $query;
+
+# Master connection:
+# Update the value of the memory_temptable_row_cost from default (0.2)
+# to 0.4
+UPDATE mysql.server_cost
+SET cost_value=0.4
+WHERE cost_name="memory_temptable_row_cost";
+
+FLUSH OPTIMIZER_COSTS;
+
+# Create NEW connection
+connect (con1,localhost,root,,);
+connection con1;
+
+--echo #
+--echo # Verify that the cost estimate for the query is incrased by:
+--echo # 100 rows that needs to be inserted and read from the temporary table.
+--echo # The cost of each insert and read is increased by 0.2, ie cost should
+--echo # be increased by 100 * 2 * 0.2 = 40.
+--echo #
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+connection default;
+
+# Reset cost constants
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+
+# The next two tests are for cost of disk based temporary tables
+# To ensure this temp table is written to a disk based storage engine
+set @max_heap_table_size_save= @@max_heap_table_size;
+set max_heap_table_size= 16384;
+
+--echo #
+--echo # Test effect of changing disk_temptable_create_cost
+--echo #
+--echo # Use a query that creates a temporary table for a subquery.
+--echo # Result from running query with default cost constants:
+--echo #
+let query=
+SELECT * FROM t1
+WHERE c1 IN (SELECT c1 FROM t1);
+eval EXPLAIN FORMAT=JSON $query;
+
+# Master connection:
+# Update the value of the disk_temptable_create_cost from default (40.0)
+# to 80.0
+UPDATE mysql.server_cost
+SET cost_value=80.0
+WHERE cost_name="disk_temptable_create_cost";
+
+FLUSH OPTIMIZER_COSTS;
+
+# Create NEW connection
+connect (con1,localhost,root,,);
+connection con1;
+# To ensure a disk temp table is used
+set max_heap_table_size= 16384;  
+
+--echo #
+--echo # Verify that the cost estimate for the query is incrased (by 40.0)
+--echo #
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+connection default;
+
+# Reset cost constants
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+
+--echo #
+--echo # Test effect of changing disk_temptable_row_cost
+--echo #
+--echo # Use a query that creates a temporary table for a subquery
+--echo # Result from running query with default cost constants:
+--echo #
+let query=
+SELECT * FROM t1
+WHERE c1 IN (SELECT c1 FROM t1);
+eval EXPLAIN FORMAT=JSON $query;
+
+# Master connection:
+# Update the value of the disk_temptable_row_cost from default (1.0)
+# to 2.0
+UPDATE mysql.server_cost
+SET cost_value=2.0
+WHERE cost_name="disk_temptable_row_cost";
+
+FLUSH OPTIMIZER_COSTS;
+
+# Create NEW connection
+connect (con1,localhost,root,,);
+connection con1;
+set max_heap_table_size= 16384;
+
+--echo #
+--echo # Verify that the cost estimate for the query is incrased by:
+--echo # 100 rows that needs to be inserted and read from the temporary table.
+--echo # The cost of each insert and read is increased by 1.0, ie cost should
+--echo # be increased by 100 * 2 * 1.0 = 200.
+--echo #
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+connection default;
+
+# Reset cost constants
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+
+# Finished testing disk based temporary tables
+set max_heap_table_size= @max_heap_table_size_save;
+
+--echo #
+--echo # Test effect of changing the io_block_read_cost
+--echo #
+--echo # Result from running query with default cost constants:
+--echo #
+let query= SELECT * FROM t1;
+eval EXPLAIN FORMAT=JSON $query;
+
+# Master connection: Update the value of the io_block_read_cost
+UPDATE mysql.engine_cost
+SET cost_value=2.0
+WHERE cost_name="io_block_read_cost";
+
+FLUSH OPTIMIZER_COSTS;
+
+# Create NEW connection
+connect (con1,localhost,root,,);
+connection con1;
+
+--echo #
+--echo # Verify that the cost estimate for read cost has doubled
+--echo #
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+connection default;
+
+# Reset cost constants
+UPDATE mysql.engine_cost
+SET cost_value=DEFAULT;
+
+FLUSH OPTIMIZER_COSTS;
+
+DROP TABLE t0,t1;

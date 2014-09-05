@@ -57,6 +57,7 @@ enum PSI_memory_key_to_int
   INCIDENT_LOG_EVENT_MESSAGE
 };
 
+
 /**
   The strndup() function returns a pointer to a new string which is a duplicate
   of the string s, but it only copies at most n bytes. If s is longer than n,
@@ -86,6 +87,7 @@ inline char *strndup (const char *s, size_t n)
 }
 #endif
 
+
 /**
   This is a wrapper function, and returns a pointer to a new string which is
   a duplicate of the input string. The terminating Null character is added.
@@ -109,6 +111,7 @@ inline const char* bapi_strndup(const char *destination, size_t n)
 #endif
 }
 
+
 /**
   This is a wrapper function, and returns a pointer to a new memory with the
   contents copied from the input memory pointer, upto a given length
@@ -119,7 +122,7 @@ inline const char* bapi_strndup(const char *destination, size_t n)
   @return dest pointer to a new memory if allocation was successful
           NULL otherwise
 */
-inline const void* bapi_memdup(const void* source, size_t len)
+inline void* bapi_memdup(const void* source, size_t len)
 {
   void* dest;
 #if HAVE_MYSYS
@@ -132,6 +135,8 @@ inline const void* bapi_memdup(const void* source, size_t len)
 #endif
   return dest;
 }
+
+
 /**
   This is a wrapper function inorder to  allocate memory from the heap
   in the binlogevent library.
@@ -145,26 +150,30 @@ inline const void* bapi_memdup(const void* source, size_t len)
   @param flags        flags to pass to MySQL server my_malloc functions
   @return Void pointer to the allocated chunk of memory
 */
-inline void * bapi_malloc(size_t size, enum PSI_memory_key_to_int key_to_int=
-                          MEMORY_LOG_EVENT, int flags= 0)
+inline void * bapi_malloc(size_t size, enum PSI_memory_key_to_int key_to_int_arg,
+                          int flags)
 {
   void * dest= NULL;
-  #if HAVE_MYSYS
-  if (key_to_int == ROWS_QUERY_LOG_EVENT_ROWS_QUERY)
-    dest= my_malloc(key_memory_Rows_query_log_event_rows_query,
-                    size, MYF(flags));
-
-  else if (key_to_int == INCIDENT_LOG_EVENT_MESSAGE)
-    dest= my_malloc(key_memory_Incident_log_event_message,size, MYF(flags));
-
-  else
-    dest= my_malloc(key_memory_log_event,size, MYF(flags));
-
-  #else
-    dest=  malloc(size);
-  #endif
+#if HAVE_MYSYS
+/*  PSI_memory_key key;
+  switch (key_to_int_arg){
+  case ROWS_QUERY_LOG_EVENT_ROWS_QUERY:
+    key= key_memory_Rows_query_log_event_rows_query;
+    break;
+  case INCIDENT_LOG_EVENT_MESSAGE:
+    key= key_memory_Incident_log_event_message;
+    break;
+  default:
+    key= key_memory_log_event;
+  }*/
+  dest= my_malloc(key_to_int_arg, size, MYF(flags));
+#else
+  dest= malloc(size);
+#endif
   return dest;
 }
+
+
 /**
   This is a wrapper function inorder to free the memory allocated from the heap
   in the binlogevent library.
@@ -180,9 +189,7 @@ inline void bapi_free(void* ptr)
 #if HAVE_MYSYS
   return my_free(ptr);
 #else
-  if (ptr)
-    return free(ptr);
+  return free(ptr);
 #endif
-  ptr= NULL;
 }
 #endif

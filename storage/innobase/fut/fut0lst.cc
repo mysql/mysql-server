@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -593,10 +593,9 @@ flst_print(
 
 	len = flst_get_len(base, mtr);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"FILE-BASED LIST: Base node in space %lu;"
-		" page %lu; byte offset %lu; len %lu",
-		(ulong) page_get_space_id(frame),
-		(ulong) page_get_page_no(frame),
-		(ulong) page_offset(base), (ulong) len);
+	ib::info() << "FILE-BASED LIST: Base node in space "
+		<< page_get_space_id(frame)
+		<< "; page " << page_get_page_no(frame)
+		<< "; byte offset " << page_offset(base)
+		<< "; len " << len;
 }

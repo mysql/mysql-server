@@ -739,6 +739,8 @@ struct gtid_info
 /**
   @struct  Uuid
 
+  This is a POD.  It has to be a POD because it is a member of
+  Sid_map::Node which is stored in HASH in mysql-server code.
   The structure contains the following components.
   <table>
   <caption>Structure gtid_info</caption>

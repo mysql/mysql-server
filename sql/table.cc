@@ -1735,6 +1735,22 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       share->crashed= 1;                        // Marker for CHECK TABLE
     }
 
+    if (field_type == MYSQL_TYPE_YEAR && field_length != 4)
+    {
+      sql_print_error("Found incompatible YEAR(x) field '%s' in %s; "
+                      "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                      share->fieldnames.type_names[i], share->table_name.str,
+                      share->table_name.str);
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_CRASHED_ON_USAGE,
+                          "Found incompatible YEAR(x) field '%s' in %s; "
+                          "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                          share->fieldnames.type_names[i],
+                          share->table_name.str,
+                          share->table_name.str);
+      share->crashed= 1;
+    }
+
     *field_ptr= reg_field=
       make_field(share, record+recpos,
 		 (uint32) field_length,

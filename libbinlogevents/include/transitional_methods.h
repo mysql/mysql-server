@@ -50,7 +50,8 @@ unsigned int my_timestamp_binary_length(unsigned int dec);
    @param split_versions Array with each element containing one split of the
                          input version string
 */
-inline void do_server_version_split(const char *version, unsigned char split_versions[3])
+inline void do_server_version_split(const char *version,
+                                    unsigned char split_versions[3])
 {
   const char *p= version;
   char *r;
@@ -63,7 +64,7 @@ inline void do_server_version_split(const char *version, unsigned char split_ver
       first number is not followed by '.'.
     */
     if (number < 256 && (*r == '.' || i != 0))
-      split_versions[i]= (unsigned char)number;
+      split_versions[i]= static_cast<unsigned char>(number);
     else
     {
       split_versions[0]= 0;
@@ -94,6 +95,7 @@ inline unsigned long version_product(const unsigned char* version_split)
           + version_split[2]);
 }
 
+
 /*
   This function copies the string pointed to by src (including
   the terminating null byte ('\0')) to the array pointed to by dest.
@@ -111,16 +113,17 @@ inline char *bapi_stpcpy(char *dst, const char *src)
   return dst + strlen(dst);
 }
 
+
 /**
   bapi_strmake(dest,src,length) moves length characters, or until end, of src to
   dest and appends a closing NUL to dest.
   Note that if strlen(src) >= length then dest[length] will be set to \0
-  bapi_strmake() returns pointer to closing null
+
   @param dst    the destintion string
   @param src    the source string
   @param length length to copy from source to destination
 */
-inline char *bapi_strmake(char *dest, const char* src, size_t length)
+inline void bapi_strmake(char *dest, const char* src, size_t length)
 {
   unsigned int n= 0;
   while (n < length && src[n++]);
@@ -128,8 +131,8 @@ inline char *bapi_strmake(char *dest, const char* src, size_t length)
   strncpy(dest, src, length);
   if(dest[length]!= '\0')
     dest[length]= '\0';
-  return dest;
 }
+
 
 /**
    Replication event checksum is introduced in the following "checksum-home"

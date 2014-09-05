@@ -84,6 +84,8 @@ class Fake_TABLE: public TABLE
 
   Fake_TABLE_LIST  table_list;
   Fake_TABLE_SHARE table_share;
+  // Storage space for the handler's handlerton
+  Fake_handlerton fake_handlerton;
   MY_BITMAP write_set_struct;
   uint32 write_set_buf;
   MY_BITMAP read_set_struct;
@@ -185,7 +187,7 @@ public:
   */
   Fake_TABLE(int column_count, bool cols_nullable) :
     table_share(column_count),
-    mock_handler(static_cast<handlerton*>(NULL), &table_share)
+    mock_handler(&fake_handlerton, &table_share)
   {
     DBUG_ASSERT(static_cast<size_t>(column_count) <= sizeof(int) * 8);
     initialize();
@@ -205,7 +207,7 @@ public:
   */
   Fake_TABLE(Item_int *column_value) :
     table_share(1),
-    mock_handler(static_cast<handlerton*>(NULL), &table_share)
+      mock_handler(&fake_handlerton, &table_share)
   {
     initialize();
     add(new Mock_field_long("field_1"), 0);

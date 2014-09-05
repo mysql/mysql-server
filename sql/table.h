@@ -1314,7 +1314,7 @@ public:
   */
   void init_cost_model(const Cost_model_server* cost_model_server)
   {
-    m_cost_model.init(cost_model_server);
+    m_cost_model.init(cost_model_server, this);
   }
 
   /**

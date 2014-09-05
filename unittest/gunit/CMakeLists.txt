@@ -213,7 +213,7 @@ MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
-  gunit_test_main.cc skip_trailing.cc tap_event_listener.cc thread_utils.cc)
+  gunit_test_main.cc skip_trailing.cc tap_event_listener.cc thread_utils.cc fake_costmodel.cc)
 ADD_LIBRARY(gunit_large STATIC
   gunit_test_main_server.cc test_utils.cc tap_event_listener.cc thread_utils.cc)
 ADD_DEPENDENCIES(gunit_small GenError)
@@ -261,7 +261,6 @@ SET(TESTS
   mysys_my_vsnprintf
   mysys_my_write
   nullable
-  opt_costmodel
   opt_recperkey
   prealloced_array
   sql_list
@@ -304,6 +303,8 @@ SET(SERVER_TESTS
   make_sortkey
   mdl_sync
   my_decimal
+  opt_costmodel
+  opt_costconstants
   opt_guessrecperkey
   opt_range
   opt_ref

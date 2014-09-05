@@ -33,6 +33,7 @@
 
 #ifdef _WIN32
 #include <fcntl.h>
+#include <process.h>
 #endif
 
 static void setup_key_functions(MI_KEYDEF *keyinfo);

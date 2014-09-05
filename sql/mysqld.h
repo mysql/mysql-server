@@ -305,6 +305,12 @@ extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
 #endif
 extern ulong log_warnings;
+extern bool  opt_log_syslog_enable;
+extern char *opt_log_syslog_tag;
+#ifndef _WIN32
+extern bool  opt_log_syslog_include_pid;
+extern char *opt_log_syslog_facility;
+#endif
 /** The size of the host_cache. */
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
@@ -390,7 +396,8 @@ extern PSI_mutex_key
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
-  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query;
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
+  key_LOCK_cost_const;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_done;

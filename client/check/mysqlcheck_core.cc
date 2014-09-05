@@ -213,6 +213,8 @@ static int rebuild_table(string name)
     fprintf(stderr, "Error: %s\n", mysql_error(sock));
     rc= 1;
   }
+  else
+    printf("%s\nRunning  : %s\nstatus   : OK\n", name.c_str(), query.c_str());
   return rc;
 }
 

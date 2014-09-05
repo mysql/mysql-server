@@ -687,10 +687,9 @@ fil_node_open_file(
 			/* The following call prints an error message */
 			os_file_get_last_error(true);
 
-			ib_logf(IB_LOG_LEVEL_WARN, "Cannot open '%s'."
+			ib::warn() << "Cannot open '" << node->name << "'."
 				" Have you deleted .ibd files under a"
-				" running mysqld server?",
-				node->name);
+				" running mysqld server?";
 
 			return(false);
 		}
@@ -731,25 +730,24 @@ fil_node_open_file(
 		min_size = FIL_IBD_FILE_INITIAL_SIZE * page_size.physical();
 
 		if (size_bytes < min_size) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The size of tablespace file %s"
-				" is only " UINT64PF ", should be at least %lu!",
-				node->name, size_bytes, min_size);
+
+			ib::error() << "The size of tablespace file "
+				<< node->name << " is only " << size_bytes
+				<< ", should be at least " << min_size << "!";
 
 			ut_error;
 		}
 
 		if (space_id != space->id) {
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Tablespace id is %lu in the data"
-				" dictionary but in file %s it is %lu!",
-				space->id, node->name, space_id);
+			ib::fatal() << "Tablespace id is " << space->id
+				<< " in the data dictionary but in file "
+				<< node->name << " it is " << space_id << "!";
 		}
 
 		if (space_id == ULINT_UNDEFINED || space_id == 0) {
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Tablespace id %lu in file %s is not sensible",
-				(ulong) space_id, node->name);
+			ib::fatal() << "Tablespace id " << space_id
+				<< " in file " << node->name
+				<< " is not sensible";
 		}
 
 		const page_size_t	space_page_size(space->flags);
@@ -890,9 +888,8 @@ fil_try_to_close_file_in_LRU(
 	ut_ad(mutex_own(&fil_system->mutex));
 
 	if (print_info) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"fil_sys open file LRU len %lu",
-			(ulong) UT_LIST_GET_LEN(fil_system->LRU));
+		ib::info() << "fil_sys open file LRU len "
+			<< UT_LIST_GET_LEN(fil_system->LRU);
 	}
 
 	for (node = UT_LIST_GET_LAST(fil_system->LRU);
@@ -913,11 +910,10 @@ fil_try_to_close_file_in_LRU(
 		}
 
 		if (node->n_pending_flushes > 0) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Cannot close file %s, because"
-				" n_pending_flushes %lu",
-				node->name,
-				(ulong) node->n_pending_flushes);
+
+			ib::info() << "Cannot close file " << node->name
+				<< ", because n_pending_flushes "
+				<< node->n_pending_flushes;
 		}
 
 		if (node->modification_counter != node->flush_counter) {
@@ -928,9 +924,8 @@ fil_try_to_close_file_in_LRU(
 		}
 
 		if (node->being_extended) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Cannot close file %s, because it is being"
-				" extended", node->name);
+			ib::info() << "Cannot close file " << node->name
+				<< ", because it is being extended";
 		}
 	}
 
@@ -1137,10 +1132,9 @@ fil_space_free_low(
 	fil_space_t*	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to remove tablespace " ULINTPF
-			" from the cache but it is not there.",
-			id);
+
+		ib::error() << "Trying to remove tablespace " << id
+			<< " from the cache but it is not there.";
 
 		return(false);
 	}
@@ -1244,22 +1238,20 @@ fil_space_create(
 
 	if (space != NULL) {
 		mutex_exit(&fil_system->mutex);
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Tablespace '%s' exists in the cache"
-			" with id " ULINTPF " != " ULINTPF,
-			name, space->id, id);
+
+		ib::warn() << "Tablespace '" << name << "' exists in the cache"
+			" with id " << space->id << " != " << id;
+
 		return(NULL);
 	}
 
 	space = fil_space_get_by_id(id);
 
 	if (space != NULL) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to add tablespace '%s' with id " ULINTPF
-			" to the tablespace memory cache, but tablespace '%s'"
-			" already exists in the cache!",
-			name, id, space->name);
-
+		ib::error() << "Trying to add tablespace '" << name
+			<< "' with id " << id
+			<< " to the tablespace memory cache, but tablespace '"
+			<< space->name << "' already exists in the cache!";
 		mutex_exit(&fil_system->mutex);
 		return(NULL);
 	}
@@ -1281,10 +1273,9 @@ fil_space_create(
 		if (!fil_system->space_id_reuse_warned) {
 			fil_system->space_id_reuse_warned = true;
 
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Allocated tablespace %lu, old maximum was %lu",
-				(ulong) id,
-				(ulong) fil_system->max_assigned_id);
+			ib::warn() << "Allocated tablespace " << id
+				<< ", old maximum was "
+				<< fil_system->max_assigned_id;
 		}
 
 		fil_system->max_assigned_id = id;
@@ -1339,14 +1330,12 @@ fil_assign_new_space_id(
 	id++;
 
 	if (id > (SRV_LOG_SPACE_FIRST_ID / 2) && (id % 1000000UL == 0)) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"You are running out of new single-table tablespace"
-			" id's. Current counter is %lu and it must not exceed"
-			" %lu! To reset the counter to zero you have to dump"
+		ib::warn() << "You are running out of new single-table"
+			" tablespace id's. Current counter is " << id
+			<< " and it must not exceed" << SRV_LOG_SPACE_FIRST_ID
+			<< "! To reset the counter to zero you have to dump"
 			" all your tables and recreate the whole InnoDB"
-			" installation.",
-			(ulong) id,
-			(ulong) SRV_LOG_SPACE_FIRST_ID);
+			" installation.";
 	}
 
 	success = (id < SRV_LOG_SPACE_FIRST_ID);
@@ -1354,12 +1343,11 @@ fil_assign_new_space_id(
 	if (success) {
 		*space_id = fil_system->max_assigned_id = id;
 	} else {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"You have run out of single-table tablespace id's!"
-			" Current counter is %lu. To reset the counter to zero"
+		ib::warn() << "You have run out of single-table tablespace"
+			" id's! Current counter is " << id
+			<< ". To reset the counter to zero"
 			" you have to dump all your tables and"
-			" recreate the whole InnoDB installation.",
-			(ulong) id);
+			" recreate the whole InnoDB installation.";
 		*space_id = ULINT_UNDEFINED;
 	}
 
@@ -1664,8 +1652,7 @@ fil_open_log_and_system_tablespace_files(void)
 
 			if (fil_system->max_n_open < 10 + fil_system->n_open) {
 
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"You must raise the value of"
+				ib::warn() << "You must raise the value of"
 					" innodb_open_files in my.cnf!"
 					" Remember that InnoDB keeps all"
 					" log files and all system"
@@ -1674,10 +1661,11 @@ fil_open_log_and_system_tablespace_files(void)
 					" running, and needs to open also"
 					" some .ibd files if the"
 					" file-per-table storage model is used."
-					" Current open files %lu, max allowed"
-					" open files %lu.",
-					(ulong) fil_system->n_open,
-					(ulong) fil_system->max_n_open);
+					" Current open files "
+					<< fil_system->n_open
+					<< ", max allowed open files "
+					<< fil_system->max_n_open
+					<< ".";
 			}
 		}
 	}
@@ -1842,9 +1830,9 @@ fil_inc_pending_ops(
 	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to do an operation on a dropped tablespace."
-			" Space ID: " ULINTPF, id);
+
+		ib::error() << "Trying to do an operation on a dropped"
+			" tablespace. Space ID: " << id;
 	} else {
 
 		skip_inc_pending_ops = (space->stop_new_ops
@@ -1874,10 +1862,8 @@ fil_decr_pending_ops(
 	space = fil_space_get_by_id(id);
 
 	if (space == NULL) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Decrementing pending operation"
-			" of a dropped tablespace %lu",
-			(ulong) id);
+		ib::error() << "Decrementing pending operation"
+			" of a dropped tablespace " << id;
 	}
 
 	if (space != NULL) {
@@ -2069,9 +2055,8 @@ fil_recreate_table(
 								  &found));
 
 	if (!found) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Missing .ibd file for table '%s' with tablespace %lu",
-			name, space_id);
+		ib::info() << "Missing .ibd file for table '" << name
+			<< "' with tablespace " << space_id;
 		return(DB_ERROR);
 	}
 
@@ -2087,10 +2072,9 @@ fil_recreate_table(
 	err = truncate.create_indexes(
 		name, space_id, page_size, flags, format_flags);
 	if (err != DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Failed to create indexes for the table '%s' with"
-			" tablespace %lu while fixing up truncate action",
-			name, space_id);
+		ib::info() << "Failed to create indexes for the table '"
+			<< name << "' with tablespace " << space_id
+			<< " while fixing up truncate action";
 		return(err);
 	}
 
@@ -2136,9 +2120,9 @@ fil_recreate_tablespace(
 
 	if (err != DB_SUCCESS) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Cannot access .ibd file for table '%s' with"
-			" tablespace %lu while truncating", name, space_id);
+		ib::info() << "Cannot access .ibd file for table '"
+			<< name << "' with tablespace " << space_id
+			<< " while truncating";
 		return(DB_ERROR);
 	}
 
@@ -2147,9 +2131,8 @@ fil_recreate_tablespace(
 		fil_space_get_page_size(space_id, &found);
 
 	if (!found) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Missing .ibd file for table '%s' with tablespace %lu",
-			name, space_id);
+		ib::info() << "Missing .ibd file for table '" << name
+			<< "' with tablespace " << space_id;
 		return(DB_ERROR);
 	}
 
@@ -2187,9 +2170,9 @@ fil_recreate_tablespace(
 		ut_free(buf);
 
 		if (err != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Failed to clean header of the table '%s' with"
-				" tablespace %lu", name, space_id);
+			ib::info() << "Failed to clean header of the"
+				" table '" << name << "' with tablespace "
+				<< space_id;
 			return(err);
 		}
 	}
@@ -2280,10 +2263,9 @@ fil_recreate_tablespace(
 		}
 
 		if (err != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Cannot write page %lu into a .ibd file for"
-				" table '%s' with tablespace %lu",
-				page_no, name, space_id);
+			ib::info() << "Cannot write page " << page_no
+				<< " into a .ibd file for table '"
+				<< name << "' with tablespace " << space_id;
 		}
 	}
 
@@ -2357,12 +2339,11 @@ fil_op_replay_rename(
 
 	if (!os_file_status(new_name, &exists, &ftype)
 	    || exists) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot replay rename '%s' to '%s'"
-			" for space ID " ULINTPF
-			" because the target file exists."
-			" Remove either file and try again.",
-			name, new_name, space_id);
+		ib::error() << "Cannot replay rename '" << name
+			<< "' to '" << new_name << "'"
+			" for space ID " << space_id
+			<< " because the target file exists."
+			" Remove either file and try again.";
 		return(false);
 	}
 
@@ -2408,12 +2389,10 @@ fil_ibuf_check_pending_ops(
 	if (space != 0 && space->n_pending_ops != 0) {
 
 		if (count > 5000) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Trying to close/delete/truncate tablespace"
-				" '%s' but there are %lu pending change"
-				" buffer merges on it.",
-				space->name,
-				(ulong) space->n_pending_ops);
+			ib::warn() << "Trying to close/delete/truncate"
+				" tablespace '" << space->name
+				<< "' but there are " << space->n_pending_ops
+				<< " pending change buffer merges on it.";
 		}
 
 		return(count + 1);
@@ -2457,13 +2436,12 @@ fil_check_pending_io(
 		ut_a(!(*node)->being_extended);
 
 		if (count > 1000) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Trying to delete/close/truncate tablespace"
-				" '%s' but there are %lu flushes"
-				" and %lu pending i/o's on it.",
-				space->name,
-				(ulong) space->n_pending_flushes,
-				(ulong) (*node)->n_pending);
+			ib::warn() << "Trying to delete/close/truncate"
+				" tablespace '" << space->name
+				<< "' but there are "
+				<< space->n_pending_flushes
+				<< " flushes and " << (*node)->n_pending
+				<< " pending i/o's on it.";
 		}
 
 		return(count + 1);
@@ -2639,10 +2617,9 @@ fil_delete_tablespace(
 
 	if (err != DB_SUCCESS) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot delete tablespace %lu because it is not"
-			" found in the tablespace memory cache.",
-			(ulong) id);
+		ib::error() << "Cannot delete tablespace " << id
+			<< " because it is not found in the tablespace"
+			" memory cache.";
 
 		return(err);
 	}
@@ -2867,10 +2844,9 @@ fil_prepare_for_truncate(
 	ut_free(path);
 
 	if (err == DB_TABLESPACE_NOT_FOUND) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot truncate tablespace %lu because it is"
-			" not found in the tablespace memory cache.",
-			(ulong) id);
+		ib::error() << "Cannot truncate tablespace " << id
+			<< " because it is not found in the tablespace"
+			" memory cache.";
 	}
 
 	return(err);
@@ -3034,17 +3010,14 @@ fil_discard_tablespace(
 		break;
 
 	case DB_IO_ERROR:
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"While deleting tablespace %lu in DISCARD TABLESPACE."
-			" File rename/delete failed: %s",
-			(ulong) id, ut_strerr(err));
+		ib::warn() << "While deleting tablespace " << id
+			<< " in DISCARD TABLESPACE. File rename/delete"
+			" failed: " << ut_strerr(err);
 		break;
 
 	case DB_TABLESPACE_NOT_FOUND:
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot delete tablespace %lu in DISCARD"
-			" TABLESPACE. %s",
-			(ulong) id, ut_strerr(err));
+		ib::warn() << "Cannot delete tablespace " << id
+			<< " in DISCARD TABLESPACE: " << ut_strerr(err);
 		break;
 
 	default:
@@ -3078,18 +3051,15 @@ fil_rename_tablespace_in_mem(
 
 	space2 = fil_space_get_by_name(old_name);
 	if (space != space2) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot find %s in tablespace memory cache",
-			old_name);
-
+		ib::error() << "Cannot find " << old_name
+			<< " in tablespace memory cache";
 		return(false);
 	}
 
 	space2 = fil_space_get_by_name(new_name);
 	if (space2 != NULL) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"%s is already in tablespace memory cache",
-			new_name);
+		ib::error() << new_name
+			<< " is already in tablespace memory cache";
 
 		return(false);
 	}
@@ -3239,9 +3209,10 @@ retry:
 	count++;
 
 	if (!(count % 1000)) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Problems renaming %s to %s, " ULINTPF " iterations",
-			old_path, new_path, count);
+		ib::warn() << "Cannot rename " << old_path << " to "
+			<< new_path << ", retried " << count << " times."
+			" There are either pending IOs or flushes or"
+			" the file is being extended.";
 	}
 
 	mutex_enter(&fil_system->mutex);
@@ -3253,11 +3224,11 @@ retry:
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_1", space = NULL; );
 
 	if (space == NULL) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot find space id " ULINTPF " in the tablespace"
-			" memory cache, though the file '%s' in a"
-			" rename operation should have that id.",
-			id, old_path);
+		ib::error() << "Cannot find space id " << id
+			<< " in the tablespace memory cache, though the file '"
+			<< old_path
+			<< "' in a rename operation should have that id.";
+
 		goto func_exit;
 	}
 
@@ -3436,12 +3407,11 @@ fil_create_new_single_table_tablespace(
 		/* The following call will print an error message */
 		ulint	error = os_file_get_last_error(true);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot create file '%s'", path);
+		ib::error() << "Cannot create file '" << path << "'";
 
 		if (error == OS_FILE_ALREADY_EXISTS) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The file '%s' already exists though the"
+			ib::error() << "The file '" << path << "'"
+				" already exists though the"
 				" corresponding table did not exist"
 				" in the InnoDB data dictionary."
 				" Have you moved InnoDB .ibd files"
@@ -3450,9 +3420,8 @@ fil_create_new_single_table_tablespace(
 				" or did mysqld crash in the middle of"
 				" CREATE TABLE?"
 				" You can resolve the problem by removing"
-				" the file '%s' under the 'datadir' of MySQL.",
-				path, path);
-
+				" the file '" << path
+				<< "' under the 'datadir' of MySQL.";
 			ut_free(path);
 			return(DB_TABLESPACE_EXISTS);
 		}
@@ -3474,17 +3443,17 @@ fil_create_new_single_table_tablespace(
 
 		if (ret != 0) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
+			ib::error() <<
 				"posix_fallocate(): Failed to preallocate"
-				" data for file %s, desired size %lu."
-				" Operating system error number %d. Check"
+				" data for file " << path
+				<< ", desired size "
+				<< size * UNIV_PAGE_SIZE
+				<< " Operating system error number " << ret
+				<< ". Check"
 				" that the disk is not full or a disk quota"
 				" exceeded. Some operating system error"
 				" numbers are described at " REFMAN
-				" operating-system-error-codes.html",
-				path,
-				(ulong) size * UNIV_PAGE_SIZE,
-				ret);
+				" operating-system-error-codes.html";
 
 			success = false;
 		} else {
@@ -3557,9 +3526,8 @@ fil_create_new_single_table_tablespace(
 	ut_free(buf2);
 
 	if (!success) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Could not write the first page to tablespace '%s'",
-			path);
+		ib::error() << "Could not write the first page to"
+			<< " tablespace '" << path << "'";
 		os_file_close(file);
 		os_file_delete(innodb_data_file_key, path);
 		ut_free(path);
@@ -3569,8 +3537,8 @@ fil_create_new_single_table_tablespace(
 	success = os_file_flush(file);
 
 	if (!success) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"File flush of tablespace '%s' failed", path);
+		ib::error() << "File flush of tablespace '"
+			<< path << "' failed";
 		os_file_close(file);
 		os_file_delete(innodb_data_file_key, path);
 		ut_free(path);
@@ -3714,11 +3682,10 @@ fil_open_single_table_tablespace(
 		DIRECTORY to be the same as the default filepath.
 		This could happen if the link file was edited directly.*/
 		if (df_default.same_filepath_as(df_remote.filepath())) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Link files should not refer to files in"
-				" the default location. Please delete %s"
-				" or change the remote file it refers to.",
-				df_remote.link_filepath());
+			ib::error() << "Link files should not refer to"
+				" files in the default location. Please"
+				" delete " << df_remote.link_filepath()
+				<< " or change the remote file it refers to.";
 			return(DB_CORRUPTION);
 		}
 
@@ -3782,10 +3749,8 @@ fil_open_single_table_tablespace(
 	if (valid_tablespaces_found == 0) {
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Could not find a valid tablespace file for '%s'. %s",
-			tablename, TROUBLESHOOT_DATADICT_MSG);
+		ib::error() << "Could not find a valid tablespace file for '"
+			<< tablename << "'. " << TROUBLESHOOT_DATADICT_MSG;
 
 		return(DB_CORRUPTION);
 	}
@@ -3793,9 +3758,9 @@ fil_open_single_table_tablespace(
 	/* Do not open any tablespaces if more than one tablespace with
 	the correct space ID and flags were found. */
 	if (tablespaces_found > 1) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"A tablespace for %s has been found in"
-			" multiple places;", tablename);
+		ib::error() << "A tablespace for " << tablename
+			<< " has been found in multiple places;";
+
 		if (df_default.is_open()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Default location; %s"
@@ -4254,10 +4219,10 @@ fil_file_readdir_next_file(
 			return(ret);
 		}
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"os_file_readdir_next_file() returned -1 in"
-			" directory %s, crash recovery may have failed"
-			" for some .ibd files!", dirname);
+		ib::error() << "os_file_readdir_next_file() returned -1 in"
+			" directory " << dirname
+			<< ", crash recovery may have failed"
+			" for some .ibd files!";
 
 		*err = DB_ERROR;
 	}
@@ -4337,14 +4302,14 @@ fil_report_missing_tablespace(
 
 	innobase_format_name(index_name, sizeof(index_name), name, TRUE);
 
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Table %s in the InnoDB data dictionary has tablespace id %lu,"
+	ib::error() << "Table " << name
+		<< " in the InnoDB data dictionary has tablespace id "
+		<< space_id << ","
 		" but tablespace with that id or name does not exist. Have"
 		" you deleted or moved .ibd files? This may also be a table"
 		" created with CREATE TEMPORARY TABLE whose .ibd and .frm"
 		" files MySQL automatically removed, but the table still"
-		" exists in the InnoDB internal data dictionary.",
-		name, space_id);
+		" exists in the InnoDB internal data dictionary.";
 }
 
 /*******************************************************************//**
@@ -4685,16 +4650,17 @@ retry:
 		int	ret = posix_fallocate(node->handle, node_start, len);
 
 		if (ret != 0) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
+			ib::error() <<
 				"posix_fallocate(): Failed to preallocate"
-				" data for file %s, desired size %lu bytes."
-				" Operating system error number %d. Check"
+				" data for file "
+				<< node->name << ", desired size "
+				<< len << " bytes."
+				" Operating system error number "
+				<< ret << ". Check"
 				" that the disk is not full or a disk quota"
 				" exceeded. Some operating system error"
 				" numbers are described at " REFMAN ""
-				" operating-system-error-codes.html",
-				node->name, (ulong) len, ret);
-
+				" operating-system-error-codes.html";
 			success = false;
 		}
 #endif /* NO_FALLOCATE || !UNIV_LINUX */
@@ -6043,13 +6009,13 @@ fil_tablespace_iterate(
 
 	if (err == DB_SUCCESS) {
 
-		ib_logf(IB_LOG_LEVEL_INFO, "Sync to disk");
+		ib::info() << "Sync to disk";
 
 		if (!os_file_flush(file)) {
-			ib_logf(IB_LOG_LEVEL_INFO, "os_file_flush() failed!");
+			ib::info() << "os_file_flush() failed!";
 			err = DB_IO_ERROR;
 		} else {
-			ib_logf(IB_LOG_LEVEL_INFO, "Sync to disk - done!");
+			ib::info() << "Sync to disk - done!";
 		}
 	}
 
@@ -6086,7 +6052,7 @@ fil_delete_file(
 {
 	/* Force a delete of any stale .ibd files that are lying around. */
 
-	ib_logf(IB_LOG_LEVEL_INFO, "Deleting %s", ibd_filepath);
+	ib::info() << "Deleting " << ibd_filepath;
 
 	os_file_delete_if_exists(innodb_data_file_key, ibd_filepath, NULL);
 
@@ -6420,9 +6386,8 @@ truncate_t::truncate(
 			? false : srv_read_only_mode, &ret);
 
 		if (!ret) {
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to open tablespace file %s.", path);
+			ib::error() << "Failed to open tablespace file "
+				<< path << ".";
 
 			ut_free(path);
 
@@ -6440,11 +6405,8 @@ truncate_t::truncate(
 		path, node->handle, trunc_size * UNIV_PAGE_SIZE);
 
 	if (!success) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot truncate file %s in TRUNCATE TABLESPACE.",
-			path);
-
+		ib::error() << "Cannot truncate file " << path
+			<< " in TRUNCATE TABLESPACE.";
 		err = DB_ERROR;
 	}
 
