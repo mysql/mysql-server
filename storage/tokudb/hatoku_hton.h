@@ -515,6 +515,16 @@ static uint tokudb_check_jemalloc;
 static MYSQL_SYSVAR_UINT(check_jemalloc, tokudb_check_jemalloc, 0, "Check if jemalloc is linked", NULL, NULL, 1, 0, 1, 0);
 #endif
 
+#if TOKU_INCLUDE_XA
+static MYSQL_THDVAR_BOOL(support_xa,
+    PLUGIN_VAR_OPCMDARG,
+    "Enable TokuDB support for the XA two-phase commit",
+    NULL, // check
+    NULL, // update
+    true  // default
+);
+#endif
+
 static MYSQL_THDVAR_BOOL(bulk_fetch, PLUGIN_VAR_THDLOCAL, "enable bulk fetch", NULL /*check*/, NULL /*update*/, true /*default*/);
 
 extern HASH tokudb_open_tables;
