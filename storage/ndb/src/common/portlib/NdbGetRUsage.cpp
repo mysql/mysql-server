@@ -87,7 +87,7 @@ Ndb_GetRUsage(ndb_rusage* dst)
   dst->ru_minflt = 0;
   dst->ru_majflt = 0;
   dst->ru_nvcsw = 0;
-  dst->run_nivcsw = 0;
+  dst->ru_nivcsw = 0;
 
   /**
    * GetThreadTimes times are updated once per timer interval, so can't
