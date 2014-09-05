@@ -30,6 +30,8 @@
 #include "binlog_event.h"
 #include "control_events.h"
 #include "table_id.h"
+#include <cassert>
+#include <vector>
 
 /**
    1 byte length, 1 byte format

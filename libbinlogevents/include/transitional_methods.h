@@ -96,44 +96,6 @@ inline unsigned long version_product(const unsigned char* version_split)
 }
 
 
-/*
-  This function copies the string pointed to by src (including
-  the terminating null byte ('\0')) to the array pointed to by dest.
-  The strings may not overlap, and the destination string dest must be
-  large enough to receive the copy.
-
-  @param src  the source string
-  @param dest the desctination string
-
-  @return     pointer to the end of the string dest
-*/
-inline char *bapi_stpcpy(char *dst, const char *src)
-{
-  strcpy(dst, src);
-  return dst + strlen(dst);
-}
-
-
-/**
-  bapi_strmake(dest,src,length) moves length characters, or until end, of src to
-  dest and appends a closing NUL to dest.
-  Note that if strlen(src) >= length then dest[length] will be set to \0
-
-  @param dst    the destintion string
-  @param src    the source string
-  @param length length to copy from source to destination
-*/
-inline void bapi_strmake(char *dest, const char* src, size_t length)
-{
-  unsigned int n= 0;
-  while (n < length && src[n++]);
-  memset(dest + n, (int) 'Z', length - n + 1);
-  strncpy(dest, src, length);
-  if(dest[length]!= '\0')
-    dest[length]= '\0';
-}
-
-
 /**
    Replication event checksum is introduced in the following "checksum-home"
    version. The checksum-aware servers extract FD's version to decide whether

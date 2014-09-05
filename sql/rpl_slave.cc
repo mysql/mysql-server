@@ -6642,7 +6642,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
   );
   binary_log_debug::debug_checksum_test=
-               DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
+    DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
   if (Log_event_footer::event_checksum_test((uchar *) buf,
                                             event_len, checksum_alg))
   {
