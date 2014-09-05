@@ -44,6 +44,7 @@ WatchDog::WatchDog(Uint32 interval) :
   setCheckInterval(interval);
   m_mutex = NdbMutex_Create();
   theStop = false;
+  killer = false;
   theThreadPtr = 0;
 }
 
@@ -123,6 +124,14 @@ WatchDog::doStop(){
     NdbThread_WaitFor(theThreadPtr, &status);
     NdbThread_Destroy(&theThreadPtr);
   }
+}
+
+void
+WatchDog::setKillSwitch(bool kill)
+{
+  g_eventLogger->info("Watchdog KillSwitch %s.",
+                      (kill?"on":"off"));
+  killer = kill;
 }
 
 static
@@ -380,7 +389,7 @@ WatchDog::run()
                               errno);
           }
         }
-        if (elapsed[i] > 3 * theInterval)
+        if ((elapsed[i] > 3 * theInterval) || killer)
         {
           shutdownSystem(last_stuck_action);
         }

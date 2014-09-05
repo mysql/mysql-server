@@ -65,6 +65,8 @@ public:
   /* Remove a thread from registration, identified by thread id. */
   void unregisterWatchedThread(Uint32 threadId);
 
+  void setKillSwitch(bool kill);
+
 protected:
   /**
    * Thread function
@@ -90,6 +92,7 @@ private:
   NdbMutex *m_mutex;
 
   bool theStop;
+  bool killer;
   
   void run();
   void shutdownSystem(const char *last_stuck_action);
