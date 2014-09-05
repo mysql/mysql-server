@@ -3119,12 +3119,6 @@ TransporterFacade::ext_get_connect_address(Uint32 nodeId)
   return theTransporterRegistry->get_connect_address(nodeId);
 }
 
-void
-TransporterFacade::ext_forceHB()
-{
-  theClusterMgr->forceHB();
-}
-
 bool
 TransporterFacade::ext_isConnected(NodeId aNodeId)
 {

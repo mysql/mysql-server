@@ -24,7 +24,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 768;
+const GlobalSignalNumber MAX_GSN = 769;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1091,4 +1091,5 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_INDEX_STAT_IMPL_REF         655
 #define GSN_INDEX_STAT_REP              656
 
+#define GSN_NODE_STARTED_REP            769
 #endif

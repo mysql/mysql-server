@@ -3972,6 +3972,7 @@ Ndbcntr::execRESUME_REQ(Signal* signal){
   NodeState newState(NodeState::SL_STARTED);		  
   updateNodeState(signal, newState);
   c_stopRec.stopReq.senderRef=0;
+  send_node_started_rep(signal);
 }
 
 void
@@ -4235,6 +4236,7 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   {
     NodeState newState(NodeState::SL_STARTED); 
     cntr.updateNodeState(signal, newState);
+    cntr.send_node_started_rep(signal);
   }
 
   signal->theData[0] = NDB_LE_NDBStopAborted;
@@ -4933,7 +4935,7 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
             case NodeState::ST_SYSTEM_RESTART:
             {
               g_eventLogger->info("Phase 8 enabled foreign keys and waited for"
-                                  "all nodes to complete start");
+                        "all nodes to complete start up to this point");
               break;
             }
             default:
@@ -4941,6 +4943,7 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
           }
           break;
         case 9:
+          g_eventLogger->info("Phase 9 enabled APIs to start connecting");
           break;
         case 101:
           g_eventLogger->info("Phase 101 was used by SUMA to take over"
@@ -4983,10 +4986,18 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
   
   NodeState newState(NodeState::SL_STARTED);
   cntr.updateNodeState(signal, newState);
+  cntr.send_node_started_rep(signal);
 
   NodeReceiverGroup rg(NDBCNTR, cntr.c_clusterNodes);
   signal->theData[0] = cntr.getOwnNodeId();
   cntr.sendSignal(rg, GSN_CNTR_START_REP, signal, 1, JBB);
+}
+
+void
+Ndbcntr::send_node_started_rep(Signal *signal)
+{
+  signal->theData[0] = getOwnNodeId();
+  sendSignal(QMGR_REF, GSN_NODE_STARTED_REP, signal, 1, JBB);
 }
 
 void

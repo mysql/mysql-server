@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -300,6 +300,8 @@ private:
 
   void updateNodeState(Signal* signal, const NodeState & newState) const ;
   void getNodeGroup(Signal* signal);
+
+  void send_node_started_rep(Signal *signal);
 
   // Initialisation
   void initData();

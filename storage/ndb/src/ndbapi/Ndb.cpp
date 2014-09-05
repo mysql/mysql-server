@@ -127,7 +127,14 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode, Uint32 instance)
 #endif
     theError.code = 4006;
   } else {
-    theError.code = 4009;
+    if (theImpl->m_transporter_facade->is_cluster_completely_unavailable())
+    {
+      theError.code = 4009;
+    }
+    else
+    {
+      theError.code = 4035;
+    }
   }//if
   DBUG_RETURN(NULL);
 }
@@ -356,7 +363,14 @@ Ndb::waitUntilReady(int timeout)
   if (theImpl->m_ndb_cluster_connection.wait_until_ready
       (timeout-secondsCounter,30) < 0)
   {
-    theError.code = 4009;
+    if (theImpl->m_transporter_facade->is_cluster_completely_unavailable())
+    {
+      theError.code = 4009;
+    }
+    else
+    {
+      theError.code = 4035;
+    }
     DBUG_RETURN(-1);
   }
 
