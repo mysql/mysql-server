@@ -216,6 +216,9 @@ Qmgr::Qmgr(Block_context& ctx)
   // Ndbinfo signal
   addRecSignal(GSN_DBINFO_SCANREQ, &Qmgr::execDBINFO_SCANREQ);
 
+  // Message from NDBCNTR when our node is set to state STARTED
+  addRecSignal(GSN_NODE_STARTED_REP, &Qmgr::execNODE_STARTED_REP);
+
   initData();
 }//Qmgr::Qmgr()
 

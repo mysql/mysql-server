@@ -312,7 +312,7 @@ void Qmgr::execSTTOR(Signal* signal)
       }
     }
     break;
-  case 8:{
+  case 9:{
     /**
      * Enable communication to all API nodes by setting state
      *   to ZFAIL_CLOSING (which will make it auto-open in checkStartInterface)
@@ -353,7 +353,7 @@ void Qmgr::sendSttorryLab(Signal* signal, bool first_phase)
 /*< STTORRY                  <*/
 /****************************<*/
   signal->theData[3] = 7;
-  signal->theData[4] = 8;
+  signal->theData[4] = 9;
   signal->theData[5] = 255;
   sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
   return;
@@ -501,6 +501,8 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   case ZFAIL_CLOSING:
     jam();
     return;
+  case ZAPI_ACTIVATION_ONGOING:
+    ndbrequire(false);
   case ZAPI_ACTIVE:
     ndbrequire(false);
   case ZAPI_INACTIVE:
@@ -1987,8 +1989,13 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
   case ZSTARTING:
     break;
   case ZRUNNING:
+    jam();
   case ZPREPARE_FAIL:
+    jam();
+  case ZAPI_ACTIVATION_ONGOING:
+    jam();
   case ZAPI_ACTIVE:
+    jam();
   case ZAPI_INACTIVE:
     ndbrequire(false);
   }
@@ -3352,6 +3359,8 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     ndbrequire(false);
   case ZFAIL_CLOSING:
     ndbrequire(false);
+  case ZAPI_ACTIVATION_ONGOING:
+    ndbrequire(false);
   case ZAPI_ACTIVE:
     ndbrequire(false);
   case ZAPI_INACTIVE:
@@ -3600,14 +3609,20 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
     if ((state.startLevel == NodeState::SL_STARTED ||
          state.getSingleUserMode() ||
          (state.startLevel == NodeState::SL_STARTING &&
-          state.starting.startPhase >= 100)))
+          state.starting.startPhase >= 8)))
     {
       jam();
       /**----------------------------------------------------------------------
        * THE API NODE IS REGISTERING. WE WILL ACCEPT IT BY CHANGING STATE AND
-       * SENDING A CONFIRM.
+       * SENDING A CONFIRM. We set state to ZAPI_ACTIVATION_ONGOING to ensure
+       * that we don't send unsolicited API_REGCONF or other things before we
+       * actually fully enabled the node for communicating with the new API
+       * node. It also avoids sending NODE_FAILREP, NF_COMPLETEREP and
+       * TAKE_OVERTCCONF even before the API_REGCONF is sent. We will get a
+       * fresh state of the nodes in API_REGCONF which is sufficient, no need
+       * to update the API before the API got the initial state.
        *----------------------------------------------------------------------*/
-      apiNodePtr.p->phase = ZAPI_ACTIVE;
+      apiNodePtr.p->phase = ZAPI_ACTIVATION_ONGOING;
       EnableComReq *enableComReq = (EnableComReq *)signal->getDataPtrSend();
       enableComReq->m_senderRef = reference();
       enableComReq->m_senderData = ENABLE_COM_API_REGREQ;
@@ -3617,6 +3632,13 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
                  EnableComReq::SignalLength, JBB);
       return;
     }
+    /**
+     * The node is in some kind of STOPPING state, so we send API_REGCONF even
+     * though we've not enabled communication, if the API tries to send
+     * anything to us anyways it will simply be ignored since only QMGR will
+     * receive signals in this state. The API receives the node states, so it
+     * should be able to discover what nodes that it is able to actually use.
+     */
   }
 
   sendApiRegConf(signal, apiNodePtr.i);
@@ -3625,6 +3647,7 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
 void
 Qmgr::handleEnableComApiRegreq(Signal *signal, Uint32 node)
 {
+  NodeRecPtr apiNodePtr;
   NodeInfo::NodeType type = getNodeInfo(node).getType();
   Uint32 version = getNodeInfo(node).m_version;
   recompute_version_info(type, version);
@@ -3639,7 +3662,70 @@ Qmgr::handleEnableComApiRegreq(Signal *signal, Uint32 node)
   signal->theData[0] = node;
   EXECUTE_DIRECT(NDBCNTR, GSN_API_START_REP, signal, 1);
 
-  sendApiRegConf(signal, node);
+  apiNodePtr.i = node;
+  ptrCheckGuard(apiNodePtr, MAX_NODES, nodeRec);
+  if (apiNodePtr.p->phase == ZAPI_ACTIVATION_ONGOING)
+  {
+    /**
+     * Now we're about to send API_REGCONF to an API node, this means
+     * that this node can immediately start communicating to TC, SUMA
+     * and so forth. The state also indicates that the API is ready
+     * to receive an unsolicited API_REGCONF when the node goes to
+     * state SL_STARTED.
+     */
+    jam();
+    apiNodePtr.p->phase = ZAPI_ACTIVE;
+    sendApiRegConf(signal, node);
+  }
+  jam();
+  /**
+   * Node is no longer in state ZAPI_ACTIVATION_ONGOING, the node must
+   * have failed, we can ignore sending API_REGCONF to a failed node.
+   */
+}
+
+void
+Qmgr::execNODE_STARTED_REP(Signal *signal)
+{
+  NodeRecPtr apiNodePtr;
+  for (apiNodePtr.i = 1;
+       apiNodePtr.i < MAX_NODES;
+       apiNodePtr.i++)
+  {
+    ptrCheckGuard(apiNodePtr, MAX_NODES, nodeRec);
+    NodeInfo::NodeType type = getNodeInfo(apiNodePtr.i).getType();
+    if (type != NodeInfo::API)
+    {
+      /* Not an API node */
+      continue;
+    }
+    if (!c_connectedNodes.get(apiNodePtr.i))
+    {
+      /* API not connected */
+      continue;
+    }
+    if (apiNodePtr.p->phase != ZAPI_ACTIVE)
+    {
+      /**
+       * The phase variable can be in three states for the API nodes, it can
+       * be ZAPI_INACTIVE for an API node that hasn't connected, it can be
+       * ZFAIL_CLOSING for an API node that recently failed and is performing
+       * failure handling. It can be in the state ZAPI_ACTIVE which it enters
+       * upon us receiving an API_REGREQ from the API. So at this point the
+       * API is also able to receive an unsolicited API_REGCONF message.
+       */
+      continue;
+    }
+    /**
+     * We will send an unsolicited API_REGCONF to the API node, this makes the
+     * API node aware of our existence much faster (without it can wait up to
+     * the lenght of a heartbeat DB-API period. For rolling restarts and other
+     * similar actions this can easily cause the API to not have any usable
+     * DB connections at all. This unsolicited response minimises this window
+     * of unavailability to zero for all practical purposes.
+     */
+    sendApiRegConf(signal, apiNodePtr.i);
+  }
 }
 
 void
@@ -6087,6 +6173,11 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
         break;
       case ZAPI_ACTIVE:
         sprintf(buf, "Node %d: ZAPI_ACTIVE(%d)", i, nodePtr.p->phase);
+        break;
+      case ZAPI_ACTIVATION_ONGOING:
+        sprintf(buf, "Node %d: ZAPI_ACTIVATION_ONGOING(%d)",
+                i,
+                nodePtr.p->phase);
         break;
       default:
         sprintf(buf, "Node %d: <UNKNOWN>(%d)", i, nodePtr.p->phase);

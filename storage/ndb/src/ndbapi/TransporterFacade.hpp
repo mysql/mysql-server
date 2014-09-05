@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -105,7 +105,6 @@ public:
   void ext_set_max_api_reg_req_interval(Uint32 ms);
   void ext_update_connections();
   struct in_addr ext_get_connect_address(Uint32 nodeId);
-  void ext_forceHB();
   bool ext_isConnected(NodeId aNodeId);
   void ext_doConnect(int aNodeId);
 
@@ -129,6 +128,8 @@ public:
 
   NodeId get_an_alive_node();
   void trp_node_status(NodeId, Uint32 event);
+
+  bool is_cluster_completely_unavailable();
 
   /**
    * Send signal to each registered object
@@ -404,6 +405,13 @@ TransporterFacade::unlock_poll_mutex()
 
 #include "ClusterMgr.hpp"
 #include "ndb_cluster_connection_impl.hpp"
+
+inline
+bool
+TransporterFacade::is_cluster_completely_unavailable()
+{
+  return theClusterMgr->is_cluster_completely_unavailable();
+}
 
 inline
 unsigned Ndb_cluster_connection_impl::get_connect_count() const

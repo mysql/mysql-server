@@ -807,5 +807,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_BUILD_FK_IMPL_REQ, "BUILD_FK_IMPL_REQ" }
   ,{ GSN_BUILD_FK_IMPL_REF, "BUILD_FK_IMPL_REF" }
   ,{ GSN_BUILD_FK_IMPL_CONF, "BUILD_FK_IMPL_CONF" }
+  ,{ GSN_NODE_STARTED_REP, "NODE_STARTED_REP" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);
