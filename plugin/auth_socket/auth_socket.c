@@ -27,9 +27,29 @@
 #define _GNU_SOURCE 1 /* for struct ucred */
 
 #include <mysql/plugin_auth.h>
-#include <sys/socket.h>
-#include <pwd.h>
 #include <string.h>
+#include <pwd.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
+#ifdef HAVE_PEERCRED
+#define level SOL_SOCKET
+
+#elif defined HAVE_SOCKPEERCRED
+#define level SOL_SOCKET
+#define ucred socketpeercred
+
+#elif defined HAVE_XUCRED
+#include <sys/un.h>
+#include <sys/ucred.h>
+#define level 0
+#define SO_PEERCRED LOCAL_PEERCRED
+#define uid cr_uid
+#define ucred xucred
+
+#else
+#error impossible
+#endif
 
 /**
   perform the unix socket based authentication
@@ -63,7 +83,7 @@ static int socket_auth(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
     return CR_ERROR;
 
   /* get the UID of the client process */
-  if (getsockopt(vio_info.socket, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len))
+  if (getsockopt(vio_info.socket, level, SO_PEERCRED, &cred, &cred_len))
     return CR_ERROR;
 
   if (cred_len != sizeof(cred))

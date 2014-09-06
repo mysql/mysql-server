@@ -22,18 +22,49 @@ int main() {
   getsockopt(0, SOL_SOCKET, SO_PEERCRED, &cred, 0);
 }" HAVE_PEERCRED)
  
-IF (NOT HAVE_PEERCRED)
-  # Hi, OpenBSD!
-  CHECK_CXX_SOURCE_COMPILES(
-  "#include <sys/types.h>
-  #include <sys/socket.h>
-  int main() {
-    struct sockpeercred cred;
-    getsockopt(0, SOL_SOCKET, SO_PEERCRED, &cred, 0);
-    }" HAVE_SOCKPEERCRED)
-  ADD_DEFINITIONS(-Ducred=sockpeercred)
+IF (HAVE_PEERCRED)
+  ADD_DEFINITIONS(-DHAVE_PEERCRED)
+  SET(ok 1)
+ELSE()
+
+# Hi, OpenBSD!
+CHECK_CXX_SOURCE_COMPILES(
+"#include <sys/types.h>
+#include <sys/socket.h>
+int main() {
+  struct sockpeercred cred;
+  getsockopt(0, SOL_SOCKET, SO_PEERCRED, &cred, 0);
+  }" HAVE_SOCKPEERCRED)
+
+IF (HAVE_SOCKPEERCRED)
+  ADD_DEFINITIONS(-DHAVE_SOCKPEERCRED)
+  SET(ok 1)
+ELSE()
+
+# FreeBSD, is that you?
+CHECK_CXX_SOURCE_COMPILES(
+"#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/ucred.h>
+int main() {
+  struct xucred cred;
+  getsockopt(0, 0, LOCAL_PEERCRED, &cred, 0);
+  }" HAVE_XUCRED)
+
+IF (HAVE_XUCRED)
+  ADD_DEFINITIONS(-DHAVE_XUCRED)
+  SET(ok 1)
+ELSE()
+
+# Who else? Anyone?
+# C'mon, show your creativity, be different! ifdef's are fun, aren't they?
+
+ENDIF()
+ENDIF()
 ENDIF()
 
-IF(HAVE_PEERCRED OR HAVE_SOCKPEERCRED)
+IF(ok)
   MYSQL_ADD_PLUGIN(auth_socket auth_socket.c MODULE_ONLY)
 ENDIF()
+
