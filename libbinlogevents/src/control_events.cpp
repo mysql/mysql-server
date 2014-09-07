@@ -497,8 +497,8 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
 
   //bapi_strmake(message, str, len);
   strncpy(message, str, len);
-  if(message[len]!= '\0')
-    message[len]= '\0';
+  //Appending '\0' at the end.
+  message[len]= '\0';
   message_length= len;
   return;
 }

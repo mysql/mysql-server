@@ -345,8 +345,8 @@ Rows_query_event(const char *buf, unsigned int event_len,
     return;
 
   strncpy(m_rows_query, buf + offset , len);
-  if(m_rows_query[len]!= '\0')
-    m_rows_query[len]= '\0';
+  // Appending '\0' at the end.
+  m_rows_query[len]= '\0';
 }
 
 Rows_query_event::~Rows_query_event()
