@@ -732,54 +732,6 @@ ib_normalize_table_name(
 }
 
 /*****************************************************************//**
-Check whether the table name conforms to our requirements. Currently
-we only do a simple check for the presence of a '/'.
-@return DB_SUCCESS or err code */
-
-ib_err_t
-ib_table_name_check(
-/*================*/
-	const char*	name)		/*!< in: table name to check */
-{
-	const char*	slash = NULL;
-	ulint		len = ut_strlen(name);
-
-	if (len < 2
-	    || *name == '/'
-	    || name[len - 1] == '/'
-	    || (name[0] == '.' && name[1] == '/')
-	    || (name[0] == '.' && name[1] == '.' && name[2] == '/')) {
-
-		return(DB_DATA_MISMATCH);
-	}
-
-	for ( ; *name; ++name) {
-#ifdef _WIN32
-		/* Check for reserved characters in DOS filenames. */
-		switch (*name) {
-		case ':':
-		case '|':
-		case '"':
-		case '*':
-		case '<':
-		case '>':
-			return(DB_DATA_MISMATCH);
-		}
-#endif /* _WIN32 */
-		if (*name == '/') {
-			if (slash) {
-				return(DB_DATA_MISMATCH);
-			}
-			slash = name;
-		}
-	}
-
-	return(slash ? DB_SUCCESS : DB_DATA_MISMATCH);
-}
-
-
-
-/*****************************************************************//**
 Get a table id. The caller must have acquired the dictionary mutex.
 @return DB_SUCCESS if found */
 static
