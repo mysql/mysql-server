@@ -475,7 +475,7 @@ clobbered */
 
 #elif defined(HAVE_WINDOWS_MM_FENCE)
 # define HAVE_MEMORY_BARRIER
-# include <mmintrin.h>
+# include <intrin.h>
 # define os_rmb	_mm_lfence()
 # define os_wmb	_mm_sfence()
 # define os_isync os_rmb; os_wmb
