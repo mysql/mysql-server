@@ -890,7 +890,7 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
 
   /* read the length */
   ptr_save= *ptr;
-  length= net_field_length_ll((uchar **) ptr);
+  length= static_cast<size_t>(net_field_length_ll((uchar **) ptr));
   length_length= *ptr - ptr_save;
   if (*max_bytes_available < length_length)
     return true;
@@ -2024,7 +2024,8 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
     INTERVAL interval;
 
     thd->set_time();
-    thd->variables.time_zone->gmt_sec_to_TIME(&cur_time, thd->query_start());
+    thd->variables.time_zone->gmt_sec_to_TIME(&cur_time,
+      static_cast<my_time_t>(thd->query_start()));
     password_change_by= acl_user->password_last_changed;
     memset(&interval, 0, sizeof(interval));
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1113,5 +1113,27 @@ void error_log_print(enum loglevel level, const char *format, va_list args);
 bool reopen_fstreams(const char *filename, FILE *outstream, FILE *errstream);
 
 bool flush_error_log();
+
+////////////////////////////////////////////////////////////
+//
+// SysLog
+//
+////////////////////////////////////////////////////////////
+
+/**
+   DBA has changed syslog settings. Put them into effect!
+*/
+bool log_syslog_update_settings();
+
+/**
+   Translate a syslog facility name ("LOG_DAEMON", "local5", etc.)
+   to its numeric value on the platform this mysqld was compiled for.
+   Used for traditional unixoid syslog, harmless on systemd / Win
+   platforms.
+*/
+bool log_syslog_find_facility(char *f, SYSLOG_FACILITY *rsf);
+
+bool log_syslog_init();
+void log_syslog_exit();
 
 #endif /* LOG_H */

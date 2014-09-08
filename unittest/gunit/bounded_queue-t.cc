@@ -20,6 +20,7 @@
 #include <stddef.h>
 
 #include "bounded_queue.h"
+#include "fake_costmodel.h"
 #include "filesort_utils.h"
 #include "my_sys.h"
 #include "opt_costmodel.h"
@@ -316,11 +317,8 @@ TEST(CostEstimationTest, MergeManyBuff)
   ulong row_lenght= 100;
   double prev_cost= 0.0;
 
-  // Set up the optimizer cost model
-  Cost_model_server cost_model_server;
-  cost_model_server.init();
-  Cost_model_table cost_model_table;
-  cost_model_table.init(&cost_model_server);
+  // Make a cost model object that the merge code will use
+  Fake_Cost_model_table cost_model_table;
 
   while (num_rows <= MAX_FILE_SIZE/4)
   {

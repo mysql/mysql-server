@@ -6486,7 +6486,6 @@ ER_UNSUPPORTED_ENGINE
 
 ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST
   eng "INSERT into autoincrement field which is not the first part in the composed primary key is unsafe."
-
 #
 #  End of 5.5 error messages.
 #
@@ -6783,8 +6782,8 @@ ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"
 
 ER_INVALID_YEAR_COLUMN_LENGTH
-  eng "YEAR(%lu) column type is deprecated. Creating YEAR(4) column instead."
-  rus "Тип YEAR(%lu) более не поддерживается, вместо него будет создана колонка с типом YEAR(4)."
+  eng "Supports only YEAR or YEAR(4) column."
+  rus "Поддерживаются только типы колонок YEAR или YEAR(4)."
 
 ER_NOT_VALID_PASSWORD
   eng "Your password does not satisfy the current policy requirements"
@@ -7228,6 +7227,20 @@ ER_INVALID_RPL_WILD_TABLE_FILTER_PATTERN
 ER_NET_OK_PACKET_TOO_LARGE 08S01
   eng "OK packet too large"
 
+ER_INVALID_JSON_DATA
+  eng "Invalid JSON data provided to function %s: %s"
+
+ER_INVALID_GEOJSON_MISSING_MEMBER
+  eng "Invalid GeoJSON data provided to function %s: Missing required member '%s'"
+
+ER_INVALID_GEOJSON_WRONG_TYPE
+  eng "Invalid GeoJSON data provided to function %s: Member '%s' must be of type '%s'"
+
+ER_INVALID_GEOJSON_UNSPECIFIED
+  eng "Invalid GeoJSON data provided to function %s"
+
+ER_DIMENSION_UNSUPPORTED
+  eng "Unsupported number of coordinate dimensions in function %s: Found %u, expected %u"
 #
 #  End of 5.7 error messages.
 #

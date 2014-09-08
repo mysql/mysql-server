@@ -1237,7 +1237,7 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
     {
       /* restoring the orig value of flags of FD */
       DBUG_ASSERT(event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
-      event_buf[FLAGS_OFFSET]= flags;
+      event_buf[FLAGS_OFFSET]= static_cast<uchar>(flags);
     }
     res= !(computed == incoming);
   }

@@ -20,6 +20,7 @@
 #include "test_utils.h"
 #include "rpl_handler.h"                        // delegates_init()
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
+#include "opt_costconstantcache.h"              // optimizer cost constant cache
 
 namespace my_testing {
 
@@ -56,6 +57,7 @@ void setup_server_for_unit_tests()
   error_handler_hook= test_error_handler_hook;
   // Initialize Query_logger last, to avoid spurious warnings to stderr.
   query_logger.init();
+  init_optimizer_cost_module();
 }
 
 void teardown_server_for_unit_tests()
@@ -66,6 +68,7 @@ void teardown_server_for_unit_tests()
   gtid_server_cleanup();
   mysql_mutex_destroy(&LOCK_error_log);
   query_logger.cleanup();
+  delete_optimizer_cost_module();
 }
 
 void Server_initializer::set_expected_error(uint val)
