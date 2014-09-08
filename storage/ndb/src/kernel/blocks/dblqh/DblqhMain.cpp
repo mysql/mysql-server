@@ -3564,10 +3564,6 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   
   CommitAckMarkerPtr removedPtr;
   m_commitAckMarkerHash.remove(removedPtr, key);
-#if (defined VM_TRACE || defined ERROR_INSERT) && defined(wl4391_todo)
-  ndbrequire(removedPtr.i != RNIL);
-  m_commitAckMarkerPool.releaseLast(removedPtr);
-#else
   if (removedPtr.i != RNIL)
   {
     jam();
@@ -3579,11 +3575,39 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   }
   else
   {
+    /**
+     * This can happen in a special situation. This is when a large transaction
+     * commits. As it decides to commit it sends of the commit decision to the
+     * API. As soon as the API receives this it will send a TC_COMMIT_ACK
+     * message back to DBTC. This message could arrive before the transaction
+     * is fully completed. When the TC_COMMIT_ACK it is received it is
+     * immediately transferred to the DBLQH's of the transaction owning the
+     * commit ack markers. Next if the node where DBTC resides fails after
+     * completing the sending of the TC_COMMIT_ACK, but before the transaction
+     * is completed. This can happen in cases with a large transaction doing a
+     * commit.
+     *
+     * Next step that happens is that a new DBTC takes over the transaction to
+     * complete it. It will complete the parts remaining and since all parts
+     * heard of were in the Committed state, the transaction will be committed
+     * and a TCKEY_FAILCONF will be sent to the API. This TCKEY_FAILCONF will
+     * trigger a new TC_COMMIT_ACK which will be passed through the new DBTC
+     * and sent onwards to the participating DBLQH's. The REMOVE_MARKER_ORD
+     * signal is received from DBTC here in DBLQH can thus in some cases be
+     * received when multiple times, possibly even more than twice since there
+     * could be multiple failures serially. The second and further times will
+     * end up in this else-branch. There is no longer any record in DBLQH
+     * with the received transaction id.
+     *
+     * This only happens as part of normal TC_COMMIT_ACK reception, so not when
+     * the flag removed_by_fail_api is set.
+     */
+#if (defined VM_TRACE || defined ERROR_INSERT) && defined(wl4391_todo)
     ndbout_c("%u Rem marker failed[%.8x %.8x] remove_by_fail_api = %u", instance(),
              key.transid1, key.transid2, removed_by_fail_api);
-    ndbrequire(false);
-  }
 #endif
+    ndbrequire(!removed_by_fail_api);
+  }
 #ifdef MARKER_TRACE
   ndbout_c("%u Rem marker[%.8x %.8x]", instance(), key.transid1, key.transid2);
 #endif
