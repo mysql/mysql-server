@@ -7854,8 +7854,7 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
     ulonglong first_value_part, max_first_value;
     handler **file= m_file;
     first_value_part= max_first_value= *first_value;
-    /* Must lock and find highest value among all partitions. */
-    lock_auto_increment();
+    /* Must find highest value among all partitions. */
     do
     {
       /* Only nb_desired_values = 1 makes sense */
@@ -7866,7 +7865,6 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
         *first_value= first_value_part;
         /* log that the error was between table/partition handler */
         sql_print_error("Partition failed to reserve auto_increment value");
-        unlock_auto_increment();
         DBUG_VOID_RETURN;
       }
       DBUG_PRINT("info", ("first_value_part: %lu", (ulong) first_value_part));
@@ -7874,7 +7872,6 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
     } while (*(++file));
     *first_value= max_first_value;
     *nb_reserved_values= 1;
-    unlock_auto_increment();
   }
   else
   {

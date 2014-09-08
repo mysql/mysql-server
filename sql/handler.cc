@@ -2819,15 +2819,10 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   if (error)
   {
     if (error == HA_ERR_END_OF_FILE || error == HA_ERR_KEY_NOT_FOUND)
-    {
-      /* No entry found, start with 1. */
-      nr= 1;
-    }
+      /* No entry found, that's fine */;
     else
-    {
-      DBUG_ASSERT(0);
-      nr= ULONGLONG_MAX;
-    }
+      print_error(error, MYF(0));
+    nr= 1;
   }
   else
     nr= ((ulonglong) table->next_number_field->
