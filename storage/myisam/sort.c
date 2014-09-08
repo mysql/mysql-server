@@ -148,8 +148,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
       {
 	skr=maxbuffer;
 	if (memavl < sizeof(BUFFPEK)*(uint) maxbuffer ||
-	    (keys=(memavl-sizeof(BUFFPEK)*(uint) maxbuffer)/
-             (sort_length+sizeof(char*))) <= 1 ||
+	    (keys= (uint)((memavl-sizeof(BUFFPEK)*(uint) maxbuffer)/
+                          (sort_length+sizeof(char*)))) <= 1 ||
             keys < (uint) maxbuffer)
 	{
 	  mi_check_print_error(info->sort_info->param,
@@ -370,8 +370,8 @@ pthread_handler_t thr_find_all_keys(void *arg)
         {
           skr= maxbuffer;
           if (memavl < sizeof(BUFFPEK)*maxbuffer ||
-              (keys=(memavl-sizeof(BUFFPEK)*maxbuffer)/
-               (sort_length+sizeof(char*))) <= 1 ||
+              (keys=(uint)((memavl-sizeof(BUFFPEK)*maxbuffer)/
+                           (sort_length+sizeof(char*)))) <= 1 ||
               keys < (uint) maxbuffer)
           {
             mi_check_print_error(sort_param->sort_info->param,
@@ -499,7 +499,8 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
 {
   SORT_INFO *sort_info=sort_param->sort_info;
   MI_CHECK *param=sort_info->param;
-  ulong length= 0, keys;
+  size_t length= 0;
+  ulong keys;
   ulong *rec_per_key_part=param->rec_per_key_part;
   int got_error=sort_info->got_error;
   uint i;
@@ -566,7 +567,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
       uint maxbuffer=sinfo->buffpek.elements-1;
       if (!mergebuf)
       {
-        length=param->sort_buffer_length;
+        length= (size_t)param->sort_buffer_length;
         while (length >= MIN_SORT_BUFFER)
         {
           if ((mergebuf= my_malloc(PSI_NOT_INSTRUMENTED,

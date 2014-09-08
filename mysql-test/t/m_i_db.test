@@ -4,8 +4,8 @@
 #############################################################
 
 # This test takes around 300 seconds. So let us run it only in --big-test mode
-#--source include/big_test.inc
--- source include/not_embedded.inc
+--source include/big_test.inc
+--source include/not_embedded.inc
 --source include/not_windows.inc
 
 --echo # Basic cases related to mysql_install_db
@@ -61,8 +61,8 @@ EOF
 --echo # Check the behavior of the option --login-path when passed with --login-file
 let adminuser=test_user2;
 let MYSQL_TEST_LOGIN_FILE=$MYSQL_TMP_DIR/m_i_db1.cnf;
---exec $BASEDIR/bin/mysql_config_editor set --login-path=credential1 --user=$adminuser --host=localhost
---exec $BASEDIR/bin/mysql_config_editor set --login-path=credential2 --user=test_user3 --host=127.0.0.1
+--exec $MYSQL_CONFIG_EDITOR set --login-path=credential1 --user=$adminuser --host=localhost
+--exec $MYSQL_CONFIG_EDITOR set --login-path=credential2 --user=test_user3 --host=127.0.0.1
 
 let midparam=--admin-user=test_user1 --login-file=$MYSQL_TMP_DIR/m_i_db1.cnf --login-path=credential1 --insecure;
 --source include/m_i_db_startsvr.inc
@@ -72,8 +72,8 @@ disconnect conn_root;
 --echo # Check the behavior when login-path is not passed, but only --login-file
 let adminuser=test_user2;
 let MYSQL_TEST_LOGIN_FILE=$MYSQL_TMP_DIR/m_i_db2.cnf;
---exec $BASEDIR/bin/mysql_config_editor set --login-path=client --user=$adminuser --host=localhost
---exec $BASEDIR/bin/mysql_config_editor set --login-path=credential2 --user=test_user3 --host=127.0.0.1
+--exec $MYSQL_CONFIG_EDITOR set --login-path=client --user=$adminuser --host=localhost
+--exec $MYSQL_CONFIG_EDITOR set --login-path=credential2 --user=test_user3 --host=127.0.0.1
 
 let midparam=--admin-user=test_user1 --login-file=$MYSQL_TMP_DIR/m_i_db2.cnf --insecure;
 --source include/m_i_db_startsvr.inc
@@ -121,7 +121,7 @@ disconnect conn_root;
 let adminuser=root;
 let adminhost=localhost;
 let MYSQL_TEST_LOGIN_FILE=$MYSQL_TMP_DIR/m_i_db3.cnf;
---exec $BASEDIR/bin/mysql_config_editor set --login-path=credential1 --host=$adminhost
+--exec $MYSQL_CONFIG_EDITOR set --login-path=credential1 --host=$adminhost
 let midparam=--admin-host=invalidhost --login-file=$MYSQL_TMP_DIR/m_i_db3.cnf --login-path=credential1 --insecure;
 --source include/m_i_db_startsvr.inc
 disconnect conn_root;

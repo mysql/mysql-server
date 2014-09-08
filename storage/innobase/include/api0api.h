@@ -413,18 +413,6 @@ typedef int (*ib_client_cmp_t)(
 /* This should be the same as univ.i */
 /** Represents SQL_NULL length */
 #define	IB_SQL_NULL		0xFFFFFFFF
-/** The number of system columns in a row. */
-#define IB_N_SYS_COLS		3
-
-/** The maximum length of a text column. */
-#define MAX_TEXT_LEN		4096
-
-/* MySQL uses 3 byte UTF-8 encoding. */
-/** The maximum length of a column name in a table schema. */
-#define IB_MAX_COL_NAME_LEN	(64 * 3)
-
-/** The maximum length of a table name (plus database name). */
-#define IB_MAX_TABLE_NAME_LEN	(64 * 3) * 2
 
 /*****************************************************************//**
 Start a transaction that's been rolled back. This special function
@@ -1074,16 +1062,6 @@ ib_cursor_set_memcached_sync(
 /*=========================*/
 	ib_crsr_t	ib_crsr,	/*!< in: cursor */
 	ib_bool_t	flag);		/*!< in: true for increasing */
-
-/*****************************************************************//**
-Check whether the table name conforms to our requirements. Currently
-we only do a simple check for the presence of a '/'.
-@return DB_SUCCESS or err code */
-
-ib_err_t
-ib_table_name_check(
-/*================*/
-	const char*	name);		/*!< in: table name to check */
 
 /*****************************************************************//**
 Return isolation configuration set by "innodb_api_trx_level"
