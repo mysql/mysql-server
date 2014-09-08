@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,11 @@ Created 2013-03-26 Sunny Bains.
 
 #include "ut0ut.h"
 #include "ut0rnd.h"
+
+#ifdef UNIV_DEBUG
+/** Set when InnoDB has invoked exit(). */
+extern bool	innodb_calling_exit;
+#endif /* UNIV_DEBUG */
 
 /** OS event mutex. We can't track the locking because this mutex is used
 by the events code. The mutex can be released by the condition variable
@@ -79,7 +84,7 @@ struct OSBasicMutex {
 	/** Destroy the mutex */
 	void destroy() UNIV_NOTHROW
 	{
-		ut_ad(!m_freed);
+		ut_ad(innodb_calling_exit || !m_freed);
 #ifdef _WIN32
 		DeleteCriticalSection((LPCRITICAL_SECTION) &m_mutex);
 #else
@@ -108,7 +113,7 @@ struct OSBasicMutex {
 	/** Release the mutex. */
 	void exit() UNIV_NOTHROW
 	{
-		ut_ad(!m_freed);
+		ut_ad(innodb_calling_exit || !m_freed);
 #ifdef _WIN32
 		LeaveCriticalSection(&m_mutex);
 #else
@@ -128,7 +133,7 @@ struct OSBasicMutex {
 		const char*	filename,
 		ulint		line) UNIV_NOTHROW
 	{
-		ut_ad(!m_freed);
+		ut_ad(innodb_calling_exit || !m_freed);
 #ifdef _WIN32
 		EnterCriticalSection((LPCRITICAL_SECTION) &m_mutex);
 #else
@@ -140,18 +145,10 @@ struct OSBasicMutex {
 	/** @return true if locking succeeded */
 	bool try_lock() UNIV_NOTHROW
 	{
-		ut_ad(!m_freed);
+		ut_ad(innodb_calling_exit || !m_freed);
 #ifdef _WIN32
 		return(TryEnterCriticalSection(&m_mutex) != 0);
 #else
-		/* NOTE that the MySQL my_pthread.h redefines
-		pthread_mutex_trylock so that it returns 0 on
-		success. In the operating system libraries, HP-UX-10.20
-		follows the old Posix 1003.4a Draft 4 and returns 1
-		on success (but MySQL remaps that to 0), while Linux,
-		FreeBSD, Solaris, AIX, Tru64 Unix, HP-UX-11.0 return
-		0 on success. */
-
 		return(pthread_mutex_trylock(&m_mutex) == 0);
 #endif /* _WIN32 */
 	}
@@ -524,7 +521,7 @@ private:
 private:
 	MutexPolicy		m_policy;
 
-	volatile lock_word_t	m_lock_word;
+	volatile lock_word_t	m_lock_word MY_ALIGNED(MY_ALIGNOF(ulint));
 };
 
 #endif /* HAVE_IB_LINUX_FUTEX */

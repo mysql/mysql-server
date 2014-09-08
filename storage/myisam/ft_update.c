@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -305,7 +305,7 @@ uint _mi_ft_convert_to_ft2(MI_INFO *info, uint keynr, uchar *key)
   my_off_t root;
   DYNAMIC_ARRAY *da=info->ft1_to_ft2;
   MI_KEYDEF *keyinfo=&info->s->ft2_keyinfo;
-  uchar *key_ptr= (uchar*) dynamic_array_ptr(da, 0), *end;
+  uchar *key_ptr= da->buffer, *end;
   uint length, key_length;
   DBUG_ENTER("_mi_ft_convert_to_ft2");
 
@@ -333,7 +333,7 @@ uint _mi_ft_convert_to_ft2(MI_INFO *info, uint keynr, uchar *key)
     DBUG_RETURN(-1);
 
   /* inserting the rest of key values */
-  end= (uchar*) dynamic_array_ptr(da, da->elements);
+  end= da->buffer + (da->elements * da->size_of_element);
   for (key_ptr+=length; key_ptr < end; key_ptr+=keyinfo->keylength)
     if(_mi_ck_real_write_btree(info, keyinfo, key_ptr, 0, &root, SEARCH_SAME))
       DBUG_RETURN(-1);

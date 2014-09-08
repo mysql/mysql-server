@@ -3428,6 +3428,21 @@ share_found:
                                             table_list);
     goto err_lock;
   }
+  else if (share->crashed)
+  {
+    switch (thd->lex->sql_command) {
+    case SQLCOM_ALTER_TABLE:
+    case SQLCOM_REPAIR:
+    case SQLCOM_CHECK:
+    case SQLCOM_SHOW_CREATE:
+      break;
+    default:
+      closefrm(table, 0);
+      my_free(table);
+      my_error(ER_CRASHED_ON_USAGE, MYF(0), share->table_name.str);
+      goto err_lock;
+    }
+  }
   if (open_table_entry_fini(thd, share, table))
   {
     closefrm(table, 0);

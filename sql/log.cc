@@ -41,10 +41,20 @@
 
 #ifdef _WIN32
 #include "message.h"
+#else
+#include <syslog.h>
 #endif
 
 using std::min;
 using std::max;
+
+
+#ifndef _WIN32
+static int   log_syslog_facility= 0;
+#endif
+static char *log_syslog_ident   = NULL;
+static bool  log_syslog_enabled = false;
+
 
 /* 26 for regular timestamp, plus 7 (".123456") when using micro-seconds */
 static const int iso8601_size= 33;
@@ -229,6 +239,211 @@ public:
 
   const char *message() const { return m_message; }
 };
+
+
+#ifndef _WIN32
+
+/**
+  On being handed a syslog facility name tries to look it up.
+  If successful, fills in a struct with the facility ID and
+  the facility's canonical name.
+
+  @param f   [in]   Name of the faciltiy we're trying to look up.
+                    Lookup is case-insensitive; leading "log_" is ignored.
+  @param rsf [out]  A buffer in which to return the ID and canonical name.
+
+  @return
+    false           No errors; buffer contains valid result
+    true            Something went wrong, no valid result set returned
+*/
+bool log_syslog_find_facility(char *f, SYSLOG_FACILITY *rsf)
+{
+  if (!f || !*f || !rsf)
+    return true;
+
+  if (strncasecmp(f, "log_", 4) == 0)
+    f+= 4;
+
+  for(int i= 0; syslog_facility[i].name != NULL; i++)
+    if (!strcasecmp(f, syslog_facility[i].name))
+    {
+      rsf->id=   syslog_facility[i].id;
+      rsf->name= syslog_facility[i].name;
+      return false;
+    }
+
+  return true;
+}
+
+#endif
+
+
+/**
+  Close POSIX syslog / Windows EventLog.
+*/
+static void log_syslog_close()
+{
+  if (log_syslog_enabled)
+  {
+    my_closelog();
+    log_syslog_enabled= false;
+  }
+}
+
+
+/**
+  Update syslog / Windows EventLog characteristics (on/off,
+  identify-as, log-PIDs, facility, ...) from global variables.
+
+  @return
+    false  No errors; all characteristics updated.
+    true   Unable to update characteristics.
+*/
+bool log_syslog_update_settings()
+{
+  const char *prefix;
+
+  if (!opt_log_syslog_enable && log_syslog_enabled)
+  {
+    log_syslog_close();
+    return false;
+  }
+
+#ifndef _WIN32
+  {
+    /*
+      make facility
+    */
+
+    SYSLOG_FACILITY rsf = { LOG_DAEMON, "daemon" };
+
+    DBUG_ASSERT(opt_log_syslog_facility != NULL);
+
+    if (log_syslog_find_facility(opt_log_syslog_facility, &rsf))
+    {
+      log_syslog_find_facility((char *) "daemon", &rsf);
+      sql_print_warning("failed to set syslog facility to \"%s\", "
+                        "setting to \"%s\" (%d) instead.",
+                        opt_log_syslog_facility, rsf.name, rsf.id);
+      rsf.name= NULL;
+    }
+    log_syslog_facility= rsf.id;
+
+    // If NaN, set to the canonical form (cut "log_", fix case)
+    if ((rsf.name != NULL) && (strcmp(opt_log_syslog_facility, rsf.name) != 0))
+      strcpy(opt_log_syslog_facility, rsf.name);
+  }
+
+  /*
+    Logs historically have subtly different names, to meet each platform's
+    conventions -- "mysqld" on unix (via mysqld_safe), and "MySQL" for the
+    Win NT EventLog.
+  */
+  prefix= "mysqld";
+#else
+  prefix= "MySQL";
+#endif
+
+  // tag must not contain directory separators
+  if ((opt_log_syslog_tag != NULL) &&
+      (strchr(opt_log_syslog_tag, FN_LIBCHAR) != NULL))
+    return true;
+
+  if (opt_log_syslog_enable)
+  {
+    /*
+      make ident
+    */
+    char *ident= NULL;
+
+    if ((opt_log_syslog_tag == NULL) ||
+        (*opt_log_syslog_tag == '\0'))
+      ident= my_strdup(PSI_NOT_INSTRUMENTED, prefix, MYF(0));
+    else
+    {
+      size_t l= 6 + 1 + 1 + strlen(opt_log_syslog_tag);
+
+      ident= (char *) my_malloc(PSI_NOT_INSTRUMENTED, l, MYF(0));
+      if (ident)
+        my_snprintf(ident, l, "%s-%s", prefix, opt_log_syslog_tag);
+    }
+
+    // if we succeeded in making an ident, replace the old one
+    if (ident)
+    {
+      char *i= log_syslog_ident;
+      log_syslog_ident= ident;
+      if (i)
+        my_free(i);
+    }
+    else
+      return true;
+
+    log_syslog_close();
+
+    int ret;
+
+    ret= my_openlog(log_syslog_ident,
+#ifndef _WIN32
+                    opt_log_syslog_include_pid ? MY_SYSLOG_PIDS : 0,
+                    log_syslog_facility
+#else
+                    0, 0
+#endif
+                   );
+
+    if (ret == -1)
+      return true;
+
+    log_syslog_enabled= true;
+
+    if (ret == -2)
+    {
+      my_syslog(system_charset_info, ERROR_LEVEL, "could not update log settings!");
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/**
+  Stop using syslog / EventLog. Call as late as possible.
+*/
+void log_syslog_exit(void)
+{
+  log_syslog_close();
+
+  if (log_syslog_ident != NULL)
+  {
+    my_free(log_syslog_ident);
+    log_syslog_ident= NULL;
+  }
+}
+
+
+/**
+  Start using syslog / EventLog.
+
+  @return
+    true   could not open syslog / EventLog with the requested characteristics
+    false  no issues encountered
+*/
+bool log_syslog_init(void)
+{
+  if (log_syslog_update_settings())
+  {
+#ifdef _WIN32
+    const char *l = "Windows EventLog";
+#else
+    const char *l = "syslog";
+#endif
+    sql_print_error("Cannot open %s; check privileges, or start server with --log_syslog=0", l);
+    return true;
+  }
+  return false;
+}
 
 
 static void ull2timeval(ulonglong utime, struct timeval *tv)
@@ -815,14 +1030,16 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
     t.neg= 0;
 
     /* fill in query_time field */
-    calc_time_from_sec(&t, min<long>((longlong) (query_utime / 1000000),
-                                     (longlong) TIME_MAX_VALUE_SECONDS),
+    calc_time_from_sec(&t,
+                       static_cast<long>(min((longlong)(query_utime / 1000000),
+                                             (longlong)TIME_MAX_VALUE_SECONDS)),
                        query_utime % 1000000);
     if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t))
       goto err;
     /* lock_time */
-    calc_time_from_sec(&t, min((longlong) (lock_utime / 1000000),
-                               (longlong) TIME_MAX_VALUE_SECONDS),
+    calc_time_from_sec(&t,
+                       static_cast<long>(min((longlong)(lock_utime / 1000000),
+                                             (longlong)TIME_MAX_VALUE_SECONDS)),
                        lock_utime % 1000000);
     if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t))
       goto err;
@@ -1628,76 +1845,6 @@ bool flush_error_log()
 }
 
 
-#ifdef _WIN32
-static int eventSource = 0;
-
-static void setup_windows_event_source()
-{
-  HKEY    hRegKey= NULL;
-  DWORD   dwError= 0;
-  TCHAR   szPath[MAX_PATH];
-  DWORD dwTypes;
-
-  if (eventSource)               // Ensure that we are only called once
-    return;
-  eventSource= 1;
-
-  // Create the event source registry key
-  dwError= RegCreateKey(HKEY_LOCAL_MACHINE,
-                          "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\MySQL", 
-                          &hRegKey);
-
-  /* Name of the PE module that contains the message resource */
-  GetModuleFileName(NULL, szPath, MAX_PATH);
-
-  /* Register EventMessageFile */
-  dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ,
-                          (PBYTE) szPath, (DWORD) (strlen(szPath) + 1));
-
-  /* Register supported event types */
-  dwTypes= (EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE |
-            EVENTLOG_INFORMATION_TYPE);
-  dwError= RegSetValueEx(hRegKey, "TypesSupported", 0, REG_DWORD,
-                         (LPBYTE) &dwTypes, sizeof dwTypes);
-
-  RegCloseKey(hRegKey);
-}
-
-static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
-                                        size_t length, size_t buffLen)
-{
-  HANDLE event;
-  char   *buffptr= buff;
-  DBUG_ENTER("print_buffer_to_nt_eventlog");
-
-  /* Add ending CR/LF's to string, overwrite last chars if necessary */
-  my_stpcpy(buffptr+min(length, buffLen-5), "\r\n\r\n");
-
-  setup_windows_event_source();
-  if ((event= RegisterEventSource(NULL,"MySQL")))
-  {
-    switch (level) {
-      case ERROR_LEVEL:
-        ReportEvent(event, EVENTLOG_ERROR_TYPE, 0, MSG_DEFAULT, NULL, 1, 0,
-                    (LPCSTR*)&buffptr, NULL);
-        break;
-      case WARNING_LEVEL:
-        ReportEvent(event, EVENTLOG_WARNING_TYPE, 0, MSG_DEFAULT, NULL, 1, 0,
-                    (LPCSTR*) &buffptr, NULL);
-        break;
-      case INFORMATION_LEVEL:
-        ReportEvent(event, EVENTLOG_INFORMATION_TYPE, 0, MSG_DEFAULT, NULL, 1,
-                    0, (LPCSTR*) &buffptr, NULL);
-        break;
-    }
-    DeregisterEventSource(event);
-  }
-
-  DBUG_VOID_RETURN;
-}
-#endif /* _WIN32 */
-
-
 #ifndef EMBEDDED_LIBRARY
 static void print_buffer_to_file(enum loglevel level, const char *buffer,
                                  size_t length)
@@ -1745,10 +1892,14 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
     length= my_vsnprintf(buff, sizeof(buff), format, args);
     print_buffer_to_file(level, buff, length);
 
+    if (log_syslog_enabled
 #ifdef _WIN32
-    if (!abort_loop) // Don't write to the eventlog during shutdown.
-      print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
+    && !abort_loop // Don't write to the eventlog during shutdown.
 #endif
+      )
+    {
+      my_syslog(system_charset_info, level, buff);
+    }
   }
 
   DBUG_VOID_RETURN;
@@ -2341,3 +2492,4 @@ int TC_LOG::using_heuristic_recover()
   sql_print_information("Please restart mysqld without --tc-heuristic-recover");
   return 1;
 }
+

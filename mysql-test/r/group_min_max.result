@@ -3310,7 +3310,7 @@ COUNT(DISTINCT a)
 2
 EXPLAIN SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	10	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1`
 SELECT DISTINCT COUNT(DISTINCT a) FROM t1;

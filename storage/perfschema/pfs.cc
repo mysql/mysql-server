@@ -4189,7 +4189,7 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker, ulonglong numrows)
 
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
-      wait->m_number_of_bytes= numrows;
+      wait->m_number_of_bytes= static_cast<size_t>(numrows);
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)

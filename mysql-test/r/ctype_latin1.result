@@ -2443,9 +2443,7 @@ hex(concat(a))	a
 30303030303030303030303030303030313030302E31	00000000000000001000.1
 30303030303030303030303030303031303030302E31	00000000000000010000.1
 drop table t1;
-create table t1 (a year(2));
-Warnings:
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+create table t1 (a year(4));
 insert into t1 values (1);
 select hex(concat(a)) from t1;
 hex(concat(a))
@@ -2760,9 +2758,7 @@ hex(a)
 30303030303030303030303030303031303030302E31
 drop table t1;
 drop view v1;
-create table t1 (a year(2));
-Warnings:
-Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+create table t1 (a year(4));
 insert into t1 values (1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -4062,6 +4058,10 @@ NULL
 SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
+#
+# Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
+#
+do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using latin1)));
 #
 # End of 5.6 tests
 #

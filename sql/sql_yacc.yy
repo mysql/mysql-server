@@ -845,6 +845,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ONLY_SYM                      /* SQL-2003-R */
 %token  OPEN_SYM                      /* SQL-2003-R */
 %token  OPTIMIZE
+%token  OPTIMIZER_COSTS_SYM
 %token  OPTIONS_SYM
 %token  OPTION                        /* SQL-2003-N */
 %token  OPTIONALLY
@@ -6344,14 +6345,11 @@ type:
             {
               errno= 0;
               ulong length= strtoul(Lex->length, NULL, 10);
-              if (errno == 0 && length <= MAX_FIELD_BLOBLENGTH && length != 4)
+              if (errno != 0 || length != 4)
               {
-                /* Reset unsupported positive column width to default value */
-                Lex->length= NULL;
-                push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                                    ER_INVALID_YEAR_COLUMN_LENGTH,
-                                    ER(ER_INVALID_YEAR_COLUMN_LENGTH),
-                                    length);
+                /* Only support length is 4 */
+                my_error(ER_INVALID_YEAR_COLUMN_LENGTH, MYF(0), "YEAR");
+                MYSQL_YYABORT;
               }
             }
             $$=MYSQL_TYPE_YEAR;
@@ -6648,7 +6646,8 @@ attribute:
         | DEFAULT now_or_signed_literal { Lex->default_value=$2; }
         | ON UPDATE_SYM now
           {
-            Item *item= new (YYTHD->mem_root) Item_func_now_local($3);
+            Item *item= new (YYTHD->mem_root)
+              Item_func_now_local(static_cast<uint8>($3));
             if (item == NULL)
               MYSQL_YYABORT;
             Lex->on_update_value= item;
@@ -6758,7 +6757,8 @@ now:
 now_or_signed_literal:
           now
           {
-            $$= new (YYTHD->mem_root) Item_func_now_local($1);
+            $$= new (YYTHD->mem_root)
+              Item_func_now_local(static_cast<uint8>($1));
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -7475,7 +7475,7 @@ opt_user_password_expiration:
               MYSQL_YYABORT;
             }
             $$.set_password_expire_flag= false;
-            $$.expire_after_days= $2;
+            $$.expire_after_days= static_cast<uint16>($2);
             $$.use_default_password_expiry= false;
           }
         | NEVER_SYM
@@ -9361,7 +9361,7 @@ function_call_nonkeyword:
           }
         | CURTIME func_datetime_precision
           {
-            $$= NEW_PTN Item_func_curtime_local(@$, $2);
+            $$= NEW_PTN Item_func_curtime_local(@$, static_cast<uint8>($2));
           }
         | DATE_ADD_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
           %prec INTERVAL_SYM
@@ -9383,7 +9383,8 @@ function_call_nonkeyword:
           }
         | now
           {
-            $$= NEW_PTN PTI_function_call_nonkeyword_now(@$, $1);
+            $$= NEW_PTN PTI_function_call_nonkeyword_now(@$,
+              static_cast<uint8>($1));
           }
         | POSITION_SYM '(' bit_expr IN_SYM expr ')'
           {
@@ -9415,7 +9416,8 @@ function_call_nonkeyword:
           }
         | SYSDATE func_datetime_precision
           {
-            $$= NEW_PTN PTI_function_call_nonkeyword_sysdate(@$, $2);
+            $$= NEW_PTN PTI_function_call_nonkeyword_sysdate(@$,
+              static_cast<uint8>($2));
           }
         | TIMESTAMP_ADD '(' interval_time_stamp ',' expr ',' expr ')'
           {
@@ -9431,11 +9433,11 @@ function_call_nonkeyword:
           }
         | UTC_TIME_SYM func_datetime_precision
           {
-            $$= NEW_PTN Item_func_curtime_utc(@$, $2);
+            $$= NEW_PTN Item_func_curtime_utc(@$, static_cast<uint8>($2));
           }
         | UTC_TIMESTAMP_SYM func_datetime_precision
           {
-            $$= NEW_PTN Item_func_now_utc(@$, $2);
+            $$= NEW_PTN Item_func_now_utc(@$, static_cast<uint8>($2));
           }
         ;
 
@@ -10632,13 +10634,13 @@ opt_procedure_analyse_params:
           }
         | procedure_analyse_param
           {
-            $$.max_tree_elements= $1;
+            $$.max_tree_elements= static_cast<uint>($1);
             $$.max_treemem= Proc_analyse_params::default_max_treemem;
           }
         | procedure_analyse_param ',' procedure_analyse_param
           {
-            $$.max_tree_elements= $1;
-            $$.max_treemem= $3;
+            $$.max_tree_elements= static_cast<uint>($1);
+            $$.max_treemem= static_cast<uint>($3);
           }
         ;
 
@@ -12051,6 +12053,8 @@ flush_option:
           { Lex->type|= REFRESH_DES_KEY_FILE; }
         | RESOURCES
           { Lex->type|= REFRESH_USER_RESOURCES; }
+        | OPTIMIZER_COSTS_SYM
+          { Lex->type|= REFRESH_OPTIMIZER_COSTS; }
         ;
 
 opt_table_list:

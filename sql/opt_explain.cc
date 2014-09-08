@@ -1527,7 +1527,7 @@ bool Explain_join::explain_rows_and_filtered()
         (tab->type() == JT_INDEX_SCAN || tab->type() == JT_ALL))
       examined_rows= 0;
     else
-      examined_rows= tab->rowcount();
+      examined_rows= static_cast<double>(tab->rowcount());
   else
     examined_rows= pos->rows_fetched;
 
@@ -1538,8 +1538,8 @@ bool Explain_join::explain_rows_and_filtered()
     float filter= 0.0;
     if (examined_rows)
     {
-      filter= 100.0 * (access_method_fanout / examined_rows) *
-        tab->position()->filter_effect;
+      filter= static_cast<float>(100.0 * (access_method_fanout / examined_rows) *
+                                 tab->position()->filter_effect);
     }
     fmt->entry()->col_filtered.set(filter);
   }
@@ -1875,7 +1875,7 @@ bool Explain_table::explain_rows_and_filtered()
       fmt->entry()->mod_type == MT_REPLACE)
     return false;
 
-  double examined_rows= table->in_use->query_plan.get_plan()->examined_rows;
+  ha_rows examined_rows= table->in_use->query_plan.get_plan()->examined_rows;
   fmt->entry()->col_rows.set(static_cast<long long>(examined_rows));
 
   fmt->entry()->col_filtered.set(100.0);

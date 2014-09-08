@@ -103,6 +103,8 @@ SET(SQL_SHARED_SOURCES
   mdl.cc
   my_decimal.cc
   net_serv.cc
+  opt_costconstantcache.cc
+  opt_costconstants.cc
   opt_costmodel.cc
   opt_explain.cc
   opt_explain_traditional.cc
@@ -263,6 +265,14 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     item_geofunc.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
+  )
+ENDIF()
+# Boost Geometry source has uninitialized variables. Fixed in Boost 1.56
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-uninitialized" HAVE_NO_UNINITIALIZED)
+IF(HAVE_NO_UNINITIALIZED)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    COMPILE_FLAGS "-Wno-uninitialized"
   )
 ENDIF()
 
@@ -530,10 +540,6 @@ ADD_CUSTOM_TARGET(distclean
 
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
-# Copy db.opt into data/test/
-SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
-INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
-
 # Install initial database on windows
 IF(NOT CMAKE_CROSSCOMPILING)
   IF(DEBUG_EXTNAME)
@@ -553,6 +559,10 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
     SET (CONFIG_PARAM -DCONFIG=${CMAKE_CFG_INTDIR})
   ENDIF()
   MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/data)
+  # Copy db.opt into data/test/
+  SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
+  INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
+
   ADD_CUSTOM_COMMAND(
      OUTPUT initdb.dep
      COMMAND ${CMAKE_COMMAND}

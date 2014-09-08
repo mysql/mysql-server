@@ -239,6 +239,7 @@ our $opt_ddd;
 our $opt_client_ddd;
 my $opt_boot_ddd;
 our $opt_manual_gdb;
+our $opt_manual_lldb;
 our $opt_manual_dbx;
 our $opt_manual_ddd;
 our $opt_manual_debug;
@@ -1116,6 +1117,7 @@ sub command_line_setup {
              'gdb'                      => \$opt_gdb,
              'client-gdb'               => \$opt_client_gdb,
              'manual-gdb'               => \$opt_manual_gdb,
+             'manual-lldb'              => \$opt_manual_lldb,
 	     'boot-gdb'                 => \$opt_boot_gdb,
              'manual-debug'             => \$opt_manual_debug,
              'ddd'                      => \$opt_ddd,
@@ -1367,6 +1369,9 @@ sub command_line_setup {
     }
   }
 
+  # disable syslog / EventLog in normal (non-bootstrap) operation.
+  push(@opt_extra_mysqld_opt, "--log-syslog=0");
+
   # --------------------------------------------------------------------------
   # Find out type of logging that are being used
   # --------------------------------------------------------------------------
@@ -1573,8 +1578,9 @@ sub command_line_setup {
       $opt_debugger= undef;
     }
 
-    if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_ddd ||
-	 $opt_manual_debug || $opt_debugger || $opt_dbx || $opt_manual_dbx)
+    if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_lldb || 
+         $opt_manual_ddd || $opt_manual_debug || $opt_debugger || $opt_dbx || 
+         $opt_manual_dbx)
     {
       mtr_error("You need to use the client debug options for the",
 		"embedded server. Ex: --client-gdb");
@@ -1601,7 +1607,7 @@ sub command_line_setup {
   # Check debug related options
   # --------------------------------------------------------------------------
   if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd ||
-       $opt_manual_gdb || $opt_manual_ddd || $opt_manual_debug ||
+       $opt_manual_gdb || $opt_manual_gdb || $opt_manual_ddd || $opt_manual_debug ||
        $opt_dbx || $opt_client_dbx || $opt_manual_dbx ||
        $opt_debugger || $opt_client_debugger )
   {
@@ -1856,6 +1862,7 @@ sub collect_mysqld_features {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
@@ -2467,6 +2474,10 @@ sub environment_setup {
   $ENV{'MYSQL_IMPORT'}=                client_arguments("mysqlimport");
   $ENV{'MYSQL_SHOW'}=                  client_arguments("mysqlshow");
   $ENV{'MYSQL_CONFIG_EDITOR'}=         client_arguments_no_grp_suffix("mysql_config_editor");
+  if (!IS_WINDOWS)
+  {
+    $ENV{'MYSQL_INSTALL_DB'}=         client_arguments_no_grp_suffix("mysql_install_db");
+  }
   $ENV{'MYSQL_BINLOG'}=                client_arguments("mysqlbinlog");
   $ENV{'MYSQL'}=                       client_arguments("mysql");
   $ENV{'MYSQL_SLAVE'}=                 client_arguments("mysql", ".2");
@@ -3538,6 +3549,7 @@ sub mysql_install_db {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
@@ -5474,6 +5486,10 @@ sub mysqld_start ($$) {
   {
     gdb_arguments(\$args, \$exe, $mysqld->name());
   }
+  elsif ( $opt_manual_lldb )
+  {
+    lldb_arguments(\$args, \$exe, $mysqld->name());
+  }
   elsif ( $opt_ddd || $opt_manual_ddd )
   {
     ddd_arguments(\$args, \$exe, $mysqld->name());
@@ -6280,6 +6296,24 @@ sub start_mysqltest ($) {
   return $proc;
 }
 
+sub create_debug_statement {
+  my $args= shift;
+  my $input= shift;
+
+  # Put $args into a single string
+  my $str= join(" ", @$$args);
+  my $runline= $input ? "run $str < $input" : "run $str";
+
+  # add quotes to escape ; in plugin_load option
+  my $pos1 = index($runline, "--plugin_load=");
+  if ( $pos1 != -1 ) {
+    my $pos2 = index($runline, " ",$pos1);
+    substr($runline,$pos1+14,0) = "\"";
+    substr($runline,$pos2+1,0) = "\"";
+  }
+
+  return $runline;
+}
 
 #
 # Modify the exe and args so that program is run in gdb in xterm
@@ -6295,9 +6329,7 @@ sub gdb_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  # Put $args into a single string
-  my $str= join(" ", @$$args);
-  my $runline= $input ? "run $str < $input" : "run $str";
+  my $runline=create_debug_statement($args,$input);
 
   # write init file for mysqld or client
   mtr_tofile($gdb_init_file,
@@ -6333,6 +6365,32 @@ sub gdb_arguments {
   $$exe= "xterm";
 }
 
+ #
+# Modify the exe and args so that program is run in lldb
+#
+sub lldb_arguments {
+  my $args= shift;
+  my $exe= shift;
+  my $type= shift;
+  my $input= shift;
+
+  my $lldb_init_file= "$opt_vardir/tmp/lldbinit.$type";
+  unlink($lldb_init_file);
+
+  my $runline=create_debug_statement($args,$input);
+
+  # write init file for mysqld or client
+  mtr_tofile($lldb_init_file,
+	     "b main\n" .
+	     $runline);
+
+  print "\nTo start lldb for $type, type in another window:\n";
+  print "cd $glob_mysql_test_dir && lldb -s $lldb_init_file $$exe\n";
+
+  # Indicate the exe should not be started
+  $$exe= undef;
+  return;
+}
 
 #
 # Modify the exe and args so that program is run in ddd
@@ -6348,9 +6406,7 @@ sub ddd_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  # Put $args into a single string
-  my $str= join(" ", @$$args);
-  my $runline= $input ? "run $str < $input" : "run $str";
+  my $runline=create_debug_statement($args,$input);
 
   # write init file for mysqld or client
   mtr_tofile($gdb_init_file,
@@ -6814,6 +6870,8 @@ Options for debugging the product
   manual-ddd            Let user manually start mysqld in ddd, before running
                         test(s)
   manual-dbx            Let user manually start mysqld in dbx, before running
+                        test(s)
+  manual-lldb           Let user manually start mysqld in lldb, before running 
                         test(s)
   strace-client         Create strace output for mysqltest client, 
   strace-server         Create strace output for mysqltest server, 
