@@ -45,7 +45,7 @@ SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
   AND TABLE_NAME='t1';
 AUTO_INCREMENT
 32
-UPDATE t1 SET c1 = NULL WHERE c1 = 4;
+UPDATE IGNORE t1 SET c1 = NULL WHERE c1 = 4;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 INSERT INTO t1 VALUES (NULL);
@@ -237,7 +237,7 @@ c1	c2
 1	8
 2	3
 4	7
-SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET @@session.sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
 DROP TABLE t1;
 # Simple test with NULL, 0 and explicit values both incr. and desc.
 CREATE TABLE t1 (
@@ -263,7 +263,7 @@ SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
   AND TABLE_NAME='t1';
 AUTO_INCREMENT
 141
-UPDATE t1 SET c1 = NULL WHERE c1 = 4;
+UPDATE IGNORE t1 SET c1 = NULL WHERE c1 = 4;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 INSERT INTO t1 VALUES (NULL);
@@ -773,7 +773,7 @@ c1
 16
 300
 301
-SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET @@session.sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
 DROP TABLE t1;
 # Test SET INSERT_ID
 CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (c1))
@@ -971,6 +971,7 @@ INSERT INTO t(c2) VALUES (10);
 INSERT INTO t(c2) VALUES (20);
 INSERT INTO t VALUES (126,30);
 INSERT INTO t VALUES (127,40);
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t VALUES (128,50);
 INSERT INTO t VALUES (129,60);
 SELECT * FROM t ORDER BY c1 ASC;
@@ -1029,6 +1030,7 @@ c1	c2
 4	40
 5	50
 DROP TABLE t;
+SET sql_mode = default;
 # Updating the partition table with a value that crosses the upper limits
 # on both the positive and the negative side.
 CREATE TABLE t (c1 TINYINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),
@@ -1043,7 +1045,7 @@ c1	c2
 2	20
 126	30
 127	40
-UPDATE t SET c1 = 130 where c1 = 127;
+UPDATE IGNORE t SET c1 = 130 where c1 = 127;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t ORDER BY c1 ASC;
@@ -1052,7 +1054,7 @@ c1	c2
 2	20
 126	30
 127	40
-UPDATE t SET c1 = -140 where c1 = 126;
+UPDATE IGNORE t SET c1 = -140 where c1 = 126;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t ORDER BY c1 ASC;

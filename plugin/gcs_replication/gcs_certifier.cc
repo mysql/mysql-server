@@ -15,6 +15,7 @@
 
 using namespace std;
 
+#include <signal.h>
 #include "gcs_plugin.h"
 #include "gcs_certifier.h"
 #include <gcs_replication.h>

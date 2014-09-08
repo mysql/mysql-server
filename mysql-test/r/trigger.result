@@ -601,7 +601,7 @@ select @a;
 10
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop table t1;
 set sql_mode="traditional";
@@ -1284,6 +1284,7 @@ a	b
 2	b
 3	c
 drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 id int NOT NULL DEFAULT '0',
 a  varchar(10) NOT NULL,
@@ -1316,6 +1317,7 @@ SELECT fubar_id FROM t2;
 fubar_id
 1
 DROP TABLE t1,t2;
+SET sql_mode = default;
 DROP TABLE IF EXISTS bug21825_A;
 DROP TABLE IF EXISTS bug21825_B;
 CREATE TABLE bug21825_A (id int(10));
@@ -2081,7 +2083,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (id INT NOT NULL);
 CREATE TABLE t2 (id INT NOT NULL);
 INSERT t1 VALUES (1),(2),(3);
-UPDATE t1 SET id=NULL;
+UPDATE IGNORE t1 SET id=NULL;
 Warnings:
 Warning	1048	Column 'id' cannot be null
 Warning	1048	Column 'id' cannot be null
@@ -2144,6 +2146,7 @@ s1
 DELETE FROM t1;
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DROP TRIGGER IF EXISTS trg1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT);
@@ -2181,6 +2184,7 @@ INSERT INTO t1 VALUES (1),(2);
 DROP TRIGGER trg1;
 DROP TRIGGER trg2;
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Bug #46747 "Crash in MDL_ticket::upgrade_shared_lock_to_exclusive
 #             on TRIGGER + TEMP table".

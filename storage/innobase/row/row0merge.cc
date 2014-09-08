@@ -41,6 +41,7 @@ Completed by Sunny Bains and Marko Makela
 #include "handler0alter.h"
 #include "btr0bulk.h"
 #include "fsp0sysspace.h"
+#include "ut0new.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -63,13 +64,13 @@ public:
 	{
 		m_heap = heap;
 		m_index = index;
-		m_dtuple_vec = new(std::nothrow)idx_tuple_vec();
+		m_dtuple_vec = UT_NEW_NOKEY(idx_tuple_vec());
 	}
 
 	/** destructor */
 	~index_tuple_info_t()
 	{
-		delete m_dtuple_vec;
+		UT_DELETE(m_dtuple_vec);
 	}
 
 	/** Get the index object
@@ -80,13 +81,16 @@ public:
 	}
 
 	/** Caches an index row into index tuple vector
-	@param[in]	row	table row */
+	@param[in]	row	table row
+	@param[in]	ext	externally stored column
+	prefixes, or NULL */
 	void add(
-		const dtuple_t*		row) UNIV_NOTHROW
+		const dtuple_t*		row,
+		const row_ext_t*	ext) UNIV_NOTHROW
 	{
 		dtuple_t*	dtuple;
 
-		dtuple = row_build_index_entry(row, NULL, m_index, m_heap);
+		dtuple = row_build_index_entry(row, ext, m_index, m_heap);
 
 		ut_ad(dtuple);
 
@@ -236,7 +240,8 @@ public:
 private:
 	/** Cache index rows made from a cluster index scan. Usually
 	for rows on single cluster index page */
-	typedef std::vector<dtuple_t*>	idx_tuple_vec;
+	typedef std::vector<dtuple_t*, ut_allocator<dtuple_t*> >
+		idx_tuple_vec;
 
 	/** vector used to cache index rows made from cluster index scan */
 	idx_tuple_vec*		m_dtuple_vec;
@@ -333,7 +338,7 @@ row_merge_buf_create_low(
 	buf->index = index;
 	buf->max_tuples = max_tuples;
 	buf->tuples = static_cast<mtuple_t*>(
-		ut_malloc(2 * max_tuples * sizeof *buf->tuples));
+		ut_malloc_nokey(2 * max_tuples * sizeof *buf->tuples));
 	buf->tmp_tuples = buf->tuples + max_tuples;
 
 	return(buf);
@@ -353,8 +358,9 @@ row_merge_buf_create(
 	ulint			buf_size;
 	mem_heap_t*		heap;
 
-	max_tuples = srv_sort_buf_size
-		/ ut_max(1, dict_index_get_min_size(index));
+	max_tuples = static_cast<ulint>(srv_sort_buf_size)
+		/ ut_max(static_cast<ulint>(1),
+			 dict_index_get_min_size(index));
 
 	buf_size = (sizeof *buf);
 
@@ -532,8 +538,8 @@ row_merge_buf_add(
 					continue;
 				}
 
-				ptr = ut_malloc(sizeof(*doc_item)
-						+ field->len);
+				ptr = ut_malloc_nokey(sizeof(*doc_item)
+						      + field->len);
 
 				doc_item = static_cast<fts_doc_item_t*>(ptr);
 				value = static_cast<byte*>(ptr)
@@ -613,7 +619,10 @@ row_merge_buf_add(
 			dfield_set_len(field, len);
 		}
 
-		ut_ad(len <= col->len || DATA_LARGE_MTYPE(col->mtype));
+		ut_ad(len <= col->len
+		      || DATA_LARGE_MTYPE(col->mtype)
+		      || (col->mtype == DATA_POINT
+			  && len == DATA_MBR_LEN));
 
 		fixed_len = ifield->fixed_len;
 		if (fixed_len && !dict_table_is_comp(index->table)
@@ -1344,6 +1353,49 @@ row_merge_file_create_if_needed(
 	return(file->fd);
 }
 
+/** Copy the merge data tuple from another merge data tuple.
+@param[in]	mtuple		source merge data tuple
+@param[in,out]	prev_mtuple	destination merge data tuple
+@param[in]	n_unique	number of unique fields exist in the mtuple
+@param[in,out]	heap		memory heap where last_mtuple allocated */
+static
+void
+row_mtuple_create(
+	const mtuple_t*	mtuple,
+	mtuple_t*	prev_mtuple,
+	ulint		n_unique,
+	mem_heap_t*	heap)
+{
+	memcpy(prev_mtuple->fields, mtuple->fields,
+	       n_unique * sizeof *mtuple->fields);
+
+	dfield_t*	field = prev_mtuple->fields;
+
+	for (ulint i = 0; i < n_unique; i++) {
+		dfield_dup(field++, heap);
+	}
+}
+
+/** Compare two merge data tuples.
+@param[in]	prev_mtuple	merge data tuple
+@param[in]	current_mtuple	merge data tuple
+@param[in,out]	dup		reporter of duplicates
+@retval positive, 0, negative if current_mtuple is greater, equal, less, than
+last_mtuple. */
+static
+int
+row_mtuple_cmp(
+	const mtuple_t*		prev_mtuple,
+	const mtuple_t*		current_mtuple,
+	row_merge_dup_t*	dup)
+{
+	ut_ad(dict_index_is_clust(dup->index));
+	const ulint	n_unique = dict_index_get_n_unique(dup->index);
+
+	return(row_merge_tuple_cmp(
+		       n_unique, n_unique, *current_mtuple, *prev_mtuple, dup));
+}
+
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
@@ -1414,6 +1466,8 @@ row_merge_read_clustered_index(
 	ulint			num_spatial = 0;
 	BtrBulk*		clust_btr_bulk = NULL;
 	bool			clust_temp_file = false;
+	mem_heap_t*		mtuple_heap = NULL;
+	mtuple_t		prev_mtuple;
 	DBUG_ENTER("row_merge_read_clustered_index");
 
 	ut_ad((old_table == new_table) == !col_map);
@@ -1428,7 +1482,15 @@ row_merge_read_clustered_index(
 	/* Create and initialize memory for record buffers */
 
 	merge_buf = static_cast<row_merge_buf_t**>(
-		ut_malloc(n_index * sizeof *merge_buf));
+		ut_malloc_nokey(n_index * sizeof *merge_buf));
+
+	row_merge_dup_t	clust_dup = {index[0], table, col_map, 0};
+	dfield_t*	prev_fields;
+	const ulint	n_uniq = dict_index_get_n_unique(index[0]);
+
+	ut_ad(!skip_pk_sort || dict_index_is_clust(index[0]));
+	/* There is no previous tuple yet. */
+	prev_mtuple.fields = NULL;
 
 	for (ulint i = 0; i < n_index; i++) {
 		if (index[i]->type & DICT_FTS) {
@@ -1461,6 +1523,7 @@ row_merge_read_clustered_index(
 			if (dict_index_is_spatial(index[i])) {
 				num_spatial++;
 			}
+
 			merge_buf[i] = row_merge_buf_create(index[i]);
 		}
 	}
@@ -1471,13 +1534,16 @@ row_merge_read_clustered_index(
 		spatial_heap = mem_heap_create(100);
 
 		spatial_dtuple_info = static_cast<index_tuple_info_t**>(
-			ut_malloc(num_spatial * sizeof(*spatial_dtuple_info)));
+			ut_malloc_nokey(num_spatial
+					* sizeof(*spatial_dtuple_info)));
 
 		for (ulint i = 0; i < n_index; i++) {
 			if (dict_index_is_spatial(index[i])) {
 				spatial_dtuple_info[count]
-					= new(std::nothrow)index_tuple_info_t(
-						spatial_heap, index[i]);
+					= UT_NEW_NOKEY(
+						index_tuple_info_t(
+							spatial_heap,
+							index[i]));
 				count++;
 			}
 		}
@@ -1502,7 +1568,7 @@ row_merge_read_clustered_index(
 		do not violate the added NOT NULL constraints. */
 
 		nonnull = static_cast<ulint*>(
-			ut_malloc(dict_table_get_n_cols(new_table)
+			ut_malloc_nokey(dict_table_get_n_cols(new_table)
 				  * sizeof *nonnull));
 
 		for (ulint i = 0; i < dict_table_get_n_cols(old_table); i++) {
@@ -1531,6 +1597,14 @@ row_merge_read_clustered_index(
 	}
 
 	row_heap = mem_heap_create(sizeof(mrec_buf_t));
+
+	if (skip_pk_sort) {
+		prev_fields = static_cast<dfield_t*>(
+			ut_malloc_nokey(n_uniq * sizeof *prev_fields));
+		mtuple_heap = mem_heap_create(sizeof(mrec_buf_t));
+	} else {
+		prev_fields = NULL;
+	}
 
 	/* Scan the clustered index. */
 	for (;;) {
@@ -1566,7 +1640,7 @@ row_merge_read_clustered_index(
 				"ib_purge_on_create_index_page_switch",
 				dbug_run_purge = true;);
 
-			if (spatial_dtuple_info) {
+			if (spatial_dtuple_info != NULL) {
 				bool	mtr_committed = false;
 
 				for (ulint j = 0; j < num_spatial; j++) {
@@ -1826,8 +1900,10 @@ write_buffers:
 		in a single scan of the clustered index. */
 
 		ulint	s_idx_cnt = 0;
+		bool	skip_sort = skip_pk_sort
+			&& dict_index_is_clust(merge_buf[0]->index);
 
-		for (ulint i = 0; i < n_index; i++) {
+		for (ulint i = 0; i < n_index; i++, skip_sort = false) {
 			row_merge_buf_t*	buf	= merge_buf[i];
 			merge_file_t*		file	= &files[i];
 			ulint			rows_added = 0;
@@ -1841,7 +1917,7 @@ write_buffers:
 				ut_ad(spatial_dtuple_info[s_idx_cnt]->get_index()
 				      == buf->index);
 
-				spatial_dtuple_info[s_idx_cnt]->add(row);
+				spatial_dtuple_info[s_idx_cnt]->add(row, ext);
 
 				s_idx_cnt++;
 
@@ -1878,6 +1954,31 @@ write_buffers:
 					}
 				}
 
+				if (skip_sort) {
+					ut_ad(buf->n_tuples > 0);
+					const mtuple_t*	curr =
+						&buf->tuples[buf->n_tuples - 1];
+
+					ut_ad(i == 0);
+					ut_ad(dict_index_is_clust(merge_buf[0]->index));
+					/* Detect duplicates by comparing the
+					current record with previous record.
+					When temp file is not used, records
+					should be in sorted order. */
+					if (prev_mtuple.fields != NULL
+					    && (row_mtuple_cmp(
+						&prev_mtuple, curr,
+						&clust_dup) == 0)) {
+
+						err = DB_DUPLICATE_KEY;
+						trx->error_key_num
+							= key_numbers[0];
+						goto func_exit;
+					}
+
+					prev_mtuple.fields = curr->fields;
+				}
+
 				continue;
 			}
 
@@ -1897,14 +1998,12 @@ write_buffers:
 			/* We have enough data tuples to form a block.
 			Sort them and write to disk if temp file is used
 			or insert into index if temp file is not used. */
-			const bool skip_sort = skip_pk_sort
-				&& dict_index_is_clust(buf->index);
 			ut_ad(old_table == new_table
 			      ? !dict_index_is_clust(buf->index)
 			      : (i == 0) == dict_index_is_clust(buf->index));
 
 			/* We have enough data tuples to form a block.
-			Sort them and write to disk. */
+			Sort them (if !skip_sort) and write to disk. */
 
 			if (buf->n_tuples) {
 				if (skip_sort) {
@@ -1927,24 +2026,18 @@ write_buffers:
 						mtr_commit(&mtr);
 					}
 
-					/* TODO: Detect duplicates earlier, by
-					comparing to previous record in
-					row_merge_buf_add(). */
-					row_merge_dup_t dup = {
-						buf->index, table, col_map, 0};
+					mem_heap_empty(mtuple_heap);
+					prev_mtuple.fields = prev_fields;
 
-					row_merge_buf_sort(buf, &dup);
-
-					if (dup.n_dup) {
-						err = DB_DUPLICATE_KEY;
-						trx->error_key_num
-							= key_numbers[i];
-						goto all_done;
-					}
+					row_mtuple_create(
+						&buf->tuples[buf->n_tuples - 1],
+						&prev_mtuple, n_uniq,
+						mtuple_heap);
 
 					if (clust_btr_bulk == NULL) {
-						clust_btr_bulk = new BtrBulk(
-							index[i], trx->id);
+						clust_btr_bulk = UT_NEW_NOKEY(
+							BtrBulk(index[i],
+								trx->id));
 						clust_btr_bulk->init();
 					} else {
 						clust_btr_bulk->latch();
@@ -1957,7 +2050,8 @@ write_buffers:
 					if (row == NULL) {
 						err = clust_btr_bulk->finish(
 							err);
-						delete clust_btr_bulk;
+						UT_DELETE(clust_btr_bulk);
+						clust_btr_bulk = NULL;
 					} else {
 						/* Release latches for possible
 						log_free_chck in spatial index
@@ -2125,6 +2219,19 @@ func_exit:
 	ut_free(nonnull);
 
 all_done:
+	if (clust_btr_bulk != NULL) {
+		ut_ad(err != DB_SUCCESS);
+		clust_btr_bulk->latch();
+		err = clust_btr_bulk->finish(
+			err);
+		UT_DELETE(clust_btr_bulk);
+	}
+
+	if (prev_fields != NULL) {
+		ut_free(prev_fields);
+		mem_heap_free(mtuple_heap);
+	}
+
 #ifdef FTS_INTERNAL_DIAG_PRINT
 	DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Scan Table\n");
 #endif
@@ -2203,9 +2310,9 @@ wait_again:
 
 	btr_pcur_close(&pcur);
 
-	if (spatial_dtuple_info) {
+	if (spatial_dtuple_info != NULL) {
 		for (ulint i = 0; i < num_spatial; i++) {
-			delete spatial_dtuple_info[i];
+			UT_DELETE(spatial_dtuple_info[i]);
 		}
 		ut_free(spatial_dtuple_info);
 
@@ -2588,7 +2695,7 @@ row_merge_sort(
 	}
 
 	/* "run_offset" records each run's first offset number */
-	run_offset = (ulint*) ut_malloc(file->offset * sizeof(ulint));
+	run_offset = (ulint*) ut_malloc_nokey(file->offset * sizeof(ulint));
 
 	/* This tells row_merge() where to start for the first round
 	of merge. */
@@ -2656,13 +2763,20 @@ row_merge_copy_blobs(
 			field_data
 				= static_cast<byte*>(dfield_get_data(field));
 			field_len = dfield_get_len(field);
-		} else {
-			field_data = rec_get_nth_field(
-				mrec, offsets, i, &field_len);
-		}
 
-		data = btr_copy_externally_stored_field(
-			&len, field_data, page_size, field_len, heap);
+			ut_a(field_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+			ut_a(memcmp(field_data + field_len
+				     - BTR_EXTERN_FIELD_REF_SIZE,
+				     field_ref_zero,
+				     BTR_EXTERN_FIELD_REF_SIZE));
+
+			data = btr_copy_externally_stored_field(
+				&len, field_data, page_size, field_len, heap);
+		} else {
+			data = btr_rec_copy_externally_stored_field(
+				mrec, offsets, page_size, i, &len, heap);
+		}
 
 		/* Because we have locked the table, any records
 		written by incomplete transactions must have been
@@ -3593,8 +3707,9 @@ row_merge_rename_tables_dict(
 			   " WHERE NAME = :new_name;\n"
 			   "END;\n", FALSE, trx);
 
-	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old
-	table is in a non-system tablespace where space > 0. */
+	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old table being
+	renamed is a single-table tablespace, which must be implicitly
+	renamed along with the table. */
 	if (err == DB_SUCCESS
 	    && !is_system_tablespace(old_table->space)
 	    && !old_table->ibd_file_missing) {
@@ -3622,8 +3737,9 @@ row_merge_rename_tables_dict(
 		ut_free(tmp_path);
 	}
 
-	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
-	table is in a non-system tablespace where space > 0. */
+	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new table being
+	renamed is a single-table tablespace, which must be implicitly
+	renamed along with the table. */
 	if (err == DB_SUCCESS
 	    && !is_system_tablespace(new_table->space)) {
 		/* Make pathname to update SYS_DATAFILES. */
@@ -3842,7 +3958,7 @@ row_merge_build_indexes(
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
-	ulint			block_size;
+	ut_new_pfx_t		block_pfx;
 	ulint			i;
 	ulint			j;
 	dberr_t			error;
@@ -3862,9 +3978,11 @@ row_merge_build_indexes(
 	/* Allocate memory for merge file data structure and initialize
 	fields */
 
-	block_size = 3 * srv_sort_buf_size;
-	block = static_cast<row_merge_block_t*>(
-		os_mem_alloc_large(&block_size));
+	ut_allocator<row_merge_block_t>	alloc(mem_key_row_merge_sort);
+
+	/* This will allocate "3 * srv_sort_buf_size" elements of type
+	row_merge_block_t. The latter is defined as byte. */
+	block = alloc.allocate_large(3 * srv_sort_buf_size, &block_pfx);
 
 	if (block == NULL) {
 		DBUG_RETURN(DB_OUT_OF_MEMORY);
@@ -3873,7 +3991,7 @@ row_merge_build_indexes(
 	trx_start_if_not_started_xa(trx, true);
 
 	merge_files = static_cast<merge_file_t*>(
-		ut_malloc(n_indexes * sizeof *merge_files));
+		ut_malloc_nokey(n_indexes * sizeof *merge_files));
 
 	/* Initialize all the merge file descriptors, so that we
 	don't call row_merge_file_destroy() on uninitialized
@@ -3905,8 +4023,9 @@ row_merge_build_indexes(
 			fts_sort_idx = row_merge_create_fts_sort_index(
 				indexes[i], old_table, &opt_doc_id_size);
 
-			row_merge_dup_t* dup = static_cast<row_merge_dup_t*>(
-				ut_malloc(sizeof *dup));
+			row_merge_dup_t*	dup
+				= static_cast<row_merge_dup_t*>(
+					ut_malloc_nokey(sizeof *dup));
 			dup->index = fts_sort_idx;
 			dup->table = table;
 			dup->col_map = col_map;
@@ -4096,7 +4215,8 @@ func_exit:
 	}
 
 	ut_free(merge_files);
-	os_mem_free_large(block, block_size);
+
+	alloc.deallocate_large(block, &block_pfx);
 
 	DICT_TF2_FLAG_UNSET(new_table, DICT_TF2_FTS_ADD_DOC_ID);
 

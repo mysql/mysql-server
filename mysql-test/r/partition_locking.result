@@ -136,7 +136,7 @@ HANDLER_WRITE	18
 # 4 locks (table + partition lock/unlock)
 SELECT @@sql_mode;
 @@sql_mode
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
 SELECT @@sql_mode;
@@ -153,7 +153,7 @@ HANDLER_WRITE	18
 SET @@sql_mode = @old_sql_mode;
 SELECT @@sql_mode;
 @@sql_mode
-NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 FLUSH STATUS;
 INSERT INTO t3 VALUES (1, 0);
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -397,7 +397,7 @@ HANDLER_WRITE	18
 # specifier
 #
 FLUSH STATUS;
-INSERT INTO t3 VALUES (-1, "ZZZzzzz", "yyyYYY", -1, DEFAULT);
+INSERT IGNORE INTO t3 VALUES (-1, "ZZZzzzz", "yyyYYY", -1, DEFAULT);
 Warnings:
 Warning	1264	Out of range value for column 'd' at row 1
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -752,6 +752,7 @@ UNIX_TIMESTAMP('2011-01-01 00:00:00') % 3 as part,
 1234567890 % 3 as part2;
 time_t	part	part2
 1293829200	0	0
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t3
 (a timestamp DEFAULT 0,
 b char(10),
@@ -2065,6 +2066,7 @@ a	b
 2011-01-01 00:00:04	Replace2
 2011-01-01 00:00:05	DUP_KEY2
 DROP TABLE t3;
+SET sql_mode = default;
 #
 # Test INSERT SELECT
 #

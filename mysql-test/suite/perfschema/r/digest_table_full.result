@@ -79,7 +79,7 @@ CREATE TABLE dup_table (c char(4));
 CREATE TABLE dup_table (c char(4));
 ERROR 42S01: Table 'dup_table' already exists
 DROP TABLE dup_table;
-INSERT INTO t11 VALUES("MySQL");
+INSERT IGNORE INTO t11 VALUES("MySQL");
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
 PREPARE stmt FROM "SELECT * FROM t12";
@@ -113,7 +113,7 @@ SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_ROWS_AFFECTED, SUM_WARN
 SUM_ERRORS FROM performance_schema.events_statements_summary_by_digest;
 SCHEMA_NAME	DIGEST	DIGEST_TEXT	COUNT_STAR	SUM_ROWS_AFFECTED	SUM_WARNINGS	SUM_ERRORS
 NULL	NULL	NULL	55	32	1	2
-statements_digest	13612ddfac096a0d8fc84dfca6298585	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest 	1	0	0	0
+statements_digest	1ca25caec65bd97a972ab99653e7c3f2	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest 	1	0	0	0
 SHOW VARIABLES LIKE "performance_schema_digests_size";
 Variable_name	Value
 performance_schema_digests_size	2

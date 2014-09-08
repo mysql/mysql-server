@@ -734,7 +734,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(STRING_WITH_LEN("VIEW "));
     /* Test if user supplied a db (ie: we did not use thd->db) */
     if (views->db && views->db[0] &&
-        (thd->db == NULL || strcmp(views->db, thd->db)))
+        (thd->db().str == NULL || strcmp(views->db, thd->db().str)))
     {
       append_identifier(thd, &buff, views->db,
                         views->db_length);
@@ -1369,7 +1369,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       Use view db name as thread default database, in order to ensure
       that the view is parsed and prepared correctly.
     */
-    if ((result= mysql_opt_change_db(thd, &table->view_db, &old_db, 1,
+    if ((result= mysql_opt_change_db(thd, table->view_db, &old_db, 1,
                                      &dbchanged)))
       goto end;
 
@@ -1419,8 +1419,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         lex->sql_command= old_lex->sql_command;
 
     thd->variables.sql_mode= saved_mode;
-
-    if (dbchanged && mysql_change_db(thd, &old_db, TRUE))
+    if (dbchanged && mysql_change_db(thd, to_lex_cstring(old_db), true))
       goto err;
   }
   if (!parse_status)
@@ -1920,8 +1919,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       {
         if (!wrong_object_name)
         {
-          wrong_object_db= view->db;
-          wrong_object_name= view->table_name;
+          wrong_object_db= const_cast<char*>(view->db);
+          wrong_object_name= const_cast<char*>(view->table_name);
         }
       }
       else

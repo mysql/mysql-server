@@ -273,7 +273,7 @@ int Gtid_state::wait_for_gtid_set(THD* thd, String* gtid_set_text, longlong time
   }
 
   if (timeout > 0)
-    set_timespec(abstime, timeout);
+    set_timespec(&abstime, timeout);
 
   while (!thd->killed)
   {

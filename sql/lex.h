@@ -411,6 +411,7 @@ static SYMBOL symbols[] = {
   { "ONLY",                     SYM(ONLY_SYM)},
   { "OPEN",                     SYM(OPEN_SYM)},
   { "OPTIMIZE",                 SYM(OPTIMIZE)},
+  { "OPTIMIZER_COSTS",          SYM(OPTIMIZER_COSTS_SYM)},
   { "OPTIONS",                  SYM(OPTIONS_SYM)},
   { "OPTION",                   SYM(OPTION)},
   { "OPTIONALLY",               SYM(OPTIONALLY)},

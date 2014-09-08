@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,8 @@ Created 9/8/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "os0thread.h"
+#include "ut0new.h"
+
 #ifdef UNIV_NONINL
 #include "os0thread.ic"
 #endif
@@ -44,10 +46,14 @@ SysMutex	thread_mutex;
 ulint	os_thread_count;
 
 #ifdef _WIN32
-typedef std::map<DWORD, HANDLE> WinThreadMap;
+typedef std::map<
+	DWORD,
+	HANDLE,
+	std::less<DWORD>,
+	ut_allocator<std::pair<const DWORD, HANDLE> > >	WinThreadMap;
 /** This STL map remembers the initial handle returned by CreateThread
 so that it can be closed when the thread exits. */
-static WinThreadMap win_thread_map;
+static WinThreadMap	win_thread_map;
 #endif /* _WIN32 */
 
 /***************************************************************//**
@@ -139,8 +145,6 @@ os_thread_create_func(
 		/* If we cannot start a new thread, life has no meaning. */
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"CreateThread returned %d", GetLastError());
-		ut_ad(0);
-		exit(1);
 	}
 
 	mutex_enter(&thread_mutex);

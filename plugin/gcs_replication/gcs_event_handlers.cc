@@ -451,7 +451,7 @@ Gcs_plugin_leave_notifier::wait_for_view_modification(long timeout)
   mysql_mutex_lock(&wait_for_view_mutex);
   while (view_changing)
   {
-    set_timespec(ts, timeout);
+    set_timespec(&ts, timeout);
     result=
          mysql_cond_timedwait(&wait_for_view_cond, &wait_for_view_mutex, &ts);
 

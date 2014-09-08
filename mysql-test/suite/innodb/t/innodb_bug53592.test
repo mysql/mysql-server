@@ -26,7 +26,9 @@ create unique index bug53592_c on bug53592(c(1));
 # To get the correct index number, the code should go through index
 # translation table. Otherwise, it will get the wrong index
 # number and later trigger a server crash.
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 replace into bug53592 values (),();
+SET sql_mode = default;
 
 check table bug53592;
 
@@ -52,7 +54,9 @@ create unique index bug53592_c on bug53592(c(1));
 # To get the correct index number, the code should go through index
 # translation table. Otherwise, it will get the wrong index
 # number and later trigger a server crash.
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 replace into bug53592 values (),();
+SET sql_mode = default;
 
 check table bug53592;
 drop table bug53592;

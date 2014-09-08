@@ -222,12 +222,13 @@ drop table t2;
 #
 # select list counter
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) NOT NULL default '', `vendor` int(11) NOT NULL default '0', `date_` date NOT NULL default '0000-00-00', `price` decimal(12,2) NOT NULL default '0.00', PRIMARY KEY  (`itemid`,`grpid`,`vendor`,`date_`), KEY `itemid` (`itemid`,`vendor`), KEY `itemid_2` (`itemid`,`date_`));
 insert into t1 values (128, 'rozn', 2, curdate(), 10),
   (128, 'rozn', 1, curdate(), 10);
 SELECT MIN(price) min, MAX(price) max, AVG(price) avg FROM (SELECT SUBSTRING( MAX(concat(date_,";",price)), 12) price FROM t1 WHERE itemid=128 AND  grpid='rozn' GROUP BY itemid, grpid, vendor) lastprices;
 DROP TABLE t1;
-
+SET sql_mode = default;
 #
 # DISTINCT over grouped select on subquery in the FROM clause
 #
@@ -554,6 +555,9 @@ FLUSH STATUS;
 SELECT * FROM v4 WHERE f2 IN (1,3);
 SHOW STATUS LIKE 'Handler_read%';
 
+# Lots of "SELECT * GROUP BY non-unique-field" below, so:
+--source include/turn_off_only_full_group_by.inc
+
 --echo for materialized derived tables
 --echo  explain for simple derived
 EXPLAIN EXTENDED SELECT * FROM (SELECT * FROM t1 GROUP BY f1) tt;
@@ -700,6 +704,7 @@ let $query= SELECT * FROM t1 JOIN (SELECT * FROM t2) tt ON t1.f1=tt.f2
 eval EXPLAIN EXTENDED $query;
 eval $query;
 
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1,t2,t3; 
 DROP VIEW v1,v2,v3,v4,v6,v7;
 

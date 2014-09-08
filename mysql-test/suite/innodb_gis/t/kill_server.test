@@ -1,0 +1,64 @@
+# WL#6745 InnoDB R-tree support
+# This test case will test R-tree multi level split.
+
+# Not supported in embedded
+--source include/not_embedded.inc
+
+--source include/have_innodb.inc
+--source include/big_test.inc
+
+# Create table with R-tree index.
+create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+
+# Insert enough values to let R-tree split.
+delimiter |;
+create procedure insert_t1(IN total int)
+begin
+	declare i int default 1;
+	while (i <= total) DO
+		insert into t1 values (i, Point(i, i));
+		set i = i + 1;
+	end while;
+end|
+delimiter ;|
+
+# Test level 1 rtree.
+CALL insert_t1(5000);
+select count(*) from t1;
+
+# Check table.
+check table t1;
+
+# Test level 2 rtree.
+truncate table t1;
+CALL insert_t1(10000);
+select count(*) from t1;
+
+drop index c2 on t1;
+
+create spatial index idx on t1(c2);
+
+show create table t1;
+
+# Check table.
+check table t1;
+
+# Test level 3 rtree.
+truncate table t1;
+
+# Test crash recovery.
+#
+#
+call mtr.add_suppression("InnoDB: page [0-9]+ in the doublewrite buffer is not within space bounds.*");
+
+# Test rtree enlarge recovery.
+START TRANSACTION;
+CALL insert_t1(5000);
+
+COMMIT;
+
+--source include/kill_and_restart_mysqld.inc
+
+# Clean up.
+drop procedure insert_t1;
+drop table t1;

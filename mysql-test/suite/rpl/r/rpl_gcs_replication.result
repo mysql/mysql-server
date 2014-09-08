@@ -7,6 +7,7 @@ SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429
 SET GLOBAL gcs_replication_plugin_start_on_boot= 1;
 include/assert.inc [The value of group name should be 8a94f357-aab4-11df-86ab-c80aa9429563]
 include/assert.inc [The value of gcs_boot should be 1]
+# restart
 START GCS_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the GCS CLUSTER.
 include/start_gcs_replication.inc

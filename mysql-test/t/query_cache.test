@@ -705,10 +705,12 @@ set GLOBAL query_cache_size=1355776;
 # Query with warning prohibited to query cache (BUG#9414)
 #
 flush status;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   `date` datetime NOT NULL default '0000-00-00 00:00:00',
   KEY `date` (`date`)
 ) ENGINE=MyISAM;
+SET sql_mode = default;
 
 INSERT INTO t1 VALUES ('20050326');
 INSERT INTO t1 VALUES ('20050325');

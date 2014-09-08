@@ -1549,3 +1549,8 @@ show global variables like 'log_slow_slave_statements';
 select * from information_schema.global_variables where variable_name like 'log_slow_slave_statements';
 set global log_slow_admin_statements = default;
 set global log_slow_slave_statements = default;
+
+--echo #
+--echo # WL#7764 - Make STRICT mode for transactional SEs default in 5.7
+--echo #
+SHOW VARIABLES LIKE 'sql_mode';

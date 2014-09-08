@@ -43,6 +43,10 @@
 
 #include <algorithm>
 
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
+
 using std::min;
 using std::max;
 
@@ -1533,9 +1537,8 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
 
   new_thd->thread_stack= (char*) &tables;
   new_thd->store_globals();
-  new_thd->db= my_strdup(key_memory_THD_db,
-                         "mysql", MYF(0));
-  new_thd->db_length= 5;
+  LEX_CSTRING db_lex_cstr= { STRING_WITH_LEN("mysql") };
+  new_thd->set_db(db_lex_cstr);
   memset(&thd.net, 0, sizeof(thd.net));
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_READ);
 
@@ -2183,7 +2186,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
     if (unlikely(version != plugin_array_version))
     {
       mysql_mutex_lock(&LOCK_plugin);
-      for (uint i=idx; i < total; i++)
+      for (size_t i=idx; i < total; i++)
         if (plugins[i] && plugins[i]->state & state_mask)
           plugins[i]=0;
       mysql_mutex_unlock(&LOCK_plugin);
@@ -3914,23 +3917,6 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
     if (tmp->load_option != PLUGIN_FORCE &&
         tmp->load_option != PLUGIN_FORCE_PLUS_PERMANENT)
       plugin_load_option= (enum_plugin_load_option) *(ulong*) opts[0].value;
-  }
-
-  /*
-    If InnoDB engine is the default engine for intrinsic temp table,
-    it must be loaded.
-
-    Note: Here we can't set PLUGIN_FORCE or PLUGIN_FORCE_PLUS_PERMANENT.
-    Because MTR need a contructed system variable 'innodb', such a variable
-    will not be made if set plugin_load_option to both of those options.
-  */
-  if (!my_strcasecmp(&my_charset_latin1, tmp->name.str, "innodb"))
-  {
-    if (internal_tmp_disk_storage_engine == TMP_TABLE_INNODB)
-    {
-      plugin_load_option= PLUGIN_ON;
-      opts[0].def_value= opts[1].def_value= plugin_load_option;
-    }
   }
 
   disable_plugin= (plugin_load_option == PLUGIN_OFF);

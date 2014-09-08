@@ -1,5 +1,6 @@
 # WL#5928: Most statements should clear the diagnostic area
 SELECT @@max_heap_table_size INTO @old_max_heap_table_size;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 # Throw error, run some queries that shouldn't change diagnostics.
 #
@@ -337,9 +338,7 @@ DROP PROCEDURE p10_ps_with_warning;
 DEALLOCATE PREPARE stmt1;
 DROP TABLE t1;
 # show prepared statements still throw warnings OK
-PREPARE stmt1 FROM 'create table if not exists t1 (f1 year(1))';
-Warnings:
-Warning	1818	YEAR(1) column type is deprecated. Creating YEAR(4) column instead.
+PREPARE stmt1 FROM 'create table if not exists t1 (f1 year(4))';
 EXECUTE stmt1;
 DEALLOCATE PREPARE stmt1;
 DROP TABLE t1;
@@ -520,6 +519,7 @@ DROP PROCEDURE bug15231_5|
 DROP PROCEDURE bug15231_6|
 DROP PROCEDURE bug15231_7|
 DROP PROCEDURE bug15231_8|
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 SET @@max_heap_table_size= @old_max_heap_table_size;
 

@@ -61,6 +61,16 @@ static const TABLE_FIELD_TYPE field_types[]=
     {NULL, 0}
   },
   {
+    {C_STRING_WITH_LEN("COUNT_RECEIVED_HEARTBEATS")},
+    {C_STRING_WITH_LEN("bigint(20)")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("LAST_HEARTBEAT_TIMESTAMP")},
+    {C_STRING_WITH_LEN("timestamp")},
+    {NULL, 0}
+  },
+  {
     {C_STRING_WITH_LEN("RECEIVED_TRANSACTION_SET")},
     {C_STRING_WITH_LEN("text")},
     {NULL, 0}
@@ -129,7 +139,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_replication_connection_status::m_field_def=
-{ 17, field_types };
+{ 19, field_types };
 
 PFS_engine_table_share
 table_replication_connection_status::m_share=
@@ -329,6 +339,13 @@ void table_replication_connection_status::make_row()
       m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
   }
 
+  m_row.count_received_heartbeats= active_mi->received_heartbeats;
+  /*
+    Time in Milliseconds since epoch. active_mi->last_heartbeat contains
+    number of seconds so we multiply by 1000000.
+  */
+  m_row.last_heartbeat_timestamp= (ulonglong)active_mi->last_heartbeat*1000000;
+
   mysql_mutex_lock(&active_mi->err_lock);
   mysql_mutex_lock(&active_mi->rli->err_lock);
 
@@ -361,7 +378,9 @@ void table_replication_connection_status::make_row()
     memcpy(m_row.last_error_message, temp_store,
            m_row.last_error_message_length);
 
-    /** time in millisecond since epoch */
+    /*
+      Time in millisecond since epoch. active_mi->last_error().skr contains
+      number of seconds so we multiply by 1000000. */
     m_row.last_error_timestamp= (ulonglong)active_mi->last_error().skr*1000000;
   }
 
@@ -437,75 +456,80 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       case 3: /** service_state */
         set_field_enum(f, m_row.service_state);
         break;
-      case 4: /** received_transaction_set */
+      case 4: /** number of heartbeat events received **/
+        set_field_ulonglong(f, m_row.count_received_heartbeats);
+        break;
+      case 5: /** time of receipt of last heartbeat event **/
+        set_field_timestamp(f, m_row.last_heartbeat_timestamp);
+        break;
+      case 6: /** received_transaction_set */
         set_field_longtext_utf8(f, m_row.received_transaction_set,
                                 m_row.received_transaction_set_length);
         break;
-      case 5: /*last_error_number*/
+      case 7: /*last_error_number*/
         set_field_ulong(f, m_row.last_error_number);
         break;
-      case 6: /*last_error_message*/
+      case 8: /*last_error_message*/
         set_field_varchar_utf8(f, m_row.last_error_message,
                                m_row.last_error_message_length);
         break;
-      case 7: /*last_error_timestamp*/
+      case 9: /*last_error_timestamp*/
         set_field_timestamp(f, m_row.last_error_timestamp);
         break;
-      case 8: /*total_messages_received */
+      case 10: /*total_messages_received */
         if (m_row.is_gcs_plugin_loaded)
           set_field_ulonglong(f, m_row.total_messages_received);
         else
           f->set_null();
         break;
-      case 9: /*total_messages_sent */
+      case 11: /*total_messages_sent */
         if (m_row.is_gcs_plugin_loaded)
           set_field_ulonglong(f, m_row.total_messages_sent);
         else
           f->set_null();
         break;
-      case 10: /*total_bytes_received */
+      case 12: /*total_bytes_received */
         if (m_row.is_gcs_plugin_loaded)
           set_field_ulonglong(f, m_row.total_bytes_received);
         else
           f->set_null();
         break;
-      case 11: /*total_bytes_sent */
+      case 13: /*total_bytes_sent */
         if (m_row.is_gcs_plugin_loaded)
           set_field_ulonglong(f, m_row.total_bytes_sent);
         else
           f->set_null();
         break;
-      case 12: /*last_message_timestamp*/
+      case 14: /*last_message_timestamp*/
         if (m_row.is_gcs_plugin_loaded)
            set_field_timestamp(f, m_row.last_message_timestamp);
         else
           f->set_null();
         break;
-      case 13: /*max_message_length*/
+      case 15: /*max_message_length*/
         if (m_row.is_gcs_plugin_loaded)
           set_field_ulong(f, m_row.max_message_length);
         else
           f->set_null();
         break;
-      case 14: /*min_message_length*/
+      case 16: /*min_message_length*/
         if (m_row.is_gcs_plugin_loaded)
           set_field_ulong(f, m_row.min_message_length);
         else
           f->set_null();
         break;
-      case 15: /*view_id*/
+      case 17: /*view_id*/
         if (m_row.is_gcs_plugin_loaded)
           set_field_ulong(f, m_row.view_id);
         else
           f->set_null();
         break;
-      case 16: /*number_of_nodes*/
+      case 18: /*number_of_nodes*/
         if (m_row.is_gcs_plugin_loaded)
           set_field_ulong(f, m_row.number_of_nodes);
         else
           f->set_null();
         break;
-
       default:
         DBUG_ASSERT(false);
       }

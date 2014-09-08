@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <signal.h>
 #include "gcs_applier.h"
 #include "handlers/certification_handler.h"
 #include <mysqld.h>
@@ -342,7 +343,7 @@ Applier_module::terminate_applier_thread()
       alarm. To protect against it, resend the signal until it reacts
     */
     struct timespec abstime;
-    set_timespec(abstime,2);
+    set_timespec(&abstime, 2);
 #ifndef DBUG_OFF
     int error=
 #endif

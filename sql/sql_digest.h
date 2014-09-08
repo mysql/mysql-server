@@ -55,17 +55,22 @@ struct sql_digest_storage
 
   inline void copy(const sql_digest_storage *from)
   {
-    if (from->m_byte_count > 0)
+    /*
+      Keep in mind this is a dirty copy of something that may change,
+      as the thread producing the digest is executing concurrently,
+      without any lock enforced.
+    */
+    int byte_count_copy= from->m_byte_count;
+
+    if ((byte_count_copy > 0) && (byte_count_copy <= MAX_DIGEST_STORAGE_SIZE))
     {
       m_full= from->m_full;
-      m_byte_count= from->m_byte_count;
+      m_byte_count= byte_count_copy;
       m_charset_number= from->m_charset_number;
-      DBUG_ASSERT(m_byte_count <= MAX_DIGEST_STORAGE_SIZE);
       memcpy(m_token_array, from->m_token_array, m_byte_count);
     }
     else
     {
-      DBUG_ASSERT(from->m_byte_count == 0);
       m_full= false;
       m_byte_count= 0;
       m_charset_number= 0;

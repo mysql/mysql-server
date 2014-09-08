@@ -41,7 +41,7 @@ show tables;
 create table t3 (n int) engine=innodb;
 let $master_log_pos_2= query_get_value(SHOW MASTER STATUS, Position, 1);
 let $master_log_pos_2= `SELECT $master_log_pos_2 + 5`;
-if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+if (`SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE = 'ON'`)
 {
   # if GTID_MODE=ON, there is the extra event entry the binary log:# Gtid_log_event
   --let $master_log_pos_2= `SELECT $master_log_pos_2 + 57`
@@ -50,7 +50,7 @@ set @a=1;
 insert into t3 values(@a);
 let $master_log_pos_3= query_get_value(SHOW MASTER STATUS, Position, 1);
 let $master_log_pos_3= `SELECT $master_log_pos_3 + 5`;
-if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+if (`SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE' AND VARIABLE_VALUE = 'ON'`)
 {
   # if GTID_MODE=ON, there is the extra event entry the binary log:# Gtid_log_event
   --let $master_log_pos_3= `SELECT $master_log_pos_3 + 57`

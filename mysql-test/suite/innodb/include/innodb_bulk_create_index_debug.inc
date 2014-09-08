@@ -70,9 +70,7 @@ SELECT COUNT(*) FROM t1;
 
 CREATE INDEX idx_title ON t1(title);
 
---echo # Shutdown and restart mysqld
---source include/shutdown_mysqld.inc
---source include/start_mysqld.inc
+--source include/restart_mysqld.inc
 
 CHECK TABLE t1;
 
@@ -119,9 +117,7 @@ SELECT CHAR_LENGTH(b) FROM t1;
 
 ALTER TABLE t1 DROP COLUMN c;
 
---echo # Shutdown and restart mysqld
---source include/shutdown_mysqld.inc
---source include/start_mysqld.inc
+--source include/restart_mysqld.inc
 
 CHECK TABLE t1;
 

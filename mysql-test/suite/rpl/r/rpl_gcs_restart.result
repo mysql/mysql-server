@@ -13,6 +13,7 @@ INSERT INTO t1 VALUES (1);
 ############################################################
 # 2. Restart server2 and verify that certifier sequence
 # number is set from relay log certified transactions.
+# restart
 SET @@GLOBAL.DEBUG= '+d,gcs_assert_next_seqno_equal_3';
 include/start_gcs_replication.inc
 ############################################################
@@ -24,6 +25,7 @@ INSERT INTO t1 VALUES (2);
 ############################################################
 # 4. Restart server2 again and verify that certifier sequence
 # number is set from GTID_EXECUTED.
+# restart
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,gcs_assert_next_seqno_equal_4';
 include/start_gcs_replication.inc

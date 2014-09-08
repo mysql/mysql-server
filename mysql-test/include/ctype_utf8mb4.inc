@@ -122,6 +122,7 @@ set LC_TIME_NAMES='en_US';
 #
 # Bug #2366  	Wrong utf8mb4 behaviour when data is truncated
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 set names koi8r;
 eval create table t1 (s1 char(1) character set utf8mb4) engine $engine;
 insert into t1 values (_koi8r'ÁÂ');
@@ -163,24 +164,24 @@ insert into t1 select repeat('ÑÑ',66000);
 --sorted_result
 select length(s1),char_length(s1) from t1;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Bug #2368 Multibyte charsets do not check that incoming data is well-formed
 #
 eval create table t1 (s1 char(10) character set utf8mb4) engine $engine;
-insert into t1 values (0x41FF);
+insert ignore into t1 values (0x41FF);
 select hex(s1) from t1;
 drop table t1;
 
 eval create table t1 (s1 varchar(10) character set utf8mb4) engine $engine;
-insert into t1 values (0x41FF);
+insert ignore into t1 values (0x41FF);
 select hex(s1) from t1;
 drop table t1;
 
 if (!$is_heap)
 {
 eval create table t1 (s1 text character set utf8mb4) engine $engine;
-insert into t1 values (0x41FF);
+insert ignore into t1 values (0x41FF);
 select hex(s1) from t1;
 drop table t1;
 }
@@ -874,7 +875,7 @@ eval create table t1 (x enum('A', 'B') default 0) character set utf8mb4 engine $
 #
 # Test for bug #11167: join for utf8mb4 varchar value longer than 255 bytes 
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET NAMES UTF8;
 
 eval CREATE TABLE t1 (
@@ -914,17 +915,18 @@ INSERT INTO t2 VALUES ('1234567890',2,'2005-05-24 13:53:25');
 SELECT content, t2.msisdn FROM t1, t2 WHERE t1.msisdn = '1234567890';
 
 DROP TABLE t1,t2;
-
+SET sql_mode = default;
 #
 # Bug#11591: CHAR column with utf8mb4 does not work properly
 # (more chars than expected)
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 eval create table t1 (a char(20) character set utf8mb4) engine $engine;
 insert into t1 values ('123456'),('Ð°Ð½Ð´Ñ€ÐµÐ¹');
 alter table t1 modify a char(2) character set utf8mb4;
 select char_length(a), length(a), a from t1 order by a;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Bugs#12611
 # ESCAPE + LIKE do not work when the escape char is a multibyte one
@@ -960,6 +962,7 @@ drop table t1;
 #
 # Bug#9557 MyISAM utf8mb4 table crash
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 eval CREATE TABLE t1 (
   a varchar(255) NOT NULL default '',
   KEY a (a)
@@ -969,7 +972,7 @@ insert into t1 values (_utf8mb4 0x5b);
 --sorted_result
 select hex(a) from t1;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Bug#13751 find_in_set: Illegal mix of collations
 #
@@ -1023,7 +1026,7 @@ DROP TABLE t1;
 # Bug#17705: Corruption of compressed index when index length changes between
 # 254 and 256
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET NAMES utf8mb4;
 DROP TABLE IF EXISTS t1;
 eval CREATE TABLE t1(a VARCHAR(255), KEY(a)) ENGINE=$engine DEFAULT CHARSET=utf8mb4;
@@ -1052,7 +1055,7 @@ delete from t1 where b=3;
 INSERT INTO t1 VALUES('uUABCDEFGHIGKLMNOPRSTUVWXYZÌˆbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',3);
 check table t1;
 drop table t1;
-
+SET sql_mode = default;
 #
 # Bug#20471 LIKE search fails with indexed utf8mb4 char column
 #
@@ -1334,6 +1337,7 @@ DROP TABLE t1;
 # Bug#20095 Changing length of VARCHAR field with UTF8
 # collation does not truncate values
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 eval create table t1 (
   a varchar(26) not null
 ) default character set utf8mb4 ENGINE $engine;
@@ -1366,7 +1370,7 @@ alter table t1 change a a varchar(3000) character set utf8mb4 not null;
 select length(a) from t1;
 drop table t1;
 }
-
+SET sql_mode = default;
 #
 #  Bug#10504: Character set does not support traditional mode
 #  Bug#14146: CHAR(...USING ...) and CONVERT(CHAR(...) USING...)
@@ -1577,19 +1581,25 @@ select (_utf8mb4 X'616263FF');
 #
 eval CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL) ENGINE $engine;
 INSERT INTO t1 VALUES (70000, 1092), (70001, 1085), (70002, 1065);
+--source include/turn_off_only_full_group_by.inc
 --sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 --sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1;
+# We will make 'b' unique, so GROUP BY will be ok.
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 ALTER TABLE t1 ADD UNIQUE (b);
 --sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
+# Not unique anymore:
+--source include/turn_off_only_full_group_by.inc
 DROP INDEX b ON t1;
 --sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 ALTER TABLE t1 ADD INDEX (b);
 --sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) from t1 GROUP BY b;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t1;
 
 --echo #
@@ -1613,7 +1623,7 @@ eval create table t1 (utf8mb4 char(1) character set utf8mb4) engine $engine;
 --echo Testing [F0][90..BF][80..BF][80..BF]
 insert into t1 values (0xF0908080);
 insert into t1 values (0xF0BFBFBF);
-insert into t1 values (0xF08F8080);
+insert ignore into t1 values (0xF08F8080);
 --sorted_result
 select hex(utf8mb4) from t1;
 delete from t1;
@@ -1628,7 +1638,7 @@ delete from t1;
 --echo Testing [F4][80..8F][80..BF][80..BF]
 insert into t1 values (0xF4808080);
 insert into t1 values (0xF48F8080);
-insert into t1 values (0xF4908080);
+insert ignore into t1 values (0xF4908080);
 --sorted_result
 select hex(utf8mb4) from t1;
 drop table t1;
@@ -1650,6 +1660,7 @@ set max_sort_length=default;
 --echo #
 --echo # Bug#26180: Can't add columns to tables created with utf8mb4 text indexes
 --echo #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 if (!$is_heap)
 {
 if (!$is_ndb)
@@ -1665,7 +1676,7 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 }
 }
-
+SET sql_mode = default;
 #--echo #
 #--echo # Check that supplementary characters are not allowed in identifiers
 #--echo #
@@ -1712,13 +1723,13 @@ INSERT INTO t1 VALUES (119070, x'f09d849ef09d859ef09d859ef09d8480f09d859ff09d859
 #  Mix of 3-byte and 4-byte chars 
 INSERT INTO t1 VALUES (65131, x'efb9abf09d849ef09d859ef09d859ef09d8480f09d859fefb9abefb9abf09d85a0efb9ab');
 # All from musical chars, but 11 instead of 10 chars. truncated
-INSERT INTO t1 VALUES (119070, x'f09d849ef09d859ef09d859ef09d8480f09d859ff09d859ff09d859ff09d85a0f09d85a0f09d8480f09d85a0');
+INSERT IGNORE INTO t1 VALUES (119070, x'f09d849ef09d859ef09d859ef09d8480f09d859ff09d859ff09d859ff09d85a0f09d85a0f09d8480f09d85a0');
 
 --sorted_result
 SELECT u_decimal, hex(utf8mb4_encoding) FROM t1 ORDER BY utf8mb4_encoding COLLATE utf8mb4_general_ci, BINARY utf8mb4_encoding;
 
 # First invalid 4 byte value
-INSERT INTO t1 VALUES (1114111, x'f5808080');
+INSERT IGNORE INTO t1 VALUES (1114111, x'f5808080');
 
 --sorted_result
 SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
@@ -1736,14 +1747,14 @@ INSERT INTO t2 VALUES (42856, x'ea9da8');
 # SMALL COMMERCIAL AT
 INSERT INTO t2 VALUES (65131, x'efb9ab');
 # <Plane 16 Private Use, Last> (last 4 byte character)
-INSERT INTO t2 VALUES (1114111, x'f48fbfbf');
+INSERT IGNORE INTO t2 VALUES (1114111, x'f48fbfbf');
 
 --sorted_result
 SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
        table_name= 't2' AND column_name= 'utf8mb3_encoding';
 
 #  Update a 3-byte char col with a 4-byte char, error
-UPDATE t2 SET utf8mb3_encoding= x'f48fbfbd' where u_decimal= 42856;
+UPDATE IGNORE t2 SET utf8mb3_encoding= x'f48fbfbd' where u_decimal= 42856;
 
 #  Update to a 3-byte char casted to 4-byte, error?
 UPDATE t2 SET utf8mb3_encoding= _utf8mb4 x'ea9da8' where u_decimal= 42856;
@@ -1761,7 +1772,7 @@ SELECT HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding)) FROM t1,t2;
 
 SELECT count(*) FROM t1, t2
    WHERE t1.utf8mb4_encoding > t2.utf8mb3_encoding;
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # Alter from 4-byte charset to 3-byte charset, error
 --disable_warnings
 ALTER TABLE t1 CONVERT TO CHARACTER SET utf8;
@@ -1769,7 +1780,7 @@ ALTER TABLE t1 CONVERT TO CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
 --sorted_result
 SELECT u_decimal,hex(utf8mb4_encoding),utf8mb4_encoding FROM t1;
-
+SET sql_mode = default;
 # Alter table from utf8 to utf8mb4
 ALTER TABLE t2 CONVERT TO CHARACTER SET utf8mb4;
 SHOW CREATE TABLE t2;

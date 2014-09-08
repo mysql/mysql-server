@@ -28,6 +28,7 @@ Created 03/11/2014 Shaohua Wang
 
 #include "dict0dict.h"
 #include "page0cur.h"
+#include "ut0new.h"
 
 #include <vector>
 
@@ -217,7 +218,8 @@ private:
 #endif /* UNIV_DEBUG */
 };
 
-typedef std::vector<PageBulk*>	page_bulk_vector;
+typedef std::vector<PageBulk*, ut_allocator<PageBulk*> >
+	page_bulk_vector;
 
 class BtrBulk
 {
@@ -243,7 +245,7 @@ public:
 	~BtrBulk()
 	{
 		mem_heap_free(m_heap);
-		delete m_page_bulks;
+		UT_DELETE(m_page_bulks);
 
 #ifdef UNIV_DEBUG
 		fil_space_dec_redo_skipped_count(m_index->space);
@@ -257,7 +259,7 @@ public:
 		ut_ad(m_heap == NULL);
 		m_heap = mem_heap_create(1000);
 
-		m_page_bulks = new page_bulk_vector();
+		m_page_bulks = UT_NEW_NOKEY(page_bulk_vector());
 	}
 
 	/** Insert a tuple

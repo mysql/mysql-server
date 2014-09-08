@@ -80,12 +80,14 @@ CREATE TABLE t1(AFIELD INT);
 INSERT INTO t1 VALUES(1);
 CREATE TABLE t2(GMT  VARCHAR(32));
 INSERT INTO t2 VALUES('GMT-0800');
+--source include/turn_off_only_full_group_by.inc
 SELECT DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ', t2.GMT))
 FROM t1, t2 GROUP BY t1.AFIELD;
 INSERT INTO t1 VALUES(1);
 SELECT DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ', t2.GMT)),
        DATE_FORMAT("2002-03-06 10:11:12", CONCAT('%a, %d %M %Y %H:%i:%s ', t2.GMT))
 FROM t1,t2 GROUP BY t1.AFIELD;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1,t2;
 
 #
@@ -119,7 +121,7 @@ DROP TABLE t1, t2, t3;
 # Test that setting YEAR to invalid string results in default value, not
 # 2000. (Bug #6067)
 CREATE TABLE t1 (y YEAR);
-INSERT INTO t1 VALUES ('abc');
+INSERT IGNORE INTO t1 VALUES ('abc');
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -143,7 +145,7 @@ select year(@d), month(@d), day(@d), cast(@d as date);
 select @d:=1311;
 select year(@d), month(@d), day(@d), cast(@d as date);
 create table t1 (d  date , dt datetime , ts timestamp);
-insert into t1 values (9912101,9912101,9912101);
+insert ignore into t1 values (9912101,9912101,9912101);
 insert into t1 values (11111,11111,11111);
 select * from t1;
 drop table t1;
@@ -200,8 +202,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (a DATE);
 CREATE TABLE t2 (a DATE);
 CREATE INDEX i ON t1 (a);
-INSERT INTO t1 VALUES ('0000-00-00'),('0000-00-00');
-INSERT INTO t2 VALUES ('0000-00-00'),('0000-00-00');
+INSERT IGNORE INTO t1 VALUES ('0000-00-00'),('0000-00-00');
+INSERT IGNORE INTO t2 VALUES ('0000-00-00'),('0000-00-00');
 SELECT * FROM t1 WHERE a = '0000-00-00';
 SELECT * FROM t2 WHERE a = '0000-00-00';
 SET SQL_MODE=TRADITIONAL;
@@ -220,8 +222,8 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (a DATE);
 CREATE TABLE t2 (a DATE);
 CREATE INDEX i ON t1 (a);
-INSERT INTO t1 VALUES ('1000-00-00'),('1000-00-00');
-INSERT INTO t2 VALUES ('1000-00-00'),('1000-00-00');
+INSERT IGNORE INTO t1 VALUES ('1000-00-00'),('1000-00-00');
+INSERT IGNORE INTO t2 VALUES ('1000-00-00'),('1000-00-00');
 SELECT * FROM t1 WHERE a = '1000-00-00';
 SELECT * FROM t2 WHERE a = '1000-00-00';
 SET SQL_MODE=TRADITIONAL;

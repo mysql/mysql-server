@@ -1,5 +1,5 @@
 SET TIME_ZONE = "+00:00";
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --echo #
 --echo # Test of errors for column data types that dont support function
 --echo # defaults.
@@ -1171,3 +1171,4 @@ INSERT INTO t1 VALUES ();
 SELECT * FROM t1;
 
 DROP TABLE t1;
+SET sql_mode = default;

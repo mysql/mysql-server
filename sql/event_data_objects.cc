@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1375,7 +1375,7 @@ Event_job_data::execute(THD *thd, bool drop)
     mysql_change_db will be invoked anyway later, to activate the
     procedure database before it's executed.
   */
-  thd->set_db(dbname.str, dbname.length);
+  thd->set_db(to_lex_cstring(dbname));
 
   lex_start(thd);
 

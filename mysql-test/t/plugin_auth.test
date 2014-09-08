@@ -655,3 +655,5 @@ ALTER USER employee@localhost PASSWORD EXPIRE;
 
 #Cleanup
 DROP USER 'empl_external'@'localhost', 'employee'@'localhost';
+
+--source include/mysql_upgrade_cleanup.inc

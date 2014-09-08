@@ -50,6 +50,7 @@ Created July 18, 2007 Vasil Dimov
 #include "btr0btr.h"
 #include "page0zip.h"
 #include "fsp0sysspace.h"
+#include "ut0new.h"
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
@@ -134,8 +135,8 @@ struct buf_page_info_t{
 	index_id_t	index_id;	/*!< Index ID if a index page */
 };
 
-/** maximum number of buffer page info we would cache. */
-#define MAX_BUF_INFO_CACHED		10000
+/** Maximum number of buffer page info we would cache. */
+const ulint	MAX_BUF_INFO_CACHED = 10000;
 
 #define OK(expr)		\
 	if ((expr) != 0) {	\
@@ -3299,7 +3300,7 @@ i_s_fts_index_cache_fill_one_index(
 	index_charset = index_cache->charset;
 	conv_str.f_len = system_charset_info->mbmaxlen
 		* FTS_MAX_WORD_LEN_IN_CHAR;
-	conv_str.f_str = static_cast<byte*>(ut_malloc(conv_str.f_len));
+	conv_str.f_str = static_cast<byte*>(ut_malloc_nokey(conv_str.f_len));
 	conv_str.f_n_char = 0;
 
 	/* Go through each word in the index cache */
@@ -3778,7 +3779,7 @@ i_s_fts_index_table_fill_one_index(
 	index_charset = fts_index_get_charset(index);
 	conv_str.f_len = system_charset_info->mbmaxlen
 		* FTS_MAX_WORD_LEN_IN_CHAR;
-	conv_str.f_str = static_cast<byte*>(ut_malloc(conv_str.f_len));
+	conv_str.f_str = static_cast<byte*>(ut_malloc_nokey(conv_str.f_len));
 	conv_str.f_n_char = 0;
 
 	/* Iterate through each auxiliary table as described in
@@ -4209,7 +4210,8 @@ struct temp_table_info_t{
 	char		m_is_compressed[64];
 };
 
-typedef std::vector<temp_table_info_t> temp_table_info_cache_t;
+typedef std::vector<temp_table_info_t, ut_allocator<temp_table_info_t> >
+	temp_table_info_cache_t;
 
 /*******************************************************************//**
 Fill Information Schema table INNODB_TEMP_TABLE_INFO for a particular
@@ -4875,7 +4877,7 @@ i_s_innodb_buffer_stats_fill_table(
 		DBUG_RETURN(0);
 	}
 
-	pool_info = (buf_pool_info_t*) ut_zalloc(
+	pool_info = (buf_pool_info_t*) ut_zalloc_nokey(
 		srv_buf_pool_instances *  sizeof *pool_info);
 
 	/* Walk through each buffer pool */
@@ -6425,7 +6427,7 @@ i_s_sys_tables_fill_table(
 	}
 
 	heap = mem_heap_create(1000);
-	mutex_enter(&(dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
 
 	rec = dict_startscan_system(&pcur, &mtr, SYS_TABLES);

@@ -323,7 +323,7 @@ DROP TABLE IF EXISTS t1;
 Warnings:
 Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 INT UNSIGNED AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
-INSERT INTO t1 VALUES(-1);
+INSERT IGNORE INTO t1 VALUES(-1);
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
@@ -334,7 +334,7 @@ SHOW VARIABLES LIKE "%auto_inc%";
 Variable_name	Value
 auto_increment_increment	100
 auto_increment_offset	10
-INSERT INTO t1 VALUES (-2);
+INSERT IGNORE INTO t1 VALUES (-2);
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 INSERT INTO t1 VALUES (NULL);
@@ -378,7 +378,7 @@ DROP TABLE IF EXISTS t1;
 Warnings:
 Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 INT UNSIGNED AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
-INSERT INTO t1 VALUES(-1);
+INSERT IGNORE INTO t1 VALUES(-1);
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t1;
@@ -389,7 +389,7 @@ SHOW VARIABLES LIKE "%auto_inc%";
 Variable_name	Value
 auto_increment_increment	100
 auto_increment_offset	10
-INSERT INTO t1 VALUES (-2),(NULL),(2),(NULL);
+INSERT IGNORE INTO t1 VALUES (-2),(NULL),(2),(NULL);
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 INSERT INTO t1 VALUES (250),(NULL);
@@ -855,8 +855,10 @@ INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(N
 CREATE TABLE t2(
 c1 TINYINT(3) UNSIGNED NOT NULL AUTO_INCREMENT
 PRIMARY KEY) ENGINE=InnoDB;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 INSERT INTO t2 SELECT c1 FROM t1;
 Got one of the listed errors
+SET sql_mode = default;
 INSERT INTO t2 SELECT NULL FROM t1;
 Got one of the listed errors
 DROP TABLE t1;
@@ -887,10 +889,10 @@ c1	c2
 DROP TABLE t1;
 CREATE TABLE t1 (c1 TINYINT UNSIGNED PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1, NULL);
-INSERT INTO t1 VALUES (-1, 'innodb');
+INSERT IGNORE INTO t1 VALUES (-1, 'innodb');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
-INSERT INTO t1 VALUES (-127, 'innodb');
+INSERT IGNORE INTO t1 VALUES (-127, 'innodb');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 INSERT INTO t1 VALUES (NULL, NULL);
@@ -929,10 +931,10 @@ c1	c2
 DROP TABLE t1;
 CREATE TABLE t1 (c1 SMALLINT UNSIGNED PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1, NULL);
-INSERT INTO t1 VALUES (-1, 'innodb');
+INSERT IGNORE INTO t1 VALUES (-1, 'innodb');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
-INSERT INTO t1 VALUES (-32757, 'innodb');
+INSERT IGNORE INTO t1 VALUES (-32757, 'innodb');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 INSERT INTO t1 VALUES (NULL, NULL);
@@ -971,10 +973,10 @@ c1	c2
 DROP TABLE t1;
 CREATE TABLE t1 (c1 MEDIUMINT UNSIGNED PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1, NULL);
-INSERT INTO t1 VALUES (-1, 'innodb');
+INSERT IGNORE INTO t1 VALUES (-1, 'innodb');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
-INSERT INTO t1 VALUES (-8388607, 'innodb');
+INSERT IGNORE INTO t1 VALUES (-8388607, 'innodb');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 INSERT INTO t1 VALUES (NULL, NULL);
@@ -1013,10 +1015,10 @@ c1	c2
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1, NULL);
-INSERT INTO t1 VALUES (-1, 'innodb');
+INSERT IGNORE INTO t1 VALUES (-1, 'innodb');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
-INSERT INTO t1 VALUES (-2147483647, 'innodb');
+INSERT IGNORE INTO t1 VALUES (-2147483647, 'innodb');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 INSERT INTO t1 VALUES (NULL, NULL);
@@ -1055,10 +1057,10 @@ c1	c2
 DROP TABLE t1;
 CREATE TABLE t1 (c1 BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1, NULL);
-INSERT INTO t1 VALUES (-1, 'innodb');
+INSERT IGNORE INTO t1 VALUES (-1, 'innodb');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
-INSERT INTO t1 VALUES (-9223372036854775807, 'innodb');
+INSERT IGNORE INTO t1 VALUES (-9223372036854775807, 'innodb');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 INSERT INTO t1 VALUES (NULL, NULL);
@@ -1096,6 +1098,7 @@ Warnings:
 Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(C1 DOUBLE AUTO_INCREMENT KEY, C2 CHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1(C1, C2) VALUES (1, 'innodb'), (3, 'innodb');
+# restart
 INSERT INTO t1(C2) VALUES ('innodb');
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1107,6 +1110,7 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 CREATE TABLE t1(C1 FLOAT AUTO_INCREMENT KEY, C2 CHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1(C1, C2) VALUES (1, 'innodb'), (3, 'innodb');
+# restart
 INSERT INTO t1(C2) VALUES ('innodb');
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1244,6 +1248,7 @@ Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(c1 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (NULL);
 INSERT INTO t1 VALUES (18446744073709551615);
+# restart
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1286,6 +1291,7 @@ t1	CREATE TABLE `t1` (
 SELECT * FROM t1;
 c1	c2
 2147483648	a
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 ALTER TABLE t1 CHANGE c1 c1 INT;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -1311,6 +1317,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
+SET sql_mode = default;
 CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 INT) ENGINE = MyISAM;
 INSERT INTO t1 (c1) VALUES (NULL), (-290783232), (NULL);
 SHOW CREATE TABLE t1;

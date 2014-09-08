@@ -23,7 +23,7 @@ CREATE TABLE articles (
         ) ENGINE=InnoDB;
 
 --disable_warnings
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
         ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 	('lṓve'),('LṒVE');
 
@@ -62,7 +62,7 @@ CREATE TABLE articles (
         ) ENGINE=InnoDB DEFAULT CHARACTER SET latin1 COLLATE latin1_general_ci;
 
 --disable_warnings
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
         ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 	('lṓve'),('LṒVE');
 
@@ -103,7 +103,7 @@ CREATE TABLE articles (
         ) ENGINE=InnoDB DEFAULT CHARACTER SET latin1 COLLATE latin1_spanish_ci;
 
 --disable_warnings
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
         ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 	('lṓve'),('LṒVE');
 
@@ -302,7 +302,7 @@ CREATE TABLE articles (
         ) ENGINE=InnoDB;
 
 --disable_warnings
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
         ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 	('lṓve'),('LṒVE');
 
@@ -338,7 +338,7 @@ SET NAMES utf8;
 
 # Insert rows to check if it uses user stopword
 --disable_warnings
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
         ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 	('lṓve'),('LṒVE');
 --enable_warnings
@@ -361,7 +361,7 @@ CREATE TABLE articles (
         ) ENGINE=InnoDB;
 
 --disable_warnings
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
         ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 	('lṓve'),('LṒVE');
 
@@ -400,7 +400,7 @@ SET NAMES utf8;
 
 # Insert rows to check if it uses user stopword
 --disable_warnings
-INSERT INTO articles (title) VALUES
+INSERT IGNORE INTO articles (title) VALUES
         ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 	('lṓve'),('LṒVE');
 --enable_warnings

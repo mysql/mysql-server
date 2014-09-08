@@ -43,8 +43,7 @@ FK1_Key	FK2_Key
 1	1
 1	2
 1	3
-# Stop server
-# Restart server.
+# restart
 #
 # Try to insert more to the example table with foreign keys.
 # Bug60196 causes the foreign key file not to be found after
@@ -94,8 +93,7 @@ ID	ID2
 SELECT * FROM Bug_60309;
 ID	FK_ID
 1	1
-# Stop server
-# Restart server.
+# restart
 #
 # Try to insert more to the example table with foreign keys.
 # Bug60309 causes the foreign key file not to be found after

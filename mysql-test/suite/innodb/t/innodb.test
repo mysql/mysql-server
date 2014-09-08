@@ -668,6 +668,8 @@ drop table t1;
 # Test of multi-table-delete
 #
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 CREATE TABLE t1 (
   number bigint(20) NOT NULL default '0',
   cname char(15) NOT NULL default '',
@@ -681,6 +683,8 @@ CREATE TABLE t1 (
   assigned_scps int(11) default '0',
   status tinyint(4) default '0'
 ) ENGINE=InnoDB;
+
+
 INSERT INTO t1 VALUES (4077711111,'SeanWheeler',90,2,20020111112846,500,00000000000000,-1,2,3,1);
 INSERT INTO t1 VALUES (9197722223,'berry',90,3,20020111112809,500,20020102114532,501,4,10,0);
 INSERT INTO t1 VALUES (650,'San Francisco',0,0,20011227111336,342,00000000000000,-1,1,24,1);
@@ -711,6 +715,7 @@ select * from t1;
 select * from t2;
 select * from t2;
 drop table t1,t2;
+SET sql_mode = default;
 
 #
 # A simple test with some isolation levels
@@ -1137,7 +1142,7 @@ CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP,INDEX stamp_idx
 (stamp))ENGINE=InnoDB;
 insert into t1 values (1),(2),(3);
 # Note that timestamp 3 is wrong
-insert into t2 values (1, 20020204130000),(2, 20020204130000),(4,20020204310000 ),(5,20020204230000);
+insert ignore into t2 values (1, 20020204130000),(2, 20020204130000),(4,20020204310000 ),(5,20020204230000);
 SELECT col1 FROM t1 UNION SELECT col1 FROM t2 WHERE stamp <
 '20020204120000' GROUP BY col1;
 drop table t1,t2;
@@ -1452,7 +1457,7 @@ set session old_alter_table=0;
 #
 # Some errors/warnings on create
 #
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # Embedded server doesn't chdir to data directory
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 create table t1 (v varchar(65530), key(v));
@@ -1463,7 +1468,7 @@ drop table t1;
 create table t1 (v varchar(65530) character set utf8);
 show create table t1;
 drop table t1;
-
+SET sql_mode = default;
 eval set default_storage_engine=$default;
 
 # InnoDB specific varchar tests
@@ -1605,7 +1610,7 @@ create table t8 (col1 blob, index(col1(767)))
 # multi-column tests can be found in innodb_16k, innodb_8k & innodb_4k
 
 drop table t1, t2, t3, t4, t5, t6, t7, t8;
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # these should have their index length trimmed
 create table t1 (col1 varchar(768), index(col1))
  character set = latin1 engine = innodb;
@@ -1633,7 +1638,7 @@ create table t3 (col1 text, primary key(col1(768)))
 --error ER_TOO_LONG_KEY
 create table t4 (col1 blob, primary key(col1(768)))
  character set = latin1 engine = innodb;
-
+SET sql_mode = default;
 #
 # Test improved foreign key error messages (bug #3443)
 #
@@ -1808,7 +1813,7 @@ drop table t4,t3,t2,t1;
 #
 
 # test the padding of BINARY types and collations (Bug #14189)
-
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (s1 varbinary(2),primary key (s1)) engine=innodb;
 create table t2 (s1 binary(2),primary key (s1)) engine=innodb;
 create table t3 (s1 varchar(2) binary,primary key (s1)) engine=innodb;
@@ -1892,7 +1897,7 @@ ALTER TABLE t2 ADD CONSTRAINT t2_ibfk_0 FOREIGN KEY (a) REFERENCES t1(a);
 ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_0;
 SHOW CREATE TABLE t2;
 DROP TABLE t2,t1;
-
+SET sql_mode = default;
 #
 # Test case for bug #16229: MySQL/InnoDB uses full explicit table locks in trigger processing
 #
@@ -2692,6 +2697,9 @@ SELECT * FROM t2;
 
 DROP TABLE t1;
 DROP TABLE t2;
+
+-- source suite/innodb/include/check_pfs_mem_other_is_zero.inc
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #

@@ -397,7 +397,8 @@ bool select_union_direct::initialize_tables (JOIN *join)
 bool select_union_direct::send_eof()
 {
   // Reset for each SELECT_LEX, so accumulate here
-  limit_found_rows+= thd->limit_found_rows;
+  limit_found_rows+= thd->limit_found_rows -
+                     thd->lex->current_select()->get_offset();
 
   if (unit->thd->lex->current_select() == last_select_lex)
   {
@@ -1234,8 +1235,6 @@ bool st_select_lex::cleanup(bool full)
   {
     error|= lex_unit->cleanup(full);
   }
-  cur_pos_in_all_fields= ALL_FIELDS_UNDEF_POS;
-  non_agg_fields.empty();
   inner_refs_list.empty();
   DBUG_RETURN(error);
 }

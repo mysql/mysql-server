@@ -11,6 +11,11 @@ SET debug= '+d,test_bka_unique';
 
 set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
 --source t/subquery_sj_all.test
 
 set optimizer_switch=default;
+
+SET sql_mode = default;
+

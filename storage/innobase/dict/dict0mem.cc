@@ -47,6 +47,7 @@ Created 1/8/1996 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 
 #include "sync0sync.h"
+#include <iostream>
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
@@ -91,7 +92,7 @@ dict_mem_table_create(
 
 	table->flags = (unsigned int) flags;
 	table->flags2 = (unsigned int) flags2;
-	table->name = static_cast<char*>(ut_malloc(strlen(name) + 1));
+	table->name = static_cast<char*>(ut_malloc_nokey(strlen(name) + 1));
 	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;
 	table->n_cols = (unsigned int) (n_cols +
@@ -494,7 +495,7 @@ dict_mem_index_create(
 						sizeof(*index->rtr_track)));
 		mutex_create("rtr_active_mutex",
 			     &index->rtr_track->rtr_active_mutex);
-		index->rtr_track->rtr_active = new(std::nothrow) rtr_info_active();
+		index->rtr_track->rtr_active = UT_NEW_NOKEY(rtr_info_active());
 	}
 
 	return(index);
@@ -641,7 +642,7 @@ dict_mem_index_free(
 
 		mutex_destroy(&index->rtr_ssn.mutex);
 		mutex_destroy(&index->rtr_track->rtr_active_mutex);
-		delete index->rtr_track->rtr_active;
+		UT_DELETE(index->rtr_track->rtr_active);
 	}
 
 	mem_heap_free(index->heap);
@@ -702,3 +703,61 @@ dict_mem_init(void)
 		   ("Starting Temporary file number is " UINT32PF,
 		   dict_temp_file_num));
 }
+
+/** Validate the search order in the foreign key set.
+@param[in]	fk_set	the foreign key set to be validated
+@return true if search order is fine in the set, false otherwise. */
+bool
+dict_foreign_set_validate(
+	const dict_foreign_set&	fk_set)
+{
+	dict_foreign_not_exists	not_exists(fk_set);
+
+	dict_foreign_set::iterator it = std::find_if(
+		fk_set.begin(), fk_set.end(), not_exists);
+
+	if (it == fk_set.end()) {
+		return(true);
+	}
+
+	dict_foreign_t*	foreign = *it;
+	std::cerr << "Foreign key lookup failed: " << *foreign;
+	std::cerr << fk_set;
+	ut_ad(0);
+	return(false);
+}
+
+/** Validate the search order in the foreign key sets of the table
+(foreign_set and referenced_set).
+@param[in]	table	table whose foreign key sets are to be validated
+@return true if foreign key sets are fine, false otherwise. */
+bool
+dict_foreign_set_validate(
+	const dict_table_t&	table)
+{
+	return(dict_foreign_set_validate(table.foreign_set)
+	       && dict_foreign_set_validate(table.referenced_set));
+}
+
+std::ostream&
+operator<< (std::ostream& out, const dict_foreign_t& foreign)
+{
+	out << "[dict_foreign_t: id='" << foreign.id << "'";
+
+	if (foreign.foreign_table_name != NULL) {
+		out << ",for: '" << foreign.foreign_table_name << "'";
+	}
+
+	out << "]";
+	return(out);
+}
+
+std::ostream&
+operator<< (std::ostream& out, const dict_foreign_set& fk_set)
+{
+	out << "[dict_foreign_set:";
+	std::for_each(fk_set.begin(), fk_set.end(), dict_foreign_print(out));
+	out << "]" << std::endl;
+	return(out);
+}
+

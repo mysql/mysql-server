@@ -14,9 +14,10 @@ UPDATE tab4 SET c2='Updated from Trigger' WHERE c1=1;
 DELETE FROM tab5;
 END |
 #restart the server
+# restart
 check the update_time Before DML, whether it is NULL
 SELECT table_name,update_time
-FROM information_schema.tables 
+FROM information_schema.tables
 WHERE table_name IN ('tab1','tab3','tab4','tab5');
 table_name	update_time
 tab1	NULL
@@ -51,11 +52,16 @@ SELECT * FROM tab5;
 c1	c2
 check the update_time After Commit, whether it is not NULL
 SELECT table_name,COUNT(update_time)
-FROM information_schema.tables 
-WHERE table_name IN ('tab1','tab3','tab4','tab5');
+FROM information_schema.tables
+WHERE table_name IN ('tab1','tab3','tab4','tab5')
+GROUP BY table_name;
 table_name	COUNT(update_time)
-tab1	4
+tab1	1
+tab3	1
+tab4	1
+tab5	1
 #restart the server
+# restart
 Testcase with UPDATE stmt and transaction
 #check the record is existing
 SELECT * FROM tab1;
@@ -86,6 +92,7 @@ FROM information_schema.tables WHERE table_name='tab1';
 table_name	COUNT(update_time)
 tab1	1
 #restart the server
+# restart
 #check the record is existing
 SELECT * FROM tab1;
 c1	c2	c3
@@ -114,6 +121,7 @@ FROM information_schema.tables WHERE table_name='tab1';
 table_name	COUNT(update_time)
 tab1	1
 #restart the server
+# restart
 #check no records are existing
 SELECT * FROM tab1;
 c1	c2	c3
@@ -179,6 +187,7 @@ tab2	1
 #delete all records
 TRUNCATE TABLE tab2;
 #restart the server
+# restart
 #case6:
 SET AUTOCOMMIT=off;
 BEGIN WORK;
@@ -244,6 +253,7 @@ FROM information_schema.tables WHERE table_name='tab8';
 table_name	COUNT(update_time)
 tab8	1
 #restart the server
+# restart
 SET AUTOCOMMIT=off;
 START TRANSACTION;
 DELETE FROM tab7;

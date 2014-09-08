@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ typedef ulonglong sql_mode_t;
 #define QUERY_CACHE_PACK_ITERATION		2
 #define QUERY_CACHE_PACK_LIMIT			(512*1024L)
 
-#define TABLE_COUNTER_TYPE uint
+#define TABLE_COUNTER_TYPE size_t
 
 struct Query_cache_block;
 struct Query_cache_block_table;
@@ -206,8 +206,8 @@ struct Query_cache_table
   inline char *db()			     { return (char *) data(); }
   inline char *table()			     { return tbl; }
   inline void table(char *table_arg)	     { tbl= table_arg; }
-  inline uint32 key_length()                 { return key_len; }
-  inline void key_length(uint32 len)         { key_len= len; }
+  inline size_t key_length()                 { return key_len; }
+  inline void key_length(size_t len)         { key_len= static_cast<uint32>(len); }
   inline uint8 type()                        { return table_type; }
   inline void type(uint8 t)                  { table_type= t; }
   inline qc_engine_callback callback()       { return callback_func; }
@@ -301,7 +301,7 @@ private:
   bool m_query_cache_is_disabled;
 
   void free_query_internal(Query_cache_block *point);
-  void invalidate_table_internal(THD *thd, uchar *key, uint32 key_length);
+  void invalidate_table_internal(THD *thd, uchar *key, size_t key_length);
   void disable_query_cache(void) { m_query_cache_is_disabled= TRUE; }
 
 protected:
@@ -346,8 +346,8 @@ protected:
 				      Query_cache_block *tail_head);
 
   /* Table key generation */
-  static uint filename_2_table_key (char *key, const char *filename,
-				    uint32 *db_langth);
+  static size_t filename_2_table_key (char *key, const char *filename,
+                                      size_t *db_length);
 
   /* The following functions require that structure_guard_mutex is locked */
   void flush_cache();
@@ -359,7 +359,7 @@ protected:
 			      my_bool first_block);
   void invalidate_table(THD *thd, TABLE_LIST *table);
   void invalidate_table(THD *thd, TABLE *table);
-  void invalidate_table(THD *thd, uchar *key, uint32  key_length);
+  void invalidate_table(THD *thd, uchar *key, size_t key_length);
   void invalidate_table(THD *thd, Query_cache_block *table_block);
   void invalidate_query_block_list(THD *thd, 
                                    Query_cache_block_table *list_root);
@@ -371,14 +371,14 @@ protected:
   my_bool register_all_tables(Query_cache_block *block,
 			      TABLE_LIST *tables_used,
 			      TABLE_COUNTER_TYPE tables);
-  my_bool insert_table(uint key_len, const char *key,
-		       Query_cache_block_table *node,
-		       uint32 db_length, uint8 cache_type,
-		       qc_engine_callback callback,
-		       ulonglong engine_data);
+  my_bool insert_table(size_t key_len, const char *key,
+                       Query_cache_block_table *node,
+                       size_t db_length, uint8 cache_type,
+                       qc_engine_callback callback,
+                       ulonglong engine_data);
   void unlink_table(Query_cache_block_table *node);
-  Query_cache_block *get_free_block (ulong len, my_bool not_less,
-				      ulong min);
+  Query_cache_block *get_free_block (size_t len, my_bool not_less,
+                                     size_t min);
   void free_memory_block(Query_cache_block *point);
   void split_block(Query_cache_block *block, ulong len);
   Query_cache_block *join_free_blocks(Query_cache_block *first_block,
@@ -389,7 +389,7 @@ protected:
   void insert_into_free_memory_list(Query_cache_block *new_block);
   my_bool move_by_type(uchar **border, Query_cache_block **before,
 		       ulong *gap, Query_cache_block *i);
-  uint find_bin(ulong size);
+  uint find_bin(size_t size);
   void move_to_query_list_end(Query_cache_block *block);
   void insert_into_free_memory_sorted_list(Query_cache_block *new_block,
 					   Query_cache_block **list);
@@ -409,10 +409,10 @@ protected:
   ulong init_cache();
   void make_disabled();
   void free_cache();
-  Query_cache_block *write_block_data(ulong data_len, uchar* data,
-				       ulong header_len,
-				       Query_cache_block::block_type type,
-				       TABLE_COUNTER_TYPE ntab = 0);
+  Query_cache_block *write_block_data(size_t data_len, uchar* data,
+                                      size_t header_len,
+                                      Query_cache_block::block_type type,
+                                      TABLE_COUNTER_TYPE ntab = 0);
   my_bool append_result_data(Query_cache_block **result,
 			     ulong data_len, uchar* data,
 			     Query_cache_block *parent);
@@ -423,8 +423,8 @@ protected:
 			    type=Query_cache_block::RESULT);
   inline ulong get_min_first_result_data_size();
   inline ulong get_min_append_result_data_size();
-  Query_cache_block *allocate_block(ulong len, my_bool not_less,
-				     ulong min);
+  Query_cache_block *allocate_block(size_t len, my_bool not_less,
+                                    size_t min);
   /*
     If query is cacheable return number tables in query
     (query without tables not cached)
@@ -477,7 +477,7 @@ protected:
 		  my_bool using_transactions);
 
   /* Remove all queries that uses any of the tables in following database */
-  void invalidate(char *db);
+  void invalidate(const char *db);
 
   /* Remove all queries that uses any of the listed following table */
   void invalidate_by_MyISAM_filename(const char *filename);

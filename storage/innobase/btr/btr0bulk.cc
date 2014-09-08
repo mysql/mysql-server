@@ -753,8 +753,9 @@ BtrBulk::insert(
 
 	/* Check if we need to create a PageBulk for the level. */
 	if (level + 1 > m_page_bulks->size()) {
-		PageBulk* new_page_bulk = new PageBulk(m_index, m_trx_id,
-						       FIL_NULL, level);
+		PageBulk*	new_page_bulk
+			= UT_NEW_NOKEY(PageBulk(m_index, m_trx_id, FIL_NULL,
+						level));
 		new_page_bulk->init();
 
 		m_page_bulks->push_back(new_page_bulk);
@@ -797,15 +798,15 @@ BtrBulk::insert(
 		dberr_t		err;
 
 		/* Create a sibling page_bulk. */
-		sibling_page_bulk = new PageBulk(m_index, m_trx_id,
-						 FIL_NULL, level);
+		sibling_page_bulk = UT_NEW_NOKEY(PageBulk(m_index, m_trx_id,
+							  FIL_NULL, level));
 		sibling_page_bulk->init();
 
 		/* Commit page bulk. */
 		err = pageCommit(page_bulk, sibling_page_bulk, true);
 		if (err != DB_SUCCESS) {
 			pageAbort(sibling_page_bulk);
-			delete sibling_page_bulk;
+			UT_DELETE(sibling_page_bulk);
 			return(err);
 		}
 
@@ -813,7 +814,7 @@ BtrBulk::insert(
 		ut_ad(sibling_page_bulk->getLevel() <= m_root_level);
 		m_page_bulks->at(level) = sibling_page_bulk;
 
-		delete page_bulk;
+		UT_DELETE(page_bulk);
 		page_bulk = sibling_page_bulk;
 
 		/* Important: log_free_check whether we need a checkpoint. */
@@ -899,7 +900,7 @@ BtrBulk::finish(
 			pageAbort(page_bulk);
 		}
 
-		delete page_bulk;
+		UT_DELETE(page_bulk);
 	}
 
 	if (err == DB_SUCCESS) {
@@ -915,7 +916,11 @@ BtrBulk::finish(
 					       root_page_no, m_root_level);
 
 		mtr_start(&mtr);
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		if (m_index->is_redo_skipped) {
+			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+                } else {
+			mtr.set_named_space(dict_index_get_space(m_index));
+		}
 		mtr_x_lock(dict_index_get_lock(m_index), &mtr);
 
 		ut_ad(last_page_no != FIL_NULL);

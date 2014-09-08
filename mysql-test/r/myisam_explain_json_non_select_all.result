@@ -6675,7 +6675,7 @@ INSERT INTO t2 VALUES(1,1),(2,2);
 EXPLAIN UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ref	IDX	IDX	5	test.t1.f1	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ref	IDX	IDX	5	test.t1.f1	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 FLUSH STATUS;
@@ -6683,7 +6683,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ref	IDX	IDX	5	test.t1.f1	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ref	IDX	IDX	5	test.t1.f1	1	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -6708,7 +6708,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "2.40"
+            "query_cost": "1.20"
           } /* cost_info */,
           "table": {
             "table_name": "t2",
@@ -6724,14 +6724,14 @@ EXPLAIN
             "ref": [
               "test.t1.f1"
             ] /* ref */,
-            "rows_examined_per_scan": 2,
-            "rows_produced_per_join": 2,
+            "rows_examined_per_scan": 1,
+            "rows_produced_per_join": 1,
             "filtered": 100,
             "cost_info": {
-              "read_cost": "2.00",
-              "eval_cost": "0.40",
-              "prefix_cost": "2.40",
-              "data_read_per_join": "32"
+              "read_cost": "1.00",
+              "eval_cost": "0.20",
+              "prefix_cost": "1.20",
+              "data_read_per_join": "16"
             } /* cost_info */,
             "used_columns": [
               "f3",
@@ -6750,7 +6750,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT              (SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ref	IDX	IDX	5	test.t1.f1	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ref	IDX	IDX	5	test.t1.f1	1	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -6788,7 +6788,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "2.40"
+            "query_cost": "1.20"
           } /* cost_info */,
           "table": {
             "table_name": "t2",
@@ -6804,14 +6804,14 @@ EXPLAIN
             "ref": [
               "test.t1.f1"
             ] /* ref */,
-            "rows_examined_per_scan": 2,
-            "rows_produced_per_join": 2,
+            "rows_examined_per_scan": 1,
+            "rows_produced_per_join": 1,
             "filtered": 100,
             "cost_info": {
-              "read_cost": "2.00",
-              "eval_cost": "0.40",
-              "prefix_cost": "2.40",
-              "data_read_per_join": "32"
+              "read_cost": "1.00",
+              "eval_cost": "0.20",
+              "prefix_cost": "1.20",
+              "data_read_per_join": "16"
             } /* cost_info */,
             "used_columns": [
               "f3",

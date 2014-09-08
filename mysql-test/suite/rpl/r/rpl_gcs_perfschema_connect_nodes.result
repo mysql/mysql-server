@@ -14,5 +14,6 @@ include/assert.inc [The value of node_state should be online after starting gcs]
 include/stop_gcs_replication.inc
 include/assert.inc [The value of group name should be 8a84f357-aaa4-10df-85ab-c70aa9429562]
 include/assert.inc [The value of node_state should be offline after stoping gcs]
+# restart
 include/assert.inc [The value of group name should be NULL]
 include/assert.inc [The value of node_state should be offline after restarting server]

@@ -22,6 +22,7 @@ set debug_sync='now SIGNAL go_update';
 # Connection con1:
 # reap: update t2 set f3 = repeat('[', 3000);
 # Connection default:
+# Kill and restart
 select f1, length(f2), length(f3) from t2;
 f1	length(f2)	length(f3)
 1	1000	30
@@ -54,6 +55,7 @@ set debug_sync='now SIGNAL go_upd';
 # Connection con2:
 # reap: update t3 set f3 = repeat(']', 1000) where f1 = 1;
 # Connection default:
+# Kill and restart
 select f1, length(f2), length(f3) from t3;
 f1	length(f2)	length(f3)
 1	1000	30

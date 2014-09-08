@@ -355,7 +355,7 @@ Replication_thread_api::wait_for_gtid_execution(longlong timeout)
   int error=0;
 
   struct timespec abstime; // for timeout checking
-  set_timespec(abstime, timeout);
+  set_timespec(&abstime, timeout);
 
   //wait for master update, with optional timeout.
 

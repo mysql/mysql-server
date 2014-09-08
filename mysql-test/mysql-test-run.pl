@@ -1367,6 +1367,9 @@ sub command_line_setup {
     }
   }
 
+  # disable syslog / EventLog in normal (non-bootstrap) operation.
+  push(@opt_extra_mysqld_opt, "--log-syslog=0");
+
   # --------------------------------------------------------------------------
   # Find out type of logging that are being used
   # --------------------------------------------------------------------------
@@ -1856,6 +1859,7 @@ sub collect_mysqld_features {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
@@ -2467,6 +2471,10 @@ sub environment_setup {
   $ENV{'MYSQL_IMPORT'}=                client_arguments("mysqlimport");
   $ENV{'MYSQL_SHOW'}=                  client_arguments("mysqlshow");
   $ENV{'MYSQL_CONFIG_EDITOR'}=         client_arguments_no_grp_suffix("mysql_config_editor");
+  if (!IS_WINDOWS)
+  {
+    $ENV{'MYSQL_INSTALL_DB'}=         client_arguments_no_grp_suffix("mysql_install_db");
+  }
   $ENV{'MYSQL_BINLOG'}=                client_arguments("mysqlbinlog");
   $ENV{'MYSQL'}=                       client_arguments("mysql");
   $ENV{'MYSQL_SLAVE'}=                 client_arguments("mysql", ".2");
@@ -3538,6 +3546,7 @@ sub mysql_install_db {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
@@ -3570,6 +3579,9 @@ sub mysql_install_db {
   if ($^O eq "linux" && $opt_mem) {
     mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
   }
+  # Do not generate SSL/RSA certificates automatically.
+  mtr_add_arg($args, "--loose-auto_generate_certs=OFF");
+  mtr_add_arg($args, "--loose-sha256_password_auto_generate_rsa_keys=OFF");
 
   # InnoDB arguments that affect file location and sizes may
   # need to be given to the bootstrap process as well as the

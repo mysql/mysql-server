@@ -305,7 +305,7 @@ mem_heap_create_block_func(
 
 		ut_ad(type == MEM_HEAP_DYNAMIC || n <= MEM_MAX_ALLOC_IN_BUF);
 
-		block = static_cast<mem_block_t*>(ut_malloc(len));
+		block = static_cast<mem_block_t*>(ut_malloc_nokey(len));
 	} else {
 		len = UNIV_PAGE_SIZE;
 
@@ -329,15 +329,15 @@ mem_heap_create_block_func(
 	}
 
 	if (block == NULL) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Unable to allocate memory of size %lu.", len);
+		ib::fatal() << "Unable to allocate memory of size "
+			<< len << ".";
 	}
 
 	block->buf_block = buf_block;
 	block->free_block = NULL;
 #else /* !UNIV_HOTBACKUP */
 	len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
-	block = ut_malloc(len);
+	block = ut_malloc_nokey(len);
 	ut_ad(block);
 #endif /* !UNIV_HOTBACKUP */
 

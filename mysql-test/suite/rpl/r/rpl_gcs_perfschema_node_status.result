@@ -54,6 +54,7 @@ The values being checked after stop
 ####################################
 include/stop_gcs_replication.inc
 include/assert.inc [The value of group name should be 8a84f397-aaa4-18df-89ab-c70aa9823561]
+# restart
 include/assert.inc [The value of group name should be NULL]
 include/assert.inc [The value of Applier_module_status should be OFF before starting gcs]
 include/stop_gcs_replication.inc

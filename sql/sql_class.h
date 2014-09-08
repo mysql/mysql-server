@@ -298,12 +298,12 @@ public:
   enum fk_option { FK_OPTION_UNDEF, FK_OPTION_RESTRICT, FK_OPTION_CASCADE,
 		   FK_OPTION_SET_NULL, FK_OPTION_NO_ACTION, FK_OPTION_DEFAULT};
 
-  LEX_STRING ref_db;
-  LEX_STRING ref_table;
+  LEX_CSTRING ref_db;
+  LEX_CSTRING ref_table;
   List<Key_part_spec> ref_columns;
   uint delete_opt, update_opt, match_opt;
   Foreign_key(const LEX_STRING &name_arg, List<Key_part_spec> &cols,
-	      const LEX_STRING &ref_db_arg, const LEX_STRING &ref_table_arg,
+	      const LEX_CSTRING &ref_db_arg, const LEX_CSTRING &ref_table_arg,
               List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
     :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
@@ -731,12 +731,6 @@ public:
 
   enum_state state;
 
-  /* We build without RTTI, so dynamic_cast can't be used. */
-  enum Type
-  {
-    STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
-  };
-
   Query_arena(MEM_ROOT *mem_root_arg, enum enum_state state_arg) :
     free_list(0), mem_root(mem_root_arg), state(state_arg)
   { INIT_ARENA_DBUG_INFO; }
@@ -746,7 +740,6 @@ public:
   */
   Query_arena() { INIT_ARENA_DBUG_INFO; }
 
-  virtual Type type() const;
   virtual ~Query_arena() {};
 
   inline bool is_stmt_prepare() const { return state == STMT_INITIALIZED; }
@@ -780,184 +773,61 @@ public:
 };
 
 
-class Server_side_cursor;
+class Prepared_statement;
 
 /**
-  @class Statement
-  @brief State of a single command executed against this connection.
+  Container for all prepared statements created/used in a connection.
 
-  One connection can contain a lot of simultaneously running statements,
-  some of which could be:
-   - prepared, that is, contain placeholders,
-   - opened as cursors. We maintain 1 to 1 relationship between
-     statement and cursor - if user wants to create another cursor for his
-     query, we create another statement for it. 
-  To perform some action with statement we reset THD part to the state  of
-  that statement, do the action, and then save back modified state from THD
-  to the statement. It will be changed in near future, and Statement will
-  be used explicitly.
-*/
-
-class Statement: public Query_arena
-{
-  Statement(const Statement &rhs);              /* not implemented: */
-  Statement &operator=(const Statement &rhs);   /* non-copyable */
-public:
-  /*
-    Uniquely identifies each statement object in thread scope; change during
-    statement lifetime. FIXME: must be const
-  */
-   ulong id;
-
-  /*
-    MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
-                        handler of fields used is set
-    MARK_COLUMNS_READ:  Means a bit in read set is set to inform handler
-	                that the field is to be read. If field list contains
-                        duplicates, then thd->dup_field is set to point
-                        to the last found duplicate.
-    MARK_COLUMNS_WRITE: Means a bit is set in write set to inform handler
-			that it needs to update this field in write_row
-                        and update_row.
-  */
-  enum enum_mark_columns mark_used_columns;
-
-  LEX_STRING name; /* name for named prepared statements */
-  LEX *lex;                                     // parse tree descriptor
-
-  /**
-    The query associated with this statement.
-
-    In order to enforce a safe access pattern when it is used by
-    THD, it is private and its getter/setter are protected.
-    It is assumed that other classes inheriting from Statement
-    (Prepared_Statement) access the query string from one thread only.
-
-    See comments for THD's setters/getters about how to access this
-    safely from multiple threads.
-  */
-private:
-  LEX_CSTRING m_query_string;
-
-protected:
-  virtual const LEX_CSTRING& query() const { return m_query_string; }
-
-  void set_query(const LEX_CSTRING& string_arg)
-  {
-    m_query_string= string_arg;
-  }
-
-public:
-  /*
-    In some cases, we may want to modify the query (i.e. replace
-    passwords with their hashes before logging the statement etc.).
-
-    In case the query was rewritten, the original query will live in
-    m_query_string, while the rewritten query lives in rewritten_query.
-    If rewritten_query is empty, m_query_string should be logged.
-    If rewritten_query is non-empty, the rewritten query it contains
-    should be used in logs (general log, slow query log, binary log).
-
-    Currently, password obfuscation is the only rewriting we do; more
-    may follow at a later date, both pre- and post parsing of the query.
-    Rewriting of binloggable statements must preserve all pertinent
-    information.
-  */
-  String      rewritten_query;
-
-  /**
-    Name of the current (default) database.
-
-    If there is the current (default) database, "db" contains its name. If
-    there is no current (default) database, "db" is NULL and "db_length" is
-    0. In other words, "db", "db_length" must either be NULL, or contain a
-    valid database name.
-
-    @note this attribute is set and alloced by the slave SQL thread (for
-    the THD of that thread); that thread is (and must remain, for now) the
-    only responsible for freeing this member.
-  */
-
-  char *db;
-  size_t db_length;
-
-public:
-
-  /* This constructor is called for backup statements */
-  Statement() {}
-
-  Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
-            enum_state state_arg, ulong id_arg);
-  virtual ~Statement();
-
-  /* Assign execution context (note: not all members) of given stmt to self */
-  void set_statement(Statement *stmt);
-  /* return class type */
-  virtual Type type() const;
-#ifdef HAVE_PSI_PS_INTERFACE 
-  virtual PSI_prepared_stmt* get_PS_prepared_stmt()
-  {
-    /* One should never reach here. */
-    DBUG_ASSERT(0);
-    return NULL;
-  }
-#endif
-};
-
-
-/**
-  Container for all statements created/used in a connection.
-  Statements in Statement_map have unique Statement::id (guaranteed by id
-  assignment in Statement::Statement)
+  Prepared statements in Prepared_statement_map have unique id
+  (guaranteed by id assignment in Prepared_statement::Prepared_statement).
   Non-empty statement names are unique too: attempt to insert a new statement
-  with duplicate name causes older statement to be deleted
+  with duplicate name causes older statement to be deleted.
 
-  Statements are auto-deleted when they are removed from the map and when the
-  map is deleted.
+  Prepared statements are auto-deleted when they are removed from the map
+  and when the map is deleted.
 */
 
-class Statement_map
+class Prepared_statement_map
 {
 public:
-  Statement_map();
+  Prepared_statement_map();
 
-  int insert(THD *thd, Statement *statement);
+  /**
+    Insert a new statement to the thread-local prepared statement map.
 
-  Statement *find_by_name(LEX_STRING *name)
-  {
-    Statement *stmt;
-    stmt= (Statement*)my_hash_search(&names_hash, (uchar*)name->str,
-                                     name->length);
-    return stmt;
-  }
+    If there was an old statement with the same name, replace it with the
+    new one. Otherwise, check if max_prepared_stmt_count is not reached yet,
+    increase prepared_stmt_count, and insert the new statement. It's okay
+    to delete an old statement and fail to insert the new one.
 
-  Statement *find(ulong id)
-  {
-    if (last_found_statement == 0 || id != last_found_statement->id)
-    {
-      Statement *stmt;
-      stmt= (Statement *) my_hash_search(&st_hash, (uchar *) &id, sizeof(id));
-      if (stmt && stmt->name.str)
-        return NULL;
-      last_found_statement= stmt;
-    }
-    return last_found_statement;
-  }
-  /*
-    Close all cursors of this connection that use tables of a storage
-    engine that has transaction-specific state and therefore can not
-    survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
-    CURRENTLY NOT IMPLEMENTED!
+    All named prepared statements are also present in names_hash.
+    Prepared statement names in names_hash are unique.
+    The statement is added only if prepared_stmt_count < max_prepard_stmt_count
+    m_last_found_statement always points to a valid statement or is 0
+
+    @retval 0  success
+    @retval 1  error: out of resources or max_prepared_stmt_count limit has been
+                      reached. An error is sent to the client, the statement
+                      is deleted.
   */
-  void close_transient_cursors() { }
-  void erase(Statement *statement);
-  /* Erase all statements (calls Statement destructor) */
+  int insert(THD *thd, Prepared_statement *statement);
+
+  /** Find prepared statement by name. */
+  Prepared_statement *find_by_name(const LEX_CSTRING &name);
+
+  /** Find prepared statement by ID. */
+  Prepared_statement *find(ulong id);
+
+  /** Erase all prepared statements (calls Prepared_statement destructor). */
+  void erase(Prepared_statement *statement);
+
   void reset();
-  ~Statement_map();
+
+  ~Prepared_statement_map();
 private:
   HASH st_hash;
   HASH names_hash;
-  Statement *last_found_statement;
+  Prepared_statement *m_last_found_statement;
 };
 
 /**
@@ -1176,7 +1046,6 @@ public:
     of the main statement is called.
   */
   enum enum_locked_tables_mode locked_tables_mode;
-  uint current_tablenr;
 
   enum enum_flags {
     BACKUPS_AVAIL = (1U << 0)     /* There are backups available */
@@ -1484,6 +1353,7 @@ struct Ha_data
     Lifetime: one user connection.
   */
   void *ha_ptr;
+
   /**
     0: Life time: one statement within a transaction. If @@autocommit is
     on, also represents the entire transaction.
@@ -1495,12 +1365,17 @@ struct Ha_data
     @sa trans_register_ha()
   */
   Ha_trx_info ha_info[2];
+
   /**
     NULL: engine is not bound to this thread
     non-NULL: engine is bound to this thread, engine shutdown forbidden
   */
   plugin_ref lock;
-  Ha_data() :ha_ptr(NULL) {}
+
+  Ha_data()
+   :ha_ptr(NULL),
+    lock(NULL)
+  { }
 };
 
 /**
@@ -1582,24 +1457,83 @@ class Modification_plan;
 */
 
 class THD :public MDL_context_owner,
-           public Statement,
+           public Query_arena,
            public Open_tables_state
 {
 private:
   inline bool is_stmt_prepare() const
-  { DBUG_ASSERT(0); return Statement::is_stmt_prepare(); }
+  { DBUG_ASSERT(0); return Query_arena::is_stmt_prepare(); }
 
   inline bool is_stmt_prepare_or_first_sp_execute() const
-  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_sp_execute(); }
+  { DBUG_ASSERT(0); return Query_arena::is_stmt_prepare_or_first_sp_execute(); }
 
   inline bool is_stmt_prepare_or_first_stmt_execute() const
-  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_stmt_execute(); }
+  { DBUG_ASSERT(0); return Query_arena::is_stmt_prepare_or_first_stmt_execute(); }
 
   inline bool is_conventional() const
-  { DBUG_ASSERT(0); return Statement::is_conventional(); }
+  { DBUG_ASSERT(0); return Query_arena::is_conventional(); }
 
 public:
   MDL_context mdl_context;
+
+  /*
+    MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
+                        handler of fields used is set
+    MARK_COLUMNS_READ:  Means a bit in read set is set to inform handler
+                        that the field is to be read. If field list contains
+                        duplicates, then thd->dup_field is set to point
+                        to the last found duplicate.
+    MARK_COLUMNS_WRITE: Means a bit is set in write set to inform handler
+                        that it needs to update this field in write_row
+                        and update_row.
+  */
+  enum enum_mark_columns mark_used_columns;
+
+  LEX *lex;                                     // parse tree descriptor
+
+private:
+  /**
+    The query associated with this statement.
+  */
+  LEX_CSTRING m_query_string;
+
+  /**
+    Currently selected catalog.
+  */
+
+  LEX_CSTRING m_catalog;
+  /**
+    Name of the current (default) database.
+
+    If there is the current (default) database, "db" contains its name. If
+    there is no current (default) database, "db" is NULL and "db_length" is
+    0. In other words, "db", "db_length" must either be NULL, or contain a
+    valid database name.
+
+    @note this attribute is set and alloced by the slave SQL thread (for
+    the THD of that thread); that thread is (and must remain, for now) the
+    only responsible for freeing this member.
+  */
+  LEX_CSTRING m_db;
+
+public:
+
+  /**
+    In some cases, we may want to modify the query (i.e. replace
+    passwords with their hashes before logging the statement etc.).
+
+    In case the query was rewritten, the original query will live in
+    m_query_string, while the rewritten query lives in rewritten_query.
+    If rewritten_query is empty, m_query_string should be logged.
+    If rewritten_query is non-empty, the rewritten query it contains
+    should be used in logs (general log, slow query log, binary log).
+
+    Currently, password obfuscation is the only rewriting we do; more
+    may follow at a later date, both pre- and post parsing of the query.
+    Rewriting of binloggable statements must preserve all pertinent
+    information.
+  */
+  String      rewritten_query;
 
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
@@ -1692,18 +1626,13 @@ public:
   */
   mysql_mutex_t LOCK_query_plan;
 
-  /* all prepared statements and cursors of this connection */
-  Statement_map stmt_map;
+  /** All prepared statements of this connection. */
+  Prepared_statement_map stmt_map;
   /*
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
   */
   char	  *thread_stack;
-
-  /**
-    Currently selected catalog.
-  */
-  char *catalog;
 
   /**
     @note
@@ -1804,6 +1733,12 @@ public:
       modification_plan= plan_arg;
     }
   } query_plan;
+
+  const LEX_CSTRING &catalog() const
+  { return m_catalog; }
+
+  void set_catalog(const LEX_CSTRING &catalog)
+  { m_catalog= catalog; }
 
 private:
   unsigned int m_current_stage_key;
@@ -2103,24 +2038,32 @@ public:
 #endif /* MYSQL_CLIENT */
 
 private:
-  Transaction_ctx m_transaction;
+  std::auto_ptr<Transaction_ctx> m_transaction;
+
+  class Attachable_trx;
+
+  Attachable_trx *m_attachable_trx;
 
 public:
   Transaction_ctx *get_transaction()
-  {
-    return &m_transaction;
-  }
+  { return m_transaction.get(); }
 
   const Transaction_ctx *get_transaction() const
-  {
-    return &m_transaction;
-  }
+  { return m_transaction.get(); }
+
+  /**
+    Changes the Transaction_ctx instance within THD-object. The previous
+    Transaction_ctx instance is destroyed.
+
+    @note this is a THD-internal operation which MUST NOT be used outside.
+
+    @param transaction_ctx new Transaction_ctx instance to be associated with
+    the THD-object.
+  */
+  void set_transaction(Transaction_ctx *transaction_ctx);
 
   Global_read_lock global_read_lock;
   Field      *dup_field;
-#ifndef _WIN32
-  sigset_t signals;
-#endif
 
   Vio* active_vio;
 
@@ -2681,7 +2624,7 @@ public:
     Reset to FALSE when we leave the sub-statement mode.
   */
   bool       is_fatal_sub_stmt_error;
-  bool	     query_start_used, query_start_usec_used;
+  bool	     query_start_usec_used;
   bool       rand_used, time_zone_used;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
@@ -2967,7 +2910,6 @@ public:
   }
   inline time_t query_start()
   {
-    query_start_used= 1;
     return start_time.tv_sec;
   }
   inline long query_start_usec()
@@ -2977,7 +2919,7 @@ public:
   }
   inline timeval query_start_timeval()
   {
-    query_start_used= query_start_usec_used= true;
+    query_start_usec_used= true;
     return start_time;
   }
   timeval query_start_timeval_trunc(uint decimals);
@@ -3308,6 +3250,29 @@ public:
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
 
+public:
+  /**
+    Start an InnoDB attachable transaction.
+
+    There must be no active attachable transactions (in other words, there can
+    be only one active attachable transaction at a time).
+  */
+  void begin_attachable_transaction();
+
+  /**
+    End an active attachable transaction.
+
+    There must be active attachable transaction.
+  */
+  void end_attachable_transaction();
+
+  /**
+    @return true if there is an active attachable transaction.
+  */
+  bool is_attachable_transaction_active() const
+  { return m_attachable_trx != NULL; }
+
+public:
   /*
     @todo Make these methods private or remove them completely.  Only
     decide_logging_format should call them. /Sven
@@ -3457,6 +3422,9 @@ public:
   */
   bool skip_gtid_rollback;
 
+  const LEX_CSTRING &db() const
+  { return m_db; }
+
   /**
     Set the current database; use deep copy of C-string.
 
@@ -3475,10 +3443,10 @@ public:
     will be made private and more convenient interface will be provided.
 
     @return Operation status
-      @retval FALSE Success
-      @retval TRUE  Out-of-memory error
+      @retval false Success
+      @retval true  Out-of-memory error
   */
-  bool set_db(const char *new_db, size_t new_db_len)
+  bool set_db(const LEX_CSTRING &new_db)
   {
     bool result;
     /*
@@ -3488,23 +3456,24 @@ public:
     */
     mysql_mutex_lock(&LOCK_thd_data);
     /* Do not reallocate memory if current chunk is big enough. */
-    if (db && new_db && db_length >= new_db_len)
-      memcpy(db, new_db, new_db_len+1);
+    if (m_db.str && new_db.str && m_db.length >= new_db.length)
+      memcpy(const_cast<char*>(m_db.str), new_db.str, new_db.length+1);
     else
     {
-      my_free(db);
-      if (new_db)
-        db= my_strndup(key_memory_THD_db,
-                       new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
-      else
-        db= NULL;
+      my_free(const_cast<char*>(m_db.str));
+      m_db= NULL_CSTR;
+      if (new_db.str)
+        m_db.str= my_strndup(key_memory_THD_db,
+                             new_db.str, new_db.length,
+                             MYF(MY_WME | ME_FATALERROR));
     }
-    db_length= db ? new_db_len : 0;
+    m_db.length= m_db.str ? new_db.length : 0;
     mysql_mutex_unlock(&LOCK_thd_data);
-    result= new_db && !db;
+    result= new_db.str && !m_db.str;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)
-      PSI_THREAD_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
+      PSI_THREAD_CALL(set_thread_db)(new_db.str,
+                                     static_cast<int>(new_db.length));
 #endif
     return result;
   }
@@ -3520,12 +3489,13 @@ public:
     attributes including security context. In the future, this operation
     will be made private and more convenient interface will be provided.
   */
-  void reset_db(char *new_db, size_t new_db_len)
+  void reset_db(const LEX_CSTRING &new_db)
   {
-    db= new_db;
-    db_length= new_db_len;
+    m_db.str= new_db.str;
+    m_db.length= new_db.length;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
+    PSI_THREAD_CALL(set_thread_db)(new_db.str,
+                                   static_cast<int>(new_db.length));
 #endif
   }
   /*
@@ -3535,14 +3505,14 @@ public:
   */
   bool copy_db_to(char **p_db, size_t *p_db_length)
   {
-    if (db == NULL)
+    if (m_db.str == NULL)
     {
       my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
       return TRUE;
     }
-    *p_db= strmake(db, db_length);
-    *p_db_length= db_length;
-    return FALSE;
+    *p_db= strmake(m_db.str, m_db.length);
+    *p_db_length= m_db.length;
+    return false;
   }
   thd_scheduler scheduler;
 
@@ -3645,9 +3615,6 @@ private:
                   const char* msg);
 
 public:
-  void set_n_backup_statement(Statement *stmt, Statement *backup);
-  void restore_backup_statement(Statement *stmt, Statement *backup);
-
   void set_command(enum enum_server_command command);
 
   inline enum enum_server_command get_command() const
@@ -3668,13 +3635,13 @@ public:
     Read(other thread)-write(by owner) conflicts are avoided by LOCK_thd_query.
     Read(by owner)-write(by owner) won't happen as THD=thread.
   */
-  virtual const LEX_CSTRING& query() const
+  const LEX_CSTRING &query() const
   {
 #ifndef DBUG_OFF
     if (current_thd != this)
       mysql_mutex_assert_owner(&LOCK_thd_query);
 #endif
-    return Statement::query();
+    return m_query_string;
   }
 
   /**
@@ -4673,25 +4640,26 @@ typedef struct st_sort_buffer {
 class Table_ident :public Sql_alloc
 {
 public:
-  LEX_STRING db;
-  LEX_STRING table;
+  LEX_CSTRING db;
+  LEX_CSTRING table;
   SELECT_LEX_UNIT *sel;
-  inline Table_ident(THD *thd, LEX_STRING db_arg, LEX_STRING table_arg,
+  inline Table_ident(THD *thd, const LEX_CSTRING &db_arg,
+                     const LEX_CSTRING &table_arg,
 		     bool force)
     :table(table_arg), sel(NULL)
   {
     if (!force && (thd->client_capabilities & CLIENT_NO_SCHEMA))
-      db.str=0;
+      db= NULL_CSTR;
     else
       db= db_arg;
   }
-  inline Table_ident(LEX_STRING db_arg, LEX_STRING table_arg)
+  inline Table_ident(const LEX_CSTRING &db_arg, const LEX_CSTRING &table_arg)
     :db(db_arg), table(table_arg), sel(NULL)
   {}
-  inline Table_ident(LEX_STRING table_arg) 
+  inline Table_ident(const LEX_CSTRING &table_arg)
     :table(table_arg), sel(NULL)
   {
-    db.str=0;
+    db= NULL_CSTR;
   }
   /*
     This constructor is used only for the case when we create a derived
@@ -4702,15 +4670,15 @@ public:
   inline Table_ident(SELECT_LEX_UNIT *s) : sel(s)
   {
     /* We must have a table name here as this is used with add_table_to_list */
-    db.str= empty_c_string;                    /* a subject to casedn_str */
-    db.length= 0;
+    db= EMPTY_CSTR;                    /* a subject to casedn_str */
     table.str= internal_table_name;
     table.length=1;
   }
   bool is_derived_table() const { return MY_TEST(sel); }
-  inline void change_db(char *db_name)
+  inline void change_db(const char *db_name)
   {
-    db.str= db_name; db.length= (uint) strlen(db_name);
+    db.str= db_name;
+    db.length= strlen(db_name);
   }
 };
 
@@ -4833,6 +4801,11 @@ class user_var_entry
     mysql_mutex_assert_owner(&m_owner->LOCK_thd_data);
   }
 
+
+  /**
+    Currently selected catalog.
+  */
+  LEX_CSTRING m_catalog;
 public:
   user_var_entry() {}                         /* Remove gcc warning */
 

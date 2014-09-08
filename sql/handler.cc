@@ -43,6 +43,7 @@
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "sql_trigger.h"        // TRG_EXT, TRN_EXT
 #include "opt_costmodel.h"
+#include "opt_costconstantcache.h"           // reload_optimizer_cost_constants
 #include <my_bit.h>
 #include <list>
 #include <map>
@@ -55,6 +56,104 @@
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
+#endif
+
+/**
+  @def MYSQL_TABLE_IO_WAIT
+  Instrumentation helper for table io_waits.
+  Note that this helper is intended to be used from
+  within the handler class only, as it uses members
+  from @c handler
+  Performance schema events are instrumented as follows:
+  - in non batch mode, one event is generated per call
+  - in batch mode, the number of rows affected is saved
+  in @c m_psi_numrows, so that @c end_psi_batch_mode()
+  generates a single event for the batch.
+  @param OP the table operation to be performed
+  @param INDEX the table index used if any, or MAX_KEY.
+  @param PAYLOAD instrumented code to execute
+  @sa handler::end_psi_batch_mode.
+*/
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  #define MYSQL_TABLE_IO_WAIT(OP, INDEX, PAYLOAD)             \
+    {                                                         \
+      if (m_psi != NULL)                                      \
+      {                                                       \
+        switch (m_psi_batch_mode)                             \
+        {                                                     \
+          case PSI_BATCH_MODE_NONE:                           \
+          {                                                   \
+            PSI_table_locker *sub_locker= NULL;               \
+            sub_locker= PSI_TABLE_CALL(start_table_io_wait)   \
+              (& m_psi_locker_state, m_psi, OP, INDEX,        \
+               __FILE__, __LINE__);                           \
+            PAYLOAD                                           \
+            if (sub_locker != NULL)                           \
+              PSI_TABLE_CALL(end_table_io_wait)               \
+                (sub_locker, 1);                              \
+            break;                                            \
+          }                                                   \
+          case PSI_BATCH_MODE_STARTING:                       \
+          {                                                   \
+            m_psi_locker= PSI_TABLE_CALL(start_table_io_wait) \
+              (& m_psi_locker_state, m_psi, OP, INDEX,        \
+               __FILE__, __LINE__);                           \
+            PAYLOAD                                           \
+            m_psi_numrows++;                                  \
+            m_psi_batch_mode= PSI_BATCH_MODE_STARTED;         \
+            break;                                            \
+          }                                                   \
+          case PSI_BATCH_MODE_STARTED:                        \
+          default:                                            \
+          {                                                   \
+            DBUG_ASSERT(m_psi_batch_mode                      \
+                        == PSI_BATCH_MODE_STARTED);           \
+            PAYLOAD                                           \
+            m_psi_numrows++;                                  \
+            break;                                            \
+          }                                                   \
+        }                                                     \
+      }                                                       \
+      else                                                    \
+      {                                                       \
+        PAYLOAD                                               \
+      }                                                       \
+    }
+#else
+  #define MYSQL_TABLE_IO_WAIT(OP, INDEX, PAYLOAD) \
+    PAYLOAD
+#endif
+
+/**
+  @def MYSQL_TABLE_LOCK_WAIT
+  Instrumentation helper for table io_waits.
+  @param OP the table operation to be performed
+  @param FLAGS per table operation flags.
+  @param PAYLOAD the code to instrument.
+  @sa MYSQL_END_TABLE_WAIT.
+*/
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  #define MYSQL_TABLE_LOCK_WAIT(OP, FLAGS, PAYLOAD)    \
+    {                                                  \
+      if (m_psi != NULL)                               \
+      {                                                \
+        PSI_table_locker *locker;                      \
+        PSI_table_locker_state state;                  \
+        locker= PSI_TABLE_CALL(start_table_lock_wait)  \
+          (& state, m_psi, OP, FLAGS,                  \
+          __FILE__, __LINE__);                         \
+        PAYLOAD                                        \
+        if (locker != NULL)                            \
+          PSI_TABLE_CALL(end_table_lock_wait)(locker); \
+      }                                                \
+      else                                             \
+      {                                                \
+        PAYLOAD                                        \
+      }                                                \
+    }
+#else
+  #define MYSQL_TABLE_LOCK_WAIT(OP, FLAGS, PAYLOAD) \
+    PAYLOAD
 #endif
 
 using std::min;
@@ -840,6 +939,12 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     break;
   };
 
+  /*
+    Re-load the optimizer cost constants since this storage engine can
+    have non-default cost constants.
+  */
+  reload_optimizer_cost_constants();
+
   DBUG_RETURN(0);
 
 err_deinit:
@@ -1530,10 +1635,6 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
     DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
-    /* Close all cursors that can not survive COMMIT */
-    if (is_real_trans)                          /* not a statement commit */
-      thd->stmt_map.close_transient_cursors();
-
     rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
     trn_ctx->set_rw_ha_count(trx_scope, rw_ha_count);
     /* rw_trans is TRUE when we in a transaction changing data */
@@ -1726,10 +1827,6 @@ int ha_rollback_low(THD *thd, bool all)
 
   if (ha_info)
   {
-    /* Close all cursors that can not survive ROLLBACK */
-    if (all)                          /* not a statement commit */
-      thd->stmt_map.close_transient_cursors();
-
     for (; ha_info; ha_info= ha_info_next)
     {
       int err;
@@ -2393,6 +2490,30 @@ void handler::rebind_psi()
 #endif
 }
 
+void handler::start_psi_batch_mode()
+{
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
+  DBUG_ASSERT(m_psi_locker == NULL);
+  m_psi_batch_mode= PSI_BATCH_MODE_STARTING;
+  m_psi_numrows= 0;
+#endif
+}
+
+void handler::end_psi_batch_mode()
+{
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  DBUG_ASSERT(m_psi_batch_mode != PSI_BATCH_MODE_NONE);
+  if (m_psi_locker != NULL)
+  {
+    DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_STARTED);
+    PSI_TABLE_CALL(end_table_io_wait)(m_psi_locker, m_psi_numrows);
+    m_psi_locker= NULL;
+  }
+  m_psi_batch_mode= PSI_BATCH_MODE_NONE;
+#endif
+}
+
 PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
 {
   return share->m_psi;
@@ -2481,6 +2602,8 @@ int handler::ha_close(void)
 #ifdef HAVE_PSI_TABLE_INTERFACE
   PSI_TABLE_CALL(close_table)(m_psi);
   m_psi= NULL; /* instrumentation handle, invalid after close_table() */
+  DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
+  DBUG_ASSERT(m_psi_locker == NULL);
 #endif
   // TODO: set table= NULL to mark the handler as closed?
   DBUG_ASSERT(m_psi == NULL);
@@ -2603,7 +2726,7 @@ int handler::ha_rnd_next(uchar *buf)
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == RND);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY,
     { result= rnd_next(buf); })
   DBUG_RETURN(result);
 }
@@ -2629,7 +2752,7 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   /* TODO: Find out how to solve ha_rnd_pos when finding duplicate update. */
   /* DBUG_ASSERT(inited == RND); */
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY,
     { result= rnd_pos(buf, pos); })
   DBUG_RETURN(result);
 }
@@ -2671,7 +2794,7 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
   DBUG_RETURN(result);
 }
@@ -2686,7 +2809,7 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_read_last_map(buf, key, keypart_map); })
   DBUG_RETURN(result);
 }
@@ -2708,7 +2831,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   DBUG_ASSERT(end_range == NULL);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, index,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
   return result;
 }
@@ -2734,7 +2857,7 @@ int handler::ha_index_next(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_next(buf); })
   DBUG_RETURN(result);
 }
@@ -2760,7 +2883,7 @@ int handler::ha_index_prev(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_prev(buf); })
   DBUG_RETURN(result);
 }
@@ -2786,7 +2909,7 @@ int handler::ha_index_first(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_first(buf); })
   DBUG_RETURN(result);
 }
@@ -2812,7 +2935,7 @@ int handler::ha_index_last(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_last(buf); })
   DBUG_RETURN(result);
 }
@@ -2840,7 +2963,7 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_next_same(buf, key, keylen); })
   DBUG_RETURN(result);
 }
@@ -2870,7 +2993,7 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_read(buf, key, key_len, find_flag); })
   DBUG_RETURN(result);
 }
@@ -2898,7 +3021,7 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_read_last(buf, key, key_len); })
   DBUG_RETURN(result);
 }
@@ -3474,7 +3597,7 @@ void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag)
   {
     /* Table is opened and defined at this point */
     key_unpack(&str,table, key);
-    uint max_length=MYSQL_ERRMSG_SIZE-(uint) strlen(msg);
+    size_t max_length= MYSQL_ERRMSG_SIZE - strlen(msg);
     if (str.length() >= max_length)
     {
       str.length(max_length-4);
@@ -5155,9 +5278,9 @@ int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
   {
     mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
-    uint tmp_block_size= (uint) key_cache->param_block_size;
-    uint division_limit= key_cache->param_division_limit;
-    uint age_threshold=  key_cache->param_age_threshold;
+    ulonglong tmp_block_size= key_cache->param_block_size;
+    ulonglong division_limit= key_cache->param_division_limit;
+    ulonglong age_threshold=  key_cache->param_age_threshold;
     mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!init_key_cache(key_cache,
 				tmp_block_size,
@@ -5179,9 +5302,9 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
   {
     mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
-    long tmp_block_size= (long) key_cache->param_block_size;
-    uint division_limit= key_cache->param_division_limit;
-    uint age_threshold=  key_cache->param_age_threshold;
+    ulonglong tmp_block_size= key_cache->param_block_size;
+    ulonglong division_limit= key_cache->param_division_limit;
+    ulonglong age_threshold=  key_cache->param_age_threshold;
     mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!resize_key_cache(key_cache, tmp_block_size,
 				  tmp_buff_size,
@@ -5199,8 +5322,8 @@ int ha_change_key_cache_param(KEY_CACHE *key_cache)
   if (key_cache->key_cache_inited)
   {
     mysql_mutex_lock(&LOCK_global_system_variables);
-    uint division_limit= key_cache->param_division_limit;
-    uint age_threshold=  key_cache->param_age_threshold;
+    ulonglong division_limit= key_cache->param_division_limit;
+    ulonglong age_threshold=  key_cache->param_age_threshold;
     mysql_mutex_unlock(&LOCK_global_system_variables);
     change_key_cache_param(key_cache, division_limit, age_threshold);
   }
@@ -5751,9 +5874,13 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     else if ((range.range_flag & EQ_RANGE) &&                       // 2a)
              (range.range_flag & USE_INDEX_STATISTICS) &&           // 2b)
              (keyparts_used= my_count_bits(range.start_key.keypart_map)) &&
-             table->key_info[keyno].rec_per_key[keyparts_used-1] && // 2c)
+             table->
+               key_info[keyno].has_records_per_key(keyparts_used-1) && // 2c)
              !(range.range_flag & NULL_RANGE))
-      rows= table->key_info[keyno].rec_per_key[keyparts_used-1];
+    {
+      rows= static_cast<ha_rows>(
+        table->key_info[keyno].records_per_key(keyparts_used - 1));
+    }
     else
     {
       DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
@@ -6187,7 +6314,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 error:
   h2->ha_index_or_rnd_end();
   h2->ha_external_lock(thd, F_UNLCK);
-  h2->close();
+  h2->ha_close();
   delete h2;
   h2= NULL;
   DBUG_ASSERT(retval != 0);
@@ -6220,7 +6347,7 @@ void DsMrr_impl::reset()
     dsmrr_close();
 
     // Close and delete the h2 handler
-    h2->close();
+    h2->ha_close();
     delete h2;
     h2= NULL;
   }
@@ -6285,7 +6412,7 @@ int DsMrr_impl::dsmrr_fill_buffer()
 
   /* Sort the buffer contents by rowid */
   uint elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
-  uint n_rowids= (rowids_buf_cur - rowids_buf) / elem_size;
+  size_t n_rowids= (rowids_buf_cur - rowids_buf) / elem_size;
   
   my_qsort2(rowids_buf, n_rowids, elem_size, (qsort2_cmp)rowid_cmp,
             (void*)h);
@@ -6338,7 +6465,7 @@ int DsMrr_impl::dsmrr_next(char **range_info)
     if (h2->mrr_funcs.skip_record &&
 	h2->mrr_funcs.skip_record(h2->mrr_iter, (char *) cur_range_info, rowid))
       continue;
-    res= h->rnd_pos(table->record[0], rowid);
+    res= h->ha_rnd_pos(table->record[0], rowid);
     break;
   } while (true);
  
@@ -7323,7 +7450,7 @@ int handler::ha_external_lock(THD *thd, int lock_type)
 
   ha_statistic_increment(&SSV::ha_external_lock_count);
 
-  MYSQL_TABLE_LOCK_WAIT(m_psi, PSI_TABLE_EXTERNAL_LOCK, lock_type,
+  MYSQL_TABLE_LOCK_WAIT(PSI_TABLE_EXTERNAL_LOCK, lock_type,
     { error= external_lock(thd, lock_type); })
 
   /*
@@ -7402,14 +7529,14 @@ int handler::ha_write_row(uchar *buf)
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_WRITE_ROW, MAX_KEY, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY,
     { error= write_row(buf); })
 
   MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))
     DBUG_RETURN(error);
 
-  if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
+  if (unlikely((error= binlog_log_row(table, 0, buf, log_func))))
     DBUG_RETURN(error); /* purecov: inspected */
 
   DEBUG_SYNC_C("ha_write_row_end");
@@ -7434,13 +7561,13 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_UPDATE_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index,
     { error= update_row(old_data, new_data);})
 
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
-  if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
+  if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))))
     return error;
   return 0;
 }
@@ -7462,13 +7589,13 @@ int handler::ha_delete_row(const uchar *buf)
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_DELETE_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_DELETE_ROW, active_index,
     { error= delete_row(buf);})
 
   MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;
-  if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
+  if (unlikely((error= binlog_log_row(table, buf, 0, log_func))))
     return error;
   return 0;
 }

@@ -43,6 +43,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "btr0btr.h"
 #include "dict0boot.h"
+#include "ut0new.h"
 
 #include <set>
 
@@ -434,7 +435,7 @@ lock_sys_create(
 
 	lock_sys_sz = sizeof(*lock_sys) + OS_THREAD_MAX_N * sizeof(srv_slot_t);
 
-	lock_sys = static_cast<lock_sys_t*>(ut_zalloc(lock_sys_sz));
+	lock_sys = static_cast<lock_sys_t*>(ut_zalloc_nokey(lock_sys_sz));
 
 	void*	ptr = &lock_sys[1];
 
@@ -962,6 +963,12 @@ lock_rec_reset_nth_bit(
 	byte	mask = 1 << (i & 7);
 	byte	bit = *b & mask;
 	*b &= ~mask;
+
+	if (bit != 0) {
+		ut_ad(lock->trx->lock.n_rec_locks > 0);
+		--lock->trx->lock.n_rec_locks;
+	}
+
 	return(bit);
 }
 
@@ -1338,28 +1345,9 @@ lock_number_of_rows_locked(
 /*=======================*/
 	const trx_lock_t*	trx_lock)	/*!< in: transaction locks */
 {
-	const lock_t*	lock;
-	ulint		n_records = 0;
-
 	ut_ad(lock_mutex_own());
 
-	for (lock = UT_LIST_GET_FIRST(trx_lock->trx_locks);
-	     lock != NULL;
-	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
-
-		if (lock_get_type_low(lock) == LOCK_REC) {
-			ulint	n_bit;
-			ulint	n_bits = lock_rec_get_n_bits(lock);
-
-			for (n_bit = 0; n_bit < n_bits; n_bit++) {
-				if (lock_rec_get_nth_bit(lock, n_bit)) {
-					n_records++;
-				}
-			}
-		}
-	}
-
-	return(n_records);
+	return(trx_lock->n_rec_locks);
 }
 
 /*********************************************************************//**
@@ -1418,6 +1406,7 @@ lock_rec_create_low(
 	ut_ad(lock_mutex_own());
 	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
 	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
+	ut_ad(!trx->is_dd_trx);
 
 #ifdef UNIV_DEBUG
 	/* Non-locking autocommit read-only transactions should not set
@@ -3949,6 +3938,7 @@ lock_release(
 
 	ut_ad(lock_mutex_own());
 	ut_ad(!trx_mutex_own(trx));
+	ut_ad(!trx->is_dd_trx);
 
 	for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
 	     lock != NULL;
@@ -5291,9 +5281,13 @@ bool
 lock_validate()
 /*===========*/
 {
-	typedef	std::pair<ulint, ulint> page_addr_t;
-	typedef std::set<page_addr_t> page_addr_set;
-	page_addr_set pages;
+	typedef	std::pair<ulint, ulint>		page_addr_t;
+	typedef std::set<
+		page_addr_t,
+		std::less<page_addr_t>,
+		ut_allocator<page_addr_t> >	page_addr_set;
+
+	page_addr_set	pages;
 
 	lock_mutex_enter();
 	mutex_enter(&trx_sys->mutex);
@@ -6379,6 +6373,8 @@ lock_trx_release_locks(
 
 	lock_release(trx);
 
+	trx->lock.n_rec_locks = 0;
+
 	lock_mutex_exit();
 
 	/* We don't remove the locks one by one from the vector for
@@ -7101,7 +7097,7 @@ void
 lock_trx_alloc_locks(trx_t* trx)
 {
 	ulint	sz = REC_LOCK_SIZE * REC_LOCK_CACHE;
-	byte*	ptr = reinterpret_cast<byte*>(ut_malloc(sz));
+	byte*	ptr = reinterpret_cast<byte*>(ut_malloc_nokey(sz));
 
 	/* We allocate one big chunk and then distribute it among
 	the rest of the elements. The allocated chunk pointer is always
@@ -7113,7 +7109,7 @@ lock_trx_alloc_locks(trx_t* trx)
 	}
 
 	sz = TABLE_LOCK_SIZE * TABLE_LOCK_CACHE;
-	ptr = reinterpret_cast<byte*>(ut_malloc(sz));
+	ptr = reinterpret_cast<byte*>(ut_malloc_nokey(sz));
 
 	for (ulint i = 0; i < TABLE_LOCK_CACHE; ++i, ptr += TABLE_LOCK_SIZE) {
 		trx->lock.table_pool.push_back(

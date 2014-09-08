@@ -14,5 +14,6 @@ include/assert.inc [The value of view_id should be ONE at GCS start]
 include/assert.inc [The value of number_of_nodes should be ONE at GCS start]
 include/stop_gcs_replication.inc
 include/assert.inc [The value of group name should be 8a94f356-aab3-11de-86aa-b80aa9429561]
+# restart
 include/assert.inc [The value of group name should be NULL]
 include/assert.inc [The value of source_uuid should be NULL]

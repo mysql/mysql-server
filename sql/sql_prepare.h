@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_error.h"
+#include "sql_class.h"  // Query_arena
 
-class THD;
 struct LEX;
 
 /**
@@ -359,6 +358,130 @@ public:
 private:
   Ed_column *m_column_array;
   size_t m_column_count; /* TODO: change to point to metadata */
+};
+
+
+/**
+  A result class used to send cursor rows using the binary protocol.
+*/
+
+class Select_fetch_protocol_binary: public select_send
+{
+  Protocol_binary protocol;
+public:
+  Select_fetch_protocol_binary(THD *thd);
+  virtual bool send_result_set_metadata(List<Item> &list, uint flags);
+  virtual bool send_data(List<Item> &items);
+  virtual bool send_eof();
+#ifdef EMBEDDED_LIBRARY
+  void begin_dataset()
+  {
+    protocol.begin_dataset();
+  }
+#endif
+};
+
+
+class Server_side_cursor;
+
+/**
+  Prepared_statement: a statement that can contain placeholders.
+*/
+
+class Prepared_statement: public Query_arena
+{
+  enum flag_values
+  {
+    IS_IN_USE= 1,
+    IS_SQL_PREPARE= 2
+  };
+
+public:
+  THD *thd;
+  Item_param **param_array;
+  Server_side_cursor *cursor;
+  uint param_count;
+  uint last_errno;
+  char last_error[MYSQL_ERRMSG_SIZE];
+
+  /*
+    Uniquely identifies each statement object in thread scope; change during
+    statement lifetime.
+  */
+  const ulong id;
+
+  LEX *lex;                                     // parse tree descriptor
+
+  /**
+    The query associated with this statement.
+  */
+  LEX_CSTRING m_query_string;
+
+  /* Performance Schema interface for a prepared statement. */
+  PSI_prepared_stmt* m_prepared_stmt;
+
+private:
+  Select_fetch_protocol_binary result;
+  uint flags;
+  bool with_log;
+  LEX_CSTRING m_name; /* name for named prepared statements */
+  /**
+    Name of the current (default) database.
+
+    If there is the current (default) database, "db" contains its name. If
+    there is no current (default) database, "db" is NULL and "db_length" is
+    0. In other words, "db", "db_length" must either be NULL, or contain a
+    valid database name.
+
+    @note this attribute is set and alloced by the slave SQL thread (for
+    the THD of that thread); that thread is (and must remain, for now) the
+    only responsible for freeing this member.
+  */
+  LEX_CSTRING m_db;
+
+  /**
+    The memory root to allocate parsed tree elements (instances of Item,
+    SELECT_LEX and other classes).
+  */
+  MEM_ROOT main_mem_root;
+public:
+  Prepared_statement(THD *thd_arg);
+  virtual ~Prepared_statement();
+  virtual void cleanup_stmt();
+  bool set_name(const LEX_CSTRING &name);
+  const LEX_CSTRING &name() const
+  { return m_name; }
+  void close_cursor();
+  bool is_in_use() const { return flags & (uint) IS_IN_USE; }
+  bool is_sql_prepare() const { return flags & (uint) IS_SQL_PREPARE; }
+  void set_sql_prepare() { flags|= (uint) IS_SQL_PREPARE; }
+  bool prepare(const char *packet, size_t packet_length);
+  bool execute_loop(String *expanded_query,
+                    bool open_cursor,
+                    uchar *packet_arg, uchar *packet_end_arg);
+  bool execute_server_runnable(Server_runnable *server_runnable);
+#ifdef HAVE_PSI_PS_INTERFACE
+  PSI_prepared_stmt* get_PS_prepared_stmt();
+#endif
+  /* Destroy this statement */
+  void deallocate();
+private:
+  void setup_set_params();
+  bool set_db(const LEX_CSTRING &db_length);
+  bool set_parameters(String *expanded_query,
+                      uchar *packet, uchar *packet_end);
+  bool execute(String *expanded_query, bool open_cursor);
+  bool reprepare();
+  bool validate_metadata(Prepared_statement  *copy);
+  void swap_prepared_statement(Prepared_statement *copy);
+  bool insert_params_from_vars(List<LEX_STRING>& varnames,
+                               String *query);
+#ifndef EMBEDDED_LIBRARY
+  bool insert_params(uchar *null_array, uchar *read_pos, uchar *data_end,
+                     String *query);
+#else
+  bool emb_insert_params(String *query);
+#endif
 };
 
 #endif // SQL_PREPARE_H

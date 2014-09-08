@@ -53,20 +53,20 @@ CONCAT(LOCALTIMESTAMP()), CONCAT(LOCALTIMESTAMP(6)),
 CONCAT(SYSDATE()), CONCAT(SYSDATE(6));
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-CONCAT(CURRENT_TIME())	varchar(8)	NO			
-CONCAT(CURRENT_TIME(6))	varchar(15)	NO			
-CONCAT(UTC_TIME())	varchar(8)	NO			
-CONCAT(UTC_TIME(6))	varchar(15)	NO			
-CONCAT(CURRENT_TIMESTAMP())	varchar(19)	NO			
-CONCAT(CURRENT_TIMESTAMP(6))	varchar(26)	NO			
-CONCAT(UTC_TIMESTAMP())	varchar(19)	NO			
-CONCAT(UTC_TIMESTAMP(6))	varchar(26)	NO			
-CONCAT(LOCALTIME())	varchar(19)	NO			
-CONCAT(LOCALTIME(6))	varchar(26)	NO			
-CONCAT(LOCALTIMESTAMP())	varchar(19)	NO			
-CONCAT(LOCALTIMESTAMP(6))	varchar(26)	NO			
-CONCAT(SYSDATE())	varchar(19)	NO			
-CONCAT(SYSDATE(6))	varchar(26)	NO			
+CONCAT(CURRENT_TIME())	varchar(8)	YES		NULL	
+CONCAT(CURRENT_TIME(6))	varchar(15)	YES		NULL	
+CONCAT(UTC_TIME())	varchar(8)	YES		NULL	
+CONCAT(UTC_TIME(6))	varchar(15)	YES		NULL	
+CONCAT(CURRENT_TIMESTAMP())	varchar(19)	YES		NULL	
+CONCAT(CURRENT_TIMESTAMP(6))	varchar(26)	YES		NULL	
+CONCAT(UTC_TIMESTAMP())	varchar(19)	YES		NULL	
+CONCAT(UTC_TIMESTAMP(6))	varchar(26)	YES		NULL	
+CONCAT(LOCALTIME())	varchar(19)	YES		NULL	
+CONCAT(LOCALTIME(6))	varchar(26)	YES		NULL	
+CONCAT(LOCALTIMESTAMP())	varchar(19)	YES		NULL	
+CONCAT(LOCALTIMESTAMP(6))	varchar(26)	YES		NULL	
+CONCAT(SYSDATE())	varchar(19)	YES		NULL	
+CONCAT(SYSDATE(6))	varchar(26)	YES		NULL	
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT
 NOW(0), NOW(1), NOW(2), NOW(3), NOW(4), NOW(5), NOW(6);
@@ -512,7 +512,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a DECIMAL(23,4));
 INSERT INTO t1 VALUES (NULL),(101010.9999),(-101010.9999);
-INSERT INTO t1 VALUES (9999999999999999999999.1), (999999.1);
+INSERT IGNORE INTO t1 VALUES (9999999999999999999999.1), (999999.1);
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 SELECT a, CAST(a AS TIME(3)) FROM t1;
@@ -2718,6 +2718,7 @@ DROP TABLE t1;
 #
 # Testing bad values
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES (106060);
 Warnings:
@@ -2738,6 +2739,7 @@ a
 00:00:00.000000
 00:00:00.000000
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Testing bad values with TRADITIONAL mode
 #
@@ -2813,6 +2815,7 @@ DROP TABLE t1;
 #
 # Testing huge values
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS SIGNED));
 Warnings:
@@ -2860,6 +2863,7 @@ SELECT * FROM t1;
 a
 00:00:00.111111
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Testing IN
 #
@@ -3199,6 +3203,7 @@ DROP TABLE t1;
 #
 # Testing INSERT with near-maximum and near-minimum supported values.
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES ('838:59:59.999999');
 Warnings:
@@ -3476,6 +3481,7 @@ a
 -838:59:59.000000
 -838:59:59.000000
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Testing UPDATE between TIME(6) and TIME/INT/DECIMAL/FLOAT
 #
@@ -4226,8 +4232,8 @@ INSERT INTO t1 VALUES ('10:10:10.1', '10:10:10.1', '10:10:10.1');
 INSERT INTO t1 VALUES ('34:10:10.1', '34:10:10.1', '34:10:10.1');
 ALTER TABLE t1 MODIFY a DATETIME(6), MODIFY b TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), MODIFY c DATE;
 Warnings:
-Note	1265	Data truncated for column 'c' at row 1
-Note	1265	Data truncated for column 'c' at row 2
+Note	1292	Incorrect date value: '10:10:10' for column 'c' at row 1
+Note	1292	Incorrect date value: '34:10:10' for column 'c' at row 2
 SELECT * FROM t1;
 a	b	c
 2001-01-01 10:10:10.100000	2001-01-01 10:10:10.100000	2001-01-01
@@ -4242,8 +4248,8 @@ CREATE TABLE t1 (t6 TIME(6), d DATE, ts6 TIMESTAMP(6) NOT NULL DEFAULT CURRENT_T
 INSERT INTO t1 (t6) VALUES ('10:10:10.1'), ('34:10:10.1');
 UPDATE t1 SET d=t6, ts6=t6, dt6=t6;
 Warnings:
-Note	1265	Data truncated for column 'd' at row 1
-Note	1265	Data truncated for column 'd' at row 2
+Note	1292	Incorrect date value: '10:10:10' for column 'd' at row 1
+Note	1292	Incorrect date value: '34:10:10' for column 'd' at row 2
 SELECT * FROM t1;
 t6	d	ts6	dt6
 10:10:10.100000	2001-01-01	2001-01-01 10:10:10.100000	2001-01-01 10:10:10.100000
@@ -5042,6 +5048,7 @@ Warning	1292	Truncated incorrect time value: '838:59:59.000000567'
 #
 # Testing CAST to TIME and TIME(6)
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 AS SELECT
 CAST(1 AS TIME),
 CAST(100000000 AS TIME),
@@ -5082,6 +5089,7 @@ t1	CREATE TABLE `t1` (
   `CAST(1e0 AS TIME(6))` time(6) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
+SET sql_mode = default;
 CREATE TABLE t1 (a TIME, b TIME(6));
 INSERT INTO t1 VALUES ('11:22:33', '11:22:33.123456');
 CREATE TABLE t2 AS SELECT CAST(a AS TIME), CAST(b AS TIME) FROM t1;
@@ -5365,7 +5373,7 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIME(6);
 SET a='11:22:33.123';
@@ -5381,7 +5389,7 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIME(6))
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIME(6))
 BEGIN
 SELECT a;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -5407,7 +5415,7 @@ DROP TABLE t1;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIME(6);
 CREATE TABLE t1 AS SELECT a;
@@ -5426,7 +5434,7 @@ RETURN a;
 END//
 SHOW CREATE FUNCTION p1//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIME(6)) RETURNS time(6)
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIME(6)) RETURNS time(6)
 BEGIN
 RETURN a;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -5850,6 +5858,7 @@ ADD a4 VARCHAR(32), ADD a5 VARCHAR(32),
 ADD d0 DATETIME(0),
 ADD d1 DATETIME(1), ADD d2 DATETIME(2), ADD d3 DATETIME(3),
 ADD d4 DATETIME(4), ADD d5 DATETIME(5), ADD d6 DATETIME(6);
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET
 a0= LEFT(a6, LENGTH(a6) - 6),
 a1= LEFT(a6, LENGTH(a6) - 5),
@@ -5857,7 +5866,7 @@ a2= LEFT(a6, LENGTH(a6) - 4),
 a3= LEFT(a6, LENGTH(a6) - 3),
 a4= LEFT(a6, LENGTH(a6) - 2),
 a5= LEFT(a6, LENGTH(a6) - 1);
-UPDATE t1 SET d0= a0, d1= a1, d2= a2, d3= a3, d4= a4, d5= a5, d6= a6;
+UPDATE IGNORE t1 SET d0= a0, d1= a1, d2= a2, d3= a3, d4= a4, d5= a5, d6= a6;
 SELECT a6, d6, HEX(WEIGHT_STRING(d6)) FROM t1 ORDER BY d6;
 a6	d6	HEX(WEIGHT_STRING(d6))
 0000-00-00 00:00:00.000000	0000-00-00 00:00:00.000000	8000000000000000
@@ -7065,6 +7074,7 @@ wst3	FEF3FF7EFA03E8
 wst4	FEF3FF7EFA03E8
 wst5	FEF3FF7EFA0186A0
 wst6	FEF3FF7EFA0186A0
+SET sql_mode = default;
 DROP VIEW v1;
 DROP TABLE t1;
 #
@@ -7094,6 +7104,7 @@ ERROR 42000: Too-big precision 31 specified for 'now'. Maximum is 6.
 #
 # Testing INSERT, ORDER, KEY, BETWEEN, comparison
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a DATETIME(6) NOT NULL);
 INSERT INTO t1 VALUES ('0000-00-00 00:00:00.000000');
 INSERT INTO t1 VALUES ('0000-00-00 23:59:59.999999');
@@ -7346,6 +7357,7 @@ a
 0000-00-00 00:00:00.000000
 0000-00-00 00:00:00.000000
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Testing values with zeros in dates
 #
@@ -7410,6 +7422,7 @@ SET sql_mode=default;
 #
 # Testing rounding
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a DATETIME(6));
 INSERT INTO t1 VALUES (20010101100000.1234567);
 INSERT INTO t1 VALUES (20010228235959.9999997);
@@ -8602,6 +8615,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t2;
 DROP TABLE t1;
+SET sql_mode = default;
 #
 # Testing functions ADDTIME, SUBTIME, TIMESTAMP, TIMEDIFF, DATE_ADD/SUB
 #
@@ -8951,6 +8965,7 @@ DROP TABLE t1;
 #
 # Testing copy from DATETIME to DATETIME(6) and vice versa
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a DATETIME(6), b DATETIME);
 INSERT INTO t1 VALUES ('2001-01-01 01:02:03.123456','0000-00-00 00:00:00');
 UPDATE t1 SET b=a;
@@ -15563,7 +15578,6 @@ s1
 1000-00-01 00:00:00
 1000-00-01 00:00:00
 DROP TABLE t1;
-SET sql_mode=default;
 SELECT SYSDATE(6) LIKE '____-__-__ __:__:__.______';
 SYSDATE(6) LIKE '____-__-__ __:__:__.______'
 1
@@ -17548,4 +17562,5 @@ key1	col
 8	01:02:31.200000
 9	00:00:00.000000
 DROP TABLE t;
+SET sql_mode = default;
 # End of 5.6 tests
