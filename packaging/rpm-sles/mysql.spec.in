@@ -129,8 +129,8 @@ Requires:       perl-base
 Provides:       MySQL-server-advanced = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
-Requires:       mysql-enterprise-client = %{version}-%{release}
-Requires:       mysql-enterprise-common = %{version}-%{release}
+Requires:       mysql-commercial-client = %{version}-%{release}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-server = %{version}-%{release}
 Requires:       mysql-community-client = %{version}-%{release}
@@ -184,7 +184,7 @@ Group:          Applications/Databases
 Provides:       MySQL-client-advanced = %{version}-%{release}
 Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
-Requires:       mysql-enterprise-libs = %{version}-%{release}
+Requires:       mysql-commercial-libs = %{version}-%{release}
 %else
 Provides:       MySQL-client = %{version}-%{release}
 Requires:       mysql-community-libs = %{version}-%{release}
@@ -219,7 +219,7 @@ Group:          Applications/Databases
 Provides:       MySQL-test-advanced = %{version}-%{release}
 Obsoletes:      MySQL-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-test < %{version}-%{release}
-Requires:       mysql-enterprise-server = %{version}-%{release}
+Requires:       mysql-commercial-server = %{version}-%{release}
 %else
 Provides:       MySQL-test = %{version}-%{release}
 Requires:       mysql-community-server = %{version}-%{release}
@@ -240,7 +240,7 @@ Summary:        MySQL benchmark suite
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-bench < %{version}-%{release}
-Requires:       mysql-enterprise-server = %{version}-%{release}
+Requires:       mysql-commercial-server = %{version}-%{release}
 %else
 Requires:       mysql-community-server = %{version}-%{release}
 %endif
@@ -261,7 +261,7 @@ Group:          Applications/Databases
 Provides:       MySQL-devel-advanced = %{version}-%{release}
 Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
-Requires:       mysql-enterprise-libs = %{version}-%{release}
+Requires:       mysql-commercial-libs = %{version}-%{release}
 %else
 Provides:       MySQL-devel = %{version}-%{release}
 Requires:       mysql-community-libs = %{version}-%{release}
@@ -284,7 +284,7 @@ Group:          Applications/Databases
 Provides:       MySQL-shared-advanced = %{version}-%{release}
 Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-libs < %{version}-%{release}
-Requires:       mysql-enterprise-common = %{version}-%{release}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-shared = %{version}-%{release}
 Requires:       mysql-community-common = %{version}-%{release}
@@ -309,7 +309,7 @@ Group:          Applications/Databases
 Provides:       MySQL-embedded-advanced = %{version}-%{release}
 Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
-Requires:       mysql-enterprise-common = %{version}-%{release}
+Requires:       mysql-commercial-common = %{version}-%{release}
 %else
 Provides:       MySQL-embedded = %{version}-%{release}
 Requires:       mysql-community-common = %{version}-%{release}
@@ -336,8 +336,8 @@ Summary:        Development header files and libraries for MySQL as an embeddabl
 Group:          Applications/Databases
 %if 0%{?commercial}
 Obsoletes:      mysql-community-embedded-devel < %{version}-%{release}
-Requires:       mysql-enterprise-devel = %{version}-%{release}
-Requires:       mysql-enterprise-embedded = %{version}-%{release}
+Requires:       mysql-commercial-devel = %{version}-%{release}
+Requires:       mysql-commercial-embedded = %{version}-%{release}
 %else
 Requires:       mysql-community-devel = %{version}-%{release}
 Requires:       mysql-community-embedded = %{version}-%{release}
