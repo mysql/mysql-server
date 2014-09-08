@@ -49,6 +49,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "os0once.h"
 #include <set>
 #include <algorithm>
+#include <iterator>
 
 /* Forward declaration. */
 struct ib_rbt_t;
@@ -720,6 +721,22 @@ struct dict_foreign_t{
 	dict_index_t*	referenced_index;/*!< referenced index */
 };
 
+std::ostream&
+operator<< (std::ostream& out, const dict_foreign_t& foreign);
+
+struct dict_foreign_print {
+
+	dict_foreign_print(std::ostream& out)
+		: m_out(out)
+	{}
+
+	void operator()(const dict_foreign_t* foreign) {
+		m_out << *foreign;
+	}
+private:
+	std::ostream&	m_out;
+};
+
 /** Compare two dict_foreign_t objects using their ids. Used in the ordering
 of dict_table_t::foreign_set and dict_table_t::referenced_set.  It returns
 true if the first argument is considered to go before the second in the
@@ -788,6 +805,40 @@ struct dict_foreign_matches_id {
 };
 
 typedef std::set<dict_foreign_t*, dict_foreign_compare> dict_foreign_set;
+
+std::ostream&
+operator<< (std::ostream& out, const dict_foreign_set& fk_set);
+
+/** Function object to check if a foreign key object is there
+in the given foreign key set or not.  It returns true if the
+foreign key is not found, false otherwise */
+struct dict_foreign_not_exists {
+	dict_foreign_not_exists(const dict_foreign_set& obj_)
+		: m_foreigns(obj_)
+	{}
+
+	/* Return true if the given foreign key is not found */
+	bool operator()(dict_foreign_t* const & foreign) const {
+		return(m_foreigns.find(foreign) == m_foreigns.end());
+	}
+private:
+	const dict_foreign_set&	m_foreigns;
+};
+
+/** Validate the search order in the foreign key set.
+@param[in]	fk_set	the foreign key set to be validated
+@return true if search order is fine in the set, false otherwise. */
+bool
+dict_foreign_set_validate(
+	const dict_foreign_set&	fk_set);
+
+/** Validate the search order in the foreign key sets of the table
+(foreign_set and referenced_set).
+@param[in]	table	table whose foreign key sets are to be validated
+@return true if foreign key sets are fine, false otherwise. */
+bool
+dict_foreign_set_validate(
+	const dict_table_t&	table);
 
 /*********************************************************************//**
 Frees a foreign key struct. */
