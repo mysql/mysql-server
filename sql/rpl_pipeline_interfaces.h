@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef APPLIER_INTERFACES_INCLUDED
-#define APPLIER_INTERFACES_INCLUDED
+#ifndef RPL_PIPELINE_INTERFACES_INCLUDED
+#define RPL_PIPELINE_INTERFACES_INCLUDED
 
 #include "log_event.h"
 #include "rpl_reporting.h"
