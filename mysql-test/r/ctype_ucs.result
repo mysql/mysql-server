@@ -1831,7 +1831,12 @@ drop table t1;
 select old_password('a'), hex(old_password('a'));
 old_password('a')	hex(old_password('a'))
 0705298948d1f92f	0030003700300035003200390038003900340038006400310066003900320066
+Warnings:
+Warning	1287	'OLD_PASSWORD' is deprecated and will be removed in a future release. Please use PASSWORD instead
+Warning	1287	'OLD_PASSWORD' is deprecated and will be removed in a future release. Please use PASSWORD instead
 create table t1 as select old_password('a') as c1;
+Warnings:
+Warning	1287	'OLD_PASSWORD' is deprecated and will be removed in a future release. Please use PASSWORD instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3915,6 +3920,8 @@ SELECT charset(@x), collation(@x);
 charset(@x)	collation(@x)
 ucs2	ucs2_general_ci
 SET @x=old_password('a');
+Warnings:
+Warning	1287	'OLD_PASSWORD' is deprecated and will be removed in a future release. Please use PASSWORD instead
 SELECT charset(@x), collation(@x);
 charset(@x)	collation(@x)
 ucs2	ucs2_general_ci
