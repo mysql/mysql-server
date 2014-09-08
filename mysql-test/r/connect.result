@@ -81,12 +81,15 @@ SET GLOBAL secure_auth = OFF;
 Warnings:
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 update mysql.user set password=old_password("gambling2"), plugin="mysql_old_password" where user=_binary"test";
+Warnings:
+Warning	1287	'OLD_PASSWORD' is deprecated and will be removed in a future release. Please use PASSWORD instead
 flush privileges;
 set password="";
 set password='gambling3';
 ERROR HY000: Password hash should be a 16-digit hexadecimal number
 set password=old_password('gambling3');
 Warnings:
+Warning	1287	'OLD_PASSWORD' is deprecated and will be removed in a future release. Please use PASSWORD instead
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 show tables;
 Tables_in_mysql
@@ -252,10 +255,12 @@ SET old_passwords=1;
 CREATE USER old_pwd@localhost IDENTIFIED WITH 'mysql_old_password';
 SET PASSWORD FOR old_pwd@localhost= OLD_PASSWORD('aha');
 Warnings:
+Warning	1287	'OLD_PASSWORD' is deprecated and will be removed in a future release. Please use PASSWORD instead
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 #Expect deprecation warning
 SET PASSWORD FOR old_pwd@localhost = OLD_PASSWORD('aha2');
 Warnings:
+Warning	1287	'OLD_PASSWORD' is deprecated and will be removed in a future release. Please use PASSWORD instead
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 #Expect deprecation warning
 GRANT SELECT on test.* TO old_gpwd@localhost 
@@ -266,6 +271,7 @@ GRANT SELECT on test.* TO old_gpwd@localhost
 IDENTIFIED WITH 'mysql_old_password';
 SET PASSWORD FOR old_gpwd@localhost= OLD_PASSWORD('aha4');
 Warnings:
+Warning	1287	'OLD_PASSWORD' is deprecated and will be removed in a future release. Please use PASSWORD instead
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 #Expected normal flush, no warnings  
 FLUSH PRIVILEGES;
