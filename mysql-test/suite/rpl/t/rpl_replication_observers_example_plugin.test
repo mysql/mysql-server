@@ -1,7 +1,7 @@
 #
 # The purpose of this test is to demonstrate the capabilities of the
 # Replication Observers example plugin and to assess its correct functionality
-# 
+#
 # The plugin is loaded at startup in order to be able to capture Server events
 #
 
