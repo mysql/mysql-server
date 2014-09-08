@@ -4008,7 +4008,7 @@ row_merge_build_indexes(
 	we can simply remove the file when rollback. */
 	is_redo_skipped = dict_table_is_temporary(new_table)
 		|| (old_table != new_table
-		    && new_table->flags2 & DICT_TF2_USE_FILE_PER_TABLE);
+		    && dict_table_use_file_per_table(new_table));
 
 	for (i = 0; i < n_indexes; i++) {
 		indexes[i]->is_redo_skipped = is_redo_skipped;
