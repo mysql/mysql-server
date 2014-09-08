@@ -5066,7 +5066,8 @@ longlong Item_func_get_lock::val_int()
   User_level_lock_wait_error_handler error_handler;
 
   thd->push_internal_handler(&error_handler);
-  bool error= thd->mdl_context.acquire_lock(&ull_request, timeout);
+  bool error= thd->mdl_context.acquire_lock(&ull_request,
+                                            static_cast<ulong>(timeout));
   (void) thd->pop_internal_handler();
 
   if (error)
