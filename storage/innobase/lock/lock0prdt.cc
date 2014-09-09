@@ -792,8 +792,7 @@ lock_prdt_consistent(
 		ret = MBR_WITHIN_CMP(mbr1, mbr2);
 		break;
 	default:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"invalid operator %lu", (ulong) action);
+		ib::error() << "invalid operator " << action;
 		ut_error;
 	}
 

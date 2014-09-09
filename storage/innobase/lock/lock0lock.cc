@@ -301,7 +301,7 @@ lock_report_trx_id_insanity(
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
 	trx_id_t	max_trx_id)	/*!< in: trx_sys_get_max_trx_id() */
 {
-	ib_logf(IB_LOG_LEVEL_ERROR, "Transaction id associated with record");
+	ib::error() << "Transaction id associated with record";
 	rec_print_new(stderr, rec, offsets);
 	fputs("InnoDB: in ", stderr);
 	dict_index_name_print(stderr, NULL, index);
@@ -1579,12 +1579,12 @@ lock_rec_enqueue_waiting(
 		break;
 	case TRX_DICT_OP_TABLE:
 	case TRX_DICT_OP_INDEX:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"A record lock wait happens in a dictionary operation!."
-			" index %s of table %s. %s",
-			ut_get_name(trx, FALSE, index->name).c_str(),
-			ut_get_name(trx, TRUE, index->table_name).c_str(),
-			BUG_REPORT_MSG);
+		ib::error() << "A record lock wait happens in a dictionary"
+			" operation. index "
+			<< ut_get_name(trx, FALSE, index->name)
+			<< " of table "
+			<< ut_get_name(trx, TRUE, index->table_name)
+			<< ". " << BUG_REPORT_MSG;
 		ut_ad(0);
 	}
 
@@ -2034,8 +2034,8 @@ lock_grant(
 		dict_table_t*	table = lock->un_member.tab_lock.table;
 
 		if (table->autoinc_trx == lock->trx) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Transaction already had an AUTO-INC lock!");
+			ib::error() << "Transaction already had an"
+				<< " AUTO-INC lock!";
 		} else {
 			table->autoinc_trx = lock->trx;
 
@@ -2550,10 +2550,9 @@ lock_move_reorganize_page(
 
 			/* Check that all locks were moved. */
 			if (i != ULINT_UNDEFINED) {
-				ib_logf(IB_LOG_LEVEL_FATAL,
-					"lock_move_reorganize_page():"
-					" %lu not moved in %p",
-					(ulong) i, (void*) lock);
+				ib::fatal() << "lock_move_reorganize_page(): "
+					<< i << " not moved in "
+					<< (void*) lock;
 			}
 		}
 #endif /* UNIV_DEBUG */
@@ -2761,11 +2760,10 @@ lock_move_rec_list_start(
 			for (i = PAGE_HEAP_NO_USER_LOW;
 			     i < lock_rec_get_n_bits(lock); i++) {
 				if (lock_rec_get_nth_bit(lock, i)) {
-
-					ib_logf(IB_LOG_LEVEL_FATAL,
-						"lock_move_rec_list_start():"
-						" %lu not moved in %p",
-						(ulong) i, (void*) lock);
+					ib::fatal()
+						<< "lock_move_rec_list_start():"
+						<< i << " not moved in "
+						<<  (void*) lock;
 				}
 			}
 		}
@@ -3531,11 +3529,10 @@ lock_table_enqueue_waiting(
 		break;
 	case TRX_DICT_OP_TABLE:
 	case TRX_DICT_OP_INDEX:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"A table lock wait happens in a dictionary operation!."
-			" Table name %s. %s",
-			ut_get_name(trx, TRUE, table->name).c_str(),
-			BUG_REPORT_MSG);
+		ib::error() << "A table lock wait happens in a dictionary"
+			" operation. Table name "
+			<< ut_get_name(trx, TRUE, table->name)
+			<< ". " << BUG_REPORT_MSG;
 		ut_ad(0);
 	}
 
@@ -3853,11 +3850,13 @@ lock_rec_unlock(
 	trx_mutex_exit(trx);
 
 	stmt = innobase_get_stmt_unsafe(trx->mysql_thd, &stmt_len);
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Unlock row could not find a %lu mode lock on the record",
-		(ulong) lock_mode);
-	ib_logf(IB_LOG_LEVEL_ERROR, "Current statement: %.*s",
-		(int) stmt_len, stmt);
+
+	{
+		ib::error	err;
+		err << "Unlock row could not find a " << lock_mode
+			<< " mode lock on the record. Current statement: ";
+		err.write(stmt, stmt_len);
+	}
 
 	return;
 
@@ -6662,9 +6661,8 @@ DeadlockChecker::start_print()
 	ut_print_timestamp(lock_latest_err_file);
 
 	if (srv_print_all_deadlocks) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Transactions deadlock detected, dumping detailed"
-			" information.");
+		ib::info() << "Transactions deadlock detected, dumping"
+			<< " detailed information.";
 	}
 }
 
@@ -6676,7 +6674,7 @@ DeadlockChecker::print(const char* msg)
 	fputs(msg, lock_latest_err_file);
 
 	if (srv_print_all_deadlocks) {
-		ib_logf(IB_LOG_LEVEL_INFO, "%s", msg);
+		ib::info() << msg;
 	}
 }
 
