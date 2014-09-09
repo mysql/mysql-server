@@ -215,6 +215,7 @@ show status like "performance_schema%";
 
 call check_instrument("wait/synch/mutex/");
 call check_instrument("wait/synch/rwlock/");
+call check_instrument("wait/synch/sxlock/");
 call check_instrument("wait/synch/cond/");
 call check_instrument("wait/synch/");
 call check_instrument("wait/io/file/");

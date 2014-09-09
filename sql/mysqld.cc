@@ -86,6 +86,7 @@
 #include "debug_sync.h"
 #include "sql_callback.h"
 #include "opt_trace_context.h"
+#include "opt_costconstantcache.h"
 
 #include "mysqld.h"
 #include "my_default.h"
@@ -294,7 +295,13 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 ulong log_warnings;
-#if defined(_WIN32)
+bool  opt_log_syslog_enable;
+char *opt_log_syslog_tag= NULL;
+#ifndef _WIN32
+bool  opt_log_syslog_include_pid;
+char *opt_log_syslog_facility;
+
+#else
 /*
   Thread handle of shutdown event handler thread.
   It is used as argument during thread join.
@@ -589,9 +596,9 @@ SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
 /* Thread specific variables */
 
-pthread_key(MEM_ROOT**,THR_MALLOC);
+thread_local_key_t THR_MALLOC;
 bool THR_MALLOC_initialized= false;
-pthread_key(THD*, THR_THD);
+thread_local_key_t THR_THD;
 bool THR_THD_initialized= false;
 mysql_mutex_t
   LOCK_status, LOCK_error_log, LOCK_uuid_generator,
@@ -1247,7 +1254,9 @@ extern "C" void unireg_abort(int exit_code)
 
 static void mysqld_exit(int exit_code)
 {
+  log_syslog_exit();
   mysql_audit_finalize();
+  delete_optimizer_cost_module();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   local_message_hook= my_message_local_stderr;
@@ -1369,6 +1378,7 @@ void clean_up(bool print_message)
   }
   table_def_start_shutdown();
   plugin_shutdown();
+  delete_optimizer_cost_module();
   ha_end();
   if (tc_log)
     tc_log->close();
@@ -1432,13 +1442,13 @@ void clean_up(bool print_message)
   if (THR_THD_initialized)
   {
     THR_THD_initialized= false;
-    (void) pthread_key_delete(THR_THD);
+    (void) my_delete_thread_local_key(THR_THD);
   }
 
   if (THR_MALLOC_initialized)
   {
     THR_MALLOC_initialized= false;
-    (void) pthread_key_delete(THR_MALLOC);
+    (void) my_delete_thread_local_key(THR_MALLOC);
   }
 
 #ifdef HAVE_MY_TIMER
@@ -2819,6 +2829,9 @@ int init_common_variables()
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
 
+  if (log_syslog_init())
+    opt_log_syslog_enable= 0;
+
   if (set_default_auth_plugin(default_auth_plugin, strlen(default_auth_plugin)))
   {
     sql_print_error("Can't start server: "
@@ -3235,8 +3248,8 @@ static int init_thread_environment()
 
   DBUG_ASSERT(! THR_THD_initialized);
   DBUG_ASSERT(! THR_MALLOC_initialized);
-  if (pthread_key_create(&THR_THD,NULL) ||
-      pthread_key_create(&THR_MALLOC,NULL))
+  if (my_create_thread_local_key(&THR_THD,NULL) ||
+      my_create_thread_local_key(&THR_MALLOC,NULL))
   {
     sql_print_error("Can't create thread-keys");
     return 1;
@@ -3321,14 +3334,17 @@ static int init_ssl()
 #ifdef HAVE_OPENSSL
 #ifndef HAVE_YASSL
   CRYPTO_malloc_init();
-  if (do_auto_cert_generation() == false)
-    return 1;
 #endif
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)
   {
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
+
+#ifndef HAVE_YASSL
+    if (do_auto_cert_generation() == false)
+      return 1;
+#endif
 
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
@@ -4088,6 +4104,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 #endif
     locked_in_memory=0;
 
+  /* Initialize the optimizer cost module */
+  init_optimizer_cost_module();
   ft_init_stopwords();
 
   init_max_user_conn();
@@ -4372,14 +4390,17 @@ int mysqld_main(int argc, char **argv)
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
-  srand(time(NULL));
+  srand(static_cast<uint>(time(NULL)));
 #endif
 
   /*
     We have enough space for fiddling with the argv, continue
   */
   if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
+  {
+    sql_print_error("failed to set datadir to %s", mysql_real_data_home);
     unireg_abort(1);        /* purecov: inspected */
+  }
 
 #ifndef _WIN32
   if ((user_info= check_user(mysqld_user)))
@@ -4547,7 +4568,8 @@ int mysqld_main(int argc, char **argv)
           Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
           global_sid_lock->unlock();
 
-          prev_gtids_ev.checksum_alg= binlog_checksum_options;
+          prev_gtids_ev.checksum_alg=
+            static_cast<uint8>(binlog_checksum_options);
 
           if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
             unireg_abort(1);
@@ -4606,6 +4628,10 @@ int mysqld_main(int argc, char **argv)
   /* Save pid of this process in a file */
   if (!opt_bootstrap)
     create_pid_file();
+
+  /* Read the optimizer cost model configuration tables */
+  if (!opt_bootstrap)
+    reload_optimizer_cost_constants();
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
@@ -5792,7 +5818,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
     else
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
-        active_mi->last_heartbeat);
+        static_cast<my_time_t>(active_mi->last_heartbeat));
       my_datetime_to_str(&received_heartbeat_time, buff, 0);
     }
   }
@@ -7754,7 +7780,8 @@ PSI_mutex_key
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
-  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query;
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
+  key_LOCK_cost_const;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_done;

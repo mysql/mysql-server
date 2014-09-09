@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,6 +96,8 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
               my_hash_get_key get_key,
               void (*free_element)(void*), uint flags)
 {
+  my_bool retval;
+
   DBUG_ENTER("my_hash_init");
   DBUG_PRINT("enter",("hash: 0x%lx  size: %u", (long) hash, (uint) size));
 
@@ -108,8 +110,10 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
   hash->flags=flags;
   hash->charset=charset;
   hash->hash_function= hash_function ? hash_function : cset_hash_sort_adapter;
-  DBUG_RETURN(my_init_dynamic_array_ci(&hash->array, 
-                                       sizeof(HASH_LINK), size, growth_size));
+  retval= my_init_dynamic_array(&hash->array, sizeof(HASH_LINK),
+                                NULL,  /* init_buffer */
+                                size, growth_size);
+  DBUG_RETURN(retval);
 }
 
 

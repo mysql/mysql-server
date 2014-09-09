@@ -9,6 +9,7 @@ ORDER BY table_schema,table_name,constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
 def	mysql	PRIMARY	mysql	columns_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	db	PRIMARY KEY
+def	mysql	PRIMARY	mysql	engine_cost	PRIMARY KEY
 def	mysql	PRIMARY	mysql	event	PRIMARY KEY
 def	mysql	PRIMARY	mysql	func	PRIMARY KEY
 def	mysql	PRIMARY	mysql	gtid_executed	PRIMARY KEY
@@ -27,6 +28,7 @@ def	mysql	PRIMARY	mysql	proc	PRIMARY KEY
 def	mysql	PRIMARY	mysql	procs_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	proxies_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	servers	PRIMARY KEY
+def	mysql	PRIMARY	mysql	server_cost	PRIMARY KEY
 def	mysql	PRIMARY	mysql	slave_master_info	PRIMARY KEY
 def	mysql	PRIMARY	mysql	slave_relay_log_info	PRIMARY KEY
 def	mysql	PRIMARY	mysql	slave_worker_info	PRIMARY KEY

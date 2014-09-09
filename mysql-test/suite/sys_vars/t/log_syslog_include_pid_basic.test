@@ -1,0 +1,56 @@
+################## mysql-test\t\log_syslog_include_pid_basic.test #############
+#                                                                             #
+# Variable Name: log_syslog_include_pid                                       #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: bool                                                             #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2014-02-14                                                   #
+# Author : Azundris (tnuernbe)                                                #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable                           #
+#             log_syslog_include_pid                                          #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html        #
+#                                                                             #
+###############################################################################
+
+--source include/not_windows.inc
+
+SET @start_value= @@global.log_syslog_include_pid;
+
+SET @@global.log_syslog_include_pid= DEFAULT;
+SELECT @@global.log_syslog_include_pid;
+
+SET @@global.log_syslog_include_pid= 0;
+SELECT @@global.log_syslog_include_pid;
+
+SET @@global.log_syslog_include_pid= 1;
+SELECT @@global.log_syslog_include_pid;
+
+SET @@global.log_syslog_include_pid= ON;
+SELECT @@global.log_syslog_include_pid;
+
+SET @@global.log_syslog_include_pid= OFF;
+SELECT @@global.log_syslog_include_pid;
+
+# wrong
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_syslog_include_pid= 9;
+SELECT @@global.log_syslog_include_pid;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_syslog_include_pid= 0.01;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_syslog_include_pid= 0;
+
+--error ER_GLOBAL_VARIABLE
+SET LOCAL log_syslog_include_pid= 0;
+
+SET @@global.log_syslog_include_pid= @start_value;

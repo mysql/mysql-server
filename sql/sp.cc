@@ -416,7 +416,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
 
   table.init_one_table("mysql", 5, "proc", 4, "proc", TL_READ);
 
-  if (open_system_tables_for_read(thd, &table, backup))
+  if (open_nontrans_system_tables_for_read(thd, &table, backup))
     DBUG_RETURN(NULL);
    
   if (!table.table->key_info)
@@ -430,7 +430,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
     DBUG_RETURN(table.table);
 
 err:
-  close_system_tables(thd, backup);
+  close_nontrans_system_tables(thd, backup);
   DBUG_RETURN(NULL);
 }
 
@@ -684,7 +684,7 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
 
   creation_ctx= Stored_routine_creation_ctx::load_from_db(thd, name, table);
 
-  close_system_tables(thd, &open_tables_state_backup);
+  close_nontrans_system_tables(thd, &open_tables_state_backup);
   table= 0;
 
   ret= db_load_routine(thd, type, name, sphp,
@@ -697,7 +697,7 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
   */  
   thd->time_zone_used= saved_time_zone_used;
   if (table)
-    close_system_tables(thd, &open_tables_state_backup);
+    close_nontrans_system_tables(thd, &open_tables_state_backup);
   thd->variables.sql_mode= saved_mode;
   DBUG_RETURN(ret);
 }
@@ -1547,7 +1547,7 @@ bool lock_db_routines(THD *thd, const char *db)
   if (nxtres)
   {
     table->file->print_error(nxtres, MYF(0));
-    close_system_tables(thd, &open_tables_state_backup);
+    close_nontrans_system_tables(thd, &open_tables_state_backup);
     DBUG_RETURN(true);
   }
 
@@ -1574,10 +1574,10 @@ bool lock_db_routines(THD *thd, const char *db)
   if (nxtres != 0 && nxtres != HA_ERR_END_OF_FILE)
   {
     table->file->print_error(nxtres, MYF(0));
-    close_system_tables(thd, &open_tables_state_backup);
+    close_nontrans_system_tables(thd, &open_tables_state_backup);
     DBUG_RETURN(true);
   }
-  close_system_tables(thd, &open_tables_state_backup);
+  close_nontrans_system_tables(thd, &open_tables_state_backup);
 
   /* We should already hold a global IX lock and a schema X lock. */
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,

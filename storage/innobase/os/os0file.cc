@@ -63,6 +63,11 @@ Created 10/21/1995 Heikki Tuuri
 #include <libaio.h>
 #endif
 
+#ifdef UNIV_DEBUG
+/** Set when InnoDB has invoked exit(). */
+bool	innodb_calling_exit;
+#endif /* UNIV_DEBUG */
+
 /** Insert buffer segment id */
 static const ulint IO_IBUF_SEGMENT = 0;
 
@@ -637,6 +642,7 @@ os_file_handle_error_cond_exit(
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Cannot continue operation.");
 			fflush(stderr);
+			ut_d(innodb_calling_exit = true);
 			exit(3);
 		}
 	}
@@ -2108,7 +2114,8 @@ os_file_set_size(
 	current_size = 0;
 
 	/* Write up to 1 megabyte at a time. */
-	buf_size = ut_min(64, (ulint) (size / UNIV_PAGE_SIZE))
+	buf_size = ut_min(static_cast<ulint>(64),
+			  static_cast<ulint>(size / UNIV_PAGE_SIZE))
 		* UNIV_PAGE_SIZE;
 	buf2 = static_cast<byte*>(ut_malloc_nokey(buf_size + UNIV_PAGE_SIZE));
 
@@ -5847,8 +5854,7 @@ os_aio_print_pending_io(
 #endif /* UNIV_DEBUG */
 
 #ifdef _WIN32
-/*********************************************************************//**
-Normalizes a directory path for Windows: converts slashes to backslashes.
+/** Normalizes a directory path for Windows: converts '/' to '\'.
 @param[in,out] str A null-terminated Windows directory and file path */
 
 void

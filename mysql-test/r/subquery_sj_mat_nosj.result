@@ -8325,7 +8325,8 @@ INSERT INTO t1 VALUES
 (15,2,'a','x'),
 (16,1,'d','d'),
 (17,8,'y','y'),
-(18,6,'t','u');
+(18,6,'t','u'),
+(19,6,'t','u');
 CREATE TABLE t2 (
 pk int NOT NULL,
 col_int_key int NOT NULL,
@@ -8362,7 +8363,7 @@ WHERE innr.col_varchar_key = 'a' OR innr.pk = 8)
 AND outr.col_varchar_nokey < 't'
 ORDER BY outr.col_varchar_key, outr.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	16	33.33	Using where; Using filesort
+1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	17	33.33	Using where; Using filesort
 2	SUBQUERY	innr	NULL	index_merge	PRIMARY,col_varchar_key	col_varchar_key,PRIMARY	3,4	NULL	2	100.00	Using sort_union(col_varchar_key,PRIMARY); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`outr`.`col_varchar_key` AS `x`,`test`.`outr`.`pk` AS `y` from `test`.`t1` `outr` where (<in_optimizer>(`test`.`outr`.`col_varchar_key`,`test`.`outr`.`col_varchar_key` in ( <materialize> (/* select#2 */ select `test`.`innr`.`col_varchar_key` from `test`.`t2` `innr` where ((`test`.`innr`.`col_varchar_key` = 'a') or (`test`.`innr`.`pk` = 8)) ), <primary_index_lookup>(`test`.`outr`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`outr`.`col_varchar_key` = `materialized-subquery`.`col_varchar_key`))))) and (`test`.`outr`.`col_varchar_nokey` < 't')) order by `test`.`outr`.`col_varchar_key`,`test`.`outr`.`pk`
@@ -8849,7 +8850,7 @@ WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	alias1	NULL	index_merge	PRIMARY,col_int_key,col_varchar_key	col_varchar_key,PRIMARY	4,4	NULL	2	100.00	Using sort_union(col_varchar_key,PRIMARY); Using where
-2	SUBQUERY	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	15.97	Range checked for each record (index map: 0x2)
+2	SUBQUERY	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	26.53	Range checked for each record (index map: 0x2)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`field1` AS `field1` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`field1`,`test`.`t2`.`field1` in ( <materialize> (/* select#2 */ select `test`.`alias1`.`col_varchar_nokey` AS `field1` from `test`.`t1` `alias1` join `test`.`t1` `alias2` where (((`test`.`alias1`.`pk` = 58) or (`test`.`alias1`.`col_varchar_key` = 'o')) and ((`test`.`alias2`.`col_int_key` = `test`.`alias1`.`pk`) or (`test`.`alias2`.`col_int_key` = `test`.`alias1`.`col_int_key`))) ), <primary_index_lookup>(`test`.`t2`.`field1` in <temporary table> on <auto_key> where ((`test`.`t2`.`field1` = `materialized-subquery`.`field1`)))))
 SELECT *
@@ -9434,10 +9435,10 @@ FROM t2 AS it1 JOIN t1 AS it2 ON it2.col_int_key = it1.pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	ot1	NULL	index	NULL	col_varchar_key	7	NULL	20	100.00	Using index
 1	PRIMARY	ot2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	it1	NULL	index	PRIMARY,col_varchar_key	col_varchar_key	7	NULL	20	100.00	Using index
-2	SUBQUERY	it2	NULL	ref	col_int_key	col_int_key	4	test.it1.pk	1	100.00	NULL
+2	SUBQUERY	it2	NULL	ALL	col_int_key	NULL	NULL	NULL	20	100.00	NULL
+2	SUBQUERY	it1	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.it2.col_int_key	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`col_int_key` AS `field1` from `test`.`t2` `ot1` join `test`.`t2` `ot2` where <in_optimizer>((`test`.`ot1`.`col_varchar_key`,`test`.`ot2`.`col_varchar_nokey`),(`test`.`ot1`.`col_varchar_key`,`test`.`ot2`.`col_varchar_nokey`) in ( <materialize> (/* select#2 */ select `test`.`it2`.`col_varchar_nokey`,`test`.`it1`.`col_varchar_key` from `test`.`t2` `it1` join `test`.`t1` `it2` where (`test`.`it2`.`col_int_key` = `test`.`it1`.`pk`) ), <primary_index_lookup>(`test`.`ot1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`ot1`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`) and (`test`.`ot2`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`)))))
+Note	1003	/* select#1 */ select `test`.`ot1`.`col_int_key` AS `field1` from `test`.`t2` `ot1` join `test`.`t2` `ot2` where <in_optimizer>((`test`.`ot1`.`col_varchar_key`,`test`.`ot2`.`col_varchar_nokey`),(`test`.`ot1`.`col_varchar_key`,`test`.`ot2`.`col_varchar_nokey`) in ( <materialize> (/* select#2 */ select `test`.`it2`.`col_varchar_nokey`,`test`.`it1`.`col_varchar_key` from `test`.`t2` `it1` join `test`.`t1` `it2` where (`test`.`it1`.`pk` = `test`.`it2`.`col_int_key`) ), <primary_index_lookup>(`test`.`ot1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`ot1`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`) and (`test`.`ot2`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`)))))
 SELECT ot1.col_int_key AS field1
 FROM t2 AS ot1, t2 AS ot2
 WHERE (ot1.col_varchar_key, ot2.col_varchar_nokey) IN (
@@ -10143,15 +10144,15 @@ explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	index	NULL	col_int_key	5	NULL	20	100.00	Using index
 1	PRIMARY	table2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	table3	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	1	100.00	Using where
+1	PRIMARY	table3	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	2	100.00	Using where
 3	SUBQUERY	subquery2_t3	NULL	index	PRIMARY,col_varchar_key	col_varchar_key	4	NULL	20	100.00	Using where; Using index
-3	SUBQUERY	subquery2_t2	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.subquery2_t3.pk	1	5.00	Using where
+3	SUBQUERY	subquery2_t2	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.subquery2_t3.pk	1	7.14	Using where
 3	SUBQUERY	subquery2_t1	NULL	index	col_int_key	col_int_key	5	NULL	20	100.00	Using index; Using join buffer (Block Nested Loop)
-4	SUBQUERY	subquery1_t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	100.00	Using where
-4	SUBQUERY	subquery1_t3	NULL	ref	col_varchar_key	col_varchar_key	4	test.subquery1_t2.col_varchar_nokey	1	5.00	Using where
+4	SUBQUERY	subquery1_t3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	100.00	Using where
+4	SUBQUERY	subquery1_t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.subquery1_t3.col_int_key	1	5.00	Using where
 4	SUBQUERY	subquery1_t1	NULL	index	PRIMARY	col_int_key	5	NULL	20	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `table2`.`col_varchar_nokey` AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` straight_join `test`.`t2` `table3` where ((`table3`.`col_int_key` = `table2`.`pk`) and <in_optimizer>(`table2`.`pk`,`table2`.`pk` in ( <materialize> (/* select#3 */ select `subquery2_t1`.`col_int_key` AS `subquery2_field1` from `test`.`t3` `subquery2_t2` join `test`.`t1` `subquery2_t3` join `test`.`t2` `subquery2_t1` where ((`subquery2_t2`.`col_varchar_key` = `subquery2_t3`.`col_varchar_key`) and (`subquery2_t2`.`pk` = `subquery2_t3`.`pk`)) ), <primary_index_lookup>(`table2`.`pk` in <temporary table> on <auto_key> where ((`table2`.`pk` = `materialized-subquery`.`subquery2_field1`))))) and <in_optimizer>(`table3`.`col_int_nokey`,`table3`.`col_int_nokey` in ( <materialize> (/* select#4 */ select `subquery1_t2`.`col_int_nokey` AS `subquery1_field1` from `test`.`t1` `subquery1_t2` join `test`.`t1` `subquery1_t3` join `test`.`t2` `subquery1_t1` where ((`subquery1_t3`.`col_int_key` = `subquery1_t2`.`pk`) and (`subquery1_t3`.`col_varchar_key` = `subquery1_t2`.`col_varchar_nokey`) and (`subquery1_t1`.`pk` > 1)) ), <primary_index_lookup>(`table3`.`col_int_nokey` in <temporary table> on <auto_key> where ((`table3`.`col_int_nokey` = `materialized-subquery`.`subquery1_field1`))))))
+Note	1003	/* select#1 */ select `table2`.`col_varchar_nokey` AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` straight_join `test`.`t2` `table3` where ((`table3`.`col_int_key` = `table2`.`pk`) and <in_optimizer>(`table2`.`pk`,`table2`.`pk` in ( <materialize> (/* select#3 */ select `subquery2_t1`.`col_int_key` AS `subquery2_field1` from `test`.`t3` `subquery2_t2` join `test`.`t1` `subquery2_t3` join `test`.`t2` `subquery2_t1` where ((`subquery2_t2`.`col_varchar_key` = `subquery2_t3`.`col_varchar_key`) and (`subquery2_t2`.`pk` = `subquery2_t3`.`pk`)) ), <primary_index_lookup>(`table2`.`pk` in <temporary table> on <auto_key> where ((`table2`.`pk` = `materialized-subquery`.`subquery2_field1`))))) and <in_optimizer>(`table3`.`col_int_nokey`,`table3`.`col_int_nokey` in ( <materialize> (/* select#4 */ select `subquery1_t2`.`col_int_nokey` AS `subquery1_field1` from `test`.`t1` `subquery1_t2` join `test`.`t1` `subquery1_t3` join `test`.`t2` `subquery1_t1` where ((`subquery1_t2`.`pk` = `subquery1_t3`.`col_int_key`) and (`subquery1_t2`.`col_varchar_nokey` = `subquery1_t3`.`col_varchar_key`) and (`subquery1_t1`.`pk` > 1)) ), <primary_index_lookup>(`table3`.`col_int_nokey` in <temporary table> on <auto_key> where ((`table3`.`col_int_nokey` = `materialized-subquery`.`subquery1_field1`))))))
 SELECT * FROM v1;
 field1
 v
@@ -11741,4 +11742,13 @@ WHERE innr.pk <= 7
 ;
 1
 DROP TABLE t1,t2;
+#
+# Bug#18174394 BLOBS: CRASH AFTER UNINITIALIZED VALUES IN ITEM_FIELD::STR_RESULT
+#
+CREATE TABLE t1(d BLOB, b BLOB);
+INSERT INTO t1(d,b) VALUES ('aaaa',''),('bnbb','');
+SELECT 1 FROM t1
+WHERE (SELECT b FROM t1) IN (SELECT (d>=1) FROM t1);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1;
 set optimizer_switch=default;

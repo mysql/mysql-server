@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -893,7 +893,8 @@ static struct errors *parse_error_string(char *str, int er_count)
   new_error= (struct errors *) my_malloc(PSI_NOT_INSTRUMENTED,
                                          sizeof(*new_error), MYF(MY_WME));
 
-  if (my_init_dynamic_array(&new_error->msg, sizeof(struct message), 0, 0))
+  if (my_init_dynamic_array(&new_error->msg, sizeof(struct message),
+                            NULL, 0, 0))
     DBUG_RETURN(0);				/* OOM: Fatal error */
 
   /* getting the error name */

@@ -19,11 +19,7 @@ RENAME TABLE t1 TO t2;
 UPDATE t2 SET a=347 where a=42;
 COMMIT;
 
-# Kill the server to inject faults.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
-
---source include/wait_until_disconnected.inc
+--source include/kill_mysqld.inc
 
 --echo # Fault 0 (no real fault): Orphan file with duplicate space_id.
 --copy_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t0.ibd
@@ -120,12 +116,7 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: File .unknown.: 'read' returned OS error;
 --remove_file $MYSQLD_DATADIR/test/t2.ibd
 --move_file $MYSQLD_DATADIR/test/t.ibd $MYSQLD_DATADIR/test/t2.ibd
 
---echo # Normal restart after removing the injected faults.
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 SELECT * FROM t2;
 SELECT * FROM t3;
@@ -165,10 +156,7 @@ RENAME TABLE u4 TO u5;
 RENAME TABLE u5 TO u6;
 INSERT INTO u6 VALUES(2);
 
-# Kill the server again to inject a fault and force a recovery.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 0
---source include/wait_until_disconnected.inc
+--source include/kill_mysqld.inc
 
 --echo # Fault 6: All-zero data file and innodb_force_recovery
 
@@ -258,11 +246,7 @@ let SEARCH_PATTERN= \[Warning\] InnoDB: Tablespace \d+ was not found at .*u[1-5]
 
 --remove_file $MYSQLD_DATADIR/test/u1.ibd
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 
 DROP TABLE u1,u2,u3,u6;
 

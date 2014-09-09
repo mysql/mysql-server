@@ -4173,7 +4173,8 @@ INSERT INTO t1 VALUES
 (15,2,'a','x'),
 (16,1,'d','d'),
 (17,8,'y','y'),
-(18,6,'t','u');
+(18,6,'t','u'),
+(19,6,'t','u');
 
 CREATE TABLE t2 (
   pk int NOT NULL,
@@ -6567,5 +6568,21 @@ WHERE outr.col_varchar_nokey IN
 eval EXPLAIN $query;
 eval $query;
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#18174394 BLOBS: CRASH AFTER UNINITIALIZED VALUES IN ITEM_FIELD::STR_RESULT
+--echo #
+## Fixed by the patch for
+## BUG#18447874: WRONG RESULT COMING FROM SEMI-JOIN
+## BUG#18223655: ASSERTION FAILED: (INT)IDX >= 0 && IDX < PARENT_JOIN->TABLES
+
+CREATE TABLE t1(d BLOB, b BLOB);
+INSERT INTO t1(d,b) VALUES ('aaaa',''),('bnbb','');
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 FROM t1
+WHERE (SELECT b FROM t1) IN (SELECT (d>=1) FROM t1);
+
+DROP TABLE t1;
 
 # New tests go here.

@@ -1324,8 +1324,7 @@ os_aio_linux_handle(
 	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
 #endif /* LINUX_NATIVE_AIO */
 
-/*********************************************************************//**
-Normalizes a directory path for Windows: converts slashes to backslashes.
+/** Normalizes a directory path for Windows: converts '/' to '\'.
 @param[in,out] str A null-terminated Windows directory and file path */
 #ifdef _WIN32
 void os_normalize_path_for_win(char*	str);

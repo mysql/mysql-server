@@ -1049,7 +1049,7 @@ mysql_select(THD *thd,
                                                select_options, result,
                                                select_lex, &free_join)) ||
        mysql_optimize_prepared_inner_units(thd, select_lex->master_unit(),
-                                           select_options)))
+                                          static_cast<ulong>(select_options))))
     goto err;
   DBUG_ASSERT(!(select_lex->join->select_options & SELECT_DESCRIBE));
   select_lex->join->exec();
@@ -2024,7 +2024,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   {
     sjm_pos->key= NULL; // No index use for MaterializeScan
     sjm_pos->read_cost= tab->read_time * fanout;
-    sjm_pos->rows_fetched= tab->records();
+    sjm_pos->rows_fetched= static_cast<double>(tab->records());
     tab->set_type(JT_ALL);
   }
   sjm_pos->set_prefix_join_cost((tab - join_tab), cost_model());
@@ -2197,9 +2197,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
           those which will not pass the constant condition. It's useful inside
           the planner, but obscure to the reader of EXPLAIN. Update it.
         */
-        qep_tab->position()->rows_fetched= table->file->stats.records;
+        qep_tab->position()->rows_fetched=
+          static_cast<double>(table->file->stats.records);
         // Constant condition moves to the filter effect:
-        qep_tab->position()->filter_effect*= old/table->file->stats.records;
+        qep_tab->position()->filter_effect*=
+          static_cast<float>(old/table->file->stats.records);
       }
       if (tab->use_quick == QS_DYNAMIC_RANGE)
       {
@@ -3943,7 +3945,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   double fanout= 1;
   ha_rows table_records= table->file->stats.records;
   bool group= join && join->group && order == join->group_list;
-  ha_rows refkey_rows_estimate= table->quick_condition_rows;
+  double refkey_rows_estimate= static_cast<double>(table->quick_condition_rows);
   const bool has_limit= (select_limit != HA_POS_ERROR);
 
   /*
@@ -3988,13 +3990,17 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   if (ref_key >= 0 && tab->type() == JT_REF)
   {
     if (table->quick_keys.is_set(ref_key))
-      refkey_rows_estimate= table->quick_rows[ref_key];
+      refkey_rows_estimate= static_cast<double>(table->quick_rows[ref_key]);
     else
     {
       const KEY *ref_keyinfo= table->key_info + ref_key;
-      refkey_rows_estimate= ref_keyinfo->rec_per_key[tab->ref().key_parts - 1];
+      if (ref_keyinfo->has_records_per_key(tab->ref().key_parts - 1))
+        refkey_rows_estimate=
+          ref_keyinfo->records_per_key(tab->ref().key_parts - 1);
+      else
+        refkey_rows_estimate= 1.0;              // No index statistics
     }
-    set_if_bigger(refkey_rows_estimate, 1);
+    DBUG_ASSERT(refkey_rows_estimate >= 1.0);    
   }
 
   for (nr=0; nr < table->s->keys ; nr++)
@@ -4029,8 +4035,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           select_limit != HA_POS_ERROR || 
           (ref_key < 0 && (group || table->force_index)))
       { 
-        double rec_per_key;
-        double index_scan_time;
+        rec_per_key_t rec_per_key;
         KEY *keyinfo= table->key_info+nr;
         if (select_limit == HA_POS_ERROR)
           select_limit= table_records;
@@ -4044,8 +4049,8 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           */  
           rec_per_key= used_key_parts &&
                        used_key_parts <= actual_key_parts(keyinfo) ?
-                       keyinfo->rec_per_key[used_key_parts-1] : 1;
-          set_if_bigger(rec_per_key, 1);
+                       keyinfo->records_per_key(used_key_parts - 1) : 1.0f;
+          set_if_bigger(rec_per_key, 1.0f);
           /*
             With a grouping query each group containing on average
             rec_per_key records produces only one row that will
@@ -4084,8 +4089,9 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           select_limit= (ha_rows) (select_limit *
                                    (double) table_records /
                                     refkey_rows_estimate);
-        rec_per_key= keyinfo->rec_per_key[keyinfo->user_defined_key_parts - 1];
-        set_if_bigger(rec_per_key, 1);
+        rec_per_key=
+          keyinfo->records_per_key(keyinfo->user_defined_key_parts - 1);
+        set_if_bigger(rec_per_key, 1.0f);
         /*
           Here we take into account the fact that rows are
           accessed in sequences rec_per_key records in each.
@@ -4098,17 +4104,18 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           index entry.
         */
         const Cost_estimate table_scan_time= table->file->table_scan_cost();
-        index_scan_time= select_limit/rec_per_key *
-                         min(rec_per_key, table_scan_time.total_cost());
+        const double index_scan_time= select_limit / rec_per_key *
+          min<double>(rec_per_key, table_scan_time.total_cost());
         if ((ref_key < 0 && is_covering) || 
             (ref_key < 0 && (group || table->force_index)) ||
             index_scan_time < read_time)
         {
           ha_rows quick_records= table_records;
-          ha_rows refkey_select_limit= (ref_key >= 0 &&
-                                        table->covering_keys.is_set(ref_key)) ?
-                                        refkey_rows_estimate :
-                                        HA_POS_ERROR;
+          const ha_rows refkey_select_limit=
+            (ref_key >= 0 && table->covering_keys.is_set(ref_key)) ?
+            static_cast<ha_rows>(refkey_rows_estimate) :
+            HA_POS_ERROR;
+
           if ((is_best_covering && !is_covering) ||
               (is_covering && refkey_select_limit < select_limit))
             continue;

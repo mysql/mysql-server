@@ -1151,7 +1151,7 @@ my_bool Log_event::need_checksum()
     ret= (checksum_alg != BINLOG_CHECKSUM_ALG_OFF);
   else if (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF &&
            event_cache_type == Log_event::EVENT_NO_CACHE)
-    ret= binlog_checksum_options;
+    ret= (binlog_checksum_options != 0);
   else
     ret= FALSE;
 
@@ -1167,7 +1167,8 @@ my_bool Log_event::need_checksum()
 
   if (checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF)
     checksum_alg= ret ? // calculated value stored
-      binlog_checksum_options : (uint8) BINLOG_CHECKSUM_ALG_OFF;
+      static_cast<uint8>(binlog_checksum_options) :
+      static_cast<uint8>(BINLOG_CHECKSUM_ALG_OFF);
 
   DBUG_ASSERT(!ret || 
               ((checksum_alg == binlog_checksum_options ||
@@ -2305,7 +2306,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
         return my_b_printf(file, "NULL");
       size_t d, t;
       uint64 i64= uint8korr(ptr); /* YYYYMMDDhhmmss */
-      d= i64 / 1000000;
+      d= static_cast<size_t>(i64 / 1000000);
       t= i64 % 1000000;
       my_b_printf(file, "%04d-%02d-%02d %02d:%02d:%02d",
                   static_cast<int>(d / 10000),
@@ -2969,7 +2970,7 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
 
 Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 {
-  Slave_job_group group, *ptr_group= NULL;
+  Slave_job_group group= Slave_job_group(), *ptr_group= NULL;
   bool is_s_event;
   Slave_worker *ret_worker= NULL;
   char llbuff[22];
@@ -5785,7 +5786,11 @@ Format_description_log_event(const char* buf,
   DBUG_ENTER("Format_description_log_event::Format_description_log_event(char*,...)");
   buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
   if ((common_header_len=buf[ST_COMMON_HEADER_LEN_OFFSET]) < OLD_HEADER_LEN)
+  {
+    /* this makes is_valid() return false. */
+    post_header_len= NULL;
     DBUG_VOID_RETURN; /* sanity check */
+  }
   number_of_event_types=
     event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
   DBUG_PRINT("info", ("common_header_len=%d number_of_event_types=%d",

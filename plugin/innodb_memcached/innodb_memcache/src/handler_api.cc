@@ -114,13 +114,13 @@ handler_thd_attach(
 	THD*	thd = static_cast<THD*>(my_thd);
 
 	if (original_thd) {
-		*original_thd = my_pthread_getspecific(THD*, THR_THD);
+          *original_thd = static_cast<THD*>(my_get_thread_local(THR_THD));
 		assert(thd->mysys_var);
 	}
 
-	my_pthread_setspecific_ptr(THR_THD, thd);
-	my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root);
-	set_mysys_var(thd->mysys_var);
+	my_set_thread_local(THR_THD, thd);
+	my_set_thread_local(THR_MALLOC, &thd->mem_root);
+	set_mysys_thread_var(thd->mysys_var);
 }
 
 /**********************************************************************//**

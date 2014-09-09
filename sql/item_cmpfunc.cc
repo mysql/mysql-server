@@ -1323,29 +1323,8 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (*is_null)
     return ~(ulonglong) 0;
 
-  /*
-    Coerce value to the 19XX form in order to correctly compare
-    YEAR(2) & YEAR(4) types.
-    Here we are converting all item values but YEAR(4) fields since
-      1) YEAR(4) already has a regular YYYY form and
-      2) we don't want to convert zero/bad YEAR(4) values to the
-         value of 2000.
-  */
-  Item *real_item= item->real_item();
-  Field *field= NULL;
-  if (real_item->type() == Item::FIELD_ITEM)
-    field= ((Item_field *)real_item)->field;
-  else if (real_item->type() == Item::CACHE_ITEM)
-    field= ((Item_cache *)real_item)->field();
-  if (!(field && field->type() == MYSQL_TYPE_YEAR && field->field_length == 4))
-  {
-    if (value < 70)
-      value+= 100;
-    if (value <= 1900)
-      value+= 1900;
-  }
   /* Convert year to DATETIME packed format */
-  return year_to_longlong_datetime_packed(value);
+  return year_to_longlong_datetime_packed(static_cast<long>(value));
 }
 
 
@@ -7030,14 +7009,11 @@ float Item_equal::get_filtering_effect(table_map filter_for_table,
 
           for (uint j= 0; j < tab->s->keys; j++)
           {
-            if (cur_field->field->key_start.is_set(j))
+            if (cur_field->field->key_start.is_set(j) &&
+                tab->key_info[j].has_records_per_key(0))
             {
-              const uint rec_estimate= tab->key_info[j].rec_per_key[0];
-              if (rec_estimate)
-              {
-                cur_filter= rec_estimate / rows_in_table;
-                break;
-              }
+              cur_filter= static_cast<float>(tab->key_info[j].records_per_key(0) / rows_in_table);
+              break;
             }
           }
           /*

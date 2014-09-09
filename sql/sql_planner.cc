@@ -359,9 +359,12 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           }
           else
           {
-            // Use rec_per_key statistics if available
-            if (keyinfo->rec_per_key[actual_key_parts(keyinfo)-1])
-              cur_fanout= keyinfo->rec_per_key[actual_key_parts(keyinfo)-1];
+            // Use records per key statistics if available
+            if (keyinfo->has_records_per_key(actual_key_parts(keyinfo) - 1))
+            {
+              cur_fanout=
+                keyinfo->records_per_key(actual_key_parts(keyinfo) - 1);
+            }
             else
             {                              /* Prefer longer keys */
               cur_fanout=
@@ -421,7 +424,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
                 all_key_parts_covered))
       {
         /*
-          Use as many key-parts as possible and a uniqe key is better
+          Use as many key-parts as possible and a unique key is better
           than a not unique key.
           Set cur_fanout to (previous record count) * (records / combination)
         */
@@ -477,8 +480,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         else
         {
           // Check if we have statistic about the distribution
-          if ((cur_fanout= keyinfo->rec_per_key[cur_used_keyparts-1]))
+          if (keyinfo->has_records_per_key(cur_used_keyparts - 1))
           {
+            cur_fanout= keyinfo->records_per_key(cur_used_keyparts - 1);
+
             /*
               Fix for the case where the index statistics is too
               optimistic:
@@ -526,14 +531,18 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
               c = number of key parts in key
               x = used key parts (1 <= x <= c)
             */
-            double rec_per_key;
-            if (!(rec_per_key= (double)
-                  keyinfo->rec_per_key[keyinfo->user_defined_key_parts-1]))
-              rec_per_key= (double) tab->records()/distinct_keys_est+1;
+            rec_per_key_t rec_per_key;
+            if (keyinfo->has_records_per_key(
+                  keyinfo->user_defined_key_parts - 1))
+              rec_per_key=
+                keyinfo->records_per_key(keyinfo->user_defined_key_parts - 1);
+            else
+              rec_per_key=
+                rec_per_key_t(tab->records()) / distinct_keys_est + 1;
 
             if (tab->records() == 0)
-              tmp_fanout= 0;
-            else if (rec_per_key / (double) tab->records() >= 0.01)
+              tmp_fanout= 0.0;
+            else if (rec_per_key / tab->records() >= 0.01)
               tmp_fanout= rec_per_key;
             else
             {
@@ -729,7 +738,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
   double scan_and_filter_cost;
   TABLE *const table= tab->table();
   const Cost_model_server *const cost_model= join->cost_model();
-  *rows_after_filtering= tab->found_records;
+  *rows_after_filtering= static_cast<double>(tab->found_records);
 
   trace_access_scan->add("rows_to_scan", tab->found_records);
 
@@ -742,7 +751,8 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
   {
     const float const_cond_filter=
       calculate_condition_filter(tab, NULL, 0,
-                                 tab->found_records, !disable_jbuf);
+                                 static_cast<double>(tab->found_records),
+                                 !disable_jbuf);
 
     /*
       For high found_records values, multiplication by float may
@@ -753,7 +763,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
       rows2double(tab->found_records) * const_cond_filter;
   }
   else if (table->quick_condition_rows != tab->found_records)
-    *rows_after_filtering= table->quick_condition_rows;
+    *rows_after_filtering= static_cast<double>(table->quick_condition_rows);
   else if (found_condition)
   {
     /*
@@ -802,7 +812,8 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
     // Cost of scanning the table once
     Cost_estimate scan_cost;
     if (table->force_index && !best_ref)                        // index scan
-      scan_cost= table->file->read_cost(tab->ref().key, 1, tab->records());
+      scan_cost= table->file->read_cost(tab->ref().key, 1,
+                                        static_cast<double>(tab->records()));
     else
       scan_cost= table->file->table_scan_cost();                // table scan
     const double single_scan_read_cost= scan_cost.total_cost();
@@ -993,7 +1004,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
       trace_access_scan.add_alnum("access_type", "scan");
 
     trace_access_scan.add("cost", tab->read_time +
-          cost_model->row_evaluate_cost(tab->found_records)).
+       cost_model->row_evaluate_cost(static_cast<double>(tab->found_records))).
       add("rows", tab->found_records).
       add("chosen", false).
       add_alnum("cause", "cost");
@@ -1083,11 +1094,12 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
         const float full_filter=
           calculate_condition_filter(tab, NULL,
                                      ~remaining_tables & ~excluded_tables,
-                                     tab->found_records,
+                                     static_cast<double>(tab->found_records),
                                      false);
         filter_effect=
-          std::min(1.0,
-                   tab->found_records * full_filter / rows_after_filtering);
+          static_cast<float>(std::min(1.0,
+                                      tab->found_records * full_filter /
+                                      rows_after_filtering));
       }
       best_ref=       NULL;
       best_uses_jbuf= !disable_jbuf;
@@ -1365,10 +1377,10 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
       based on index statistics and guesstimates.
     */
     filter*=
-           tab->join()->where_cond->get_filtering_effect(tab->table_ref->map(),
-                                                         used_tables,
-                                                         &table->tmp_set,
-                                                         tab->records());
+      tab->join()->where_cond->get_filtering_effect(tab->table_ref->map(),
+                                                    used_tables,
+                                                    &table->tmp_set,
+                                          static_cast<double>(tab->records()));
   }
 
   /*
@@ -1378,7 +1390,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
     number of rows output from a joined table is more than zero.
   */
   if ((filter * fanout) < 0.05f)
-    filter= 0.05f/fanout;
+    filter= 0.05f/static_cast<float>(fanout);
 
 cleanup:
   // Clear tmp_set so it can be used elsewhere
@@ -1695,9 +1707,12 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
         some key components, that may make us think that loose
         scan will produce more distinct records than it actually will)
       */
-      const ulong rpc= tab->table()->key_info[key].rec_per_key[max_keypart];
-      if (rpc != 0)
+      if (tab->table()->key_info[key].has_records_per_key(max_keypart))
+      {
+        const rec_per_key_t rpc=
+          tab->table()->key_info[key].records_per_key(max_keypart);
         rowcount= rowcount / rpc;
+      }
 
       trace_cov_scan.add("cost", cost);
       // @TODO: previous version also did /2
@@ -2699,6 +2714,27 @@ done:
   DBUG_RETURN(false);
 }
 
+/**
+  Helper function that compares two doubles and accept these as
+  "almost equal" if they are within 10 percent of each other.
+
+  Handling of exact 0.0 values: if one of the values are exactly 0.0, the
+  other value must also be exactly 0.0 to be considered to be equal.
+
+  @param left  First double number to compare
+  @param right Second double number to compare
+
+  @return true if the two numbers are almost equal, false otherwise.
+*/
+
+static inline bool almost_equal(double left, double right)
+{
+  const double boundary= 0.1;                   // 10 percent limit
+  if ((left >= right * (1.0 - boundary)) && (left <= right * (1.0 + boundary)))
+    return true;
+  else
+    return false;
+}
 
 /**
   Heuristic utility used by best_extension_by_limited_search().
@@ -2880,11 +2916,17 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
            of joins within this 'ref_extension'.
            Expand QEP with all 'identical' REFs in
           'join->positions' order.
+        Note that due to index statistics from the storage engines
+        is a floating point number and might not be exact, the
+        rows and cost estimates for eq_ref on two tables might not
+        be the exact same number.
+        @todo This test could likely be re-implemented to use
+        information about whether the index is unique or not.
       */
       const bool added_to_eq_ref_extension=
-        position->key  &&
-        position->read_cost    == (position-1)->read_cost &&
-        position->rows_fetched == (position-1)->rows_fetched;
+        position->key &&
+        almost_equal(position->read_cost, (position-1)->read_cost) &&
+        almost_equal(position->rows_fetched, (position-1)->rows_fetched);
       trace_one_table.add("added_to_eq_ref_extension",
                           added_to_eq_ref_extension);
       if (added_to_eq_ref_extension)
