@@ -6782,8 +6782,8 @@ ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"
 
 ER_INVALID_YEAR_COLUMN_LENGTH
-  eng "YEAR(%lu) column type is deprecated. Creating YEAR(4) column instead."
-  rus "Тип YEAR(%lu) более не поддерживается, вместо него будет создана колонка с типом YEAR(4)."
+  eng "Supports only YEAR or YEAR(4) column."
+  rus "Поддерживаются только типы колонок YEAR или YEAR(4)."
 
 ER_NOT_VALID_PASSWORD
   eng "Your password does not satisfy the current policy requirements"

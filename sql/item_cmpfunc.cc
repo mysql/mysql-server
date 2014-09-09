@@ -1323,27 +1323,6 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
   if (*is_null)
     return ~(ulonglong) 0;
 
-  /*
-    Coerce value to the 19XX form in order to correctly compare
-    YEAR(2) & YEAR(4) types.
-    Here we are converting all item values but YEAR(4) fields since
-      1) YEAR(4) already has a regular YYYY form and
-      2) we don't want to convert zero/bad YEAR(4) values to the
-         value of 2000.
-  */
-  Item *real_item= item->real_item();
-  Field *field= NULL;
-  if (real_item->type() == Item::FIELD_ITEM)
-    field= ((Item_field *)real_item)->field;
-  else if (real_item->type() == Item::CACHE_ITEM)
-    field= ((Item_cache *)real_item)->field();
-  if (!(field && field->type() == MYSQL_TYPE_YEAR && field->field_length == 4))
-  {
-    if (value < 70)
-      value+= 100;
-    if (value <= 1900)
-      value+= 1900;
-  }
   /* Convert year to DATETIME packed format */
   return year_to_longlong_datetime_packed(value);
 }

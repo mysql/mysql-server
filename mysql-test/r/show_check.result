@@ -76,7 +76,7 @@ def	information_schema	STATISTICS	STATISTICS	COMMENT	Comment	253	16	0	Y	0	0	8
 def	information_schema	STATISTICS	STATISTICS	INDEX_COMMENT	Index_comment	253	1024	0	N	1	0	8
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE		
-t1	1	b	1	b	A	1	NULL	NULL		BTREE		
+t1	1	b	1	b	A	2	NULL	NULL		BTREE		
 t1	1	b	2	c	A	5	NULL	NULL		BTREE		
 insert into t1 values (5,5,5);
 ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
