@@ -1385,7 +1385,7 @@ innobase_start_or_create_for_mysql(void)
 #elif defined(LINUX_NATIVE_AIO)
 
 	if (srv_use_native_aio) {
-		ib::error() << "Using Linux native AIO";
+		ib::info() << "Using Linux native AIO";
 	}
 #else
 	/* Currently native AIO is supported only on windows and linux
