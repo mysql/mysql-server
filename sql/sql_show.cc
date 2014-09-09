@@ -5667,7 +5667,7 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
           {
             double records= (show_table->file->stats.records /
                              key->records_per_key(j));
-            table->field[9]->store((longlong) records, TRUE);
+            table->field[9]->store(static_cast<longlong>(round(records)), TRUE);
             table->field[9]->set_notnull();
           }
           str= show_table->file->index_type(i);

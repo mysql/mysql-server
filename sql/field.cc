@@ -10030,7 +10030,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
     flags|= BLOB_FLAG;
     break;
   case MYSQL_TYPE_YEAR:
-    if (!fld_length || length != 2)
+    if (!fld_length || length != 4)
       length= 4; /* Default length */
     flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
     break;
@@ -10536,13 +10536,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
     break;
   case MYSQL_TYPE_YEAR:
     if (length != 4)
-    {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_INVALID_YEAR_COLUMN_LENGTH,
-                          ER(ER_INVALID_YEAR_COLUMN_LENGTH),
-                          length);
-      length= 4; // convert obsolete YEAR(2) to YEAR(4)
-    }
+      length= 4; //set default value
     break;
   default:
     break;
