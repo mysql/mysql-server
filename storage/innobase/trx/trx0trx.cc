@@ -220,8 +220,6 @@ struct TrxFactory {
 
 		new(&trx->hit_list) hit_list_t();
 
-		trx->xid = new (std::nothrow) xid_t();
-
 		trx_init(trx);
 
 		trx->state = TRX_STATE_NOT_STARTED;
