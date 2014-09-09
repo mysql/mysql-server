@@ -195,7 +195,7 @@ int table_replication_execute_configuration::read_row_values(TABLE *table,
         set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
         break;
       case 1: /** desired_delay */
-        set_field_ulong(f, m_row.desired_delay);
+        set_field_ulong(f, static_cast<ulong>(m_row.desired_delay));
         break;
       default:
         DBUG_ASSERT(false);

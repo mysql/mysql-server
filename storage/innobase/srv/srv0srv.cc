@@ -1469,8 +1469,8 @@ DECLARE_THREAD(srv_monitor_thread)(
 	ut_ad(!srv_read_only_mode);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Lock timeout thread starts, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Lock timeout thread starts, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 #ifdef UNIV_PFS_THREAD
@@ -1590,8 +1590,8 @@ DECLARE_THREAD(srv_error_monitor_thread)(
 	old_lsn = srv_start_lsn;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Error monitor thread starts, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Error monitor thread starts, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 #ifdef UNIV_PFS_THREAD
@@ -1606,11 +1606,10 @@ loop:
 	new_lsn = log_get_lsn();
 
 	if (new_lsn < old_lsn) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Old log sequence number " LSN_PF "was greater than"
-			" the new log sequence number " LSN_PF "!."
-			" Please submit a bug report to http://bugs.mysql.com",
-			old_lsn, new_lsn);
+		ib::error() << "Old log sequence number " << old_lsn << " was"
+			<< " greater than the new log sequence number "
+			<< new_lsn << ". Please submit a bug report to"
+			" http://bugs.mysql.com";
 		ut_ad(0);
 	}
 
@@ -1637,11 +1636,10 @@ loop:
 	    && sema == old_sema && os_thread_eq(waiter, old_waiter)) {
 		fatal_cnt++;
 		if (fatal_cnt > 10) {
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Semaphore wait has lasted > %lu seconds."
-				" We intentionally crash the server because"
-				" it appears to be hung.",
-				(ulong) srv_fatal_semaphore_wait_threshold);
+			ib::fatal() << "Semaphore wait has lasted > "
+				<< srv_fatal_semaphore_wait_threshold
+				<< " seconds. We intentionally crash the"
+				" server because it appears to be hung.";
 		}
 	} else {
 		fatal_cnt = 0;
@@ -1933,19 +1931,16 @@ srv_shutdown_print_master_pending(
 		*last_print_time = ut_time();
 
 		if (n_tables_to_drop) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for %lu table(s) to be dropped",
-				(ulong) n_tables_to_drop);
+			ib::info() << "Waiting for " << n_tables_to_drop
+				<< " table(s) to be dropped";
 		}
 
 		/* Check change buffer merge, we only wait for change buffer
 		merge if it is a slow shutdown */
 		if (!srv_fast_shutdown && n_bytes_merged) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for change buffer merge to complete"
-				" number of bytes of change buffer"
-				" just merged:  %lu",
-				n_bytes_merged);
+			ib::info() << "Waiting for change buffer merge to"
+				" complete number of bytes of change buffer"
+				" just merged: " << n_bytes_merged;
 		}
 	}
 }
@@ -2205,8 +2200,8 @@ DECLARE_THREAD(srv_master_thread)(
 	ut_ad(!srv_read_only_mode);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Master thread starts, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Master thread starts, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 #ifdef UNIV_PFS_THREAD
@@ -2348,8 +2343,8 @@ DECLARE_THREAD(srv_worker_thread)(
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Worker thread starting, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Worker thread starting, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	slot = srv_reserve_slot(SRV_WORKER);
@@ -2394,8 +2389,8 @@ DECLARE_THREAD(srv_worker_thread)(
 	rw_lock_x_unlock(&purge_sys->latch);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Purge worker thread exiting, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Purge worker thread exiting, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	/* We count the number of threads in os_thread_exit(). A created
@@ -2629,8 +2624,8 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Purge coordinator thread created, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Purge coordinator thread created, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	slot = srv_reserve_slot(SRV_PURGE);
@@ -2694,8 +2689,8 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	rw_lock_x_unlock(&purge_sys->latch);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Purge coordinator exiting, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Purge coordinator exiting, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	/* Ensure that all the worker threads quit. */

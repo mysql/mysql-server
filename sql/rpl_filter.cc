@@ -342,7 +342,7 @@ Rpl_filter::add_db_rewrite(const char* from_db, const char* to_db)
 }
 
 /*
-  Build do_table rules to HASH from DYNAMIC_ARRAY
+  Build do_table rules to HASH from dynamic array
   for faster filter checking.
 
   @return
@@ -369,7 +369,7 @@ Rpl_filter::build_do_table_hash()
 }
 
 /*
-  Build ignore_table rules to HASH from DYNAMIC_ARRAY
+  Build ignore_table rules to HASH from dynamic array
   for faster filter checking.
 
   @return
@@ -401,9 +401,9 @@ Rpl_filter::build_ignore_table_hash()
   when the charset to use for tables has been established,
   inserted into a HASH for faster filter checking.
 
-  @param[in] table_array         DYNAMIC_ARRAY stored table rules
+  @param[in] table_array         dynamic array stored table rules
   @param[in] table_hash          HASH for storing table rules
-  @param[in] array_inited        Table rules are added to DYNAMIC_ARRAY
+  @param[in] array_inited        Table rules are added to dynamic array
   @param[in] hash_inited         Table rules are added to HASH
 
   @return

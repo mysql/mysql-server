@@ -355,8 +355,7 @@ fts_get_charset(ulint prtype)
 		return(cs);
 	}
 
-	ib_logf(IB_LOG_LEVEL_FATAL, "Unable to find charset-collation %u",
-		cs_num);
+	ib::fatal() << "Unable to find charset-collation " << cs_num;
 	return(NULL);
 }
 
@@ -545,16 +544,14 @@ fts_load_user_stopword(
 			fts_sql_rollback(trx);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Lock wait timeout reading user"
-					" stopword table. Retrying!");
+				ib::warn() << "Lock wait timeout reading user"
+					" stopword table. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Error '%s' while reading user"
-					" stopword table.",
-					ut_strerr(error));
+				ib::error() << "Error '" << ut_strerr(error)
+					<< "' while reading user stopword"
+					" table.";
 				ret = FALSE;
 				break;
 			}
@@ -1517,9 +1514,8 @@ fts_drop_table(
 		error = row_drop_table_for_mysql(table_name, trx, true, false);
 
 		if (error != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to drop FTS index aux table %s: %s",
-				table_name, ut_strerr(error));
+			ib::error() << "Unable to drop FTS index aux table "
+				<< table_name << ": " << ut_strerr(error);
 		}
 	} else {
 		error = DB_FAIL;
@@ -1988,8 +1984,8 @@ fts_create_one_index_table(
 		trx->error_state = error;
 		dict_mem_table_free(new_table);
 		new_table = NULL;
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Fail to create FTS index table %s", table_name);
+		ib::warn() << "Failed to create FTS index table "
+			<< table_name;
 	}
 
 	return(new_table);
@@ -2528,34 +2524,32 @@ fts_get_max_cache_size(
 
 		if (cache_size_in_mb > FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB) {
 
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"FTS max cache size"
-				" (%lu) out of range. Minimum value is"
-				" %luMB and the maximum values is %luMB,"
-				" setting cache size to upper limit",
-				cache_size_in_mb,
-				FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB,
-				FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB);
+			ib::warn() << "FTS max cache size ("
+				<< cache_size_in_mb << ") out of range."
+				" Minimum value is "
+				<< FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB
+				<< "MB and the maximum value is "
+				<< FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB
+				<< "MB, setting cache size to upper limit";
 
 			cache_size_in_mb = FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB;
 
 		} else if  (cache_size_in_mb
 			    < FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB) {
 
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"FTS max cache size (%lu) out of range. Minimum"
-				" value is %luMB and the maximum values is"
-				" %luMB, setting cache size to lower limit",
-				cache_size_in_mb,
-				FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB,
-				FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB);
+			ib::warn() << "FTS max cache size ("
+				<< cache_size_in_mb << ") out of range."
+				" Minimum value is "
+				<< FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB
+				<< "MB and the maximum value is"
+				<< FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB
+				<< "MB, setting cache size to lower limit";
 
 			cache_size_in_mb = FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB;
 		}
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"(%lu) reading max cache"
-			" config value from config table", error);
+		ib::error() << "(" << ut_strerr(error) << ") reading max"
+			" cache config value from config table";
 	}
 
 	ut_free(value.f_str);
@@ -2595,9 +2589,8 @@ fts_get_total_word_count(
 		value.f_str[value.f_len] = 0;
 		*total = strtoul((char*) value.f_str, NULL, 10);
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"(%s) reading total words value from config table",
-			ut_strerr(error));
+		ib::error() << "(" << ut_strerr(error) << ") reading total"
+			" words value from config table";
 	}
 
 	ut_free(value.f_str);
@@ -2765,9 +2758,8 @@ func_exit:
 	} else {
 		*doc_id = 0;
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) while getting next doc id.",
-			ut_strerr(error));
-
+		ib::error() << "(" << ut_strerr(error) << ") while getting"
+			" next doc id.";
 		fts_sql_rollback(trx);
 
 		if (error == DB_DEADLOCK) {
@@ -2847,9 +2839,8 @@ fts_update_sync_doc_id(
 			cache->synced_doc_id = doc_id;
 		} else {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"(%s) while updating last doc id.",
-				ut_strerr(error));
+			ib::error() << "(" << ut_strerr(error) << ") while"
+				" updating last doc id.";
 
 			fts_sql_rollback(trx);
 		}
@@ -4041,10 +4032,8 @@ fts_sync_write_words(
 		}
 
 		if (error != DB_SUCCESS && !print_error) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"(%s) writing word node to FTS auxiliary index"
-				" table.", ut_strerr(error));
-
+			ib::error() << "(" << ut_strerr(error) << ") writing"
+				" word node to FTS auxiliary index table.";
 			print_error = TRUE;
 		}
 
@@ -4133,15 +4122,13 @@ fts_sync_write_doc_stat(
 		} else {
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Lock wait timeout writing to"
-					" FTS doc_id. Retrying!");
+				ib::warn() << "Lock wait timeout writing to"
+					" FTS doc_id. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"(%s) while writing to FTS doc_id.",
-					ut_strerr(error));
+				ib::error() << "(" << ut_strerr(error)
+					<< ") while writing to FTS doc_id.";
 
 				break;			/* Exit the loop. */
 			}
@@ -4288,15 +4275,13 @@ fts_is_word_in_index(
 		} else {
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Lock wait timeout reading"
-					" FTS index. Retrying!");
+				ib::warn() << "Lock wait timeout reading"
+					" FTS index. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"(%s) while reading FTS index.",
-					ut_strerr(error));
+				ib::error() << "(" << ut_strerr(error)
+					<< ") while reading FTS index.";
 
 				break;			/* Exit the loop. */
 			}
@@ -4325,12 +4310,10 @@ fts_sync_begin(
 	sync->trx = trx_allocate_for_background();
 
 	if (fts_enable_diag_print) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"FTS SYNC for table %s, deleted count: %ld size:"
-			" %lu bytes",
-			sync->table->name,
-			ib_vector_size(cache->deleted_doc_ids),
-			cache->total_size);
+		ib::info() << "FTS SYNC for table " << sync->table->name
+			<< ", deleted count: "
+			<< ib_vector_size(cache->deleted_doc_ids)
+			<< " size: " << cache->total_size << " bytes";
 	}
 }
 
@@ -4351,8 +4334,7 @@ fts_sync_index(
 	trx->op_info = "doing SYNC index";
 
 	if (fts_enable_diag_print) {
-		ib_logf(IB_LOG_LEVEL_INFO, "SYNC words: %ld",
-			rbt_size(index_cache->words));
+		ib::info() << "SYNC words: " << rbt_size(index_cache->words);
 	}
 
 	ut_ad(rbt_validate(index_cache->words));
@@ -4419,17 +4401,16 @@ fts_sync_commit(
 
 		fts_sql_rollback(trx);
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) during SYNC.",
-			ut_strerr(error));
+		ib::error() << "(" << ut_strerr(error) << ") during SYNC.";
 	}
 
 	if (fts_enable_diag_print && elapsed_time) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"SYNC for table %s: SYNC time : %lu secs:"
-			" elapsed %lf ins/sec",
-			sync->table->name,
-			(ulong) (ut_time() - sync->start_time),
-			(double) n_nodes/ (double) elapsed_time);
+		ib::info() << "SYNC for table " << sync->table->name
+			<< ": SYNC time: "
+			<< (ut_time() - sync->start_time)
+			<< " secs: elapsed "
+			<< (double) n_nodes / elapsed_time
+			<< " ins/sec";
 	}
 
 	trx_free_for_background(trx);
@@ -5052,15 +5033,13 @@ fts_get_rows_count(
 			fts_sql_rollback(trx);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"lock wait timeout reading"
-					" FTS table. Retrying!");
+				ib::warn() << "lock wait timeout reading"
+					" FTS table. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"(%s) while reading FTS table.",
-					ut_strerr(error));
+				ib::error() << "(" << ut_strerr(error)
+					<< ") while reading FTS table.";
 
 				break;			/* Exit the loop. */
 			}
@@ -5455,10 +5434,9 @@ fts_wait_for_background_thread_to_start(
 		}
 
 		if (count >= FTS_BACKGROUND_THREAD_WAIT_COUNT) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The background thread"
-				" for the FTS table %s refuses to start",
-				table->name);
+			ib::error() << "The background thread for the FTS"
+				" table " << table->name
+				<< " refuses to start";
 
 			count = 0;
 		}
@@ -6338,14 +6316,12 @@ fts_rename_one_aux_table_to_hex_format(
 					   FALSE);
 
 	if (error != DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Failed to rename aux table \'%s\' to"
-			" new format \'%s\'. ",
-			aux_table->name, new_name);
+		ib::warn() << "Failed to rename aux table '"
+			<< aux_table->name << "' to new format '"
+			<< new_name << "'.";
 	} else {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Renamed aux table \'%s\' to \'%s\'.",
-			aux_table->name, new_name);
+		ib::info() << "Renamed aux table '" << aux_table->name
+			<< "' to '" << new_name << "'.";
 	}
 
 	return (error);
@@ -6377,10 +6353,8 @@ fts_rename_aux_tables_to_hex_format(
 	error = fts_update_hex_format_flag(trx, parent_table->id, true);
 
 	if (error != DB_SUCCESS) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Setting parent table %s to hex format failed.",
-			parent_table->name);
-
+		ib::warn() << "Setting parent table " << parent_table->name
+			<< " to hex format failed.";
 		fts_sql_rollback(trx);
 		return (error);
 	}
@@ -6413,10 +6387,9 @@ fts_rename_aux_tables_to_hex_format(
 		if (error != DB_SUCCESS) {
 			dict_table_close(table, TRUE, FALSE);
 
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Failed to rename one aux table %s Will revert"
-				" all successful rename operations.",
-				aux_table->name);
+			ib::warn() << "Failed to rename one aux table "
+				<< aux_table->name << ". Will revert"
+				" all successful rename operations.";
 
 			fts_sql_rollback(trx);
 			break;
@@ -6426,9 +6399,8 @@ fts_rename_aux_tables_to_hex_format(
 		dict_table_close(table, TRUE, FALSE);
 
 		if (error != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Setting aux table %s to hex format failed.",
-				aux_table->name);
+			ib::warn() << "Setting aux table " << aux_table->name
+				<< " to hex format failed.";
 
 			fts_sql_rollback(trx);
 			break;
@@ -6486,9 +6458,9 @@ fts_rename_aux_tables_to_hex_format(
 			dict_table_close(table, TRUE, FALSE);
 
 			if (err != DB_SUCCESS) {
-				ib_logf(IB_LOG_LEVEL_WARN, "Failed to revert"
-					" table %s. Please revert manually.",
-					table->name);
+				ib::warn() << "Failed to revert table "
+					<< table->name << ". Please revert"
+					" manually.";
 				fts_sql_rollback(trx_bg);
 				/* Continue to clear aux tables' flags2 */
 				not_rename = true;
@@ -6653,9 +6625,8 @@ fts_check_and_drop_orphaned_tables(
 
 		if (drop) {
 
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Parent table of FTS auxiliary table %s not"
-				" found.", aux_table->name);
+			ib::warn() << "Parent table of FTS auxiliary table "
+				<< aux_table->name << " not found.";
 
 			dberr_t err = fts_drop_table(trx, aux_table->name);
 
@@ -6701,19 +6672,18 @@ fts_check_and_drop_orphaned_tables(
 					drop it on next restart, even if
 					the table was broken. */
 
-					ib_logf(IB_LOG_LEVEL_WARN,
-						"Fail to drop obsolete aux"
-						" table '%s', which is"
-						" harmless. will try to drop"
-						" it on next restart.",
-						aux_table->name);
+					ib::warn() << "Failed to drop obsolete"
+						" aux table '"
+						<< aux_table->name
+						<< "', which is harmless. Will"
+						" try to drop it on next"
+						" restart.";
 
 					fts_sql_rollback(trx_drop);
 				} else {
-					ib_logf(IB_LOG_LEVEL_INFO,
-						"Dropped obsolete aux"
-						" table '%s'.",
-						aux_table->name);
+					ib::info() << "Dropped obsolete aux"
+						" table '" << aux_table->name
+						<< "'.";
 
 					fts_sql_commit(trx_drop);
 				}
@@ -6752,14 +6722,13 @@ fts_check_and_drop_orphaned_tables(
 			trx_rename->dict_operation_lock_mode = 0;
 
 			if (err != DB_SUCCESS) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Rollback operations on all"
-					" aux tables of table %s."
+				ib::warn() << "Rollback operations on all"
+					" aux tables of table "
+					<< parent_table->name << "."
 					" Please check why renaming aux tables"
 					" failed, and restart the server to"
 					" upgrade again to"
-					" get the table work.",
-					parent_table->name);
+					" get the table work.";
 
 				fts_sql_rollback(trx_rename);
 			} else {
@@ -6789,10 +6758,9 @@ fts_check_and_drop_orphaned_tables(
 						trx, table->id, true);
 
 				if (err != DB_SUCCESS) {
-					ib_logf(IB_LOG_LEVEL_WARN,
-						"Setting aux table %s to hex"
-						" format failed.",
-						table->name);
+					ib::warn() << "Setting aux table "
+						<< table->name << " to hex"
+						" format failed.";
 				} else {
 					DICT_TF2_FLAG_SET(table,
 						DICT_TF2_FTS_AUX_HEX_NAME);
@@ -6810,12 +6778,11 @@ fts_check_and_drop_orphaned_tables(
 						trx, parent_table->id, true);
 
 				if (err != DB_SUCCESS) {
-					ib_logf(IB_LOG_LEVEL_WARN,
-						"Setting parent table %s of"
-						" FTS auxiliary %s to hex"
-						" format failed.",
-						parent_table->name,
-						aux_table->name);
+					ib::warn() << "Setting parent table "
+						<< parent_table->name
+						<< " of FTS auxiliary "
+						<< aux_table->name
+						<< " to hex format failed.";
 				} else {
 					DICT_TF2_FLAG_SET(parent_table,
 						DICT_TF2_FTS_AUX_HEX_NAME);
@@ -6859,7 +6826,7 @@ fts_drop_orphaned_tables(void)
 	error = fil_get_space_names(space_name_list);
 
 	if (error == DB_OUT_OF_MEMORY) {
-		ib_logf(IB_LOG_LEVEL_FATAL, "Out of memory");
+		ib::fatal() << "Out of memory";
 	}
 
 	heap = mem_heap_create(1024);
@@ -6941,15 +6908,13 @@ fts_drop_orphaned_tables(void)
 			fts_sql_rollback(trx);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"lock wait timeout reading SYS_TABLES."
-					" Retrying!");
+				ib::warn() << "lock wait timeout reading"
+					" SYS_TABLES. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"(%s) while reading SYS_TABLES.",
-					ut_strerr(error));
+				ib::error() << "(" << ut_strerr(error)
+					<< ") while reading SYS_TABLES.";
 
 				break;			/* Exit the loop. */
 			}
@@ -6996,9 +6961,8 @@ fts_valid_stopword_table(
 	table = dict_table_get_low(stopword_table_name);
 
 	if (!table) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"User stopword table %s does not exist.",
-			stopword_table_name);
+		ib::error() << "User stopword table " << stopword_table_name
+			<< " does not exist.";
 
 		return(NULL);
 	} else {
@@ -7007,10 +6971,9 @@ fts_valid_stopword_table(
 		col_name = dict_table_get_col_name(table, 0);
 
 		if (ut_strcmp(col_name, "value")) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Invalid column name for stopword table %s. Its"
-				" first column must be named as 'value'.",
-				stopword_table_name);
+			ib::error() << "Invalid column name for stopword"
+				" table " << stopword_table_name << ". Its"
+				" first column must be named as 'value'.";
 
 			return(NULL);
 		}
@@ -7019,10 +6982,9 @@ fts_valid_stopword_table(
 
 		if (col->mtype != DATA_VARCHAR
 		    && col->mtype != DATA_VARMYSQL) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Invalid column type for stopword table %s. Its"
-				" first column must be of varchar type",
-				stopword_table_name);
+			ib::error() << "Invalid column type for stopword"
+				" table " << stopword_table_name << ". Its"
+				" first column must be of varchar type";
 
 			return(NULL);
 		}

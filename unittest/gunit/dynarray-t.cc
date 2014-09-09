@@ -90,6 +90,12 @@ static inline std::ostream &operator<<(std::ostream &s, const Key_use &v)
 
 namespace dynarray_unittest {
 
+// We still want to unit-test this, to compare performance.
+#undef my_init_dynamic_array
+extern "C" 
+my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
+                              void *init_buffer, uint init_alloc,
+                              uint alloc_increment);
 /*
   Cut'n paste this function from sql_select.cc,
   to avoid linking in the entire server for this unit test.
@@ -160,7 +166,8 @@ public:
 
   virtual void SetUp()
   {
-    my_init_dynamic_array(&m_keyuse_dyn, sizeof(Key_use), num_elements, 64);
+    my_init_dynamic_array(&m_keyuse_dyn, sizeof(Key_use), NULL,
+                          num_elements, 64);
     m_keyuse_vec.reserve(num_elements);
   }
 

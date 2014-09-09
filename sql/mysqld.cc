@@ -4390,7 +4390,7 @@ int mysqld_main(int argc, char **argv)
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
-  srand(time(NULL));
+  srand(static_cast<uint>(time(NULL)));
 #endif
 
   /*
@@ -4568,7 +4568,8 @@ int mysqld_main(int argc, char **argv)
           Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
           global_sid_lock->unlock();
 
-          prev_gtids_ev.checksum_alg= binlog_checksum_options;
+          prev_gtids_ev.checksum_alg=
+            static_cast<uint8>(binlog_checksum_options);
 
           if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
             unireg_abort(1);
@@ -5859,7 +5860,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
     else
     {
       thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
-        mi->last_heartbeat);
+        static_cast<my_time_t>(mi->last_heartbeat));
       my_datetime_to_str(&received_heartbeat_time, buff, 0);
     }
   }
