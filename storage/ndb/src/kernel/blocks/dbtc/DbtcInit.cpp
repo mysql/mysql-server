@@ -43,6 +43,8 @@ void Dbtc::initData()
   clqhblockref = DBLQH_REF;
   cerrorBlockref = NDBCNTR_REF;
 
+  c_lqhkeyconf_direct_sent = 0;
+ 
   // Records with constant sizes
   tcFailRecord = (TcFailRecord*)allocRecord("TcFailRecord",
 					    sizeof(TcFailRecord), 1);

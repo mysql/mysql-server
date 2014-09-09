@@ -4719,8 +4719,15 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   else
   {
     jam();
-    // This operation was created by a trigger execting operation
-    // Restart it if we have executed all it's triggers
+    /**
+     * This operation was created by a trigger executing operation
+     * Thus no need to handle the operation any further, return to
+     * the original operation instead. There can be many triggering
+     * operations waiting on each other here.
+     *
+     * Restart the original operation if we have executed all it's
+     * triggers.
+     */
     TcConnectRecordPtr opPtr;
 
     opPtr.i = regTcPtr->triggeringOperation;
@@ -16843,8 +16850,33 @@ void Dbtc::continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp)
   lqhKeyConf->noFiredTriggers = 0;
   trigOp->noReceivedTriggers = 0;
 
-  // All triggers executed successfully, continue operation
-  execLQHKEYCONF(signal);
+  /**
+   * All triggers executed successfully, continue operation
+   * 
+   * We have to be careful here not sending too many direct signals in a row.
+   * This has two consequences, first we are breaking the coding rules if we
+   * do and thus other signals have a hard time to get their piece of the
+   * CPU.
+   * Secondly we can easily run out of stack which can cause all sorts of
+   * weird errors. We cannot allow any type of completely recursive behaviour
+   * in the NDB code.
+   */
+  c_lqhkeyconf_direct_sent++;
+  if (c_lqhkeyconf_direct_sent <= 5)
+  {
+    jam();
+    execLQHKEYCONF(signal);
+  }
+  else
+  {
+    jam();
+    c_lqhkeyconf_direct_sent = 0;
+    sendSignal(reference(),
+               GSN_LQHKEYCONF,
+               signal,
+               LqhKeyConf::SignalLength,
+               JBB);
+  }
 }
 
 void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
@@ -16908,6 +16940,7 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
                         ApiConnectRecord::TF_TRIGGER_PENDING))
         {
           jam();
+          c_lqhkeyconf_direct_sent = 0;
           regApiPtr->m_flags |= ApiConnectRecord::TF_TRIGGER_PENDING;
           signal->theData[0] = TcContinueB::TRIGGER_PENDING;
           signal->theData[1] = transPtr->i;

@@ -1824,6 +1824,8 @@ private:
   UintR ctcTimer;
   UintR cDbHbInterval;
 
+  Uint32 c_lqhkeyconf_direct_sent;
+
   Uint64 tcheckGcpId;
 
   // Montonically increasing counters
