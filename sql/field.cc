@@ -4943,7 +4943,8 @@ Field_temporal::store_lldiv_t(const lldiv_t *lld, int *warnings)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   type_conversion_status error;
   MYSQL_TIME ltime;
-  error= convert_number_to_TIME(lld->quot, 0, lld->rem, &ltime, warnings);
+  error= convert_number_to_TIME(lld->quot, 0, static_cast<int>(lld->rem),
+                                &ltime, warnings);
   if (error == TYPE_OK || error == TYPE_NOTE_TRUNCATED)
     error= store_internal_with_round(&ltime, warnings);
   else if (!*warnings)
@@ -10030,7 +10031,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
     flags|= BLOB_FLAG;
     break;
   case MYSQL_TYPE_YEAR:
-    if (!fld_length || length != 2)
+    if (!fld_length || length != 4)
       length= 4; /* Default length */
     flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
     break;
@@ -10536,13 +10537,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
     break;
   case MYSQL_TYPE_YEAR:
     if (length != 4)
-    {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_INVALID_YEAR_COLUMN_LENGTH,
-                          ER(ER_INVALID_YEAR_COLUMN_LENGTH),
-                          length);
-      length= 4; // convert obsolete YEAR(2) to YEAR(4)
-    }
+      length= 4; //set default value
     break;
   default:
     break;

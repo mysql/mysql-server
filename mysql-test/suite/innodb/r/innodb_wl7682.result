@@ -554,6 +554,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 "Restarting in read only mode"
+# restart
 set session innodb_create_intrinsic = 1;
 create temporary table t1 (i int, j int, primary key pk(i)) engine = innodb;
 create temporary table t2 (i int, j int, primary key pk(i)) engine = innodb;
@@ -894,6 +895,7 @@ a	b
 4	c
 set optimizer_switch=default;
 update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
+update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
 select count(distinct a) from t1;
 count(distinct a)
 4
@@ -1107,6 +1109,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 "Restarting Server with temp-tablespace auto-extension turned off"
+# restart: --innodb_temp_data_file_path=ibtmp1:12M
 create table t0(a serial) engine=innodb;
 create temporary table t0t(a serial) engine=innodb;
 begin;
@@ -1147,5 +1150,4 @@ count(*)
 NUMBER
 drop procedure populate_t1;
 drop table t1;
-"Restarting Server in normal mode"
-set session innodb_create_intrinsic = 0;
+# restart

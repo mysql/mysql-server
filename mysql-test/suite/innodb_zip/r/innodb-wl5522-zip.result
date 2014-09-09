@@ -44,6 +44,7 @@ a	b	c
 t1.frm
 t1.ibd
 # Restarting server
+# restart
 # Done restarting server
 FLUSH TABLE t1 FOR EXPORT;
 # List before copying files
@@ -66,6 +67,7 @@ a	b	c
 1462	Devotion	asdfuihknaskdf
 1461	Cavalry	..asdasdfaeraf
 # Restarting server
+# restart
 # Done restarting server
 # List before t1 DISCARD
 t1.frm

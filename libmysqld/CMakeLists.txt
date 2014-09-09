@@ -29,8 +29,6 @@ INCLUDE_DIRECTORIES(
   ${SSL_INCLUDE_DIRS}
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/sql/backup
-  ${BOOST_PATCHES_DIR}
-  ${BOOST_INCLUDE_DIR}
 )
 
 # We should generate these separately for libmysqld to avoid
@@ -92,12 +90,26 @@ SET(SQL_EMBEDDED_SOURCES
   ${IMPORTED_SOURCES}
 )
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+ADD_COMPILE_FLAGS(
+  ../sql/item_geofunc.cc
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+)
+
 # Boost Geometry source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
-  SET_SOURCE_FILES_PROPERTIES(
+  ADD_COMPILE_FLAGS(
     ../sql/item_geofunc.cc
-    PROPERTIES COMPILE_FLAGS "-Wno-unused-local-typedefs"
+    COMPILE_FLAGS "-Wno-unused-local-typedefs"
+  )
+ENDIF()
+# Boost Geometry source has uninitialized variables. Fixed in Boost 1.56
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-uninitialized" HAVE_NO_UNINITIALIZED)
+IF(HAVE_NO_UNINITIALIZED)
+  ADD_COMPILE_FLAGS(
+    ../sql/item_geofunc.cc
+    COMPILE_FLAGS "-Wno-uninitialized"
   )
 ENDIF()
 

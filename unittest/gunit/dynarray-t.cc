@@ -90,6 +90,12 @@ static inline std::ostream &operator<<(std::ostream &s, const Key_use &v)
 
 namespace dynarray_unittest {
 
+// We still want to unit-test this, to compare performance.
+#undef my_init_dynamic_array
+extern "C" 
+my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
+                              void *init_buffer, uint init_alloc,
+                              uint alloc_increment);
 /*
   Cut'n paste this function from sql_select.cc,
   to avoid linking in the entire server for this unit test.
@@ -160,7 +166,8 @@ public:
 
   virtual void SetUp()
   {
-    my_init_dynamic_array(&m_keyuse_dyn, sizeof(Key_use), num_elements, 64);
+    my_init_dynamic_array(&m_keyuse_dyn, sizeof(Key_use), NULL,
+                          num_elements, 64);
     m_keyuse_vec.reserve(num_elements);
   }
 
@@ -234,8 +241,8 @@ protected:
   virtual void SetUp()
   {
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
-    ASSERT_EQ(0, my_pthread_setspecific_ptr(THR_MALLOC, &m_mem_root_p));
-    MEM_ROOT *root= *my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+    ASSERT_EQ(0, my_set_thread_local(THR_MALLOC, &m_mem_root_p));
+    MEM_ROOT *root= *static_cast<MEM_ROOT**>(my_get_thread_local(THR_MALLOC));
     ASSERT_EQ(root, m_mem_root_p);
 
     m_array_mysys.reserve(num_elements);
@@ -251,17 +258,17 @@ protected:
   static void SetUpTestCase()
   {
     generate_test_data(test_data, table_list, num_elements);
-    ASSERT_EQ(0, pthread_key_create(&THR_THD, NULL));
+    ASSERT_EQ(0, my_create_thread_local_key(&THR_THD, NULL));
     THR_THD_initialized= true;
-    ASSERT_EQ(0, pthread_key_create(&THR_MALLOC, NULL));
+    ASSERT_EQ(0, my_create_thread_local_key(&THR_MALLOC, NULL));
     THR_MALLOC_initialized= true;
   }
 
   static void TearDownTestCase()
   {
-    pthread_key_delete(THR_THD);
+    my_delete_thread_local_key(THR_THD);
     THR_THD_initialized= false;
-    pthread_key_delete(THR_MALLOC);
+    my_delete_thread_local_key(THR_MALLOC);
     THR_MALLOC_initialized= false;
   }
 

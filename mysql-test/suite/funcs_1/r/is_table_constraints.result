@@ -59,6 +59,7 @@ WHERE constraint_catalog IS NOT NULL;
 constraint_catalog	constraint_schema	constraint_name	table_schema	table_name
 def	mysql	PRIMARY	mysql	columns_priv
 def	mysql	PRIMARY	mysql	db
+def	mysql	PRIMARY	mysql	engine_cost
 def	mysql	PRIMARY	mysql	event
 def	mysql	PRIMARY	mysql	func
 def	mysql	PRIMARY	mysql	gtid_executed
@@ -76,6 +77,7 @@ def	mysql	PRIMARY	mysql	plugin
 def	mysql	PRIMARY	mysql	proc
 def	mysql	PRIMARY	mysql	procs_priv
 def	mysql	PRIMARY	mysql	proxies_priv
+def	mysql	PRIMARY	mysql	server_cost
 def	mysql	PRIMARY	mysql	servers
 def	mysql	PRIMARY	mysql	slave_master_info
 def	mysql	PRIMARY	mysql	slave_relay_log_info

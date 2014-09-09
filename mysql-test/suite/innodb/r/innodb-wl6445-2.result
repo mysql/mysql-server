@@ -23,6 +23,7 @@ i	LEFT(j,20)
 1	aaaaaaaaaaaaaaaaaaaa
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
+# restart: --innodb-read-only
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
 i
@@ -52,9 +53,9 @@ FLUSH LOGS;
 FLUSH TABLES t1;
 FLUSH TABLES WITH READ LOCK;
 UNLOCK TABLES;
-DROP DATABASE IF EXISTS testdb_wl6445;
+# restart
+DROP DATABASE testdb_wl6445;
 case # 2
-DROP DATABASE IF EXISTS testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
@@ -85,6 +86,7 @@ i	LEFT(j,20)
 DELETE FROM t2;
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 i	LEFT(j,20)
+# restart: --innodb-read-only
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
 i
@@ -122,8 +124,5 @@ case # 3
 #    Try to restart the server without --innodb-read-only after removing
 #    write permissions of system tablespace. Server should not start.
 #    This confirms server is not automatically started in read-only mode.
-USE testdb_wl6445;
+# restart
 DROP DATABASE testdb_wl6445;
-SET GLOBAL INNODB_FILE_FORMAT=Antelope;
-SET GLOBAL INNODB_FILE_PER_TABLE=1;
-SET GLOBAL innodb_large_prefix = 0;

@@ -24,6 +24,7 @@ SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
 row1	will go away	1
 stop slave;
+# restart
 set SQL_LOG_BIN=0;
 insert into t2 values (1);
 show binlog events from <binlog_start>;

@@ -125,16 +125,16 @@ FROM information_schema.statistics WHERE table_name = 'test_ps_fetch'
 ORDER BY index_name, seq_in_index;
 seq_in_index	1
 column_name	c
-cardinality	6
+cardinality	3
 seq_in_index	2
 column_name	d
-cardinality	22
+cardinality	11
 seq_in_index	1
 column_name	a
-cardinality	40
+cardinality	20
 seq_in_index	2
 column_name	b
-cardinality	200
+cardinality	90
 SELECT
 table_rows, avg_row_length, max_data_length, index_length
 FROM information_schema.tables WHERE table_name = 'test_ps_fetch';

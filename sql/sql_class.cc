@@ -84,6 +84,210 @@ LEX_CSTRING NULL_CSTR=  { NULL, 0 };
 const char * const THD::DEFAULT_WHERE= "field list";
 
 /****************************************************************************
+** Transaction_state definition.
+****************************************************************************/
+
+struct Transaction_state
+{
+  void backup(THD *thd);
+  void restore(THD *thd);
+
+  /// SQL-command.
+  enum_sql_command m_sql_command;
+
+  Query_tables_list m_query_tables_list;
+
+  /// Open-tables state.
+  Open_tables_backup m_open_tables_state;
+
+  /// SQL_MODE.
+  sql_mode_t m_sql_mode;
+
+  /// Transaction isolation level.
+  enum_tx_isolation m_tx_isolation;
+
+  /// Ha_data array.
+  Ha_data m_ha_data[MAX_HA];
+
+  /// Transaction_ctx instance.
+  Transaction_ctx *m_trx;
+
+  /// Transaction read-only state.
+  my_bool m_tx_read_only;
+
+  /// THD options.
+  ulonglong m_thd_option_bits;
+
+  /// Current transaction instrumentation.
+  PSI_transaction_locker *m_transaction_psi;
+
+  /// Server status flags.
+  uint m_server_status;
+};
+
+
+void Transaction_state::backup(THD *thd)
+{
+  this->m_sql_command= thd->lex->sql_command;
+  this->m_trx= thd->get_transaction();
+
+  for (int i= 0; i < MAX_HA; ++i)
+    this->m_ha_data[i]= thd->ha_data[i];
+
+  this->m_tx_isolation= thd->tx_isolation;
+  this->m_tx_read_only= thd->tx_read_only;
+  this->m_thd_option_bits= thd->variables.option_bits;
+  this->m_sql_mode= thd->variables.sql_mode;
+  this->m_transaction_psi= thd->m_transaction_psi;
+  this->m_server_status= thd->server_status;
+}
+
+
+void Transaction_state::restore(THD *thd)
+{
+  thd->set_transaction(this->m_trx);
+
+  for (int i= 0; i < MAX_HA; ++i)
+    thd->ha_data[i]= this->m_ha_data[i];
+
+  thd->tx_isolation= this->m_tx_isolation;
+  thd->variables.sql_mode= this->m_sql_mode;
+  thd->tx_read_only= this->m_tx_read_only;
+  thd->variables.option_bits= this->m_thd_option_bits;
+
+  thd->m_transaction_psi= this->m_transaction_psi;
+  thd->server_status= this->m_server_status;
+  thd->lex->sql_command= this->m_sql_command;
+}
+
+/****************************************************************************
+** Attachable_trx definition.
+****************************************************************************/
+
+class THD::Attachable_trx
+{
+public:
+  Attachable_trx(THD *thd);
+  ~Attachable_trx();
+
+private:
+  /// THD instance.
+  THD *m_thd;
+
+  /// Transaction state data.
+  Transaction_state m_trx_state;
+
+private:
+  Attachable_trx(const Attachable_trx &);
+  Attachable_trx &operator =(const Attachable_trx &);
+};
+
+
+THD::Attachable_trx::Attachable_trx(THD *thd)
+ :m_thd(thd)
+{
+  // The THD::transaction_rollback_request is expected to be unset in the
+  // attachable transaction. It's weird to start attachable transaction when the
+  // SE asked to rollback the regular transaction.
+  DBUG_ASSERT(!m_thd->transaction_rollback_request);
+
+  // Save the transaction state.
+
+  m_trx_state.backup(m_thd);
+
+  // Save and reset query-tables-list and reset the sql-command.
+  //
+  // NOTE: ha_innobase::store_lock() takes the current sql-command into account.
+  // It must be SQLCOM_SELECT.
+  //
+  // Do NOT reset LEX if we're running tests. LEX is used by SELECT statements.
+
+  if (DBUG_EVALUATE_IF("use_attachable_trx", false, true))
+  {
+    m_thd->lex->reset_n_backup_query_tables_list(&m_trx_state.m_query_tables_list);
+    m_thd->lex->sql_command= SQLCOM_SELECT;
+  }
+
+  // Save and reset open-tables.
+
+  m_thd->reset_n_backup_open_tables_state(&m_trx_state.m_open_tables_state);
+
+  // Reset transaction state.
+
+  m_thd->m_transaction.release(); // it's been backed up.
+  m_thd->m_transaction.reset(new Transaction_ctx());
+
+  // Prepare for a new attachable transaction for read-only DD-transaction.
+
+  for (int i= 0; i < MAX_HA; ++i)
+    m_thd->ha_data[i]= Ha_data();
+
+  // The attachable transaction must used READ COMMITTED isolation level.
+
+  m_thd->tx_isolation= ISO_READ_COMMITTED;
+
+  // The attachable transaction must be read-only.
+
+  m_thd->tx_read_only= true;
+
+  // The attachable transaction must be AUTOCOMMIT.
+
+  m_thd->variables.option_bits|= OPTION_AUTOCOMMIT;
+  m_thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
+  m_thd->variables.option_bits&= ~OPTION_BEGIN;
+
+  // Reset SQL_MODE during system operations.
+
+  m_thd->variables.sql_mode= 0;
+
+  // Reset transaction instrumentation.
+
+  m_thd->m_transaction_psi= NULL;
+}
+
+
+THD::Attachable_trx::~Attachable_trx()
+{
+  // Ensure that the SE didn't request rollback in the attachable transaction.
+  // Having THD::transaction_rollback_request set most likely means that we've
+  // experienced some sort of deadlock/timeout while processing the attachable
+  // transaction. That is not possible by the definition of an attachable
+  // transaction.
+  DBUG_ASSERT(!m_thd->transaction_rollback_request);
+
+  // NOTE: the attachable transaction is AUTOCOMMIT, thus there is no need for
+  // explicit commit calls.
+
+  // Remember the handlerton of an open table to call the handlerton after the
+  // tables are closed.
+
+  handlerton *ht= m_thd->open_tables ?
+                  m_thd->open_tables->file->ht :
+                  innodb_hton;
+
+  // Close all the tables that are open till now.
+
+  close_thread_tables(m_thd);
+
+  // Remove the attachable transaction from InnoDB mysql_trx_list.
+
+  if (ht && ht->close_connection)
+    ht->close_connection(ht, m_thd);
+
+  // Restore the transaction state.
+
+  m_trx_state.restore(m_thd);
+
+  m_thd->restore_backup_open_tables_state(&m_trx_state.m_open_tables_state);
+
+  if (DBUG_EVALUATE_IF("use_attachable_trx", false, true))
+  {
+    m_thd->lex->restore_backup_query_tables_list(
+      &m_trx_state.m_query_tables_list);
+  }
+}
+
+/****************************************************************************
 ** User variables
 ****************************************************************************/
 
@@ -714,6 +918,12 @@ int thd_tx_is_read_only(const THD *thd)
 }
 
 extern "C"
+int thd_tx_is_dd_trx(const THD *thd)
+{
+  return (int) thd->is_attachable_transaction_active();
+}
+
+extern "C"
 void thd_inc_row_count(THD *thd)
 {
   thd->get_stmt_da()->inc_current_row_for_condition();
@@ -911,6 +1121,8 @@ THD::THD(bool enable_plugins)
    m_trans_log_file(NULL),
    m_trans_fixed_log_file(NULL),
    m_trans_end_pos(0),
+   m_transaction(new Transaction_ctx()),
+   m_attachable_trx(NULL),
    table_map_for_update(0),
    m_examined_row_count(0),
    m_stage_progress_psi(NULL),
@@ -1050,13 +1262,23 @@ THD::THD(bool enable_plugins)
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 
+#ifdef HAVE_MY_TIMER
   timer= NULL;
   timer_cache= NULL;
+#endif
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
 }
 
+
+void THD::set_transaction(Transaction_ctx *transaction_ctx)
+{
+  DBUG_ASSERT(is_attachable_transaction_active());
+
+  delete m_transaction.release();
+  m_transaction.reset(transaction_ctx);
+}
 
 void THD::push_internal_handler(Internal_error_handler *handler)
 {
@@ -1658,6 +1880,8 @@ THD::~THD()
   mysql_mutex_lock(&LOCK_thd_query);
   mysql_mutex_unlock(&LOCK_thd_query);
 
+  DBUG_ASSERT(!m_attachable_trx);
+
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
   my_free(const_cast<char*>(m_db.str));
@@ -1968,7 +2192,7 @@ bool THD::store_globals()
     have the mysys_var reference (which in fact refers to the worker
     threads local storage with key THR_KEY_mysys. 
   */
-  mysys_var=my_thread_var;
+  mysys_var= mysys_thread_var();
   DBUG_PRINT("debug", ("mysys_var: 0x%llx", (ulonglong) mysys_var));
   /*
     Let mysqld define the thread id (not mysys)
@@ -3956,6 +4180,24 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
   DBUG_VOID_RETURN;
 }
 
+
+void THD::begin_attachable_transaction()
+{
+  DBUG_ASSERT(!m_attachable_trx);
+
+  m_attachable_trx= new Attachable_trx(this);
+}
+
+
+void THD::end_attachable_transaction()
+{
+  DBUG_ASSERT(m_attachable_trx);
+
+  delete m_attachable_trx;
+  m_attachable_trx= NULL;
+}
+
+
 /**
   Check the killed state of a user thread
   @param thd  user thread
@@ -4437,7 +4679,8 @@ void THD::inc_status_sort_rows(ha_rows count)
 {
   status_var.filesort_rows+= count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
+  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi,
+                                              static_cast<ulong>(count));
 #endif
 }
 

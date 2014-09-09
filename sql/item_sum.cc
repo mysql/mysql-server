@@ -3717,7 +3717,7 @@ bool Item_func_group_concat::setup(THD *thd)
       syntax of this function). If there is no ORDER BY clause, we don't
       create this tree.
     */
-    init_tree(tree,  min<uint>(thd->variables.max_heap_table_size,
+    init_tree(tree,  min(static_cast<ulong>(thd->variables.max_heap_table_size),
                                thd->variables.sortbuff_size/16), 0,
               tree_key_length, 
               group_concat_key_cmp_with_order , 0, NULL, (void*) this);
