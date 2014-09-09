@@ -160,9 +160,3 @@ exports.Session.prototype.currentTransaction = function() {
   return this.tx;
 };
 
-exports.Session.prototype.useProjection = function() {
-  // useProjection(projection, callback)
-  var context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
-  return context.useProjection();
-};
-
