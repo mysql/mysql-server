@@ -1281,8 +1281,10 @@ THD::THD(bool enable_plugins)
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 
+#ifdef HAVE_MY_TIMER
   timer= NULL;
   timer_cache= NULL;
+#endif
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
@@ -4698,7 +4700,8 @@ void THD::inc_status_sort_rows(ha_rows count)
 {
   status_var.filesort_rows+= count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
+  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi,
+                                              static_cast<ulong>(count));
 #endif
 }
 

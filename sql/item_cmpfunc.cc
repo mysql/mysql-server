@@ -1324,7 +1324,7 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
     return ~(ulonglong) 0;
 
   /* Convert year to DATETIME packed format */
-  return year_to_longlong_datetime_packed(value);
+  return year_to_longlong_datetime_packed(static_cast<long>(value));
 }
 
 
@@ -7012,7 +7012,7 @@ float Item_equal::get_filtering_effect(table_map filter_for_table,
             if (cur_field->field->key_start.is_set(j) &&
                 tab->key_info[j].has_records_per_key(0))
             {
-              cur_filter= tab->key_info[j].records_per_key(0) / rows_in_table;
+              cur_filter= static_cast<float>(tab->key_info[j].records_per_key(0) / rows_in_table);
               break;
             }
           }

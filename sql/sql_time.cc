@@ -241,7 +241,7 @@ to_ascii(const CHARSET_INFO *cs,
          wc < 128)
   {
     src+= cnvres;
-    *dst++= wc;
+    *dst++= static_cast<char>(wc);
   }
   *dst= '\0';
   return dst - dst0;
@@ -430,7 +430,7 @@ static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
   }
   else if (!(flags & TIME_NO_NSEC_ROUNDING))
   {
-    ltime->second_part= lld.rem / 1000;
+    ltime->second_part= static_cast<ulong>(lld.rem / 1000);
     return datetime_add_nanoseconds_with_round(ltime, lld.rem % 1000, warnings);
   }
   return false;
@@ -529,7 +529,7 @@ static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings)
   */
   if ((ltime->neg|= (lld.rem < 0)))
     lld.rem= -lld.rem;
-  ltime->second_part= lld.rem / 1000;
+  ltime->second_part= static_cast<ulong>(lld.rem / 1000);
   return time_add_nanoseconds_with_round(ltime, lld.rem % 1000, warnings);
 }
 
@@ -771,7 +771,8 @@ str_to_time_with_warn(String *str, MYSQL_TIME *l_time)
 */
 void time_to_datetime(THD *thd, const MYSQL_TIME *ltime, MYSQL_TIME *ltime2)
 {
-  thd->variables.time_zone->gmt_sec_to_TIME(ltime2, thd->query_start());
+  thd->variables.time_zone->gmt_sec_to_TIME(ltime2,
+    static_cast<my_time_t>(thd->query_start()));
   ltime2->hour= ltime2->minute= ltime2->second= ltime2->second_part= 0;
   ltime2->time_type= MYSQL_TIMESTAMP_DATE;
   mix_date_and_time(ltime2, ltime);
