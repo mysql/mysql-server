@@ -1208,7 +1208,7 @@ srv_shutdown_all_bg_threads()
 
 	if (i == 1000) {
 		ib::warn() << os_thread_count << " threads created by InnoDB"
-			" had not exited at shutdown!",
+			" had not exited at shutdown!";
 #ifdef UNIV_DEBUG
 		os_aio_print_pending_io(stderr);
 		ut_ad(0);
