@@ -1126,8 +1126,8 @@ trx_purge_initiate_truncate(
 		truncated then move to next rseg element.
 		Note: Ideally purge_sys->rseg should be NULL because purge
 		should complete processing of all the records but there is
-		purge_batch_size that can force the purge loop to exist before
-		the all the records are purge and in this case purge_sys->rseg
+		purge_batch_size that can force the purge loop to exit before
+		all the records are purged and in this case purge_sys->rseg
 		could point to a valid rseg waiting for next purge cycle. */
 		purge_sys->next_stored = FALSE;
 		purge_sys->rseg = NULL;

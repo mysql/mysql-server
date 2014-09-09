@@ -1030,14 +1030,16 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
     t.neg= 0;
 
     /* fill in query_time field */
-    calc_time_from_sec(&t, min<long>((longlong) (query_utime / 1000000),
-                                     (longlong) TIME_MAX_VALUE_SECONDS),
+    calc_time_from_sec(&t,
+                       static_cast<long>(min((longlong)(query_utime / 1000000),
+                                             (longlong)TIME_MAX_VALUE_SECONDS)),
                        query_utime % 1000000);
     if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t))
       goto err;
     /* lock_time */
-    calc_time_from_sec(&t, min((longlong) (lock_utime / 1000000),
-                               (longlong) TIME_MAX_VALUE_SECONDS),
+    calc_time_from_sec(&t,
+                       static_cast<long>(min((longlong)(lock_utime / 1000000),
+                                             (longlong)TIME_MAX_VALUE_SECONDS)),
                        lock_utime % 1000000);
     if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t))
       goto err;

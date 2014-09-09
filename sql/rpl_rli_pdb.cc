@@ -1527,7 +1527,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
   thd->set_time();
   thd->lex->set_current_select(0);
   if (!ev->when.tv_sec)
-    ev->when.tv_sec= my_time(0);
+    ev->when.tv_sec= static_cast<long>(my_time(0));
   ev->thd= thd; // todo: assert because up to this point, ev->thd == 0
   ev->worker= this;
 
@@ -1567,7 +1567,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
   }
 
   set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
-  set_master_log_pos(ev->log_pos);
+  set_master_log_pos(static_cast<ulong>(ev->log_pos));
   set_gaq_index(ev->mts_group_idx);
   DBUG_RETURN(ev->do_apply_event_worker(this));
 }
