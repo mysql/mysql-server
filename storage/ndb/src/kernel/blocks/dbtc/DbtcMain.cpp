@@ -4901,8 +4901,15 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   else
   {
     jam();
-    // This operation was created by a trigger execting operation
-    // Restart it if we have executed all it's triggers
+    /**
+     * This operation was created by a trigger executing operation
+     * Thus no need to handle the operation any further, return to
+     * the original operation instead. There can be many triggering
+     * operations waiting on each other here.
+     *
+     * Restart the original operation if we have executed all it's
+     * triggers.
+     */
     TcConnectRecordPtr opPtr;
 
     opPtr.i = regTcPtr->triggeringOperation;
@@ -17738,6 +17745,7 @@ Dbtc::trigger_op_finished(Signal* signal,
 {
   if (trigPtrI != RNIL)
   {
+    jam();
     Ptr<TcDefinedTriggerData> trigPtr;
     c_theDefinedTriggers.getPtr(trigPtr, trigPtrI);
     switch(trigPtr.p->triggerType){
@@ -17745,6 +17753,7 @@ Dbtc::trigger_op_finished(Signal* signal,
     {
       if (errCode == ZNOT_FOUND)
       {
+        jam();
         break; // good!
       }
 
@@ -17754,6 +17763,7 @@ Dbtc::trigger_op_finished(Signal* signal,
       ndbrequire(c_fk_hash.find(fkPtr, trigPtr.p->fkId));
       if (errCode == 0 && ((fkPtr.p->bits&CreateFKImplReq::FK_ON_ACTION) == 0))
       {
+        jam();
         // Only restrict
         terrorCode = ZFK_CHILD_ROW_EXISTS;
       }
@@ -17765,19 +17775,24 @@ Dbtc::trigger_op_finished(Signal* signal,
         if (triggeringOp->operation == ZDELETE &&
             (fkPtr.p->bits & CreateFKImplReq::FK_DELETE_ACTION))
         {
+          jam();
           // the on action succeeded, good!
           break;
         }
         else if ((triggeringOp->operation == ZUPDATE || triggeringOp->operation == ZWRITE) &&
                  (fkPtr.p->bits & CreateFKImplReq::FK_UPDATE_ACTION))
         {
+          jam();
           // the on action succeeded, good!
           break;
         }
+        jam();
         terrorCode = ZFK_CHILD_ROW_EXISTS;
       }
       else
       {
+        jam();
+        jamLine(errCode);
         terrorCode = errCode;
       }
       apiConnectptr = regApiPtr;
@@ -17790,6 +17805,7 @@ Dbtc::trigger_op_finished(Signal* signal,
   }
   if (!regApiPtr.p->isExecutingDeferredTriggers())
   {
+    jam();
     if (unlikely((triggeringOp->triggerExecutionCount == 0)))
     {
       printf("%u : 0x%x->triggerExecutionCount == 0\n",
@@ -17797,7 +17813,7 @@ Dbtc::trigger_op_finished(Signal* signal,
              Uint32(triggeringOp - this->tcConnectRecord));
       dump_trans(regApiPtr);
     }
-    ndbassert(triggeringOp->triggerExecutionCount > 0);
+    ndbrequire(triggeringOp->triggerExecutionCount > 0);
     triggeringOp->triggerExecutionCount--;
     if (triggeringOp->triggerExecutionCount == 0)
     {
@@ -17829,8 +17845,33 @@ void Dbtc::continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp)
   lqhKeyConf->numFiredTriggers = 0;
   trigOp->numReceivedTriggers = 0;
 
-  // All triggers executed successfully, continue operation
-  execLQHKEYCONF(signal);
+  /**
+   * All triggers executed successfully, continue operation
+   * 
+   * We have to be careful here not sending too many direct signals in a row.
+   * This has two consequences, first we are breaking the coding rules if we
+   * do and thus other signals have a hard time to get their piece of the
+   * CPU.
+   * Secondly we can easily run out of stack which can cause all sorts of
+   * weird errors. We cannot allow any type of completely recursive behaviour
+   * in the NDB code.
+   */
+  c_lqhkeyconf_direct_sent++;
+  if (c_lqhkeyconf_direct_sent <= 5)
+  {
+    jam();
+    execLQHKEYCONF(signal);
+  }
+  else
+  {
+    jam();
+    c_lqhkeyconf_direct_sent = 0;
+    sendSignal(reference(),
+               GSN_LQHKEYCONF,
+               signal,
+               LqhKeyConf::SignalLength,
+               JBB);
+  }
 }
 
 void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
@@ -17922,6 +17963,7 @@ Dbtc::waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr)
   {
     jam();
     D("trans: send trigger pending");
+    c_lqhkeyconf_direct_sent = 0;
     transPtr.p->m_flags |= ApiConnectRecord::TF_TRIGGER_PENDING;
     signal->theData[0] = TcContinueB::TRIGGER_PENDING;
     signal->theData[1] = transPtr.i;
