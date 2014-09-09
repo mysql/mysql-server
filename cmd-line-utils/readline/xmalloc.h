@@ -26,7 +26,7 @@
 #if defined (READLINE_LIBRARY)
 #  include "rlstdc.h"
 #else
-#  include <readline/rlstdc.h>
+#  include <rlstdc.h>
 #endif
 
 #ifndef PTR_T

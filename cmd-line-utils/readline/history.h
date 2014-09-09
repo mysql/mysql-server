@@ -32,8 +32,8 @@ extern "C" {
 #  include "rlstdc.h"
 #  include "rltypedefs.h"
 #else
-#  include <readline/rlstdc.h>
-#  include <readline/rltypedefs.h>
+#  include <rlstdc.h>
+#  include <rltypedefs.h>
 #endif
 
 #ifdef __STDC__
