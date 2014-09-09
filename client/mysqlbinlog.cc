@@ -2208,13 +2208,13 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     if (stop_never_slave_server_id == -1)
       server_id= 1;
     else
-      server_id= stop_never_slave_server_id;
+      server_id= static_cast<uint>(stop_never_slave_server_id);
   }
   else
     server_id= 0;
 
   if (connection_server_id != -1)
-    server_id= connection_server_id;
+    server_id= static_cast<uint>(connection_server_id);
 
   size_t tlen = strlen(logname);
   if (tlen > UINT_MAX) 
@@ -2778,8 +2778,8 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       my_off_t length,tmp;
       for (length= start_position_mot ; length > 0 ; length-=tmp)
       {
-	tmp= min<size_t>(length, sizeof(buff));
-	if (my_b_read(file, buff, (uint) tmp))
+        tmp= min(static_cast<size_t>(length), sizeof(buff));
+        if (my_b_read(file, buff, (uint) tmp))
         {
           error("Failed reading from file.");
           goto err;

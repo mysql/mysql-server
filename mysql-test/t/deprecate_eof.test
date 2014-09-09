@@ -1,5 +1,11 @@
 -- source include/not_embedded.inc
 
+# If SELECT query is cached and later if there exists a session
+# state then the same SELECT query when run will not send OK packet
+# with session state as the result sets is picked from cache. For
+# now disabling this test when query_cache is ON.
+--source include/have_query_cache_disabled.inc
+
 --echo #
 --echo # WL#7766 Deprecate the EOF packet
 --echo # This WL can be tested by checking if session state which is sent

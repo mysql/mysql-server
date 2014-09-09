@@ -874,7 +874,7 @@ number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings)
   }
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
   ltime->year= ltime->month= ltime->day= 0;
-  TIME_set_hhmmss(ltime, nr);
+  TIME_set_hhmmss(ltime, (uint)nr);
   ltime->second_part= 0;
   return FALSE;
 }
@@ -1837,11 +1837,11 @@ void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, longlong tmp)
 
   ltime->day= ymd % (1 << 5);
   ltime->month= ym % 13;
-  ltime->year= ym / 13;
+  ltime->year= (uint)(ym / 13);
 
   ltime->second= hms % (1 << 6);
   ltime->minute= (hms >> 6) % (1 << 6);
-  ltime->hour= (hms >> 12);
+  ltime->hour= (uint)(hms >> 12);
   
   ltime->time_type= MYSQL_TIMESTAMP_DATETIME;
 }

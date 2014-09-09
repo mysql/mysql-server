@@ -918,25 +918,6 @@ int thd_tx_is_read_only(const THD *thd)
 }
 
 extern "C"
-int thd_tx_priority(const THD* thd)
-{
-  return (thd->thd_tx_priority != 0
-          ? thd->thd_tx_priority
-          : thd->tx_priority);
-}
-
-extern "C"
-THD* thd_tx_arbitrate(THD *requestor, THD* holder)
-{
- /* Should be different sessions. */
- DBUG_ASSERT(holder != requestor);
-
- return(thd_tx_priority(requestor) == thd_tx_priority(holder)
-	? requestor
-	: ((thd_tx_priority(requestor)
-	    > thd_tx_priority(holder)) ? holder : requestor));
-}
-
 int thd_tx_is_dd_trx(const THD *thd)
 {
   return (int) thd->is_attachable_transaction_active();
@@ -1281,8 +1262,10 @@ THD::THD(bool enable_plugins)
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 
+#ifdef HAVE_MY_TIMER
   timer= NULL;
   timer_cache= NULL;
+#endif
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
@@ -1614,8 +1597,6 @@ void THD::init(void)
                         TL_WRITE_CONCURRENT_INSERT);
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   tx_read_only= variables.tx_read_only;
-  tx_priority= 0;
-  thd_tx_priority= 0;
   update_charset();
   reset_current_stmt_binlog_format_row();
   reset_binlog_local_stmt_filter();
@@ -4698,7 +4679,8 @@ void THD::inc_status_sort_rows(ha_rows count)
 {
   status_var.filesort_rows+= count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
+  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi,
+                                              static_cast<ulong>(count));
 #endif
 }
 

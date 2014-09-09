@@ -624,5 +624,9 @@ SELECT inet6_aton(soundex('a'));
 inet6_aton(soundex('a'))
 NULL
 #
+# Bug#19047425 UNINITIALISED VALUE IN STR_TO_IPV6
+#
+do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using latin2)));
+#
 # End of 5.6 tests
 #

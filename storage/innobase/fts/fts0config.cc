@@ -325,8 +325,8 @@ fts_config_get_index_ulint(
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) reading `%s'",
-			ut_strerr(error), name);
+		ib::error() << "(" << ut_strerr(error) << ") reading `"
+			<< name << "'";
 	} else {
 		*int_value = strtoul((char*) value.f_str, NULL, 10);
 	}
@@ -366,8 +366,8 @@ fts_config_set_index_ulint(
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) writing `%s'",
-			ut_strerr(error), name);
+		ib::error() << "(" << ut_strerr(error) << ") writing `"
+			<< name << "'";
 	}
 
 	ut_free(value.f_str);
@@ -399,8 +399,8 @@ fts_config_get_ulint(
 	error = fts_config_get_value(trx, fts_table, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) reading `%s'",
-			ut_strerr(error), name);
+		ib::error() <<  "(" << ut_strerr(error) << ") reading `"
+			<< name << "'";
 	} else {
 		*int_value = strtoul((char*) value.f_str, NULL, 10);
 	}
@@ -439,8 +439,8 @@ fts_config_set_ulint(
 	error = fts_config_set_value(trx, fts_table, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) writing `%s'",
-			ut_strerr(error), name);
+		ib::error() <<  "(" << ut_strerr(error) << ") writing `"
+			<< name << "'";
 	}
 
 	ut_free(value.f_str);
@@ -525,8 +525,8 @@ fts_config_increment_value(
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) while incrementing %s.",
-			ut_strerr(error), name);
+		ib::error() << "(" << ut_strerr(error) << ") while"
+			" incrementing " << name << ".";
 	}
 
 	ut_free(value.f_str);

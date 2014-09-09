@@ -138,12 +138,12 @@ public:
   void set_rowcount(ha_rows val)       { m_rowcount= val; }
   ha_rows rowcount() const             { return m_rowcount; }
 
-  ulong mem_count() const { return m_mem_count; }
-  void set_mem_count(ulong val) { m_mem_count= val; }
-  ulong decrement_mem_count() { return --m_mem_count; }
+  ha_rows mem_count() const { return m_mem_count; }
+  void set_mem_count(ha_rows val) { m_mem_count= val; }
+  ha_rows decrement_mem_count() { return --m_mem_count; }
 
-  ulong max_keys() const { return m_max_keys; }
-  void  set_max_keys(ulong val) { m_max_keys= val; }
+  ha_rows max_keys() const { return m_max_keys; }
+  void set_max_keys(ha_rows val) { m_max_keys= val; }
 
   size_t  buffer_size() const { return m_buffer_end - m_buffer_start; }
 
@@ -155,8 +155,8 @@ private:
   uchar   *m_buffer_start; /// Start of main-memory buffer for this chunk.
   uchar   *m_buffer_end;   /// End of main-memory buffer for this chunk.
   ha_rows  m_rowcount;     /// Number of unread rows in this chunk.
-  ulong    m_mem_count;    /// Number of rows in the main-memory buffer.
-  ulong    m_max_keys;     /// If we have fixed-size rows:
+  ha_rows  m_mem_count;    /// Number of rows in the main-memory buffer.
+  ha_rows  m_max_keys;     /// If we have fixed-size rows:
                            ///    max number of rows in buffer.
 };
 

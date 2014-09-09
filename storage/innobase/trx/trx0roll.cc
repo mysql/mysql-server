@@ -193,26 +193,17 @@ trx_rollback_for_mysql(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	TrxInInnoDB	trx_in_innodb(trx, true);
-
-	if (trx_in_innodb.is_aborted()
-	    && trx->killed_by != os_thread_get_curr_id()) {
-
-		return(DB_FORCED_ABORT);
-	}
-
 	/* We are reading trx->state without holding trx_sys->mutex
 	here, because the rollback should be invoked for a running
 	active MySQL transaction (or recovered prepared transaction)
 	that is associated with the current thread. */
 
 	switch (trx->state) {
-	case TRX_STATE_FORCED_ROLLBACK:
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
 		trx->will_lock = 0;
 		ut_ad(trx->in_mysql_trx_list);
-		return(trx->state == TRX_STATE_NOT_STARTED
-		       ? DB_SUCCESS : DB_FORCED_ABORT);
+		return(DB_SUCCESS);
 
 	case TRX_STATE_ACTIVE:
 		ut_ad(trx->in_mysql_trx_list);
@@ -221,7 +212,6 @@ trx_rollback_for_mysql(
 
 	case TRX_STATE_PREPARED:
 		ut_ad(!trx_is_autocommit_non_locking(trx));
-		ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
@@ -251,10 +241,8 @@ trx_rollback_last_sql_stat_for_mysql(
 	ut_ad(trx->in_mysql_trx_list);
 
 	switch (trx->state) {
-	case TRX_STATE_FORCED_ROLLBACK:
-		return(DB_FORCED_ABORT);
-
 	case TRX_STATE_NOT_STARTED:
+	case TRX_STATE_FORCED_ROLLBACK:
 		return(DB_SUCCESS);
 
 	case TRX_STATE_ACTIVE:

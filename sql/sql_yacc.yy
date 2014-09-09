@@ -6667,7 +6667,8 @@ attribute:
         | DEFAULT now_or_signed_literal { Lex->default_value=$2; }
         | ON UPDATE_SYM now
           {
-            Item *item= new (YYTHD->mem_root) Item_func_now_local($3);
+            Item *item= new (YYTHD->mem_root)
+              Item_func_now_local(static_cast<uint8>($3));
             if (item == NULL)
               MYSQL_YYABORT;
             Lex->on_update_value= item;
@@ -6777,7 +6778,8 @@ now:
 now_or_signed_literal:
           now
           {
-            $$= new (YYTHD->mem_root) Item_func_now_local($1);
+            $$= new (YYTHD->mem_root)
+              Item_func_now_local(static_cast<uint8>($1));
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -7494,7 +7496,7 @@ opt_user_password_expiration:
               MYSQL_YYABORT;
             }
             $$.set_password_expire_flag= false;
-            $$.expire_after_days= $2;
+            $$.expire_after_days= static_cast<uint16>($2);
             $$.use_default_password_expiry= false;
           }
         | NEVER_SYM
@@ -9393,7 +9395,7 @@ function_call_nonkeyword:
           }
         | CURTIME func_datetime_precision
           {
-            $$= NEW_PTN Item_func_curtime_local(@$, $2);
+            $$= NEW_PTN Item_func_curtime_local(@$, static_cast<uint8>($2));
           }
         | DATE_ADD_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
           %prec INTERVAL_SYM
@@ -9415,7 +9417,8 @@ function_call_nonkeyword:
           }
         | now
           {
-            $$= NEW_PTN PTI_function_call_nonkeyword_now(@$, $1);
+            $$= NEW_PTN PTI_function_call_nonkeyword_now(@$,
+              static_cast<uint8>($1));
           }
         | POSITION_SYM '(' bit_expr IN_SYM expr ')'
           {
@@ -9447,7 +9450,8 @@ function_call_nonkeyword:
           }
         | SYSDATE func_datetime_precision
           {
-            $$= NEW_PTN PTI_function_call_nonkeyword_sysdate(@$, $2);
+            $$= NEW_PTN PTI_function_call_nonkeyword_sysdate(@$,
+              static_cast<uint8>($2));
           }
         | TIMESTAMP_ADD '(' interval_time_stamp ',' expr ',' expr ')'
           {
@@ -9463,11 +9467,11 @@ function_call_nonkeyword:
           }
         | UTC_TIME_SYM func_datetime_precision
           {
-            $$= NEW_PTN Item_func_curtime_utc(@$, $2);
+            $$= NEW_PTN Item_func_curtime_utc(@$, static_cast<uint8>($2));
           }
         | UTC_TIMESTAMP_SYM func_datetime_precision
           {
-            $$= NEW_PTN Item_func_now_utc(@$, $2);
+            $$= NEW_PTN Item_func_now_utc(@$, static_cast<uint8>($2));
           }
         ;
 
@@ -10664,13 +10668,13 @@ opt_procedure_analyse_params:
           }
         | procedure_analyse_param
           {
-            $$.max_tree_elements= $1;
+            $$.max_tree_elements= static_cast<uint>($1);
             $$.max_treemem= Proc_analyse_params::default_max_treemem;
           }
         | procedure_analyse_param ',' procedure_analyse_param
           {
-            $$.max_tree_elements= $1;
-            $$.max_treemem= $3;
+            $$.max_tree_elements= static_cast<uint>($1);
+            $$.max_treemem= static_cast<uint>($3);
           }
         ;
 
