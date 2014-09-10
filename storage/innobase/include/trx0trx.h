@@ -44,6 +44,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0xa.h"
 #include "ut0vec.h"
 #include "fts0fts.h"
+#include "srv0srv.h"
 
 // Forward declaration
 struct mtr_t;
@@ -926,15 +927,16 @@ struct trx_t {
 					state and lock (except some fields
 					of lock, which are protected by
 					lock_sys->mutex) */
+
+	ib_uint32_t	in_depth;	/*!< Track nested TrxInInnoDB
+					count */
+
 	ib_uint32_t	in_innodb;	/*!< if the thread is executing
 					in the InnoDB context count > 0. */
-	UT_LIST_NODE_T(trx_t)
-			trx_list;	/*!< list of transactions;
-					protected by trx_sys->mutex. */
-	UT_LIST_NODE_T(trx_t)
-			no_list;	/*!< Required during view creation
-					to check for the view limit for
-					transactions that are committing */
+
+	bool		abort;		/*!< if this flag is set then
+					this transaction must abort when
+					it can */
 
 	trx_id_t	id;		/*!< transaction id */
 
@@ -1012,6 +1014,14 @@ struct trx_t {
 	ReadView*	read_view;	/*!< consistent read view used in the
 					transaction, or NULL if not yet set */
 
+	UT_LIST_NODE_T(trx_t)
+			trx_list;	/*!< list of transactions;
+					protected by trx_sys->mutex. */
+	UT_LIST_NODE_T(trx_t)
+			no_list;	/*!< Required during view creation
+					to check for the view limit for
+					transactions that are committing */
+
 	trx_lock_t	lock;		/*!< Information about the transaction
 					locks and state. Protected by
 					trx->mutex or lock_sys->mutex
@@ -1020,10 +1030,6 @@ struct trx_t {
 					1=recovered, must be rolled back,
 					protected by trx_sys->mutex when
 					trx->in_rw_trx_list holds */
-
-	bool		abort;		/*!< if this flag is set then
-					this transaction must abort when
-					it can */
 
 	hit_list_t	hit_list;	/*!< List of transactions to kill,
 					when a high priority transaction
@@ -1388,55 +1394,14 @@ public:
 		:
 		m_trx(trx)
 	{
-		/* Only the owning thread should release the latch. */
-
-		trx_search_latch_release_if_reserved(m_trx);
-
-		trx_mutex_enter(m_trx);
-
-		wait();
-
-		ut_ad((m_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK)
-		      < (TRX_FORCE_ROLLBACK_MASK - 1));
-
-		/* If it hasn't already been marked for async rollback.
-		and it will be committed/rolled back. */
-
-		if (!is_forced_rollback()
-		    && disable
-		    && is_started()
-		    && !trx_is_autocommit_non_locking(m_trx)
-		    && !is_async_rollback()) {
-
-			ut_ad(trx->killed_by == 0);
-
-			/* This transaction has crossed the point of no
-			return and cannot be rolled back asynchronously
-			now. It must commit or rollback synhronously. */
-
-			m_trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
-		}
-
-		++m_trx->in_innodb;
-
-		trx_mutex_exit(m_trx);
+		enter(trx, disable);
 	}
 
 	/**
 	Destructor */
 	~TrxInInnoDB()
 	{
-		/* Only the owning thread should release the latch. */
-
-		trx_search_latch_release_if_reserved(m_trx);
-
-		trx_mutex_enter(m_trx);
-
-		ut_ad((m_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0);
-
-		--m_trx->in_innodb;
-
-		trx_mutex_exit(m_trx);
+		exit(m_trx);
 	}
 
 	/**
@@ -1444,8 +1409,7 @@ public:
 		rollback */
 	bool is_aborted() const
 	{
-		return(m_trx->abort
-		       || m_trx->state == TRX_STATE_FORCED_ROLLBACK);
+		return(is_aborted(m_trx));
 	}
 
 	/**
@@ -1456,61 +1420,170 @@ public:
 	}
 
 	/**
+	@return true if the transaction has been marked for asynchronous
+		rollback */
+	static bool is_aborted(const trx_t* trx)
+	{
+		ut_ad(srv_read_only_mode || trx->in_depth > 0);
+		ut_ad(srv_read_only_mode || trx->in_innodb > 0);
+
+		return(trx->abort
+		       || trx->state == TRX_STATE_FORCED_ROLLBACK);
+	}
+
+	/**
+	Start statement requested for transaction.
+	@param[in, out] trx	Transaction at the start of a SQL statement */
+	static void begin_stmt(trx_t* trx)
+	{
+		enter(trx, false);
+	}
+
+	/**
+	Note an end statement for transaction
+	@param[in, out] trx	Transaction at end of a SQL statement */
+	static void end_stmt(trx_t* trx)
+	{
+		exit(trx);
+	}
+
+	/**
 	@return true if the rollback is being initiated by the thread that
 		marked the transaction for asynchronous rollback */
-	bool is_async_rollback() const
+	static bool is_async_rollback(const trx_t* trx)
 	{
-		return(m_trx->killed_by == os_thread_get_curr_id());
+		return(trx->killed_by == os_thread_get_curr_id());
 	}
 
 private:
+	/**
+	Note that we have crossed into InnoDB code.
+	@param[in] disable	true if called from COMMIT/ROLLBACK method */
+	static void enter(trx_t* trx, bool disable)
+	{
+		if (srv_read_only_mode) {
+
+			return;
+		}
+
+		/* Avoid excessive mutex acquire/release */
+
+		++trx->in_depth;
+
+		if (trx->in_depth > 1) {
+
+			return;
+		}
+
+		/* Only the owning thread should release the latch. */
+
+		trx_search_latch_release_if_reserved(trx);
+
+		trx_mutex_enter(trx);
+
+		wait(trx);
+
+		ut_ad((trx->in_innodb & TRX_FORCE_ROLLBACK_MASK)
+		      < (TRX_FORCE_ROLLBACK_MASK - 1));
+
+		/* If it hasn't already been marked for async rollback.
+		and it will be committed/rolled back. */
+
+		if (!is_forced_rollback(trx)
+		    && disable
+		    && is_started(trx)
+		    && !trx_is_autocommit_non_locking(trx)
+		    && !is_async_rollback(trx)) {
+
+			ut_ad(trx->killed_by == 0);
+
+			/* This transaction has crossed the point of no
+			return and cannot be rolled back asynchronously
+			now. It must commit or rollback synhronously. */
+
+			trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
+		}
+
+		++trx->in_innodb;
+
+		trx_mutex_exit(trx);
+	}
+
+	/**
+	Note that we are exiting InnoDB code */
+	static void exit(trx_t* trx)
+	{
+		if (srv_read_only_mode) {
+
+			return;
+		}
+
+		/* Avoid excessive mutex acquire/release */
+
+		--trx->in_depth;
+
+		if (trx->in_depth > 0) {
+
+			return;
+		}
+
+		/* Only the owning thread should release the latch. */
+
+		trx_search_latch_release_if_reserved(trx);
+
+		trx_mutex_enter(trx);
+
+		ut_ad((trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0);
+
+		--trx->in_innodb;
+
+		trx_mutex_exit(trx);
+	}
+
 	/*
 	@return true if it is a forced rollback, asynchronously */
-	bool is_forced_rollback() const
+	static bool is_forced_rollback(const trx_t* trx)
 	{
-		ut_ad(trx_mutex_own(m_trx));
+		ut_ad(trx_mutex_own(trx));
 
-		return((m_trx->in_innodb & TRX_FORCE_ROLLBACK)) > 0;
+		return((trx->in_innodb & TRX_FORCE_ROLLBACK)) > 0;
 	}
 
 	/**
 	Wait for the asynchronous rollback to complete, if it is in progress */
-	void wait()
+	static void wait(trx_t* trx)
 	{
-		ut_ad(trx_mutex_own(m_trx));
+		ut_ad(trx_mutex_own(trx));
 
-		while (is_forced_rollback()) {
+		while (is_forced_rollback(trx)) {
 
-			if (is_async_rollback() || !is_started()) {
+			if (is_async_rollback(trx) || !is_started(trx)) {
 
 				return;
 			}
 
 			/* Wait for the async rollback to complete */
 
-			trx_mutex_exit(m_trx);
+			trx_mutex_exit(trx);
 
 			os_thread_sleep(20);
 
-			trx_mutex_enter(m_trx);
+			trx_mutex_enter(trx);
 		}
 	}
 
 	/**
 	@return true if transaction is started */
-	bool is_started() const
+	static bool is_started(const trx_t* trx)
 	{
-		ut_ad(trx_mutex_own(m_trx));
+		ut_ad(trx_mutex_own(trx));
 
-		return(trx_is_started(m_trx));
+		return(trx_is_started(trx));
 	}
 private:
 	/**
 	Transaction instance crossing the handler boundary from the Server. */
 	trx_t*			m_trx;
-
-	/**
-	true if it is a Auto-Commit-Non-Locking-Read-Only transaction */
 };
 
 /** The latch protecting the adaptive search system */
