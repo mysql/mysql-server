@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1321,8 +1321,45 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
 #endif
 
 /**
- * In multi-threaded cases, this must be protected by a global receive lock.
- * In case we were unable to received due to job buffers being full.
+ * Receive from the set of transporters in the bitmask
+ * 'recvdata.m_transporters'. These has been polled by 
+ * ::pollReceive() which recorded transporters with 
+ * available data in the subset 'recvdata.m_recv_transporters'.
+ *
+ * In multi-threaded datanodes, there might be multiple 
+ * receiver threads, each serving a disjunct set of
+ * 'm_transporters'.
+ *
+ * Single-threaded datanodes does all ::performReceive
+ * from the scheduler main-loop, and thus it will handle
+ * all 'm_transporters'.
+ *
+ * Clients has to aquire a 'poll right' (see TransporterFacade)
+ * which gives it the right to temporarily acts as a receive 
+ * thread with the right to poll *all* transporters.
+ *
+ * Reception takes place on a set of transporters knowing to be in a
+ * 'CONNECTED' state. Transporters can (asynch) become 'DISCONNECTING' 
+ * while we performReceive(). There is *no* mutex lock protecting
+ * 'disconnecting' from being started while we are in the receive-loop!
+ * However, the contents of the buffers++  should still be in a 
+ * consistent state, such that the current receive can complete
+ * without failures. 
+ *
+ * With regular intervals we have to ::update_connections()
+ * in order to bring DISCONNECTING transporters into
+ * a DISCONNECTED state. At earlies at this point, resources
+ * used by performReceive() may be reset or released.
+ * A transporter should be brought to the DISCONNECTED state
+ * before it can reconnect again. (Note: There is a break of
+ * this rule in ::do_connect, see own note here)
+ *
+ * To not interfere with ::poll- or ::performReceive(),
+ * ::update_connections() has to be synched with with these
+ * methods. Either by being run within the same
+ * receive thread (dataNodes), or protected by the 'poll rights'.
+ *
+ * In case we were unable to receive due to job buffers being full.
  * Returns 0 when receive succeeded from all Transporters having data,
  * else 1.
  */
@@ -1369,6 +1406,18 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
     TCP_Transporter * t = (TCP_Transporter*)theTransporters[id];
     assert(recvdata.m_transporters.get(id));
 
+    /**
+     * First check connection 'is CONNECTED.
+     * A connection can only be set into, or taken out of, is_connected'
+     * state by ::update_connections(). See comment there about 
+     * synchronication between ::update_connections() and 
+     * performReceive()
+     *
+     * Transporter::isConnected() state my change asynch.
+     * A mismatch between the TransporterRegistry::is_connected(),
+     * and Transporter::isConnected() state is possible, and indicate 
+     * that a change is underway. (Completed by update_connections())
+     */
     if (is_connected(id))
     {
       if (t->isConnected())
@@ -1386,6 +1435,22 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
 
   /**
    * Unpack data either received above or pending from prev rounds.
+   *
+   * Data to be processed at this stage is in the Transporter 
+   * receivebuffer. The data *is received*, and will stay in
+   * the  receiveBuffer even if a disconnect is started during
+   * unpack. 
+   * When ::update_connection() finaly completes the disconnect,
+   * (synced with ::performReceive()), 'm_has_data_transporters'
+   * will be cleared, which will terminate further unpacking.
+   *
+   * NOTE:
+   *  Without reading inconsistent date, we could have removed
+   *  the 'connected' checks below, However, there is a requirement
+   *  in the CLOSE_COMREQ/CONF protocol between TRPMAN and QMGR
+   *  that no signals arrives from disconnecting nodes after a
+   *  CLOSE_COMCONF was sent. For the moment the risk of taking
+   *  advantage of this small optimization is not worth the risk.
    */
   for(Uint32 id = recvdata.m_has_data_transporters.find_first();
       id != BitmaskImpl::NotFound && !stopReceiving;
@@ -1691,6 +1756,16 @@ TransporterRegistry::do_connect(NodeId node_id)
   case CONNECTING:
     return;
   case DISCONNECTING:
+    /**
+     * NOTE (Need future work)
+     * Going directly from DISCONNECTION to CONNECTING creates
+     * a possile race with ::update_connections(): It will
+     * see either of the *ING states, and bring the connection
+     * into CONNECTED or *DISCONNECTED* state. Furthermore, the
+     * state may be overwritten to CONNECTING by this method.
+     * We should probably have waited for DISCONNECTED state,
+     * before allowing reCONNECTING ....
+     */
     break;
   }
   DBUG_ENTER("TransporterRegistry::do_connect");
@@ -1701,6 +1776,10 @@ TransporterRegistry::do_connect(NodeId node_id)
     its send buffer
    */
   callbackObj->reset_send_buffer(node_id);
+
+  Transporter * t = theTransporters[node_id];
+  if (t != NULL)
+    t->resetBuffers();
 
   curr_state= CONNECTING;
   DBUG_VOID_RETURN;
@@ -1820,6 +1899,11 @@ TransporterRegistry::report_error(NodeId nodeId, TransporterError errorCode,
  * update_connections(), together with the thread running in
  * start_clients_thread(), handle the state changes for transporters as they
  * connect and disconnect.
+ *
+ * update_connections on a specific set of recvdata *must not* be run
+ * concurrently with :performReceive() on the same recvdata. Thus,
+ * it must either be called from the same (receive-)thread as
+ * performReceive(), or protected by aquiring the (client) poll rights.
  */
 void
 TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata)
@@ -1861,7 +1945,11 @@ TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata)
   }
 }
 
-// run as own thread
+/**
+ * Run as own thread
+ * Possible blocking parts of transporter connect and diconnect
+ * is supposed to be handled here.
+ */
 void
 TransporterRegistry::start_clients_thread()
 {
