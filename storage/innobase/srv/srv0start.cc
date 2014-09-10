@@ -1495,7 +1495,7 @@ innobase_start_or_create_for_mysql(void)
 			do so. */
 			ib::warn() << "Adjusting innodb_buffer_pool_instances"
 				" from " << srv_buf_pool_instances << " to 1"
-				" since innodb_buffer_pool_size is less than"
+				" since innodb_buffer_pool_size is less than "
 				<< BUF_POOL_SIZE_THRESHOLD / (1024 * 1024)
 				<< " MiB";
 		}

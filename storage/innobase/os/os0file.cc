@@ -401,54 +401,46 @@ os_file_get_last_error_low(
 		&& err != ERROR_DISK_FULL
 		&& err != ERROR_FILE_EXISTS)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Operating system error number %lu"
-			" in a file operation.", (ulong) err);
+		ib::error() << "Operating system error number " << err
+			<< " in a file operation.";
 
 		if (err == ERROR_PATH_NOT_FOUND) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means the system"
-				" cannot find the path specified.");
+			ib::error() << "The error means the system"
+				" cannot find the path specified.";
 
 			if (srv_is_being_started) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"If you are installing InnoDB,"
+				ib::error() << "If you are installing InnoDB,"
 					" remember that you must create"
 					" directories yourself, InnoDB"
-					" does not create them.");
+					" does not create them.";
 			}
 		} else if (err == ERROR_ACCESS_DENIED) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means mysqld does not have"
+			ib::error() << "The error means mysqld does not have"
 				" the access rights to"
 				" the directory. It may also be"
 				" you have created a subdirectory"
-				" of the same name as a data file.");
+				" of the same name as a data file.";
 		} else if (err == ERROR_SHARING_VIOLATION
 			   || err == ERROR_LOCK_VIOLATION) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means that another program"
-				" is using InnoDB's files."
-				" This might be a backup or antivirus"
-				" software or another instance"
-				" of MySQL."
-				" Please close it to get rid of this error.");
+				ib::error() << "The error means that another"
+					" program is using InnoDB's files."
+					" This might be a backup or antivirus"
+					" software or another instance of"
+					" MySQL. Please close it to get rid of"
+					" this error.";
 		} else if (err == ERROR_WORKING_SET_QUOTA
 			   || err == ERROR_NO_SYSTEM_RESOURCES) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means that there are no"
+			ib::error() << "The error means that there are no"
 				" sufficient system resources or quota to"
-				" complete the operation.");
+				" complete the operation.";
 		} else if (err == ERROR_OPERATION_ABORTED) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means that the I/O"
+			ib::error() << "The error means that the I/O"
 				" operation has been aborted"
 				" because of either a thread exit"
 				" or an application request."
-				" Retry attempt is made.");
+				" Retry attempt is made.";
 		} else {
-			ib_logf(IB_LOG_LEVEL_INFO, "%s",
-				OPERATING_SYSTEM_ERROR_MSG);
+			ib::info() << OPERATING_SYSTEM_ERROR_MSG;
 		}
 	}
 
@@ -480,35 +472,29 @@ os_file_get_last_error_low(
 	if (report_all_errors
 	    || (err != ENOSPC && err != EEXIST && !on_error_silent)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Operating system error number %d"
-			" in a file operation.", err);
+		ib::error() << "Operating system error number " << err
+			<< " in a file operation.";
 
 		if (err == ENOENT) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means the system"
-				" cannot find the path specified.");
+			ib::error() << "The error means the system"
+				" cannot find the path specified.";
 
 			if (srv_is_being_started) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"If you are installing InnoDB,"
+				ib::error() << "If you are installing InnoDB,"
 					" remember that you must create"
 					" directories yourself, InnoDB"
-					" does not create them.");
+					" does not create them.";
 			}
 		} else if (err == EACCES) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means mysqld does not have"
-				" the access rights to the directory.");
+			ib::error() << "The error means mysqld does not have"
+				" the access rights to the directory.";
 		} else {
 			if (strerror(err) != NULL) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Error number %d means '%s'.",
-					err, strerror(err));
+				ib::error() << "Error number " << err
+					<< " means '" << strerror(err) << "'.";
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO, "%s",
-				OPERATING_SYSTEM_ERROR_MSG);
+			ib::info() << OPERATING_SYSTEM_ERROR_MSG;
 		}
 	}
 
@@ -589,12 +575,12 @@ os_file_handle_error_cond_exit(
 		on_error_silent setting. */
 
 		if (name) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Encountered a problem with file %s", name);
+			ib::error() << "Encountered a problem with file "
+				<< name;
 		}
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Disk is full. Try to clean the disk to free space.");
+		ib::error() << "Disk is full. Try to clean the disk to free"
+			<< " space.";
 
 		os_has_said_disk_full = true;
 
@@ -629,15 +615,16 @@ os_file_handle_error_cond_exit(
 		to the log. */
 
 		if (should_exit || !on_error_silent) {
-			ib_logf(IB_LOG_LEVEL_ERROR, "File %s: '%s' returned OS"
-				" error " ULINTPF ".%s", name ? name : "(unknown)",
-				operation, err, should_exit
-				? " Cannot continue operation" : "");
+			ib::error() << "File "
+				<< (name != NULL ? name : "(unknown)")
+				<< ": '" << operation << "'"
+				" returned OS error " << err << "."
+				<< (should_exit
+				    ? " Cannot continue operation" : "");
 		}
 
 		if (should_exit) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot continue operation.");
+			ib::error() << "Cannot continue operation.";
 			fflush(stderr);
 			ut_d(innodb_calling_exit = true);
 			exit(3);
@@ -705,14 +692,13 @@ os_file_lock(
 
 	if (fcntl(fd, F_SETLK, &lk) == -1) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to lock %s, error: %d", name, errno);
+		ib::error() << "Unable to lock " << name << ", error: "
+			<< errno;
 
 		if (errno == EAGAIN || errno == EACCES) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Check that you do not already have"
+			ib::info() << "Check that you do not already have"
 				" another mysqld process using the"
-				" same InnoDB data or log files.");
+				" same InnoDB data or log files.";
 		}
 
 		return(-1);
@@ -755,8 +741,8 @@ os_file_create_tmpfile(void)
 	}
 
 	if (!file) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to create temporary file; errno: %d", errno);
+		ib::error() << "Unable to create temporary file; errno: "
+			<< errno;
 		if (fd >= 0) {
 			close(fd);
 		}
@@ -940,9 +926,8 @@ next_file:
 	ret = readdir_r(dir, (struct dirent*) dirent_buf, &ent);
 
 	if (ret != 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot read directory %s, error %lu",
-			dirname, (ulong) ret);
+		ib::error() << "Cannot read directory " << dirname
+			<< ", error " << ret;
 
 		return(-1);
 	}
@@ -1120,8 +1105,8 @@ os_file_create_simple_func(
 
 		if (!*success) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to create subdirectories '%s'", name);
+			ib::error() << "Unable to create subdirectories '"
+				<< name << "'";
 
 			return(OS_FILE_CLOSED);
 		}
@@ -1130,9 +1115,8 @@ os_file_create_simple_func(
 		create_mode = OS_FILE_CREATE;
 
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1141,18 +1125,16 @@ os_file_create_simple_func(
 		access = GENERIC_READ;
 	} else if (read_only_mode) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Read only mode set. Unable to"
-			" open file '%s' in RW mode, trying RO mode", name);
+		ib::info() << "Read only mode set. Unable to open file '"
+			<< name << "' in RW mode, trying RO mode";
 
 		access = GENERIC_READ;
 
 	} else if (access_type == OS_FILE_READ_WRITE) {
 		access = GENERIC_READ | GENERIC_WRITE;
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file access type (%lu) for file '%s'",
-			access_type, name);
+		ib::error() << "Unknown file access type (" << access_type
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1211,8 +1193,8 @@ os_file_create_simple_func(
 
 		if (!*success) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to create subdirectories '%s'", name);
+			ib::error() << "Unable to create subdirectories '"
+				<< name << "'";
 
 			return(OS_FILE_CLOSED);
 		}
@@ -1221,9 +1203,8 @@ os_file_create_simple_func(
 		create_mode = OS_FILE_CREATE;
 	} else {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1305,9 +1286,8 @@ os_file_create_simple_no_error_handling_func(
 		create_flag = CREATE_NEW;
 	} else {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1329,9 +1309,8 @@ os_file_create_simple_no_error_handling_func(
 
 		share_mode |= FILE_SHARE_DELETE | FILE_SHARE_WRITE;
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file access type (%lu) for file '%s'",
-			access_type, name);
+		ib::error() << "Unknown file access type (" << access_type
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1380,9 +1359,8 @@ os_file_create_simple_no_error_handling_func(
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
 
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1428,10 +1406,9 @@ os_file_set_nocache(
 	if (directio(fd, DIRECTIO_ON) == -1) {
 		int	errno_save = errno;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Failed to set DIRECTIO_ON on file %s: %s: %s,"
-			" continuing anyway.",
-			file_name, operation_name, strerror(errno_save));
+		ib::error() << "Failed to set DIRECTIO_ON on file "
+			<< file_name << ": " << operation_name << ": "
+			<< strerror(errno_save) << ", continuing anyway.";
 	}
 #elif defined(O_DIRECT)
 	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
@@ -1441,14 +1418,12 @@ os_file_set_nocache(
 			if (!warning_message_printed) {
 				warning_message_printed = true;
 # ifdef UNIV_LINUX
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Failed to set O_DIRECT on file"
-					" %s: %s: %s, continuing anyway."
-					" O_DIRECT is known to result"
-					" in 'Invalid argument' on Linux on"
-					" tmpfs, see MySQL Bug#26662.",
-					file_name, operation_name,
-					strerror(errno_save));
+				ib::warn() << "Failed to set O_DIRECT on file "
+					<< file_name << ": " << operation_name
+					<< ": " << strerror(errno_save) << ","
+					" continuing anyway. O_DIRECT is known"
+					" to result in 'Invalid argument' on"
+					" Linux on tmpfs, see MySQL Bug#26662.";
 # else /* UNIV_LINUX */
 				goto short_warning;
 # endif /* UNIV_LINUX */
@@ -1457,10 +1432,10 @@ os_file_set_nocache(
 # ifndef UNIV_LINUX
 short_warning:
 # endif
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Failed to set O_DIRECT on file %s: %s: %s,"
-				" continuing anyway.",
-				file_name, operation_name, strerror(errno_save));
+			ib::warn() << "Failed to set O_DIRECT on file "
+				<< file_name << ": " << operation_name
+				<< ": " << strerror(errno_save) << ","
+				" continuing anyway.";
 		}
 	}
 #endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */
@@ -1557,9 +1532,8 @@ os_file_create_func(
 		create_flag = CREATE_ALWAYS;
 
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1583,9 +1557,8 @@ os_file_create_func(
 	} else if (purpose == OS_FILE_NORMAL) {
 		/* Use default setting. */
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown purpose flag (%lu) while opening file '%s'",
-			purpose, name);
+		ib::error() << "Unknown purpose flag (" << purpose
+			<< ") while opening file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1677,9 +1650,8 @@ os_file_create_func(
 		create_flag = O_RDWR | O_CREAT | O_TRUNC;
 
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1748,8 +1720,7 @@ os_file_create_func(
 
 			ut_a(!read_only_mode);
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Retrying to lock the first data file");
+			ib::info() << "Retrying to lock the first data file";
 
 			for (int i = 0; i < DBUG_EVALUATE_IF("innodb_lock_no_retry", 0, 100);
 					 i++) {
@@ -1761,8 +1732,7 @@ os_file_create_func(
 				}
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Unable to open the first data file");
+			ib::info() << "Unable to open the first data file";
 		}
 
 		*success = false;
@@ -1820,7 +1790,7 @@ loop:
 	if (count > 100 && 0 == (count % 10)) {
 		os_file_get_last_error(true); /* print error information */
 
-		ib_logf(IB_LOG_LEVEL_WARN, "Delete of file %s failed.", name);
+		ib::warn() <<  "Delete of file " << name << " failed.";
 	}
 
 	os_thread_sleep(500000);	/* sleep for 0.5 second */
@@ -1887,9 +1857,8 @@ loop:
 	if (count > 100 && 0 == (count % 10)) {
 		os_file_get_last_error(true); /* print error information */
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot delete file %s. Are you running mysqlbackup"
-			" to back up the file?", name);
+		ib::warn() << "Cannot delete file " << name << ". Are you"
+			" running mysqlbackup to back up the file?";
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
@@ -2107,7 +2076,7 @@ os_file_set_size(
 
 	if (size >= (os_offset_t) 100 << 20) {
 
-		ib_logf(IB_LOG_LEVEL_INFO, "Progress in MB:");
+		ib::info() << "Progress in MB:";
 	}
 
 	while (current_size < size) {
@@ -2253,9 +2222,8 @@ os_file_fsync(
 
 			if (failures % 100 == 0) {
 
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"fsync(): No locks available;"
-					" retrying");
+				ib::warn() << "fsync(): No locks available;"
+					" retrying";
 			}
 
 			os_thread_sleep(200000 /* 0.2 sec */);
@@ -2328,7 +2296,7 @@ os_file_flush_func(
 		return(true);
 	}
 
-	ib_logf(IB_LOG_LEVEL_ERROR, "The OS said file flush did not succeed");
+	ib::error() << "The OS said file flush did not succeed";
 
 	os_file_handle_error(NULL, "flush");
 
@@ -2373,19 +2341,15 @@ os_file_io(
 		} else if (n_bytes > 0 && (ulint) n_bytes < n) {
 			/* For partial read/write scenario */
 			if (type == OS_FILE_READ) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"%lu bytes should have"
-					" been read. Only %lu bytes"
+				ib::warn() << n << " bytes should have been"
+					" read. Only " << n_bytes << " bytes"
 					" read. Retrying again to read"
-					" the remaining bytes.",
-					(ulong) n, (ulong) n_bytes);
+					" the remaining bytes.";
 			} else {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"%lu bytes should have"
-					" been written. Only %lu bytes"
-					" written. Retrying again to"
-					" write the remaining bytes.",
-					(ulong) n, (ulong) n_bytes);
+				ib::warn() << n << " bytes should have been"
+					" written. Only " << n_bytes
+					<< " bytes written. Retrying again to"
+					" write the remaining bytes.";
 			}
 
 			buf = (uchar*) buf + (ulint) n_bytes;
@@ -2398,9 +2362,9 @@ os_file_io(
 		}
 	}
 
-	ib_logf(IB_LOG_LEVEL_WARN,
-		"Retry attempts for %s partial data failed.",
-		type == OS_FILE_READ ? "reading" : "writing");
+	ib::warn() << "Retry attempts for "
+		<< (type == OS_FILE_READ ? "reading" : "writing")
+		<< " partial data failed.";
 
 	return(bytes_returned);
 }
@@ -2427,7 +2391,7 @@ os_file_pread(
 	offs = (off_t) offset;
 
 	if (sizeof(off_t) <= 4 && offset != (os_offset_t) offs) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "File read at offset > 4 GB");
+		ib::error() << "File read at offset > 4 GB";
 	}
 
 	os_n_file_reads++;
@@ -2483,7 +2447,7 @@ os_file_pwrite(
 	offs = (off_t) offset;
 
 	if (sizeof(off_t) <= 4 && offset != (os_offset_t) offs) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "file write at offset > 4 GB.");
+		ib::error() << "file write at offset > 4 GB.";
 	}
 
 	os_n_file_writes++;
@@ -2631,10 +2595,8 @@ try_again:
 		return(true);
 	}
 
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Tried to read " ULINTPF " bytes at offset"
-		" " UINT64PF " was only able to read %ld.",
-		n, offset, (lint) ret);
+	ib::error() << "Tried to read " << n << " bytes at offset " << offset
+		<< " was only able to read " << ret << ".";
 #endif /* _WIN32 */
 #ifdef _WIN32
 error_handling:
@@ -2652,13 +2614,13 @@ error_handling:
 		goto try_again;
 	}
 
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Cannot read from file. OS error number %lu.",
+	ib::fatal() << "Cannot read from file. OS error number "
 #ifdef _WIN32
-		(ulong) GetLastError());
+		<< GetLastError()
 #else
-		(ulong) errno);
+		<< errno
 #endif
+		<< ".";
 
 	return(false);
 }
@@ -2892,13 +2854,10 @@ retry:
 		mutex_exit(&os_file_count_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"File pointer positioning to"
-			" file %s failed at offset %llu."
-			" Operating system error number %lu. %s",
-			name, offset, (ulong) GetLastError(),
-			OPERATING_SYSTEM_ERROR_MSG);
-
+		ib::error() << "File pointer positioning to file " << name
+			<< " failed at offset " << offset << ". Operating"
+			" system error number " << GetLastError() << ". "
+			<< OPERATING_SYSTEM_ERROR_MSG;
 		return(false);
 	}
 
@@ -2940,26 +2899,20 @@ retry:
 
 		err = (ulint) GetLastError();
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Write to file %s failed at offset %llu."
-			" %lu bytes should have been written,"
-			" only %lu were written."
-			" Operating system error number %lu."
-			" Check that your OS and file system"
-			" support files of this size."
-			" Check also that the disk is not full"
-			" or a disk quota exceeded.",
-			name, offset,
-			(ulong) n, (ulong) len, (ulong) err);
+		ib::error() << "Write to file " << name << " failed at offset "
+			<< offset << ". " << n << " bytes should have been"
+			" written, only " << len << " were written."
+			" Operating system error number " << err << "."
+			" Check that your OS and file system support files of"
+			" this size. Check also that the disk is not full"
+			" or a disk quota exceeded.";
 
 		if (strerror((int) err) != NULL) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Error number %lu means '%s'.",
-				(ulong) err, strerror((int) err));
+			ib::error() << "Error number " << err << " means '"
+				<< strerror((int) err) << "'.";
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO, "%s",
-			OPERATING_SYSTEM_ERROR_MSG);
+		ib::info() << OPERATING_SYSTEM_ERROR_MSG;
 
 		os_has_said_disk_full = true;
 	}
@@ -2977,25 +2930,20 @@ retry:
 
 	if (!os_has_said_disk_full) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Write to file %s failed at offset " UINT64PF "."
-			" %lu bytes should have been written,"
-			" only %ld were written."
-			" Operating system error number %lu."
-			" Check that your OS and file system"
-			" support files of this size."
-			" Check also that the disk is not full"
-			" or a disk quota exceeded.",
-			name, offset, n, (lint) ret,
-			(ulint) errno);
+		ib::error() << "Write to file " << name << " failed at offset "
+			<< offset << ". " << n << " bytes should have been"
+			" written, only " << ret << " were written. Operating"
+			" system error number " << errno << ". Check that your"
+			" OS and file system support files of this size. Check"
+			" also that the disk is not full or a disk quota"
+			" exceeded.";
+
 		if (strerror(errno) != NULL) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Error number %d means '%s'.",
-				errno, strerror(errno));
+			ib::error() << "Error number " << errno << " means '"
+				<< strerror(errno) << "'.";
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO, "%s",
-			OPERATING_SYSTEM_ERROR_MSG);
+		ib::info() << OPERATING_SYSTEM_ERROR_MSG;
 
 		os_has_said_disk_full = true;
 	}
@@ -3375,9 +3323,8 @@ os_file_create_subdirs_if_needed(
 {
 	if (srv_read_only_mode) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"read only mode set. Can't create subdirectories '%s'",
-			path);
+		ib::error() << "read only mode set. Can't create"
+			" subdirectories '" << path << "'";
 
 		return(false);
 
@@ -3456,8 +3403,8 @@ retry:
 	ret = io_setup(max_events, io_ctx);
 	if (ret == 0) {
 #if defined(UNIV_AIO_DEBUG)
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Linux native AIO: initialized io_ctx for segment");
+		ib::info() << "Linux native AIO: initialized io_ctx for"
+			<< " segment";
 #endif
 		/* Success. Return now. */
 		return(true);
@@ -3469,46 +3416,40 @@ retry:
 	case -EAGAIN:
 		if (retries == 0) {
 			/* First time around. */
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"io_setup() failed with EAGAIN."
-				" Will make %d attempts before giving up.",
-				OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
+			ib::warn() << "io_setup() failed with EAGAIN. Will"
+				" make " << OS_AIO_IO_SETUP_RETRY_ATTEMPTS
+				<< " attempts before giving up.";
 		}
 
 		if (retries < OS_AIO_IO_SETUP_RETRY_ATTEMPTS) {
 			++retries;
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"io_setup() attempt %lu failed.",
-				retries);
+			ib::warn() << "io_setup() attempt " << retries
+				<< " failed.";
 			os_thread_sleep(OS_AIO_IO_SETUP_RETRY_SLEEP);
 			goto retry;
 		}
 
 		/* Have tried enough. Better call it a day. */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"io_setup() failed with EAGAIN after %d attempts.",
-			OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
+		ib::error() << "io_setup() failed with EAGAIN after "
+			<< OS_AIO_IO_SETUP_RETRY_ATTEMPTS << " attempts.";
 		break;
 
 	case -ENOSYS:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Linux Native AIO interface"
+		ib::error() << "Linux Native AIO interface"
 			" is not supported on this platform. Please"
 			" check your OS documentation and install"
-			" appropriate binary of InnoDB.");
+			" appropriate binary of InnoDB.";
 
 		break;
 
 	default:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Linux Native AIO setup"
-			" returned following error[%d]", -ret);
+		ib::error() << "Linux Native AIO setup"
+			" returned following error[" << -ret << "]";
 		break;
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"You can disable Linux Native AIO by"
-		" setting innodb_use_native_aio = 0 in my.cnf");
+	ib::info() << "You can disable Linux Native AIO by"
+		" setting innodb_use_native_aio = 0 in my.cnf";
 	return(false);
 }
 
@@ -3535,9 +3476,8 @@ os_aio_native_aio_supported(void)
 		fd = innobase_mysql_tmpfile();
 
 		if (fd < 0) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Unable to create temp file to check"
-				" native AIO support.");
+			ib::warn() << "Unable to create temp file to check"
+				" native AIO support.";
 
 			return(false);
 		}
@@ -3560,9 +3500,8 @@ os_aio_native_aio_supported(void)
 
 		if (fd == -1) {
 
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Unable to open \"%s\" to check"
-				" native AIO read support.", name);
+			ib::warn() << "Unable to open \"" << name << "\" to check"
+				" native AIO read support.";
 
 			return(false);
 		}
@@ -3606,18 +3545,17 @@ os_aio_native_aio_supported(void)
 
 	case -EINVAL:
 	case -ENOSYS:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Linux Native AIO not supported. You can either"
-			" move %s to a file system that supports native"
+		ib::error() << "Linux Native AIO not supported. You can either"
+			" move " << (srv_read_only_mode ? name : "tmpdir") <<
+			" to a file system that supports native"
 			" AIO or you can set innodb_use_native_aio to"
-			" FALSE to avoid this message.",
-			srv_read_only_mode ? name : "tmpdir");
+			" FALSE to avoid this message.";
 
 		/* fall through. */
 	default:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Linux Native AIO check on %s returned error[%d]",
-			srv_read_only_mode ? name : "tmpdir", -err);
+		ib::error() << "Linux Native AIO check on "
+			<< (srv_read_only_mode ? name : "tmpdir")
+			<< " returned error[" << -err << "]";
 	}
 
 	return(false);
@@ -3790,7 +3728,7 @@ os_aio_init(
 	/* Check if native aio is supported on this system and tmpfs */
 	if (srv_use_native_aio && !os_aio_native_aio_supported()) {
 
-		ib_logf(IB_LOG_LEVEL_WARN, "Linux Native AIO disabled.");
+		ib::warn() << "Linux Native AIO disabled.";
 
 		srv_use_native_aio = FALSE;
 	}
@@ -4411,10 +4349,11 @@ os_aio_linux_dispatch(
 	ret = io_submit(array->aio_ctx[io_ctx_index], 1, &iocb);
 
 #if defined(UNIV_AIO_DEBUG)
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"io_submit[%c] ret[%d]: slot[%p] ctx[%p] seg[%lu]",
-		(slot->type == OS_FILE_WRITE) ? 'w' : 'r', ret, slot,
-		array->aio_ctx[io_ctx_index], (ulong) io_ctx_index);
+	const char	r = (slot->type == OS_FILE_WRITE) ? 'w' : 'r';
+	ib::info()
+		<< "io_submit[" << r << "] ret[" << ret << "]: slot[" << slot
+		<< "] ctx[" << array->aio_ctx[io_ctx_index] << "] seg["
+		<< io_ctx_index << "]";
 #endif
 
 	/* io_submit returns number of successfully
@@ -4898,11 +4837,11 @@ retry:
 			ut_a(slot->is_reserved);
 
 #if defined(UNIV_AIO_DEBUG)
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"io_getevents[%c]: slot[%p] ctx[%p]"
-				" seg[%lu]",
-				(slot->type == OS_FILE_WRITE) ? 'w' : 'r',
-				slot, io_ctx, segment);
+			const char	r
+				= (slot->type == OS_FILE_WRITE) ? 'w' : 'r';
+			ib::info() << "io_getevents[" << r << "]: slot["
+				<< slot << "] ctx[" << io_ctx << "] seg["
+				<< segment << "]";
 #endif
 
 			/* We are not scribbling previous segment. */
@@ -4945,8 +4884,8 @@ retry:
 	}
 
 	/* All other errors should cause a trap for now. */
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Unexpected ret_code[%d] from io_getevents()!", ret);
+	ib::fatal() << "Unexpected ret_code[" << ret
+		<< "] from io_getevents()!";
 }
 
 /**********************************************************************//**
@@ -5075,11 +5014,10 @@ found:
 		submit_ret = io_submit(array->aio_ctx[segment], 1, &iocb);
 		if (submit_ret < 0 ) {
 			/* Aborting in case of submit failure */
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Native Linux AIO interface. io_submit()"
-				" call failed when resubmitting a partial"
-				" I/O request on the file %s.",
-				slot->name);
+			ib::fatal()
+				<< "Native Linux AIO interface. io_submit()"
+				" call failed when resubmitting a partial I/O"
+				" request on the file " << slot->name << ".";
 		} else {
 			ret = false;
 			mutex_exit(&array->mutex);
