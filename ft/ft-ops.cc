@@ -3028,6 +3028,7 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
 
     // Ensure that the memcmp magic bits are consistent, if set.
     if (ft->cmp.get_memcmp_magic() != toku::comparator::MEMCMP_MAGIC_NONE &&
+        ft_h->options.memcmp_magic != toku::comparator::MEMCMP_MAGIC_NONE &&
         ft_h->options.memcmp_magic != ft->cmp.get_memcmp_magic()) {
         r = EINVAL;
         goto exit;
