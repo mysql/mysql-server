@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,12 @@ public:
   virtual ~Transporter();
 
   /**
+   * Clear any data buffered in the transporter.
+   * Should only be called in a disconnected state.
+   */
+  virtual void resetBuffers() {};
+
+  /**
    * None blocking
    *    Use isConnected() to check status
    */
@@ -53,7 +59,7 @@ public:
   /**
    * Blocking
    */
-  virtual void doDisconnect();
+  void doDisconnect();
 
   /**
    * Are we currently connected
