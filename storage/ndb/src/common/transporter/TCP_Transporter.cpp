@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,17 +95,17 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      0, false, 
 	      conf->checksum,
 	      conf->signalId,
-              conf->tcp.sendBufferSize)
+	      conf->tcp.sendBufferSize),
+  reportFreq(4096),
+  receiveCount(0), receiveSize(0),
+  sendCount(0), sendSize(0), 
+  receiveBuffer()
 {
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
   // Initialize member variables
   my_socket_invalidate(&theSocket);
 
-  sendCount      = receiveCount = 0;
-  sendSize       = receiveSize  = 0;
-  reportFreq     = 4096; 
-  
   sockOptNodelay    = 1;
   setIf(sockOptRcvBufSize, conf->tcp.tcpRcvBufSize, 0);
   setIf(sockOptSndBufSize, conf->tcp.tcpSndBufSize, 0);
@@ -141,7 +141,15 @@ TCP_Transporter::~TCP_Transporter() {
     doDisconnect();
   
   // Delete receive buffer!!
+  assert(!isConnected());
   receiveBuffer.destroy();
+}
+
+void
+TCP_Transporter::resetBuffers()
+{
+  assert(!isConnected());
+  receiveBuffer.clear();
 }
 
 bool TCP_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
@@ -456,11 +464,11 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
 }
 
 void
-TCP_Transporter::disconnectImpl() {
+TCP_Transporter::disconnectImpl()
+{
   get_callback_obj()->lock_transporter(remoteNodeId);
 
   NDB_SOCKET_TYPE sock = theSocket;
-  receiveBuffer.clear();
   my_socket_invalidate(&theSocket);
 
   get_callback_obj()->unlock_transporter(remoteNodeId);
