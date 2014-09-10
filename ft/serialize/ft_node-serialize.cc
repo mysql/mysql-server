@@ -2593,13 +2593,13 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, ROLLBACK_LOG_NODE *log_p,
 	return r;
     }
 
-    //printf("Deserializing %lld datasize=%d\n", off, datasize);
     const void *magic;
     rbuf_literal_bytes(rb, &magic, 8);
     lazy_assert(!memcmp(magic, "tokuroll", 8));
 
     result->layout_version    = rbuf_int(rb);
-    lazy_assert(result->layout_version == FT_LAYOUT_VERSION);
+    lazy_assert((FT_LAYOUT_VERSION_25 <= result->layout_version && result->layout_version <= FT_LAYOUT_VERSION_27) ||
+                (result->layout_version == FT_LAYOUT_VERSION));
     result->layout_version_original = rbuf_int(rb);
     result->layout_version_read_from_disk = result->layout_version;
     result->build_id = rbuf_int(rb);
@@ -2659,7 +2659,7 @@ deserialize_rollback_log_from_rbuf_versioned (uint32_t version, BLOCKNUM blocknu
                                               struct rbuf *rb) {
     int r = 0;
     ROLLBACK_LOG_NODE rollback_log_node = NULL;
-    invariant(version==FT_LAYOUT_VERSION); //Rollback log nodes do not survive version changes.
+    invariant((FT_LAYOUT_VERSION_25 <= version && version <= FT_LAYOUT_VERSION_27) || version == FT_LAYOUT_VERSION);
     r = deserialize_rollback_log_from_rbuf(blocknum, &rollback_log_node, rb);
     if (r==0) {
         *log = rollback_log_node;
@@ -2756,18 +2756,15 @@ exit:
     return r;
 }
 
-static int
-decompress_from_raw_block_into_rbuf_versioned(uint32_t version, uint8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
+static int decompress_from_raw_block_into_rbuf_versioned(uint32_t version, uint8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
     // This function exists solely to accomodate future changes in compression.
     int r = 0;
-    switch (version) {
-        case FT_LAYOUT_VERSION_13:
-        case FT_LAYOUT_VERSION_14:
-        case FT_LAYOUT_VERSION:
-            r = decompress_from_raw_block_into_rbuf(raw_block, raw_block_size, rb, blocknum);
-            break;
-        default:
-            abort();
+    if ((version == FT_LAYOUT_VERSION_13 || version == FT_LAYOUT_VERSION_14) ||
+        (FT_LAYOUT_VERSION_25 <= version && version <= FT_LAYOUT_VERSION_27) ||
+        version == FT_LAYOUT_VERSION) {
+        r = decompress_from_raw_block_into_rbuf(raw_block, raw_block_size, rb, blocknum);
+    } else {
+        abort();
     }
     return r;
 }
