@@ -162,9 +162,9 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
        events (see the end of this 'if' block).
     */
 #ifndef DBUG_OFF
-    memset(post_header_len.data(), 255, number_of_event_types * sizeof(uint8_t));
+    memset(&post_header_len.front(), 255, number_of_event_types * sizeof(uint8_t));
 #endif
-    memcpy(post_header_len.data(), server_event_header_length, number_of_event_types);
+    memcpy(&post_header_len.front(), server_event_header_length, number_of_event_types);
     // Sanity-check that all post header lengths are initialized.
 #ifndef DBUG_OFF
     for (int i= 0; i < number_of_event_types; i++)
@@ -220,7 +220,7 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
     };
     post_header_len.resize(number_of_event_types * sizeof(uint8_t) +
                                 BINLOG_CHECKSUM_ALG_DESC_LEN);
-    memcpy(post_header_len.data(), server_event_header_length_ver_1_3,
+    memcpy(&post_header_len.front(), server_event_header_length_ver_1_3,
            number_of_event_types);
 
     break;
@@ -322,7 +322,7 @@ Format_description_event(const char* buf, unsigned int event_len,
    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
 
   post_header_len.resize(number_of_event_types * sizeof(uint8_t));
-  memcpy(post_header_len.data(), buf + ST_COMMON_HEADER_LEN_OFFSET + 1,
+  memcpy(&post_header_len.front(), buf + ST_COMMON_HEADER_LEN_OFFSET + 1,
          number_of_event_types * sizeof(uint8_t));
 
   calc_server_version_split();

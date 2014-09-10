@@ -5237,7 +5237,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
     created= get_time();
   int4store(buff + ST_CREATED_OFFSET, static_cast<uint32>(created));
   buff[ST_COMMON_HEADER_LEN_OFFSET]= LOG_EVENT_HEADER_LEN;
-  memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET + 1,  post_header_len.data(),
+  memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET + 1,  &post_header_len.front(),
          Binary_log_event::LOG_EVENT_TYPES);
   /*
     if checksum is requested

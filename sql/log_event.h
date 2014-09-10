@@ -867,11 +867,9 @@ public:
   }
 
   /*
-     Added a flag which is set for the events already moved into
-     binlogevent. For the events being decoded in BAPI, common_header should
+     For the events being decoded in BAPI, common_header should
      point to the header object which is contained within the class
-    Binary_log_event.
-     Once all the events are moved, this parameter would be removed.
+     Binary_log_event.
   */
   Log_event(Log_event_header *header,
             Log_event_footer *footer);
