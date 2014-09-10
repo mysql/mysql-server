@@ -7670,13 +7670,6 @@ ha_innobase::index_read(
 	DBUG_ENTER("index_read");
 	DEBUG_SYNC_C("ha_innobase_index_read_begin");
 
-	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
-
-	if (trx_in_innodb.is_aborted()) {
-
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
-	}
-
 	ut_a(m_prebuilt->trx == thd_to_trx(m_user_thd));
 	ut_ad(key_len != 0 || find_flag != HA_READ_KEY_EXACT);
 
@@ -7744,6 +7737,11 @@ ha_innobase::index_read(
 	} else if (find_flag == HA_READ_PREFIX_LAST) {
 
 		match_mode = ROW_SEL_EXACT_PREFIX;
+	}
+
+	if (TrxInInnoDB::is_aborted(m_prebuilt->trx)) {
+
+		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	m_last_match_mode = (uint) match_mode;
@@ -8038,8 +8036,6 @@ ha_innobase::index_read_idx(
 	uint		key_len,	/*!< in: key value length */
 	ha_rkey_function find_flag)/*!< in: search flags from my_base.h */
 {
-	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
-
 	if (change_active_index(keynr)) {
 
 		return(1);
@@ -8064,11 +8060,11 @@ ha_innobase::general_fetch(
 {
 	DBUG_ENTER("general_fetch");
 
-	ut_ad(m_prebuilt->trx == thd_to_trx(m_user_thd));
+	const trx_t*	trx = m_prebuilt->trx;
 
-	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
+	ut_ad(trx == thd_to_trx(m_user_thd));
 
-	if (trx_in_innodb.is_aborted()) {
+	if (TrxInInnoDB::is_aborted(trx)) {
 
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
@@ -8095,8 +8091,7 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		srv_stats.n_rows_read.add(
-			thd_get_thread_id(m_prebuilt->trx->mysql_thd), 1);
+		srv_stats.n_rows_read.add(thd_get_thread_id(trx->mysql_thd), 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
@@ -8108,7 +8103,7 @@ ha_innobase::general_fetch(
 		break;
 	case DB_TABLESPACE_DELETED:
 		ib_senderrf(
-			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_DISCARDED,
 			table->s->table_name.str);
 
@@ -8117,7 +8112,7 @@ ha_innobase::general_fetch(
 		break;
 	case DB_TABLESPACE_NOT_FOUND:
 		ib_senderrf(
-			m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLESPACE_MISSING,
 			table->s->table_name.str);
 
@@ -12859,8 +12854,6 @@ ha_innobase::external_lock(
 
 	trx_t*		trx = m_prebuilt->trx;
 
-	TrxInInnoDB	trx_in_innodb(trx);
-
 	ut_ad(m_prebuilt->table);
 
 	if (dict_table_is_intrinsic(m_prebuilt->table)) {
@@ -12869,6 +12862,8 @@ ha_innobase::external_lock(
 
 			DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 		}
+
+		TrxInInnoDB::begin_stmt(trx);
 
 		DBUG_RETURN(0);
 	}
@@ -13035,14 +13030,17 @@ ha_innobase::external_lock(
 		m_prebuilt->mysql_has_locked = TRUE;
 
 		if (!trx_is_started(trx)
-		    && lock_type != F_UNLCK
 		    && (m_prebuilt->select_lock_type != LOCK_NONE
 			|| m_prebuilt->stored_select_lock_type != LOCK_NONE)) {
 
 			++trx->will_lock;
 		}
 
+		TrxInInnoDB::begin_stmt(trx);
+
 		DBUG_RETURN(0);
+	} else {
+		TrxInInnoDB::end_stmt(trx);
 	}
 
 	/* MySQL is releasing a table lock */

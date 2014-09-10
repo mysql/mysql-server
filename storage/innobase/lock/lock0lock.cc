@@ -1690,7 +1690,7 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 
 	cas = os_compare_and_swap_thread_id(&trx->killed_by, 0, thread_id);
 
-	ut_ad(cas);
+	ut_a(cas);
 
 	m_trx->hit_list.push_back(hit_list_t::value_type(trx));
 
