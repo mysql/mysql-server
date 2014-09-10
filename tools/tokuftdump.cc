@@ -113,6 +113,8 @@ static int do_fragmentation = 0;
 static int do_garbage = 0;
 static int do_translation_table = 0;
 static int do_rootnode = 0;
+static int do_node = 0;
+static BLOCKNUM do_node_num;
 static int do_tsv = 0;
 
 static const char *arg0;
@@ -612,12 +614,13 @@ static int usage(void) {
     fprintf(stderr, "--dumpdata 0|1 ");
     fprintf(stderr, "--header ");
     fprintf(stderr, "--rootnode ");
+    fprintf(stderr, "--node N ");
     fprintf(stderr, "--fragmentation ");
     fprintf(stderr, "--garbage ");
     fprintf(stderr, "--tsv ");
     fprintf(stderr, "--translation-table ");
     fprintf(stderr, "--tsv ");
-    fprintf(stderr, "ftfilename \n");
+    fprintf(stderr, "filename \n");
     return 1;
 }
 
@@ -636,6 +639,10 @@ int main (int argc, const char *const argv[]) {
             do_header = 1;
         } else if (strcmp(argv[0], "--rootnode") == 0) {
             do_rootnode = 1;
+        } else if (strcmp(argv[0], "--node") == 0 && argc > 1) {
+            argc--; argv++;
+            do_node = 1;
+            do_node_num = make_blocknum(getuint64(argv[0]));
         } else if (strcmp(argv[0], "--fragmentation") == 0) {
             do_fragmentation = 1;
         } else if (strcmp(argv[0], "--garbage") == 0) {
@@ -684,6 +691,9 @@ int main (int argc, const char *const argv[]) {
         if (do_rootnode) {
             dump_node(fd, ft->h->root_blocknum, ft);
         } 
+        if (do_node) {
+            dump_node(fd, do_node_num, ft);
+        }
         if (do_fragmentation) {
             dump_fragmentation(fd, ft, do_tsv);
         }
