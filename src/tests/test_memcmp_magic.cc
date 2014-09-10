@@ -106,7 +106,7 @@ static void test_memcmp_magic(void) {
     // Should be ok to set it more than once, even to different things, before opening.
     r = db->set_memcmp_magic(db, 1); CKERR(r);
     r = db->set_memcmp_magic(db, 2); CKERR(r);
-    r = db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(r);
+    r = db->open(db, NULL, "db", "db", DB_BTREE, DB_CREATE, 0666); CKERR(r);
 
     // Can't set the memcmp magic after opening.
     r = db->set_memcmp_magic(db, 0); CKERR2(r, EINVAL);
@@ -116,12 +116,17 @@ static void test_memcmp_magic(void) {
     r = db_create(&db2, env, 0); CKERR(r);
     r = db2->set_memcmp_magic(db2, 3); CKERR(r); // ..we can try setting it to something different
     // ..but it should fail to open
-    r = db2->open(db2, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR2(r, EINVAL);
+    r = db2->open(db2, NULL, "db", "db", DB_BTREE, DB_CREATE, 0666); CKERR2(r, EINVAL);
     r = db2->set_memcmp_magic(db2, 2); CKERR(r);
-    r = db2->open(db2, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(r);
-    r = db2->close(db2, 0);
+    r = db2->open(db2, NULL, "db", "db", DB_BTREE, DB_CREATE, 0666); CKERR(r);
 
+    r = db2->close(db2, 0);
     r = db->close(db, 0); CKERR(r);
+
+    // dbremove opens its own handle internally. ensure that the open
+    // operation succeeds (and so does dbremove) despite the fact the
+    // internal open does not set the memcmp magic
+    r = env->dbremove(env, NULL, "db", "db", 0); CKERR(r);
     r = env->close(env, 0); CKERR(r);
 }
 
@@ -155,7 +160,7 @@ static void test_memcmp_magic_sort_order(void) {
     DB *db;
     r = db_create(&db, env, 0); CKERR(r);
     r = db->set_memcmp_magic(db, magic); CKERR(r);
-    r = db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(r);
+    r = db->open(db, NULL, "db", "db", DB_BTREE, DB_CREATE, 0666); CKERR(r);
 
     for (int i = 0; i < 10000; i++) {
         char buf[1 + sizeof(int)];
@@ -192,6 +197,11 @@ static void test_memcmp_magic_sort_order(void) {
     txn->commit(txn, 0);
 
     r = db->close(db, 0); CKERR(r);
+
+    // dbremove opens its own handle internally. ensure that the open
+    // operation succeeds (and so does dbremove) despite the fact the
+    // internal open does not set the memcmp magic
+    r = env->dbremove(env, NULL, "db", "db", 0); CKERR(r);
     r = env->close(env, 0); CKERR(r);
 }
 
