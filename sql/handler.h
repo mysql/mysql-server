@@ -868,6 +868,7 @@ struct handlerton
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
 #define HTON_NO_PARTITION            (1 << 8) //You can not partition these tables
+#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 9) //Foreign key constraint supported.
 
 class Ha_trx_info;
 

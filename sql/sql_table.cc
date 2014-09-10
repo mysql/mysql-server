@@ -6005,6 +6005,18 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   /*
+   If foreign key is added then check permission to access parent table.
+
+   In function "check_fk_parent_table_access", create_info->db_type is used
+   to identify whether engine supports FK constraint or not. Since
+   create_info->db_type is set here, check to parent table access is delayed
+   till this point for the alter operation.
+  */
+  if ((alter_info->flags & ALTER_FOREIGN_KEY) &&
+      check_fk_parent_table_access(thd, create_info, alter_info))
+    goto err;
+
+  /*
    If this is an ALTER TABLE and no explicit row type specified reuse
    the table's row type.
    Note : this is the same as if the row type was specified explicitly.
