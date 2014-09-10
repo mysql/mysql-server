@@ -966,6 +966,10 @@ struct handlerton
 
 #define HTON_SUPPORTS_EXTENDED_KEYS  (1 << 10)
 
+// Engine support foreign key constraint.
+
+#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 11)
+
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};

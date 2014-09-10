@@ -124,7 +124,6 @@ rtr_page_split_initialize_nodes(
 /**********************************************************************//**
 Builds a Rtree node pointer out of a physical record and a page number.
 @return	own: node pointer */
-
 dtuple_t*
 rtr_index_build_node_ptr(
 /*=====================*/
@@ -985,7 +984,6 @@ function must always succeed, we cannot reverse it: therefore enough
 free disk space (2 pages) must be guaranteed to be available before
 this function is called.
 @return inserted record */
-
 rec_t*
 rtr_page_split_and_insert(
 /*======================*/
@@ -1283,7 +1281,6 @@ func_start:
 /****************************************************************//**
 Following the right link to find the proper block for insert.
 @return the proper block.*/
-
 dberr_t
 rtr_ins_enlarge_mbr(
 /*================*/
@@ -1364,7 +1361,6 @@ IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit(). */
-
 void
 rtr_page_copy_rec_list_end_no_locks(
 /*================================*/
@@ -1501,7 +1497,6 @@ next:
 
 /*************************************************************//**
 Copy recs till a specified rec from a page to new_block of rtree. */
-
 void
 rtr_page_copy_rec_list_start_no_locks(
 /*==================================*/
@@ -1747,7 +1742,6 @@ rtr_merge_and_update_mbr(
 
 /*************************************************************//**
 Deletes on the upper level the node pointer to a page. */
-
 void
 rtr_node_ptr_delete(
 /*================*/
@@ -1772,7 +1766,6 @@ rtr_node_ptr_delete(
 /**************************************************************//**
 Check whether a Rtree page is child of a parent page
 @return true if there is child/parent relationship */
-
 bool
 rtr_check_same_block(
 /*================*/
@@ -1807,7 +1800,6 @@ rtr_check_same_block(
 /****************************************************************//**
 Calculate the area increased for a new record
 @return area increased */
-
 double
 rtr_rec_cal_increase(
 /*=================*/

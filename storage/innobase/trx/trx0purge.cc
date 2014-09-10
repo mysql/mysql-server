@@ -209,7 +209,6 @@ trx_purge_graph_build(
 /********************************************************************//**
 Creates the global purge system control structure and inits the history
 mutex. */
-
 void
 trx_purge_sys_create(
 /*=================*/
@@ -269,7 +268,6 @@ trx_purge_sys_create(
 
 /************************************************************************
 Frees the global purge system control structure. */
-
 void
 trx_purge_sys_close(void)
 /*======================*/
@@ -312,7 +310,6 @@ trx_purge_sys_close(void)
 /********************************************************************//**
 Adds the update undo log as the first log in the history list. Removes the
 update undo log segment from the rseg slot if it is too big for reuse. */
-
 void
 trx_purge_add_update_undo_to_history(
 /*=================================*/
@@ -1780,7 +1777,6 @@ trx_purge_truncate(void)
 /*******************************************************************//**
 This function runs a purge batch.
 @return number of undo log pages handled in the batch */
-
 ulint
 trx_purge(
 /*======*/
@@ -1890,7 +1886,6 @@ run_synchronously:
 /*******************************************************************//**
 Get the purge state.
 @return purge state. */
-
 purge_state_t
 trx_purge_state(void)
 /*=================*/
@@ -1908,7 +1903,6 @@ trx_purge_state(void)
 
 /*******************************************************************//**
 Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
-
 void
 trx_purge_stop(void)
 /*================*/
@@ -1975,7 +1969,6 @@ trx_purge_stop(void)
 
 /*******************************************************************//**
 Resume purge, move to PURGE_STATE_RUN. */
-
 void
 trx_purge_run(void)
 /*===============*/
