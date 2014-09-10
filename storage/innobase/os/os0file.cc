@@ -309,7 +309,6 @@ ulint	os_n_pending_reads = 0;
 /**********************************************************************//**
 Validates the consistency the aio system some of the time.
 @return true if ok or the check was skipped */
-
 bool
 os_aio_validate_skip(void)
 /*======================*/
@@ -340,7 +339,6 @@ os_aio_validate_skip(void)
 Gets the operating system version. Currently works only on Windows.
 @return OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
 OS_WIN7. */
-
 ulint
 os_get_os_version(void)
 /*===================*/
@@ -548,7 +546,6 @@ The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned.
 @return error number, or OS error number + 100 */
-
 ulint
 os_file_get_last_error(
 /*===================*/
@@ -728,7 +725,6 @@ os_file_lock(
 #ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Creates the seek mutexes used in positioned reads and writes. */
-
 void
 os_io_init_simple(void)
 /*===================*/
@@ -747,7 +743,6 @@ os_io_init_simple(void)
 Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the MySQL temporary directory.
 @return temporary file handle, or NULL on error */
-
 FILE*
 os_file_create_tmpfile(void)
 /*========================*/
@@ -777,7 +772,6 @@ directory named by the dirname argument. The directory stream is positioned
 at the first entry. In both Unix and Windows we automatically skip the '.'
 and '..' items at the start of the directory listing.
 @return directory stream, NULL if error */
-
 os_file_dir_t
 os_file_opendir(
 /*============*/
@@ -835,7 +829,6 @@ os_file_opendir(
 /***********************************************************************//**
 Closes a directory stream.
 @return 0 if success, -1 if failure */
-
 int
 os_file_closedir(
 /*=============*/
@@ -870,7 +863,6 @@ os_file_closedir(
 This function returns information of the next file in the directory. We jump
 over the '.' and '..' entries in the directory.
 @return 0 if ok, -1 if error, 1 if at the end of the directory */
-
 int
 os_file_readdir_next_file(
 /*======================*/
@@ -1037,7 +1029,6 @@ the call succeeds, unless the fail_if_exists arguments is true.
 If another error occurs, such as a permission error, this does not crash,
 but reports the error and returns false.
 @return true if call succeeds, false on error */
-
 bool
 os_file_create_directory(
 /*=====================*/
@@ -1083,7 +1074,6 @@ this function!
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-
 os_file_t
 os_file_create_simple_func(
 /*=======================*/
@@ -1278,7 +1268,6 @@ os_file_create_simple_no_error_handling(), not directly this function!
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-
 os_file_t
 os_file_create_simple_no_error_handling_func(
 /*=========================================*/
@@ -1422,7 +1411,6 @@ os_file_create_simple_no_error_handling_func(
 
 /****************************************************************//**
 Tries to disable OS caching on an opened file descriptor. */
-
 void
 os_file_set_nocache(
 /*================*/
@@ -1484,7 +1472,6 @@ this function!
 Opens an existing file or creates a new.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-
 os_file_t
 os_file_create_func(
 /*================*/
@@ -1792,7 +1779,6 @@ os_file_create_func(
 /***********************************************************************//**
 Deletes a file if it exists. The file has to be closed before calling this.
 @return true if success */
-
 bool
 os_file_delete_if_exists_func(
 /*==========================*/
@@ -1870,7 +1856,6 @@ loop:
 /***********************************************************************//**
 Deletes a file. The file has to be closed before calling this.
 @return true if success */
-
 bool
 os_file_delete_func(
 /*================*/
@@ -1935,7 +1920,6 @@ NOTE! Use the corresponding macro os_file_rename(), not directly this function!
 Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function.
 @return true if success */
-
 bool
 os_file_rename_func(
 /*================*/
@@ -1988,7 +1972,6 @@ NOTE! Use the corresponding macro os_file_close(), not directly this function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
 @return true if success */
-
 bool
 os_file_close_func(
 /*===============*/
@@ -2027,7 +2010,6 @@ os_file_close_func(
 /***********************************************************************//**
 Closes a file handle.
 @return true if success */
-
 bool
 os_file_close_no_error_handling(
 /*============================*/
@@ -2063,7 +2045,6 @@ os_file_close_no_error_handling(
 /***********************************************************************//**
 Gets a file size.
 @return file size, or (os_offset_t) -1 on failure */
-
 os_offset_t
 os_file_get_size(
 /*=============*/
@@ -2093,7 +2074,6 @@ os_file_get_size(
 /***********************************************************************//**
 Write the specified number of zeros to a newly created file.
 @return true if success */
-
 bool
 os_file_set_size(
 /*=============*/
@@ -2186,7 +2166,6 @@ error_handling:
 /***********************************************************************//**
 Truncates a file at its current position.
 @return true if success */
-
 bool
 os_file_set_eof(
 /*============*/
@@ -2207,7 +2186,6 @@ size of the file.
 @param[in]	file		file to be truncated
 @param[in]	size		size to preserve in bytes
 @return true if success */
-
 bool
 os_file_truncate(
 	const char*     pathname,
@@ -2299,7 +2277,6 @@ os_file_fsync(
 NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.
 @return true if success */
-
 bool
 os_file_flush_func(
 /*===============*/
@@ -2548,7 +2525,6 @@ NOTE! Use the corresponding macro os_file_read(), not directly this
 function!
 Requests a synchronous positioned read operation.
 @return true if request was successful, false if fail */
-
 bool
 os_file_read_func(
 /*==============*/
@@ -2693,7 +2669,6 @@ not directly this function!
 Requests a synchronous positioned read operation. This function does not do
 any error handling. In case of error it returns false.
 @return true if request was successful, false if fail */
-
 bool
 os_file_read_no_error_handling_func(
 /*================================*/
@@ -2823,7 +2798,6 @@ error_handling:
 Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
 mostly meant to be used with temporary files. */
-
 void
 os_file_read_string(
 /*================*/
@@ -2847,7 +2821,6 @@ NOTE! Use the corresponding macro os_file_write(), not directly
 this function!
 Requests a synchronous write operation.
 @return true if request was successful, false if fail */
-
 bool
 os_file_write_func(
 /*===============*/
@@ -3034,7 +3007,6 @@ retry:
 /*******************************************************************//**
 Check the existence and type of the given file.
 @return true if call succeeded */
-
 bool
 os_file_status(
 /*===========*/
@@ -3115,7 +3087,6 @@ os_file_status(
 /*******************************************************************//**
 This function returns information about the specified file
 @return DB_SUCCESS if all OK */
-
 dberr_t
 os_file_get_status(
 /*===============*/
@@ -3256,7 +3227,6 @@ This function allocates memory to be returned.  It is the callers
 responsibility to free the return value after it is no longer needed.
 
 @return own: new full pathname */
-
 char*
 os_file_make_new_pathname(
 /*======================*/
@@ -3305,7 +3275,6 @@ This function manipulates that path in place.
 
 If the path format is not as expected, just return.  The result is used
 to inform a SHOW CREATE TABLE command. */
-
 void
 os_file_make_data_dir_path(
 /*========================*/
@@ -3370,7 +3339,6 @@ returned by dirname and basename for different paths:
        ".."	      "."	     ".."
 
 @return own: directory component of the pathname */
-
 char*
 os_file_dirname(
 /*============*/
@@ -3400,7 +3368,6 @@ os_file_dirname(
 /****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return true if call succeeded, false otherwise */
-
 bool
 os_file_create_subdirs_if_needed(
 /*=============================*/
@@ -3807,7 +3774,6 @@ array is divided logically into n_read_segs and n_write_segs
 respectively. The caller must create an i/o handler thread for each
 segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that */
-
 bool
 os_aio_init(
 /*========*/
@@ -3915,7 +3881,6 @@ os_aio_init(
 
 /***********************************************************************
 Frees the asynchronous io system. */
-
 void
 os_aio_free(void)
 /*=============*/
@@ -3978,7 +3943,6 @@ os_aio_array_wake_win_aio_at_shutdown(
 /************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */
-
 void
 os_aio_wake_all_threads_at_shutdown(void)
 /*=====================================*/
@@ -4024,7 +3988,6 @@ os_aio_wake_all_threads_at_shutdown(void)
 /************************************************************************//**
 Waits until there are no pending writes in os_aio_write_array. There can
 be other, synchronous, pending writes. */
-
 void
 os_aio_wait_until_no_pending_writes(void)
 /*=====================================*/
@@ -4365,7 +4328,6 @@ os_aio_simulated_wake_handler_thread(
 
 /**********************************************************************//**
 Wakes up simulated aio i/o-handler threads if they have something to do. */
-
 void
 os_aio_simulated_wake_handler_threads(void)
 /*=======================================*/
@@ -4388,7 +4350,6 @@ This function can be called if one wants to post a batch of reads and
 prefers an i/o-handler thread to handle them all at once later. You must
 call os_aio_simulated_wake_handler_threads later to ensure the threads
 are not left sleeping! */
-
 void
 os_aio_simulated_put_read_threads_to_sleep(void)
 /*============================================*/
@@ -4472,7 +4433,6 @@ os_aio_linux_dispatch(
 NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
 @return true if request was queued successfully, false if fail */
-
 bool
 os_aio_func(
 /*========*/
@@ -4702,7 +4662,6 @@ into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 @return true if the aio operation succeeded */
-
 bool
 os_aio_windows_handle(
 /*==================*/
@@ -4998,7 +4957,6 @@ into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 @return true if the IO was successful */
-
 bool
 os_aio_linux_handle(
 /*================*/
@@ -5154,7 +5112,6 @@ found:
 Does simulated aio. This function should be called by an i/o-handler
 thread.
 @return true if the aio operation succeeded */
-
 bool
 os_aio_simulated_handle(
 /*====================*/
@@ -5515,7 +5472,6 @@ os_aio_array_validate(
 /**********************************************************************//**
 Validates the consistency the aio system.
 @return true if ok */
-
 bool
 os_aio_validate(void)
 /*=================*/
@@ -5577,7 +5533,6 @@ os_aio_print_segment_info(
 
 /**********************************************************************//**
 Prints info about the aio array. */
-
 void
 os_aio_print_array(
 /*==============*/
@@ -5621,7 +5576,6 @@ os_aio_print_array(
 
 /**********************************************************************//**
 Prints info of the aio arrays. */
-
 void
 os_aio_print(
 /*=========*/
@@ -5718,7 +5672,6 @@ os_aio_print(
 
 /**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
-
 void
 os_aio_refresh_stats(void)
 /*======================*/
@@ -5735,7 +5688,6 @@ os_aio_refresh_stats(void)
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations.
 @return true if all free */
-
 bool
 os_aio_all_slots_free(void)
 /*=======================*/
@@ -5823,7 +5775,6 @@ os_aio_print_pending_io_array(
 
 /** Prints all pending IO
 @param[in]	file	file where to print */
-
 void
 os_aio_print_pending_io(
 	FILE*	file)
@@ -5856,7 +5807,6 @@ os_aio_print_pending_io(
 #ifdef _WIN32
 /** Normalizes a directory path for Windows: converts '/' to '\'.
 @param[in,out] str A null-terminated Windows directory and file path */
-
 void
 os_normalize_path_for_win(
 	char*	str __attribute__((unused)))

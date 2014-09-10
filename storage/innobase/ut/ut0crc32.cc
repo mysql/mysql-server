@@ -273,7 +273,6 @@ ut_crc32_slice8(
 /********************************************************************//**
 Initializes the data structures used by ut_crc32(). Does not do any
 allocations, would not hurt if called twice, but would be pointless. */
-
 void
 ut_crc32_init()
 /*===========*/

@@ -38,7 +38,6 @@ InnoDB Native API
 /*********************************************************************//**
 Sets a lock on a table.
 @return error code or DB_SUCCESS */
-
 dberr_t
 ib_trx_lock_table_with_retry(
 /*=========================*/
@@ -114,7 +113,6 @@ run_again:
 Handles user errors and lock waits detected by the database engine.
 @return TRUE if it was a lock wait and we should continue running
 the query thread */
-
 ibool
 ib_handle_errors(
 /*=============*/

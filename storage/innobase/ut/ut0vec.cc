@@ -31,7 +31,6 @@ Created 4/6/2006 Osku Salerma
 
 /********************************************************************
 Create a new vector with the given initial size. */
-
 ib_vector_t*
 ib_vector_create(
 /*=============*/
@@ -61,7 +60,6 @@ ib_vector_create(
 /********************************************************************
 Resize the vector, currently the vector can only grow and we
 expand the number of elements it can hold by 2 times. */
-
 void
 ib_vector_resize(
 /*=============*/

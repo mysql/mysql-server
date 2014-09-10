@@ -39,13 +39,11 @@ Created 6/25/1996 Heikki Tuuri
 /*********************************************************************//**
 Opens a session.
 @return own: session object */
-
 sess_t*
 sess_open(void);
 /*============*/
 /*********************************************************************//**
 Closes a session, freeing the memory occupied by it. */
-
 void
 sess_close(
 /*=======*/

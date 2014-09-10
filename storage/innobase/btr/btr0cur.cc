@@ -242,7 +242,6 @@ btr_rec_free_externally_stored_fields(
 @param[in]	latch_mode	BTR_SEARCH_LEAF, ...
 @param[in]	cursor		cursor
 @param[in]	mtr		mini-transaction */
-
 void
 btr_cur_latch_leaves(
 	buf_block_t*		block,
@@ -405,7 +404,6 @@ btr_cur_latch_leaves(
 @param[in]	line		line where called
 @param[in]	mtr		mini-transaction
 @return true if success */
-
 bool
 btr_cur_optimistic_latch_leaves(
 	buf_block_t*	block,
@@ -713,7 +711,6 @@ If mode is PAGE_CUR_LE , cursor is left at the place where an insert of the
 search tuple should be performed in the B-tree. InnoDB does an insert
 immediately after the cursor. Thus, the cursor may end up on a user record,
 or on a page infimum record. */
-
 void
 btr_cur_search_to_nth_level(
 /*========================*/
@@ -1907,7 +1904,6 @@ used only for cases where-in latching is not needed.
 @param[in,out]	mtr	mtr
 @param[in]	mark_dirty
 			if true then mark the block as dirty */
-
 void
 btr_cur_search_to_nth_level_with_no_latch(
 	dict_index_t*		index,
@@ -2053,7 +2049,6 @@ btr_cur_search_to_nth_level_with_no_latch(
 
 /*****************************************************************//**
 Opens a cursor at either end of an index. */
-
 void
 btr_cur_open_at_index_side_func(
 /*============================*/
@@ -2421,7 +2416,6 @@ as they are not shared and so there is no need of latching.
 @param[in]	line		line where called
 @param[in,out]	mtr		mini transaction
 */
-
 void
 btr_cur_open_at_index_side_with_no_latch_func(
 	bool		from_left,
@@ -2515,7 +2509,6 @@ btr_cur_open_at_index_side_with_no_latch_func(
 
 /**********************************************************************//**
 Positions a cursor at a randomly chosen position within a B-tree. */
-
 void
 btr_cur_open_at_rnd_pos_func(
 /*=========================*/
@@ -2955,7 +2948,6 @@ not succeed if there is too little space on the page. If there is just
 one record on the page, the insert will always succeed; this is to
 prevent trying to split a page with just one record.
 @return DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
-
 dberr_t
 btr_cur_optimistic_insert(
 /*======================*/
@@ -3271,7 +3263,6 @@ holds an x-latch on the tree and on the cursor page. If the insert is
 made on the leaf level, to avoid deadlocks, mtr must also own x-latches
 to brothers of page, if those brothers exist.
 @return DB_SUCCESS or error number */
-
 dberr_t
 btr_cur_pessimistic_insert(
 /*=======================*/
@@ -3555,7 +3546,6 @@ btr_cur_update_in_place_log(
 /***********************************************************//**
 Parses a redo log record of updating a record in-place.
 @return end of log record or NULL */
-
 byte*
 btr_cur_parse_update_in_place(
 /*==========================*/
@@ -3643,7 +3633,6 @@ IMPORTANT: The caller will have to update IBUF_BITMAP_FREE if this is
 a secondary index leaf page. This has to be done either within the
 same mini-transaction, or by invoking ibuf_reset_free_bits() before
 mtr_commit(mtr). */
-
 bool
 btr_cur_update_alloc_zip_func(
 /*==========================*/
@@ -3723,7 +3712,6 @@ We assume here that the ordering fields of the record do not change.
 @retval DB_SUCCESS on success
 @retval DB_ZIP_OVERFLOW if there is not enough space left
 on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-
 dberr_t
 btr_cur_update_in_place(
 /*====================*/
@@ -3877,7 +3865,6 @@ fields of the record do not change.
 @retval DB_UNDERFLOW if the page would become too empty
 @retval DB_ZIP_OVERFLOW if there is not enough space left
 on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-
 dberr_t
 btr_cur_optimistic_update(
 /*======================*/
@@ -4173,7 +4160,6 @@ update is made on the leaf level, to avoid deadlocks, mtr must also
 own x-latches to brothers of page, if those brothers exist. We assume
 here that the ordering fields of the record do not change.
 @return DB_SUCCESS or error code */
-
 dberr_t
 btr_cur_pessimistic_update(
 /*=======================*/
@@ -4629,7 +4615,6 @@ btr_cur_del_mark_set_clust_rec_log(
 Parses the redo log record for delete marking or unmarking of a clustered
 index record.
 @return end of log record or NULL */
-
 byte*
 btr_cur_parse_del_mark_set_clust_rec(
 /*=================================*/
@@ -4713,7 +4698,6 @@ undo log on this delete marking. Writes in the trx id field the id
 of the deleting transaction, and in the roll ptr field pointer to the
 undo log record created.
 @return DB_SUCCESS, DB_LOCK_WAIT, or error number */
-
 dberr_t
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
@@ -4835,7 +4819,6 @@ btr_cur_del_mark_set_sec_rec_log(
 Parses the redo log record for delete marking or unmarking of a secondary
 index record.
 @return end of log record or NULL */
-
 byte*
 btr_cur_parse_del_mark_set_sec_rec(
 /*===============================*/
@@ -4879,7 +4862,6 @@ btr_cur_parse_del_mark_set_sec_rec(
 /***********************************************************//**
 Sets a secondary index record delete mark to TRUE or FALSE.
 @return DB_SUCCESS, DB_LOCK_WAIT, or error number */
-
 dberr_t
 btr_cur_del_mark_set_sec_rec(
 /*=========================*/
@@ -4928,7 +4910,6 @@ btr_cur_del_mark_set_sec_rec(
 /***********************************************************//**
 Sets a secondary index record's delete mark to the given value. This
 function is only used by the insert buffer merge mechanism. */
-
 void
 btr_cur_set_deleted_flag_for_ibuf(
 /*==============================*/
@@ -4960,7 +4941,6 @@ deadlocks, mtr must also own x-latches to brothers of page, if those
 brothers exist. NOTE: it is assumed that the caller has reserved enough
 free extents so that the compression will always succeed if done!
 @return TRUE if compression occurred */
-
 ibool
 btr_cur_compress_if_useful(
 /*=======================*/
@@ -5004,7 +4984,6 @@ Removes the record on which the tree cursor is positioned on a leaf page.
 It is assumed that the mtr has an x-latch on the page where the cursor is
 positioned, but no latch on the whole tree.
 @return TRUE if success, i.e., the page did not become too empty */
-
 ibool
 btr_cur_optimistic_delete_func(
 /*===========================*/
@@ -5115,7 +5094,6 @@ mtr must also own x-latches to brothers of page, if those brothers
 exist.
 @return TRUE if compression occurred and FALSE if not or something
 wrong. */
-
 ibool
 btr_cur_pessimistic_delete(
 /*=======================*/
@@ -5534,7 +5512,6 @@ inexact:
 /*******************************************************************//**
 Estimates the number of rows in a given index range.
 @return estimated number of rows */
-
 int64_t
 btr_estimate_n_rows_in_range(
 /*=========================*/
@@ -5739,7 +5716,6 @@ index->stat_n_sample_sizes[].
 If innodb_stats_method is nulls_ignored, we also record the number of
 non-null values for each prefix and stored the estimates in
 array index->stat_n_non_null_key_vals. */
-
 void
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
@@ -5992,7 +5968,6 @@ btr_rec_get_field_ref_offs(
 @param[in]	rec	record
 @param[in]	offsets	array returned by rec_get_offsets()
 @return externally stored part, in units of a database page */
-
 ulint
 btr_rec_get_externally_stored_len(
 	const rec_t*	rec,
@@ -6078,7 +6053,6 @@ Marks non-updated off-page fields as disowned by this record. The ownership
 must be transferred to the updated record which is inserted elsewhere in the
 index tree. In purge only the owner of externally stored field is allowed
 to free the field. */
-
 void
 btr_cur_disown_inherited_fields(
 /*============================*/
@@ -6146,7 +6120,6 @@ Flags the data tuple fields that are marked as extern storage in the
 update vector.  We use this function to remember which fields we must
 mark as extern storage in a record inserted for an update.
 @return number of flagged external columns */
-
 ulint
 btr_push_update_extern_fields(
 /*==========================*/
@@ -6410,7 +6383,6 @@ recovery will not fail when the big_rec was written to the extended portion of
 the file, in case the file was somehow truncated in the crash.
 
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-
 dberr_t
 btr_store_big_rec_extern_fields(
 /*============================*/
@@ -6952,7 +6924,6 @@ Frees the space in an externally stored field to the file space
 management if the field in data is owned by the externally stored field,
 in a rollback we may have the additional condition that the field must
 not be inherited. */
-
 void
 btr_free_externally_stored_field(
 /*=============================*/

@@ -276,7 +276,6 @@ dict_build_table_def_step(
 /***************************************************************//**
 Builds a tablespace, if configured (using file-per-table=1).
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_build_tablespace(
 /*===================*/
@@ -679,7 +678,6 @@ dict_build_index_def_step(
 /***************************************************************//**
 Builds an index definition without updating SYSTEM TABLES.
 @return DB_SUCCESS or error code */
-
 void
 dict_build_index_def(
 /*=================*/
@@ -819,7 +817,6 @@ dict_create_index_tree_step(
 Creates an index tree for the index if it is not a member of a cluster.
 Don't update SYSTEM TABLES.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-
 dberr_t
 dict_create_index_tree_in_mem(
 /*==========================*/
@@ -867,7 +864,6 @@ dict_create_index_tree_in_mem(
 /*******************************************************************//**
 Drops the index tree associated with a row in SYS_INDEXES table.
 @return index root page number of FIL_NULL if it was already freed. */
-
 ulint
 dict_drop_index_tree(
 /*=================*/
@@ -958,7 +954,6 @@ dict_drop_index_tree(
 
 /*******************************************************************//**
 Drops the index tree but don't update SYS_INDEXES table. */
-
 void
 dict_drop_index_tree_in_mem(
 /*========================*/
@@ -1001,7 +996,6 @@ dict_drop_index_tree_in_mem(
 /*******************************************************************//**
 Recreate the index tree associated with a row in SYS_INDEXES table.
 @return	new root page number, or FIL_NULL on failure */
-
 ulint
 dict_recreate_index_tree(
 /*=====================*/
@@ -1092,7 +1086,6 @@ dict_recreate_index_tree(
 /*******************************************************************//**
 Truncates the index tree but don't update SYSTEM TABLES.
 @return DB_SUCCESS or error */
-
 dberr_t
 dict_truncate_index_tree_in_mem(
 /*============================*/
@@ -1181,7 +1174,6 @@ dict_truncate_index_tree_in_mem(
 /*********************************************************************//**
 Creates a table create graph.
 @return own: table create node */
-
 tab_node_t*
 tab_create_graph_create(
 /*====================*/
@@ -1224,7 +1216,6 @@ tab_create_graph_create(
 /*********************************************************************//**
 Creates an index create graph.
 @return own: index create node */
-
 ind_node_t*
 ind_create_graph_create(
 /*====================*/
@@ -1268,7 +1259,6 @@ ind_create_graph_create(
 /***********************************************************//**
 Creates a table. This is a high-level function used in SQL execution graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 dict_create_table_step(
 /*===================*/
@@ -1371,7 +1361,6 @@ function_exit:
 Creates an index. This is a high-level function used in SQL execution
 graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 dict_create_index_step(
 /*===================*/
@@ -1580,7 +1569,6 @@ Creates the foreign key constraints system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
 not of the right form.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_create_or_check_foreign_constraint_tables(void)
 /*================================================*/
@@ -1815,7 +1803,6 @@ dict_create_add_foreign_field_to_dictionary(
 /********************************************************************//**
 Add a foreign key definition to the data dictionary tables.
 @return error code or DB_SUCCESS */
-
 dberr_t
 dict_create_add_foreign_to_dictionary(
 /*==================================*/
@@ -1939,7 +1926,6 @@ Creates the tablespaces and datafiles system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
 not of the right form.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_create_or_check_sys_tablespace(void)
 /*=====================================*/
@@ -2057,7 +2043,6 @@ dict_create_or_check_sys_tablespace(void)
 Add a single tablespace definition to the data dictionary tables in the
 database.
 @return error code or DB_SUCCESS */
-
 dberr_t
 dict_create_add_tablespace_to_dictionary(
 /*=====================================*/
