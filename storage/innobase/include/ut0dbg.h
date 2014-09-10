@@ -38,7 +38,6 @@ Created 1/30/1994 Heikki Tuuri
 
 /*************************************************************//**
 Report a failed assertion. */
-
 void
 ut_dbg_assertion_failed(
 /*====================*/

@@ -124,7 +124,6 @@ static srv_conc_t	srv_conc;
 
 #ifndef HAVE_ATOMIC_BUILTINS
 /** Initialise the concurrency management data structures. */
-
 void
 srv_conc_init(void)
 {
@@ -150,7 +149,6 @@ srv_conc_init(void)
 }
 
 /** Free the concurrency management data structures. */
-
 void
 srv_conc_free(void)
 {
@@ -498,7 +496,6 @@ retry:
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue.
 @param[in,out]	prebuilt	row prebuilt handler */
-
 void
 srv_conc_enter_innodb(
 	row_prebuilt_t*	prebuilt)
@@ -521,7 +518,6 @@ srv_conc_enter_innodb(
 /*********************************************************************//**
 This lets a thread enter InnoDB regardless of the number of threads inside
 InnoDB. This must be called when a thread ends a lock wait. */
-
 void
 srv_conc_force_enter_innodb(
 /*========================*/
@@ -556,7 +552,6 @@ srv_conc_force_enter_innodb(
 /*********************************************************************//**
 This must be called when a thread exits InnoDB in a lock wait or at the
 end of an SQL statement. */
-
 void
 srv_conc_force_exit_innodb(
 /*=======================*/
@@ -585,7 +580,6 @@ srv_conc_force_exit_innodb(
 
 /*********************************************************************//**
 Get the count of threads waiting inside InnoDB. */
-
 ulint
 srv_conc_get_waiting_threads(void)
 /*==============================*/
@@ -595,7 +589,6 @@ srv_conc_get_waiting_threads(void)
 
 /*********************************************************************//**
 Get the count of threads active inside InnoDB. */
-
 ulint
 srv_conc_get_active_threads(void)
 /*==============================*/

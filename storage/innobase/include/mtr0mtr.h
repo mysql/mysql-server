@@ -139,7 +139,6 @@ savepoint. */
 
 /** Append records to the system-wide redo log buffer.
 @param[in]	log	redo log records */
-
 void
 mtr_write_log(
 	const mtr_buf_t*	log);

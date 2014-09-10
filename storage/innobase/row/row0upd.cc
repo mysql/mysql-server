@@ -287,7 +287,6 @@ func_exit:
 /*********************************************************************//**
 Creates an update node for a query graph.
 @return own: update node */
-
 upd_node_t*
 upd_node_create(
 /*============*/
@@ -310,7 +309,6 @@ upd_node_create(
 /*********************************************************************//**
 Updates the trx id and roll ptr field in a clustered index record in database
 recovery. */
-
 void
 row_upd_rec_sys_fields_in_recovery(
 /*===============================*/
@@ -343,7 +341,6 @@ row_upd_rec_sys_fields_in_recovery(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Sets the trx id or roll ptr field of a clustered index entry. */
-
 void
 row_upd_index_entry_sys_field(
 /*==========================*/
@@ -380,7 +377,6 @@ Returns TRUE if row update changes size of some field in index or if some
 field to be updated is stored externally in rec or update.
 @return TRUE if the update changes the size of some field in index or
 the field is external in rec or update */
-
 ibool
 row_upd_changes_field_size_or_external(
 /*===================================*/
@@ -444,7 +440,6 @@ row_upd_changes_field_size_or_external(
 /***********************************************************//**
 Returns true if row update contains disowned external fields.
 @return true if the update contains disowned external fields. */
-
 bool
 row_upd_changes_disowned_external(
 /*==============================*/
@@ -489,7 +484,6 @@ record given. No field size changes are allowed. This function is
 usually invoked on a clustered index. The only use case for a
 secondary index is row_ins_sec_index_entry_by_modify() or its
 counterpart in ibuf_insert_to_index_page(). */
-
 void
 row_upd_rec_in_place(
 /*=================*/
@@ -536,7 +530,6 @@ row_upd_rec_in_place(
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record.
 @return new pointer to mlog */
-
 byte*
 row_upd_write_sys_vals_to_log(
 /*==========================*/
@@ -566,7 +559,6 @@ row_upd_write_sys_vals_to_log(
 /*********************************************************************//**
 Parses the log data of system field values.
 @return log data end or NULL */
-
 byte*
 row_upd_parse_sys_vals(
 /*===================*/
@@ -599,7 +591,6 @@ row_upd_parse_sys_vals(
 #ifndef UNIV_HOTBACKUP
 /***********************************************************//**
 Writes to the redo log the new values of the fields occurring in the index. */
-
 void
 row_upd_index_write_log(
 /*====================*/
@@ -674,7 +665,6 @@ row_upd_index_write_log(
 /*********************************************************************//**
 Parses the log data written by row_upd_index_write_log.
 @return log data end or NULL */
-
 byte*
 row_upd_index_parse(
 /*================*/
@@ -756,7 +746,6 @@ Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
 the fields as binary strings!
 @return own: update vector of differing fields */
-
 upd_t*
 row_upd_build_sec_rec_difference_binary(
 /*====================================*/
@@ -824,7 +813,6 @@ trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
-
 upd_t*
 row_upd_build_difference_binary(
 /*============================*/
@@ -1039,7 +1027,6 @@ row_upd_index_replace_new_col_val(
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
-
 void
 row_upd_index_replace_new_col_vals_index_pos(
 /*=========================================*/
@@ -1093,7 +1080,6 @@ row_upd_index_replace_new_col_vals_index_pos(
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
-
 void
 row_upd_index_replace_new_col_vals(
 /*===============================*/
@@ -1136,7 +1122,6 @@ row_upd_index_replace_new_col_vals(
 
 /***********************************************************//**
 Replaces the new column values stored in the update vector. */
-
 void
 row_upd_replace(
 /*============*/
@@ -1227,7 +1212,6 @@ This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings!
 @return TRUE if update vector changes an ordering field in the index record */
-
 ibool
 row_upd_changes_ord_field_binary_func(
 /*==================================*/
@@ -1350,7 +1334,6 @@ Checks if an update vector changes an ordering field of an index record.
 NOTE: we compare the fields as binary strings!
 @return TRUE if update vector may change an ordering field in an index
 record */
-
 ibool
 row_upd_changes_some_index_ord_field_binary(
 /*========================================*/
@@ -1381,7 +1364,6 @@ row_upd_changes_some_index_ord_field_binary(
 /***********************************************************//**
 Checks if an FTS Doc ID column is affected by an UPDATE.
 @return whether the Doc ID column is changed */
-
 bool
 row_upd_changes_doc_id(
 /*===================*/
@@ -1404,7 +1386,6 @@ row_upd_changes_doc_id(
 Checks if an FTS indexed column is affected by an UPDATE.
 @return offset within fts_t::indexes if FTS indexed column updated else
 ULINT_UNDEFINED */
-
 ulint
 row_upd_changes_fts_column(
 /*=======================*/
@@ -1531,7 +1512,6 @@ row_upd_eval_new_vals(
 
 /***********************************************************//**
 Stores to the heap the row on which the node->pcur is positioned. */
-
 void
 row_upd_store_row(
 /*==============*/
@@ -2492,7 +2472,6 @@ to this node, we assume that we have a persistent cursor which was on a
 record, and the position of the cursor is stored in the cursor.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-
 dberr_t
 row_upd(
 /*====*/
@@ -2592,7 +2571,6 @@ row_upd(
 Updates a row in a table. This is a high-level function used in SQL execution
 graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_upd_step(
 /*=========*/

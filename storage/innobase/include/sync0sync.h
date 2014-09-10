@@ -191,7 +191,6 @@ os_atomic_inc_ulint_func(
 /**
 Prints info of the sync system.
 @param file - where to print */
-
 void
 sync_print(FILE* file);
 

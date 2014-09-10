@@ -1134,7 +1134,6 @@ srv_start_state_is_set(
 
 /****************************************************************//**
 Shutdown all background threads created by InnoDB. */
-
 void
 srv_shutdown_all_bg_threads()
 /*=========================*/
@@ -1245,7 +1244,6 @@ srv_init_abort_low(
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
 @return DB_SUCCESS or error code */
-
 dberr_t
 innobase_start_or_create_for_mysql(void)
 /*====================================*/
@@ -2487,7 +2485,6 @@ srv_fts_close(void)
 /****************************************************************//**
 Shuts down the InnoDB database.
 @return DB_SUCCESS or error code */
-
 dberr_t
 innobase_shutdown_for_mysql(void)
 /*=============================*/
@@ -2615,7 +2612,6 @@ innobase_shutdown_for_mysql(void)
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do
 so. */
-
 void
 srv_shutdown_table_bg_threads(void)
 /*===============================*/
@@ -2691,7 +2687,6 @@ srv_shutdown_table_bg_threads(void)
 
 /*****************************************************************//**
 Get the meta-data filename from the table name. */
-
 void
 srv_get_meta_data_filename(
 /*=======================*/

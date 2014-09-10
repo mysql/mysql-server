@@ -341,7 +341,6 @@ fts_zip_init(
 /**********************************************************************//**
 Create a fts_optimizer_word_t instance.
 @return new instance */
-
 fts_word_t*
 fts_word_init(
 /*==========*/
@@ -426,7 +425,6 @@ fts_optimize_read_node(
 /**********************************************************************//**
 Callback function to fetch the rows in an FTS INDEX record.
 @return always returns non-NULL */
-
 ibool
 fts_optimize_index_fetch_node(
 /*==========================*/
@@ -484,7 +482,6 @@ fts_optimize_index_fetch_node(
 /**********************************************************************//**
 Read the rows from the FTS inde.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_index_fetch_nodes(
 /*==================*/
@@ -985,7 +982,6 @@ fts_fetch_doc_ids(
 /**********************************************************************//**
 Read the rows from a FTS common auxiliary table.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_table_fetch_doc_ids(
 /*====================*/
@@ -1056,7 +1052,6 @@ fts_table_fetch_doc_ids(
 Do a binary search for a doc id in the array
 @return +ve index if found -ve index where it should be inserted
         if not found */
-
 int
 fts_bsearch(
 /*========*/
@@ -1537,7 +1532,6 @@ fts_optimize_write_word(
 
 /**********************************************************************//**
 Free fts_optimizer_word_t instanace.*/
-
 void
 fts_word_free(
 /*==========*/
@@ -2486,7 +2480,6 @@ fts_optimize_table_bk(
 /*********************************************************************//**
 Run OPTIMIZE on the given table.
 @return DB_SUCCESS if all OK */
-
 dberr_t
 fts_optimize_table(
 /*===============*/
@@ -2603,7 +2596,6 @@ fts_optimize_create_msg(
 
 /**********************************************************************//**
 Add the table to add to the OPTIMIZER's list. */
-
 void
 fts_optimize_add_table(
 /*===================*/
@@ -2625,7 +2617,6 @@ fts_optimize_add_table(
 
 /**********************************************************************//**
 Optimize a table. */
-
 void
 fts_optimize_do_table(
 /*==================*/
@@ -2646,7 +2637,6 @@ fts_optimize_do_table(
 /**********************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for
 acknowledgement from the consumer of the message. */
-
 void
 fts_optimize_remove_table(
 /*======================*/
@@ -2968,7 +2958,6 @@ fts_optimize_need_sync(
 /**********************************************************************//**
 Optimize all FTS tables.
 @return Dummy return */
-
 os_thread_ret_t
 fts_optimize_thread(
 /*================*/
@@ -3148,7 +3137,6 @@ fts_optimize_thread(
 
 /**********************************************************************//**
 Startup the optimize thread and create the work queue. */
-
 void
 fts_optimize_init(void)
 /*===================*/
@@ -3168,7 +3156,6 @@ fts_optimize_init(void)
 /**********************************************************************//**
 Check whether the work queue is initialized.
 @return TRUE if optimze queue is initialized. */
-
 ibool
 fts_optimize_is_init(void)
 /*======================*/
@@ -3178,7 +3165,6 @@ fts_optimize_is_init(void)
 
 /**********************************************************************//**
 Signal the optimize thread to prepare for shutdown. */
-
 void
 fts_optimize_start_shutdown(void)
 /*=============================*/
@@ -3217,7 +3203,6 @@ fts_optimize_start_shutdown(void)
 
 /**********************************************************************//**
 Reset the work queue. */
-
 void
 fts_optimize_end(void)
 /*==================*/

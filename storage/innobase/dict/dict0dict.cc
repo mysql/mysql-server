@@ -204,7 +204,6 @@ ib_mutex_t	dict_foreign_err_mutex;
 /********************************************************************//**
 Checks if the database name in two table names is the same.
 @return TRUE if same db name */
-
 ibool
 dict_tables_have_same_db(
 /*=====================*/
@@ -225,7 +224,6 @@ dict_tables_have_same_db(
 /********************************************************************//**
 Return the end of table name where we have removed dbname and '/'.
 @return table name */
-
 const char*
 dict_remove_db_name(
 /*================*/
@@ -241,7 +239,6 @@ dict_remove_db_name(
 /********************************************************************//**
 Get the database name length in a table name.
 @return database name length */
-
 ulint
 dict_get_db_name_len(
 /*=================*/
@@ -256,7 +253,6 @@ dict_get_db_name_len(
 
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
-
 void
 dict_mutex_enter_for_mysql(void)
 /*============================*/
@@ -266,7 +262,6 @@ dict_mutex_enter_for_mysql(void)
 
 /********************************************************************//**
 Releases the dictionary system mutex for MySQL. */
-
 void
 dict_mutex_exit_for_mysql(void)
 /*===========================*/
@@ -310,7 +305,6 @@ or from a thread that has not shared the table object with other threads.
 @param[in,out]	table	table whose stats latch to create
 @param[in]	enabled	if false then the latch is disabled
 and dict_table_stats_lock()/unlock() become noop on this table. */
-
 void
 dict_table_stats_latch_create(
 	dict_table_t*	table,
@@ -338,7 +332,6 @@ dict_table_stats_latch_create(
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
 @param[in,out]	table	table whose stats latch to destroy */
-
 void
 dict_table_stats_latch_destroy(
 	dict_table_t*	table)
@@ -353,7 +346,6 @@ dict_table_stats_latch_destroy(
 /** Lock the appropriate latch to protect a given table's statistics.
 @param[in]	table		table whose stats to lock
 @param[in]	latch_mode	RW_S_LATCH or RW_X_LATCH */
-
 void
 dict_table_stats_lock(
 	dict_table_t*	table,
@@ -394,7 +386,6 @@ dict_table_stats_lock(
 /** Unlock the latch that has been locked by dict_table_stats_lock().
 @param[in]	table		table whose stats to unlock
 @param[in]	latch_mode	RW_S_LATCH or RW_X_LATCH */
-
 void
 dict_table_stats_unlock(
 	dict_table_t*	table,
@@ -496,7 +487,6 @@ dict_table_try_drop_aborted_and_mutex_exit(
 
 /********************************************************************//**
 Decrements the count of open handles to a table. */
-
 void
 dict_table_close(
 /*=============*/
@@ -569,7 +559,6 @@ that dict_sys->mutex is held the whole time.  This assures that the table
 is not evicted after the close when the count of open handles goes to zero.
 Because dict_sys->mutex is held, we do not need to call
 dict_table_prevent_eviction().  */
-
 void
 dict_table_close_and_drop(
 /*======================*/
@@ -601,7 +590,6 @@ dict_table_close_and_drop(
 @param[in]	col_nr		column number guessed, 0 as default
 @return column number if the table has the specified column,
 otherwise table->n_def */
-
 ulint
 dict_table_has_column(
 	const dict_table_t*	table,
@@ -637,7 +625,6 @@ dict_table_has_column(
 Returns a column's name.
 @return column name. NOTE: not guaranteed to stay valid if table is
 modified in any way (columns added, etc.). */
-
 const char*
 dict_table_get_col_name(
 /*====================*/
@@ -664,7 +651,6 @@ dict_table_get_col_name(
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Acquire the autoinc lock. */
-
 void
 dict_table_autoinc_lock(
 /*====================*/
@@ -675,7 +661,6 @@ dict_table_autoinc_lock(
 
 /********************************************************************//**
 Unconditionally set the autoinc counter. */
-
 void
 dict_table_autoinc_initialize(
 /*==========================*/
@@ -690,7 +675,6 @@ dict_table_autoinc_initialize(
 /************************************************************************
 Get all the FTS indexes on a table.
 @return number of FTS indexes */
-
 ulint
 dict_table_get_all_fts_indexes(
 /*===========================*/
@@ -718,7 +702,6 @@ dict_table_get_all_fts_indexes(
 Reads the next autoinc value (== autoinc counter value), 0 if not yet
 initialized.
 @return value for a new row, or 0 */
-
 ib_uint64_t
 dict_table_autoinc_read(
 /*====================*/
@@ -732,7 +715,6 @@ dict_table_autoinc_read(
 /********************************************************************//**
 Updates the autoinc counter if the value supplied is greater than the
 current value. */
-
 void
 dict_table_autoinc_update_if_greater(
 /*=================================*/
@@ -750,7 +732,6 @@ dict_table_autoinc_update_if_greater(
 
 /********************************************************************//**
 Release the autoinc lock. */
-
 void
 dict_table_autoinc_unlock(
 /*======================*/
@@ -764,7 +745,6 @@ dict_table_autoinc_unlock(
 Looks for column n in an index.
 @return position in internal representation of the index;
 ULINT_UNDEFINED if not contained */
-
 ulint
 dict_index_get_nth_col_or_prefix_pos(
 /*=================================*/
@@ -807,7 +787,6 @@ dict_index_get_nth_col_or_prefix_pos(
 /********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.
 @return TRUE if contains the column or its prefix */
-
 ibool
 dict_index_contains_col_or_prefix(
 /*==============================*/
@@ -850,7 +829,6 @@ column in index2. That is, we must be able to construct the prefix in index2
 from the prefix in index.
 @return position in internal representation of the index;
 ULINT_UNDEFINED if not contained */
-
 ulint
 dict_index_get_nth_field_pos(
 /*=========================*/
@@ -888,7 +866,6 @@ dict_index_get_nth_field_pos(
 /**********************************************************************//**
 Returns a table object based on table id.
 @return table, NULL if does not exist */
-
 dict_table_t*
 dict_table_open_on_id(
 /*==================*/
@@ -932,7 +909,6 @@ dict_table_open_on_id(
 /********************************************************************//**
 Looks for column n position in the clustered index.
 @return position in internal representation of the clustered index */
-
 ulint
 dict_table_get_nth_col_pos(
 /*=======================*/
@@ -947,7 +923,6 @@ dict_table_get_nth_col_pos(
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns.
 @return TRUE if the column, or its prefix, is in the clustered key */
-
 ibool
 dict_table_col_in_clustered_key(
 /*============================*/
@@ -982,7 +957,6 @@ dict_table_col_in_clustered_key(
 
 /**********************************************************************//**
 Inits the data dictionary module. */
-
 void
 dict_init(void)
 /*===========*/
@@ -1013,7 +987,6 @@ dict_init(void)
 
 /**********************************************************************//**
 Move to the most recently used segment of the LRU list. */
-
 void
 dict_move_to_mru(
 /*=============*/
@@ -1038,7 +1011,6 @@ NOTE! This is a high-level function to be used mainly from outside the
 'dict' module. Inside this directory dict_table_get_low
 is usually the appropriate function.
 @return table, NULL if does not exist */
-
 dict_table_t*
 dict_table_open_on_name(
 /*====================*/
@@ -1111,7 +1083,6 @@ dict_table_open_on_name(
 
 /**********************************************************************//**
 Adds system columns to a table object. */
-
 void
 dict_table_add_system_columns(
 /*==========================*/
@@ -1194,7 +1165,6 @@ dict_table_set_big_rows(
 
 /**********************************************************************//**
 Adds a table object to the dictionary cache. */
-
 void
 dict_table_add_to_cache(
 /*====================*/
@@ -1338,7 +1308,6 @@ should not be part of FK relationship and currently not used in any user
 transaction. There is no guarantee that it will remove a table.
 @return number of tables evicted. If the number of tables in the dict_LRU
 is less than max_tables it will not do anything. */
-
 ulint
 dict_make_room_in_cache(
 /*====================*/
@@ -1398,7 +1367,6 @@ dict_make_room_in_cache(
 
 /**********************************************************************//**
 Move a table to the non-LRU list from the LRU list. */
-
 void
 dict_table_move_from_lru_to_non_lru(
 /*================================*/
@@ -1420,7 +1388,6 @@ dict_table_move_from_lru_to_non_lru(
 @param[in]	table	table instance
 @param[in]	id	index id
 @return index or NULL */
-
 dict_index_t*
 dict_table_find_index_on_id(
 	const dict_table_t*	table,
@@ -1447,7 +1414,6 @@ Looks for an index with the given id. NOTE that we do not reserve
 the dictionary mutex: this function is for emergency purposes like
 printing info of a corrupt database page!
 @return index or NULL if not found in cache */
-
 dict_index_t*
 dict_index_find_on_id_low(
 /*======================*/
@@ -1504,7 +1470,6 @@ struct dict_foreign_remove_partial
 /**********************************************************************//**
 Renames a table object.
 @return TRUE if success */
-
 dberr_t
 dict_table_rename_in_cache(
 /*=======================*/
@@ -1908,7 +1873,6 @@ dict_table_rename_in_cache(
 /**********************************************************************//**
 Change the id of a table object in the dictionary cache. This is used in
 DISCARD TABLESPACE. */
-
 void
 dict_table_change_id_in_cache(
 /*==========================*/
@@ -2029,7 +1993,6 @@ dict_table_remove_from_cache_low(
 
 /**********************************************************************//**
 Removes a table object from the dictionary cache. */
-
 void
 dict_table_remove_from_cache(
 /*=========================*/
@@ -2042,7 +2005,6 @@ dict_table_remove_from_cache(
 If the given column name is reserved for InnoDB system columns, return
 TRUE.
 @return TRUE if name is reserved */
-
 ibool
 dict_col_name_is_reserved(
 /*======================*/
@@ -2228,7 +2190,6 @@ is_ord_part:
 /****************************************************************//**
 Return maximum size of the node pointer record.
 @return maximum size of the record in bytes */
-
 ulint
 dict_index_node_ptr_max_size(
 /*=========================*/
@@ -2487,7 +2448,6 @@ add_field_size:
 /**********************************************************************//**
 Adds an index to the dictionary cache.
 @return DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
-
 dberr_t
 dict_index_add_to_cache(
 /*====================*/
@@ -2805,7 +2765,6 @@ dict_index_remove_from_cache_low(
 
 /**********************************************************************//**
 Removes an index from the dictionary cache. */
-
 void
 dict_index_remove_from_cache(
 /*=========================*/
@@ -2881,7 +2840,6 @@ found:
 
 /*******************************************************************//**
 Adds a column to index. */
-
 void
 dict_index_add_col(
 /*===============*/
@@ -2968,7 +2926,6 @@ dict_index_copy(
 
 /*******************************************************************//**
 Copies types of fields contained in index to tuple. */
-
 void
 dict_index_copy_types(
 /*==================*/
@@ -3003,7 +2960,6 @@ dict_index_copy_types(
 Copies types of columns contained in table to tuple and sets all
 fields of the tuple to the SQL NULL value.  This function should
 be called right after dtuple_create(). */
-
 void
 dict_table_copy_types(
 /*==================*/
@@ -3026,7 +2982,6 @@ dict_table_copy_types(
 Wait until all the background threads of the given table have exited, i.e.,
 bg_threads == 0. Note: bg_threads_mutex must be reserved when
 calling this. */
-
 void
 dict_table_wait_for_bg_threads_to_exit(
 /*===================================*/
@@ -3374,7 +3329,6 @@ dict_index_build_internal_fts(
 /*********************************************************************//**
 Checks if a table is referenced by foreign keys.
 @return TRUE if table is referenced by a foreign key */
-
 ibool
 dict_table_is_referenced_by_foreign_key(
 /*====================================*/
@@ -3388,7 +3342,6 @@ Check if the index is referenced by a foreign key, if TRUE return foreign
 else return NULL
 @return pointer to foreign key struct if index is defined for foreign
 key, otherwise NULL */
-
 dict_foreign_t*
 dict_table_get_referenced_constraint(
 /*=================================*/
@@ -3421,7 +3374,6 @@ of a foreign key constraint if the index is referenced by foreign key
 or index is a foreign key index.
 @return pointer to foreign key struct if index is defined for foreign
 key, otherwise NULL */
-
 dict_foreign_t*
 dict_table_get_foreign_constraint(
 /*==============================*/
@@ -3450,7 +3402,6 @@ dict_table_get_foreign_constraint(
 
 /**********************************************************************//**
 Removes a foreign constraint struct from the dictionary cache. */
-
 void
 dict_foreign_remove_from_cache(
 /*===========================*/
@@ -3507,7 +3458,6 @@ Tries to find an index whose first fields are the columns in the array,
 in the same order and is not marked for deletion and is not the same
 as types_idx.
 @return matching index, NULL if not found */
-
 dict_index_t*
 dict_foreign_find_index(
 /*====================*/
@@ -3599,7 +3549,6 @@ the object if there already is an object with the same identifier in.
 At least one of the foreign table and the referenced table must already
 be in the dictionary cache!
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_foreign_add_to_cache(
 /*======================*/
@@ -4030,7 +3979,6 @@ Open a table from its database and table name, this is currently used by
 foreign constraint parser to get the referenced table.
 @return complete table name with database and table name, allocated from
 heap memory passed in */
-
 char*
 dict_get_referenced_table(
 /*======================*/
@@ -4302,7 +4250,6 @@ Finds the highest [number] for foreign key constraints of the table. Looks
 only at the >= 4.0.18-format id's, which are of the form
 databasename/tablename_ibfk_[number].
 @return highest number, 0 if table has no new format foreign key constraints */
-
 ulint
 dict_table_get_highest_foreign_id(
 /*==============================*/
@@ -4977,7 +4924,6 @@ try_find_index:
 /**************************************************************************
 Determines whether a string starts with the specified keyword.
 @return TRUE if str starts with keyword */
-
 ibool
 dict_str_starts_with_keyword(
 /*=========================*/
@@ -5013,7 +4959,6 @@ fields than mentioned in the constraint.
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
 @return error code or DB_SUCCESS */
-
 dberr_t
 dict_create_foreign_constraints(
 	trx_t*			trx,
@@ -5047,7 +4992,6 @@ dict_create_foreign_constraints(
 Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement.
 @return DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the
 constraint id does not match */
-
 dberr_t
 dict_foreign_parse_drop_constraints(
 /*================================*/
@@ -5181,7 +5125,6 @@ syntax_error:
 Returns an index object if it is found in the dictionary cache.
 Assumes that dict_sys->mutex is already being held.
 @return index, NULL if not found */
-
 dict_index_t*
 dict_index_get_if_in_cache_low(
 /*===========================*/
@@ -5196,7 +5139,6 @@ dict_index_get_if_in_cache_low(
 /**********************************************************************//**
 Returns an index object if it is found in the dictionary cache.
 @return index, NULL if not found */
-
 dict_index_t*
 dict_index_get_if_in_cache(
 /*=======================*/
@@ -5223,7 +5165,6 @@ dict_index_get_if_in_cache(
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer.
 @return TRUE if ok */
-
 ibool
 dict_index_check_search_tuple(
 /*==========================*/
@@ -5240,7 +5181,6 @@ dict_index_check_search_tuple(
 /**********************************************************************//**
 Builds a node pointer out of a physical record and a page number.
 @return own: node pointer */
-
 dtuple_t*
 dict_index_build_node_ptr(
 /*======================*/
@@ -5310,7 +5250,6 @@ dict_index_build_node_ptr(
 Copies an initial segment of a physical record, long enough to specify an
 index entry uniquely.
 @return pointer to the prefix record */
-
 rec_t*
 dict_index_copy_rec_order_prefix(
 /*=============================*/
@@ -5340,7 +5279,6 @@ dict_index_copy_rec_order_prefix(
 /**********************************************************************//**
 Builds a typed data tuple out of a physical record.
 @return own: data tuple */
-
 dtuple_t*
 dict_index_build_data_tuple(
 /*========================*/
@@ -5367,7 +5305,6 @@ dict_index_build_data_tuple(
 
 /*********************************************************************//**
 Calculates the minimum record length in an index. */
-
 ulint
 dict_index_calc_min_rec_len(
 /*========================*/
@@ -5419,7 +5356,6 @@ dict_index_calc_min_rec_len(
 /**********************************************************************//**
 Outputs info on a foreign key of a table in a format suitable for
 CREATE TABLE. */
-
 void
 dict_print_info_on_foreign_key_in_create_format(
 /*============================================*/
@@ -5516,7 +5452,6 @@ dict_print_info_on_foreign_key_in_create_format(
 
 /**********************************************************************//**
 Outputs info on foreign keys of a table. */
-
 void
 dict_print_info_on_foreign_keys(
 /*============================*/
@@ -5601,7 +5536,6 @@ dict_print_info_on_foreign_keys(
 
 /********************************************************************//**
 Displays the names of the index and the table. */
-
 void
 dict_index_name_print(
 /*==================*/
@@ -5658,7 +5592,6 @@ dict_find_table_by_space(
 Flags a table with specified space_id corrupted in the data dictionary
 cache
 @return TRUE if successful */
-
 ibool
 dict_set_corrupted_by_space(
 /*========================*/
@@ -5682,7 +5615,6 @@ dict_set_corrupted_by_space(
 /**********************************************************************//**
 Flags an index corrupted both in the data dictionary cache
 and in the SYS_INDEXES */
-
 void
 dict_set_corrupted(
 /*===============*/
@@ -5789,7 +5721,6 @@ func_exit:
 Flags an index corrupted in the data dictionary cache only. This
 is used mostly to mark a corrupted index when index's own dictionary
 is corrupted, and we force to load such index for repair purpose */
-
 void
 dict_set_corrupted_index_cache_only(
 /*================================*/
@@ -5820,7 +5751,6 @@ dict_set_corrupted_index_cache_only(
 
 /**********************************************************************//**
 Inits dict_ind_redundant. */
-
 void
 dict_ind_init(void)
 /*===============*/
@@ -5860,7 +5790,6 @@ dict_ind_free(void)
 /**********************************************************************//**
 Get index by name
 @return index, NULL if does not exist */
-
 dict_index_t*
 dict_table_get_index_on_name(
 /*=========================*/
@@ -5892,7 +5821,6 @@ dict_table_get_index_on_name(
 Replace the index passed in with another equivalent index in the
 foreign key lists of the table.
 @return whether all replacements were found */
-
 bool
 dict_foreign_replace_index(
 /*=======================*/
@@ -5965,7 +5893,6 @@ dict_foreign_replace_index(
 In case there is more than one index with the same name return the index
 with the min(id).
 @return index, NULL if does not exist */
-
 dict_index_t*
 dict_table_get_index_on_name_and_min_id(
 /*=====================================*/
@@ -5996,7 +5923,6 @@ dict_table_get_index_on_name_and_min_id(
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Check for duplicate index entries in a table [using the index name] */
-
 void
 dict_table_check_for_dup_indexes(
 /*=============================*/
@@ -6070,7 +5996,6 @@ types. The order of the columns does not matter.
 The caller must own the dictionary mutex.
 dict_table_schema_check() @{
 @return DB_SUCCESS if the table exists and contains the necessary columns */
-
 dberr_t
 dict_table_schema_check(
 /*====================*/
@@ -6236,7 +6161,6 @@ Converts a database and table name from filesystem encoding
 (e.g. d@i1b/a@q1b@1Kc, same format as used in dict_table_t::name) in two
 strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must be
 at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes. */
-
 void
 dict_fs2utf8(
 /*=========*/
@@ -6296,7 +6220,6 @@ dict_fs2utf8(
 }
 
 /** Resize the hash tables besed on the current buffer pool size. */
-
 void
 dict_resize()
 {
@@ -6345,7 +6268,6 @@ dict_resize()
 
 /**********************************************************************//**
 Closes the data dictionary module. */
-
 void
 dict_close(void)
 /*============*/
@@ -6486,7 +6408,6 @@ Check an index to see whether its first fields are the columns in the array,
 in the same order and is not marked for deletion and is not the same
 as types_idx.
 @return true if the index qualifies, otherwise false */
-
 bool
 dict_foreign_qualify_index(
 /*=======================*/
@@ -6645,7 +6566,6 @@ dict_index_zip_pad_update(
 /*********************************************************************//**
 This function should be called whenever a page is successfully
 compressed. Updates the compression padding information. */
-
 void
 dict_index_zip_success(
 /*===================*/
@@ -6668,7 +6588,6 @@ dict_index_zip_success(
 /*********************************************************************//**
 This function should be called whenever a page compression attempt
 fails. Updates the compression padding information. */
-
 void
 dict_index_zip_failure(
 /*===================*/
@@ -6692,7 +6611,6 @@ dict_index_zip_failure(
 /*********************************************************************//**
 Return the optimal page size, for which page will likely compress.
 @return page size beyond which page might not compress */
-
 ulint
 dict_index_zip_pad_optimal_page_size(
 /*=================================*/
@@ -6735,7 +6653,6 @@ dict_index_zip_pad_optimal_page_size(
 /*************************************************************//**
 Convert table flag to row format string.
 @return row format name. */
-
 const char*
 dict_tf_to_row_format_string(
 /*=========================*/

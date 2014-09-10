@@ -869,7 +869,6 @@ is relatively quick and is used to calculate transient statistics that
 are not saved on disk.
 This was the only way to calculate statistics before the
 Persistent Statistics feature was introduced. */
-
 void
 dict_stats_update_transient(
 /*========================*/
@@ -3010,7 +3009,6 @@ dict_stats_fetch_from_ps(
 
 /*********************************************************************//**
 Fetches or calculates new estimates for index statistics. */
-
 void
 dict_stats_update_for_index(
 /*========================*/
@@ -3059,7 +3057,6 @@ dict_stats_update_for_index(
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_stats_update(
 /*==============*/
@@ -3292,7 +3289,6 @@ marko: If ibuf merges are not disabled, we need to scan the *.ibd files.
 But we shouldn't open *.ibd files before we have rolled back dict
 transactions and opened the SYS_* records for the *.ibd files.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_stats_drop_index(
 /*==================*/
@@ -3454,7 +3450,6 @@ Removes the statistics for a table and all of its indexes from the
 persistent statistics storage if it exists and if there is data stored for
 the table. This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_stats_drop_table(
 /*==================*/
@@ -3622,7 +3617,6 @@ dict_stats_rename_table_in_index_stats(
 Renames a table in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
-
 dberr_t
 dict_stats_rename_table(
 /*====================*/
@@ -3780,7 +3774,6 @@ Renames an index in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code. DB_STATS_DO_NOT_EXIST will be returned
 if the persistent stats do not exist. */
-
 dberr_t
 dict_stats_rename_index(
 /*====================*/

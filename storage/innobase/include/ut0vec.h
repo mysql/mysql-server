@@ -64,7 +64,6 @@ freeing it when done with the vector.
 
 /********************************************************************
 Create a new vector with the given initial size. */
-
 ib_vector_t*
 ib_vector_create(
 /*=============*/
@@ -124,7 +123,6 @@ ib_vector_size(
 
 /********************************************************************
 Increase the size of the vector. */
-
 void
 ib_vector_resize(
 /*=============*/

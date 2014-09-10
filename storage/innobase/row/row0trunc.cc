@@ -1604,7 +1604,6 @@ Truncates a table for MySQL.
 @param table		table being truncated
 @param trx		transaction covering the truncate
 @return	error code or DB_SUCCESS */
-
 dberr_t
 row_truncate_table_for_mysql(
 	dict_table_t* table,

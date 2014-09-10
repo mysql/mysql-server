@@ -83,6 +83,11 @@ my_bool opt_insecure= FALSE;
 my_bool opt_verbose= FALSE;
 my_bool opt_ssl= FALSE;
 
+/**
+  Connection options.
+  @note first element must be 'help' and last element must be
+  the end token: {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+*/
 static struct my_option my_connection_options[]=
 {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG,
@@ -95,8 +100,7 @@ static struct my_option my_connection_options[]=
     &opt_builddir, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"srcdir", 0, "For internal use. This option specifies the directory under"
     " which mysql_install_db looks for support files such as the error"
-    " message file and the file for populating the help tables."
-    "This option was added in MySQL 5.0.32.", &opt_srcdir,
+    " message file and the file for populating the help tables.", &opt_srcdir,
     0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"basedir", 0, "The path to the MySQL installation directory.",
     &opt_basedir, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -112,33 +116,33 @@ static struct my_option my_connection_options[]=
   "admin-host options. Use the login-path option to change the default "
   "credential category (default is 'client').",
     &opt_adminlogin, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"extra-sql-file", 'f', "Optional SQL file to execute during bootstrap",
+  {"extra-sql-file", 'f', "Optional SQL file to execute during bootstrap.",
     &opt_sqlfile, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"admin-user", 0, "Username part of the default admin account",
+  {"admin-user", 0, "Username part of the default admin account.",
     &opt_adminuser, 0, 0, GET_STR_ALLOC, REQUIRED_ARG,
     (longlong)&default_adminuser, 0, 0, 0, 0, 0},
-  {"admin-host", 0, "Hostname part of the default admin account",
+  {"admin-host", 0, "Hostname part of the default admin account.",
     &opt_adminhost, 0, 0, GET_STR_ALLOC,REQUIRED_ARG,
     (longlong)&default_adminhost, 0, 0, 0, 0, 0},
-  {"admin-auth-plugin", 0, "Plugin to use for the default admin account",
+  {"admin-auth-plugin", 0, "Plugin to use for the default admin account.",
     &opt_authplugin, 0, 0, GET_STR_ALLOC, REQUIRED_ARG,
     (longlong)&default_authplugin, 0, 0, 0, 0, 0},
-  {"admin-require-ssl", 0, "Default SSL/TLS restrictions for the default admin "
-    "account", &opt_ssl, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"mysqld-file", 0, "Qualified path to the mysqld binary", &opt_mysqldfile,
+  {"admin-require-ssl", 0, "Require SSL/TLS for the default admin account.",
+   &opt_ssl, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"mysqld-file", 0, "Qualified path to the mysqld binary.", &opt_mysqldfile,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"random-password-file", 0, "Specifies the qualified path to the "
-     ".mysql_secret temporary password file", &opt_randpwdfile,
+     ".mysql_secret temporary password file.", &opt_randpwdfile,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
-  {"insecure", 0, "Disables random passwords for the default admin account",
+  {"insecure", 0, "Disables random passwords for the default admin account.",
    &opt_insecure, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"verbose", 'v', "Be more verbose when running program",
+  {"verbose", 'v', "Be more verbose when running program.",
    &opt_verbose, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"version", 'V', "Print program version and exit",
+  {"version", 'V', "Print program version and exit.",
    &opt_verbose, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"lc-messages-dir", 'l', "Specifies the path to the language files",
+  {"lc-messages-dir", 'l', "Specifies the path to the language files.",
    &opt_langpath, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lc-messages", 0, "Specifies the language to use.", &opt_lang,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong)&default_lang, 0, 0, 0, 0, 0},
@@ -148,7 +152,7 @@ static struct my_option my_connection_options[]=
     &opt_defaults, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"defaults-file", 0, "Use only the given option file.",
     &opt_defaults_file, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"defaults-extra-file", 0, "Read this file after the global files are read",
+  {"defaults-extra-file", 0, "Read this file after the global files are read.",
     &opt_def_extra_file, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   /* End token */
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -1158,7 +1162,11 @@ int generate_password_file(Path &pwdfile, const string &adminuser,
   return ALL_OK;
 }
 
-
+int connection_options_sorter(const void *a, const void *b)
+{
+  return strcmp(static_cast<const my_option*>(a)->name,
+                static_cast<const my_option *>(b)->name);
+}
 
 int main(int argc,char *argv[])
 {
@@ -1176,6 +1184,13 @@ int main(int argc,char *argv[])
   my_getopt_use_args_separator= TRUE;
   if (load_defaults("my", load_default_groups, &argc, &argv))
     return 1;
+
+  // Assert that the help messages are in sorted order
+  // except that --help must be the first element and 0 must indicate the end.
+  my_qsort(my_connection_options + 1,
+           sizeof(my_connection_options)/sizeof(my_option) - 2,
+           sizeof(my_option),
+           connection_options_sorter);
 
   int rc= 0;
   if ((rc= handle_options(&argc, &argv, my_connection_options,
