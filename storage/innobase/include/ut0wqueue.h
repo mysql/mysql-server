@@ -42,14 +42,12 @@ struct ib_wqueue_t;
 /****************************************************************//**
 Create a new work queue.
 @return work queue */
-
 ib_wqueue_t*
 ib_wqueue_create();
 /*===============*/
 
 /****************************************************************//**
 Free a work queue. */
-
 void
 ib_wqueue_free(
 /*===========*/
@@ -57,7 +55,6 @@ ib_wqueue_free(
 
 /****************************************************************//**
 Add a work item to the queue. */
-
 void
 ib_wqueue_add(
 /*==========*/
@@ -68,7 +65,6 @@ ib_wqueue_add(
 
 /********************************************************************
 Check if queue is empty. */
-
 ibool
 ib_wqueue_is_empty(
 /*===============*/
@@ -79,7 +75,6 @@ ib_wqueue_is_empty(
 /****************************************************************//**
 Wait for a work item to appear in the queue.
 @return work item */
-
 void*
 ib_wqueue_wait(
 /*===========*/
@@ -87,7 +82,6 @@ ib_wqueue_wait(
 
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */
-
 void*
 ib_wqueue_timedwait(
 /*================*/

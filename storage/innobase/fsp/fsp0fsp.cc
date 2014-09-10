@@ -166,7 +166,6 @@ fseg_alloc_free_page_low(
 /**********************************************************************//**
 Reads the file space size stored in the header page.
 @return tablespace size stored in the space header */
-
 ulint
 fsp_get_size_low(
 /*=============*/
@@ -213,7 +212,6 @@ have a file format number plus the DICT_TF_COMPACT bit set.
 
 @param[in]	flags	tablespace flags
 @return true if check ok */
-
 bool
 fsp_flags_is_valid(
 	ulint	flags)
@@ -277,7 +275,6 @@ fsp_flags_is_valid(
 /** Check if tablespace is system temporary.
 @param[in]	space_id	verify is checksum is enabled for given space.
 @return true if tablespace is system temporary. */
-
 bool
 fsp_is_system_temporary(
 	ulint	space_id)
@@ -288,7 +285,6 @@ fsp_is_system_temporary(
 /** Check if checksum is disabled for the given space.
 @param[in]	space_id	verify is checksum is enabled for given space.
 @return true if checksum is disabled for given space. */
-
 bool
 fsp_is_checksum_disabled(
 	ulint	space_id)
@@ -740,7 +736,6 @@ fsp_init_file_page(
 /***********************************************************//**
 Parses a redo log record of a file page init.
 @return end of log record or NULL */
-
 byte*
 fsp_parse_init_file_page(
 /*=====================*/
@@ -759,7 +754,6 @@ fsp_parse_init_file_page(
 
 /**********************************************************************//**
 Initializes the fsp system. */
-
 void
 fsp_init(void)
 /*==========*/
@@ -782,7 +776,6 @@ fsp_init(void)
 Writes the space id and flags to a tablespace header.  The flags contain
 row type, physical/compressed page size, and logical/uncompressed page
 size of the tablespace. */
-
 void
 fsp_header_init_fields(
 /*===================*/
@@ -802,7 +795,6 @@ fsp_header_init_fields(
 /**********************************************************************//**
 Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0. */
-
 void
 fsp_header_init(
 /*============*/
@@ -866,7 +858,6 @@ fsp_header_init(
 /**********************************************************************//**
 Reads the space id from the first page of a tablespace.
 @return space id, ULINT UNDEFINED if error */
-
 ulint
 fsp_header_get_space_id(
 /*====================*/
@@ -894,7 +885,6 @@ fsp_header_get_space_id(
 /**********************************************************************//**
 Reads the space flags from the first page of a tablespace.
 @return flags */
-
 ulint
 fsp_header_get_flags(
 /*=================*/
@@ -918,7 +908,6 @@ fsp_header_get_page_size(
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Increases the space size field of a space. */
-
 void
 fsp_header_inc_size(
 /*================*/
@@ -949,7 +938,6 @@ we do not have an auto-extending data file, this should be equal to
 the size of the data files.  If there is an auto-extending data file,
 this can be smaller.
 @return size in pages */
-
 ulint
 fsp_header_get_tablespace_size(void)
 /*================================*/
@@ -2149,7 +2137,6 @@ fseg_get_n_frag_pages(
 Creates a new segment.
 @return the block where the segment header is placed, x-latched, NULL
 if could not create segment because of lack of space */
-
 buf_block_t*
 fseg_create_general(
 /*================*/
@@ -2292,7 +2279,6 @@ funct_exit:
 Creates a new segment.
 @return the block where the segment header is placed, x-latched, NULL
 if could not create segment because of lack of space */
-
 buf_block_t*
 fseg_create(
 /*========*/
@@ -2342,7 +2328,6 @@ fseg_n_reserved_pages_low(
 Calculates the number of pages reserved by a segment, and how many pages are
 currently used.
 @return number of reserved pages */
-
 ulint
 fseg_n_reserved_pages(
 /*==================*/
@@ -2772,7 +2757,6 @@ fragmentation.
 @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
 @retval block (not allocated or initialized) otherwise */
-
 buf_block_t*
 fseg_alloc_free_page_general(
 /*=========================*/
@@ -2911,7 +2895,6 @@ split or merge in a B-tree. But we do not want to waste disk space if the table
 only occupies < 32 pages. That is why we apply different rules in that special
 case, just ensuring that there are 3 free pages available.
 @return TRUE if we were able to make the reservation */
-
 bool
 fsp_reserve_free_extents(
 /*=====================*/
@@ -3026,7 +3009,6 @@ will be able to insert new data to the database without running out the
 tablespace. Only free extents are taken into account and we also subtract
 the safety margin required by the above function fsp_reserve_free_extents.
 @return available space in kB */
-
 uintmax_t
 fsp_get_available_space_in_free_extents(
 /*====================================*/
@@ -3325,7 +3307,6 @@ crash:
 
 /**********************************************************************//**
 Frees a single page of a segment. */
-
 void
 fseg_free_page(
 /*===========*/
@@ -3360,7 +3341,6 @@ fseg_free_page(
 /**********************************************************************//**
 Checks if a single page of a segment is free.
 @return true if free */
-
 bool
 fseg_page_is_free(
 /*==============*/
@@ -3485,7 +3465,6 @@ repeatedly calling this function in different mini-transactions. Doing
 the freeing in a single mini-transaction might result in too big a
 mini-transaction.
 @return TRUE if freeing completed */
-
 ibool
 fseg_free_step(
 /*===========*/
@@ -3573,7 +3552,6 @@ fseg_free_step(
 Frees part of a segment. Differs from fseg_free_step because this function
 leaves the header page unfreed.
 @return TRUE if freeing completed, except the header page */
-
 ibool
 fseg_free_step_not_header(
 /*======================*/
@@ -3792,7 +3770,6 @@ fseg_validate_low(
 /*******************************************************************//**
 Validates a segment.
 @return TRUE if ok */
-
 ibool
 fseg_validate(
 /*==========*/
@@ -3868,7 +3845,6 @@ fseg_print_low(
 
 /*******************************************************************//**
 Writes info of a segment. */
-
 void
 fseg_print(
 /*=======*/

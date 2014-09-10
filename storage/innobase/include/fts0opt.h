@@ -27,7 +27,6 @@ Created 2011-02-15 Jimmy Yang
 
 /********************************************************************
 Callback function to fetch the rows in an FTS INDEX record. */
-
 ibool
 fts_optimize_index_fetch_node(
 /*==========================*/

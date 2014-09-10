@@ -183,7 +183,6 @@ occurs during the wait trx->error_state associated with thr is
 != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
 are possible errors. DB_DEADLOCK is returned if selective deadlock
 resolution chose this transaction as a victim. */
-
 void
 lock_wait_suspend_thread(
 /*=====================*/
@@ -384,7 +383,6 @@ lock_wait_suspend_thread(
 /********************************************************************//**
 Releases a user OS thread waiting for a lock to be released, if the
 thread is already suspended. */
-
 void
 lock_wait_release_thread_if_suspended(
 /*==================================*/

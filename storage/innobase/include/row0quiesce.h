@@ -37,7 +37,6 @@ struct trx_t;
 
 /*********************************************************************//**
 Quiesce the tablespace that the table resides in. */
-
 void
 row_quiesce_table_start(
 /*====================*/
@@ -48,7 +47,6 @@ row_quiesce_table_start(
 /*********************************************************************//**
 Set a table's quiesce state.
 @return DB_SUCCESS or errro code. */
-
 dberr_t
 row_quiesce_set_state(
 /*==================*/
@@ -59,7 +57,6 @@ row_quiesce_set_state(
 
 /*********************************************************************//**
 Cleanup after table quiesce. */
-
 void
 row_quiesce_table_complete(
 /*=======================*/

@@ -115,7 +115,6 @@ component.
 /******************************************************************//**
 Parse an SQL string. %s is replaced with the table's id.
 @return query graph */
-
 que_t*
 fts_parse_sql(
 /*==========*/
@@ -127,7 +126,6 @@ fts_parse_sql(
 /******************************************************************//**
 Evaluate a parsed SQL statement
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_eval_sql(
 /*=========*/
@@ -139,7 +137,6 @@ fts_eval_sql(
 Construct the name of an ancillary FTS table for the given table.
 Caller must allocate enough memory(usually size of MAX_FULL_NAME_LEN)
 for param 'table_name'. */
-
 void
 fts_get_table_name(
 /*===============*/
@@ -162,7 +159,6 @@ Two indexed columns named "subject" and "content":
  "$sel0, $sel1",
  info/ids: sel0 -> "subject", sel1 -> "content",
 @return heap-allocated WHERE string */
-
 const char*
 fts_get_select_columns_str(
 /*=======================*/
@@ -182,7 +178,6 @@ ID */
 Fetch document (= a single row's indexed text) with the given
 document id.
 @return: DB_SUCCESS if fetch is successful, else error */
-
 dberr_t
 fts_doc_fetch_by_doc_id(
 /*====================*/
@@ -201,7 +196,6 @@ fts_doc_fetch_by_doc_id(
 Callback function for fetch that stores the text of an FTS document,
 converting each column to UTF-16.
 @return always FALSE */
-
 ibool
 fts_query_expansion_fetch_doc(
 /*==========================*/
@@ -211,7 +205,6 @@ fts_query_expansion_fetch_doc(
 /********************************************************************
 Write out a single word's data as new entry/entries in the INDEX table.
 @return DB_SUCCESS if all OK. */
-
 dberr_t
 fts_write_node(
 /*===========*/
@@ -224,7 +217,6 @@ fts_write_node(
 
 /*******************************************************************//**
 Tokenize a document. */
-
 void
 fts_tokenize_document(
 /*==================*/
@@ -236,7 +228,6 @@ fts_tokenize_document(
 
 /*******************************************************************//**
 Continue to tokenize a document. */
-
 void
 fts_tokenize_document_next(
 /*=======================*/
@@ -250,7 +241,6 @@ fts_tokenize_document_next(
 
 /******************************************************************//**
 Initialize a document. */
-
 void
 fts_doc_init(
 /*=========*/
@@ -260,7 +250,6 @@ fts_doc_init(
 Do a binary search for a doc id in the array
 @return +ve index if found -ve index where it should be
         inserted if not found */
-
 int
 fts_bsearch(
 /*========*/
@@ -271,7 +260,6 @@ fts_bsearch(
 	__attribute__((warn_unused_result));
 /******************************************************************//**
 Free document. */
-
 void
 fts_doc_free(
 /*=========*/
@@ -279,7 +267,6 @@ fts_doc_free(
 
 /******************************************************************//**
 Free fts_optimizer_word_t instanace.*/
-
 void
 fts_word_free(
 /*==========*/
@@ -288,7 +275,6 @@ fts_word_free(
 /******************************************************************//**
 Read the rows from the FTS inde
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_index_fetch_nodes(
 /*==================*/
@@ -302,7 +288,6 @@ fts_index_fetch_nodes(
 /******************************************************************//**
 Create a fts_optimizer_word_t instance.
 @return new instance */
-
 fts_word_t*
 fts_word_init(
 /*==========*/
@@ -334,7 +319,6 @@ fts_trx_table_id_cmp(
 /******************************************************************//**
 Commit a transaction.
 @return DB_SUCCESS if all OK */
-
 dberr_t
 fts_sql_commit(
 /*===========*/
@@ -343,7 +327,6 @@ fts_sql_commit(
 /******************************************************************//**
 Rollback a transaction.
 @return DB_SUCCESS if all OK */
-
 dberr_t
 fts_sql_rollback(
 /*=============*/
@@ -353,7 +336,6 @@ fts_sql_rollback(
 Parse an SQL string. %s is replaced with the table's id. Don't acquire
 the dict mutex
 @return query graph */
-
 que_t*
 fts_parse_sql_no_dict_lock(
 /*=======================*/
@@ -366,7 +348,6 @@ fts_parse_sql_no_dict_lock(
 Get value from config table. The caller must ensure that enough
 space is allocated for value to hold the column contents
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_get_value(
 /*=================*/
@@ -381,7 +362,6 @@ Get value specific to an FTS index from the config table. The caller
 must ensure that enough space is allocated for value to hold the
 column contents.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_get_index_value(
 /*=======================*/
@@ -396,7 +376,6 @@ fts_config_get_index_value(
 /******************************************************************//**
 Set the value in the config table for name.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_set_value(
 /*=================*/
@@ -410,7 +389,6 @@ fts_config_set_value(
 /****************************************************************//**
 Set an ulint value in the config table.
 @return DB_SUCCESS if all OK else error code */
-
 dberr_t
 fts_config_set_ulint(
 /*=================*/
@@ -423,7 +401,6 @@ fts_config_set_ulint(
 /******************************************************************//**
 Set the value specific to an FTS index in the config table.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_set_index_value(
 /*=======================*/
@@ -438,7 +415,6 @@ fts_config_set_index_value(
 /******************************************************************//**
 Increment the value in the config table for column name.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_increment_value(
 /*=======================*/
@@ -452,7 +428,6 @@ fts_config_increment_value(
 /******************************************************************//**
 Increment the per index value in the config table for column name.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_increment_index_value(
 /*=============================*/
@@ -465,7 +440,6 @@ fts_config_increment_index_value(
 /******************************************************************//**
 Get an ulint value from the config table.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_get_index_ulint(
 /*=======================*/
@@ -478,7 +452,6 @@ fts_config_get_index_ulint(
 /******************************************************************//**
 Set an ulint value int the config table.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_set_index_ulint(
 /*=======================*/
@@ -491,7 +464,6 @@ fts_config_set_index_ulint(
 /******************************************************************//**
 Get an ulint value from the config table.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_config_get_ulint(
 /*=================*/
@@ -503,7 +475,6 @@ fts_config_get_ulint(
 /******************************************************************//**
 Search cache for word.
 @return the word node vector if found else NULL */
-
 const ib_vector_t*
 fts_cache_find_word(
 /*================*/
@@ -516,7 +487,6 @@ fts_cache_find_word(
 /******************************************************************//**
 Check cache for deleted doc id.
 @return TRUE if deleted */
-
 ibool
 fts_cache_is_deleted_doc_id(
 /*========================*/
@@ -527,7 +497,6 @@ fts_cache_is_deleted_doc_id(
 
 /******************************************************************//**
 Append deleted doc ids to vector and sort the vector. */
-
 void
 fts_cache_append_deleted_doc_ids(
 /*=============================*/
@@ -539,7 +508,6 @@ Wait for the background thread to start. We poll to detect change
 of state, which is acceptable, since the wait should happen only
 once during startup.
 @return true if the thread started else FALSE (i.e timed out) */
-
 ibool
 fts_wait_for_background_thread_to_start(
 /*====================================*/
@@ -552,7 +520,6 @@ fts_wait_for_background_thread_to_start(
 /******************************************************************//**
 Get the total number of words in the FTS for a particular FTS index.
 @return DB_SUCCESS or error code */
-
 dberr_t
 fts_get_total_word_count(
 /*=====================*/
@@ -564,7 +531,6 @@ fts_get_total_word_count(
 /******************************************************************//**
 Search the index specific cache for a particular FTS index.
 @return the index specific cache else NULL */
-
 fts_index_cache_t*
 fts_find_index_cache(
 /*================*/
@@ -602,7 +568,6 @@ fts_read_object_id(
 /******************************************************************//**
 Get the table id.
 @return number of bytes written */
-
 int
 fts_get_table_id(
 /*=============*/
@@ -615,7 +580,6 @@ fts_get_table_id(
 
 /******************************************************************//**
 Add the table to add to the OPTIMIZER's list. */
-
 void
 fts_optimize_add_table(
 /*===================*/
@@ -623,7 +587,6 @@ fts_optimize_add_table(
 
 /******************************************************************//**
 Optimize a table. */
-
 void
 fts_optimize_do_table(
 /*==================*/
@@ -632,7 +595,6 @@ fts_optimize_do_table(
 /******************************************************************//**
 Construct the prefix name of an FTS table.
 @return own: table name, must be freed with ut_free() */
-
 char*
 fts_get_table_name_prefix(
 /*======================*/
@@ -642,7 +604,6 @@ fts_get_table_name_prefix(
 
 /******************************************************************//**
 Add node positions. */
-
 void
 fts_cache_node_add_positions(
 /*=========================*/
@@ -654,7 +615,6 @@ fts_cache_node_add_positions(
 /******************************************************************//**
 Create the config table name for retrieving index specific value.
 @return index config parameter name */
-
 char*
 fts_config_create_index_param_name(
 /*===============================*/

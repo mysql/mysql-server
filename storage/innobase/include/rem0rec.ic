@@ -136,7 +136,6 @@ and the shift needed to obtain each bit-field of the record. */
 
 /***********************************************************//**
 Sets the value of the ith field SQL null bit of an old-style record. */
-
 void
 rec_set_nth_field_null_bit(
 /*=======================*/
@@ -146,7 +145,6 @@ rec_set_nth_field_null_bit(
 /***********************************************************//**
 Sets an old-style record field to SQL null.
 The physical size of the field is not changed. */
-
 void
 rec_set_nth_field_sql_null(
 /*=======================*/

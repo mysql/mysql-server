@@ -4036,7 +4036,6 @@ fts_query_str_preprocess(
 /*******************************************************************//**
 FTS Query entry point.
 @return DB_SUCCESS if successful otherwise error code */
-
 dberr_t
 fts_query(
 /*======*/
@@ -4244,7 +4243,6 @@ func_exit:
 
 /*****************************************************************//**
 FTS Query free result, returned by fts_query(). */
-
 void
 fts_query_free_result(
 /*==================*/
@@ -4267,7 +4265,6 @@ fts_query_free_result(
 
 /*****************************************************************//**
 FTS Query sort result, returned by fts_query() on fts_ranking_t::rank. */
-
 void
 fts_query_sort_result_on_rank(
 /*==========================*/

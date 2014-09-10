@@ -31,7 +31,6 @@ Created 1/8/1996 Heikki Tuuri
 Checks if a table name contains the string "/#sql" which denotes temporary
 tables in MySQL.
 @return true if temporary table */
-
 bool
 row_is_mysql_tmp_table_name(
 /*========================*/

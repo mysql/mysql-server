@@ -37,7 +37,6 @@ Created 12/21/1997 Heikki Tuuri
 Optimizes a select. Decides which indexes to tables to use. The tables
 are accessed in the order that they were written to the FROM part in the
 select statement. */
-
 void
 opt_search_plan(
 /*============*/
@@ -49,7 +48,6 @@ already exist in the list. If the column is already in the list, puts a value
 indirection to point to the occurrence in the column list, except if the
 column occurrence we are looking at is in the column list, in which case
 nothing is done. */
-
 void
 opt_find_all_cols(
 /*==============*/
@@ -62,7 +60,6 @@ opt_find_all_cols(
 	que_node_t*	exp);		/*!< in: expression or condition */
 /********************************************************************//**
 Prints info of a query plan. */
-
 void
 opt_print_query_plan(
 /*=================*/

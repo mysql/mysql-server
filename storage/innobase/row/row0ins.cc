@@ -68,7 +68,6 @@ introduced where a call to log_free_check() is bypassed. */
 /*********************************************************************//**
 Creates an insert node struct.
 @return own: insert node struct */
-
 ins_node_t*
 ins_node_create(
 /*============*/
@@ -196,7 +195,6 @@ row_ins_alloc_sys_fields(
 Sets a new row to insert for an INS_DIRECT node. This function is only used
 if we have constructed the row separately, which is a rare case; this
 function is quite slow. */
-
 void
 ins_node_set_new_row(
 /*=================*/
@@ -1401,7 +1399,6 @@ Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
 the caller must have a shared latch on dict_operation_lock.
 @return DB_SUCCESS, DB_NO_REFERENCED_ROW, or DB_ROW_IS_REFERENCED */
-
 dberr_t
 row_ins_check_foreign_constraint(
 /*=============================*/
@@ -2310,7 +2307,6 @@ the delete marked record.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-
 dberr_t
 row_ins_clust_index_entry_low(
 /*==========================*/
@@ -2735,7 +2731,6 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-
 dberr_t
 row_ins_sec_index_entry_low(
 /*========================*/
@@ -3082,7 +3077,6 @@ func_exit:
 Tries to insert the externally stored fields (off-page columns)
 of a clustered index entry.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-
 dberr_t
 row_ins_index_entry_big_rec_func(
 /*=============================*/
@@ -3139,7 +3133,6 @@ then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
-
 dberr_t
 row_ins_clust_index_entry(
 /*======================*/
@@ -3217,7 +3210,6 @@ then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete
 unmarking the delete marked record.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
-
 dberr_t
 row_ins_sec_index_entry(
 /*====================*/
@@ -3346,7 +3338,6 @@ columns in row.
 @param[in]	row	row
 
 @return DB_SUCCESS if the set is successful */
-
 dberr_t
 row_ins_index_entry_set_vals(
 	const dict_index_t*	index,
@@ -3666,7 +3657,6 @@ row_ins(
 Inserts a row to a table. This is a high-level function used in SQL execution
 graphs.
 @return query thread to run next or NULL */
-
 que_thr_t*
 row_ins_step(
 /*=========*/
