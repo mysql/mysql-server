@@ -106,8 +106,6 @@ PageBulk::init()
 		btr_page_set_level(new_page, NULL, m_level, mtr);
 	}
 
-	new_block->check_index_page_at_flush = FALSE;
-
         if (dict_index_is_sec_or_ibuf(m_index)
             && !dict_table_is_temporary(m_index->table)
 	    && page_is_leaf(new_page)) {
@@ -276,8 +274,6 @@ PageBulk::finish()
 	page_header_set_ptr(m_page, NULL, PAGE_LAST_INSERT, m_cur_rec);
 	page_header_set_field(m_page, NULL, PAGE_DIRECTION, PAGE_RIGHT);
 	page_header_set_field(m_page, NULL, PAGE_N_DIRECTION, 0);
-
-	m_block->check_index_page_at_flush = TRUE;
 }
 
 /** Commit inserts done to the page
