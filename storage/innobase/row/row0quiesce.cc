@@ -507,7 +507,6 @@ row_quiesce_table_has_fts_index(
 
 /*********************************************************************//**
 Quiesce the tablespace that the table resides in. */
-
 void
 row_quiesce_table_start(
 /*====================*/
@@ -573,7 +572,6 @@ row_quiesce_table_start(
 
 /*********************************************************************//**
 Cleanup after table quiesce. */
-
 void
 row_quiesce_table_complete(
 /*=======================*/
@@ -629,7 +627,6 @@ row_quiesce_table_complete(
 /*********************************************************************//**
 Set a table's quiesce state.
 @return DB_SUCCESS or error code. */
-
 dberr_t
 row_quiesce_set_state(
 /*==================*/

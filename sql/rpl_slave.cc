@@ -8655,7 +8655,7 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
       specify it.  (no data loss in conversion as hb period has a max)
     */
     mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
-                                     (slave_net_timeout/2.0));
+                                     (slave_net_timeout/2.0f));
     DBUG_ASSERT(mi->heartbeat_period > (float) 0.001
                 || mi->heartbeat_period == 0);
 

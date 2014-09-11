@@ -798,7 +798,7 @@ void check_binlog_cache_size(THD *thd)
                         (ulong) binlog_cache_size,
                         (ulong) max_binlog_cache_size);
     }
-    binlog_cache_size= max_binlog_cache_size;
+    binlog_cache_size= static_cast<ulong>(max_binlog_cache_size);
   }
 }
 
@@ -824,7 +824,7 @@ void check_binlog_stmt_cache_size(THD *thd)
                         (ulong) binlog_stmt_cache_size,
                         (ulong) max_binlog_stmt_cache_size);
     }
-    binlog_stmt_cache_size= max_binlog_stmt_cache_size;
+    binlog_stmt_cache_size= static_cast<ulong>(max_binlog_stmt_cache_size);
   }
 }
 
@@ -3684,7 +3684,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       /* inherit master's A descriptor if one has been received */
       if (opt_slave_sql_verify_checksum == 0)
         /* otherwise use slave's local preference of RL events verification */
-        relay_log_checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_OFF;
+        relay_log_checksum_alg=static_cast<enum_binlog_checksum_alg>
+                               (binary_log::BINLOG_CHECKSUM_ALG_OFF);
       else
         relay_log_checksum_alg= static_cast<enum_binlog_checksum_alg>
                                 (binlog_checksum_options);
