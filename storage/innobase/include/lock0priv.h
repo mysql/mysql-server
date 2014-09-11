@@ -412,7 +412,6 @@ lock_get_type_low(
 /*********************************************************************//**
 Gets the previous record lock set on a record.
 @return previous lock on the same record, NULL if none exists */
-
 const lock_t*
 lock_rec_get_prev(
 /*==============*/
@@ -422,7 +421,6 @@ lock_rec_get_prev(
 /*********************************************************************//**
 Cancels a waiting lock request and releases possible other transactions
 waiting behind it. */
-
 void
 lock_cancel_waiting_and_release(
 /*============================*/

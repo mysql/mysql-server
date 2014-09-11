@@ -86,7 +86,6 @@ is 50 x 4 bytes = 200 bytes. */
 /***************************************************************//**
 Looks for the directory slot which owns the given record.
 @return the directory slot number */
-
 ulint
 page_dir_find_owner_slot(
 /*=====================*/
@@ -123,10 +122,9 @@ page_dir_find_owner_slot(
 	while (UNIV_LIKELY(*(uint16*) slot != rec_offs_bytes)) {
 
 		if (UNIV_UNLIKELY(slot == first_slot)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Probable data corruption on page %lu"
-				" Original record on that page;",
-				(ulong) page_get_page_no(page));
+			ib::error() << "Probable data corruption on page "
+				<< page_get_page_no(page)
+				<< ". Original record on that page;";
 
 			if (page_is_comp(page)) {
 				fputs("(compact record)", stderr);
@@ -134,9 +132,9 @@ page_dir_find_owner_slot(
 				rec_print_old(stderr, rec);
 			}
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot find the dir slot for this record"
-				" on that page;");
+			ib::error() << "Cannot find the dir slot for this"
+				" record on that page;";
+
 			if (page_is_comp(page)) {
 				fputs("(compact record)", stderr);
 			} else {
@@ -200,7 +198,6 @@ page_dir_slot_check(
 
 /*************************************************************//**
 Sets the max trx id field value. */
-
 void
 page_set_max_trx_id(
 /*================*/
@@ -236,7 +233,6 @@ page_set_max_trx_id(
 /************************************************************//**
 Allocates a block of memory from the heap of an index page.
 @return pointer to start of allocated buffer, or NULL if allocation fails */
-
 byte*
 page_mem_alloc_heap(
 /*================*/
@@ -400,7 +396,6 @@ page_create_low(
 @param[in,out]	block	buffer block, or NULL
 @param[in]	comp	nonzero=compact page format
 @param[in]	is_rtree whether it is rtree page */
-
 void
 page_parse_create(
 	buf_block_t*	block,
@@ -415,7 +410,6 @@ page_parse_create(
 /**********************************************************//**
 Create an uncompressed B-tree or R-tree index page.
 @return pointer to the page */
-
 page_t*
 page_create(
 /*========*/
@@ -433,7 +427,6 @@ page_create(
 /**********************************************************//**
 Create a compressed B-tree index page.
 @return pointer to the page */
-
 page_t*
 page_create_zip(
 /*============*/
@@ -489,7 +482,6 @@ page_create_zip(
 
 /**********************************************************//**
 Empty a previously created B-tree index page. */
-
 void
 page_create_empty(
 /*==============*/
@@ -537,7 +529,6 @@ IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
 if new_block is a compressed leaf page in a secondary index.
 This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit(). */
-
 void
 page_copy_rec_list_end_no_locks(
 /*============================*/
@@ -587,12 +578,10 @@ page_copy_rec_list_end_no_locks(
 			buf_page_print(page_align(rec), univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
 
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Rec offset %lu, cur1 offset %lu,"
-				" cur2 offset %lu",
-				(ulong) page_offset(rec),
-				(ulong) page_offset(page_cur_get_rec(&cur1)),
-				(ulong) page_offset(cur2));
+			ib::fatal() << "Rec offset " << page_offset(rec)
+				<< ", cur1 offset "
+				<< page_offset(page_cur_get_rec(&cur1))
+				<< ", cur2 offset " << page_offset(cur2);
 		}
 
 		page_cur_move_to_next(&cur1);
@@ -617,7 +606,6 @@ or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return pointer to the original successor of the infimum record on
 new_page, or NULL on zip overflow (new_block will be decompressed) */
-
 rec_t*
 page_copy_rec_list_end(
 /*===================*/
@@ -774,7 +762,6 @@ or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return pointer to the original predecessor of the supremum record on
 new_page, or NULL on zip overflow (new_block will be decompressed) */
-
 rec_t*
 page_copy_rec_list_start(
 /*=====================*/
@@ -953,7 +940,6 @@ page_delete_rec_list_write_log(
 /**********************************************************//**
 Parses a log record of a record list end or start deletion.
 @return end of log record or NULL */
-
 byte*
 page_parse_delete_rec_list(
 /*=======================*/
@@ -1009,7 +995,6 @@ page_parse_delete_rec_list(
 /*************************************************************//**
 Deletes records from a page from a given record onward, including that record.
 The infimum and supremum records are not deleted. */
-
 void
 page_delete_rec_list_end(
 /*=====================*/
@@ -1212,7 +1197,6 @@ delete_all:
 /*************************************************************//**
 Deletes records from page, up to the given record, NOT including
 that record. Infimum and supremum records are not deleted. */
-
 void
 page_delete_rec_list_start(
 /*=======================*/
@@ -1299,7 +1283,6 @@ or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return TRUE on success; FALSE on compression failure (new_block will
 be decompressed) */
-
 ibool
 page_move_rec_list_end(
 /*===================*/
@@ -1361,7 +1344,6 @@ This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return TRUE on success; FALSE on compression failure */
-
 ibool
 page_move_rec_list_start(
 /*=====================*/
@@ -1462,7 +1444,6 @@ page_dir_add_slot(
 
 /****************************************************************//**
 Splits a directory slot which owns too many records. */
-
 void
 page_dir_split_slot(
 /*================*/
@@ -1525,7 +1506,6 @@ page_dir_split_slot(
 Tries to balance the given directory slot with too few records with the upper
 neighbor, so that there are at least the minimum number of records owned by
 the slot; this may result in the merging of two slots. */
-
 void
 page_dir_balance_slot(
 /*==================*/
@@ -1596,7 +1576,6 @@ page_dir_balance_slot(
 Returns the nth record of the record list.
 This is the inverse function of page_rec_get_n_recs_before().
 @return nth record */
-
 const rec_t*
 page_rec_get_nth_const(
 /*===================*/
@@ -1649,7 +1628,6 @@ page_rec_get_nth_const(
 Returns the number of records before the given record in chain.
 The number includes infimum and supremum records.
 @return number of records */
-
 ulint
 page_rec_get_n_recs_before(
 /*=======================*/
@@ -1714,7 +1692,6 @@ page_rec_get_n_recs_before(
 /************************************************************//**
 Prints record contents including the data relevant only in
 the index page context. */
-
 void
 page_rec_print(
 /*===========*/
@@ -1724,17 +1701,13 @@ page_rec_print(
 	ut_a(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
 	rec_print_new(stderr, rec, offsets);
 	if (page_rec_is_comp(rec)) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"n_owned: %lu; heap_no: %lu; next rec: %lu",
-			(ulong) rec_get_n_owned_new(rec),
-			(ulong) rec_get_heap_no_new(rec),
-			(ulong) rec_get_next_offs(rec, TRUE));
+		ib::info() << "n_owned: " << rec_get_n_owned_new(rec)
+			<< "; heap_no: " << rec_get_heap_no_new(rec)
+			<< "; next rec: " << rec_get_next_offs(rec, TRUE);
 	} else {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"n_owned: %lu; heap_no: %lu; next rec: %lu",
-			(ulong) rec_get_n_owned_old(rec),
-			(ulong) rec_get_heap_no_old(rec),
-			(ulong) rec_get_next_offs(rec, FALSE));
+		ib::info() << "n_owned: " << rec_get_n_owned_old(rec)
+			<< "; heap_no: " << rec_get_heap_no_old(rec)
+			<< "; next rec: " << rec_get_next_offs(rec, FALSE);
 	}
 
 	page_rec_check(rec);
@@ -1745,7 +1718,6 @@ page_rec_print(
 /***************************************************************//**
 This is used to print the contents of the directory for
 debugging purposes. */
-
 void
 page_dir_print(
 /*===========*/
@@ -1787,7 +1759,6 @@ page_dir_print(
 /***************************************************************//**
 This is used to print the contents of the page record list for
 debugging purposes. */
-
 void
 page_print_list(
 /*============*/
@@ -1857,7 +1828,6 @@ page_print_list(
 
 /***************************************************************//**
 Prints the info in a page header. */
-
 void
 page_header_print(
 /*==============*/
@@ -1885,7 +1855,6 @@ page_header_print(
 /***************************************************************//**
 This is used to print the contents of the page for
 debugging purposes. */
-
 void
 page_print(
 /*=======*/
@@ -1910,7 +1879,6 @@ The following is used to validate a record on a page. This function
 differs from rec_validate as it can also check the n_owned field and
 the heap_no field.
 @return TRUE if ok */
-
 ibool
 page_rec_validate(
 /*==============*/
@@ -1936,17 +1904,15 @@ page_rec_validate(
 	}
 
 	if (UNIV_UNLIKELY(!(n_owned <= PAGE_DIR_SLOT_MAX_N_OWNED))) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Dir slot of rec %lu, n owned too big %lu",
-			(ulong) page_offset(rec), (ulong) n_owned);
+		ib::warn() << "Dir slot of rec " << page_offset(rec)
+			<< ", n owned too big " << n_owned;
 		return(FALSE);
 	}
 
 	if (UNIV_UNLIKELY(!(heap_no < page_dir_get_n_heap(page)))) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Heap no of rec %lu too big %lu %lu",
-			(ulong) page_offset(rec), (ulong) heap_no,
-			(ulong) page_dir_get_n_heap(page));
+		ib::warn() << "Heap no of rec " << page_offset(rec)
+			<< " too big " << heap_no << " "
+			<< page_dir_get_n_heap(page);
 		return(FALSE);
 	}
 
@@ -1959,7 +1925,6 @@ page_rec_validate(
 Checks that the first directory slot points to the infimum record and
 the last to the supremum. This function is intended to track if the
 bug fixed in 4.0.14 has caused corruption to users' databases. */
-
 void
 page_check_dir(
 /*===========*/
@@ -1976,15 +1941,15 @@ page_check_dir(
 
 	if (UNIV_UNLIKELY(!page_rec_is_infimum_low(infimum_offs))) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page directory corruption: infimum not pointed to");
+		ib::error() << "Page directory corruption: infimum not"
+			" pointed to";
 		buf_page_print(page, univ_page_size, 0);
 	}
 
 	if (UNIV_UNLIKELY(!page_rec_is_supremum_low(supremum_offs))) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Page directory corruption: supremum not pointed to");
+		ib::info() << "Page directory corruption: supremum not"
+			" pointed to";
 		buf_page_print(page, univ_page_size, 0);
 	}
 }
@@ -1996,7 +1961,6 @@ This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
 @return TRUE if ok */
-
 ibool
 page_simple_validate_old(
 /*=====================*/
@@ -2019,9 +1983,8 @@ page_simple_validate_old(
 	n_slots = page_dir_get_n_slots(page);
 
 	if (UNIV_UNLIKELY(n_slots > UNIV_PAGE_SIZE / 4)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Nonsensical number %lu of page dir slots",
-			(ulong) n_slots);
+		ib::error() << "Nonsensical number " << n_slots
+			<< " of page dir slots";
 
 		goto func_exit;
 	}
@@ -2030,12 +1993,12 @@ page_simple_validate_old(
 
 	if (UNIV_UNLIKELY(rec_heap_top
 			  > page_dir_get_nth_slot(page, n_slots - 1))) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Record heap and dir overlap on a page,"
-			" heap top %lu, dir %lu",
-			(ulong) page_header_get_field(page, PAGE_HEAP_TOP),
-			(ulong)
-			page_offset(page_dir_get_nth_slot(page, n_slots - 1)));
+		ib::error()
+			<< "Record heap and dir overlap on a page, heap top "
+			<< page_header_get_field(page, PAGE_HEAP_TOP)
+			<< ", dir "
+			<< page_offset(page_dir_get_nth_slot(page,
+							     n_slots - 1));
 
 		goto func_exit;
 	}
@@ -2052,10 +2015,9 @@ page_simple_validate_old(
 
 	for (;;) {
 		if (UNIV_UNLIKELY(rec > rec_heap_top)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Record %lu is above rec heap top %lu",
-				(ulong)(rec - page),
-				(ulong)(rec_heap_top - page));
+			ib::error() << "Record " << (rec - page)
+				<< " is above rec heap top "
+				<< (rec_heap_top - page);
 
 			goto func_exit;
 		}
@@ -2065,22 +2027,18 @@ page_simple_validate_old(
 			if (UNIV_UNLIKELY(rec_get_n_owned_old(rec)
 					  != own_count)) {
 
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Wrong owned count %lu, %lu,"
-					" rec %lu",
-					(ulong) rec_get_n_owned_old(rec),
-					(ulong) own_count,
-					(ulong)(rec - page));
+				ib::error() << "Wrong owned count "
+					<< rec_get_n_owned_old(rec)
+					<< ", " << own_count << ", rec "
+					<< (rec - page);
 
 				goto func_exit;
 			}
 
 			if (UNIV_UNLIKELY
 			    (page_dir_slot_get_rec(slot) != rec)) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Dir slot does not point"
-					" to right rec %lu",
-					(ulong)(rec - page));
+				ib::error() << "Dir slot does not point"
+					" to right rec " << (rec - page);
 
 				goto func_exit;
 			}
@@ -2101,11 +2059,10 @@ page_simple_validate_old(
 		if (UNIV_UNLIKELY
 		    (rec_get_next_offs(rec, FALSE) < FIL_PAGE_DATA
 		     || rec_get_next_offs(rec, FALSE) >= UNIV_PAGE_SIZE)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Next record offset"
-				" nonsensical %lu for rec %lu",
-				(ulong) rec_get_next_offs(rec, FALSE),
-				(ulong) (rec - page));
+
+			ib::error() << "Next record offset nonsensical "
+				<< rec_get_next_offs(rec, FALSE) << " for rec "
+				<< (rec - page);
 
 			goto func_exit;
 		}
@@ -2113,10 +2070,8 @@ page_simple_validate_old(
 		count++;
 
 		if (UNIV_UNLIKELY(count > UNIV_PAGE_SIZE)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Page record list appears"
-				" to be circular %lu",
-				(ulong) count);
+			ib::error() << "Page record list appears"
+				" to be circular " << count;
 			goto func_exit;
 		}
 
@@ -2125,25 +2080,23 @@ page_simple_validate_old(
 	}
 
 	if (UNIV_UNLIKELY(rec_get_n_owned_old(rec) == 0)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"n owned is zero in a supremum rec");
+		ib::error() << "n owned is zero in a supremum rec";
 
 		goto func_exit;
 	}
 
 	if (UNIV_UNLIKELY(slot_no != n_slots - 1)) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "n slots wrong %lu, %lu",
-			(ulong) slot_no, (ulong) (n_slots - 1));
+		ib::error() <<  "n slots wrong "
+			<< slot_no << ", " << (n_slots - 1);
 		goto func_exit;
 	}
 
 	if (UNIV_UNLIKELY(page_header_get_field(page, PAGE_N_RECS)
 			  + PAGE_HEAP_NO_USER_LOW
 			  != count + 1)) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "n recs wrong %lu %lu",
-			(ulong) page_header_get_field(page, PAGE_N_RECS)
-			+ PAGE_HEAP_NO_USER_LOW,
-			(ulong) (count + 1));
+		ib::error() <<  "n recs wrong "
+			<< page_header_get_field(page, PAGE_N_RECS)
+			+ PAGE_HEAP_NO_USER_LOW << " " << (count + 1);
 
 		goto func_exit;
 	}
@@ -2154,20 +2107,16 @@ page_simple_validate_old(
 	while (rec != NULL) {
 		if (UNIV_UNLIKELY(rec < page + FIL_PAGE_DATA
 				  || rec >= page + UNIV_PAGE_SIZE)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Free list record has"
-				" a nonsensical offset %lu",
-				(ulong) (rec - page));
+			ib::error() << "Free list record has"
+				" a nonsensical offset " << (rec - page);
 
 			goto func_exit;
 		}
 
 		if (UNIV_UNLIKELY(rec > rec_heap_top)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Free list record %lu"
-				" is above rec heap top %lu",
-				(ulong) (rec - page),
-				(ulong) (rec_heap_top - page));
+			ib::error() << "Free list record " << (rec - page)
+				<< " is above rec heap top "
+				<< (rec_heap_top - page);
 
 			goto func_exit;
 		}
@@ -2175,10 +2124,8 @@ page_simple_validate_old(
 		count++;
 
 		if (UNIV_UNLIKELY(count > UNIV_PAGE_SIZE)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Page free list appears"
-				" to be circular %lu",
-				(ulong) count);
+			ib::error() << "Page free list appears"
+				" to be circular " << count;
 			goto func_exit;
 		}
 
@@ -2187,9 +2134,8 @@ page_simple_validate_old(
 
 	if (UNIV_UNLIKELY(page_dir_get_n_heap(page) != count + 1)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "N heap is wrong %lu, %lu",
-			(ulong) page_dir_get_n_heap(page),
-			(ulong) (count + 1));
+		ib::error() <<  "N heap is wrong "
+			<< page_dir_get_n_heap(page) << ", " << (count + 1);
 
 		goto func_exit;
 	}
@@ -2205,7 +2151,6 @@ This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage.
 @return TRUE if ok */
-
 ibool
 page_simple_validate_new(
 /*=====================*/
@@ -2228,9 +2173,8 @@ page_simple_validate_new(
 	n_slots = page_dir_get_n_slots(page);
 
 	if (UNIV_UNLIKELY(n_slots > UNIV_PAGE_SIZE / 4)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Nonsensical number %lu"
-			" of page dir slots", (ulong) n_slots);
+		ib::error() << "Nonsensical number " << n_slots
+			<< " of page dir slots";
 
 		goto func_exit;
 	}
@@ -2240,12 +2184,11 @@ page_simple_validate_new(
 	if (UNIV_UNLIKELY(rec_heap_top
 			  > page_dir_get_nth_slot(page, n_slots - 1))) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Record heap and dir overlap on a page,"
-			" heap top %lu, dir %lu",
-			(ulong) page_header_get_field(page, PAGE_HEAP_TOP),
-			(ulong)
-			page_offset(page_dir_get_nth_slot(page, n_slots - 1)));
+		ib::error() << "Record heap and dir overlap on a page,"
+			" heap top "
+			<< page_header_get_field(page, PAGE_HEAP_TOP)
+			<< ", dir " << page_offset(
+				page_dir_get_nth_slot(page, n_slots - 1));
 
 		goto func_exit;
 	}
@@ -2262,11 +2205,10 @@ page_simple_validate_new(
 
 	for (;;) {
 		if (UNIV_UNLIKELY(rec > rec_heap_top)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Record %lu is above rec"
-				" heap top %lu",
-				(ulong) page_offset(rec),
-				(ulong) page_offset(rec_heap_top));
+
+			ib::error() << "Record " << page_offset(rec)
+				<< " is above rec heap top "
+				<< page_offset(rec_heap_top);
 
 			goto func_exit;
 		}
@@ -2276,21 +2218,18 @@ page_simple_validate_new(
 			if (UNIV_UNLIKELY(rec_get_n_owned_new(rec)
 					  != own_count)) {
 
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Wrong owned count %lu, %lu, rec %lu",
-					(ulong) rec_get_n_owned_new(rec),
-					(ulong) own_count,
-					(ulong) page_offset(rec));
+				ib::error() << "Wrong owned count "
+					<< rec_get_n_owned_new(rec) << ", "
+					<< own_count << ", rec "
+					<< page_offset(rec);
 
 				goto func_exit;
 			}
 
 			if (UNIV_UNLIKELY
 			    (page_dir_slot_get_rec(slot) != rec)) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Dir slot does not point"
-					" to right rec %lu",
-					(ulong) page_offset(rec));
+				ib::error() << "Dir slot does not point"
+					" to right rec " << page_offset(rec);
 
 				goto func_exit;
 			}
@@ -2311,11 +2250,10 @@ page_simple_validate_new(
 		if (UNIV_UNLIKELY
 		    (rec_get_next_offs(rec, TRUE) < FIL_PAGE_DATA
 		     || rec_get_next_offs(rec, TRUE) >= UNIV_PAGE_SIZE)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Next record offset nonsensical %lu"
-				" for rec %lu",
-				(ulong) rec_get_next_offs(rec, TRUE),
-				(ulong) page_offset(rec));
+
+			ib::error() << "Next record offset nonsensical "
+				<< rec_get_next_offs(rec, TRUE)
+				<< " for rec " << page_offset(rec);
 
 			goto func_exit;
 		}
@@ -2323,9 +2261,8 @@ page_simple_validate_new(
 		count++;
 
 		if (UNIV_UNLIKELY(count > UNIV_PAGE_SIZE)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Page record list appears to be circular %lu",
-				(ulong) count);
+			ib::error() << "Page record list appears to be"
+				" circular " << count;
 			goto func_exit;
 		}
 
@@ -2334,27 +2271,23 @@ page_simple_validate_new(
 	}
 
 	if (UNIV_UNLIKELY(rec_get_n_owned_new(rec) == 0)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"n owned is zero in a supremum rec");
+		ib::error() << "n owned is zero in a supremum rec";
 
 		goto func_exit;
 	}
 
 	if (UNIV_UNLIKELY(slot_no != n_slots - 1)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"n slots wrong %lu, %lu",
-			(ulong) slot_no, (ulong) (n_slots - 1));
+		ib::error() << "n slots wrong " << slot_no << ", "
+			<< (n_slots - 1);
 		goto func_exit;
 	}
 
 	if (UNIV_UNLIKELY(page_header_get_field(page, PAGE_N_RECS)
 			  + PAGE_HEAP_NO_USER_LOW
 			  != count + 1)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"n recs wrong %lu %lu",
-			(ulong) page_header_get_field(page, PAGE_N_RECS)
-			+ PAGE_HEAP_NO_USER_LOW,
-			(ulong) (count + 1));
+		ib::error() << "n recs wrong "
+			<< page_header_get_field(page, PAGE_N_RECS)
+			+ PAGE_HEAP_NO_USER_LOW << " " << (count + 1);
 
 		goto func_exit;
 	}
@@ -2365,20 +2298,17 @@ page_simple_validate_new(
 	while (rec != NULL) {
 		if (UNIV_UNLIKELY(rec < page + FIL_PAGE_DATA
 				  || rec >= page + UNIV_PAGE_SIZE)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Free list record has"
-				" a nonsensical offset %lu",
-				(ulong) page_offset(rec));
+
+			ib::error() << "Free list record has"
+				" a nonsensical offset " << page_offset(rec);
 
 			goto func_exit;
 		}
 
 		if (UNIV_UNLIKELY(rec > rec_heap_top)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Free list record %lu"
-				" is above rec heap top %lu",
-				(ulong) page_offset(rec),
-				(ulong) page_offset(rec_heap_top));
+			ib::error() << "Free list record " << page_offset(rec)
+				<< " is above rec heap top "
+				<< page_offset(rec_heap_top);
 
 			goto func_exit;
 		}
@@ -2386,9 +2316,8 @@ page_simple_validate_new(
 		count++;
 
 		if (UNIV_UNLIKELY(count > UNIV_PAGE_SIZE)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Page free list appears to be circular %lu",
-				(ulong) count);
+			ib::error() << "Page free list appears to be"
+				" circular " << count;
 			goto func_exit;
 		}
 
@@ -2397,10 +2326,8 @@ page_simple_validate_new(
 
 	if (UNIV_UNLIKELY(page_dir_get_n_heap(page) != count + 1)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"N heap is wrong %lu, %lu",
-			(ulong) page_dir_get_n_heap(page),
-			(ulong) (count + 1));
+		ib::error() << "N heap is wrong "
+			<< page_dir_get_n_heap(page) << ", " << (count + 1);
 
 		goto func_exit;
 	}
@@ -2414,7 +2341,6 @@ func_exit:
 /***************************************************************//**
 This function checks the consistency of an index page.
 @return TRUE if ok */
-
 ibool
 page_validate(
 /*==========*/
@@ -2447,7 +2373,7 @@ page_validate(
 
 	if (UNIV_UNLIKELY((ibool) !!page_is_comp(page)
 			  != dict_table_is_comp(index->table))) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "'compact format' flag mismatch");
+		ib::error() << "'compact format' flag mismatch";
 		goto func_exit2;
 	}
 	if (page_is_comp(page)) {
@@ -2472,10 +2398,8 @@ page_validate(
 		trx_id_t	sys_max_trx_id	= trx_sys_get_max_trx_id();
 
 		if (max_trx_id == 0 || max_trx_id > sys_max_trx_id) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"PAGE_MAX_TRX_ID out of bounds:"
-				" " TRX_ID_FMT ", " TRX_ID_FMT,
-				max_trx_id, sys_max_trx_id);
+			ib::error() << "PAGE_MAX_TRX_ID out of bounds: "
+				<< max_trx_id << ", " << sys_max_trx_id;
 			goto func_exit2;
 		}
 	}
@@ -2495,13 +2419,11 @@ page_validate(
 	if (UNIV_UNLIKELY(!(page_header_get_ptr(page, PAGE_HEAP_TOP)
 			    <= page_dir_get_nth_slot(page, n_slots - 1)))) {
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Record heap and dir overlap"
-			" on space %lu page %lu index %s, %p, %p",
-			(ulong) page_get_space_id(page),
-			(ulong) page_get_page_no(page), index->name,
-			page_header_get_ptr(page, PAGE_HEAP_TOP),
-			page_dir_get_nth_slot(page, n_slots - 1));
+		ib::warn() << "Record heap and dir overlap on space "
+			<< page_get_space_id(page) << " page "
+			<< page_get_page_no(page) << " index " << index->name
+			<< ", " << page_header_get_ptr(page, PAGE_HEAP_TOP)
+			<< ", " << page_dir_get_nth_slot(page, n_slots - 1);
 
 		goto func_exit;
 	}
@@ -2523,7 +2445,7 @@ page_validate(
 		if (page_is_comp(page) && page_rec_is_user_rec(rec)
 		    && UNIV_UNLIKELY(rec_get_node_ptr_flag(rec)
 				     == page_is_leaf(page))) {
-			ib_logf(IB_LOG_LEVEL_ERROR, "'node_ptr' flag mismatch");
+			ib::error() << "'node_ptr' flag mismatch";
 			goto func_exit;
 		}
 
@@ -2541,12 +2463,10 @@ page_validate(
 
 			if (ret <= 0) {
 
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Records in wrong order"
-					" on space %lu page %lu index %s",
-					(ulong) page_get_space_id(page),
-					(ulong) page_get_page_no(page),
-					index->name);
+				ib::error() << "Records in wrong order on"
+					" space " << page_get_space_id(page)
+					<< " page " << page_get_page_no(page)
+					<< " index " << index->name;
 
 				fputs("\nInnoDB: previous record ", stderr);
 				/* For spatial index, print the mbr info.*/
@@ -2588,16 +2508,14 @@ page_validate(
 		offs = page_offset(rec_get_start(rec, offsets));
 		i = rec_offs_size(offsets);
 		if (UNIV_UNLIKELY(offs + i >= UNIV_PAGE_SIZE)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Record offset out of bounds");
+			ib::error() << "Record offset out of bounds";
 			goto func_exit;
 		}
 
 		while (i--) {
 			if (UNIV_UNLIKELY(buf[offs + i])) {
 				/* No other record may overlap this */
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Record overlaps another");
+				ib::error() << "Record overlaps another";
 				goto func_exit;
 			}
 
@@ -2613,17 +2531,14 @@ page_validate(
 		if (UNIV_UNLIKELY(rec_own_count)) {
 			/* This is a record pointed to by a dir slot */
 			if (UNIV_UNLIKELY(rec_own_count != own_count)) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Wrong owned count %lu, %lu",
-					(ulong) rec_own_count,
-					(ulong) own_count);
+				ib::error() << "Wrong owned count "
+					<< rec_own_count << ", " << own_count;
 				goto func_exit;
 			}
 
 			if (page_dir_slot_get_rec(slot) != rec) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Dir slot does not"
-					" point to right rec");
+				ib::error() << "Dir slot does not"
+					" point to right rec";
 				goto func_exit;
 			}
 
@@ -2660,32 +2575,28 @@ page_validate(
 		}
 	} else if (UNIV_UNLIKELY(rec_get_n_owned_old(rec) == 0)) {
 n_owned_zero:
-		ib_logf(IB_LOG_LEVEL_ERROR, "n owned is zero");
+		ib::error() <<  "n owned is zero";
 		goto func_exit;
 	}
 
 	if (UNIV_UNLIKELY(slot_no != n_slots - 1)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"n slots wrong %lu %lu",
-			(ulong) slot_no, (ulong) (n_slots - 1));
+		ib::error() << "n slots wrong " << slot_no << " "
+			<< (n_slots - 1);
 		goto func_exit;
 	}
 
 	if (UNIV_UNLIKELY(page_header_get_field(page, PAGE_N_RECS)
 			  + PAGE_HEAP_NO_USER_LOW
 			  != count + 1)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"n recs wrong %lu %lu",
-			(ulong) page_header_get_field(page, PAGE_N_RECS)
-			+ PAGE_HEAP_NO_USER_LOW,
-			(ulong) (count + 1));
+		ib::error() << "n recs wrong "
+			<< page_header_get_field(page, PAGE_N_RECS)
+			+ PAGE_HEAP_NO_USER_LOW << " " << (count + 1);
 		goto func_exit;
 	}
 
 	if (UNIV_UNLIKELY(data_size != page_get_data_size(page))) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Summed data size %lu, returned by func %lu",
-			(ulong) data_size, (ulong) page_get_data_size(page));
+		ib::error() << "Summed data size " << data_size
+			<< ", returned by func " << page_get_data_size(page);
 		goto func_exit;
 	}
 
@@ -2704,17 +2615,15 @@ n_owned_zero:
 		offs = page_offset(rec_get_start(rec, offsets));
 		i = rec_offs_size(offsets);
 		if (UNIV_UNLIKELY(offs + i >= UNIV_PAGE_SIZE)) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Record offset out of bounds");
+			ib::error() << "Record offset out of bounds";
 			goto func_exit;
 		}
 
 		while (i--) {
 
 			if (UNIV_UNLIKELY(buf[offs + i])) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Record overlaps another"
-					" in free list");
+				ib::error() << "Record overlaps another"
+					" in free list";
 				goto func_exit;
 			}
 
@@ -2725,10 +2634,8 @@ n_owned_zero:
 	}
 
 	if (UNIV_UNLIKELY(page_dir_get_n_heap(page) != count + 1)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"N heap is wrong %lu %lu",
-			(ulong) page_dir_get_n_heap(page),
-			(ulong) count + 1);
+		ib::error() << "N heap is wrong "
+			<< page_dir_get_n_heap(page) << " " << count + 1;
 		goto func_exit;
 	}
 
@@ -2739,12 +2646,9 @@ func_exit:
 
 	if (UNIV_UNLIKELY(ret == FALSE)) {
 func_exit2:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Apparent corruption"
-			" in space %lu page %lu index %s",
-			(ulong) page_get_space_id(page),
-			(ulong) page_get_page_no(page),
-			index->name);
+		ib::error() << "Apparent corruption in space "
+			<< page_get_space_id(page) << " page "
+			<< page_get_page_no(page) << " index " << index->name;
 		buf_page_print(page, univ_page_size, 0);
 	}
 
@@ -2755,7 +2659,6 @@ func_exit2:
 /***************************************************************//**
 Looks in the page record list for a record with the given heap number.
 @return record, NULL if not found */
-
 const rec_t*
 page_find_rec_with_heap_no(
 /*=======================*/
@@ -2805,7 +2708,6 @@ Removes the record from a leaf page. This function does not log
 any changes. It is used by the IMPORT tablespace functions.
 The cursor is moved to the next record after the deleted one.
 @return true if success, i.e., the page did not become too empty */
-
 bool
 page_delete_rec(
 /*============*/
@@ -2860,7 +2762,6 @@ page_delete_rec(
 @param[in]	page	index tree leaf page
 @return the last record, not delete-marked
 @retval infimum record if all records are delete-marked */
-
 const rec_t*
 page_find_rec_max_not_deleted(
 	const page_t*	page)

@@ -309,7 +309,6 @@ ulint	os_n_pending_reads = 0;
 /**********************************************************************//**
 Validates the consistency the aio system some of the time.
 @return true if ok or the check was skipped */
-
 bool
 os_aio_validate_skip(void)
 /*======================*/
@@ -340,7 +339,6 @@ os_aio_validate_skip(void)
 Gets the operating system version. Currently works only on Windows.
 @return OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
 OS_WIN7. */
-
 ulint
 os_get_os_version(void)
 /*===================*/
@@ -403,54 +401,46 @@ os_file_get_last_error_low(
 		&& err != ERROR_DISK_FULL
 		&& err != ERROR_FILE_EXISTS)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Operating system error number %lu"
-			" in a file operation.", (ulong) err);
+		ib::error() << "Operating system error number " << err
+			<< " in a file operation.";
 
 		if (err == ERROR_PATH_NOT_FOUND) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means the system"
-				" cannot find the path specified.");
+			ib::error() << "The error means the system"
+				" cannot find the path specified.";
 
 			if (srv_is_being_started) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"If you are installing InnoDB,"
+				ib::error() << "If you are installing InnoDB,"
 					" remember that you must create"
 					" directories yourself, InnoDB"
-					" does not create them.");
+					" does not create them.";
 			}
 		} else if (err == ERROR_ACCESS_DENIED) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means mysqld does not have"
+			ib::error() << "The error means mysqld does not have"
 				" the access rights to"
 				" the directory. It may also be"
 				" you have created a subdirectory"
-				" of the same name as a data file.");
+				" of the same name as a data file.";
 		} else if (err == ERROR_SHARING_VIOLATION
 			   || err == ERROR_LOCK_VIOLATION) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means that another program"
-				" is using InnoDB's files."
-				" This might be a backup or antivirus"
-				" software or another instance"
-				" of MySQL."
-				" Please close it to get rid of this error.");
+				ib::error() << "The error means that another"
+					" program is using InnoDB's files."
+					" This might be a backup or antivirus"
+					" software or another instance of"
+					" MySQL. Please close it to get rid of"
+					" this error.";
 		} else if (err == ERROR_WORKING_SET_QUOTA
 			   || err == ERROR_NO_SYSTEM_RESOURCES) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means that there are no"
+			ib::error() << "The error means that there are no"
 				" sufficient system resources or quota to"
-				" complete the operation.");
+				" complete the operation.";
 		} else if (err == ERROR_OPERATION_ABORTED) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means that the I/O"
+			ib::error() << "The error means that the I/O"
 				" operation has been aborted"
 				" because of either a thread exit"
 				" or an application request."
-				" Retry attempt is made.");
+				" Retry attempt is made.";
 		} else {
-			ib_logf(IB_LOG_LEVEL_INFO, "%s",
-				OPERATING_SYSTEM_ERROR_MSG);
+			ib::info() << OPERATING_SYSTEM_ERROR_MSG;
 		}
 	}
 
@@ -482,35 +472,29 @@ os_file_get_last_error_low(
 	if (report_all_errors
 	    || (err != ENOSPC && err != EEXIST && !on_error_silent)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Operating system error number %d"
-			" in a file operation.", err);
+		ib::error() << "Operating system error number " << err
+			<< " in a file operation.";
 
 		if (err == ENOENT) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means the system"
-				" cannot find the path specified.");
+			ib::error() << "The error means the system"
+				" cannot find the path specified.";
 
 			if (srv_is_being_started) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"If you are installing InnoDB,"
+				ib::error() << "If you are installing InnoDB,"
 					" remember that you must create"
 					" directories yourself, InnoDB"
-					" does not create them.");
+					" does not create them.";
 			}
 		} else if (err == EACCES) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The error means mysqld does not have"
-				" the access rights to the directory.");
+			ib::error() << "The error means mysqld does not have"
+				" the access rights to the directory.";
 		} else {
 			if (strerror(err) != NULL) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Error number %d means '%s'.",
-					err, strerror(err));
+				ib::error() << "Error number " << err
+					<< " means '" << strerror(err) << "'.";
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO, "%s",
-				OPERATING_SYSTEM_ERROR_MSG);
+			ib::info() << OPERATING_SYSTEM_ERROR_MSG;
 		}
 	}
 
@@ -548,7 +532,6 @@ The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned.
 @return error number, or OS error number + 100 */
-
 ulint
 os_file_get_last_error(
 /*===================*/
@@ -592,12 +575,12 @@ os_file_handle_error_cond_exit(
 		on_error_silent setting. */
 
 		if (name) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Encountered a problem with file %s", name);
+			ib::error() << "Encountered a problem with file "
+				<< name;
 		}
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Disk is full. Try to clean the disk to free space.");
+		ib::error() << "Disk is full. Try to clean the disk to free"
+			<< " space.";
 
 		os_has_said_disk_full = true;
 
@@ -632,15 +615,16 @@ os_file_handle_error_cond_exit(
 		to the log. */
 
 		if (should_exit || !on_error_silent) {
-			ib_logf(IB_LOG_LEVEL_ERROR, "File %s: '%s' returned OS"
-				" error " ULINTPF ".%s", name ? name : "(unknown)",
-				operation, err, should_exit
-				? " Cannot continue operation" : "");
+			ib::error() << "File "
+				<< (name != NULL ? name : "(unknown)")
+				<< ": '" << operation << "'"
+				" returned OS error " << err << "."
+				<< (should_exit
+				    ? " Cannot continue operation" : "");
 		}
 
 		if (should_exit) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot continue operation.");
+			ib::error() << "Cannot continue operation.";
 			fflush(stderr);
 			ut_d(innodb_calling_exit = true);
 			exit(3);
@@ -708,14 +692,13 @@ os_file_lock(
 
 	if (fcntl(fd, F_SETLK, &lk) == -1) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to lock %s, error: %d", name, errno);
+		ib::error() << "Unable to lock " << name << ", error: "
+			<< errno;
 
 		if (errno == EAGAIN || errno == EACCES) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Check that you do not already have"
+			ib::info() << "Check that you do not already have"
 				" another mysqld process using the"
-				" same InnoDB data or log files.");
+				" same InnoDB data or log files.";
 		}
 
 		return(-1);
@@ -728,7 +711,6 @@ os_file_lock(
 #ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Creates the seek mutexes used in positioned reads and writes. */
-
 void
 os_io_init_simple(void)
 /*===================*/
@@ -747,7 +729,6 @@ os_io_init_simple(void)
 Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the MySQL temporary directory.
 @return temporary file handle, or NULL on error */
-
 FILE*
 os_file_create_tmpfile(void)
 /*========================*/
@@ -760,8 +741,8 @@ os_file_create_tmpfile(void)
 	}
 
 	if (!file) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to create temporary file; errno: %d", errno);
+		ib::error() << "Unable to create temporary file; errno: "
+			<< errno;
 		if (fd >= 0) {
 			close(fd);
 		}
@@ -777,7 +758,6 @@ directory named by the dirname argument. The directory stream is positioned
 at the first entry. In both Unix and Windows we automatically skip the '.'
 and '..' items at the start of the directory listing.
 @return directory stream, NULL if error */
-
 os_file_dir_t
 os_file_opendir(
 /*============*/
@@ -835,7 +815,6 @@ os_file_opendir(
 /***********************************************************************//**
 Closes a directory stream.
 @return 0 if success, -1 if failure */
-
 int
 os_file_closedir(
 /*=============*/
@@ -870,7 +849,6 @@ os_file_closedir(
 This function returns information of the next file in the directory. We jump
 over the '.' and '..' entries in the directory.
 @return 0 if ok, -1 if error, 1 if at the end of the directory */
-
 int
 os_file_readdir_next_file(
 /*======================*/
@@ -948,9 +926,8 @@ next_file:
 	ret = readdir_r(dir, (struct dirent*) dirent_buf, &ent);
 
 	if (ret != 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot read directory %s, error %lu",
-			dirname, (ulong) ret);
+		ib::error() << "Cannot read directory " << dirname
+			<< ", error " << ret;
 
 		return(-1);
 	}
@@ -1037,7 +1014,6 @@ the call succeeds, unless the fail_if_exists arguments is true.
 If another error occurs, such as a permission error, this does not crash,
 but reports the error and returns false.
 @return true if call succeeds, false on error */
-
 bool
 os_file_create_directory(
 /*=====================*/
@@ -1083,7 +1059,6 @@ this function!
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-
 os_file_t
 os_file_create_simple_func(
 /*=======================*/
@@ -1130,8 +1105,8 @@ os_file_create_simple_func(
 
 		if (!*success) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to create subdirectories '%s'", name);
+			ib::error() << "Unable to create subdirectories '"
+				<< name << "'";
 
 			return(OS_FILE_CLOSED);
 		}
@@ -1140,9 +1115,8 @@ os_file_create_simple_func(
 		create_mode = OS_FILE_CREATE;
 
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1151,18 +1125,16 @@ os_file_create_simple_func(
 		access = GENERIC_READ;
 	} else if (read_only_mode) {
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Read only mode set. Unable to"
-			" open file '%s' in RW mode, trying RO mode", name);
+		ib::info() << "Read only mode set. Unable to open file '"
+			<< name << "' in RW mode, trying RO mode";
 
 		access = GENERIC_READ;
 
 	} else if (access_type == OS_FILE_READ_WRITE) {
 		access = GENERIC_READ | GENERIC_WRITE;
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file access type (%lu) for file '%s'",
-			access_type, name);
+		ib::error() << "Unknown file access type (" << access_type
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1221,8 +1193,8 @@ os_file_create_simple_func(
 
 		if (!*success) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to create subdirectories '%s'", name);
+			ib::error() << "Unable to create subdirectories '"
+				<< name << "'";
 
 			return(OS_FILE_CLOSED);
 		}
@@ -1231,9 +1203,8 @@ os_file_create_simple_func(
 		create_mode = OS_FILE_CREATE;
 	} else {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1278,7 +1249,6 @@ os_file_create_simple_no_error_handling(), not directly this function!
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-
 os_file_t
 os_file_create_simple_no_error_handling_func(
 /*=========================================*/
@@ -1316,9 +1286,8 @@ os_file_create_simple_no_error_handling_func(
 		create_flag = CREATE_NEW;
 	} else {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1340,9 +1309,8 @@ os_file_create_simple_no_error_handling_func(
 
 		share_mode |= FILE_SHARE_DELETE | FILE_SHARE_WRITE;
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file access type (%lu) for file '%s'",
-			access_type, name);
+		ib::error() << "Unknown file access type (" << access_type
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1391,9 +1359,8 @@ os_file_create_simple_no_error_handling_func(
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
 
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1422,7 +1389,6 @@ os_file_create_simple_no_error_handling_func(
 
 /****************************************************************//**
 Tries to disable OS caching on an opened file descriptor. */
-
 void
 os_file_set_nocache(
 /*================*/
@@ -1440,10 +1406,9 @@ os_file_set_nocache(
 	if (directio(fd, DIRECTIO_ON) == -1) {
 		int	errno_save = errno;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Failed to set DIRECTIO_ON on file %s: %s: %s,"
-			" continuing anyway.",
-			file_name, operation_name, strerror(errno_save));
+		ib::error() << "Failed to set DIRECTIO_ON on file "
+			<< file_name << ": " << operation_name << ": "
+			<< strerror(errno_save) << ", continuing anyway.";
 	}
 #elif defined(O_DIRECT)
 	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
@@ -1453,14 +1418,12 @@ os_file_set_nocache(
 			if (!warning_message_printed) {
 				warning_message_printed = true;
 # ifdef UNIV_LINUX
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Failed to set O_DIRECT on file"
-					" %s: %s: %s, continuing anyway."
-					" O_DIRECT is known to result"
-					" in 'Invalid argument' on Linux on"
-					" tmpfs, see MySQL Bug#26662.",
-					file_name, operation_name,
-					strerror(errno_save));
+				ib::warn() << "Failed to set O_DIRECT on file "
+					<< file_name << ": " << operation_name
+					<< ": " << strerror(errno_save) << ","
+					" continuing anyway. O_DIRECT is known"
+					" to result in 'Invalid argument' on"
+					" Linux on tmpfs, see MySQL Bug#26662.";
 # else /* UNIV_LINUX */
 				goto short_warning;
 # endif /* UNIV_LINUX */
@@ -1469,10 +1432,10 @@ os_file_set_nocache(
 # ifndef UNIV_LINUX
 short_warning:
 # endif
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Failed to set O_DIRECT on file %s: %s: %s,"
-				" continuing anyway.",
-				file_name, operation_name, strerror(errno_save));
+			ib::warn() << "Failed to set O_DIRECT on file "
+				<< file_name << ": " << operation_name
+				<< ": " << strerror(errno_save) << ","
+				" continuing anyway.";
 		}
 	}
 #endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */
@@ -1484,7 +1447,6 @@ this function!
 Opens an existing file or creates a new.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
-
 os_file_t
 os_file_create_func(
 /*================*/
@@ -1570,9 +1532,8 @@ os_file_create_func(
 		create_flag = CREATE_ALWAYS;
 
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1596,9 +1557,8 @@ os_file_create_func(
 	} else if (purpose == OS_FILE_NORMAL) {
 		/* Use default setting. */
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown purpose flag (%lu) while opening file '%s'",
-			purpose, name);
+		ib::error() << "Unknown purpose flag (" << purpose
+			<< ") while opening file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1690,9 +1650,8 @@ os_file_create_func(
 		create_flag = O_RDWR | O_CREAT | O_TRUNC;
 
 	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unknown file create mode (%lu) for file '%s'",
-			create_mode, name);
+		ib::error() << "Unknown file create mode (" << create_mode
+			<< ") for file '" << name << "'";
 
 		return(OS_FILE_CLOSED);
 	}
@@ -1761,8 +1720,7 @@ os_file_create_func(
 
 			ut_a(!read_only_mode);
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Retrying to lock the first data file");
+			ib::info() << "Retrying to lock the first data file";
 
 			for (int i = 0; i < DBUG_EVALUATE_IF("innodb_lock_no_retry", 0, 100);
 					 i++) {
@@ -1774,8 +1732,7 @@ os_file_create_func(
 				}
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Unable to open the first data file");
+			ib::info() << "Unable to open the first data file";
 		}
 
 		*success = false;
@@ -1792,7 +1749,6 @@ os_file_create_func(
 /***********************************************************************//**
 Deletes a file if it exists. The file has to be closed before calling this.
 @return true if success */
-
 bool
 os_file_delete_if_exists_func(
 /*==========================*/
@@ -1834,7 +1790,7 @@ loop:
 	if (count > 100 && 0 == (count % 10)) {
 		os_file_get_last_error(true); /* print error information */
 
-		ib_logf(IB_LOG_LEVEL_WARN, "Delete of file %s failed.", name);
+		ib::warn() <<  "Delete of file " << name << " failed.";
 	}
 
 	os_thread_sleep(500000);	/* sleep for 0.5 second */
@@ -1870,7 +1826,6 @@ loop:
 /***********************************************************************//**
 Deletes a file. The file has to be closed before calling this.
 @return true if success */
-
 bool
 os_file_delete_func(
 /*================*/
@@ -1902,9 +1857,8 @@ loop:
 	if (count > 100 && 0 == (count % 10)) {
 		os_file_get_last_error(true); /* print error information */
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot delete file %s. Are you running mysqlbackup"
-			" to back up the file?", name);
+		ib::warn() << "Cannot delete file " << name << ". Are you"
+			" running mysqlbackup to back up the file?";
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
@@ -1935,7 +1889,6 @@ NOTE! Use the corresponding macro os_file_rename(), not directly this function!
 Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function.
 @return true if success */
-
 bool
 os_file_rename_func(
 /*================*/
@@ -1988,7 +1941,6 @@ NOTE! Use the corresponding macro os_file_close(), not directly this function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
 @return true if success */
-
 bool
 os_file_close_func(
 /*===============*/
@@ -2027,7 +1979,6 @@ os_file_close_func(
 /***********************************************************************//**
 Closes a file handle.
 @return true if success */
-
 bool
 os_file_close_no_error_handling(
 /*============================*/
@@ -2063,7 +2014,6 @@ os_file_close_no_error_handling(
 /***********************************************************************//**
 Gets a file size.
 @return file size, or (os_offset_t) -1 on failure */
-
 os_offset_t
 os_file_get_size(
 /*=============*/
@@ -2093,7 +2043,6 @@ os_file_get_size(
 /***********************************************************************//**
 Write the specified number of zeros to a newly created file.
 @return true if success */
-
 bool
 os_file_set_size(
 /*=============*/
@@ -2127,7 +2076,7 @@ os_file_set_size(
 
 	if (size >= (os_offset_t) 100 << 20) {
 
-		ib_logf(IB_LOG_LEVEL_INFO, "Progress in MB:");
+		ib::info() << "Progress in MB:";
 	}
 
 	while (current_size < size) {
@@ -2186,7 +2135,6 @@ error_handling:
 /***********************************************************************//**
 Truncates a file at its current position.
 @return true if success */
-
 bool
 os_file_set_eof(
 /*============*/
@@ -2207,7 +2155,6 @@ size of the file.
 @param[in]	file		file to be truncated
 @param[in]	size		size to preserve in bytes
 @return true if success */
-
 bool
 os_file_truncate(
 	const char*     pathname,
@@ -2275,9 +2222,8 @@ os_file_fsync(
 
 			if (failures % 100 == 0) {
 
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"fsync(): No locks available;"
-					" retrying");
+				ib::warn() << "fsync(): No locks available;"
+					" retrying";
 			}
 
 			os_thread_sleep(200000 /* 0.2 sec */);
@@ -2299,7 +2245,6 @@ os_file_fsync(
 NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.
 @return true if success */
-
 bool
 os_file_flush_func(
 /*===============*/
@@ -2351,7 +2296,7 @@ os_file_flush_func(
 		return(true);
 	}
 
-	ib_logf(IB_LOG_LEVEL_ERROR, "The OS said file flush did not succeed");
+	ib::error() << "The OS said file flush did not succeed";
 
 	os_file_handle_error(NULL, "flush");
 
@@ -2396,19 +2341,15 @@ os_file_io(
 		} else if (n_bytes > 0 && (ulint) n_bytes < n) {
 			/* For partial read/write scenario */
 			if (type == OS_FILE_READ) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"%lu bytes should have"
-					" been read. Only %lu bytes"
+				ib::warn() << n << " bytes should have been"
+					" read. Only " << n_bytes << " bytes"
 					" read. Retrying again to read"
-					" the remaining bytes.",
-					(ulong) n, (ulong) n_bytes);
+					" the remaining bytes.";
 			} else {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"%lu bytes should have"
-					" been written. Only %lu bytes"
-					" written. Retrying again to"
-					" write the remaining bytes.",
-					(ulong) n, (ulong) n_bytes);
+				ib::warn() << n << " bytes should have been"
+					" written. Only " << n_bytes
+					<< " bytes written. Retrying again to"
+					" write the remaining bytes.";
 			}
 
 			buf = (uchar*) buf + (ulint) n_bytes;
@@ -2421,9 +2362,9 @@ os_file_io(
 		}
 	}
 
-	ib_logf(IB_LOG_LEVEL_WARN,
-		"Retry attempts for %s partial data failed.",
-		type == OS_FILE_READ ? "reading" : "writing");
+	ib::warn() << "Retry attempts for "
+		<< (type == OS_FILE_READ ? "reading" : "writing")
+		<< " partial data failed.";
 
 	return(bytes_returned);
 }
@@ -2450,7 +2391,7 @@ os_file_pread(
 	offs = (off_t) offset;
 
 	if (sizeof(off_t) <= 4 && offset != (os_offset_t) offs) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "File read at offset > 4 GB");
+		ib::error() << "File read at offset > 4 GB";
 	}
 
 	os_n_file_reads++;
@@ -2506,7 +2447,7 @@ os_file_pwrite(
 	offs = (off_t) offset;
 
 	if (sizeof(off_t) <= 4 && offset != (os_offset_t) offs) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "file write at offset > 4 GB.");
+		ib::error() << "file write at offset > 4 GB.";
 	}
 
 	os_n_file_writes++;
@@ -2548,7 +2489,6 @@ NOTE! Use the corresponding macro os_file_read(), not directly this
 function!
 Requests a synchronous positioned read operation.
 @return true if request was successful, false if fail */
-
 bool
 os_file_read_func(
 /*==============*/
@@ -2655,10 +2595,8 @@ try_again:
 		return(true);
 	}
 
-	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Tried to read " ULINTPF " bytes at offset"
-		" " UINT64PF " was only able to read %ld.",
-		n, offset, (lint) ret);
+	ib::error() << "Tried to read " << n << " bytes at offset " << offset
+		<< " was only able to read " << ret << ".";
 #endif /* _WIN32 */
 #ifdef _WIN32
 error_handling:
@@ -2676,13 +2614,13 @@ error_handling:
 		goto try_again;
 	}
 
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Cannot read from file. OS error number %lu.",
+	ib::fatal() << "Cannot read from file. OS error number "
 #ifdef _WIN32
-		(ulong) GetLastError());
+		<< GetLastError()
 #else
-		(ulong) errno);
+		<< errno
 #endif
+		<< ".";
 
 	return(false);
 }
@@ -2693,7 +2631,6 @@ not directly this function!
 Requests a synchronous positioned read operation. This function does not do
 any error handling. In case of error it returns false.
 @return true if request was successful, false if fail */
-
 bool
 os_file_read_no_error_handling_func(
 /*================================*/
@@ -2823,7 +2760,6 @@ error_handling:
 Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
 mostly meant to be used with temporary files. */
-
 void
 os_file_read_string(
 /*================*/
@@ -2847,7 +2783,6 @@ NOTE! Use the corresponding macro os_file_write(), not directly
 this function!
 Requests a synchronous write operation.
 @return true if request was successful, false if fail */
-
 bool
 os_file_write_func(
 /*===============*/
@@ -2919,13 +2854,10 @@ retry:
 		mutex_exit(&os_file_count_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"File pointer positioning to"
-			" file %s failed at offset %llu."
-			" Operating system error number %lu. %s",
-			name, offset, (ulong) GetLastError(),
-			OPERATING_SYSTEM_ERROR_MSG);
-
+		ib::error() << "File pointer positioning to file " << name
+			<< " failed at offset " << offset << ". Operating"
+			" system error number " << GetLastError() << ". "
+			<< OPERATING_SYSTEM_ERROR_MSG;
 		return(false);
 	}
 
@@ -2967,26 +2899,20 @@ retry:
 
 		err = (ulint) GetLastError();
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Write to file %s failed at offset %llu."
-			" %lu bytes should have been written,"
-			" only %lu were written."
-			" Operating system error number %lu."
-			" Check that your OS and file system"
-			" support files of this size."
-			" Check also that the disk is not full"
-			" or a disk quota exceeded.",
-			name, offset,
-			(ulong) n, (ulong) len, (ulong) err);
+		ib::error() << "Write to file " << name << " failed at offset "
+			<< offset << ". " << n << " bytes should have been"
+			" written, only " << len << " were written."
+			" Operating system error number " << err << "."
+			" Check that your OS and file system support files of"
+			" this size. Check also that the disk is not full"
+			" or a disk quota exceeded.";
 
 		if (strerror((int) err) != NULL) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Error number %lu means '%s'.",
-				(ulong) err, strerror((int) err));
+			ib::error() << "Error number " << err << " means '"
+				<< strerror((int) err) << "'.";
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO, "%s",
-			OPERATING_SYSTEM_ERROR_MSG);
+		ib::info() << OPERATING_SYSTEM_ERROR_MSG;
 
 		os_has_said_disk_full = true;
 	}
@@ -3004,25 +2930,20 @@ retry:
 
 	if (!os_has_said_disk_full) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Write to file %s failed at offset " UINT64PF "."
-			" %lu bytes should have been written,"
-			" only %ld were written."
-			" Operating system error number %lu."
-			" Check that your OS and file system"
-			" support files of this size."
-			" Check also that the disk is not full"
-			" or a disk quota exceeded.",
-			name, offset, n, (lint) ret,
-			(ulint) errno);
+		ib::error() << "Write to file " << name << " failed at offset "
+			<< offset << ". " << n << " bytes should have been"
+			" written, only " << ret << " were written. Operating"
+			" system error number " << errno << ". Check that your"
+			" OS and file system support files of this size. Check"
+			" also that the disk is not full or a disk quota"
+			" exceeded.";
+
 		if (strerror(errno) != NULL) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Error number %d means '%s'.",
-				errno, strerror(errno));
+			ib::error() << "Error number " << errno << " means '"
+				<< strerror(errno) << "'.";
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO, "%s",
-			OPERATING_SYSTEM_ERROR_MSG);
+		ib::info() << OPERATING_SYSTEM_ERROR_MSG;
 
 		os_has_said_disk_full = true;
 	}
@@ -3034,7 +2955,6 @@ retry:
 /*******************************************************************//**
 Check the existence and type of the given file.
 @return true if call succeeded */
-
 bool
 os_file_status(
 /*===========*/
@@ -3115,7 +3035,6 @@ os_file_status(
 /*******************************************************************//**
 This function returns information about the specified file
 @return DB_SUCCESS if all OK */
-
 dberr_t
 os_file_get_status(
 /*===============*/
@@ -3256,7 +3175,6 @@ This function allocates memory to be returned.  It is the callers
 responsibility to free the return value after it is no longer needed.
 
 @return own: new full pathname */
-
 char*
 os_file_make_new_pathname(
 /*======================*/
@@ -3305,7 +3223,6 @@ This function manipulates that path in place.
 
 If the path format is not as expected, just return.  The result is used
 to inform a SHOW CREATE TABLE command. */
-
 void
 os_file_make_data_dir_path(
 /*========================*/
@@ -3370,7 +3287,6 @@ returned by dirname and basename for different paths:
        ".."	      "."	     ".."
 
 @return own: directory component of the pathname */
-
 char*
 os_file_dirname(
 /*============*/
@@ -3400,7 +3316,6 @@ os_file_dirname(
 /****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return true if call succeeded, false otherwise */
-
 bool
 os_file_create_subdirs_if_needed(
 /*=============================*/
@@ -3408,9 +3323,8 @@ os_file_create_subdirs_if_needed(
 {
 	if (srv_read_only_mode) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"read only mode set. Can't create subdirectories '%s'",
-			path);
+		ib::error() << "read only mode set. Can't create"
+			" subdirectories '" << path << "'";
 
 		return(false);
 
@@ -3489,8 +3403,8 @@ retry:
 	ret = io_setup(max_events, io_ctx);
 	if (ret == 0) {
 #if defined(UNIV_AIO_DEBUG)
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Linux native AIO: initialized io_ctx for segment");
+		ib::info() << "Linux native AIO: initialized io_ctx for"
+			<< " segment";
 #endif
 		/* Success. Return now. */
 		return(true);
@@ -3502,46 +3416,40 @@ retry:
 	case -EAGAIN:
 		if (retries == 0) {
 			/* First time around. */
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"io_setup() failed with EAGAIN."
-				" Will make %d attempts before giving up.",
-				OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
+			ib::warn() << "io_setup() failed with EAGAIN. Will"
+				" make " << OS_AIO_IO_SETUP_RETRY_ATTEMPTS
+				<< " attempts before giving up.";
 		}
 
 		if (retries < OS_AIO_IO_SETUP_RETRY_ATTEMPTS) {
 			++retries;
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"io_setup() attempt %lu failed.",
-				retries);
+			ib::warn() << "io_setup() attempt " << retries
+				<< " failed.";
 			os_thread_sleep(OS_AIO_IO_SETUP_RETRY_SLEEP);
 			goto retry;
 		}
 
 		/* Have tried enough. Better call it a day. */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"io_setup() failed with EAGAIN after %d attempts.",
-			OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
+		ib::error() << "io_setup() failed with EAGAIN after "
+			<< OS_AIO_IO_SETUP_RETRY_ATTEMPTS << " attempts.";
 		break;
 
 	case -ENOSYS:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Linux Native AIO interface"
+		ib::error() << "Linux Native AIO interface"
 			" is not supported on this platform. Please"
 			" check your OS documentation and install"
-			" appropriate binary of InnoDB.");
+			" appropriate binary of InnoDB.";
 
 		break;
 
 	default:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Linux Native AIO setup"
-			" returned following error[%d]", -ret);
+		ib::error() << "Linux Native AIO setup"
+			" returned following error[" << -ret << "]";
 		break;
 	}
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"You can disable Linux Native AIO by"
-		" setting innodb_use_native_aio = 0 in my.cnf");
+	ib::info() << "You can disable Linux Native AIO by"
+		" setting innodb_use_native_aio = 0 in my.cnf";
 	return(false);
 }
 
@@ -3568,9 +3476,8 @@ os_aio_native_aio_supported(void)
 		fd = innobase_mysql_tmpfile();
 
 		if (fd < 0) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Unable to create temp file to check"
-				" native AIO support.");
+			ib::warn() << "Unable to create temp file to check"
+				" native AIO support.";
 
 			return(false);
 		}
@@ -3593,9 +3500,8 @@ os_aio_native_aio_supported(void)
 
 		if (fd == -1) {
 
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Unable to open \"%s\" to check"
-				" native AIO read support.", name);
+			ib::warn() << "Unable to open \"" << name << "\" to check"
+				" native AIO read support.";
 
 			return(false);
 		}
@@ -3639,18 +3545,17 @@ os_aio_native_aio_supported(void)
 
 	case -EINVAL:
 	case -ENOSYS:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Linux Native AIO not supported. You can either"
-			" move %s to a file system that supports native"
+		ib::error() << "Linux Native AIO not supported. You can either"
+			" move " << (srv_read_only_mode ? name : "tmpdir") <<
+			" to a file system that supports native"
 			" AIO or you can set innodb_use_native_aio to"
-			" FALSE to avoid this message.",
-			srv_read_only_mode ? name : "tmpdir");
+			" FALSE to avoid this message.";
 
 		/* fall through. */
 	default:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Linux Native AIO check on %s returned error[%d]",
-			srv_read_only_mode ? name : "tmpdir", -err);
+		ib::error() << "Linux Native AIO check on "
+			<< (srv_read_only_mode ? name : "tmpdir")
+			<< " returned error[" << -err << "]";
 	}
 
 	return(false);
@@ -3807,7 +3712,6 @@ array is divided logically into n_read_segs and n_write_segs
 respectively. The caller must create an i/o handler thread for each
 segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that */
-
 bool
 os_aio_init(
 /*========*/
@@ -3824,7 +3728,7 @@ os_aio_init(
 	/* Check if native aio is supported on this system and tmpfs */
 	if (srv_use_native_aio && !os_aio_native_aio_supported()) {
 
-		ib_logf(IB_LOG_LEVEL_WARN, "Linux Native AIO disabled.");
+		ib::warn() << "Linux Native AIO disabled.";
 
 		srv_use_native_aio = FALSE;
 	}
@@ -3915,7 +3819,6 @@ os_aio_init(
 
 /***********************************************************************
 Frees the asynchronous io system. */
-
 void
 os_aio_free(void)
 /*=============*/
@@ -3978,7 +3881,6 @@ os_aio_array_wake_win_aio_at_shutdown(
 /************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */
-
 void
 os_aio_wake_all_threads_at_shutdown(void)
 /*=====================================*/
@@ -4024,7 +3926,6 @@ os_aio_wake_all_threads_at_shutdown(void)
 /************************************************************************//**
 Waits until there are no pending writes in os_aio_write_array. There can
 be other, synchronous, pending writes. */
-
 void
 os_aio_wait_until_no_pending_writes(void)
 /*=====================================*/
@@ -4365,7 +4266,6 @@ os_aio_simulated_wake_handler_thread(
 
 /**********************************************************************//**
 Wakes up simulated aio i/o-handler threads if they have something to do. */
-
 void
 os_aio_simulated_wake_handler_threads(void)
 /*=======================================*/
@@ -4388,7 +4288,6 @@ This function can be called if one wants to post a batch of reads and
 prefers an i/o-handler thread to handle them all at once later. You must
 call os_aio_simulated_wake_handler_threads later to ensure the threads
 are not left sleeping! */
-
 void
 os_aio_simulated_put_read_threads_to_sleep(void)
 /*============================================*/
@@ -4450,10 +4349,11 @@ os_aio_linux_dispatch(
 	ret = io_submit(array->aio_ctx[io_ctx_index], 1, &iocb);
 
 #if defined(UNIV_AIO_DEBUG)
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"io_submit[%c] ret[%d]: slot[%p] ctx[%p] seg[%lu]",
-		(slot->type == OS_FILE_WRITE) ? 'w' : 'r', ret, slot,
-		array->aio_ctx[io_ctx_index], (ulong) io_ctx_index);
+	const char	r = (slot->type == OS_FILE_WRITE) ? 'w' : 'r';
+	ib::info()
+		<< "io_submit[" << r << "] ret[" << ret << "]: slot[" << slot
+		<< "] ctx[" << array->aio_ctx[io_ctx_index] << "] seg["
+		<< io_ctx_index << "]";
 #endif
 
 	/* io_submit returns number of successfully
@@ -4472,7 +4372,6 @@ os_aio_linux_dispatch(
 NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
 @return true if request was queued successfully, false if fail */
-
 bool
 os_aio_func(
 /*========*/
@@ -4702,7 +4601,6 @@ into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 @return true if the aio operation succeeded */
-
 bool
 os_aio_windows_handle(
 /*==================*/
@@ -4939,11 +4837,11 @@ retry:
 			ut_a(slot->is_reserved);
 
 #if defined(UNIV_AIO_DEBUG)
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"io_getevents[%c]: slot[%p] ctx[%p]"
-				" seg[%lu]",
-				(slot->type == OS_FILE_WRITE) ? 'w' : 'r',
-				slot, io_ctx, segment);
+			const char	r
+				= (slot->type == OS_FILE_WRITE) ? 'w' : 'r';
+			ib::info() << "io_getevents[" << r << "]: slot["
+				<< slot << "] ctx[" << io_ctx << "] seg["
+				<< segment << "]";
 #endif
 
 			/* We are not scribbling previous segment. */
@@ -4986,8 +4884,8 @@ retry:
 	}
 
 	/* All other errors should cause a trap for now. */
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Unexpected ret_code[%d] from io_getevents()!", ret);
+	ib::fatal() << "Unexpected ret_code[" << ret
+		<< "] from io_getevents()!";
 }
 
 /**********************************************************************//**
@@ -4998,7 +4896,6 @@ into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 @return true if the IO was successful */
-
 bool
 os_aio_linux_handle(
 /*================*/
@@ -5117,11 +5014,10 @@ found:
 		submit_ret = io_submit(array->aio_ctx[segment], 1, &iocb);
 		if (submit_ret < 0 ) {
 			/* Aborting in case of submit failure */
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Native Linux AIO interface. io_submit()"
-				" call failed when resubmitting a partial"
-				" I/O request on the file %s.",
-				slot->name);
+			ib::fatal()
+				<< "Native Linux AIO interface. io_submit()"
+				" call failed when resubmitting a partial I/O"
+				" request on the file " << slot->name << ".";
 		} else {
 			ret = false;
 			mutex_exit(&array->mutex);
@@ -5154,7 +5050,6 @@ found:
 Does simulated aio. This function should be called by an i/o-handler
 thread.
 @return true if the aio operation succeeded */
-
 bool
 os_aio_simulated_handle(
 /*====================*/
@@ -5515,7 +5410,6 @@ os_aio_array_validate(
 /**********************************************************************//**
 Validates the consistency the aio system.
 @return true if ok */
-
 bool
 os_aio_validate(void)
 /*=================*/
@@ -5577,7 +5471,6 @@ os_aio_print_segment_info(
 
 /**********************************************************************//**
 Prints info about the aio array. */
-
 void
 os_aio_print_array(
 /*==============*/
@@ -5621,7 +5514,6 @@ os_aio_print_array(
 
 /**********************************************************************//**
 Prints info of the aio arrays. */
-
 void
 os_aio_print(
 /*=========*/
@@ -5718,7 +5610,6 @@ os_aio_print(
 
 /**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
-
 void
 os_aio_refresh_stats(void)
 /*======================*/
@@ -5735,7 +5626,6 @@ os_aio_refresh_stats(void)
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations.
 @return true if all free */
-
 bool
 os_aio_all_slots_free(void)
 /*=======================*/
@@ -5823,7 +5713,6 @@ os_aio_print_pending_io_array(
 
 /** Prints all pending IO
 @param[in]	file	file where to print */
-
 void
 os_aio_print_pending_io(
 	FILE*	file)
@@ -5856,7 +5745,6 @@ os_aio_print_pending_io(
 #ifdef _WIN32
 /** Normalizes a directory path for Windows: converts '/' to '\'.
 @param[in,out] str A null-terminated Windows directory and file path */
-
 void
 os_normalize_path_for_win(
 	char*	str __attribute__((unused)))

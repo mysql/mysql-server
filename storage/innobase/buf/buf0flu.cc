@@ -312,7 +312,6 @@ buf_flush_block_cmp(
 Initialize the red-black tree to speed up insertions into the flush_list
 during recovery process. Should be called at the start of recovery
 process before any page has been read/written. */
-
 void
 buf_flush_init_flush_rbt(void)
 /*==========================*/
@@ -338,7 +337,6 @@ buf_flush_init_flush_rbt(void)
 
 /********************************************************************//**
 Frees up the red-black tree. */
-
 void
 buf_flush_free_flush_rbt(void)
 /*==========================*/
@@ -365,7 +363,6 @@ buf_flush_free_flush_rbt(void)
 
 /********************************************************************//**
 Inserts a modified block into the flush list. */
-
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
@@ -424,7 +421,6 @@ buf_flush_insert_into_flush_list(
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
 necessarily come in the order of lsn's. */
-
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
@@ -518,7 +514,6 @@ buf_flush_insert_sorted_into_flush_list(
 Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., the transition FILE_PAGE => NOT_USED allowed.
 @return TRUE if can replace immediately */
-
 ibool
 buf_flush_ready_for_replace(
 /*========================*/
@@ -548,7 +543,6 @@ buf_flush_ready_for_replace(
 /********************************************************************//**
 Returns true if the block is modified and ready for flushing.
 @return true if can flush immediately */
-
 bool
 buf_flush_ready_for_flush(
 /*======================*/
@@ -588,7 +582,6 @@ buf_flush_ready_for_flush(
 
 /********************************************************************//**
 Remove a block from the flush list of modified blocks. */
-
 void
 buf_flush_remove(
 /*=============*/
@@ -659,7 +652,6 @@ use the current list node (bpage) to do the list manipulation because
 the list pointers could have changed between the time that we copied
 the contents of bpage to the dpage and the flush list manipulation
 below. */
-
 void
 buf_flush_relocate_on_flush_list(
 /*=============================*/
@@ -726,7 +718,6 @@ buf_flush_relocate_on_flush_list(
 
 /********************************************************************//**
 Updates the flush system data structures when a write is completed. */
-
 void
 buf_flush_write_complete(
 /*=====================*/
@@ -777,7 +768,6 @@ buf_flush_update_zip_checksum(
 
 /********************************************************************//**
 Initializes a page for writing to the tablespace. */
-
 void
 buf_flush_init_for_writing(
 /*=======================*/
@@ -1011,7 +1001,6 @@ writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
 held upon entering this function, and they will be released by this
 function if it returns true.
 @return TRUE if the page was flushed */
-
 ibool
 buf_flush_page(
 /*===========*/
@@ -1114,7 +1103,6 @@ NOTE: buf_pool->mutex and block->mutex must be held upon entering this
 function, and they will be released by this function after flushing.
 This is loosely based on buf_flush_batch() and buf_flush_page().
 @return TRUE if the page was flushed and the mutexes released */
-
 ibool
 buf_flush_page_try(
 /*===============*/
@@ -1838,7 +1826,6 @@ buf_flush_end(
 
 /******************************************************************//**
 Waits until a flush batch of the given type ends */
-
 void
 buf_flush_wait_batch_end(
 /*=====================*/
@@ -1880,7 +1867,6 @@ does not exceed min_n), otherwise ignored
 passed back to caller. Ignored if NULL
 @retval true	if a batch was queued successfully.
 @retval false	if another batch of same type was already running. */
-
 bool
 buf_flush_do_batch(
 	buf_pool_t*	buf_pool,
@@ -1919,7 +1905,6 @@ NOTE: The calling thread is not allowed to own any latches on pages!
 @return true if a batch was queued successfully for each buffer pool
 instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */
-
 bool
 buf_flush_lists(
 /*============*/
@@ -2002,7 +1987,6 @@ they are unable to find a replaceable page at the tail of the LRU
 list i.e.: when the background LRU flushing in the page_cleaner thread
 is not fast enough to keep pace with the workload.
 @return true if success. */
-
 bool
 buf_flush_single_page_from_LRU(
 /*===========================*/
@@ -2142,7 +2126,6 @@ Clears up tail of the LRU lists:
 The depth to which we scan each buffer pool is controlled by dynamic
 config parameter innodb_LRU_scan_depth.
 @return total pages flushed */
-
 ulint
 buf_flush_LRU_lists(void)
 /*=====================*/
@@ -2163,7 +2146,6 @@ buf_flush_LRU_lists(void)
 
 /*********************************************************************//**
 Wait for any possible LRU flushes that are in progress to end. */
-
 void
 buf_flush_wait_LRU_batch_end(void)
 /*==============================*/
@@ -2401,7 +2383,6 @@ pc_sleep_if_needed(
 
 /******************************************************************//**
 Initialize page_cleaner. */
-
 void
 buf_flush_page_cleaner_init(void)
 /*=============================*/
@@ -2925,7 +2906,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 Synchronously flush dirty blocks from the end of the flush list of all buffer
 pool instances.
 NOTE: The calling thread is not allowed to own any latches on pages! */
-
 void
 buf_flush_sync_all_buf_pools(void)
 /*==============================*/
@@ -3017,7 +2997,6 @@ buf_flush_validate_low(
 /******************************************************************//**
 Validates the flush list.
 @return TRUE if ok */
-
 ibool
 buf_flush_validate(
 /*===============*/
@@ -3041,7 +3020,6 @@ buf_flush_validate(
 Check if there are any dirty pages that belong to a space id in the flush
 list in a particular buffer pool.
 @return number of dirty pages present in a single buffer pool */
-
 ulint
 buf_pool_get_dirty_pages_count(
 /*===========================*/
@@ -3078,7 +3056,6 @@ buf_pool_get_dirty_pages_count(
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush list.
 @return number of dirty pages present in all the buffer pools */
-
 ulint
 buf_flush_get_dirty_pages_count(
 /*============================*/
