@@ -726,7 +726,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     goto err;
   }
   // Convert 0-3 to 4
-  log_pos= max<ulong>(log_pos, BIN_LOG_HEADER_SIZE);
+  log_pos= max(log_pos, static_cast<longlong>(BIN_LOG_HEADER_SIZE));
   /* p points to '.' */
   log_name_extension= strtoul(++p, &p_end, 10);
   /*

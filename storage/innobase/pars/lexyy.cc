@@ -3116,7 +3116,6 @@ void yyfree (void * ptr )
 
 /**********************************************************************
 Release any resources used by the lexer. */
-
 void
 pars_lexer_close(void)
 /*==================*/

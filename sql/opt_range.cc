@@ -2725,7 +2725,8 @@ int test_quick_select(THD *thd, key_map keys_to_use,
   ha_rows records= head->file->stats.records;
   if (!records)
     records++;					/* purecov: inspected */
-  double scan_time= cost_model->row_evaluate_cost(records) + 1;
+  double scan_time=
+    cost_model->row_evaluate_cost(static_cast<double>(records)) + 1;
   Cost_estimate cost_est= head->file->table_scan_cost();
   cost_est.add_io(1.1);
   cost_est.add_cpu(scan_time);
@@ -2738,7 +2739,8 @@ int test_quick_select(THD *thd, key_map keys_to_use,
   {
     cost_est.reset();
     // Force to use index
-    cost_est.add_io(head->cost_model()->io_block_read_cost(records) + 1);
+    cost_est.add_io(head->cost_model()->io_block_read_cost(
+      static_cast<double>(records)) + 1);
     cost_est.add_cpu(scan_time);
   }
   else if (cost_est.total_cost() <= head->cost_model()->io_block_read_cost(2.0) &&
@@ -2860,8 +2862,10 @@ int test_quick_select(THD *thd, key_map keys_to_use,
     {
       int key_for_use= find_shortest_key(head, &head->covering_keys);
       Cost_estimate key_read_time=
-        param.table->file->index_scan_cost(key_for_use, 1, records);
-      key_read_time.add_cpu(cost_model->row_evaluate_cost(records));
+        param.table->file->index_scan_cost(key_for_use, 1,
+                                           static_cast<double>(records));
+      key_read_time.add_cpu(cost_model->row_evaluate_cost(
+        static_cast<double>(records)));
 
       bool chosen= false;
       if (key_read_time < cost_est)
@@ -2896,7 +2900,7 @@ int test_quick_select(THD *thd, key_map keys_to_use,
           trace_range.add("impossible_range", true);
           records=0L;                      /* Return -1 from this function. */
           cost_est.reset();
-          cost_est.add_io(HA_POS_ERROR);
+          cost_est.add_io(static_cast<double>(HA_POS_ERROR));
           goto free_mem;
         }
         /*
@@ -4545,7 +4549,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
       scan. (it is done in QUICK_RANGE_SELECT::row_in_ranges)
     */
     const double rid_comp_cost=
-      cost_model->key_compare_cost(non_cpk_scan_records);
+      cost_model->key_compare_cost(static_cast<double>(non_cpk_scan_records));
     imerge_cost.add_cpu(rid_comp_cost);
     trace_best_disjunct.add("cost_of_mapping_rowid_in_non_clustered_pk_scan",
                             rid_comp_cost);
@@ -4661,7 +4665,7 @@ skip_to_ror_scan:
       /* Ok, we have index_only cost, now get full rows scan cost */
       scan_cost=
         param->table->file->read_cost(param->real_keynr[(*cur_child)->key_idx],
-                                      1, (*cur_child)->records);
+          1, static_cast<double>((*cur_child)->records));
       scan_cost.add_cpu(
             cost_model->row_evaluate_cost(rows2double((*cur_child)->records)));
     }
@@ -10327,7 +10331,8 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     quick->mrr_flags |= HA_MRR_NO_NULL_ENDPOINTS;
 
   quick->mrr_buf_size= thd->variables.read_rnd_buff_size;
-  if (table->file->multi_range_read_info(quick->index, 1, records,
+  if (table->file->multi_range_read_info(quick->index, 1,
+                                         static_cast<uint>(records),
                                          &quick->mrr_buf_size,
                                          &quick->mrr_flags, &cost))
     goto err;

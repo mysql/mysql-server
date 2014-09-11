@@ -59,7 +59,6 @@ static ib_uint32_t	dict_temp_file_num;
 /**********************************************************************//**
 Creates a table memory object.
 @return own: table object */
-
 dict_table_t*
 dict_mem_table_create(
 /*==================*/
@@ -142,7 +141,6 @@ dict_mem_table_create(
 
 /****************************************************************//**
 Free a table memory object. */
-
 void
 dict_mem_table_free(
 /*================*/
@@ -226,7 +224,6 @@ dict_add_col_name(
 
 /**********************************************************************//**
 Adds a column definition to a table. */
-
 void
 dict_mem_table_add_col(
 /*===================*/
@@ -399,7 +396,6 @@ dict_mem_table_col_rename_low(
 
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
-
 void
 dict_mem_table_col_rename(
 /*======================*/
@@ -428,7 +424,6 @@ dict_mem_table_col_rename(
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
-
 void
 dict_mem_fill_column_struct(
 /*========================*/
@@ -459,7 +454,6 @@ dict_mem_fill_column_struct(
 /**********************************************************************//**
 Creates an index memory object.
 @return own: index object */
-
 dict_index_t*
 dict_mem_index_create(
 /*==================*/
@@ -505,7 +499,6 @@ dict_mem_index_create(
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
 @return own: foreign constraint struct */
-
 dict_foreign_t*
 dict_mem_foreign_create(void)
 /*=========================*/
@@ -531,7 +524,6 @@ Sets the foreign_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
 will point to foreign_table_name.  If 2, then another string is
 allocated from foreign->heap and set to lower case. */
-
 void
 dict_mem_foreign_table_name_lookup_set(
 /*===================================*/
@@ -562,7 +554,6 @@ Sets the referenced_table_name_lookup pointer based on the value of
 lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
 will point to referenced_table_name.  If 2, then another string is
 allocated from foreign->heap and set to lower case. */
-
 void
 dict_mem_referenced_table_name_lookup_set(
 /*======================================*/
@@ -593,7 +584,6 @@ dict_mem_referenced_table_name_lookup_set(
 Adds a field definition to an index. NOTE: does not take a copy
 of the column name if the field is a column. The memory occupied
 by the column name may be released only after publishing the index. */
-
 void
 dict_mem_index_add_field(
 /*=====================*/
@@ -618,7 +608,6 @@ dict_mem_index_add_field(
 
 /**********************************************************************//**
 Frees an index memory object. */
-
 void
 dict_mem_index_free(
 /*================*/
@@ -660,7 +649,6 @@ reasonably unique temporary file name.
 @param[in]	dbtab	Table name in the form database/table name
 @param[in]	id	Table id
 @return A unique temporary tablename suitable for InnoDB use */
-
 char*
 dict_mem_create_temporary_tablename(
 	mem_heap_t*	heap,
@@ -687,7 +675,6 @@ dict_mem_create_temporary_tablename(
 }
 
 /** Initialize dict memory variables */
-
 void
 dict_mem_init(void)
 {

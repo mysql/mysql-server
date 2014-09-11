@@ -274,7 +274,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
     #ifndef DBUG_OFF
       assert(event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
     #endif
-      event_buf[FLAGS_OFFSET]= flags;
+      event_buf[FLAGS_OFFSET]= static_cast<unsigned char>(flags);
     }
 
     res= !(computed == incoming);

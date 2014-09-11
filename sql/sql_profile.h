@@ -211,7 +211,7 @@ private:
 
   PROFILING *profiling;
 
-  my_thread_id profiling_query_id;        /* Session-specific id. */
+  query_id_t profiling_query_id;        /* Session-specific id. */
   LEX_STRING m_query_source;
 
   double m_start_time_usecs;
