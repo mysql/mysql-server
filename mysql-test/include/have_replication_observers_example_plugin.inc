@@ -20,3 +20,4 @@ enable_query_log;
 
 --let $include_filename= have_replication_observers_example_plugin.inc
 --source include/end_include_file.inc
+

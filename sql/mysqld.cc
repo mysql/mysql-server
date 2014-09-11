@@ -1218,7 +1218,6 @@ void kill_mysql(void)
   }
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
-
   DBUG_VOID_RETURN;
 }
 

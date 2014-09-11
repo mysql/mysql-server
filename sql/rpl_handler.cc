@@ -396,7 +396,7 @@ int Server_state_delegate::after_engine_recovery(THD *thd)
 }
 
 /**
-  * This hook MAY be invoked after the server has completed the
+  * This hook MUST be invoked after the server has completed the
   * local recovery. The server can proceed with the further operations
   * like engaging in distributed recovery etc.
   *
@@ -414,7 +414,7 @@ int Server_state_delegate::after_recovery(THD *thd)
 }
 
 /**
-  * This hook MAY be invoked before server shutdown action is
+  * This hook MUST be invoked before server shutdown action is
   * initiated.
   *
   * @param[in] thd The thread context.
@@ -431,7 +431,7 @@ int Server_state_delegate::before_server_shutdown(THD *thd)
 }
 
 /**
-  * This hook MAY be invoked after server shutdown operation is
+  * This hook MUST be invoked after server shutdown operation is
   * complete.
   *
   * @param[in] thd The thread context.

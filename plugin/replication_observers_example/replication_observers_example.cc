@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -233,6 +233,137 @@ Trans_observer trans_observer = {
 };
 
 /*
+  Binlog relay IO events observers.
+*/
+static int binlog_relay_thread_start_call= 0;
+static int binlog_relay_thread_stop_call= 0;
+static int binlog_relay_consumer_thread_stop_call= 0;
+static int binlog_relay_before_request_transmit_call= 0;
+static int binlog_relay_after_read_event_call= 0;
+static int binlog_relay_after_queue_event_call= 0;
+static int binlog_relay_after_reset_slave_call= 0;
+
+static void dump_binlog_relay_calls()
+{
+  if (binlog_relay_thread_start_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:binlog_relay_thread_start");
+  }
+
+  if (binlog_relay_thread_stop_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:binlog_relay_thread_stop");
+  }
+
+  if (binlog_relay_consumer_thread_stop_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:binlog_relay_consumer_thread_stop");
+  }
+
+  if (binlog_relay_before_request_transmit_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:binlog_relay_before_request_transmit");
+  }
+
+  if (binlog_relay_after_read_event_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:binlog_relay_after_read_event");
+  }
+
+  if (binlog_relay_after_queue_event_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:binlog_relay_after_queue_event");
+  }
+
+  if (binlog_relay_after_reset_slave_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:binlog_relay_after_reset_slave");
+  }
+}
+
+int binlog_relay_thread_start(Binlog_relay_IO_param *param)
+{
+  binlog_relay_thread_start_call++;
+
+  return 0;
+}
+
+int binlog_relay_thread_stop(Binlog_relay_IO_param *param)
+{
+  binlog_relay_thread_stop_call++;
+
+  return 0;
+}
+
+int binlog_relay_consumer_thread_stop(Binlog_relay_IO_param *param,
+                                      bool aborted)
+{
+  binlog_relay_consumer_thread_stop_call++;
+
+  return 0;
+}
+
+int binlog_relay_before_request_transmit(Binlog_relay_IO_param *param,
+                                         uint32 flags)
+{
+  binlog_relay_before_request_transmit_call++;
+
+  return 0;
+}
+
+int binlog_relay_after_read_event(Binlog_relay_IO_param *param,
+                                  const char *packet, unsigned long len,
+                                  const char **event_buf, unsigned long *event_len)
+{
+  binlog_relay_after_read_event_call++;
+
+  return 0;
+}
+
+int binlog_relay_after_queue_event(Binlog_relay_IO_param *param,
+                                   const char *event_buf,
+                                   unsigned long event_len,
+                                   uint32 flags)
+{
+  binlog_relay_after_queue_event_call++;
+
+  return 0;
+}
+
+int binlog_relay_after_reset_slave(Binlog_relay_IO_param *param)
+{
+  binlog_relay_after_reset_slave_call++;
+
+  return 0;
+}
+
+Binlog_relay_IO_observer relay_io_observer = {
+  sizeof(Binlog_relay_IO_observer),
+
+  binlog_relay_thread_start,
+  binlog_relay_thread_stop,
+  binlog_relay_consumer_thread_stop,
+  binlog_relay_before_request_transmit,
+  binlog_relay_after_read_event,
+  binlog_relay_after_queue_event,
+  binlog_relay_after_reset_slave,
+};
+
+/*
   Initialize the Replication Observer example at server start or plugin
   installation.
 
@@ -265,6 +396,12 @@ static int replication_observers_example_plugin_init(MYSQL_PLUGIN plugin_info)
     return 1;
   }
 
+  if (register_binlog_relay_io_observer(&relay_io_observer, (void *)plugin_info_ptr))
+  {
+    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,"Failure in registering the relay io observer");
+    return 1;
+  }
+
   my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,"replication_observers_example_plugin: init finished");
 
   DBUG_RETURN(0);
@@ -293,6 +430,7 @@ static int replication_observers_example_plugin_deinit(void *p)
 
   dump_server_state_calls();
   dump_transaction_calls();
+  dump_binlog_relay_calls();
 
   if (unregister_server_state_observer(&server_state_observer, p))
   {
@@ -303,6 +441,12 @@ static int replication_observers_example_plugin_deinit(void *p)
   if (unregister_trans_observer(&trans_observer, p))
   {
     my_plugin_log_message(&p, MY_ERROR_LEVEL,"Failure in unregistering the transactions state observers");
+    return 1;
+  }
+
+  if (unregister_binlog_relay_io_observer(&relay_io_observer, p))
+  {
+    my_plugin_log_message(&p, MY_ERROR_LEVEL,"Failure in unregistering the relay io observer");
     return 1;
   }
 
