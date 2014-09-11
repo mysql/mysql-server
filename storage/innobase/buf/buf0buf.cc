@@ -1173,7 +1173,6 @@ buf_block_init(
 	block->page.file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 
-	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
 	block->made_dirty_with_no_latch = false;
 
@@ -1826,8 +1825,6 @@ buf_page_realloc(
 		}
 
 		/* set other flags of buf_block_t */
-		new_block->check_index_page_at_flush
-			= block->check_index_page_at_flush;
 
 		ut_ad(!block->index);
 		new_block->index	= NULL;
@@ -3451,7 +3448,6 @@ buf_block_init_low(
 /*===============*/
 	buf_block_t*	block)	/*!< in: block to init */
 {
-	block->check_index_page_at_flush = FALSE;
 	block->index		= NULL;
 	block->made_dirty_with_no_latch = false;
 
