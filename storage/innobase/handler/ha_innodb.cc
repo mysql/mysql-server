@@ -1484,7 +1484,7 @@ convert_error_code_to_mysql(
 
 	case DB_INTERRUPTED:
 		thd_set_kill_status(thd != NULL ? thd : current_thd);
-		return(-1);
+		return(HA_ERR_GENERIC);
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		ut_ad(thd);
@@ -1497,7 +1497,7 @@ convert_error_code_to_mysql(
 
 	case DB_ERROR:
 	default:
-		return(-1); /* unspecified error */
+		return(HA_ERR_GENERIC); /* unspecified error */
 
 	case DB_DUPLICATE_KEY:
 		/* Be cautious with returning this error, since
@@ -1604,7 +1604,7 @@ convert_error_code_to_mysql(
 			prefix
 			? DICT_MAX_FIXED_COL_LEN
 			: 0);
-		return(HA_ERR_TO_BIG_ROW);
+		return(HA_ERR_TOO_BIG_ROW);
 	}
 
 	case DB_TOO_BIG_INDEX_COL:
