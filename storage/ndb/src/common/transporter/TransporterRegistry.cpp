@@ -495,7 +495,7 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
   {
     msg.assfmt("line: %u : Incorrect state for node %u state: %s (%u)",
                __LINE__, nodeId,
-               getPerformStateString(performStates[nodeId]),
+               getPerformStateString(nodeId),
                performStates[nodeId]);
 
     DBUG_PRINT("error", ("Transporter for node id %d in wrong state",
@@ -530,7 +530,7 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
   {
     msg.assfmt("line: %u : Incorrect state for node %u state: %s (%u)",
                __LINE__, nodeId,
-               getPerformStateString(performStates[nodeId]),
+               getPerformStateString(nodeId),
                performStates[nodeId]);
     // Connection suceeded, but not connecting anymore, return
     // false to close the connection
