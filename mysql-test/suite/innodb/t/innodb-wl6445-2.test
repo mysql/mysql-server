@@ -14,6 +14,7 @@
 
 # Not supported in embedded
 --source include/not_embedded.inc
+--source include/no_valgrind_without_big.inc
 
 -- source include/have_innodb.inc
 # *nix specific command to remove write permission
