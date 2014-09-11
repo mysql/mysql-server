@@ -61,7 +61,6 @@ freed. If the node already has an allocated buffer, that buffer is freed
 here. NOTE that this is the only function where dynamic memory should be
 allocated for a query node val field.
 @return pointer to allocated buffer */
-
 byte*
 eval_node_alloc_val_buf(
 /*====================*/
@@ -101,7 +100,6 @@ eval_node_alloc_val_buf(
 Free the buffer from global dynamic memory for a value of a que_node,
 if it has been allocated in the above function. The freeing for pushed
 column values is done in sel_col_prefetch_buf_free. */
-
 void
 eval_node_free_val_buf(
 /*===================*/
@@ -833,7 +831,6 @@ eval_predefined(
 
 /*****************************************************************//**
 Evaluates a function node. */
-
 void
 eval_func(
 /*======*/

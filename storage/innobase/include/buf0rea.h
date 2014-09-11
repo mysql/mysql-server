@@ -114,7 +114,6 @@ buf_read_ahead_linear(
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like
 a read-ahead function. */
-
 void
 buf_read_ibuf_merge_pages(
 /*======================*/

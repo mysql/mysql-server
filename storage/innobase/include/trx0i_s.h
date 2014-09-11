@@ -197,14 +197,12 @@ extern trx_i_s_cache_t*	trx_i_s_cache;
 
 /*******************************************************************//**
 Initialize INFORMATION SCHEMA trx related cache. */
-
 void
 trx_i_s_cache_init(
 /*===============*/
 	trx_i_s_cache_t*	cache);	/*!< out: cache to init */
 /*******************************************************************//**
 Free the INFORMATION SCHEMA trx related cache. */
-
 void
 trx_i_s_cache_free(
 /*===============*/
@@ -212,7 +210,6 @@ trx_i_s_cache_free(
 
 /*******************************************************************//**
 Issue a shared/read lock on the tables cache. */
-
 void
 trx_i_s_cache_start_read(
 /*=====================*/
@@ -220,7 +217,6 @@ trx_i_s_cache_start_read(
 
 /*******************************************************************//**
 Release a shared/read lock on the tables cache. */
-
 void
 trx_i_s_cache_end_read(
 /*===================*/
@@ -228,7 +224,6 @@ trx_i_s_cache_end_read(
 
 /*******************************************************************//**
 Issue an exclusive/write lock on the tables cache. */
-
 void
 trx_i_s_cache_start_write(
 /*======================*/
@@ -236,7 +231,6 @@ trx_i_s_cache_start_write(
 
 /*******************************************************************//**
 Release an exclusive/write lock on the tables cache. */
-
 void
 trx_i_s_cache_end_write(
 /*====================*/
@@ -247,7 +241,6 @@ trx_i_s_cache_end_write(
 Retrieves the number of used rows in the cache for a given
 INFORMATION SCHEMA table.
 @return number of rows */
-
 ulint
 trx_i_s_cache_get_rows_used(
 /*========================*/
@@ -258,7 +251,6 @@ trx_i_s_cache_get_rows_used(
 Retrieves the nth row in the cache for a given INFORMATION SCHEMA
 table.
 @return row */
-
 void*
 trx_i_s_cache_get_nth_row(
 /*======================*/
@@ -269,7 +261,6 @@ trx_i_s_cache_get_nth_row(
 /*******************************************************************//**
 Update the transactions cache if it has not been read for some time.
 @return 0 - fetched, 1 - not */
-
 int
 trx_i_s_possibly_fetch_data_into_cache(
 /*===================================*/
@@ -279,12 +270,10 @@ trx_i_s_possibly_fetch_data_into_cache(
 Returns TRUE if the data in the cache is truncated due to the memory
 limit posed by TRX_I_S_MEM_LIMIT.
 @return TRUE if truncated */
-
 ibool
 trx_i_s_cache_is_truncated(
 /*=======================*/
 	trx_i_s_cache_t*	cache);	/*!< in: cache */
-
 /** The maximum length of a resulting lock_id_size in
 trx_i_s_create_lock_id(), not including the terminating NUL.
 ":%lu:%lu:%lu" -> 63 chars */
@@ -296,7 +285,6 @@ second argument. This function aborts if there is not enough space in
 lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
 want to be 100% sure that it will not abort.
 @return resulting lock id */
-
 char*
 trx_i_s_create_lock_id(
 /*===================*/

@@ -1260,7 +1260,6 @@ innobase_col_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB record to table->record[0]. */
-
 void
 innobase_rec_to_mysql(
 /*==================*/
@@ -1312,7 +1311,6 @@ null_field:
 
 /*************************************************************//**
 Copies an InnoDB index entry to table->record[0]. */
-
 void
 innobase_fields_to_mysql(
 /*=====================*/
@@ -1355,7 +1353,6 @@ innobase_fields_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB row to table->record[0]. */
-
 void
 innobase_row_to_mysql(
 /*==================*/
@@ -1391,7 +1388,6 @@ innobase_row_to_mysql(
 
 /*************************************************************//**
 Resets table->record[0]. */
-
 void
 innobase_rec_reset(
 /*===============*/
@@ -1564,7 +1560,6 @@ name_ok:
 @param[in]	col_name		column name
 @param[in]	optimize_point_storage	true if we want to optimize new POINT field, otherwise false
 @return DATA_VAR_POINT or DATA_POINT for the given column */
-
 unsigned
 innobase_get_exact_point_type(
 	const dict_table_t*	table,
@@ -1844,7 +1839,6 @@ innobase_fts_check_doc_id_col(
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
 @return the status of the FTS_DOC_ID index */
-
 enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
@@ -1932,7 +1926,6 @@ Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column in MySQL create index definition.
 @return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
-
 enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index_in_def(
 /*===================================*/
