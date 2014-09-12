@@ -72,7 +72,7 @@ public:
   bool store(I_List<i_string> *str_list);
   bool store(const char *from, const CHARSET_INFO *cs);
   String *storage_packet() { return packet; }
-  inline void free() { packet->free(); }
+  inline void mem_free() { packet->mem_free(); }
   virtual bool write();
   inline  bool store(int from)
   { return store_long((longlong) from); }
