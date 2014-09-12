@@ -102,9 +102,25 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
     }
     else if (gtid.sidno > 0) // only one gtid
     {
-      DBUG_ASSERT(!m_gtid_set->contains_gtid(gtid.sidno, gtid.gno));
-      res= (m_gtid_set->ensure_sidno(gtid.sidno) != RETURN_STATUS_OK ||
-            m_gtid_set->_add_gtid(gtid.sidno, gtid.gno) != RETURN_STATUS_OK);
+      rpl_sidno local_set_sidno;
+      if (!m_gtid_set->contains_sidno(gtid.sidno))
+      {
+        /*
+          Otherwise m_gtid_set->ensure_sidno below would assert.
+
+          Note that the interface is such that m_sid_map must contain
+          sidno before we add the gtid to m_gtid_set.
+
+          Thus, to avoid relying on global_sid_map and contributing to
+          build contention on it, we translate the the sidno from the
+          gtid to the local map sidno.
+        */
+        local_set_sidno= m_sid_map->add_sid(thd->owned_sid);
+      }
+
+      DBUG_ASSERT(!m_gtid_set->contains_gtid(local_set_sidno, gtid.gno));
+      res= (m_gtid_set->ensure_sidno(local_set_sidno) != RETURN_STATUS_OK ||
+            m_gtid_set->_add_gtid(local_set_sidno, gtid.gno) != RETURN_STATUS_OK);
 
       if (!res)
         added= true;
@@ -124,7 +140,11 @@ bool Session_consistency_gtids_ctx::notify_after_response_packet(const THD *thd)
     DBUG_RETURN(res);
 
   if (m_gtid_set && !m_gtid_set->is_empty())
+  {
     m_gtid_set->clear();
+    m_sid_map->clear();
+    DBUG_ASSERT(m_sid_map->get_max_sidno() == 0);
+  }
 
   DBUG_RETURN(res);
 }

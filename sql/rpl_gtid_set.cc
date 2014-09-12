@@ -115,7 +115,6 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno)
                       sidno, get_max_sidno(), sid_map,
                       sid_map != NULL ? sid_map->get_max_sidno() : 0));
   DBUG_ASSERT(sid_map == NULL || sidno <= sid_map->get_max_sidno());
-  DBUG_ASSERT(sid_map == NULL || get_max_sidno() <= sid_map->get_max_sidno());
   rpl_sidno max_sidno= get_max_sidno();
   if (sidno > max_sidno)
   {
