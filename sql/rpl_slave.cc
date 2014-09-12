@@ -10074,6 +10074,8 @@ bool change_master_cmd(THD *thd)
   Master_info *mi= 0;
   LEX *lex= thd->lex;
   bool res=false;
+  char* host_to_cmp;
+  uint port_to_cmp;
   const char* same_channel;
 
   mysql_mutex_lock(&LOCK_msr_map);
@@ -10082,7 +10084,6 @@ bool change_master_cmd(THD *thd)
     Error out if number of replication channels are > 1 if FOR CHANNEL
     clause is not provided in the CHANGE MASTER command.
   */
-
   if (!lex->mi.for_channel && msr_map.get_num_instances() > 1)
   {
     my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
@@ -10090,11 +10091,27 @@ bool change_master_cmd(THD *thd)
     goto err;
   }
 
+  /* Get the Master_info of the channel */
+  mi= msr_map.get_mi(lex->mi.channel);
+
   /*
-     If host, port are already being used for a different channel,
-     refuse to do a change master.
+    If host, port are already being used for a different channel,
+    refuse to do a change master. We need to compare the user provided
+    {host,port} for this channel with already existing channels in the msr_map.
   */
-  same_channel= msr_map.get_channel_with_host_port(lex->mi.host, lex->mi.port);
+  host_to_cmp= lex->mi.host;
+  port_to_cmp= lex->mi.port;
+
+  /*
+    If host(or port) is not specified for a channel and if channel exists,
+    we use the channel's host (or port);
+  */
+  if (!lex->mi.host && mi)
+      host_to_cmp= mi->host;
+  if (!lex->mi.port && mi)
+      port_to_cmp= mi->port;
+
+  same_channel= msr_map.get_channel_with_host_port(host_to_cmp, port_to_cmp);
 
   if (same_channel && strcmp(same_channel, lex->mi.channel))
   {
@@ -10102,9 +10119,6 @@ bool change_master_cmd(THD *thd)
     res= true;
     goto err;
   }
-
-  /* Get the Master_info of the channel */
-  mi= msr_map.get_mi(lex->mi.channel);
 
   /* create a new channel if doesn't exist */
   if (!mi  && strcmp(lex->mi.channel, msr_map.get_default_channel()))
