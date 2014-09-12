@@ -888,7 +888,8 @@ struct thr_data
   thr_data() : m_jba_write_lock("jbalock"),
                m_send_buffer_pool(0,
                                   THR_SEND_BUFFER_MAX_FREE,
-                                  THR_SEND_BUFFER_ALLOC_SIZE) {}
+                                  THR_SEND_BUFFER_ALLOC_SIZE),
+               m_signal_id_counter(0) {}
 
   /**
    * We start with the data structures that are shared globally to
@@ -1006,6 +1007,9 @@ struct thr_data
   EmulatedJamBuffer m_jam;
   /* Watchdog counter for this thread. */
   Uint32 m_watchdog_counter;
+  /* Latest executed signal id assigned in this thread */
+  Uint32 m_signal_id_counter;
+
   /* Signal delivery statistics. */
   struct
   {
@@ -3588,7 +3592,7 @@ Uint32
 execute_signals(thr_data *selfptr,
                 thr_job_queue *q, thr_job_queue_head *h,
                 thr_jb_read_state *r,
-                Signal *sig, Uint32 max_signals, Uint32 *signalIdCounter)
+                Signal *sig, Uint32 max_signals)
 {
   Uint32 num_signals;
   Uint32 read_index = r->m_read_index;
@@ -3658,7 +3662,7 @@ execute_signals(thr_data *selfptr,
     Uint32 gsn = s->theVerId_signalNumber;
     *watchDogCounter = 1;
     /* Must update original buffer so signal dump will see it. */
-    s->theSignalId = (*signalIdCounter)++;
+    s->theSignalId = selfptr->m_signal_id_counter++;
     memcpy(&sig->header, s, 4*siglen);
     sig->m_sectionPtrI[0] = read_buffer->m_data[read_pos + siglen + 0];
     sig->m_sectionPtrI[1] = read_buffer->m_data[read_pos + siglen + 1];
@@ -3698,7 +3702,7 @@ execute_signals(thr_data *selfptr,
 
 static
 Uint32
-run_job_buffers(thr_data *selfptr, Signal *sig, Uint32 *signalIdCounter)
+run_job_buffers(thr_data *selfptr, Signal *sig)
 {
   Uint32 thr_count = g_thr_repository->m_thread_count;
   Uint32 signal_count = 0;
@@ -3726,7 +3730,7 @@ run_job_buffers(thr_data *selfptr, Signal *sig, Uint32 *signalIdCounter)
                                       &(selfptr->m_jba),
                                       &(selfptr->m_jba_head),
                                       &(selfptr->m_jba_read_state), sig,
-                                      max_prioA, signalIdCounter);
+                                      max_prioA);
     }
 
     /**
@@ -3775,7 +3779,7 @@ run_job_buffers(thr_data *selfptr, Signal *sig, Uint32 *signalIdCounter)
 
     /* Now execute prio B signals from one thread. */
     signal_count += execute_signals(selfptr, queue, head, read_state,
-                                    sig, perjb+extra, signalIdCounter);
+                                    sig, perjb+extra);
   }
 
   return signal_count;
@@ -4130,7 +4134,6 @@ mt_receiver_thread_main(void *thr_arg)
   struct thr_data* selfptr = (struct thr_data *)thr_arg;
   unsigned thr_no = selfptr->m_thr_no;
   Uint32& watchDogCounter = selfptr->m_watchdog_counter;
-  Uint32 thrSignalId = 0;
   const Uint32 recv_thread_idx = thr_no - first_receiver_thread_no;
   bool has_received = false;
   int cnt = 0;
@@ -4174,7 +4177,7 @@ mt_receiver_thread_main(void *thr_arg)
     now = NdbTick_getCurrentTicks();
     const Uint32 lagging_timers = scan_time_queues(selfptr, now);
 
-    Uint32 sum = run_job_buffers(selfptr, signal, &thrSignalId);
+    Uint32 sum = run_job_buffers(selfptr, signal);
 
     if (sum || has_received)
     {
@@ -4449,7 +4452,6 @@ mt_job_thread_main(void *thr_arg)
   unsigned char signal_buf[SIGBUF_SIZE];
   Signal *signal;
   const Uint32 nowait = 10 * 1000000;    /* 10 ms */
-  Uint32 thrSignalId = 0;
 
   struct thr_data* selfptr = (struct thr_data *)thr_arg;
   init_thread(selfptr);
@@ -4501,7 +4503,7 @@ mt_job_thread_main(void *thr_arg)
     watchDogCounter = 2;
     const Uint32 lagging_timers = scan_time_queues(selfptr, now);
 
-    Uint32 sum = run_job_buffers(selfptr, signal, &thrSignalId);
+    Uint32 sum = run_job_buffers(selfptr, signal);
     
     watchDogCounter = 1;
     signal->header.m_noOfSections = 0; /* valgrind */
@@ -5402,33 +5404,6 @@ ThreadConfig::doStart(NodeState::StartLevel startLevel)
   return 0;
 }
 
-/*
- * Compare signal ids, taking into account overflow/wrapover.
- * Return same as strcmp().
- * Eg.
- *   wrap_compare(0x10,0x20) -> -1
- *   wrap_compare(0x10,0xffffff20) -> 1
- *   wrap_compare(0xffffff80,0xffffff20) -> 1
- *   wrap_compare(0x7fffffff, 0x80000001) -> -1
- */
-static
-inline
-int
-wrap_compare(Uint32 a, Uint32 b)
-{
-  /* Avoid dependencies on undefined C/C++ interger overflow semantics. */
-  if (a >= 0x80000000)
-    if (b >= 0x80000000)
-      return (int)(a & 0x7fffffff) - (int)(b & 0x7fffffff);
-    else
-      return (a - b) >= 0x80000000 ? -1 : 1;
-  else
-    if (b >= 0x80000000)
-      return (b - a) >= 0x80000000 ? 1 : -1;
-    else
-      return (int)a - (int)b;
-}
-
 Uint32
 FastScheduler::traceDumpGetNumThreads()
 {
@@ -5648,6 +5623,16 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
     num_jbs++;
   }
 
+  /* Use the next signal id as the smallest (oldest).
+   *
+   * Subtracting two signal ids with the smallest makes
+   * them comparable using standard comparision of Uint32,
+   * there the biggest value is the newest.
+   * For example,
+   *   (m_signal_id_counter - smallest_signal_id) == UINT32_MAX
+   */
+  const Uint32 smallest_signal_id = selfptr->m_signal_id_counter + 1;
+
   /* Now pick out one signal at a time, in signal id order. */
   while (num_jbs > 0)
   {
@@ -5658,18 +5643,18 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
     Uint32 idx_min = 0;
     const Uint32 *p = jbs[idx_min].m_jb->m_data + jbs[idx_min].m_pos;
     const SignalHeader *s_min = reinterpret_cast<const SignalHeader*>(p);
-    Uint32 sid_min = s_min->theSignalId;
+    Uint32 sid_min_adjusted = s_min->theSignalId - smallest_signal_id;
 
     for (Uint32 i = 1; i < num_jbs; i++)
     {
       p = jbs[i].m_jb->m_data + jbs[i].m_pos;
       const SignalHeader *s = reinterpret_cast<const SignalHeader*>(p);
-      Uint32 sid = s->theSignalId;
-      if (wrap_compare(sid, sid_min) < 0)
+      const Uint32 sid_adjusted = s->theSignalId - smallest_signal_id;
+      if (sid_adjusted < sid_min_adjusted)
       {
         idx_min = i;
         s_min = s;
-        sid_min = sid;
+        sid_min_adjusted = sid_adjusted;
       }
     }
 
