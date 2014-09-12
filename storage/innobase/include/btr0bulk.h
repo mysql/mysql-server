@@ -55,6 +55,7 @@ public:
 		m_page_no(page_no),
 		m_level(level)
 	{
+		ut_ad(!dict_index_is_spatial(m_index));
 	}
 
 	/** Deconstructor */
