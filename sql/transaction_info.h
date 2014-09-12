@@ -35,7 +35,6 @@ class Ha_trx_info;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
-
 /**
   Either statement transaction or normal transaction - related
   thread-specific storage engine data.
@@ -339,6 +338,33 @@ public:
     bool ready_preempt;             // internal in MYSQL_BIN_LOG::ordered_commit
 #endif
   } m_flags;
+  /* Binlog-specific logical timestamps. */
+  /*
+    Store for the transaction's commit parent sequence_number.
+    The value specifies this transaction dependency with a "parent"
+    transaction.
+    The member is assigned, when the transaction is about to commit
+    in binlog to a value of the last committed transaction's sequence_number.
+    This and last_committed as numbers are kept ever incremented
+    regardless of binary logs being rotated.
+    However the logger to the binary log may convert them
+    according to its specification.
+  */
+  int64 last_committed;
+  /*
+    The transaction's private logical timestamp assigned at the
+    transaction prepare phase. The timestamp enumerates transactions
+    in the binary log. The value is gained through incrementing (stepping) a
+    global clock.
+    Eventually the value is considered to increase max_committed_transaction
+    system clock when the transaction has committed.
+  */
+  int64 sequence_number;
+
+  void store_commit_parent(int64 last_arg)
+  {
+    last_committed= last_arg;
+  }
 
   Transaction_ctx();
   ~Transaction_ctx()
