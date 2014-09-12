@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -51,7 +51,6 @@ Sid_map::~Sid_map()
   sid to sidno. For instance, the IO Thread and the SQL Thread
   may have different mappings in the future.
 */
-#ifdef NON_DISABLED_GTID
 enum_return_status Sid_map::clear()
 {
   DBUG_ENTER("Sid_map::clear");
@@ -63,7 +62,6 @@ enum_return_status Sid_map::clear()
   reset_dynamic(&_sorted);
   RETURN_OK;
 }
-#endif
 
 
 rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
