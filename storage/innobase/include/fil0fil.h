@@ -459,6 +459,19 @@ bool
 fil_space_is_being_truncated(
 	ulint id);
 
+/** Open each fil_node_t of a named fil_space_t if not already open.
+@param[in]	name	Tablespace name
+@return true if all file nodes are opened. */
+bool
+fil_space_open(
+	const char*	name);
+
+/** Close each fil_node_t of a named fil_space_t if open.
+@param[in]	name	Tablespace name */
+void
+fil_space_close(
+	const char*	name);
+
 /** Returns the page size of the space and whether it is compressed or not.
 The tablespace must be cached in the memory cache.
 @param[in]	id	space id
@@ -592,17 +605,18 @@ fil_op_replay_rename(
 	const char*	name,
 	const char*	new_name)
 	__attribute__((warn_unused_result));
-/*******************************************************************//**
-Deletes a single-table tablespace. The tablespace must be cached in the
-memory cache.
+
+/** Deletes a Single-Table IBD tablespace.
+The tablespace must be cached in the memory cache. This will delete the
+datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
+@param[in]	space_id	Tablespace id
+@param[in]	buf_remove	Specify the action to take on the pages
+for this table in the buffer pool.
 @return true if success */
 dberr_t
 fil_delete_tablespace(
-/*==================*/
-	ulint		id,		/*!< in: space id */
-	buf_remove_t	buf_remove);	/*!< in: specify the action to take
-					on the tables pages in the buffer
-					pool */
+	ulint		id,
+	buf_remove_t	buf_remove);
 
 /** Truncate the tablespace to needed size.
 @param[in]	space_id	id of tablespace to truncate
