@@ -48,7 +48,6 @@ Sid_map::~Sid_map()
   sid to sidno. For instance, the IO Thread and the SQL Thread
   may have different mappings in the future.
 */
-#ifdef NON_DISABLED_GTID
 enum_return_status Sid_map::clear()
 {
   DBUG_ENTER("Sid_map::clear");
@@ -60,7 +59,6 @@ enum_return_status Sid_map::clear()
   _sorted.clear();
   RETURN_OK;
 }
-#endif
 
 
 rpl_sidno Sid_map::add_sid(const rpl_sid &sid)

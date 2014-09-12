@@ -774,7 +774,6 @@ static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var
 }
 #endif
 
-#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
 static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
@@ -784,6 +783,7 @@ static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
+#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
 static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->lex->sphead)
@@ -910,6 +910,25 @@ static Sys_var_enum Sys_binlog_row_image(
        binlog_row_image_names, DEFAULT(BINLOG_ROW_IMAGE_FULL),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(NULL));
+
+static bool on_session_track_gtids_update(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  thd->session_tracker.get_tracker(SESSION_GTIDS_TRACKER)->update(thd);
+  return false;
+}
+
+static const char *session_track_gtids_names[]=
+  { "OFF", "OWN_GTID", "ALL_GTIDS" };
+static Sys_var_enum Sys_session_track_gtids(
+       "session_track_gtids",
+       "Controls the amount of global transaction ids to be "
+       "included in the response packet sent by the server."
+       "(Default: OFF).",
+       SESSION_VAR(session_track_gtids), CMD_LINE(REQUIRED_ARG),
+       session_track_gtids_names, DEFAULT(OFF),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_transaction),
+       ON_UPDATE(on_session_track_gtids_update));
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
 {

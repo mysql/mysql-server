@@ -3425,6 +3425,8 @@ static int generate_server_uuid()
   delete thd;
 
   strncpy(server_uuid, uuid.c_ptr(), UUID_LENGTH);
+  DBUG_EXECUTE_IF("server_uuid_deterministic",
+                  strncpy(server_uuid, "00000000-1111-0000-1111-000000000000", UUID_LENGTH););
   server_uuid[UUID_LENGTH]= '\0';
   return 0;
 }

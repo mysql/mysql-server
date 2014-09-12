@@ -1,0 +1,119 @@
+######### mysql-test\suite\sys_vars\t\session_track_gtids_basic.test ##########
+#                                                                             #
+# Variable Name: session_track_gtids                                          #
+# Scope: Global & Session                                                     #
+# Data Type: enumeration                                                      #
+# Default: OFF                                                                #
+# Accepted Values: OFF, OWN_GTID, ALL_GTIDS, DEFAULT                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2013-12-19                                                   #
+# Author : Luis Soares                                                        #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable session_track_gtids       #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+###############################################################################
+
+# Assert that the default value is OFF.
+
+--let $default_value_global=`SELECT @@GLOBAL.session_track_gtids`
+--let $assert_text= Assert that the global default value is OFF.
+--let $assert_cond= `SELECT '$default_value_global'='OFF'`
+--source include/assert.inc
+
+--let $default_value_session= `SELECT @@SESSION.session_track_gtids`
+--let $assert_text= Assert that the session default value is OFF.
+--let $assert_cond= `SELECT '$default_value_session'='OFF'`
+--source include/assert.inc
+
+--let $i=3
+while ($i)
+{
+  if ($i==3)
+  {
+    --let $val=ALL_GTIDS
+  }
+  if ($i==2)
+  {
+    --let $val=OWN_GTID
+  }
+  if ($i==1)
+  {
+    --let $val=OFF
+  }
+
+  --eval SET @@GLOBAL.session_track_gtids=$val
+  --eval SET @@SESSION.session_track_gtids=$val
+
+  # Assert that we can set the value for SESSION and GLOBAL
+
+  --let $global_value= `SELECT @@GLOBAL.session_track_gtids`
+  --let $assert_text= Assert that the global value is $val
+  --let $assert_cond= `SELECT '$global_value'='$val'`
+  --source include/assert.inc
+
+  --let $session_value= `SELECT @@SESSION.session_track_gtids`
+  --let $assert_text= Assert that the session value is $val
+  --let $assert_cond= `SELECT '$session_value'='$val'`
+  --source include/assert.inc
+
+  # Check if the value in GLOBAL Table matches value in variable
+
+  --let $is_value=`SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='session_track_gtids'`
+  --let $val= `SELECT @@GLOBAL.session_track_gtids`
+  --let $assert_text= Assert that I_S.GLOBAL_VARIABLES captures the variable value.
+  --let $assert_cond= `SELECT '$is_value'='$val'`
+  --source include/assert.inc
+
+  # Check if the value in SESSION Table matches value in variable
+
+  --let $is_value= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='session_track_gtids'`
+  --let $val= `SELECT @@SESSION.session_track_gtids`
+  --let $assert_text= Assert that I_S.SESSION_VARIABLES captures the variable value.
+  --let $assert_cond= `SELECT '$is_value'='$val'`
+  --source include/assert.inc
+
+  --dec $i
+}
+
+
+# Check that we can access the variable in its different contexts
+# and that there is only one entry for each
+--let $assert_text= Assert that COUNT(@@session_track_gtids)=1
+--let $assert_cond= COUNT(@@session_track_gtids)=1
+--source include/assert.inc
+
+--let $assert_text= Assert that COUNT(@@local.session_track_gtids)=1
+--let $assert_cond= COUNT(@@local.session_track_gtids)=1
+--source include/assert.inc
+
+--let $assert_text= Assert that COUNT(@@global.session_track_gtids)=1
+--let $assert_cond= COUNT(@@global.session_track_gtids)=1
+--source include/assert.inc
+
+--let $assert_text= Assert that COUNT(@@session.session_track_gtids)=1
+--let $assert_cond= COUNT(@@session.session_track_gtids)=1
+--source include/assert.inc
+
+# Check that the default is set to the correct value
+SET @@GLOBAL.session_track_gtids=DEFAULT;
+--let $val=`SELECT @@GLOBAL.session_track_gtids`
+--let $assert_text= Assert that the global default value is $default_value_global
+--let $assert_cond= `SELECT '$val'='$default_value_global'`
+--source include/assert.inc
+
+SET @@SESSION.session_track_gtids=DEFAULT;
+--let $val=`SELECT @@SESSION.session_track_gtids`
+--let $assert_text= Assert that the session default value is $default_value_session
+--let $assert_cond= `SELECT '$val'='$default_value_session'`
+--source include/assert.inc
+
+# Check that session_track_gtids cannot be set inside a transaction
+BEGIN;
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET @@SESSION.session_track_gtids=OFF;
+ROLLBACK;
