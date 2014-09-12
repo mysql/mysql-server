@@ -1,0 +1,17 @@
+#
+# MDEV-6619 SHOW PROCESSLIST returns empty result set after KILL QUERY
+#
+--source include/not_embedded.inc
+--enable_connect_log
+--connect (con1,localhost,root,,)
+--let $con_id = `SELECT CONNECTION_ID()`
+--replace_column 1 # 3 # 6 # 7 #
+SHOW PROCESSLIST;
+--connection default
+--replace_result $con_id con_id
+eval KILL QUERY $con_id;
+--connection con1
+--error ER_QUERY_INTERRUPTED
+SHOW PROCESSLIST;
+--replace_column 1 # 3 # 6 # 7 #
+SHOW PROCESSLIST;

@@ -2178,77 +2178,77 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
 
+  if (thd->killed)
+    DBUG_VOID_RETURN;
+
   mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
-  if (!thd->killed)
+  I_List_iterator<THD> it(threads);
+  THD *tmp;
+  while ((tmp=it++))
   {
-    I_List_iterator<THD> it(threads);
-    THD *tmp;
-    while ((tmp=it++))
+    Security_context *tmp_sctx= tmp->security_ctx;
+    struct st_my_thread_var *mysys_var;
+    if ((tmp->vio_ok() || tmp->system_thread) &&
+        (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
     {
-      Security_context *tmp_sctx= tmp->security_ctx;
-      struct st_my_thread_var *mysys_var;
-      if ((tmp->vio_ok() || tmp->system_thread) &&
-          (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
+      thread_info *thd_info= new thread_info;
+
+      thd_info->thread_id=tmp->thread_id;
+      thd_info->user= thd->strdup(tmp_sctx->user ? tmp_sctx->user :
+                                  (tmp->system_thread ?
+                                   "system user" : "unauthenticated user"));
+      if (tmp->peer_port && (tmp_sctx->host || tmp_sctx->ip) &&
+          thd->security_ctx->host_or_ip[0])
       {
-        thread_info *thd_info= new thread_info;
-
-        thd_info->thread_id=tmp->thread_id;
-        thd_info->user= thd->strdup(tmp_sctx->user ? tmp_sctx->user :
-                                    (tmp->system_thread ?
-                                     "system user" : "unauthenticated user"));
-	if (tmp->peer_port && (tmp_sctx->host || tmp_sctx->ip) &&
-            thd->security_ctx->host_or_ip[0])
-	{
-	  if ((thd_info->host= (char*) thd->alloc(LIST_PROCESS_HOST_LEN+1)))
-	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
-			"%s:%u", tmp_sctx->host_or_ip, tmp->peer_port);
-	}
-	else
-	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip[0] ?
-                                      tmp_sctx->host_or_ip :
-                                      tmp_sctx->host ? tmp_sctx->host : "");
-        thd_info->command=(int) tmp->command;
-        mysql_mutex_lock(&tmp->LOCK_thd_data);
-        if ((thd_info->db= tmp->db))             // Safe test
-          thd_info->db= thd->strdup(thd_info->db);
-        if ((mysys_var= tmp->mysys_var))
-          mysql_mutex_lock(&mysys_var->mutex);
-        thd_info->proc_info= (char*) (tmp->killed >= KILL_QUERY ?
-                                      "Killed" : 0);
-        thd_info->state_info= thread_state_info(tmp);
-        if (mysys_var)
-          mysql_mutex_unlock(&mysys_var->mutex);
-
-        /* Lock THD mutex that protects its data when looking at it. */
-        if (tmp->query())
-        {
-          uint length= min(max_query_length, tmp->query_length());
-          char *q= thd->strmake(tmp->query(),length);
-          /* Safety: in case strmake failed, we set length to 0. */
-          thd_info->query_string=
-            CSET_STRING(q, q ? length : 0, tmp->query_charset());
-        }
-
-        /*
-          Progress report. We need to do this under a lock to ensure that all
-          is from the same stage.
-        */
-        if (tmp->progress.max_counter)
-        {
-          uint max_stage= max(tmp->progress.max_stage, 1);
-          thd_info->progress= (((tmp->progress.stage / (double) max_stage) +
-                                ((tmp->progress.counter /
-                                  (double) tmp->progress.max_counter) /
-                                 (double) max_stage)) *
-                               100.0);
-          set_if_smaller(thd_info->progress, 100);
-        }
-        else
-          thd_info->progress= 0.0;
-        thd_info->start_time= tmp->start_time;
-        mysql_mutex_unlock(&tmp->LOCK_thd_data);
-        thread_infos.append(thd_info);
+        if ((thd_info->host= (char*) thd->alloc(LIST_PROCESS_HOST_LEN+1)))
+          my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
+                      "%s:%u", tmp_sctx->host_or_ip, tmp->peer_port);
       }
+      else
+        thd_info->host= thd->strdup(tmp_sctx->host_or_ip[0] ?
+                                    tmp_sctx->host_or_ip :
+                                    tmp_sctx->host ? tmp_sctx->host : "");
+      thd_info->command=(int) tmp->command;
+      mysql_mutex_lock(&tmp->LOCK_thd_data);
+      if ((thd_info->db= tmp->db))             // Safe test
+        thd_info->db= thd->strdup(thd_info->db);
+      if ((mysys_var= tmp->mysys_var))
+        mysql_mutex_lock(&mysys_var->mutex);
+      thd_info->proc_info= (char*) (tmp->killed >= KILL_QUERY ?
+                                    "Killed" : 0);
+      thd_info->state_info= thread_state_info(tmp);
+      if (mysys_var)
+        mysql_mutex_unlock(&mysys_var->mutex);
+
+      /* Lock THD mutex that protects its data when looking at it. */
+      if (tmp->query())
+      {
+        uint length= min(max_query_length, tmp->query_length());
+        char *q= thd->strmake(tmp->query(),length);
+        /* Safety: in case strmake failed, we set length to 0. */
+        thd_info->query_string=
+          CSET_STRING(q, q ? length : 0, tmp->query_charset());
+      }
+
+      /*
+        Progress report. We need to do this under a lock to ensure that all
+        is from the same stage.
+      */
+      if (tmp->progress.max_counter)
+      {
+        uint max_stage= max(tmp->progress.max_stage, 1);
+        thd_info->progress= (((tmp->progress.stage / (double) max_stage) +
+                              ((tmp->progress.counter /
+                                (double) tmp->progress.max_counter) /
+                               (double) max_stage)) *
+                             100.0);
+        set_if_smaller(thd_info->progress, 100);
+      }
+      else
+        thd_info->progress= 0.0;
+      thd_info->start_time= tmp->start_time;
+      mysql_mutex_unlock(&tmp->LOCK_thd_data);
+      thread_infos.append(thd_info);
     }
   }
   mysql_mutex_unlock(&LOCK_thread_count);
