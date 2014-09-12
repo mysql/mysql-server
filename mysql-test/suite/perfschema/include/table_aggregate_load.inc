@@ -2,6 +2,19 @@
 #
 
 # See comments in include/table_aggregate_setup.inc
+#
+# Notes about the optimizer and query plans:
+# The following statement
+#   SELECT * from t1 where b=5;
+# can be executed either:
+# - by using the index "index_b" on column b
+# - by using a full table scan and the where clause.
+# Which plan is used can be unpredictable.
+# To ensure that the index is really used,
+# so that table io against the index is measured,
+# the payload in this test uses:
+#   SELECT * from t1 force index(index_b) where b=5;
+# 
 
 # Display the current setup used
 
@@ -84,9 +97,9 @@ update test.t1 set d=d+1 where a=101;
 update test.t2 set d=d+1 where a=101;
 update test.t3 set d=d+1 where a=101;
 # select with index
-select * from test.t1 where b=5;
-select * from test.t2 where b=5;
-select * from test.t3 where b=5;
+select * from test.t1 force index(index_b) where b=5;
+select * from test.t2 force index(index_b) where b=5;
+select * from test.t3 force index(index_b) where b=5;
 
 echo "================== con1 marker ==================";
 
@@ -145,9 +158,9 @@ update test.t1 set d=d+1 where a=201;
 update test.t2 set d=d+1 where a=201;
 update test.t3 set d=d+1 where a=201;
 # select with index
-select * from test.t1 where b=5;
-select * from test.t2 where b=5;
-select * from test.t3 where b=5;
+select * from test.t1 force index(index_b) where b=5;
+select * from test.t2 force index(index_b) where b=5;
+select * from test.t3 force index(index_b) where b=5;
 
 echo "================== con2 marker ==================";
 
@@ -202,9 +215,9 @@ update test.t1 set d=d+1 where a=301;
 update test.t2 set d=d+1 where a=301;
 update test.t3 set d=d+1 where a=301;
 # select with index
-select * from test.t1 where b=5;
-select * from test.t2 where b=5;
-select * from test.t3 where b=5;
+select * from test.t1 force index(index_b) where b=5;
+select * from test.t2 force index(index_b) where b=5;
+select * from test.t3 force index(index_b) where b=5;
 
 echo "================== con3 marker ==================";
 
@@ -259,9 +272,9 @@ update test.t1 set d=d+1 where a=401;
 update test.t2 set d=d+1 where a=401;
 update test.t3 set d=d+1 where a=401;
 # select with index
-select * from test.t1 where b=5;
-select * from test.t2 where b=5;
-select * from test.t3 where b=5;
+select * from test.t1 force index(index_b) where b=5;
+select * from test.t2 force index(index_b) where b=5;
+select * from test.t3 force index(index_b) where b=5;
 
 echo "================== con4 marker ==================";
 
