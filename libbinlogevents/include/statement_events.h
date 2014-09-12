@@ -467,12 +467,14 @@ public:
     */
     Q_UPDATED_DB_NAMES,
     Q_MICROSECONDS,
-    /**
-      Q_COMMIT_TS status variable stores the logical timestamp when the
-      transaction entered the commit phase. This wll be used to apply
-      transactions in parallel on the slave.
+    /*
+     A old (unused now) code for Query_log_event status similar to G_COMMIT_TS.
    */
-   Q_COMMIT_TS
+    Q_COMMIT_TS,
+    /*
+     A code for Query_log_event status, similar to G_COMMIT_TS2.
+   */
+    Q_COMMIT_TS2
   };
   const char* query;
   const char* db;
@@ -582,10 +584,11 @@ public:
   char mts_accessed_db_names[MAX_DBS_IN_EVENT_MTS][NAME_LEN];
 
   /**
-    Prepare and commit sequence number. will be set to 0 if the event is not a
+    Commit parent and point. will be set to 0 if the event is not a
     transaction starter.
   */
-  int64_t commit_seq_no;
+  int64_t last_committed;
+  int64_t sequence_number;
 
   /**
     The constructor will be used while creating a Query_event, to be

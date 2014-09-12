@@ -301,7 +301,9 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_TYPE_BLOB	10	/*!< Uncompressed BLOB page */
 #define FIL_PAGE_TYPE_ZBLOB	11	/*!< First compressed BLOB page */
 #define FIL_PAGE_TYPE_ZBLOB2	12	/*!< Subsequent compressed BLOB page */
-#define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_ZBLOB2
+#define FIL_PAGE_TYPE_UNKNOWN	13	/*!< In old tablespaces, garbage
+in FIL_PAGE_TYPE is replaced with this value when flushing pages. */
+#define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_UNKNOWN
 					/*!< Last page type */
 /* @} */
 

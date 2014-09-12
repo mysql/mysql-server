@@ -561,7 +561,8 @@ Ignorable_event::Ignorable_event(const char *buf,
 Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
                        const Format_description_event *description_event)
  : Binary_log_event(&buffer, description_event->binlog_version,
-                    description_event->server_version)
+                    description_event->server_version),
+    last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -583,22 +584,19 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
          sizeof(gtid_info_struct.rpl_gtid_gno));
   gtid_info_struct.rpl_gtid_gno= le64toh(gtid_info_struct.rpl_gtid_gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
-    /* fetch the commit timestamp */
-  /*Old masters will not have this part, so we should prevent segfaulting */
-  if (static_cast<unsigned int>(ptr_buffer - (buffer - common_header_len)) <
-      event_len && *ptr_buffer == G_COMMIT_TS)
+
+  /* fetch the commit timestamp */
+  if (*ptr_buffer == G_COMMIT_TS2 &&
+      (static_cast<unsigned int>(ptr_buffer - (buffer - common_header_len)) + 1 +
+      COMMIT_SEQ_LEN) <= event_len)
   {
     ptr_buffer++;
-    memcpy(&commit_seq_no, ptr_buffer, sizeof(commit_seq_no));
-    commit_seq_no= (int64_t)le64toh(commit_seq_no);
+    memcpy(&last_committed, ptr_buffer, sizeof(last_committed));
+    last_committed= (int64_t)le64toh(last_committed);
+    memcpy(&sequence_number, ptr_buffer, sizeof(sequence_number));
+    sequence_number= (int64_t)le64toh(sequence_number);
     ptr_buffer+= COMMIT_SEQ_LEN;
   }
-  else
-    /* We let coordinator complain when it sees that we have first
-       event and the master has not sent us the commit sequence number
-       Also, we can be rest assured that this is an old master, because new
-       master would have compained of the missing commit seq no while flushing.*/
-    commit_seq_no= SEQ_UNINIT;
   return;
 }
 

@@ -121,6 +121,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
   mysql_mutex_init(key_mutex_slave_parallel_worker, &jobs_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_cond_slave_parallel_worker, &jobs_cond);
+  mysql_cond_init(key_cond_mts_gaq, &logical_clock_cond);
 }
 
 Slave_worker::~Slave_worker()
@@ -133,6 +134,7 @@ Slave_worker::~Slave_worker()
   }
   mysql_mutex_destroy(&jobs_lock);
   mysql_cond_destroy(&jobs_cond);
+  mysql_cond_destroy(&logical_clock_cond);
   mysql_mutex_lock(&info_thd_lock);
   info_thd= NULL;
   mysql_mutex_unlock(&info_thd_lock);
@@ -170,7 +172,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   master_log_change_notified= false;// W learns master log during 1st group exec
   bitmap_shifted= 0;
   workers= c_rli->workers; // shallow copying is sufficient
-  wq_size_waits_cnt= groups_done= events_done= curr_jobs= 0;
+  wq_empty_waits= wq_size_waits_cnt= groups_done= events_done= curr_jobs= 0;
   usage_partition= 0;
   end_group_sets_max_dbs= false;
   gaq_index= last_group_done_index= c_rli->gaq->size; // out of range
@@ -183,7 +185,9 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   jobs.entry= jobs.size= c_rli->mts_slave_worker_queue_len_max;
   jobs.inited_queue= true;
   curr_group_seen_begin= curr_group_seen_gtid= false;
-
+#ifndef DBUG_OFF
+  curr_group_seen_sequence_number= false;
+#endif
   jobs.m_Q.resize(jobs.size, empty);
   DBUG_ASSERT(jobs.m_Q.size() == jobs.size);
 
@@ -1056,10 +1060,11 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 {
   DBUG_ENTER("Slave_worker::slave_worker_ends_group");
+  Slave_job_group *ptr_g= NULL;
 
   if (!error)
   {
-    Slave_job_group *ptr_g= c_rli->gaq->get_job_group(gaq_index);
+    ptr_g= c_rli->gaq->get_job_group(gaq_index);
 
     DBUG_ASSERT(gaq_index == ev->mts_group_idx);
     /*
@@ -1087,9 +1092,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
     ptr_g->group_master_log_pos= group_master_log_pos;
     ptr_g->group_relay_log_pos= group_relay_log_pos;
-
-    ptr_g->done= 1;    // GAQ index is available to C now
-
+    my_atomic_store32(&ptr_g->done, 1);
     last_group_done_index= gaq_index;
     reset_gaq_index();
     groups_done++;
@@ -1115,6 +1118,8 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
   /*
     Cleanup relating to the last executed group regardless of error.
   */
+  if (current_mts_submode->get_type() == MTS_PARALLEL_TYPE_DB_NAME)
+  {
   for (size_t i= 0; i < curr_group_exec_parts.size(); i++)
   {
     db_worker_hash_entry *entry= curr_group_exec_parts[i];
@@ -1167,6 +1172,55 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     mysql_cond_signal(&slave_worker_hash_cond);
     mysql_mutex_unlock(&slave_worker_hash_lock);
   }
+  }
+  else // not DB-type scheduler
+  {
+    DBUG_ASSERT(current_mts_submode->get_type() ==
+                MTS_PARALLEL_TYPE_LOGICAL_CLOCK);
+    /*
+      Check if there're any waiter. If there're try incrementing lwm and
+      signal to those who've got sasfied with the waiting condition.
+
+      In a "good" "likely" execution branch the waiter set is expected
+      to be empty. LWM is advanced by Coordinator asynchronously.
+      Also lwm is advanced by a dependent Worker when it inserts its waiting
+      request into the waiting list.
+    */
+    Mts_submode_logical_clock* mts_submode=
+      static_cast<Mts_submode_logical_clock*>(c_rli->current_mts_submode);
+    longlong min_child_waited_logical_ts=
+      my_atomic_load64(&mts_submode->min_waited_timestamp);
+
+    if (error)
+    {
+      mysql_mutex_lock(&c_rli->mts_gaq_LOCK);
+      mts_submode->is_error= true;
+      if (mts_submode->min_waited_timestamp != SEQ_UNINIT)
+        mysql_cond_signal(&c_rli->logical_clock_cond);
+      mysql_mutex_unlock(&c_rli->mts_gaq_LOCK);
+    }
+    else if (min_child_waited_logical_ts != SEQ_UNINIT)
+    {
+      mysql_mutex_lock(&c_rli->mts_gaq_LOCK);
+      longlong curr_lwm= mts_submode->get_lwm_timestamp(c_rli, true);
+      min_child_waited_logical_ts=
+        my_atomic_load64(&mts_submode->min_waited_timestamp);
+      if (min_child_waited_logical_ts != SEQ_UNINIT &&
+          mts_submode->clock_leq(mts_submode->min_waited_timestamp,
+                                 curr_lwm))
+      {
+        /*
+          There's a transaction that depends on the current.
+        */
+        mysql_cond_signal(&c_rli->logical_clock_cond);
+      }
+      mysql_mutex_unlock(&c_rli->mts_gaq_LOCK);
+    }
+#ifndef DBUG_OFF
+    curr_group_seen_sequence_number= false;
+#endif
+  }
+  curr_group_seen_gtid= curr_group_seen_begin= false;
 
   DBUG_VOID_RETURN;
 }
@@ -1346,7 +1400,8 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
       The current job has not been processed or it was not
       even assigned, this means there is a gap.
     */
-    if (ptr_g->worker_id == MTS_WORKER_UNDEF || !ptr_g->done)
+    if (ptr_g->worker_id == MTS_WORKER_UNDEF ||
+        my_atomic_load32(&ptr_g->done) == 0)
       break; /* gap at i'th */
 
     /* Worker-id domain guard */
@@ -1411,6 +1466,62 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
   DBUG_ASSERT(cnt <= size);
 
   DBUG_RETURN(cnt);
+}
+
+/**
+   Finds low-water mark of committed jobs in GAQ.
+   That is an index below which all jobs are marked as done.
+
+   Notice the first available index is returned when the queue
+   does not have any incomplete jobs. That includes cases of
+   the empty and the full of complete jobs queue.
+   A mutex protecting from concurrent LWM change by
+   move_queue_head() (by Coordinator) should be taken by the caller.
+
+   @param arg_g [out]  a double pointer to Slave job descriptor item
+                       last marked with done-as-true boolean.
+   @param start_index  a GAQ index to start/resume searching.
+                       Caller is to make sure the index points into
+                       assigned (occupied) range of circular buffer of GAQ.
+   @return             GAQ index of the last consecutive done job, or the GAQ
+                       size when none is found.
+*/
+ulong Slave_committed_queue::find_lwm(Slave_job_group** arg_g,
+                                      ulong start_index)
+{
+  Slave_job_group *ptr_g= NULL;
+  ulong i, k, cnt;
+
+  DBUG_ASSERT(start_index <= size);
+
+  if (empty())
+    return size;
+
+  /*
+    Loop continuation condition relies on
+    (TODO: assert it)
+    the start_index being in the running range:
+
+       start_index \in [entry, avail - 1].
+
+    It satisfies any queue size including 1.
+    It does not satisfy the empty queue case which is bailed out earlier above.
+  */
+  for (i= start_index, cnt= 0; cnt < len - (start_index + size - entry) % size;
+       i= (i + 1) % size, cnt++)
+  {
+    ptr_g= &m_Q[i];
+    if (my_atomic_load32(&ptr_g->done) == 0)
+    {
+      if (cnt == 0)
+        return size;             // the first node of the queue is not done
+      break;
+    }
+  }
+  ptr_g= &m_Q[k= (i + size - 1) % size];
+  *arg_g= ptr_g;
+
+  return k;
 }
 
 /**
@@ -1504,6 +1615,71 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   this->va_report(level, err_code, buff_coord, msg, args);
 }
 
+#ifndef DBUG_OFF
+static bool may_have_timestamp(Log_event *ev)
+{
+  bool res= false;
+
+  switch (ev->get_type_code())
+  {
+  case binary_log::QUERY_EVENT:
+    res= true;
+    break;
+
+  case binary_log::GTID_LOG_EVENT:
+    res= true;
+    break;
+
+  default:
+    break;
+  }
+
+  return res;
+}
+
+static longlong get_last_committed(Log_event *ev)
+{
+  longlong res= SEQ_UNINIT;
+
+  switch (ev->get_type_code())
+  {
+  case binary_log::QUERY_EVENT:
+    res= static_cast<Query_log_event*>(ev)->last_committed;
+    break;
+
+  case binary_log::GTID_LOG_EVENT:
+    res= static_cast<Gtid_log_event*>(ev)->last_committed;
+    break;
+
+  default:
+    break;
+  }
+
+  return res;
+}
+
+static longlong get_sequence_number(Log_event *ev)
+{
+  longlong res= SEQ_UNINIT;
+
+  switch (ev->get_type_code())
+  {
+  case binary_log::QUERY_EVENT:
+    res= static_cast<Query_log_event*>(ev)->sequence_number;
+    break;
+
+  case binary_log::GTID_LOG_EVENT:
+    res= static_cast<Gtid_log_event*>(ev)->sequence_number;
+    break;
+
+  default:
+    break;
+  }
+
+  return res;
+}
+#endif
+
 /**
   MTS worker main routine.
   The worker thread loops in waiting for an event, executing it and
@@ -1530,6 +1706,42 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
     ev->common_header->when.tv_sec= static_cast<long>(my_time(0));
   ev->thd= thd; // todo: assert because up to this point, ev->thd == 0
   ev->worker= this;
+
+#ifndef DBUG_OFF
+  if (!is_mts_db_partitioned(rli) && may_have_timestamp(ev) &&
+      !curr_group_seen_sequence_number)
+  {
+    curr_group_seen_sequence_number= true;
+
+    longlong lwm_estimate= static_cast<Mts_submode_logical_clock*>
+      (rli->current_mts_submode)->estimate_lwm_timestamp();
+    longlong last_committed, sequence_number;
+
+    last_committed= get_last_committed(ev);
+    sequence_number= get_sequence_number(ev);
+    /*
+      The commit timestamp waiting condition:
+
+        lwm_estimate < last_committed  <=>  last_committed  \not <= lwm_estimate
+
+      must have been satisfied by Coordinator.
+      The first scheduled transaction does not have to wait for anybody.
+    */
+    DBUG_ASSERT(rli->gaq->entry == ev->mts_group_idx ||
+                Mts_submode_logical_clock::clock_leq(last_committed,
+                                                     lwm_estimate));
+    DBUG_ASSERT(lwm_estimate != SEQ_UNINIT || rli->gaq->entry == ev->mts_group_idx);
+    /*
+      The current transaction's timestamp can't be less that lwm.
+    */
+    DBUG_ASSERT(sequence_number == SEQ_UNINIT ||
+                !Mts_submode_logical_clock::
+                clock_leq(sequence_number,
+                          static_cast<Mts_submode_logical_clock*>
+                          (rli->current_mts_submode)->
+                          estimate_lwm_timestamp()));
+  }
+#endif
 
   // Address partioning only in database mode
   if (!is_gtid_event(ev) && is_mts_db_partitioned(rli))
@@ -1724,7 +1936,8 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
     if (ev != NULL)
     {
       /* It is a event belongs to the transaction */
-      if (!ev->is_mts_sequential_exec())
+      if (!ev->is_mts_sequential_exec(rli->current_mts_submode->get_type() ==
+                                      MTS_PARALLEL_TYPE_DB_NAME))
       {
         int ret= 0;
 
@@ -2235,16 +2448,33 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
       seen_begin= true; // The current group is started with B-event
       worker->end_group_sets_max_dbs= true;
     }
+    set_timespec_nsec(&worker->ts_exec[0], 0); // pre-exec
+    worker->stats_read_time += diff_timespec(&worker->ts_exec[0],
+                                             &worker->ts_exec[1]);
 
     error= worker->slave_worker_exec_event(ev);
 
+    set_timespec_nsec(&worker->ts_exec[1], 0); // pre-exec
+    worker->stats_exec_time += diff_timespec(&worker->ts_exec[1],
+                                             &worker->ts_exec[0]);
     if (error &&
         worker->retry_transaction(start_relay_number, start_relay_pos,
                                   job_item->relay_number, job_item->relay_pos))
       goto err;
+    /*
+      p-event or any other event of B-free (malformed) group can
+      "commit" with logical clock scheduler. In that case worker id
+      points to the only active "exclusive" Worker that processes such
+      malformed group events one by one.
+    */
+    DBUG_ASSERT(seen_begin || is_gtid_event(ev) ||
+                ev->get_type_code() == binary_log::QUERY_EVENT ||
+                is_mts_db_partitioned(rli) || worker->id == 0);
 
     if (ev->ends_group() ||
-        (!seen_begin && ev->get_type_code() == binary_log::QUERY_EVENT))
+        (!seen_begin && !is_gtid_event(ev) &&
+        (ev->get_type_code() == binary_log::QUERY_EVENT ||
+        !is_mts_db_partitioned(rli))))
       break;
 
     remove_item_from_jobs(job_item, worker, rli);

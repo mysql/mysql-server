@@ -523,9 +523,9 @@ row_merge_buf_add(
 						dfield_get_data(doc_field)));
 
 					if (*doc_id == 0) {
-						ib_logf(IB_LOG_LEVEL_WARN,
-							"FTS Doc ID is zero."
-							" Record Skipped");
+						ib::warn() << "FTS Doc ID is"
+							" zero. Record"
+							" skipped";
 						DBUG_RETURN(0);
 					}
 				}
@@ -949,8 +949,7 @@ row_merge_read(
 #endif /* POSIX_FADV_DONTNEED */
 
 	if (UNIV_UNLIKELY(!success)) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Failed to read merge block at " UINT64PF, ofs);
+		ib::error() << "Failed to read merge block at " << ofs;
 	}
 
 	DBUG_RETURN(success);
@@ -2281,10 +2280,9 @@ wait_again:
 		} while (!all_exit && trial_count < max_trial_count);
 
 		if (!all_exit) {
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Not all child sort threads exited"
-				" when creating FTS index '%s'",
-				fts_sort_idx->name);
+			ib::fatal() << "Not all child sort threads exited"
+				" when creating FTS index '"
+				<< fts_sort_idx->name << "'";
 		}
 	}
 
@@ -3085,9 +3083,8 @@ row_merge_drop_index_dict(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_index_dict"
-			" failed with error %u", unsigned(error));
+		ib::error() << "row_merge_drop_index_dict failed with error "
+			<< error;
 	}
 
 	trx->op_info = "";
@@ -3158,9 +3155,8 @@ row_merge_drop_indexes_dict(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_indexes_dict"
-			" failed with error %u", unsigned(error));
+		ib::error() << "row_merge_drop_indexes_dict failed with error"
+			<< error;
 	}
 
 	trx->op_info = "";
@@ -3406,9 +3402,8 @@ row_merge_drop_temp_indexes(void)
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_temp_indexes"
-			" failed with error %u", unsigned(error));
+		ib::error() << "row_merge_drop_temp_indexes failed with error"
+			<< error;
 	}
 
 	trx_commit_for_mysql(trx);
@@ -3442,8 +3437,7 @@ row_merge_file_create_low(void)
 #endif
 
 	if (fd < 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot create temporary merge file");
+		ib::error() << "Cannot create temporary merge file";
 		return(-1);
 	}
 	return(fd);
@@ -3549,9 +3543,8 @@ row_merge_rename_index_to_add(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_rename_index_to_add"
-			" failed with error %u", unsigned(err));
+		ib::error() << "row_merge_rename_index_to_add failed with"
+			" error " << err;
 	}
 
 	trx->op_info = "";
@@ -3604,9 +3597,8 @@ row_merge_rename_index_to_drop(
 		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_rename_index_to_drop"
-			" failed with error %u", unsigned(err));
+		ib::error() << "row_merge_rename_index_to_drop failed with"
+			" error " << err;
 	}
 
 	trx->op_info = "";
@@ -4093,11 +4085,10 @@ wait_again:
 				}
 
 				if (!all_exit) {
-					ib_logf(IB_LOG_LEVEL_ERROR,
-						"Not all child merge threads"
-						" exited when creating FTS"
-						" index '%s'",
-						indexes[i]->name);
+					ib::error() << "Not all child merge"
+						" threads exited when creating"
+						" FTS index '"
+						<< indexes[i]->name << "'";
 				}
 			} else {
 				/* This cannot report duplicates; an
@@ -4161,8 +4152,8 @@ wait_again:
 				name++;
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Finished building full-text index %s", name);
+			ib::info() << "Finished building full-text index "
+				<< name;
 		}
 	}
 

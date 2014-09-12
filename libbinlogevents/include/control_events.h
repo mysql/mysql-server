@@ -847,11 +847,6 @@ struct Uuid
     <th>Description</th>
   </tr>
 
-  <tr>
-    <td>commit_seq_no</td>
-    <td>8 bytes signed integer</td>
-    <td>Prepare and commit sequence number. will be set to 0 if the event is
-        not a transaction starter</td>
   </tr>
   <tr>
     <td>ENCODED_FLAG_LENGTH</td>
@@ -879,15 +874,20 @@ struct Uuid
 class Gtid_event: public Binary_log_event
 {
 public:
-  int64_t commit_seq_no;
-
+  /*
+    Last committed as commit parent's sequence number,
+    and the transaction own sequence number.
+   */
+  int64_t last_committed;
+  int64_t sequence_number;
   /**
     Ctor of Gtid_event
 
     The layout of the buffer is as follows
-    +-------------+-------------+------------+------------+--------------+
-    | commit flag | ENCODED SID | ENCODED GNO| G_COMMIT_TS| commit_seq_no|
-    +-------------+-------------+------------+------------+--------------+
+    +-------------+-------------+------------+---------+----------------+
+    | commit flag | ENCODED SID | ENCODED GNO| TS_TYPE | logical ts(:s) |
+    +-------------+-------------+------------+---------+----------------+
+    TS_TYPE is from {G_COMMIT_TS2} singleton set of values
 
     @param buffer             Contains the serialized event.
     @param event_len          Length of the serialized event.

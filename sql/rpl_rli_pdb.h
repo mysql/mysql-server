@@ -89,7 +89,7 @@ typedef struct st_slave_job_group
   */
   my_off_t group_master_log_pos;
 
-  /* 
+  /*
      When relay-log name changes  allocates and fill in a new name of relay-log,
      otherwise it fills in NULL.
      Coordinator keeps track of each Worker has been notified on the updating
@@ -98,7 +98,7 @@ typedef struct st_slave_job_group
      W checks the value at commit and memoriezes a not-NULL.
      Freeing unless NULL is left to Coordinator at CP.
   */
-  char     *group_relay_log_name; // The value is last seen relay-log 
+  char     *group_relay_log_name; // The value is last seen relay-log
   my_off_t group_relay_log_pos;  // filled by W
   ulong worker_id;
   Slave_worker *worker;
@@ -111,14 +111,18 @@ typedef struct st_slave_job_group
   char*    checkpoint_log_name;
   my_off_t checkpoint_relay_log_pos; // T-event lop_pos filled by W for CheckPoint
   char*    checkpoint_relay_log_name;
-  volatile uchar done;  // Flag raised by W,  read and reset by Coordinator
+  int32    done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
 #ifndef DBUG_OFF
   bool     notified;    // to debug group_master_log_name change notification
 #endif
+  /* Clock-based scheduler requirement: */
+  longlong last_committed; // commit parent timestamp
+  longlong sequence_number;   // transaction's logical timestamp
+
   /*
-    Coordinator fills the struct with defaults and options at starting of 
+    Coordinator fills the struct with defaults and options at starting of
     a group distribution.
   */
   void reset(my_off_t master_pos, ulonglong seqno)
@@ -138,6 +142,8 @@ typedef struct st_slave_job_group
 #ifndef DBUG_OFF
     notified= false;
 #endif
+    last_committed= SEQ_UNINIT;
+    sequence_number= SEQ_UNINIT;
   }
 } Slave_job_group;
 
@@ -209,13 +215,13 @@ public:
 
 /**
   Group Assigned Queue whose first element identifies first gap
-  in committed sequence. The head of the queue is therefore next to 
+  in committed sequence. The head of the queue is therefore next to
   the low-water-mark.
 */
 class Slave_committed_queue : public circular_buffer_queue<Slave_job_group>
 {
 public:
-  
+
   bool inited;
 
   /* master's Rot-ev exec */
@@ -225,7 +231,7 @@ public:
      The last checkpoint time Low-Water-Mark
   */
   Slave_job_group lwm;
-  
+
   /* last time processed indexes for each worker */
   Prealloced_array<ulonglong, 1> last_done;
 
@@ -247,10 +253,11 @@ public:
       (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
                          FN_REFLEN + 1, MYF(0));
     lwm.group_relay_log_name[0]= 0;
+    lwm.sequence_number= SEQ_UNINIT;
   }
 
   ~Slave_committed_queue ()
-  { 
+  {
     if (inited)
     {
       my_free(lwm.group_relay_log_name);
@@ -266,12 +273,13 @@ public:
   ulong move_queue_head(Slave_worker_array *ws);
   /* Method is for slave shutdown time cleanup */
   void free_dynamic_items();
-  /* 
+  /*
      returns a pointer to Slave_job_group struct instance as indexed by arg
-     in the circular buffer dyn-array 
+     in the circular buffer dyn-array
   */
   Slave_job_group* get_job_group(ulong ind)
   {
+    DBUG_ASSERT(ind < size);
     return &m_Q[ind];
   }
 
@@ -285,6 +293,7 @@ public:
       circular_buffer_queue<Slave_job_group>::en_queue(item);
   }
 
+  ulong find_lwm(Slave_job_group**, ulong);
 };
 
 
@@ -332,7 +341,7 @@ class Slave_jobs_queue : public circular_buffer_queue<Slave_job_item>
 {
 public:
   Slave_jobs_queue() : circular_buffer_queue<Slave_job_item>() {}
-  /* 
+  /*
      Coordinator marks with true, Worker signals back at queue back to
      available
   */
@@ -368,6 +377,9 @@ public:
   curr_group_exec_parts; // Current Group Executed Partitions
 
   bool curr_group_seen_begin; // is set to TRUE with explicit B-event
+#ifndef DBUG_OFF
+  bool curr_group_seen_sequence_number; // is set to TRUE about starts_group()
+#endif
   ulong id;                 // numberic identifier of the Worker
 
   /*

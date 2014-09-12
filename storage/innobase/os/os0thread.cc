@@ -139,8 +139,7 @@ os_thread_create_func(
 
 	if (!handle) {
 		/* If we cannot start a new thread, life has no meaning. */
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"CreateThread returned %d", GetLastError());
+		ib::fatal() << "CreateThread returned " << GetLastError();
 	}
 
 	mutex_enter(&thread_mutex);
@@ -171,7 +170,7 @@ os_thread_create_func(
 	int	ret = pthread_create(&new_thread_id, &attr, func, arg);
 
 	if (ret != 0) {
-		ib_logf(IB_LOG_LEVEL_FATAL, "pthread_create returned %d", ret);
+		ib::fatal() << "pthread_create returned " << ret;
 	}
 
 	pthread_attr_destroy(&attr);
@@ -195,8 +194,8 @@ os_thread_exit(
 				is cast as a DWORD */
 {
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ib_logf(IB_LOG_LEVEL_INFO, "Thread exits, id %lu",
-		os_thread_pf(os_thread_get_curr_id()));
+	ib::info() << "Thread exits, id "
+		<< os_thread_pf(os_thread_get_curr_id());
 #endif
 
 #ifdef UNIV_PFS_THREAD
@@ -304,8 +303,8 @@ os_thread_free()
 /*============*/
 {
 	if (os_thread_count != 0) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Some (%lu) threads are still active", os_thread_count);
+		ib::warn() << "Some (" << os_thread_count << ") threads are"
+			" still active";
 	}
 
 	mutex_destroy(&thread_mutex);

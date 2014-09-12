@@ -630,7 +630,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_INDEX_FILE_FULL,        "No more room in index file '%.64s'");
   SETMSG(HA_ERR_END_OF_FILE,            "End in next/prev/first/last");
   SETMSG(HA_ERR_UNSUPPORTED,            ER_DEFAULT(ER_ILLEGAL_HA));
-  SETMSG(HA_ERR_TO_BIG_ROW,             "Too big row");
+  SETMSG(HA_ERR_TOO_BIG_ROW,            "Too big row");
   SETMSG(HA_WRONG_CREATE_OPTION,        "Wrong create option");
   SETMSG(HA_ERR_FOUND_DUPP_UNIQUE,      ER_DEFAULT(ER_DUP_UNIQUE));
   SETMSG(HA_ERR_UNKNOWN_CHARSET,        "Can't open charset");

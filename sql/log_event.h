@@ -177,13 +177,6 @@ struct sql_ex_info
 #define SL_MASTER_HOST_OFFSET   10
 
 
-/*
-  G_COMMIT_TS status variable stores the logical timestamp when the transaction
-  entered the commit phase. This wll be used to apply transactions in parallel
-  on the slave.
- */
-#define G_COMMIT_TS  1
-
 /* Intvar event post-header */
 
 /* Intvar event data */
@@ -326,6 +319,10 @@ struct sql_ex_info
 #endif
 #undef EXPECTED_OPTIONS         /* You shouldn't use this one */
 
+/**
+   Maximum value of binlog logical timestamp.
+*/
+const int64_t SEQ_MAX_TIMESTAMP= LONGLONG_MAX;
 #ifdef MYSQL_SERVER
 class String;
 class MYSQL_BIN_LOG;
@@ -913,6 +910,11 @@ public:
   /**
      Is called from get_mts_execution_mode() to
 
+     @param  is_scheduler_dbname
+                   The current scheduler type.
+                   In case the db-name scheduler certain events
+                   can't be applied in parallel.
+
      @return TRUE  if the event needs applying with synchronization
                    agaist Workers, otherwise
              FALSE
@@ -923,20 +925,20 @@ public:
 
            todo: to mts-support Old master Load-data related events
   */
-  bool is_mts_sequential_exec()
+  bool is_mts_sequential_exec(bool is_scheduler_dbname)
   {
     return
+      ((get_type_code() == binary_log::LOAD_EVENT         ||
+        get_type_code() == binary_log::CREATE_FILE_EVENT  ||
+        get_type_code() == binary_log::DELETE_FILE_EVENT  ||
+        get_type_code() == binary_log::NEW_LOAD_EVENT     ||
+        get_type_code() == binary_log::EXEC_LOAD_EVENT)    &&
+       is_scheduler_dbname)                                  ||
       get_type_code() == binary_log::START_EVENT_V3          ||
       get_type_code() == binary_log::STOP_EVENT              ||
       get_type_code() == binary_log::ROTATE_EVENT            ||
-      get_type_code() == binary_log::LOAD_EVENT              ||
       get_type_code() == binary_log::SLAVE_EVENT             ||
-      get_type_code() == binary_log::CREATE_FILE_EVENT       ||
-      get_type_code() == binary_log::DELETE_FILE_EVENT       ||
-      get_type_code() == binary_log::NEW_LOAD_EVENT          ||
-      get_type_code() == binary_log::EXEC_LOAD_EVENT         ||
       get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT||
-
       get_type_code() == binary_log::INCIDENT_EVENT;
   }
 
@@ -975,13 +977,21 @@ private:
      Coordinator concurrently with Workers and some to require synchronization
      with Workers (@c see wait_for_workers_to_finish) before to apply them.
 
+     @param slave_server_id   id of the server, extracted from event
+     @param mts_in_group      the being group parsing status, true
+                              means inside the group
+     @param  is_scheduler_dbname
+                              true when the current submode (scheduler)
+                              is of DB_NAME type.
+
      @retval EVENT_EXEC_PARALLEL  if event is executed by a Worker
      @retval EVENT_EXEC_ASYNC     if event is executed by Coordinator
      @retval EVENT_EXEC_SYNC      if event is executed by Coordinator
                                   with synchronization against the Workers
   */
   enum enum_mts_event_exec_mode get_mts_execution_mode(ulong slave_server_id,
-                                                   bool mts_in_group)
+                                                       bool mts_in_group,
+                                                       bool is_dbname_type)
   {
     if ((get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT &&
          ((server_id == (uint32) ::server_id) || (common_header->log_pos == 0))) ||
@@ -990,7 +1000,7 @@ private:
           (common_header->log_pos == 0    /* very first fake Rotate (R_f) */
            && mts_in_group /* ignored event turned into R_f at slave stop */))))
       return EVENT_EXEC_ASYNC;
-    else if (is_mts_sequential_exec())
+    else if (is_mts_sequential_exec(is_dbname_type))
       return EVENT_EXEC_SYNC;
     else
       return EVENT_EXEC_PARALLEL;
@@ -1410,7 +1420,7 @@ public:        /* !!! Public in this patch to allow old usage */
   */
   bool starts_group() { return !strncmp(query, "BEGIN", q_len); }
   virtual bool ends_group()
-  {  
+  {
     return
       !strncmp(query, "COMMIT", q_len) ||
       (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
