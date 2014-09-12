@@ -14,7 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_msr.h"
-using namespace std;
 
 const char* Multisource_info::default_channel= "";
 
@@ -24,14 +23,14 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi)
   DBUG_ENTER("Multisource_info::add_mi");
 
   mi_map::const_iterator it;
-  pair<mi_map::iterator, bool>  ret;
+  std::pair<mi_map::iterator, bool>  ret;
   bool res= false;
 
   /* The check of mi exceeding MAX_CHANNELS shall be done in the caller */
   DBUG_ASSERT(current_mi_count < MAX_CHANNELS);
 
   /* implicit type cast from const char* to string */
-  ret= channel_to_mi.insert(pair<string, Master_info* >(channel_name, mi));
+  ret= channel_to_mi.insert(std::pair<std::string, Master_info* >(channel_name, mi));
 
   /* If a map insert fails, ret.second is false */
   if(!ret.second)
@@ -109,25 +108,22 @@ bool Multisource_info::delete_mi(const char* channel_name)
 }
 
 
-const char*  Multisource_info::get_channel_with_host_port(char *host, uint port)
+const char*
+Multisource_info::get_channel_with_host_port(char *host, uint port)
 {
-  DBUG_ENTER("Multisource_info::same_host_port");
+  DBUG_ENTER("Multisource_info::get_channel_with_host_port");
   Master_info *mi;
 
-  /* RITHTODO
-   * Resolving hostnames to ip adresses,
-   for ex:127.0.0.1=localhost
-  */
+  if (!host || !port)
+    DBUG_RETURN(0);
 
-  for (mi_map::iterator it= channel_to_mi.begin(); it != channel_to_mi.end(); it++)
+  for (mi_map::iterator it= channel_to_mi.begin();
+       it != channel_to_mi.end(); it++)
   {
     mi= it->second;
 
-    if (host && host[0] && mi->host &&
-        !strcmp(host, mi->host) && port == mi->port)
-    {
-      DBUG_RETURN((char*)mi->get_channel());
-    }
+    if (mi && mi->host && !strcmp(host, mi->host) && port == mi->port)
+      DBUG_RETURN((const char*)mi->get_channel());
   }
   DBUG_RETURN(0);
 }

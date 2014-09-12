@@ -169,10 +169,10 @@ public:
   /**
      Return a channel name from the map having the same host and port.
 
-    @param[in]         host         host of the new channel.
-    @param[in]         port         port of the new channel.
+    @param[in]         host          host of the channel.
+    @param[in]         port          port of the channel.
 
-    @return            channel_name  channel in the map with same host and port.
+    @return                          channel in the map with ' host' and port.
                                      If no such channel, exists, return 0
  */
   const char* get_channel_with_host_port(char* host, uint port);
