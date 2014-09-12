@@ -16,3 +16,4 @@ read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exist
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
 log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
 mysql_embedded           : Bug#12561297 2011-05-14 Anitha Dependent on PB2 changes - eventum#41836
+file_contents            : MDEV-6526 these files are not installed anymore
