@@ -3601,12 +3601,22 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
      *
      * This only happens as part of normal TC_COMMIT_ACK reception, so not when
      * the flag removed_by_fail_api is set.
+     *
+     * It can also happen in a situation where we are performing a TC takeover.
+     * If an LQH instance reports having a marker, then the new TC inserts all
+     * LQH instances as having the marker. So this means that a lot of LQH
+     * instances will receive this message even when they haven't claimed to
+     * have the marker. This is so since the protocol in LQH_TRANSCONF doesn't
+     * specify which LQH instances that sent the LQH_TRANSCONF. Actually this
+     * isn't entirely true since the senders block reference is always received
+     * as part of Protocol6, thus we can actually find the LQH instance from
+     * this. But for now we take this safe approach and send too many signals.
+     * These signals will also end up in this branch.
      */
 #if (defined VM_TRACE || defined ERROR_INSERT) && defined(wl4391_todo)
     ndbout_c("%u Rem marker failed[%.8x %.8x] remove_by_fail_api = %u", instance(),
              key.transid1, key.transid2, removed_by_fail_api);
 #endif
-    ndbrequire(!removed_by_fail_api);
   }
 #ifdef MARKER_TRACE
   ndbout_c("%u Rem marker[%.8x %.8x]", instance(), key.transid1, key.transid2);
