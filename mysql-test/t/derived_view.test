@@ -1731,6 +1731,99 @@ drop table t1,t2;
 set optimizer_switch=@save_optimizer_switch5740;
 
 --echo #
+--echo # Bug mdev-5721: possible long key access to a materialized derived table
+--echo # (see also the test case for Bug#13261277 that is actually the same bug)
+--echo #
+
+CREATE TABLE t1 (
+  id varchar(255) NOT NULL DEFAULT '',
+  familyid int(11) DEFAULT NULL,
+  withdrawndate date DEFAULT NULL,
+  KEY index_td_familyid_id (familyid,id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE t2 (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  activefromts datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  shortdescription text,
+  useraccessfamily varchar(512) DEFAULT NULL,
+  serialized longtext,
+  PRIMARY KEY (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+insert into t1 values ('picture/89/1369722032695.pmd',89,NULL);
+insert into t1 values ('picture/90/1369832057370.pmd',90,NULL);
+insert into t2 values (38,'2013-03-04 07:49:22','desc','CODE','string');
+
+EXPLAIN 
+SELECT * FROM t2 x,
+(SELECT t2.useraccessfamily, t2.serialized AS picturesubuser, COUNT(*)
+  FROM t2, t1 GROUP BY t2.useraccessfamily, picturesubuser) y
+WHERE x.useraccessfamily = y.useraccessfamily;
+
+SELECT * FROM t2 x,
+(SELECT t2.useraccessfamily, t2.serialized AS picturesubuser, COUNT(*)
+  FROM t2, t1 GROUP BY t2.useraccessfamily, picturesubuser) y
+WHERE x.useraccessfamily = y.useraccessfamily;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#13261277: Unchecked key length caused missing records.
+--echo #
+
+CREATE TABLE t1 (  
+  col_varchar varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+  stub1 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+  stub2 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+  stub3 varchar(1024) CHARACTER SET utf8 DEFAULT NULL
+);
+
+INSERT INTO t1 VALUES
+  ('d','d','l','ther'),
+  (NULL,'s','NJBIQ','trzetuchv'),
+  (-715390976,'coul','MYWFB','cfhtrzetu'),
+  (1696792576,'f','i\'s','c'),
+  (1,'i','ltpemcfhtr','gsltpemcf'),
+  (-663027712,'mgsltpemcf','sa','amgsltpem'),
+  (-1686700032,'JPRVK','i','vamgsltpe'),
+  (NULL,'STUNB','UNVJV','u'),
+  (5,'oka','qyihvamgsl','AXSMD'),
+  (NULL,'tqwmqyihva','h','yntqwmqyi'),
+  (3,'EGMJN','e','e');
+
+CREATE TABLE t2 (
+  col_varchar varchar(10) DEFAULT NULL,
+  col_int INT DEFAULT NULL
+);
+
+INSERT INTO t2 VALUES ('d',9);
+
+set optimizer_switch='derived_merge=off,derived_with_keys=on';
+
+SET @save_heap_size= @@max_heap_table_size;
+SET @@max_heap_table_size= 16384;
+
+SELECT t2.col_int
+FROM t2
+    RIGHT JOIN ( SELECT * FROM t1 ) AS dt 
+  ON t2.col_varchar = dt.col_varchar
+WHERE t2.col_int IS NOT NULL ;
+
+--echo # Shouldn't use auto_key0 for derived table
+EXPLAIN 
+SELECT t2.col_int
+FROM t2
+    RIGHT JOIN ( SELECT * FROM t1 ) AS dt
+  ON t2.col_varchar = dt.col_varchar
+WHERE t2.col_int IS NOT NULL ;
+
+SET @@max_heap_table_size= @save_heap_size;
+SET optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1,t2;
+
+--echo #
 --echo # end of 5.3 tests
 --echo #
 

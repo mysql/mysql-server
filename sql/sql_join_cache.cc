@@ -2088,7 +2088,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       goto finish;
     if (outer_join_first_inner)
     {
-      if (next_cache)
+      if (next_cache && join_tab != join_tab->last_inner)
       {
         /* 
           Ensure that all matches for outer records from join buffer are to be

@@ -3656,5 +3656,134 @@ explain select * from t0,t1 left join t2 on t1.b=t2.b order by t0.a, t1.a;
 
 drop table t0,t1,t2;
 
+--echo #
+--echo # mdev-6292: huge performance degradation for a sequence
+--echo #            of LEFT JOIN operations when using join buffer
+--echo #
+
+--source include/have_innodb.inc
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  col1 varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (id)
+) ENGINE=INNODB;
+
+CREATE TABLE t2 (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  parent_id smallint(3) NOT NULL DEFAULT '0',
+  col2 varchar(25) NOT NULL DEFAULT '',
+  PRIMARY KEY (id)
+) ENGINE=INNODB;
+
+set join_buffer_size=8192;
+
+set join_cache_level=0;
+
+set @init_time:=now(); 
+SELECT t.* 
+FROM 
+  t1 t 
+  LEFT JOIN t2 c1 ON c1.parent_id = t.id AND c1.col2 = "val"
+  LEFT JOIN t2 c2 ON c2.parent_id = t.id AND c2.col2 = "val"
+  LEFT JOIN t2 c3 ON c3.parent_id = t.id AND c3.col2 = "val"
+  LEFT JOIN t2 c4 ON c4.parent_id = t.id AND c4.col2 = "val"
+  LEFT JOIN t2 c5 ON c5.parent_id = t.id AND c5.col2 = "val"
+  LEFT JOIN t2 c6 ON c6.parent_id = t.id AND c6.col2 = "val"
+  LEFT JOIN t2 c7 ON c7.parent_id = t.id AND c7.col2 = "val"
+  LEFT JOIN t2 c8 ON c8.parent_id = t.id AND c8.col2 = "val"
+  LEFT JOIN t2 c9 ON c9.parent_id = t.id AND c9.col2 = "val"
+  LEFT JOIN t2 c10 ON c10.parent_id = t.id AND c10.col2 = "val"
+  LEFT JOIN t2 c11 ON c11.parent_id = t.id AND c11.col2 = "val"
+  LEFT JOIN t2 c12 ON c12.parent_id = t.id AND c12.col2 = "val"
+  LEFT JOIN t2 c13 ON c13.parent_id = t.id AND c13.col2 = "val"
+  LEFT JOIN t2 c14 ON c14.parent_id = t.id AND c14.col2 = "val"
+  LEFT JOIN t2 c15 ON c15.parent_id = t.id AND c15.col2 = "val"
+  LEFT JOIN t2 c16 ON c16.parent_id = t.id AND c16.col2 = "val"
+  LEFT JOIN t2 c17 ON c17.parent_id = t.id AND c17.col2 = "val"
+  LEFT JOIN t2 c18 ON c18.parent_id = t.id AND c18.col2 = "val"
+  LEFT JOIN t2 c19 ON c19.parent_id = t.id AND c19.col2 = "val"
+  LEFT JOIN t2 c20 ON c20.parent_id = t.id AND c20.col2 = "val"
+  LEFT JOIN t2 c21 ON c21.parent_id = t.id AND c21.col2 = "val"
+  LEFT JOIN t2 c22 ON c22.parent_id = t.id AND c22.col2 = "val"
+  LEFT JOIN t2 c23 ON c23.parent_id = t.id AND c23.col2 = "val"
+  LEFT JOIN t2 c24 ON c24.parent_id = t.id AND c24.col2 = "val"
+  LEFT JOIN t2 c25 ON c25.parent_id = t.id AND c25.col2 = "val"
+ORDER BY 
+  col1;
+select timestampdiff(second, @init_time, now()) <= 1;
+
+set join_cache_level=2;
+
+set @init_time:=now(); 
+SELECT t.* 
+FROM 
+  t1 t 
+  LEFT JOIN t2 c1 ON c1.parent_id = t.id AND c1.col2 = "val"
+  LEFT JOIN t2 c2 ON c2.parent_id = t.id AND c2.col2 = "val"
+  LEFT JOIN t2 c3 ON c3.parent_id = t.id AND c3.col2 = "val"
+  LEFT JOIN t2 c4 ON c4.parent_id = t.id AND c4.col2 = "val"
+  LEFT JOIN t2 c5 ON c5.parent_id = t.id AND c5.col2 = "val"
+  LEFT JOIN t2 c6 ON c6.parent_id = t.id AND c6.col2 = "val"
+  LEFT JOIN t2 c7 ON c7.parent_id = t.id AND c7.col2 = "val"
+  LEFT JOIN t2 c8 ON c8.parent_id = t.id AND c8.col2 = "val"
+  LEFT JOIN t2 c9 ON c9.parent_id = t.id AND c9.col2 = "val"
+  LEFT JOIN t2 c10 ON c10.parent_id = t.id AND c10.col2 = "val"
+  LEFT JOIN t2 c11 ON c11.parent_id = t.id AND c11.col2 = "val"
+  LEFT JOIN t2 c12 ON c12.parent_id = t.id AND c12.col2 = "val"
+  LEFT JOIN t2 c13 ON c13.parent_id = t.id AND c13.col2 = "val"
+  LEFT JOIN t2 c14 ON c14.parent_id = t.id AND c14.col2 = "val"
+  LEFT JOIN t2 c15 ON c15.parent_id = t.id AND c15.col2 = "val"
+  LEFT JOIN t2 c16 ON c16.parent_id = t.id AND c16.col2 = "val"
+  LEFT JOIN t2 c17 ON c17.parent_id = t.id AND c17.col2 = "val"
+  LEFT JOIN t2 c18 ON c18.parent_id = t.id AND c18.col2 = "val"
+  LEFT JOIN t2 c19 ON c19.parent_id = t.id AND c19.col2 = "val"
+  LEFT JOIN t2 c20 ON c20.parent_id = t.id AND c20.col2 = "val"
+  LEFT JOIN t2 c21 ON c21.parent_id = t.id AND c21.col2 = "val"
+  LEFT JOIN t2 c22 ON c22.parent_id = t.id AND c22.col2 = "val"
+  LEFT JOIN t2 c23 ON c23.parent_id = t.id AND c23.col2 = "val"
+  LEFT JOIN t2 c24 ON c24.parent_id = t.id AND c24.col2 = "val"
+  LEFT JOIN t2 c25 ON c25.parent_id = t.id AND c25.col2 = "val"
+ORDER BY 
+  col1;
+select timestampdiff(second, @init_time, now()) <= 1;
+
+EXPLAIN
+SELECT t.* 
+FROM 
+  t1 t 
+  LEFT JOIN t2 c1 ON c1.parent_id = t.id AND c1.col2 = "val"
+  LEFT JOIN t2 c2 ON c2.parent_id = t.id AND c2.col2 = "val"
+  LEFT JOIN t2 c3 ON c3.parent_id = t.id AND c3.col2 = "val"
+  LEFT JOIN t2 c4 ON c4.parent_id = t.id AND c4.col2 = "val"
+  LEFT JOIN t2 c5 ON c5.parent_id = t.id AND c5.col2 = "val"
+  LEFT JOIN t2 c6 ON c6.parent_id = t.id AND c6.col2 = "val"
+  LEFT JOIN t2 c7 ON c7.parent_id = t.id AND c7.col2 = "val"
+  LEFT JOIN t2 c8 ON c8.parent_id = t.id AND c8.col2 = "val"
+  LEFT JOIN t2 c9 ON c9.parent_id = t.id AND c9.col2 = "val"
+  LEFT JOIN t2 c10 ON c10.parent_id = t.id AND c10.col2 = "val"
+  LEFT JOIN t2 c11 ON c11.parent_id = t.id AND c11.col2 = "val"
+  LEFT JOIN t2 c12 ON c12.parent_id = t.id AND c12.col2 = "val"
+  LEFT JOIN t2 c13 ON c13.parent_id = t.id AND c13.col2 = "val"
+  LEFT JOIN t2 c14 ON c14.parent_id = t.id AND c14.col2 = "val"
+  LEFT JOIN t2 c15 ON c15.parent_id = t.id AND c15.col2 = "val"
+  LEFT JOIN t2 c16 ON c16.parent_id = t.id AND c16.col2 = "val"
+  LEFT JOIN t2 c17 ON c17.parent_id = t.id AND c17.col2 = "val"
+  LEFT JOIN t2 c18 ON c18.parent_id = t.id AND c18.col2 = "val"
+  LEFT JOIN t2 c19 ON c19.parent_id = t.id AND c19.col2 = "val"
+  LEFT JOIN t2 c20 ON c20.parent_id = t.id AND c20.col2 = "val"
+  LEFT JOIN t2 c21 ON c21.parent_id = t.id AND c21.col2 = "val"
+  LEFT JOIN t2 c22 ON c22.parent_id = t.id AND c22.col2 = "val"
+  LEFT JOIN t2 c23 ON c23.parent_id = t.id AND c23.col2 = "val"
+  LEFT JOIN t2 c24 ON c24.parent_id = t.id AND c24.col2 = "val"
+  LEFT JOIN t2 c25 ON c25.parent_id = t.id AND c25.col2 = "val"
+ORDER BY 
+  col1;
+
+set join_buffer_size=default;
+set join_cache_level = default;
+
+DROP TABLE t1,t2;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;
