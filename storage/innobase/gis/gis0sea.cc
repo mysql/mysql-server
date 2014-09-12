@@ -750,12 +750,11 @@ rtr_page_get_father_node_ptr_func(
 					  ULINT_UNDEFINED, &heap);
 		page_rec_print(node_ptr, offsets);
 
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"You should dump + drop + reimport the table to"
+		ib::fatal() << "You should dump + drop + reimport the table to"
 			" fix the corruption. If the crash happens at"
 			" database startup, see " REFMAN
 			"forcing-innodb-recovery.html about forcing"
-			" recovery. Then dump + drop + reimport.");
+			" recovery. Then dump + drop + reimport.";
 	}
 
 	return(offsets);
@@ -887,9 +886,9 @@ get_parent:
 					index, index->table);
 				mutex_exit(&dict_sys->mutex);
 
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"InnoDB: Corruption of a spatail index %s "
-					"of table %s", index->name, index->table_name);
+				ib::info() << "InnoDB: Corruption of a"
+					" spatial index " << index->name
+					<< " of table " << index->table_name;
 				break;
 			}
 			r_cursor = rtr_get_parent_cursor(btr_cur, level, false);

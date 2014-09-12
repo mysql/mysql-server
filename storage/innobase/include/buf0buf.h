@@ -1734,15 +1734,6 @@ struct buf_block_t{
 				        in buf_page_get_gen(),
 					buf_page_init_for_read()
 					and buf_page_create()) */
-	ibool		check_index_page_at_flush;
-					/*!< TRUE if we know that this is
-					an index page, and want the database
-					to check its consistency before flush;
-					note that there may be pages in the
-					buffer pool which are index pages,
-					but this flag is not set because
-					we do not keep track of all pages;
-					NOT protected by any mutex */
 	/* @} */
 	/** @name Optimistic search field */
 	/* @{ */

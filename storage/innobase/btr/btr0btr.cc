@@ -384,8 +384,6 @@ btr_page_create(
 		btr_page_set_level(page, NULL, level, mtr);
 	}
 
-	block->check_index_page_at_flush = TRUE;
-
 	/* For Spatial Index, initialize the Split Sequence Number */
 	if (dict_index_is_spatial(index)) {
 		page_set_ssn_id(block, page_zip, 0, mtr);
@@ -1028,8 +1026,6 @@ btr_create(
 		btr_page_set_level(page, NULL, 0, mtr);
 	}
 
-	block->check_index_page_at_flush = TRUE;
-
 	/* Set the index id of the page */
 	btr_page_set_index_id(page, page_zip, index_id, mtr);
 
@@ -1226,8 +1222,6 @@ btr_page_reorganize_low(
 	if (!recovery) {
 		btr_search_drop_page_hash_index(block);
 	}
-
-	block->check_index_page_at_flush = TRUE;
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Save the cursor position. */
@@ -1506,8 +1500,6 @@ btr_page_empty(
 			    dict_index_is_spatial(index));
 		btr_page_set_level(page, NULL, level, mtr);
 	}
-
-	block->check_index_page_at_flush = TRUE;
 }
 
 /*************************************************************//**

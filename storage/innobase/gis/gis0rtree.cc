@@ -1471,12 +1471,12 @@ rtr_page_copy_rec_list_end_no_locks(
 			fprintf(stderr, "page number %ld and %ld\n",
 				(long)new_block->page.id.page_no(),
 				(long)block->page.id.page_no());
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"rec offset %lu, cur1 offset %lu,"
-				" cur_rec offset %lu",
-				(ulong) page_offset(rec),
-				(ulong) page_offset(page_cur_get_rec(&cur1)),
-				(ulong) page_offset(cur_rec));
+
+			ib::fatal() << "rec offset " << page_offset(rec)
+				<< ", cur1 offset "
+				<<  page_offset(page_cur_get_rec(&cur1))
+				<< ", cur_rec offset "
+				<< page_offset(cur_rec);
 		}
 
 		rec_move[moved].new_rec = ins_rec;
@@ -1600,12 +1600,12 @@ rtr_page_copy_rec_list_start_no_locks(
 			fprintf(stderr, "page number %ld and %ld\n",
 				(long)new_block->page.id.page_no(),
 				(long)block->page.id.page_no());
-			ib_logf(IB_LOG_LEVEL_FATAL,
-				"rec offset %lu, cur1 offset %lu,"
-				" cur_rec offset %lu",
-				(ulong) page_offset(rec),
-				(ulong) page_offset(page_cur_get_rec(&cur1)),
-				(ulong) page_offset(cur_rec));
+
+			ib::fatal() << "rec offset " << page_offset(rec)
+				<< ", cur1 offset "
+				<<  page_offset(page_cur_get_rec(&cur1))
+				<< ", cur_rec offset "
+				<< page_offset(cur_rec);
 		}
 
 		rec_move[moved].new_rec = ins_rec;

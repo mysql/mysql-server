@@ -276,7 +276,6 @@ btr_cur_latch_leaves(
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
-		get_block->check_index_page_at_flush = TRUE;
 		if (spatial) {
                         cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS]
 				= get_block;
@@ -307,8 +306,6 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_next(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			get_block->check_index_page_at_flush = TRUE;
-
 			if (spatial) {
 				cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS]
 					= get_block;
@@ -325,7 +322,6 @@ btr_cur_latch_leaves(
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
-		get_block->check_index_page_at_flush = TRUE;
 
 		if (spatial) {
                         cursor->rtr_info->tree_blocks[RTR_MAX_LEVELS + 1]
@@ -349,7 +345,6 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_prev(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			get_block->check_index_page_at_flush = TRUE;
 			if (spatial) {
 				cursor->rtr_info->tree_blocks[
 					RTR_MAX_LEVELS + 2] = get_block;
@@ -377,7 +372,6 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_next(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			get_block->check_index_page_at_flush = TRUE;
 		}
 
 		get_block = btr_block_get(page_id, page_size, mode,
@@ -385,7 +379,6 @@ btr_cur_latch_leaves(
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
-		get_block->check_index_page_at_flush = TRUE;
 		return;
 	case BTR_CONT_MODIFY_TREE:
 		ut_ad(dict_index_is_spatial(cursor->index));
@@ -455,7 +448,6 @@ btr_cur_optimistic_latch_leaves(
 				page_id,
 				dict_table_page_size(cursor->index->table),
 				mode, cursor->index, mtr);
-			cursor->left_block->check_index_page_at_flush = TRUE;
 		} else {
 			cursor->left_block = NULL;
 		}
@@ -1203,7 +1195,6 @@ retry_page_get:
 		tree_blocks[n_blocks] = block;
 	}
 
-	block->check_index_page_at_flush = TRUE;
 	page = buf_block_get_frame(block);
 
 	if (height == ULINT_UNDEFINED
@@ -1990,7 +1981,6 @@ btr_cur_search_to_nth_level_with_no_latch(
 		block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
 				buf_mode, file, line, mtr, mark_dirty);
 
-		block->check_index_page_at_flush = TRUE;
 		page = buf_block_get_frame(block);
 
 		if (height == ULINT_UNDEFINED) {
@@ -2201,8 +2191,6 @@ btr_cur_open_at_index_side_func(
 
 		ut_ad(fil_page_index_page_check(page));
 		ut_ad(index->id == btr_page_get_index_id(page));
-
-		block->check_index_page_at_flush = TRUE;
 
 		if (height == ULINT_UNDEFINED) {
 			/* We are in the root node */
@@ -2459,7 +2447,6 @@ btr_cur_open_at_index_side_with_no_latch_func(
 
 		ut_ad(fil_page_index_page_check(page));
 		ut_ad(index->id == btr_page_get_index_id(page));
-		block->check_index_page_at_flush = TRUE;
 
 		if (height == ULINT_UNDEFINED) {
 			/* We are in the root node */
