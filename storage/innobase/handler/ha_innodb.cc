@@ -4058,6 +4058,16 @@ innobase_close_connection(
 
 	if (trx != NULL) {
 
+		TrxInInnoDB	trx_in_innodb(trx);
+
+		if (trx_in_innodb.is_aborted()) {
+
+			while (trx_is_started(trx)) {
+
+				os_thread_sleep(20);
+			}
+		}
+
 		if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
 			sql_print_error("Transaction not registered for MySQL"
@@ -4071,9 +4081,12 @@ innobase_close_connection(
 				" active InnoDB transaction.  " TRX_ID_FMT
 				" row modifications will roll back.",
 				trx->undo_no);
-		}
 
-		TrxInInnoDB	trx_in_innodb(trx);
+			ut_d(ib::warn()
+			     << "trx: " << trx << " started on: "
+			     << innobase_basename(trx->start_file)
+				<< ":" << trx->start_line);
+		}
 
 		innobase_rollback_trx(trx);
 
@@ -7130,7 +7143,7 @@ if its index columns are updated!
 @return error number or 0 */
 
 int
-ha_innobase::update_row_low(
+ha_innobase::update_row(
 	const uchar*	old_row,
 	uchar*		new_row)
 {
@@ -7138,14 +7151,8 @@ ha_innobase::update_row_low(
 
 	dberr_t		error;
 	trx_t*		trx = thd_to_trx(m_user_thd);
-	TrxInInnoDB	trx_in_innodb(trx);
 
 	DBUG_ENTER("ha_innobase::update_row");
-
-	if (trx_in_innodb.is_aborted()) {
-
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
-	}
 
 	ut_a(m_prebuilt->trx == trx);
 
@@ -7197,6 +7204,11 @@ ha_innobase::update_row_low(
 
 	if (error != DB_SUCCESS) {
 		goto func_exit;
+	}
+
+	if (TrxInInnoDB::is_aborted(trx)) {
+
+		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	/* This is not a delete */
@@ -7270,30 +7282,6 @@ func_exit:
 	innobase_active_small();
 
 	DBUG_RETURN(err);
-}
-
-/**
-Updates a row given as a parameter to a new value. Note that we are given
-whole rows, not just the fields which are updated: this incurs some
-overhead for CPU when we check which fields are actually updated.
-TODO: currently InnoDB does not prevent the 'Halloween problem':
-in a searched update a single row can get updated several times
-if its index columns are updated!
-@param[in] old_row	Old row contents in MySQL format
-@param[out] new_row	Updated row contents in MySQL format
-@return error number or 0 */
-
-int
-ha_innobase::update_row(
-	const uchar*	old_row,
-	uchar*		new_row)
-{
-	int	err = update_row_low(old_row, new_row);
-
-	DEBUG_SYNC_C("ha_innobase_update_row_done");
-
-	return(err);
-
 }
 
 /**********************************************************************//**
@@ -12992,6 +12980,8 @@ ha_innobase::external_lock(
 		DBUG_RETURN(0);
 	} else {
 		TrxInInnoDB::end_stmt(trx);
+
+		DEBUG_SYNC_C("ha_innobase_end_statement");
 	}
 
 	/* MySQL is releasing a table lock */
