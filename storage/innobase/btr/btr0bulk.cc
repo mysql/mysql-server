@@ -561,8 +561,10 @@ PageBulk::release()
 {
 	ut_ad(!dict_index_is_spatial(m_index));
 	mach_write_to_2(m_page + FIL_PAGE_TYPE, FIL_PAGE_INDEX);
+#ifdef UNIV_DEBUG // TODO: update PAGE_HEAP_TOP, or do not update FIL_PAGE_TYPE
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
 			    m_heap_top - m_total_data);
+#endif
 
 	/* We fix the block because we will re-pin it soon. */
 	buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
