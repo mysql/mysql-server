@@ -1,5 +1,6 @@
 # The embedded server does not support restarting in mysql-test-run.
 -- source include/not_embedded.inc
+-- source include/no_valgrind_without_big.inc
 
 let MYSQLD_DATADIR=`select @@datadir`;
 let PAGE_SIZE=`select @@innodb_page_size`;

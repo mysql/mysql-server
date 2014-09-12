@@ -2261,7 +2261,10 @@ int ha_federated::delete_row(const uchar *buf)
   DBUG_ENTER("ha_federated::delete_row");
 
   delete_string.length(0);
-  delete_string.append(STRING_WITH_LEN("DELETE FROM "));
+  if (ignore_duplicates)
+    delete_string.append(STRING_WITH_LEN("DELETE IGNORE FROM "));
+  else
+    delete_string.append(STRING_WITH_LEN("DELETE FROM "));
   append_ident(&delete_string, share->table_name,
                share->table_name_length, ident_quote_char);
   delete_string.append(STRING_WITH_LEN(" WHERE "));
@@ -3014,7 +3017,37 @@ int ha_federated::delete_all_rows()
   query.length(0);
 
   query.set_charset(system_charset_info);
-  query.append(STRING_WITH_LEN("TRUNCATE "));
+  if (ignore_duplicates)
+    query.append(STRING_WITH_LEN("DELETE IGNORE FROM "));
+  else
+    query.append(STRING_WITH_LEN("DELETE FROM "));
+  append_ident(&query, share->table_name, share->table_name_length,
+               ident_quote_char);
+
+  if (real_query(query.ptr(), query.length()))
+  {
+    DBUG_RETURN(stash_remote_error());
+  }
+  stats.deleted+= stats.records;
+  stats.records= 0;
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Used to manually truncate the table.
+*/
+
+int ha_federated::truncate()
+{
+  char query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
+  String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
+  DBUG_ENTER("ha_federated::truncate");
+
+  query.length(0);
+
+  query.set_charset(system_charset_info);
+  query.append(STRING_WITH_LEN("TRUNCATE TABLE "));
   append_ident(&query, share->table_name, share->table_name_length,
                ident_quote_char);
 
@@ -3028,16 +3061,6 @@ int ha_federated::delete_all_rows()
   stats.deleted+= stats.records;
   stats.records= 0;
   DBUG_RETURN(0);
-}
-
-
-/*
-  Used to manually truncate the table via a delete of all rows in a table.
-*/
-
-int ha_federated::truncate()
-{
-  return delete_all_rows();
 }
 
 

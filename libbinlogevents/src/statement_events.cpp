@@ -118,7 +118,8 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   auto_increment_increment(1), auto_increment_offset(1),
   time_zone_len(0), catalog_len(0), lc_time_names_number(0),
   charset_database_number(0), table_map_for_update(0), master_data_written(0),
-  mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS), commit_seq_no(SEQ_UNINIT)
+  mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS), last_committed(SEQ_UNINIT),
+  sequence_number(SEQ_UNINIT)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
@@ -305,6 +306,10 @@ break;
     case Q_UPDATED_DB_NAMES:
     {
       unsigned char i= 0;
+#ifndef DBUG_OFF
+      bool is_corruption_injected= false;
+#endif
+
       CHECK_SPACE(pos, end, 1);
       mts_accessed_dbs= *pos++;
       /*
@@ -333,7 +338,8 @@ break;
           {
             assert(pos[sizeof("d?") - 1] == 0);
             ((char*) pos)[sizeof("d?") - 1]= 'a';
-           }
+            is_corruption_injected= true;
+          }
         }
         #endif
         strncpy(mts_accessed_db_names[i], (char*) pos,
@@ -341,15 +347,22 @@ break;
         mts_accessed_db_names[i][NAME_LEN - 1]= 0;
         pos+= 1 + strlen((const char*) pos);
       }
-      if (i != mts_accessed_dbs || pos > start + status_vars_len)
+      if (i != mts_accessed_dbs
+#ifndef DBUG_OFF
+          || is_corruption_injected
+#endif
+          )
         return;
       break;
     }
-    case Q_COMMIT_TS:
+    case Q_COMMIT_TS2:
       CHECK_SPACE(pos, end, COMMIT_SEQ_LEN);
-      commit_seq_no =0;
-      memcpy(&commit_seq_no, pos, 8);
-      commit_seq_no= le64toh(commit_seq_no);
+      last_committed= 0;
+      memcpy(&last_committed, pos, 8);
+      last_committed= le64toh(last_committed);
+      sequence_number= 0;                                                        
+      memcpy(&sequence_number, pos + 8, 8);                                          
+      sequence_number= le64toh(sequence_number);
       pos+= COMMIT_SEQ_LEN;
       break;
 
