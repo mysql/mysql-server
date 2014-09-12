@@ -127,7 +127,7 @@ struct Pool {
 
 	/** Add the object to the pool.
 	@param ptr object to free */
-	static void free(value_type* ptr)
+	static void mem_free(value_type* ptr)
 	{
 		Element*	elem;
 		byte*		p = reinterpret_cast<byte*>(ptr + 1);
@@ -276,9 +276,9 @@ struct PoolManager {
 		return(ptr);
 	}
 
-	static void free(value_type* ptr)
+	static void mem_free(value_type* ptr)
 	{
-		PoolType::free(ptr);
+		PoolType::mem_free(ptr);
 	}
 
 private:

@@ -54,7 +54,7 @@ extern "C"
 void mysql_string_free(mysql_string_handle string_handle)
 {
   String *str= (String *) string_handle;
-  str->free();
+  str->mem_free();
   delete [] str;
 }
 

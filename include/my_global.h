@@ -32,7 +32,6 @@
 #endif
 
 #include <stdio.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <math.h>
@@ -48,6 +47,9 @@
 #endif
 #if !defined(_WIN32)
 #include <netdb.h>
+#endif
+#ifdef MY_MSCRT_DEBUG
+#include <crtdbg.h>
 #endif
 
 /*

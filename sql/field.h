@@ -1109,7 +1109,7 @@ public:
     'a_column BETWEEN date_const, date_const'.
   */
   virtual bool can_be_compared_as_longlong() const { return false; }
-  virtual void free() {}
+  virtual void mem_free() {}
   virtual Field *new_field(MEM_ROOT *root, TABLE *new_table,
                            bool keep_type);
   virtual Field *new_key_field(MEM_ROOT *root, TABLE *new_table,
@@ -3666,7 +3666,7 @@ public:
                               uint param_data, bool low_byte_first);
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length();
-  void free() { value.free(); }
+  void mem_free() { value.mem_free(); }
   inline void clear_temporary() { memset(&value, 0, sizeof(value)); }
   friend type_conversion_status field_conv(Field *to,Field *from);
   bool has_charset(void) const

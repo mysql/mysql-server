@@ -440,7 +440,7 @@ trx_free(trx_t*& trx)
 	to pool */
 	ut_ad(trx->will_lock == 0);
 
-	trx_pools->free(trx);
+	trx_pools->mem_free(trx);
 
 	trx = NULL;
 }
