@@ -3967,7 +3967,7 @@ row_search_traverse(
 }
 
 /** Searches for rows in the database using cursor.
-function is meant for temporary table that are not shared accross connection
+Function is for temporary tables that are not shared accross connections
 and so lot of complexity is reduced especially locking and transaction related.
 The cursor is an iterator over the table/index.
 
@@ -3995,17 +3995,11 @@ row_search_no_mvcc(
 	dict_index_t*	index		= prebuilt->index;
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
 	btr_pcur_t*	pcur		= &prebuilt->pcur;
-	dict_index_t*	clust_index;
-	que_thr_t*	thr;
 
-	const rec_t*	rec;
 	const rec_t*	result_rec	= NULL;
 	const rec_t*	clust_rec	= NULL;
 
 	dberr_t		err		= DB_SUCCESS;
-	ibool		moves_up	= FALSE;
-
-	mtr_t*		mtr;
 
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -4014,21 +4008,30 @@ row_search_no_mvcc(
 	ut_ad(index && pcur && search_tuple);
 
 	/* Step-0: Re-use the cached mtr. */
-	mtr = &index->last_sel_cur->mtr;
-	clust_index = dict_table_get_first_index(index->table);
+	mtr_t*		mtr = &index->last_sel_cur->mtr;
+	dict_index_t*	clust_index = dict_table_get_first_index(index->table);
 
 	/* Step-1: Build the select graph. */
 	if (direction == 0 && prebuilt->sel_graph == NULL) {
 		row_prebuild_sel_graph(prebuilt);
 	}
-	thr = que_fork_get_first_thr(prebuilt->sel_graph);
+
+	que_thr_t*	thr = que_fork_get_first_thr(prebuilt->sel_graph);
+
+	bool		moves_up;
 
 	if (direction == 0) {
+
 		if (mode == PAGE_CUR_GE || mode == PAGE_CUR_G) {
-			moves_up = TRUE;
+			moves_up = true;
+		} else {
+			moves_up = false;
 		}
+
 	} else if (direction == ROW_SEL_NEXT) {
-		moves_up = TRUE;
+		moves_up = true;
+	} else {
+		moves_up = false;
 	}
 
 	/* Step-2: Open or Restore the cursor.
@@ -4102,11 +4105,11 @@ row_search_no_mvcc(
 	}
 
 	/* Step-3: Traverse the records filtering non-qualifiying records. */
-	for (;
+	for (/* No op */;
 	     err == DB_SUCCESS;
 	     err = row_search_traverse(moves_up, match_mode, pcur, mtr)) {
 
-		rec = btr_pcur_get_rec(pcur);
+		const rec_t*	rec = btr_pcur_get_rec(pcur);
 
 		if (page_rec_is_infimum(rec)
 		    || page_rec_is_supremum(rec)
@@ -4171,8 +4174,10 @@ row_search_no_mvcc(
 		captured while SELECT statement started execution. */
 		{
 			trx_id_t	trx_id;
+
 			trx_id = row_get_rec_trx_id(
 				result_rec, clust_index, offsets);
+
 			if (trx_id > index->trx_id) {
 				/* This row was recently added skip it from
 				SELECT view. */
@@ -4327,7 +4332,6 @@ row_search_mvcc(
 	} else if (dict_index_is_corrupted(prebuilt->index)) {
 
 		return(DB_CORRUPTION);
-
 	}
 
 	/*-------------------------------------------------------------*/
