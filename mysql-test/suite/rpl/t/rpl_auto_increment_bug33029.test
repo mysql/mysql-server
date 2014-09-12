@@ -1,5 +1,3 @@
---source include/have_slave_parallel_type_database.inc
-
 # BUG#33029 5.0 to 5.1 replication fails on dup key when inserting
 # using a trig in SP
 
@@ -27,6 +25,7 @@
 # The binlog we read does funny things with triggers and causes this warning.
 --disable_query_log
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT');
+CALL mtr.add_suppression("Either event.*is from an old master");
 --enable_query_log
 
 # Need to restore this at the end; CHANGE MASTER modifies it (see the

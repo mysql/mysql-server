@@ -411,6 +411,7 @@ extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
 extern PSI_mutex_key key_LOCK_compress_gtid_table;
+extern PSI_mutex_key key_mts_gaq_LOCK;
 #ifdef HAVE_MY_TIMER
 extern PSI_mutex_key key_thd_timer_mutex;
 #endif
@@ -435,7 +436,7 @@ extern PSI_cond_key key_BINLOG_update_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_relay_log_info_sleep_cond, key_cond_slave_parallel_pend_jobs,
-  key_cond_slave_parallel_worker,
+  key_cond_slave_parallel_worker, key_cond_mts_gaq,
   key_TABLE_SHARE_cond, key_user_level_lock_cond;
 extern PSI_cond_key key_BINLOG_COND_done;
 extern PSI_cond_key key_RELAYLOG_COND_done;
@@ -718,6 +719,7 @@ extern PSI_stage_info stage_compressing_gtid_table;
 extern PSI_stage_info stage_suspending;
 #ifdef HAVE_REPLICATION
 extern PSI_stage_info stage_worker_waiting_for_its_turn_to_commit;
+extern PSI_stage_info stage_worker_waiting_for_commit_parent;
 #endif
 extern PSI_stage_info stage_starting;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
