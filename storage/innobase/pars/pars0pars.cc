@@ -2117,7 +2117,7 @@ yyerror(
 {
 	ut_ad(s);
 
-	ib_logf(IB_LOG_LEVEL_FATAL, "PARSER: Syntax error in SQL string");
+	ib::fatal() << "PARSER: Syntax error in SQL string";
 }
 
 /*************************************************************//**
