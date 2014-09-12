@@ -6426,7 +6426,8 @@ btr_store_big_rec_extern_fields(
 	page_zip = buf_block_get_page_zip(rec_block);
 	space_id = rec_block->page.id.space();
 	rec_page_no = rec_block->page.id.page_no();
-	ut_a(fil_page_index_page_check(page_align(rec)));
+	ut_a(fil_page_index_page_check(page_align(rec))
+	     || op == BTR_STORE_INSERT_BULK);
 
 	if (page_zip) {
 		int	err;
