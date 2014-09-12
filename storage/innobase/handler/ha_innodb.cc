@@ -7692,11 +7692,6 @@ ha_innobase::index_read(
 		match_mode = ROW_SEL_EXACT_PREFIX;
 	}
 
-	if (TrxInInnoDB::is_aborted(m_prebuilt->trx)) {
-
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
-	}
-
 	m_last_match_mode = (uint) match_mode;
 
 	dberr_t		ret;
@@ -7706,6 +7701,12 @@ ha_innobase::index_read(
 		innobase_srv_conc_enter_innodb(m_prebuilt);
 
 		if (!dict_table_is_intrinsic(m_prebuilt->table)) {
+
+			if (TrxInInnoDB::is_aborted(m_prebuilt->trx)) {
+
+				DBUG_RETURN(innobase_rollback(
+						ht, m_user_thd, false));
+			}
 
 			m_prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(
 				m_user_thd);
@@ -8017,7 +8018,9 @@ ha_innobase::general_fetch(
 
 	ut_ad(trx == thd_to_trx(m_user_thd));
 
-	if (TrxInInnoDB::is_aborted(trx)) {
+	bool	intrinsic = dict_table_is_intrinsic(m_prebuilt->table);
+
+	if (!intrinsic && TrxInInnoDB::is_aborted(trx)) {
 
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
@@ -8026,7 +8029,7 @@ ha_innobase::general_fetch(
 
 	dberr_t	ret;
 
-	if (!dict_table_is_intrinsic(m_prebuilt->table)) {
+	if (!intrinsic) {
 
 		ret = row_search_mvcc(
 			buf, 0, m_prebuilt, match_mode, direction);
