@@ -13,7 +13,7 @@ INSERT INTO t1 VALUES (0);
 include/rpl_connect.inc [creating sigcon]
 [connection sigcon]
 include/sync_slave_sql_with_master.inc
-SET DEBUG_SYNC='ha_innobase_update_row_done WAIT_FOR waiting1';
+SET DEBUG_SYNC='ha_innobase_end_statement WAIT_FOR waiting1';
 BEGIN;
 UPDATE t1 SET c1=99 WHERE c1=0;
 [connection slave]
@@ -23,8 +23,8 @@ UPDATE t1 SET c1=1 WHERE c1=0;
 SET DEBUG_SYNC='now SIGNAL waiting1';
 [connection sigcon]
 [connection sigcon]
-ERROR HY000: Got error 149 during COMMIT
 COMMIT;
+ERROR HY000: Got error 149 during COMMIT
 include/sync_slave_sql_with_master.inc
 include/assert.inc ['There is a 1 in t1']
 include/assert.inc ['There is no 0 in t1']
