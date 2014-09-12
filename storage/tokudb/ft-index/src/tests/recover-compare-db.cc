@@ -98,11 +98,15 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 const char *namea="a.db";
 const char *nameb="b.db";
 
+#if USE_TDB
+
 static int my_compare(DB *UU(db), const DBT *a, const DBT *b) {
     assert(db);
     assert(a->size == b->size);
     return memcmp(a->data, b->data, a->size);
 }   
+
+#endif
 
 static void
 do_x1_shutdown (bool do_commit, bool do_abort) {
@@ -112,7 +116,9 @@ do_x1_shutdown (bool do_commit, bool do_abort) {
     DB_ENV *env;
     DB *dba, *dbb;
     r = db_env_create(&env, 0);                                                         CKERR(r);
+#if USE_TDB
     r = env->set_default_bt_compare(env, my_compare);                                   CKERR(r);
+#endif
     r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     r = db_create(&dba, env, 0);                                                        CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
@@ -149,7 +155,9 @@ do_x1_recover (bool did_commit) {
     DB *dba, *dbb;
     int r;
     r = db_env_create(&env, 0);                                                             CKERR(r);
+#if USE_TDB
     r = env->set_default_bt_compare(env, my_compare);                                       CKERR(r);
+#endif
     r = env->open(env, TOKU_TEST_FILENAME, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
     r = db_create(&dba, env, 0);                                                            CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);

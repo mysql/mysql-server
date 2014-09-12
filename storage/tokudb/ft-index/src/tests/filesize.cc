@@ -196,7 +196,11 @@ delete_n (uint32_t ah)
 	ndelete_notfound++;
     else
 	ndelete_failed++;
+#ifdef USE_BDB
+    assert(r==0 || r==DB_NOTFOUND);
+#else
     CKERR(r);
+#endif
 }
 
 static void

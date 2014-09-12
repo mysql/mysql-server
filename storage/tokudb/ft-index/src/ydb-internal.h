@@ -97,6 +97,8 @@ PATENT RIGHTS GRANT:
 #include <ft/fttypes.h>
 #include <ft/ft-ops.h>
 #include <ft/minicron.h>
+// TODO: remove vanilla omt in favor of templated one
+#include <ft/omt.h>
 
 #include <util/growable_array.h>
 #include <util/omt.h>
@@ -150,13 +152,14 @@ struct __toku_db_env_internal {
     unsigned long cachetable_size;
     CACHETABLE cachetable;
     TOKULOGGER logger;
-    toku::locktree_manager ltm;
+    toku::locktree::manager ltm;
     lock_timeout_callback lock_wait_timeout_callback;   // Called when a lock request times out waiting for a lock.
 
     DB *directory;                                      // Maps dnames to inames
     DB *persistent_environment;                         // Stores environment settings, can be used for upgrade
-    toku::omt<DB *> *open_dbs_by_dname;                              // Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
-    toku::omt<DB *> *open_dbs_by_dict_id;                            // Stores open db handles, sorted by dictionary id and then by numerical value of pointer to the db (arbitrarily assigned memory location)
+    // TODO: toku::omt<DB *>
+    OMT open_dbs_by_dname;                              // Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
+    OMT open_dbs_by_dict_id;                            // Stores open db handles, sorted by dictionary id and then by numerical value of pointer to the db (arbitrarily assigned memory location)
     toku_pthread_rwlock_t open_dbs_rwlock;              // rwlock that protects the OMT of open dbs.
 
     char *real_data_dir;                                // data dir used when the env is opened (relative to cwd, or absolute with leading /)
@@ -189,7 +192,7 @@ struct __toku_db_env_internal {
 
 // test-only environment function for running lock escalation
 static inline void toku_env_run_lock_escalation_for_test(DB_ENV *env) {
-    toku::locktree_manager *mgr = &env->i->ltm;
+    toku::locktree::manager *mgr = &env->i->ltm;
     mgr->run_escalation_for_test();
 }
 

@@ -628,7 +628,7 @@ void toku_txn_complete_txn(TOKUTXN txn) {
     assert(txn->roll_info.spilled_rollback_tail.b == ROLLBACK_NONE.b);
     assert(txn->roll_info.current_rollback.b == ROLLBACK_NONE.b);
     assert(txn->num_pin == 0);
-    assert(txn->state == TOKUTXN_COMMITTING || txn->state == TOKUTXN_ABORTING);
+    assert(txn->state == TOKUTXN_COMMITTING || txn->state == TOKUTXN_ABORTING || txn->state == TOKUTXN_PREPARING);
     if (txn->parent) {
         toku_txn_manager_handle_snapshot_destroy_for_child_txn(
             txn,
@@ -784,6 +784,11 @@ uint64_t toku_txn_get_client_id(TOKUTXN txn) {
 
 void toku_txn_set_client_id(TOKUTXN txn, uint64_t client_id) {
     txn->client_id = client_id;
+}
+
+int toku_txn_discard_txn(TOKUTXN txn) {
+    int r = toku_rollback_discard(txn);
+    return r;
 }
 
 #include <toku_race_tools.h>

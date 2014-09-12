@@ -251,6 +251,7 @@ private:
     uint64_t bulk_fetch_iteration;
     uint64_t rows_fetched_using_bulk_fetch;
     bool doing_bulk_fetch;
+    bool maybe_index_scan;
 
     //
     // buffer used to temporarily store a "packed key" 

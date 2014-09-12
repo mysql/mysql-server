@@ -119,6 +119,7 @@ test_abort_create (void) {
 
     {
         char *filename;
+#if USE_TDB
         {
             DBT dname;
             DBT iname;
@@ -130,6 +131,9 @@ test_abort_create (void) {
             CAST_FROM_VOIDP(filename, iname.data);
             assert(filename);
         }
+#else
+        filename = toku_xstrdup("test.db");
+#endif
 	toku_struct_stat statbuf;
         char fullfile[TOKU_PATH_MAX+1];
 	r = toku_stat(toku_path_join(fullfile, 2, TOKU_TEST_FILENAME, filename), &statbuf);
@@ -141,6 +145,7 @@ test_abort_create (void) {
     r = txn->abort(txn); assert(r == 0);
 
     {
+#if USE_TDB
         {
             DBT dname;
             DBT iname;
@@ -150,6 +155,7 @@ test_abort_create (void) {
             r = env->get_iname(env, &dname, &iname);
             CKERR2(r, DB_NOTFOUND);
         }
+#endif
         toku_struct_stat statbuf;
         char fullfile[TOKU_PATH_MAX+1];
 	r = toku_stat(toku_path_join(fullfile, 2, TOKU_TEST_FILENAME, "test.db"), &statbuf);

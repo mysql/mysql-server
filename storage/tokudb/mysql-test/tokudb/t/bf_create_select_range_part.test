@@ -1,0 +1,138 @@
+# Verify that index and range scans are not slow
+# on tables during create select statements
+# due to tokudb bulk fetch not being used
+
+source include/have_tokudb.inc;
+source include/have_partition.inc;
+source include/big_test.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t,t1,t2;
+enable_warnings;
+
+let $maxq = 10;
+
+CREATE TABLE `t` (
+  `num` int(10) unsigned auto_increment NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+);
+
+# put 8M rows into t
+INSERT INTO t values (null,null);
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+SELECT count(*) FROM t;
+
+# Create base table (control table) from source table t
+CREATE TABLE `t1` (
+  `num` int(10) unsigned NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+) as select * from t;
+
+# Create source range partitioned table from source table t
+CREATE TABLE `t2` (
+  `num` int(10) unsigned NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+) PARTITION BY RANGE (num)
+(PARTITION p0 VALUES LESS THAN (1000000),
+ PARTITION p1 VALUES LESS THAN (2000000),
+ PARTITION p2 VALUES LESS THAN (3000000),
+ PARTITION p3 VALUES LESS THAN (4000000),
+ PARTITION p4 VALUES LESS THAN (5000000),
+ PARTITION p5 VALUES LESS THAN (6000000),
+ PARTITION p6 VALUES LESS THAN (7000000),
+ PARTITION p7 VALUES LESS THAN MAXVALUE) as select * from t;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    CREATE TABLE `t3` (`x` bigint);
+    SELECT count(*) from t1;
+    DROP TABLE t3;
+    inc $i;
+}
+let $time_elapsed_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_select seconds.;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    CREATE TABLE t4 AS SELECT count(*) from t2;
+    DROP TABLE t4;
+    inc $i;
+}
+
+let $time_elapsed_create_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_create_select seconds.;
+
+# This check evaluates whether the time elapsed during the create select statement is on par
+# with the select statement, which will confirm that bulk fetch is in fact being used.
+let $verdict = `select abs($time_elapsed_create_select - $time_elapsed_select) <= $time_elapsed_select`;
+echo $verdict;
+
+let $maxrq = 30;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxrq) {
+    CREATE TABLE `t3` (`x` bigint);
+    SELECT count(*) from t1 where num > 7000000;
+    DROP TABLE t3;
+    inc $i;
+}
+let $time_elapsed_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_select seconds.;
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxrq) {
+    CREATE TABLE t4 AS SELECT count(*) from t2 where num > 7000000;
+    DROP TABLE t4;
+    inc $i;
+}
+
+let $time_elapsed_create_select = `select to_seconds(now()) - $s`;
+
+# The following line can be used to display the time elapsed data
+# which could be useful for debugging.
+#echo Index scans took $time_elapsed_create_select seconds.;
+
+# This check evaluates whether the time elapsed during the create select statement is on par
+# with the select statement, which will confirm that bulk fetch is in fact being used.
+let $verdict = `select abs($time_elapsed_create_select - $time_elapsed_select) <= $time_elapsed_select`;
+echo $verdict;
+
+drop table t,t1,t2;

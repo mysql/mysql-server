@@ -138,10 +138,13 @@ toku_create_new_ftnode (
     int n_children
     );
 
-// This function returns a pinned ftnode to the caller.
+/**
+ * Batched version of toku_pin_ftnode, see cachetable batched API for more
+ * details.
+ */
 int
-toku_pin_ftnode_for_query(
-    FT_HANDLE ft_h,
+toku_pin_ftnode_batched(
+    FT_HANDLE brt,
     BLOCKNUM blocknum,
     uint32_t fullhash,
     UNLOCKERS unlockers,
@@ -153,27 +156,34 @@ toku_pin_ftnode_for_query(
     bool* msgs_applied
     );
 
-// Pins an ftnode without dependent pairs
-void toku_pin_ftnode(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    FTNODE *node_p,
-    bool move_messages
-    );
-
-// Pins an ftnode with dependent pairs
-// Unlike toku_pin_ftnode_for_query, this function blocks until the node is pinned.
-void toku_pin_ftnode_with_dep_nodes(
+/**
+ * Unfortunately, this function is poorly named
+ * as over time, client threads have also started
+ * calling this function.
+ * This function returns a pinned ftnode to the caller.
+ * Unlike toku_pin_ftnode, this function blocks until the node is pinned.
+ */
+void
+toku_pin_ftnode_off_client_thread(
     FT h,
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
     pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
-    FTNODE *dependent_nodes,
+    FTNODE* dependent_nodes,
+    FTNODE *node_p
+    );
+
+void
+toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
+    FT h,
+    BLOCKNUM blocknum,
+    uint32_t fullhash,
+    FTNODE_FETCH_EXTRA bfe,
+    pair_lock_type lock_type,
+    uint32_t num_dependent_nodes,
+    FTNODE* dependent_nodes,
     FTNODE *node_p,
     bool move_messages
     );
@@ -185,12 +195,53 @@ void toku_pin_ftnode_with_dep_nodes(
 int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, pair_lock_type lock_type, FTNODE *nodep);
 
 /**
- * Effect: Unpin an ftnode.
+ * Batched version of toku_pin_ftnode_off_client_thread, see cachetable
+ * batched API for more details.
  */
-void toku_unpin_ftnode(FT h, FTNODE node);
-void toku_unpin_ftnode_read_only(FT ft, FTNODE node);
+void
+toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
+    FT h,
+    BLOCKNUM blocknum,
+    uint32_t fullhash,
+    FTNODE_FETCH_EXTRA bfe,
+    pair_lock_type lock_type,
+    uint32_t num_dependent_nodes,
+    FTNODE* dependent_nodes,
+    FTNODE *node_p,
+    bool move_messages
+    );
 
-// Effect: Swaps pair values of two pinned nodes
-void toku_ftnode_swap_pair_values(FTNODE nodea, FTNODE nodeb);
+/**
+ * Batched version of toku_pin_ftnode_off_client_thread, see cachetable
+ * batched API for more details.
+ */
+void
+toku_pin_ftnode_off_client_thread_batched(
+    FT h,
+    BLOCKNUM blocknum,
+    uint32_t fullhash,
+    FTNODE_FETCH_EXTRA bfe,
+    pair_lock_type lock_type,
+    uint32_t num_dependent_nodes,
+    FTNODE* dependent_nodes,
+    FTNODE *node_p
+    );
+
+/**
+ * Effect: Unpin a brt node. Used for
+ * nodes that were pinned off client thread.
+ */
+void
+toku_unpin_ftnode_off_client_thread(FT h, FTNODE node);
+
+/**
+ * Effect: Unpin a brt node.
+ * Used for nodes pinned on a client thread
+ */
+void
+toku_unpin_ftnode(FT h, FTNODE node);
+
+void
+toku_unpin_ftnode_read_only(FT ft, FTNODE node);
 
 #endif

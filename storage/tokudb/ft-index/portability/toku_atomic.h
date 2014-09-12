@@ -91,9 +91,8 @@ PATENT RIGHTS GRANT:
 #ifndef TOKU_ATOMIC_H
 #define TOKU_ATOMIC_H
 
-#include <portability/toku_config.h>
+#include "toku_config.h"
 #include <toku_assert.h>
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>

@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 // The purpose of this test is to verify that certain information in the 
-// ft_header is properly serialized and deserialized. 
+// brt_header is properly serialized and deserialized. 
 
 
 static TOKUTXN const null_txn = 0;

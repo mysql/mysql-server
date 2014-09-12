@@ -1,0 +1,157 @@
+# verify that index scans on parititions are not slow
+# due to tokudb bulk fetch not being used
+
+source include/have_tokudb.inc;
+source include/have_partition.inc;
+source include/big_test.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t,t1,t2,t3;
+enable_warnings;
+
+let $debug = 0;
+let $maxq = 10;
+
+CREATE TABLE `t` (
+  `num` int(10) unsigned auto_increment NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+);
+
+# put 8M rows into t
+if ($debug) { let $ts = `select now()`; echo "start $ts"; }
+INSERT INTO t values (null,null);
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+INSERT INTO t SELECT null,null FROM t;
+if ($debug) { let $ts = `select now()`; echo "select $ts"; }
+SELECT count(*) FROM t;
+if ($debug) { let $ts = `select now()`; echo "select done $ts"; }
+
+CREATE TABLE `t1` (
+  `num` int(10) unsigned NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+);
+
+CREATE TABLE `t2` (
+  `num` int(10) unsigned NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+) 
+PARTITION BY HASH (num) PARTITIONS 10;
+
+CREATE TABLE `t3` (
+  `num` int(10) unsigned NOT NULL,
+  `val` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`num`)
+)
+PARTITION BY RANGE (num)
+(PARTITION p0 VALUES LESS THAN (1000000),
+ PARTITION p1 VALUES LESS THAN (2000000),
+ PARTITION p2 VALUES LESS THAN (3000000),
+ PARTITION p3 VALUES LESS THAN (4000000),
+ PARTITION p4 VALUES LESS THAN (5000000),
+ PARTITION p5 VALUES LESS THAN (6000000),
+ PARTITION p6 VALUES LESS THAN (7000000),
+ PARTITION p7 VALUES LESS THAN (8000000),
+ PARTITION px VALUES LESS THAN MAXVALUE);
+
+if ($debug) { let $ts = `select now()`; echo "insert t1 $ts"; }
+insert into t1 select * from t;
+if ($debug) { let $ts = `select now()`; echo "insert t2 $ts"; }
+insert into t2 select * from t;
+if ($debug) { let $ts = `select now()`; echo "insert t3 $ts"; }
+insert into t3 select * from t;
+if ($debug) { let $ts = `select now()`; echo "select t1 $ts"; }
+
+# verify that full index scans on partitioned tables t2 and t3 are comparable to a non-partitioned table t1
+let $s = `select to_seconds(now())`;
+let $i = 0; 
+while ($i < $maxq) {
+    select count(*) from t1;
+    inc $i;
+}
+let $t1 = `select to_seconds(now()) - $s`;
+
+if ($debug) { let $ts = `select now()`; echo "select t2 $ts"; }
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    select count(*) from t2;
+    inc $i;
+}
+let $t2 = `select to_seconds(now()) - $s`;
+let $d = `select abs($t2 - $t1) <= $t1`;
+echo $d;
+
+if ($debug) { let $ts = `select now()`; echo "select t3 $ts"; }
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    select count(*) from t3;
+    inc $i;
+}
+let $t3 = `select to_seconds(now()) - $s`;
+let $d = `select abs($t3 - $t1) <= $t1`;
+echo $d;
+
+if ($debug) { let $ts = `select now()`; echo "select t1 $ts"; }
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    select count(*) from t1 where num>7000000;
+    inc $i;
+}
+let $t1 = `select to_seconds(now()) - $s`;
+
+if ($debug) { let $ts = `select now()`; echo "select t2 $ts"; }
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    select count(*) from t2 where num>7000000;
+    inc $i;
+}
+let $t2 = `select to_seconds(now()) - $s`;
+let $d = `select abs($t2 - $t1) <= $t1`;
+echo $d;
+
+if ($debug) { let $ts = `select now()`; echo "select t3 $ts"; }
+
+let $s = `select to_seconds(now())`;
+let $i = 0;
+while ($i < $maxq) {
+    select count(*) from t3 where num>7000000;
+    inc $i;
+}
+let $t3 = `select to_seconds(now()) - $s`;
+let $d = `select abs($t3 - $t1) <= $t1`;
+echo $d;
+
+if ($debug) { let $ts = `select now()`; echo "done $ts"; }
+
+drop table if exists t,t1,t2,t3;

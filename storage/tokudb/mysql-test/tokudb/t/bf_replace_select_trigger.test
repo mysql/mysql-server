@@ -1,0 +1,169 @@
+# verify that various insert and update triggers can not execute on the source table
+# for a replace select statement
+
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists s,t;
+enable_warnings;
+
+create table s (id bigint not null primary key, x bigint);
+insert into s values (1,0),(2,0),(3,0),(4,0);
+
+create table t like s;
+begin;
+replace into t select * from s;
+rollback;
+
+# verify that before insert triggers can not replace into the source table
+create trigger t_trigger before insert on t for each row replace into s values (1000000,0);
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after insert triggers can not replace into the source table
+create trigger t_trigger after insert on t for each row replace into s values (1000000,0);
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that before insert triggers can not delete from the source table
+create trigger t_trigger before insert on t for each row delete from s where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after  insert triggers can not delete from the source table
+create trigger t_trigger after insert on t for each row delete from s where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that before insert triggers can not update the source table
+create trigger t_trigger before insert on t for each row update s set x=x+1 where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after insert triggers can not update the source table
+create trigger t_trigger after insert on t for each row update s set x=x+1 where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+truncate table t;
+insert into t values (1,1);
+
+# verify that before insert triggers can not replace into the source table
+create trigger t_trigger before insert on t for each row replace into s values (1000000,0);
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after insert triggers can not replace into the source table
+create trigger t_trigger after insert on t for each row replace into s values (1000000,0);
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that before insert triggers can not delete from the source table
+create trigger t_trigger before insert on t for each row delete from s where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after  insert triggers can not delete from the source table
+create trigger t_trigger after insert on t for each row delete from s where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that before insert triggers can not update the source table
+create trigger t_trigger before insert on t for each row update s set x=x+1 where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after insert triggers can not update the source table
+create trigger t_trigger after insert on t for each row update s set x=x+1 where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+truncate table t;
+insert into t values (1,1);
+
+# verify that before delete triggers can not replace into the source table
+create trigger t_trigger before delete on t for each row replace into s values (1000000,0);
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after delete triggers can not replace into the source table
+create trigger t_trigger after delete on t for each row replace into s values (1000000,0);
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that before delete triggers can not delete from the source table
+create trigger t_trigger before delete on t for each row delete from s where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after delete triggers can not delete from the source table
+create trigger t_trigger after delete on t for each row delete from s where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that before delete triggers can not update the source table
+create trigger t_trigger before delete on t for each row update s set x=x+1 where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+# verify that after delete triggers can not update the source table
+create trigger t_trigger after delete on t for each row update s set x=x+1 where id=1000000;
+begin;
+error 1442;
+replace into t select * from s;
+rollback;
+drop trigger t_trigger;
+
+
+drop table s,t;

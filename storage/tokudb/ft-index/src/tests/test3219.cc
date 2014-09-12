@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 // This test, when run under helgrind, should detect the race problem documented in #3219.
 // The test:
 //   checkpointing runs (in one thread)
-//   another thread does an ft lookup.
+//   another thread does a brt lookup.
 // We expect to see a lock-acquisition error.
 
 

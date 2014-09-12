@@ -123,6 +123,7 @@ static void make_db (bool close_env) {
 	CKERR(r);
     }
     char *filename;
+#if USE_TDB
     {
         DBT dname;
         DBT iname;
@@ -134,6 +135,10 @@ static void make_db (bool close_env) {
         CAST_FROM_VOIDP(filename, iname.data);
         assert(filename);
     }
+#else
+    filename = toku_xstrdup("foo.db");
+#endif
+
 
     r=tid->commit(tid, 0);    assert(r==0);
     r=db->close(db, 0);       assert(r==0);

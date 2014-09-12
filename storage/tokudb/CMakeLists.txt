@@ -18,12 +18,9 @@ IF(NOT LIBJEMALLOC)
 ENDIF()
 
 ############################################
-SET(TOKUDB_VERSION "7.1.7")
+SET(TOKUDB_VERSION "7.1.8")
 SET(TOKUDB_DEB_FILES "usr/lib/mysql/plugin/ha_tokudb.so\netc/mysql/conf.d/tokudb.cnf\nusr/bin/tokuftdump\nusr/share/doc/mariadb-server-5.5/README-TOKUDB\nusr/share/doc/mariadb-server-5.5/README.md" PARENT_SCOPE)
 SET(USE_BDB OFF CACHE BOOL "")
-SET(USE_VALGRIND OFF CACHE BOOL "")
-SET(BUILD_TESTING  OFF CACHE BOOL "")
-SET(TOKU_DEBUG_PARANOID OFF CACHE BOOL "")
 MARK_AS_ADVANCED(BUILDNAME)
 MARK_AS_ADVANCED(BUILD_TESTING)
 MARK_AS_ADVANCED(CMAKE_TOKUDB_REVISION)
@@ -35,6 +32,10 @@ MARK_AS_ADVANCED(USE_BDB)
 MARK_AS_ADVANCED(USE_VALGRIND)
 MARK_AS_ADVANCED(XZ_SOURCE_DIR)
 ############################################
+
+SET(BUILD_TESTING OFF CACHE BOOL "")
+SET(USE_VALGRIND OFF CACHE BOOL "")
+SET(TOKU_DEBUG_PARANOID OFF CACHE BOOL "")
 
 IF(NOT DEFINED TOKUDB_VERSION)
     IF(DEFINED ENV{TOKUDB_VERSION})
@@ -53,14 +54,36 @@ IF(DEFINED TOKUDB_CHECK_JEMALLOC)
     ADD_DEFINITIONS("-DTOKUDB_CHECK_JEMALLOC=${TOKUDB_CHECK_JEMALLOC}")
 ENDIF()
 
+## adds a compiler flag if the compiler supports it
+include(CheckCCompilerFlag)
+include(CheckCXXCompilerFlag)
+
+macro(set_cflags_if_supported)
+  foreach(flag ${ARGN})
+    check_c_compiler_flag(${flag} HAVE_C_${flag})
+    if (HAVE_C_${flag})
+      set(CMAKE_C_FLAGS "${flag} ${CMAKE_C_FLAGS}")
+    endif ()
+    check_cxx_compiler_flag(${flag} HAVE_CXX_${flag})
+    if (HAVE_CXX_${flag})
+      set(CMAKE_CXX_FLAGS "${flag} ${CMAKE_CXX_FLAGS}")
+    endif ()
+  endforeach(flag)
+endmacro(set_cflags_if_supported)
+
+set_cflags_if_supported(-Wno-missing-field-initializers)
+
 ADD_SUBDIRECTORY(ft-index)
 
+# TODO: clean up includes in ft-index
 INCLUDE_DIRECTORIES(ft-index)
+INCLUDE_DIRECTORIES(ft-index/include)
 INCLUDE_DIRECTORIES(ft-index/portability)
+INCLUDE_DIRECTORIES(ft-index/toku_include)
 INCLUDE_DIRECTORIES(ft-index/util)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ft-index)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ft-index/buildheader)
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ft-index/portability)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/ft-index/toku_include)
 
 SET(TOKUDB_PLUGIN_DYNAMIC "ha_tokudb")
 SET(TOKUDB_SOURCES ha_tokudb.cc)

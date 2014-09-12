@@ -291,6 +291,7 @@ static void print_defines (void) {
     printf("#define DB_IS_HOT_INDEX 0x00100000\n"); // private tokudb
     printf("#define DBC_DISABLE_PREFETCHING 0x20000000\n"); // private tokudb
     printf("#define DB_UPDATE_CMP_DESCRIPTOR 0x40000000\n"); // private tokudb
+    printf("#define TOKUFT_DIRTY_SHUTDOWN %x\n", 1<<31);
 
     {
         //dbt flags
@@ -464,7 +465,6 @@ static void print_db_env_struct (void) {
                              "void (*set_loader_memory_size)(DB_ENV *env, uint64_t (*get_loader_memory_size_callback)(void))",
                              "uint64_t (*get_loader_memory_size)(DB_ENV *env)",
                              "void (*set_killed_callback)(DB_ENV *env, uint64_t default_killed_time_msec, uint64_t (*get_killed_time_callback)(uint64_t default_killed_time_msec), int (*killed_callback)(void))",
-                             "void (*do_backtrace)                        (DB_ENV *env)",
                              NULL};
 
         sort_and_dump_fields("db_env", true, extra);
@@ -571,11 +571,13 @@ static void print_db_txn_struct (void) {
     STRUCT_SETUP(DB_TXN, api_internal,"void *%s");
     STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, uint32_t)");
     STRUCT_SETUP(DB_TXN, prepare,     "int (*%s) (DB_TXN*, uint8_t gid[DB_GID_SIZE])");
+    STRUCT_SETUP(DB_TXN, discard,     "int (*%s) (DB_TXN*, uint32_t)");
     STRUCT_SETUP(DB_TXN, id,          "uint32_t (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, mgrp,        "DB_ENV *%s /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/");
     STRUCT_SETUP(DB_TXN, parent,      "DB_TXN *%s");
     const char *extra[] = {
 	"int (*txn_stat)(DB_TXN *, struct txn_stat **)", 
+	"struct toku_list open_txns",
 	"int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*xa_prepare) (DB_TXN*, TOKU_XA_XID *)",
@@ -633,6 +635,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     //printf("#include <inttypes.h>\n");
     printf("#if defined(__cplusplus) || defined(__cilkplusplus)\nextern \"C\" {\n#endif\n");
 
+    printf("#define TOKUDB 1\n");
     printf("#define DB_VERSION_MAJOR %d\n", DB_VERSION_MAJOR);
     printf("#define DB_VERSION_MINOR %d\n", DB_VERSION_MINOR);
     printf("/* As of r40364 (post TokuDB 5.2.7), the patch version number is 100+ the BDB header patch version number.*/\n");
@@ -651,6 +654,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
            "    char data[DB_GID_SIZE];\n"
            "} TOKU_XA_XID;\n");
 
+   //Typedef toku_off_t
     printf("#ifndef TOKU_OFF_T_DEFINED\n"
            "#define TOKU_OFF_T_DEFINED\n"
            "typedef int64_t toku_off_t;\n"
@@ -669,10 +673,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("typedef uint32_t db_recno_t;\n");
     printf("typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);\n");
 
-    printf("struct simple_dbt {\n");
-    printf("    uint32_t len;\n");
-    printf("    void     *data;\n");
-    printf("};\n");
+    printf("#include <tdb-internal.h>\n");
     
     //stat64
     printf("typedef struct __toku_db_btree_stat64 {\n");

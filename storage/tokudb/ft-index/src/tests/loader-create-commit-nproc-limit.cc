@@ -88,10 +88,6 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
-// This test crashes if a failed loader creation causes the db to be corrupted by unlinking 
-// the underlying fractal tree files.  This unlinking occurs because the txn that logs the
-// load log entries is committed rather than aborted.
-
 #include "test.h"
 #include <db.h>
 #include <sys/resource.h>

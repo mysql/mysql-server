@@ -1638,8 +1638,7 @@ int ha_tokudb::initialize_share(
 
 #if WITH_PARTITION_STORAGE_ENGINE
     // verify frm data for non-partitioned tables
-    if (TOKU_PARTITION_WRITE_FRM_DATA ||
-        IF_PARTITIONING(table->part_info, NULL) == NULL) {
+    if (TOKU_PARTITION_WRITE_FRM_DATA || table->part_info == NULL) {
         error = verify_frm_data(table->s->path.str, txn);
         if (error)
             goto exit;
@@ -4375,6 +4374,20 @@ static bool index_key_is_null(TABLE *table, uint keynr, const uchar *key, uint k
     return key_can_be_null && key_len > 0 && key[0] != 0;
 }
 
+// Return true if bulk fetch can be used
+static bool tokudb_do_bulk_fetch(THD *thd) {
+    switch (thd_sql_command(thd)) {
+    case SQLCOM_SELECT:
+    case SQLCOM_CREATE_TABLE:
+    case SQLCOM_INSERT_SELECT:
+    case SQLCOM_REPLACE_SELECT:
+    case SQLCOM_DELETE:
+        return THDVAR(thd, bulk_fetch) != 0;
+    default:
+        return false;
+    }
+}
+
 //
 // Notification that a range query getting all elements that equal a key
 //  to take place. Will pre acquire read lock
@@ -4383,7 +4396,7 @@ static bool index_key_is_null(TABLE *table, uint keynr, const uchar *key, uint k
 //      error otherwise
 //
 int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%p %u", key, key_len);
     int error = 0;
     DBT start_key, end_key;
     THD* thd = ha_thd();
@@ -4407,7 +4420,7 @@ int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
 
     range_lock_grabbed = true;
     range_lock_grabbed_null = index_key_is_null(table, tokudb_active_index, key, key_len);
-    doing_bulk_fetch = (thd_sql_command(thd) == SQLCOM_SELECT);
+    doing_bulk_fetch = tokudb_do_bulk_fetch(thd);
     bulk_fetch_iteration = 0;
     rows_fetched_using_bulk_fetch = 0;
     error = 0;
@@ -4519,6 +4532,7 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
     }
     invalidate_bulk_fetch();
     doing_bulk_fetch = false;
+    maybe_index_scan = false;
     error = 0;
 exit:
     TOKUDB_HANDLER_DBUG_RETURN(error);
@@ -5261,86 +5275,91 @@ cleanup:
 }
 
 int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare, bool do_key_read) {
-    int error = 0; 
-    uint32_t flags = SET_PRELOCK_FLAG(0);
-    THD* thd = ha_thd();
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);;
-    bool need_val;
+    int error = 0;
     HANDLE_INVALID_CURSOR();
 
-    // we need to read the val of what we retrieve if
-    // we do NOT have a covering index AND we are using a clustering secondary
-    // key
-    need_val = (do_key_read == 0) && 
-                (tokudb_active_index == primary_key || 
-                 key_is_clustering(&table->key_info[tokudb_active_index])
-                       );
-
-    if ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) > 0) {
-        error = read_data_from_range_query_buff(buf, need_val, do_key_read);
+    if (maybe_index_scan) {
+        maybe_index_scan = false;
+        if (!range_lock_grabbed) {
+            error = prepare_index_scan();
+        }
     }
-    else if (icp_went_out_of_range) {
-        icp_went_out_of_range = false;
-        error = HA_ERR_END_OF_FILE;
-    }
-    else {
-        invalidate_bulk_fetch();
-        if (doing_bulk_fetch) {
-            struct smart_dbt_bf_info bf_info;
-            bf_info.ha = this;
-            // you need the val if you have a clustering index and key_read is not 0;
-            bf_info.direction = direction;
-            bf_info.thd = ha_thd();
-            bf_info.need_val = need_val;
-            bf_info.buf = buf;
-            bf_info.key_to_compare = key_to_compare;
-            //
-            // call c_getf_next with purpose of filling in range_query_buff
-            //
-            rows_fetched_using_bulk_fetch = 0;
-            // it is expected that we can do ICP in the smart_dbt_bf_callback
-            // as a result, it's possible we don't return any data because
-            // none of the rows matched the index condition. Therefore, we need
-            // this while loop. icp_out_of_range will be set if we hit a row that
-            // the index condition states is out of our range. When that hits,
-            // we know all the data in the buffer is the last data we will retrieve
-            while (bytes_used_in_range_query_buff == 0 && !icp_went_out_of_range && error == 0) {
-                if (direction > 0) {
-                    error = cursor->c_getf_next(cursor, flags, smart_dbt_bf_callback, &bf_info);
-                } else {
-                    error = cursor->c_getf_prev(cursor, flags, smart_dbt_bf_callback, &bf_info);
-                }
-            }
-            // if there is no data set and we went out of range, 
-            // then there is nothing to return
-            if (bytes_used_in_range_query_buff == 0 && icp_went_out_of_range) {
-                icp_went_out_of_range = false;
-                error = HA_ERR_END_OF_FILE;
-            }
-            if (bulk_fetch_iteration < HA_TOKU_BULK_FETCH_ITERATION_MAX) {
-                bulk_fetch_iteration++;
-            }
+    
+    if (!error) {
+        uint32_t flags = SET_PRELOCK_FLAG(0);
 
-            error = handle_cursor_error(error, HA_ERR_END_OF_FILE,tokudb_active_index);
-            if (error) { goto cleanup; }
-            
-            //
-            // now that range_query_buff is filled, read an element
-            //
+        // we need to read the val of what we retrieve if
+        // we do NOT have a covering index AND we are using a clustering secondary
+        // key
+        bool need_val = (do_key_read == 0) && 
+            (tokudb_active_index == primary_key || key_is_clustering(&table->key_info[tokudb_active_index]));
+
+        if ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) > 0) {
             error = read_data_from_range_query_buff(buf, need_val, do_key_read);
         }
+        else if (icp_went_out_of_range) {
+            icp_went_out_of_range = false;
+            error = HA_ERR_END_OF_FILE;
+        }
         else {
-            struct smart_dbt_info info;
-            info.ha = this;
-            info.buf = buf;
-            info.keynr = tokudb_active_index;
+            invalidate_bulk_fetch();
+            if (doing_bulk_fetch) {
+                struct smart_dbt_bf_info bf_info;
+                bf_info.ha = this;
+                // you need the val if you have a clustering index and key_read is not 0;
+                bf_info.direction = direction;
+                bf_info.thd = ha_thd();
+                bf_info.need_val = need_val;
+                bf_info.buf = buf;
+                bf_info.key_to_compare = key_to_compare;
+                //
+                // call c_getf_next with purpose of filling in range_query_buff
+                //
+                rows_fetched_using_bulk_fetch = 0;
+                // it is expected that we can do ICP in the smart_dbt_bf_callback
+                // as a result, it's possible we don't return any data because
+                // none of the rows matched the index condition. Therefore, we need
+                // this while loop. icp_out_of_range will be set if we hit a row that
+                // the index condition states is out of our range. When that hits,
+                // we know all the data in the buffer is the last data we will retrieve
+                while (bytes_used_in_range_query_buff == 0 && !icp_went_out_of_range && error == 0) {
+                    if (direction > 0) {
+                        error = cursor->c_getf_next(cursor, flags, smart_dbt_bf_callback, &bf_info);
+                    } else {
+                        error = cursor->c_getf_prev(cursor, flags, smart_dbt_bf_callback, &bf_info);
+                    }
+                }
+                // if there is no data set and we went out of range, 
+                // then there is nothing to return
+                if (bytes_used_in_range_query_buff == 0 && icp_went_out_of_range) {
+                    icp_went_out_of_range = false;
+                    error = HA_ERR_END_OF_FILE;
+                }
+                if (bulk_fetch_iteration < HA_TOKU_BULK_FETCH_ITERATION_MAX) {
+                    bulk_fetch_iteration++;
+                }
 
-            if (direction > 0) {
-                error = cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK(do_key_read), &info);
-            } else {
-                error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK(do_key_read), &info);
+                error = handle_cursor_error(error, HA_ERR_END_OF_FILE,tokudb_active_index);
+                if (error) { goto cleanup; }
+            
+                //
+                // now that range_query_buff is filled, read an element
+                //
+                error = read_data_from_range_query_buff(buf, need_val, do_key_read);
             }
-            error = handle_cursor_error(error, HA_ERR_END_OF_FILE, tokudb_active_index);
+            else {
+                struct smart_dbt_info info;
+                info.ha = this;
+                info.buf = buf;
+                info.keynr = tokudb_active_index;
+                
+                if (direction > 0) {
+                    error = cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK(do_key_read), &info);
+                } else {
+                    error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK(do_key_read), &info);
+                }
+                error = handle_cursor_error(error, HA_ERR_END_OF_FILE, tokudb_active_index);
+            }
         }
     }
 
@@ -5352,12 +5371,15 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare, bool do_
     // read the full row by doing a point query into the 
     // main table.
     //
-    
     if (!error && !do_key_read && (tokudb_active_index != primary_key) && !key_is_clustering(&table->key_info[tokudb_active_index])) {
         error = read_full_row(buf);
     }
-    trx->stmt_progress.queried++;
-    track_progress(thd);
+
+    if (!error) {
+        tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(ha_thd(), tokudb_hton);
+        trx->stmt_progress.queried++;
+        track_progress(ha_thd());
+    }
 cleanup:
     return error;
 }
@@ -5426,8 +5448,7 @@ int ha_tokudb::index_first(uchar * buf) {
     info.buf = buf;
     info.keynr = tokudb_active_index;
 
-    error = cursor->c_getf_first(cursor, flags,
-            SMART_DBT_CALLBACK(key_read), &info);
+    error = cursor->c_getf_first(cursor, flags, SMART_DBT_CALLBACK(key_read), &info);
     error = handle_cursor_error(error,HA_ERR_END_OF_FILE,tokudb_active_index);
 
     //
@@ -5437,9 +5458,11 @@ int ha_tokudb::index_first(uchar * buf) {
     if (!error && !key_read && (tokudb_active_index != primary_key) && !key_is_clustering(&table->key_info[tokudb_active_index])) {
         error = read_full_row(buf);
     }
-    trx->stmt_progress.queried++;
+    if (trx) {
+        trx->stmt_progress.queried++;
+    }
     track_progress(thd);
-    
+    maybe_index_scan = true;    
 cleanup:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
@@ -5469,8 +5492,7 @@ int ha_tokudb::index_last(uchar * buf) {
     info.buf = buf;
     info.keynr = tokudb_active_index;
 
-    error = cursor->c_getf_last(cursor, flags,
-            SMART_DBT_CALLBACK(key_read), &info);
+    error = cursor->c_getf_last(cursor, flags, SMART_DBT_CALLBACK(key_read), &info);
     error = handle_cursor_error(error,HA_ERR_END_OF_FILE,tokudb_active_index);
     //
     // still need to get entire contents of the row if operation done on
@@ -5484,6 +5506,7 @@ int ha_tokudb::index_last(uchar * buf) {
         trx->stmt_progress.queried++;
     }
     track_progress(thd);
+    maybe_index_scan = true;
 cleanup:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
@@ -5643,8 +5666,8 @@ cleanup:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
-int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_key) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+int ha_tokudb::prelock_range(const key_range *start_key, const key_range *end_key) {
+    TOKUDB_HANDLER_DBUG_ENTER("%p %p", start_key, end_key);
     THD* thd = ha_thd(); 
 
     int error = 0;
@@ -5709,11 +5732,8 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
         goto cleanup; 
     }
 
-    //
     // at this point, determine if we will be doing bulk fetch
-    // as of now, only do it if we are doing a select
-    //
-    doing_bulk_fetch = (thd_sql_command(thd) == SQLCOM_SELECT);
+    doing_bulk_fetch = tokudb_do_bulk_fetch(thd);
     bulk_fetch_iteration = 0;
     rows_fetched_using_bulk_fetch = 0;
 
@@ -5728,7 +5748,7 @@ cleanup:
 // Forward scans use read_range_first()/read_range_next().
 //
 int ha_tokudb::prepare_range_scan( const key_range *start_key, const key_range *end_key) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%p %p", start_key, end_key);
     int error = prelock_range(start_key, end_key);
     if (!error) {
         range_lock_grabbed = true;
@@ -5742,7 +5762,7 @@ int ha_tokudb::read_range_first(
     bool eq_range, 
     bool sorted) 
 {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%p %p %u %u", start_key, end_key, eq_range, sorted);
     int error = prelock_range(start_key, end_key);
     if (error) { goto cleanup; }
     range_lock_grabbed = true;
@@ -6846,7 +6866,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     if (error) { goto cleanup; }
 
 #if WITH_PARTITION_STORAGE_ENGINE
-    if (TOKU_PARTITION_WRITE_FRM_DATA || IF_PARTITIONING(form->part_info, NULL) == NULL) {
+    if (TOKU_PARTITION_WRITE_FRM_DATA || form->part_info == NULL) {
         error = write_frm_data(status_block, txn, form->s->path.str);
         if (error) { goto cleanup; }
     }

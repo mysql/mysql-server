@@ -1415,7 +1415,7 @@ storage/tokudb/ft-index/portability/tests/try-uninit
 storage/tokudb/ft-index/src/merge_archives_tokufractaltree_static.cmake
 storage/tokudb/ft-index/src/tokufractaltree_static_depends.cc
 storage/tokudb/ft-index/src/tests/recovery_fileops_unit_dir
-storage/tokudb/ft-index/portability/toku_config.h
+storage/tokudb/ft-index/toku_include/toku_config.h
 storage/tokudb/ft-index/util/tests/marked-omt-test
 storage/tokudb/ft-index/util/tests/omt-tmpl-test
 storage/tokudb/ft-index/util/tests/sort-tmpl-test
@@ -1429,8 +1429,8 @@ storage/tokudb/ft-index/util/tests/test_partitioned_counter
 storage/tokudb/ft-index/util/tests/test_partitioned_counter_5833
 storage/tokudb/ft-index/util/tests/threadpool-test
 storage/tokudb/ft-index/util/tests/threadpool-testrunf
-storage/tokudb/ft-index/tools/tokudb_dump
-storage/tokudb/ft-index/tools/tokudb_gen
-storage/tokudb/ft-index/tools/tokudb_load
+storage/tokudb/ft-index/utils/tokudb_dump
+storage/tokudb/ft-index/utils/tokudb_gen
+storage/tokudb/ft-index/utils/tokudb_load
 libmysql/libmysql_versions.ld
 scripts/mysql_config.pl

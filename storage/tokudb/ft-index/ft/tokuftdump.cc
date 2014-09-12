@@ -246,11 +246,10 @@ static void dump_node(int fd, BLOCKNUM blocknum, FT h) {
     printf(" layout_version_read_from_disk=%d\n", n->layout_version_read_from_disk);
     printf(" build_id=%d\n", n->build_id);
     printf(" max_msn_applied_to_node_on_disk=%" PRId64 " (0x%" PRIx64 ")\n", n->max_msn_applied_to_node_on_disk.msn, n->max_msn_applied_to_node_on_disk.msn);
-    printf("io time %lf decompress time %lf deserialize time %lf\n", 
-        tokutime_to_seconds(bfe.io_time), 
-        tokutime_to_seconds(bfe.decompress_time), 
-        tokutime_to_seconds(bfe.deserialize_time) 
-        );
+    printf(" io time %lf decompress time %lf deserialize time %lf\n", 
+           tokutime_to_seconds(bfe.io_time), 
+           tokutime_to_seconds(bfe.decompress_time), 
+           tokutime_to_seconds(bfe.deserialize_time));
 
     printf(" n_children=%d\n", n->n_children);
     printf(" total_childkeylens=%u\n", n->totalchildkeylens);
@@ -311,9 +310,9 @@ static void dump_node(int fd, BLOCKNUM blocknum, FT h) {
             }
         } else {
             printf(" n_bytes_in_buffer= %" PRIu64 "", BLB_DATA(n, i)->get_disk_size());
-            printf(" items_in_buffer=%u\n", BLB_DATA(n, i)->num_klpairs());
+            printf(" items_in_buffer=%u\n", BLB_DATA(n, i)->omt_size());
             if (do_dump_data) {
-                BLB_DATA(n, i)->iterate<void, print_le>(NULL);
+                BLB_DATA(n, i)->omt_iterate<void, print_le>(NULL);
             }
         }
     }
@@ -433,7 +432,7 @@ static void verify_block(unsigned char *cp, uint64_t file_offset, uint64_t size)
         printf("header length too big: %u\n", header_length);
         return;
     }
-    uint32_t header_xsum = toku_x1764_memory(cp, header_length);
+    uint32_t header_xsum = x1764_memory(cp, header_length);
     uint32_t expected_xsum = toku_dtoh32(get_unaligned_uint32(&cp[header_length]));
     if (header_xsum != expected_xsum) {
         printf("header checksum failed: %u %u\n", header_xsum, expected_xsum);
@@ -451,7 +450,7 @@ static void verify_block(unsigned char *cp, uint64_t file_offset, uint64_t size)
     // verify the sub block header
     uint32_t offset = header_length + 4;
     for (uint32_t i = 0 ; i < n_sub_blocks; i++) {
-        uint32_t xsum = toku_x1764_memory(cp + offset, sub_block[i].compressed_size);
+        uint32_t xsum = x1764_memory(cp + offset, sub_block[i].compressed_size);
         printf("%u: %u %u %u", i, sub_block[i].compressed_size, sub_block[i].uncompressed_size, sub_block[i].xsum);
         if (xsum != sub_block[i].xsum)
             printf(" fail %u offset %" PRIu64, xsum, file_offset + offset);
@@ -683,8 +682,9 @@ int main (int argc, const char *const argv[]) {
         }
         if (!do_header && !do_rootnode && !do_fragmentation && !do_translation_table && !do_garbage) {
             printf("Block translation:");
-            
             toku_dump_translation_table(stdout, ft->blocktable);
+
+            dump_header(ft);
             
             struct __dump_node_extra info;
             info.fd = fd;

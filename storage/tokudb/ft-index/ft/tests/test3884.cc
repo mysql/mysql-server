@@ -119,18 +119,13 @@ le_add_to_bn(bn_data* bn, uint32_t idx, const  char *key, int keysize, const cha
 {
     LEAFENTRY r = NULL;
     uint32_t size_needed = LE_CLEAN_MEMSIZE(valsize);
-    void *maybe_free = nullptr;
     bn->get_space_for_insert(
         idx, 
         key,
         keysize,
         size_needed,
-        &r,
-        &maybe_free
+        &r
         );
-    if (maybe_free) {
-        toku_free(maybe_free);
-    }
     resource_assert(r);
     r->type = LE_CLEAN;
     r->u.clean.vallen = valsize;
@@ -217,20 +212,20 @@ test_split_on_boundary(void)
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE ft;
+    FT_HANDLE brt;
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
     verify_basement_node_msns(nodea, dummy_msn_3884);
     verify_basement_node_msns(nodeb, dummy_msn_3884);
 
-    toku_unpin_ftnode(ft->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
+    toku_unpin_ftnode(brt->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
     if (splitk.data) {
@@ -287,17 +282,17 @@ test_split_with_everything_on_the_left(void)
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE ft;
+    FT_HANDLE brt;
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
-    toku_unpin_ftnode(ft->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
+    toku_unpin_ftnode(brt->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
     if (splitk.data) {
@@ -359,17 +354,17 @@ test_split_on_boundary_of_last_node(void)
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE ft;
+    FT_HANDLE brt;
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
-    toku_unpin_ftnode(ft->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
+    toku_unpin_ftnode(brt->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
     if (splitk.data) {
@@ -423,17 +418,17 @@ test_split_at_begin(void)
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE ft;
+    FT_HANDLE brt;
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
-    toku_unpin_ftnode(ft->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
+    toku_unpin_ftnode(brt->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
     if (splitk.data) {
@@ -483,17 +478,17 @@ test_split_at_end(void)
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE ft;
+    FT_HANDLE brt;
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
-    toku_unpin_ftnode(ft->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
+    toku_unpin_ftnode(brt->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
     if (splitk.data) {
@@ -537,20 +532,20 @@ test_split_odd_nodes(void)
 
     unlink(fname);
     CACHETABLE ct;
-    FT_HANDLE ft;
+    FT_HANDLE brt;
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &ft, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(ft->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
     verify_basement_node_msns(nodea, dummy_msn_3884);
     verify_basement_node_msns(nodeb, dummy_msn_3884);
 
-    toku_unpin_ftnode(ft->ft, nodeb);
-    r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
+    toku_unpin_ftnode(brt->ft, nodeb);
+    r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
     if (splitk.data) {

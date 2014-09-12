@@ -136,7 +136,9 @@ test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
     setup(FLAGS_LOG);
     env->txn_checkpoint(env, 0, 0, 0);
+#ifdef USE_TDB
     print_engine_status(env);
+#endif
     test_shutdown();
     return 0;
 }

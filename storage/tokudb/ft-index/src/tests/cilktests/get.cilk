@@ -1,0 +1,27 @@
+/* Perform a DB->get in a cilk thread */
+
+#include <assert.h>
+#include <db.h>
+#include <stdlib.h>
+#include <toku_os.h>
+
+#define DIR __FILE__ ".dir"
+
+DB_ENV *env;
+
+void foo (void) {
+    printf("foo\n");
+}
+
+const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
+
+int cilk_main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
+    system("rm -rf " DIR);
+    toku_os_mkdir(DIR, 0777);
+    { int r = db_env_create(&env, 0);                                                         assert(r==0); }
+    { int r = env->open(env, DIR, envflags,S_IRWXU+S_IRWXG+S_IRWXO);                          assert(r==0); }
+    cilk_spawn foo();
+    cilk_sync;
+    { int r = env->close(env, 0);                                                             assert(r==0); }
+    return 0;
+}

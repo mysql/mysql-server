@@ -99,6 +99,6 @@ int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn);
 
 int toku_rollback_commit(TOKUTXN txn, LSN lsn);
 int toku_rollback_abort(TOKUTXN txn, LSN lsn);
-
+int toku_rollback_discard(TOKUTXN txn);
 
 #endif // ROLLBACK_APPLY_H

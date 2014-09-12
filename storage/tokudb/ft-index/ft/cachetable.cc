@@ -370,7 +370,7 @@ toku_cachetable_set_env_dir(CACHETABLE ct, const char *env_dir) {
 
 // What cachefile goes with particular iname (iname relative to env)?
 // The transaction that is adding the reference might not have a reference
-// to the ft, therefore the cachefile might be closing.
+// to the brt, therefore the cachefile might be closing.
 // If closing, we want to return that it is not there, but must wait till after
 // the close has finished.
 // Once the close has finished, there must not be a cachefile with that name
@@ -380,7 +380,7 @@ int toku_cachefile_of_iname_in_env (CACHETABLE ct, const char *iname_in_env, CAC
 }
 
 // What cachefile goes with particular fd?
-// This function can only be called if the ft is still open, so file must 
+// This function can only be called if the brt is still open, so file must 
 // still be open
 int toku_cachefile_of_filenum (CACHETABLE ct, FILENUM filenum, CACHEFILE *cf) {
     return ct->cf_list.cachefile_of_filenum(filenum, cf);
@@ -642,7 +642,7 @@ static void cachetable_free_pair(PAIR p) {
     cachetable_evictions++;
     PAIR_ATTR new_attr = p->attr;
     // Note that flush_callback is called with write_me false, so the only purpose of this 
-    // call is to tell the ft layer to evict the node (keep_me is false).
+    // call is to tell the brt layer to evict the node (keep_me is false).
     // Also, because we have already removed the PAIR from the cachetable in 
     // cachetable_remove_pair, we cannot pass in p->cachefile and p->cachefile->fd
     // for the first two parameters, as these may be invalid (#5171), so, we
@@ -1302,6 +1302,8 @@ void toku_cachetable_pf_pinned_pair(
     pair_unlock(p);
 }
 
+
+// NOW A TEST ONLY FUNCTION!!!
 int toku_cachetable_get_and_pin (
     CACHEFILE cachefile, 
     CACHEKEY key, 
@@ -1571,7 +1573,7 @@ exit:
     return try_again;
 }
 
-int toku_cachetable_get_and_pin_with_dep_pairs (
+int toku_cachetable_get_and_pin_with_dep_pairs_batched (
     CACHEFILE cachefile,
     CACHEKEY key,
     uint32_t fullhash,
@@ -1762,6 +1764,43 @@ got_value:
     *value = p->value_data;
     if (sizep) *sizep = p->attr.size;
     return 0;
+}
+
+int toku_cachetable_get_and_pin_with_dep_pairs (
+    CACHEFILE cachefile,
+    CACHEKEY key,
+    uint32_t fullhash,
+    void**value,
+    long *sizep,
+    CACHETABLE_WRITE_CALLBACK write_callback,
+    CACHETABLE_FETCH_CALLBACK fetch_callback,
+    CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
+    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
+    pair_lock_type lock_type,
+    void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
+    uint32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
+    PAIR* dependent_pairs,
+    enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
+    )
+// See cachetable.h
+{
+    int r = toku_cachetable_get_and_pin_with_dep_pairs_batched(
+        cachefile,
+        key,
+        fullhash,
+        value,
+        sizep,
+        write_callback,
+        fetch_callback,
+        pf_req_callback,
+        pf_callback,
+        lock_type,
+        read_extraargs,
+        num_dependent_pairs,
+        dependent_pairs,
+        dependent_dirty
+        );
+    return r;
 }
 
 // Lookup a key in the cachetable.  If it is found and it is not being written, then
@@ -2009,7 +2048,7 @@ maybe_pin_pair(
     return retval;
 }
 
-int toku_cachetable_get_and_pin_nonblocking(
+int toku_cachetable_get_and_pin_nonblocking_batched(
     CACHEFILE cf,
     CACHEKEY key,
     uint32_t fullhash,
@@ -2159,6 +2198,40 @@ try_again:
     }
     // We should not get here. Above code should hit a return in all cases.
     abort();
+}
+
+int toku_cachetable_get_and_pin_nonblocking (
+    CACHEFILE cf,
+    CACHEKEY key,
+    uint32_t fullhash,
+    void**value,
+    long* sizep,
+    CACHETABLE_WRITE_CALLBACK write_callback,
+    CACHETABLE_FETCH_CALLBACK fetch_callback,
+    CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
+    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
+    pair_lock_type lock_type,
+    void *read_extraargs,
+    UNLOCKERS unlockers
+    )
+// See cachetable.h.
+{
+    int r = 0;
+    r = toku_cachetable_get_and_pin_nonblocking_batched(
+        cf,
+        key,
+        fullhash,
+        value,
+        sizep,
+        write_callback,
+        fetch_callback,
+        pf_req_callback,
+        pf_callback,
+        lock_type,
+        read_extraargs,
+        unlockers
+    );
+    return r;
 }
 
 struct cachefile_prefetch_args {

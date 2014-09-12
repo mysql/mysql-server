@@ -88,7 +88,7 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
-#include <portability/toku_config.h>
+#include "toku_config.h"
 
 #include <toku_portability.h>
 #include <string.h>
@@ -221,9 +221,6 @@ toku_memory_footprint(void * p, size_t touched) {
 
 void *
 toku_malloc(size_t size) {
-    if (size > status.max_requested_size) {
-        status.max_requested_size = size;
-    }
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);
     if (p) {
         TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
@@ -236,15 +233,11 @@ toku_malloc(size_t size) {
         }
     } else {
         toku_sync_add_and_fetch(&status.malloc_fail, 1);
-        status.last_failed_size = size;
     }
   return p;
 }
 
 void *toku_malloc_aligned(size_t alignment, size_t size) {
-    if (size > status.max_requested_size) {
-        status.max_requested_size = size;
-    }
     void *p = t_malloc_aligned ? t_malloc_aligned(alignment, size) : os_malloc_aligned(alignment, size);
     if (p) {
         TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
@@ -257,7 +250,6 @@ void *toku_malloc_aligned(size_t alignment, size_t size) {
         }
     } else {
         toku_sync_add_and_fetch(&status.malloc_fail, 1);
-        status.last_failed_size = size;
     }
   return p;
 }
@@ -272,9 +264,6 @@ toku_calloc(size_t nmemb, size_t size) {
 
 void *
 toku_realloc(void *p, size_t size) {
-    if (size > status.max_requested_size) {
-        status.max_requested_size = size;
-    }
     size_t used_orig = p ? my_malloc_usable_size(p) : 0;
     void *q = t_realloc ? t_realloc(p, size) : os_realloc(p, size);
     if (q) {
@@ -288,15 +277,11 @@ toku_realloc(void *p, size_t size) {
         }
     } else {
         toku_sync_add_and_fetch(&status.realloc_fail, 1);
-        status.last_failed_size = size;
     }
     return q;
 }
 
 void *toku_realloc_aligned(size_t alignment, void *p, size_t size) {
-    if (size > status.max_requested_size) {
-        status.max_requested_size = size;
-    }
     size_t used_orig = p ? my_malloc_usable_size(p) : 0;
     void *q = t_realloc_aligned ? t_realloc_aligned(alignment, p, size) : os_realloc_aligned(alignment, p, size);
     if (q) {
@@ -310,7 +295,6 @@ void *toku_realloc_aligned(size_t alignment, void *p, size_t size) {
         }
     } else {
         toku_sync_add_and_fetch(&status.realloc_fail, 1);
-        status.last_failed_size = size;
     }
     return q;
 }
@@ -345,14 +329,9 @@ toku_free(void *p) {
 
 void *
 toku_xmalloc(size_t size) {
-    if (size > status.max_requested_size) {
-        status.max_requested_size = size;
-    }
     void *p = t_xmalloc ? t_xmalloc(size) : os_malloc(size);
-    if (p == NULL) {  // avoid function call in common case
-        status.last_failed_size = size;
+    if (p == NULL)  // avoid function call in common case
         resource_assert(p);
-    }
     TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
@@ -369,14 +348,8 @@ void* toku_xmalloc_aligned(size_t alignment, size_t size)
 //  Fail with a resource_assert if the allocation fails (don't return an error code).
 // Requires: alignment is a power of two.
 {
-    if (size > status.max_requested_size) {
-        status.max_requested_size = size;
-    }
     void *p = t_xmalloc_aligned ? t_xmalloc_aligned(alignment, size) : os_malloc_aligned(alignment,size);
-    if (p == NULL) {
-        status.last_failed_size = size;
-        resource_assert(p);
-    }
+    resource_assert(p);
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
         toku_sync_add_and_fetch(&status.malloc_count, 1);
@@ -397,15 +370,10 @@ toku_xcalloc(size_t nmemb, size_t size) {
 
 void *
 toku_xrealloc(void *v, size_t size) {
-    if (size > status.max_requested_size) {
-        status.max_requested_size = size;
-    }
     size_t used_orig = v ? my_malloc_usable_size(v) : 0;
     void *p = t_xrealloc ? t_xrealloc(v, size) : os_realloc(v, size);
-    if (p == 0) {  // avoid function call in common case
-        status.last_failed_size = size;
+    if (p == 0)  // avoid function call in common case
         resource_assert(p);
-    }
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
         toku_sync_add_and_fetch(&status.realloc_count, 1);

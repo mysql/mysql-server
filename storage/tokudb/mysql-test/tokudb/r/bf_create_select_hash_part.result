@@ -1,0 +1,328 @@
+set default_storage_engine='tokudb';
+drop table if exists t,t1,t2,t3;
+CREATE TABLE `t` (
+`num` int(10) unsigned auto_increment NOT NULL,
+`val` varchar(32) DEFAULT NULL,
+PRIMARY KEY (`num`)
+);
+INSERT INTO t values (null,null);
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+SELECT count(*) FROM t;
+count(*)
+8388608
+CREATE TABLE `t1` (
+`num` int(10) unsigned NOT NULL,
+`val` varchar(32) DEFAULT NULL,
+PRIMARY KEY (`num`)
+) as select * from t;
+CREATE TABLE `t2` (
+`num` int(10) unsigned NOT NULL,
+`val` varchar(32) DEFAULT NULL,
+PRIMARY KEY (`num`)
+) PARTITION BY HASH (num)
+PARTITIONS 8 as select * from t;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1;
+count(*)
+8388608
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1;
+count(*)
+8388608
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1;
+count(*)
+8388608
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1;
+count(*)
+8388608
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1;
+count(*)
+8388608
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1;
+count(*)
+8388608
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1;
+count(*)
+8388608
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1;
+count(*)
+8388608
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1;
+count(*)
+8388608
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1;
+count(*)
+8388608
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2;
+DROP TABLE t3;
+1
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE `t3` (`x` bigint);
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+CREATE TABLE t3 AS SELECT count(*) from t2 where num > 7000000;
+DROP TABLE t3;
+1
+drop table t,t1,t2;

@@ -1,0 +1,543 @@
+set default_storage_engine='tokudb';
+drop table if exists t,t1,t2,t3;
+CREATE TABLE `t` (
+`num` int(10) unsigned auto_increment NOT NULL,
+`val` varchar(32) DEFAULT NULL,
+PRIMARY KEY (`num`)
+);
+INSERT INTO t values (null,null);
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+INSERT INTO t SELECT null,val FROM t;
+SELECT count(*) FROM t;
+count(*)
+8388608
+CREATE TABLE `t1` (
+`num` int(10) unsigned NOT NULL,
+`val` varchar(32) DEFAULT NULL,
+PRIMARY KEY (`num`)
+) as select * from t;
+CREATE TABLE `t2` (
+`num` int(10) unsigned NOT NULL,
+`val` varchar(32) DEFAULT NULL,
+PRIMARY KEY (`num`)
+) PARTITION BY HASH (num)
+PARTITIONS 8 as select * from t;
+CREATE TABLE `t3` (
+`num` int(10) unsigned NOT NULL,
+`val` varchar(32) DEFAULT NULL,
+PRIMARY KEY (`num`)
+) PARTITION BY RANGE (num)
+(PARTITION p0 VALUES LESS THAN (1000000),
+PARTITION p1 VALUES LESS THAN (2000000),
+PARTITION p2 VALUES LESS THAN (3000000),
+PARTITION p3 VALUES LESS THAN (4000000),
+PARTITION p4 VALUES LESS THAN (5000000),
+PARTITION p5 VALUES LESS THAN (6000000),
+PARTITION p6 VALUES LESS THAN (7000000),
+PARTITION p7 VALUES LESS THAN MAXVALUE) as select * from t;
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t2;
+count(*)
+8388608
+SELECT count(*) from t2;
+count(*)
+8388608
+SELECT count(*) from t2;
+count(*)
+8388608
+SELECT count(*) from t2;
+count(*)
+8388608
+SELECT count(*) from t2;
+count(*)
+8388608
+SELECT count(*) from t2;
+count(*)
+8388608
+SELECT count(*) from t2;
+count(*)
+8388608
+SELECT count(*) from t2;
+count(*)
+8388608
+SELECT count(*) from t2;
+count(*)
+8388608
+SELECT count(*) from t2;
+count(*)
+8388608
+1
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t1;
+count(*)
+8388608
+SELECT count(*) from t3;
+count(*)
+8388608
+SELECT count(*) from t3;
+count(*)
+8388608
+SELECT count(*) from t3;
+count(*)
+8388608
+SELECT count(*) from t3;
+count(*)
+8388608
+SELECT count(*) from t3;
+count(*)
+8388608
+SELECT count(*) from t3;
+count(*)
+8388608
+SELECT count(*) from t3;
+count(*)
+8388608
+SELECT count(*) from t3;
+count(*)
+8388608
+SELECT count(*) from t3;
+count(*)
+8388608
+SELECT count(*) from t3;
+count(*)
+8388608
+1
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t2 where num > 7000000;
+count(*)
+1847274
+1
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t1 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+SELECT count(*) from t3 where num > 7000000;
+count(*)
+1847274
+1
+drop table t,t1,t2,t3;

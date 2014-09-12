@@ -1,5 +1,6 @@
 drop table if exists t1,t2;
 drop table if exists t1i,t2i;
+drop table if exists tsub,t3;
 CREATE TABLE t1 (a CHAR(3), INDEX(a)) ENGINE=TokuDB;
 INSERT INTO t1 VALUES ('foo'),( NULL);
 SELECT * FROM t1 WHERE 'bar' NOT IN ( SELECT t1_1.a FROM t1 AS t1_1, t1 AS t1_2 );

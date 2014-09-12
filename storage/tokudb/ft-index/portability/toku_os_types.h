@@ -125,8 +125,10 @@ static inline bool toku_fileids_are_equal(struct fileid *a, struct fileid *b) {
 
 typedef struct stat toku_struct_stat;
 
+// windows compat
 #if !defined(O_BINARY)
 #define O_BINARY 0
 #endif
+
 
 #endif

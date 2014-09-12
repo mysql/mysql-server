@@ -91,7 +91,9 @@ PATENT RIGHTS GRANT:
 
 #include <toku_portability.h>
 
+#if !TOKU_WINDOWS
 #include <arpa/inet.h>
+#endif
 
 #include <stdio.h>
 #include <memory.h>
@@ -99,9 +101,7 @@ PATENT RIGHTS GRANT:
 #include <toku_assert.h>
 #include <string.h>
 #include <fcntl.h>
-
-#include <util/x1764.h>
-
+#include "x1764.h"
 #include "ftloader-internal.h"
 #include "ft-internal.h"
 #include "sub_block.h"
@@ -541,7 +541,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
                                    CACHETABLE cachetable,
                                    generate_row_for_put_func g,
                                    DB *src_db,
-                                   int N, FT_HANDLE fts[/*N*/], DB* dbs[/*N*/],
+                                   int N, FT_HANDLE brts[/*N*/], DB* dbs[/*N*/],
                                    const char *new_fnames_in_env[/*N*/],
                                    ft_compare_func bt_compare_functions[/*N*/],
                                    const char *temp_file_template,
@@ -585,11 +585,11 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
 #define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = get_error_errno(); toku_ft_loader_internal_destroy(bl, true); return r; } lval = v; } while (0)
 
     MY_CALLOC_N(N, bl->root_xids_that_created);
-    for (int i=0; i<N; i++) if (fts[i]) bl->root_xids_that_created[i]=fts[i]->ft->h->root_xid_that_created;
+    for (int i=0; i<N; i++) if (brts[i]) bl->root_xids_that_created[i]=brts[i]->ft->h->root_xid_that_created;
     MY_CALLOC_N(N, bl->dbs);
-    for (int i=0; i<N; i++) if (fts[i]) bl->dbs[i]=dbs[i];
+    for (int i=0; i<N; i++) if (brts[i]) bl->dbs[i]=dbs[i];
     MY_CALLOC_N(N, bl->descriptors);
-    for (int i=0; i<N; i++) if (fts[i]) bl->descriptors[i]=&fts[i]->ft->descriptor;
+    for (int i=0; i<N; i++) if (brts[i]) bl->descriptors[i]=&brts[i]->ft->descriptor;
     MY_CALLOC_N(N, bl->new_fnames_in_env);
     for (int i=0; i<N; i++) SET_TO_MY_STRDUP(bl->new_fnames_in_env[i], new_fnames_in_env[i]);
     MY_CALLOC_N(N, bl->extracted_datasizes); // the calloc_n zeroed everything, which is what we want
@@ -645,7 +645,7 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                           CACHETABLE cachetable,
                           generate_row_for_put_func g,
                           DB *src_db,
-                          int N, FT_HANDLE fts[/*N*/], DB* dbs[/*N*/],
+                          int N, FT_HANDLE brts[/*N*/], DB* dbs[/*N*/],
                           const char *new_fnames_in_env[/*N*/],
                           ft_compare_func bt_compare_functions[/*N*/],
                           const char *temp_file_template,
@@ -672,7 +672,7 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
     int result = 0;
     {
         int r = toku_ft_loader_internal_init(blp, cachetable, g, src_db,
-                                              N, fts, dbs,
+                                              N, brts, dbs,
                                               new_fnames_in_env,
                                               bt_compare_functions,
                                               temp_file_template,
@@ -1378,7 +1378,7 @@ static int process_primary_rows (FTLOADER bl, struct rowset *primary_rowset) {
 }
  
 int toku_ft_loader_put (FTLOADER bl, DBT *key, DBT *val)
-/* Effect: Put a key-value pair into the ft loader.  Called by DB_LOADER->put().
+/* Effect: Put a key-value pair into the brt loader.  Called by DB_LOADER->put().
  * Return value: 0 on success, an error number otherwise.
  */
 {
@@ -2630,7 +2630,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
             char *XMALLOC_N(desc_size, buf);
             wbuf_init(&wbuf, buf, desc_size);
             toku_serialize_descriptor_contents_to_wbuf(&wbuf, descriptor);
-            uint32_t checksum = toku_x1764_finish(&wbuf.checksum);
+            uint32_t checksum = x1764_finish(&wbuf.checksum);
             wbuf_int(&wbuf, checksum);
             invariant(wbuf.ndone==desc_size);
             r = toku_os_write(out.fd, wbuf.buf, wbuf.ndone);
@@ -2681,17 +2681,17 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     return result;
 }
 
-int toku_loader_write_ft_from_q_in_C (FTLOADER                bl,
-                                      const DESCRIPTOR descriptor,
-                                      int                      fd, // write to here
-                                      int                      progress_allocation,
-                                      QUEUE                    q,
-                                      uint64_t                 total_disksize_estimate,
-                                      int                      which_db,
-                                      uint32_t                 target_nodesize,
-                                      uint32_t                 target_basementnodesize,
-                                      enum toku_compression_method target_compression_method,
-                                      uint32_t                 target_fanout)
+int toku_loader_write_brt_from_q_in_C (FTLOADER                bl,
+                                       const DESCRIPTOR descriptor,
+                                       int                      fd, // write to here
+                                       int                      progress_allocation,
+                                       QUEUE                    q,
+                                       uint64_t                 total_disksize_estimate,
+                                       int                      which_db,
+                                       uint32_t                 target_nodesize,
+                                       uint32_t                 target_basementnodesize,
+                                       enum toku_compression_method target_compression_method,
+                                       uint32_t                 target_fanout)
 // This is probably only for testing.
 {
     target_nodesize = target_nodesize == 0 ? default_loader_nodesize : target_nodesize;
@@ -2727,7 +2727,7 @@ static int loader_do_i (FTLOADER bl,
     if (r) goto error;
 
     {
-        mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
+        mode_t mode = S_IRUSR+S_IWUSR + S_IRGRP+S_IWGRP;
         int fd = toku_os_open(new_fname, O_RDWR| O_CREAT | O_BINARY, mode); // #2621
         if (fd < 0) {
             r = get_error_errno(); goto error;
@@ -2938,17 +2938,17 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     // #3588 TODO just make a clean ule and append it to the omt
     // #3588 TODO can do the rebalancing here and avoid a lot of work later
     FTNODE leafnode = lbuf->node;
-    uint32_t idx = BLB_DATA(leafnode, 0)->num_klpairs();
+    uint32_t idx = BLB_DATA(leafnode, 0)->omt_size();
     DBT thekey = { .data = key, .size = (uint32_t) keylen }; 
     DBT theval = { .data = val, .size = (uint32_t) vallen };
-    FT_MSG_S msg = { .type = FT_INSERT,
+    FT_MSG_S cmd = { .type = FT_INSERT,
                      .msn = ZERO_MSN,
                      .xids = lbuf->xids,
                      .u = { .id = { &thekey, &theval } } };
     uint64_t workdone=0;
     // there's no mvcc garbage in a bulk-loaded FT, so there's no need to pass useful gc info
     txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, true);
-    toku_ft_bn_apply_msg_once(BLB(leafnode,0), &msg, idx, NULL, &gc_info, &workdone, stats_to_update);
+    toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, &gc_info, &workdone, stats_to_update);
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {
@@ -3013,7 +3013,7 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
         putbuf_int64(&ttable, out->translation[i].off);
         putbuf_int64(&ttable, out->translation[i].size);
     }
-    unsigned int checksum = toku_x1764_memory(ttable.buf, ttable.off);
+    unsigned int checksum = x1764_memory(ttable.buf, ttable.off);
     putbuf_int32(&ttable, checksum);
     // pad it to 512 zeros
     long long encoded_length = ttable.off;

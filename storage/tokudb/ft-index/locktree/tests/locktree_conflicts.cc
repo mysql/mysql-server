@@ -105,10 +105,11 @@ namespace toku {
 // test write lock conflicts when read or write locks exist
 // test read lock conflicts when write locks exist
 void locktree_unit_test::test_conflicts(void) {
-    locktree lt;
-
+    locktree::manager mgr;
+    mgr.create(nullptr, nullptr, nullptr, nullptr);
+    DESCRIPTOR desc = nullptr;
     DICTIONARY_ID dict_id = { 1 };
-    lt.create(nullptr, dict_id, nullptr, compare_dbts);
+    locktree *lt = mgr.get_lt(dict_id, desc, compare_dbts, nullptr);
 
     int r;
     TXNID txnid_a = 1001;
@@ -124,8 +125,8 @@ void locktree_unit_test::test_conflicts(void) {
         // test_run == 0 means test with read lock
         // test_run == 1 means test with write lock
 #define ACQUIRE_LOCK(txn, left, right, conflicts) \
-        test_run == 0 ? lt.acquire_read_lock(txn, left, right, conflicts, false) \
-            : lt.acquire_write_lock(txn, left, right, conflicts, false)
+        test_run == 0 ? lt->acquire_read_lock(txn, left, right, conflicts, false) \
+            : lt->acquire_write_lock(txn, left, right, conflicts, false)
 
         // acquire some locks for txnid_a
         r = ACQUIRE_LOCK(txnid_a, one, one, nullptr);
@@ -141,8 +142,8 @@ void locktree_unit_test::test_conflicts(void) {
         // if test_run == 0, then read locks exist. only test write locks.
 #define ACQUIRE_LOCK(txn, left, right, conflicts) \
         sub_test_run == 0 && test_run == 1 ? \
-            lt.acquire_read_lock(txn, left, right, conflicts, false) \
-          : lt.acquire_write_lock(txn, left, right, conflicts, false)
+            lt->acquire_read_lock(txn, left, right, conflicts, false) \
+          : lt->acquire_write_lock(txn, left, right, conflicts, false)
             // try to get point write locks for txnid_b, should fail
             r = ACQUIRE_LOCK(txnid_b, one, one, nullptr);
             invariant(r == DB_LOCK_NOTGRANTED);
@@ -161,13 +162,13 @@ void locktree_unit_test::test_conflicts(void) {
 #undef ACQUIRE_LOCK
         }
 
-        lt.remove_overlapping_locks_for_txnid(txnid_a, one, one);
-        lt.remove_overlapping_locks_for_txnid(txnid_a, three, four);
-        invariant(no_row_locks(&lt));
+        lt->remove_overlapping_locks_for_txnid(txnid_a, one, one);
+        lt->remove_overlapping_locks_for_txnid(txnid_a, three, four);
+        invariant(no_row_locks(lt));
     }
 
-    lt.release_reference();
-    lt.destroy();
+    mgr.release_lt(lt);
+    mgr.destroy();
 }
 
 } /* namespace toku */

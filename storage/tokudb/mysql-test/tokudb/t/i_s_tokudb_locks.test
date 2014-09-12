@@ -29,6 +29,7 @@ insert into t values (6);
 # should find 3 locks for 2 transactions
 connection default;
 replace_column 1 TRX_ID 2 MYSQL_ID;
+replace_result $datadir ./;
 eval select * from information_schema.tokudb_locks order by locks_trx_id,locks_key_left;
 
 connection conn_a;

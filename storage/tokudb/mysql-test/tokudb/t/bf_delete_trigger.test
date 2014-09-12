@@ -1,0 +1,70 @@
+# verify that delete triggers can not insert, delete, or update rows in the target table
+
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+create table t (id bigint not null primary key, x bigint not null);
+insert into t values (1,0),(2,0),(3,0),(4,0);
+
+# verify that a before delete trigger can not insert into the target table
+create trigger t_delete before delete on t for each row insert into t values (1000000,0);
+begin;
+error 1442;
+delete from t where x=0;
+rollback;
+drop trigger t_delete;
+
+# verify that an after delete trigger can not insert into the target table
+create trigger t_delete after delete on t for each row insert into t values (1000000,0);
+begin;
+error 1442;
+delete from t where x=0;
+rollback;
+drop trigger t_delete;
+
+# verify that a before delete trigger can not delete from the target table
+create trigger t_delete before delete on t for each row delete from t where id=1000000;
+begin;
+error 1442;
+delete from t where x=0;
+rollback;
+drop trigger t_delete;
+
+# verify that an after delete trigger can not delete from the target table
+create trigger t_delete after delete on t for each row delete from t where id=1000000;
+begin;
+error 1442;
+delete from t where x=0;
+rollback;
+drop trigger t_delete;
+
+# verify that a before delete trigger can not update the target table
+create trigger t_delete before delete on t for each row update t set x=x+1 where id=1000000;
+begin;
+error 1442;
+delete from t where x=0;
+rollback;
+drop trigger t_delete;
+
+# verify that an after delete trigger can not update the target table
+create trigger t_delete after delete on t for each row update t set x=x+1 where id=10000000;
+begin;
+error 1442;
+delete from t where x=0;
+rollback;
+drop trigger t_delete;
+
+# can execute select on the target table in a delete trigger.  it better use a different handler.
+create table count (count bigint not null);
+create trigger t_delete before delete on t for each row insert into count select count(*) from t;
+begin;
+delete from t where x=0;
+select * from count;
+rollback;
+drop trigger t_delete;
+drop table count;
+
+drop table t;

@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 namespace toku {
 
 void manager_unit_test::test_lt_map(void) {
-    locktree_manager mgr;
+    locktree::manager mgr;
     mgr.create(nullptr, nullptr, nullptr, nullptr);
 
     locktree aa;

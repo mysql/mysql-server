@@ -30,10 +30,12 @@ source include/wait_condition.inc;
 real_sleep 1; # delay a little to shorten the update -> write row -> lock wait race
 
 replace_column 1 TRX_ID 2 MYSQL_ID; 
+replace_result $datadir ./;
 select * from information_schema.tokudb_locks;
 
 # should find the presence of a lock_wait on the 2nd transaction
 replace_column 1 REQUEST_TRX_ID 2 BLOCK_TRX_ID 6 LOCK_WAITS_START_TIME;
+replace_result $datadir ./;
 select * from information_schema.tokudb_lock_waits;
 
 # should find the presence of two transactions

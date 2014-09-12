@@ -98,7 +98,7 @@ PATENT RIGHTS GRANT:
 #include "log-internal.h"
 #include "txn_manager.h"
 #include "rollback_log_node_cache.h"
-
+#include "huge_page_detection.h"
 #include <util/status.h>
 
 static const int log_format_version=TOKU_LOG_VERSION;
@@ -164,6 +164,11 @@ static bool is_a_logfile (const char *name, long long *number_result) {
 
 // TODO: can't fail
 int toku_logger_create (TOKULOGGER *resultp) {
+    if (complain_and_return_true_if_huge_pages_are_enabled()) {
+        *resultp = NULL;
+        errno = TOKUDB_HUGE_PAGES_ENABLED;
+        return TOKUDB_HUGE_PAGES_ENABLED;
+    }
     TOKULOGGER CALLOC(result);
     if (result==0) return get_error_errno();
     result->is_open=false;
@@ -182,7 +187,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->last_completed_checkpoint_lsn = ZERO_LSN;
     // next_log_file_number is uninitialized
     // n_in_file is uninitialized
-    result->write_block_size = FT_DEFAULT_NODE_SIZE; // default logging size is the same as the default ft block size
+    result->write_block_size = FT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
     toku_logfilemgr_create(&result->logfilemgr);
     *resultp=result;
     ml_init(&result->input_lock);
@@ -229,7 +234,7 @@ toku_logger_open_with_last_xid(const char *directory, TOKULOGGER logger, TXNID l
     if (logger->is_open) return EINVAL;
 
     int r;
-    TXNID last_xid_if_clean_shutdown = TXNID_NONE;
+    TXNID last_xid_if_clean_shutdown;
     r = toku_logfilemgr_init(logger->logfilemgr, directory, &last_xid_if_clean_shutdown);
     if ( r!=0 )
         return r;
@@ -280,7 +285,7 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create)
     assert(logger->is_open);
     assert(!logger->rollback_cachefile);
 
-    FT_HANDLE t = NULL;   // Note, there is no DB associated with this FT.
+    FT_HANDLE t = NULL;   // Note, there is no DB associated with this BRT.
     toku_ft_handle_create(&t);
     int r = toku_ft_handle_open(t, toku_product_name_strings.rollback_cachefile, create, create, cachetable, NULL_TXN);
     if (r == 0) {
@@ -304,32 +309,40 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create)
 //            so it will always be clean (!h->dirty) when about to be closed.
 //            Rollback log can only be closed when there are no open transactions,
 //            so it will always be empty (no data blocks) when about to be closed.
-void toku_logger_close_rollback(TOKULOGGER logger) {
+void toku_logger_close_rollback_check_empty(TOKULOGGER logger, bool clean_shutdown) {
     CACHEFILE cf = logger->rollback_cachefile;  // stored in logger at rollback cachefile open
     if (cf) {
         FT_HANDLE ft_to_close;
-        {   //Find "ft_to_close"
+        {   //Find "brt"
             logger->rollback_cache.destroy();
             FT CAST_FROM_VOIDP(ft, toku_cachefile_get_userdata(cf));
-            //Verify it is safe to close it.
-            assert(!ft->h->dirty);  //Must not be dirty.
-            toku_free_unused_blocknums(ft->blocktable, ft->h->root_blocknum);
-            //Must have no data blocks (rollback logs or otherwise).
-            toku_block_verify_no_data_blocks_except_root(ft->blocktable, ft->h->root_blocknum);
-            assert(!ft->h->dirty);
+            if (clean_shutdown) {
+                //Verify it is safe to close it.
+                assert(!ft->h->dirty);  //Must not be dirty.
+                toku_free_unused_blocknums(ft->blocktable, ft->h->root_blocknum);
+                //Must have no data blocks (rollback logs or otherwise).
+                toku_block_verify_no_data_blocks_except_root(ft->blocktable, ft->h->root_blocknum);
+                assert(!ft->h->dirty);
+            } else {
+                ft->h->dirty = 0;
+            }
             ft_to_close = toku_ft_get_only_existing_ft_handle(ft);
-            {
+            if (clean_shutdown) {
                 bool is_empty;
                 is_empty = toku_ft_is_empty_fast(ft_to_close);
                 assert(is_empty);
+                assert(!ft->h->dirty); // it should not have been dirtied by the toku_ft_is_empty test.
             }
-            assert(!ft->h->dirty); // it should not have been dirtied by the toku_ft_is_empty test.
         }
 
         toku_ft_handle_close(ft_to_close);
         //Set as dealt with already.
         logger->rollback_cachefile = NULL;
     }
+}
+
+void toku_logger_close_rollback(TOKULOGGER logger) {
+    toku_logger_close_rollback_check_empty(logger, true);
 }
 
 // No locks held on entry
@@ -621,7 +634,7 @@ int toku_logger_find_next_unused_log_file(const char *directory, long long *resu
     if (d==0) return get_error_errno();
     while ((de=readdir(d))) {
         if (de==0) return get_error_errno();
-        long long thisl = -1;
+        long long thisl;
         if ( is_a_logfile(de->d_name, &thisl) ) {
             if ((long long)thisl > maxf) maxf = thisl;
         }
@@ -717,7 +730,7 @@ static int open_logfile (TOKULOGGER logger)
     snprintf(fname, fnamelen, "%s/log%012lld.tokulog%d", logger->directory, logger->next_log_file_number, TOKU_LOG_VERSION);
     long long index = logger->next_log_file_number;
     if (logger->write_log_files) {
-        logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);     
+        logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRUSR+S_IWUSR);     
         if (logger->fd==-1) {
             return get_error_errno();
         }
@@ -933,7 +946,7 @@ int toku_fread_uint8_t (FILE *f, uint8_t *v, struct x1764 *mm, uint32_t *len) {
     int vi=fgetc(f);
     if (vi==EOF) return -1;
     uint8_t vc=(uint8_t)vi;
-    toku_x1764_add(mm, &vc, 1);
+    x1764_add(mm, &vc, 1);
     (*len)++;
     *v = vc;
     return 0;
@@ -1281,7 +1294,7 @@ static int peek_at_log (TOKULOGGER logger, char* filename, LSN *first_lsn) {
         if (logger->write_log_files) printf("couldn't open: %s\n", strerror(er));
         return er;
     }
-    enum { SKIP = 12+1+4 }; // read the 12 byte header, the first message, and the first len
+    enum { SKIP = 12+1+4 }; // read the 12 byte header, the first cmd, and the first len
     unsigned char header[SKIP+8];
     int r = read(fd, header, SKIP+8);
     if (r!=SKIP+8) return 0; // cannot determine that it's archivable, so we'll assume no.  If a later-log is archivable is then this one will be too.

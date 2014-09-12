@@ -205,12 +205,6 @@ cleanup:
     return r;
 }
 
-static uint32_t toku_txn_id(DB_TXN * txn) {
-    HANDLE_PANICKED_ENV(txn->mgrp);
-    abort();
-    return (uint32_t) -1;
-}
-
 static int toku_txn_abort(DB_TXN * txn,
                           TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
     HANDLE_PANICKED_ENV(txn->mgrp);
@@ -387,6 +381,44 @@ static uint64_t locked_txn_get_client_id(DB_TXN *txn) {
     return toku_txn_get_client_id(db_txn_struct_i(txn)->tokutxn);
 }
 
+static int toku_txn_discard(DB_TXN *txn, uint32_t flags) {
+    // check parameters
+    if (flags != 0)
+        return EINVAL;
+    TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
+    if (toku_txn_get_state(ttxn) != TOKUTXN_PREPARING)
+        return EINVAL;
+
+    bool low_priority;
+    if (toku_is_big_tokutxn(ttxn)) {
+        low_priority = true;
+        toku_low_priority_multi_operation_client_lock();
+    } else {
+        low_priority = false;
+        toku_multi_operation_client_lock();
+    }
+
+    // discard
+    toku_txn_discard_txn(ttxn);
+
+    // complete
+    toku_txn_complete_txn(ttxn);
+
+    // release locks
+    toku_txn_release_locks(txn);
+
+    if (low_priority) {
+        toku_low_priority_multi_operation_client_unlock();
+    } else {
+        toku_multi_operation_client_unlock();
+    }
+
+    // destroy
+    toku_txn_destroy(txn);
+
+    return 0;
+}
+
 static inline void txn_func_init(DB_TXN *txn) {
 #define STXN(name) txn->name = locked_txn_ ## name
     STXN(abort);
@@ -400,8 +432,8 @@ static inline void txn_func_init(DB_TXN *txn) {
 #define SUTXN(name) txn->name = toku_txn_ ## name
     SUTXN(prepare);
     SUTXN(xa_prepare);
+    SUTXN(discard);
 #undef SUTXN
-    txn->id = toku_txn_id;
     txn->id64 = toku_txn_id64;
 }
 

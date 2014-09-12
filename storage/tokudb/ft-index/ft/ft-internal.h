@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <portability/toku_config.h>
+#include "toku_config.h"
 #include <toku_race_tools.h>
 
 // Symbol TOKUDB_REVISION is not defined by fractal-tree makefiles, so
@@ -118,14 +118,10 @@ PATENT RIGHTS GRANT:
 #include "bndata.h"
 
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
-enum { FT_MSG_OVERHEAD = (2 + sizeof(MSN)) };   // the type plus freshness plus MSN
+enum { FT_CMD_OVERHEAD = (2 + sizeof(MSN)) };   // the type plus freshness plus MSN
 enum { FT_DEFAULT_FANOUT = 16 };
 enum { FT_DEFAULT_NODE_SIZE = 4 * 1024 * 1024 };
 enum { FT_DEFAULT_BASEMENT_NODE_SIZE = 128 * 1024 };
-
-// We optimize for a sequential insert pattern if 100 consecutive injections
-// happen into the rightmost leaf node due to promotion.
-enum { FT_SEQINSERT_SCORE_THRESHOLD = 100 };
 
 //
 // Field in ftnode_fetch_extra that tells the 
@@ -458,7 +454,7 @@ enum {
 
 uint32_t compute_child_fullhash (CACHEFILE cf, FTNODE node, int childnum);
 
-// The ft_header is not managed by the cachetable.  Instead, it hangs off the cachefile as userdata.
+// The brt_header is not managed by the cachetable.  Instead, it hangs off the cachefile as userdata.
 
 enum ft_type {FT_CURRENT=1, FT_CHECKPOINT_INPROGRESS};
 
@@ -474,7 +470,7 @@ struct ft_header {
     // LSN of creation of "checkpoint-begin" record in log.
     LSN checkpoint_lsn;
 
-    // see ft_layout_version.h.  maybe don't need this if we assume
+    // see brt_layout_version.h.  maybe don't need this if we assume
     // it's always the current version after deserializing
     const int layout_version;
     // different (<) from layout_version if upgraded from a previous
@@ -508,7 +504,7 @@ struct ft_header {
     enum toku_compression_method compression_method;
     unsigned int fanout;
 
-    // Current Minimum MSN to be used when upgrading pre-MSN FT's.
+    // Current Minimum MSN to be used when upgrading pre-MSN BRT's.
     // This is decremented from our currnt MIN_MSN so as not to clash
     // with any existing 'normal' MSN's.
     MSN highest_unused_msn_for_upgrade;
@@ -530,7 +526,7 @@ struct ft_header {
     STAT64INFO_S on_disk_stats;
 };
 
-// ft_header is always the current version.
+// brt_header is always the current version.
 struct ft {
     FT_HEADER h;
     FT_HEADER checkpoint_header;
@@ -576,22 +572,6 @@ struct ft {
 
     // is this ft a blackhole? if so, all messages are dropped.
     bool blackhole;
-
-    // The blocknum of the rightmost leaf node in the tree. Stays constant through splits
-    // and merges using pair-swapping (like the root node, see toku_ftnode_swap_pair_values())
-    // 
-    // This field only transitions from RESERVED_BLOCKNUM_NULL to non-null, never back.
-    // We initialize it when promotion inserts into a non-root leaf node on the right extreme.
-    // We use the blocktable lock to protect the initialize transition, though it's not really
-    // necessary since all threads should be setting it to the same value. We maintain that invariant
-    // on first initialization, see ft_set_or_verify_rightmost_blocknum()
-    BLOCKNUM rightmost_blocknum;
-
-    // sequential access pattern heuristic
-    // - when promotion pushes a message directly into the rightmost leaf, the score goes up.
-    // - if the score is high enough, we optimistically attempt to insert directly into the rightmost leaf
-    // - if our attempt fails because the key was not in range of the rightmost leaf, we reset the score back to 0
-    uint32_t seqinsert_score;
 };
 
 // Allocate a DB struct off the stack and only set its comparison
@@ -728,7 +708,7 @@ void toku_assert_entire_node_in_memory(FTNODE node);
 // append a child node to a parent node
 void toku_ft_nonleaf_append_child(FTNODE node, FTNODE child, const DBT *pivotkey);
 
-// append a message to a nonleaf node child buffer
+// append a cmd to a nonleaf node child buffer
 void toku_ft_append_to_child_buffer(ft_compare_func compare_fun, DESCRIPTOR desc, FTNODE node, int childnum, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val);
 
 STAT64INFO_S toku_get_and_clear_basement_stats(FTNODE leafnode);
@@ -788,7 +768,7 @@ static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(FT h) {
 
 static const FTNODE null_ftnode=0;
 
-/* an ft cursor is represented as a kv pair in a tree */
+/* a brt cursor is represented as a kv pair in a tree */
 struct ft_cursor {
     struct toku_list cursors_link;
     FT_HANDLE ft_handle;
@@ -989,7 +969,7 @@ __attribute__((nonnull))
 void toku_ft_bn_update_max_msn(FTNODE node, MSN max_msn_applied, int child_to_read);
 
 __attribute__((const,nonnull))
-size_t toku_ft_msg_memsize_in_fifo(FT_MSG msg);
+size_t toku_ft_msg_memsize_in_fifo(FT_MSG cmd);
 
 int
 toku_ft_search_which_child(
@@ -1038,25 +1018,26 @@ int toku_ftnode_hot_next_child(FTNODE node,
 /* Stuff for testing */
 // toku_testsetup_initialize() must be called before any other test_setup_xxx() functions are called.
 void toku_testsetup_initialize(void);
-int toku_testsetup_leaf(FT_HANDLE ft_h, BLOCKNUM *blocknum, int n_children, char **keys, int *keylens);
-int toku_testsetup_nonleaf (FT_HANDLE ft_h, int height, BLOCKNUM *diskoff, int n_children, BLOCKNUM *children, char **keys, int *keylens);
-int toku_testsetup_root(FT_HANDLE ft_h, BLOCKNUM);
-int toku_testsetup_get_sersize(FT_HANDLE ft_h, BLOCKNUM); // Return the size on disk.
-int toku_testsetup_insert_to_leaf (FT_HANDLE ft_h, BLOCKNUM, const char *key, int keylen, const char *val, int vallen);
-int toku_testsetup_insert_to_nonleaf (FT_HANDLE ft_h, BLOCKNUM, enum ft_msg_type, const char *key, int keylen, const char *val, int vallen);
+int toku_testsetup_leaf(FT_HANDLE brt, BLOCKNUM *blocknum, int n_children, char **keys, int *keylens);
+int toku_testsetup_nonleaf (FT_HANDLE brt, int height, BLOCKNUM *diskoff, int n_children, BLOCKNUM *children, char **keys, int *keylens);
+int toku_testsetup_root(FT_HANDLE brt, BLOCKNUM);
+int toku_testsetup_get_sersize(FT_HANDLE brt, BLOCKNUM); // Return the size on disk.
+int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM, const char *key, int keylen, const char *val, int vallen);
+int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM, enum ft_msg_type, const char *key, int keylen, const char *val, int vallen);
 void toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t);
 
-void toku_ft_root_put_msg(FT h, FT_MSG msg, txn_gc_info *gc_info);
+// toku_ft_root_put_cmd() accepts non-constant cmd because this is where we set the msn
+void toku_ft_root_put_cmd(FT h, FT_MSG_S * cmd, txn_gc_info *gc_info);
 
 void
 toku_get_node_for_verify(
     BLOCKNUM blocknum,
-    FT_HANDLE ft_h,
+    FT_HANDLE brt,
     FTNODE* nodep
     );
 
 int
-toku_verify_ftnode (FT_HANDLE ft_h,
+toku_verify_ftnode (FT_HANDLE brt,
                     MSN rootmsn, MSN parentmsn_with_messages, bool messages_exist_above,
                      FTNODE node, int height,
                      const DBT *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
@@ -1204,11 +1185,6 @@ typedef enum {
     FT_PRO_NUM_STOP_LOCK_CHILD,
     FT_PRO_NUM_STOP_CHILD_INMEM,
     FT_PRO_NUM_DIDNT_WANT_PROMOTE,
-    FT_BASEMENT_DESERIALIZE_FIXED_KEYSIZE, // how many basement nodes were deserialized with a fixed keysize
-    FT_BASEMENT_DESERIALIZE_VARIABLE_KEYSIZE, // how many basement nodes were deserialized with a variable keysize
-    FT_PRO_RIGHTMOST_LEAF_SHORTCUT_SUCCESS,
-    FT_PRO_RIGHTMOST_LEAF_SHORTCUT_FAIL_POS,
-    FT_PRO_RIGHTMOST_LEAF_SHORTCUT_FAIL_REACTIVE,
     FT_STATUS_NUM_ROWS
 } ft_status_entry;
 
@@ -1220,9 +1196,9 @@ typedef struct {
 void toku_ft_get_status(FT_STATUS);
 
 void
-toku_ft_bn_apply_msg_once(
+toku_ft_bn_apply_cmd_once (
     BASEMENTNODE bn,
-    const FT_MSG msg,
+    const FT_MSG cmd,
     uint32_t idx,
     LEAFENTRY le,
     txn_gc_info *gc_info,
@@ -1231,38 +1207,38 @@ toku_ft_bn_apply_msg_once(
     );
 
 void
-toku_ft_bn_apply_msg(
+toku_ft_bn_apply_cmd (
     ft_compare_func compare_fun,
     ft_update_func update_fun,
     DESCRIPTOR desc,
     BASEMENTNODE bn,
-    FT_MSG msg,
+    FT_MSG cmd,
     txn_gc_info *gc_info,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
 
 void
-toku_ft_leaf_apply_msg(
+toku_ft_leaf_apply_cmd (
     ft_compare_func compare_fun,
     ft_update_func update_fun,
     DESCRIPTOR desc,
     FTNODE node,
     int target_childnum,
-    FT_MSG msg,
+    FT_MSG cmd,
     txn_gc_info *gc_info,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
 
 void
-toku_ft_node_put_msg(
+toku_ft_node_put_cmd (
     ft_compare_func compare_fun,
     ft_update_func update_fun,
     DESCRIPTOR desc,
     FTNODE node,
     int target_childnum,
-    FT_MSG msg,
+    FT_MSG cmd,
     bool is_fresh,
     txn_gc_info *gc_info,
     size_t flow_deltas[],

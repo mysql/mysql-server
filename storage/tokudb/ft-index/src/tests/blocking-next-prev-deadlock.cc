@@ -124,6 +124,7 @@ struct my_callback_context {
     DBT val;
 };
 
+#if TOKUDB
 static int blocking_next_callback(DBT const *a UU(), DBT const *b UU(), void *e UU()) {
     DBT const *found_key = a;
     DBT const *found_val = b;
@@ -132,6 +133,7 @@ static int blocking_next_callback(DBT const *a UU(), DBT const *b UU(), void *e 
     copy_dbt(&context->val, found_val);
     return 0;
 }
+#endif
 
 static void blocking_next(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long sleeptime) {
     int r;
@@ -148,7 +150,11 @@ static void blocking_next(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
 
     uint64_t i;
     for (i = 0; ; i++) {
+#if TOKUDB
         r = cursor->c_getf_next(cursor, DB_RMW, blocking_next_callback, &context);
+#else
+        r = cursor->c_get(cursor, &context.key, &context.val, DB_NEXT + DB_RMW);
+#endif
         if (r != 0)
             break;
         if (verbose)
@@ -190,7 +196,11 @@ static void blocking_prev(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
 
     uint64_t i;
     for (i = 0; ; i++) {
+#if TOKUDB
         r = cursor->c_getf_prev(cursor, DB_RMW, blocking_next_callback, &context);
+#else
+        r = cursor->c_get(cursor, &context.key, &context.val, DB_PREV + DB_RMW);
+#endif
         if (r != 0)
             break;
         if (verbose)
@@ -295,7 +305,11 @@ int test_main(int argc, char * const argv[]) {
         r = db_env->set_cachesize(db_env, cachesize / gig, cachesize % gig, 1); assert(r == 0);
     }
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
+#if TOKUDB
     r = db_env->set_lock_timeout(db_env, 30 * 1000, nullptr); assert(r == 0);
+#else
+    r = db_env->set_lk_detect(db_env, DB_LOCK_YOUNGEST); assert(r == 0);
+#endif
 
     // create the db
     DB *db = NULL;
