@@ -471,7 +471,7 @@ typedef struct index_read_info {
 
 static int ai_poll_fun(void *extra, float progress) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)extra;
-    if (context->thd->killed) {
+    if (thd_killed(context->thd)) {
         sprintf(context->write_status_msg, "The process has been killed, aborting add index.");
         return ER_ABORTING_CONNECTION;
     }
@@ -486,7 +486,7 @@ static int ai_poll_fun(void *extra, float progress) {
 
 static int loader_poll_fun(void *extra, float progress) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)extra;
-    if (context->thd->killed) {
+    if (thd_killed(context->thd)) {
         sprintf(context->write_status_msg, "The process has been killed, aborting bulk load.");
         return ER_ABORTING_CONNECTION;
     }
@@ -3330,7 +3330,7 @@ int ha_tokudb::end_bulk_insert(bool abort) {
     ai_metadata_update_required = false;
     loader_error = 0;
     if (loader) {
-        if (!abort_loader && !thd->killed) {
+        if (!abort_loader && !thd_killed(thd)) {
             DBUG_EXECUTE_IF("tokudb_end_bulk_insert_sleep", {
                 const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
                 thd_proc_info(thd, "DBUG sleep");
@@ -3340,7 +3340,7 @@ int ha_tokudb::end_bulk_insert(bool abort) {
             error = loader->close(loader);
             loader = NULL;
             if (error) { 
-                if (thd->killed) {
+                if (thd_killed(thd)) {
                     my_error(ER_QUERY_INTERRUPTED, MYF(0));
                 }
                 goto cleanup; 
@@ -3475,7 +3475,7 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
                 share->rows, 
                 key_info->name);
             thd_proc_info(thd, status_msg);
-            if (thd->killed) {
+            if (thd_killed(thd)) {
                 my_error(ER_QUERY_INTERRUPTED, MYF(0));
                 error = ER_QUERY_INTERRUPTED;
                 goto cleanup;
@@ -7732,7 +7732,7 @@ int ha_tokudb::tokudb_add_index(
                 thd_progress_report(thd, num_processed, (long long unsigned) share->rows);
 #endif
 
-                if (thd->killed) {
+                if (thd_killed(thd)) {
                     error = ER_ABORTING_CONNECTION;
                     goto cleanup;
                 }
