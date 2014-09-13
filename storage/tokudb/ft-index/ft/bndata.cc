@@ -341,7 +341,7 @@ void bn_data::move_leafentries_to(
 
     uint32_t i = 0;
     for (i = lbi; i < ube; i++) {
-        KLPAIR curr_kl;
+        KLPAIR curr_kl= 0;
         m_buffer.fetch(i, &curr_kl);
 
         size_t kl_size = klpair_size(curr_kl);

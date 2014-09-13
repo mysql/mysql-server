@@ -151,8 +151,8 @@ static bool is_a_logfile_any_version (const char *name, uint64_t *number_result,
 // added for #2424, improved for #2521
 static bool is_a_logfile (const char *name, long long *number_result) {
     bool rval;
-    uint64_t result;
-    uint32_t version;
+    uint64_t result= 0;
+    uint32_t version= 0;
     rval = is_a_logfile_any_version(name, &result, &version);
     if (rval && version != TOKU_LOG_VERSION)
         rval = false;
@@ -234,7 +234,7 @@ toku_logger_open_with_last_xid(const char *directory, TOKULOGGER logger, TXNID l
     if (logger->is_open) return EINVAL;
 
     int r;
-    TXNID last_xid_if_clean_shutdown;
+    TXNID last_xid_if_clean_shutdown= TXNID_NONE;
     r = toku_logfilemgr_init(logger->logfilemgr, directory, &last_xid_if_clean_shutdown);
     if ( r!=0 )
         return r;
@@ -1011,8 +1011,8 @@ int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, uint32_t 
 }
 
 int toku_fread_TXNID_PAIR   (FILE *f, TXNID_PAIR *txnid, struct x1764 *checksum, uint32_t *len) {
-    TXNID parent;
-    TXNID child;
+    TXNID parent= TXNID_NONE;
+    TXNID child= TXNID_NONE;
     int r;
     r = toku_fread_TXNID(f, &parent, checksum, len); if (r != 0) { return r; }
     r = toku_fread_TXNID(f, &child, checksum, len);  if (r != 0) { return r; }
