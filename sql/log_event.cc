@@ -4115,9 +4115,10 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   {
     print_header(file, print_event_info, FALSE);
     my_b_printf(file, "\t%s\tthread_id=%lu\texec_time=%lu\terror_code=%d\t"
-                "last_committed=%llu\tsequence_number=%llu\n",
+                "last_committed=%lld\tsequence_number=%lld\n",
                 get_type_str(), (ulong) thread_id, (ulong) exec_time,
-                error_code, last_committed, sequence_number);
+                error_code, (long long int)last_committed,
+                (long long int)sequence_number);
   }
 
   bool suppress_use_flag= is_binlog_rewrite_db(db);
@@ -12634,8 +12635,9 @@ Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
   if (!print_event_info->short_form)
   {
     print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\tGTID [commit=%s]\tlast_committed=%llu\tsequence_number=%llu\n",
-                commit_flag ? "yes" : "no", last_committed, sequence_number);
+    my_b_printf(head, "\tGTID [commit=%s]\tlast_committed=%lld\tsequence_number=%lld\n",
+                commit_flag ? "yes" : "no", (long long int)last_committed,
+                (long long int)sequence_number);
   }
   to_string(buffer);
   my_b_printf(head, "%s%s\n", buffer, print_event_info->delimiter);
