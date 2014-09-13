@@ -878,8 +878,8 @@ public:
     Last committed as commit parent's sequence number,
     and the transaction own sequence number.
    */
-  int64_t last_committed;
-  int64_t sequence_number;
+  long long int last_committed;
+  long long int sequence_number;
   /**
     Ctor of Gtid_event
 
