@@ -642,25 +642,37 @@ bool start_slave_cmd(THD *thd)
     DBUG_RETURN(res= true);
   }
 
-  /*
-   If slave_until options are provided when multiple channels exist
-   without explicitly providing FOR CHANNEL clause, error out.
-  */
-  if (!lex->mi.for_channel && lex->mi.slave_until
-      && msr_map.get_num_instances() >1)
-  {
-    my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
-    goto err;
-  }
 
-  /*
-     If FOR CHANNEL is not provided (without slave until options) start
-     slave threads for all channels.
-  */
   if (!lex->mi.for_channel)
+  {
+    /*
+      If slave_until options are provided when multiple channels exist
+      without explicitly providing FOR CHANNEL clause, error out.
+    */
+    if (lex->mi.slave_until && msr_map.get_num_instances() > 1)
+    {
+      my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+      goto err;
+    }
+
+    if (sql_slave_skip_counter > 0 && msr_map.get_num_instances() > 1)
+    {
+      my_error(ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER, MYF(0));
+      goto err;
+    }
+
     res= start_slave(thd);
+
+  }
   else
   {
+
+    if (sql_slave_skip_counter > 0 && is_any_slave_channel_running(SLAVE_SQL))
+    {
+      my_error(ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER, MYF(0));
+      goto err;
+    }
+
     mi= msr_map.get_mi(lex->mi.channel);
 
     if (mi)
@@ -10194,6 +10206,54 @@ bool inline is_slave_configured()
 
 }
 
+/**
+  Checks if any slave threads of any channel is running in Multisource
+  replication.
+  @note: The caller shall possess LOCK_msr_map before calling this function.
+
+  @param[in]        thread_mask       type of slave thread- IO/SQL or any
+
+  @return
+    @retval          true               atleast one channel threads are running.
+    @retval          false              none of the the channels are running.
+*/
+bool is_any_slave_channel_running(int thread_mask)
+{
+  DBUG_ENTER("is_any_slave_channel_running");
+  Master_info *mi= 0;
+  bool is_running;
+
+  mysql_mutex_assert_owner(&LOCK_msr_map);
+
+  for (mi_map::iterator it= msr_map.begin(); it != msr_map.end(); it++)
+  {
+    mi= it->second;
+
+    if (mi)
+    {
+      if ((thread_mask & SLAVE_IO) != 0)
+      {
+        mysql_mutex_lock(&mi->run_lock);
+        is_running= mi->slave_running;
+        mysql_mutex_unlock(&mi->run_lock);
+        if (is_running)
+          DBUG_RETURN(true);
+      }
+
+      if ((thread_mask & SLAVE_SQL) != 0)
+      {
+        mysql_mutex_lock(&mi->rli->run_lock);
+        is_running= mi->rli->slave_running;
+        mysql_mutex_unlock(&mi->rli->run_lock);
+        if (is_running)
+          DBUG_RETURN(true);
+      }
+    }
+
+  }
+
+  DBUG_RETURN(false);
+}
 
 
 /**

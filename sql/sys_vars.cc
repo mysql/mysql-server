@@ -4457,33 +4457,24 @@ static Sys_var_uint Sys_slave_net_timeout(
 static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
-  Master_info *mi;
 
   /* slave_skip_counter becomes per channel in multisource replication*/
   mysql_mutex_lock(&LOCK_msr_map);
 
-  for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+  if (is_any_slave_channel_running(SLAVE_SQL))
   {
-    mi= it->second;
-    if (mi)
-    {
-      mysql_mutex_lock(&mi->rli->run_lock);
-      if (mi->rli->slave_running)
-      {
-        my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
-                   ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
-        result= true;
-      }
-      if (gtid_mode == 3)
-      {
-        my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
-                   ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
-                   MYF(0));
-        result= true;
-      }
-      mysql_mutex_unlock(&mi->rli->run_lock);
-    }
+    my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
+               ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
+    result= true;
   }
+  if (gtid_mode == 3)
+  {
+    my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
+               ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
+               MYF(0));
+    result= true;
+  }
+
   mysql_mutex_unlock(&LOCK_msr_map);
   return result;
 }
