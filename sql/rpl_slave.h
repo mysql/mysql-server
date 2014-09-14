@@ -276,6 +276,7 @@ bool change_master_cmd(THD *thd);
 bool reset_slave_cmd(THD *thd);
 bool show_slave_status_cmd(THD *thd);
 bool flush_relay_logs_cmd(THD *thd);
+bool is_any_slave_channel_running(int thread_mask);
 
 bool flush_relay_logs(Master_info *mi);
 int reset_slave(THD *thd, Master_info* mi);
