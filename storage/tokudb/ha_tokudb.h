@@ -799,6 +799,19 @@ private:
 private:
     int do_optimize(THD *thd);
     int map_to_handler_error(int error);
+
+public:
+    void rpl_before_write_rows();
+    void rpl_after_write_rows();
+    void rpl_before_delete_rows();
+    void rpl_after_delete_rows();
+    void rpl_before_update_rows();
+    void rpl_after_update_rows();
+    bool rpl_lookup_rows();
+private:
+    bool in_rpl_write_rows;
+    bool in_rpl_delete_rows;
+    bool in_rpl_update_rows;
 };
 
 #if TOKU_INCLUDE_OPTION_STRUCTS

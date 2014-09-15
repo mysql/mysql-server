@@ -1,0 +1,17 @@
+include/master-slave.inc
+[connection master]
+drop table if exists t;
+create table t (a bigint not null, primary key(a)) engine=tokudb;
+insert into t values (1);
+insert into t values (2),(3);
+insert into t values (4);
+include/diff_tables.inc [master:test.t, slave:test.t]
+delete from t where a=2;
+select unix_timestamp() into @tstart;
+select unix_timestamp() into @tend;
+select @tend-@tstart <= 5;
+@tend-@tstart <= 5
+1
+include/diff_tables.inc [master:test.t, slave:test.t]
+drop table if exists t;
+include/rpl_end.inc
